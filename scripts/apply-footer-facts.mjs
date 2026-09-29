@@ -68,7 +68,12 @@ export const FOOTER_FACTS = {
   worksCoordinates: '32.41° N · 74.46° E',
   certifications: [
     { name: 'Parent: SEDEX-registered, SMETA-audited' },
-    { name: 'Suppliers: OEKO-TEX, GOTS, GRS' },
+    // Owner, 2026-09-29, corrected the same evening: ISO 9001 is the SUPPLIERS' (not the
+    // parent's), so it joins their row. One supplier row would be 53 characters, five over the
+    // CMS field's 48, hence two. SECP is a regulator: "Group" (both companies).
+    { name: 'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS' },
+    { name: 'Suppliers: amfori BSCI audits' },
+    { name: 'Group: registered with the SECP' },
   ],
   socialLinks: [
     { label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel-pvt-ltd' },

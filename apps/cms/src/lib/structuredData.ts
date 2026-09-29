@@ -69,14 +69,19 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
      * The rest are the owner's confirmed numbers of 2026-09-07 and exist here because
      * this is what an AI search answer is assembled from: a description that names the
      * capability, the markets served, and the size of the works.
+     *
+     * ⚠️ CORRECTED 2026-09-29. This said "Every garment ships with a 3D reference"; the owner
+     * confirmed that day a 3D reference is available ON REQUEST, not part of every order. And
+     * `areaServed` listed four regions until the owner said buyers "can be new and from
+     * anywhere". `structuredData.test.ts` pins both.
      */
     description:
       'Private label apparel manufacturer in Sialkot, Pakistan. Team wear, active wear, ' +
       'casual wear, outerwear and sports accessories, made to order from 50 pieces per ' +
-      'style, with capacity for 100,000 pieces a month. Every garment ships with a 3D ' +
-      'reference a customer can turn and inspect before production.',
+      'style, with capacity for 100,000 pieces a month. A 3D reference a customer can turn ' +
+      'and inspect before a sample is cut is available on request.',
     numberOfEmployees: { '@type': 'QuantitativeValue', value: 200 },
-    areaServed: ['Europe', 'North America', 'South America', 'Oceania'],
+    areaServed: 'Worldwide',
     ...(sameAs.length > 0 ? { sameAs } : {}),
   }
 }

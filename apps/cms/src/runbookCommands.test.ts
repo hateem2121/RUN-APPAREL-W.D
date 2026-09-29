@@ -137,6 +137,8 @@ describe('RUNBOOK emergency commands', () => {
           'nothing while exiting 0.',
       ).toMatch(/\$BASE\/media/)
       expect(guide).toMatch(/\$BASE\/apex/)
+      // The third folder since 2026-09-29: files buyers attached to inquiries.
+      expect(guide).toMatch(/\$BASE\/inquiry-files/)
     })
 
     it('does not tell you to start an emergency command with a tool that is not on PATH', () => {

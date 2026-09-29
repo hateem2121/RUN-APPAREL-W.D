@@ -75,9 +75,10 @@ describe('missingFacts', () => {
     ])
   })
 
-  it('derives what it checks from the approved facts, 10 of them today', () => {
+  it('derives what it checks from the approved facts, 12 of them today', () => {
     const want = expectedFacts()
-    expect(want.text.length + want.hrefs.length).toBe(10)
+    // 10 until 2026-09-29, when the owner added ISO 9001, amfori BSCI and SECP (two new rows).
+    expect(want.text.length + want.hrefs.length).toBe(12)
   })
 
   it('treats 403 and 429 as inconclusive, a real error as an answer', () => {

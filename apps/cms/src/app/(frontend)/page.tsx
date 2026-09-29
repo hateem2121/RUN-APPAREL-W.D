@@ -1,14 +1,19 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { AboutSection } from '../../components/site/AboutSection'
 import { FactoryPhotos } from '../../components/site/FactoryPhotos'
+import { FactsBento } from '../../components/site/FactsBento'
+import { FamilyCard } from '../../components/site/FamilyCard'
+import { HomeHero } from '../../components/site/HomeHero'
 import { JsonLd } from '../../components/site/JsonLd'
+import { LiveGarment } from '../../components/site/LiveGarment'
+import { OrderTimeline } from '../../components/site/OrderTimeline'
 import { ProductPoster } from '../../components/site/ProductPoster'
 import { ViewerCue } from '../../components/site/ViewerCue'
-import { CERTIFICATION, FACTS, SHIPS_TO } from '../../lib/companyFacts'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
-import { FAMILIES } from '../../lib/families'
+import { FAMILIES, familyPictures } from '../../lib/families'
 import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
 import { buildMetadata, GARMENT_PAGES } from '../../lib/seo'
 import { websiteJsonLd } from '../../lib/structuredData'
@@ -36,6 +41,10 @@ export const metadata: Metadata = {
  * ⚠️ THE PAGE ARGUED FOR 3D AND SHOWED NONE OF IT. Section №02 was four lines of prose
  * and a link — a manufacturer's site claiming a differentiator with nothing to look at,
  * which is the one section where a picture is the argument rather than decoration.
+ *
+ * ⚠️ SINCE 2026-09-29 THE STILL IS THE FALLBACK, NOT THE WHOLE STORY (decision D24): the owner
+ * chose "live 3D on scroll", so `LiveGarment` lays the real model over this picture once the
+ * section nears the screen. What follows is why the picture is still what the server sends.
  *
  * ⚠️ A STILL, NOT A LIVE MODEL — owner's decision 2026-09-07. `<model-viewer>` on the
  * home page would put a WebGL renderer and a multi-megabyte GLB on the first screen a
@@ -77,6 +86,16 @@ function ProofGarment({ product }: { product: ProductCard | null }) {
         </figcaption>
         <ViewerCue />
       </a>
+      {/*
+        The live garment sits OVER the picture and OUTSIDE the link, so turning it never
+        navigates; the caption and cue below still open the full viewer (LiveGarment.tsx).
+      */}
+      {product.model ? (
+        <LiveGarment
+          model={product.model}
+          label={`${product.productCode} ${product.productName}`}
+        />
+      ) : null}
     </figure>
   )
 }
@@ -90,55 +109,27 @@ export default async function HomePage() {
    */
   const [settings, products] = await Promise.all([getSiteSettings(), getProductCards()])
   const proof = products.find((product) => product.posterUrl) ?? null
+  const pictures = familyPictures(products)
   return (
     <>
       <JsonLd data={websiteJsonLd(settings)} />
-      <section className="site-hero">
-        <div className="blueprint site-hero__grid" aria-hidden="true" />
-        <div className="site-container">
-          <p className="label">
-            [ PRIVATE LABEL MANUFACTURER · SIALKOT, PK · FAMILY TRADE SINCE 1889 ]
-          </p>
-          <h1 className="display display--hero">
-            Made to order. <span className="serif-accent">Made&nbsp;properly.</span>
-          </h1>
-          <p className="site-lede">
-            RUN APPAREL is a private label manufacturer in Sialkot — team wear, active wear, casual
-            wear, outerwear and sports accessories, made to order for the brands, teams and
-            organizations that never look back.
-          </p>
-          <div className="site-actions">
-            <Link className="btn btn--primary" href="/contact">
-              Start a conversation
-            </Link>
-            <Link className="btn btn--ghost" href="/products">
-              See the 3D references
-            </Link>
-          </div>
-        </div>
-      </section>
+      <HomeHero />
+
+      {/*
+        ⚠️ THE ORDER IS DECISION D23 (owner, 2026-09-29), WHICH AMENDS D6: who we are → what we
+        make → the 3D → how an order works → the numbers → the factory → talk to us. D6's point
+        survives — credibility still comes before capability — and `e2e/composition.spec.ts`
+        (LA-01) pins the №01–№07 order so the next reorder is a decision, not a drift.
+
+        ⚠️ `№` ALONE — NOT `N°` AND NOT `N№` (FA-Q-08, FA-Q-51). The numero sign already means
+        "number"; measured present in `--font-mono` at the same advance as "0" and "N". Two
+        digits, because there are seven sections and `007` implies a scale that does not exist.
+      */}
+      <AboutSection />
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          {/*
-        ⚠️ `№` ALONE — NOT `N°` AND NOT `N№`. The numero sign already means "number", so a
-        letter N in front of it reads as "N-number-01". Both surfaces got this wrong in
-        different ways until 2026-09-07 (audit FA-Q-08, FA-Q-51): the site wrote `N` plus
-        U+00B0 DEGREE SIGN, which means degrees of temperature or angle, and the viewer
-        wrote `N` plus U+2116, doubling the abbreviation.
-
-        Measured before choosing, because the audit's evidence warned that U+2116 has
-        patchy coverage in system monospace stacks and might be substituted from a
-        fallback face: in `--font-mono` at 40px, "0", "N", `№`, `°` and `º` all advance
-        24.09px — the numero sign is present in the face and is not substituted. The
-        control is that "0" and "N" agree, which is what proves the face is monospaced at
-        all; the first version of that probe put quoted family names inside an HTML
-        `style` attribute, terminated it early, and measured a proportional font.
-
-        Two digits, not three, on both surfaces: there are five sections here and three
-        there, and `003` implies a scale that does not exist.
-      */}
-          <p className="section-number">№01 — What we make</p>
+          <p className="section-number">№02 — What we make</p>
           <h2 className="display display--section">Five families, one&nbsp;standard.</h2>
           <p className="site-lede">
             One standard means one factory, one set of hands and one set of tolerances — every
@@ -146,26 +137,17 @@ export default async function HomePage() {
             whether it is a hundred pieces or a hundred thousand.
           </p>
           {/*
-            ⚠️ ITS OWN GRID, NOT THE PRODUCT ONE. Five items in a generic `auto-fill` grid
-            never resolve into a shape — at 768 the fifth card sat alone under a pair, and
-            from 1024 up the last row was two cards and a hole, at every width (FA-E-01).
-            The count here is fixed and mirrors the `category` options on Products, so the
-            grid can treat it as a composition rather than as an unknown list.
+            ⚠️ ITS OWN GRID, NOT THE PRODUCT ONE (FA-E-01): five items in a generic `auto-fill`
+            grid never resolve into a shape. The count mirrors the `category` options on
+            Products, so the grid treats it as a composition rather than an unknown list.
           */}
           <ul className="family-grid">
             {FAMILIES.map((family) => (
-              <li className="panel family-card" key={family.name}>
-                {/*
-                  ⚠️ THE WHOLE CARD IS THE LINK. These five described a family and then went
-                  nowhere — a card that looks like a control and is not one (FA-I-02). They
-                  now open the gallery already filtered to that family, which is the page a
-                  reader of this card wants next and which did not exist until 2026-09-07.
-                */}
-                <Link className="family-card__link" href={`/products?family=${family.slug}`}>
-                  <h3 className="product-card__name">{family.name}</h3>
-                  <p className="product-card__desc">{family.body}</p>
-                </Link>
-              </li>
+              <FamilyCard
+                key={family.slug}
+                family={family}
+                picture={pictures[family.slug] ?? null}
+              />
             ))}
           </ul>
         </div>
@@ -174,13 +156,18 @@ export default async function HomePage() {
       <section className="site-section" data-site-reveal>
         <div className="site-container proof">
           <div className="proof__copy">
-            <p className="section-number">№02 — See it before it exists</p>
+            <p className="section-number">№03 — See it before it exists</p>
             <h2 className="display display--section">
               Every reference, <span className="serif-accent">in&nbsp;3D.</span>
             </h2>
+            {/*
+              ⚠️ "ON REQUEST", AND THAT IS THE OWNER'S CORRECTION OF 2026-09-29. This said "Each
+              garment we develop gets a 3D reference"; the owner confirmed that day a 3D
+              reference is NOT part of every order, and chose this wording.
+            */}
             <p className="site-lede">
-              Each garment we develop gets a 3D reference you can turn, inspect and share — the same
-              model our QR tags open. No sample shipped, no guesswork about how a print sits.
+              We can build a 3D reference of your garment on request — turn it, inspect the print
+              and share it before a sample is cut.
             </p>
             <div className="site-actions">
               <Link className="btn btn--primary" href="/products">
@@ -192,15 +179,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/*
-        ⚠️ AFTER THE 3D PITCH, NOT BEFORE IT. The owner decided on 2026-09-07 that the
-        introduction leads and the 3D section keeps its place (FA-I-18,
-        docs/DECISIONS-BETA-WEBSITE.md D6), so this is inserted below rather than above —
-        adding proof must not quietly reorder a section whose position was just settled.
-      */}
+      <OrderTimeline />
+
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№03 — The works</p>
+          <p className="section-number">№05 — The works</p>
           <h2 className="display display--section">
             Numbers you can <span className="serif-accent">hold us&nbsp;to.</span>
           </h2>
@@ -208,41 +191,23 @@ export default async function HomePage() {
             Confirmed capacity, not marketing. If any of these matters to your program, ask and we
             will put it in writing.
           </p>
-          <dl className="facts-grid">
-            {FACTS.map((fact) => (
-              <div className="fact" key={fact.label}>
-                <dt className="fact__value display display--section">{fact.value}</dt>
-                <dd className="fact__label">{fact.label}</dd>
-              </div>
-            ))}
-          </dl>
-          <div className="facts-notes">
-            <div>
-              <p className="field-label">Where we ship</p>
-              <p className="fact__note">{SHIPS_TO}</p>
-            </div>
-            <div>
-              <p className="field-label">Certification</p>
-              <p className="fact__note">{CERTIFICATION}</p>
-            </div>
-          </div>
+          <FactsBento />
         </div>
       </section>
 
       {/*
-        ⚠️ BELOW THE WORKS AND ABOVE THE CONTACT, BY THE OWNER'S CHOICE (OI-3, 2026-09-25: "a
-        photo strip below"). The introduction and the 3D section keep their places (D6), and
-        the page still ends on the one thing it asks a buyer to do.
+        The full gallery stays (owner, 2026-09-29) — the one place to browse every photo,
+        including the ones the sections above already use.
       */}
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№04 — Inside the factory</p>
+          <p className="section-number">№06 — Inside the factory</p>
           <h2 className="display display--section">
             Where your order <span className="serif-accent">is&nbsp;made.</span>
           </h2>
           <p className="site-lede">
-            One building in Sialkot, from the first stitch to the sealed bag. These are the rooms
-            your order passes through.
+            One building, from the first stitch to the sealed bag. These are the rooms your order
+            passes through.
           </p>
           <FactoryPhotos />
         </div>
@@ -250,14 +215,17 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№05 — Talk to us</p>
+          <p className="section-number">№07 — Talk to us</p>
           <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
           <p className="site-lede">
             Send the styles, quantities and specs you have — a sketch is enough to start. We reply
             within 24 hours.
           </p>
           <div className="site-actions">
-            <a className="btn btn--primary" href={`mailto:${settings.email}`}>
+            <Link className="btn btn--primary" href="/contact#inquiry">
+              Start a conversation
+            </Link>
+            <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
               Email {settings.email}
             </a>
             <a

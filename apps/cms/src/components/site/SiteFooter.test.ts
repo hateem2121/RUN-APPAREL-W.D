@@ -111,6 +111,76 @@ describe('SiteFooter', () => {
     expect(out).not.toMatch(/certified/i)
   })
 
+  /*
+   * The bodies' logos (owner, 2026-09-29, D25; layout ruled the same evening): each entry
+   * keeps its text line, and the marks the entries name sit in ONE row of small marks under
+   * the facts — never under each line, which grew the footer from one screen (900 px) to
+   * 1,173 px at 768 px wide with the production entries. The strings are the production
+   * prints, not bare standard names (see the fixture note above).
+   */
+  it('keeps every text line and draws the named marks once, in one row under the facts', () => {
+    const out = html({
+      ...base,
+      footer: {
+        ...EMPTY_FOOTER,
+        certifications: [
+          'Parent: SEDEX-registered, SMETA-audited',
+          'Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI',
+        ],
+      },
+    })
+    // the qualifier text stays, unchanged, as plain list items
+    expect(out).toContain('<li>Parent: SEDEX-registered, SMETA-audited</li>')
+    expect(out).toContain('<li>Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI</li>')
+    // one row, after the four blocks and inside the facts, holding every mark
+    const row = out.slice(out.indexOf('footer-marks'), out.indexOf('footer-legal'))
+    expect(out.indexOf('footer-marks')).toBeGreaterThan(out.indexOf('footer-block--standards'))
+    expect(out.match(/footer-marks/g)).toHaveLength(1)
+    const imgs = row.match(/<img [^>]*>/g) ?? []
+    expect(imgs).toHaveLength(5)
+    for (const img of imgs) {
+      expect(img).toContain('loading="lazy"')
+      expect(img).toContain('decoding="async"')
+      expect(img).toMatch(/width="\d+"/)
+      expect(img).toMatch(/height="\d+"/)
+      expect(img).toContain('class="footer-logo"')
+    }
+    // BSCI is text only (owner, 2026-09-29): named in the line, never drawn
+    expect(imgs.map((img) => img.match(/alt="([^"]*)"/)?.[1])).toEqual([
+      'Sedex',
+      'SMETA',
+      'OEKO-TEX',
+      'GOTS',
+      'GRS',
+    ])
+    expect(out.match(/<img [^>]*>/g)).toHaveLength(5)
+    // the heading stays "Standards" beside real logos: SMETA is an audit, not a certificate
+    expect(out).toContain('<h3>Standards</h3>')
+    expect(out).not.toMatch(/certified/i)
+    // a picture is never a control: nothing in the row is a link, so the 44px floor never applies
+    expect(row).not.toContain('<a ')
+  })
+
+  // NEGATIVE CONTROL: an entry naming no body draws no picture. The company's own third
+  // line ("fully prepared to pursue any program-specific certifications") must not borrow a mark.
+  it('draws no logo for an entry that names no body', () => {
+    const out = html({
+      ...base,
+      footer: {
+        ...EMPTY_FOOTER,
+        certifications: ['Program-specific standards on request', 'Suppliers: GRSX'],
+      },
+    })
+    expect(out).toContain('>Program-specific standards on request<')
+    expect(out).toContain('>Suppliers: GRSX<')
+    expect(out).not.toContain('<img')
+    expect(out).not.toContain('footer-marks')
+  })
+
+  it('draws no logo at all when there are no entries', () => {
+    expect(html(base)).not.toContain('/standards/')
+  })
+
   it('renders the wordmark twice, both decorative, from the same field as the top bar', () => {
     const out = html({ ...base, temporaryWordmark: 'RUN APPAREL' })
     expect(out.match(/footer-mark__layer[^>]*aria-hidden="true"[^>]*>RUN APPAREL</g)).toHaveLength(

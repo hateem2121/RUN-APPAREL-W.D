@@ -1,12 +1,18 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import { CONTACT_HERO_SOURCES, HERO_SOURCES } from '../../../scripts/build-factory-photos.mjs'
 import {
+  CONTACT_HERO_PHOTO,
+  contactHeroSrc,
   FACTORY_PHOTO_ASPECT,
   FACTORY_PHOTO_WIDTHS,
   FACTORY_PHOTOS,
   type FactoryPhoto,
+  HERO_PHOTO,
+  HERO_SHAPES,
+  heroPhotoSrc,
 } from './lib/factoryPhotos'
 
 /**
@@ -87,11 +93,26 @@ describe('the factory strip (OI-3)', () => {
   })
 
   it('no picture sits in public/factory that the page does not show', () => {
-    const named = new Set(
-      FACTORY_PHOTOS.flatMap((photo) =>
+    const named = new Set([
+      ...FACTORY_PHOTOS.flatMap((photo) =>
         FACTORY_PHOTO_WIDTHS[photo.shape].map((width) => `${photo.slug}-${width}.webp`),
       ),
-    )
+      ...HERO_SHAPES.flatMap((shape) =>
+        HERO_PHOTO.widths[shape].map((width) =>
+          heroPhotoSrc(shape, width).slice('/factory/'.length),
+        ),
+      ),
+      ...HERO_SHAPES.flatMap((shape) =>
+        CONTACT_HERO_PHOTO.widths[shape].map((width) =>
+          contactHeroSrc(shape, width).slice('/factory/'.length),
+        ),
+      ),
+      // The phone crops' AVIF twins, which both pages offer first (2026-09-29).
+      ...HERO_PHOTO.widths.heroTall.flatMap((width) => [
+        heroPhotoSrc('heroTall', width, 'avif').slice('/factory/'.length),
+        contactHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
+      ]),
+    ])
     expect(readdirSync(DIR).filter((file) => !named.has(file))).toEqual([])
   })
 
@@ -127,6 +148,100 @@ describe('the factory strip (OI-3)', () => {
     }
   })
 
+  /*
+   * The home hero (owner, 2026-09-29: "Factory photo"). Two crops of the stitching floor —
+   * 16:9 for wide screens, 4:5 for phones — so a phone never downloads a panorama to show
+   * its middle third.
+   */
+  it('every hero file the page names exists at its declared size', () => {
+    const wrong: string[] = []
+    for (const shape of HERO_SHAPES) {
+      for (const width of HERO_PHOTO.widths[shape]) {
+        const file = heroPhotoSrc(shape, width).slice('/factory/'.length)
+        let size: { width: number; height: number }
+        try {
+          size = webpSize(readFileSync(join(DIR, file)))
+        } catch (error) {
+          wrong.push(`${file}: ${error instanceof Error ? error.message : String(error)}`)
+          continue
+        }
+        const height = Math.round(width / HERO_PHOTO.aspect[shape])
+        if (size.width !== width || size.height !== height) {
+          wrong.push(
+            `${file} is ${size.width}x${size.height}, the page reserves ${width}x${height}`,
+          )
+        }
+      }
+    }
+    expect(wrong, 'rebuild with scripts/build-factory-photos.mjs').toEqual([])
+  })
+
+  it('the build script writes the hero at the widths and ratios the page declares', () => {
+    for (const shape of HERO_SHAPES) {
+      const source = HERO_SOURCES.find((entry) => entry.shape === shape)
+      expect(source, shape).toBeDefined()
+      expect(SHAPES[shape].widths).toEqual([...HERO_PHOTO.widths[shape]])
+      expect(SHAPES[shape].aspect).toBe(HERO_PHOTO.aspect[shape])
+    }
+  })
+
+  /*
+   * The hero is the first thing every visitor downloads (Largest Contentful Paint). 180 KB is
+   * the budget for the 1280 and phone files; measured sizes are in the commit that built them.
+   */
+  it('the hero files a first visit downloads stay small', () => {
+    for (const file of ['hero-wide-1280.webp', 'hero-tall-640.webp', 'hero-tall-1080.webp']) {
+      expect(readFileSync(join(DIR, file)).byteLength, file).toBeLessThanOrEqual(180 * 1024)
+    }
+  })
+
+  /*
+   * The contact hero (owner, 2026-09-29: "the image in contact page must also be in the
+   * background of hero section, similar to home page"). The showroom original is 2000x1400, so
+   * the wide crop stops at 1920: a 2560 file would be an upscale, bytes with no detail in them.
+   */
+  it('every contact hero file the page names exists at its declared size', () => {
+    const wrong: string[] = []
+    for (const shape of HERO_SHAPES) {
+      for (const width of CONTACT_HERO_PHOTO.widths[shape]) {
+        const file = contactHeroSrc(shape, width).slice('/factory/'.length)
+        let size: { width: number; height: number }
+        try {
+          size = webpSize(readFileSync(join(DIR, file)))
+        } catch (error) {
+          wrong.push(`${file}: ${error instanceof Error ? error.message : String(error)}`)
+          continue
+        }
+        const height = Math.round(width / HERO_PHOTO.aspect[shape])
+        if (size.width !== width || size.height !== height) {
+          wrong.push(
+            `${file} is ${size.width}x${size.height}, the page reserves ${width}x${height}`,
+          )
+        }
+      }
+    }
+    expect(wrong, 'rebuild with scripts/build-factory-photos.mjs').toEqual([])
+  })
+
+  it('the build script writes the contact hero at the widths the page declares, never upscaled', () => {
+    for (const shape of HERO_SHAPES) {
+      const source = CONTACT_HERO_SOURCES.find((entry) => entry.shape === shape)
+      expect(source, shape).toBeDefined()
+      expect(source?.widths).toEqual([...CONTACT_HERO_PHOTO.widths[shape]])
+      expect(Math.max(...CONTACT_HERO_PHOTO.widths[shape])).toBeLessThanOrEqual(2000)
+    }
+  })
+
+  it('the contact hero files a first visit downloads stay small', () => {
+    for (const file of [
+      'contact-hero-wide-1280.webp',
+      'contact-hero-tall-640.webp',
+      'contact-hero-tall-1080.webp',
+    ]) {
+      expect(readFileSync(join(DIR, file)).byteLength, file).toBeLessThanOrEqual(180 * 1024)
+    }
+  })
+
   it('the crop stays inside the picture, centred on the focus where it can be', () => {
     // A 2:1 panorama cut to 8:5 around its centre loses equal width from both sides.
     expect(cropBox(2000, 1000, 8 / 5, [0.5, 0.5])).toEqual({
@@ -142,5 +257,44 @@ describe('the factory strip (OI-3)', () => {
       width: 1000,
       height: 1250,
     })
+  })
+})
+
+/*
+ * ⚠️ AN AVIF TWIN FOR EVERY PHONE HERO (2026-09-29). The hero photo is the largest paint on a
+ * phone for both the home and the contact page. Measured: the AVIF crops are 36–43% lighter than
+ * the WebP (hero-tall-1080 72.6 → 46.4 KB, contact-hero-tall-1080 51.0 → 30.1 KB) and look the
+ * same behind the ink wash, and Lighthouse (mobile) gained 0.01 on each page. Phones are offered
+ * the AVIF first; any browser without AVIF takes the WebP source after it.
+ */
+describe('phone heroes come in AVIF too', () => {
+  const TALL = [...HERO_PHOTO.widths.heroTall]
+  it('every tall hero crop has an AVIF twin, lighter than its WebP', () => {
+    for (const w of TALL) {
+      for (const [avif, webp] of [
+        [heroPhotoSrc('heroTall', w, 'avif'), heroPhotoSrc('heroTall', w)],
+        [contactHeroSrc('heroTall', w, 'avif'), contactHeroSrc('heroTall', w)],
+      ]) {
+        const a = join(DIR, (avif ?? '').slice('/factory/'.length))
+        const b = join(DIR, (webp ?? '').slice('/factory/'.length))
+        expect(existsSync(a), `${a} is missing`).toBe(true)
+        expect(readFileSync(a).length).toBeLessThan(readFileSync(b).length)
+        expect(String.fromCharCode(...readFileSync(a).subarray(4, 12))).toBe('ftypavif')
+      }
+    }
+  })
+
+  it('both pages offer phones the AVIF before the WebP', () => {
+    for (const page of [
+      'src/components/site/HomeHero.tsx',
+      'src/app/(frontend)/contact/page.tsx',
+    ]) {
+      const tsx = readFileSync(join(import.meta.dirname, '..', page), 'utf8')
+      const avif = tsx.indexOf('type="image/avif"')
+      expect(avif, `${page} offers no AVIF source`).toBeGreaterThan(-1)
+      expect(avif, `${page} offers the WebP first`).toBeLessThan(
+        tsx.indexOf("'heroTall', tall640)"),
+      )
+    }
   })
 })

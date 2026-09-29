@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FAMILIES, familyBySlug } from './families'
+import { FAMILIES, familyBySlug, familyPictures } from './families'
+import type { ProductCard } from './projectPublic'
 
 /**
  * ⚠️ THE FAILURE THIS GUARDS IS SILENT, WHICH IS WHY IT READS THE COLLECTION AS TEXT.
@@ -68,5 +69,67 @@ describe('familyBySlug', () => {
     const slugs = FAMILIES.map((f) => f.slug)
     expect(new Set(slugs).size).toBe(slugs.length)
     for (const slug of slugs) expect(slug).toMatch(/^[a-z0-9-]+$/)
+  })
+})
+
+/*
+ * The home page's family cards show a real product picture (owner, 2026-09-29) so a visitor
+ * sees what each family holds. The picture is the first product in CMS order (the gallery's
+ * order) — its studio render where it has one, else its poster.
+ */
+describe('familyPictures', () => {
+  const colour = (url: string, kind: 'render' | 'poster') => ({
+    slug: 'c',
+    name: 'C',
+    image: { url, alt: `${kind} alt`, kind },
+  })
+  const card = (over: Partial<ProductCard>): ProductCard => ({
+    slug: 's',
+    productName: 'P',
+    productCode: 'R-P',
+    category: 'Sportswear',
+    shortDescription: '',
+    posterUrl: 'https://media.example/poster.webp',
+    posterAlt: 'poster alt',
+    defaultColourSlug: 'c',
+    colourNames: ['C'],
+    colours: [colour('https://media.example/render.webp', 'render')],
+    model: null,
+    ...over,
+  })
+
+  it('uses the first product of each family, its render before its poster', () => {
+    const pictures = familyPictures([
+      card({ slug: 'a', colours: [colour('https://media.example/a-render.webp', 'render')] }),
+      card({ slug: 'b', colours: [colour('https://media.example/b-render.webp', 'render')] }),
+      card({
+        slug: 'o',
+        category: 'Outerwear',
+        colours: [colour('https://media.example/o-poster.webp', 'poster')],
+      }),
+    ])
+    expect(pictures.sportswear?.url).toBe('https://media.example/a-render.webp')
+    expect(pictures.outerwear?.url).toBe('https://media.example/o-poster.webp')
+  })
+
+  it('falls back to the card poster when the colour has no picture', () => {
+    const pictures = familyPictures([card({ colours: [{ slug: 'c', name: 'C', image: null }] })])
+    expect(pictures.sportswear).toEqual({
+      url: 'https://media.example/poster.webp',
+      alt: 'poster alt',
+    })
+  })
+
+  it('gives a family with no product, or no picture at all, null — never a broken image', () => {
+    const pictures = familyPictures([
+      card({ category: 'Casual Wear', posterUrl: null, colours: [] }),
+    ])
+    expect(pictures['casual-wear']).toBeNull()
+    expect(pictures['sports-accessories']).toBeNull()
+    expect(Object.keys(pictures).sort()).toEqual(FAMILIES.map((f) => f.slug).sort())
+  })
+
+  it('matches the category exactly, as the gallery filter does (negative control)', () => {
+    expect(familyPictures([card({ category: 'sportswear' })]).sportswear).toBeNull()
   })
 })

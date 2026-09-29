@@ -121,6 +121,9 @@ what the workshop can do.
 **Guard:** a test pins the section order, so a future "improvement" that reorders
 the page has to argue with this record first.
 
+**Amended by D23 (2026-09-29):** two sections were added and the 3D pitch is now third.
+Credibility still leads.
+
 ### D7 · The footer's quiet band stays — `FA-B-03`
 
 **Decision: keep the empty band (144–323px depending on width). Fix the
@@ -149,6 +152,8 @@ honours in full (`FA-H-07`, `FA-H-25`).
 
 **Guard:** the existing reduced-motion tests are extended to the site's reveals,
 with a negative control.
+
+**Amended by D26 (2026-09-29):** one new duration, `--showpiece`, for three showpiece motions.
 
 ### D9 · Two-finger pan becomes zoom-proportional — `FA-H-29`
 
@@ -470,6 +475,117 @@ version ends a glide at the moment of intent: a pointer press, a scrolling key, 
 **Guard:** `apps/cms/src/auditGuards.test.ts` (FA-F-06 / XS-06: one file, dynamic import,
 the viewer's version and duration, the predicate, no `scroll-behavior: smooth`) and the
 browser spec above.
+
+## 2026-09-29 — the owner's ten-point review of the home and contact pages
+
+### D23 · The home page tells who, what, how, then proves it — amends D6
+
+**Decision: hero → №01 Who we are → №02 What we make → №03 3D → №04 How an order works →
+№05 The numbers → №06 Inside the factory → №07 Talk to us.** The owner asked for the page to
+say who the company is, what it does and how an order runs, and delegated the order to the
+research ("you decide according to the latest studies").
+
+The research, in short: B2B visitors judge credibility first and fast
+(https://www.kalungi.com/blog/your-homepage-is-a-trust-machine); a guide earns the right to
+propose a plan by showing authority, then a short plan makes starting feel safe, then the
+call to action (StoryBrand, https://www.impactplus.com/blog/what-is-the-storybrand-framework);
+and 67% of B2B buyers prefer to research without a salesperson, so the page must answer "what
+happens if I contact you?" on its own (Gartner, March 2026,
+https://www.gartner.com/en/newsroom/press-releases/2026-03-09-gartner-sales-survey-finds-67-percent-of-b2b-buyers-prefer-a-rep-free-experience).
+D6's point — credibility before capability — is kept; the 3D pitch moves from second to third.
+
+Every section now carries its own media (the owner: "each section must also have their media"):
+the hero is the stitching floor, №01 the building and its roof, №02 a real product per family,
+№04 one factory photo per phase, and №06 keeps the full gallery.
+
+The timeline says only what the owner confirmed for EVERY order: a free quote, the sample fee
+credited back against bulk, and nothing into bulk before the buyer signs off the sample. No 3D
+promise, no shipping regions, no fixed shipment window ("days may vary order to order").
+
+**Guard:** `apps/cms/e2e/composition.spec.ts` (LA-01) pins №01–№07;
+`apps/cms/src/lib/orderProcess.test.ts` refuses an unconfirmed promise.
+
+### D24 · The home page's garment turns in real 3D — reverses the 2026-09-07 still
+
+**Decision: live 3D on scroll. Owner, 2026-09-29.** The owner asked for "more innovative and
+creative ways to showcase that our products are truly 3D" and chose, of three options, the
+model loading as the section nears the screen, turning slowly, draggable.
+
+What made the still right on 2026-09-07 is kept as guards rather than discarded: nothing is
+downloaded on the first screen (the model loads only within a screen of view); a data-saving
+or 2G connection gets a "Turn it in 3D" button instead of a download; and the poster is still
+what the server sends, so no JavaScript, no WebGL or a failed model leaves exactly the page of
+2026-09-07.
+
+⚠️ **It renders with the viewer's own print fixes, by exact copy.** The adaptive near plane
+and the decal depth bias live in the viewer; an app may not import another's code, and moving
+them to `packages/shared` would have dropped the viewer below its 58% coverage floor (58.68%
+measured). `apps/cms/src/lib/render/viewerParity.test.ts` fails if either copy differs from
+the viewer's file by one character, or if the lighting drifts.
+
+**Guard:** `apps/cms/e2e/liveGarment.spec.ts` (a failed model keeps the picture; nothing loads
+before the section is near; nothing loads on a data-saving connection until asked).
+
+### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
+
+**Decision: the footer draws the logos of the bodies its "Standards" entries name, in ONE row
+of small marks under the facts, each body once; every entry keeps its text line. Owner,
+2026-09-29**, after being told the marks' usage rules: GOTS, OEKO-TEX and Textile
+Exchange each reserve the right to act on misuse of their marks; SMETA is an audit method, not
+a certificate. That is why the heading stays "Standards" and every entry keeps its qualifier
+text ("Parent: …", "Suppliers: …") — the picture says which body, the words say who holds it.
+
+The artwork is the owner's own vector files, converted to plain SVG paths and trimmed to the
+mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `apps/cms/src/lib/standardsLogos.ts`
+records each one's source file). Six marks, and only these:
+
+- **Parent (DURUS INDUSTRIES):** Sedex, SMETA.
+- **Suppliers:** ISO 9001, OEKO-TEX STANDARD 100, GOTS, GRS. amfori BSCI stays in the text only.
+  (ISO 9001 was first recorded as the parent's; the owner corrected it the same evening and
+  chose to keep the badge.)
+
+**One row, not marks under each entry (owner, the same evening).** The first build drew each
+entry's marks under its line; with the production entries that grew the footer slab from one
+screen (900 px) to 1,173 px at 768 px wide, and centred the first two entries. One row of
+28 px marks adds a single line.
+
+Three of the owner's choices are rulings, not oversights:
+
+- **ISO 9001 only.** The owner's file is a combined badge (9001 beside 22000); the 22000 half
+  is not in the repository, and "ISO 22000" in an entry draws nothing.
+- **SECP is text only.** It is a regulator, and its emblem beside a supplier list would read as
+  an endorsement.
+- **amfori BSCI is text only for now.** The only file on hand was the older mark (before the
+  body became amfori), reading "Business Social Compliance Initiative" beside text that says
+  "amfori BSCI"; the logo returns when the owner sends a current amfori file.
+
+The folder holds other marks (ISO 22000, Made in Green, RCS/OCS, sgi). The company does not
+claim them and none has a record. An entry that names no body draws no picture, and a word that
+merely contains a body's name ("GRSX") does not count.
+
+⚠️ **The chip is paper in BOTH themes.** The footer slab is ink in light mode and `--raised` in
+dark, so the dark-on-transparent marks need a paper chip in each, not only in dark mode.
+
+**Guard:** `apps/cms/src/lib/standardsLogos.test.ts` (whole words, order, no duplicates, no
+22000, no SECP, no BSCI, each body once across entries, every file present at its recorded
+size) and `SiteFooter.test.ts` (text kept, one row of marks after the blocks, images lazy with
+a reserved size, no picture for an entry naming no body).
+
+### D26 · One slower "showpiece" speed for three motions — amends D8
+
+**Decision: `--showpiece: 1400ms` in `packages/ui/src/tokens.css`, used ONLY by the №05
+count-up, the order timeline's draw and the contact globe's arcs. Owner, 2026-09-29.** D8 allowed
+the existing tokens only, and the slowest, `--slow`, is a UI transition: a figure rolling to
+100,000 or a line drawing down four phases at that speed reads as a flicker, not a flourish.
+One named duration keeps the three in step and keeps "no new durations" true everywhere else.
+
+What D8 guarded is unchanged: every one of the three is off under
+`prefers-reduced-motion: reduce` (the final figure, the full line and a still globe are what
+the server sends), and none animates text opacity.
+
+**Guard:** `apps/viewer/src/styles/tokens.test.ts` (the token is documented in `docs/DESIGN.md`)
+and `apps/cms/e2e/motion.spec.ts` (reduced motion shows the final state at once, with a
+negative control).
 
 ## Closed since
 

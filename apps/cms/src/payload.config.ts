@@ -12,6 +12,7 @@ import { DocumentVisits } from './collections/DocumentVisits'
 import { DocumentVisitSalts } from './collections/DocumentVisitSalts'
 import { Events } from './collections/Events'
 import { Inquiries } from './collections/Inquiries'
+import { InquiryFiles } from './collections/InquiryFiles'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { RawUploads } from './collections/RawUploads'
@@ -174,6 +175,7 @@ export default buildConfig({
     Products,
     Events,
     Inquiries,
+    InquiryFiles,
     DocumentVisits,
     DocumentVisitSalts,
     DocumentVisitEmails,
@@ -265,6 +267,17 @@ export default buildConfig({
       clientUploads: true,
       collections: {
         'raw-uploads': true,
+      },
+    }),
+    // Third, PRIVATE bucket for files buyers attach to the contact form (2026-09-29).
+    // ⚠️ `true`, with NO generateFileURL and NO disablePayloadAccessControl: every download
+    // must pass through Payload's `read` check (signed-in people only) — see InquiryFiles.ts.
+    // No `clientUploads` either: the public form posts to our own route, which checks each
+    // file's bytes before anything is written (25 MB in total fits a Worker request body).
+    r2Storage({
+      bucket: env?.R2_INQUIRY as R2Bucket,
+      collections: {
+        'inquiry-files': true,
       },
     }),
   ],

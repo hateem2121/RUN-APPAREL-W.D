@@ -245,12 +245,30 @@ test.describe('FA-D-06 / FA-E-05 — nothing scrolls sideways, in 30 conditions'
             }
             return false
           }
+          /*
+           * ⚠️ A PICTURE CROPPED BY ITS OWN FRAME IS NOT OUTSIDE THE VIEWPORT (2026-09-29). The
+           * factory photos drift inside an `overflow: hidden` frame, scaled 1.12 so no edge
+           * shows (site.css, `.photo-parallax`), so a full-width frame's image box reaches 6%
+           * past each side while nothing can be seen or scrolled there. ONLY media is excused:
+           * `.site-hero` and the footer slab clip too, and text clipped mid-word by the slab at
+           * 200% was a real bug (site.css, `.footer-cta`), so text inside a clip still counts.
+           */
+          const croppedByFrame = (el: HTMLElement) => {
+            if (!['IMG', 'VIDEO', 'CANVAS'].includes(el.tagName)) return false
+            for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) {
+              const x = getComputedStyle(up).overflowX
+              if (x !== 'hidden' && x !== 'clip') continue
+              const frame = up.getBoundingClientRect()
+              return frame.left >= -1 && frame.right <= doc.clientWidth + 1
+            }
+            return false
+          }
           const overflowing = [...document.querySelectorAll<HTMLElement>('body *')]
             .filter((el) => {
               const box = el.getBoundingClientRect()
               if (box.width === 0 || box.height === 0) return false
               if (!(box.right > doc.clientWidth + 1 || box.left < -1)) return false
-              return !insideOnScreenScroller(el)
+              return !insideOnScreenScroller(el) && !croppedByFrame(el)
             })
             .map((el) => `${el.tagName}.${String(el.className).slice(0, 30)}`)
           const bar = document.querySelector('.notch')?.getBoundingClientRect()
@@ -1174,7 +1192,9 @@ test.describe('section spacing has at most two distinct rhythms across a width s
  * ORDER, and the `№0N` prefix is the one thing on the page that already encodes it.
  */
 test.describe('LA-01 — the home page section order is locked', () => {
-  test('hero first, then №01 through №05 in DOM order', async ({ page }) => {
+  // D23 (owner, 2026-09-29): who we are → what we make → 3D → how an order works → the
+  // numbers → the factory → talk to us. Credibility still leads, which is what D6 protected.
+  test('hero first, then №01 through №07 in DOM order', async ({ page }) => {
     await page.goto('/')
     await settle(page)
 
@@ -1195,6 +1215,8 @@ test.describe('LA-01 — the home page section order is locked', () => {
       '№03',
       '№04',
       '№05',
+      '№06',
+      '№07',
     ])
   })
 })
@@ -1233,7 +1255,8 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
     // Everything else is recorded (annotation above), not graded — LA-02 is an input
     // fact for other areas' work (LA-12's column context, the owner's home-page
     // question), not a pass/fail judgement in itself.
-    expect(facts.sectionCount, 'home page rendered without its 6 sections').toBe(6)
+    // Hero + №01–№07 since D23 (2026-09-29).
+    expect(facts.sectionCount, 'home page rendered without its 8 sections').toBe(8)
     expect(facts.words, 'home page rendered almost no text').toBeGreaterThan(50)
   })
 

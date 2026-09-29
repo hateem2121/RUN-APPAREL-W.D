@@ -8,6 +8,8 @@ declare global {
     R2: R2Bucket
     // Private ingest bucket for un-processed raw CLO uploads (no public domain).
     R2_INGEST: R2Bucket
+    // Private bucket for files attached to contact-form inquiries (no public domain).
+    R2_INQUIRY: R2Bucket
     // Producer queue: a raw upload enqueues a shrink job consumed by apps/shrink.
     SHRINK_QUEUE?: Queue
     ASSETS: Fetcher

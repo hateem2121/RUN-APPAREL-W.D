@@ -2,12 +2,15 @@ import config from '@payload-config'
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import {
+  type InquiryEmailExtras,
   type InquiryInput,
   inquirySubject,
   formatInquiryEmail,
   isHoneypotTripped,
   validateInquiry,
 } from '../../../../lib/inquiry'
+import { type CheckedFile, checkFiles, formatBytes } from '../../../../lib/inquiryFiles'
+import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
 
 export const dynamic = 'force-dynamic'
@@ -67,6 +70,7 @@ async function notify(
   value: InquiryInput,
   receivedAt: Date,
   to: string,
+  extras: InquiryEmailExtras,
 ): Promise<{ notified: boolean; notifyError?: string }> {
   const key = process.env.RESEND_API_KEY?.trim()
   if (!key) return { notified: false, notifyError: 'RESEND_API_KEY is not set on this Worker' }
@@ -81,7 +85,7 @@ async function notify(
         // Hitting Reply in any mail client answers the customer, not the robot.
         reply_to: value.email,
         subject: inquirySubject(value),
-        text: formatInquiryEmail(value, receivedAt),
+        text: formatInquiryEmail(value, receivedAt, extras),
       }),
       signal: AbortSignal.timeout(8000),
     })
@@ -95,11 +99,59 @@ async function notify(
   }
 }
 
+/**
+ * Store each checked file against its inquiry. Never throws: the inquiry is already stored, so a
+ * file that will not save is written onto the row (`filesError`) and named in the email, rather
+ * than turning a received message into an error page.
+ *
+ * ⚠️ ONE WRITE PER FILE, AND IT NAMES ITS INQUIRY. `Inquiries.files` is a join over
+ * `inquiry-files.inquiry`, so there is no second update of the inquiry that could fail after the
+ * file is already in R2 and leave it unlisted.
+ *
+ * ⚠️ EACH FILE IS READ HERE, ONE AT A TIME, AND NOWHERE ELSE. At the 25 MB limit the request
+ * already holds the upload; `checkFiles` reads only each file's ends, so the one full copy is the
+ * one being stored, and it can be freed before the next file is read. Measured 2026-09-29: with
+ * every file copied up front, one 24 MB PDF raised a local Workers runtime's memory by 124 MB.
+ */
+async function saveFiles(
+  // D1 ids are integers; `payload.create` above types its result's id loosely.
+  inquiry: number,
+  files: readonly CheckedFile[],
+): Promise<{ saved: CheckedFile[]; filesError?: string }> {
+  const saved: CheckedFile[] = []
+  const failed: string[] = []
+  const payload = await getPayload({ config })
+  for (const file of files) {
+    try {
+      await payload.create({
+        collection: 'inquiry-files',
+        data: { inquiry },
+        file: {
+          data: Buffer.from(await file.file.arrayBuffer()),
+          mimetype: file.type,
+          name: file.name,
+          size: file.size,
+        },
+        overrideAccess: true,
+      })
+      saved.push(file)
+    } catch (err) {
+      console.error('[inquiry] stored, but a file was not:', file.name, err)
+      failed.push(`${file.name} (${String(err).slice(0, 80)})`)
+    }
+  }
+  return failed.length > 0
+    ? { saved, filesError: `Not saved: ${failed.join('; ')}`.slice(0, 500) }
+    : { saved }
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let raw: Record<string, unknown> = {}
+  let attached: unknown[] = []
   try {
     const form = await request.formData()
     raw = Object.fromEntries(form.entries())
+    attached = form.getAll('files')
   } catch {
     return back(request, '?error=unreadable')
   }
@@ -111,13 +163,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    */
   if (isHoneypotTripped(raw)) return back(request, '?sent=1')
 
-  const ip =
-    request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!checkInquiryRate(ip, Date.now())) return back(request, '?error=too-many')
-
   const result = validateInquiry(raw)
   if (!result.ok)
     return back(request, `?error=invalid&fields=${Object.keys(result.errors).join(',')}`)
+
+  /*
+   * ⚠️ FILES ARE CHECKED BEFORE THE INQUIRY IS STORED, AND A REFUSAL STORES NOTHING. A program
+   * renamed `.pdf`, a sixth file or 25 MB and a byte is refused whole, with the reason as a CODE
+   * (`lib/inquiryForm.ts` turns it into words, and the page says the message was NOT sent). The
+   * alternative — store the text and drop the file — would thank a buyer for a tech pack that
+   * never arrived.
+   */
+  const files = await checkFiles(attached)
+  if (!files.ok) return back(request, `?error=files&reason=${files.reason}`)
+
+  /*
+   * ⚠️ THE ALLOWANCE IS SPENT ONLY BY AN INQUIRY THAT PASSED EVERY CHECK (final review,
+   * 2026-09-29). It used to be checked first, so a buyer whose tries were refused — a missing
+   * field, a mislabelled file — could be locked out of the one that was right. The form is
+   * already read by this point either way, so checking later costs nothing, and a refused
+   * attempt stores nothing and sends nothing to limit.
+   */
+  const ip =
+    request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
+  if (!checkInquiryRate(ip, Date.now())) return back(request, '?error=too-many')
 
   const receivedAt = new Date()
   let created: { id: string | number } | null = null
@@ -126,8 +195,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     /*
      * ⚠️ `overrideAccess: true` IS WHAT LETS THIS WRITE AT ALL, and it is why
      * `Inquiries.access.create` is closed to everyone. The only path into that collection
-     * is this function, which has already checked the honeypot, the rate limit and the
-     * shape of the input. Opening `create` instead would put the collection's REST
+     * is this function, which has already checked the honeypot, the shape of the input,
+     * the files and the rate limit. Opening `create` instead would put the collection's REST
      * endpoint on the internet with none of those.
      */
     created = await payload.create({
@@ -141,12 +210,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return back(request, '?error=storage')
   }
 
+  // The files, after the inquiry they belong to. A failure here is recorded, never fatal.
+  const stored =
+    files.files.length > 0 ? await saveFiles(Number(created.id), files.files) : { saved: [] }
+  if (stored.filesError) {
+    try {
+      const payload = await getPayload({ config })
+      await payload.update({
+        collection: 'inquiries',
+        id: created.id,
+        data: { filesError: stored.filesError },
+        overrideAccess: true,
+      })
+    } catch {
+      // The email below still names the problem.
+    }
+  }
+
   // Only now, and never in a way that can fail the request.
   const settings = await getPayload({ config })
     .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
     .catch(() => null)
   const to = (settings as { email?: string } | null)?.email || 'partner@wear-run.com'
-  const outcome = await notify(result.value, receivedAt, to)
+  const outcome = await notify(result.value, receivedAt, to, {
+    files: stored.saved.map((file) => ({ name: file.name, size: formatBytes(file.size) })),
+    filesError: stored.filesError,
+    adminUrl: inquiryAdminUrl(created.id),
+  })
 
   if (!outcome.notified) {
     console.error('[inquiry] stored but not notified:', outcome.notifyError)

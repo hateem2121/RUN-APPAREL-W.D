@@ -112,7 +112,8 @@ function derivationErrors(face: StandInFace): string[] {
 }
 
 const PAGE_FILES: Record<string, string> = {
-  '/': './app/(frontend)/page.tsx',
+  // The home hero moved into its own component on 2026-09-29 (the photo hero); same words.
+  '/': './components/site/HomeHero.tsx',
   '/products': './app/(frontend)/products/page.tsx',
   '/contact': './app/(frontend)/contact/page.tsx',
 }

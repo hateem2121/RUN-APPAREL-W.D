@@ -24,11 +24,17 @@ import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FILES as APEX_FILES } from '../infra/apex-404/index.js'
+import { INQUIRY_BUCKET, objectLabel, summaryLine } from './backup-log.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cmsDir = join(root, 'apps', 'cms')
 const DB = 'run-apparel-viewer-db'
 const BUCKET = 'run-apparel-viewer-media'
+/**
+ * The files buyers attach to the contact form (owner, 2026-09-29: "Create it + back it up").
+ * Enumerated from the `inquiry_files` table exactly as media is from `media`. These are
+ * customers' own documents, which is why the workflow's lock step matters here most of all.
+ */
 
 /**
  * The apex PDFs, in the bucket the separate `run-apparel` site also uses.
@@ -101,30 +107,52 @@ const wrangler = (args, opts = {}) => {
   throw lastError
 }
 
+/**
+ * Object keys and sizes from one upload collection's table. `filesize` as well as `filename`,
+ * so each written file can be CHECKED rather than assumed. See `save()` below.
+ */
+const listObjects = (table) => {
+  const raw = wrangler([
+    'd1',
+    'execute',
+    DB,
+    mode,
+    '--json',
+    '--command',
+    `SELECT filename, filesize FROM ${table} WHERE filename IS NOT NULL`,
+  ])
+  const jsonStart = raw.search(/[[{]/)
+  const parsed = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw)
+  const results = Array.isArray(parsed) ? (parsed[0]?.results ?? []) : (parsed.results ?? [])
+  return results
+    .filter((r) => r.filename)
+    .map((r) => ({
+      name: r.filename,
+      size: typeof r.filesize === 'number' ? r.filesize : null,
+    }))
+}
+
 // 1. Enumerate object keys from the media table. Skipped entirely under --apex-only.
-const filenames = APEX_ONLY
+const filenames = APEX_ONLY ? [] : listObjects('media')
+
+/*
+ * ⚠️ ZERO INQUIRY FILES IS NORMAL, UNLIKE ZERO MEDIA — most inquiries attach nothing — so the
+ * empty-enumeration error below is for `media` only. A MISSING TABLE is tolerated for one
+ * reason: on the day this ships, `main` carries this script a few minutes before the deploy
+ * job migrates production, and a backup that went red for that window would teach people to
+ * ignore it. Any other error still stops the run.
+ */
+const inquiryFiles = APEX_ONLY
   ? []
   : (() => {
-      const raw = wrangler([
-        'd1',
-        'execute',
-        DB,
-        mode,
-        '--json',
-        '--command',
-        // `filesize` as well as `filename`, so each written file can be CHECKED rather
-        // than assumed. See `save()` below.
-        'SELECT filename, filesize FROM media WHERE filename IS NOT NULL',
-      ])
-      const jsonStart = raw.search(/[[{]/)
-      const parsed = JSON.parse(jsonStart >= 0 ? raw.slice(jsonStart) : raw)
-      const results = Array.isArray(parsed) ? (parsed[0]?.results ?? []) : (parsed.results ?? [])
-      return results
-        .filter((r) => r.filename)
-        .map((r) => ({
-          name: r.filename,
-          size: typeof r.filesize === 'number' ? r.filesize : null,
-        }))
+      try {
+        return listObjects('inquiry_files')
+      } catch (error) {
+        const text = `${error?.stdout ?? ''}${error?.stderr ?? ''}${error?.message ?? ''}`
+        if (!/no such table: inquiry_files/.test(text)) throw error
+        console.warn('[backup-r2] the inquiry_files table does not exist yet; skipping it.')
+        return []
+      }
     })()
 
 console.log(
@@ -154,14 +182,16 @@ let mismatched = 0
  *
  * Audit 2026-08-30 PM, finding L2-03.
  */
-const save = (bucket, key, subdir, expectedSize = null) => {
+const save = (bucket, key, subdir, expectedSize = null, index = 0) => {
   const dest = join(outDir, subdir, key)
+  // Never the raw key for a buyer's file: this log is public (scripts/backup-log.mjs).
+  const label = objectLabel(bucket, key, index)
   mkdirSync(dirname(dest), { recursive: true })
   try {
     wrangler(['r2', 'object', 'get', `${bucket}/${key}`, '--file', dest, mode], { stdio: 'pipe' })
   } catch {
     fail += 1
-    console.warn(`[backup-r2]  ! failed to fetch: ${bucket}/${key}`)
+    console.warn(`[backup-r2]  ! failed to fetch: ${label}`)
     return
   }
 
@@ -170,13 +200,13 @@ const save = (bucket, key, subdir, expectedSize = null) => {
     written = statSync(dest).size
   } catch {
     fail += 1
-    console.warn(`[backup-r2]  ! wrangler exited 0 but wrote no file: ${bucket}/${key}`)
+    console.warn(`[backup-r2]  ! wrangler exited 0 but wrote no file: ${label}`)
     return
   }
 
   if (written === 0) {
     fail += 1
-    console.warn(`[backup-r2]  ! wrote ZERO bytes: ${bucket}/${key}`)
+    console.warn(`[backup-r2]  ! wrote ZERO bytes: ${label}`)
     return
   }
 
@@ -208,7 +238,7 @@ const save = (bucket, key, subdir, expectedSize = null) => {
     mismatched += 1
     ok += 1
     console.warn(
-      `[backup-r2]  ~ size differs from the CMS row: ${bucket}/${key} — R2 ${written} B, ` +
+      `[backup-r2]  ~ size differs from the CMS row: ${label} — R2 ${written} B, ` +
         `row ${expectedSize} B. The FILE IS SAVED; the record is what disagrees.`,
     )
     return
@@ -217,16 +247,29 @@ const save = (bucket, key, subdir, expectedSize = null) => {
 }
 
 for (const { name, size } of filenames) save(BUCKET, name, 'media', size)
+console.log(
+  `[backup-r2] inquiry files from ${INQUIRY_BUCKET} (count and names stay out of this public log)`,
+)
+const failBeforeInquiries = fail
+const okBeforeInquiries = ok
+inquiryFiles.forEach(({ name, size }, index) => {
+  save(INQUIRY_BUCKET, name, 'inquiry-files', size, index)
+})
+const inquiryFailed = fail - failBeforeInquiries
+const inquirySaved = ok - okBeforeInquiries
 
 console.log(`[backup-r2] ${APEX_KEYS.length} apex PDFs to back up from ${APEX_BUCKET}`)
 for (const key of APEX_KEYS) save(APEX_BUCKET, key, 'apex')
 
-const expectedSaves = filenames.length + APEX_KEYS.length
+const expectedSaves = filenames.length + inquiryFiles.length + APEX_KEYS.length
 console.log(
-  `[backup-r2] done: ${ok} saved, ${fail} failed` +
-    (unverified > 0 ? `, ${unverified} saved but size-unverified` : '') +
-    (mismatched > 0 ? `, ${mismatched} saved with a STALE CMS size record` : '') +
-    '.',
+  summaryLine({
+    saved: ok - inquirySaved,
+    failed: fail - inquiryFailed,
+    inquiryFailed: inquiryFiles.length - inquirySaved,
+    unverified,
+    mismatched,
+  }),
 )
 
 /**
@@ -243,8 +286,9 @@ if (!APEX_ONLY && filenames.length === 0) {
   )
   process.exitCode = 1
 } else if (ok < expectedSaves) {
+  // No totals here: with the media and PDF counts above, they would give the inquiry count away.
   console.error(
-    `[backup-r2] ERROR: ${ok} of ${expectedSaves} objects were saved. A partial mirror is ` +
+    `[backup-r2] ERROR: ${expectedSaves - ok} object(s) were not saved. A partial mirror is ` +
       'not a backup; the missing objects are named above.',
   )
   process.exitCode = 1

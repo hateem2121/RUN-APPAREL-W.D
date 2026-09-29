@@ -28,7 +28,53 @@ import { join, resolve } from 'node:path'
 export const SHAPES = {
   wide: { aspect: 8 / 5, widths: [640, 1200] },
   single: { aspect: 4 / 5, widths: [400, 800] },
+  // The home page hero (owner, 2026-09-29): wide screens, and phones.
+  heroWide: { aspect: 16 / 9, widths: [1280, 1920, 2560] },
+  heroTall: { aspect: 4 / 5, widths: [640, 1080] },
 }
+
+/**
+ * The hero's two crops of the stitching floor (a 4875x2403 original). The tall crop sits right
+ * of centre, where the nearest operators are, so a phone shows people rather than crates.
+ * Their files are `hero-wide-<w>.webp` / `hero-tall-<w>.webp` (`heroPhotoSrc` in the page's list).
+ */
+export const HERO_SOURCES = [
+  {
+    slug: 'hero-wide',
+    file: 'Apparel Stitching Department.png',
+    shape: 'heroWide',
+    focus: [0.55, 0.5],
+  },
+  {
+    slug: 'hero-tall',
+    file: 'Apparel Stitching Department.png',
+    shape: 'heroTall',
+    focus: [0.68, 0.55],
+  },
+]
+
+/**
+ * The contact hero's two crops of the showroom (a 2000x1400 original), in the home hero's
+ * shapes but with `widths` of their own: nothing past the original's 2000px, so no upscale.
+ * The tall crop sits right of centre, on the blue top and the logo on the wall.
+ */
+export const CONTACT_HERO_SOURCES = [
+  {
+    slug: 'contact-hero-wide',
+    file: "RUN's Showroom.png",
+    shape: 'heroWide',
+    widths: [1280, 1920],
+    // As high as the crop goes: any lower and the logo on the wall loses its top (looked at).
+    focus: [0.5, 0.4],
+  },
+  {
+    slug: 'contact-hero-tall',
+    file: "RUN's Showroom.png",
+    shape: 'heroTall',
+    widths: [640, 1080],
+    focus: [0.74, 0.5],
+  },
+]
 
 export const SOURCES = [
   { slug: 'exterior', file: 'factory exterior image.png', shape: 'wide', focus: [0.5, 0.6] },
@@ -72,11 +118,11 @@ async function main() {
   )
   const out = resolve(import.meta.dirname, '../apps/cms/public/factory')
   mkdirSync(out, { recursive: true })
-  for (const source of SOURCES) {
+  for (const source of [...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES]) {
     const shape = SHAPES[source.shape]
     const { width, height } = await sharp(join(from, source.file)).metadata()
     const box = cropBox(width, height, shape.aspect, source.focus)
-    for (const w of shape.widths) {
+    for (const w of source.widths ?? shape.widths) {
       const h = Math.round(w / shape.aspect)
       const target = join(out, `${source.slug}-${w}.webp`)
       const info = await sharp(join(from, source.file))
@@ -85,6 +131,17 @@ async function main() {
         .webp({ quality: 72, effort: 6, smartSubsample: true })
         .toFile(target)
       console.log(`${source.slug}-${w}.webp  ${info.width}x${info.height}  ${info.size} bytes`)
+      // The phone crops also in AVIF (2026-09-29): 36–43% lighter than the WebP at quality 45,
+      // the same behind the hero's ink wash, and each is its page's largest paint on a phone.
+      if (source.shape === 'heroTall') {
+        const avif = join(out, `${source.slug}-${w}.avif`)
+        const a = await sharp(join(from, source.file))
+          .extract(box)
+          .resize(w, h)
+          .avif({ quality: 45, effort: 6 })
+          .toFile(avif)
+        console.log(`${source.slug}-${w}.avif  ${a.width}x${a.height}  ${a.size} bytes`)
+      }
     }
   }
 }

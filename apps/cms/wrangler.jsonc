@@ -123,6 +123,16 @@
       // comment or your memory; it takes five seconds and this is the third time.
       "binding": "R2_INGEST",
       "bucket_name": "run-apparel-viewer-ingest"
+    },
+    {
+      // PRIVATE bucket for the files buyers attach to the contact form (the InquiryFiles
+      // collection; owner OK 2026-09-29). Created with NO custom domain, the r2.dev address
+      // OFF and no CORS rule, read back the same day. Every download streams through
+      // Payload's access check, so only a signed-in person can open one. Not `ingest`:
+      // that bucket expires everything after 14 days and is in no backup, and these files
+      // are kept until their inquiry is deleted and are mirrored by scripts/backup-r2.mjs.
+      "binding": "R2_INQUIRY",
+      "bucket_name": "run-apparel-inquiry-files"
     }
   ],
   // The garment pages live inside the website at /products/<product>/<colour> since the

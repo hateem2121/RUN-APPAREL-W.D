@@ -38,15 +38,15 @@ for (const path of PAGES) {
 }
 
 test.describe('the 1889 wording and the confirmed numbers on the home page (CT-06, decision D14)', () => {
-  test('1889 reads as a family trade, never "EST. LINEAGE", and minimum order and lead time are shown', async ({
-    page,
-  }) => {
+  test('1889 is stated, never "EST. LINEAGE", and the minimum order is shown', async ({ page }) => {
     await page.goto('/')
     // textContent, not innerText: CSS sets some labels in capitals, and this checks the words.
     const text = (await page.locator('main').textContent()) ?? ''
     expect(text).toContain('1889')
     expect(text).not.toMatch(/EST\.?\s*LINEAGE/i)
-    for (const label of ['Minimum order, per style', 'Days, approved sample to shipment']) {
+    // "Days, approved sample to shipment" was removed by the owner on 2026-09-29 ("days may
+    // vary order to order"); `companyFacts.test.ts` refuses it coming back.
+    for (const label of ['Minimum order, per style']) {
       const fact = FACTS.find((f) => f.label === label)
       expect(
         fact,

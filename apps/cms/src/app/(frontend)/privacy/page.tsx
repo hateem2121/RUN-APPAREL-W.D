@@ -44,7 +44,8 @@ export const metadata: Metadata = buildMetadata({
  * NOT LEGAL ADVICE. This is a factual account of what the software does, plus the
  * mainstream reading of the rules as of September 2026. Wording approved by the owner
  * 2026-09-07; a solicitor should review it before it carries any weight. Visit-records
- * wording approved by the owner 2026-09-15.
+ * wording approved by the owner 2026-09-15. The form's new details, attached files and Resend
+ * (the notification email's carrier, unnamed until then) approved by the owner 2026-09-29.
  */
 export default async function PrivacyPage() {
   const settings = await getSiteSettings()
@@ -102,7 +103,10 @@ export default async function PrivacyPage() {
             <strong>When you contact us.</strong> If you email us, message us on WhatsApp or send an
             inquiry through this site, we keep what you send — your name, company, contact details
             and the inquiry itself — so that we can reply, and so that we can fulfill your order if
-            we go on to work together.
+            we go on to work together. An inquiry sent through this site can also include your job
+            title, country, phone number, a subject and any files you attach. Attached files are
+            stored privately with Cloudflare, never at a public address, and only our team can open
+            them.
           </p>
 
           <p className="subhead">Why we are allowed to</p>
@@ -114,16 +118,19 @@ export default async function PrivacyPage() {
 
           <p className="subhead">How long we keep it</p>
           <p>
-            Inquiry correspondence for as long as our business relationship needs it. Technical logs
-            and error reports are kept briefly by our providers and then deleted. Records of visits
-            to our shared documents for 12 months, after which they are deleted automatically.
+            Inquiry correspondence, including any files you attached, for as long as our business
+            relationship needs it; when we delete an inquiry, its files are deleted with it.
+            Technical logs and error reports are kept briefly by our providers and then deleted.
+            Records of visits to our shared documents for 12 months, after which they are deleted
+            automatically.
           </p>
 
           <p className="subhead">Where it goes</p>
           <p>
-            Cloudflare and Sentry process data outside Pakistan, including in the United States and
-            the European Union, under their standard contractual protections. We do not sell your
-            data and we do not share it for advertising.
+            Cloudflare, Sentry and Resend (which delivers our inquiry notifications to us) process
+            data outside Pakistan, including in the United States and the European Union, under
+            their standard contractual protections. We do not sell your data and we do not share it
+            for advertising.
           </p>
 
           <p className="subhead">Your rights</p>

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { splitLastWord } from '../../lib/footerCopy'
 import { formatHours } from '../../lib/footerHours'
 import type { PublicSiteSettings } from '../../lib/projectPublic'
+import { marksFor } from '../../lib/standardsLogos'
 import { formatAddress } from '../../lib/structuredData'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
@@ -31,6 +32,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
   const f = settings.footer
   const q = splitLastWord(f.ctaQuestion)
   const hours = f.capacity.hours
+  const marks = marksFor(f.certifications)
   /*
    * ⚠️ THE FACTS AREA RENDERS ONE BLOCK OF FOUR TODAY, AND THAT IS THE CODE BEING RIGHT.
    *
@@ -145,6 +147,13 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
               <div className="footer-block footer-block--standards">
                 <h3>Standards</h3>
                 <ul>
+                  {/*
+                   * ⚠️ THE TEXT LINE STAYS WITH THE MARKS (owner's ruling 2026-09-16, kept when
+                   * the owner chose real logos on 2026-09-29, D25). A logo alone says "certified";
+                   * the qualifier says who holds it — the parent, or the suppliers — and SMETA is
+                   * an audit, not a certificate. The marks themselves sit in one row under the
+                   * facts (`footer-marks` below).
+                   */}
                   {f.certifications.map((name) => (
                     <li key={name}>{name}</li>
                   ))}
@@ -164,6 +173,24 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                     </li>
                   ))}
                 </ul>
+              </div>
+            ) : null}
+
+            {marks.length > 0 ? (
+              <div className="footer-marks" role="group" aria-label="Marks of the standards above">
+                {marks.map((logo) => (
+                  // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, and these are already-optimised SVGs of a few KB, which next/image would pass through unchanged (ProductPoster.tsx measures why).
+                  <img
+                    key={logo.slug}
+                    className="footer-logo"
+                    src={logo.src}
+                    width={logo.width}
+                    height={logo.height}
+                    alt={logo.alt}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ))}
               </div>
             ) : null}
           </div>

@@ -330,7 +330,7 @@ html {
    * Those two are BOX widths — a centred dashed panel and a form — not a line a reader
    * follows, and narrowing them would move a layout the audit passed (FA-D-03, FA-I-06).
    */
-  --site-measure: 56ch;
+  --site-measure: 55ch;
   --site-max: 1180px;
   --site-gutter: clamp(20px, 5vw, 64px);
   /* what a `.site-container` child actually gets, at the cap */
@@ -1061,6 +1061,39 @@ html {
   font-size: var(--text-mono-sm);
 }
 
+/*
+ * The certification bodies' marks: ONE row of small, same-height marks under the facts (D25;
+ * layout ruled by the owner 2026-09-29). Marks under each entry grew the footer slab from one
+ * screen (900 px) to 1,173 px at 768 px wide with the production entries, and centred the
+ * first two entries; one row adds a single line. It spans every facts column, so it is as
+ * wide as the rule above it at most and never widens it. They are pictures, never links, so
+ * the 44px floor does not apply.
+ *
+ * ⚠️ TRANSPARENT, AND THE ARTWORK IS THE "ON-DARK" VERSION (owner, 2026-09-29). The slab is dark in
+ * both themes (`--footer-bg` is ink in light mode, `--raised` in dark). The first build put every
+ * mark on a paper chip; the owner wanted them transparent. Removing the chip alone made the
+ * dark lettering (Sedex, SMETA, GRS) vanish, and whitening everything turned OEKO-TEX and GOTS
+ * into blank shapes — both measured in a side-by-side the owner chose from. So each SVG in
+ * `public/standards/` keeps its brand colours and has its black and dark-grey fills recoloured
+ * to #ecebe6 (the paper tone; an <img> cannot read a CSS token), and ISO's dark blue lightened to
+ * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back. Height is fixed
+ * and width follows each file's own width/height attributes, which also reserve the box before
+ * the lazy image loads.
+ */
+.footer-marks {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.footer-logo {
+  display: block;
+  width: auto;
+  height: 32px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .footer-block a:hover {
     color: var(--volt);
@@ -1618,6 +1651,95 @@ a.contact-block__value:focus-visible {
 
 address.contact-block__value {
   font-style: normal;
+}
+
+/* ------------------------------------------------ contact globe */
+
+/*
+ * The text is the section; the globe is a picture beside it. On a phone the text comes first and
+ * the globe sits under it, so the address and the directions link are on the first screen of the
+ * section and the picture never pushes them away. No `opacity` fade anywhere: the text is on the
+ * page from the first paint, and the canvas only ever appears after it.
+ */
+.contact-globe {
+  display: grid;
+  gap: 24px;
+  align-items: center;
+  margin-top: 24px;
+}
+
+.contact-globe__address {
+  font-style: normal;
+  font-size: var(--text-body);
+  color: var(--text);
+}
+
+.contact-globe__coords {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  color: var(--muted);
+}
+
+/* A real 44px row, not padding tricks: navbar.spec.ts measures every link on the page. */
+.contact-globe__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--target-min);
+  margin-top: 8px;
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 5px;
+  transition:
+    text-decoration-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+.contact-globe__link:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .contact-globe__link:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.contact-globe__link:active {
+  scale: 0.97;
+}
+
+/*
+ * Square, never taller than the column. `touch-action: pan-y` on the canvas lets a vertical
+ * swipe scroll the page past it while a sideways drag turns the globe.
+ */
+.contact-globe__stage {
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 1;
+  margin-inline: auto;
+}
+
+.contact-globe__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.contact-globe__stage[data-dragging="true"] .contact-globe__canvas {
+  cursor: grabbing;
+}
+
+@media (min-width: 768px) {
+  .contact-globe {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 64px;
+  }
 }
 
 /* ------------------------------------------------------------ empty state */
@@ -2614,6 +2736,16 @@ a.contact-block__value:active {
  * The explicit height reserves the tile before the picture arrives (the CLS rule
  * `.proof__frame` states).
  */
+/* The clipping frame the scroll wipe and drift work inside (the section above). */
+.factory-tile__frame {
+  display: block;
+  overflow: hidden;
+  /* On the frame, not the picture: the drift scales the picture, which would scale its
+     border out of the clip. */
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
 .factory-tile__img {
   display: block;
   width: 100%;
@@ -2623,8 +2755,6 @@ a.contact-block__value:active {
     1.25
   );
   object-fit: cover;
-  background: var(--bg);
-  border: 1px solid var(--line);
 }
 
 .factory-tile__caption {
@@ -2671,4 +2801,721 @@ a.contact-block__value:active {
     --line: light-dark(rgba(29, 31, 26, 0.55), rgba(236, 235, 228, 0.55));
     --muted: light-dark(#44473e, #cfd2c2);
   }
+}
+
+/* ======================================== the 2026-09-29 refresh (owner's ten points) */
+
+/*
+ * ------------------------------------------------ the photo hero
+ *
+ * ⚠️ THE HERO IS DARK IN BOTH THEMES, AND `color-scheme` ALONE DOES NOT DO IT — MEASURED.
+ * The first version set only `color-scheme: dark` here, expecting the `light-dark()` tokens to
+ * resolve where they are used. They do not: Chromium resolved them where they are DECLARED, at
+ * `:root`, so in the light theme the hero had `color-scheme: dark` and still computed ink text
+ * (rgb(29, 31, 26)) on a paper wash (rgb(241, 239, 234)). So the hero re-declares the tokens
+ * its content reads, with the dark theme's own values — the constants, or the dark half of the
+ * pair in tokens.css. No colour outside the palette; ink text never sits on a photograph.
+ * `color-scheme: dark` stays for what the browser draws itself (focus, selection).
+ *
+ * The photo shares `--z-hero-grid` with the blueprint and sits BEFORE it in the markup, so the
+ * grid paints over the photo and the copy over both — no new layer token for one picture.
+ *
+ * ⚠️ THE WASH IS 80% INK AT THE LEAST, and the lede reads `--text`, not `--muted`, here. Worst
+ * case under it is the stitching floor's white wall: 0.8 × #1c1f18 + 0.2 × white ≈ #4a4c46, on
+ * which `--text` (#ecebe4) is about 7:1 and `--muted` (#a2a695) would be about 3.4:1 — under
+ * AA. axe cannot compute contrast over an image, so the arithmetic is the check.
+ */
+/* The lightbox shares this block: it too puts text and controls on a photograph's ink. */
+.site-hero--photo,
+.lightbox {
+  color-scheme: dark;
+  /* The dark halves of tokens.css's pairs, re-declared here (see above). */
+  --bg: #1c1f18;
+  --text: #ecebe4;
+  --muted: #a2a695;
+  --grid: rgba(236, 235, 228, 0.05);
+  --line: rgba(236, 235, 228, 0.18);
+  --line-control: rgba(236, 235, 228, 0.55);
+  --label-bg: transparent;
+  --label-text: var(--volt);
+  --btn-primary-bg: var(--volt);
+  --btn-primary-text: var(--ink);
+  --headline: var(--volt);
+  --serif-accent: var(--volt);
+  --dimension: var(--volt);
+  --focus-ring: var(--volt);
+  color: var(--text);
+}
+
+.site-hero--photo {
+  background: var(--bg);
+}
+
+.site-hero__photo {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hero-grid);
+}
+
+.site-hero__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.site-hero__photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+}
+
+@media (min-width: 900px) {
+  /* The copy sits left on a wide screen, so the wash can open on the right. */
+  .site-hero__photo::after {
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 80%, transparent) 55%,
+      color-mix(in srgb, var(--bg) 62%, transparent) 100%
+    );
+  }
+}
+
+.site-hero--photo .site-lede {
+  color: var(--text);
+}
+
+/* ------------------------------------------------ №01 who we are */
+
+.about {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 900px) {
+  .about {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+  }
+}
+
+.about__points {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0 0;
+}
+
+.about__photos {
+  display: grid;
+  gap: 24px;
+}
+
+/* ------------------------------------------------ a factory photo inside a section */
+
+.photo-figure {
+  margin: 0;
+}
+
+.photo-figure__frame {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.photo-figure__frame--wide {
+  aspect-ratio: 8 / 5;
+}
+
+.photo-figure__frame--single {
+  aspect-ratio: 4 / 5;
+}
+
+.photo-figure__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-figure__caption {
+  margin-block-start: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------ №02 family cards, now with pictures */
+
+/*
+ * The owner, 2026-09-29: "the active block should change color or animate to indicate that
+ * these are clickable". Lift, accent edge, the picture easing closer and the arrow moving —
+ * on a pointer that can hover, and the same on keyboard focus; a touch gets the press.
+ */
+.family-card {
+  overflow: hidden;
+  transition:
+    translate var(--ui) var(--ease),
+    border-color var(--ui) var(--ease);
+}
+
+.family-card__link {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+
+.family-card__media {
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--bg);
+  border-block-end: 1px solid var(--line);
+}
+
+.family-card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: scale var(--settle) var(--ease);
+}
+
+.family-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.family-card__body .product-card__name,
+.family-card__body .product-card__desc {
+  margin: 0;
+}
+
+.family-card__cue {
+  margin-block-start: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--dimension);
+  transition: translate var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .family-card:hover {
+    translate: 0 -4px;
+    border-color: var(--dimension);
+  }
+
+  .family-card:hover .family-card__img {
+    scale: 1.04;
+  }
+
+  .family-card:hover .family-card__cue {
+    translate: 4px 0;
+  }
+}
+
+.family-card:has(.family-card__link:focus-visible) {
+  translate: 0 -4px;
+  border-color: var(--dimension);
+}
+
+.family-card:has(.family-card__link:active) {
+  scale: 0.98;
+}
+
+/* ------------------------------------------------ №04 how an order works */
+
+.timeline {
+  position: relative;
+  margin-block-start: 24px;
+  padding-inline-start: 24px;
+}
+
+/* The drawn line; without the scroll-driven animation it simply stands, fully drawn. */
+.timeline__line {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 4px;
+  width: 2px;
+  background: var(--dimension);
+  transform-origin: top;
+}
+
+.timeline__phases {
+  display: grid;
+  gap: 64px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ⚠️ `max-width: none`: base.css caps every `li` at 60ch, which squeezed the copy column of a
+   two-column phase to 100px (measured at 1440, 2026-09-29). The prose inside keeps its cap. */
+.timeline__phase,
+.timeline__step {
+  max-width: none;
+}
+
+.timeline__phase {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 900px) {
+  .timeline__phase {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    gap: 64px;
+    align-items: start;
+  }
+}
+
+.timeline__name {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  letter-spacing: var(--tracking-caps-wide);
+  text-transform: uppercase;
+  color: var(--dimension);
+}
+
+.timeline__steps {
+  display: grid;
+  gap: 24px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+
+.timeline__marker {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--muted);
+}
+
+.timeline__actor {
+  justify-self: start;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* "You" is the buyer's move — marked in the accent so a reader can scan for their turns. */
+.timeline__actor--You {
+  border-color: var(--dimension);
+  color: var(--text);
+}
+
+.timeline__title,
+.timeline__body {
+  grid-column: 2;
+  margin: 0;
+}
+
+.timeline__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+}
+
+/*
+ * ⚠️ 50ch, NOT `--site-measure` (55ch): CI COUNTED 77 CHARACTERS ON ONE LINE. At 768 px the
+ * timeline is one column and the body reaches its cap, 495 px at 55ch. This Mac fitted that in
+ * 75 characters; CI's Linux Chromium set the same copy at 77 (PR #94, legibility.spec.ts FA-C-52,
+ * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is at
+ * most 420 px, so the cap only matters in one-column layouts.
+ */
+.timeline__body {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  max-width: 50ch;
+}
+
+/* ------------------------------------------------ №05 the numbers, as a bento */
+
+/* Five facts: the first spans two columns, so every layout is a complete rectangle. */
+@media (min-width: 560px) {
+  .facts-grid--bento .fact--feature {
+    grid-column: span 2;
+  }
+}
+
+.fact--feature .fact__value {
+  color: var(--dimension);
+}
+
+/* `.product-card__placeholder` is absolutely placed and draws its own blueprint grid. */
+.family-card__media--empty {
+  position: relative;
+}
+
+/* ------------------------------------------------ scroll motion (owner's points 2 and 6) */
+
+/*
+ * The order timeline's line draws itself as the section is read, and each factory photo
+ * wipes open as it arrives and drifts slightly against the page (the owner, 2026-09-29: the
+ * photos "make the website feel static").
+ *
+ * The SAME contract as `site-reveal` above, for the same reasons: scroll-driven CSS rather
+ * than script, so a browser that runs no JavaScript still gets the finished page; inside
+ * `@supports (animation-timeline: view())`, so a browser without scroll timelines never enters
+ * the block and shows everything drawn and open; and only with `prefers-reduced-motion:
+ * no-preference`. No keyframe touches `opacity` (the axe contrast trap recorded above).
+ *
+ * ⚠️ THE DRIFT NEEDS HEADROOM. The picture is scaled 1.12 inside a frame that clips, so a 5%
+ * move never shows an edge; the frame keeps its reserved size, so nothing around it moves.
+ */
+@keyframes timeline-draw {
+  from {
+    scale: 1 0;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+@keyframes photo-wipe {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes photo-drift {
+  from {
+    translate: 0 -5%;
+  }
+  to {
+    translate: 0 5%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .timeline__line {
+      animation: timeline-draw var(--slow) linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 70%;
+    }
+
+    .photo-wipe {
+      animation: photo-wipe var(--slow) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 80%;
+    }
+
+    .photo-parallax {
+      scale: 1.12;
+      animation: photo-drift var(--slow) linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+  }
+}
+
+@media print {
+  .timeline__line,
+  .photo-wipe,
+  .photo-parallax {
+    animation: none;
+    scale: none;
+  }
+}
+
+/* ------------------------------------------------ the factory gallery, large */
+
+.factory-tile__open {
+  display: block;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.factory-tile__open:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.lightbox__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: color-mix(in srgb, var(--ink) 94%, transparent);
+}
+
+/* Colours come from the dark block shared with the hero, above. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 0;
+}
+
+.lightbox__strip {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.lightbox__strip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.lightbox__slide {
+  display: grid;
+  flex: 0 0 100%;
+  max-width: none;
+  min-height: 0;
+  place-items: center;
+  padding-inline: var(--site-gutter);
+  scroll-snap-align: center;
+}
+
+.lightbox__figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  justify-content: center;
+}
+
+.lightbox__img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.lightbox__caption,
+.lightbox__count {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lightbox__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-inline: var(--site-gutter);
+}
+
+/* ------------------------------------------------ №03 the live garment (D24) */
+
+/*
+ * Laid exactly over `.proof__frame` (same box, inside its 1px border) and outside the link, so a
+ * drag turns the garment rather than following the link. Until the model is shown the layer lets
+ * every pointer through to the poster link underneath, which is what the page had before.
+ */
+.proof__figure {
+  position: relative;
+}
+
+.live-garment {
+  position: absolute;
+  inset-block-start: 1px;
+  inset-inline: 1px;
+  aspect-ratio: 4 / 5;
+  pointer-events: none;
+}
+
+.live-garment[data-phase="shown"] {
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.live-garment__model {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  --progress-bar-color: var(--dimension);
+}
+
+.live-garment__offer {
+  position: absolute;
+  inset-block-end: 16px;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  pointer-events: auto;
+}
+
+/* ------------------------------------------------ the contact page, 2026-09-29 */
+
+/*
+ * The form's two steps. ⚠️ `[hidden]` IS RESTATED BECAUSE A CLASS WINS OVER IT: the user-agent
+ * `display: none` on `[hidden]` loses to any author `display`, so without this line a hidden
+ * step would show the moment a layout rule gave `.inquiry-form__step` a display of its own.
+ */
+.inquiry-form__step {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.inquiry-form__step[hidden] {
+  display: none;
+}
+
+/* A step that opens with a two-column row still keeps the legend's gap: row fields drop theirs. */
+.inquiry-form__step > .inquiry-form__row {
+  margin-block-start: 16px;
+}
+
+.inquiry-form__step + .inquiry-form__step {
+  margin-block-start: 24px;
+}
+
+.inquiry-form__legend {
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  color: var(--text);
+}
+
+/*
+ * The progress bar. `role="progressbar"` and its values carry the meaning; the fill is only its
+ * picture, drawn with `transform` so a change never re-lays the form out.
+ */
+.inquiry-progress {
+  margin-block: 24px 16px;
+}
+
+.inquiry-progress__step {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  color: var(--muted);
+}
+
+.inquiry-progress__track {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+}
+
+.inquiry-progress__fill {
+  display: block;
+  height: 100%;
+  background: var(--dimension);
+  transform-origin: left center;
+  transition: transform var(--ui) var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inquiry-progress__fill {
+    transition: none;
+  }
+}
+
+/* Country code beside the number: a code is at most "+1684", so its field stays narrow. */
+.inquiry-form__phone {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  /* "Country code (optional)" wraps to two lines in its 9rem column; the boxes line up anyway. */
+  align-items: end;
+  gap: 16px;
+  margin-block-start: 16px;
+}
+
+.inquiry-form__phone .inquiry-form__field {
+  margin-block-start: 0;
+}
+
+.inquiry-form__file {
+  padding-block: 8px;
+}
+
+.inquiry-form__file::file-selector-button {
+  margin-inline-end: 12px;
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-button);
+}
+
+.inquiry-form__note {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.inquiry-files {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inquiry-files__item {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-block: 6px;
+  border-block-end: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+.inquiry-files__name {
+  overflow-wrap: anywhere;
+}
+
+.inquiry-files__size {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  color: var(--muted);
 }

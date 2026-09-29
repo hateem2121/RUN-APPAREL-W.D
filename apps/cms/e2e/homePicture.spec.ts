@@ -2,8 +2,9 @@ import { FACTORY_PHOTOS } from '../src/lib/factoryPhotos'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
- * IM-12 — the home page's pictures are a real garment and the owner's factory, and nothing
- * else: no photograph in the hero, no stock image, no picture from a stylesheet.
+ * IM-12 — the home page's pictures are real garments and the owner's factory, and nothing
+ * else: no stock image, no picture from a stylesheet. (Since 2026-09-29 the hero carries one
+ * factory photo, by the owner's choice — see the first test.)
  *
  * What the audit found, and what is kept: the hero is words and the blueprint grid; the
  * garment picture is `ProofGarment` (`src/app/(frontend)/page.tsx`) in section №02 — a
@@ -47,7 +48,14 @@ async function picturesUnder(page: Page, selector: string) {
 }
 
 test.describe('IM-12 — the home page shows a garment and the factory, nothing else', () => {
-  test('the hero carries no photograph', async ({ page }) => {
+  /*
+   * ⚠️ REVERSED BY THE OWNER ON 2026-09-29: "each section must also have their media", and a
+   * factory photo for the hero. So the hero now carries exactly ONE photograph — the stitching
+   * floor, the page's largest paint — and nothing else.
+   */
+  test('the hero carries the stitching-floor photo and nothing else, loaded first', async ({
+    page,
+  }) => {
     await page.goto('/')
     // The control that the region exists: an empty match would pass on nothing.
     await expect(page.locator('.site-hero')).toHaveCount(1)
@@ -55,14 +63,54 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
 
     expect(
       await picturesUnder(page, '.site-hero'),
-      'the home page hero paints a picture. The garment poster lives in section №02 and ' +
-        'the factory photos in №04 (IM-12).',
-    ).toEqual([])
+      'the hero paints something besides its one photo (IM-12)',
+    ).toEqual(['picture.site-hero__photo', 'img.site-hero__img'])
+    const hero = page.locator('.site-hero__img')
+    await expect(hero).toHaveAttribute('src', /^\/factory\/hero-wide-\d+\.webp$/)
+    await expect(hero).toHaveAttribute('loading', 'eager')
+    await expect(hero).toHaveAttribute('fetchpriority', 'high')
   })
 
-  test('the page paints the garment poster and the factory strip, and nothing else', async ({
+  /*
+   * Since 2026-09-29 pictures sit in most sections — the hero, who we are, the family cards,
+   * the 3D garment, the order timeline and the gallery. The rule the audit made is unchanged:
+   * every one is the owner's factory (`/factory/`) or a real garment from the media host, and
+   * nothing arrives as a CSS background.
+   */
+  test('every picture is the factory or a real garment, and none is a background', async ({
     page,
   }) => {
+    await page.goto('/')
+    const everything = await picturesUnder(page, 'body')
+    expect(
+      everything.filter((entry) => entry.includes(' background ')),
+      'a picture arrives as a CSS background (IM-12)',
+    ).toEqual([])
+    const images = await page.locator('main img').evaluateAll((all) =>
+      all.map((img) => ({
+        src: img.getAttribute('src') ?? '',
+        // A garment picture sits in a family card or the 3D section; its host is whatever
+        // the environment serves media from (production: the media host; the suite: itself).
+        garmentSlot: Boolean(img.closest('.family-card, .proof__figure')),
+      })),
+    )
+    expect(images.length, 'the home page shows no pictures at all').toBeGreaterThan(10)
+    expect(
+      images
+        .filter((image) => !image.src.startsWith('/factory/') && !image.garmentSlot)
+        .map((image) => image.src),
+      'a picture that is neither the factory nor a garment from the CMS (IM-12)',
+    ).toEqual([])
+
+    const factory = await page
+      .locator('.factory-grid img')
+      .evaluateAll((images) => images.map((img) => img.getAttribute('src') ?? ''))
+    expect(factory, 'the factory gallery is not the list in src/lib/factoryPhotos.ts').toEqual(
+      FACTORY_PHOTOS.map((photo) => expect.stringMatching(new RegExp(`^/factory/${photo.slug}-`))),
+    )
+  })
+
+  test('the garment poster links to its garment page', async ({ page }) => {
     await page.goto('/')
     const posters = page.locator('main .proof__figure img')
     if ((await posters.count()) === 0) {
@@ -75,19 +123,6 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
       }
       test.skip(true, 'no published garment with a poster in this local database')
     }
-
-    const everything = await picturesUnder(page, 'body')
-    const factory = await page
-      .locator('.factory-grid img')
-      .evaluateAll((images) => images.map((img) => img.getAttribute('src') ?? ''))
-    expect(factory, 'the factory strip is not the list in src/lib/factoryPhotos.ts').toEqual(
-      FACTORY_PHOTOS.map((photo) => expect.stringMatching(new RegExp(`^/factory/${photo.slug}-`))),
-    )
-    expect(
-      everything,
-      `the home page paints ${everything.length} pictures: the poster plus ${factory.length} factory photos expected`,
-    ).toHaveLength(1 + factory.length)
-
     const poster = posters.first()
     await expect(poster).toHaveAttribute('src', /^https:\/\/media\./)
     const link = poster.locator('xpath=ancestor::a[1]')

@@ -1,4 +1,4 @@
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 
 /**
  * The contact form.
@@ -26,6 +26,25 @@ import { expect, test } from './offlineMedia'
  * last. TEST-NET-1 (192.0.2.0/24, RFC 5737) in one band per project, so these can never
  * meet each other or `inquirySecurity.spec.ts`'s TEST-NET-2 and TEST-NET-3 addresses.
  */
+/** Owner, 2026-09-29: name, email and message first; everything else optional, on step 2. */
+const STEP_ONE = ['name', 'email', 'message'] as const
+const STEP_TWO = [
+  'company',
+  'jobTitle',
+  'country',
+  'phoneCode',
+  'phone',
+  'subject',
+  'files',
+] as const
+
+/** Fill step 1 so "Next" may open step 2 (it refuses while a required field is empty). */
+async function fillStepOne(page: Page) {
+  await page.fill('.inquiry-form [name="name"]', 'Dana Okafor')
+  await page.fill('.inquiry-form [name="email"]', 'dana@northfield.example')
+  await page.fill('.inquiry-form [name="message"]', '400 training tops.')
+}
+
 function ownAddress(projectName: string) {
   const base = projectName === 'firefox' ? 130 : 10
   return `192.0.2.${base + Math.floor(Math.random() * 100)}`
@@ -37,12 +56,28 @@ test.describe('the inquiry form', () => {
     const form = page.locator('.inquiry-form')
     await expect(form).toBeVisible()
 
-    for (const name of ['name', 'company', 'email', 'message']) {
+    for (const name of STEP_ONE) {
       const field = form.locator(`[name="${name}"]`)
       await expect(field, `${name} is missing`).toBeVisible()
       // Each control is wrapped in its own <label>, so the accessible name comes from it.
       const labelled = await field.evaluate((el) => Boolean(el.closest('label')))
       expect(labelled, `${name} has no label`).toBe(true)
+    }
+
+    // Step 2 (owner, 2026-09-29): every field optional, and every label SAYS so.
+    await fillStepOne(page)
+    await form.getByRole('button', { name: /next: add details/i }).click()
+    for (const name of STEP_TWO) {
+      const field = form.locator(`[name="${name}"]`)
+      await expect(field, `${name} is missing`).toBeVisible()
+      const label = await field.evaluate(
+        (el) => el.closest('label')?.textContent ?? el.getAttribute('aria-label') ?? '',
+      )
+      expect(label, `${name} does not say it is optional`).toMatch(/\(optional\)/i)
+      expect(
+        await field.evaluate((el) => (el as HTMLInputElement).required),
+        `${name} is required`,
+      ).toBe(false)
     }
 
     /*
@@ -87,12 +122,24 @@ test.describe('the inquiry form', () => {
   test('every control clears the 44px touch floor', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/contact')
-    const small = await page.locator('.inquiry-form').evaluate((form) =>
-      [...form.querySelectorAll('input, textarea, button')]
-        .filter((el) => !el.closest('[aria-hidden="true"]'))
-        .filter((el) => el.getBoundingClientRect().height < 43.95)
-        .map((el) => (el as HTMLInputElement).name || el.tagName),
-    )
+    /*
+     * Each step measured while it is the one showing: a hidden step's controls have no box, so
+     * measuring them would report every one of them "under 44px". Skipping hidden controls is
+     * therefore right, and measuring BOTH steps is what keeps that skip from hiding a real miss.
+     */
+    const measure = () =>
+      page.locator('.inquiry-form').evaluate((form) =>
+        [...form.querySelectorAll('input, textarea, select, button')]
+          .filter((el) => !el.closest('[aria-hidden="true"]'))
+          .filter((el) => el.getClientRects().length > 0)
+          .filter((el) => el.getBoundingClientRect().height < 43.95)
+          .map((el) => (el as HTMLInputElement).name || el.textContent || el.tagName),
+      )
+    const small = await measure()
+    await fillStepOne(page)
+    await page.getByRole('button', { name: /next: add details/i }).click()
+    await expect(page.locator('.inquiry-form [name="company"]')).toBeVisible()
+    small.push(...(await measure()))
     expect(small, 'a form control is under the 44px floor').toEqual([])
   })
 
@@ -145,13 +192,14 @@ test.describe('the inquiry form', () => {
     await page.setExtraHTTPHeaders({ 'cf-connecting-ip': ownAddress(testInfo.project.name) })
     await page.goto('/contact')
     await page.fill('.inquiry-form [name="name"]', 'Dana Okafor')
-    await page.fill('.inquiry-form [name="company"]', 'Northfield Athletic')
     await page.fill('.inquiry-form [name="email"]', 'dana@northfield.example')
     await page.fill(
       '.inquiry-form [name="message"]',
       'We need 400 training tops in two colourways for a March delivery.',
     )
-    await page.locator('.inquiry-form button[type="submit"]').click()
+    await page.getByRole('button', { name: /next: add details/i }).click()
+    await page.fill('.inquiry-form [name="company"]', 'Northfield Athletic')
+    await page.getByRole('button', { name: /^send inquiry$/i }).click()
 
     await expect(page).toHaveURL(/\/contact\?sent=1$/)
     await expect(page.locator('.form-notice--ok')).toBeVisible()
@@ -199,6 +247,151 @@ test.describe('the inquiry form', () => {
     expect(res.headers().location).toContain('error=')
   })
 
+  test('two steps, with a progress bar that moves as the buyer goes', async ({ page }) => {
+    await page.goto('/contact')
+    const form = page.locator('.inquiry-form')
+    const bar = form.getByRole('progressbar', { name: 'Form progress' })
+    const now = async () => Number(await bar.getAttribute('aria-valuenow'))
+
+    await expect(form.getByText('Step 1 of 2')).toBeVisible()
+    await expect(form.locator('[name="company"]')).toBeHidden()
+    expect(await now()).toBe(0)
+
+    await form.locator('[name="name"]').focus()
+    await expect.poll(now).toBe(10)
+    await form.locator('[name="name"]').fill('Dana Okafor')
+    await form.locator('[name="email"]').fill('dana@northfield.example')
+    await form.locator('[name="message"]').fill('400 training tops.')
+    await expect.poll(now).toBe(50)
+
+    await form.getByRole('button', { name: /next: add details/i }).click()
+    await expect(form.getByText('Step 2 of 2')).toBeVisible()
+    await expect(form.locator('[name="company"]')).toBeVisible()
+    await expect.poll(now).toBe(60)
+    await form.locator('[name="company"]').fill('Northfield Athletic')
+    await expect.poll(now).toBeGreaterThan(60)
+  })
+
+  test('"Next" will not open step 2 while a required field is empty', async ({ page }) => {
+    await page.goto('/contact')
+    const form = page.locator('.inquiry-form')
+    await form.getByRole('button', { name: /next: add details/i }).click()
+    await expect(form.getByText('Step 1 of 2')).toBeVisible()
+    await expect(form.locator('[name="company"]')).toBeHidden()
+  })
+
+  test('the country fills the code, and a code the buyer typed survives a change', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    const form = page.locator('.inquiry-form')
+    await form.locator('[name="name"]').fill('Dana Okafor')
+    await form.locator('[name="email"]').fill('dana@northfield.example')
+    await form.locator('[name="message"]').fill('400 training tops.')
+    await form.getByRole('button', { name: /next: add details/i }).click()
+
+    const code = form.locator('[name="phoneCode"]')
+    await form.locator('[name="country"]').selectOption('Pakistan')
+    await expect(code).toHaveValue('+92')
+    await form.locator('[name="country"]').selectOption('Germany')
+    await expect(code).toHaveValue('+49')
+    // Negative control for the rule: typed by the buyer, it is theirs.
+    await code.fill('+971')
+    await form.locator('[name="country"]').selectOption('Canada')
+    await expect(code).toHaveValue('+971')
+  })
+
+  test('a sixth file is stopped in the page, before any upload', async ({ page }) => {
+    await page.goto('/contact')
+    const form = page.locator('.inquiry-form')
+    await form.locator('[name="name"]').fill('Dana Okafor')
+    await form.locator('[name="email"]').fill('dana@northfield.example')
+    await form.locator('[name="message"]').fill('400 training tops.')
+    await form.getByRole('button', { name: /next: add details/i }).click()
+
+    const pdf = Buffer.from('%PDF-1.7\nxref\n%%EOF\n')
+    const pick = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        name: `pack-${i + 1}.pdf`,
+        mimeType: 'application/pdf',
+        buffer: pdf,
+      }))
+    const input = form.locator('[name="files"]')
+
+    await input.setInputFiles(pick(2))
+    await expect(form.getByText('pack-2.pdf')).toBeVisible()
+    expect(await form.evaluate((f) => (f as HTMLFormElement).checkValidity())).toBe(true)
+
+    await input.setInputFiles(pick(6))
+    await expect(form.getByText(/You chose 6 files/)).toBeVisible()
+    expect(
+      await form.evaluate((f) => (f as HTMLFormElement).checkValidity()),
+      'the form would still send six files',
+    ).toBe(false)
+  })
+
+  // Final review, 2026-09-29: the server's refusal of a mislabelled file came after the upload and
+  // cost the buyer their typed message. The page now reads the bytes first.
+  test('a program renamed .pdf is stopped in the page, and the typed message stays', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    const form = page.locator('.inquiry-form')
+    await form.locator('[name="name"]').fill('Dana Okafor')
+    await form.locator('[name="email"]').fill('dana@northfield.example')
+    await form.locator('[name="message"]').fill('400 training tops.')
+    await form.getByRole('button', { name: /next: add details/i }).click()
+    const input = form.locator('[name="files"]')
+
+    await input.setInputFiles({
+      name: 'pack.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from([0x4d, 0x5a, 0x90, 0x00]),
+    })
+    await expect(form.getByText(/“pack\.pdf” is not a kind we accept/)).toBeVisible()
+    expect(
+      await form.evaluate((f) => (f as HTMLFormElement).checkValidity()),
+      'the form would still send a renamed program',
+    ).toBe(false)
+    await expect(form.locator('[name="message"]')).toHaveValue('400 training tops.')
+
+    // NEGATIVE CONTROL: replacing it with a real PDF clears the block.
+    await input.setInputFiles({
+      name: 'pack.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7\nxref\n%%EOF\n'),
+    })
+    await expect(form.getByText(/is not a kind we accept/)).toHaveCount(0)
+    await expect.poll(() => form.evaluate((f) => (f as HTMLFormElement).checkValidity())).toBe(true)
+  })
+
+  test('the server refuses a program renamed .pdf, and stores nothing', async ({
+    request,
+  }, testInfo) => {
+    const res = await request.post('/contact/submit', {
+      multipart: {
+        name: 'Renamed Binary',
+        email: 'renamed@example.com',
+        message: 'See the attached pack.',
+        files: {
+          name: 'pack.pdf',
+          mimeType: 'application/pdf',
+          buffer: Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00]),
+        },
+      },
+      headers: { 'cf-connecting-ip': ownAddress(testInfo.project.name) },
+      maxRedirects: 0,
+    })
+    expect(res.status()).toBe(303)
+    expect(res.headers().location).toContain('error=files&reason=type')
+  })
+
+  test('a refused file is explained on the page, and says nothing was sent', async ({ page }) => {
+    await page.goto('/contact?error=files&reason=too-big')
+    await expect(page.locator('.form-notice--bad')).toContainText('has not been sent')
+    await expect(page.locator('.form-notice--bad')).toContainText('25 MB')
+  })
+
   test.describe('with scripting off', () => {
     test.use({ javaScriptEnabled: false })
 
@@ -210,10 +403,33 @@ test.describe('the inquiry form', () => {
       expect(action).toBe('/contact/submit')
       expect(method?.toLowerCase()).toBe('post')
 
+      expect(await page.locator('.inquiry-form').getAttribute('enctype')).toBe(
+        'multipart/form-data',
+      )
+      // No stepper without scripting: both steps show, and there is ONE way to send.
+      for (const name of [...STEP_ONE, ...STEP_TWO]) {
+        await expect(page.locator(`.inquiry-form [name="${name}"]`), name).toBeVisible()
+      }
+      await expect(page.locator('.inquiry-form button[type="submit"]')).toHaveCount(1)
+      await expect(page.locator('.inquiry-form [role="progressbar"]')).toHaveCount(0)
+
       await page.fill('.inquiry-form [name="name"]', 'No Script')
       await page.fill('.inquiry-form [name="email"]', 'noscript@example.com')
       await page.fill('.inquiry-form [name="message"]', 'Sent with JavaScript disabled.')
+      await page.fill('.inquiry-form [name="jobTitle"]', 'Buyer')
+      await page.selectOption('.inquiry-form [name="country"]', 'Canada')
+      await page.fill('.inquiry-form [name="phoneCode"]', '+1')
+      await page.fill('.inquiry-form [name="phone"]', '555 0100')
+      await page.fill('.inquiry-form [name="subject"]', 'Hockey jerseys')
+
+      // Storage is unreadable here by design (see the top of this file), so what is proved is
+      // that the browser sent every field, in one multipart POST, and the server accepted it.
+      const posted = page.waitForRequest((r) => r.url().endsWith('/contact/submit'))
       await page.locator('.inquiry-form button[type="submit"]').click()
+      const body = (await posted).postData() ?? ''
+      for (const value of ['Buyer', 'Canada', '555 0100', 'Hockey jerseys', 'name="files"']) {
+        expect(body, `the POST did not carry ${value}`).toContain(value)
+      }
       await expect(page).toHaveURL(/\/contact\?sent=1$/)
       await expect(page.locator('.form-notice--ok')).toBeVisible()
     })

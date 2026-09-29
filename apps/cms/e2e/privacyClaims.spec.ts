@@ -57,6 +57,35 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
         'keep what you send — your name, company, contact details and the inquiry itself',
     )
   })
+
+  /*
+   * Owner-approved 2026-09-29, with the form's new optional details and attached files. The
+   * files claim is the one that must stay TRUE, not just present: the bucket has no public
+   * address and every download goes through the admin's sign-in (`collections/InquiryFiles.ts`).
+   */
+  test('names the new form details, and says where attached files go and when they go', async ({
+    request,
+  }) => {
+    const body = await (await request.get('/privacy')).text()
+    expect(body).toContain(
+      'An inquiry sent through this site can also include your job title, country, phone ' +
+        'number, a subject and any files you attach. Attached files are stored privately with ' +
+        'Cloudflare, never at a public address, and only our team can open them.',
+    )
+    expect(body).toContain(
+      'Inquiry correspondence, including any files you attached, for as long as our business ' +
+        'relationship needs it; when we delete an inquiry, its files are deleted with it.',
+    )
+  })
+
+  test('names Resend, which carries every inquiry to the owner', async ({ request }) => {
+    // Owner, 2026-09-29: the notification email holds the inquiry, so its carrier is named.
+    const body = await (await request.get('/privacy')).text()
+    expect(body).toContain(
+      'Cloudflare, Sentry and Resend (which delivers our inquiry notifications to us) process ' +
+        'data outside Pakistan',
+    )
+  })
 })
 
 /**
