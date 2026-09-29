@@ -503,6 +503,27 @@ promise, no shipping regions, no fixed shipment window ("days may vary order to 
 **Guard:** `apps/cms/e2e/composition.spec.ts` (LA-01) pins №01–№07;
 `apps/cms/src/lib/orderProcess.test.ts` refuses an unconfirmed promise.
 
+### D24 · The home page's garment turns in real 3D — reverses the 2026-09-07 still
+
+**Decision: live 3D on scroll. Owner, 2026-09-29.** The owner asked for "more innovative and
+creative ways to showcase that our products are truly 3D" and chose, of three options, the
+model loading as the section nears the screen, turning slowly, draggable.
+
+What made the still right on 2026-09-07 is kept as guards rather than discarded: nothing is
+downloaded on the first screen (the model loads only within a screen of view); a data-saving
+or 2G connection gets a "Turn it in 3D" button instead of a download; and the poster is still
+what the server sends, so no JavaScript, no WebGL or a failed model leaves exactly the page of
+2026-09-07.
+
+⚠️ **It renders with the viewer's own print fixes, by exact copy.** The adaptive near plane
+and the decal depth bias live in the viewer; an app may not import another's code, and moving
+them to `packages/shared` would have dropped the viewer below its 58% coverage floor (58.68%
+measured). `apps/cms/src/lib/render/viewerParity.test.ts` fails if either copy differs from
+the viewer's file by one character, or if the lighting drifts.
+
+**Guard:** `apps/cms/e2e/liveGarment.spec.ts` (a failed model keeps the picture; nothing loads
+before the section is near; nothing loads on a data-saving connection until asked).
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

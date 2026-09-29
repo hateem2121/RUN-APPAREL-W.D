@@ -352,15 +352,24 @@ describe('toProductCard', () => {
  * mirrors `projectViewer.ts`: one GLB for the product in single mode, one per colour in
  * separate mode — and never a URL a visitor is 403ed from.
  */
-describe('the card carries its 3D model address', () => {
+describe('the card carries its 3D model, framed as the viewer frames it', () => {
   const MEDIA = ADMIN_MEDIA_ORIGIN
 
-  it('single-model products use the product GLB', () => {
-    const card = toProductCard(product({ glbAsset: { url: `${MEDIA}/rxps.glb` } }))
-    expect(card?.modelUrl).toBe(`${SITE_MEDIA}/rxps.glb`)
+  it('single-model products use the product GLB and name the default colour variant', () => {
+    const card = toProductCard(
+      product({
+        glbAsset: { url: `${MEDIA}/rxps.glb` },
+        colourways: [
+          { slug: 'wine', displayName: 'Wine', variantId: 'Wine_01' },
+          { slug: 'blush', displayName: 'Blush', variantId: 'Blush_02' },
+        ],
+      }),
+    )
+    expect(card?.model?.url).toBe(`${SITE_MEDIA}/rxps.glb`)
+    expect(card?.model?.variantId).toBe('Wine_01')
   })
 
-  it('one-model-per-colour products use the default colour GLB', () => {
+  it('one-model-per-colour products use the default colour GLB and name no variant', () => {
     const card = toProductCard(
       product({
         variantMode: 'separate-glb-per-colour',
@@ -371,15 +380,36 @@ describe('the card carries its 3D model address', () => {
         ],
       }),
     )
-    expect(card?.modelUrl).toBe(`${SITE_MEDIA}/rxps-wine.glb`)
+    expect(card?.model?.url).toBe(`${SITE_MEDIA}/rxps-wine.glb`)
+    expect(card?.model?.variantId).toBeNull()
+  })
+
+  it("carries the product's own camera, with the viewer's defaults when unset", () => {
+    const framed = toProductCard(
+      product({
+        glbAsset: { url: `${MEDIA}/rxps.glb` },
+        frontCameraOrbit: '10deg 80deg 110%',
+        cameraTarget: '0m 1m 0m',
+        defaultFieldOfView: '28deg',
+      }),
+    )
+    expect(framed?.model?.camera).toEqual({
+      orbit: '10deg 80deg 110%',
+      target: '0m 1m 0m',
+      fieldOfView: '28deg',
+    })
+    const unset = toProductCard(product({ glbAsset: { url: `${MEDIA}/rxps.glb` } }))
+    expect(unset?.model?.camera).toEqual({
+      orbit: '0deg 82deg 105%',
+      target: 'auto auto auto',
+      fieldOfView: '30deg',
+    })
   })
 
   it('is null for a Payload-relative URL, a depth-0 id, or no model', () => {
-    expect(toProductCard(product({ glbAsset: { url: '/api/media/file/x.glb' } }))?.modelUrl).toBe(
-      null,
-    )
-    expect(toProductCard(product({ glbAsset: 42 }))?.modelUrl).toBe(null)
-    expect(toProductCard(product())?.modelUrl).toBe(null)
+    expect(toProductCard(product({ glbAsset: { url: '/api/media/file/x.glb' } }))?.model).toBe(null)
+    expect(toProductCard(product({ glbAsset: 42 }))?.model).toBe(null)
+    expect(toProductCard(product())?.model).toBe(null)
   })
 })
 

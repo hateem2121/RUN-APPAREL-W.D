@@ -7,6 +7,7 @@ import { FactsBento } from '../../components/site/FactsBento'
 import { FamilyCard } from '../../components/site/FamilyCard'
 import { HomeHero } from '../../components/site/HomeHero'
 import { JsonLd } from '../../components/site/JsonLd'
+import { LiveGarment } from '../../components/site/LiveGarment'
 import { OrderTimeline } from '../../components/site/OrderTimeline'
 import { ProductPoster } from '../../components/site/ProductPoster'
 import { ViewerCue } from '../../components/site/ViewerCue'
@@ -40,6 +41,10 @@ export const metadata: Metadata = {
  * ⚠️ THE PAGE ARGUED FOR 3D AND SHOWED NONE OF IT. Section №02 was four lines of prose
  * and a link — a manufacturer's site claiming a differentiator with nothing to look at,
  * which is the one section where a picture is the argument rather than decoration.
+ *
+ * ⚠️ SINCE 2026-09-29 THE STILL IS THE FALLBACK, NOT THE WHOLE STORY (decision D24): the owner
+ * chose "live 3D on scroll", so `LiveGarment` lays the real model over this picture once the
+ * section nears the screen. What follows is why the picture is still what the server sends.
  *
  * ⚠️ A STILL, NOT A LIVE MODEL — owner's decision 2026-09-07. `<model-viewer>` on the
  * home page would put a WebGL renderer and a multi-megabyte GLB on the first screen a
@@ -81,6 +86,16 @@ function ProofGarment({ product }: { product: ProductCard | null }) {
         </figcaption>
         <ViewerCue />
       </a>
+      {/*
+        The live garment sits OVER the picture and OUTSIDE the link, so turning it never
+        navigates; the caption and cue below still open the full viewer (LiveGarment.tsx).
+      */}
+      {product.model ? (
+        <LiveGarment
+          model={product.model}
+          label={`${product.productCode} ${product.productName}`}
+        />
+      ) : null}
     </figure>
   )
 }

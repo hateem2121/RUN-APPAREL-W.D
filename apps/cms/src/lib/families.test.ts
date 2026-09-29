@@ -94,7 +94,7 @@ describe('familyPictures', () => {
     defaultColourSlug: 'c',
     colourNames: ['C'],
     colours: [colour('https://media.example/render.webp', 'render')],
-    modelUrl: null,
+    model: null,
     ...over,
   })
 

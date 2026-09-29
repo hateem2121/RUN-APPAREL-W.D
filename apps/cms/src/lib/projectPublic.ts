@@ -142,10 +142,19 @@ export interface ProductCard {
   /** One swipeable picture per addressable colourway, in row order. */
   colours: CardColour[]
   /**
-   * The default colour's 3D model, for the home page's live garment (2026-09-29). `null`
-   * keeps the still poster — never a URL a visitor cannot fetch.
+   * The default colour's 3D model, for the home page's live garment (2026-09-29), framed and
+   * coloured as the viewer shows it. `null` keeps the still poster — never a URL a visitor
+   * cannot fetch.
    */
-  modelUrl: string | null
+  model: LiveModel | null
+}
+
+/** What the home page needs to render a garment the way `endpoints/projectViewer.ts` serves it. */
+export interface LiveModel {
+  url: string
+  /** The default colour's variant inside a single-GLB product; `null` in per-colour mode. */
+  variantId: string | null
+  camera: { orbit: string; target: string; fieldOfView: string }
 }
 
 /**
@@ -237,25 +246,35 @@ export function toProductCard(
     colours: colourways.map((colour, index) =>
       toCardColour(colour, productName, index === 0 ? product.posterFallback : undefined),
     ),
-    modelUrl: pickModel(product, colourways[0]),
+    model: pickModel(product, colourways[0]),
   }
 }
 
 /**
- * The default colour's model, chosen exactly as `endpoints/projectViewer.ts` chooses it:
- * one GLB on the product in single mode, one per colour in `separate-glb-per-colour` mode.
- * The URL goes through the same public-host rewrite and the same refusal of Payload-relative
- * URLs as the posters (`isPubliclyFetchable` below).
+ * The default colour's model, chosen exactly as `endpoints/projectViewer.ts` chooses it: one
+ * GLB on the product in single mode (with the colour picked by its variant name), one per
+ * colour in `separate-glb-per-colour` mode. The camera defaults are that file's, so an unset
+ * product frames the same on both pages. The URL goes through the same public-host rewrite and
+ * the same refusal of Payload-relative URLs as the posters (`isPubliclyFetchable` below).
  */
 function pickModel(
   product: Record<string, unknown>,
   defaultColour: Record<string, unknown> | undefined,
-): string | null {
-  const holder =
-    product.variantMode === 'separate-glb-per-colour' ? defaultColour?.glbAsset : product.glbAsset
+): LiveModel | null {
+  const separate = product.variantMode === 'separate-glb-per-colour'
+  const holder = separate ? defaultColour?.glbAsset : product.glbAsset
   if (!holder || typeof holder !== 'object') return null
   const url = onSiteMedia(text((holder as { url?: unknown }).url))
-  return isPubliclyFetchable(url) ? url : null
+  if (!isPubliclyFetchable(url)) return null
+  return {
+    url,
+    variantId: separate ? null : text(defaultColour?.variantId) || null,
+    camera: {
+      orbit: text(product.frontCameraOrbit) || '0deg 82deg 105%',
+      target: text(product.cameraTarget) || 'auto auto auto',
+      fieldOfView: text(product.defaultFieldOfView) || '30deg',
+    },
+  }
 }
 
 /**
