@@ -92,13 +92,23 @@ export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact', '/privacy', '/
  * pin that the five pages and the 404 carry exactly this string, and that the admin and the API
  * do not.
  */
+/*
+ * ⚠️ FOUR ADDITIONS ON 2026-09-29, FOR THE HOME PAGE'S LIVE 3D GARMENT (decision D24), and
+ * each is one the garment pages' own policy already carries: `'wasm-unsafe-eval'` so the model
+ * decoders can compile WebAssembly (it allows WebAssembly only, never `eval`), `blob:` images
+ * and workers for textures and decoding, and the media host in connect-src for the model file.
+ * The nonce guard (cspNonce.mjs) still swaps only `'unsafe-inline'` — `cspNonce.test.ts`
+ * asserts `'wasm-unsafe-eval'` survives the swap — and this stays ONE string, because the
+ * guard keys on exact equality with it.
+ */
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://media.wear-run.com https://media.wear-run.help",
+  "img-src 'self' data: blob: https://media.wear-run.com https://media.wear-run.help",
   "font-src 'self'",
-  "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
+  "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

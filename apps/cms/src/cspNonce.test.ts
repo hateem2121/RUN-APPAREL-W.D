@@ -82,7 +82,7 @@ describe('withNonce: script-src only, and only the expected shape', () => {
     expect(out).not.toBeNull()
     const policy = out as string
     expect(directive(policy, 'script-src')).toBe(
-      `script-src 'self' 'nonce-${NONCE}' https://static.cloudflareinsights.com`,
+      `script-src 'self' 'nonce-${NONCE}' 'wasm-unsafe-eval' https://static.cloudflareinsights.com`,
     )
     expect(directive(policy, 'style-src')).toBe("style-src 'self' 'unsafe-inline'")
     const before = PUBLIC_PAGE_CSP.split('; ').filter((d) => !d.startsWith('script-src '))
@@ -172,5 +172,31 @@ describe('the trigger is exactly what the site rules emit', () => {
       const csp = rule.headers.find((h: { key: string }) => h.key === 'Content-Security-Policy')
       expect(csp?.value, `${rule.source} would silently fall open`).toBe(PUBLIC_PAGE_CSP)
     }
+  })
+})
+
+/*
+ * The home page's live garment (D24, 2026-09-29) needs what the garment pages already have:
+ * WebAssembly for the model decoders, blob: images and workers for textures and decoding, and
+ * the media host for the model file itself. The same values the viewer's own policy carries.
+ */
+describe('the public policy allows the live 3D garment and nothing wider', () => {
+  it('lets the decoders compile WebAssembly, never arbitrary eval', () => {
+    const script = directive(PUBLIC_PAGE_CSP, 'script-src') ?? ''
+    expect(script).toContain("'wasm-unsafe-eval'")
+    expect(script).not.toContain("'unsafe-eval'")
+  })
+
+  it('fetches models from the media host and decodes into blobs', () => {
+    expect(directive(PUBLIC_PAGE_CSP, 'connect-src')).toContain('https://media.wear-run.com')
+    expect(directive(PUBLIC_PAGE_CSP, 'connect-src')).toContain('blob:')
+    expect(directive(PUBLIC_PAGE_CSP, 'img-src')).toContain('blob:')
+    expect(directive(PUBLIC_PAGE_CSP, 'worker-src')).toBe("worker-src 'self' blob:")
+  })
+
+  it("keeps 'wasm-unsafe-eval' when the nonce replaces 'unsafe-inline'", () => {
+    const nonced = withNonce(PUBLIC_PAGE_CSP, NONCE) ?? ''
+    expect(directive(nonced, 'script-src')).toContain("'wasm-unsafe-eval'")
+    expect(directive(nonced, 'script-src')).not.toContain("'unsafe-inline'")
   })
 })
