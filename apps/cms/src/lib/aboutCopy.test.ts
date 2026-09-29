@@ -3,19 +3,19 @@ import { ABOUT } from './aboutCopy'
 import { FACTS, LINEAGE } from './companyFacts'
 
 /**
- * "Who we are" states only facts the owner already confirmed (2026-09-07) — the same values
- * the numbers section shows, never a second copy that can drift from them.
+ * "Who we are" states only facts the owner already confirmed (2026-09-07), and none of the
+ * numbers section's figures a second time.
  */
 describe('the "Who we are" section', () => {
   it('opens with the owner-approved lineage wording', () => {
     expect(ABOUT.lede).toContain(LINEAGE)
   })
 
-  it('takes every figure it shows from FACTS', () => {
+  // №05 shows the numbers two sections later; repeating 200 and 193,000 here made both
+  // sections weaker (seen on the rendered page, 2026-09-29). This section keeps what is its own.
+  it('repeats no figure the numbers section already shows', () => {
     const values = new Set(FACTS.map((fact) => fact.value))
-    for (const point of ABOUT.points.filter((p) => /\d/.test(p.value) && p.value !== '1889')) {
-      expect(values.has(point.value), point.value).toBe(true)
-    }
+    expect(ABOUT.points.filter((point) => values.has(point.value))).toEqual([])
   })
 
   // The owner, 2026-09-29: "'A family trade' may let people think that we are traders."

@@ -469,7 +469,7 @@ test.describe('FA-G-52 — Windows High Contrast is answered, not fought', () =>
  * apps/viewer/e2e/motion-and-layout.spec.ts.
  */
 test.describe('MO-17 — the site reveals by rising alone', () => {
-  test('five home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
+  test('seven home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
     await page.goto('/')
     const found = await page.evaluate(() => {
       const properties = new Set<string>()
@@ -500,7 +500,8 @@ test.describe('MO-17 — the site reveals by rising alone', () => {
         properties: [...properties].sort(),
       }
     })
-    expect(found.sections, 'the home page reveals a different number of sections').toBe(5)
+    // №01–№07 since D23 (2026-09-29); the hero never reveals.
+    expect(found.sections, 'the home page reveals a different number of sections').toBe(7)
     expect(found.keyframes, 'no `site-reveal` keyframes in the served CSS').toBeGreaterThan(0)
     expect(found.properties, 'the site reveal animates something besides a rise').toEqual([
       'transform',

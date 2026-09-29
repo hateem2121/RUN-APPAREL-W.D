@@ -2667,3 +2667,359 @@ a.contact-block__value:active {
     --muted: light-dark(#44473e, #cfd2c2);
   }
 }
+
+/* ======================================== the 2026-09-29 refresh (owner's ten points) */
+
+/*
+ * ------------------------------------------------ the photo hero
+ *
+ * ⚠️ THE HERO IS DARK IN BOTH THEMES, AND `color-scheme` ALONE DOES NOT DO IT — MEASURED.
+ * The first version set only `color-scheme: dark` here, expecting the `light-dark()` tokens to
+ * resolve where they are used. They do not: Chromium resolved them where they are DECLARED, at
+ * `:root`, so in the light theme the hero had `color-scheme: dark` and still computed ink text
+ * (rgb(29, 31, 26)) on a paper wash (rgb(241, 239, 234)). So the hero re-declares the tokens
+ * its content reads, with the dark theme's own values — the constants, or the dark half of the
+ * pair in tokens.css. No colour outside the palette; ink text never sits on a photograph.
+ * `color-scheme: dark` stays for what the browser draws itself (focus, selection).
+ *
+ * The photo shares `--z-hero-grid` with the blueprint and sits BEFORE it in the markup, so the
+ * grid paints over the photo and the copy over both — no new layer token for one picture.
+ *
+ * ⚠️ THE WASH IS 80% INK AT THE LEAST, and the lede reads `--text`, not `--muted`, here. Worst
+ * case under it is the stitching floor's white wall: 0.8 × #1c1f18 + 0.2 × white ≈ #4a4c46, on
+ * which `--text` (#ecebe4) is about 7:1 and `--muted` (#a2a695) would be about 3.4:1 — under
+ * AA. axe cannot compute contrast over an image, so the arithmetic is the check.
+ */
+.site-hero--photo {
+  color-scheme: dark;
+  /* The dark halves of tokens.css's pairs, re-declared here (see above). */
+  --bg: #1c1f18;
+  --text: #ecebe4;
+  --muted: #a2a695;
+  --grid: rgba(236, 235, 228, 0.05);
+  --line: rgba(236, 235, 228, 0.18);
+  --line-control: rgba(236, 235, 228, 0.55);
+  --label-bg: transparent;
+  --label-text: var(--volt);
+  --btn-primary-bg: var(--volt);
+  --btn-primary-text: var(--ink);
+  --headline: var(--volt);
+  --serif-accent: var(--volt);
+  --dimension: var(--volt);
+  --focus-ring: var(--volt);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.site-hero__photo {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hero-grid);
+}
+
+.site-hero__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.site-hero__photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+}
+
+@media (min-width: 900px) {
+  /* The copy sits left on a wide screen, so the wash can open on the right. */
+  .site-hero__photo::after {
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 80%, transparent) 55%,
+      color-mix(in srgb, var(--bg) 62%, transparent) 100%
+    );
+  }
+}
+
+.site-hero--photo .site-lede {
+  color: var(--text);
+}
+
+/* ------------------------------------------------ №01 who we are */
+
+.about {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 900px) {
+  .about {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+  }
+}
+
+.about__points {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0 0;
+}
+
+.about__photos {
+  display: grid;
+  gap: 24px;
+}
+
+/* ------------------------------------------------ a factory photo inside a section */
+
+.photo-figure {
+  margin: 0;
+}
+
+.photo-figure__frame {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.photo-figure__frame--wide {
+  aspect-ratio: 8 / 5;
+}
+
+.photo-figure__frame--single {
+  aspect-ratio: 4 / 5;
+}
+
+.photo-figure__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-figure__caption {
+  margin-block-start: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------ №02 family cards, now with pictures */
+
+/*
+ * The owner, 2026-09-29: "the active block should change color or animate to indicate that
+ * these are clickable". Lift, accent edge, the picture easing closer and the arrow moving —
+ * on a pointer that can hover, and the same on keyboard focus; a touch gets the press.
+ */
+.family-card {
+  overflow: hidden;
+  transition:
+    translate var(--ui) var(--ease),
+    border-color var(--ui) var(--ease);
+}
+
+.family-card__link {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+
+.family-card__media {
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--bg);
+  border-block-end: 1px solid var(--line);
+}
+
+.family-card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: scale var(--settle) var(--ease);
+}
+
+.family-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.family-card__body .product-card__name,
+.family-card__body .product-card__desc {
+  margin: 0;
+}
+
+.family-card__cue {
+  margin-block-start: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--dimension);
+  transition: translate var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .family-card:hover {
+    translate: 0 -4px;
+    border-color: var(--dimension);
+  }
+
+  .family-card:hover .family-card__img {
+    scale: 1.04;
+  }
+
+  .family-card:hover .family-card__cue {
+    translate: 4px 0;
+  }
+}
+
+.family-card:has(.family-card__link:focus-visible) {
+  translate: 0 -4px;
+  border-color: var(--dimension);
+}
+
+.family-card:has(.family-card__link:active) {
+  scale: 0.98;
+}
+
+/* ------------------------------------------------ №04 how an order works */
+
+.timeline {
+  position: relative;
+  margin-block-start: 24px;
+  padding-inline-start: 24px;
+}
+
+/* The drawn line; without the scroll-driven animation it simply stands, fully drawn. */
+.timeline__line {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 4px;
+  width: 2px;
+  background: var(--dimension);
+  transform-origin: top;
+}
+
+.timeline__phases {
+  display: grid;
+  gap: 64px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ⚠️ `max-width: none`: base.css caps every `li` at 60ch, which squeezed the copy column of a
+   two-column phase to 100px (measured at 1440, 2026-09-29). The prose inside keeps its cap. */
+.timeline__phase,
+.timeline__step {
+  max-width: none;
+}
+
+.timeline__phase {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 900px) {
+  .timeline__phase {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    gap: 64px;
+    align-items: start;
+  }
+}
+
+.timeline__name {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  letter-spacing: var(--tracking-caps-wide);
+  text-transform: uppercase;
+  color: var(--dimension);
+}
+
+.timeline__steps {
+  display: grid;
+  gap: 24px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+
+.timeline__marker {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  color: var(--muted);
+}
+
+.timeline__actor {
+  justify-self: start;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* "You" is the buyer's move — marked in the accent so a reader can scan for their turns. */
+.timeline__actor--You {
+  border-color: var(--dimension);
+  color: var(--text);
+}
+
+.timeline__title,
+.timeline__body {
+  grid-column: 2;
+  margin: 0;
+}
+
+.timeline__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+}
+
+.timeline__body {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  max-width: var(--site-measure);
+}
+
+/* ------------------------------------------------ №05 the numbers, as a bento */
+
+/* Five facts: the first spans two columns, so every layout is a complete rectangle. */
+@media (min-width: 560px) {
+  .facts-grid--bento .fact--feature {
+    grid-column: span 2;
+  }
+}
+
+.fact--feature .fact__value {
+  color: var(--dimension);
+}
+
+/* `.product-card__placeholder` is absolutely placed and draws its own blueprint grid. */
+.family-card__media--empty {
+  position: relative;
+}

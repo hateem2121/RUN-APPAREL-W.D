@@ -121,6 +121,9 @@ what the workshop can do.
 **Guard:** a test pins the section order, so a future "improvement" that reorders
 the page has to argue with this record first.
 
+**Amended by D23 (2026-09-29):** two sections were added and the 3D pitch is now third.
+Credibility still leads.
+
 ### D7 · The footer's quiet band stays — `FA-B-03`
 
 **Decision: keep the empty band (144–323px depending on width). Fix the
@@ -470,6 +473,35 @@ version ends a glide at the moment of intent: a pointer press, a scrolling key, 
 **Guard:** `apps/cms/src/auditGuards.test.ts` (FA-F-06 / XS-06: one file, dynamic import,
 the viewer's version and duration, the predicate, no `scroll-behavior: smooth`) and the
 browser spec above.
+
+## 2026-09-29 — the owner's ten-point review of the home and contact pages
+
+### D23 · The home page tells who, what, how, then proves it — amends D6
+
+**Decision: hero → №01 Who we are → №02 What we make → №03 3D → №04 How an order works →
+№05 The numbers → №06 Inside the factory → №07 Talk to us.** The owner asked for the page to
+say who the company is, what it does and how an order runs, and delegated the order to the
+research ("you decide according to the latest studies").
+
+The research, in short: B2B visitors judge credibility first and fast
+(https://www.kalungi.com/blog/your-homepage-is-a-trust-machine); a guide earns the right to
+propose a plan by showing authority, then a short plan makes starting feel safe, then the
+call to action (StoryBrand, https://www.impactplus.com/blog/what-is-the-storybrand-framework);
+and 67% of B2B buyers prefer to research without a salesperson, so the page must answer "what
+happens if I contact you?" on its own (Gartner, March 2026,
+https://www.gartner.com/en/newsroom/press-releases/2026-03-09-gartner-sales-survey-finds-67-percent-of-b2b-buyers-prefer-a-rep-free-experience).
+D6's point — credibility before capability — is kept; the 3D pitch moves from second to third.
+
+Every section now carries its own media (the owner: "each section must also have their media"):
+the hero is the stitching floor, №01 the building and its roof, №02 a real product per family,
+№04 one factory photo per phase, and №06 keeps the full gallery.
+
+The timeline says only what the owner confirmed for EVERY order: a free quote, the sample fee
+credited back against bulk, and nothing into bulk before the buyer signs off the sample. No 3D
+promise, no shipping regions, no fixed shipment window ("days may vary order to order").
+
+**Guard:** `apps/cms/e2e/composition.spec.ts` (LA-01) pins №01–№07;
+`apps/cms/src/lib/orderProcess.test.ts` refuses an unconfirmed promise.
 
 ## Closed since
 

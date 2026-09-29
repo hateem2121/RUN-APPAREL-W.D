@@ -1,17 +1,13 @@
-import { FACTS, LINEAGE } from './companyFacts'
+import { LINEAGE } from './companyFacts'
 
 /**
  * №01 "Who we are" on the home page (owner, 2026-09-29: credibility leads — decision D23).
  *
  * ⚠️ NOTHING NEW IS CLAIMED HERE. Every sentence and figure is one the owner already confirmed
- * on 2026-09-07 and that the page states elsewhere: the lineage wording, the parent company
- * sharing the building (the certification line and the factory caption say the same), the
- * headcount and the floor area. The figures are read from `FACTS` so the two sections cannot
- * disagree (`aboutCopy.test.ts`).
+ * on 2026-09-07 and that the page states elsewhere: the lineage wording and the parent company
+ * sharing the building (the certification line and the factory caption say the same). It
+ * repeats none of №05's numbers (`aboutCopy.test.ts`).
  */
-
-const fact = (prefix: string): string =>
-  FACTS.find((entry) => entry.label.startsWith(prefix))?.value ?? ''
 
 export type AboutPoint = { value: string; label: string }
 
@@ -25,10 +21,10 @@ export const ABOUT = {
     'We produce inside the DURUS INDUSTRIES building — our parent company’s — so the cutting, ' +
     'printing, stitching, checking and packing of your order all happen under one roof, with ' +
     'one team answerable for it.',
+  // Only what is this section's own: №05 shows the headcount and floor area two sections
+  // later, and saying them twice made both weaker (2026-09-29).
   points: [
     { value: '1889', label: 'Making clothes since' },
-    { value: fact('People'), label: 'People at the works' },
-    { value: fact('Sq ft'), label: 'Sq ft under one roof' },
     { value: 'One', label: 'Building, first stitch to sealed bag' },
   ] satisfies AboutPoint[],
 } as const
