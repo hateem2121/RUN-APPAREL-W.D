@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { formProgress, inquiryAdminUrl, inquiryNotice, pickProblem } from './inquiryForm'
+import {
+  formProgress,
+  inquiryAdminUrl,
+  inquiryNotice,
+  pickedFileProblem,
+  pickProblem,
+} from './inquiryForm'
 import { MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
 
 const MB = 1024 * 1024
@@ -105,5 +111,53 @@ describe('inquiryAdminUrl — the link in the notification email', () => {
     expect(inquiryAdminUrl('../users/1')).toBe(
       'https://cms.wear-run.help/admin/collections/inquiries/..%2Fusers%2F1',
     )
+  })
+})
+
+/*
+ * The picker reads each chosen file's first bytes with the SERVER's own check (final review,
+ * 2026-09-29): a phone photo saved as ".jpg" or a renamed program used to upload in full, be
+ * refused, and cost the buyer the message they had typed. Now the send is blocked before it goes.
+ */
+describe('pickedFileProblem — the picker checks what a file really is before it is sent', () => {
+  const pdf = new File(
+    [
+      new Uint8Array([
+        0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, 0x0a, 0x78, 0x72, 0x65, 0x66, 0x0a, 0x25,
+        0x25, 0x45, 0x4f, 0x46,
+      ]),
+    ],
+    'pack.pdf',
+    { type: 'application/pdf' },
+  )
+  const exeAsPdf = new File([new Uint8Array([0x4d, 0x5a, 0x90, 0x00])], 'pack.pdf', {
+    type: 'application/pdf',
+  })
+  const png = new File(
+    [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+    'swatch.jpg',
+    { type: 'image/jpeg' },
+  )
+
+  it('names a file whose bytes are not what its name says, and keeps the message safe', async () => {
+    const problem = await pickedFileProblem([exeAsPdf])
+    expect(problem).toMatch(/“pack\.pdf”/)
+    expect(problem).toMatch(/not a kind we accept/)
+    expect(await pickedFileProblem([png])).toMatch(/“swatch\.jpg”/)
+  })
+
+  it('names an empty file', async () => {
+    expect(await pickedFileProblem([new File([], 'blank.pdf')])).toMatch(/“blank\.pdf” is empty/)
+  })
+
+  it('still refuses a sixth file before reading any bytes', async () => {
+    const six = Array.from({ length: MAX_FILES + 1 }, () => pdf)
+    expect(await pickedFileProblem(six)).toMatch(/6 files/)
+  })
+
+  // NEGATIVE CONTROL: a real file passes, so the check is not simply refusing everything.
+  it('says nothing about a real PDF, or about no files at all', async () => {
+    expect(await pickedFileProblem([pdf])).toBeNull()
+    expect(await pickedFileProblem([])).toBeNull()
   })
 })

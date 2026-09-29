@@ -330,6 +330,41 @@ test.describe('the inquiry form', () => {
     ).toBe(false)
   })
 
+  // Final review, 2026-09-29: the server's refusal of a mislabelled file came after the upload and
+  // cost the buyer their typed message. The page now reads the bytes first.
+  test('a program renamed .pdf is stopped in the page, and the typed message stays', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    const form = page.locator('.inquiry-form')
+    await form.locator('[name="name"]').fill('Dana Okafor')
+    await form.locator('[name="email"]').fill('dana@northfield.example')
+    await form.locator('[name="message"]').fill('400 training tops.')
+    await form.getByRole('button', { name: /next: add details/i }).click()
+    const input = form.locator('[name="files"]')
+
+    await input.setInputFiles({
+      name: 'pack.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from([0x4d, 0x5a, 0x90, 0x00]),
+    })
+    await expect(form.getByText(/“pack\.pdf” is not a kind we accept/)).toBeVisible()
+    expect(
+      await form.evaluate((f) => (f as HTMLFormElement).checkValidity()),
+      'the form would still send a renamed program',
+    ).toBe(false)
+    await expect(form.locator('[name="message"]')).toHaveValue('400 training tops.')
+
+    // NEGATIVE CONTROL: replacing it with a real PDF clears the block.
+    await input.setInputFiles({
+      name: 'pack.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7\nxref\n%%EOF\n'),
+    })
+    await expect(form.getByText(/is not a kind we accept/)).toHaveCount(0)
+    await expect.poll(() => form.evaluate((f) => (f as HTMLFormElement).checkValidity())).toBe(true)
+  })
+
   test('the server refuses a program renamed .pdf, and stores nothing', async ({
     request,
   }, testInfo) => {

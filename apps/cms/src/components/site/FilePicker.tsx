@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from '../../lib/inquiryFiles'
 import { INQUIRY_FILE_ACCEPT } from '../../lib/inquiryFileTypes'
-import { pickProblem } from '../../lib/inquiryForm'
+import { pickedFileProblem, pickProblem } from '../../lib/inquiryForm'
 
 /**
  * The contact form's file field (owner, 2026-09-29: up to 5 files, 25 MB in total).
@@ -14,12 +14,17 @@ import { pickProblem } from '../../lib/inquiryForm'
  * through `setCustomValidity` — so the browser's own validation blocks the send, exactly as it
  * does for an empty required field, and the buyer never waits on a 25 MB upload to be told no.
  *
- * ⚠️ THE SERVER STILL DECIDES. `checkFiles` in the route re-checks the count, the size and every
- * file's first bytes; this component cannot see those and does not pretend to.
+ * ⚠️ IT READS EACH FILE'S FIRST BYTES TOO, with the server's own check (`pickedFileProblem`),
+ * because a refusal after the upload cost the buyer their typed message. The count and size
+ * answer at once; the byte check follows a moment later, and only the LATEST pick's answer is
+ * applied, so a slow read of an earlier pick cannot clear or block a newer one.
+ *
+ * ⚠️ THE SERVER STILL DECIDES. `checkFiles` in the route re-checks everything.
  */
 export function FilePicker() {
   const [chosen, setChosen] = useState<{ name: string; size: number }[]>([])
   const [problem, setProblem] = useState<string | null>(null)
+  const latest = useRef(0)
 
   return (
     <div className="inquiry-form__field">
@@ -34,11 +39,19 @@ export function FilePicker() {
           aria-describedby="inquiry-files-note"
           onChange={(event) => {
             const input = event.currentTarget
-            const files = [...(input.files ?? [])].map(({ name, size }) => ({ name, size }))
+            const picked = [...(input.files ?? [])]
+            const files = picked.map(({ name, size }) => ({ name, size }))
+            const pick = ++latest.current
             const found = pickProblem(files)
             input.setCustomValidity(found ?? '')
             setChosen(files)
             setProblem(found)
+            if (found) return
+            void pickedFileProblem(picked).then((late) => {
+              if (pick !== latest.current) return
+              input.setCustomValidity(late ?? '')
+              setProblem(late)
+            })
           }}
         />
       </label>

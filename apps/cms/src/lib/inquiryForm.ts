@@ -1,4 +1,4 @@
-import { formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
+import { checkFiles, formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
 
 /**
  * The contact form's small decisions, pure so each is a unit test: the progress bar, the file
@@ -53,6 +53,27 @@ export function pickProblem(files: readonly { size: number }[]): string | null {
   if (total > MAX_TOTAL_BYTES)
     return `These files come to ${formatBytes(total)}. Up to ${LIMIT} in total can be attached — for larger files, paste a WeTransfer or Drive link in your message.`
   return null
+}
+
+/**
+ * The picker's full check: the count and size above, then every file's first bytes through the
+ * SERVER's own `checkFiles`, so the browser refuses exactly what the route would.
+ *
+ * ⚠️ WHY IN THE BROWSER TOO (final review, 2026-09-29). The route refuses the whole inquiry on a
+ * bad file, after up to 25 MB has uploaded, and the page it returns to cannot refill what was
+ * typed (the values never travel in the URL). A phone photo saved as ".jpg" or a PDF without its
+ * ending cost the buyer their message. Checked here, the send is blocked before it goes and the
+ * message is still on the screen. The server still decides.
+ */
+export async function pickedFileProblem(files: readonly File[]): Promise<string | null> {
+  const counted = pickProblem(files)
+  if (counted) return counted
+  const check = await checkFiles(files)
+  if (check.ok) return null
+  if (check.reason === 'empty') return `“${check.name}” is empty — please choose it again.`
+  if (check.reason === 'type')
+    return `“${check.name}” is not a kind we accept, or its contents do not match its name. We accept photos (JPG, PNG, WebP, HEIC), PDF, Word, Excel, PowerPoint, Keynote, Illustrator and Photoshop files.`
+  return pickProblem(files)
 }
 
 export type Notice = { kind: 'ok' | 'bad'; text: string }
