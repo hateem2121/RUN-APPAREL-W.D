@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
@@ -107,6 +107,11 @@ describe('the factory strip (OI-3)', () => {
           contactHeroSrc(shape, width).slice('/factory/'.length),
         ),
       ),
+      // The phone crops' AVIF twins, which both pages offer first (2026-09-29).
+      ...HERO_PHOTO.widths.heroTall.flatMap((width) => [
+        heroPhotoSrc('heroTall', width, 'avif').slice('/factory/'.length),
+        contactHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
+      ]),
     ])
     expect(readdirSync(DIR).filter((file) => !named.has(file))).toEqual([])
   })
@@ -252,5 +257,44 @@ describe('the factory strip (OI-3)', () => {
       width: 1000,
       height: 1250,
     })
+  })
+})
+
+/*
+ * ⚠️ AN AVIF TWIN FOR EVERY PHONE HERO (2026-09-29). The hero photo is the largest paint on a
+ * phone for both the home and the contact page. Measured: the AVIF crops are 36–43% lighter than
+ * the WebP (hero-tall-1080 72.6 → 46.4 KB, contact-hero-tall-1080 51.0 → 30.1 KB) and look the
+ * same behind the ink wash, and Lighthouse (mobile) gained 0.01 on each page. Phones are offered
+ * the AVIF first; any browser without AVIF takes the WebP source after it.
+ */
+describe('phone heroes come in AVIF too', () => {
+  const TALL = [...HERO_PHOTO.widths.heroTall]
+  it('every tall hero crop has an AVIF twin, lighter than its WebP', () => {
+    for (const w of TALL) {
+      for (const [avif, webp] of [
+        [heroPhotoSrc('heroTall', w, 'avif'), heroPhotoSrc('heroTall', w)],
+        [contactHeroSrc('heroTall', w, 'avif'), contactHeroSrc('heroTall', w)],
+      ]) {
+        const a = join(DIR, (avif ?? '').slice('/factory/'.length))
+        const b = join(DIR, (webp ?? '').slice('/factory/'.length))
+        expect(existsSync(a), `${a} is missing`).toBe(true)
+        expect(readFileSync(a).length).toBeLessThan(readFileSync(b).length)
+        expect(String.fromCharCode(...readFileSync(a).subarray(4, 12))).toBe('ftypavif')
+      }
+    }
+  })
+
+  it('both pages offer phones the AVIF before the WebP', () => {
+    for (const page of [
+      'src/components/site/HomeHero.tsx',
+      'src/app/(frontend)/contact/page.tsx',
+    ]) {
+      const tsx = readFileSync(join(import.meta.dirname, '..', page), 'utf8')
+      const avif = tsx.indexOf('type="image/avif"')
+      expect(avif, `${page} offers no AVIF source`).toBeGreaterThan(-1)
+      expect(avif, `${page} offers the WebP first`).toBeLessThan(
+        tsx.indexOf("'heroTall', tall640)"),
+      )
+    }
   })
 })

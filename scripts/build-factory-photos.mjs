@@ -131,6 +131,17 @@ async function main() {
         .webp({ quality: 72, effort: 6, smartSubsample: true })
         .toFile(target)
       console.log(`${source.slug}-${w}.webp  ${info.width}x${info.height}  ${info.size} bytes`)
+      // The phone crops also in AVIF (2026-09-29): 36–43% lighter than the WebP at quality 45,
+      // the same behind the hero's ink wash, and each is its page's largest paint on a phone.
+      if (source.shape === 'heroTall') {
+        const avif = join(out, `${source.slug}-${w}.avif`)
+        const a = await sharp(join(from, source.file))
+          .extract(box)
+          .resize(w, h)
+          .avif({ quality: 45, effort: 6 })
+          .toFile(avif)
+        console.log(`${source.slug}-${w}.avif  ${a.width}x${a.height}  ${a.size} bytes`)
+      }
     }
   }
 }
