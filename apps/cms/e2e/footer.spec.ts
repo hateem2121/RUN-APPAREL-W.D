@@ -1,3 +1,4 @@
+import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
 import { expect, test } from './offlineMedia'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
@@ -156,7 +157,17 @@ test.describe('claims render only from real values', () => {
         expect((await items.nth(j).innerText()).trim().length).toBeGreaterThan(0)
       }
     }
-    await expect(page.locator('.site-footer')).not.toContainText(/Oeko|GOTS|ISO 9001|MOQ 50/)
+    // The design mock-up's sample values must never show for a BLANK field. Since 2026-09-29
+    // the owner's REAL facts include GOTS, ISO 9001 and "MOQ 50 pieces per style", so those are
+    // taken out first (from scripts/apply-footer-facts.mjs, the one source of the real values):
+    // a sample word left over is a placeholder, whatever this database holds. CI's is empty.
+    let rest = await page.locator('.site-footer').innerText()
+    const real = [
+      ...FOOTER_FACTS.certifications.map((row) => row.name),
+      `MOQ ${FOOTER_FACTS.capacity.moq}`,
+    ]
+    for (const value of real) rest = rest.split(value.toUpperCase()).join('').split(value).join('')
+    expect(rest).not.toMatch(/Oeko|GOTS|ISO 9001|MOQ 50/i)
   })
 
   test('the clock ticks and the light appears only with hours', async ({ page }) => {
