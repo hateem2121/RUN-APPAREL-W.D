@@ -24,6 +24,7 @@ import { mkdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FILES as APEX_FILES } from '../infra/apex-404/index.js'
+import { INQUIRY_BUCKET, objectLabel, summaryLine } from './backup-log.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cmsDir = join(root, 'apps', 'cms')
@@ -34,7 +35,6 @@ const BUCKET = 'run-apparel-viewer-media'
  * Enumerated from the `inquiry_files` table exactly as media is from `media`. These are
  * customers' own documents, which is why the workflow's lock step matters here most of all.
  */
-const INQUIRY_BUCKET = 'run-apparel-inquiry-files'
 
 /**
  * The apex PDFs, in the bucket the separate `run-apparel` site also uses.
@@ -182,14 +182,16 @@ let mismatched = 0
  *
  * Audit 2026-08-30 PM, finding L2-03.
  */
-const save = (bucket, key, subdir, expectedSize = null) => {
+const save = (bucket, key, subdir, expectedSize = null, index = 0) => {
   const dest = join(outDir, subdir, key)
+  // Never the raw key for a buyer's file: this log is public (scripts/backup-log.mjs).
+  const label = objectLabel(bucket, key, index)
   mkdirSync(dirname(dest), { recursive: true })
   try {
     wrangler(['r2', 'object', 'get', `${bucket}/${key}`, '--file', dest, mode], { stdio: 'pipe' })
   } catch {
     fail += 1
-    console.warn(`[backup-r2]  ! failed to fetch: ${bucket}/${key}`)
+    console.warn(`[backup-r2]  ! failed to fetch: ${label}`)
     return
   }
 
@@ -198,13 +200,13 @@ const save = (bucket, key, subdir, expectedSize = null) => {
     written = statSync(dest).size
   } catch {
     fail += 1
-    console.warn(`[backup-r2]  ! wrangler exited 0 but wrote no file: ${bucket}/${key}`)
+    console.warn(`[backup-r2]  ! wrangler exited 0 but wrote no file: ${label}`)
     return
   }
 
   if (written === 0) {
     fail += 1
-    console.warn(`[backup-r2]  ! wrote ZERO bytes: ${bucket}/${key}`)
+    console.warn(`[backup-r2]  ! wrote ZERO bytes: ${label}`)
     return
   }
 
@@ -236,7 +238,7 @@ const save = (bucket, key, subdir, expectedSize = null) => {
     mismatched += 1
     ok += 1
     console.warn(
-      `[backup-r2]  ~ size differs from the CMS row: ${bucket}/${key} — R2 ${written} B, ` +
+      `[backup-r2]  ~ size differs from the CMS row: ${label} — R2 ${written} B, ` +
         `row ${expectedSize} B. The FILE IS SAVED; the record is what disagrees.`,
     )
     return
@@ -245,18 +247,29 @@ const save = (bucket, key, subdir, expectedSize = null) => {
 }
 
 for (const { name, size } of filenames) save(BUCKET, name, 'media', size)
-console.log(`[backup-r2] ${inquiryFiles.length} inquiry files to back up from ${INQUIRY_BUCKET}`)
-for (const { name, size } of inquiryFiles) save(INQUIRY_BUCKET, name, 'inquiry-files', size)
+console.log(
+  `[backup-r2] inquiry files from ${INQUIRY_BUCKET} (count and names stay out of this public log)`,
+)
+const failBeforeInquiries = fail
+const okBeforeInquiries = ok
+inquiryFiles.forEach(({ name, size }, index) => {
+  save(INQUIRY_BUCKET, name, 'inquiry-files', size, index)
+})
+const inquiryFailed = fail - failBeforeInquiries
+const inquirySaved = ok - okBeforeInquiries
 
 console.log(`[backup-r2] ${APEX_KEYS.length} apex PDFs to back up from ${APEX_BUCKET}`)
 for (const key of APEX_KEYS) save(APEX_BUCKET, key, 'apex')
 
 const expectedSaves = filenames.length + inquiryFiles.length + APEX_KEYS.length
 console.log(
-  `[backup-r2] done: ${ok} saved, ${fail} failed` +
-    (unverified > 0 ? `, ${unverified} saved but size-unverified` : '') +
-    (mismatched > 0 ? `, ${mismatched} saved with a STALE CMS size record` : '') +
-    '.',
+  summaryLine({
+    saved: ok - inquirySaved,
+    failed: fail - inquiryFailed,
+    inquiryFailed: inquiryFiles.length - inquirySaved,
+    unverified,
+    mismatched,
+  }),
 )
 
 /**
@@ -273,8 +286,9 @@ if (!APEX_ONLY && filenames.length === 0) {
   )
   process.exitCode = 1
 } else if (ok < expectedSaves) {
+  // No totals here: with the media and PDF counts above, they would give the inquiry count away.
   console.error(
-    `[backup-r2] ERROR: ${ok} of ${expectedSaves} objects were saved. A partial mirror is ` +
+    `[backup-r2] ERROR: ${expectedSaves - ok} object(s) were not saved. A partial mirror is ` +
       'not a backup; the missing objects are named above.',
   )
   process.exitCode = 1
