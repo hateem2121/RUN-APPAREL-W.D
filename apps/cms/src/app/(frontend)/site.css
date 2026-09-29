@@ -2698,7 +2698,9 @@ a.contact-block__value:active {
  * which `--text` (#ecebe4) is about 7:1 and `--muted` (#a2a695) would be about 3.4:1 — under
  * AA. axe cannot compute contrast over an image, so the arithmetic is the check.
  */
-.site-hero--photo {
+/* The lightbox shares this block: it too puts text and controls on a photograph's ink. */
+.site-hero--photo,
+.lightbox {
   color-scheme: dark;
   /* The dark halves of tokens.css's pairs, re-declared here (see above). */
   --bg: #1c1f18;
@@ -2715,8 +2717,11 @@ a.contact-block__value:active {
   --serif-accent: var(--volt);
   --dimension: var(--volt);
   --focus-ring: var(--volt);
-  background: var(--bg);
   color: var(--text);
+}
+
+.site-hero--photo {
+  background: var(--bg);
 }
 
 .site-hero__photo {
@@ -3105,4 +3110,104 @@ a.contact-block__value:active {
     animation: none;
     scale: none;
   }
+}
+
+/* ------------------------------------------------ the factory gallery, large */
+
+.factory-tile__open {
+  display: block;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.factory-tile__open:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.lightbox__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: color-mix(in srgb, var(--ink) 94%, transparent);
+}
+
+/* Colours come from the dark block shared with the hero, above. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 0;
+}
+
+.lightbox__strip {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.lightbox__strip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.lightbox__slide {
+  display: grid;
+  flex: 0 0 100%;
+  max-width: none;
+  min-height: 0;
+  place-items: center;
+  padding-inline: var(--site-gutter);
+  scroll-snap-align: center;
+}
+
+.lightbox__figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  justify-content: center;
+}
+
+.lightbox__img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.lightbox__caption,
+.lightbox__count {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lightbox__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-inline: var(--site-gutter);
 }

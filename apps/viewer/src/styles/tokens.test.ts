@@ -1380,9 +1380,10 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         'tokens.css :root: light dark',
         'tokens.css :root[data-theme="light"]: light',
         'tokens.css :root[data-theme="dark"]: dark',
-        // The site's photo hero (owner, 2026-09-29): its text sits on an ink-washed
-        // photograph in BOTH themes, so the section alone resolves its tokens dark.
-        'site.css .site-hero--photo: dark',
+        // The site's photo hero and its photo lightbox (owner, 2026-09-29) share one rule
+        // (`.site-hero--photo, .lightbox`): text on a photograph's ink in BOTH themes. The
+        // scanner names the selector line nearest the brace, which is `.lightbox`.
+        'site.css .lightbox: dark',
       ].sort(),
     )
   })
