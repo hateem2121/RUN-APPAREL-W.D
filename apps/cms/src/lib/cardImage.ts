@@ -6,7 +6,7 @@
  * 369 x 460 CSS px. Measured with Lighthouse 13.5.0 (mobile) on the live page, 2026-09-29: the
  * first card's 791 KB render made Largest Contentful Paint 8.3–9.3 s and the score 0.67–0.74;
  * with the renders blocked the same page scored 0.88–0.90. Resized to fit 720 x 900 the first
- * three cards weigh about 312 KB instead of 1.86 MB (quality 95, below), and still carry more
+ * three cards weigh about 150 KB instead of 1.86 MB (quality 90, below), and still carry more
  * pixels than a phone shows.
  *
  * ⚠️ ONLY media.wear-run.com, WHERE THE OWNER SWITCHED RESIZING ON. Cloudflare Images on the
@@ -34,24 +34,34 @@ const RESIZING_ORIGIN = 'https://media.wear-run.com/'
 const DEFAULT_WIDTH = 720
 
 /*
- * ⚠️ QUALITY 95, CHOSEN BY LOOKING (owner, 2026-09-29). The print and logos were sharp at every
- * setting; the FABRIC GRAIN was not. At Cloudflare's default (~85) and at 90 the weave on the
- * rxps chest panel was smoothed flat; at 95 it came back close to the original. Measured at the
- * 720 card size, AVIF: r-xmp-wine 38 / 60 / 115 KB, rxps-wine 31 / 49 / 123 KB at default / 90 /
- * 95 — still a sixth of the 700–791 KB renders. Do not lower it to win a score.
+ * ⚠️ QUALITY 90: THE OWNER'S TRADE BETWEEN FABRIC GRAIN AND SPEED (2026-09-29). The print and
+ * logos were sharp at every setting; the FABRIC GRAIN was not. At Cloudflare's default (~85) and
+ * at 90 the weave on the rxps chest panel was smoothed; at 95 it came back close to the original.
+ * Measured at the 720 card size, AVIF: r-xmp-wine 38 / 60 / 115 KB, rxps-wine 31 / 49 / 123 KB at
+ * default / 90 / 95. Lighthouse (mobile, 5 runs each, the local build with production data):
+ * 95 scored 0.82, below the 0.85 floor; 90 scored 0.86; the default 0.86–0.88. Shown all three,
+ * the owner chose 90. Raising it costs the /products floor; lowering it costs the grain.
  */
-const QUALITY = 95
+const QUALITY = 90
 
-const resized = (key: string, width: number) =>
-  `${RESIZING_ORIGIN}cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},quality=${QUALITY},format=auto,onerror=redirect/${key}`
+/*
+ * ⚠️ ASKED OF THE PAGE'S OWN ADDRESS, NOT OF media.wear-run.com. Both answer
+ * `/cdn-cgi/image/…` (same zone, same cache: measured 2026-09-29, `cf-resized: internal=ram/h`
+ * on both), and "This zone only" lets wear-run.com resize a media.wear-run.com source. The
+ * relative path means a phone reuses the connection the page arrived on, instead of opening a
+ * second one to media.wear-run.com before the first picture can start. A failed resize still
+ * falls back: forced with an invalid option, both forms answered 307 to the original file.
+ */
+const resized = (url: string, width: number) =>
+  `/cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},quality=${QUALITY},format=auto,onerror=redirect/${url}`
 
 export function cardImage(url: string): { src: string; srcSet?: string; sizes?: string } {
   if (!url.startsWith(RESIZING_ORIGIN)) return { src: url }
   const key = url.slice(RESIZING_ORIGIN.length)
   if (key.length === 0 || key.startsWith('cdn-cgi/')) return { src: url }
   return {
-    src: resized(key, DEFAULT_WIDTH),
-    srcSet: CARD_WIDTHS.map((width) => `${resized(key, width)} ${width}w`).join(', '),
+    src: resized(url, DEFAULT_WIDTH),
+    srcSet: CARD_WIDTHS.map((width) => `${resized(url, width)} ${width}w`).join(', '),
     sizes: CARD_SIZES,
   }
 }

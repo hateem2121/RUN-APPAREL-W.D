@@ -4,10 +4,12 @@ import { CARD_SIZES, CARD_WIDTHS, cardImage } from './cardImage'
 const RENDER = 'https://media.wear-run.com/r-xmp-wine-render.webp'
 
 describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)', () => {
-  it('resizes a media.wear-run.com picture through Cloudflare, fitting the 4:5 card box', () => {
+  // Served from the PAGE's own address, so a phone reuses the connection the page came on
+  // instead of opening a second one to media.wear-run.com before the first picture can start.
+  it("resizes a media.wear-run.com picture through Cloudflare on the page's own address, fitting the 4:5 box", () => {
     const image = cardImage(RENDER)
     expect(image.src).toBe(
-      'https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=720,height=900,quality=95,format=auto,onerror=redirect/r-xmp-wine-render.webp',
+      '/cdn-cgi/image/fit=scale-down,width=720,height=900,quality=90,format=auto,onerror=redirect/https://media.wear-run.com/r-xmp-wine-render.webp',
     )
     expect(image.sizes).toBe(CARD_SIZES)
   })
@@ -18,7 +20,7 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
     expect(candidates).toHaveLength(CARD_WIDTHS.length)
     CARD_WIDTHS.forEach((width, i) => {
       expect(candidates[i]).toBe(
-        `https://media.wear-run.com/cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},quality=95,format=auto,onerror=redirect/r-xmp-wine-render.webp ${width}w`,
+        `/cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},quality=90,format=auto,onerror=redirect/https://media.wear-run.com/r-xmp-wine-render.webp ${width}w`,
       )
     })
   })
