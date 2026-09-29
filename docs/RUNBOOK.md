@@ -1620,10 +1620,17 @@ Since 2026-09-17 (audit L-11/IM-02) this reads every live product's poster and j
 it against the median for its OWN `category` (Sportswear, Outerwear, …) — a Teamwear
 kit's poster legitimately carries more print than a plain tee, so the comparison is
 never against the whole catalogue. A poster at `FLAG_AT` (2×) its family's median or
-heavier is flagged, unless the product is named in `OWNER_EXCEPTIONS` — one entry
-today, `r-wzu`, ceiling 3×, the owner's 2026-09-17 call on "Shrink gently": *the vest
-keeps its detail*. Past its own ceiling an exception stops covering the product; it is
-flagged same as anything else.
+heavier is flagged, unless the product is named in `OWNER_EXCEPTIONS`: `r-wzu`, ceiling
+3×, the owner's 2026-09-17 call on "Shrink gently" (*the vest keeps its detail*), and six
+products the owner reviewed on 2026-09-29 and kept as they are (`r-csp` 3×; `r-ifs`,
+`r-xmp`, `r-cch`, `r-asb`, `r-pps` 2.5×). Past its own ceiling an exception stops
+covering the product; it is flagged same as anything else.
+
+🟡 **Since 2026-09-29 the medians are FROZEN** (`BASELINE_MEDIANS`, all 200 live posters
+that day). A live median moved whenever garments were added: the 2026-09-27/28 rollout
+dropped the Sportswear median from 50,517 B to 46,635 B, and `r-asb`'s unchanged,
+approved trims went from 1.96× to 2.12× and "flagged". A new category is judged against
+its own live median until someone measures it and adds it.
 
 ```bash
 node scripts/poster-sizes.mjs           # exits 1 if anything is flagged, 2 if anything

@@ -4,6 +4,7 @@ import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  BASELINE_MEDIANS,
   FLAG_AT,
   judgePosterContent,
   judgePosters,
@@ -92,14 +93,26 @@ describe('median', () => {
 })
 
 describe('OWNER_EXCEPTIONS', () => {
-  it('is pinned to the one 2026-09-17 exception', () => {
-    expect(OWNER_EXCEPTIONS).toEqual([
-      {
-        product: 'r-wzu',
-        maxRatio: 3,
-        reason: 'owner\'s choice on 2026-09-17, "Shrink gently": the vest keeps its detail',
-      },
+  it('keeps the 2026-09-17 vest exception, unchanged', () => {
+    expect(OWNER_EXCEPTIONS[0]).toEqual({
+      product: 'r-wzu',
+      maxRatio: 3,
+      reason: 'owner\'s choice on 2026-09-17, "Shrink gently": the vest keeps its detail',
+    })
+  })
+
+  // The owner looked at all nine flagged posters on 2026-09-29 (pictures, and a gentler
+  // re-encode beside each) and kept every one: the bytes carry knit texture and all-over print.
+  it('records the six products the owner reviewed on 2026-09-29, each with a ceiling', () => {
+    expect(OWNER_EXCEPTIONS.slice(1).map((row) => [row.product, row.maxRatio])).toEqual([
+      ['r-csp', 3],
+      ['r-ifs', 2.5],
+      ['r-xmp', 2.5],
+      ['r-cch', 2.5],
+      ['r-asb', 2.5],
+      ['r-pps', 2.5],
     ])
+    for (const row of OWNER_EXCEPTIONS.slice(1)) expect(row.reason).toMatch(/2026-09-29/)
   })
 
   it('FLAG_AT is 2', () => {
@@ -107,9 +120,14 @@ describe('OWNER_EXCEPTIONS', () => {
   })
 })
 
+/** The exceptions as they stood on 2026-09-17, which the BEFORE fixture replays. */
+const EXCEPTIONS_2026_09_17 = OWNER_EXCEPTIONS.slice(0, 1)
+
 describe('judgePosters — before the trim', () => {
   it('flags all five r-wzu (above the 3× exception ceiling) and two r-asb', () => {
-    const { rows, medians, flagged, excepted } = judgePosters(BEFORE)
+    const { rows, medians, flagged, excepted } = judgePosters(BEFORE, {
+      exceptions: EXCEPTIONS_2026_09_17,
+    })
     expect(medians).toEqual({ [SPORTSWEAR]: 50517 })
     expect(flagged.map((r) => `${r.slug}:${r.colour}`).sort()).toEqual(
       [
@@ -141,7 +159,9 @@ describe('judgePosters — before the trim', () => {
     // 21-poster median is 50934 (BEFORE's already-unchanged 11th-ranked value)
     // regardless of the exact byte count chosen here — 50517 was the 20-poster figure.
     const nearMissBytes = Math.round(50934 * 1.96) // 99831 — RUNBOOK's own "1.96×"
-    const { flagged, rows } = judgePosters([...BEFORE, row('r-cch', 'blush', nearMissBytes)])
+    const { flagged, rows } = judgePosters([...BEFORE, row('r-cch', 'blush', nearMissBytes)], {
+      exceptions: EXCEPTIONS_2026_09_17,
+    })
     expect(flagged).toHaveLength(7)
     // The real boundary assertion: a near-miss just under FLAG_AT is 'ok', not
     // merely absent from a length count that would also pass if it were dropped
@@ -417,5 +437,87 @@ describe('judgePosterContent — WebP, 1200x1500, 7-day cache, edge-cached (IM-0
     expect(judgePosterContent({ ...LIVE_POSTER, cache: ['MISS', 'MISS'] }).join(' ')).toContain(
       'not served from the edge cache',
     )
+  })
+})
+
+/*
+ * 2026-09-29: the median MOVED, not the posters. r-asb's two trimmed files (99,020 and 99,040 B,
+ * approved 2026-09-17) passed at 1.96x a 50,517 B Sportswear median; the garment rollout of
+ * 2026-09-27/28 added lighter Sportswear posters, the median fell to 46,635 B, and the same
+ * unchanged files read 2.12x. So the live check judges against medians frozen on a date.
+ */
+describe('judgePosters — a frozen baseline', () => {
+  const asb = row('r-asb', 'blush', 99020)
+  const lighter = Array.from({ length: 30 }, (_, i) => row('r-new', `c${i}`, 30000))
+
+  it('NEGATIVE CONTROL: with live medians, lighter newcomers flag an unchanged poster', () => {
+    const before = judgePosters([...BEFORE, asb], { exceptions: [] })
+    const after = judgePosters([...BEFORE, asb, ...lighter], { exceptions: [] })
+    expect(before.rows.find((r) => r.slug === 'r-asb' && r.bytes === 99020)?.verdict).toBe('ok')
+    expect(after.rows.find((r) => r.slug === 'r-asb' && r.bytes === 99020)?.verdict).toBe('flagged')
+  })
+
+  it('with a frozen baseline, the same newcomers change nothing', () => {
+    const baseline = { [SPORTSWEAR]: 50517 }
+    const before = judgePosters([...BEFORE, asb], { exceptions: [], baseline })
+    const after = judgePosters([...BEFORE, asb, ...lighter], { exceptions: [], baseline })
+    const verdict = (j: typeof before) =>
+      j.rows.find((r) => r.slug === 'r-asb' && r.bytes === 99020)
+    expect(verdict(after)?.verdict).toBe(verdict(before)?.verdict)
+    expect(verdict(after)?.ratio).toBeCloseTo(99020 / 50517, 6)
+    expect(after.medians[SPORTSWEAR]).toBe(50517)
+  })
+
+  it('a family with no baseline is judged against its live median', () => {
+    const judged = judgePosters(
+      [row('r-x', 'a', 100, 'Swimwear'), row('r-x', 'b', 300, 'Swimwear')],
+      {
+        exceptions: [],
+        baseline: { [SPORTSWEAR]: 50517 },
+      },
+    )
+    expect(judged.medians.Swimwear).toBe(200)
+  })
+
+  it('pins the medians measured across all 200 live posters on 2026-09-29', () => {
+    expect(BASELINE_MEDIANS).toEqual({
+      'Teamwear & Uniforms': 53096,
+      Sportswear: 46635,
+      Outerwear: 47106,
+      'Casual Wear': 32510,
+    })
+  })
+
+  // The nine the owner reviewed, at their live bytes on 2026-09-29, against that baseline.
+  const REVIEWED: PosterSample[] = [
+    row('r-xmp', 'white', 113554, 'Teamwear & Uniforms'),
+    row('r-asb', 'pebble', 99040),
+    row('r-asb', 'blush', 99020),
+    row('r-cch', 'blush', 69612, 'Casual Wear'),
+    row('r-pps', 'peach', 98834, 'Outerwear'),
+    row('r-csp', 'powder-blue', 95370, 'Casual Wear'),
+    row('r-csp', 'mauve', 92430, 'Casual Wear'),
+    row('r-csp', 'sage', 94914, 'Casual Wear'),
+    row('r-ifs', 'navy', 104504),
+  ]
+
+  it('excepts all nine reviewed posters, flagging none', () => {
+    const { flagged, excepted } = judgePosters(REVIEWED, { baseline: BASELINE_MEDIANS })
+    expect(flagged).toEqual([])
+    expect(excepted).toHaveLength(9)
+  })
+
+  it('NEGATIVE CONTROL: without the 2026-09-29 records the same nine flag', () => {
+    const { flagged } = judgePosters(REVIEWED, {
+      baseline: BASELINE_MEDIANS,
+      exceptions: OWNER_EXCEPTIONS.slice(0, 1),
+    })
+    expect(flagged).toHaveLength(9)
+  })
+
+  it('an exception is not a blank cheque: a reviewed product past its ceiling still flags', () => {
+    const heavier = row('r-csp', 'powder-blue', 32510 * 3 + 1, 'Casual Wear')
+    const { flagged } = judgePosters([heavier], { baseline: BASELINE_MEDIANS })
+    expect(flagged).toHaveLength(1)
   })
 })

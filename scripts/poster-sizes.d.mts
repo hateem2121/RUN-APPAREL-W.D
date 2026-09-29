@@ -34,11 +34,14 @@ export interface PosterJudgement {
 
 export declare const FLAG_AT: number
 export declare const OWNER_EXCEPTIONS: OwnerException[]
+/** Family name -> median bytes, frozen on BASELINE_MEASURED. */
+export declare const BASELINE_MEDIANS: Record<string, number>
+export declare const BASELINE_MEASURED: string
 /** 0 for an empty list; the mean of the two middle values for an even count. */
 export declare function median(values: number[]): number
 export declare function judgePosters(
   posters: PosterSample[],
-  options?: { exceptions?: OwnerException[] },
+  options?: { exceptions?: OwnerException[]; baseline?: Record<string, number> },
 ): PosterJudgement
 
 export type ModelUrlResolution = { url: string } | { error: string }
