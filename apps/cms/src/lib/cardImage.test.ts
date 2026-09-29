@@ -27,6 +27,28 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
 
   // A failed or over-quota resize must never become a broken card: `onerror=redirect` sends the
   // browser to the original file instead (Cloudflare Images, free plan, 2026-09-29).
+  /*
+   * ⚠️ PINNED TO A CLOUDFLARE FIREWALL RULE. wear-run.com blocks every /cdn-cgi/image/ request
+   * except exactly these three (rule "Only the card picture sizes may be resized", added
+   * 2026-09-29 to protect the free monthly quota). A blocked picture is a 403, which `onerror`
+   * does NOT catch — every card would lose its picture. Change a width, a height or the quality
+   * here and the rule must change with it (docs/RUNBOOK.md, "The product cards' pictures").
+   */
+  it('asks only for the three sizes the firewall rule allows', () => {
+    const allowed = [
+      '/cdn-cgi/image/fit=scale-down,width=400,height=500,quality=90,format=auto,onerror=redirect/https:',
+      '/cdn-cgi/image/fit=scale-down,width=720,height=900,quality=90,format=auto,onerror=redirect/https:',
+      '/cdn-cgi/image/fit=scale-down,width=1080,height=1350,quality=90,format=auto,onerror=redirect/https:',
+    ]
+    const { src, srcSet } = cardImage(RENDER)
+    for (const url of [src, ...(srcSet ?? '').split(', ').map((c) => c.split(' ')[0] ?? '')]) {
+      expect(
+        allowed.some((prefix) => url.startsWith(prefix)),
+        url,
+      ).toBe(true)
+    }
+  })
+
   it('falls back to the original file when a resize fails', () => {
     expect(cardImage(RENDER).src).toContain('onerror=redirect')
   })

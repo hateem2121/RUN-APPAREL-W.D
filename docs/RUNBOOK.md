@@ -1631,8 +1631,16 @@ It depends on two things no code can see:
   3 sizes × 200 pictures. Past the quota a NEW resize fails rather than bills (there is no
   charge on the free plan).
 
-Either failing does not break a card: `onerror=redirect` sends the browser to the original
-file (a 307). The page just gets heavy again. `scripts/preconnect-probe.mjs` fails on that
+- **The firewall rule.** "Only the card picture sizes may be resized" on `wear-run.com`
+  (Security → WAF → Custom rules, added 2026-09-29) blocks every `/cdn-cgi/image/` request
+  except the three card sizes at quality 90 from media.wear-run.com, so nobody can spend the
+  quota on odd sizes. 🟡 **Change the sizes or the quality in `apps/cms/src/lib/cardImage.ts`
+  and you must change this rule in the same breath**: a blocked picture is a 403, which the
+  fallback below does NOT catch, so every card would lose its picture. The test
+  `cardImage.test.ts` → "asks only for the three sizes the firewall rule allows" fails first.
+
+Either a switched-off setting or a spent quota does not break a card: `onerror=redirect` sends
+the browser to the original file (a 307). The page just gets heavy again. `scripts/preconnect-probe.mjs` fails on that
 fallback, and runs in `lighthouse-live.yml` after every deploy and weekly:
 
 ```bash

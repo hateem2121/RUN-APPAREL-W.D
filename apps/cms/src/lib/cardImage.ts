@@ -23,7 +23,15 @@
 
 import { SITE_MEDIA_ORIGIN } from './siteMedia'
 
-/** The card box widths offered, 4:5 each: 400 for 1x screens, 720 and 1,080 for 2x and 3x phones. */
+/**
+ * The card box widths offered, 4:5 each: 400 for 1x screens, 720 and 1,080 for 2x and 3x phones.
+ *
+ * ⚠️ A CLOUDFLARE FIREWALL RULE ALLOWS EXACTLY THESE URLS. wear-run.com blocks every other
+ * /cdn-cgi/image/ request (rule "Only the card picture sizes may be resized", 2026-09-29, which
+ * stops anyone spending the free quota on odd sizes). A blocked picture is a 403 that `onerror`
+ * does not catch, so changing a width, a height or QUALITY here without changing the rule
+ * empties every card. `cardImage.test.ts` pins the three; docs/RUNBOOK.md says how to change both.
+ */
 export const CARD_WIDTHS = [400, 720, 1080] as const
 
 /**
