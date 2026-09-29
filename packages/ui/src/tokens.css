@@ -83,6 +83,10 @@
   --ui: 220ms; /* controls: hover, press, state a finger is waiting on */
   --settle: 500ms; /* entrances */
   --slow: 800ms; /* wipes and reveals */
+  /* Owner decision 2026-09-29 (D26, amending D8's "existing tokens only"): the site's three
+     showpieces — the numbers counting up, the order timeline drawing, the globe's routes —
+     read as broken at 800ms. Those three only; reduced motion stops all of them. */
+  --showpiece: 1400ms;
   /* ⚠️ `--stagger` (60ms) WAS HERE AND NOTHING READ IT — declared 2026-08-14, flagged by
      three audits (2026-08-14, 2026-09-05 and 2026-09-06 FA-T-01/FA-H-19), and shipped to
      every visitor for the whole of that time. Deleted 2026-09-07 rather than given a use:
