@@ -21,6 +21,15 @@ export declare const HERO_SOURCES: {
   focus: [number, number]
 }[]
 
+/** The contact hero: the home hero's shapes, with widths capped at the 2000px original. */
+export declare const CONTACT_HERO_SOURCES: {
+  slug: string
+  file: string
+  shape: 'heroWide' | 'heroTall'
+  widths: number[]
+  focus: [number, number]
+}[]
+
 export declare function cropBox(
   width: number,
   height: number,

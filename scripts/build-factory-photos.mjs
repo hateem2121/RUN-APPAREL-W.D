@@ -53,6 +53,29 @@ export const HERO_SOURCES = [
   },
 ]
 
+/**
+ * The contact hero's two crops of the showroom (a 2000x1400 original), in the home hero's
+ * shapes but with `widths` of their own: nothing past the original's 2000px, so no upscale.
+ * The tall crop sits right of centre, on the blue top and the logo on the wall.
+ */
+export const CONTACT_HERO_SOURCES = [
+  {
+    slug: 'contact-hero-wide',
+    file: "RUN's Showroom.png",
+    shape: 'heroWide',
+    widths: [1280, 1920],
+    // As high as the crop goes: any lower and the logo on the wall loses its top (looked at).
+    focus: [0.5, 0.4],
+  },
+  {
+    slug: 'contact-hero-tall',
+    file: "RUN's Showroom.png",
+    shape: 'heroTall',
+    widths: [640, 1080],
+    focus: [0.74, 0.5],
+  },
+]
+
 export const SOURCES = [
   { slug: 'exterior', file: 'factory exterior image.png', shape: 'wide', focus: [0.5, 0.6] },
   { slug: 'solar-roof', file: 'Factory Solar.png', shape: 'wide', focus: [0.5, 0.5] },
@@ -95,11 +118,11 @@ async function main() {
   )
   const out = resolve(import.meta.dirname, '../apps/cms/public/factory')
   mkdirSync(out, { recursive: true })
-  for (const source of [...SOURCES, ...HERO_SOURCES]) {
+  for (const source of [...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES]) {
     const shape = SHAPES[source.shape]
     const { width, height } = await sharp(join(from, source.file)).metadata()
     const box = cropBox(width, height, shape.aspect, source.focus)
-    for (const w of shape.widths) {
+    for (const w of source.widths ?? shape.widths) {
       const h = Math.round(w / shape.aspect)
       const target = join(out, `${source.slug}-${w}.webp`)
       const info = await sharp(join(from, source.file))

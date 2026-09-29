@@ -330,7 +330,7 @@ html {
    * Those two are BOX widths — a centred dashed panel and a form — not a line a reader
    * follows, and narrowing them would move a layout the audit passed (FA-D-03, FA-I-06).
    */
-  --site-measure: 56ch;
+  --site-measure: 55ch;
   --site-max: 1180px;
   --site-gutter: clamp(20px, 5vw, 64px);
   /* what a `.site-container` child actually gets, at the cap */
@@ -3287,4 +3287,131 @@ a.contact-block__value:active {
   inset-inline-start: 50%;
   translate: -50% 0;
   pointer-events: auto;
+}
+
+/* ------------------------------------------------ the contact page, 2026-09-29 */
+
+/*
+ * The form's two steps. ⚠️ `[hidden]` IS RESTATED BECAUSE A CLASS WINS OVER IT: the user-agent
+ * `display: none` on `[hidden]` loses to any author `display`, so without this line a hidden
+ * step would show the moment a layout rule gave `.inquiry-form__step` a display of its own.
+ */
+.inquiry-form__step {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.inquiry-form__step[hidden] {
+  display: none;
+}
+
+.inquiry-form__step + .inquiry-form__step {
+  margin-block-start: 24px;
+}
+
+.inquiry-form__legend {
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  color: var(--text);
+}
+
+/*
+ * The progress bar. `role="progressbar"` and its values carry the meaning; the fill is only its
+ * picture, drawn with `transform` so a change never re-lays the form out.
+ */
+.inquiry-progress {
+  margin-block: 24px 16px;
+}
+
+.inquiry-progress__step {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps-snug);
+  color: var(--muted);
+}
+
+.inquiry-progress__track {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+}
+
+.inquiry-progress__fill {
+  display: block;
+  height: 100%;
+  background: var(--dimension);
+  transform-origin: left center;
+  transition: transform var(--ui) var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inquiry-progress__fill {
+    transition: none;
+  }
+}
+
+/* Country code beside the number: a code is at most "+1684", so its field stays narrow. */
+.inquiry-form__phone {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  gap: 16px;
+  margin-block-start: 16px;
+}
+
+.inquiry-form__phone .inquiry-form__field {
+  margin-block-start: 0;
+}
+
+.inquiry-form__file {
+  padding-block: 8px;
+}
+
+.inquiry-form__file::file-selector-button {
+  margin-inline-end: 12px;
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-button);
+}
+
+.inquiry-form__note {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.inquiry-files {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inquiry-files__item {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-block: 6px;
+  border-block-end: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+.inquiry-files__name {
+  overflow-wrap: anywhere;
+}
+
+.inquiry-files__size {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  color: var(--muted);
 }

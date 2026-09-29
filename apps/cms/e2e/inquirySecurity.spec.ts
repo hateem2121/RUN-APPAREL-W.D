@@ -310,9 +310,14 @@ test.describe('AC-12 — contact-form fields carry a real label and sensible aut
     // known, structured PURPOSE; free prose is not one), so requiring a value there
     // would be inventing a requirement the spec itself does not make. Every other,
     // structured field must carry a real, non-empty, non-"off" value.
+    // Added 2026-09-29 with the form's new optional fields, on the same reasoning: "subject" is
+    // free text like "message", and `autocomplete` does not apply to a file input at all (HTML's
+    // autofill applies to text-entry controls). Every other new field carries a real token:
+    // organization-title, country-name, tel-country-code, tel-national.
     const missingAutocomplete = fields.filter(
       (f) =>
-        !['website', 'message'].includes(f.name) && (!f.autocomplete || f.autocomplete === 'off'),
+        !['website', 'message', 'subject', 'files'].includes(f.name) &&
+        (!f.autocomplete || f.autocomplete === 'off'),
     )
     expect(
       missingAutocomplete,

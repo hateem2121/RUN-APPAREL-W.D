@@ -2,8 +2,10 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
-import { HERO_SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import { CONTACT_HERO_SOURCES, HERO_SOURCES } from '../../../scripts/build-factory-photos.mjs'
 import {
+  CONTACT_HERO_PHOTO,
+  contactHeroSrc,
   FACTORY_PHOTO_ASPECT,
   FACTORY_PHOTO_WIDTHS,
   FACTORY_PHOTOS,
@@ -100,6 +102,11 @@ describe('the factory strip (OI-3)', () => {
           heroPhotoSrc(shape, width).slice('/factory/'.length),
         ),
       ),
+      ...HERO_SHAPES.flatMap((shape) =>
+        CONTACT_HERO_PHOTO.widths[shape].map((width) =>
+          contactHeroSrc(shape, width).slice('/factory/'.length),
+        ),
+      ),
     ])
     expect(readdirSync(DIR).filter((file) => !named.has(file))).toEqual([])
   })
@@ -179,6 +186,53 @@ describe('the factory strip (OI-3)', () => {
    */
   it('the hero files a first visit downloads stay small', () => {
     for (const file of ['hero-wide-1280.webp', 'hero-tall-640.webp', 'hero-tall-1080.webp']) {
+      expect(readFileSync(join(DIR, file)).byteLength, file).toBeLessThanOrEqual(180 * 1024)
+    }
+  })
+
+  /*
+   * The contact hero (owner, 2026-09-29: "the image in contact page must also be in the
+   * background of hero section, similar to home page"). The showroom original is 2000x1400, so
+   * the wide crop stops at 1920: a 2560 file would be an upscale, bytes with no detail in them.
+   */
+  it('every contact hero file the page names exists at its declared size', () => {
+    const wrong: string[] = []
+    for (const shape of HERO_SHAPES) {
+      for (const width of CONTACT_HERO_PHOTO.widths[shape]) {
+        const file = contactHeroSrc(shape, width).slice('/factory/'.length)
+        let size: { width: number; height: number }
+        try {
+          size = webpSize(readFileSync(join(DIR, file)))
+        } catch (error) {
+          wrong.push(`${file}: ${error instanceof Error ? error.message : String(error)}`)
+          continue
+        }
+        const height = Math.round(width / HERO_PHOTO.aspect[shape])
+        if (size.width !== width || size.height !== height) {
+          wrong.push(
+            `${file} is ${size.width}x${size.height}, the page reserves ${width}x${height}`,
+          )
+        }
+      }
+    }
+    expect(wrong, 'rebuild with scripts/build-factory-photos.mjs').toEqual([])
+  })
+
+  it('the build script writes the contact hero at the widths the page declares, never upscaled', () => {
+    for (const shape of HERO_SHAPES) {
+      const source = CONTACT_HERO_SOURCES.find((entry) => entry.shape === shape)
+      expect(source, shape).toBeDefined()
+      expect(source?.widths).toEqual([...CONTACT_HERO_PHOTO.widths[shape]])
+      expect(Math.max(...CONTACT_HERO_PHOTO.widths[shape])).toBeLessThanOrEqual(2000)
+    }
+  })
+
+  it('the contact hero files a first visit downloads stay small', () => {
+    for (const file of [
+      'contact-hero-wide-1280.webp',
+      'contact-hero-tall-640.webp',
+      'contact-hero-tall-1080.webp',
+    ]) {
       expect(readFileSync(join(DIR, file)).byteLength, file).toBeLessThanOrEqual(180 * 1024)
     }
   })

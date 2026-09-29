@@ -1,10 +1,15 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { getSiteSettings } from '../../../lib/content'
+import { CONTACT_HERO_PHOTO, contactHeroSrc, HERO_PHOTO } from '../../../lib/factoryPhotos'
 import { HONEYPOT_FIELD, MAX_LENGTHS } from '../../../lib/inquiry'
+import { inquiryNotice } from '../../../lib/inquiryForm'
 import { buildMetadata } from '../../../lib/seo'
 import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
+import { FilePicker } from '../../../components/site/FilePicker'
+import { InquiryStepper } from '../../../components/site/InquiryStepper'
 import { JsonLd } from '../../../components/site/JsonLd'
+import { PhoneField } from '../../../components/site/PhoneField'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,16 +64,46 @@ const ADDRESS = formatAddress()
 export default async function ContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string }>
+  searchParams: Promise<{ sent?: string; error?: string; reason?: string }>
 }) {
   const settings = await getSiteSettings()
   const whatsapp = `https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`
-  const { sent, error } = await searchParams
+  const notice = inquiryNotice(await searchParams)
+  const [tall640, tall1080] = CONTACT_HERO_PHOTO.widths.heroTall
+  const [wide1280, wide1920] = CONTACT_HERO_PHOTO.widths.heroWide
 
   return (
     <>
       <JsonLd data={contactPageJsonLd(settings)} />
-      <section className="site-hero">
+      {/*
+       * ⚠️ THE SHOWROOM BEHIND THE HERO, AS THE HOME PAGE HAS THE STITCHING FLOOR (owner,
+       * 2026-09-29). `.site-hero--photo` sets the hero in the dark scheme under an ink wash, so the
+       * text needs no per-photo contrast work (`HomeHero.tsx` explains). The photo is this page's
+       * largest paint: eager, high priority, and inside <picture> — React 19 adds a preload for a
+       * bare eager `<img>` on its own, and `e2e/perfBudgets.spec.ts` allows one hint per page.
+       */}
+      <section className="site-hero site-hero--photo">
+        <picture className="site-hero__photo">
+          <source
+            media="(max-width: 700px)"
+            srcSet={`${contactHeroSrc('heroTall', tall640)} ${tall640}w, ${contactHeroSrc('heroTall', tall1080)} ${tall1080}w`}
+            sizes="100vw"
+            width={tall640}
+            height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
+          />
+          <img
+            className="site-hero__img"
+            src={contactHeroSrc('heroWide', wide1280)}
+            srcSet={`${contactHeroSrc('heroWide', wide1280)} ${wide1280}w, ${contactHeroSrc('heroWide', wide1920)} ${wide1920}w`}
+            sizes="100vw"
+            width={wide1280}
+            height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
+            alt={CONTACT_HERO_PHOTO.alt}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+          />
+        </picture>
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
           <p className="label">[ CONTACT ]</p>
@@ -87,6 +122,149 @@ export default async function ContactPage({
             Reach us directly — by email or on WhatsApp, whichever suits you. We reply within 24
             hours.
           </p>
+        </div>
+      </section>
+
+      {/*
+       * ⚠️ THE FORM COMES FIRST, DIRECTLY UNDER THE HERO (owner, 2026-09-29), and `id="inquiry"` is
+       * where every "Start a conversation" link on the site lands (`/contact#inquiry`).
+       */}
+      <section className="site-section" id="inquiry">
+        <div className="site-container">
+          <p className="subhead">What helps us reply faster</p>
+          <h2 className="display display--section">
+            Send what you have. <span className="serif-accent">A sketch is&nbsp;enough.</span>
+          </h2>
+          <p className="site-lede">
+            Styles and quantities, your target fabric or a reference garment, any artwork, and the
+            date you need it by. None of it is required to start the conversation.
+          </p>
+          {notice ? (
+            <p
+              className={`form-notice form-notice--${notice.kind}`}
+              role={notice.kind === 'ok' ? 'status' : 'alert'}
+            >
+              {notice.text}
+            </p>
+          ) : null}
+
+          {/*
+           * ⚠️ `multipart/form-data` SINCE 2026-09-29, for the files. The route reads it with
+           * `request.formData()` either way, so a plain-text post from an old cached page still
+           * works.
+           */}
+          <form
+            className="inquiry-form"
+            method="post"
+            action="/contact/submit"
+            encType="multipart/form-data"
+          >
+            <InquiryStepper
+              emailHref={`mailto:${settings.email}`}
+              stepOne={
+                <>
+                  <label className="inquiry-form__field">
+                    <span className="inquiry-form__label">Your name</span>
+                    <input
+                      className="inquiry-form__input"
+                      type="text"
+                      name="name"
+                      required
+                      maxLength={MAX_LENGTHS.name}
+                      autoComplete="name"
+                    />
+                  </label>
+
+                  <label className="inquiry-form__field">
+                    <span className="inquiry-form__label">Email</span>
+                    <input
+                      className="inquiry-form__input"
+                      type="email"
+                      name="email"
+                      required
+                      maxLength={MAX_LENGTHS.email}
+                      autoComplete="email"
+                    />
+                  </label>
+
+                  <label className="inquiry-form__field">
+                    <span className="inquiry-form__label">What are you making?</span>
+                    <textarea
+                      className="inquiry-form__input inquiry-form__textarea"
+                      name="message"
+                      required
+                      rows={6}
+                      maxLength={MAX_LENGTHS.message}
+                      /*
+                        ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly
+                        above it word for word — the same sentence twice on one phone screen,
+                        which a screenshot showed and no test would have. A placeholder is a poor
+                        place for guidance anyway: it disappears the moment someone starts
+                        typing, exactly when they might want to re-read it.
+                      */
+                    />
+                  </label>
+                </>
+              }
+              stepTwo={
+                <>
+                  <div className="inquiry-form__row">
+                    <label className="inquiry-form__field">
+                      <span className="inquiry-form__label">Company (optional)</span>
+                      <input
+                        className="inquiry-form__input"
+                        type="text"
+                        name="company"
+                        maxLength={MAX_LENGTHS.company}
+                        autoComplete="organization"
+                      />
+                    </label>
+                    <label className="inquiry-form__field">
+                      <span className="inquiry-form__label">Job title (optional)</span>
+                      <input
+                        className="inquiry-form__input"
+                        type="text"
+                        name="jobTitle"
+                        maxLength={MAX_LENGTHS.jobTitle}
+                        autoComplete="organization-title"
+                      />
+                    </label>
+                  </div>
+                  <PhoneField />
+                  <label className="inquiry-form__field">
+                    <span className="inquiry-form__label">Subject (optional)</span>
+                    <input
+                      className="inquiry-form__input"
+                      type="text"
+                      name="subject"
+                      maxLength={MAX_LENGTHS.subject}
+                    />
+                  </label>
+                  <FilePicker />
+                </>
+              }
+            />
+
+            {/*
+              ⚠️ THE HONEYPOT. Hidden from sight and from assistive technology, and a bot
+              that fills every field it can find gives itself away. `aria-hidden` plus
+              `tabIndex={-1}` keep it out of the accessibility tree and the tab order, so
+              a screen-reader user is never offered a field they must leave blank.
+              `autoComplete="off"` stops a browser helpfully filling it in and locking a
+              real person out — which is the failure mode that makes honeypots infamous.
+              It is not a CAPTCHA and the rate limiter is the real backstop.
+            */}
+            <div className="inquiry-form__trap" aria-hidden="true">
+              <label htmlFor={HONEYPOT_FIELD}>Website</label>
+              <input
+                id={HONEYPOT_FIELD}
+                type="text"
+                name={HONEYPOT_FIELD}
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
+          </form>
         </div>
       </section>
 
@@ -113,118 +291,6 @@ export default async function ContactPage({
               <p className="contact-block__note">{settings.companyName}</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <p className="subhead">What helps us reply faster</p>
-          <h2 className="display display--section">
-            Send what you have. <span className="serif-accent">A sketch is&nbsp;enough.</span>
-          </h2>
-          <p className="site-lede">
-            Styles and quantities, your target fabric or a reference garment, any artwork, and the
-            date you need it by. None of it is required to start the conversation.
-          </p>
-          {sent ? (
-            <p className="form-notice form-notice--ok" role="status">
-              Thank you — your inquiry is with us. We reply within 24 hours.
-            </p>
-          ) : null}
-          {error ? (
-            <p className="form-notice form-notice--bad" role="alert">
-              {error === 'too-many'
-                ? 'That is several inquiries in a short time. Please wait a few minutes, or email us directly.'
-                : error === 'storage'
-                  ? 'We could not save your message — please email us directly so it is not lost.'
-                  : 'Something in the form was not filled in. Please check and send again.'}
-            </p>
-          ) : null}
-
-          <form className="inquiry-form" method="post" action="/contact/submit">
-            <div className="inquiry-form__row">
-              <label className="inquiry-form__field">
-                <span className="inquiry-form__label">Your name</span>
-                <input
-                  className="inquiry-form__input"
-                  type="text"
-                  name="name"
-                  required
-                  maxLength={MAX_LENGTHS.name}
-                  autoComplete="name"
-                />
-              </label>
-              <label className="inquiry-form__field">
-                <span className="inquiry-form__label">Company (optional)</span>
-                <input
-                  className="inquiry-form__input"
-                  type="text"
-                  name="company"
-                  maxLength={MAX_LENGTHS.company}
-                  autoComplete="organization"
-                />
-              </label>
-            </div>
-
-            <label className="inquiry-form__field">
-              <span className="inquiry-form__label">Email</span>
-              <input
-                className="inquiry-form__input"
-                type="email"
-                name="email"
-                required
-                maxLength={MAX_LENGTHS.email}
-                autoComplete="email"
-              />
-            </label>
-
-            <label className="inquiry-form__field">
-              <span className="inquiry-form__label">What are you making?</span>
-              <textarea
-                className="inquiry-form__input inquiry-form__textarea"
-                name="message"
-                required
-                rows={6}
-                maxLength={MAX_LENGTHS.message}
-                /*
-                  ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly
-                  above it word for word — the same sentence twice on one phone screen,
-                  which a screenshot showed and no test would have. A placeholder is a poor
-                  place for guidance anyway: it disappears the moment someone starts
-                  typing, exactly when they might want to re-read it.
-                */
-              />
-            </label>
-
-            {/*
-              ⚠️ THE HONEYPOT. Hidden from sight and from assistive technology, and a bot
-              that fills every field it can find gives itself away. `aria-hidden` plus
-              `tabIndex={-1}` keep it out of the accessibility tree and the tab order, so
-              a screen-reader user is never offered a field they must leave blank.
-              `autoComplete="off"` stops a browser helpfully filling it in and locking a
-              real person out — which is the failure mode that makes honeypots infamous.
-              It is not a CAPTCHA and the rate limiter is the real backstop.
-            */}
-            <div className="inquiry-form__trap" aria-hidden="true">
-              <label htmlFor={HONEYPOT_FIELD}>Website</label>
-              <input
-                id={HONEYPOT_FIELD}
-                type="text"
-                name={HONEYPOT_FIELD}
-                tabIndex={-1}
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="site-actions">
-              <button className="btn btn--primary" type="submit">
-                Send inquiry
-              </button>
-              <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
-                Or email us instead
-              </a>
-            </div>
-          </form>
         </div>
       </section>
     </>

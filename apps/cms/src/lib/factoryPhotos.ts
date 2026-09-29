@@ -132,6 +132,29 @@ export function heroPhotoSrc(shape: HeroShape, width: number): string {
   return `/factory/${HERO_FILE[shape]}-${width}.webp`
 }
 
+/**
+ * The contact page hero (owner, 2026-09-29: "the image in contact page must also be in the
+ * background of hero section, similar to home page") — the showroom, in the same two crops and
+ * under the same ink wash as the home hero (`.site-hero--photo`).
+ *
+ * ⚠️ NO 2560 CROP. The showroom original is 2000x1400, so a 2560-wide file would be an upscale:
+ * more bytes, no more detail. A 2560 screen takes the 1920 file, softened further by the wash.
+ */
+export const CONTACT_HERO_PHOTO = {
+  alt: 'The RUN APPAREL showroom: mannequins in black and blue compression wear and rails of garments in front of a concrete wall with the RUN APPAREL logo.',
+  widths: { heroWide: [1280, 1920], heroTall: [640, 1080] },
+} as const satisfies { alt: string; widths: Record<HeroShape, readonly number[]> }
+
+const CONTACT_HERO_FILE: Record<HeroShape, string> = {
+  heroWide: 'contact-hero-wide',
+  heroTall: 'contact-hero-tall',
+}
+
+/** `/factory/contact-hero-wide-<width>.webp` or `/factory/contact-hero-tall-<width>.webp`. */
+export function contactHeroSrc(shape: HeroShape, width: number): string {
+  return `/factory/${CONTACT_HERO_FILE[shape]}-${width}.webp`
+}
+
 /** `/factory/<slug>-<width>.webp`, the path `public/` serves it at. */
 export function factoryPhotoSrc(photo: FactoryPhoto, width: number): string {
   return `/factory/${photo.slug}-${width}.webp`
