@@ -135,9 +135,30 @@ export const PUBLIC_PAGE_ISOLATION = [
   { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
 ]
 
+/**
+ * ⚠️ AN EMPTY `Critical-CH`, SO A FIRST VISIT IS ONE FETCH, NOT TWO (2026-09-29).
+ *
+ * `withPayload` sends `Critical-CH: Sec-CH-Prefers-Color-Scheme` on every path, for the admin's
+ * theme. Chrome treats a critical hint it did not send as a reason to discard the response and
+ * request the page again, and on a first visit it never has. Measured with Lighthouse 13.5.0
+ * (mobile) on the live /products, 2026-09-29: a 307 from the page to itself before every run,
+ * costing 0.7–3.0 s before the first byte; sending the hint up front removed it and brought
+ * First Contentful Paint from 1.8–2.2 s to 1.4–1.6 s. The public pages never read the hint —
+ * their theme is CSS, `prefers-color-scheme` — so here nothing is critical. ⚠️ Measured on the
+ * OpenNext build: the empty value is DROPPED, so the page carries no `critical-ch` header at all.
+ * That is equally correct; a `curl -I` that shows none is this rule working, not missing. `Accept-CH` and
+ * `Vary` stay as Payload set them, and /admin keeps its own Critical-CH (the rule is scoped to
+ * the five pages, like the policy above).
+ */
+export const NO_CRITICAL_CLIENT_HINTS = { key: 'Critical-CH', value: '' }
+
 export const publicPageCspRules = PUBLIC_PAGE_SOURCES.map((source) => ({
   source,
-  headers: [{ key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP }, ...PUBLIC_PAGE_ISOLATION],
+  headers: [
+    { key: 'Content-Security-Policy', value: PUBLIC_PAGE_CSP },
+    ...PUBLIC_PAGE_ISOLATION,
+    NO_CRITICAL_CLIENT_HINTS,
+  ],
 }))
 
 /**

@@ -1614,16 +1614,59 @@ them into the JPEG link cards under `apps/viewer/public/og/` and regenerates the
 the product's "Backup picture" takes any one of them. `scripts/smoke-viewer-payload.mjs`
 now fetches every colourway's poster after a deploy and fails on one that is not served.
 
+### The product cards' pictures — Cloudflare image resizing
+
+Since 2026-09-29 the /products cards show card-sized copies of each picture, resized by
+Cloudflare on the page's own address (`/cdn-cgi/image/…`, built by
+`apps/cms/src/lib/cardImage.ts`, quality 90 by the owner's choice). The full studio renders
+(365–791 KB) had taken the phone score to 0.67; measured with the copies, 0.86.
+
+It depends on two things no code can see:
+
+- **The setting.** Cloudflare dashboard → Images → Transformations → `wear-run.com`:
+  **enabled**, Sources **"This zone only"** (enabled 2026-09-29 at the owner's instruction).
+  "This zone only" means anyone asking wear-run.com to resize someone else's image gets a
+  403, so nobody else can spend the quota that way.
+- **The free quota.** 5,000 unique resizes a month on the free plan; the site asks for about
+  3 sizes × 200 pictures. Past the quota a NEW resize fails rather than bills (there is no
+  charge on the free plan).
+
+- **The firewall rule.** "Only the card picture sizes may be resized" on `wear-run.com`
+  (Security → WAF → Custom rules, added 2026-09-29) blocks every `/cdn-cgi/image/` request
+  except the three card sizes at quality 90 from media.wear-run.com, so nobody can spend the
+  quota on odd sizes. 🟡 **Change the sizes or the quality in `apps/cms/src/lib/cardImage.ts`
+  and you must change this rule in the same breath**: a blocked picture is a 403, which the
+  fallback below does NOT catch, so every card would lose its picture. The test
+  `cardImage.test.ts` → "asks only for the three sizes the firewall rule allows" fails first.
+
+Either a switched-off setting or a spent quota does not break a card: `onerror=redirect` sends
+the browser to the original file (a 307). The page just gets heavy again. `scripts/preconnect-probe.mjs` fails on that
+fallback, and runs in `lighthouse-live.yml` after every deploy and weekly:
+
+```bash
+node scripts/preconnect-probe.mjs   # exits 1 if the cards are not resized or fell back
+```
+
+If it fails with "fell back to the original": check the setting above first, then the
+month's count in the dashboard (Images → Transformations → Analytics).
+
 ### Is a poster too heavy? — `scripts/poster-sizes.mjs`
 
 Since 2026-09-17 (audit L-11/IM-02) this reads every live product's poster and judges
 it against the median for its OWN `category` (Sportswear, Outerwear, …) — a Teamwear
 kit's poster legitimately carries more print than a plain tee, so the comparison is
 never against the whole catalogue. A poster at `FLAG_AT` (2×) its family's median or
-heavier is flagged, unless the product is named in `OWNER_EXCEPTIONS` — one entry
-today, `r-wzu`, ceiling 3×, the owner's 2026-09-17 call on "Shrink gently": *the vest
-keeps its detail*. Past its own ceiling an exception stops covering the product; it is
-flagged same as anything else.
+heavier is flagged, unless the product is named in `OWNER_EXCEPTIONS`: `r-wzu`, ceiling
+3×, the owner's 2026-09-17 call on "Shrink gently" (*the vest keeps its detail*), and six
+products the owner reviewed on 2026-09-29 and kept as they are (`r-csp` 3×; `r-ifs`,
+`r-xmp`, `r-cch`, `r-asb`, `r-pps` 2.5×). Past its own ceiling an exception stops
+covering the product; it is flagged same as anything else.
+
+🟡 **Since 2026-09-29 the medians are FROZEN** (`BASELINE_MEDIANS`, all 200 live posters
+that day). A live median moved whenever garments were added: the 2026-09-27/28 rollout
+dropped the Sportswear median from 50,517 B to 46,635 B, and `r-asb`'s unchanged,
+approved trims went from 1.96× to 2.12× and "flagged". A new category is judged against
+its own live median until someone measures it and adds it.
 
 ```bash
 node scripts/poster-sizes.mjs           # exits 1 if anything is flagged, 2 if anything

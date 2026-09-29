@@ -33,11 +33,16 @@ export function ProductPoster({
   src,
   alt,
   index,
+  srcSet,
+  sizes,
 }: {
   src: string
   alt: string
   /** The card's position in the gallery. Omitted means off the first screen: lazy. */
   index?: number
+  /** Card-sized copies to choose between (`lib/cardImage.ts`); absent, the one file serves all. */
+  srcSet?: string
+  sizes?: string
 }) {
   const { loading, fetchPriority } =
     index === undefined ? ({ loading: 'lazy' } as PosterLoading) : posterLoading(index)
@@ -71,36 +76,28 @@ export function ProductPoster({
     return <span className="product-card__placeholder">[ 3D reference ]</span>
   }
 
-  return (
-    /*
-     * A plain <img>, not next/image. apps/cms runs on Workers without `sharp`, so the
-     * optimiser cannot resize anything — next/image would add a proxy hop and ship the
-     * identical bytes. `posterLoading()` keeps all but the first row off the critical path; the
-     * aspect-ratio box on the figure means no layout shift while they arrive.
-     *
-     * ⚠️ NO `srcset`, AND THE AUDIT'S "one poster size for every screen" (FA-J-51) IS
-     * MEASURED RATHER THAN ARGUED HERE. A `srcset` needs more than one file to choose
-     * between, and the pipeline emits exactly one 1200x1500 WebP per colourway. Creating
-     * others means either changing `tools/asset-pipeline` and re-running all 55 posters,
-     * or paying for Cloudflare Image Resizing against a $5/month ceiling. `sizes` alone
-     * does nothing without a `srcset` to select from.
-     *
-     * What that would buy, measured live on media.wear-run.help 2026-09-07:
-     *
-     *   rxps-wine    40,450 B     rxps-black   52,330 B
-     *   r-mm-sky     33,762 B     r-aj-lime    66,442 B      all cf-cache-status HIT
-     *
-     * 34-66 KB for a full-resolution garment photograph, lazy-loaded and served from the
-     * edge. A phone card is ~350px wide, so a smaller variant might save ~25 KB on an
-     * image that is not on the critical path and is not fetched until it scrolls into
-     * view. That is a real saving and a small one, and it costs a pipeline change and a
-     * re-run of every poster — an owner's trade, not a silent one.
-     */
-    // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize — it would add a proxy hop and serve byte-identical posters. See above.
+  /*
+   * A plain <img>, not next/image. apps/cms runs on Workers without `sharp`, so the
+   * optimiser cannot resize anything — next/image would add a proxy hop and ship the
+   * identical bytes. `posterLoading()` keeps all but the first row off the critical path; the
+   * aspect-ratio box on the figure means no layout shift while they arrive.
+   *
+   * `srcSet`/`sizes` come from `lib/cardImage.ts` for pictures on media.wear-run.com, which
+   * Cloudflare resizes at the edge (owner, 2026-09-29). Until then this said "no srcset":
+   * the pipeline emits one 1200x1500 file, and a second size meant a pipeline change or
+   * paid resizing. Two things changed that: since PR #80 the cards show 365–791 KB studio
+   * renders, which took /products to 0.67 on a phone, and Cloudflare's free image plan
+   * (5,000 resizes a month, failing rather than billing past it) covers this page. Any
+   * other address — the admin's host, a local build — keeps the single file.
+   */
+  const img = (
+    // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize — Cloudflare's edge does (lib/cardImage.ts). See above.
     <img
       className="product-card__img"
       ref={ref}
       src={src}
+      srcSet={srcSet}
+      sizes={sizes}
       alt={alt}
       loading={loading}
       fetchPriority={fetchPriority}
@@ -110,4 +107,13 @@ export function ProductPoster({
       onError={() => setFailed(true)}
     />
   )
+  /*
+   * ⚠️ A RESIZED PICTURE SITS IN A <picture>, BECAUSE REACT WOULD OTHERWISE PRELOAD IT. React 19
+   * adds a `<link rel="preload" as="image">` for every non-lazy <img> with a srcSet that is not
+   * inside a <picture> — one per eager card on /products (3 on the live catalogue, 2 on CI's),
+   * competing on a phone with the one picture on screen, which the browser finds in the page at
+   * once anyway. CI's preload budget caught it (e2e/perfBudgets.spec.ts). `display: contents`
+   * keeps the layout exactly as it was.
+   */
+  return srcSet ? <picture className="product-card__picture">{img}</picture> : img
 }

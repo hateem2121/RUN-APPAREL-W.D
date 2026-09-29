@@ -2,6 +2,7 @@
 
 import { type ReactNode, useRef, useState } from 'react'
 import { colourHref, slideAt, slidesToLoad } from '../../lib/cardGallery'
+import { cardImage } from '../../lib/cardImage'
 import type { CardColour } from '../../lib/projectPublic'
 import { ProductPoster } from './ProductPoster'
 import { ViewerCue } from './ViewerCue'
@@ -125,7 +126,7 @@ export function CardGallery({
                 <span className="visually-hidden">{`${productName} in ${colour.name}`}</span>
               ) : colour.image ? (
                 <ProductPoster
-                  src={colour.image.url}
+                  {...cardImage(colour.image.url)}
                   alt={colour.image.alt}
                   // Only the first picture competes for the first screen; the rest are
                   // lazy, so a colour loads when a visitor swipes to it.
