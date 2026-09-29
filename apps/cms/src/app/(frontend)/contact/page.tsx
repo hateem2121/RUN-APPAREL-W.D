@@ -6,6 +6,7 @@ import { HONEYPOT_FIELD, MAX_LENGTHS } from '../../../lib/inquiry'
 import { inquiryNotice } from '../../../lib/inquiryForm'
 import { buildMetadata } from '../../../lib/seo'
 import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
+import { ContactGlobe } from '../../../components/site/ContactGlobe'
 import { FilePicker } from '../../../components/site/FilePicker'
 import { InquiryStepper } from '../../../components/site/InquiryStepper'
 import { JsonLd } from '../../../components/site/JsonLd'
@@ -291,6 +292,16 @@ export default async function ContactPage({
               <p className="contact-block__note">{settings.companyName}</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="site-section" data-site-reveal>
+        <div className="site-container">
+          <p className="subhead">Where we are</p>
+          <h2 className="display display--section">
+            From Sialkot, <span className="serif-accent">to wherever you&nbsp;are.</span>
+          </h2>
+          <ContactGlobe coordinates={settings.footer.worksCoordinates} address={ADDRESS} />
         </div>
       </section>
     </>
