@@ -52,8 +52,8 @@ export locally — it is the only copy.
 
 `pnpm` below means `npx --yes pnpm@12.6.0`. **The pnpm note:** bare `pnpm` has measured
 absent, present and present-but-broken on this Mac (`/opt/homebrew/bin/pnpm` can be a
-dangling symlink), and a script that shells out to it fails far from the cause —
-`apps/viewer/e2e/prepare.mjs` runs `pnpm build`, so exit 127 surfaces as
+dangling symlink), and a script that shells out to it fails far from the cause — exit
+127 in an e2e `prepare.mjs` (both use the npx form since 2026-09-29) surfaced as
 `Timed out waiting 120000ms from config.webServer`. A hook rewrites a bare `pnpm` in
 your own commands; for a script, put a shim on `PATH` that execs
 `npx --yes pnpm@12.6.0 "$@"`.

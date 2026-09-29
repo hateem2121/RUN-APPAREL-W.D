@@ -28,8 +28,9 @@ failed twice here:
 - `check-bundle-budget` reads the viewer's build output, so it exits 1 for the wrong
   reason unless `build` ran first.
 
-The script also runs the `.claude/` guard tests, which CI does **not** — `.claude/`
-is not a workspace package, so vitest never sees them and nothing else runs them.
+The script also runs the `.claude/` guard tests. `.claude/` is not a workspace package,
+so vitest never sees them; since 2026-09-29 CI runs them too, as the `verify` step
+"Hook guard tests (.claude/hooks)" in `.github/workflows/ci.yml`.
 
 ## When a gate fails
 
