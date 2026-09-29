@@ -76,21 +76,21 @@ export function ProductPoster({
     return <span className="product-card__placeholder">[ 3D reference ]</span>
   }
 
-  return (
-    /*
-     * A plain <img>, not next/image. apps/cms runs on Workers without `sharp`, so the
-     * optimiser cannot resize anything — next/image would add a proxy hop and ship the
-     * identical bytes. `posterLoading()` keeps all but the first row off the critical path; the
-     * aspect-ratio box on the figure means no layout shift while they arrive.
-     *
-     * `srcSet`/`sizes` come from `lib/cardImage.ts` for pictures on media.wear-run.com, which
-     * Cloudflare resizes at the edge (owner, 2026-09-29). Until then this said "no srcset":
-     * the pipeline emits one 1200x1500 file, and a second size meant a pipeline change or
-     * paid resizing. Two things changed that: since PR #80 the cards show 365–791 KB studio
-     * renders, which took /products to 0.67 on a phone, and Cloudflare's free image plan
-     * (5,000 resizes a month, failing rather than billing past it) covers this page. Any
-     * other address — the admin's host, a local build — keeps the single file.
-     */
+  /*
+   * A plain <img>, not next/image. apps/cms runs on Workers without `sharp`, so the
+   * optimiser cannot resize anything — next/image would add a proxy hop and ship the
+   * identical bytes. `posterLoading()` keeps all but the first row off the critical path; the
+   * aspect-ratio box on the figure means no layout shift while they arrive.
+   *
+   * `srcSet`/`sizes` come from `lib/cardImage.ts` for pictures on media.wear-run.com, which
+   * Cloudflare resizes at the edge (owner, 2026-09-29). Until then this said "no srcset":
+   * the pipeline emits one 1200x1500 file, and a second size meant a pipeline change or
+   * paid resizing. Two things changed that: since PR #80 the cards show 365–791 KB studio
+   * renders, which took /products to 0.67 on a phone, and Cloudflare's free image plan
+   * (5,000 resizes a month, failing rather than billing past it) covers this page. Any
+   * other address — the admin's host, a local build — keeps the single file.
+   */
+  const img = (
     // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize — Cloudflare's edge does (lib/cardImage.ts). See above.
     <img
       className="product-card__img"
@@ -107,4 +107,13 @@ export function ProductPoster({
       onError={() => setFailed(true)}
     />
   )
+  /*
+   * ⚠️ A RESIZED PICTURE SITS IN A <picture>, BECAUSE REACT WOULD OTHERWISE PRELOAD IT. React 19
+   * adds a `<link rel="preload" as="image">` for every non-lazy <img> with a srcSet that is not
+   * inside a <picture> — one per eager card on /products (3 on the live catalogue, 2 on CI's),
+   * competing on a phone with the one picture on screen, which the browser finds in the page at
+   * once anyway. CI's preload budget caught it (e2e/perfBudgets.spec.ts). `display: contents`
+   * keeps the layout exactly as it was.
+   */
+  return srcSet ? <picture className="product-card__picture">{img}</picture> : img
 }

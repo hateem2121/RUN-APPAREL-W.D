@@ -418,6 +418,9 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
 /**
  * IM-04 — card sizes, and only where Cloudflare resizes.
  *
+ * (Rewritten again the same day: CI's first run showed its seeded posters ARE on
+ * media.wear-run.com, so the test below judges each picture by its own address.)
+ *
  * Until 2026-09-29 the decision was "one poster size for every screen": the pipeline emits one
  * 1200x1500 WebP per colourway, and a second size cost a pipeline change or paid resizing. The
  * owner reversed it on 2026-09-29, once the cards' 365–791 KB studio renders (PR #80) took
@@ -431,9 +434,7 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
  * `src/components/site/CardGallery.test.ts`, with its own negative control.
  */
 test.describe('IM-04 — card sizes only where Cloudflare resizes, and the size a card reserves', () => {
-  test('a picture outside the resizing zone carries no srcset or sizes attribute', async ({
-    request,
-  }) => {
+  test('every card picture is resized, or outside the zone and plain', async ({ request }) => {
     const html = await (await request.get('/products')).text()
     // The class is matched as a WORD inside the attribute, here and below. An exact
     // `class="product-card__img"` would stop matching the day a second class is added,
@@ -444,23 +445,29 @@ test.describe('IM-04 — card sizes only where Cloudflare resizes, and the size 
     ].map((m) => m[0])
     test.skip(images.length === 0, 'no garment with a poster in this database')
     for (const img of images) {
+      const src = img.match(/\ssrc="([^"]+)"/)?.[1] ?? ''
+      // ⚠️ CI's seeded posters ARE on media.wear-run.com (the production shape, via
+      // `onSiteMedia`), a local database may hold only relative ones — so each picture is
+      // judged by its own address, never by what the fixture is assumed to be.
+      expect(src, `a media.wear-run.com picture escaped resizing:\n${img}`).not.toMatch(
+        /^https:\/\/media\.wear-run\.com\//,
+      )
       /*
        * ⚠️ CASE-INSENSITIVE, MEASURED. React's SSR string renderer serialises `srcSet`
-       * and `fetchPriority` verbatim in this Next.js version — `curl`'d live:
-       * `srcSet="…" fetchPriority="high"`, camelCase, while `loading="eager"` on the same
-       * tag is correctly lowercased. `composition.spec.ts`'s "IM-05 / PF-20" test already
-       * matches `fetchpriority` case-insensitively for the identical reason. A
-       * case-sensitive `/\bsrcset=/` here would never match the real attribute in either
-       * direction — it looked like a negative control and could not have failed on a
-       * real regression, which is exactly the class of instrument the root CLAUDE.md
-       * warns measures nothing.
+       * camelCase (`srcSet="…" fetchPriority="high"`) while `loading="eager"` on the same tag
+       * is lowercased; a case-sensitive `/\bsrcset=/` would never match the real attribute.
        */
-      expect(img, `a picture outside the resizing zone now carries srcset:\n${img}`).not.toMatch(
-        /\bsrcset=/i,
-      )
-      expect(img, `a picture outside the resizing zone now carries sizes:\n${img}`).not.toMatch(
-        /\bsizes=/i,
-      )
+      if (src.startsWith('/cdn-cgi/image/')) {
+        expect(img, `a resized card picture offers no sizes:\n${img}`).toMatch(/\bsrcset=/i)
+        expect(img, `a resized card picture has no sizes hint:\n${img}`).toMatch(/\bsizes=/i)
+      } else {
+        expect(img, `a picture outside the resizing zone carries srcset:\n${img}`).not.toMatch(
+          /\bsrcset=/i,
+        )
+        expect(img, `a picture outside the resizing zone carries sizes:\n${img}`).not.toMatch(
+          /\bsizes=/i,
+        )
+      }
     }
   })
 
