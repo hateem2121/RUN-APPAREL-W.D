@@ -1,4 +1,5 @@
 import { CERTIFICATION, FACTS, SHIPS_TO } from '../../lib/companyFacts'
+import { CountUp } from './CountUp'
 
 /**
  * №05 "The works" — the owner's confirmed numbers as a bento grid (2026-09-29).
@@ -18,7 +19,9 @@ export function FactsBento() {
       <dl className="facts-grid facts-grid--bento">
         {FACTS.map((fact, index) => (
           <div className={index === 0 ? 'fact fact--feature' : 'fact'} key={fact.label}>
-            <dt className="fact__value display display--section">{fact.value}</dt>
+            <dt className="fact__value display display--section">
+              <CountUp value={fact.value} />
+            </dt>
             <dd className="fact__label">{fact.label}</dd>
           </div>
         ))}

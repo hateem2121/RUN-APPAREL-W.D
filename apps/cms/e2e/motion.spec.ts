@@ -508,3 +508,56 @@ test.describe('MO-17 — the site reveals by rising alone', () => {
     ])
   })
 })
+
+/**
+ * The count-up in №05 (owner, 2026-09-29). What would have to break for these to fail: the
+ * figure missing without scripting (a crawler or a no-JS visitor sees a zero or nothing), the
+ * roll running for someone who asked for less motion, or the roll never running at all.
+ */
+test.describe('№05 — the numbers count up, and only when they may', () => {
+  const feature = '.fact--feature .count-up'
+
+  test('with scripting off, every figure is the real number', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false })
+    const page = await context.newPage()
+    await page.goto('/')
+    await expect(page.locator(feature)).toHaveText('100,000')
+    await expect(page.locator('.facts-grid .count-up')).toHaveText([
+      '100,000',
+      '50',
+      '7',
+      '200',
+      '193,000',
+    ])
+    await context.close()
+  })
+
+  test('under reduced motion the figure never rolls', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+    await page.locator(feature).scrollIntoViewIfNeeded()
+    await page.waitForTimeout(400)
+    await expect(page.locator(feature)).toHaveText('100,000')
+    await expect(page.locator(`${feature} number-flow-react`)).toHaveCount(0)
+  })
+
+  test('with motion allowed, the figure rolls once it is seen and ends on the real number', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    })
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/')
+    // Not yet seen: still the plain server text.
+    await expect(page.locator(`${feature} number-flow-react`)).toHaveCount(0)
+    await page.locator(feature).scrollIntoViewIfNeeded()
+    await expect(page.locator(`${feature} number-flow-react`)).toHaveCount(1, { timeout: 3000 })
+    // A screen reader is told the final figure, never a digit mid-roll.
+    await expect(page.locator(`${feature} .visually-hidden`)).toHaveText('100,000')
+    await expect(page.locator(`${feature} [aria-hidden="true"]`)).toHaveCount(1)
+  })
+})
