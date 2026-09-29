@@ -153,6 +153,8 @@ honours in full (`FA-H-07`, `FA-H-25`).
 **Guard:** the existing reduced-motion tests are extended to the site's reveals,
 with a negative control.
 
+**Amended by D26 (2026-09-29):** one new duration, `--showpiece`, for three showpiece motions.
+
 ### D9 · Two-finger pan becomes zoom-proportional — `FA-H-29`
 
 **Decision: 1:1 when zoomed out, damped when zoomed in.**
@@ -559,6 +561,22 @@ dark, so the dark-on-transparent marks need a paper chip in each, not only in da
 **Guard:** `apps/cms/src/lib/standardsLogos.test.ts` (whole words, order, no duplicates, no
 22000, no SECP, every file present at its recorded size) and `SiteFooter.test.ts` (text kept,
 images lazy with a reserved size, no picture for an entry naming no body).
+
+### D26 · One slower "showpiece" speed for three motions — amends D8
+
+**Decision: `--showpiece: 1400ms` in `packages/ui/src/tokens.css`, used ONLY by the №05
+count-up, the order timeline's draw and the contact globe's arcs. Owner, 2026-09-29.** D8 allowed
+the existing tokens only, and the slowest, `--slow`, is a UI transition: a figure rolling to
+100,000 or a line drawing down four phases at that speed reads as a flicker, not a flourish.
+One named duration keeps the three in step and keeps "no new durations" true everywhere else.
+
+What D8 guarded is unchanged: every one of the three is off under
+`prefers-reduced-motion: reduce` (the final figure, the full line and a still globe are what
+the server sends), and none animates text opacity.
+
+**Guard:** `apps/viewer/src/styles/tokens.test.ts` (the token is documented in `docs/DESIGN.md`)
+and `apps/cms/e2e/motion.spec.ts` (reduced motion shows the final state at once, with a
+negative control).
 
 ## Closed since
 

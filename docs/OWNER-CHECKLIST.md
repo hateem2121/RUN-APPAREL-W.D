@@ -120,9 +120,9 @@ Open the CMS admin, go to **Settings**, and fill in:
 
    > 50 pcs per style
 
-   Into **Lead time**, type:
+   Into **Lead time**, type what the live footer says today (your wording, 2026-09-28):
 
-   > 21–45 days from approved sample
+   > 2–4 weeks from order confirmation
 
    Then your working days and hours in Sialkot time. The hours also switch on the little
    "Open now" light beside the clock; leave them blank and there is no light.
