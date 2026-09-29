@@ -528,18 +528,24 @@ before the section is near; nothing loads on a data-saving connection until aske
 
 ### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
 
-**Decision: each "Standards" entry draws the logos of the bodies it names, beside its text.
-Owner, 2026-09-29**, after being told the marks' usage rules: GOTS, OEKO-TEX and Textile
+**Decision: the footer draws the logos of the bodies its "Standards" entries name, in ONE row
+of small marks under the facts, each body once; every entry keeps its text line. Owner,
+2026-09-29**, after being told the marks' usage rules: GOTS, OEKO-TEX and Textile
 Exchange each reserve the right to act on misuse of their marks; SMETA is an audit method, not
 a certificate. That is why the heading stays "Standards" and every entry keeps its qualifier
 text ("Parent: …", "Suppliers: …") — the picture says which body, the words say who holds it.
 
 The artwork is the owner's own vector files, converted to plain SVG paths and trimmed to the
 mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `apps/cms/src/lib/standardsLogos.ts`
-records each one's source file). Seven marks, and only these:
+records each one's source file). Six marks, and only these:
 
 - **Parent (DURUS INDUSTRIES):** Sedex, SMETA, ISO 9001.
-- **Suppliers:** OEKO-TEX STANDARD 100, GOTS, GRS, amfori BSCI.
+- **Suppliers:** OEKO-TEX STANDARD 100, GOTS, GRS. amfori BSCI stays in the text only.
+
+**One row, not marks under each entry (owner, the same evening).** The first build drew each
+entry's marks under its line; with the production entries that grew the footer slab from one
+screen (900 px) to 1,173 px at 768 px wide, and centred the first two entries. One row of
+28 px marks adds a single line.
 
 Three of the owner's choices are rulings, not oversights:
 
@@ -547,9 +553,9 @@ Three of the owner's choices are rulings, not oversights:
   is not in the repository, and "ISO 22000" in an entry draws nothing.
 - **SECP is text only.** It is a regulator, and its emblem beside a supplier list would read as
   an endorsement.
-- **BSCI is the suppliers'.** The owner's file is the older mark (before the body became
-  amfori), so the picture reads "Business Social Compliance Initiative" while the alt text says
-  "amfori BSCI".
+- **amfori BSCI is text only for now.** The only file on hand was the older mark (before the
+  body became amfori), reading "Business Social Compliance Initiative" beside text that says
+  "amfori BSCI"; the logo returns when the owner sends a current amfori file.
 
 The folder holds other marks (ISO 22000, Made in Green, RCS/OCS, sgi). The company does not
 claim them and none has a record. An entry that names no body draws no picture, and a word that
@@ -559,8 +565,9 @@ merely contains a body's name ("GRSX") does not count.
 dark, so the dark-on-transparent marks need a paper chip in each, not only in dark mode.
 
 **Guard:** `apps/cms/src/lib/standardsLogos.test.ts` (whole words, order, no duplicates, no
-22000, no SECP, every file present at its recorded size) and `SiteFooter.test.ts` (text kept,
-images lazy with a reserved size, no picture for an entry naming no body).
+22000, no SECP, no BSCI, each body once across entries, every file present at its recorded
+size) and `SiteFooter.test.ts` (text kept, one row of marks after the blocks, images lazy with
+a reserved size, no picture for an entry naming no body).
 
 ### D26 · One slower "showpiece" speed for three motions — amends D8
 

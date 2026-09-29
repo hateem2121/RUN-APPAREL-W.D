@@ -112,26 +112,31 @@ describe('SiteFooter', () => {
   })
 
   /*
-   * The bodies' logos (owner, 2026-09-29, D25). Each entry keeps its text line AND gains the
-   * marks it names, in the order it names them. The strings are the two production prints,
-   * not a bare standard name (see the fixture note above).
+   * The bodies' logos (owner, 2026-09-29, D25; layout ruled the same evening): each entry
+   * keeps its text line, and the marks the entries name sit in ONE row of small marks under
+   * the facts — never under each line, which grew the footer from one screen (900 px) to
+   * 1,173 px at 768 px wide with the production entries. The strings are the production
+   * prints, not bare standard names (see the fixture note above).
    */
-  it("draws each entry's logos beside its text, lazily and at a reserved size", () => {
+  it('keeps every text line and draws the named marks once, in one row under the facts', () => {
     const out = html({
       ...base,
       footer: {
         ...EMPTY_FOOTER,
         certifications: [
           'Parent: SEDEX-registered, SMETA-audited',
-          'Suppliers: OEKO-TEX, GOTS, GRS',
+          'Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI',
         ],
       },
     })
-    // the qualifier text stays, unchanged
-    expect(out).toContain('>Parent: SEDEX-registered, SMETA-audited<')
-    expect(out).toContain('>Suppliers: OEKO-TEX, GOTS, GRS<')
-    // five marks, each an image with a reserved size, lazy and async, named for its body
-    const imgs = out.match(/<img [^>]*>/g) ?? []
+    // the qualifier text stays, unchanged, as plain list items
+    expect(out).toContain('<li>Parent: SEDEX-registered, SMETA-audited</li>')
+    expect(out).toContain('<li>Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI</li>')
+    // one row, after the four blocks and inside the facts, holding every mark
+    const row = out.slice(out.indexOf('footer-marks'), out.indexOf('footer-legal'))
+    expect(out.indexOf('footer-marks')).toBeGreaterThan(out.indexOf('footer-block--standards'))
+    expect(out.match(/footer-marks/g)).toHaveLength(1)
+    const imgs = row.match(/<img [^>]*>/g) ?? []
     expect(imgs).toHaveLength(5)
     for (const img of imgs) {
       expect(img).toContain('loading="lazy"')
@@ -140,6 +145,7 @@ describe('SiteFooter', () => {
       expect(img).toMatch(/height="\d+"/)
       expect(img).toContain('class="footer-logo"')
     }
+    // BSCI is text only (owner, 2026-09-29): named in the line, never drawn
     expect(imgs.map((img) => img.match(/alt="([^"]*)"/)?.[1])).toEqual([
       'Sedex',
       'SMETA',
@@ -147,13 +153,12 @@ describe('SiteFooter', () => {
       'GOTS',
       'GRS',
     ])
-    expect(imgs[0]).toContain('src="/standards/sedex.svg"')
+    expect(out.match(/<img [^>]*>/g)).toHaveLength(5)
     // the heading stays "Standards" beside real logos: SMETA is an audit, not a certificate
     expect(out).toContain('<h3>Standards</h3>')
     expect(out).not.toMatch(/certified/i)
-    // a picture is never a control: nothing here is a link, so the 44px floor never applies
-    const block = out.slice(out.indexOf('footer-block--standards'), out.indexOf('footer-legal'))
-    expect(block).not.toContain('<a ')
+    // a picture is never a control: nothing in the row is a link, so the 44px floor never applies
+    expect(row).not.toContain('<a ')
   })
 
   // NEGATIVE CONTROL: an entry naming no body draws no picture. The company's own third
@@ -169,7 +174,7 @@ describe('SiteFooter', () => {
     expect(out).toContain('>Program-specific standards on request<')
     expect(out).toContain('>Suppliers: GRSX<')
     expect(out).not.toContain('<img')
-    expect(out).not.toContain('footer-standard')
+    expect(out).not.toContain('footer-marks')
   })
 
   it('draws no logo at all when there are no entries', () => {

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { logosFor, STANDARDS_LOGOS } from './standardsLogos'
+import { logosFor, marksFor, STANDARDS_LOGOS } from './standardsLogos'
 
 const PUBLIC_DIR = join(import.meta.dirname, '..', '..', 'public')
 
@@ -65,11 +65,12 @@ describe('logosFor', () => {
     expect(logo?.alt).toBe('GOTS')
   })
 
-  it('finds amfori BSCI once, however the entry spells it', () => {
-    expect(slugs('Suppliers: amfori BSCI, GOTS')).toEqual(['bsci', 'gots'])
-    expect(slugs('BSCI')).toEqual(['bsci'])
-    expect(slugs('amfori BSCI and BSCI again')).toEqual(['bsci'])
-    expect(logosFor('amfori BSCI')[0]?.alt).toBe('amfori BSCI')
+  // TEXT ONLY until the owner sends a current amfori file (owner, 2026-09-29): the only file
+  // on hand was the OLD pre-amfori "Member of BSCI" ring, beside text that says "amfori BSCI".
+  it('draws no logo for amfori BSCI, however the entry spells it', () => {
+    expect(slugs('Suppliers: amfori BSCI, GOTS')).toEqual(['gots'])
+    expect(slugs('BSCI')).toEqual([])
+    expect(slugs('amfori BSCI')).toEqual([])
   })
 
   // ISO 9001 only (owner, 2026-09-29). NEGATIVE CONTROL both ways: the combined badge
@@ -93,9 +94,8 @@ describe('logosFor', () => {
   // The owner's ruling (2026-09-29): only the bodies the company names. The other marks
   // in the owner's folder (ISO 22000, SECP, Made in Green, RCS/OCS, sgi) are not claimed
   // as logos and must not appear as records.
-  it('carries exactly the seven bodies the owner named', () => {
+  it('carries exactly the six bodies the owner named for a logo', () => {
     expect(STANDARDS_LOGOS.map((logo) => logo.slug).sort()).toEqual([
-      'bsci',
       'gots',
       'grs',
       'iso-9001',
@@ -103,6 +103,38 @@ describe('logosFor', () => {
       'sedex',
       'smeta',
     ])
+  })
+})
+
+describe('marksFor: the one row of marks under the footer facts (owner, 2026-09-29)', () => {
+  const PRODUCTION = [
+    'Parent: SEDEX-registered, SMETA-audited',
+    'Parent: ISO 9001-certified',
+    'Suppliers: OEKO-TEX, GOTS, GRS, amfori BSCI',
+    'Group: registered with the SECP',
+  ]
+
+  it("gathers every entry's marks in the order the entries name them", () => {
+    expect(marksFor(PRODUCTION).map((logo) => logo.slug)).toEqual([
+      'sedex',
+      'smeta',
+      'iso-9001',
+      'oeko-tex',
+      'gots',
+      'grs',
+    ])
+  })
+
+  // NEGATIVE CONTROL: two entries naming the same body must not print it twice.
+  it('draws each body once, however many entries name it', () => {
+    expect(
+      marksFor(['Parent: SEDEX', 'Suppliers: GOTS, SEDEX', 'GOTS']).map((l) => l.slug),
+    ).toEqual(['sedex', 'gots'])
+  })
+
+  it('is empty when no entry names a body', () => {
+    expect(marksFor([])).toEqual([])
+    expect(marksFor(['Program-specific standards on request', 'Suppliers: GRSX'])).toEqual([])
   })
 })
 

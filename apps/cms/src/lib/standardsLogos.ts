@@ -7,7 +7,11 @@
  * CERTIFICATION): the parent, DURUS INDUSTRIES, is SEDEX-registered, SMETA-audited and
  * ISO 9001-certified, and the fabric and trim suppliers hold OEKO-TEX, GOTS, GRS and
  * amfori BSCI. Each record below is a body the owner has named for one of those, so a
- * mark appears only next to the entry that names it. The owner's folder also holds marks
+ * mark appears only when an entry names it.
+ *
+ * ⚠️ amfori BSCI IS TEXT ONLY (owner, 2026-09-29). The only file on hand was the OLD
+ * pre-amfori "Member of BSCI" ring, beside text that says "amfori BSCI"; it returns when the
+ * owner sends a current amfori file. The owner's folder also holds marks
  * the company does NOT claim (ISO 22000, Made in Green, RCS/OCS, sgi) and one it claims
  * in TEXT only — the Securities and Exchange Commission of Pakistan, a regulator, whose
  * emblem beside a supplier list would read as endorsement (owner, 2026-09-29). None of
@@ -95,19 +99,6 @@ export const STANDARDS_LOGOS: readonly StandardLogoEntry[] = [
     words: word('GRS'),
   },
   {
-    // Held by the SUPPLIERS (owner, 2026-09-29). ⚠️ The owner's file is the OLD mark —
-    // "Business Social Compliance Initiative" in a ring, from before the body became
-    // amfori — which is why the alt names "amfori BSCI" while the picture does not.
-    // "amfori BSCI" in an entry is two words and ONE logo: the match is on BSCI alone.
-    slug: 'bsci',
-    src: '/standards/bsci.svg',
-    width: 72,
-    height: 72,
-    alt: 'amfori BSCI',
-    source: 'BSCI - Business Social Compliance Initiative Logo Vector.ai',
-    words: word('BSCI'),
-  },
-  {
     // ISO 9001 ONLY, held by the parent DURUS (owner, 2026-09-29). The owner's file is a
     // combined badge, ISO 9001 beside ISO 22000; the 9001 half was separated at its own
     // group (no path straddles the gap) and the 22000 half is NOT in this repo. "ISO 22000"
@@ -133,4 +124,18 @@ export function logosFor(entry: string): StandardLogo[] {
   })
     .sort((a, b) => a.at - b.at)
     .map(({ logo: { slug, src, width, height, alt } }) => ({ slug, src, width, height, alt }))
+}
+
+/**
+ * Every mark the entries name, each body once, in the order the entries name them — the
+ * footer's ONE row of marks under the facts (owner, 2026-09-29). Marks under each entry
+ * grew the footer from one screen (900 px) to 1,173 px at 768 px wide with the production
+ * entries, so the entries keep their text lines and the marks share a single row.
+ */
+export function marksFor(entries: readonly string[]): StandardLogo[] {
+  const bySlug = new Map<string, StandardLogo>()
+  for (const logo of entries.flatMap((entry) => logosFor(entry))) {
+    if (!bySlug.has(logo.slug)) bySlug.set(logo.slug, logo)
+  }
+  return [...bySlug.values()]
 }

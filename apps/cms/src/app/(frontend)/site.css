@@ -1062,26 +1062,22 @@ html {
 }
 
 /*
- * The certification bodies' logos, drawn under the entry that names them (D25). They are
- * pictures, never links, so the 44px floor above does not apply to them; the <li> keeps its
- * 44px minimum and simply grows with the marks.
+ * The certification bodies' marks: ONE row of small, same-height marks under the facts (D25;
+ * layout ruled by the owner 2026-09-29). Marks under each entry grew the footer slab from one
+ * screen (900 px) to 1,173 px at 768 px wide with the production entries, and centred the
+ * first two entries; one row adds a single line. It spans every facts column, so it is as
+ * wide as the rule above it at most and never widens it. They are pictures, never links, so
+ * the 44px floor does not apply.
  *
  * ⚠️ THE SLAB IS DARK IN BOTH THEMES — `--footer-bg` is ink in light mode and `--raised` in
  * dark — and the marks are dark-on-transparent artwork (grey and near-black wordmarks), so
- * every one sits on a paper chip, in light mode as well as dark. `--paper` is the one
- * ground that does not flip; a chip built from `--bg` would go dark with the theme and take
- * the wordmarks with it. The chip is a wrapper around each mark's own width and height
- * attributes, which reserve the box before the lazy image loads.
+ * every one sits on a paper chip, in light mode as well as dark. `--paper` is the one ground
+ * that does not flip; a chip built from `--bg` would go dark with the theme and take the
+ * wordmarks with it. Height is fixed and width follows each file's own width/height
+ * attributes, which also reserve the box before the lazy image loads.
  */
-.footer-standard {
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 8px;
-  padding-block: 8px;
-}
-
-.footer-standard__logos {
+.footer-marks {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1091,9 +1087,9 @@ html {
 .footer-logo {
   display: block;
   box-sizing: content-box;
-  max-width: 100%;
-  height: auto;
-  padding: 6px 8px;
+  width: auto;
+  height: 28px;
+  padding: 4px 6px;
   background: var(--paper);
   border-radius: var(--radius-chip);
 }
