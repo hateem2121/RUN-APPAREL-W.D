@@ -75,9 +75,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # The same two settings as ci.yml's jobs; the reasons are written there.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # The pnpm store cache; ci.yml's `verify` job says why.
+          cache: pnpm
       # Lighthouse is a pinned devDependency, so it passes through the lockfile, the
       # release cooldown and Socket like every other package. `npx lighthouse@x` would
       # bypass all three.

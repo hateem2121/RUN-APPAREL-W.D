@@ -469,7 +469,7 @@ pull request:
   **flaky** in its own section, so flakes stay visible and countable while a real
   failure still fails both attempts and still stops the deploy.
 - **Post-deploy viewer payload** — `scripts/smoke-viewer-payload.mjs`, run after
-  the deploy in `ci.yml` and on every `uptime.yml` run (daily since 2026-08-18;
+  the deploy in `ci.yml` and on every `uptime.yml` run (every 6 hours since 2026-09-29, daily before;
   GitHub delivers a median of ~45 min — see "Uptime alerts"). Until 2026-08-05
   the only post-deploy check was `curl /api/health`, which returns `{"ok":true}`
   from a worker with an **empty database** — it proves the process is up and
@@ -842,7 +842,7 @@ cms.; www. redirects to the apex copy) and the viewer all import it. Security re
 `team@wear-run.com`, which SECURITY.md names too.
 
 Its `Expires` must stay less than a year ahead. `scripts/public-security-probe.mjs` reads
-every host's live copy daily (uptime.yml) and **fails 30 days before the date**, opening an
+every host's live copy every 6 hours (uptime.yml) and **fails 30 days before the date**, opening an
 uptime alert. To renew:
 
 1. Confirm `team@wear-run.com` still reaches someone.
@@ -1371,13 +1371,14 @@ workflow last **succeeded**:
 
 | Workflow | Scheduled | Actually delivered | Budget before it alerts |
 |---|---|---|---|
-| `uptime.yml` | **daily** (was every 15 min until 2026-08-18) | n/a — liveness moved off-platform | 3 hours |
+| `uptime.yml` | **every 6 hours** since 2026-09-29 (daily from 2026-08-18; every 15 min before) | worst gap 13.6 h for a 6-hour cron, measured on `heartbeat.yml` | 24 hours |
 | `nightly-backup.yml` | nightly | nightly | 36 hours |
 | `diagnostics-digest.yml` | Mondays | first run due 2026-08-10 | 192 hours (8 days) |
 
 Each budget was chosen to be several times the workflow's own interval, so that
-GitHub's best-effort cron skew would never trip it. ⚠️ **For `uptime.yml` that is
-no longer true**: the worst observed gap (6.1 h) is twice its 3 h budget. Read the
+GitHub's best-effort cron skew would never trip it. *(For `uptime.yml` it once was not:
+its 3 h budget sat under a 6.1 h worst gap. It is 24 h against a 13.6 h worst gap since
+2026-09-29.)* Read the
 measured block under "Uptime alerts" above before changing this number. On a breach it opens a `monitoring` issue, or comments
 on the open one — same change, and same reason, as the `outage` path above. A
 watchdog that its own previous bark can mute is not a watchdog.
