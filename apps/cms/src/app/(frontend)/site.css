@@ -3396,6 +3396,11 @@ a.contact-block__value:active {
   display: none;
 }
 
+/* A step that opens with a two-column row still keeps the legend's gap: row fields drop theirs. */
+.inquiry-form__step > .inquiry-form__row {
+  margin-block-start: 16px;
+}
+
 .inquiry-form__step + .inquiry-form__step {
   margin-block-start: 24px;
 }
