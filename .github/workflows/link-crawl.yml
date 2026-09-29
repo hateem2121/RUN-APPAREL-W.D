@@ -28,7 +28,7 @@ jobs:
     # Same gate as the rest of this repo's scheduled network checks — nothing runs
     # against production before go-live.
     if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # ~106 requests at >=1.2s apart (crawl politeness) plus latency — measured 154.5s
     # locally. Generous headroom for a slower run without threatening the job's budget.
     timeout-minutes: 10

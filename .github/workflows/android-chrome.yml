@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   android-chrome:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # An emulator cold boot plus install steps is the slow part of this job; 20 minutes
     # is generous headroom over what a healthy run needs while still failing loudly
     # rather than running to the 6-hour platform default if something hangs (the same

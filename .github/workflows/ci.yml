@@ -40,9 +40,38 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
+      # RUNNER IMAGE FACTS, FIRST, SO A MISSING TOOL FAILS BY NAME. Every job here names
+      # its image (ubuntu-26.04 since 2026-09-29; the rule is in workflowHardening.test.ts),
+      # and GitHub says a new image carries tools "updated, and in some cases removed".
+      # These are the preinstalled ones this repository leans on without saying so:
+      #   docker        deploy-shrink's image build and amd64 check; every `container:` job
+      #   gh            every alert step (uptime, heartbeat, deploy failure) and heartbeat
+      #   google-chrome the `lighthouse` job and lighthouse-live.yml
+      #   shellcheck    actionlint only shell-checks `run:` blocks when it is on PATH, so
+      #                 without it the lint below gets WEAKER and stays green
+      #   GNU date -d   deploy-shrink's "did the container image move" drift check
+      # Same image as the deploy and scheduled jobs, so this job is their canary too.
+      - name: Runner image has the tools the workflows rely on
+        run: |
+          set -euo pipefail
+          . /etc/os-release && echo "runner image: ${PRETTY_NAME}"
+          missing=0
+          for tool in docker gh google-chrome shellcheck curl git tar sha256sum; do
+            if path="$(command -v "$tool")"; then
+              echo "ok  $tool → $path"
+            else
+              echo "::error::'$tool' is not on this runner image, and a workflow here relies on it"
+              missing=1
+            fi
+          done
+          if ! date -u -d '2026-01-02T03:04:05Z' +%s >/dev/null 2>&1; then
+            echo "::error::'date -d' is not GNU date on this image; deploy-shrink's drift check parses with it"
+            missing=1
+          fi
+          exit "$missing"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -286,7 +315,7 @@ jobs:
   # image: `whoami=pwuser HOME=/home/pwuser`. If a `container:` is ever added back,
   # `HOME: /root` must come back with it, scoped to the STEP and not the job.
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # ⚠️ 30, RAISED FROM 20 ON 2026-09-07 BECAUSE THE WORK GREW, NOT BECAUSE A CEILING WAS
     # INCONVENIENT. Measured, this job, five consecutive runs:
     #
@@ -421,7 +450,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 20, not 10: the retry above needs room for three attempts, and on 2026-09-04
     # `pnpm/action-setup` alone consumed 372-425s of the old 10-minute budget. In the
     # normal case this job still finishes in about two minutes.
@@ -583,7 +612,7 @@ jobs:
   # Moving it here is what makes the word "gate" true.
   secrets:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -709,7 +738,7 @@ jobs:
   # (which DOES carry the DSN) is weighed by nothing. Do not read a green run as a
   # statement about the live page's script weight.
   lighthouse:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -821,7 +850,7 @@ jobs:
   # Chromium only — WebKit and Firefox are not needed, and the render harness
   # already runs software WebGL via swiftshader.
   artwork:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 20 -> 30 on 2026-08-18, to match `verify`, after this job was CANCELLED twice
     # in a row at exactly 20m20s — which reads as a failed gate and was not one.
     #
@@ -1010,7 +1039,7 @@ jobs:
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
     # rather than an unfinished setup step. Required reviewers need GitHub Pro

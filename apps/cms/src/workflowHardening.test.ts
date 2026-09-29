@@ -172,6 +172,21 @@ function shellLines(source: string): { line: string; number: number }[] {
   return out
 }
 
+/**
+ * 1-based line numbers of `runs-on:` values naming a moving `*-latest` image.
+ *
+ * Pure, like jobsWithoutTimeout, so the negative control can prove it fires on a
+ * synthetic workflow. Comment lines are skipped: a note may mention the old label.
+ */
+function floatingRunnerLabels(source: string): number[] {
+  const out: number[] = []
+  source.split('\n').forEach((line, i) => {
+    if (/^\s*#/.test(line)) return
+    if (/^\s*runs-on:.*\b(?:ubuntu|macos|windows)-latest\b/.test(line)) out.push(i + 1)
+  })
+  return out
+}
+
 describe('workflow hardening', () => {
   it('has workflows to check (the guard must not pass by finding nothing)', async () => {
     const files = await workflowFiles()
@@ -481,6 +496,43 @@ jobs:
       offenders,
       'pull_request_target runs untrusted fork code with write-scoped secrets. Use ' +
         `pull_request.\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  /**
+   * `ubuntu-latest` is a label GitHub MOVES, not an image. It moves from Ubuntu 24.04
+   * to 26.04 "gradually between October 19 and November 19, 2026" (GitHub changelog,
+   * 2026-09-17), with tools "updated, and in some cases removed". A moving label means
+   * the machine under every deploy, backup and alert changes on GitHub's date, one
+   * random run at a time, with nothing in this repository changed. Every job therefore
+   * names its image, and a move to a new one is a reviewed, tested PR.
+   */
+  it('names a fixed runner image, never a moving *-latest label', async () => {
+    const offenders: string[] = []
+    for (const file of await workflowFiles()) {
+      for (const line of floatingRunnerLabels(read(file))) offenders.push(`${file}:${line}`)
+    }
+    expect(
+      offenders,
+      'runs-on names a *-latest label, which GitHub moves to a new OS on its own ' +
+        `schedule. Name the image (e.g. ubuntu-26.04).\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('negative control: the runner-label rule fires on ubuntu-latest and not on a comment', () => {
+    const floating = [
+      'jobs:',
+      '  a:',
+      '    # was runs-on: ubuntu-latest until the move',
+      '    runs-on: ubuntu-latest',
+      '  b:',
+      '    runs-on: [macos-latest]',
+      '  c:',
+      '    runs-on: ubuntu-26.04',
+    ].join('\n')
+    expect(floatingRunnerLabels(floating)).toEqual([4, 6])
+    expect(
+      floatingRunnerLabels(floating.replace(/ubuntu-latest|macos-latest/g, 'ubuntu-26.04')),
     ).toEqual([])
   })
 
