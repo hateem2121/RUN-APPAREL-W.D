@@ -245,12 +245,30 @@ test.describe('FA-D-06 / FA-E-05 — nothing scrolls sideways, in 30 conditions'
             }
             return false
           }
+          /*
+           * ⚠️ A PICTURE CROPPED BY ITS OWN FRAME IS NOT OUTSIDE THE VIEWPORT (2026-09-29). The
+           * factory photos drift inside an `overflow: hidden` frame, scaled 1.12 so no edge
+           * shows (site.css, `.photo-parallax`), so a full-width frame's image box reaches 6%
+           * past each side while nothing can be seen or scrolled there. ONLY media is excused:
+           * `.site-hero` and the footer slab clip too, and text clipped mid-word by the slab at
+           * 200% was a real bug (site.css, `.footer-cta`), so text inside a clip still counts.
+           */
+          const croppedByFrame = (el: HTMLElement) => {
+            if (!['IMG', 'VIDEO', 'CANVAS'].includes(el.tagName)) return false
+            for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) {
+              const x = getComputedStyle(up).overflowX
+              if (x !== 'hidden' && x !== 'clip') continue
+              const frame = up.getBoundingClientRect()
+              return frame.left >= -1 && frame.right <= doc.clientWidth + 1
+            }
+            return false
+          }
           const overflowing = [...document.querySelectorAll<HTMLElement>('body *')]
             .filter((el) => {
               const box = el.getBoundingClientRect()
               if (box.width === 0 || box.height === 0) return false
               if (!(box.right > doc.clientWidth + 1 || box.left < -1)) return false
-              return !insideOnScreenScroller(el)
+              return !insideOnScreenScroller(el) && !croppedByFrame(el)
             })
             .map((el) => `${el.tagName}.${String(el.className).slice(0, 30)}`)
           const bar = document.querySelector('.notch')?.getBoundingClientRect()
