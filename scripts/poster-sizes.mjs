@@ -321,17 +321,29 @@ function printTable(rows) {
   }
 }
 
+/** What `main()` judges with: the frozen medians. Exported so a test pins that it does. */
+export function judgeLive(posters) {
+  return judgePosters(posters, { baseline: BASELINE_MEDIANS })
+}
+
+/**
+ * One line per family, saying whether its median is the frozen one or measured live (a family
+ * missing from BASELINE_MEDIANS). The count is today's posters, not the baseline's.
+ */
+export function medianLines(medians, posters) {
+  return Object.entries(medians).map(([family, value]) => {
+    const count = posters.filter((poster) => poster.family === family).length
+    const source = family in BASELINE_MEDIANS ? `frozen ${BASELINE_MEASURED}` : 'live'
+    return `  ${family.padEnd(20)} median ${value} B (${source})  ${count} posters today`
+  })
+}
+
 async function main() {
   const { posters, unreadable, contentProblems } = await collectPosters()
-  const { rows, medians, flagged, excepted } = judgePosters(posters, { baseline: BASELINE_MEDIANS })
+  const { rows, medians, flagged, excepted } = judgeLive(posters)
 
-  console.log(
-    `poster weight — per-family median, frozen ${BASELINE_MEASURED} (run ${new Date().toISOString().slice(0, 10)})\n`,
-  )
-  for (const [family, value] of Object.entries(medians)) {
-    const count = posters.filter((poster) => poster.family === family).length
-    console.log(`  ${family.padEnd(20)} median ${value} B  (${count} posters)`)
-  }
+  console.log(`poster weight — per-family median (run ${new Date().toISOString().slice(0, 10)})\n`)
+  for (const line of medianLines(medians, posters)) console.log(line)
   console.log()
   printTable(rows)
 

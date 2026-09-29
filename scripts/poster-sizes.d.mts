@@ -66,3 +66,8 @@ export interface PosterContent {
 
 export declare function webpDimensions(bytes: Uint8Array): { width: number; height: number } | null
 export declare function judgePosterContent(poster: PosterContent): string[]
+export declare function judgeLive(posters: PosterSample[]): PosterJudgement
+export declare function medianLines(
+  medians: Record<string, number>,
+  posters: PosterSample[],
+): string[]

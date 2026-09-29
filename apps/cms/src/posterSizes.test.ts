@@ -4,7 +4,10 @@ import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  BASELINE_MEASURED,
   BASELINE_MEDIANS,
+  judgeLive,
+  medianLines,
   FLAG_AT,
   judgePosterContent,
   judgePosters,
@@ -519,5 +522,24 @@ describe('judgePosters — a frozen baseline', () => {
     const heavier = row('r-csp', 'powder-blue', 32510 * 3 + 1, 'Casual Wear')
     const { flagged } = judgePosters([heavier], { baseline: BASELINE_MEDIANS })
     expect(flagged).toHaveLength(1)
+  })
+})
+
+/*
+ * The CLI's own call (final review, 2026-09-29): nothing tested that the live run passes the
+ * frozen medians, so deleting that argument would bring the moving median back with every test
+ * green. `judgeLive` is what `main()` calls.
+ */
+describe('the live check uses the frozen medians, and its report says which is which', () => {
+  it('judgeLive judges against BASELINE_MEDIANS, not the medians of what it was given', () => {
+    const lighter = Array.from({ length: 30 }, (_, i) => row('r-new', `c${i}`, 30000))
+    expect(judgeLive([...BEFORE, ...lighter]).medians[SPORTSWEAR]).toBe(BASELINE_MEDIANS.Sportswear)
+  })
+
+  it('labels each family median frozen or live', () => {
+    const judged = judgeLive([...BEFORE, row('r-x', 'a', 100, 'Swimwear')])
+    const lines = medianLines(judged.medians, [...BEFORE, row('r-x', 'a', 100, 'Swimwear')])
+    expect(lines.find((l) => l.includes('Sportswear'))).toContain(`frozen ${BASELINE_MEASURED}`)
+    expect(lines.find((l) => l.includes('Swimwear'))).toContain('live')
   })
 })
