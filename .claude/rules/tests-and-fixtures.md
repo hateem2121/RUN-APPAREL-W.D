@@ -56,7 +56,8 @@ when you add untested code.
 
 ## Browser tests
 
-🟢 **`e2e` gates the deploy (`deploy.needs`).** Slowest gate in CI (7m45s), fastest
+🟢 **`e2e` gates the deploy (`deploy.needs`).** Slowest gate in CI (21.5 min on one
+machine, run 36285360710; split across five `e2e-shard` machines since 2026-09-29), fastest
 locally (**about 45s**, four engines) — run it before pushing a viewer change. Two CI
 round trips were spent learning that.
 

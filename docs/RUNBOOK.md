@@ -9,18 +9,26 @@ decisions, and lessons learned see [HARDENING-LOG.md](HARDENING-LOG.md).
 
 ## How deploys work
 
-The repo has a **single `main` branch** and no pull requests. Pushing to `main`
-triggers `.github/workflows/ci.yml`:
+Every change reaches `main` through a pull request: the `main` ruleset refuses a direct
+push and requires the checks `verify`, `e2e`, `audit`, `secrets`, `artwork` and Socket's
+*Pull Request Alerts*. *(This said "a single `main` branch and no pull requests" until
+2026-09-29; that stopped being true on 2026-08-19.)* Each pull request, and each merge to
+`main`, runs `.github/workflows/ci.yml`:
 
-1. **verify** — install, typecheck, all unit tests, build, Playwright e2e.
-2. **deploy** (only if verify passes *and* `vars.DEPLOY_ENABLED == 'true'`) —
-   deploys the CMS worker, builds + deploys the viewer to the
-   **`run-apparel-viewer-site` Worker** (Static Assets; selected by the
-   `VIEWER_DEPLOY_TARGET=worker` repo variable since the 2026-07-22 cutover),
-   then hits `/api/health` as a gate.
+1. **The gates**, in parallel — `verify` (lint, typecheck, unit tests with coverage,
+   build, bundle weight), `e2e` (the browser tests; since 2026-09-29 they run on five
+   `e2e-shard` machines and `e2e` passes only if every one did), `audit`, `secrets`
+   and `artwork`.
+2. **deploy**, on `main` only, when every gate passed *and*
+   `vars.DEPLOY_ENABLED == 'true'` — backs up D1 and proves the backup restores,
+   applies migrations, deploys the apex Worker and the CMS worker, builds + deploys
+   the viewer to the **`run-apparel-viewer-site` Worker** (Static Assets; selected by
+   the `VIEWER_DEPLOY_TARGET=worker` repo variable since the 2026-07-22 cutover), then
+   runs the live checks.
 
-So: **commit to `main`, push, watch the Actions tab.** A red build never
-deploys. `gh run watch` follows the latest run from the CLI.
+So: **open a PR, let the gates go green, merge, watch the Actions tab.** A red gate
+never deploys. `gh run watch` follows the latest run from the CLI — and judge a run by
+its `conclusion`, since `--exit-status` returns 1 for `cancelled` as well.
 
 **Manual deploy fallback** (if CI is unavailable):
 
@@ -36,9 +44,12 @@ curl -f https://cms.wear-run.help/api/health
 
 Requires Cloudflare auth (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 
-**The shrink service deploys separately.** `.github/workflows/deploy-shrink.yml`
-builds and deploys `run-apparel-viewer-shrink` (Worker + Container) and is *not*
-part of `ci.yml` — a green CI run says nothing about it.
+**The shrink service deploys in the same run, AFTER the site.** Since 2026-09-29 the
+`deploy-shrink` job in `.github/workflows/ci.yml` builds and deploys
+`run-apparel-viewer-shrink` (Worker + Container) once `deploy` has succeeded, and only when
+the push changed something the shrink is built from (the list is in
+`scripts/ci-changed-paths.mjs`). Before that it was a workflow of its own with a copy of
+the gates.
 
 > ✅ **Working since 2026-07-28** (run `30368254285`, the first success after 3
 > failures). Before that the token could not push a container image, so the
@@ -93,12 +104,16 @@ part of `ci.yml` — a green CI run says nothing about it.
 
 ## Deploying the shrink container
 
-**Since 2026-09-10, GitHub CI deploys it again, behind all four gates.** `shrink-deploy` in
-`.github/workflows/deploy-shrink.yml` runs on a push to `main` that touches `apps/shrink/`
-or `tools/asset-pipeline/` (or by hand, with *Run workflow*). It runs only after
-`shrink-verify`, `shrink-artwork`, `shrink-audit` and `shrink-secrets` pass, and only
-while the repository variables `DEPLOY_ENABLED` and `SHRINK_DEPLOY_FROM_CI` are both
-`true`.
+**GitHub CI deploys it, behind the same gates as the site.** The `deploy-shrink` job in
+`.github/workflows/ci.yml` runs on a push to `main` that changes `apps/shrink/`,
+`tools/asset-pipeline/` (not its Markdown), `packages/shared/`, the pnpm lockfile or
+workspace file, or `ci.yml` — and on any by-hand *Run workflow* of CI, which is the manual
+redeploy (it redeploys the unchanged site first). It waits for `verify`, `artwork`,
+`audit`, `secrets`, `shrink-image-audit` (the base image's Trivy scan) and the site's
+`deploy`, and runs only while the repository variables `DEPLOY_ENABLED` and
+`SHRINK_DEPLOY_FROM_CI` are both `true`. A failed step opens a `deploy-failure` issue.
+*(From 2026-09-10 to 2026-09-29 this was `shrink-deploy` in its own workflow file, behind
+its own copies of those gates.)*
 
 **It was off from 2026-09-08 to 2026-09-10 because of upload bandwidth.** CI then ran on a
 self-hosted runner on the owner's Mac. The repository moved to GitHub-hosted runners when
@@ -125,9 +140,9 @@ push is the only job in this repo that has to send anything outward.
 
 Connecting Cloudflare's Workers Builds to this repository was the 2026-09-08 plan, and it
 was never done. Leave it that way. **Workers Builds deploys on every push to `main`,
-whatever the four gates in `deploy-shrink.yml` say.** `needs:` stops that workflow's own
-deploy job; it cannot stop Cloudflare's. So a pipeline change that fails
-`shrink-artwork` would still reach the container. With CI deploying too, every change
+whatever the gates in `ci.yml` say.** `needs:` stops CI's own `deploy-shrink` job; it
+cannot stop Cloudflare's. So a pipeline change that fails
+`artwork` would still reach the container. With CI deploying too, every change
 would also be published twice.
 
 ### Deploying it by hand instead
@@ -454,7 +469,7 @@ pull request:
   **flaky** in its own section, so flakes stay visible and countable while a real
   failure still fails both attempts and still stops the deploy.
 - **Post-deploy viewer payload** — `scripts/smoke-viewer-payload.mjs`, run after
-  the deploy in `ci.yml` and on every `uptime.yml` run (daily since 2026-08-18;
+  the deploy in `ci.yml` and on every `uptime.yml` run (every 6 hours since 2026-09-29, daily before;
   GitHub delivers a median of ~45 min — see "Uptime alerts"). Until 2026-08-05
   the only post-deploy check was `curl /api/health`, which returns `{"ok":true}`
   from a worker with an **empty database** — it proves the process is up and
@@ -827,7 +842,7 @@ cms.; www. redirects to the apex copy) and the viewer all import it. Security re
 `team@wear-run.com`, which SECURITY.md names too.
 
 Its `Expires` must stay less than a year ahead. `scripts/public-security-probe.mjs` reads
-every host's live copy daily (uptime.yml) and **fails 30 days before the date**, opening an
+every host's live copy every 6 hours (uptime.yml) and **fails 30 days before the date**, opening an
 uptime alert. To renew:
 
 1. Confirm `team@wear-run.com` still reaches someone.
@@ -1356,13 +1371,14 @@ workflow last **succeeded**:
 
 | Workflow | Scheduled | Actually delivered | Budget before it alerts |
 |---|---|---|---|
-| `uptime.yml` | **daily** (was every 15 min until 2026-08-18) | n/a — liveness moved off-platform | 3 hours |
+| `uptime.yml` | **every 6 hours** since 2026-09-29 (daily from 2026-08-18; every 15 min before) | worst gap 13.6 h for a 6-hour cron, measured on `heartbeat.yml` | 24 hours |
 | `nightly-backup.yml` | nightly | nightly | 36 hours |
 | `diagnostics-digest.yml` | Mondays | first run due 2026-08-10 | 192 hours (8 days) |
 
 Each budget was chosen to be several times the workflow's own interval, so that
-GitHub's best-effort cron skew would never trip it. ⚠️ **For `uptime.yml` that is
-no longer true**: the worst observed gap (6.1 h) is twice its 3 h budget. Read the
+GitHub's best-effort cron skew would never trip it. *(For `uptime.yml` it once was not:
+its 3 h budget sat under a 6.1 h worst gap. It is 24 h against a 13.6 h worst gap since
+2026-09-29.)* Read the
 measured block under "Uptime alerts" above before changing this number. On a breach it opens a `monitoring` issue, or comments
 on the open one — same change, and same reason, as the `outage` path above. A
 watchdog that its own previous bark can mute is not a watchdog.

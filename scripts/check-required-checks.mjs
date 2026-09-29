@@ -61,27 +61,7 @@ export function parseDeployNeeds(source) {
   const deploy = jobs.get('deploy')
   if (!deploy) throw new Error('ci.yml has no `deploy` job under `jobs:`')
 
-  const needs = []
-  const flow = deploy.match(/^ {4}needs:\s*\[([^\]]*)\]/m)
-  if (flow?.[1] !== undefined) {
-    needs.push(
-      ...flow[1]
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    )
-  } else {
-    const block = deploy.match(/^ {4}needs:\s*\n((?: {6}- .*\n?)+)/m)
-    if (block?.[1])
-      needs.push(
-        ...block[1]
-          .split('\n')
-          .map((l) => l.replace(/^ {6}- /, '').trim())
-          .filter(Boolean),
-      )
-    const scalar = deploy.match(/^ {4}needs:\s*([A-Za-z0-9_-]+)\s*$/m)
-    if (!block && scalar?.[1]) needs.push(scalar[1])
-  }
+  const needs = jobNeeds(deploy)
   if (needs.length === 0) throw new Error('ci.yml `deploy` job has no readable `needs:`')
 
   return needs.map((id) => {
@@ -96,10 +76,15 @@ export function parseDeployNeeds(source) {
  * indent. Enough YAML for a file whose jobs sit at two spaces under `jobs:`, which
  * workflowHardening.test.ts already relies on.
  *
+ * Exported for apps/cms/src/workflowHardening.test.ts, which walks every job's `needs:`
+ * through it rather than keeping a second, weaker parser (its old one read the FIRST
+ * `needs: [` anywhere in the file, so a job above `deploy` with its own list was misread
+ * as the deploy's).
+ *
  * @param {string} source
  * @returns {Map<string, string>}
  */
-function jobBlocks(source) {
+export function jobBlocks(source) {
   const lines = source.split('\n')
   const start = lines.findIndex((l) => /^jobs:\s*$/.test(l))
   const blocks = new Map()
@@ -120,6 +105,33 @@ function jobBlocks(source) {
   }
   if (id) blocks.set(id, body.join('\n'))
   return blocks
+}
+
+/**
+ * The job ids one job's `needs:` names, in any of YAML's three spellings: a flow list
+ * (`needs: [a, b]`), a block list (`- a` lines), or a single scalar (`needs: a`).
+ * Returns [] for a job with no `needs:`.
+ *
+ * @param {string} jobText one job's text, as jobBlocks returns it
+ * @returns {string[]}
+ */
+export function jobNeeds(jobText) {
+  const flow = jobText.match(/^ {4}needs:\s*\[([^\]]*)\]/m)
+  if (flow?.[1] !== undefined) {
+    return flow[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }
+  const block = jobText.match(/^ {4}needs:\s*\n((?: {6}- .*\n?)+)/m)
+  if (block?.[1]) {
+    return block[1]
+      .split('\n')
+      .map((l) => l.replace(/^ {6}- /, '').trim())
+      .filter(Boolean)
+  }
+  const scalar = jobText.match(/^ {4}needs:\s*([A-Za-z0-9_-]+)\s*$/m)
+  return scalar?.[1] ? [scalar[1]] : []
 }
 
 /**

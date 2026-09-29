@@ -101,7 +101,9 @@ deploys. Operational playbooks live in [docs/RUNBOOK.md](RUNBOOK.md).
 
 **Five jobs gate the deploy**: `verify` (lint, typecheck, tests **+ coverage**,
 build, bundle weight), `e2e` (Playwright, four engines — split out of `verify`
-on 2026-08-20 and a separate required check ever since), `audit` (dependency
+on 2026-08-20 and a separate required check ever since; since 2026-09-29 the
+suites run on five parallel `e2e-shard` machines and `e2e` merges their reports
+and passes only if every shard did), `audit` (dependency
 advisories **+ SBOM and licence policy**), `secrets` (gitleaks over the full
 history) and — since 2026-08-06 — `artwork`, which renders the printed wordmark
 before and after the real decimation chain and fails if too much of it moved.

@@ -50,7 +50,7 @@ export default defineConfig({
   timeout: 30_000,
   // One retry in CI, none locally.
   //
-  // This suite GATES THE DEPLOY (the `verify` job in .github/workflows/ci.yml),
+  // This suite GATES THE DEPLOY (the `e2e` job in .github/workflows/ci.yml),
   // so a single flaky run blocks a release. Observed on 2026-08-03: the very
   // first run after a cold build failed on the poster-visible assertion in
   // "direct QR URL loads product…", then passed in isolation and passed 66/66 on
@@ -62,12 +62,36 @@ export default defineConfig({
   // gives the opposite trade: flakes and genuine breakage are indistinguishable,
   // and the usual response to a red deploy nobody trusts is to stop reading it.
   retries: process.env.CI ? 1 : 0,
+  // TEST-PARALLEL, SO CI CAN SPLIT THE SUITE ACROSS MACHINES EVENLY (2026-09-29). File-
+  // parallel, `--shard` hands out whole files, and motion-and-layout.spec.ts is 146 of
+  // the 283 tests in each browser project — one shard would carry half the suite. Safe
+  // because e2e/serve.mjs holds no state one test can set and another read (its only
+  // map, STALL_COUNTS, is keyed per test and per retry) and no spec depends on order.
+  // The `webgl` project opts back out below.
+  fullyParallel: true,
+  // CI writes a `blob` report per shard, which ci.yml's `e2e` job merges into ONE HTML
+  // report (traces and screenshots included) and keeps for 14 days; `line` keeps the log
+  // readable. Locally, the default list reporter.
+  reporter: process.env.CI ? [['blob'], ['line']] : 'list',
+  // A stray `test.only` must FAIL in CI, not shrink the suite. Measured 2026-09-29: one
+  // probe file holding `test.only` made `CI=1 playwright test --project=viewer` run
+  // "1 test using 1 worker" instead of 283 and pass green, while `biome check` only
+  // WARNS on it (noFocusedTests, exit 0). apps/cms/playwright.config.ts already had this.
+  forbidOnly: !!process.env.CI,
   use: {
     baseURL: ORIGIN,
     // Force reduced motion so the Phase 7 motion layer (CSS + JS, which both
     // branch on prefers-reduced-motion) collapses to instant — selectors and
     // timing stay stable regardless of animation.
     reducedMotion: 'reduce',
+    // EVIDENCE FOR A FAILURE, WITHOUT SLOWING A PASS. Until 2026-09-29 a red run left
+    // only text. A trace is recorded on the RETRY only (`retries: 1` in CI), because
+    // recording every test adds work to timing-sensitive specs — firstPaint's 3 s
+    // budget, perfBudgets' heap ceiling, placeholder-webgl's 800 ms bound — and a
+    // genuine failure fails its retry too, so the retry's trace is the one to read.
+    // A screenshot costs nothing until a test has already failed.
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
   },
   projects: [
     {
@@ -135,6 +159,10 @@ export default defineConfig({
        * raise this again without measuring which of the two it is.
        */
       timeout: 120_000,
+      // Stays FILE-parallel, as the whole suite was until 2026-09-29: two of these
+      // software-rendered tests at once on one runner's CPU is the contention the 30 s
+      // coin-flip above describes. The other projects went test-parallel (see the top).
+      fullyParallel: false,
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {

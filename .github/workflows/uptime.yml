@@ -2,7 +2,11 @@ name: Uptime
 
 on:
   schedule:
-    # ⚠️ THIS IS NO LONGER A LIVENESS MONITOR — it is a DEEP daily check.
+    # ⚠️ THIS IS NO LONGER A LIVENESS MONITOR — it is a DEEP check, every 6 hours since
+    # 2026-09-29 (daily from 2026-08-18). The minutes that forced daily are free now: the
+    # repository is public, and GitHub-hosted minutes cost nothing on a public repository.
+    # 6-hourly (owner decision) finds a garment that lost its model within hours, not a day;
+    # the external monitor below still answers "is the site up" every 5 minutes.
     #
     # Was `*/15 * * * *` until 2026-08-18. Measured that day, that cadence was
     # billing roughly 1,200 Actions minutes a month — about 60% of the entire
@@ -28,7 +32,7 @@ on:
     # rate, median gap 44.7 min, worst 6.1 h. A cron here is a request, not a
     # guarantee — never read it as the detection time.
     # See docs/RUNBOOK.md → "Uptime alerts".
-    - cron: '23 7 * * *'
+    - cron: '23 */6 * * *'
   workflow_dispatch:
     inputs:
       target:
@@ -51,13 +55,18 @@ on:
 # all, for ~23 hours, while the failures looked like ordinary uptime alerts.
 permissions:
   contents: read
-  issues: write
 
 jobs:
   ping:
     # Only after go-live (Phase 10).
     if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    # The one job here that files an issue gets `issues: write`, not the whole
+    # workflow (zizmor excessive-permissions, 2026-09-29). A job-level block
+    # REPLACES the workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -115,6 +124,10 @@ jobs:
       # are inert no matter what the value contains.
       TARGET_OVERRIDE: ${{ github.event.inputs.target }}
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: github.event.inputs.target == ''
         with:

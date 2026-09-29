@@ -1,0 +1,14 @@
+# actionlint config. Read automatically by the `actionlint` step in ci.yml's `verify`.
+#
+# Lives in .github/, NOT .github/workflows/: every .yml in that directory is treated
+# as a workflow by apps/cms/src/workflowHardening.test.ts and would fail its rules.
+#
+# WHY `ubuntu-26.04` IS LISTED HERE. It is a GitHub-hosted image, generally available
+# since 2026-09-17, but actionlint 1.7.12 (the latest release on 2026-09-29) predates
+# it and rejects it as `label "ubuntu-26.04" is unknown`, which fails `verify`.
+# actionlint's only escape hatch is this list, which it describes as labels "for
+# self-hosted runner"; the image is NOT self-hosted. Delete this entry once an
+# actionlint release lists ubuntu-26.04 itself (see its rule_runner_label.go).
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

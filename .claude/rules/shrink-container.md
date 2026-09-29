@@ -37,8 +37,10 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   Do not unpin it to make an update easier, and do not "fix" this by adding a third
   ecosystem — it would either sit at 0 and change nothing,
   or break the quiet mode on purpose. The same absence is why the Playwright container
-  in `.github/workflows/ci.yml` is pinned by TAG rather than digest, with a test
-  enforcing the tag instead.
+  in `.github/workflows/ci.yml` was pinned by TAG alone until 2026-09-29; since then it
+  is tag AND digest (owner decision — a tag can be republished, a digest cannot), both
+  bumped by hand in the same change, and `workflowHardening.test.ts` refuses an image
+  without the digest.
 - **🟢 A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
 

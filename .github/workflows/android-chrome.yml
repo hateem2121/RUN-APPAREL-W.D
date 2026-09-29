@@ -32,13 +32,17 @@ concurrency:
 
 jobs:
   android-chrome:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # An emulator cold boot plus install steps is the slow part of this job; 20 minutes
     # is generous headroom over what a healthy run needs while still failing loudly
     # rather than running to the 6-hour platform default if something hangs (the same
     # reasoning ci.yml's own timeout-minutes comment records).
     timeout-minutes: 20
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

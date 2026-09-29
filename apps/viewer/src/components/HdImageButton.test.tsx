@@ -90,7 +90,7 @@ describe('HdImageButton', () => {
     expect(button?.disabled).toBe(false)
   })
 
-  it('requests no render before intent, and exactly one on pointer-down', () => {
+  it('requests no render before intent, and exactly one on pointer-down', async () => {
     mount(colourway('wine', true))
     expect(created).toEqual([])
     const button = host.querySelector('button') as HTMLButtonElement
@@ -104,5 +104,12 @@ describe('HdImageButton', () => {
       button.focus()
     })
     expect(created).toEqual([RENDER.url])
+    // Pointer-down also STARTS loading the dialog's lazy chunk (and its stylesheet), and
+    // nothing here waited for it. On main's run 36578451820 (2026-09-29) all 1,136 viewer
+    // tests passed and `verify` still failed: three `EnvironmentTeardownError: Cannot load
+    // '/src/styles/hd-image.css' … after the environment was torn down`, because the load
+    // outlived this file on a slower runner. Awaiting the same import resolves once that
+    // load has finished, so the file cannot end with it in flight.
+    await import('./HdImageDialog')
   })
 })

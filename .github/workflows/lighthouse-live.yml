@@ -60,10 +60,14 @@ jobs:
     # `workflow_run` also fires for CI runs that a pull request started, and `branches:`
     # matches the HEAD branch — which a fork may name `main`. Only a green PUSH counts.
     if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 40 runs took ~17 minutes on an M4 Pro; a hosted runner is two to three times slower.
     timeout-minutes: 60
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -71,9 +75,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # The same two settings as ci.yml's jobs; the reasons are written there.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # The pnpm store cache; ci.yml's `verify` job says why.
+          cache: pnpm
       # Lighthouse is a pinned devDependency, so it passes through the lockfile, the
       # release cooldown and Socket like every other package. `npx lighthouse@x` would
       # bypass all three.

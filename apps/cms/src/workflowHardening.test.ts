@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { jobBlocks, jobNeeds } from '../../../scripts/check-required-checks.mjs'
 
 /**
  * Guard the CI/CD workflows against silently losing the hardening added 2026-08-12.
@@ -63,13 +64,32 @@ function declaredJobs(source: string): string[] {
   return out
 }
 
-function deployNeeds(source: string): string[] {
-  const match = /^\s*needs:\s*\[([^\]]*)\]/m.exec(source)
-  if (!match?.[1]) return []
-  return match[1]
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+/**
+ * Every job a DEPLOY job waits for, DIRECTLY OR THROUGH ANOTHER JOB. The deploy jobs are
+ * `deploy` (the site) and, since 2026-09-29, `deploy-shrink` (moved in from
+ * deploy-shrink.yml); `changes` and `shrink-image-audit` gate only the latter.
+ *
+ * Since 2026-09-29 the browser tests run as `e2e-shard` (a matrix) behind a small `e2e`
+ * job that deploy.needs names; `e2e-shard` gates the deploy through `e2e`, and a rule
+ * that only read deploy.needs itself would call it ungated. Walks `needs:` with the
+ * parser scripts/check-required-checks.mjs already uses, scoped to each job — the copy
+ * this replaced read the FIRST `needs: [` anywhere in the file, so `e2e`'s own list,
+ * which sits above `deploy`, would have been taken for the deploy's.
+ */
+function gatingJobs(source: string): Set<string> {
+  const jobs = jobBlocks(source)
+  const seen = new Set<string>()
+  const queue = [
+    ...jobNeeds(jobs.get('deploy') ?? ''),
+    ...jobNeeds(jobs.get('deploy-shrink') ?? ''),
+  ]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (seen.has(id)) continue
+    seen.add(id)
+    queue.push(...jobNeeds(jobs.get(id) ?? ''))
+  }
+  return seen
 }
 
 /**
@@ -98,6 +118,16 @@ function playwrightImageVersions(source: string): string[] {
   return [...source.matchAll(/(?:image:|FROM)\s*\S*playwright:v(\d+\.\d+\.\d+)\b/g)]
     .map((m) => m[1])
     .filter((v): v is string => v !== undefined)
+}
+
+/**
+ * Playwright image references (a workflow `image:` or a Dockerfile `FROM`) that carry no
+ * `@sha256:` digest. Pure, so the negative control can prove it fires.
+ */
+function playwrightImagesWithoutDigest(source: string): string[] {
+  return [...source.matchAll(/(?:image:|FROM)\s*(\S*playwright:v\d+\.\d+\.\d+\S*)/g)]
+    .map((m) => m[1] ?? '')
+    .filter((ref) => !/@sha256:[0-9a-f]{64}$/.test(ref))
 }
 
 /**
@@ -170,6 +200,40 @@ function shellLines(source: string): { line: string; number: number }[] {
     }
   }
   return out
+}
+
+/**
+ * 1-based line numbers of `runs-on:` values naming a moving `*-latest` image.
+ *
+ * Pure, like jobsWithoutTimeout, so the negative control can prove it fires on a
+ * synthetic workflow. Comment lines are skipped: a note may mention the old label.
+ */
+function floatingRunnerLabels(source: string): number[] {
+  const out: number[] = []
+  source.split('\n').forEach((line, i) => {
+    if (/^\s*#/.test(line)) return
+    if (/^\s*runs-on:.*\b(?:ubuntu|macos|windows)-latest\b/.test(line)) out.push(i + 1)
+  })
+  return out
+}
+
+/**
+ * Jobs whose FIRST step is not the StepSecurity Harden-Runner network guard, skipping
+ * `container:` jobs (it needs sudo on the VM, so it cannot run inside one — its own
+ * docs/limitations.md). Pure, so the negative control can run it on a synthetic workflow.
+ */
+function jobsWithoutNetworkGuard(source: string): string[] {
+  const offenders: string[] = []
+  for (const [id, text] of jobBlocks(source)) {
+    if (/^ {4}container:/m.test(text)) continue
+    const afterSteps = text.split(/^ {4}steps:\s*$/m)[1]
+    if (afterSteps === undefined) continue // a reusable-workflow call has no steps
+    const firstStep = afterSteps.split(/^ {6}- /m)[1] ?? ''
+    if (!/^(?:name:[^\n]*\n\s+)?uses:\s*step-security\/harden-runner@/m.test(firstStep)) {
+      offenders.push(id)
+    }
+  }
+  return offenders
 }
 
 describe('workflow hardening', () => {
@@ -485,6 +549,90 @@ jobs:
   })
 
   /**
+   * `ubuntu-latest` is a label GitHub MOVES, not an image. It moves from Ubuntu 24.04
+   * to 26.04 "gradually between October 19 and November 19, 2026" (GitHub changelog,
+   * 2026-09-17), with tools "updated, and in some cases removed". A moving label means
+   * the machine under every deploy, backup and alert changes on GitHub's date, one
+   * random run at a time, with nothing in this repository changed. Every job therefore
+   * names its image, and a move to a new one is a reviewed, tested PR.
+   */
+  /**
+   * Every job that can host it runs the StepSecurity Harden-Runner network guard FIRST
+   * (owner decision 2026-09-29: watch mode everywhere, then block on every job that
+   * holds a production password). First, because it can only see traffic that starts
+   * after it: a step above it — an install, a checkout — could reach anywhere unrecorded.
+   * Its reports are what the block-mode allow-list is built from.
+   */
+  it('runs the network guard as the first step of every job that can host it', async () => {
+    const offenders: string[] = []
+    for (const file of await workflowFiles()) {
+      for (const job of jobsWithoutNetworkGuard(read(file))) offenders.push(`${file} → ${job}`)
+    }
+    expect(
+      offenders,
+      'These jobs do not start with step-security/harden-runner. Add it as step 1 (see any ' +
+        `other job), or give the job a container, which it cannot run in.\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('negative control: the network-guard rule fires on a missing or late guard, not on a container job', () => {
+    const source = [
+      'jobs:',
+      '  guarded:',
+      '    runs-on: ubuntu-26.04',
+      '    steps:',
+      '      - name: Network guard (Harden-Runner, watch mode)',
+      '        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1',
+      '      - run: echo ok',
+      '  late:',
+      '    runs-on: ubuntu-26.04',
+      '    steps:',
+      '      - run: curl https://example.com',
+      '      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1',
+      '  missing:',
+      '    runs-on: ubuntu-26.04',
+      '    steps:',
+      '      - run: echo no guard',
+      '  boxed:',
+      '    runs-on: ubuntu-26.04',
+      '    container:',
+      '      image: example/image:1',
+      '    steps:',
+      '      - run: echo in a container',
+    ].join('\n')
+    expect(jobsWithoutNetworkGuard(source)).toEqual(['late', 'missing'])
+  })
+
+  it('names a fixed runner image, never a moving *-latest label', async () => {
+    const offenders: string[] = []
+    for (const file of await workflowFiles()) {
+      for (const line of floatingRunnerLabels(read(file))) offenders.push(`${file}:${line}`)
+    }
+    expect(
+      offenders,
+      'runs-on names a *-latest label, which GitHub moves to a new OS on its own ' +
+        `schedule. Name the image (e.g. ubuntu-26.04).\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  it('negative control: the runner-label rule fires on ubuntu-latest and not on a comment', () => {
+    const floating = [
+      'jobs:',
+      '  a:',
+      '    # was runs-on: ubuntu-latest until the move',
+      '    runs-on: ubuntu-latest',
+      '  b:',
+      '    runs-on: [macos-latest]',
+      '  c:',
+      '    runs-on: ubuntu-26.04',
+    ].join('\n')
+    expect(floatingRunnerLabels(floating)).toEqual([4, 6])
+    expect(
+      floatingRunnerLabels(floating.replace(/ubuntu-latest|macos-latest/g, 'ubuntu-26.04')),
+    ).toEqual([])
+  })
+
+  /**
    * A secret interpolated into a `run:` block is pasted into the shell before the
    * shell sees it, so it lands in `set -x` output, in an error message that echoes the
    * command, and in any process listing. Passing it via `env:` and referencing `"$VAR"`
@@ -544,9 +692,14 @@ jobs:
    * `apps/shrink/container` lockfile trap: two files that must agree, with no tooling
    * that makes them.
    *
-   * A TAG and not a digest, deliberately: `.github/dependabot.yml` declares no docker
-   * ecosystem, so a digest pin would go stale in silence with nothing to notice. The
-   * tag is legible and this test is what keeps it honest.
+   * A TAG AND A DIGEST since 2026-09-29 (owner decision). Until then it was the tag
+   * alone, deliberately: `.github/dependabot.yml` declares no docker ecosystem, so a
+   * digest pin would go stale in silence. That reasoning holds for the digest and the
+   * tag alike — nothing refreshes either, and a Playwright bump here is always made by
+   * hand — while a tag can be REPUBLISHED under the same name and a digest cannot. So
+   * the bump that edits the tag re-reads the digest (`docker-content-digest` of the
+   * manifest index, which covers amd64 and arm64), and the rule below refuses an image
+   * without one. zizmor's `unpinned-images` asks the same.
    */
   it('pins every Playwright container image to the declared @playwright/test version', async () => {
     const declared = new Set<string>()
@@ -580,6 +733,9 @@ jobs:
         if (found !== expected)
           offenders.push(`${file}: Playwright image v${found} != @playwright/test ${expected}`)
       }
+      for (const ref of playwrightImagesWithoutDigest(source)) {
+        offenders.push(`${file}: Playwright image ${ref} has no @sha256: digest`)
+      }
     }
 
     // ⚠️ FINDING NOTHING IS A FAILURE, NOT A PASS, AND IT MUST BE CHECKED PER FILE.
@@ -609,7 +765,7 @@ jobs:
       offenders,
       'A Playwright image and @playwright/test have drifted. The image SHIPS the browsers;\n' +
         'a mismatch fails at runtime with "browser not found at /ms-playwright/...".\n' +
-        'Bump the image tag AND the package together.\n' +
+        'Bump the image tag AND the package together, and re-read the digest.\n' +
         `${offenders.join('\n')}`,
     ).toEqual([])
   })
@@ -629,6 +785,16 @@ jobs:
     expect(playwrightImageVersions(drifted)).toEqual(['1.60.0'])
     expect(playwrightImageVersions(drifted.replace('v1.60.0', 'v1.62.1'))).toEqual(['1.62.1'])
     expect(playwrightImageVersions('jobs:\n  a:\n    runs-on: ubuntu-latest\n')).toEqual([])
+
+    // The digest half: a tag alone is reported, the same tag with a digest is not.
+    expect(playwrightImagesWithoutDigest(drifted)).toEqual([
+      'mcr.microsoft.com/playwright:v1.60.0-noble',
+    ])
+    expect(
+      playwrightImagesWithoutDigest(
+        drifted.replace('v1.60.0-noble', `v1.60.0-noble@sha256:${'a'.repeat(64)}`),
+      ),
+    ).toEqual([])
 
     // The Dockerfile form, which is where the pin actually lives since 2026-09-08. Read
     // both ways: a drifted FROM must be SEEN, and a file with no image must yield [] so
@@ -677,19 +843,23 @@ jobs:
     // `lighthouse` is deliberately non-gating and ci.yml says why: its category scores
     // swung 0.64/0.88/0.87 across three runs of an identical build, and "a Chrome flake
     // must never block a live release". Anything else added here needs the same kind of
-    // written reason beside the job.
-    const NON_GATING = new Set(['deploy', 'lighthouse'])
+    // written reason beside the job. `deploy-shrink` is a deploy itself, like `deploy`.
+    const NON_GATING = new Set(['deploy', 'deploy-shrink', 'lighthouse'])
 
     const source = read('ci.yml')
-    const needs = new Set(deployNeeds(source))
-    const ungated = declaredJobs(source).filter((job) => !NON_GATING.has(job) && !needs.has(job))
+    const gating = gatingJobs(source)
+    expect(
+      gating.size,
+      'no job reachable from deploy.needs — the parser read nothing',
+    ).toBeGreaterThan(0)
+    const ungated = declaredJobs(source).filter((job) => !NON_GATING.has(job) && !gating.has(job))
 
     expect(
       ungated,
-      'A ci.yml job does not gate the deploy. Add it to `deploy.needs` — AND, once it is\n' +
-        "on main, to the `main` ruleset's required status checks (required-checks.yml\n" +
-        'reports that half) — or add it to NON_GATING here with the reason beside the job.\n' +
-        `${ungated.join('\n')}`,
+      'A ci.yml job does not gate the deploy. Add it to `deploy.needs` (or to the needs of\n' +
+        "a job the deploy waits for) — AND, if deploy.needs names it, to the `main` ruleset's\n" +
+        'required status checks (required-checks.yml reports that half) — or add it to\n' +
+        `NON_GATING here with the reason beside the job.\n${ungated.join('\n')}`,
     ).toEqual([])
   })
 
@@ -707,11 +877,42 @@ jobs:
     runs-on: ubuntu-latest
 `
     expect(declaredJobs(source)).toEqual(['verify', 'e2e', 'lighthouse', 'deploy'])
-    expect(deployNeeds(source)).toEqual(['verify'])
+    expect([...gatingJobs(source)]).toEqual(['verify'])
     // e2e is ungated and must be reported; lighthouse and deploy are allow-listed.
     const NON_GATING = new Set(['deploy', 'lighthouse'])
-    const needs = new Set(deployNeeds(source))
-    expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !needs.has(j))).toEqual(['e2e'])
+    const gating = gatingJobs(source)
+    expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !gating.has(j))).toEqual([
+      'e2e',
+    ])
+  })
+
+  it('negative control: gating is followed through an aggregator, and an earlier `needs:` is not the deploy’s', () => {
+    // The shape ci.yml has since 2026-09-29: a matrix of shards behind an `e2e` job whose
+    // OWN flow-style `needs:` sits above `deploy`. The replaced parser returned
+    // ['e2e-shard'] here — the first list in the file — and called verify ungated.
+    const source = `
+jobs:
+  verify:
+    runs-on: ubuntu-26.04
+  e2e-shard:
+    runs-on: ubuntu-26.04
+  e2e:
+    needs: [e2e-shard]
+    runs-on: ubuntu-26.04
+  orphan:
+    runs-on: ubuntu-26.04
+  deploy:
+    needs:
+      - verify
+      - e2e
+    runs-on: ubuntu-26.04
+`
+    expect([...gatingJobs(source)].sort()).toEqual(['e2e', 'e2e-shard', 'verify'])
+    const NON_GATING = new Set(['deploy', 'lighthouse'])
+    const gating = gatingJobs(source)
+    expect(declaredJobs(source).filter((j) => !NON_GATING.has(j) && !gating.has(j))).toEqual([
+      'orphan',
+    ])
   })
 
   /**
@@ -1125,8 +1326,8 @@ jobs:
    * `secrets:` passed to a reusable workflow is deliberately out of scope: `environment`
    * cannot be declared on such a caller, only in the called workflow's own jobs.
    * `secrets.GITHUB_TOKEN` is exempt, because GitHub mints it per job in no environment.
-   * Only a real `${{ … }}` expression counts; deploy-shrink.yml names a secret in a YAML
-   * comment, and prose is not a read.
+   * Only a real `${{ … }}` expression counts; a workflow may name a secret in a YAML
+   * comment (deploy-shrink.yml did), and prose is not a read.
    */
   type SecretRead = { job: string; line: number; secret: string; production: boolean }
 

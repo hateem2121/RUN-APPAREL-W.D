@@ -40,9 +40,43 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      # RUNNER IMAGE FACTS, EARLY, SO A MISSING TOOL FAILS BY NAME. Every job here names
+      # its image (ubuntu-26.04 since 2026-09-29; the rule is in workflowHardening.test.ts),
+      # and GitHub says a new image carries tools "updated, and in some cases removed".
+      # These are the preinstalled ones this repository leans on without saying so:
+      #   docker        deploy-shrink's image build and amd64 check; every `container:` job
+      #   gh            every alert step (uptime, heartbeat, deploy failure) and heartbeat
+      #   google-chrome the `lighthouse` job and lighthouse-live.yml
+      #   shellcheck    actionlint only shell-checks `run:` blocks when it is on PATH, so
+      #                 without it the lint below gets WEAKER and stays green
+      #   GNU date -d   deploy-shrink's "did the container image move" drift check
+      #   unzip         takes the zizmor binary out of its wheel, below
+      # Same image as the deploy and scheduled jobs, so this job is their canary too.
+      - name: Runner image has the tools the workflows rely on
+        run: |
+          set -euo pipefail
+          . /etc/os-release && echo "runner image: ${PRETTY_NAME}"
+          missing=0
+          for tool in docker gh google-chrome shellcheck curl git tar sha256sum unzip; do
+            if path="$(command -v "$tool")"; then
+              echo "ok  $tool → $path"
+            else
+              echo "::error::'$tool' is not on this runner image, and a workflow here relies on it"
+              missing=1
+            fi
+          done
+          if ! date -u -d '2026-01-02T03:04:05Z' +%s >/dev/null 2>&1; then
+            echo "::error::'date -d' is not GNU date on this image; deploy-shrink's drift check parses with it"
+            missing=1
+          fi
+          exit "$missing"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -50,38 +84,13 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
-          # cache archive from GitHub's cache service, and on the self-hosted runner
-          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
-          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
-          # job. It is also redundant there: each runner keeps its own persistent pnpm
-          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
-          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
-          # 377 MB to rebuild a store that is already on disk is worse than no cache.
-          #
-          # `runner.environment` is the built-in that distinguishes them, so this stays
-          # correct if a job ever runs on GitHub again — where the store IS ephemeral
-          # and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
-          # Since v7 the action AUTO-ENABLES the package-manager cache when
-          # `package.json` declares `packageManager` — and ours does
-          # (`package.json:6`, `pnpm@12.6.0`). The input that governs it defaults to
-          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
-          # fully describes what the action will do.
-          #
-          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
-          #
-          #     cache: false
-          #     package-manager-cache: true
-          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
-          #     Done in 4.5s using pnpm v10.33.0
-          #
-          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
-          # anyway because it is one upstream default away from silently restoring the
-          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
-          # job, never a failing one, which is the kind of regression nobody reports.
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # THE PNPM STORE CACHE (GitHub's cache service): worth it here, where every job
+          # starts on an empty disk. From 2026-09-08 to 2026-09-10 CI ran on a self-hosted
+          # runner on the owner's Mac, where the same archive cost 151 s of `audit`'s 205 s
+          # over a home connection, and this line switched it off there; that runner is
+          # retired, so the switch went with it (2026-09-29). Jobs holding a production
+          # secret set `cache: ''` instead — see the `deploy` job.
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
 
       # Style + lint (Biome). Runs BEFORE typecheck because it is the cheapest
@@ -140,6 +149,45 @@ jobs:
           /tmp/actionlint --version
           /tmp/actionlint
 
+      # WORKFLOW SECURITY, BY THE TOOL BUILT FOR IT (zizmor, added 2026-09-29). actionlint
+      # checks that a workflow is VALID; zizmor checks that it is SAFE — template
+      # injection, over-broad tokens, dangerous triggers, and, with a token, pinned
+      # `uses:` SHAs against each action's own repository (`impostor-commit`,
+      # `ref-version-mismatch`) — the network call workflowHardening.test.ts
+      # deliberately does not make (.github/CLAUDE.md, the pinning trap).
+      #
+      # Installed like gitleaks and actionlint — pinned, downloaded TO A FILE, checked,
+      # version printed — but from PyPI, whose release carries a published SHA-256 per
+      # file (zizmor's GitHub release publishes no checksum). The wheel is a zip holding
+      # the one static binary; unzip takes it out, no Python involved.
+      #
+      # Default persona. Reviewed exceptions live in .github/zizmor.yml, each with its
+      # reason. Measured against these workflows before it was added: 4 findings, fixed or
+      # recorded there; the stricter `pedantic` persona's errors were fixed too.
+      - name: zizmor (workflow security)
+        env:
+          ZIZMOR_VERSION: 1.30.1
+          ZIZMOR_SHA256_X64: eee12266b793cb87ad4a7e3af2e72404f8a63e3de5eb099b80bf7b1cfd232a8e
+          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/63/55/1900b53d34dcebc207cf3ceb7957b3748e8bb40958f062e3853ab72f2395/zizmor-1.30.1-py3-none-manylinux_2_28_x86_64.whl
+          ZIZMOR_SHA256_ARM64: 92906f448365672ebb657fb50d36f997290a3aaba8cac723214741ea9054845d
+          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/37/9c/43764a6e9eb5ad5a332202afc3e63622e3380669ecf7079b6b0de892e474/zizmor-1.30.1-py3-none-manylinux_2_24_aarch64.whl
+          # For the online audits (impostor-commit, known-vulnerable-actions). The job's
+          # own read-only token; nothing here writes.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64|amd64) ZZ_URL="${ZIZMOR_URL_X64}"; ZZ_SHA="${ZIZMOR_SHA256_X64}" ;;
+            aarch64|arm64) ZZ_URL="${ZIZMOR_URL_ARM64}"; ZZ_SHA="${ZIZMOR_SHA256_ARM64}" ;;
+            *) echo "::error::unsupported arch $(uname -m) — add its zizmor wheel and checksum"; exit 1 ;;
+          esac
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors -o /tmp/zizmor.whl "${ZZ_URL}"
+          echo "${ZZ_SHA}  /tmp/zizmor.whl" | sha256sum -c -
+          unzip -p /tmp/zizmor.whl "zizmor-${ZIZMOR_VERSION}.data/scripts/zizmor" > /tmp/zizmor
+          chmod +x /tmp/zizmor
+          /tmp/zizmor --version
+          /tmp/zizmor --config .github/zizmor.yml --format github .
+
       - run: pnpm typecheck
 
       # The shrink container is NOT a workspace member (see its package.json), so
@@ -185,6 +233,28 @@ jobs:
       # stopped it drifting a third time. Needs no build; it reads `git ls-files`.
       - name: Docs index reachability
         run: node scripts/check-docs-index.mjs
+
+      # The .claude/hooks guards (bare pnpm, pipeline input, commits on main, …) each have
+      # a test, and until 2026-09-29 NOTHING in CI ran them: `.claude/` is not a workspace
+      # package, so vitest never sees them, and only the owner-started gates skill did.
+      # A glob, so a new hook test is picked up without editing this step; the count floor
+      # so a glob matching nothing cannot pass having run nothing (8 existed that day, all
+      # green in ~6 s). No build, no browser — plain node in throwaway temp dirs.
+      - name: Hook guard tests (.claude/hooks)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tests=(.claude/hooks/*.test.mjs)
+          echo "hook tests found: ${#tests[@]}"
+          if [ "${#tests[@]}" -lt 8 ]; then
+            echo "::error::expected at least 8 .claude/hooks/*.test.mjs, found ${#tests[@]}"
+            exit 1
+          fi
+          for t in "${tests[@]}"; do
+            echo "::group::$t"
+            node "$t"
+            echo "::endgroup::"
+          done
 
       - run: pnpm seed:assets
       - run: pnpm build
@@ -238,166 +308,138 @@ jobs:
   # E2E IN A REAL BROWSER. Split out of `verify` on 2026-08-20 and containerised for
   # the same measured reason `artwork` was: `playwright install-deps` is an apt-get,
   # and a degraded Azure Ubuntu mirror twice consumed whole job budgets with nothing
-  # in this repository changed. The image below carries the browsers AND their system
-  # libraries, so no apt runs here at all.
+  # in this repository changed. The container below carries the browsers AND their
+  # system libraries, so no apt runs here at all.
   #
-  # WHY THIS IS ITS OWN JOB rather than `verify` gaining a `container:`. That job runs
-  # `scripts/test-alert-shell.sh`, which needs `jq` — and this image does not have it
-  # (checked by running the image, not by reading about it). The script cannot be
-  # ported to node either: it evaluates the REAL `--jq` filter strings lifted out of
-  # uptime.yml and heartbeat.yml, so it needs something that parses jq syntax. That
-  # single missing binary is the whole reason for the split — and the split is a
-  # genuine seam anyway, since the static gates and the browser gates need different
-  # machines.
+  # WHY IT IS NOT PART OF `verify`. That job runs `scripts/test-alert-shell.sh`, which
+  # needs `jq` — and the Playwright container does not have it (checked by running it).
+  # The script evaluates the REAL `--jq` filter strings lifted out of uptime.yml and
+  # heartbeat.yml, so it needs something that parses jq syntax. The static gates and the
+  # browser gates need different machines anyway.
   #
-  # ⚠️ IT IS IN `deploy.needs` AND IN THE `main` RULESET. Both. `needs:` stops the
-  # deploy; the ruleset stops the merge, and it is org config that no test in this
-  # repo can see. `apps/cms/src/workflowHardening.test.ts` enforces the `needs:` half
-  # — see the tenth rule there. Splitting a gate into a new job and forgetting either
-  # one is how a gate silently stops gating, which has happened here twice already
-  # (2026-08-15 and 2026-08-17, both renames).
+  # SPLIT ACROSS FIVE MACHINES SINCE 2026-09-29, BEHIND ONE `e2e` JOB.
+  #
+  # Until then one job ran the viewer suite and THEN the public-site suite on one
+  # machine: run 36285360710 took 13.0 min (1,013 passed, 2 workers) plus 7.1 min
+  # (692 passed), so every pull request waited ~21.5 min on this job while every other
+  # job was done in under 5. And a red viewer suite meant the site suite never ran —
+  # it sat dark from 2026-09-06 to 2026-09-07 that way.
+  #
+  # `e2e-shard` is one matrix job: the viewer suite in thirds, the site suite in halves,
+  # all at once, each with `--shard=i/n`. Both configs are `fullyParallel`, so a shard
+  # is a slice of TESTS, not of files (listed 2026-09-29: viewer 379/379/378 of 1,136,
+  # site 368/368 of 736). ONE matrix job, not one per suite, because
+  # workflowHardening.test.ts allows ci.yml exactly two Playwright containers (this and
+  # `artwork`), so neither can drift.
+  #
+  # `e2e` is the job deploy.needs and the `main` ruleset name — the same id and check
+  # name as before, so neither list changed. It merges the shards' reports and then
+  # decides. ⚠️ IT MUST CHECK THE SHARDS' RESULT ITSELF: with a plain `needs:`, a failed
+  # shard makes `e2e` SKIPPED, and GitHub documents that a skipped job "will not prevent
+  # a pull request from merging, even if it is a required check". Hence
+  # `if: !cancelled()` and the verdict step at its end.
   #
   # WebKit is not optional. A QR code on a garment tag is scanned with a phone camera,
   # which opens iOS Safari — and until 2026-08-03 CI installed Chromium only, so the
   # suite ran Chromium twice and the single most likely browser for this product had
   # never executed a line of it. Firefox is cheap once the matrix exists.
   #
-  # ⚠️ THE `HOME=/root` WORKAROUND IS GONE — AND KNOW WHY, BEFORE REINSTATING A CONTAINER.
-  # Kept because it comes straight back the moment a `container:` returns here.
-  #
-  # Measured on run 32349283297, when this job ran `container: playwright:...`:
-  # 176 tests passed, 57 failed, every one of them `viewer-firefox`, all on
-  # `browserType.launch: Failed to launch the browser process`:
+  # ⚠️ EVERY STEP THAT LAUNCHES A BROWSER HERE SETS `HOME: /root`, SCOPED TO THE STEP.
+  # Measured on run 32349283297, the first time this ran in a container: 176 tests
+  # passed and 57 failed, every one `viewer-firefox`, all on `browserType.launch`:
   #
   #     Running Nightly as root in a regular user's session is not supported.
   #     ($HOME is /github/home which is owned by pwuser.)
   #
-  # The cause was never the user. GitHub forces `HOME=/github/home` into every CONTAINER
-  # job — visible in the `docker create` line as `-e "HOME=/github/home"` — mounted from
-  # the host, while inside the image it is owned by `pwuser` (uid 1000). Firefox refuses
-  # when the process owner and $HOME's owner differ, so root broke it AND `--user 1001`
-  # broke it differently (`Can't find profile directory`,
-  # microsoft/playwright#31685). Chromium and WebKit do not check; only Firefox does,
-  # which is why `artwork` never saw it.
-  #
-  # Since 2026-09-08 there is NO container: the self-hosted runner IS that image
-  # (infra/ci-runner/Dockerfile), so the job runs as `pwuser` with `HOME=/home/pwuser`
-  # — owner and $HOME agree, and nothing needs overriding. Verified by running the
-  # image: `whoami=pwuser HOME=/home/pwuser`. If a `container:` is ever added back,
-  # `HOME: /root` must come back with it, scoped to the STEP and not the job.
-  e2e:
-    runs-on: ubuntu-latest
-    # ⚠️ 30, RAISED FROM 20 ON 2026-09-07 BECAUSE THE WORK GREW, NOT BECAUSE A CEILING WAS
-    # INCONVENIENT. Measured, this job, five consecutive runs:
-    #
-    #   89b611c  success    15.0 min
-    #   d653c5b  failure    15.3 min
-    #   d2696f3  failure    16.0 min
-    #   f9eb442  CANCELLED  20.1 min   <- hit this ceiling
-    #   986b051  CANCELLED  20.1 min   <- hit this ceiling
-    #
-    # ⚠️ AND A JOB THAT HITS ITS OWN `timeout-minutes` REPORTS `cancelled`, NOT `failure` —
-    # which reads exactly like the concurrency cancellation this file documents above, and
-    # cost a round trip to tell apart. The tell is that ONE job is cancelled while the
-    # others succeed; a concurrency cancel takes the whole run.
-    #
-    # The runner does 636 viewer tests then 312 CMS tests at ONE worker (`Running 636 tests
-    # using 1 worker` in the log): 14.0 min and ~6 min respectively, plus install. That is
-    # ~21 minutes of real work against a 20-minute budget — it did not fit, and the two
-    # green runs above only fitted because the suites were 75 tests smaller. `verify`
-    # already sits at 30 for the same reason.
-    #
-    # Raising this is NOT the answer to a slow external dependency — see the apt-mirror
-    # account earlier in this file, where lifting one ceiling only moved which job died.
-    # It is the answer when the ceiling is smaller than the measured work, which is this.
-    timeout-minutes: 30
+  # GitHub forces `HOME=/github/home` into every container job (visible in the
+  # `docker create` line), mounted from the host and owned inside the image by `pwuser`
+  # (uid 1000). Firefox refuses when the process owner and $HOME's owner differ, so root
+  # broke it AND `--user 1001` broke it differently (`Can't find profile directory`,
+  # microsoft/playwright#31685). Chromium and WebKit do not check. (A self-hosted runner
+  # built from the same image made this moot from 2026-09-08 until it was retired; this
+  # job is back in the container, so the override is back with it.)
+  e2e-shard:
+    name: e2e (${{ matrix.suite }} ${{ matrix.shard }}/${{ matrix.total }})
+    runs-on: ubuntu-26.04
+    # 20 against an expected ~5-6 min of tests per shard (a third of 13.0 min, or half of
+    # 7.1 min, plus ~1.5 min of image pull and install). The single job needed 30 because
+    # 21 minutes of work did not fit in 20 (runs f9eb442 and 986b051, both CANCELLED at
+    # 20.1 min). ⚠️ A job that hits its own `timeout-minutes` reports `cancelled`, NOT
+    # `failure`, which reads like a concurrency cancellation; the tell is ONE job
+    # cancelled while the others finish.
+    timeout-minutes: 20
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+    strategy:
+      # Every shard reports, so one failure never hides another's.
+      fail-fast: false
+      matrix:
+        include:
+          - { suite: viewer, dir: apps/viewer, shard: 1, total: 3 }
+          - { suite: viewer, dir: apps/viewer, shard: 2, total: 3 }
+          - { suite: viewer, dir: apps/viewer, shard: 3, total: 3 }
+          - { suite: site, dir: apps/cms, shard: 1, total: 2 }
+          - { suite: site, dir: apps/cms, shard: 2, total: 2 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       # No `actions/setup-node` here either, for the reason measured beside `artwork`
-      # above: the image ships the pinned Node 24, and the pnpm store cache costs more
+      # below: the image ships the pinned Node 24, and the pnpm store cache costs more
       # to save than it saves on install — every feature branch pays the miss, because
       # Actions caches are branch-scoped.
       - run: pnpm install --frozen-lockfile
       # ONE SECOND OF DIAGNOSTIC, for the same reason the deleted `ldd` check existed:
-      # a browser that cannot LAUNCH must not be debugged as a flaky test. GitHub does
-      # not document what HOME is inside a job container, and Firefox's known container
-      # failure is precisely a HOME/profile-directory problem — so print it rather than
-      # infer it. If e2e ever dies in `browserType.launch`, read this step first.
+      # a browser that cannot LAUNCH must not be debugged as a flaky test. If a shard
+      # ever dies in `browserType.launch`, read this step first.
       - name: Container facts (user, HOME, browsers)
         run: |
           echo "whoami=$(whoami)  uid=$(id -u)  HOME=$HOME"
           echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-unset}"
           ls "${PLAYWRIGHT_BROWSERS_PATH:-/ms-playwright}" || true
-      # `prepare.mjs` runs `pnpm seed:assets` and `pnpm build` itself, through
-      # Playwright's `webServer` command, so this one step is the whole suite.
-      #
-      # MEASURED, run 32350036354, all three browsers green: this job 417s total —
-      # pull 60s + setup 42s + the suite itself 310s. Against it, `verify` fell from
-      # 470s to 159s by shedding this work, and the two now run in PARALLEL, so the
-      # RUN's long pole went 470s -> 417s. Billed minutes rise (159 + 417 against 470)
-      # while wall-clock falls. The apt path that cost 23 webkit tests on run
-      # 32248711203 is gone from this file entirely.
-      - name: e2e
-        env:
-          HOME: /root
-        run: pnpm --filter @run-apparel/viewer test:e2e
       # EVERY PICTURE DESCRIBED, EVERY MERMAID DIAGRAM DRAWS (owner, 2026-09-26: human
-      # pages carry pictures for 5th-grade readers). In THIS job because it needs a
-      # browser to draw the diagrams and `verify` has none; a step, not a job, for the
-      # reason given below for the marketing site.
+      # pages carry pictures for 5th-grade readers). Needs Chromium and node_modules and
+      # nothing else, so it runs once, on one shard, and FIRST, so a red test cannot
+      # hide it.
       - name: Doc pictures and diagrams
+        if: matrix.suite == 'viewer' && matrix.shard == 1
         env:
           HOME: /root
         run: node apps/cms/scripts/check-doc-visuals.mjs
-      # THE PUBLIC MARKETING SITE, added 2026-09-05.
+      # `prepare.mjs` runs `seed:assets` and the viewer build itself, through Playwright's
+      # `webServer` command, so this one step is this shard's whole suite.
       #
-      # ⚠️ A STEP IN THIS JOB RATHER THAN A JOB OF ITS OWN, DELIBERATELY. A new job
-      # would have to be added to `deploy.needs` AND to the required-checks list, which
-      # is a second copy of it — and this file's own notes record that splitting or
-      # renaming a gating job without editing both silently stops a red gate blocking.
-      # As a step it inherits `e2e`'s existing place in both, and reuses the container's
-      # browsers instead of a second pull.
+      # ⚠️ `exec playwright test`, NEVER `test:e2e -- --shard`: an argument passed through
+      # the script shortcut was silently dropped once (apps/viewer/CLAUDE.md: `--grep`
+      # "runs the WHOLE suite", 252 tests where 20 were asked for). Check the
+      # "Running N tests …, shard i of n" line in this step's log.
+      - name: e2e (viewer, this shard)
+        if: matrix.suite == 'viewer'
+        env:
+          HOME: /root
+          SHARD: ${{ matrix.shard }}/${{ matrix.total }}
+        run: pnpm --filter @run-apparel/viewer exec playwright test --shard="$SHARD"
+      # THE PUBLIC MARKETING SITE, added 2026-09-05. Until then nothing in the repo loaded
+      # /, /products or /contact in a browser: all 54 CMS test files read source text or
+      # exercise pure functions, so three blank pages would have gone green through every
+      # gate. Its own `webServer` runs `next build` from the cold checkout.
       #
-      # WHAT IT CLOSES: until this existed, nothing in the repo loaded /, /products or
-      # /contact in a browser. All 54 CMS test files read source text or exercise pure
-      # functions, so three blank pages would have gone green through every gate. Found by
-      # the 2026-09-05 site-pages audit (kept privately).
+      # ⚠️ IT NEEDS A DATABASE, EVERY SHARD ITS OWN. `serve.mjs` starts the built CMS
+      # against the local D1 emulation, which on a fresh machine has no tables at all
+      # (`D1_ERROR: no such table: site_settings`, 2026-09-07). The content helpers
+      # degrade to defaults by design, so most pages still render — which is why eleven
+      # failures hid among 285 passes. Specs that need real content THROW under `CI` if
+      # the catalogue is empty. Each shard is a separate machine, so each seeds; the
+      # tests only append inquiry rows, so nothing is shared. This is the documented
+      # first run from docs/ONBOARDING.md: seed:assets measured 7 s, migrate and seed ~4 s.
       #
-      # Its own `webServer` runs `next build` from the cold checkout, so this step needs
-      # no separate build step and no seeded database — the content helpers fall back to
-      # defaults, and the gallery assertions cover both the populated and empty states.
-      # It needs no secret either: apps/cms/e2e/serve.mjs supplies a throwaway
-      # PAYLOAD_SECRET when the environment has none. Measured 2026-09-06 under these
-      # exact conditions: without that fallback Payload never initialises, `/admin` and
-      # `/api/*` answer 500, and four tests fail — while the page tests stay green.
-      # ⚠️ THE PUBLIC-SITE SUITE NEEDS A DATABASE, AND UNTIL 2026-09-07 CI GAVE IT NONE.
-      #
-      # `serve.mjs` starts the built CMS against the local D1 emulation, and on a fresh
-      # runner that database has no tables at all — the server log filled with
-      # `D1_ERROR: no such table: site_settings`. The content helpers degrade to defaults
-      # by design, so most pages still rendered and 285 tests passed, which is exactly why
-      # nobody noticed: the eleven that failed were the ones that need real content —
-      # the ItemList, the scroll restore, and both inquiry tests, which cannot store a row
-      # in a table that does not exist.
-      #
-      # ⚠️ AND THE SUITE HAD BEEN DARK SINCE 2026-09-06. It is the LAST step of this job,
-      # so every run whose viewer step failed first meant this never executed at all. Two
-      # blind spots had to be open together for that to hide, and both were.
-      #
-      # This is the documented first-run from docs/ONBOARDING.md, in order. It is not
-      # optional and it is not slow: seed:assets measured 7s, migrate and seed ~4s.
-      #
-      # PAYLOAD_SECRET: this job deliberately holds no real one (only the deploy job
-      # does), and Payload refuses to initialise without any. A per-run throwaway is
-      # correct here for the same reason serve.mjs supplies one — there is nothing behind
-      # this database worth protecting — and a literal is avoided so the secrets scanner
+      # PAYLOAD_SECRET: no real one here (only the deploy job has one), and Payload will
+      # not initialise without any. A per-run throwaway is correct — nothing behind this
+      # database is worth protecting — and a literal is avoided so the secrets scanner
       # has nothing to match.
       - name: Seed the database the public-site suite reads
+        if: matrix.suite == 'site'
         env:
           HOME: /root
           PAYLOAD_SECRET: ci-e2e-${{ github.run_id }}
@@ -405,11 +447,102 @@ jobs:
           pnpm seed:assets
           pnpm --filter @run-apparel/cms migrate
           pnpm seed:cms
-
-      - name: e2e (public site)
+      - name: e2e (public site, this shard)
+        if: matrix.suite == 'site'
         env:
           HOME: /root
-        run: pnpm --filter @run-apparel/cms test:e2e
+          SHARD: ${{ matrix.shard }}/${{ matrix.total }}
+        run: pnpm --filter @run-apparel/cms exec playwright test --shard="$SHARD"
+      # The shard's `blob` report (playwright.config.ts: `reporter` in CI) for `e2e` to
+      # merge. Kept one day: only the merged report is for reading.
+      - name: Keep this shard's report for the merge
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: blob-${{ matrix.suite }}-${{ matrix.shard }}
+          path: ${{ matrix.dir }}/blob-report
+          retention-days: 1
+          if-no-files-found: warn
+
+  # THE GATE THE DEPLOY AND THE RULESET NAME (see `e2e-shard` above for why it exists).
+  # It merges every shard's report into one HTML report per suite — screenshots and
+  # the retry's trace for each failure — kept 14 days, then passes ONLY if every shard
+  # passed. The report steps may fail without changing the verdict; the verdict step
+  # runs last so the report exists whenever it is needed most.
+  #
+  # The report is public, like every artifact on this repository: it holds pages served
+  # by the local test servers, their mock data and a per-run throwaway database. The
+  # seeded admin's password is the dev default already printed in apps/cms/src/seed/seed.ts.
+  e2e:
+    needs: [e2e-shard]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Collect the viewer shards' reports
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: blob-viewer-*
+          path: ${{ runner.temp }}/blob/viewer
+          merge-multiple: true
+      - name: Collect the public-site shards' reports
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: blob-site-*
+          path: ${{ runner.temp }}/blob/site
+          merge-multiple: true
+      - name: Merge the viewer report
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/report/viewer
+          PLAYWRIGHT_HTML_OPEN: never
+          BLOBS: ${{ runner.temp }}/blob/viewer
+        run: pnpm --filter @run-apparel/viewer exec playwright merge-reports --reporter html "$BLOBS"
+      - name: Merge the public-site report
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/report/site
+          PLAYWRIGHT_HTML_OPEN: never
+          BLOBS: ${{ runner.temp }}/blob/site
+        run: pnpm --filter @run-apparel/cms exec playwright merge-reports --reporter html "$BLOBS"
+      - name: Keep the merged report (14 days)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: ${{ runner.temp }}/report
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Every shard passed (the verdict)
+        env:
+          SHARDS: ${{ needs.e2e-shard.result }}
+        run: |
+          echo "e2e-shard result: ${SHARDS}"
+          if [ "${SHARDS}" != "success" ]; then
+            echo "::error::a browser-test shard did not pass (result: ${SHARDS}). The merged report is the 'playwright-report-<sha>' artifact of this run."
+            exit 1
+          fi
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
@@ -421,12 +554,16 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 20, not 10: the retry above needs room for three attempts, and on 2026-09-04
     # `pnpm/action-setup` alone consumed 372-425s of the old 10-minute budget. In the
     # normal case this job still finishes in about two minutes.
     timeout-minutes: 20
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -434,38 +571,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
-          # cache archive from GitHub's cache service, and on the self-hosted runner
-          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
-          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
-          # job. It is also redundant there: each runner keeps its own persistent pnpm
-          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
-          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
-          # 377 MB to rebuild a store that is already on disk is worse than no cache.
-          #
-          # `runner.environment` is the built-in that distinguishes them, so this stays
-          # correct if a job ever runs on GitHub again — where the store IS ephemeral
-          # and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
-          # Since v7 the action AUTO-ENABLES the package-manager cache when
-          # `package.json` declares `packageManager` — and ours does
-          # (`package.json:6`, `pnpm@12.6.0`). The input that governs it defaults to
-          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
-          # fully describes what the action will do.
-          #
-          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
-          #
-          #     cache: false
-          #     package-manager-cache: true
-          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
-          #     Done in 4.5s using pnpm v10.33.0
-          #
-          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
-          # anyway because it is one upstream default away from silently restoring the
-          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
-          # job, never a failing one, which is the kind of regression nobody reports.
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
         run: |
@@ -581,13 +688,24 @@ jobs:
   # commit carrying a live key was scanned, flagged red, and deployed anyway.
   # docs/RUNBOOK.md described it under "CI quality gates" without saying so.
   # Moving it here is what makes the word "gate" true.
+  #
+  # ⚠️ NO `if:` — IT RUNS ON FORK PULL REQUESTS TOO. Until 2026-09-29 a job-level `if:`
+  # skipped it when the PR came from a fork, left over from the gitleaks-action days.
+  # The binary below needs no token and no secret, so a fork's run can execute it
+  # exactly as ours does. And GitHub documents that "a job that is skipped will report
+  # its status as 'Success'. It will not prevent a pull request from merging, even if
+  # it is a required check" — so on this PUBLIC repository a fork's PR passed the
+  # required `secrets` check having scanned nothing.
   secrets:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -709,9 +827,13 @@ jobs:
   # (which DOES carry the DSN) is weighed by nothing. Do not read a green run as a
   # statement about the live page's script weight.
   lighthouse:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -719,38 +841,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
-          # cache archive from GitHub's cache service, and on the self-hosted runner
-          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
-          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
-          # job. It is also redundant there: each runner keeps its own persistent pnpm
-          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
-          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
-          # 377 MB to rebuild a store that is already on disk is worse than no cache.
-          #
-          # `runner.environment` is the built-in that distinguishes them, so this stays
-          # correct if a job ever runs on GitHub again — where the store IS ephemeral
-          # and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
-          # Since v7 the action AUTO-ENABLES the package-manager cache when
-          # `package.json` declares `packageManager` — and ours does
-          # (`package.json:6`, `pnpm@12.6.0`). The input that governs it defaults to
-          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
-          # fully describes what the action will do.
-          #
-          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
-          #
-          #     cache: false
-          #     package-manager-cache: true
-          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
-          #     Done in 4.5s using pnpm v10.33.0
-          #
-          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
-          # anyway because it is one upstream default away from silently restoring the
-          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
-          # job, never a failing one, which is the kind of regression nobody reports.
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build viewer with the e2e mock origin
         run: node apps/viewer/e2e/prepare.mjs
@@ -821,7 +913,7 @@ jobs:
   # Chromium only — WebKit and Firefox are not needed, and the render harness
   # already runs software WebGL via swiftshader.
   artwork:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 20 -> 30 on 2026-08-18, to match `verify`, after this job was CANCELLED twice
     # in a row at exactly 20m20s — which reads as a failed gate and was not one.
     #
@@ -887,19 +979,18 @@ jobs:
     # as root disables the Chromium sandbox; the render harness already runs software
     # WebGL through swiftshader, so it costs nothing.
     #
-    # THE PLAYWRIGHT IMAGE MOVED, THE PIN DID NOT LOOSEN. This job no longer declares a
-    # `container:`; since 2026-09-08 the self-hosted runner is built FROM that image, so
-    # the tag now lives in `infra/ci-runner/Dockerfile`. It must still equal the
-    # `@playwright/test` version — the image SHIPS the browsers, the package drives them,
-    # and a mismatch fails at RUNTIME with `browser not found at /ms-playwright/...`.
-    # `apps/cms/src/workflowHardening.test.ts` reads the Dockerfile as well as every
-    # workflow, and now FAILS if it finds no image at all, because deleting the container
-    # is exactly what made that rule inert. A TAG and not a digest because
-    # `.github/dependabot.yml` declares no docker ecosystem, so a digest would go stale
-    # in silence. ⚠️ Bumping the tag needs the runner image REBUILT to take effect —
-    # see infra/ci-runner/README.md.
+    # THE PIN. The image's tag must equal the `@playwright/test` version — the image SHIPS
+    # the browsers, the package drives them, and a mismatch fails at RUNTIME with
+    # `browser not found at /ms-playwright/...` — and since 2026-09-29 it carries the
+    # image's `@sha256:` digest too (owner decision: a tag can be republished, a digest
+    # cannot). Both are bumped by hand in the same change; nothing automated refreshes
+    # either. `apps/cms/src/workflowHardening.test.ts` enforces the version, the digest,
+    # and exactly two such containers in this file (this job and `e2e-shard`), and fails
+    # if it finds none, because losing the container is what once made the rule inert.
+    # (From 2026-09-08 to 2026-09-10 a self-hosted runner built FROM this image carried
+    # the pin in its Dockerfile instead; that runner is retired.)
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -983,6 +1074,8 @@ jobs:
     # what keeps that true. ⚠️ The `main` ruleset's required-status-checks list is a
     # SECOND place that has to name it, and forgetting it means a red e2e no longer
     # blocks a merge. `apps/cms/src/workflowHardening.test.ts` enforces this half.
+    # Since 2026-09-29 `e2e` is the small job behind the `e2e-shard` matrix (see there);
+    # it kept its id so that neither this list nor the ruleset had to change.
     #
     # ⚠️ THIS SAID THE RULESET IS "org config no test here can read" UNTIL 2026-08-30.
     # It is not org config — `gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets/<id>` (the
@@ -1010,7 +1103,7 @@ jobs:
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
     # rather than an unfinished setup step. Required reviewers need GitHub Pro
@@ -1039,6 +1132,10 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -1123,7 +1220,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: node scripts/backup-d1.mjs --stamp="pre-deploy-${{ github.sha }}"
+        run: node scripts/backup-d1.mjs --stamp="pre-deploy-${GITHUB_SHA}"
 
       # ⚠️ THE ONE BACKUP NOBODY CHECKED, TAKEN AT THE ONE MOMENT IT MATTERS MOST.
       #
@@ -1450,12 +1547,15 @@ jobs:
         # minutes would buy nothing. See check 4 in the script.
         env:
           SMOKE_BROWSER_GET: '1'
+          # In `env:`, not pasted into `run:` — zizmor's template-injection rule
+          # (2026-09-29). A repository variable is ours, but the habit is the point.
+          API_BASE: ${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}
         # Loops EVERY live product since 2026-08-30. It ran only `rxps` before, so
         # the second live garment (`r-xmp`, X-MILO PRO BIB) was verified by nothing.
         # ⚠️ The list itself narrowed again on 2026-09-04 — nine garments were published
         # and scripts/live-products.mjs still named two, so this step gated 2 of 11.
         # Now eleven: 37 s measured, all green, and a fake twelfth row exits 1.
-        run: node scripts/smoke-live-products.mjs "${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}"
+        run: node scripts/smoke-live-products.mjs "$API_BASE"
 
       # The per-garment link preview is produced by an HTMLRewriter in
       # apps/viewer/worker/index.ts, and HTMLRewriter does not exist under vitest —
@@ -1563,3 +1663,272 @@ jobs:
             "\`\`\`")
           gh issue create --label deploy-failure \
             --title "Deploy failed: ${SHA}" --body "$body"
+
+  # ── THE SHRINK SERVICE (apps/shrink: the Worker + the Container that runs the pipeline) ──
+  #
+  # ONE HOME SINCE 2026-09-29. Until then deploy-shrink.yml ran its own COPY of these
+  # gates — lint, typecheck, tests, artwork, audit, secrets — because a job in another
+  # workflow cannot appear in a `needs:` list. The copy drifted twice: gitleaks stayed on
+  # the broken Action there for three months after ci.yml was fixed, and the Playwright
+  # container for ten days. Now the shrink deploy waits for the same `verify`, `artwork`,
+  # `audit` and `secrets` the site does, and for the site's own `deploy` (owner decision:
+  # the CMS that receives the shrink's writes goes first).
+  #
+  # `changes` says whether anything the shrink is built from changed; the two jobs below
+  # it run only then. The rules and their negative controls live in
+  # scripts/ci-changed-paths.mjs and apps/cms/src/ciChangedPaths.test.ts.
+  changes:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      shrink: ${{ steps.paths.outputs.shrink }}
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The diff needs the base commit, which a shallow checkout does not have.
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          # Nothing is installed here: one script, node built-ins only.
+          cache: ''
+          package-manager-cache: false
+      - name: Did anything the shrink service is built from change?
+        id: paths
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/ci-changed-paths.mjs >> "$GITHUB_OUTPUT"
+
+  # THE CONTAINER'S BASE IMAGE, SCANNED — on pull requests too since 2026-09-29, not only
+  # after a merge as when it lived in deploy-shrink.yml's `shrink-audit`.
+  shrink-image-audit:
+    needs: [changes]
+    if: needs.changes.outputs.shrink == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Read the digest FROM the Dockerfile rather than repeating it here. A second copy
+      # of a pinned value is the same defect as the `main` ruleset's required-checks list
+      # being a second copy of `deploy.needs`: bump one, and the other keeps testing
+      # something that is no longer shipped, while staying green. The `-z` guard matters
+      # as much as the grep — an empty ref would make Trivy scan nothing and pass.
+      - name: Read the pinned base image from the Dockerfile
+        id: baseimage
+        run: |
+          set -euo pipefail
+          ref=$(grep -oE '^FROM +[^ ]+' apps/shrink/Dockerfile | head -1 | awk '{print $2}')
+          if [ -z "$ref" ] || [ "${ref#*@sha256:}" = "$ref" ]; then
+            echo "::error::Could not read a digest-pinned FROM from apps/shrink/Dockerfile (got '$ref')."
+            exit 1
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Scanning $ref"
+      # SCAN THE REGISTRY, NOT A LOCAL DAEMON (`TRIVY_IMAGE_SRC: remote`): this audits the
+      # UPSTREAM image we pinned, not whatever a Docker daemon happens to hold under that
+      # tag (on 2026-09-08 a daemon holding the arm64 variant made the scan die with
+      # `content digest …: not found`, which read as a corrupt pin and was not one).
+      #
+      # ⚠️ `exit-code: '0'` DOES NOT MAKE THIS STEP INFORMATIONAL — that input governs the
+      # exit code for FINDINGS; a scanner that CRASHES still fails the step. Hence
+      # `continue-on-error`. The gate below is the one that may fail.
+      - name: Base image report (informational)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IMAGE_SRC: remote
+        continue-on-error: true
+        with:
+          scan-type: image
+          image-ref: ${{ steps.baseimage.outputs.ref }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+      # A gate, failing closed on purpose: a fixable CRITICAL in the base OS layer. Scoped
+      # to `os` because the image's npm packages are already judged by `audit` (audit-ci
+      # and the SBOM licence check), so nothing is unwatched.
+      # ⚠️ The input is `vuln-type`, NOT `pkg-types`: the action's own action.yaml carries
+      # "# TODO: rename to pkg-types", and an unknown input is IGNORED SILENTLY by Actions,
+      # which would restore the unscoped scan while looking correct.
+      - name: Fail on a fixable CRITICAL in the base OS layer
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IMAGE_SRC: remote
+        with:
+          scan-type: image
+          image-ref: ${{ steps.baseimage.outputs.ref }}
+          format: table
+          vuln-type: os
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  # THE SHRINK DEPLOY. `wrangler deploy` builds the container image from
+  # apps/shrink/Dockerfile on this runner and pushes it to Cloudflare's registry.
+  #
+  # Runs on `main` only, only when `changes` says the shrink changed (a by-hand run of
+  # this workflow counts as changed, so re-running CI on `main` is the manual redeploy),
+  # and only while BOTH repository variables are 'true': DEPLOY_ENABLED (every deploy)
+  # and SHRINK_DEPLOY_FROM_CI (this one; docs/RUNBOOK.md → "Deploying the shrink
+  # container" has the history and the manual fallback).
+  #
+  # ⚠️ API TOKEN SCOPE. Pushing an image needs a CUSTOM Cloudflare token: Workers
+  # Scripts:Edit plus Account · Containers:Edit AND Account · Cloudchamber:Edit (wrangler
+  # still routes container work through its cloudchamber client) — it failed on every
+  # run until 2026-07-28 with `ApiError: Forbidden`. Full table: docs/RUNBOOK.md.
+  deploy-shrink:
+    needs: [changes, verify, artwork, audit, secrets, shrink-image-audit, deploy]
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true' && vars.SHRINK_DEPLOY_FROM_CI == 'true' && needs.changes.outputs.shrink == 'true'
+    runs-on: ubuntu-26.04
+    # 45: the image build runs `npm ci` for sharp, which links against system libraries.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+    environment:
+      name: production
+    concurrency:
+      group: deploy-shrink
+      # Never cancel a deploy half-way, for the reason at the top of this file.
+      cancel-in-progress: false
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          # ⚠️ NO CACHE: this job deploys with the production Cloudflare token — the same
+          # two lines, for the same reason, as the `deploy` job above.
+          cache: ''
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      # Captured BEFORE the deploy: the drift check at the end compares the image's LAST
+      # MODIFIED against it. Recorded afterwards, every image would look older than the run.
+      - name: Record time before deploy
+        id: t0
+        run: echo "epoch=$(date -u +%s)" >> "$GITHUB_OUTPUT"
+      # `run: |`, NOT a plain scalar: a plain YAML scalar folds newlines into SPACES, so the
+      # trailing `\` would reach bash as an escaped space (written that way once, 2026-08-31).
+      - name: Deploy shrink worker + container image
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Cloudflare Containers run amd64. This runner is amd64 too, so today this is a
+          # no-op; it stays because `wrangler deploy` passes no platform of its own, and
+          # an arm64 runner (as one was from 2026-09-08) builds an image Cloudflare cannot
+          # run while the deploy reports success. The step below measures the result.
+          DOCKER_DEFAULT_PLATFORM: linux/amd64
+        run: |
+          pnpm --filter @run-apparel/shrink exec wrangler deploy \
+            --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
+      # ASSERT THE ARCH THAT WAS BUILT, NOT THE ONE ASKED FOR. A wrong-arch image deploys
+      # clean and fails only when a garment is processed. Deliberately asymmetric: finding
+      # no local image is a WARNING (wrangler may tag differently one day), finding an
+      # arm64 one is an ERROR. Only positive evidence of the defect fails the job.
+      - name: Assert the container image is amd64
+        run: |
+          set -euo pipefail
+          imgs=$(docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+                 | grep -iE 'shrink|cloudflare' || true)
+          if [ -z "$imgs" ]; then
+            echo "::warning::no local shrink image found to inspect — arch NOT verified. If wrangler changed how it tags the build, fix this step rather than deleting it."
+            exit 0
+          fi
+          bad=0
+          for i in $imgs; do
+            a=$(docker image inspect "$i" --format '{{.Architecture}}' 2>/dev/null || echo unknown)
+            echo "  $i -> $a"
+            if [ "$a" = "arm64" ] || [ "$a" = "aarch64" ]; then bad=1; fi
+          done
+          if [ "$bad" = "1" ]; then
+            echo "::error::An arm64 container image was built. Cloudflare Containers run amd64 — this image would fail at runtime while the deploy reported success. DOCKER_DEFAULT_PLATFORM did not take effect."
+            exit 1
+          fi
+          echo "amd64 confirmed."
+      # ALERTING ONLY EXISTS IF THIS RUNS. apps/shrink/src/sentry.ts is a deliberate no-op
+      # without a DSN, so a missing secret meant a failed garment told nobody (found
+      # 2026-08-30). SHRINK_SENTRY_DSN, not SENTRY_DSN: the viewer, CMS and shrink each
+      # have their own Sentry project, and the shared name once carried the viewer's.
+      # Gated in the shell rather than by `if:` so the DSN never sits in a job-level env.
+      - name: Apply worker secret (SENTRY_DSN, shrink project)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SHRINK_SENTRY_DSN: ${{ secrets.SHRINK_SENTRY_DSN }}
+        run: |
+          if [ -z "$SHRINK_SENTRY_DSN" ]; then
+            echo "::warning::SHRINK_SENTRY_DSN secret is not set — the shrink robot's failure alerting is INERT. Set it with: gh secret set SHRINK_SENTRY_DSN"
+            exit 0
+          fi
+          printf '%s' "$SHRINK_SENTRY_DSN" | pnpm --filter @run-apparel/shrink exec wrangler secret put SENTRY_DSN
+      # PROOF THE IMAGE MOVED, not just the Worker script. On 2026-07-27 a pipeline fix
+      # shipped while the container kept running a three-day-old image. Until 2026-08-30
+      # this printed a table and exited 0 whatever it said; it now fails when the image
+      # is older than this run. GNU `date -d` (`verify`'s first step asserts it exists).
+      - name: Assert the container image actually moved (drift check)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BEFORE: ${{ steps.t0.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          echo "This run started: $(date -u -d "@$BEFORE" +%Y-%m-%dT%H:%M:%SZ)"
+          out=$(pnpm --filter @run-apparel/shrink exec wrangler containers list 2>&1)
+          echo "$out"
+          # LAST MODIFIED is an ISO-8601 stamp. If the format ever changes, `modified` is
+          # empty and the check WARNS rather than failing a good deploy on a parse.
+          modified=$(printf '%s\n' "$out" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+' | sort -r | head -1 || true)
+          if [ -z "$modified" ]; then
+            echo "::warning::could not parse a LAST MODIFIED timestamp from \`wrangler containers list\` — drift NOT verified. Check the table above by hand and fix this parser."
+            exit 0
+          fi
+          modified_epoch=$(date -u -d "$modified" +%s)
+          echo "Image last modified: $modified"
+          if [ "$modified_epoch" -lt "$BEFORE" ]; then
+            echo "::error::The container image did NOT move. The Worker script deployed but the image that actually processes garments is older than this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
+            exit 1
+          fi
+          echo "Image is newer than the start of this run — the deploy moved it."
+      # ALERT ON A FAILED SHRINK DEPLOY — new on 2026-09-29; deploy-shrink.yml never had
+      # one, so a failed image push was a red tick in the Actions tab and nothing else.
+      # Same shape as the `deploy` job's alert above, and deliberately not a rollback.
+      - name: Alert — a shrink deploy step failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh label create deploy-failure --color b60205 \
+            --description "A production deploy step failed" 2>/dev/null || true
+          body=$(printf '%s\n' \
+            "A step in the SHRINK deploy failed for \`${SHA}\` — the service that turns" \
+            "raw CLO uploads into garments. The website deploy before it succeeded." \
+            "" \
+            "**Read the run first — the failing step names what broke:**" \
+            "${RUN_URL}" \
+            "" \
+            "Until it is fixed, new uploads are processed by the previous container image." \
+            "docs/RUNBOOK.md → \"Deploying the shrink container\" has the manual fallback.")
+          gh issue create --label deploy-failure \
+            --title "Shrink deploy failed: ${SHA}" --body "$body"

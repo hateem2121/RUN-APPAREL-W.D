@@ -3,8 +3,8 @@
 🔴 = stops here, do not proceed. 🟡 = read before acting. 🟢 = context.
 
 Loads when you touch `.github/`. Every workflow change is gated by
-`apps/cms/src/workflowHardening.test.ts` — sixteen rules, ten with their own
-negative control (counted 2026-09-24), so a failure names the file and line. Run it before pushing a
+`apps/cms/src/workflowHardening.test.ts` — eighteen rules, twelve with their own
+negative control (counted 2026-09-29), so a failure names the file and line. Run it before pushing a
 workflow edit:
 
 ```bash
@@ -33,8 +33,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   fix, which at least managed 1 commit and ~60 bytes. Unlicensed, the Action degrades
   to a commit range resolving to nothing rather than failing loudly, so the gate
   blocking the shrink deploy was inert and green. Both files now run the binary.
-  **Generalises past gitleaks: this repo has TWO workflows that deliberately
-  duplicate the same gates, so a fix to one is only half a fix. Grep the other.**
+  **Generalises past gitleaks: this repo had TWO workflows that deliberately
+  duplicated the same gates, so a fix to one was only half a fix.** 🟢 Resolved
+  2026-09-29: the shrink deploy moved into ci.yml as the `deploy-shrink` job, which
+  `needs:` ci.yml's own `verify`, `artwork`, `audit` and `secrets`, and
+  `deploy-shrink.yml` was deleted. If a second copy of a gate ever appears again, the
+  lesson holds: grep the other.
 - **🟢 No workflow runs `playwright install-deps` any more — and while one did, it was
   bounded at 8 minutes and NON-FATAL on purpose: it is preparation, not a gate.**
   `ci.yml`'s `artwork` and `e2e` moved into the `mcr.microsoft.com/playwright` image (its
@@ -67,6 +71,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   asserts the 40-hex FORMAT and a version comment, both of which a tag object
   satisfies. It cannot assert more without a network call, and a unit test that
   reaches the network is a worse trade — so this is a doc rule, deliberately.
+  🟢 **Since 2026-09-29 a CI step makes network calls of this kind:** `verify` runs
+  zizmor with the job's token, whose online audits check pinned SHAs against each
+  action's own repository (`impostor-commit`; `ref-version-mismatch` compares the
+  `# vX.Y.Z` comment with the commit). Whether they name a tag-OBJECT SHA was NOT
+  proven when it was added (the API was unreachable from that session), so keep
+  dereferencing by hand. Reviewed zizmor exceptions live in `.github/zizmor.yml`.
   Dereference before pinning, and verify:
   ```bash
   gh api /repos/OWNER/REPO/commits/vX.Y.Z --jq .sha        # always the commit
@@ -116,7 +126,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   out of `verify`, where it had been gating by living inside a job that gates. `needs:`
   stops the DEPLOY; this list stops the MERGE. Split or rename a gating job and you
   must edit BOTH, or a red gate silently stops blocking. The deploy-gating rule in
-  `apps/cms/src/workflowHardening.test.ts` covers the `needs:` half only.
+  `apps/cms/src/workflowHardening.test.ts` covers the `needs:` half only (and since
+  2026-09-29 follows `needs:` through other jobs). 🟡 **Splitting a gate WITHOUT editing
+  either list is how `e2e` was sharded on 2026-09-29:** the tests run as the matrix job
+  `e2e-shard`, and a small job keeping the id `e2e` merges their reports and fails unless
+  `needs.e2e-shard.result == 'success'`. That last step is load-bearing — without it a
+  failed shard makes `e2e` SKIPPED, and a skipped required check counts as passed.
   🟡 ORDER MATTERS HERE TOO, the same way it does for `production` below: add a check
   to this list only AFTER a workflow exists on `main` that produces it, or every PR
   blocks forever waiting on a check that never runs.
@@ -127,16 +142,22 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   goes through a PR.
   🟡 ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
   is protected blocks every deploy. Create the ruleset first.
-- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — sixteen
-  rules, ten with their own negative control.** Every workflow declares a top-level
+- **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — eighteen
+  rules, twelve with their own negative control.** Every workflow declares a top-level
   `permissions:` block that includes `contents`; every `uses:` is a 40-hex SHA with a
   `# vX.Y.Z` comment (Dependabot maintains both); every `actions/checkout` sets
   `persist-credentials: false`; no `run:` block interpolates `${{ github.event.* }}`,
   `${{ github.head_ref }}` or `${{ secrets.* }}` — carry it in `env:` and test
   `"$VAR"`; every `pnpm <script>` a workflow invokes exists; every job declares
   `timeout-minutes` (without it a hang runs to the 6-hour default — ci.yml records a
-  step measured at 49s that ran 30+ minutes); no `pull_request_target`; a Playwright
-  `container: image:` tag equals the declared `@playwright/test` version; every job is
+  step measured at 49s that ran 30+ minutes); no `pull_request_target`; every
+  `runs-on` names a fixed image, never a `*-latest` label GitHub moves on its own
+  schedule (`ubuntu-26.04` since 2026-09-29; actionlint 1.7.12 needed it listed in
+  `.github/actionlint.yaml`, and `verify`'s first step fails by name if the image
+  lacks a tool a workflow relies on); a Playwright
+  `container: image:` tag equals the declared `@playwright/test` version and carries a
+  `@sha256:` digest (since 2026-09-29); every job that can host it starts with the
+  Harden-Runner network guard (it cannot run in a `container:` job); every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
   under a key that already has a value; every workflow `heartbeat.yml` watches exists
   and parses; `DEPLOY_MESSAGE` has no space; the vulnerability audit retries only on
@@ -324,13 +345,15 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   nothing. So try it first, then read the run's `conclusion`. Push an empty commit only if
   it comes back `cancelled`.
 
-- **`DEPLOY_ENABLED=false` pauses NINE workflows, not just deploys:** `ci`'s deploy,
-  `deploy-shrink`, `nightly-backup`, `uptime`, `heartbeat`, `diagnostics-digest`,
-  `perf-watch`, `lighthouse-live` (added 2026-09-16) and `link-crawl` (the ninth, added
-  2026-09-23). Off means no backups
+- **`DEPLOY_ENABLED=false` pauses NINE workflows, not just deploys:** `ci`'s two deploy
+  jobs (`deploy`, and `deploy-shrink` since it moved into ci.yml on 2026-09-29),
+  `nightly-backup`, `uptime`, `heartbeat`, `diagnostics-digest`, `perf-watch`,
+  `lighthouse-live` (added 2026-09-16), `link-crawl` (added 2026-09-23) and `r2-budget`
+  (missing from this list until 2026-09-29). Off means no backups
   and no monitoring — measured 2026-09-10, after the
   switch had been off since the public re-creation. Re-count with
-  `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml`.
+  `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml` — and discount
+  `required-checks.yml`, which names it only in a comment saying it is NOT gated by it.
 
 - **🔴 ON A PUBLIC REPO EVERY ACTIONS LOG IS PUBLIC, and `wrangler d1 export` prints a
   one-hour download link to the WHOLE database.** 2026-09-11, the first nightly-backup
