@@ -416,25 +416,24 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
 })
 
 /**
- * IM-04 — one poster size for every screen, an honest proxy.
+ * IM-04 — card sizes, and only where Cloudflare resizes.
  *
- * This is a JUDGEMENT CALL, not a provable-true finding, and the test says so rather than
- * hiding it. `ProductPoster.tsx`'s own comment already measures the trade-off: the
- * pipeline emits exactly one 1200x1500 WebP per colourway, a `srcset` needs a second file
- * to choose between, and making one costs either a `tools/asset-pipeline` change plus a
- * re-run of all 55 live posters, or Cloudflare Image Resizing against a $5/month ceiling.
- * A smaller variant would save roughly 25 KB on an image that is lazy-loaded and already
- * off the critical path for every card but the first.
+ * Until 2026-09-29 the decision was "one poster size for every screen": the pipeline emits one
+ * 1200x1500 WebP per colourway, and a second size cost a pipeline change or paid resizing. The
+ * owner reversed it on 2026-09-29, once the cards' 365–791 KB studio renders (PR #80) took
+ * /products to 0.67 on a phone: pictures on media.wear-run.com now carry a `srcset` of
+ * Cloudflare-resized card sizes (`lib/cardImage.ts`, on the free plan's 5,000 a month).
  *
- * ⚠️ WHAT THIS DOES NOT PROVE: that one size is the RIGHT trade-off for a desktop or a
- * larger screen, which stays a human call between the owner and the cost above. What it
- * proves is narrower and durable: the deliberate decision is still in force (no `srcset`
- * silently reappeared, which would mean the trade-off was revisited without anyone
- * updating this comment or the pipeline), and the one size that IS served still matches
- * what a phone card actually needs.
+ * ⚠️ THIS FIXTURE CANNOT SHOW THE PRODUCTION SHAPE, SO IT PINS THE OTHER HALF. Its pictures are
+ * same-origin by design (`e2e/serve.mjs`), outside the resizing zone, so here every card must
+ * keep its one file and no `srcset`: a card that resized a picture from ANY host would ask
+ * Cloudflare to fetch someone else's image. The production URL shape is proven in
+ * `src/components/site/CardGallery.test.ts`, with its own negative control.
  */
-test.describe('IM-04 — no srcset, and the single size still fits a phone', () => {
-  test('no gallery poster carries a srcset or sizes attribute', async ({ request }) => {
+test.describe('IM-04 — card sizes only where Cloudflare resizes, and the size a card reserves', () => {
+  test('a picture outside the resizing zone carries no srcset or sizes attribute', async ({
+    request,
+  }) => {
     const html = await (await request.get('/products')).text()
     // The class is matched as a WORD inside the attribute, here and below. An exact
     // `class="product-card__img"` would stop matching the day a second class is added,
@@ -456,8 +455,12 @@ test.describe('IM-04 — no srcset, and the single size still fits a phone', () 
        * real regression, which is exactly the class of instrument the root CLAUDE.md
        * warns measures nothing.
        */
-      expect(img, `a gallery poster now carries srcset:\n${img}`).not.toMatch(/\bsrcset=/i)
-      expect(img, `a gallery poster now carries sizes:\n${img}`).not.toMatch(/\bsizes=/i)
+      expect(img, `a picture outside the resizing zone now carries srcset:\n${img}`).not.toMatch(
+        /\bsrcset=/i,
+      )
+      expect(img, `a picture outside the resizing zone now carries sizes:\n${img}`).not.toMatch(
+        /\bsizes=/i,
+      )
     }
   })
 
