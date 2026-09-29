@@ -53,10 +53,11 @@ describe('checkFiles accepts what buyers really send', () => {
     expect(await checkFiles(['not a file'])).toEqual({ ok: true, files: [] })
   })
 
-  it('keeps the bytes it checked, so the route stores exactly what passed', async () => {
+  it('hands on the very file it checked, so the route stores exactly what passed', async () => {
     const result = await checkFiles([file('pack.pdf', PDF)])
     if (!result.ok) throw new Error('refused')
-    expect([...(result.files[0]?.bytes ?? [])]).toEqual([...PDF])
+    const stored = new Uint8Array((await result.files[0]?.file.arrayBuffer()) ?? new ArrayBuffer(0))
+    expect([...stored]).toEqual([...PDF])
   })
 })
 
@@ -151,5 +152,38 @@ describe('formatBytes', () => {
     expect(formatBytes(2.4 * 1024 * 1024)).toBe('2.4 MB')
     expect(formatBytes(830 * 1024)).toBe('830 KB')
     expect(formatBytes(12)).toBe('1 KB')
+  })
+})
+
+/*
+ * ⚠️ MEMORY AT THE 25 MB LIMIT (final review, 2026-09-29). Measured on a local Workers runtime:
+ * storing one 24 MB PDF raised its memory by 124 MB, against a Worker's 128 MB. One cause was
+ * here — every file was copied whole to look at its first and last bytes, and the copies were
+ * kept until the upload. The check now reads only those ends, and hands the File itself on, so
+ * the route copies one file at a time, only when it stores it.
+ */
+describe('checkFiles reads only the ends of each file', () => {
+  class WholeReadForbidden extends File {
+    override arrayBuffer(): Promise<ArrayBuffer> {
+      throw new Error('checkFiles read the whole file')
+    }
+  }
+  const big = new Uint8Array(3 * 1024 * 1024)
+  big.set(bytes('%PDF-1.7\n'), 0)
+  big.set(bytes('\nxref\n0 1\ntrailer<<>>\nstartxref\n9\n%%EOF\n'), big.length - 40)
+
+  it('checks a PDF by its first and last bytes, never the whole file', async () => {
+    const check = await checkFiles([new WholeReadForbidden([big], 'pack.pdf')])
+    expect(check.ok).toBe(true)
+    if (check.ok) expect(check.files[0]?.file.size).toBe(big.length)
+  })
+
+  // NEGATIVE CONTROL: the ends really are read — break the ending and it is refused.
+  it('still refuses a PDF whose last bytes lack its ending', async () => {
+    const cut = big.slice(0, big.length - 40)
+    expect(await checkFiles([new WholeReadForbidden([cut], 'pack.pdf')])).toMatchObject({
+      ok: false,
+      reason: 'type',
+    })
   })
 })

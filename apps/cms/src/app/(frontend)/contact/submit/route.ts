@@ -108,9 +108,10 @@ async function notify(
  * `inquiry-files.inquiry`, so there is no second update of the inquiry that could fail after the
  * file is already in R2 and leave it unlisted.
  *
- * ⚠️ `Buffer.from(bytes.buffer, …)` SHARES THE BYTES INSTEAD OF COPYING THEM. At the 25 MB limit
- * the request already holds the upload and `checkFiles` one copy; a third on a Worker's 128 MB
- * would be the one that matters.
+ * ⚠️ EACH FILE IS READ HERE, ONE AT A TIME, AND NOWHERE ELSE. At the 25 MB limit the request
+ * already holds the upload; `checkFiles` reads only each file's ends, so the one full copy is the
+ * one being stored, and it can be freed before the next file is read. Measured 2026-09-29: with
+ * every file copied up front, one 24 MB PDF raised a local Workers runtime's memory by 124 MB.
  */
 async function saveFiles(
   // D1 ids are integers; `payload.create` above types its result's id loosely.
@@ -126,7 +127,7 @@ async function saveFiles(
         collection: 'inquiry-files',
         data: { inquiry },
         file: {
-          data: Buffer.from(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength),
+          data: Buffer.from(await file.file.arrayBuffer()),
           mimetype: file.type,
           name: file.name,
           size: file.size,
