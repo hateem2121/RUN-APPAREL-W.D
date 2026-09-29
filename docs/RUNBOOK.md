@@ -44,9 +44,12 @@ curl -f https://cms.wear-run.help/api/health
 
 Requires Cloudflare auth (`wrangler login` or `CLOUDFLARE_API_TOKEN`).
 
-**The shrink service deploys separately.** `.github/workflows/deploy-shrink.yml`
-builds and deploys `run-apparel-viewer-shrink` (Worker + Container) and is *not*
-part of `ci.yml` — a green CI run says nothing about it.
+**The shrink service deploys in the same run, AFTER the site.** Since 2026-09-29 the
+`deploy-shrink` job in `.github/workflows/ci.yml` builds and deploys
+`run-apparel-viewer-shrink` (Worker + Container) once `deploy` has succeeded, and only when
+the push changed something the shrink is built from (the list is in
+`scripts/ci-changed-paths.mjs`). Before that it was a workflow of its own with a copy of
+the gates.
 
 > ✅ **Working since 2026-07-28** (run `30368254285`, the first success after 3
 > failures). Before that the token could not push a container image, so the
@@ -101,12 +104,16 @@ part of `ci.yml` — a green CI run says nothing about it.
 
 ## Deploying the shrink container
 
-**Since 2026-09-10, GitHub CI deploys it again, behind all four gates.** `shrink-deploy` in
-`.github/workflows/deploy-shrink.yml` runs on a push to `main` that touches `apps/shrink/`
-or `tools/asset-pipeline/` (or by hand, with *Run workflow*). It runs only after
-`shrink-verify`, `shrink-artwork`, `shrink-audit` and `shrink-secrets` pass, and only
-while the repository variables `DEPLOY_ENABLED` and `SHRINK_DEPLOY_FROM_CI` are both
-`true`.
+**GitHub CI deploys it, behind the same gates as the site.** The `deploy-shrink` job in
+`.github/workflows/ci.yml` runs on a push to `main` that changes `apps/shrink/`,
+`tools/asset-pipeline/` (not its Markdown), `packages/shared/`, the pnpm lockfile or
+workspace file, or `ci.yml` — and on any by-hand *Run workflow* of CI, which is the manual
+redeploy (it redeploys the unchanged site first). It waits for `verify`, `artwork`,
+`audit`, `secrets`, `shrink-image-audit` (the base image's Trivy scan) and the site's
+`deploy`, and runs only while the repository variables `DEPLOY_ENABLED` and
+`SHRINK_DEPLOY_FROM_CI` are both `true`. A failed step opens a `deploy-failure` issue.
+*(From 2026-09-10 to 2026-09-29 this was `shrink-deploy` in its own workflow file, behind
+its own copies of those gates.)*
 
 **It was off from 2026-09-08 to 2026-09-10 because of upload bandwidth.** CI then ran on a
 self-hosted runner on the owner's Mac. The repository moved to GitHub-hosted runners when
@@ -133,9 +140,9 @@ push is the only job in this repo that has to send anything outward.
 
 Connecting Cloudflare's Workers Builds to this repository was the 2026-09-08 plan, and it
 was never done. Leave it that way. **Workers Builds deploys on every push to `main`,
-whatever the four gates in `deploy-shrink.yml` say.** `needs:` stops that workflow's own
-deploy job; it cannot stop Cloudflare's. So a pipeline change that fails
-`shrink-artwork` would still reach the container. With CI deploying too, every change
+whatever the gates in `ci.yml` say.** `needs:` stops CI's own `deploy-shrink` job; it
+cannot stop Cloudflare's. So a pipeline change that fails
+`artwork` would still reach the container. With CI deploying too, every change
 would also be published twice.
 
 ### Deploying it by hand instead

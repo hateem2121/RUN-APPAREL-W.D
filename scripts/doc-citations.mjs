@@ -69,6 +69,10 @@ export const ALLOWED_ABSENT = new Map([
     'cited in the past tense by docs/RUNBOOK.md and docs/archive/sessions/SESSION-2026-08-06.md, both of which say it was DELETED on 2026-08-07 because the R2 copy it pulled expires after 14 days and the surviving copy is on a laptop no runner can reach.',
   ],
   [
+    '.github/workflows/deploy-shrink.yml',
+    "DELETED on 2026-09-29, when its deploy moved into ci.yml as the `deploy-shrink` job so it waits for ci.yml's own gates instead of a drifting copy of them. The citations left are dated history — docs/HARDENING-LOG.md, CONTRIBUTING.md, docs/RAW-UPLOAD-PIPELINE.md, .github/CLAUDE.md and two 2026-08-20 plans record what that file did and when; the current instructions name the ci.yml job.",
+  ],
+  [
     'patches/@payloadcms__storage-r2@3.86.0.patch',
     'the version the patch carried when docs/archive/sessions/SESSION-2026-07-27.md was written. It moved to 3.88.0 with Payload; the session log is a record of that day, not an index.',
   ],

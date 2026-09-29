@@ -131,7 +131,7 @@ describe('public repository — jobs holding production never restore a cache', 
     )
     expect(
       count,
-      'ci.yml deploy, deploy-shrink, nightly-backup and diagnostics-digest',
+      'ci.yml deploy and deploy-shrink, nightly-backup and diagnostics-digest',
     ).toBeGreaterThanOrEqual(4)
   })
 

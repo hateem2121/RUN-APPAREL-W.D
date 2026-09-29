@@ -71,7 +71,8 @@ jobs:
         with:
           egress-policy: audit
       # Aligned to the versions every other workflow here already proves in
-      # production: ci.yml, deploy-shrink.yml and nightly-backup.yml all run green
+      # production: ci.yml and nightly-backup.yml (and deploy-shrink.yml, until its job
+      # moved into ci.yml on 2026-09-29) all run green
       # on checkout@v7 + setup-node@v7. This file had drifted to v5/v6.
       #
       # ⚠️ READ THIS IF THE FIRST RUN FAILS. This bump landed on 2026-08-10 while
