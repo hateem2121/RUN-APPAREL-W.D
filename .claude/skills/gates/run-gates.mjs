@@ -17,9 +17,9 @@
  * occasionally; this cannot.
  *
  * `pnpm` IS NOT ON PATH RELIABLY HERE. Every pnpm gate below uses the npx form. A
- * bare `pnpm` exits 127, and `apps/viewer/e2e/prepare.mjs` shells out to
- * `pnpm build`, so that 127 surfaces as a two-minute Playwright timeout naming
- * nothing at all. Do not "simplify" these commands.
+ * bare `pnpm` exits 127, and a child process that shells out to one (as
+ * `apps/viewer/e2e/prepare.mjs` did until 2026-09-29) surfaces that 127 as a two-minute
+ * Playwright timeout naming nothing at all. Do not "simplify" these commands.
  *
  * Usage:
  *   node .claude/skills/gates/run-gates.mjs              # everything, in order
@@ -87,9 +87,9 @@ const GATES = [
 ]
 
 /**
- * The .claude/ guard tests. Separate from GATES because they are NOT in CI —
- * .claude/ is not a workspace package, so vitest never sees them — and because each
- * is its own entry point rather than a suite. Nothing else runs these.
+ * The .claude/ guard tests. Separate from GATES because .claude/ is not a workspace
+ * package, so vitest never sees them, and because each is its own entry point rather
+ * than a suite. CI runs them too since 2026-09-29 (`verify` → "Hook guard tests").
  */
 const HOOK_TESTS = [
   'guard-bare-pnpm',
@@ -105,7 +105,7 @@ const HOOK_TESTS = [
 const args = process.argv.slice(2)
 if (args.includes('--list')) {
   for (const g of GATES) console.log(`  ${g.name.padEnd(20)} ${g.why}`)
-  console.log(`  ${'hooks'.padEnd(20)} the .claude/ guards — NOT in CI, nothing else runs them`)
+  console.log(`  ${'hooks'.padEnd(20)} the .claude/ guards (also CI's verify since 2026-09-29)`)
   process.exit(0)
 }
 
@@ -154,7 +154,7 @@ for (const gate of GATES) {
 }
 
 let hooksOk = true
-console.log('\n=== hooks === the .claude/ guards. NOT in CI; nothing else runs them.')
+console.log('\n=== hooks === the .claude/ guards (CI runs them in verify too).')
 for (const test of HOOK_TESTS) {
   const run = spawnSync('node', [`.claude/hooks/${test}.test.mjs`], {
     stdio: 'inherit',

@@ -259,6 +259,28 @@ jobs:
       - name: Docs index reachability
         run: node scripts/check-docs-index.mjs
 
+      # The .claude/hooks guards (bare pnpm, pipeline input, commits on main, …) each have
+      # a test, and until 2026-09-29 NOTHING in CI ran them: `.claude/` is not a workspace
+      # package, so vitest never sees them, and only the owner-started gates skill did.
+      # A glob, so a new hook test is picked up without editing this step; the count floor
+      # so a glob matching nothing cannot pass having run nothing (8 existed that day, all
+      # green in ~6 s). No build, no browser — plain node in throwaway temp dirs.
+      - name: Hook guard tests (.claude/hooks)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tests=(.claude/hooks/*.test.mjs)
+          echo "hook tests found: ${#tests[@]}"
+          if [ "${#tests[@]}" -lt 8 ]; then
+            echo "::error::expected at least 8 .claude/hooks/*.test.mjs, found ${#tests[@]}"
+            exit 1
+          fi
+          for t in "${tests[@]}"; do
+            echo "::group::$t"
+            node "$t"
+            echo "::endgroup::"
+          done
+
       - run: pnpm seed:assets
       - run: pnpm build
 
@@ -722,8 +744,15 @@ jobs:
   # commit carrying a live key was scanned, flagged red, and deployed anyway.
   # docs/RUNBOOK.md described it under "CI quality gates" without saying so.
   # Moving it here is what makes the word "gate" true.
+  #
+  # ⚠️ NO `if:` — IT RUNS ON FORK PULL REQUESTS TOO. Until 2026-09-29 a job-level `if:`
+  # skipped it when the PR came from a fork, left over from the gitleaks-action days.
+  # The binary below needs no token and no secret, so a fork's run can execute it
+  # exactly as ours does. And GitHub documents that "a job that is skipped will report
+  # its status as 'Success'. It will not prevent a pull request from merging, even if
+  # it is a required check" — so on this PUBLIC repository a fork's PR passed the
+  # required `secrets` check having scanned nothing.
   secrets:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:

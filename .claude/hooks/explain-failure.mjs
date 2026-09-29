@@ -52,7 +52,7 @@ const EXPLANATIONS = [
       text.includes('config.webserver') || text.includes('timed out waiting 120000ms'),
     note:
       'This error names Playwright and usually means something else. The recorded cause cost two\n' +
-      'sessions: a bare `pnpm`. e2e/prepare.mjs shells out to `pnpm build`, so exit 127 dies\n' +
+      'sessions: a bare `pnpm` (e2e/prepare.mjs shelled out to one until 2026-09-29), so exit 127 dies\n' +
       'inside a child process and surfaces only as this timeout. Use `npx --yes pnpm@12.6.0`,\n' +
       'and check this BEFORE reading any code.',
   },
