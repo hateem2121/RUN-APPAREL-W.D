@@ -1,24 +1,31 @@
 #!/usr/bin/env node
 /**
- * SO-05 — the poster-host preconnect hint reaches a real, live page.
+ * SO-05 — what /products asks the network for, read off the LIVE page, because no local runtime
+ * can show it.
  *
- * `apps/cms/src/app/(frontend)/products/page.tsx`'s `crossOriginPosterHost()` cannot be
- * exercised by ANY local runtime: under `next dev`, `next start` and
- * `opennextjs-cloudflare preview` alike, Payload emits a RELATIVE `/api/media/file/…`
- * poster URL, so the function correctly returns `null` and nothing is rendered — which
- * is indistinguishable from a hint that never fires at all. The function's own comment
- * records a one-off manual check against production as the only way this was ever
- * verified. This script makes that check repeatable rather than a memory.
+ * REWRITTEN 2026-09-29. Until then this checked that /products preconnects to the media host,
+ * because the cards loaded their pictures from it. Since 2026-09-29 the cards load card-sized
+ * copies that Cloudflare resizes on the page's OWN address (`apps/cms/src/lib/cardImage.ts`):
+ * /products went from 0.67 to about 0.86 on a phone. So this now checks three things:
+ *   1. no preconnect to the media host (nothing on the page fetches from it any more), nor to
+ *      the viewer host (only ever linked to);
+ *   2. the first card's picture is a `/cdn-cgi/image/…` resize, not the full-size file;
+ *   3. fetching that picture returns a REAL resize: 200 with an image type and no `err=` in
+ *      `cf-resized`. ⚠️ A 307 is the `onerror=redirect` fallback to the original — the page still
+ *      works, but it means Cloudflare's resizing is off for wear-run.com (Images → Transformations
+ *      in the dashboard) or the free plan's 5,000 resizes this month are used up. Both silently
+ *      put the phone score back near 0.7, which is why a fallback FAILS this probe.
+ * Nothing local can answer these: `next start` and `opennextjs-cloudflare preview` serve no
+ * `/cdn-cgi/image/`, and local Payload emits relative media URLs that `cardImage` leaves alone.
  *
- * Read-only: a single GET of the live products page.
- *
+ * Read-only: one GET of the page and one of its first picture.
  *   node scripts/preconnect-probe.mjs
  */
 import { realpathSync } from 'node:fs'
 
 export const PAGE_URL = 'https://wear-run.com/products'
-// The public pages name the bucket by its wear-run.com address since 2026-09-28.
-export const EXPECTED_HOST = 'media.wear-run.com'
+/** The public pages name the bucket by its wear-run.com address since 2026-09-28. */
+export const MEDIA_HOST = 'media.wear-run.com'
 /** The page never same-page-fetches from here — it only LINKS to it. */
 export const UNEXPECTED_HOST = 'viewer.wear-run.help'
 
@@ -38,10 +45,10 @@ export function extractPreconnectHosts(html) {
 /** Pure: judge the set of preconnect hosts a page declared. */
 export function evaluatePreconnect(hosts) {
   const problems = []
-  if (!hosts.includes(EXPECTED_HOST)) {
+  if (hosts.includes(MEDIA_HOST)) {
     problems.push(
-      `No preconnect to ${EXPECTED_HOST} on ${PAGE_URL} — the hint that should fire in ` +
-        'production (posters are absolute URLs there) is absent.',
+      `A preconnect to ${MEDIA_HOST} exists on ${PAGE_URL} — the cards fetch resized pictures ` +
+        'from the page itself since 2026-09-29, so that connection is opened and never used.',
     )
   }
   if (hosts.includes(UNEXPECTED_HOST)) {
@@ -52,6 +59,26 @@ export function evaluatePreconnect(hosts) {
     )
   }
   return { ok: problems.length === 0, problems }
+}
+
+/** Pure: the `src` of the first card picture on the page, or null. */
+export function firstCardImage(html) {
+  const tag = html.match(/<img\b[^>]*\bclass="[^"]*\bproduct-card__img\b[^"]*"[^>]*>/)?.[0]
+  return tag?.match(/\ssrc="([^"]+)"/)?.[1]?.replaceAll('&amp;', '&') ?? null
+}
+
+/** Pure: is the first card picture a Cloudflare resize? */
+export function evaluateCardImage(src) {
+  if (!src) return { ok: false, problems: [`${PAGE_URL} has no card picture at all.`] }
+  if (!src.startsWith('/cdn-cgi/image/'))
+    return {
+      ok: false,
+      problems: [
+        `The first card picture is not resized (${src.slice(0, 90)}): the page is loading ` +
+          'full-size pictures again, which measured 0.67 on a phone.',
+      ],
+    }
+  return { ok: true, problems: [] }
 }
 
 async function main() {
@@ -66,9 +93,33 @@ async function main() {
   }
   const html = await res.text()
   const hosts = extractPreconnectHosts(html)
-  const { ok, problems } = evaluatePreconnect(hosts)
+  const src = firstCardImage(html)
+  const problems = [...evaluatePreconnect(hosts).problems, ...evaluateCardImage(src).problems]
   console.log(`preconnect-probe: ${PAGE_URL} preconnects to: ${hosts.join(', ') || '(none)'}`)
-  if (!ok) {
+
+  if (src?.startsWith('/cdn-cgi/image/')) {
+    const picture = await fetch(new URL(src, PAGE_URL), {
+      headers: { accept: 'image/avif,image/webp,*/*' },
+      redirect: 'manual',
+    })
+    const resized = picture.headers.get('cf-resized') ?? ''
+    const type = picture.headers.get('content-type') ?? ''
+    console.log(
+      `preconnect-probe: first card picture ${picture.status} ${type} cf-resized: ${resized || '(none)'}`,
+    )
+    if (picture.status >= 300 && picture.status < 400) {
+      problems.push(
+        `The first card picture fell back to the original (${picture.status}, cf-resized: ${resized}). ` +
+          "Cloudflare's resizing is off for wear-run.com, or this month's free 5,000 resizes are used up.",
+      )
+    } else if (picture.status !== 200 || !type.startsWith('image/') || /err=/.test(resized)) {
+      problems.push(
+        `The first card picture answered ${picture.status} ${type} (cf-resized: ${resized}).`,
+      )
+    }
+  }
+
+  if (problems.length > 0) {
     for (const p of problems) console.error(`::error::${p}`)
     process.exit(1)
   }

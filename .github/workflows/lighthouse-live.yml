@@ -101,3 +101,14 @@ jobs:
         # robot must not hide the other. A 403/429 from the edge is inconclusive.
         if: ${{ !cancelled() }}
         run: node scripts/icon-parity-probe.mjs
+      - name: The product cards load resized pictures
+        # Since 2026-09-29 /products draws card-sized pictures that Cloudflare resizes on the
+        # page's own address (apps/cms/src/lib/cardImage.ts): 0.67 → ~0.86 on a phone. That
+        # depends on a dashboard setting (Images → Transformations, wear-run.com) and a free
+        # quota of 5,000 resizes a month, which no code can see. A switched-off setting or a
+        # spent quota falls back to the full-size files — the page still works, the score
+        # quietly returns to ~0.7 — so the probe fails on the fallback. Here, not in uptime.yml,
+        # because this runs after each deploy: uptime runs from main minutes before the deploy
+        # lands and would page someone for a change that is still rolling out.
+        if: ${{ !cancelled() }}
+        run: node scripts/preconnect-probe.mjs

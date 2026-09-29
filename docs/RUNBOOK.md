@@ -1614,6 +1614,34 @@ them into the JPEG link cards under `apps/viewer/public/og/` and regenerates the
 the product's "Backup picture" takes any one of them. `scripts/smoke-viewer-payload.mjs`
 now fetches every colourway's poster after a deploy and fails on one that is not served.
 
+### The product cards' pictures — Cloudflare image resizing
+
+Since 2026-09-29 the /products cards show card-sized copies of each picture, resized by
+Cloudflare on the page's own address (`/cdn-cgi/image/…`, built by
+`apps/cms/src/lib/cardImage.ts`, quality 90 by the owner's choice). The full studio renders
+(365–791 KB) had taken the phone score to 0.67; measured with the copies, 0.86.
+
+It depends on two things no code can see:
+
+- **The setting.** Cloudflare dashboard → Images → Transformations → `wear-run.com`:
+  **enabled**, Sources **"This zone only"** (enabled 2026-09-29 at the owner's instruction).
+  "This zone only" means anyone asking wear-run.com to resize someone else's image gets a
+  403, so nobody else can spend the quota that way.
+- **The free quota.** 5,000 unique resizes a month on the free plan; the site asks for about
+  3 sizes × 200 pictures. Past the quota a NEW resize fails rather than bills (there is no
+  charge on the free plan).
+
+Either failing does not break a card: `onerror=redirect` sends the browser to the original
+file (a 307). The page just gets heavy again. `scripts/preconnect-probe.mjs` fails on that
+fallback, and runs in `lighthouse-live.yml` after every deploy and weekly:
+
+```bash
+node scripts/preconnect-probe.mjs   # exits 1 if the cards are not resized or fell back
+```
+
+If it fails with "fell back to the original": check the setting above first, then the
+month's count in the dashboard (Images → Transformations → Analytics).
+
 ### Is a poster too heavy? — `scripts/poster-sizes.mjs`
 
 Since 2026-09-17 (audit L-11/IM-02) this reads every live product's poster and judges
