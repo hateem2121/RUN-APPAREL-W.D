@@ -6,7 +6,8 @@ import { ViewerCue } from '../../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
 import { productsDescription } from '../../../lib/pageDescriptions'
-import { buildMetadata, SITE_ORIGIN, GARMENT_PAGES } from '../../../lib/seo'
+import { buildMetadata, GARMENT_PAGES } from '../../../lib/seo'
+import { preconnectHost } from '../../../lib/posterHost'
 import { productListJsonLd } from '../../../lib/structuredData'
 
 export const dynamic = 'force-dynamic'
@@ -70,14 +71,12 @@ type PageProps = { searchParams: Promise<{ family?: string }> }
  * production and stays silent everywhere else, which is exactly the intended behaviour.
  */
 function crossOriginPosterHost(products: ProductCard[]): string | null {
-  const absolute = products.find((product) => product.posterUrl?.startsWith('http'))?.posterUrl
-  if (!absolute) return null
-  try {
-    const { origin } = new URL(absolute)
-    return origin === SITE_ORIGIN ? null : origin
-  } catch {
-    return null
-  }
+  // Each card draws its first colour's picture (render, else poster), else the product poster.
+  // Since 2026-09-29 a media.wear-run.com picture is resized on THIS page's address, so no hint
+  // is emitted for it — `lib/posterHost.ts`.
+  return preconnectHost(
+    products.map((product) => product.colours[0]?.image?.url ?? product.posterUrl),
+  )
 }
 
 /**
