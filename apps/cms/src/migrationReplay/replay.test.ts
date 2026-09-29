@@ -8,6 +8,7 @@ import {
   makeMigrationArgs,
   openDatabase,
   seedEveryTable,
+  shrunkTables,
 } from './harness'
 
 /**
@@ -221,6 +222,65 @@ describe('migration replay', () => {
       database.close()
     },
   )
+
+  /**
+   * PARTIAL LOSS, ADDED 2026-09-29. The test above asserts no table is EMPTIED, and with
+   * one seeded row per table that is also the only loss it can see: "lost one row" and
+   * "lost every row" are the same event at a count of one. A migration that deleted half
+   * of a child table — a rebuild that copied only the rows matching a join, say — passed
+   * it. Two rows per table, and `shrunkTables`, which reports any drop at all.
+   */
+  it.each(migrations.map((m, index) => [m.name, index] as const))(
+    'migration %s keeps every row it found (two rows per table)',
+    async (_name, index) => {
+      if (index === 0) return // nothing exists yet to lose; see the test above
+      const database = openDatabase()
+      const { args } = makeMigrationArgs(database)
+      for (const migration of migrations.slice(0, index)) {
+        await (migration.up as unknown as Runner)(args)
+      }
+
+      const { rows } = seedEveryTable(database, { rowsPerTable: 2 })
+      expect(
+        [...rows.values()].filter((n) => n >= 2).length,
+        'no table accepted a second row, so a partial delete would still be invisible',
+      ).toBeGreaterThan(0)
+      const before = countRows(database)
+
+      await (migrations[index]!.up as unknown as Runner)(args)
+
+      const lost = shrunkTables(before, countRows(database))
+      expect(
+        lost,
+        `${migrations[index]!.name} deleted rows from ${lost.join(', ')}. A table that still exists ` +
+          'and holds fewer rows is data loss unless the migration means it — say so here, by name.',
+      ).toEqual([])
+      database.close()
+    },
+  )
+
+  it('NEGATIVE CONTROL: a partial delete is invisible to emptiedTables and caught by shrunkTables', async () => {
+    const database = openDatabase()
+    const { args } = makeMigrationArgs(database)
+    for (const migration of migrations) {
+      await (migration.up as unknown as Runner)(args)
+    }
+    const { rows } = seedEveryTable(database, { rowsPerTable: 2 })
+    expect(rows.get('products_performance_features')).toBe(2)
+    const before = countRows(database)
+
+    database.exec(
+      'DELETE FROM products_performance_features WHERE rowid = (SELECT MAX(rowid) FROM products_performance_features)',
+    )
+
+    const after = countRows(database)
+    expect(
+      emptiedTables(before, after),
+      'the old check is blind to this — the reason for the new one',
+    ).toEqual([])
+    expect(shrunkTables(before, after)).toEqual(['products_performance_features (2 → 1)'])
+    database.close()
+  })
 
   it('runs every migration down, newest first, without a foreign-key error', async () => {
     // The down paths have never been executed. Two of them were generated with

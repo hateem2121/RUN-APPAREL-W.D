@@ -50,7 +50,7 @@ export default defineConfig({
   timeout: 30_000,
   // One retry in CI, none locally.
   //
-  // This suite GATES THE DEPLOY (the `verify` job in .github/workflows/ci.yml),
+  // This suite GATES THE DEPLOY (the `e2e` job in .github/workflows/ci.yml),
   // so a single flaky run blocks a release. Observed on 2026-08-03: the very
   // first run after a cold build failed on the poster-visible assertion in
   // "direct QR URL loads product…", then passed in isolation and passed 66/66 on

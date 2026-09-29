@@ -191,84 +191,115 @@ function valueFor(column: ColumnInfo, index: number): string | number {
 }
 
 export interface SeedResult {
-  /** Tables that received a row, with the id used. */
+  /** Tables that received a row, with the id used (the FIRST row's, for children to reference). */
   seeded: Map<string, string | number>
   /** Tables that could not be seeded (unsatisfiable constraints), for reporting. */
   skipped: string[]
+  /** How many rows each seeded table received — fewer than asked when a constraint refused. */
+  rows: Map<string, number>
 }
 
 /**
- * Put one row in every table, parents before children.
+ * Put rows in every table, parents before children — one each by default.
  *
  * Deliberately generic rather than a hand-written fixture: a fixture only covers
  * the tables whoever wrote it thought about, and the incident happened precisely
  * in the tables nobody thought about.
+ *
+ * `rowsPerTable: 2` exists for `shrunkTables` (added 2026-09-29). With ONE row, "lost
+ * one row" and "lost every row" are the same event, so a migration that deleted part
+ * of a table was invisible. Extra rows reference the same parent as the first; where a
+ * constraint refuses a second row (a unique reference, say), the table keeps what it
+ * got and `rows` says so, rather than the whole table being counted as skipped.
  */
-export function seedEveryTable(database: DatabaseSync): SeedResult {
+export function seedEveryTable(
+  database: DatabaseSync,
+  { rowsPerTable = 1 }: { rowsPerTable?: number } = {},
+): SeedResult {
   const tables = topologicalOrder(database, listTables(database))
   const seeded = new Map<string, string | number>()
   const skipped: string[] = []
+  const rows = new Map<string, number>()
 
   for (const [index, table] of tables.entries()) {
-    const columns = database
-      .prepare(`PRAGMA table_info(\`${table}\`)`)
-      .all() as unknown as ColumnInfo[]
-    const foreignKeys = database
-      .prepare(`PRAGMA foreign_key_list(\`${table}\`)`)
-      .all() as unknown as ForeignKeyInfo[]
-    const fkByColumn = new Map(foreignKeys.map((k) => [k.from, k.table]))
+    for (let row = 0; row < rowsPerTable; row++) {
+      // Unique per table AND per row, so a second row never collides with the first
+      // on a unique text or number column.
+      const valueIndex = index + row * tables.length
+      if (!seedRow(database, table, valueIndex, seeded, skipped)) break
+      rows.set(table, row + 1)
+    }
+  }
 
-    const names: string[] = []
-    const values: (string | number | null)[] = []
-    for (const column of columns) {
-      // An INTEGER PRIMARY KEY is an alias for rowid — let SQLite assign it.
-      const isAutoId = column.pk === 1 && column.type.toUpperCase().includes('INT')
-      if (isAutoId) continue
+  return { seeded, skipped, rows }
+}
 
-      const parent = fkByColumn.get(column.name)
-      if (parent) {
-        const parentId = seeded.get(parent)
-        // A required reference to a table we could not seed makes this row
-        // impossible; skip rather than insert something that violates the FK.
-        if (parentId === undefined) {
-          if (column.notnull) {
-            skipped.push(table)
-            names.length = 0
-            break
-          }
-          continue
+/** Insert one row into `table`; false if it could not be (and, for a first row, why). */
+function seedRow(
+  database: DatabaseSync,
+  table: string,
+  index: number,
+  seeded: Map<string, string | number>,
+  skipped: string[],
+): boolean {
+  const firstRow = !seeded.has(table)
+  const columns = database
+    .prepare(`PRAGMA table_info(\`${table}\`)`)
+    .all() as unknown as ColumnInfo[]
+  const foreignKeys = database
+    .prepare(`PRAGMA foreign_key_list(\`${table}\`)`)
+    .all() as unknown as ForeignKeyInfo[]
+  const fkByColumn = new Map(foreignKeys.map((k) => [k.from, k.table]))
+
+  const names: string[] = []
+  const values: (string | number | null)[] = []
+  for (const column of columns) {
+    // An INTEGER PRIMARY KEY is an alias for rowid — let SQLite assign it.
+    const isAutoId = column.pk === 1 && column.type.toUpperCase().includes('INT')
+    if (isAutoId) continue
+
+    const parent = fkByColumn.get(column.name)
+    if (parent) {
+      const parentId = seeded.get(parent)
+      // A required reference to a table we could not seed makes this row
+      // impossible; skip rather than insert something that violates the FK.
+      if (parentId === undefined) {
+        if (column.notnull) {
+          if (firstRow) skipped.push(table)
+          return false
         }
-        names.push(column.name)
-        values.push(parentId)
         continue
       }
-
-      if (!column.notnull && column.dflt_value === null && column.pk === 0) continue
       names.push(column.name)
-      values.push(valueFor(column, index))
+      values.push(parentId)
+      continue
     }
 
-    if (names.length === 0 && skipped.at(-1) === table) continue
+    if (!column.notnull && column.dflt_value === null && column.pk === 0) continue
+    names.push(column.name)
+    values.push(valueFor(column, index))
+  }
 
-    const placeholders = names.map(() => '?').join(', ')
-    const columnList = names.map((n) => `\`${n}\``).join(', ')
-    try {
-      const statement = names.length
-        ? `INSERT INTO \`${table}\` (${columnList}) VALUES (${placeholders})`
-        : `INSERT INTO \`${table}\` DEFAULT VALUES`
-      database.prepare(statement).run(...(values as never[]))
+  const placeholders = names.map(() => '?').join(', ')
+  const columnList = names.map((n) => `\`${n}\``).join(', ')
+  try {
+    const statement = names.length
+      ? `INSERT INTO \`${table}\` (${columnList}) VALUES (${placeholders})`
+      : `INSERT INTO \`${table}\` DEFAULT VALUES`
+    database.prepare(statement).run(...(values as never[]))
+    if (firstRow) {
       const row = database.prepare(`SELECT * FROM \`${table}\` LIMIT 1`).get() as Record<
         string,
         unknown
       >
       const idColumn = columns.find((c) => c.pk === 1)?.name ?? 'id'
       seeded.set(table, (row?.[idColumn] as string | number) ?? 1)
-    } catch {
-      skipped.push(table)
     }
+    return true
+  } catch {
+    if (firstRow) skipped.push(table)
+    return false
   }
-
-  return { seeded, skipped }
 }
 
 /** Row count per table, the before/after snapshot the assertion compares. */
@@ -288,6 +319,24 @@ export function countRows(database: DatabaseSync): Map<string, number> {
  * that is dropped on purpose is not reported — only one that still exists and
  * has been silently emptied.
  */
+/**
+ * Tables that still exist and hold FEWER rows than before — `emptiedTables` plus the
+ * partial loss it cannot see. Each entry reads `table (before → after)`.
+ *
+ * Added 2026-09-29. Seed with `rowsPerTable: 2` for it to mean anything: at one row a
+ * partial delete and an emptying are the same event. A table dropped on purpose is not
+ * reported, as in `emptiedTables`.
+ */
+export function shrunkTables(before: Map<string, number>, after: Map<string, number>): string[] {
+  const lost: string[] = []
+  for (const [table, count] of before) {
+    if (!after.has(table)) continue
+    const now = after.get(table) ?? 0
+    if (now < count) lost.push(`${table} (${count} → ${now})`)
+  }
+  return lost.sort()
+}
+
 export function emptiedTables(before: Map<string, number>, after: Map<string, number>): string[] {
   const lost: string[] = []
   for (const [table, count] of before) {

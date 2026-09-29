@@ -84,38 +84,13 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
-          # cache archive from GitHub's cache service, and on the self-hosted runner
-          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
-          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
-          # job. It is also redundant there: each runner keeps its own persistent pnpm
-          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
-          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
-          # 377 MB to rebuild a store that is already on disk is worse than no cache.
-          #
-          # `runner.environment` is the built-in that distinguishes them, so this stays
-          # correct if a job ever runs on GitHub again — where the store IS ephemeral
-          # and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
-          # Since v7 the action AUTO-ENABLES the package-manager cache when
-          # `package.json` declares `packageManager` — and ours does
-          # (`package.json:6`, `pnpm@12.6.0`). The input that governs it defaults to
-          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
-          # fully describes what the action will do.
-          #
-          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
-          #
-          #     cache: false
-          #     package-manager-cache: true
-          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
-          #     Done in 4.5s using pnpm v10.33.0
-          #
-          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
-          # anyway because it is one upstream default away from silently restoring the
-          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
-          # job, never a failing one, which is the kind of regression nobody reports.
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # THE PNPM STORE CACHE (GitHub's cache service): worth it here, where every job
+          # starts on an empty disk. From 2026-09-08 to 2026-09-10 CI ran on a self-hosted
+          # runner on the owner's Mac, where the same archive cost 151 s of `audit`'s 205 s
+          # over a home connection, and this line switched it off there; that runner is
+          # retired, so the switch went with it (2026-09-29). Jobs holding a production
+          # secret set `cache: ''` instead — see the `deploy` job.
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
 
       # Style + lint (Biome). Runs BEFORE typecheck because it is the cheapest
@@ -515,9 +490,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # Same reasoning as `verify`'s setup-node above.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Collect the viewer shards' reports
         if: ${{ !cancelled() }}
@@ -597,38 +571,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
-          # cache archive from GitHub's cache service, and on the self-hosted runner
-          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
-          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
-          # job. It is also redundant there: each runner keeps its own persistent pnpm
-          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
-          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
-          # 377 MB to rebuild a store that is already on disk is worse than no cache.
-          #
-          # `runner.environment` is the built-in that distinguishes them, so this stays
-          # correct if a job ever runs on GitHub again — where the store IS ephemeral
-          # and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
-          # Since v7 the action AUTO-ENABLES the package-manager cache when
-          # `package.json` declares `packageManager` — and ours does
-          # (`package.json:6`, `pnpm@12.6.0`). The input that governs it defaults to
-          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
-          # fully describes what the action will do.
-          #
-          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
-          #
-          #     cache: false
-          #     package-manager-cache: true
-          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
-          #     Done in 4.5s using pnpm v10.33.0
-          #
-          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
-          # anyway because it is one upstream default away from silently restoring the
-          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
-          # job, never a failing one, which is the kind of regression nobody reports.
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
         run: |
@@ -897,38 +841,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
-          # ⚠️ ONLY ON GITHUB'S RUNNERS. `cache: pnpm` makes setup-node pull a pnpm
-          # cache archive from GitHub's cache service, and on the self-hosted runner
-          # that archive is 377 MB arriving at 0.4-0.7 MB/s over a home connection —
-          # measured as 151s of `audit`'s 205s, 206s of `lighthouse`'s 278s, in EVERY
-          # job. It is also redundant there: each runner keeps its own persistent pnpm
-          # store inside its work volume (infra/ci-runner/Dockerfile), on the same
-          # filesystem as the checkout so pnpm hard-links instead of copying. Paying
-          # 377 MB to rebuild a store that is already on disk is worse than no cache.
-          #
-          # `runner.environment` is the built-in that distinguishes them, so this stays
-          # correct if a job ever runs on GitHub again — where the store IS ephemeral
-          # and the archive genuinely helps.
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          # ⚠️ `cache: ''` ALONE IS NOT ENOUGH ON setup-node v7, AND THAT IS NEW.
-          # Since v7 the action AUTO-ENABLES the package-manager cache when
-          # `package.json` declares `packageManager` — and ours does
-          # (`package.json:6`, `pnpm@12.6.0`). The input that governs it defaults to
-          # TRUE and is a SEPARATE knob from `cache:`, so the block above no longer
-          # fully describes what the action will do.
-          #
-          # Measured 2026-09-08 in run 34256940744's `verify` log, where both appear:
-          #
-          #     cache: false
-          #     package-manager-cache: true
-          #     Progress: resolved 1063, reused 1059, downloaded 0, added 1063, done
-          #     Done in 4.5s using pnpm v10.33.0
-          #
-          # So the explicit `cache:` currently WINS and nothing is fetched. Pinned here
-          # anyway because it is one upstream default away from silently restoring the
-          # 377 MB fetch this block exists to prevent — and the symptom would be a slow
-          # job, never a failing one, which is the kind of regression nobody reports.
-          package-manager-cache: ${{ runner.environment == 'github-hosted' }}
+          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build viewer with the e2e mock origin
         run: node apps/viewer/e2e/prepare.mjs
@@ -1065,17 +979,16 @@ jobs:
     # as root disables the Chromium sandbox; the render harness already runs software
     # WebGL through swiftshader, so it costs nothing.
     #
-    # THE PLAYWRIGHT IMAGE MOVED, THE PIN DID NOT LOOSEN. This job no longer declares a
-    # `container:`; since 2026-09-08 the self-hosted runner is built FROM that image, so
-    # the tag now lives in `infra/ci-runner/Dockerfile`. It must still equal the
-    # `@playwright/test` version — the image SHIPS the browsers, the package drives them,
-    # and a mismatch fails at RUNTIME with `browser not found at /ms-playwright/...`.
-    # `apps/cms/src/workflowHardening.test.ts` reads the Dockerfile as well as every
-    # workflow, and now FAILS if it finds no image at all, because deleting the container
-    # is exactly what made that rule inert. A TAG and not a digest because
-    # `.github/dependabot.yml` declares no docker ecosystem, so a digest would go stale
-    # in silence. ⚠️ Bumping the tag needs the runner image REBUILT to take effect —
-    # see infra/ci-runner/README.md.
+    # THE PIN. The image's tag must equal the `@playwright/test` version — the image SHIPS
+    # the browsers, the package drives them, and a mismatch fails at RUNTIME with
+    # `browser not found at /ms-playwright/...` — and since 2026-09-29 it carries the
+    # image's `@sha256:` digest too (owner decision: a tag can be republished, a digest
+    # cannot). Both are bumped by hand in the same change; nothing automated refreshes
+    # either. `apps/cms/src/workflowHardening.test.ts` enforces the version, the digest,
+    # and exactly two such containers in this file (this job and `e2e-shard`), and fails
+    # if it finds none, because losing the container is what once made the rule inert.
+    # (From 2026-09-08 to 2026-09-10 a self-hosted runner built FROM this image carried
+    # the pin in its Dockerfile instead; that runner is retired.)
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
     steps:

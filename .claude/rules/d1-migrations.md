@@ -25,25 +25,26 @@ bullets moved here from `apps/cms/CLAUDE.md` the same day, also word for word.
 Run `apps/cms/src/migrationReplay/replay.test.ts`. It replays every migration against
 real SQLite with foreign keys **on**, seeds every table, and fails if any table
 that had rows ends up empty. It exists because a migration once reported success
-while cascade-deleting two tables nobody was watching.
+while cascade-deleting two tables nobody was watching. Since 2026-09-29 it also seeds
+**two** rows per table (all 31 take them) and fails if any table ends up with FEWER —
+at one row, losing part of a table and losing all of it were the same event, so a
+partial delete passed. A migration that means to delete rows must say so in that test.
 
 The assertion is deliberately **generic**. The ad-hoc check run at the time
 looked only at the table the migration was about, which is precisely why it
 passed.
 
-## `down()` migrations are tested for errors, not for data loss
+## `down()` migrations are checked for emptied tables too
 
-`apps/cms/src/migrationReplay/replay.test.ts` guards the two directions unevenly. `up()`
-is checked per migration: it seeds every table, counts rows before and after, asserts
-`emptiedTables` is empty, and carries a negative control that reproduces the 2026-07-29
-loss to prove the check can fail. The `down()` test seeds every table and then asserts
-only `.resolves.not.toThrow()` — no row count, no emptied-table check, no negative
-control.
+*(This section said `down()` was tested only for errors until 2026-09-29; that stopped
+being true on 2026-08-18.)* `apps/cms/src/migrationReplay/replay.test.ts` runs every
+`down()` newest-first with row counts around each one and fails on an emptied table,
+with a negative control that drops `products` to prove it can see a cascade — the
+signature of the 2026-07-29 incident, a migration that **reported success while
+cascade-deleting**, on the path `migrate:remote:down` runs against production.
 
-The original incident was a migration that **reported success while cascade-deleting**.
-That is precisely what a does-not-throw assertion cannot see, on the path
-`migrate:remote:down` runs against production. Every `down()` in the tree today is
-correctly ordered; the gap is in the guard, not in the migrations that exist.
+`down()` is NOT held to the partial-loss rule `up()` is: undoing a migration that
+inserted rows legitimately deletes them again.
 
 ## Reading production D1 without the wrangler CLI
 
