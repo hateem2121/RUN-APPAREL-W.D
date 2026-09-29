@@ -1,4 +1,4 @@
-import { createElement } from 'react'
+import { type ComponentProps, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { CardColour } from '../../lib/projectPublic'
@@ -11,19 +11,15 @@ const colour = (url: string): CardColour => ({
 })
 
 const firstImg = (url: string, index = 0) => {
-  const html = renderToStaticMarkup(
-    createElement(
-      CardGallery,
-      {
-        productSlug: 'r-xmp',
-        productName: 'X-MILO PRO BIB',
-        garmentPages: '/products',
-        colours: [colour(url)],
-        index,
-      },
-      'X-MILO PRO BIB',
-    ),
-  )
+  const props: ComponentProps<typeof CardGallery> = {
+    productSlug: 'r-xmp',
+    productName: 'X-MILO PRO BIB',
+    garmentPages: '/products',
+    colours: [colour(url)],
+    index,
+    children: 'X-MILO PRO BIB',
+  }
+  const html = renderToStaticMarkup(createElement(CardGallery, props))
   return html.match(/<img [^>]*>/)?.[0] ?? ''
 }
 
