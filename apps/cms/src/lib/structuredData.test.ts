@@ -58,6 +58,18 @@ describe('organisation', () => {
     expect(organizationJsonLd(settings()).sameAs?.[0]).toMatch(/^https:\/\/wa\.me\/\d+$/)
   })
 
+  /*
+   * The owner, 2026-09-29: a 3D reference is available on request, NOT part of every order,
+   * and buyers can be from anywhere. The description AI answers are built from must say
+   * neither "every garment ships with a 3D reference" nor a closed list of regions.
+   */
+  it('claims 3D on request only, and serves the whole world', () => {
+    const org = organizationJsonLd(settings())
+    expect(org.description).not.toMatch(/every garment/i)
+    expect(org.description).toMatch(/3D reference[^.]*on request|on request[^.]*3D reference/i)
+    expect(org.areaServed).toBe('Worldwide')
+  })
+
   it('states the address in parts, from the same constant the page renders', () => {
     const org = organizationJsonLd(settings())
     expect(org.address.addressLocality).toBe(POSTAL_ADDRESS.locality)

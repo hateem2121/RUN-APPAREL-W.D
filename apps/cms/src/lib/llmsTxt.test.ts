@@ -40,7 +40,10 @@ describe('every confirmed fact reaches the file', () => {
    */
   it('names the certificate holder rather than implying the certificates are ours', () => {
     expect(text).toContain('DURUS INDUSTRIES')
-    expect(text).toContain('does not hold certification in its own name')
+    // The owner's wording of 2026-09-29: the holder is still named — the parent for
+    // SEDEX/SMETA, the suppliers for OEKO-TEX, GOTS and GRS.
+    expect(text).toContain('operates under our parent company, DURUS INDUSTRIES')
+    expect(text).toContain('our fabric and trim suppliers hold OEKO-TEX, GOTS, and GRS')
     expect(text).toContain('SMETA-audited')
     expect(text).not.toContain('SMETA-certified')
   })
