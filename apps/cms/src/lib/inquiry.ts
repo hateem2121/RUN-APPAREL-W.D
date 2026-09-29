@@ -29,6 +29,11 @@ export const MAX_LENGTHS = {
   company: 160,
   email: 254, // RFC 5321's maximum path length; longer is not a real address
   message: 5000,
+  // The optional details added on 2026-09-29 (owner). Generous: they are clipped, not refused.
+  jobTitle: 120,
+  country: 60,
+  phone: 40,
+  subject: 160,
 } as const
 
 /** The hidden field a bot fills and a person never sees. */
@@ -39,11 +44,19 @@ export type InquiryInput = {
   company: string
   email: string
   message: string
+  jobTitle: string
+  country: string
+  /** "+92 300 1234567": the country code the form filled (or the buyer edited), then the number. */
+  phone: string
+  subject: string
 }
+
+/** Only the four original fields can be wrong; everything added since is optional. */
+type RequiredField = 'name' | 'email' | 'message'
 
 export type InquiryResult =
   | { ok: true; value: InquiryInput }
-  | { ok: false; errors: Partial<Record<keyof InquiryInput, string>> }
+  | { ok: false; errors: Partial<Record<RequiredField, string>> }
 
 const clean = (value: unknown, max: number): string =>
   typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : ''
@@ -59,15 +72,35 @@ const clean = (value: unknown, max: number): string =>
  */
 const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
 
+/**
+ * The phone as one readable string. The form sends the code and the number as two fields
+ * (`phoneCode` is filled from the country and stays editable — owner, 2026-09-29). A code
+ * alone is not a phone number, so it is dropped; a number alone is kept as typed, because a
+ * buyer may have typed the "+44" into it themselves.
+ */
+function joinPhone(rawCode: unknown, rawNumber: unknown): string {
+  const number = clean(rawNumber, MAX_LENGTHS.phone)
+  if (!number) return ''
+  const code = clean(rawCode, 8).replace(/\D/g, '').slice(0, 4)
+  return (code && !number.startsWith('+') ? `+${code} ${number}` : number).slice(
+    0,
+    MAX_LENGTHS.phone,
+  )
+}
+
 export function validateInquiry(raw: Record<string, unknown>): InquiryResult {
   const value: InquiryInput = {
     name: clean(raw.name, MAX_LENGTHS.name),
     company: clean(raw.company, MAX_LENGTHS.company),
     email: clean(raw.email, MAX_LENGTHS.email),
     message: clean(raw.message, MAX_LENGTHS.message),
+    jobTitle: clean(raw.jobTitle, MAX_LENGTHS.jobTitle),
+    country: clean(raw.country, MAX_LENGTHS.country),
+    phone: joinPhone(raw.phoneCode, raw.phone),
+    subject: clean(raw.subject, MAX_LENGTHS.subject),
   }
 
-  const errors: Partial<Record<keyof InquiryInput, string>> = {}
+  const errors: Partial<Record<RequiredField, string>> = {}
   if (!value.name) errors.name = 'Please tell us your name.'
   if (!value.email) errors.email = 'Please give us an email address to reply to.'
   else if (!LOOKS_LIKE_EMAIL.test(value.email))
@@ -96,21 +129,49 @@ export function isHoneypotTripped(raw: Record<string, unknown>): boolean {
  * The reply-to is the inquirer, so hitting Reply in any mail client answers the customer
  * rather than the robot. That is set by the caller, not here.
  */
-export function formatInquiryEmail(value: InquiryInput, receivedAt: Date): string {
+export type InquiryEmailExtras = {
+  /** The files that were stored, named as stored. */
+  files?: readonly { name: string; size: string }[]
+  /** Why a file could not be stored, when one could not. */
+  filesError?: string
+  /** The inquiry's own screen in the admin: files are opened there, never attached to mail. */
+  adminUrl?: string
+}
+
+export function formatInquiryEmail(
+  value: InquiryInput,
+  receivedAt: Date,
+  extras: InquiryEmailExtras = {},
+): string {
+  // The optional details appear only when given: a column of "(not given)" buries the rest.
+  const optional: [string, string][] = [
+    ['Job:    ', value.jobTitle],
+    ['Country:', value.country],
+    ['Phone:  ', value.phone],
+    ['Subject:', value.subject],
+  ]
+  const files = extras.files ?? []
   return [
     `Name:    ${value.name}`,
     `Company: ${value.company || '(not given)'}`,
     `Email:   ${value.email}`,
+    ...optional.filter(([, text]) => text).map(([label, text]) => `${label} ${text}`),
     `Sent:    ${receivedAt.toISOString()}`,
+    ...(files.length > 0
+      ? [`Files:   ${files.map((file) => `${file.name} (${file.size})`).join(', ')}`]
+      : []),
+    ...(extras.filesError ? [`Files NOT saved: ${extras.filesError}`] : []),
+    ...(extras.adminUrl ? [`Open:    ${extras.adminUrl}`] : []),
     '',
     value.message,
     '',
-    '— sent from the inquiry form on wear-run.help',
+    // wear-run.com since the domain move of 2026-09-28; this still said .help until 2026-09-29.
+    '— sent from the inquiry form on wear-run.com',
   ].join('\n')
 }
 
 /** A subject a mail client can scan in a list without opening. */
 export function inquirySubject(value: InquiryInput): string {
   const who = value.company || value.name
-  return `Inquiry — ${who}`.slice(0, 160)
+  return `Inquiry — ${who}${value.subject ? ` — ${value.subject}` : ''}`.slice(0, 160)
 }
