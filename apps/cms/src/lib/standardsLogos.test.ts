@@ -154,6 +154,37 @@ describe('the logo files', () => {
     })
   }
 
+  /*
+   * ON-DARK ARTWORK, NO CHIP (owner, 2026-09-29): the marks sit TRANSPARENT on the footer slab,
+   * which is dark in both themes, keeping each brand's colour while every black or dark-grey part
+   * is light. A dark neutral fill (or ISO's original dark blue) would vanish into the slab — the
+   * first transparent mock-up lost the Sedex, SMETA and GRS lettering exactly that way.
+   */
+  it('every mark is on-dark artwork: no dark fill that would vanish on the footer', () => {
+    const dark = (hex: string) => {
+      const h = hex.length === 4 ? [...hex.slice(1)].map((c) => c + c).join('') : hex.slice(1)
+      const [r, g, b] = [0, 2, 4].map((i) => Number.parseInt(h.slice(i, i + 2), 16) / 255)
+      // Dark AND neutral: a black or grey. A saturated brand colour (Sedex's red) reads on dark.
+      const channels = [r ?? 0, g ?? 0, b ?? 0]
+      const neutral = Math.max(...channels) - Math.min(...channels) < 0.15
+      return neutral && 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0) < 0.3
+    }
+    for (const logo of STANDARDS_LOGOS) {
+      const svg = readFileSync(join(PUBLIC_DIR, logo.src), 'utf8')
+      const colours = [...svg.matchAll(/(?:fill|stroke)[=:]"?\s*(#[0-9a-fA-F]{3,6})\b/g)].map(
+        (m) => m[1] ?? '',
+      )
+      expect(colours.length, `${logo.slug} declares no colours`).toBeGreaterThan(0)
+      expect(colours.filter(dark), `${logo.slug} has dark fills`).toEqual([])
+    }
+  })
+
+  it('the footer draws the marks with no chip behind them', () => {
+    const css = readFileSync(join(import.meta.dirname, '../app/(frontend)/site.css'), 'utf8')
+    const rule = css.match(/\.footer-logo\s*\{[^}]*\}/)?.[0] ?? ''
+    expect(rule).not.toMatch(/background/)
+  })
+
   // NEGATIVE CONTROL for the size check above: it must be able to fail. A record that
   // is one pixel off must not equal what the file declares.
   it('the size check sees a record that is wrong by one pixel', () => {

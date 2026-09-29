@@ -1069,29 +1069,29 @@ html {
  * wide as the rule above it at most and never widens it. They are pictures, never links, so
  * the 44px floor does not apply.
  *
- * ⚠️ THE SLAB IS DARK IN BOTH THEMES — `--footer-bg` is ink in light mode and `--raised` in
- * dark — and the marks are dark-on-transparent artwork (grey and near-black wordmarks), so
- * every one sits on a paper chip, in light mode as well as dark. `--paper` is the one ground
- * that does not flip; a chip built from `--bg` would go dark with the theme and take the
- * wordmarks with it. Height is fixed and width follows each file's own width/height
- * attributes, which also reserve the box before the lazy image loads.
+ * ⚠️ TRANSPARENT, AND THE ARTWORK IS THE "ON-DARK" VERSION (owner, 2026-09-29). The slab is dark in
+ * both themes (`--footer-bg` is ink in light mode, `--raised` in dark). The first build put every
+ * mark on a paper chip; the owner wanted them transparent. Removing the chip alone made the
+ * dark lettering (Sedex, SMETA, GRS) vanish, and whitening everything turned OEKO-TEX and GOTS
+ * into blank shapes — both measured in a side-by-side the owner chose from. So each SVG in
+ * `public/standards/` keeps its brand colours and has its black and dark-grey fills recoloured
+ * to #ecebe6 (the paper tone; an <img> cannot read a CSS token), and ISO's dark blue lightened to
+ * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back. Height is fixed
+ * and width follows each file's own width/height attributes, which also reserve the box before
+ * the lazy image loads.
  */
 .footer-marks {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 12px 20px;
 }
 
 .footer-logo {
   display: block;
-  box-sizing: content-box;
   width: auto;
-  height: 28px;
-  padding: 4px 6px;
-  background: var(--paper);
-  border-radius: var(--radius-chip);
+  height: 32px;
 }
 
 @media (hover: hover) and (pointer: fine) {
