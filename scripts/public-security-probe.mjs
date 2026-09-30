@@ -88,8 +88,8 @@ export const TARGETS = [
   // The script guard (SE-04, decided 2026-09-18). Every public page type, and / twice so that
   // a reused nonce is visible. The admin's own policy must stay exactly as it was.
   // The four buyer pages joined on 2026-09-30, AFTER they went live (#103): a page added
-  // here before its deploy fails this probe on the real site. All six guides joined
-  // after #104 and #105 went live.
+  // here before its deploy fails this probe on the real site. All seven guides joined
+  // after #104, #105 and #107 went live.
   ...[
     '/',
     '/products',
@@ -107,6 +107,7 @@ export const TARGETS = [
     '/guides/garment-printing-methods',
     '/guides/sportswear-fabrics-and-weights',
     '/guides/private-label-packaging',
+    '/guides/shipping-and-import-duties',
     '/',
   ].map((pathname, i, all) => ({
     name: i === all.length - 1 ? 'site / again' : `site ${pathname}`,
