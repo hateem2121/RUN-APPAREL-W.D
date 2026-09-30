@@ -193,4 +193,18 @@ describe('SiteFooter', () => {
     expect(out).toContain('--:--')
     expect(out).not.toContain('Open now')
   })
+
+  /*
+   * The way back to the cookie question, on every page. Withdrawing a choice must be as
+   * easy as making it; before 2026-09-30 evening the only way back was a button on the
+   * privacy page. It is a real link to the notice's cookie section, so it still works
+   * where no question is mounted to reopen (`e2e/consent.spec.ts` covers the reopening).
+   */
+  it('carries a Cookies link to the notice, beside Privacy and Terms', () => {
+    route.path = '/'
+    const legal = html(base).split('footer-legal')[1] ?? ''
+    expect(legal).toContain('href="/privacy#cookies">Cookies</a>')
+    expect(legal.indexOf('>Privacy<')).toBeLessThan(legal.indexOf('>Cookies<'))
+    expect(legal.indexOf('>Cookies<')).toBeLessThan(legal.indexOf('>Terms<'))
+  })
 })

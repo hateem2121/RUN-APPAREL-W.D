@@ -713,6 +713,13 @@ test.describe('keyboard scrolling survives Lenis (FA-F-10)', () => {
  * performance improvement and quietly puts the site inside the ePrivacy consent
  * rules. Nothing else would go red.
  *
+ * ⚠️ SINCE 2026-09-30 THERE IS A CHOICE, AND THIS TEST IS THE HALF OF IT THAT MUST NOT
+ * MOVE. The owner added Google Analytics and Apollo behind a cookie question
+ * (`components/ConsentBanner.tsx`), so "needs no consent banner" above is history. What is
+ * still promised, in the privacy page's words, is that nothing is stored unless the visitor
+ * chooses it — and a visit with no interaction is exactly this test. `e2e/consent.spec.ts`
+ * covers the other states with the question on screen.
+ *
  * Asserted with no interaction at all, which is the state the claim is about; the
  * toggle's deliberate write is covered by viewer.spec.ts.
  */
@@ -731,7 +738,7 @@ test.describe('the viewer stores nothing on the visitor’s device (FA-O-13)', (
     expect(
       stored.local,
       'the viewer wrote a localStorage key on a plain visit. Zero storage is why ' +
-        'this product needs no consent banner — see audit FA-O-13.',
+        'nothing may be stored before the visitor chooses — see audit FA-O-13 and consent.spec.ts.',
     ).toEqual([])
     expect(stored.session, 'the viewer wrote a sessionStorage key on a plain visit').toEqual([])
     expect(stored.cookie, 'the viewer set a cookie').toBe('')

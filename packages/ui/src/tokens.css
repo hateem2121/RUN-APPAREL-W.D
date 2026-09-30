@@ -299,6 +299,7 @@
   --z-stage-control: 1; /* .stage__ar — inside the stage, above the canvas */
   --z-header: 40; /* the bar; both hosts' .notch-shell share it since 2026-09-24 */
   --z-action-bar: 50;
+  --z-consent: 55; /* .consent — the cookie choice; over the action bar, under the grain, dialog and curtain */
   --z-grain: 60; /* the full-page grain overlay */
   --z-dialog: 65; /* the HD image dialog — above the grain so it never dims the render */
   --z-cursor: 70; /* .cursor-ring — pointer devices only */

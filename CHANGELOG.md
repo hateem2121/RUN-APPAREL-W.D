@@ -20,6 +20,7 @@ timeline
 
 ### Added
 
+- A cookie question on every page. Google Analytics and Apollo (which shows which companies visit) start only if a visitor presses Accept; nothing is stored before that. A "Cookies" link in the footer of every page brings the question back.
 - A picture-first front page, with a door each for RUN staff, developers and AI agents.
 - A picture guide for RUN staff, in six short pages.
 - A code of conduct, a help page, and three simple forms for reporting a problem.
@@ -44,6 +45,7 @@ timeline
 - The script that draws the website's sharing picture runs again after the test-tool upgrade.
 - The shrink robot's container gets the same small updates the rest of the code got.
 - A garment address that does not exist now answers "not found" to search robots; people still see the helpful page.
+- Google can now read the garment pages. A rule meant to keep search engines out of the admin data was also hiding each garment's details from Google, so it refused all 205 pages.
 
 ## [2026.09.25] — the website launch
 

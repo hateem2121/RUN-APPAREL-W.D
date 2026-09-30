@@ -499,6 +499,7 @@ nothing moved — with one stated exception below.
 | `--z-footer-glow` | 6 | the site's `.footer-glow` — the light, blended over the slab's content |
 | `--z-header` | 40 | the bar; both hosts' `.notch-shell` share it since 2026-09-24 |
 | `--z-action-bar` | 50 | the persistent contact bar |
+| `--z-consent` | 55 | `.consent`, the cookie choice (2026-09-30) — over the action bar until answered; under the grain, the dialog and the curtain |
 | `--z-grain` | 60 | the full-page grain overlay |
 | `--z-dialog` | 65 | the HD image dialog (2026-09-27) — above the grain, so the studio render is never dimmed; under the cursor |
 | `--z-cursor` | 70 | `.cursor-ring`, pointer devices only |

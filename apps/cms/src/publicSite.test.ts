@@ -34,10 +34,16 @@ const read = (...parts: string[]) => readFileSync(join(...parts), 'utf8')
  * explains why it no longer sets `index: false`. Same false positive tokens.test.ts
  * hit, same fix. Line comments are only stripped at the start of a line so a `//`
  * inside `https://…` survives.
+ *
+ * ⚠️ AND A `/*` RIGHT AFTER A `/` IS NOT A COMMENT EITHER (2026-09-30). The first wildcard
+ * host in the page policy, `https://*.google-analytics.com`, contains `/*`; this function
+ * took it for the start of a block comment and blanked every directive after it, so the
+ * test reported `object-src 'none'` missing from a policy that carried it. The lookbehind
+ * skips that one shape. A real block comment is never written `//*`.
  */
 function stripComments(source: string): string {
   return source
-    .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '))
+    .replace(/(?<!\/)\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '))
     .replace(/^[ \t]*\/\/.*$/gm, (line) => ' '.repeat(line.length))
 }
 

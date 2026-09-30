@@ -41,6 +41,24 @@ const CF_SCRIPT = 'https://static.cloudflareinsights.com'
 const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsights.com'
 
 /**
+ * Google Analytics and Apollo's visitor tracker, which run ONLY after a visitor presses
+ * Accept on the cookie choice (owner decision 2026-09-30; `packages/shared/src/consent.ts`
+ * has the account). Both are added by bundled code as `<script src>`, so they need their
+ * HOSTS here and no hash: script execution stays hash-locked for anything inline.
+ *
+ * ⚠️ A PINNED COPY of `TRACKER_CSP` in that file. This script runs under plain Node at
+ * build time and cannot import the shared package's TypeScript; `csp.test.ts` fails if
+ * the two lists differ.
+ *
+ * ⚠️ `d-code.liadm.com` MUST STAY OUT. Apollo's script tries to load it to identify a
+ * visitor as a person; leaving it out is what holds Apollo to company-level tracking.
+ */
+const TRACKER_SCRIPT = 'https://www.googletagmanager.com https://assets.apollo.io'
+const TRACKER_CONNECT =
+  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com'
+const TRACKER_IMG = 'https://*.google-analytics.com https://*.googletagmanager.com'
+
+/**
  * Covers media served from cms/api/media.wear-run.help regardless of which host the
  * build points `VITE_API_BASE_URL` at — and, since the domain move of 2026-09-28,
  * `media.wear-run.com`: the same R2 bucket under a second address, because a page on
@@ -132,14 +150,14 @@ export function buildCsp({ html, apiBaseUrl, sentryDsn }) {
     `frame-ancestors 'self' https://cms.wear-run.help`,
     `form-action 'none'`,
     // 'wasm-unsafe-eval' — model-viewer's Draco/KTX2 wasm decoders; no eval.
-    `script-src 'self' 'wasm-unsafe-eval' ${inlineHashes.join(' ')} ${CF_SCRIPT}`
+    `script-src 'self' 'wasm-unsafe-eval' ${inlineHashes.join(' ')} ${CF_SCRIPT} ${TRACKER_SCRIPT}`
       .replace(/\s+/g, ' ')
       .trim(),
     // 'unsafe-inline' for styles only — the motion layer animates via style
     // attributes and model-viewer injects styles into its shadow DOM. Style
     // injection is far lower risk than script injection (which stays hash-locked).
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' data: blob: ${apiOrigin} ${ZONE}`,
+    `img-src 'self' data: blob: ${apiOrigin} ${ZONE} ${TRACKER_IMG}`,
     `font-src 'self'`,
     // blob: — the Meshopt decoder builds its worker's source as a Blob and loads
     // it through a blob: URL (meshoptimizer/meshopt_decoder.cjs, initWorkers), and
@@ -154,7 +172,7 @@ export function buildCsp({ html, apiBaseUrl, sentryDsn }) {
     //
     // Narrow: blob: permits fetches to blobs this page itself created, not to any
     // remote origin. Script execution stays hash-locked by script-src.
-    `connect-src 'self' blob: ${apiOrigin} ${ZONE} ${CF_CONNECT} ${sentryOrigin}`
+    `connect-src 'self' blob: ${apiOrigin} ${ZONE} ${CF_CONNECT} ${TRACKER_CONNECT} ${sentryOrigin}`
       .replace(/\s+/g, ' ')
       .trim(),
     `worker-src 'self' blob:`,

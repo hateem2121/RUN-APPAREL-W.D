@@ -1,8 +1,10 @@
 import type { ViewerAnalyticsEvent } from '@run-apparel/shared'
 
 /**
- * Cloudflare Web Analytics only — cookieless, no fingerprinting, no
- * third-party trackers. The beacon auto-tracks page views (including SPA
+ * Cloudflare Web Analytics — cookieless, no fingerprinting. It was the ONLY analytics
+ * until 2026-09-30, when the owner added Google Analytics and Apollo's visitor tracker
+ * behind a cookie choice; those start only after Accept and live in
+ * `components/ConsentBanner.tsx` and `packages/shared/src/consent.ts`, not here. The beacon auto-tracks page views (including SPA
  * history changes). Cloudflare's beacon exposes no custom-event API, so the
  * named viewer events are emitted through a DOM CustomEvent seam (and the
  * dev console) — a single place to integrate if richer analytics are ever

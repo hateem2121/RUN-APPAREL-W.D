@@ -35,7 +35,8 @@
     "CHANGED 2026-09-24 BY THE OWNER'S DECISION: the website's menu bar on the viewer. Stylesheet transfer measured 29,664 -> 34,539 B (lhci, three identical runs); budget 30,000 -> 34,875.",
     "CHANGED 2026-09-27 FOR THE HD IMAGE BUTTON (owner-approved garment-rollout plan). The dialog's styles load WITH the lazy dialog (apps/viewer/src/styles/hd-image.css), never with the page; only the button's own rules are on it. Measured: page stylesheet 33,836 -> 34,144 B raw (+308); CI's transfer is raw + 1,019 B (PR #77: 37,505 measured for a 36,486 B file), so main measures 34,855 and this 35,163. Budget 34,875 -> 35,183: exactly the growth, the 20 B headroom unchanged.",
     "CHANGED 2026-09-28 FOR TY-02 (owner decision: publish the three garments whose names re-wrapped). The product name gets local() stand-in faces in page.css. Measured by building with and without them: page stylesheet 34,144 -> 34,788 B raw (+644). Budget 35,183 -> 35,827: exactly the growth, the 20 B headroom unchanged.",
-    "CHANGED 2026-09-28 FOR THE DOMAIN MOVE (owner decision: garment pages on wear-run.com). No CSS changed: this budget reads TRANSFER size, headers included, and the viewer's CSP (sent on every response, the stylesheet's too) now names the media bucket's wear-run.com address in img-src and connect-src — apps/viewer/scripts/csp.mjs ZONE, ' https://media.wear-run.com' = 27 B, twice = 54 B. Measured in CI: 35,861 against 35,827 = 54 over the budget less its 20 B headroom. Budget 35,827 -> 35,881: exactly the growth, the 20 B headroom unchanged."
+    "CHANGED 2026-09-28 FOR THE DOMAIN MOVE (owner decision: garment pages on wear-run.com). No CSS changed: this budget reads TRANSFER size, headers included, and the viewer's CSP (sent on every response, the stylesheet's too) now names the media bucket's wear-run.com address in img-src and connect-src — apps/viewer/scripts/csp.mjs ZONE, ' https://media.wear-run.com' = 27 B, twice = 54 B. Measured in CI: 35,861 against 35,827 = 54 over the budget less its 20 B headroom. Budget 35,827 -> 35,881: exactly the growth, the 20 B headroom unchanged.",
+    "CHANGED 2026-09-30 FOR THE COOKIE CHOICE (owner decision: Google Analytics and Apollo on every page, garment pages too, behind a question shown to everyone). Two parts, both measured. The card's styles in packages/ui/src/base.css: page stylesheet 34,788 -> 35,571 B raw (+783); they cannot load lazily as the HD dialog's do, because the card is on screen at first paint for every new visitor. And the policy header, sent with the stylesheet too, now names the two trackers' hosts (apps/viewer/scripts/csp.mjs TRACKER_SCRIPT + TRACKER_CONNECT + TRACKER_IMG, each with its space = 58 + 115 + 62 = 235 B). Measured in CI on PR #99: 36,879 against 35,881 = 1,018 over the budget less its 20 B headroom, and 783 + 235 = 1,018. Budget 35,881 -> 36,899: exactly the growth, the 20 B headroom unchanged."
   ],
   "ci": {
     "collect": {
@@ -52,7 +53,7 @@
         "categories:best-practices": ["warn", { "minScore": 0.9 }],
         "categories:seo": "off",
         "resource-summary:script:size": ["error", { "maxNumericValue": 1650000 }],
-        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 35881 }],
+        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 36899 }],
         "resource-summary:font:size": ["error", { "maxNumericValue": 140000 }]
       }
     },

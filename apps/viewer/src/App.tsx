@@ -2,6 +2,7 @@ import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { garmentPageTitle, isViewerApiError, PAGE_TITLE_BRAND } from '@run-apparel/shared'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
+import { ConsentBanner } from './components/ConsentBanner'
 import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
@@ -579,6 +580,9 @@ export default function App() {
         <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />
         <Footer settings={data.siteSettings} />
       </div>
+      {/* The cookie choice. Outside `.page`, so it is a fixed overlay and no part of the
+          layout the stage band is measured against. */}
+      <ConsentBanner />
     </>
   )
 }

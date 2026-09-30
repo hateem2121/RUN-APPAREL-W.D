@@ -454,6 +454,7 @@ describe('tokens added by the 2026-08-14 audit', () => {
       '--z-stage-control: 1',
       '--z-header: 40',
       '--z-action-bar: 50',
+      '--z-consent: 55',
       '--z-grain: 60',
       '--z-dialog: 65',
       '--z-cursor: 70',
@@ -483,6 +484,10 @@ describe('tokens added by the 2026-08-14 audit', () => {
     expect(value('--z-dialog')).toBeGreaterThan(value('--z-grain'))
     expect(value('--z-cursor')).toBeGreaterThan(value('--z-dialog'))
     expect(value('--z-action-bar')).toBeGreaterThan(value('--z-header'))
+    // The cookie choice (2026-09-30) sits over the action bar until answered, and under
+    // the grain, the HD dialog and the opening curtain: it is a question, not a wall.
+    expect(value('--z-consent')).toBeGreaterThan(value('--z-action-bar'))
+    expect(value('--z-grain')).toBeGreaterThan(value('--z-consent'))
   })
 })
 
