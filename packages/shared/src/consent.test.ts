@@ -308,3 +308,46 @@ describe('when the browser gives no storage and no cookies', () => {
     expect(() => forgetTrackers(hostile, jar)).not.toThrow()
   })
 })
+
+/*
+ * VISITS THAT ARE NOT REAL VISITORS MUST NOT BE COUNTED (2026-09-30). Read out of the
+ * owner's Analytics that day, before the site had even deployed the tag: 13 "users" and 15
+ * page views, every one from hostName `localhost`, which was this project's own checking.
+ * Anywhere that is not the real site marks itself `traffic_type: internal`, the parameter
+ * Google Analytics' own internal-traffic filter drops.
+ */
+describe('only the real site counts as a real visit', () => {
+  const config = (hostname?: string) => {
+    const { win } = fakeWindow()
+    if (hostname !== undefined) win.location = { hostname }
+    startTrackers(win)
+    const entry = (win.dataLayer ?? [])
+      .map((e) => Array.from(e as ArrayLike<unknown>))
+      .find((e) => e[0] === 'config')
+    return entry
+  }
+
+  it('on wear-run.com the visit is sent as it is', () => {
+    expect(config('wear-run.com')).toEqual(['config', GA_MEASUREMENT_ID])
+  })
+
+  it('anywhere else it is marked internal: a developer’s machine, a preview, the old host', () => {
+    for (const host of [
+      'localhost',
+      '127.0.0.1',
+      'viewer.wear-run.help',
+      'www.wear-run.com',
+      'wear-run.com.evil.example',
+    ]) {
+      expect(config(host), host).toEqual([
+        'config',
+        GA_MEASUREMENT_ID,
+        { traffic_type: 'internal' },
+      ])
+    }
+  })
+
+  it('an unknown place is internal too: the safe direction is to count too little', () => {
+    expect(config()).toEqual(['config', GA_MEASUREMENT_ID, { traffic_type: 'internal' }])
+  })
+})

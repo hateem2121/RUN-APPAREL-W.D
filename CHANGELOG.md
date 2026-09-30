@@ -39,6 +39,7 @@ timeline
 - The company's LinkedIn and Instagram, already in the footer, are now also in the data search engines read.
 - The products page's title in search results now says what is sold, in the owner's words.
 - One misspelled garment name is corrected (RAGLAN).
+- Visits from a developer's machine or a test are marked internal, so Google Analytics counts real visitors only.
 
 ### Fixed
 
