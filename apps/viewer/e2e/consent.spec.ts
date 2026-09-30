@@ -56,11 +56,38 @@ async function openGarment(page: Page) {
 
 const banner = (page: Page) => page.getByRole('region', { name: 'Cookie choice' })
 
+/**
+ * What a run looks like when the stand-ins are really in place: the two SCRIPTS are asked
+ * for and nothing else is. A real Google script sends `/g/collect`; a real Apollo script
+ * calls `aplo-evnt.com`. Either one in `seen` means a stand-in was bypassed and this run
+ * has just appeared in the owner's reports.
+ */
+function assertNothingReal(seen: string[]) {
+  const real = seen.filter(
+    (entry) => entry.includes('/g/collect') || entry.startsWith('aplo-evnt.com'),
+  )
+  expect(real, 'a real tracker ran: the local stand-ins were bypassed').toEqual([])
+}
+
 const keys = (page: Page) =>
   page.evaluate(() => ({
     local: Object.fromEntries(Object.entries(localStorage)),
     cookie: document.cookie,
   }))
+
+/*
+ * ⚠️ SERVICE WORKERS ARE BLOCKED HERE, OR WEBKIT SENDS REAL VISITS TO THE OWNER'S REPORTS.
+ * Found 2026-09-30 in Google Analytics' realtime report: page views titled with this
+ * fixture's garment, from the United States (GitHub's test machines) and from this Mac.
+ * The build under test is a production build, so it installs `/sw.js`; once that worker
+ * controls the page, WebKit stops calling `page.route()` handlers (`fontSwap.spec.ts`
+ * measured the same thing on 2026-09-17). The "answered locally" promise at the top of this
+ * file was therefore false in both WebKit projects: the real 530 KB Google script loaded,
+ * a real `collect` was sent, and Apollo's script ran. Chromium and Firefox were unaffected,
+ * which is why every test here still passed. `assertNothingReal` below is the check that
+ * can see it.
+ */
+test.use({ serviceWorkers: 'block' })
 
 test.describe('the cookie choice on a garment page', () => {
   test('under automation the question is absent, so the layout suites measure the bare page', async ({
@@ -123,6 +150,9 @@ test.describe('the cookie choice on a garment page', () => {
     await expect(banner(page)).toHaveCount(0)
     await expect.poll(() => seen).toContain(GA_SCRIPT)
     await expect.poll(() => seen).toContain(APOLLO_SCRIPT)
+    // Long enough for a real script to have phoned home, had one slipped through.
+    await page.waitForLoadState('networkidle')
+    assertNothingReal(seen)
   })
 
   /*
