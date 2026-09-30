@@ -54,6 +54,21 @@ const PAGES = [
     name: 'minimum order guide',
     heading: /Minimum order and samples/i,
   },
+  {
+    path: '/guides/garment-printing-methods',
+    name: 'printing guide',
+    heading: /Garment printing methods/i,
+  },
+  {
+    path: '/guides/sportswear-fabrics-and-weights',
+    name: 'fabrics guide',
+    heading: /Sportswear fabrics and weights/i,
+  },
+  {
+    path: '/guides/private-label-packaging',
+    name: 'packaging guide',
+    heading: /Private label packaging/i,
+  },
 ] as const
 
 test.describe('every page renders real content', () => {

@@ -80,7 +80,7 @@ export function GuidePage({ guide }: { guide: Guide }) {
 
       {guide.sections.map((section) => (
         <section className="site-section" data-site-reveal key={section.heading}>
-          <div className="site-container prose">
+          <div className="site-container prose prose--guide">
             <h2 className="display display--section">{section.heading}</h2>
             {section.blocks.map((block) => (
               <Block

@@ -10,8 +10,8 @@ import { FACTS } from './companyFacts'
  * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-09-30, AND EVERY FACT IS ALREADY ON THE SITE:
  * the order steps are the home page's (`orderProcess.ts`), the colour paragraph and "quoted
  * in writing" are the terms page's, "on request" is the owner's correction of 2026-09-29.
- * A guide on a topic the site states nothing about (printing methods, fabrics, packaging,
- * shipping and duties) waits for the owner's facts; do not write one from general knowledge.
+ * A guide on a topic the site states nothing about (shipping and duties, today) waits for
+ * the owner's facts; do not write one from general knowledge.
  *
  * ⚠️ THE NUMBERS ARE READ FROM `FACTS`, NEVER RETYPED (`orderProcess.ts` says why).
  *
@@ -54,10 +54,10 @@ export const GUIDES_INDEX = {
   path: '/guides',
   title: 'Buyer Guides',
   description:
-    'Short guides for buyers: how a private label order works, what a 3D garment reference shows, and how the minimum order and samples work.',
+    'Short guides for buyers: how an order works, the 3D reference, minimum order and samples, printing methods, fabrics and weights, and packaging.',
   heading: 'Buyer guides,',
   headingAccent: 'in plain words.',
-  lede: 'Three short guides to read before you write to us. Each one answers one question.',
+  lede: 'Short guides to read before you write to us. Each one answers one question.',
 } as const
 
 export const GUIDES: readonly Guide[] = [
@@ -247,6 +247,227 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             // The terms page's sentence, word for word (owner, 2026-09-30: "keep the terms wording").
             text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
+          },
+        ],
+      },
+    ],
+  },
+  /*
+   * ⚠️ THE NEXT THREE STATE FACTS THE OWNER GAVE ON 2026-09-30, NOT FACTS FROM THE OLDER PAGES.
+   * Printing: the owner ticked these seven methods as done inside the building, one by one.
+   * Fabrics: names, weights, blends and uses from the owner's own fabric and fiber sheets;
+   * the sheets' test figures, star scores, certificate names and environmental percentages
+   * were left out by the owner's choice (no test report, and the certificates are the
+   * suppliers'). Packaging: "exactly how the customer wants it", with no set minimum.
+   */
+  {
+    path: '/guides/garment-printing-methods',
+    title: 'Garment Printing Methods, Explained',
+    description:
+      'Seven ways to put a design on a garment, all done in our own building: screen print, sublimation, DTF, DTG, heat transfer, embroidery and special inks.',
+    heading: 'Garment printing methods,',
+    headingAccent: 'explained.',
+    lede: 'There are seven common ways to put a design on a garment. We do all seven inside our own building. This guide says what each one is and what it suits.',
+    sections: [
+      {
+        heading: 'The seven methods',
+        blocks: [
+          {
+            kind: 'point',
+            title: 'Screen printing',
+            text: 'Ink is pushed through a mesh screen onto the garment. It suits bold designs in a few colors, and larger runs.',
+          },
+          {
+            kind: 'point',
+            title: 'Sublimation',
+            text: 'Heat turns the dye into the fabric, so the print becomes part of the cloth. It suits polyester and all-over designs, such as team jerseys.',
+          },
+          {
+            kind: 'point',
+            title: 'DTF (direct to film)',
+            text: 'The design is printed on a film and pressed on with heat. It works on most fabrics and colors.',
+          },
+          {
+            kind: 'point',
+            title: 'DTG (direct to garment)',
+            text: 'The design is printed straight onto the garment, the way an inkjet printer prints on paper. It suits cotton and designs with many colors.',
+          },
+          {
+            kind: 'point',
+            title: 'Heat transfer vinyl',
+            text: 'Cut vinyl is pressed on with heat. It suits names and numbers.',
+          },
+          {
+            kind: 'point',
+            title: 'Embroidery',
+            text: 'The design is stitched with thread. It suits logos and badges.',
+          },
+          {
+            kind: 'point',
+            title: 'Special inks',
+            text: 'Puff, silicone, high-density and reflective prints, for a raised or reflective finish.',
+          },
+        ],
+      },
+      {
+        heading: 'Which method for your garment',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'It depends on the fabric, the design and the quantity. Send us your artwork with your inquiry, and the method is stated in your quote.',
+          },
+        ],
+      },
+      {
+        heading: 'See the print before a sample is cut',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A 3D reference shows where each print sits on the garment. It is available on request.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/guides/sportswear-fabrics-and-weights',
+    title: 'Sportswear Fabrics & Weights (GSM) Guide',
+    description:
+      'Ten knit fabrics for sportswear with their usual weights in GSM, common blends and uses. Any fabric, structure or weight can be made to your spec.',
+    heading: 'Sportswear fabrics and weights,',
+    headingAccent: 'side by side.',
+    lede: 'GSM means grams per square meter: how heavy a fabric is. Below are ten knit fabrics used in sportswear, with their usual weights, blends and uses. We are not limited to these. We make fabric to your own structure, weight and properties.',
+    sections: [
+      {
+        heading: 'Ten common fabrics',
+        blocks: [
+          {
+            kind: 'point',
+            title: 'Single jersey, 120 to 200 GSM',
+            text: 'Cotton, polyester or a blend of the two, often with a little spandex. Used for T-shirts, tank tops, running shirts and gym wear.',
+          },
+          {
+            kind: 'point',
+            title: 'Interlock, 155 to 220 GSM',
+            text: 'Cotton, polyester or recycled polyester, often with spandex. Smooth on both sides. Used for premium tees, polo shirts and team jerseys.',
+          },
+          {
+            kind: 'point',
+            title: 'Pique, 180 to 240 GSM',
+            text: 'Cotton, polyester or a blend. A raised texture. Used for polo shirts, golf wear and tennis wear.',
+          },
+          {
+            kind: 'point',
+            title: 'Mesh, 100 to 160 GSM',
+            text: 'Polyester, recycled polyester or nylon, often with spandex. An open knit. Used for jerseys, running shirts and ventilation panels.',
+          },
+          {
+            kind: 'point',
+            title: 'French terry, 200 to 280 GSM',
+            text: 'Cotton or a cotton and polyester blend, sometimes with spandex. Loops on the inside. Used for hoodies, sweatshirts and sweatpants.',
+          },
+          {
+            kind: 'point',
+            title: 'Fleece, 200 to 350 GSM',
+            text: 'Polyester, recycled polyester or a blend with cotton. A brushed, warm surface. Used for jackets, hoodies and pullovers.',
+          },
+          {
+            kind: 'point',
+            title: 'Birdseye mesh, 135 to 180 GSM',
+            text: 'Polyester or recycled polyester, often with spandex. A fine dotted texture. Used for golf shirts, tennis wear and performance tees.',
+          },
+          {
+            kind: 'point',
+            title: 'Rib, 180 to 250 GSM',
+            text: 'Cotton or polyester with spandex. Very stretchy. Used for necklines, cuffs, waistbands and fitted garments.',
+          },
+          {
+            kind: 'point',
+            title: 'Waffle, 160 to 220 GSM',
+            text: 'Cotton, sometimes with spandex or polyester. A honeycomb texture. Used for base layers and thermal wear.',
+          },
+          {
+            kind: 'point',
+            title: 'Jacquard, 200 to 280 GSM',
+            text: 'Polyester or a blend with cotton, often with spandex. The pattern is knitted into the fabric. Used for team uniforms and premium sportswear.',
+          },
+        ],
+      },
+      {
+        heading: 'The fibers',
+        blocks: [
+          {
+            kind: 'list',
+            items: [
+              'Polyester and recycled polyester: light and quick to dry.',
+              'Nylon: strong and stretchy.',
+              'Spandex, also called elastane: adds stretch, blended in small amounts.',
+              'Cotton: soft and breathable.',
+              'Merino wool and recycled wool: warm.',
+              'Bamboo, lyocell and modal: soft fibers made from plant or wood pulp.',
+              'Hemp: a hard-wearing plant fiber.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Made to your spec',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'These are starting points, not limits. Tell us the structure, weight, blend and properties you need, and the fabric is made to match.',
+          },
+        ],
+      },
+      {
+        heading: 'Confirmed on a sample',
+        blocks: [
+          {
+            kind: 'text',
+            // The terms page's sentence, word for word.
+            text: 'Color, fabric weight and finish are confirmed against a physical sample before production.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/guides/private-label-packaging',
+    title: 'Private Label Packaging, Explained',
+    description:
+      'Labels, tags, bags and cartons under your own brand, packed the way you want them. There is no set minimum for custom packaging.',
+    heading: 'Private label packaging,',
+    headingAccent: 'the way you want it.',
+    lede: 'Private label means the garment leaves under your brand, not ours. The packaging does too. We pack your order exactly the way you want it, and there is no set minimum for custom packaging.',
+    sections: [
+      {
+        heading: 'What can carry your brand',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Whatever you ask for. Buyers usually ask for these:',
+          },
+          {
+            kind: 'list',
+            items: ['Neck labels and care labels.', 'Hang tags.', 'Bags.', 'Cartons.'],
+          },
+        ],
+      },
+      {
+        heading: 'How it works',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Send your packaging artwork, or a sample of what you want, with your inquiry. It is quoted with your order.',
+          },
+        ],
+      },
+      {
+        heading: 'Where it happens',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Tagging, the final check and packing happen in the same building as the rest of your order.',
           },
         ],
       },
