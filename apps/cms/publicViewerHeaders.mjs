@@ -83,7 +83,12 @@ export const PUBLIC_VIEWER_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
  * redirects (`siteHostRules.mjs`) and the page copy (`src/lib/familyPages.ts`) can be held
  * to the same addresses. `src/lib/familyPages.test.ts` fails when they differ.
  */
-export const FAMILY_PAGE_SOURCES = ['/custom-teamwear-manufacturer']
+export const FAMILY_PAGE_SOURCES = [
+  '/custom-teamwear-manufacturer',
+  '/custom-activewear-manufacturer',
+  '/custom-outerwear-manufacturer',
+  '/private-label-casual-wear-manufacturer',
+]
 
 export const PUBLIC_PAGE_SOURCES = [
   '/',

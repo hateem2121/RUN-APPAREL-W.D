@@ -30,7 +30,10 @@ const everyWord = (page: (typeof FAMILY_PAGES)[number]): string =>
     page.heading,
     page.headingAccent,
     page.lede,
-    ...page.makes.flatMap((entry) => [entry.sport, entry.garments]),
+    page.makesHeading,
+    ...page.makes.flatMap((entry) => [entry.group, entry.garments]),
+    page.stepsHeading,
+    page.closingHeading,
     ...page.steps.flatMap((step) => [step.title, step.body]),
     ...page.questions.flatMap((entry) => [entry.question, entry.answer]),
   ].join('\n')
@@ -141,8 +144,9 @@ describe('where a family card leads', () => {
     }
     const teamwear = FAMILIES.find((family) => family.slug === 'teamwear-uniforms')
     expect(teamwear && familyHref(teamwear)).toBe('/custom-teamwear-manufacturer')
-    const outerwear = FAMILIES.find((family) => family.slug === 'outerwear')
-    expect(outerwear && familyHref(outerwear)).toBe('/products?family=outerwear')
+    // Sports Accessories has no garments, so no page (owner, 2026-09-30).
+    const accessories = FAMILIES.find((family) => family.slug === 'sports-accessories')
+    expect(accessories && familyHref(accessories)).toBe('/products?family=sports-accessories')
   })
 
   it('a page naming a family that does not exist throws rather than rendering empty', () => {

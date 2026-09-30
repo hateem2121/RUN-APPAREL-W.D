@@ -1,3 +1,4 @@
+import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from './offlineMedia'
 
@@ -25,6 +26,21 @@ const PAGES = [
     path: '/custom-teamwear-manufacturer',
     name: 'teamwear buyer page',
     heading: /Custom teamwear and team uniforms/i,
+  },
+  {
+    path: '/custom-activewear-manufacturer',
+    name: 'sportswear buyer page',
+    heading: /Custom activewear and sportswear/i,
+  },
+  {
+    path: '/custom-outerwear-manufacturer',
+    name: 'outerwear buyer page',
+    heading: /Custom jackets and outerwear/i,
+  },
+  {
+    path: '/private-label-casual-wear-manufacturer',
+    name: 'casual wear buyer page',
+    heading: /Private label casual wear/i,
   },
 ] as const
 
@@ -191,14 +207,9 @@ test.describe('search visibility follows the committed switch: visible since lau
     const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
       (m) => new URL(m[1] ?? '').pathname,
     )
-    expect(locs.sort()).toEqual([
-      '/',
-      '/contact',
-      '/custom-teamwear-manufacturer',
-      '/privacy',
-      '/products',
-      '/terms',
-    ])
+    expect(locs.sort()).toEqual(
+      ['/', '/contact', '/privacy', '/products', '/terms', ...FAMILY_PAGE_SOURCES].sort(),
+    )
   })
 
   /**
@@ -365,7 +376,9 @@ test.describe('the teamwear buyer page, as a search engine receives it', () => {
     page,
   }) => {
     await page.goto('/')
-    await expect(page.locator(`.family-card__link[href="${PATH}"]`)).toHaveCount(1)
+    for (const path of FAMILY_PAGE_SOURCES) {
+      await expect(page.locator(`.family-card__link[href="${path}"]`)).toHaveCount(1)
+    }
     await page.goto(PATH)
     const action = page.locator('.site-hero .btn--primary')
     await expect(action).toHaveText('Get a free quote')

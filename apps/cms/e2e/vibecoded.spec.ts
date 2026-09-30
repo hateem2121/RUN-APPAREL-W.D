@@ -1,3 +1,4 @@
+import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import {
   collectHeadlineNeighbours,
   collectIconBoxGroups,
@@ -19,14 +20,7 @@ import { expect, type Page, test } from './offlineMedia'
  * apps/cms/src/vibecodedRules.test.ts. The viewer's half: apps/viewer/e2e/vibecoded.spec.ts.
  */
 
-const PAGES = [
-  '/',
-  '/products',
-  '/contact',
-  '/privacy',
-  '/terms',
-  '/custom-teamwear-manufacturer',
-] as const
+const PAGES = ['/', '/products', '/contact', '/privacy', '/terms', ...FAMILY_PAGE_SOURCES] as const
 
 async function load(page: Page, path: string) {
   const bodies: { url: string; text: string }[] = []

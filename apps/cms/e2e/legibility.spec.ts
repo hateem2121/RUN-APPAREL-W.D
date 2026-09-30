@@ -1,3 +1,4 @@
+import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 import { contrastOf, worstRatio } from '../../../scripts/contrast-rules.mjs'
 import { readability } from '../src/lib/readingLevel'
@@ -12,14 +13,7 @@ import { readability } from '../src/lib/readingLevel'
  * media query either matches or it does not — none of that is visible in the source.
  */
 
-const PAGES = [
-  '/',
-  '/products',
-  '/contact',
-  '/privacy',
-  '/terms',
-  '/custom-teamwear-manufacturer',
-] as const
+const PAGES = ['/', '/products', '/contact', '/privacy', '/terms', ...FAMILY_PAGE_SOURCES] as const
 
 /**
  * The characters on each rendered line, counted from Range rects.

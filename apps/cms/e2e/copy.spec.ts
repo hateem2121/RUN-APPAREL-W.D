@@ -1,3 +1,4 @@
+import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 import {
   findBritishSpellings,
@@ -21,7 +22,7 @@ const PAGES = [
   '/contact',
   '/privacy',
   '/terms',
-  '/custom-teamwear-manufacturer',
+  ...FAMILY_PAGE_SOURCES,
   '/no-such-page',
 ] as const
 

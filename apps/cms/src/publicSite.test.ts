@@ -937,7 +937,7 @@ describe('the 404, the policy, and analytics', () => {
     expect(headers.replace(/\s+/g, ' ')).toMatch(
       /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \]/,
     )
-    expect(headers).toMatch(/FAMILY_PAGE_SOURCES = \['\/custom-teamwear-manufacturer'\]/)
+    expect(headers).toMatch(/FAMILY_PAGE_SOURCES = \[\s*'\/custom-teamwear-manufacturer',/)
     // The directives that are worth having regardless of the inline-script compromise:
     // each closes an attack class that has nothing to do with inline scripts.
     for (const directive of ["object-src 'none'", "base-uri 'self'", "form-action 'self'"]) {

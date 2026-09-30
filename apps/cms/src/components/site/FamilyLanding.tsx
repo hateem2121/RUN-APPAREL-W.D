@@ -82,10 +82,10 @@ export function FamilyLanding({
 
       <section className="site-section" data-site-reveal>
         <div className="site-container prose">
-          <h2 className="display display--section">What we make for teams</h2>
+          <h2 className="display display--section">{page.makesHeading}</h2>
           {page.makes.map((entry) => (
-            <div key={entry.sport}>
-              <h3 className="product-card__name prose__heading">{entry.sport}</h3>
+            <div key={entry.group}>
+              <h3 className="product-card__name prose__heading">{entry.group}</h3>
               <p>{entry.garments}</p>
             </div>
           ))}
@@ -120,7 +120,7 @@ export function FamilyLanding({
 
       <section className="site-section" data-site-reveal>
         <div className="site-container prose">
-          <h2 className="display display--section">How a team order works</h2>
+          <h2 className="display display--section">{page.stepsHeading}</h2>
           {page.steps.map((step, index) => (
             <div key={step.title}>
               <h3 className="product-card__name prose__heading">
@@ -183,7 +183,7 @@ export function FamilyLanding({
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <h2 className="display display--section">Have a team that needs kit?</h2>
+          <h2 className="display display--section">{page.closingHeading}</h2>
           <p className="site-lede">
             Send the styles, quantities and specs you have. A sketch is enough to start. We reply
             within 24 hours, and the quote is free and commits you to nothing.

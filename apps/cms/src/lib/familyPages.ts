@@ -11,8 +11,9 @@ import { FAMILIES, type Family } from './families'
  * ranking for the sister phrase "custom sportswear manufacturer" lead their title with those
  * words, and this site had no page that did.
  *
- * ⚠️ THE OWNER APPROVES EVERY PAGE'S WORDS BEFORE IT IS BUILT. Teamwear was approved on
- * 2026-09-30. A family with no entry here simply has no page yet: its home-page card keeps
+ * ⚠️ THE OWNER APPROVES EVERY PAGE'S WORDS BEFORE IT IS BUILT. Teamwear, Sportswear,
+ * Outerwear and Casual Wear were approved on 2026-09-30. Sports Accessories has no garments,
+ * so it has no page. A family with no entry here simply has no page yet: its home-page card keeps
  * opening the filtered gallery. Do not add an entry from a draft.
  *
  * ⚠️ EVERY CLAIM BELOW IS ALREADY ON THE SITE. Nothing here may state a fact the home page
@@ -46,10 +47,16 @@ export type FamilyPage = {
   readonly heading: string
   readonly headingAccent: string
   readonly lede: string
-  /** What is made, grouped the way a buyer asks: by sport. */
-  readonly makes: ReadonlyArray<{ sport: string; garments: string }>
+  /** The heading over `makes`. */
+  readonly makesHeading: string
+  /** What is made, in the groups a buyer asks by. */
+  readonly makes: ReadonlyArray<{ group: string; garments: string }>
+  /** The heading over `steps`. */
+  readonly stepsHeading: string
   readonly steps: readonly FamilyPageStep[]
   readonly questions: readonly FamilyPageQuestion[]
+  /** The heading over the last call to action. */
+  readonly closingHeading: string
   /** Slugs in `FACTORY_PHOTOS`, `wide` ones: they stack in one column beside the copy. */
   readonly photos: readonly string[]
 }
@@ -63,6 +70,63 @@ const SAMPLE_DAYS = fact('Working days')
 /** The one action every buyer page asks for. `e2e/copy.spec.ts` knows it as a primary label. */
 export const FAMILY_PAGE_ACTION = 'Get a free quote'
 
+/**
+ * How an order works, the same on every buyer page because it IS the same for every order
+ * (`orderProcess.ts` holds what the owner confirmed). Five steps here against the home
+ * page's eight: a buyer page is read quickly, and the two pairs it folds say the same thing.
+ */
+const STEPS: readonly FamilyPageStep[] = [
+  {
+    title: 'Send what you have',
+    body: 'A sketch, a reference garment or a full tech pack. We reply within 24 hours.',
+  },
+  {
+    title: 'Your quote',
+    body: 'Fabric, trims, sizes and price. It is free and commits you to nothing.',
+  },
+  {
+    title: 'Your sample',
+    body: `Made in ${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
+  },
+  {
+    title: 'You approve',
+    body: 'Nothing goes into bulk until you sign off the sample.',
+  },
+  {
+    title: 'Made, checked, shipped',
+    body: 'Cut, printed, stitched, tested and packed in one building, then sent to you.',
+  },
+]
+
+/** The questions every buyer asks, after the one about the minimum, which names the family. */
+const questionsFor = (minimumFor: string, ownBrand: string): readonly FamilyPageQuestion[] => [
+  {
+    question: `What is the minimum order for ${minimumFor}?`,
+    answer: `${MINIMUM} pieces per style.`,
+  },
+  {
+    question: 'How long does a sample take?',
+    answer: `${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
+  },
+  {
+    question: ownBrand,
+    answer:
+      'Yes. Everything is private label: made to your specification and sent out under your own label.',
+  },
+  {
+    question: 'What do you need from us to quote?',
+    answer: 'A sketch is enough. A reference garment or a tech pack is better. The quote is free.',
+  },
+  {
+    question: 'Do you keep stock designs we can pick from?',
+    answer:
+      'No. Every order is made to order. The 3D garments on this page are references that show what we can make.',
+  },
+  { question: 'Where do you ship?', answer: 'Worldwide.' },
+]
+
+const PHOTOS = ['stitching', 'lab'] as const
+
 export const FAMILY_PAGES: readonly FamilyPage[] = [
   {
     path: '/custom-teamwear-manufacturer',
@@ -73,72 +137,109 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     heading: 'Custom teamwear and team uniforms,',
     headingAccent: 'made to your spec.',
     lede: `RUN APPAREL is a private label teamwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make team kit to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    makesHeading: 'What we make for teams',
     makes: [
       {
-        sport: 'Soccer',
+        group: 'Soccer',
         garments: 'Jerseys (V-neck and polo collar), raglan tees and training bibs.',
       },
+      { group: 'American football', garments: 'Men’s and women’s jerseys, and full uniforms.' },
       {
-        sport: 'American football',
-        garments: 'Men’s and women’s jerseys, and full uniforms.',
-      },
-      {
-        sport: 'Tennis and pickleball',
+        group: 'Tennis and pickleball',
         garments: 'Dresses, bra and skirt sets, and court shirts.',
       },
-      { sport: 'Cycling', garments: 'Skinsuits and bib shorts.' },
-      { sport: 'Training', garments: 'Full-zip tops and sleeveless vests.' },
-      { sport: 'Water sports', garments: 'Neoprene wetsuits.' },
+      { group: 'Cycling', garments: 'Skinsuits and bib shorts.' },
+      { group: 'Training', garments: 'Full-zip tops and sleeveless vests.' },
+      { group: 'Water sports', garments: 'Neoprene wetsuits.' },
     ],
-    steps: [
+    stepsHeading: 'How a team order works',
+    steps: STEPS,
+    questions: questionsFor('custom teamwear', 'Can the kit carry our own brand?'),
+    closingHeading: 'Have a team that needs kit?',
+    photos: PHOTOS,
+  },
+  /*
+   * ⚠️ "ACTIVEWEAR" LEADS, NOT "SPORTSWEAR", AND THE ADDRESS SAYS SO (owner, 2026-09-30).
+   * The home page's title already aims at "custom sportswear manufacturer"; a second page
+   * aiming at the same words would compete with it in the same results.
+   */
+  {
+    path: '/custom-activewear-manufacturer',
+    familySlug: 'sportswear',
+    title: 'Custom Activewear & Sportswear Manufacturer',
+    description: `Custom activewear and sportswear made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
+    eyebrow: `[ SPORTSWEAR · FROM ${MINIMUM} PIECES PER STYLE ]`,
+    heading: 'Custom activewear and sportswear',
+    headingAccent: 'made to your spec.',
+    lede: `RUN APPAREL is a private label activewear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make sportswear to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    makesHeading: 'What we make for active brands',
+    makes: [
       {
-        title: 'Send what you have',
-        body: 'A sketch, a reference garment or a full tech pack. We reply within 24 hours.',
+        group: 'Training',
+        garments: 'Pullovers, long-sleeve jerseys, cropped tops and sweatshirts.',
+      },
+      { group: 'Running', garments: 'Quarter-zip shirts.' },
+      {
+        group: 'Yoga and studio',
+        garments: 'Compression tights, yoga tights and high-support sports bras.',
       },
       {
-        title: 'Your quote',
-        body: 'Fabric, trims, sizes and price. It is free and commits you to nothing.',
-      },
-      {
-        title: 'Your sample',
-        body: `Made in ${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
-      },
-      {
-        title: 'You approve',
-        body: 'Nothing goes into bulk until you sign off the sample.',
-      },
-      {
-        title: 'Made, checked, shipped',
-        body: 'Cut, printed, stitched, tested and packed in one building, then sent to you.',
+        group: 'Sets and layers',
+        garments: 'Crop top and shorts sets, and zip-up sports vests.',
       },
     ],
-    questions: [
+    stepsHeading: 'How an order works',
+    steps: STEPS,
+    questions: questionsFor('custom activewear', 'Can the garments carry our own brand?'),
+    closingHeading: 'Have a range that needs making?',
+    photos: PHOTOS,
+  },
+  {
+    path: '/custom-outerwear-manufacturer',
+    familySlug: 'outerwear',
+    title: 'Custom Outerwear & Jacket Manufacturer',
+    description: `Custom jackets and outerwear made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
+    eyebrow: `[ OUTERWEAR · FROM ${MINIMUM} PIECES PER STYLE ]`,
+    heading: 'Custom jackets and outerwear,',
+    headingAccent: 'made to your spec.',
+    lede: `RUN APPAREL is a private label outerwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make jackets to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    makesHeading: 'What we make in outerwear',
+    makes: [
       {
-        question: 'What is the minimum order for custom teamwear?',
-        answer: `${MINIMUM} pieces per style.`,
+        group: 'Softshell',
+        garments: 'Jackets, longline jackets, tech jackets and a commuter suit.',
       },
-      {
-        question: 'How long does a sample take?',
-        answer: `${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
-      },
-      {
-        question: 'Can the kit carry our own brand?',
-        answer:
-          'Yes. Everything is private label: made to your specification and sent out under your own label.',
-      },
-      {
-        question: 'What do you need from us to quote?',
-        answer:
-          'A sketch is enough. A reference garment or a tech pack is better. The quote is free.',
-      },
-      {
-        question: 'Do you keep stock designs we can pick from?',
-        answer:
-          'No. Every order is made to order. The 3D garments on this page are references that show what we can make.',
-      },
-      { question: 'Where do you ship?', answer: 'Worldwide.' },
+      { group: 'Windbreakers', garments: 'Printed windbreaker jackets.' },
+      { group: 'Fleece', garments: 'Sherpa fleece jackets.' },
+      { group: 'Leather', garments: 'Utility jackets.' },
     ],
-    photos: ['stitching', 'lab'],
+    stepsHeading: 'How an order works',
+    steps: STEPS,
+    questions: questionsFor('custom jackets', 'Can the jackets carry our own brand?'),
+    closingHeading: 'Have a jacket that needs making?',
+    photos: PHOTOS,
+  },
+  {
+    path: '/private-label-casual-wear-manufacturer',
+    familySlug: 'casual-wear',
+    title: 'Private Label Casual Wear Manufacturer',
+    description: `Private label casual wear made to order, from ${MINIMUM} pieces per style: hoodies, tracksuits, polos and fleece. Sample in ${SAMPLE_DAYS} working days. See each garment in 3D.`,
+    eyebrow: `[ CASUAL WEAR · FROM ${MINIMUM} PIECES PER STYLE ]`,
+    heading: 'Private label casual wear,',
+    headingAccent: 'made to your spec.',
+    lede: `RUN APPAREL is a private label casual wear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make everyday clothing to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    makesHeading: 'What we make in casual wear',
+    makes: [
+      { group: 'Hoodies', garments: 'Women’s crop hoodies.' },
+      { group: 'Tracksuits', garments: 'Men’s tracksuits.' },
+      { group: 'Polos', garments: 'Half-zip polo shirts.' },
+      { group: 'Fleece', garments: 'Half-zip fleece pullovers.' },
+    ],
+    stepsHeading: 'How an order works',
+    steps: STEPS,
+    questions: questionsFor('private label casual wear', 'Can the garments carry our own brand?'),
+    closingHeading: 'Have a range that needs making?',
+    photos: PHOTOS,
   },
 ]
 

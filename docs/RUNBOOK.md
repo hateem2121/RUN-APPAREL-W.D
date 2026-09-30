@@ -2141,8 +2141,11 @@ exactly one thing: 200 garment pages with no heading for a robot.
 
 ### The buyer pages (since 2026-09-30)
 
-A buyer page is a page for one product family, written for the words a buyer searches. The
-first is `/custom-teamwear-manufacturer`. The owner approves every page's words before it is
+A buyer page is a page for one product family, written for the words a buyer searches.
+There are four: `/custom-teamwear-manufacturer`, `/custom-activewear-manufacturer` (the
+Sportswear family; "activewear" so it does not compete with the home page's title),
+`/custom-outerwear-manufacturer` and `/private-label-casual-wear-manufacturer`. Sports
+Accessories has no garments and no page. The owner approves every page's words before it is
 built; nothing on one may state a fact the home page does not.
 
 To add one, after the owner has approved its text:
@@ -2152,8 +2155,9 @@ To add one, after the owner has approved its text:
    it its security policy and its redirect from the admin host.
 3. Copy the folder `apps/cms/src/app/(frontend)/custom-teamwear-manufacturer` under the new
    address and change `PATH` in its `page.tsx`.
-4. Add the address to the page lists in `apps/cms/e2e/` (search them for the first page's
-   address) and to `apps/cms/e2e/csp-nonce-edge.mjs`.
+4. Add the address to `apps/cms/e2e/csp-nonce-edge.mjs`, and its heading to the `PAGES`
+   list in `apps/cms/e2e/pages.spec.ts`. The other browser tests read
+   `FAMILY_PAGE_SOURCES` and follow step 2 on their own.
 
 The sitemap, `/llms.txt` and the home page's family card follow step 1 on their own.
 `apps/cms/src/lib/familyPages.test.ts` fails when steps 1 to 3 disagree. The address may not
