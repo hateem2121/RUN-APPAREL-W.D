@@ -21,17 +21,44 @@ import { expect, test } from './offlineMedia'
  */
 
 test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
-  test('SE-09: states the no-cookie fact in the exact words the no-banner reasoning rests on', async ({
+  /*
+   * ⚠️ REWRITTEN 2026-09-30, WHEN THE FACT CHANGED. Until then this pinned "No cookies and no
+   * tracking identifiers ... That is why you are not being asked to accept anything." The
+   * owner then added Google Analytics and Apollo behind a choice shown to every visitor, so
+   * that sentence would have been false. What the page promises now is narrower and still
+   * testable: nothing is stored and no tracker runs UNLESS the visitor chooses it.
+   * `e2e/consent.spec.ts` holds the site to it in a real browser; this holds the words.
+   */
+  test('SE-09: states that nothing is stored and no tracker runs without the visitor choosing it', async ({
     request,
   }) => {
     const response = await request.get('/privacy')
     expect(response.status()).toBe(200)
     const body = await response.text()
     expect(body).toContain(
-      'No cookies and no tracking identifiers, on this site or on our 3D reference pages. The ' +
-        'one thing your browser keeps is the light or dark setting, and only after you press ' +
-        'that switch. That is why you are not being asked to accept anything.',
+      'Nothing is stored on your device, and no tracker runs, unless you choose it. We ask ' +
+        'once, on this site and on our 3D reference pages alike.',
     )
+    expect(body).toContain('if you decline, or do not answer, neither ever loads.')
+    // The sentence that was true until 2026-09-30 must not survive beside the new one.
+    expect(body).not.toContain('No cookies and no tracking identifiers')
+    expect(body).not.toContain('you are not being asked to accept anything')
+  })
+
+  test('names both consent-only services, what each learns, and that people are not identified', async ({
+    request,
+  }) => {
+    const body = await (await request.get('/privacy')).text()
+    expect(body).toContain('Two more services start, and only then.')
+    expect(body).toContain('Google Analytics, from Google, sets cookies named')
+    expect(body).toContain('We have switched off its advertising features.')
+    expect(body).toContain(
+      'Apollo, a service based in the United States, stores an identifier in your browser and ' +
+        'tells us which companies visited',
+    )
+    // True only while the page policy refuses LiveIntent; see TRACKER_CSP's own test.
+    expect(body).toContain('our pages block the part of it that identifies individuals')
+    expect(body).toContain('Declining after accepting removes what the two services stored')
   })
 
   test('SE-10: names what is collected on a plain visit, and by whom', async ({ request }) => {

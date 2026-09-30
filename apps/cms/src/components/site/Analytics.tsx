@@ -9,6 +9,12 @@
  * follow anyone between sites. Google Analytics was declined on the consent-banner and
  * data-sharing grounds; a paid privacy-first tool would break the budget.
  *
+ * ⚠️ NO LONGER THE ONLY ONE (2026-09-30). The owner reversed the last sentence above and
+ * asked for Google Analytics and Apollo's website visitor tracker as well, accepting the
+ * consent banner that comes with them. They are NOT in this file: `ConsentBanner.tsx` starts
+ * them, and only after a visitor presses Accept. This beacon still runs for every visitor,
+ * because it still sets no cookie and needs no consent.
+ *
  * ⚠️ RENDERS NOTHING UNTIL THE TOKEN EXISTS, AND THAT IS THE INTENDED STATE ON DAY ONE.
  * The token is created in the Cloudflare dashboard against a hostname, so it cannot be
  * generated from here — see docs/OWNER-CHECKLIST.md. Until it is set, this returns null

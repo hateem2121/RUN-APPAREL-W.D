@@ -86,6 +86,26 @@ that server-side exceptions in the two internet-facing Workers currently tell no
 
 ---
 
+## Re-checked 2026-09-30: real third-party tags arrived, and Zaraz is still no
+
+The condition above ("revisit when a genuine third-party tag is added") came true: the owner
+added Google Analytics and Apollo's website visitor tracker. Zaraz was looked at again and
+not adopted, for three measured reasons:
+
+- **It cannot reach the garment pages.** They are served `no-transform` so nothing is
+  injected at the edge (`apps/viewer/scripts/csp.mjs`), and the owner wants the trackers on
+  those 205 pages too. One mechanism for both hosts beats Zaraz on one and hand-written code
+  on the other.
+- **Apollo has no Zaraz component.** It would be a custom HTML tool, which needs its host in
+  `script-src` exactly as the hand-written loader does.
+- **The policy is doing privacy work Zaraz would not.** Apollo's script tries to load
+  LiveIntent (`d-code.liadm.com`) to identify a visitor as a person. The owner chose
+  company-level tracking only, and leaving that host out of both policies is what enforces
+  it. `packages/shared/src/consent.ts` has the account.
+
+What was built instead: a cookie question shown to every visitor, and a loader in bundled
+code that adds the two scripts only after Accept.
+
 ## What would change these decisions
 
 - **Zaraz** — the business adds a real third-party tag. Not before.

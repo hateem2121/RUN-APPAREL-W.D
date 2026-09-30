@@ -101,13 +101,22 @@ export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact', '/privacy', '/
  * asserts `'wasm-unsafe-eval'` survives the swap — and this stays ONE string, because the
  * guard keys on exact equality with it.
  */
+/*
+ * ⚠️ THE TWO TRACKERS' HOSTS JOINED ON 2026-09-30 (owner decision): Google Analytics and
+ * Apollo's visitor tracker, which run only after a visitor presses Accept on the cookie
+ * choice. `packages/shared/src/consent.ts` has the account and the canonical list
+ * (`TRACKER_CSP`); these are a pinned copy, because next.config.mjs loads this file under
+ * plain Node, and `src/publicViewerHeaders.test.ts` fails if the copy drifts.
+ * `d-code.liadm.com` (LiveIntent) is left out on purpose: that absence is what holds
+ * Apollo to identifying companies, never people.
+ */
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://media.wear-run.com https://media.wear-run.help",
+  "img-src 'self' data: blob: https://media.wear-run.com https://media.wear-run.help https://*.google-analytics.com https://*.googletagmanager.com",
   "font-src 'self'",
-  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
+  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

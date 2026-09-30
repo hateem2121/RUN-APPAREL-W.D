@@ -577,3 +577,74 @@ html.lenis body {
     display: none;
   }
 }
+
+/* ── The cookie choice ─────────────────────────────────────────────────
+   Shown to every visitor until they choose (owner decision 2026-09-30); the logic and
+   the reasons are in packages/shared/src/consent.ts. Shared by both hosts, so the
+   website and the garment pages ask in the same words and the same place.
+
+   ⚠️ SMALL ON PURPOSE, AND NOT HIDDEN ON PURPOSE. The first version was a tall card
+   with a label chip and 15px text: 28% of a phone screen. Owner, the same day: make it
+   small. Current regulator guidance agrees with both halves — a choice nobody can see
+   is not consent, and a notice should not take more than about a fifth of the screen
+   or cover the menu. So: 13px text, no chip, one thin row on a wide screen and a short
+   stack on a phone. Both browser suites hold it under 20% of a phone's height.
+
+   FIXED, so it cannot shift the page under a reader (no layout shift to measure), and
+   NOT ANIMATED: it is a question, not an entrance, and an element that holds still
+   needs no reduced-motion branch. The shell ignores the pointer so the strip of page
+   either side of the card stays clickable; only the card takes clicks.
+
+   The two buttons are the SAME class on purpose. A brighter Accept beside a quiet
+   Decline is the nudge regulators object to, and a choice made under a nudge is a
+   weaker consent than one made between equals. They keep the full --target-min height:
+   small to look at must not mean hard to press. */
+.consent {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: var(--z-consent);
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  /* The phone's home indicator. max(), not a sum: the 8px is already clearance. */
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+.consent__card {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  width: 100%;
+  max-width: 880px;
+  padding: 10px 12px 10px 16px;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised);
+}
+/* Takes the row beside the buttons when there is room; wraps above them when not. */
+.consent__text {
+  flex: 1 1 300px;
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+.consent__text a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.consent__actions {
+  flex: 1 1 220px;
+  display: flex;
+  gap: 8px;
+}
+/* Equal widths as well as equal styles. Narrower padding than a page button, same height. */
+.consent__actions .btn {
+  flex: 1 1 0;
+  padding: 10px 14px;
+}
