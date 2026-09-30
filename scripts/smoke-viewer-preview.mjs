@@ -337,7 +337,11 @@ async function runChecks() {
   //    show up as "the site got slow", diagnosed somewhere else entirely.
   const { html: browserHtml } = await get(url, BROWSER_UA)
   const browserTitle = browserHtml.match(/<title>([^<]*)<\/title>/i)?.[1] ?? ''
-  if (browserTitle.toUpperCase().includes(expectCode)) {
+  //    ⚠️ COMPARED WITH THE STATIC TITLE, NOT SEARCHED FOR THE CODE (2026-09-30). A garment
+  //    with a garment type has a rewritten title with no code in it ("X-MILO PRO SKIN-SUIT
+  //    — Women's Cycling Skinsuit, Wine"), so "does the title contain the code?" could no
+  //    longer see a browser being rewritten. The unrewritten page has exactly one title.
+  if (browserTitle.trim() !== STATIC_TITLE) {
     fail(
       `A plain browser request was ALSO rewritten (<title> "${browserTitle}").\n` +
         '   Visitors must be served the static shell — see the latency measurement in\n' +
@@ -374,10 +378,15 @@ async function runChecks() {
       )
     } else {
       const navTitle = nav.html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? ''
-      if (!squash(navTitle).includes(expectCode)) {
+      // ⚠️ THE SAME CHANGE AS CHECK 2, AND THIS LINE WAS MISSED WHEN THAT ONE WAS MADE.
+      // On 2026-09-30 the 40 garment types were written to the CMS while a deploy's own
+      // smoke step was still to run; the title lost its code, this line still demanded
+      // it, and a good deploy went red. It passed every local run because the local
+      // data had no garment types yet: the fixture could not show the failure.
+      if (!navTitle.trim() || navTitle.trim() === STATIC_TITLE) {
         fail(
           `A crawler sending Sec-Fetch-Mode: navigate got <title> "${navTitle}",\n` +
-            `   which does not name ${expectCode}. The Worker did not run: Cloudflare\n` +
+            '   the static title. The Worker did not run: Cloudflare\n' +
             '   served the request from the asset router. Check that the\n' +
             '   `run_worker_first` array is still present in apps/viewer/wrangler.jsonc.',
         )
