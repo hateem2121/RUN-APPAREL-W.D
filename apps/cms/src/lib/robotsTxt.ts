@@ -24,6 +24,23 @@ import { SITE_ORIGIN } from './seo'
 export const DISALLOW = ['/admin', '/api/']
 
 /**
+ * The one path under `/api/` a crawler may read: the data every garment page is drawn from.
+ *
+ * ⚠️ WITHOUT THIS, GOOGLE REFUSED EVERY GARMENT PAGE. A renderer obeys robots.txt for each
+ * file a page fetches, not only for the page. Measured 2026-09-30 in Search Console's live
+ * test of `/products/rxps/wine`: `cms.wear-run.help/api/public/viewer/rxps/wine` was listed
+ * "couldn't be loaded: robots.txt", the viewer logged `viewer-load-failed` and drew its
+ * did-not-load state, and that state adds `noindex` on purpose (`UnreachableState` in
+ * `apps/viewer/src/components/States.tsx`). Verdict: "Excluded by 'noindex' tag", for a page
+ * whose own HTML carries no such tag. A plain fetch cannot see it; only a renderer does.
+ *
+ * A crawler takes the LONGEST matching rule (RFC 9309), so this wins over `Disallow: /api/`
+ * by being longer. The JSON itself stays out of search results: the endpoint answers
+ * `X-Robots-Tag: noindex` (`endpoints/publicViewer.ts`). The rest of `/api/` stays closed.
+ */
+export const RENDER_ALLOW = ['/api/public/viewer/']
+
+/**
  * The owner's answer to "what may be done with this content once it has been read".
  *
  * Cloudflare's Content Signals Policy splits reuse into three, and a value of `yes`
@@ -68,6 +85,7 @@ function group(agents: readonly string[]): string {
     ...agents.map((agent) => `User-agent: ${agent}`),
     `Content-Signal: ${CONTENT_SIGNAL}`,
     'Allow: /',
+    ...RENDER_ALLOW.map((path) => `Allow: ${path}`),
     ...DISALLOW.map((path) => `Disallow: ${path}`),
   ].join('\n')
 }

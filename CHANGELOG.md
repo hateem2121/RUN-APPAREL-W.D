@@ -36,6 +36,7 @@ timeline
 
 - The script that draws the website's sharing picture runs again after the test-tool upgrade.
 - The shrink robot's container gets the same small updates the rest of the code got.
+- Google can now read the garment pages. A rule meant to keep search engines out of the admin data was also hiding each garment's details from Google, so it refused all 205 pages.
 
 ## [2026.09.25] — the website launch
 

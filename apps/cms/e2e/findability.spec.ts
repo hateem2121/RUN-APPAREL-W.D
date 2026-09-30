@@ -377,6 +377,15 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
      */
     const groups = body.split(/\n\s*\n/).filter((block) => /^user-agent:/im.test(block))
     expect(groups.length, 'expected a wildcard group and a named AI group').toBeGreaterThan(1)
+    /*
+     * The garment pages fetch their data from /api/public/viewer/, and a renderer obeys
+     * robots.txt for that fetch. Without this line on the SERVED file Google drew every
+     * garment page in its did-not-load state, which carries `noindex` (measured 2026-09-30;
+     * the account is in lib/robotsTxt.ts).
+     */
+    expect(groups[0], 'a crawler can no longer read the garment data').toMatch(
+      /^allow:\s*\/api\/public\/viewer\/$/im,
+    )
     for (const group of groups) {
       /*
        * ⚠️ THE REFUSED GROUP IS THE EXCEPTION, AND IT IS EXEMPT FOR A REASON RATHER THAN

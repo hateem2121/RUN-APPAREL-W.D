@@ -91,6 +91,22 @@ const richTextToHtml = (value: unknown): string => {
 }
 
 /**
+ * Headers for every 200, from the database or from the in-process cache. One function so
+ * the two answers cannot drift apart.
+ *
+ * ⚠️ `noindex` SINCE 2026-09-30, WHEN robots.txt BEGAN LETTING CRAWLERS FETCH THIS PATH.
+ * It had to: a garment page cannot be rendered without this answer, and with the fetch
+ * refused Google drew all 205 pages in their did-not-load state (`lib/robotsTxt.ts`,
+ * `RENDER_ALLOW`). A crawlable URL is a candidate for a search result, and raw JSON is not
+ * a page. The header governs indexing THIS address only; a renderer still uses the body.
+ */
+const successHeaders = (): Record<string, string> => ({
+  'Cache-Control': PUBLIC_CACHE_CONTROL,
+  'X-Robots-Tag': 'noindex',
+  Vary: ORIGIN_VARY,
+})
+
+/**
  * One handler, two routes. `expectColour` is what separates "the visitor named a
  * colour and it was mangled" (a broken link → 404) from "the visitor named no
  * colour at all" (→ the default). Deriving that from `params.colourSlug` being
@@ -132,9 +148,7 @@ const buildHandler =
     const cacheKey = viewerCacheKey(origin, productSlug, colourSlug)
     const cached = readViewerCache(cacheKey)
     if (cached) {
-      return Response.json(cached, {
-        headers: { 'Cache-Control': PUBLIC_CACHE_CONTROL, Vary: ORIGIN_VARY },
-      })
+      return Response.json(cached, { headers: successHeaders() })
     }
 
     const products = await req.payload.find({
@@ -183,12 +197,7 @@ const buildHandler =
     // rather than becoming a bad minute — the same rule src/lib/content.ts follows.
     writeViewerCache(cacheKey, body)
 
-    return Response.json(body, {
-      headers: {
-        'Cache-Control': PUBLIC_CACHE_CONTROL,
-        Vary: ORIGIN_VARY,
-      },
-    })
+    return Response.json(body, { headers: successHeaders() })
   }
 
 export const publicViewerEndpoint: Endpoint = {
