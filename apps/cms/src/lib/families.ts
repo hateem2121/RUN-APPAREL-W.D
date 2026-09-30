@@ -61,7 +61,29 @@ export function familyBySlug(slug: string | undefined): Family | null {
   return FAMILIES.find((family) => family.slug === slug) ?? null
 }
 
-export type FamilyPicture = { url: string; alt: string }
+export type FamilyPicture = {
+  url: string
+  alt: string
+  /** Set only for the site's own photos, which come in pre-built widths (`FAMILY_PHOTOS`). */
+  srcSet?: string
+}
+
+/**
+ * A family's own photo, used only while the family has no product to show.
+ *
+ * Sports Accessories has no 3D garment yet. On 2026-09-30 the owner supplied a photo of
+ * three RUN backpacks for its card (it had drawn "[ Photo to come ]" until then). Cropped to
+ * the card's 4:5 box around the middle bag and saved at 400 and 800 px wide
+ * (`public/families/`, 26 KB and 97 KB). A real product, once published, takes over.
+ */
+export const FAMILY_PHOTOS: Readonly<Record<string, FamilyPicture>> = {
+  'sports-accessories': {
+    url: '/families/sports-accessories-800.webp',
+    srcSet:
+      '/families/sports-accessories-400.webp 400w, /families/sports-accessories-800.webp 800w',
+    alt: 'A blue RUN mesh backpack, with black and red ones beside it.',
+  },
+}
 
 /**
  * One picture per family for the home page's cards (owner, 2026-09-29: "these cards should
@@ -69,9 +91,8 @@ export type FamilyPicture = { url: string; alt: string }
  *
  * The first product of the family in CMS order — the gallery's own order, so the card shows
  * what the filtered gallery opens with — using its default colour's studio render where it
- * has one, else the card's poster. A family with nothing to show gets `null`: the card then
- * draws no picture at all, never a broken one. Sports Accessories has no product yet, and
- * the owner chose to build without a stand-in photo.
+ * has one, else the card's poster, else the family's own photo (`FAMILY_PHOTOS`). A family
+ * with none of those gets `null`: the card then draws no picture at all, never a broken one.
  *
  * ⚠️ `category === name`, EXACTLY, for the same reason the gallery filter uses it — see the
  * warning at the top of this file.
@@ -87,7 +108,7 @@ export function familyPictures(
       ? { url: image.url, alt: image.alt }
       : card?.posterUrl
         ? { url: card.posterUrl, alt: card.posterAlt }
-        : null
+        : (FAMILY_PHOTOS[family.slug] ?? null)
   }
   return pictures
 }

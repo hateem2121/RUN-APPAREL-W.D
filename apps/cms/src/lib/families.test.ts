@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FAMILIES, familyBySlug, familyPictures } from './families'
+import { FAMILIES, FAMILY_PHOTOS, familyBySlug, familyPictures } from './families'
 import type { ProductCard } from './projectPublic'
 
 /**
@@ -126,8 +126,23 @@ describe('familyPictures', () => {
       card({ category: 'Casual Wear', posterUrl: null, colours: [] }),
     ])
     expect(pictures['casual-wear']).toBeNull()
-    expect(pictures['sports-accessories']).toBeNull()
     expect(Object.keys(pictures).sort()).toEqual(FAMILIES.map((f) => f.slug).sort())
+  })
+
+  // The owner's photo (2026-09-30) stands in only while the family has no product.
+  it('shows Sports Accessories its own photo, and a product picture wins once there is one', () => {
+    expect(familyPictures([])['sports-accessories']).toEqual(FAMILY_PHOTOS['sports-accessories'])
+    const withProduct = familyPictures([card({ category: 'Sports Accessories' })])
+    expect(withProduct['sports-accessories']?.url).toBe('https://media.example/render.webp')
+  })
+
+  it('every family photo file exists in both widths', () => {
+    for (const photo of Object.values(FAMILY_PHOTOS)) {
+      for (const entry of (photo.srcSet ?? '').split(', ')) {
+        const file = entry.split(' ')[0] ?? ''
+        expect(existsSync(join(import.meta.dirname, '..', '..', 'public', file)), file).toBe(true)
+      }
+    }
   })
 
   it('matches the category exactly, as the gallery filter does (negative control)', () => {

@@ -69,6 +69,11 @@ const PAGES = [
     name: 'packaging guide',
     heading: /Private label packaging/i,
   },
+  {
+    path: '/guides/shipping-and-import-duties',
+    name: 'shipping guide',
+    heading: /Shipping and import duties/i,
+  },
 ] as const
 
 test.describe('every page renders real content', () => {

@@ -31,6 +31,8 @@ timeline
 - Four buyer pages, one each for Teamwear, Sportswear, Outerwear and Casual Wear: what is made, the minimum, the sample time, how an order works and six common questions. The home page's family cards now open them.
 - Three buyer guides under `/guides`: how a private label order works, the 3D garment reference explained, and minimum order and samples. A "Guides" link in the footer of every website page opens them.
 - Three more buyer guides: garment printing methods, sportswear fabrics and weights, and private label packaging.
+- A guide to shipping and import duties: the four ways an order ships and the price terms quoted.
+- The Sports Accessories card on the home page shows a photo of RUN backpacks instead of "Photo to come".
 - Each garment can carry a plain garment type ("Women's Tennis Dress"), and its page title now says it.
 
 ### Changed

@@ -42,6 +42,7 @@ const PAGES = [
   ['/guides/garment-printing-methods', 200],
   ['/guides/sportswear-fabrics-and-weights', 200],
   ['/guides/private-label-packaging', 200],
+  ['/guides/shipping-and-import-duties', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [
