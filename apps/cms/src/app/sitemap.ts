@@ -15,8 +15,9 @@ import { SITE_ORIGIN } from '../lib/seo'
  * never throws: a D1 failure returns no cards, and the sitemap still lists the site's
  * own pages.
  *
- * ⚠️ NO `lastModified`: a date nobody updates is worse than no date, because a crawler
- * believes it. Next omits the field entirely when it is absent, which is what we want.
+ * ⚠️ `lastModified` ONLY WHERE THE DATABASE HOLDS A REAL DATE (garments, since 2026-09-30):
+ * a date nobody updates is worse than no date, because a crawler believes it. Next omits the
+ * field entirely when it is absent, which is what the five site pages want.
  *
  * ⚠️ Must live at `src/app/`, outside both route groups — see the note in robots.ts.
  */

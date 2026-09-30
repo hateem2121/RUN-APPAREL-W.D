@@ -177,6 +177,7 @@ export function buildViewerResponse(
         : [],
       garmentFit: String(product.garmentFit ?? ''),
       shortDescription: String(product.shortDescription ?? ''),
+      garmentType: String(product.garmentType ?? '').trim(),
       customisationIntroHtml: deps.richTextToHtml(product.customisationIntro),
       customisationSteps: Array.isArray(buildSteps)
         ? buildSteps.map((step) => {

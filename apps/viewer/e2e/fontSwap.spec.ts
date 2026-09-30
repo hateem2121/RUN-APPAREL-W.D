@@ -57,7 +57,7 @@ const HEADLINES: Readonly<Record<string, string>> = {
   'r-ect': 'ENDURA CROP TOP',
   'r-et': 'ENDURANCE TRACKSUIT',
   // Added 2026-09-28, as the CMS stores them (the public API serves productName unchanged).
-  'r-srs': 'SHORT RAGNAL SLEEVE',
+  'r-srs': 'SHORT RAGLAN SLEEVE',
   'r-snp': 'SCUBA-NECK PERFORMANCE',
   'r-pps': 'PRO-PILE SHERPA JACKET',
   'r-prs': 'PACEZIP RUNNING SHIRT',

@@ -177,6 +177,36 @@ describe('the product’s short description', () => {
   })
 })
 
+/*
+ * The garment type (2026-09-30) is what the page title tells a search engine the garment
+ * IS. It must arrive as a trimmed string, and as '' for the 40 garments saved before the
+ * field existed, because the title function reads '' as "no type yet, keep the old title".
+ */
+describe('the product’s garment type', () => {
+  it('is projected trimmed when set, and is an empty string when not', () => {
+    const withType = buildViewerResponse(
+      product({ garmentType: "  Women's Tennis Dress " }),
+      [colourway()],
+      {},
+      origin,
+      'navy',
+      deps,
+    )!
+    expect(withType.product.garmentType).toBe("Women's Tennis Dress")
+    const without = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)!
+    expect(without.product.garmentType).toBe('')
+    const nulled = buildViewerResponse(
+      product({ garmentType: null }),
+      [colourway()],
+      {},
+      origin,
+      'navy',
+      deps,
+    )!
+    expect(nulled.product.garmentType).toBe('')
+  })
+})
+
 describe('buildViewerResponse', () => {
   it('exposes only whitelisted product keys — no internal fields leak', () => {
     const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)
@@ -200,6 +230,7 @@ describe('buildViewerResponse', () => {
         'catalogueUrl',
         'retiredMessage',
         'shortDescription',
+        'garmentType',
       ].sort(),
     )
     const serialized = JSON.stringify(body)

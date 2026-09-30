@@ -23,10 +23,21 @@ export const dynamic = 'force-dynamic'
  *
  * The TITLE follows the filter, because that is what a shared link should say in a tab.
  */
+/**
+ * The products page's title, in the owner's own words (2026-09-30). It was "Products", which
+ * told a search engine nothing; measured that day, all ten pages ranking for "custom
+ * sportswear manufacturer" lead their title with what they sell.
+ *
+ * ⚠️ 56 characters, and the layout adds " — RUN APPAREL" (70 in all). A result shows about
+ * 60, so the brand at the end is usually cut. The owner was told and chose these words;
+ * the part that is cut is the part already shown beside every result.
+ */
+const PRODUCTS_TITLE = 'Private Label Sports Apparel & Casual Wear Products in 3D'
+
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const family = familyBySlug((await searchParams).family)
   return buildMetadata({
-    title: family ? `${family.name} — 3D references` : 'Products',
+    title: family ? `${family.name} — 3D references` : PRODUCTS_TITLE,
     description: productsDescription(family?.name ?? null),
     path: '/products',
   })

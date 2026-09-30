@@ -2076,6 +2076,69 @@ convincing detail — while the same URL checked by hand minutes later passed ev
 one. Six attempts, ten seconds apart. If you add another post-deploy check
 against the viewer, give it the same treatment.
 
+### What a search robot reads on a garment page (since 2026-09-30)
+
+A robot's copy of a garment page also carries the garment's own words in its body, not
+only in its head. Measured live on 2026-09-30, fetching `/products/rxps/wine` as Googlebot:
+a complete head, and a body with no heading, no picture and no sentence, because every
+visible word is drawn by JavaScript. Google runs JavaScript late, Bing runs little, and the
+AI answer engines that `robots.txt` invites run none.
+
+So the Worker appends a plain block inside `#root`: the family and code, the name as the
+page's one `<h1>`, the colour, the picture, the owner's description, the specification
+lines and a link to every colour's page (`buildCrawlerBody` in
+`apps/viewer/worker/preview.ts`). It holds only what the loaded page itself shows; serving
+a robot words a visitor never sees is cloaking. The app replaces the block the moment it
+starts, so a robot that does run JavaScript still ends with one heading.
+
+The same day, for robots only: **a garment that does not exist answers 404.** A person
+still gets the branded page with a 200, because a person's request must never wait on the
+CMS. A robot's request already waits on it, so the answer is free (`isMissingGarment` in
+`apps/viewer/worker/notFound.ts`). Only the CMS's own 404 counts; a timeout or a 5xx keeps
+the old behaviour, so an outage can never tell Google a live garment is gone.
+`scripts/smoke-viewer-preview.mjs` checks both after every deploy.
+
+### The page title, and the garment type behind it (since 2026-09-30)
+
+Every live product name is a brand name ("MINECUT MOTION"), so until this day no garment
+page's title said what the garment is. Each product now has an optional **Garment type (for
+Google)** box in the CMS (`garmentType` in `apps/cms/src/collections/Products.ts`), and the
+title reads `NAME — Garment Type, Colour | RUN APPAREL`. When that is longer than a search
+result shows, the brand is dropped, never the type. A garment with an empty box keeps the
+code-led title it had.
+
+One function builds it, `garmentPageTitle` in `packages/shared/src/pageTitle.ts`, and both
+writers call it: the Worker for the HTML a robot first receives, and `apps/viewer/src/App.tsx`
+for `document.title`. They must agree because Google reads the title after running the
+page. A shared link's title (`og:title`) is separate and still leads with the product code.
+
+The 40 owner-approved types are written by a script, once, after the deploy that adds the box:
+
+```bash
+node scripts/apply-garment-types.mjs
+```
+
+That is a dry run; it prints what it would write and needs no key. With `--apply` and
+`CMS_API_KEY` exported it writes each type into an EMPTY box only, reads every write back,
+and corrects the one misspelled name (R-SRS, RAGNAL to RAGLAN). A box the owner has typed
+in is left alone. Run before the deploy, every write is accepted and stored nowhere (Payload
+drops a field it does not know), which the read-back reports as "not stored".
+
+### The whole-site search check (`scripts/seo-crawl.mjs`)
+
+```bash
+node scripts/seo-crawl.mjs
+```
+
+Reads the live sitemap, fetches every page as a search robot and reports what a search
+engine would find wrong: a missing or duplicate title, a missing description, no `<h1>` or
+more than one, a canonical pointing elsewhere, a `noindex` on a page the sitemap offers, an
+image with no alt text. It groups by rule, so 200 pages failing one way read as one
+problem. Read-only, four requests at a time, about a minute for 205 pages. It stands in for
+a desktop crawler, by the owner's choice; the rules and a planted defect for each are in
+`scripts/seo-page-rules.mjs` and `apps/cms/src/seoPageRules.test.ts`. Its first run found
+exactly one thing: 200 garment pages with no heading for a robot.
+
 ### Why only crawlers get the rewrite
 
 Measured 2026-08-08, warm connection, five requests each:

@@ -281,6 +281,9 @@ const PRODUCTS = {
   n001: {
     productCode: 'N001',
     productName: 'Velocity Performance Tee',
+    // Production garments carry a type since 2026-09-30; n002 below has none on purpose,
+    // so both branches of the page title are exercised in a real browser.
+    garmentType: "Men's Training Tee",
     hasGlb: true,
     shortDescription:
       'A race-fit training tee built for long summer mileage. Recycled face yarn, ' +
@@ -324,6 +327,7 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       // `?? ''` mirrors projectViewer.ts exactly: the API always emits a string,
       // so the viewer's `||` fallback is the only thing that decides.
       shortDescription: meta.shortDescription ?? '',
+      garmentType: meta.garmentType ?? '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: meta.hasGlb ? `${origin}/fixtures/${meta.glbFile ?? 'n001.glb'}` : null,

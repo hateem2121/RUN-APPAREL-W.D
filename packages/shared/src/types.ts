@@ -89,6 +89,12 @@ export interface ViewerProduct {
    */
   shortDescription: string
   /**
+   * What kind of garment this is, in a buyer's words ("Women's Tennis Dress"). Empty until
+   * the owner types one. Used in the page title only (`pageTitle.ts`, 2026-09-30): product
+   * names here are brand names, so without it no title says what the garment is.
+   */
+  garmentType: string
+  /**
    * Rich text serialised to sanitised HTML by the CMS endpoint.
    *
    * ⚠️ SOURCED FROM THE `build-process` GLOBAL SINCE 2026-08-17, not from the

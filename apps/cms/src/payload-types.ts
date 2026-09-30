@@ -373,6 +373,10 @@ export interface Product {
    */
   productName: string;
   /**
+   * What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. Leave blank if unsure.
+   */
+  garmentType?: string | null;
+  /**
    * A few sentences about this garment, shown under its name on the public page. Plain text — no links or formatting. There is no length limit, though the page reads best at three or four sentences. Leave it blank and the page uses the standard development-reference wording instead.
    */
   shortDescription?: string | null;
@@ -852,6 +856,7 @@ export interface ProductsSelect<T extends boolean = true> {
   status?: T;
   sortOrder?: T;
   productName?: T;
+  garmentType?: T;
   shortDescription?: T;
   productCode?: T;
   slug?: T;

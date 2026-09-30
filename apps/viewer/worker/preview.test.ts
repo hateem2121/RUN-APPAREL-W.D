@@ -88,6 +88,7 @@ function payload(overrides: {
       slug: 'n001',
       productName: 'Velocity Performance Skinsuit',
       shortDescription: '',
+      garmentType: '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: 'https://media.wear-run.help/cycling-all-colours-optimized-4.glb',
@@ -150,6 +151,44 @@ describe('buildPreview — title', () => {
     expect(build(payload({ colourways: [only], selectedColourway: only })).title).toBe(
       'N001 Velocity Performance Skinsuit',
     )
+  })
+})
+
+/*
+ * THE PAGE'S OWN <title> IS NOT THE LINK-PREVIEW TITLE (2026-09-30). A shared link leads
+ * with the code a buyer quotes back; a search result needs to say what the garment IS.
+ * The rules are tested in packages/shared/src/pageTitle.test.ts; this pins that the Worker
+ * passes the right values to them, and that the two titles stay separate.
+ */
+describe('buildPreview — the page title search engines show', () => {
+  it('says the garment type when the owner has typed one, and ends with the brand', () => {
+    const preview = build(payload({ product: { garmentType: "Women's Cycling Skinsuit" } }))
+    expect(preview.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Wine")
+    // …and the link preview still leads with the code.
+    expect(preview.title).toBe('N001 Velocity Performance Skinsuit — Wine')
+  })
+
+  it('keeps the code-led title, with the brand, for a garment with no type yet', () => {
+    expect(build(payload({})).pageTitle).toBe(
+      'N001 Velocity Performance Skinsuit — Wine | RUN APPAREL',
+    )
+  })
+
+  it('names the colour that LOADS, as every other field here does', () => {
+    const preview = build(
+      payload({
+        product: { garmentType: 'Tee' },
+        selectedColourway: colourway({ displayName: 'Blush', slug: 'blush' }),
+      }),
+    )
+    expect(preview.pageTitle).toContain('Tee, Blush')
+  })
+
+  it('gives each colour of one garment a different title', () => {
+    const titles = ['Wine', 'Blush', 'Lime'].map(
+      (displayName) => build(payload({ selectedColourway: colourway({ displayName }) })).pageTitle,
+    )
+    expect(new Set(titles).size).toBe(3)
   })
 })
 
@@ -385,6 +424,120 @@ describe('buildPreview — image', () => {
   })
 })
 
+/*
+ * THE WORDS A SEARCH ROBOT READS ON A GARMENT PAGE (2026-09-30).
+ *
+ * Measured live that day, fetching /products/rxps/wine as Googlebot: the head was complete
+ * (title, description, structured data) and the body held NO heading, NO picture and NO
+ * sentence, because every visible word is drawn by JavaScript. Google runs JavaScript, late;
+ * Bing runs little; the AI answer engines robots.txt invites run none. So the robot-only
+ * copy of the page now carries the garment's own words inside `#root`, where the app
+ * replaces them the moment it starts.
+ *
+ * ⚠️ ONLY WHAT THE PAGE ITSELF SHOWS. Showing a robot text a visitor never sees is cloaking,
+ * which search engines penalise. Every value below is one the loaded page prints: the name,
+ * the colour, the owner's description, the four specification lines and the colour list.
+ */
+describe('buildPreview — the readable page body for robots', () => {
+  const SITE = 'https://wear-run.com'
+  const onSite = (p: ViewerApiSuccess) =>
+    buildPreview(p, { origin: SITE, cards: CARDS, prefix: '/products' }).bodyHtml
+
+  const full = () =>
+    payload({
+      product: {
+        shortDescription: 'A women’s performance cycling skinsuit.',
+        performanceFeatures: ['Moisture management', 'Four-way stretch'],
+      },
+    })
+
+  it('has exactly one heading, and it is the garment’s name', () => {
+    const html = onSite(full())
+    expect(html.match(/<h1[\s>]/g)).toHaveLength(1)
+    expect(html).toContain('<h1>Velocity Performance Skinsuit</h1>')
+  })
+
+  it('names the colour that loads, the code, the family and the description', () => {
+    const html = onSite(full())
+    expect(html).toContain('Shown in Wine.')
+    expect(html).toContain('N001')
+    expect(html).toContain('Sportswear')
+    expect(html).toContain('A women’s performance cycling skinsuit.')
+  })
+
+  it('lists the specifications the page shows, and skips an empty one', () => {
+    const html = onSite(full())
+    expect(html).toContain(
+      '<dt>Fabric composition</dt><dd>80% recycled polyester / 20% elastane</dd>',
+    )
+    expect(html).toContain('<dt>Weight</dt><dd>160 GSM</dd>')
+    expect(html).toContain('<dt>Fit</dt><dd>Race fit</dd>')
+    expect(html).toContain(
+      '<dt>Performance features</dt><dd>Moisture management, Four-way stretch</dd>',
+    )
+    const bare = onSite(payload({ product: { gsm: '', garmentFit: '  ' } }))
+    expect(bare).not.toContain('<dt>Weight</dt>')
+    expect(bare).not.toContain('<dt>Fit</dt>')
+    expect(bare).not.toContain('<dd></dd>')
+  })
+
+  it('shows the picture of this colour, with its description and real size', () => {
+    const html = onSite(full())
+    expect(html).toContain('<img src="https://wear-run.com/og/n001/wine.jpg"')
+    expect(html).toContain('alt="Velocity Performance Skinsuit in Wine"')
+    expect(html).toContain('width="1200" height="1500"')
+    const none = onSite(
+      payload({ product: { slug: 'zzz' }, selectedColourway: colourway({ poster: null }) }),
+    )
+    expect(none).not.toContain('<img')
+  })
+
+  it('links every colour’s own page, so a robot can walk from one to the next', () => {
+    const html = onSite(full())
+    expect(html).toContain('<a href="https://wear-run.com/products/n001/wine">Wine</a>')
+    expect(html).toContain('<a href="https://wear-run.com/products/n001/blush">Blush</a>')
+    expect(html).toContain('<a href="https://wear-run.com/products/n001/lime">Lime</a>')
+  })
+
+  it('links back to the catalogue, the family and the contact page, on the website only', () => {
+    const html = onSite(full())
+    expect(html).toContain('<a href="https://wear-run.com/products">All products</a>')
+    expect(html).toContain(
+      '<a href="https://wear-run.com/products?family=sportswear">Sportswear</a>',
+    )
+    expect(html).toContain('<a href="https://wear-run.com/contact">Contact RUN APPAREL</a>')
+    // The old viewer host only forwards; it has no catalogue or contact page of its own.
+    const old = build(full()).bodyHtml
+    expect(old).not.toContain('All products')
+    expect(old).not.toContain('/contact')
+  })
+
+  it('escapes CMS text, so a description cannot inject markup', () => {
+    const html = onSite(
+      payload({
+        product: {
+          productName: 'Tee <b>& "co"',
+          shortDescription: '</div><script>alert(1)</script>',
+        },
+      }),
+    )
+    expect(html).not.toContain('<script')
+    expect(html).not.toContain('<b>')
+    expect(html).toContain('Tee &lt;b&gt;&amp; &quot;co&quot;')
+    expect(html).toContain('&lt;/div&gt;&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
+  it('states no price, like the structured data beside it', () => {
+    expect(onSite(full())).not.toMatch(/price|\$|USD|PKR/i)
+  })
+
+  it('says nothing it cannot back: no description line when the owner wrote none', () => {
+    const html = onSite(payload({}))
+    expect(html).not.toContain('<p></p>')
+    expect(html).toContain('<h1>Velocity Performance Skinsuit</h1>')
+  })
+})
+
 describe('the tags index.ts rewrites still exist in index.html', () => {
   /**
    * THE POINT OF THIS TEST. HTMLRewriter treats a selector that matches nothing
@@ -398,6 +551,33 @@ describe('the tags index.ts rewrites still exist in index.html', () => {
 
   it.each(REWRITTEN_META)('index.html declares %s', (key) => {
     expect(html).toMatch(new RegExp(`<meta\\s+(?:property|name)="${key}"`, 'i'))
+  })
+
+  /*
+   * The post-deploy check proves the rewrite ran by the title no longer being this static
+   * one (scripts/smoke-viewer-preview.mjs, STATIC_TITLE). If the static title is reworded
+   * and that copy is not, every rewritten page "differs" and the check can never fail.
+   */
+  it('has the static title the post-deploy check compares against', () => {
+    const staticTitle = html.match(/<title>([^<]+)<\/title>/i)?.[1] ?? ''
+    const smoke = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        '..',
+        '..',
+        'scripts',
+        'smoke-viewer-preview.mjs',
+      ),
+      'utf8',
+    )
+    expect(staticTitle).not.toBe('')
+    expect(smoke).toContain(`const STATIC_TITLE = '${staticTitle}'`)
+  })
+
+  // The robot-readable body is appended INSIDE this element, where the app replaces it.
+  it('has the #root element the Worker appends the readable body to', () => {
+    expect(html).toMatch(/<div id="root">/)
   })
 
   it('has a <title> and a description for the Worker to overwrite', () => {

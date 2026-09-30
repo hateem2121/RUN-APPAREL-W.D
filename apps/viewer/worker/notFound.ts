@@ -101,3 +101,22 @@ export function shouldReturnNotFound(args: {
   if (routeParsed) return false
   return true
 }
+
+/**
+ * Whether the CMS said, in so many words, that this garment does not exist.
+ *
+ * ⚠️ THE ROBOT-ONLY HALF OF THE LIMIT ABOVE (owner: yes, 2026-09-30). `shouldReturnNotFound`
+ * leaves a well-formed but unknown garment at 200, because a person's request must never
+ * wait on the CMS. A search robot's request ALREADY waits on it, to build the preview, so
+ * for a robot the answer is free. Measured live that day as Googlebot: `/products/nope/nope`
+ * answered 200 with the generic shell, a soft 404 that spends crawl budget on a page that
+ * can never rank.
+ *
+ * ⚠️ EXACTLY 404, AND NOTHING ELSE. A timeout, a 5xx or a 429 means the CMS could not
+ * answer, not that the garment is gone. Telling Google "not found" during an outage would
+ * start removing live garments from search, which is a far worse failure than a soft 404;
+ * those cases keep today's behaviour (200 and the generic page).
+ */
+export function isMissingGarment(cmsStatus: number | null): boolean {
+  return cmsStatus === 404
+}

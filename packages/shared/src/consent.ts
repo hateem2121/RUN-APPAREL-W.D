@@ -155,7 +155,12 @@ export interface TrackerWindow {
     createElement(tag: 'script'): TrackerScript
     head: { appendChild(node: TrackerScript): unknown }
   }
+  /** Where the page is being served from; absent in a test that does not care. */
+  location?: { hostname: string }
 }
+
+/** The one hostname whose visits are real visitors'. Every other host forwards here. */
+export const LIVE_HOSTNAME = 'wear-run.com'
 
 function loadScript(win: TrackerWindow, src: string, onload: (() => void) | null = null): void {
   const script = win.document.createElement('script')
@@ -195,7 +200,16 @@ export function startTrackers(win: TrackerWindow): void {
     ad_personalization: 'denied',
   })
   gtag('js', new Date())
-  gtag('config', GA_MEASUREMENT_ID)
+  /*
+   * ⚠️ ONLY THE REAL SITE COUNTS AS A REAL VISIT. Read from the owner's Analytics on
+   * 2026-09-30, before the tag had even deployed: 13 "users", all from hostName
+   * `localhost`, which was this project's own checking. Everywhere that is not exactly the
+   * live hostname marks itself `traffic_type: internal`, the parameter Analytics' built-in
+   * internal-traffic filter drops (Admin → Data filters; it must be set to Active). An
+   * unknown host counts as internal: counting too little is the safe mistake.
+   */
+  if (win.location?.hostname === LIVE_HOSTNAME) gtag('config', GA_MEASUREMENT_ID)
+  else gtag('config', GA_MEASUREMENT_ID, { traffic_type: 'internal' })
   loadScript(win, `${GA_SCRIPT}?id=${GA_MEASUREMENT_ID}`)
 
   // Apollo's own snippet adds a random `nocache` value; kept, so its script is never stale.

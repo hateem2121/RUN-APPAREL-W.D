@@ -195,6 +195,8 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
       productCode: 'N001',
       slug: 'n001',
       productName: 'Velocity Performance Tee',
+      // Seeded so the browser suites exercise the typed page title (2026-09-30).
+      garmentType: "Men's Training Tee",
       category: 'Sportswear',
       status: 'published',
       variantMode: 'single-glb-variants',
