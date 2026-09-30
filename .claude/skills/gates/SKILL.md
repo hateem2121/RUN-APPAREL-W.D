@@ -28,6 +28,11 @@ failed twice here:
 - `check-bundle-budget` reads the viewer's build output, so it exits 1 for the wrong
   reason unless `build` ran first.
 
+The list must match CI. Until 2026-09-30 it silently lacked the docs-index and
+doc-pictures checks that CI runs, so "All gates passed" did not cover them;
+`apps/cms/src/gateRunnerParity.test.ts` now fails when CI's `verify` or `e2e-shard` job
+runs a `node` check this script does not.
+
 The script also runs the `.claude/` guard tests. `.claude/` is not a workspace package,
 so vitest never sees them; since 2026-09-29 CI runs them too, as the `verify` step
 "Hook guard tests (.claude/hooks)" in `.github/workflows/ci.yml`.
