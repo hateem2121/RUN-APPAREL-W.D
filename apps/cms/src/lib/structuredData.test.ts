@@ -59,6 +59,48 @@ describe('organisation', () => {
   })
 
   /*
+   * 2026-09-30: measured live, `sameAs` held the WhatsApp link and nothing else, while the
+   * footer of the same page linked the company's LinkedIn and Instagram. Those links are
+   * how a search engine ties the website to the company's other profiles. They come from
+   * the one list the footer prints (`footer.socialLinks`), so the two cannot disagree.
+   */
+  it('names every profile the footer links, after WhatsApp and without repeats', () => {
+    const org = organizationJsonLd(
+      settings({
+        footer: {
+          ...EMPTY_FOOTER,
+          socialLinks: [
+            { label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel-pvt-ltd' },
+            { label: 'Instagram', url: 'https://www.instagram.com/run_apparel_' },
+            {
+              label: 'LinkedIn again',
+              url: 'https://www.linkedin.com/company/run-apparel-pvt-ltd',
+            },
+          ],
+        },
+      }),
+    )
+    expect(org.sameAs).toEqual([
+      expect.stringMatching(/^https:\/\/wa\.me\/\d+$/),
+      'https://www.linkedin.com/company/run-apparel-pvt-ltd',
+      'https://www.instagram.com/run_apparel_',
+    ])
+  })
+
+  it('still names the profiles when there is no WhatsApp number', () => {
+    const org = organizationJsonLd(
+      settings({
+        whatsappNumber: '',
+        footer: {
+          ...EMPTY_FOOTER,
+          socialLinks: [{ label: 'LinkedIn', url: 'https://www.linkedin.com/company/x' }],
+        },
+      }),
+    )
+    expect(org.sameAs).toEqual(['https://www.linkedin.com/company/x'])
+  })
+
+  /*
    * The owner, 2026-09-29: a 3D reference is available on request, NOT part of every order,
    * and buyers can be from anywhere. The description AI answers are built from must say
    * neither "every garment ships with a 3D reference" nor a closed list of regions.

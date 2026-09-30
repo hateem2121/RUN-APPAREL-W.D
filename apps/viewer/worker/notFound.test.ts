@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseViewerPath } from '@run-apparel/shared'
-import { isWellKnownPath, shouldReturnNotFound } from './notFound'
+import { isMissingGarment, isWellKnownPath, shouldReturnNotFound } from './notFound'
 
 /**
  * Every unknown URL on this host answered "200 OK" until 2026-09-04 — measured:
@@ -255,5 +255,30 @@ describe('/.well-known/ is never a product page — 2026-09-24', () => {
   it('does not touch a real product route that happens to contain a dot-free segment', () => {
     expect(decide('/rxps/wine')).toBe(false)
     expect(decide('/r-milo-pro/bottle-green')).toBe(false)
+  })
+})
+
+/*
+ * 2026-09-30 (owner: yes, for search robots only). Measured live that day as Googlebot:
+ * `/products/nope/nope` answered 200 with the generic shell and no `noindex` in the HTML
+ * it was handed, a soft 404. The robot-only path ALREADY asks the CMS about the garment to
+ * build its preview, so for a robot the answer costs nothing extra. A person's request
+ * still never waits on the CMS and still gets the branded page; the limit documented on
+ * `shouldReturnNotFound` is unchanged for them.
+ */
+describe('isMissingGarment', () => {
+  it('is true only when the CMS itself said the garment does not exist', () => {
+    expect(isMissingGarment(404)).toBe(true)
+  })
+
+  it('is false for an outage, so a slow CMS can never tell Google a live garment is gone', () => {
+    for (const status of [500, 502, 503, 504, 429, 403, 408]) {
+      expect(isMissingGarment(status), `status ${status}`).toBe(false)
+    }
+    expect(isMissingGarment(null), 'a timeout or a thrown fetch has no status').toBe(false)
+  })
+
+  it('is false for a success', () => {
+    expect(isMissingGarment(200)).toBe(false)
   })
 })

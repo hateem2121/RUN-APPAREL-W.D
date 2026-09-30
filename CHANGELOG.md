@@ -24,6 +24,9 @@ timeline
 - A picture guide for RUN staff, in six short pages.
 - A code of conduct, a help page, and three simple forms for reporting a problem.
 - A robot that checks every picture has a description and every diagram draws.
+- Search robots now read each garment's name, picture, description and colours on its page, not only in hidden data.
+- The sitemap tells Google when each garment last changed and where its picture is.
+- A one-command check of every page for search problems (`node scripts/seo-crawl.mjs`).
 
 ### Changed
 
@@ -31,11 +34,13 @@ timeline
 - Error reports now use Sentry 11, and the privacy page says exactly what they include ([#72](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/72)).
 - The last fixes from the launch checklist ([#71](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/71)).
 - The AI instruction files are shorter, and each rule sits where it applies.
+- The company's LinkedIn and Instagram, already in the footer, are now also in the data search engines read.
 
 ### Fixed
 
 - The script that draws the website's sharing picture runs again after the test-tool upgrade.
 - The shrink robot's container gets the same small updates the rest of the code got.
+- A garment address that does not exist now answers "not found" to search robots; people still see the helpful page.
 
 ## [2026.09.25] — the website launch
 

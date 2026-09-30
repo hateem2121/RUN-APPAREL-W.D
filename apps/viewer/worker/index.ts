@@ -12,7 +12,7 @@ import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
 import { oldViewerHostRedirect } from './oldViewerHost'
-import { isWellKnownPath, shouldReturnNotFound } from './notFound'
+import { isMissingGarment, isWellKnownPath, shouldReturnNotFound } from './notFound'
 import { buildPreview, type Preview } from './preview'
 import { workerResponseHeaders } from './securityHeaders'
 import { securityTxtResponse } from './securityTxt'
@@ -124,18 +124,22 @@ const CMS_TIMEOUT_MS = 8000
 /**
  * Fetch the public viewer payload over the service binding.
  *
- * Returns null on ANY failure — timeout, 404, malformed JSON, missing binding.
- * The caller then returns the asset response untouched, so a CMS outage degrades
- * a link preview to the generic one and NEVER to a broken page. That is the whole
- * error strategy and it is deliberately blunt: this feature is cosmetic, and
+ * Returns null on any failure that is NOT an answer — timeout, 5xx, malformed JSON,
+ * missing binding. The caller then returns the asset response untouched, so a CMS outage
+ * degrades a link preview to the generic one and NEVER to a broken page. That is the
+ * whole error strategy and it is deliberately blunt: this feature is cosmetic, and
  * nothing about it is worth failing a page load over.
+ *
+ * Returns `MISSING` for the one failure that IS an answer: the CMS said 404, there is no
+ * such garment (2026-09-30; `isMissingGarment` has the reasoning). A cache hit is always a
+ * real payload, because only a success is ever stored.
  */
 async function loadPayload(
   env: Env,
   route: { productSlug: string; colourSlug: string | null },
   origin: string,
   ctx: ExecutionContext,
-): Promise<ViewerApiSuccess | null> {
+): Promise<ViewerApiSuccess | typeof MISSING | null> {
   // The colour segment is dropped rather than sent empty — `/n001/` and
   // `/n001/null` are both read by the API as a mangled colour and 404. The shared
   // `viewerApiPath` carries that rule for the app, this and the preload alike.
@@ -169,7 +173,8 @@ async function loadPayload(
     // from a renamed slug from a malformed payload, without logging the payload.
     if (!res.ok) {
       console.warn('og-payload-failed', { path, reason: 'cms-status', status: res.status })
-      return null
+      // The one failure that is an ANSWER: the CMS says there is no such garment.
+      return isMissingGarment(res.status) ? MISSING : null
     }
     const body = await res.text()
     const payload = JSON.parse(body) as ViewerApiSuccess | { error: string }
@@ -212,6 +217,9 @@ async function loadPayload(
   }
 }
 
+/** `loadPayload`'s word for "the CMS answered, and the garment does not exist". */
+const MISSING = 'missing' as const
+
 /** Escape a value for interpolation into an attribute in appended markup. */
 function attr(value: string): string {
   return value
@@ -251,6 +259,13 @@ function applyPreview(response: Response, preview: Preview): Response {
     .on('meta[property="og:description"], meta[name="twitter:description"]', {
       element(el) {
         el.setAttribute('content', preview.description)
+      },
+    })
+    // The garment's own words, for a robot that runs no JavaScript (preview.ts →
+    // buildCrawlerBody). Inside #root, so the app replaces it when it starts.
+    .on('div#root', {
+      element(el) {
+        el.append(preview.bodyHtml, { html: true })
       },
     })
     .on('head', {
@@ -435,6 +450,28 @@ export default {
       loadPayload(env, route, url.origin, ctx),
     ])
 
+    /*
+     * No such garment, said the CMS, to a search robot: answer 404 with the SAME branded
+     * page, exactly as the unparseable-path branch above does and for the same reasons
+     * (the headers ride along on `response.headers`; a person never reaches this line).
+     *
+     * ⚠️ `Vary: User-Agent`, as on the rewritten copy below. The STATUS of this address now
+     * depends on who asks (404 to a robot, 200 to a person), so any cache in front must
+     * keep the two apart, or a person could be handed a robot's "not found".
+     */
+    if (payload === MISSING) {
+      if (!(response.headers.get('content-type') ?? '').includes('text/html')) return response
+      return withCompression(
+        request,
+        withDocumentIsolation(
+          new Response(response.body, {
+            status: 404,
+            statusText: 'Not Found',
+            headers: applyCrawlerCacheHeaders(new Headers(response.headers)),
+          }),
+        ),
+      )
+    }
     if (!payload) return withCompression(request, withDocumentIsolation(withNoTransform(response)))
     if (!(response.headers.get('content-type') ?? '').includes('text/html')) return response
 

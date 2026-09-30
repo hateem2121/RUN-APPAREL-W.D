@@ -142,6 +142,11 @@ export interface ProductCard {
   /** One swipeable picture per addressable colourway, in row order. */
   colours: CardColour[]
   /**
+   * When the product was last saved, as the database wrote it; `null` when it holds no
+   * readable date. The sitemap's `lastmod` (2026-09-30): never invented, never "now".
+   */
+  updatedAt: string | null
+  /**
    * The default colour's 3D model, for the home page's live garment (2026-09-29), framed and
    * coloured as the viewer shows it. `null` keeps the still poster — never a URL a visitor
    * cannot fetch.
@@ -247,6 +252,7 @@ export function toProductCard(
       toCardColour(colour, productName, index === 0 ? product.posterFallback : undefined),
     ),
     model: pickModel(product, colourways[0]),
+    updatedAt: Number.isNaN(Date.parse(text(product.updatedAt))) ? null : text(product.updatedAt),
   }
 }
 

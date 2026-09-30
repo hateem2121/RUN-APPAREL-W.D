@@ -125,6 +125,19 @@ describe('toProductCard', () => {
     expect(card?.colourNames).toEqual(['wine'])
   })
 
+  /*
+   * The sitemap's `lastmod` (2026-09-30). The database's own date passes through untouched;
+   * anything else becomes `null`, so the sitemap states no date rather than a wrong one.
+   */
+  it('carries the date the product was last saved, or null when there is no readable one', () => {
+    expect(toProductCard(product({ updatedAt: '2026-09-28T10:15:00.000Z' }))?.updatedAt).toBe(
+      '2026-09-28T10:15:00.000Z',
+    )
+    expect(toProductCard(product())?.updatedAt).toBeNull()
+    expect(toProductCard(product({ updatedAt: 'yesterday-ish' }))?.updatedAt).toBeNull()
+    expect(toProductCard(product({ updatedAt: 1790000000000 }))?.updatedAt).toBeNull()
+  })
+
   describe('poster selection', () => {
     /*
      * ⚠️ THESE FIXTURES WERE RELATIVE URLS UNTIL 2026-09-07, WHICH IS THE ONE SHAPE THAT

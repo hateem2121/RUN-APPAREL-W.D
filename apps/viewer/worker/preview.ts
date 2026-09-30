@@ -65,6 +65,11 @@ export interface Preview {
    * viewer host, which only forwards). See buildBreadcrumbJsonLd.
    */
   breadcrumbJsonLd: string | null
+  /**
+   * The garment's own words as plain HTML, appended inside `#root` on the robot-only copy
+   * of the page. See buildCrawlerBody.
+   */
+  bodyHtml: string
 }
 
 /**
@@ -228,7 +233,109 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
     jsonLd: buildProductJsonLd(payload, { url, image }),
     breadcrumbJsonLd:
       prefix === GARMENT_PATH_PREFIX ? buildBreadcrumbJsonLd(payload, { origin, url }) : null,
+    bodyHtml: buildCrawlerBody(payload, { origin, prefix, image }),
   }
+}
+
+/** Escape CMS text for HTML, in text and in a double-quoted attribute alike. */
+function esc(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * The garment's own words, as plain HTML a robot can read without running JavaScript.
+ *
+ * WHY THIS EXISTS. Measured live 2026-09-30, fetching /products/rxps/wine as Googlebot: the
+ * head was complete and the body held no heading, no picture and no sentence, because this
+ * is a single-page app and every visible word is drawn by JavaScript. Google renders
+ * JavaScript, but later and not always; Bing renders little; the AI answer engines that
+ * robots.txt invites render none. The Product JSON-LD says what the page IS; this is what
+ * it SAYS.
+ *
+ * ⚠️ ONLY WHAT THE LOADED PAGE SHOWS. Text served to a robot and not to a visitor is
+ * cloaking, which search engines penalise. Every line here is printed by the page itself:
+ * the family and code label, the name (the page's one `<h1>`), the colour, the owner's
+ * description, the specification lines and the colour list. Nothing is reworded for
+ * search, and a field the CMS leaves empty is left out rather than filled.
+ *
+ * ⚠️ IT GOES INSIDE `#root`, AFTER THE STATIC PRELOADER. `createRoot().render()` replaces
+ * that element's content the moment the app starts, so a robot that DOES run JavaScript
+ * (Googlebot's renderer) ends with the app's own single `<h1>`, not two. Anywhere outside
+ * `#root` it would stay on the rendered page as a second, unstyled copy.
+ *
+ * ⚠️ ROBOT-ONLY, like everything else in this file, and for the same measured reason: it
+ * needs the CMS payload, and waiting for that would slow every QR scan about 20x
+ * (index.ts has the numbers).
+ *
+ * All strings are CMS-authored, so all are escaped; `preview.test.ts` plants a
+ * `</div><script>` in the description and asserts it arrives inert.
+ */
+function buildCrawlerBody(
+  payload: ViewerApiSuccess,
+  context: { origin: string; prefix: '' | typeof GARMENT_PATH_PREFIX; image: PreviewImage | null },
+): string {
+  const p = payload.product
+  const selected = payload.selectedColourway
+  const { origin, prefix, image } = context
+  const onSite = prefix === GARMENT_PATH_PREFIX
+  const parts: string[] = []
+
+  const label = [p.category.trim(), p.productCode.trim()].filter(Boolean).join(' / ')
+  if (label) parts.push(`<p>${esc(label)}</p>`)
+  parts.push(`<h1>${esc(p.productName.trim())}</h1>`)
+  const colour = selected.displayName.trim()
+  if (colour) parts.push(`<p>Shown in ${esc(colour)}.</p>`)
+
+  if (image) {
+    const size =
+      image.width && image.height ? ` width="${image.width}" height="${image.height}"` : ''
+    parts.push(`<img src="${esc(image.url)}" alt="${esc(image.alt)}"${size} />`)
+  }
+
+  const description = p.shortDescription.trim()
+  if (description) parts.push(`<p>${esc(description)}</p>`)
+
+  const specs: Array<[string, string]> = [
+    ['Fabric composition', p.fabricComposition.trim()],
+    ['Weight', p.gsm.trim()],
+    ['Fit', p.garmentFit.trim()],
+    ['Performance features', p.performanceFeatures.join(', ').trim()],
+  ]
+  const rows = specs
+    .filter(([, value]) => value)
+    .map(([name, value]) => `<dt>${name}</dt><dd>${esc(value)}</dd>`)
+  if (rows.length > 0) parts.push(`<dl>${rows.join('')}</dl>`)
+
+  // Each colour is its own page with its own canonical address; these links are how a
+  // robot that arrived on one colour finds the rest.
+  const colours = payload.colourways
+    .filter((c) => c.slug && c.displayName.trim())
+    .map(
+      (c) =>
+        `<li><a href="${esc(`${origin}${buildViewerPath(p.slug, c.slug, prefix)}`)}">${esc(c.displayName.trim())}</a></li>`,
+    )
+  if (colours.length > 1) parts.push(`<h2>Colorways</h2><ul>${colours.join('')}</ul>`)
+
+  // The website's own pages, only where they exist: the old viewer host just forwards.
+  if (onSite) {
+    const products = `${origin}${GARMENT_PATH_PREFIX}`
+    const links = [`<a href="${esc(products)}">All products</a>`]
+    const category = p.category.trim()
+    if (category) {
+      links.push(
+        `<a href="${esc(`${products}?family=${familySlug(category)}`)}">${esc(category)}</a>`,
+      )
+    }
+    const company = payload.siteSettings.companyName.trim() || 'RUN APPAREL'
+    links.push(`<a href="${esc(`${origin}/contact`)}">Contact ${esc(company)}</a>`)
+    parts.push(`<p>${links.join(' · ')}</p>`)
+  }
+
+  return `<article>${parts.join('')}</article>`
 }
 
 /**

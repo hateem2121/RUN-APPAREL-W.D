@@ -95,4 +95,75 @@ describe('what the switch does', () => {
       'https://wear-run.com/products/r-xmp/black',
     ])
   })
+
+  /*
+   * 2026-09-30: what Google actually reads in a sitemap. It ignores `changefreq` and
+   * `priority` (its own documentation says so) and uses `lastmod`, and an image entry is how
+   * it finds a picture the page only draws with JavaScript, which is every garment picture.
+   * Measured live that day: 205 garment pages listed, 0 dates, 0 pictures.
+   */
+  it('gives each garment colour its own picture and the date the garment last changed', () => {
+    const garments = [
+      {
+        slug: 'rxps',
+        updatedAt: '2026-09-28T10:15:00.000Z',
+        colours: [
+          { slug: 'wine', image: { url: 'https://media.wear-run.com/rxps-wine-render.webp' } },
+          { slug: 'navy', image: null },
+        ],
+      },
+    ]
+    const [wine, navy] = sitemapFor('visible', 'https://wear-run.com', garments).slice(5)
+    expect(wine?.images).toEqual(['https://media.wear-run.com/rxps-wine-render.webp'])
+    expect(wine?.lastModified).toEqual(new Date('2026-09-28T10:15:00.000Z'))
+    // A colour with no picture lists none, rather than borrowing another colour's.
+    expect(navy).not.toHaveProperty('images')
+    expect(navy?.lastModified).toEqual(new Date('2026-09-28T10:15:00.000Z'))
+  })
+
+  /*
+   * ⚠️ A DATE NOBODY UPDATES IS WORSE THAN NONE (the rule this file has carried since the
+   * sitemap was written), so a date appears ONLY when the database supplied a real one. A
+   * missing or malformed value must produce no `lastModified` at all, never "now": a sitemap
+   * that says every page changed today teaches a crawler to ignore the field site-wide.
+   */
+  it('states no date when the garment has none, and never invents one', () => {
+    const entries = sitemapFor('visible', 'https://wear-run.com', [
+      { slug: 'a', colours: [{ slug: 'x' }] },
+      { slug: 'b', updatedAt: null, colours: [{ slug: 'x' }] },
+      { slug: 'c', updatedAt: 'not a date', colours: [{ slug: 'x' }] },
+    ])
+    for (const entry of entries) expect(entry).not.toHaveProperty('lastModified')
+  })
+
+  it('lists a picture only when it is an absolute https address a crawler can fetch', () => {
+    const [relative, plain] = sitemapFor('visible', 'https://wear-run.com', [
+      { slug: 'a', colours: [{ slug: 'x', image: { url: '/api/media/file/a.webp' } }] },
+      { slug: 'b', colours: [{ slug: 'x', image: { url: 'http://media.wear-run.com/b.webp' } }] },
+    ]).slice(5)
+    expect(relative).not.toHaveProperty('images')
+    expect(plain).not.toHaveProperty('images')
+  })
+
+  /*
+   * Next writes the address into the XML as it is, unescaped. A single `&` would make the
+   * whole file malformed, and a malformed sitemap offers a crawler nothing at all.
+   */
+  it('leaves out a picture whose address would break the XML, and keeps the page', () => {
+    const entries = sitemapFor('visible', 'https://wear-run.com', [
+      {
+        slug: 'a',
+        colours: [{ slug: 'x', image: { url: 'https://media.wear-run.com/a.webp?w=1&h=2' } }],
+      },
+      {
+        slug: 'b',
+        colours: [{ slug: 'x', image: { url: 'https://media.wear-run.com/b <1>.webp' } }],
+      },
+    ]).slice(5)
+    expect(entries.map((e) => e.url)).toEqual([
+      'https://wear-run.com/products/a/x',
+      'https://wear-run.com/products/b/x',
+    ])
+    for (const entry of entries) expect(entry).not.toHaveProperty('images')
+  })
 })

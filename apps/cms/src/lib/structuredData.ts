@@ -39,6 +39,16 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
   const sameAs: string[] = []
   const whatsapp = normalizeWhatsAppNumber(settings.whatsappNumber)
   if (whatsapp) sameAs.push(`https://wa.me/${whatsapp}`)
+  /*
+   * The company's other profiles, from the ONE list the footer prints ("Elsewhere"), so
+   * the page and its structured data cannot name different places. Measured live
+   * 2026-09-30: the footer linked LinkedIn and Instagram while `sameAs` held only
+   * WhatsApp, and `sameAs` is how a search engine ties this site to those profiles.
+   * `projectFooter` has already kept only `https://` addresses.
+   */
+  for (const link of settings.footer.socialLinks) {
+    if (!sameAs.includes(link.url)) sameAs.push(link.url)
+  }
 
   return {
     '@context': 'https://schema.org',

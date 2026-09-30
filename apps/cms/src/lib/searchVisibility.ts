@@ -52,7 +52,19 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  * deliberately not listed. Built from the live catalogue, so a new garment is offered to
  * crawlers the moment it is published — the hand-kept viewer sitemap it replaces had
  * silently missed 45 of 55 garment pages once (2026-09-04).
- * No `lastModified`: a date nobody updates is worse than none.
+ *
+ * ⚠️ `lastModified` IS THE DATABASE'S OWN DATE OR NOTHING (2026-09-30). This file used to
+ * say "no `lastModified`: a date nobody updates is worse than none", and that still holds
+ * for the five site pages, which are code and have no honest date. A garment does: the
+ * product's `updatedAt`, which Payload moves on every save. Google reads `lastmod` to decide
+ * what to fetch again and ignores `changefreq` and `priority` outright, so until this day
+ * the sitemap said nothing Google uses about 205 pages. A missing or unreadable date emits
+ * no field, never "now".
+ *
+ * ⚠️ EACH COLOUR LISTS ITS OWN PICTURE. A garment page draws its picture with JavaScript,
+ * so its raw HTML holds no `<img>` (measured 2026-09-30: 0 on /products/rxps/wine). An
+ * image entry is how Google Images finds it. Only an absolute https address is listed, and
+ * a colour with no picture lists none rather than borrowing another colour's.
  *
  * ⚠️ A NEW PUBLIC PAGE MUST BE ADDED HERE OR IT IS NEVER OFFERED TO A CRAWLER, and
  * nothing about that is visible: the page works, every test passes, and it is simply
@@ -63,10 +75,35 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  * a privacy notice nobody can reach is not much of a notice — but they are not what this
  * site is for, and a crawler that treats them as important is spending its budget wrongly.
  */
+export interface SitemapGarment {
+  slug: string
+  /** The product's `updatedAt` as the database wrote it. Absent or unreadable: no date. */
+  updatedAt?: string | null
+  colours: ReadonlyArray<{ slug: string; image?: { url: string } | null }>
+}
+
+/**
+ * ⚠️ NEXT WRITES AN IMAGE ADDRESS INTO THE XML UNESCAPED (read in next 16's
+ * `resolve-route-data.js`, 2026-09-30: `<image:loc>${image}</image:loc>`). One `&` in one
+ * picture's address would make the WHOLE sitemap malformed, and a crawler then reads none
+ * of its 205 pages. So an address carrying a character XML reserves is left out: losing one
+ * picture entry is nothing beside losing the file. Escaping it here instead would turn into
+ * double escaping the day Next starts doing it.
+ */
+function isListablePicture(url: string): boolean {
+  return url.startsWith('https://') && !/[&<>"'\s]/.test(url)
+}
+
+function realDate(value: string | null | undefined): Date | null {
+  if (!value) return null
+  const time = Date.parse(value)
+  return Number.isNaN(time) ? null : new Date(time)
+}
+
 export function sitemapFor(
   visibility: SearchVisibility,
   origin: string,
-  garments: ReadonlyArray<{ slug: string; colours: ReadonlyArray<{ slug: string }> }> = [],
+  garments: ReadonlyArray<SitemapGarment> = [],
 ): MetadataRoute.Sitemap {
   if (visibility === 'hidden') return []
   return [
@@ -75,12 +112,18 @@ export function sitemapFor(
     { url: `${origin}/contact`, changeFrequency: 'yearly', priority: 0.5 },
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },
-    ...garments.flatMap((garment) =>
-      garment.colours.map((colour) => ({
-        url: `${origin}${buildViewerPath(garment.slug, colour.slug, GARMENT_PATH_PREFIX)}`,
-        changeFrequency: 'monthly' as const,
-        priority: 0.7,
-      })),
-    ),
+    ...garments.flatMap((garment) => {
+      const changed = realDate(garment.updatedAt)
+      return garment.colours.map((colour) => {
+        const picture = colour.image?.url ?? ''
+        return {
+          url: `${origin}${buildViewerPath(garment.slug, colour.slug, GARMENT_PATH_PREFIX)}`,
+          changeFrequency: 'monthly' as const,
+          priority: 0.7,
+          ...(changed ? { lastModified: changed } : {}),
+          ...(isListablePicture(picture) ? { images: [picture] } : {}),
+        }
+      })
+    }),
   ]
 }

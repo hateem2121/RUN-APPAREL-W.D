@@ -252,6 +252,23 @@ async function runChecks() {
     )
   }
 
+  // 3b. The body a robot reads (2026-09-30). Until that day the rewritten page had a
+  //     complete head and NO heading, picture or sentence in its body: every visible word
+  //     is drawn by JavaScript, which Bing runs little of and the AI answer engines none.
+  //     `preview.test.ts` covers what the block says; this confirms the DEPLOYED Worker
+  //     still appends it, because an HTMLRewriter selector that matches nothing (`#root`
+  //     renamed in index.html) is a silent no-op, not an error. Counted with comments
+  //     removed, as a crawler parses it. Exactly one: two would mean it landed outside
+  //     `#root`, where the app never replaces it.
+  const bare = html.replace(/<!--[\s\S]*?-->/g, '')
+  const headings = bare.match(/<h1[\s>]/gi)?.length ?? 0
+  if (headings !== 1) {
+    fail(`the page a crawler receives has ${headings} <h1> elements, expected exactly 1.`)
+  }
+  if (!/<article>[\s\S]*<h1>[^<]+<\/h1>[\s\S]*<\/article>/.test(bare)) {
+    fail('the page a crawler receives has no readable <article> with the garment name in it.')
+  }
+
   // 4. The picture is absolute and really fetchable. A relative og:image is the most
   //    common way a preview fails, and a 404 here shows as a card with a blank slot.
   const image = meta(html, 'og:image')
@@ -573,6 +590,19 @@ async function runChecks() {
         path: '/nope/wine',
         expectHtml404: false,
       },
+      /*
+       * The same unknown product, asked for by a SEARCH ROBOT (owner: yes, 2026-09-30). The
+       * robot path already waits on the CMS to build its preview, so it learns for free
+       * that the garment does not exist and answers 404; a person still gets the 200 just
+       * above. If these two ever agree, either people started waiting on the CMS or robots
+       * are being served soft 404s again. `isMissingGarment` in notFound.ts has the rule.
+       */
+      {
+        label: 'the same nonexistent product, asked for by a crawler',
+        path: '/nope/wine',
+        expectHtml404: true,
+        crawler: true,
+      },
       {
         label: 'a single-segment file request (manifest)',
         path: '/manifest.webmanifest',
@@ -580,9 +610,9 @@ async function runChecks() {
         navigate: true,
       },
     ]
-    for (const { label, path, expectHtml404, navigate } of cases) {
+    for (const { label, path, expectHtml404, navigate, crawler } of cases) {
       const target = `${BASE}${path}`
-      const headers = { 'user-agent': BROWSER_UA, accept: 'text/html' }
+      const headers = { 'user-agent': crawler ? CRAWLER_UA : BROWSER_UA, accept: 'text/html' }
       if (navigate) {
         headers['sec-fetch-mode'] = 'navigate'
         headers['sec-fetch-dest'] = 'document'
@@ -599,6 +629,14 @@ async function runChecks() {
         )
       } else {
         console.log(`   404 triad: ${label} -> ${res.status}`)
+      }
+      // The robot's 404 and a person's 200 share one address, so a cache in front must be
+      // told the answer depends on who asked, or a person could be handed the 404.
+      if (crawler && is404 && !variesOnUserAgent(res.headers.vary)) {
+        fail(
+          `${target} answered 404 to a crawler with vary: ${res.headers.vary ?? '(none)'} — ` +
+            'expected User-Agent, because a person gets 200 at the same address.',
+        )
       }
     }
   }

@@ -95,6 +95,7 @@ describe('familyPictures', () => {
     colourNames: ['C'],
     colours: [colour('https://media.example/render.webp', 'render')],
     model: null,
+    updatedAt: null,
     ...over,
   })
 
