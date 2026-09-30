@@ -228,11 +228,20 @@ test.describe('the cookie choice', () => {
   }) => {
     await liftAutomationGate(context)
     await watch(page)
+    /*
+     * ⚠️ EVERY PAGE STARTS UNANSWERED, so the question showing is the signal that the page
+     * has hydrated and the banner is listening. The first version asked `isVisible()` once
+     * and moved on; in CI (run 1cb7f7ca) that read "not visible" a moment BEFORE the banner
+     * mounted, skipped the Decline, and then found the question on screen. Before hydration
+     * the footer link is a plain link and would navigate away, which is the fallback the
+     * next test checks, not what this one is about.
+     */
     for (const path of ['/', '/products', '/contact', '/terms']) {
       await page.goto(path)
-      if (await banner(page).isVisible()) {
-        await banner(page).getByRole('button', { name: 'Decline' }).click()
-      }
+      await page.evaluate(() => localStorage.clear())
+      await page.reload()
+      await expect(banner(page), `no question on a first visit to ${path}`).toBeVisible()
+      await banner(page).getByRole('button', { name: 'Decline' }).click()
       await expect(banner(page)).toHaveCount(0)
       await page.locator('.footer-legal').getByRole('link', { name: 'Cookies' }).click()
       await expect(banner(page), `no question after the footer link on ${path}`).toBeVisible()
