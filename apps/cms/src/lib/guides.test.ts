@@ -150,3 +150,37 @@ describe("the three guides built from the owner's own facts (2026-09-30)", () =>
     expect(everyWord(guideAt('/guides/private-label-packaging'))).toContain('no set minimum')
   })
 })
+
+describe('the shipping guide (owner, 2026-09-30)', () => {
+  const words = everyWord(guideAt('/guides/shipping-and-import-duties'))
+
+  it('names the four ways and five terms the owner ticked, and nothing else', () => {
+    const titles = guideAt('/guides/shipping-and-import-duties').sections.flatMap((section) =>
+      section.blocks.flatMap((block) => (block.kind === 'point' ? [block.title] : [])),
+    )
+    expect(titles).toEqual([
+      'Air courier',
+      'Air freight',
+      'Sea freight',
+      'Your own forwarder',
+      'EXW (Ex Works)',
+      'FOB (Free On Board)',
+      'CFR and CIF',
+      'DDP (Delivered Duty Paid)',
+    ])
+    expect(words).not.toMatch(/\b(?:FCA|CPT|CIP|DAP|DPU|FAS)\b/)
+  })
+
+  // Neither was given: a transit time is a promise, and a duty rate is the buyer's country's.
+  it('states no transit time and no duty rate', () => {
+    expect(words).not.toMatch(/\d+\s*(?:working )?(?:days|weeks)/i)
+    expect(words).not.toMatch(/\d+(?:\.\d+)?\s?%/)
+  })
+
+  it('keeps the terms page sentence and says FOB, CFR and CIF are sea terms', () => {
+    expect(words).toContain(
+      'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
+    )
+    expect(words).toContain('FOB, CFR and CIF are used for sea freight.')
+  })
+})

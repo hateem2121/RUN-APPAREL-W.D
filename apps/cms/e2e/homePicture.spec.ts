@@ -75,7 +75,8 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
    * Since 2026-09-29 pictures sit in most sections — the hero, who we are, the family cards,
    * the 3D garment, the order timeline and the gallery. The rule the audit made is unchanged:
    * every one is the owner's factory (`/factory/`) or a real garment from the media host, and
-   * nothing arrives as a CSS background.
+   * nothing arrives as a CSS background. Since 2026-09-30 a family card with no garment yet may
+   * show the owner's own product photo instead (`public/families/`, `FAMILY_PHOTOS`).
    */
   test('every picture is the factory or a real garment, and none is a background', async ({
     page,

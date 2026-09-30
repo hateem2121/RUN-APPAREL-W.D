@@ -10,8 +10,7 @@ import { FACTS } from './companyFacts'
  * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-09-30, AND EVERY FACT IS ALREADY ON THE SITE:
  * the order steps are the home page's (`orderProcess.ts`), the colour paragraph and "quoted
  * in writing" are the terms page's, "on request" is the owner's correction of 2026-09-29.
- * A guide on a topic the site states nothing about (shipping and duties, today) waits for
- * the owner's facts; do not write one from general knowledge.
+ * A guide on a topic the site states nothing about waits for the owner's facts; do not write one from general knowledge.
  *
  * ⚠️ THE NUMBERS ARE READ FROM `FACTS`, NEVER RETYPED (`orderProcess.ts` says why).
  *
@@ -54,7 +53,7 @@ export const GUIDES_INDEX = {
   path: '/guides',
   title: 'Buyer Guides',
   description:
-    'Short guides for buyers: how an order works, the 3D reference, minimum order and samples, printing methods, fabrics and weights, and packaging.',
+    'Short guides for buyers: how an order works, the 3D reference, minimum order and samples, printing, fabrics, packaging, and shipping and duties.',
   heading: 'Buyer guides,',
   headingAccent: 'in plain words.',
   lede: 'Short guides to read before you write to us. Each one answers one question.',
@@ -468,6 +467,98 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'Tagging, the final check and packing happen in the same building as the rest of your order.',
+          },
+        ],
+      },
+    ],
+  },
+  /*
+   * ⚠️ SHIPPING: THE OWNER'S ANSWERS OF 2026-09-30, ticked one by one: air courier, air
+   * freight, sea freight and the buyer's own forwarder; EXW, FOB, CFR, CIF and DDP, with
+   * terms and costs stated per quote. What each term means is the ICC's Incoterms 2020
+   * rules: FOB, CFR and CIF are sea terms only, which is why the guide says so.
+   * No transit times and no duty rates: neither was given, and duty depends on the buyer's
+   * country and the garment.
+   */
+  {
+    path: '/guides/shipping-and-import-duties',
+    title: 'Shipping & Import Duties for Apparel Orders',
+    description:
+      'How an order ships from Pakistan: air courier, air freight, sea freight or your own forwarder. The terms we quote, and who pays import duty.',
+    heading: 'Shipping and import duties,',
+    headingAccent: 'made clear.',
+    lede: 'We ship worldwide from Sialkot, Pakistan. You choose how your order travels and which price terms suit you. The shipping method, terms and cost are stated in your quote.',
+    sections: [
+      {
+        heading: 'Four ways to ship',
+        blocks: [
+          {
+            kind: 'point',
+            title: 'Air courier',
+            text: 'Door to door with a courier. It suits samples and smaller orders.',
+          },
+          {
+            kind: 'point',
+            title: 'Air freight',
+            text: 'Airport to airport. It suits larger orders that need to move quickly.',
+          },
+          {
+            kind: 'point',
+            title: 'Sea freight',
+            text: 'By ship from a port in Pakistan. It suits large orders when time allows.',
+          },
+          {
+            kind: 'point',
+            title: 'Your own forwarder',
+            text: 'Your shipping agent collects the order from us.',
+          },
+        ],
+      },
+      {
+        heading: 'The price terms we quote',
+        blocks: [
+          {
+            kind: 'point',
+            title: 'EXW (Ex Works)',
+            text: 'You collect the goods from our building. You pay the freight, the insurance, and the import duty and tax.',
+          },
+          {
+            kind: 'point',
+            title: 'FOB (Free On Board)',
+            text: 'We load the goods onto the ship at the port in Pakistan. You pay the sea freight, and the import duty and tax.',
+          },
+          {
+            kind: 'point',
+            title: 'CFR and CIF',
+            text: 'We pay the sea freight to your port, and under CIF the insurance too. You pay the import duty and tax.',
+          },
+          {
+            kind: 'point',
+            title: 'DDP (Delivered Duty Paid)',
+            text: 'We deliver to your door with the import duty and tax already paid. They are included in the price.',
+          },
+          {
+            kind: 'text',
+            text: 'FOB, CFR and CIF are used for sea freight. These terms follow the International Chamber of Commerce rules, called Incoterms.',
+          },
+        ],
+      },
+      {
+        heading: 'Who pays import duty',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Under EXW, FOB, CFR and CIF, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
+          },
+        ],
+      },
+      {
+        heading: 'What is quoted per order',
+        blocks: [
+          {
+            kind: 'text',
+            // The terms page's sentence, word for word, then the shipping part of the quote.
+            text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry. The shipping method, terms and cost are stated in the same quote.',
           },
         ],
       },

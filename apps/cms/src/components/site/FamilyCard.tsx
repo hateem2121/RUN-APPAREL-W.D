@@ -34,7 +34,12 @@ export const FAMILY_SIZES =
  * serves them here (`cardImage`), and a picture from any other address is left as it is.
  */
 export function FamilyCard({ family, picture }: { family: Family; picture: FamilyPicture | null }) {
-  const image = picture ? cardImage(picture.url) : null
+  // The site's own photos bring their widths; a product picture gets the resized card sizes.
+  const image = picture
+    ? picture.srcSet
+      ? { src: picture.url, srcSet: picture.srcSet }
+      : cardImage(picture.url)
+    : null
   return (
     <li className="panel family-card">
       <Link className="family-card__link" href={familyHref(family)}>
@@ -55,8 +60,7 @@ export function FamilyCard({ family, picture }: { family: Family; picture: Famil
           </span>
         ) : (
           /*
-           * No picture yet (Sports Accessories has no product and no stand-in photo, the
-           * owner's choice). The same 4:5 box, drawn in the blueprint grid, keeps the row even
+           * No picture at all: no product and no family photo (`FAMILY_PHOTOS`). The same 4:5 box, drawn in the blueprint grid, keeps the row even
            * and says "reference to come" without a broken image or a fake product.
            */
           <span className="family-card__media family-card__media--empty">

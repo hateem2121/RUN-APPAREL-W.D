@@ -99,6 +99,7 @@ export const GUIDE_PAGE_SOURCES = [
   '/guides/garment-printing-methods',
   '/guides/sportswear-fabrics-and-weights',
   '/guides/private-label-packaging',
+  '/guides/shipping-and-import-duties',
 ]
 
 export const PUBLIC_PAGE_SOURCES = [
