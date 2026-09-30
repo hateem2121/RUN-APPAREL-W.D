@@ -1,4 +1,9 @@
-import { formatAddress, type ViewerSiteSettings } from '@run-apparel/shared'
+import {
+  CONSENT_COPY,
+  formatAddress,
+  CONSENT_OPEN_EVENT,
+  type ViewerSiteSettings,
+} from '@run-apparel/shared'
 import { track } from '../lib/analytics'
 import { SITE_ORIGIN, SITE_PRIVACY_URL, SITE_TERMS_URL } from '../lib/siteLinks'
 
@@ -71,6 +76,25 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
             They inherit `.footer__meta a`'s 32px height, so no CSS is added.
           */}
           <a href={SITE_PRIVACY_URL}>Privacy</a>
+          {/*
+            THE WAY BACK TO THE COOKIE QUESTION (2026-09-30), one click from the page a
+            visitor is on, because withdrawing a choice must be as easy as making it. It
+            reopens the question in place when one is mounted; otherwise it is an ordinary
+            link to the notice's cookie section. An `<a>` on purpose: it inherits
+            `.footer__meta a`, and this page's stylesheet budget has 20 B to spare.
+          */}
+          <a
+            href={`${SITE_PRIVACY_URL}#cookies`}
+            onClick={(event) => {
+              // Not cancelled means no question was listening: let the link navigate.
+              const answered = !document.dispatchEvent(
+                new Event(CONSENT_OPEN_EVENT, { cancelable: true }),
+              )
+              if (answered) event.preventDefault()
+            }}
+          >
+            {CONSENT_COPY.change}
+          </a>
           <a href={SITE_TERMS_URL}>Terms</a>
           <span>{settings.legalLine}</span>
         </div>

@@ -217,6 +217,40 @@ test.describe('the cookie choice', () => {
   })
 
   /*
+   * WITHDRAWING MUST BE AS EASY AS GIVING, so the way back is in the footer of every page
+   * and opens the question where the visitor already is. The second test is the control
+   * for the first and the honest fallback in one: with no question mounted to answer, the
+   * same link must still go somewhere useful rather than do nothing.
+   */
+  test('the footer link reopens the question in place, from any page', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await watch(page)
+    for (const path of ['/', '/products', '/contact', '/terms']) {
+      await page.goto(path)
+      if (await banner(page).isVisible()) {
+        await banner(page).getByRole('button', { name: 'Decline' }).click()
+      }
+      await expect(banner(page)).toHaveCount(0)
+      await page.locator('.footer-legal').getByRole('link', { name: 'Cookies' }).click()
+      await expect(banner(page), `no question after the footer link on ${path}`).toBeVisible()
+      expect(new URL(page.url()).pathname, 'the link left the page').toBe(path)
+      await banner(page).getByRole('button', { name: 'Decline' }).click()
+    }
+  })
+
+  test('with no question to reopen, the footer link goes to the cookie section instead', async ({
+    page,
+  }) => {
+    await page.goto('/products')
+    await page.locator('.footer-legal').getByRole('link', { name: 'Cookies' }).click()
+    await page.waitForURL('**/privacy#cookies')
+    await expect(page.locator('#cookies')).toBeVisible()
+  })
+
+  /*
    * Two equal buttons, each a full touch target. A brighter Accept beside a quiet Decline
    * is the nudge regulators object to; equal size and equal style is the measurable form of
    * "neither is favoured". Checked at a phone width, where a wrapped row would show first.

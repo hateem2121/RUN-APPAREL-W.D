@@ -166,6 +166,28 @@ test.describe('the cookie choice on a garment page', () => {
   })
 
   /*
+   * WITHDRAWING MUST BE AS EASY AS GIVING: the footer of the garment page brings the
+   * question back in place. Without the spoof the question is absent, so the same link has
+   * to stay an ordinary link to the notice's cookie section; that half is asserted on its
+   * address only, because following it leaves this fixture for the real website.
+   */
+  test('the footer link reopens the question without leaving the garment', async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await watchTrackers(page)
+    await openGarment(page)
+    await banner(page).getByRole('button', { name: 'Decline' }).click()
+    await expect(banner(page)).toHaveCount(0)
+    const link = page.locator('.footer__meta').getByRole('link', { name: 'Cookies' })
+    await expect(link).toHaveAttribute('href', /\/privacy#cookies$/)
+    await link.click()
+    await expect(banner(page)).toBeVisible()
+    expect(new URL(page.url()).pathname).toBe('/n001/wine')
+  })
+
+  /*
    * A buyer scanning a QR tag came to see the garment. On a phone the card may sit over the
    * action bar at the foot of the screen until they answer, but it must not touch the
    * garment or the bar at the top. Measured in document space at the phone size the layout

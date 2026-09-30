@@ -5,6 +5,7 @@ import { formatHours } from '../../lib/footerHours'
 import type { PublicSiteSettings } from '../../lib/projectPublic'
 import { marksFor } from '../../lib/standardsLogos'
 import { formatAddress } from '../../lib/structuredData'
+import { ConsentLink } from './ConsentLink'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
 import { FooterTab } from './FooterTab'
@@ -218,6 +219,8 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
             <Link className="nav-link" href="/privacy">
               Privacy
             </Link>
+            {/* The way back to the cookie question, one click from every page. */}
+            <ConsentLink />
             <Link className="nav-link" href="/terms">
               Terms
             </Link>

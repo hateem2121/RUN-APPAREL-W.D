@@ -5,9 +5,9 @@ import { CONSENT_OPEN_EVENT } from '@run-apparel/shared'
 /**
  * The privacy page's "change your cookie choice" button.
  *
- * Withdrawing a choice has to be as easy as making it. Both footers already link to the
- * privacy page, so the way back to the question lives there rather than as a new control in
- * two footers. It only asks `ConsentBanner` (mounted in the layout) to show itself again.
+ * Withdrawing a choice has to be as easy as making it. Both footers carry a "Cookies" link
+ * that does the same from any page (`ConsentLink.tsx`); this one is for the visitor already
+ * reading the notice. It only asks `ConsentBanner` (mounted in the layout) to show itself.
  */
 export function ConsentChange() {
   return (

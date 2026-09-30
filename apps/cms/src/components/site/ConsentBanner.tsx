@@ -50,7 +50,11 @@ export function ConsentBanner() {
     if (choice === 'accepted') startTrackers(trackerWindow())
     if (choice === null) setOpen(true)
 
-    const reopen = () => setOpen(true)
+    // Cancelled so the footer's link knows a question opened and does not navigate away.
+    const reopen = (event: Event) => {
+      event.preventDefault()
+      setOpen(true)
+    }
     document.addEventListener(CONSENT_OPEN_EVENT, reopen)
     return () => document.removeEventListener(CONSENT_OPEN_EVENT, reopen)
   }, [])

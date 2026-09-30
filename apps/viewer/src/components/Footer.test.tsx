@@ -1,4 +1,9 @@
-import { DEFAULT_SITE_SETTINGS, formatAddress, type ViewerSiteSettings } from '@run-apparel/shared'
+import {
+  CONSENT_OPEN_EVENT,
+  DEFAULT_SITE_SETTINGS,
+  formatAddress,
+  type ViewerSiteSettings,
+} from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -93,6 +98,48 @@ describe('Footer', () => {
     const byText = (label: string) => links().find((a) => a.textContent === label)
     expect(byText('Privacy')?.getAttribute('href')).toBe('https://wear-run.com/privacy')
     expect(byText('Terms')?.getAttribute('href')).toBe('https://wear-run.com/terms')
+  })
+
+  /*
+   * The way back to the cookie question. Withdrawing a choice must be as easy as making
+   * it, so the link is on the page itself. Both halves matter: with a banner listening the
+   * click stays put (the question opens in place); with none, it must remain a working
+   * link, or the control would silently do nothing.
+   */
+  it('offers the cookie question again, and stays a real link when no banner answers', () => {
+    render(<Footer settings={settings} />)
+    const cookies = links().find((a) => a.textContent === 'Cookies')
+    expect(cookies?.getAttribute('href')).toBe('https://wear-run.com/privacy#cookies')
+
+    // Read at the document, which is above React's root, so the footer's handler has run.
+    // Then cancel, so jsdom does not try to follow the link.
+    const click = () => {
+      let stayed = false
+      const after = (event: Event) => {
+        stayed = event.defaultPrevented
+        event.preventDefault()
+      }
+      document.addEventListener('click', after, { once: true })
+      act(() => {
+        cookies?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      })
+      return stayed
+    }
+
+    expect(click(), 'no banner is listening, so the link must navigate').toBe(false)
+
+    let opened = 0
+    const banner = (event: Event) => {
+      opened += 1
+      event.preventDefault()
+    }
+    document.addEventListener(CONSENT_OPEN_EVENT, banner)
+    try {
+      expect(click(), 'a banner answered, so the page must stay put').toBe(true)
+      expect(opened).toBe(1)
+    } finally {
+      document.removeEventListener(CONSENT_OPEN_EVENT, banner)
+    }
   })
 
   it('prints the postal address the site footer prints', () => {

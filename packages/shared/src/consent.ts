@@ -71,6 +71,15 @@ export const CONSENT_COPY = {
   accept: 'Accept',
   decline: 'Decline',
   more: 'Privacy notice',
+  /**
+   * The footer link that brings the question back, on every page of both hosts. It sends
+   * `CONSENT_OPEN_EVENT` as a CANCELABLE event and the banner cancels it, so the link can
+   * tell "a question opened here" (stay put) from "nothing was listening" (an automated
+   * browser, where the banner is absent on purpose): then it goes to `/privacy#cookies`
+   * as an ordinary link. A control that silently did nothing would be the worst way to
+   * fail at "withdrawing is as easy as giving".
+   */
+  change: 'Cookies',
 } as const
 
 /** The part of `Storage` this file uses. */
