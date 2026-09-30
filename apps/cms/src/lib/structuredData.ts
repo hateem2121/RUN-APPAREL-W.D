@@ -164,6 +164,19 @@ export function breadcrumbJsonLd(page: { title: string; path: string }) {
   }
 }
 
+/** Where a guide sits: Home, then Guides, then the guide. */
+export function guideBreadcrumbJsonLd(guide: { title: string; path: string }) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+      { '@type': 'ListItem', position: 2, name: 'Guides', item: `${SITE_ORIGIN}/guides` },
+      { '@type': 'ListItem', position: 3, name: guide.title, item: `${SITE_ORIGIN}${guide.path}` },
+    ],
+  }
+}
+
 /**
  * The questions a buyer page answers, as data.
  *

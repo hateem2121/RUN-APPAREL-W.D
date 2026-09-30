@@ -35,6 +35,10 @@ const PAGES = [
   ['/custom-activewear-manufacturer', 200],
   ['/custom-outerwear-manufacturer', 200],
   ['/private-label-casual-wear-manufacturer', 200],
+  ['/guides', 200],
+  ['/guides/how-a-private-label-order-works', 200],
+  ['/guides/3d-garment-reference', 200],
+  ['/guides/minimum-order-and-samples', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [

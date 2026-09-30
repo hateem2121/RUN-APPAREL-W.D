@@ -2163,6 +2163,14 @@ The sitemap, `/llms.txt` and the home page's family card follow step 1 on their 
 `apps/cms/src/lib/familyPages.test.ts` fails when steps 1 to 3 disagree. The address may not
 start with `/products/`: the viewer Worker answers everything there.
 
+**The buyer guides** work the same way, one level simpler: the words are in
+`apps/cms/src/lib/guides.ts`, the addresses in `GUIDE_PAGE_SOURCES` in
+`apps/cms/publicViewerHeaders.mjs`, one folder each under
+`apps/cms/src/app/(frontend)/guides`, and `apps/cms/src/lib/guides.test.ts` fails when
+the three disagree. The footer's "Guides" link opens their index at `/guides`. A guide may
+only state what the site already states; a topic with no facts on the site (printing
+methods, fabrics, packaging, shipping and duties) waits for the owner.
+
 `scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
 

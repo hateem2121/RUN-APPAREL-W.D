@@ -90,6 +90,14 @@ export const FAMILY_PAGE_SOURCES = [
   '/private-label-casual-wear-manufacturer',
 ]
 
+/** The buyer guides and their index (2026-09-30). Held to `src/lib/guides.ts` by `guides.test.ts`. */
+export const GUIDE_PAGE_SOURCES = [
+  '/guides',
+  '/guides/how-a-private-label-order-works',
+  '/guides/3d-garment-reference',
+  '/guides/minimum-order-and-samples',
+]
+
 export const PUBLIC_PAGE_SOURCES = [
   '/',
   '/products',
@@ -97,6 +105,7 @@ export const PUBLIC_PAGE_SOURCES = [
   '/privacy',
   '/terms',
   ...FAMILY_PAGE_SOURCES,
+  ...GUIDE_PAGE_SOURCES,
 ]
 
 /**

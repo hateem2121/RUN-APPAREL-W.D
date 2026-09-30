@@ -210,6 +210,10 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
             <Link className="nav-link" href="/contact">
               Contact
             </Link>
+            {/* The buyer guides (owner, 2026-09-30): a page nothing links to is rarely found. */}
+            <Link className="nav-link" href="/guides">
+              Guides
+            </Link>
             {/*
               The privacy notice is a legal requirement, not a nicety — the trigger is
               processing personal data, not setting cookies, and both surfaces process at

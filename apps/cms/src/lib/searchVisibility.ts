@@ -2,6 +2,7 @@ import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata, MetadataRoute } from 'next'
 import { FAMILY_PAGES } from './familyPages'
+import { GUIDE_PATHS } from './guides'
 
 /**
  * Whether search engines may index the public site.
@@ -116,6 +117,11 @@ export function sitemapFor(
       url: `${origin}${page.path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.8,
+    })),
+    ...GUIDE_PATHS.map((path) => ({
+      url: `${origin}${path}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
     })),
     { url: `${origin}/contact`, changeFrequency: 'yearly', priority: 0.5 },
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },

@@ -935,7 +935,7 @@ describe('the 404, the policy, and analytics', () => {
     const headers = code(CMS_ROOT, 'publicViewerHeaders.mjs')
     // The five site pages, then the buyer pages from their own list (2026-09-30).
     expect(headers.replace(/\s+/g, ' ')).toMatch(
-      /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \]/,
+      /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \.\.\.GUIDE_PAGE_SOURCES, \]/,
     )
     expect(headers).toMatch(/FAMILY_PAGE_SOURCES = \[\s*'\/custom-teamwear-manufacturer',/)
     // The directives that are worth having regardless of the inline-script compromise:
