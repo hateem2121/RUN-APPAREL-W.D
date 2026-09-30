@@ -1,12 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { JsonLd } from '../../../components/site/JsonLd'
-import { CardGallery } from '../../../components/site/CardGallery'
-import { ViewerCue } from '../../../components/site/ViewerCue'
+import { ProductCardItem } from '../../../components/site/ProductCardItem'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
 import { productsDescription } from '../../../lib/pageDescriptions'
-import { buildMetadata, GARMENT_PAGES } from '../../../lib/seo'
+import { buildMetadata } from '../../../lib/seo'
 import { preconnectHost } from '../../../lib/posterHost'
 import { productListJsonLd } from '../../../lib/structuredData'
 
@@ -103,7 +102,8 @@ function crossOriginPosterHost(products: ProductCard[]): string | null {
  * works with scripting off, because each chip is an ordinary link to an ordinary server
  * -rendered page. The filters have no client component and nothing to hydrate; the one
  * client component on a card is `CardGallery`, for its colour dots, and a card still
- * swipes and links with scripting off.
+ * swipes and links with scripting off. The card itself is `ProductCardItem`, shared with
+ * the buyer pages since 2026-09-30.
  */
 export default async function ProductsPage({ searchParams }: PageProps) {
   const family = familyBySlug((await searchParams).family)
@@ -185,7 +185,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               </p>
               <ul className="product-grid">
                 {products.map((product, index) => (
-                  <Card key={product.slug} product={product} index={index} />
+                  <ProductCardItem key={product.slug} product={product} index={index} />
                 ))}
               </ul>
             </>
@@ -193,40 +193,5 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         </div>
       </section>
     </>
-  )
-}
-
-/*
- * The pictures, dots and link live in `CardGallery` (a client component, for the dots);
- * the text below is still rendered here and handed to it as children.
- */
-function Card({ product, index }: { product: ProductCard; index: number }) {
-  const colours = product.colourNames.length
-
-  return (
-    <li className="product-card">
-      <CardGallery
-        productSlug={product.slug}
-        productName={product.productName}
-        garmentPages={GARMENT_PAGES}
-        colours={product.colours}
-        index={index}
-      >
-        <div className="product-card__body">
-          <h2 className="product-card__name">{product.productName}</h2>
-          <p className="product-card__meta">
-            <span>{product.productCode}</span>
-            {product.category ? <span>· {product.category}</span> : null}
-            <span>
-              · {colours} color{colours === 1 ? '' : 's'}
-            </span>
-          </p>
-          <ViewerCue />
-          {product.shortDescription ? (
-            <p className="product-card__desc">{product.shortDescription}</p>
-          ) : null}
-        </div>
-      </CardGallery>
-    </li>
   )
 }

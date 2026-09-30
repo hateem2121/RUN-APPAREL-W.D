@@ -28,6 +28,7 @@ timeline
 - Search robots now read each garment's name, picture, description and colours on its page, not only in hidden data.
 - The sitemap tells Google when each garment last changed and where its picture is.
 - A one-command check of every page for search problems (`node scripts/seo-crawl.mjs`).
+- Four buyer pages, one each for Teamwear, Sportswear, Outerwear and Casual Wear: what is made, the minimum, the sample time, how an order works and six common questions. The home page's family cards now open them.
 - Each garment can carry a plain garment type ("Women's Tennis Dress"), and its page title now says it.
 
 ### Changed

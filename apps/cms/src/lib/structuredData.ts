@@ -128,17 +128,59 @@ export function websiteJsonLd(settings: PublicSiteSettings) {
  * viewer's e2e suite asserts the absence of retail language. `ItemList` describes what
  * this page IS: a list of references.
  */
-export function productListJsonLd(products: ProductCard[]) {
+export function productListJsonLd(
+  products: ProductCard[],
+  name = 'RUN APPAREL 3D garment references',
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'RUN APPAREL 3D garment references',
+    name,
     numberOfItems: products.length,
     itemListElement: products.map((product, index) => ({
       '@type': 'ListItem',
       position: index + 1,
       name: product.productName,
       url: `${GARMENT_PAGES}/${product.slug}/${product.defaultColourSlug}`,
+    })),
+  }
+}
+
+/**
+ * Where a buyer page sits in the site: Home, then the page (2026-09-30).
+ *
+ * Two levels, because that is the truth: the page is reached from the home page's family
+ * cards, not from inside `/products`. A search result shows this trail in place of the raw
+ * address.
+ */
+export function breadcrumbJsonLd(page: { title: string; path: string }) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
+      { '@type': 'ListItem', position: 2, name: page.title, item: `${SITE_ORIGIN}${page.path}` },
+    ],
+  }
+}
+
+/**
+ * The questions a buyer page answers, as data.
+ *
+ * ⚠️ ONLY QUESTIONS THE PAGE SHOWS, WORD FOR WORD. Google treats question data that the
+ * visible page does not carry as spam, so the page and this block are built from the ONE
+ * list (`familyPages.ts`) and cannot differ. It earns no special result box for a site like
+ * this one (Google limited those in 2023); it is here because an AI answer is assembled
+ * from exactly this shape.
+ */
+export function faqJsonLd(questions: ReadonlyArray<{ question: string; answer: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: questions.map((entry) => ({
+      '@type': 'Question',
+      name: entry.question,
+      acceptedAnswer: { '@type': 'Answer', text: entry.answer },
     })),
   }
 }

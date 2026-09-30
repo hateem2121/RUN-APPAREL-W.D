@@ -52,6 +52,13 @@ describe('searchVisibility reads the Worker first, then the process, then fails 
   })
 })
 
+/**
+ * A garment's entry, whatever comes before it. These tests used to skip "the first five";
+ * the buyer pages joined the list on 2026-09-30, and a count like that breaks on every page
+ * added.
+ */
+const isGarment = (url: string): boolean => url.includes('/products/')
+
 describe('what the switch does', () => {
   it('hidden means noindex; visible means the layout declares nothing', () => {
     // `undefined`, not `{ index: true }`: declaring index in the layout broke the 404's
@@ -65,6 +72,10 @@ describe('what the switch does', () => {
     expect(sitemapFor('visible', 'https://wear-run.com').map((e) => e.url)).toEqual([
       'https://wear-run.com',
       'https://wear-run.com/products',
+      'https://wear-run.com/custom-teamwear-manufacturer',
+      'https://wear-run.com/custom-activewear-manufacturer',
+      'https://wear-run.com/custom-outerwear-manufacturer',
+      'https://wear-run.com/private-label-casual-wear-manufacturer',
       'https://wear-run.com/contact',
       'https://wear-run.com/privacy',
       'https://wear-run.com/terms',
@@ -88,7 +99,7 @@ describe('what the switch does', () => {
     expect(
       sitemapFor('visible', 'https://wear-run.com', garments)
         .map((e) => e.url)
-        .slice(5),
+        .filter(isGarment),
     ).toEqual([
       'https://wear-run.com/products/rxps/wine',
       'https://wear-run.com/products/rxps/navy',
@@ -113,7 +124,9 @@ describe('what the switch does', () => {
         ],
       },
     ]
-    const [wine, navy] = sitemapFor('visible', 'https://wear-run.com', garments).slice(5)
+    const [wine, navy] = sitemapFor('visible', 'https://wear-run.com', garments).filter((e) =>
+      isGarment(e.url),
+    )
     expect(wine?.images).toEqual(['https://media.wear-run.com/rxps-wine-render.webp'])
     expect(wine?.lastModified).toEqual(new Date('2026-09-28T10:15:00.000Z'))
     // A colour with no picture lists none, rather than borrowing another colour's.
@@ -140,7 +153,7 @@ describe('what the switch does', () => {
     const [relative, plain] = sitemapFor('visible', 'https://wear-run.com', [
       { slug: 'a', colours: [{ slug: 'x', image: { url: '/api/media/file/a.webp' } }] },
       { slug: 'b', colours: [{ slug: 'x', image: { url: 'http://media.wear-run.com/b.webp' } }] },
-    ]).slice(5)
+    ]).filter((e) => isGarment(e.url))
     expect(relative).not.toHaveProperty('images')
     expect(plain).not.toHaveProperty('images')
   })
@@ -159,7 +172,7 @@ describe('what the switch does', () => {
         slug: 'b',
         colours: [{ slug: 'x', image: { url: 'https://media.wear-run.com/b <1>.webp' } }],
       },
-    ]).slice(5)
+    ]).filter((e) => isGarment(e.url))
     expect(entries.map((e) => e.url)).toEqual([
       'https://wear-run.com/products/a/x',
       'https://wear-run.com/products/b/x',

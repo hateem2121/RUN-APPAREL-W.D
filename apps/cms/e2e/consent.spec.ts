@@ -1,3 +1,4 @@
+import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -72,7 +73,14 @@ test.describe('the cookie choice', () => {
   }) => {
     await liftAutomationGate(context)
     const outside = await watch(page)
-    for (const path of ['/', '/products', '/contact', '/privacy', '/terms']) {
+    for (const path of [
+      '/',
+      '/products',
+      '/contact',
+      '/privacy',
+      '/terms',
+      ...FAMILY_PAGE_SOURCES,
+    ]) {
       await page.goto(path)
       await expect(banner(page), `no question on ${path}`).toBeVisible()
       await page.waitForLoadState('networkidle')

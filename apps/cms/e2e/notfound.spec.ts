@@ -1,3 +1,4 @@
+import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -234,7 +235,14 @@ test.describe('content security policy', () => {
    * buys cross-origin isolation this site has no use for.
    */
   test('the documents are cross-origin isolated and the API is not', async ({ request }) => {
-    for (const path of ['/', '/products', '/contact', '/privacy', '/terms']) {
+    for (const path of [
+      '/',
+      '/products',
+      '/contact',
+      '/privacy',
+      '/terms',
+      ...FAMILY_PAGE_SOURCES,
+    ]) {
       const h = (await request.get(path)).headers()
       expect(h['cross-origin-opener-policy'], `${path} has no COOP`).toBe('same-origin')
       expect(h['cross-origin-resource-policy'], `${path} has no CORP`).toBe('same-origin')

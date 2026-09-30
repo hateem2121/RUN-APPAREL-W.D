@@ -376,7 +376,12 @@ describe('copy rules', () => {
     // `colourHref`, whose URL shape has its own test in lib/cardGallery.test.ts), so what
     // is pinned here is that the page hands it the garment pages' base and the product slug,
     // and that the gallery builds every href through `colourHref` from what it was given.
-    const page = code(FRONTEND, 'products', 'page.tsx')
+    // The card moved to `ProductCardItem` on 2026-09-30, when the buyer pages began sharing
+    // it; the page must still draw its cards through it.
+    expect(code(FRONTEND, 'products', 'page.tsx')).toContain('<ProductCardItem')
+    const page = stripComments(
+      readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'ProductCardItem.tsx'), 'utf8'),
+    )
     expect(page).toContain('garmentPages={GARMENT_PAGES}')
     expect(page).toContain('productSlug={product.slug}')
     const gallery = stripComments(
@@ -425,8 +430,9 @@ describe('copy rules', () => {
     // blind fails here instead of passing on nothing.
     expect(counted.map((row) => row.file).sort()).toEqual([
       'src/app/(frontend)/page.tsx',
-      'src/app/(frontend)/products/page.tsx',
       'src/components/site/CardGallery.tsx',
+      // The card both the gallery and the buyer pages draw (2026-09-30).
+      'src/components/site/ProductCardItem.tsx',
     ])
     for (const row of counted) {
       expect(
@@ -927,9 +933,11 @@ describe('the 404, the policy, and analytics', () => {
     // directive failed nothing. Fourth time this shape of false positive has appeared in
     // this repo's style tests, and the fix is always the same — assert against the code.
     const headers = code(CMS_ROOT, 'publicViewerHeaders.mjs')
-    expect(headers).toMatch(
-      /PUBLIC_PAGE_SOURCES = \['\/', '\/products', '\/contact', '\/privacy', '\/terms'\]/,
+    // The five site pages, then the buyer pages from their own list (2026-09-30).
+    expect(headers.replace(/\s+/g, ' ')).toMatch(
+      /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \]/,
     )
+    expect(headers).toMatch(/FAMILY_PAGE_SOURCES = \[\s*'\/custom-teamwear-manufacturer',/)
     // The directives that are worth having regardless of the inline-script compromise:
     // each closes an attack class that has nothing to do with inline scripts.
     for (const directive of ["object-src 'none'", "base-uri 'self'", "form-action 'self'"]) {

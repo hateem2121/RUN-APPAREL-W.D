@@ -1,3 +1,4 @@
+import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -742,7 +743,15 @@ test.describe('TY-12 — no heading splits a word across two lines', () => {
   for (const width of [320, 340, 390]) {
     test(`no heading on the site splits a word at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 })
-      for (const path of ['/', '/products', '/contact', '/privacy', '/terms', '/no-such-page']) {
+      for (const path of [
+        '/',
+        '/products',
+        '/contact',
+        '/privacy',
+        '/terms',
+        ...FAMILY_PAGE_SOURCES,
+        '/no-such-page',
+      ]) {
         await page.goto(path)
         await page.evaluate(() => document.fonts.ready.then(() => true))
         const { scanned, splits } = await splitWords(page)
