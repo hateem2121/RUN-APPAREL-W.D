@@ -2233,6 +2233,15 @@ a.contact-block__value:active {
 }
 
 /*
+ * A real heading inside running text (the buyer pages' steps and questions, 2026-09-30).
+ * It borrows the card title's type; this only gives it the gap `.subhead` has, which the
+ * card title's own `margin: 0` would otherwise remove.
+ */
+.prose .prose__heading {
+  margin-block-start: 24px;
+}
+
+/*
  * Underlined at rest, for the reason the contact page's two links now are — except that
  * here it genuinely IS a link inside running text, which is the case WCAG 1.4.1 is about:
  * a link distinguished from its surrounding prose by colour alone.

@@ -72,7 +72,14 @@ test.describe('the cookie choice', () => {
   }) => {
     await liftAutomationGate(context)
     const outside = await watch(page)
-    for (const path of ['/', '/products', '/contact', '/privacy', '/terms']) {
+    for (const path of [
+      '/',
+      '/products',
+      '/contact',
+      '/privacy',
+      '/terms',
+      '/custom-teamwear-manufacturer',
+    ]) {
       await page.goto(path)
       await expect(banner(page), `no question on ${path}`).toBeVisible()
       await page.waitForLoadState('networkidle')

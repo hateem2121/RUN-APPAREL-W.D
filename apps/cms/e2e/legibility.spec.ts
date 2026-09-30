@@ -12,7 +12,14 @@ import { readability } from '../src/lib/readingLevel'
  * media query either matches or it does not — none of that is visible in the source.
  */
 
-const PAGES = ['/', '/products', '/contact', '/privacy', '/terms'] as const
+const PAGES = [
+  '/',
+  '/products',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/custom-teamwear-manufacturer',
+] as const
 
 /**
  * The characters on each rendered line, counted from Range rects.

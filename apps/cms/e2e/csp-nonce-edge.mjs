@@ -31,6 +31,7 @@ const PAGES = [
   ['/contact', 200],
   ['/privacy', 200],
   ['/terms', 200],
+  ['/custom-teamwear-manufacturer', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [

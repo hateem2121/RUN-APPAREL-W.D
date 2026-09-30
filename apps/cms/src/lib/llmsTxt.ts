@@ -1,5 +1,6 @@
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
+import { FAMILY_PAGES, familyOf } from './familyPages'
 
 /**
  * `/llms.txt` for the marketing site (audit FA-N-16).
@@ -41,6 +42,12 @@ export function buildLlmsTxt(siteOrigin: string): string {
   const families = FAMILIES.map(
     (family) => `- [${family.name}](${siteOrigin}/products?family=${family.slug}) — ${family.body}`,
   ).join('\n')
+  // The buyer pages (2026-09-30), from the list that holds their words: a family with a
+  // page of its own is named here in the same change that creates it.
+  const buyerPages = FAMILY_PAGES.map(
+    (page) =>
+      `- [${page.title}](${siteOrigin}${page.path}) — ${familyOf(page).name}: what is made, the minimum, the sample time and how an order works.`,
+  ).join('\n')
 
   return `# RUN APPAREL
 
@@ -77,6 +84,7 @@ ${CERTIFICATION}
 - [Home](${siteOrigin}) — what the company makes, the numbers above, and how to start.
 - [Products](${siteOrigin}/products) — every reference garment, filterable by family. Each card
   links to that garment's 3D page.
+${buyerPages}
 - [Contact](${siteOrigin}/contact) — the addresses, and a form that reaches the company directly.
 - [Privacy](${siteOrigin}/privacy) and [Terms](${siteOrigin}/terms).
 

@@ -2139,6 +2139,29 @@ a desktop crawler, by the owner's choice; the rules and a planted defect for eac
 `scripts/seo-page-rules.mjs` and `apps/cms/src/seoPageRules.test.ts`. Its first run found
 exactly one thing: 200 garment pages with no heading for a robot.
 
+### The buyer pages (since 2026-09-30)
+
+A buyer page is a page for one product family, written for the words a buyer searches. The
+first is `/custom-teamwear-manufacturer`. The owner approves every page's words before it is
+built; nothing on one may state a fact the home page does not.
+
+To add one, after the owner has approved its text:
+
+1. Add its words to `apps/cms/src/lib/familyPages.ts`.
+2. Add its address to `FAMILY_PAGE_SOURCES` in `apps/cms/publicViewerHeaders.mjs`. That gives
+   it its security policy and its redirect from the admin host.
+3. Copy the folder `apps/cms/src/app/(frontend)/custom-teamwear-manufacturer` under the new
+   address and change `PATH` in its `page.tsx`.
+4. Add the address to the page lists in `apps/cms/e2e/` (search them for the first page's
+   address) and to `apps/cms/e2e/csp-nonce-edge.mjs`.
+
+The sitemap, `/llms.txt` and the home page's family card follow step 1 on their own.
+`apps/cms/src/lib/familyPages.test.ts` fails when steps 1 to 3 disagree. The address may not
+start with `/products/`: the viewer Worker answers everything there.
+
+`scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
+AFTER the page is live. Added before, the daily check fails until the deploy finishes.
+
 ### Why only crawlers get the rewrite
 
 Measured 2026-08-08, warm connection, five requests each:

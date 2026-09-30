@@ -20,6 +20,12 @@ const PAGES = [
   { path: '/', name: 'home', heading: /Made to order/i },
   { path: '/products', name: 'products', heading: /Every garment/i },
   { path: '/contact', name: 'contact', heading: /talk production/i },
+  // The first buyer page (2026-09-30): its heading carries the words a buyer searches.
+  {
+    path: '/custom-teamwear-manufacturer',
+    name: 'teamwear buyer page',
+    heading: /Custom teamwear and team uniforms/i,
+  },
 ] as const
 
 test.describe('every page renders real content', () => {
@@ -179,13 +185,20 @@ test.describe('search visibility follows the committed switch: visible since lau
     })
   }
 
-  test('the sitemap lists the five public pages', async ({ request }) => {
+  test('the sitemap lists the five site pages and the buyer pages', async ({ request }) => {
     const response = await request.get('/sitemap.xml')
     expect(response.status()).toBe(200)
     const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
       (m) => new URL(m[1] ?? '').pathname,
     )
-    expect(locs.sort()).toEqual(['/', '/contact', '/privacy', '/products', '/terms'])
+    expect(locs.sort()).toEqual([
+      '/',
+      '/contact',
+      '/custom-teamwear-manufacturer',
+      '/privacy',
+      '/products',
+      '/terms',
+    ])
   })
 
   /**
@@ -304,5 +317,58 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
     await page.goto((await empties[0]?.getAttribute('href')) as string)
     await expect(page.locator('.site-empty')).toContainText(/still being built/i)
     await expect(page.locator('.site-empty')).not.toContainText(/being updated/i)
+  })
+})
+
+/**
+ * The buyer pages (2026-09-30). `src/lib/familyPages.test.ts` proves the wiring from the
+ * source; this proves what a search engine is actually SERVED: the canonical, the title,
+ * the question data matching the questions on the page, and a way in from the home page.
+ */
+test.describe('the teamwear buyer page, as a search engine receives it', () => {
+  const PATH = '/custom-teamwear-manufacturer'
+
+  test('the raw HTML carries its own title, description, canonical and one h1', async ({
+    request,
+  }) => {
+    const html = await (await request.get(PATH)).text()
+    expect(html).toMatch(
+      /<title>Custom Teamwear &amp; Team Uniform Manufacturer — RUN APPAREL<\/title>/,
+    )
+    expect(html.match(/<h1\b/g) ?? []).toHaveLength(1)
+    expect(html).toMatch(/<link rel="canonical" href="[^"]*\/custom-teamwear-manufacturer"/)
+    const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? ''
+    expect(description).toContain('50 pieces per style')
+    expect(description.length).toBeLessThanOrEqual(160)
+  })
+
+  test('the question data is the questions on the page, word for word', async ({ page }) => {
+    await page.goto(PATH)
+    const blocks = await page
+      .locator('script[type="application/ld+json"]')
+      .evaluateAll((tags) => tags.map((tag) => JSON.parse(tag.textContent ?? '{}')))
+    const faq = blocks.find((block) => block['@type'] === 'FAQPage')
+    expect(faq, 'no FAQPage data on the page').toBeTruthy()
+    expect(faq.mainEntity.length).toBeGreaterThan(0)
+    // textContent, not innerText: the comparison is about words, not how CSS draws them.
+    const visible = ((await page.locator('main').textContent()) ?? '').replace(/\s+/g, ' ')
+    for (const entry of faq.mainEntity) {
+      expect(visible, `the page does not show the question "${entry.name}"`).toContain(entry.name)
+      expect(visible, `the page does not show the answer to "${entry.name}"`).toContain(
+        entry.acceptedAnswer.text,
+      )
+    }
+    expect(blocks.some((block) => block['@type'] === 'BreadcrumbList')).toBe(true)
+  })
+
+  test('the home page family card leads to it, and it leads to the inquiry form', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await expect(page.locator(`.family-card__link[href="${PATH}"]`)).toHaveCount(1)
+    await page.goto(PATH)
+    const action = page.locator('.site-hero .btn--primary')
+    await expect(action).toHaveText('Get a free quote')
+    await expect(action).toHaveAttribute('href', '/contact#inquiry')
   })
 })

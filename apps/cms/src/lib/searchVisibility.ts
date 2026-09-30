@@ -1,6 +1,7 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata, MetadataRoute } from 'next'
+import { FAMILY_PAGES } from './familyPages'
 
 /**
  * Whether search engines may index the public site.
@@ -109,6 +110,13 @@ export function sitemapFor(
   return [
     { url: origin, changeFrequency: 'monthly', priority: 1 },
     { url: `${origin}/products`, changeFrequency: 'weekly', priority: 0.8 },
+    // The buyer pages (2026-09-30), read from the list that holds their words, so a page
+    // the owner approves is offered to crawlers in the same change that creates it.
+    ...FAMILY_PAGES.map((page) => ({
+      url: `${origin}${page.path}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    })),
     { url: `${origin}/contact`, changeFrequency: 'yearly', priority: 0.5 },
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },

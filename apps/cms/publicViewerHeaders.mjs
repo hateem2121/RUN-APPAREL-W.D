@@ -78,8 +78,21 @@ export const PUBLIC_VIEWER_VARY = 'Origin, Sec-CH-Prefers-Color-Scheme'
  * dump shows the policy missing. `/privacy` and `/terms` were added on 2026-09-07 in the
  * same commit that created them. `publicSite.test.ts` pins this list, so at least the
  * omission cannot happen silently twice.
+ *
+ * ⚠️ THE BUYER PAGES ARE THEIR OWN LIST (2026-09-30), spread in below, so the admin host's
+ * redirects (`siteHostRules.mjs`) and the page copy (`src/lib/familyPages.ts`) can be held
+ * to the same addresses. `src/lib/familyPages.test.ts` fails when they differ.
  */
-export const PUBLIC_PAGE_SOURCES = ['/', '/products', '/contact', '/privacy', '/terms']
+export const FAMILY_PAGE_SOURCES = ['/custom-teamwear-manufacturer']
+
+export const PUBLIC_PAGE_SOURCES = [
+  '/',
+  '/products',
+  '/contact',
+  '/privacy',
+  '/terms',
+  ...FAMILY_PAGE_SOURCES,
+]
 
 /**
  * ⚠️ THIS IS NOW THE FALLBACK, and the script guard's TRIGGER (SE-04, decided 2026-09-18).

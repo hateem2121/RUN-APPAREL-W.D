@@ -15,7 +15,15 @@ import { FACTS } from '../src/lib/companyFacts'
  * and the live check all read ONE list. `readCopyInPage` also decodes pre-filled mailto
  * and WhatsApp text: a template is copy a visitor sends, and `innerText` never sees it.
  */
-const PAGES = ['/', '/products', '/contact', '/privacy', '/terms', '/no-such-page'] as const
+const PAGES = [
+  '/',
+  '/products',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/custom-teamwear-manufacturer',
+  '/no-such-page',
+] as const
 
 for (const path of PAGES) {
   test(`copy rules hold on ${path}`, async ({ page }) => {
@@ -69,6 +77,8 @@ const PRIMARY_LABELS = [
   /^Browse the references$/,
   /^Email \S+@\S+$/,
   /^Send inquiry$/,
+  // The buyer pages' one action (owner approved the page and its button, 2026-09-30).
+  /^Get a free quote$/,
 ]
 
 for (const viewport of [
