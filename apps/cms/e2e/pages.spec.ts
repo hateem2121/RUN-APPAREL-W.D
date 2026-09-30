@@ -1,4 +1,4 @@
-import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from './offlineMedia'
 
@@ -41,6 +41,18 @@ const PAGES = [
     path: '/private-label-casual-wear-manufacturer',
     name: 'casual wear buyer page',
     heading: /Private label casual wear/i,
+  },
+  { path: '/guides', name: 'guides index', heading: /Buyer guides/i },
+  {
+    path: '/guides/how-a-private-label-order-works',
+    name: 'order guide',
+    heading: /How a private label order works/i,
+  },
+  { path: '/guides/3d-garment-reference', name: '3D guide', heading: /The 3D garment reference/i },
+  {
+    path: '/guides/minimum-order-and-samples',
+    name: 'minimum order guide',
+    heading: /Minimum order and samples/i,
   },
 ] as const
 
@@ -208,7 +220,15 @@ test.describe('search visibility follows the committed switch: visible since lau
       (m) => new URL(m[1] ?? '').pathname,
     )
     expect(locs.sort()).toEqual(
-      ['/', '/contact', '/privacy', '/products', '/terms', ...FAMILY_PAGE_SOURCES].sort(),
+      [
+        '/',
+        '/contact',
+        '/privacy',
+        '/products',
+        '/terms',
+        ...FAMILY_PAGE_SOURCES,
+        ...GUIDE_PAGE_SOURCES,
+      ].sort(),
     )
   })
 

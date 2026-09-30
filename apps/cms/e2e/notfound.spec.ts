@@ -1,4 +1,4 @@
-import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -242,6 +242,7 @@ test.describe('content security policy', () => {
       '/privacy',
       '/terms',
       ...FAMILY_PAGE_SOURCES,
+      ...GUIDE_PAGE_SOURCES,
     ]) {
       const h = (await request.get(path)).headers()
       expect(h['cross-origin-opener-policy'], `${path} has no COOP`).toBe('same-origin')

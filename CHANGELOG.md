@@ -29,6 +29,7 @@ timeline
 - The sitemap tells Google when each garment last changed and where its picture is.
 - A one-command check of every page for search problems (`node scripts/seo-crawl.mjs`).
 - Four buyer pages, one each for Teamwear, Sportswear, Outerwear and Casual Wear: what is made, the minimum, the sample time, how an order works and six common questions. The home page's family cards now open them.
+- Three buyer guides under `/guides`: how a private label order works, the 3D garment reference explained, and minimum order and samples. A "Guides" link in the footer of every website page opens them.
 - Each garment can carry a plain garment type ("Women's Tennis Dress"), and its page title now says it.
 
 ### Changed

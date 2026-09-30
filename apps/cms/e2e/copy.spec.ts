@@ -1,4 +1,4 @@
-import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 import {
   findBritishSpellings,
@@ -23,6 +23,7 @@ const PAGES = [
   '/privacy',
   '/terms',
   ...FAMILY_PAGE_SOURCES,
+  ...GUIDE_PAGE_SOURCES,
   '/no-such-page',
 ] as const
 

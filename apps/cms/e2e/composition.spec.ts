@@ -1,4 +1,4 @@
-import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -750,6 +750,7 @@ test.describe('TY-12 — no heading splits a word across two lines', () => {
         '/privacy',
         '/terms',
         ...FAMILY_PAGE_SOURCES,
+        ...GUIDE_PAGE_SOURCES,
         '/no-such-page',
       ]) {
         await page.goto(path)

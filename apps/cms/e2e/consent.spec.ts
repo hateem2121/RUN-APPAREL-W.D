@@ -1,4 +1,4 @@
-import { FAMILY_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -80,6 +80,7 @@ test.describe('the cookie choice', () => {
       '/privacy',
       '/terms',
       ...FAMILY_PAGE_SOURCES,
+      ...GUIDE_PAGE_SOURCES,
     ]) {
       await page.goto(path)
       await expect(banner(page), `no question on ${path}`).toBeVisible()
