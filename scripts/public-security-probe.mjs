@@ -87,8 +87,21 @@ export const TARGETS = [
   { name: 'cms. redirect', url: 'https://cms.wear-run.help/', kind: 'redirect' },
   // The script guard (SE-04, decided 2026-09-18). Every public page type, and / twice so that
   // a reused nonce is visible. The admin's own policy must stay exactly as it was.
-  ...['/', '/products', '/contact', '/privacy', '/terms', '/'].map((pathname, i) => ({
-    name: i === 5 ? 'site / again' : `site ${pathname}`,
+  // The four buyer pages joined on 2026-09-30, AFTER they went live (#103): a page added
+  // here before its deploy fails this probe on the real site. The guides wait for theirs.
+  ...[
+    '/',
+    '/products',
+    '/contact',
+    '/privacy',
+    '/terms',
+    '/custom-teamwear-manufacturer',
+    '/custom-activewear-manufacturer',
+    '/custom-outerwear-manufacturer',
+    '/private-label-casual-wear-manufacturer',
+    '/',
+  ].map((pathname, i, all) => ({
+    name: i === all.length - 1 ? 'site / again' : `site ${pathname}`,
     url: `https://wear-run.com${pathname}`,
     kind: /** @type {const} */ ('page-csp'),
   })),

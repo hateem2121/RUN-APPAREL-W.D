@@ -173,8 +173,12 @@ describe('TARGETS', () => {
       '/admin',
       '/api/products',
       '/contact',
+      '/custom-activewear-manufacturer',
+      '/custom-outerwear-manufacturer',
+      '/custom-teamwear-manufacturer',
       '/definitely-not-a-page',
       '/privacy',
+      '/private-label-casual-wear-manufacturer',
       '/products',
       '/robots.txt',
       '/rxps/wine',
@@ -328,11 +332,23 @@ describe('the script guard, seen from outside (SE-04)', () => {
     expect(result.inconclusive).toHaveLength(1)
   })
 
-  it('watches the six page types, / twice, and the admin', () => {
+  it('watches every page type, / twice, and the admin', () => {
     const targets = TARGETS as { kind: string; url: string }[]
     const pages = targets.filter((t) => t.kind === 'page-csp')
     expect(pages.map((t) => new URL(t.url).pathname).sort()).toEqual(
-      ['/', '/', '/contact', '/definitely-not-a-page', '/privacy', '/products', '/terms'].sort(),
+      [
+        '/',
+        '/',
+        '/contact',
+        '/custom-activewear-manufacturer',
+        '/custom-outerwear-manufacturer',
+        '/custom-teamwear-manufacturer',
+        '/definitely-not-a-page',
+        '/privacy',
+        '/private-label-casual-wear-manufacturer',
+        '/products',
+        '/terms',
+      ].sort(),
     )
     expect(targets.filter((t) => t.kind === 'admin-csp')).toHaveLength(1)
   })

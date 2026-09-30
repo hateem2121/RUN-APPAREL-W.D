@@ -2173,6 +2173,7 @@ methods, fabrics, packaging, shipping and duties) waits for the owner.
 
 `scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
+The four buyer pages are in it; the guides join once they are live.
 
 ### Why only crawlers get the rewrite
 
