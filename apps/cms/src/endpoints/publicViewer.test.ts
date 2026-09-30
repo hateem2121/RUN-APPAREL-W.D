@@ -146,6 +146,23 @@ describe('GET /api/public/viewer/:productSlug/:colourSlug', () => {
     expect(res.headers.get('Vary')).toContain('Sec-CH-Prefers-Color-Scheme')
   })
 
+  /*
+   * robots.txt lets crawlers fetch this path since 2026-09-30, because a garment page
+   * cannot be rendered without it (lib/robotsTxt.ts has the account). That makes the raw
+   * JSON a candidate for a search result, so the 200 says `noindex` as the 404 always did.
+   * Asked twice on purpose: the second answer comes from the in-process cache, which builds
+   * its own Response and once carried a different header set from the first.
+   */
+  it('marks the 200 noindex, from the database and from the cache', async () => {
+    const first = await withColour(makeReq({ productSlug: 'n001', colourSlug: 'wine' }).req)
+    const second = await withColour(makeReq({ productSlug: 'n001', colourSlug: 'wine' }).req)
+
+    for (const res of [first, second]) {
+      expect(res.status).toBe(200)
+      expect(res.headers.get('X-Robots-Tag')).toBe('noindex')
+    }
+  })
+
   it('only ever queries for PUBLISHED products', async () => {
     // The single most important line in the handler: drop the status clause and every
     // draft garment — including ones with placeholder pricing or half-finished

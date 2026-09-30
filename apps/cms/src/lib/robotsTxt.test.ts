@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AI_CRAWLER_UAS, TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
-import { ANSWERING_UAS, buildRobotsTxt, CONTENT_SIGNAL, DISALLOW } from './robotsTxt'
+import { ANSWERING_UAS, buildRobotsTxt, CONTENT_SIGNAL, DISALLOW, RENDER_ALLOW } from './robotsTxt'
 import { SITE_ORIGIN } from './seo'
 
 /**
@@ -45,6 +45,29 @@ describe('the groups', () => {
       expect(lines, `group ${index} does not disallow ${path}`).toContain(`Disallow: ${path}`)
     }
     expect(lines).toContain('Allow: /')
+  })
+
+  /*
+   * ⚠️ THE ONE PATH UNDER /api/ A CRAWLER MUST BE ABLE TO READ. Every garment page fetches
+   * its data from /api/public/viewer/, and a renderer obeys robots.txt for that fetch too.
+   * Measured 2026-09-30 in Search Console's live test of /products/rxps/wine: the fetch was
+   * listed "couldn't be loaded: robots.txt", the page fell into its did-not-load state, and
+   * that state adds `noindex` — so Google refused all 205 garment pages. A crawler takes the
+   * LONGEST matching rule, so the Allow has to be longer than `Disallow: /api/`, and it has
+   * to be in every allowed group because a named group replaces the wildcard one.
+   */
+  it.each([0, 1])('allowed group %i lets a renderer read the garment data', (index) => {
+    const lines = groups[index]?.lines ?? []
+    for (const path of RENDER_ALLOW) {
+      expect(lines, `group ${index} does not allow ${path}`).toContain(`Allow: ${path}`)
+      const blocking = DISALLOW.filter((rule) => path.startsWith(rule))
+      for (const rule of blocking) expect(path.length).toBeGreaterThan(rule.length)
+    }
+  })
+
+  // The opening must stay this narrow: the rest of /api/ is the CMS's own REST API.
+  it('opens only the viewer data, nothing else under /api/', () => {
+    expect(RENDER_ALLOW).toEqual(['/api/public/viewer/'])
   })
 
   /*
