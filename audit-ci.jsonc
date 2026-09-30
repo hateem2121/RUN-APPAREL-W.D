@@ -43,6 +43,12 @@
   // audit-ci itself flagged the allowlist as redundant ("Consider not
   // allowlisting paths…"), which is the signal the header below asks for.
   //
+  // Raised again 2026-09-30 to ^1.1.20 / ^2.1.6 / ^5.0.11 (resolved 1.1.21 / 2.1.7 /
+  // 5.0.12, all published 2026-09-14): GHSA-6j4f-fj2g-mc7p and GHSA-qhr7-859c-m2p7, two
+  // stack-exhaustion DoS advisories, failed `audit` on PR #96 through four build-time
+  // paths (@lhci/cli, @opennextjs/cloudflare twice, @sentry/vite-plugin). Patched
+  // versions existed, so override, not allowlist — the same call as 2026-08-04.
+  //
   // The same pass fixed three more advisories that appeared between 2026-08-01
   // and 2026-08-04 — undici, fast-uri and ip-address — all by override rather
   // than suppression, because all three had patched versions available.
