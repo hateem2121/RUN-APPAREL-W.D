@@ -197,6 +197,11 @@ test.describe('the cookie choice on a garment page', () => {
     expect(boxes.card?.left ?? -1).toBeGreaterThanOrEqual(0)
     expect(boxes.card?.right ?? Infinity).toBeLessThanOrEqual(390)
     expect(boxes.card?.bottom ?? Infinity).toBeLessThanOrEqual(844)
+    // Small, not hidden (owner, 2026-09-30): at most a fifth of the phone's height.
+    expect(
+      (boxes.card?.bottom ?? Infinity) - (boxes.card?.top ?? 0),
+      'the question takes over a fifth of the screen',
+    ).toBeLessThanOrEqual(844 * 0.2)
 
     for (const name of ['Accept', 'Decline']) {
       const box = await banner(page).getByRole('button', { name }).boundingBox()

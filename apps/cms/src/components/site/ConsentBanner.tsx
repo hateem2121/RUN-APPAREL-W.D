@@ -78,7 +78,6 @@ export function ConsentBanner() {
   return (
     <section className="consent" aria-label="Cookie choice">
       <div className="consent__card">
-        <span className="label">{CONSENT_COPY.label}</span>
         <p className="consent__text">
           {CONSENT_COPY.text} <Link href="/privacy#cookies">{CONSENT_COPY.more}</Link>
         </p>

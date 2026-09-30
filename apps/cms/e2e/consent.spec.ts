@@ -244,6 +244,15 @@ test.describe('the cookie choice', () => {
     const bar = await page.locator('.notch-shell').first().boundingBox()
     const card = await page.locator('.consent__card').boundingBox()
     expect((bar?.y ?? 0) + (bar?.height ?? 0)).toBeLessThanOrEqual(card?.y ?? 0)
+    /*
+     * SMALL, NOT HIDDEN (owner, 2026-09-30, and current regulator guidance): visible enough to
+     * be a real choice, and no more than a fifth of a phone screen. The first version was 28%.
+     */
+    await expect(page.locator('.consent__card')).toBeVisible()
+    expect(
+      card?.height ?? Infinity,
+      'the question takes over a fifth of the screen',
+    ).toBeLessThanOrEqual(812 * 0.2)
   })
 
   test('a keyboard reaches both buttons, and Enter answers', async ({ page, context }) => {

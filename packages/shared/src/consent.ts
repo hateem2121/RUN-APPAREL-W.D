@@ -63,11 +63,10 @@ export const CONSENT_OPEN_EVENT = 'run:consent-open'
  * different things. The privacy page (`apps/cms`, `/privacy`) explains the detail; this is
  * the short form a visitor reads before deciding.
  *
- * TODO(human): the owner approves or rewrites `text` below. It must stay TRUE: it names
- * both companies, says what they learn, and says nothing runs until Accept.
+ * Approved by the owner on 2026-09-30. It must stay TRUE: it names both companies, says
+ * what they learn, and says nothing is stored until the visitor chooses (`consent.test.ts`).
  */
 export const CONSENT_COPY = {
-  label: '[ YOUR CHOICE ]',
   text: 'May we count your visit? If you accept, Google Analytics and Apollo tell us which pages are read and which companies visit. Nothing is stored until you choose.',
   accept: 'Accept',
   decline: 'Decline',

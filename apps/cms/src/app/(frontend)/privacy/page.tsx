@@ -52,6 +52,9 @@ export const metadata: Metadata = buildMetadata({
  * COMPANIES, never people: the page policy refuses the script it would need for the
  * latter (`TRACKER_CSP` in packages/shared/src/consent.ts).
  *
+ * Cookie-question wording (the lede, "If you accept the cookie question", and the three
+ * sentences it added further down) approved by the owner 2026-09-30.
+ *
  * NOT LEGAL ADVICE. This is a factual account of what the software does, plus the
  * mainstream reading of the rules as of September 2026. Wording approved by the owner
  * 2026-09-07; a solicitor should review it before it carries any weight. Visit-records
