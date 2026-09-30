@@ -2174,7 +2174,7 @@ the owner gave on 2026-09-30; the comment above them in `guides.ts` records whic
 
 `scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
-The four buyer pages and the first seven guide pages are in it; the shipping guide joins once it is live.
+The four buyer pages and all eight guide pages are in it.
 
 ### Why only crawlers get the rewrite
 
