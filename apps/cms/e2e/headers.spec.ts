@@ -150,6 +150,13 @@ test.describe('FA-O-13 — nothing is stored, and nothing is told', () => {
    * untrue with nothing failing. This is the test that makes it a statement about the
    * code rather than about a Tuesday.
    *
+   * ⚠️ SINCE 2026-09-30 THE SITE ASKS A COOKIE QUESTION, AND THIS TEST IS UNCHANGED ON
+   * PURPOSE. The owner added Google Analytics and Apollo behind a choice
+   * (`ConsentBanner.tsx`), so "no consent banner is needed" above is history. The privacy
+   * page now promises that nothing is stored and nobody else is contacted UNLESS the visitor
+   * accepts, and a visit on which nobody presses anything is exactly what this measures.
+   * `e2e/consent.spec.ts` covers declined and accepted, with the question on screen.
+   *
    * A plain visit still keeps NOTHING. Pressing the light/dark switch keeps one key,
    * `run-theme`, which the privacy page names; `e2e/themeSwitch.spec.ts` holds a press to
    * exactly that key.

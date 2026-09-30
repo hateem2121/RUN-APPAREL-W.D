@@ -1,7 +1,9 @@
 import { withPayload } from '@payloadcms/next/withPayload'
+import { TRACKER_CSP } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import {
   effectiveHeader,
+  PUBLIC_PAGE_CSP,
   PUBLIC_PAGE_SOURCES,
   PUBLIC_VIEWER_VARY,
   withPublicViewerVary,
@@ -119,5 +121,37 @@ describe('public pages: no Critical-CH retry', () => {
     expect(effectiveHeader(rules, '/admin/collections/products', 'Critical-CH')).toBe(
       'Sec-CH-Prefers-Color-Scheme',
     )
+  })
+})
+
+/**
+ * The cookie choice's two trackers (2026-09-30). `publicViewerHeaders.mjs` is loaded by
+ * next.config.mjs under plain Node and cannot import the shared TypeScript, so its policy
+ * carries a pinned copy of the tracker hosts. These keep the copy honest.
+ */
+describe('public pages: the tracker hosts', () => {
+  const directive = (name: string) =>
+    PUBLIC_PAGE_CSP.split('; ').find((entry) => entry.startsWith(`${name} `)) ?? ''
+
+  it('carries every host the shared list names, each in its own directive', () => {
+    for (const host of TRACKER_CSP.script) expect(directive('script-src')).toContain(host)
+    for (const host of TRACKER_CSP.connect) expect(directive('connect-src')).toContain(host)
+    for (const host of TRACKER_CSP.img) expect(directive('img-src')).toContain(host)
+  })
+
+  /*
+   * ⚠️ LIVEINTENT STAYS OUT. Apollo's script tries to load `d-code.liadm.com` to identify a
+   * visitor as a person; the owner chose company-level tracking only, and the missing host
+   * is what makes the browser enforce that.
+   */
+  it('never admits LiveIntent', () => {
+    expect(PUBLIC_PAGE_CSP).not.toMatch(/liadm/)
+  })
+
+  // Trackers load only scripts and report home: no frames, no forms, no plugins.
+  it('opens nothing but script, connect and image sources to them', () => {
+    for (const name of ['frame-ancestors', 'form-action', 'object-src', 'base-uri', 'worker-src']) {
+      expect(directive(name)).not.toMatch(/google|apollo|aplo/)
+    }
   })
 })

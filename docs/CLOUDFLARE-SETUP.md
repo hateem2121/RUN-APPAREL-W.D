@@ -209,11 +209,18 @@ Pages project was deleted.) The R2 bucket CORS policy mirrors this list — upda
 both together, and purge the `media.wear-run.help` hostname cache after editing
 the bucket policy.
 
-## 8. Cloudflare Web Analytics (only analytics allowed)
+## 8. Cloudflare Web Analytics (the only analytics that runs without asking)
+
+> **Changed 2026-09-30.** Until then this was the only analytics allowed. The owner then
+> added Google Analytics and Apollo's website visitor tracker on every page, behind a cookie
+> question shown to every visitor. Neither loads until the visitor presses Accept. The logic
+> is `packages/shared/src/consent.ts`; the two policies that admit their hosts are
+> `apps/cms/publicViewerHeaders.mjs` and `apps/viewer/scripts/csp.mjs`. The Cloudflare
+> beacon below is unchanged and still runs for everyone, because it sets no cookie.
 
 **Already done — nothing to configure.** The beacon is embedded directly in
 `apps/viewer/index.html` as a `<script src>` with the zone's token, which is a
-public site tag and not a secret. No cookies, no third-party trackers.
+public site tag and not a secret. It sets no cookies.
 
 It is a hard-coded tag on purpose, and there are two separate reasons:
 

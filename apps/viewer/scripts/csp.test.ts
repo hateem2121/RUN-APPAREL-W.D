@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { TRACKER_CSP } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { SHARED_SECURITY_HEADERS, workerResponseHeaders } from '../worker/securityHeaders'
 import { buildCsp, buildHeadersFile } from './csp.mjs'
@@ -140,21 +141,64 @@ function thirdPartyOrigins(csp: string): string[] {
 describe('buildCsp — third-party allow-list (PF-15)', () => {
   const DSN = 'https://abc123@o4511868350496768.ingest.us.sentry.io/4509876'
 
-  it('the policy admits no third party beyond the beacon and Sentry', () => {
+  /*
+   * The two trackers joined on 2026-09-30 (owner decision; they run only after a visitor
+   * accepts the cookie choice). Still an EXACT list: a host added to the policy without
+   * being added here fails, which is the whole job of this test.
+   */
+  const TRACKERS = [
+    'https://*.analytics.google.com',
+    'https://*.google-analytics.com',
+    'https://*.googletagmanager.com',
+    'https://aplo-evnt.com',
+    'https://assets.apollo.io',
+    'https://www.googletagmanager.com',
+  ]
+
+  it('the policy admits no third party beyond the beacon, the two trackers and Sentry', () => {
     const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API, sentryDsn: DSN })
-    expect(thirdPartyOrigins(csp)).toEqual([
-      'https://cloudflareinsights.com',
-      'https://o4511868350496768.ingest.us.sentry.io',
-      'https://static.cloudflareinsights.com',
-    ])
+    expect(thirdPartyOrigins(csp)).toEqual(
+      [
+        'https://cloudflareinsights.com',
+        'https://o4511868350496768.ingest.us.sentry.io',
+        'https://static.cloudflareinsights.com',
+        ...TRACKERS,
+      ].sort(),
+    )
   })
 
-  it('is exactly the beacon when no Sentry DSN is configured', () => {
+  it('is exactly the beacon and the two trackers when no Sentry DSN is configured', () => {
     const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API })
-    expect(thirdPartyOrigins(csp)).toEqual([
-      'https://cloudflareinsights.com',
-      'https://static.cloudflareinsights.com',
-    ])
+    expect(thirdPartyOrigins(csp)).toEqual(
+      [
+        'https://cloudflareinsights.com',
+        'https://static.cloudflareinsights.com',
+        ...TRACKERS,
+      ].sort(),
+    )
+  })
+
+  /*
+   * csp.mjs runs under plain Node and cannot import the shared TypeScript, so it keeps a
+   * pinned copy of the tracker hosts. This is what stops the copy drifting: each directive
+   * must carry every host the shared list names for it.
+   */
+  it('carries every tracker host the shared list names, in the right directive', () => {
+    const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API })
+    for (const host of TRACKER_CSP.script) expect(directive(csp, 'script-src')).toContain(host)
+    for (const host of TRACKER_CSP.connect) expect(directive(csp, 'connect-src')).toContain(host)
+    for (const host of TRACKER_CSP.img) expect(directive(csp, 'img-src')).toContain(host)
+  })
+
+  /*
+   * ⚠️ LIVEINTENT STAYS OUT. Apollo's script tries to load `d-code.liadm.com` to identify a
+   * visitor as a PERSON. The owner chose company-level tracking only; the missing host is
+   * what makes the browser enforce it. Adding it "because Apollo logs a CSP error" undoes
+   * a privacy promise the privacy page makes.
+   */
+  it('never admits LiveIntent', () => {
+    const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API, sentryDsn: DSN })
+    expect(csp).not.toMatch(/liadm/)
   })
 })
 

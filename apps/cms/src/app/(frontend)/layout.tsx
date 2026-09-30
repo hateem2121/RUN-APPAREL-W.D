@@ -37,6 +37,7 @@ import './site.css'
 import type { Metadata, Viewport } from 'next'
 import type React from 'react'
 import { Analytics } from '../../components/site/Analytics'
+import { ConsentBanner } from '../../components/site/ConsentBanner'
 import { Cursor } from '../../components/site/Cursor'
 import { SmoothScroll } from '../../components/site/SmoothScroll'
 import { JsonLd } from '../../components/site/JsonLd'
@@ -160,6 +161,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         </main>
         <SiteFooter settings={settings} />
         <Analytics />
+        {/* The cookie choice; Google Analytics and Apollo start only after Accept. */}
+        <ConsentBanner />
         {/* The viewer's dot-and-ring cursor, dependency-free; fine pointers only. */}
         <Cursor />
         {/* The viewer's smooth scroll: trusted wheels only, off under reduced motion. */}

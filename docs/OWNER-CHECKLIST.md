@@ -89,6 +89,10 @@ live. Nothing to do until then.
 sets no cookies, so it needs no cookie banner and collects nothing personal — that is why
 it was chosen over Google Analytics.
 
+**Changed 2026-09-30.** You asked for Google Analytics and Apollo as well, so the site now
+asks every visitor a cookie question first. Cloudflare's counter still runs for everyone;
+the other two start only when a visitor presses Accept.
+
 ---
 
 ## 4 · Replace the browser tab icon with your real logo
