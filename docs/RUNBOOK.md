@@ -2168,12 +2168,13 @@ start with `/products/`: the viewer Worker answers everything there.
 `apps/cms/publicViewerHeaders.mjs`, one folder each under
 `apps/cms/src/app/(frontend)/guides`, and `apps/cms/src/lib/guides.test.ts` fails when
 the three disagree. The footer's "Guides" link opens their index at `/guides`. A guide may
-only state what the site already states; a topic with no facts on the site (printing
-methods, fabrics, packaging, shipping and duties) waits for the owner.
+only state what the site already states; a topic with no facts on the site (shipping and
+duties, today) waits for the owner. The printing, fabrics and packaging guides state facts
+the owner gave on 2026-09-30; the comment above them in `guides.ts` records which.
 
 `scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
-The four buyer pages are in it; the guides join once they are live.
+The four buyer pages and the first four guide pages are in it; newer guides join once live.
 
 ### Why only crawlers get the rewrite
 

@@ -39,6 +39,9 @@ const PAGES = [
   ['/guides/how-a-private-label-order-works', 200],
   ['/guides/3d-garment-reference', 200],
   ['/guides/minimum-order-and-samples', 200],
+  ['/guides/garment-printing-methods', 200],
+  ['/guides/sportswear-fabrics-and-weights', 200],
+  ['/guides/private-label-packaging', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [

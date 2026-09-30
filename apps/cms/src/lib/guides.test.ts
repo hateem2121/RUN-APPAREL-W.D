@@ -106,11 +106,47 @@ describe('the words state only what the site already states', () => {
   for (const guide of GUIDES) {
     it(`${guide.path}: no printing method, lead time, certificate, founding year or invented proof`, () => {
       const words = everyWord(guide)
-      expect(words).not.toMatch(/sublimat|embroider/i)
+      // The printing guide names the methods the owner confirmed are done in the building.
+      if (guide.path !== '/guides/garment-printing-methods') {
+        expect(words).not.toMatch(/sublimat|embroider/i)
+      }
       expect(words).not.toMatch(/\d+\s*(?:–|-|to)\s*\d+\s*days/i)
       expect(words).not.toMatch(/certified|OEKO|GOTS|SMETA|SEDEX|ISO\s?9001/i)
       expect(words).not.toMatch(/1889|since \d{4}|founded|established/i)
       expect(words).not.toMatch(/trusted by|\d+\+?\s*(?:brands|teams|clients|customers)/i)
     })
   }
+})
+
+describe("the three guides built from the owner's own facts (2026-09-30)", () => {
+  it('the printing guide names exactly the seven methods the owner confirmed', () => {
+    const guide = guideAt('/guides/garment-printing-methods')
+    const methods = guide.sections[0]?.blocks.flatMap((block) =>
+      block.kind === 'point' ? [block.title] : [],
+    )
+    expect(methods).toEqual([
+      'Screen printing',
+      'Sublimation',
+      'DTF (direct to film)',
+      'DTG (direct to garment)',
+      'Heat transfer vinyl',
+      'Embroidery',
+      'Special inks',
+    ])
+    expect(everyWord(guide)).toContain('inside our own building')
+  })
+
+  // Left out by the owner's choice: no test report stands behind the sheets' figures, the
+  // certificates are the suppliers', and an unsourced environmental percentage is a legal risk.
+  it("the fabrics guide carries weights and uses, and none of the sheets' unproven figures", () => {
+    const words = everyWord(guideAt('/guides/sportswear-fabrics-and-weights'))
+    expect(words).toContain('120 to 200 GSM')
+    expect(words).toContain('made to match')
+    expect(words).not.toMatch(/mm\/hr|L\/m|wicking rate|drying time|\d\/5|⭐/i)
+    expect(words).not.toMatch(/TENCEL|carbon|emissions|\d+\s?%/i)
+  })
+
+  it('the packaging guide says there is no set minimum', () => {
+    expect(everyWord(guideAt('/guides/private-label-packaging'))).toContain('no set minimum')
+  })
 })

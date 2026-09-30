@@ -96,6 +96,9 @@ export const GUIDE_PAGE_SOURCES = [
   '/guides/how-a-private-label-order-works',
   '/guides/3d-garment-reference',
   '/guides/minimum-order-and-samples',
+  '/guides/garment-printing-methods',
+  '/guides/sportswear-fabrics-and-weights',
+  '/guides/private-label-packaging',
 ]
 
 export const PUBLIC_PAGE_SOURCES = [

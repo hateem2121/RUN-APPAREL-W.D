@@ -2241,6 +2241,17 @@ a.contact-block__value:active {
   margin-block-start: 24px;
 }
 
+/*
+ * The guides' running text, at 50ch rather than `--site-measure` (55ch). A line of narrow
+ * letters ("Puff, silicone, high-density and reflective…") set 78 characters at 55ch in
+ * Firefox on 2026-09-30, past the 75 that `legibility.spec.ts` (FA-C-52) allows. The order
+ * timeline uses 50ch for the same measured reason.
+ */
+.prose--guide p,
+.prose--guide li {
+  max-width: 50ch;
+}
+
 /* A plain list inside running text (the buyer guides). The browser's own markers, indented. */
 .prose .prose__list {
   margin: 16px 0 0;
