@@ -186,8 +186,17 @@ const CACHED = new Set(['HIT', 'REVALIDATED'])
  * otherwise produce. Neither reading is a FAILURE: both mean this probe could not
  * get a clean look, which a human resolves by raising this constant, not by
  * treating the model itself as suspect.
+ *
+ * ⚠️ REPLACED 2026-09-30 BY ASKING THE FILE (issue #58). A fixed guess has to be raised by
+ * hand every time a larger model ships: the 24 garments added on 2026-09-28 include
+ * r-mss/lilac, whose chunk is 1,314,540 bytes, so the probe reported it "truncated" (as
+ * designed) and `perf-watch.yml` stayed red for two weekly runs. A bigger guess is no fix:
+ * tried that day, 1,900,000 bytes for each of 40 models timed out on a slow link and
+ * measured 0 of 40. The file states its own chunk length in its first 20 bytes, so the
+ * probe now reads those, then fetches exactly the chunk (`jsonChunkRange`). The constant
+ * remains only as a ceiling: a file claiming a larger chunk is reported, not downloaded.
  */
-const INITIAL_RANGE_BYTES = 600_000
+const MAX_JSON_CHUNK_BYTES = 8_000_000
 
 const GLB_MAGIC = 0x46546c67 // 'glTF'
 const CHUNK_JSON = 0x4e4f534a // 'JSON'
@@ -229,10 +238,36 @@ export function extractGlbJsonChunk(bytes) {
     return {
       error:
         `truncated — the JSON chunk is ${chunkLength} bytes but only ` +
-        `${bytes.byteLength - jsonStart} were fetched; raise INITIAL_RANGE_BYTES`,
+        `${bytes.byteLength - jsonStart} were fetched`,
     }
   }
   return { text: new TextDecoder('utf-8').decode(bytes.subarray(jsonStart, jsonEnd)) }
+}
+
+/**
+ * Pure: from a GLB's first 20 bytes, the last byte the probe must fetch to hold the whole
+ * JSON chunk. Same layout checks as `extractGlbJsonChunk`, which then reads the chunk.
+ *
+ * @param {Uint8Array} head The file's first `HEADER_BYTES + CHUNK_HEADER_BYTES` bytes.
+ * @returns {{ lastByte: number } | { error: string }}
+ */
+export function jsonChunkRange(head) {
+  const need = HEADER_BYTES + CHUNK_HEADER_BYTES
+  if (head.byteLength < need) {
+    return { error: `too few bytes (${head.byteLength}) to hold a GLB header` }
+  }
+  const view = new DataView(head.buffer, head.byteOffset, head.byteLength)
+  if (view.getUint32(0, true) !== GLB_MAGIC) return { error: 'not a GLB (bad magic)' }
+  const chunkLength = view.getUint32(HEADER_BYTES, true)
+  if (view.getUint32(HEADER_BYTES + 4, true) !== CHUNK_JSON) {
+    return { error: 'first chunk is not JSON' }
+  }
+  if (chunkLength > MAX_JSON_CHUNK_BYTES) {
+    return {
+      error: `the JSON chunk claims ${chunkLength} bytes, over the ${MAX_JSON_CHUNK_BYTES} ceiling; not downloaded`,
+    }
+  }
+  return { lastByte: need + chunkLength - 1 }
 }
 
 /**
@@ -374,12 +409,23 @@ async function probeOne(target) {
 /** One model file: a ranged GET for the JSON chunk and size, then a 1-byte GET for the cache. */
 /** @returns {Promise<Observation>} */
 async function probeUrl(key, url) {
+  // First the 20 bytes that state how long the JSON chunk is, then exactly that much.
   let response
   try {
-    response = await fetch(url, {
-      headers: { range: `bytes=0-${INITIAL_RANGE_BYTES - 1}` },
+    const opening = await fetch(url, {
+      headers: { range: `bytes=0-${HEADER_BYTES + CHUNK_HEADER_BYTES - 1}` },
       signal: AbortSignal.timeout(20_000),
     })
+    if (opening.status !== 206) {
+      response = opening
+    } else {
+      const range = jsonChunkRange(new Uint8Array(await opening.arrayBuffer()))
+      if ('error' in range) return { key, status: opening.status, error: range.error }
+      response = await fetch(url, {
+        headers: { range: `bytes=0-${range.lastByte}` },
+        signal: AbortSignal.timeout(20_000),
+      })
+    }
   } catch (error) {
     return { key, error: error.message ?? String(error) }
   }
@@ -403,12 +449,19 @@ async function probeUrl(key, url) {
   }
   const total = Number((response.headers.get('content-range') ?? '').split('/')[1])
   const firstCache = response.headers.get('cf-cache-status') ?? 'none'
-  const bytes = new Uint8Array(await response.arrayBuffer())
+  // The timeout also covers reading the body; uncaught, a slow read killed the whole run
+  // with a stack trace (seen 2026-09-30). Caught, it is one model the probe could not read.
+  let bytes
+  try {
+    bytes = new Uint8Array(await response.arrayBuffer())
+  } catch (error) {
+    return { key, status: response.status, error: error.message ?? String(error) }
+  }
   const extracted = extractGlbJsonChunk(bytes)
   // A truncated/malformed chunk is a DIFFERENT problem from "no leftover text found" and
   // must say so by name — folding it into an empty jsonChunk (-> generic "unparseable")
   // hid a real bug here: three of sixteen live models' JSON chunks turned out larger than
-  // the first INITIAL_RANGE_BYTES guess, measured 2026-09-23.
+  // the first fixed-size guess, measured 2026-09-23.
   if ('error' in extracted) return { key, status: response.status, error: extracted.error }
 
   // The first GET can be the one that warms a cold file; the second must be a HIT.
