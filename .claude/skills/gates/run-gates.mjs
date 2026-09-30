@@ -52,6 +52,14 @@ const GATES = [
     argv: ['bash', 'scripts/test-alert-shell.sh'],
   },
   {
+    // Missing from this list until 2026-09-30, though CI's `verify` job runs it right here:
+    // the runner said "All gates passed" without it. apps/cms/src/gateRunnerParity.test.ts
+    // now fails when CI's gate jobs run a node check this list does not.
+    name: 'docs-index',
+    why: 'every maintained document reachable from docs/README.md; reads git ls-files, no build',
+    argv: ['node', 'scripts/check-docs-index.mjs'],
+  },
+  {
     name: 'container-install',
     why: 'NOT a pnpm member — pnpm -r skips it, and npm ci is where a desynced second lockfile bites',
     argv: ['npm', 'install', '--no-audit', '--no-fund'],
@@ -78,6 +86,13 @@ const GATES = [
     name: 'eval-artwork',
     why: 'separate CI job — gates the deploy',
     argv: [...PNPM, 'eval:artwork'],
+  },
+  {
+    // CI runs it FIRST in the e2e job, so a red browser test cannot hide it; here too.
+    // Needs Chromium (the same one e2e uses). Missing until 2026-09-30, like docs-index.
+    name: 'doc-visuals',
+    why: 'every picture in the docs described, every diagram draws — needs Chromium',
+    argv: ['node', 'apps/cms/scripts/check-doc-visuals.mjs'],
   },
   {
     name: 'e2e',
