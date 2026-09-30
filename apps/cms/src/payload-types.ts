@@ -19,7 +19,7 @@ export type ProductColourway =
        */
       displayName?: string | null;
       /**
-       * The word in this colour’s link and QR code: wear-run.help/n001/navy. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.
+       * The word for this colour in its link and QR code, like “bottle-green” in wear-run.com/products/r-ajm/bottle-green. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.
        */
       slug?: string | null;
       /**
@@ -381,7 +381,7 @@ export interface Product {
    */
   productCode: string;
   /**
-   * The word in this product’s link and QR codes: wear-run.help/n001/navy. Never change it once QR codes are printed.
+   * The word for this product in its link and QR codes, like “r-ajm” in wear-run.com/products/r-ajm/bottle-green. Never change it once QR codes are printed.
    */
   slug: string;
   /**
