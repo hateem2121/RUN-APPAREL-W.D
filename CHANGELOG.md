@@ -27,6 +27,7 @@ timeline
 - Search robots now read each garment's name, picture, description and colours on its page, not only in hidden data.
 - The sitemap tells Google when each garment last changed and where its picture is.
 - A one-command check of every page for search problems (`node scripts/seo-crawl.mjs`).
+- Each garment can carry a plain garment type ("Women's Tennis Dress"), and its page title now says it.
 
 ### Changed
 
@@ -35,6 +36,8 @@ timeline
 - The last fixes from the launch checklist ([#71](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/71)).
 - The AI instruction files are shorter, and each rule sits where it applies.
 - The company's LinkedIn and Instagram, already in the footer, are now also in the data search engines read.
+- The products page's title in search results now says what is sold, in the owner's words.
+- One misspelled garment name is corrected (RAGLAN).
 
 ### Fixed
 

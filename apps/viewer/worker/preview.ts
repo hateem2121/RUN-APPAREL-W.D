@@ -1,4 +1,10 @@
-import { buildViewerPath, GARMENT_PATH_PREFIX, type ViewerApiSuccess } from '@run-apparel/shared'
+import {
+  buildViewerPath,
+  GARMENT_PATH_PREFIX,
+  garmentPageTitle,
+  PAGE_TITLE_BRAND,
+  type ViewerApiSuccess,
+} from '@run-apparel/shared'
 import type { OgCard } from './og-cards'
 
 /**
@@ -48,8 +54,15 @@ export interface PreviewImage {
 }
 
 export interface Preview {
-  /** Also used for <title> — a crawler that ignores og:* falls back to it. */
+  /** The link-preview title (`og:title`, `twitter:title`): code first, what a buyer quotes. */
   title: string
+  /**
+   * The page's own `<title>`, which a search result prints: name, garment type, colour,
+   * brand. Built by the SHARED `garmentPageTitle`, the same call the app makes for
+   * `document.title`, because Google reads the title after running the page and the two
+   * must not disagree (packages/shared/src/pageTitle.ts, 2026-09-30).
+   */
+  pageTitle: string
   description: string
   /** Absolute; used for og:url AND <link rel="canonical">. */
   url: string
@@ -227,6 +240,13 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
   const image = pickImage(payload, origin, cards)
   return {
     title: buildTitle(payload),
+    pageTitle: garmentPageTitle({
+      productName: payload.product.productName,
+      productCode: payload.product.productCode,
+      garmentType: payload.product.garmentType,
+      colour: payload.selectedColourway.displayName,
+      brand: PAGE_TITLE_BRAND,
+    }),
     description: buildDescription(payload),
     url,
     image,

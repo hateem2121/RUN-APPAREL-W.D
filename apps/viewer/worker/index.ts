@@ -243,7 +243,7 @@ function applyPreview(response: Response, preview: Preview): Response {
   const rewriter = new HTMLRewriter()
     .on('title', {
       element(el) {
-        el.setInnerContent(preview.title)
+        el.setInnerContent(preview.pageTitle)
       },
     })
     .on('meta[name="description"]', {

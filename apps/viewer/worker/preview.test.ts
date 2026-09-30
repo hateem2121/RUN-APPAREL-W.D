@@ -88,6 +88,7 @@ function payload(overrides: {
       slug: 'n001',
       productName: 'Velocity Performance Skinsuit',
       shortDescription: '',
+      garmentType: '',
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: 'https://media.wear-run.help/cycling-all-colours-optimized-4.glb',
@@ -150,6 +151,44 @@ describe('buildPreview — title', () => {
     expect(build(payload({ colourways: [only], selectedColourway: only })).title).toBe(
       'N001 Velocity Performance Skinsuit',
     )
+  })
+})
+
+/*
+ * THE PAGE'S OWN <title> IS NOT THE LINK-PREVIEW TITLE (2026-09-30). A shared link leads
+ * with the code a buyer quotes back; a search result needs to say what the garment IS.
+ * The rules are tested in packages/shared/src/pageTitle.test.ts; this pins that the Worker
+ * passes the right values to them, and that the two titles stay separate.
+ */
+describe('buildPreview — the page title search engines show', () => {
+  it('says the garment type when the owner has typed one, and ends with the brand', () => {
+    const preview = build(payload({ product: { garmentType: "Women's Cycling Skinsuit" } }))
+    expect(preview.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Wine")
+    // …and the link preview still leads with the code.
+    expect(preview.title).toBe('N001 Velocity Performance Skinsuit — Wine')
+  })
+
+  it('keeps the code-led title, with the brand, for a garment with no type yet', () => {
+    expect(build(payload({})).pageTitle).toBe(
+      'N001 Velocity Performance Skinsuit — Wine | RUN APPAREL',
+    )
+  })
+
+  it('names the colour that LOADS, as every other field here does', () => {
+    const preview = build(
+      payload({
+        product: { garmentType: 'Tee' },
+        selectedColourway: colourway({ displayName: 'Blush', slug: 'blush' }),
+      }),
+    )
+    expect(preview.pageTitle).toContain('Tee, Blush')
+  })
+
+  it('gives each colour of one garment a different title', () => {
+    const titles = ['Wine', 'Blush', 'Lime'].map(
+      (displayName) => build(payload({ selectedColourway: colourway({ displayName }) })).pageTitle,
+    )
+    expect(new Set(titles).size).toBe(3)
   })
 })
 
@@ -512,6 +551,28 @@ describe('the tags index.ts rewrites still exist in index.html', () => {
 
   it.each(REWRITTEN_META)('index.html declares %s', (key) => {
     expect(html).toMatch(new RegExp(`<meta\\s+(?:property|name)="${key}"`, 'i'))
+  })
+
+  /*
+   * The post-deploy check proves the rewrite ran by the title no longer being this static
+   * one (scripts/smoke-viewer-preview.mjs, STATIC_TITLE). If the static title is reworded
+   * and that copy is not, every rewritten page "differs" and the check can never fail.
+   */
+  it('has the static title the post-deploy check compares against', () => {
+    const staticTitle = html.match(/<title>([^<]+)<\/title>/i)?.[1] ?? ''
+    const smoke = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        '..',
+        '..',
+        'scripts',
+        'smoke-viewer-preview.mjs',
+      ),
+      'utf8',
+    )
+    expect(staticTitle).not.toBe('')
+    expect(smoke).toContain(`const STATIC_TITLE = '${staticTitle}'`)
   })
 
   // The robot-readable body is appended INSIDE this element, where the app replaces it.

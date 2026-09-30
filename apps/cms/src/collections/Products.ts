@@ -320,6 +320,35 @@ export const Products: CollectionConfig = {
               },
             },
             {
+              name: 'garmentType',
+              type: 'text',
+              /**
+               * ⚠️ THE WORDS A BUYER TYPES INTO GOOGLE (owner decision 2026-09-30).
+               * Measured that day: all 40 live product names are brand names ("MINECUT
+               * MOTION", "TIGER TAIL PROFLEX"), so no page title said what the garment is
+               * and a search for "tennis dress manufacturer" had nothing to match. This is
+               * the plain type, and `garmentPageTitle` (packages/shared/src/pageTitle.ts)
+               * puts it in the page title: "MINECUT MOTION — Women's Tennis Dress, Blush".
+               *
+               * OPTIONAL ON PURPOSE. A required field would refuse every save of the 40
+               * live garments until someone filled it, the shrink robot's saves included.
+               * A garment without one keeps the code-led title it had before.
+               *
+               * It is NOT shown on the page and NOT in a URL, so changing it is safe at any
+               * time: nothing printed on a QR tag depends on it.
+               *
+               * 60 characters is the most a search result shows of a whole title; a type
+               * longer than that could never appear. Validation only: the column is plain
+               * `text` (migration 20260930_160000_product_garment_type).
+               */
+              maxLength: 60,
+              label: 'Garment type (for Google)',
+              admin: {
+                description:
+                  "What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. Leave blank if unsure.",
+              },
+            },
+            {
               name: 'shortDescription',
               type: 'textarea',
               /**

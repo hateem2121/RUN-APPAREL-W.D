@@ -590,6 +590,25 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
     }
   })
 
+  /*
+   * THE TITLE GOOGLE INDEXES IS THE ONE THE PAGE HAS AFTER IT RUNS (2026-09-30). The Worker
+   * writes a title for robots, but Google reads it again once the app has started, so the
+   * app must set the same words: name, garment type, colour. Until that day the app wrote
+   * "… — RUN APPAREL 3D Reference" over whatever the Worker sent.
+   */
+  test('the running page sets the search title: name, garment type and colour', async ({
+    page,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page).toHaveTitle("Velocity Performance Tee — Men's Training Tee, Wine")
+    await page.goto('/n001/blush')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // The fixture names this colour with two words on purpose (a wrap test elsewhere), so
+    // the title is matched on its shape: same name and type, and a colour that is not Wine.
+    await expect(page).toHaveTitle(/^Velocity Performance Tee — Men's Training Tee, (?!Wine$).+$/)
+  })
+
   test('AC-15: every link name is unique, except the two accepted doubled contact buttons', async ({
     page,
   }) => {

@@ -1,5 +1,5 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
-import { isViewerApiError } from '@run-apparel/shared'
+import { garmentPageTitle, isViewerApiError, PAGE_TITLE_BRAND } from '@run-apparel/shared'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
 import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
@@ -242,7 +242,18 @@ export default function App() {
 
   useEffect(() => {
     if (state.kind === 'ready') {
-      document.title = `${state.data.product.productName} · ${state.selected.displayName} — RUN APPAREL 3D Reference`
+      /*
+       * The SAME title the Worker writes for a search robot (worker/preview.ts), from the
+       * same shared function. Google reads the title after running the page, so until
+       * 2026-09-30 the title it indexed was this file's old wording, not the Worker's.
+       */
+      document.title = garmentPageTitle({
+        productName: state.data.product.productName,
+        productCode: state.data.product.productCode,
+        garmentType: state.data.product.garmentType,
+        colour: state.selected.displayName,
+        brand: PAGE_TITLE_BRAND,
+      })
     }
   }, [state])
 

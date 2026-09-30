@@ -70,6 +70,8 @@ const PRODUCT = productArg || DEFAULT_PRODUCT.slug
 // complete, correct-looking preview, so the check would pass forever while only
 // ever exercising the fallback.
 const COLOUR = colourArg || DEFAULT_PRODUCT.colourway
+/** The one title `apps/viewer/index.html` ships; a rewritten page never keeps it. */
+const STATIC_TITLE = 'RUN APPAREL — 3D Product Reference'
 
 const CRAWLER_UA = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
 const BROWSER_UA =
@@ -227,7 +229,14 @@ async function runChecks() {
   const squash = squashCode
   const expectCode = squash(PRODUCT)
   const title = html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? ''
-  if (!squash(title).includes(expectCode)) {
+  //    ⚠️ THE <title> NO LONGER HAS TO CARRY THE CODE (2026-09-30). A garment with a
+  //    garment type gets a search title of name, type and colour ("MINECUT MOTION —
+  //    Women's Tennis Dress, Blush"), built by packages/shared/src/pageTitle.ts, and the
+  //    code lives on in og:title, checked just below. What this line still proves is that
+  //    the rewrite RAN: the title is no longer the one static line index.html ships.
+  //    Not matched on the colour: a slug and its display name are different fields, and
+  //    deriving one from the other is how a rename broke this gate twice already.
+  if (!title.trim() || title.trim() === STATIC_TITLE) {
     fail(`<title> is "${title}" — the per-garment rewrite did not run.`)
   }
   for (const key of ['og:title', 'twitter:title']) {

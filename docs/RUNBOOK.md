@@ -2098,6 +2098,32 @@ CMS. A robot's request already waits on it, so the answer is free (`isMissingGar
 the old behaviour, so an outage can never tell Google a live garment is gone.
 `scripts/smoke-viewer-preview.mjs` checks both after every deploy.
 
+### The page title, and the garment type behind it (since 2026-09-30)
+
+Every live product name is a brand name ("MINECUT MOTION"), so until this day no garment
+page's title said what the garment is. Each product now has an optional **Garment type (for
+Google)** box in the CMS (`garmentType` in `apps/cms/src/collections/Products.ts`), and the
+title reads `NAME — Garment Type, Colour | RUN APPAREL`. When that is longer than a search
+result shows, the brand is dropped, never the type. A garment with an empty box keeps the
+code-led title it had.
+
+One function builds it, `garmentPageTitle` in `packages/shared/src/pageTitle.ts`, and both
+writers call it: the Worker for the HTML a robot first receives, and `apps/viewer/src/App.tsx`
+for `document.title`. They must agree because Google reads the title after running the
+page. A shared link's title (`og:title`) is separate and still leads with the product code.
+
+The 40 owner-approved types are written by a script, once, after the deploy that adds the box:
+
+```bash
+node scripts/apply-garment-types.mjs
+```
+
+That is a dry run; it prints what it would write and needs no key. With `--apply` and
+`CMS_API_KEY` exported it writes each type into an EMPTY box only, reads every write back,
+and corrects the one misspelled name (R-SRS, RAGNAL to RAGLAN). A box the owner has typed
+in is left alone. Run before the deploy, every write is accepted and stored nowhere (Payload
+drops a field it does not know), which the read-back reports as "not stored".
+
 ### The whole-site search check (`scripts/seo-crawl.mjs`)
 
 ```bash
