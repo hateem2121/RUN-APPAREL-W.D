@@ -446,7 +446,7 @@ export const Products: CollectionConfig = {
               },
               admin: {
                 description:
-                  'The word in this product’s link and QR codes: wear-run.help/n001/navy. Never change it once QR codes are printed.',
+                  'The word for this product in its link and QR codes, like “r-ajm” in wear-run.com/products/r-ajm/bottle-green. Never change it once QR codes are printed.',
               },
               hooks: {
                 beforeValidate: [

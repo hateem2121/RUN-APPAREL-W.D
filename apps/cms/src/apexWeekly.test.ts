@@ -157,9 +157,34 @@ const none = (): DocumentSummary => ({
   robots: 0,
 })
 
+/**
+ * Cloudflare's weekday numbering, which is NOT standard cron's: 1 = Sunday … 7 = Saturday
+ * (developers.cloudflare.com/workers/configuration/cron-triggers, "Supported cron
+ * expressions"). Returned as JavaScript's getUTCDay() number, 0 = Sunday.
+ */
+const CLOUDFLARE_DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+function cloudflareWeekday(field: string): number {
+  const named = CLOUDFLARE_DAYS.indexOf(field.toUpperCase())
+  if (named !== -1) return named
+  if (/^[1-7]$/.test(field)) return Number(field) - 1
+  throw new Error(`not a single Cloudflare weekday: ${field}`)
+}
+
+/** The first moment at or after `from` when Cloudflare fires a `M H * * D` trigger. */
+function firstFiring(cron: string, from: Date): Date {
+  const [minute, hour, dayOfMonth, month, weekday = ''] = cron.split(' ')
+  if (dayOfMonth !== '*' || month !== '*') throw new Error(`not a weekly trigger: ${cron}`)
+  for (let offset = 0; offset < 8; offset++) {
+    const day = new Date(from.getTime() + offset * 86_400_000)
+    day.setUTCHours(Number(hour), Number(minute), 0, 0)
+    if (day.getUTCDay() === cloudflareWeekday(weekday) && day >= from) return day
+  }
+  throw new Error(`no firing within a week: ${cron}`)
+}
+
 describe('the fixed values', () => {
   it('are pinned as literals, so a change is a decision rather than a drift', () => {
-    expect([CLEANUP_CRON, WEEKLY_CRON]).toEqual(['5 0 * * *', '0 4 * * 1'])
+    expect([CLEANUP_CRON, WEEKLY_CRON]).toEqual(['5 0 * * *', '0 4 * * MON'])
     expect(RESEND_ENDPOINT).toBe('https://api.resend.com/emails')
     expect(EMAIL_FROM).toBe('RUN APPAREL <noreply@wear-run.help>')
     expect(ADMIN_VISITS_URL).toBe('https://cms.wear-run.help/admin/collections/document-visits')
@@ -202,6 +227,39 @@ describe('the daily clean-up', () => {
     expect(column(database, 'SELECT day FROM document_visit_salts ORDER BY day')).toEqual([
       '2027-09-15',
     ])
+  })
+})
+
+describe('the day Cloudflare really sends the weekly email', () => {
+  /*
+   * ⚠️ MEASURED 2026-09-30. Until then WEEKLY_CRON was '0 4 * * 1', which every test here
+   * read as Monday, because they all start from MONDAY_MORNING. Cloudflare reads 1 as
+   * SUNDAY: Workers logs showed no weekly run on Monday 28 September and one in the days
+   * before, and the email that left on Sunday 27 September described 14–20 September, six
+   * days after that week had ended. These tests take the day from Cloudflare's numbering
+   * instead of assuming it.
+   */
+  it('names the weekday, so no one has to know that Cloudflare counts 1 as Sunday', () => {
+    const weekday = WEEKLY_CRON.split(' ')[4] ?? ''
+    expect(weekday).toMatch(/^[A-Z]{3}$/)
+    expect(CLOUDFLARE_DAYS[cloudflareWeekday(weekday)]).toBe('MON')
+    // The reading this guards against, stated so the helper above is checked too.
+    expect(CLOUDFLARE_DAYS[cloudflareWeekday('1')]).toBe('SUN')
+  })
+
+  it('describes the week that ended the day before it is sent', async () => {
+    const { database, VISITS } = await weekDatabase()
+    const firing = firstFiring(WEEKLY_CRON, new Date('2026-09-21T00:00:00.000Z'))
+
+    const result = await runScheduled(
+      WEEKLY_CRON,
+      { VISITS, RESEND_API_KEY: KEY, VISITS_EMAIL_TO: RECIPIENT },
+      { now: () => firing, fetch: resend(200) },
+    )
+
+    expect(result).toBe('sent')
+    expect(firing.toISOString()).toBe('2026-09-21T04:00:00.000Z')
+    expect(emailRow(database, WEEK_OF)).toMatchObject({ status: 'sent' })
   })
 })
 

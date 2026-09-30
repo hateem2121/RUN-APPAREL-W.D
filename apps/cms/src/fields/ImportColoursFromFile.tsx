@@ -1,15 +1,11 @@
 'use client'
 
-import { useField, useFormFields } from '@payloadcms/ui'
+import { useForm, useFormFields } from '@payloadcms/ui'
 import type { UIFieldClientComponent } from 'payload'
 import { useState } from 'react'
-import {
-  type ExistingRow,
-  type FileColour,
-  buildImportedRow,
-  toFileColours,
-  unmappedFileColours,
-} from '@run-apparel/shared'
+import type { ExistingRow, FileColour } from '@run-apparel/shared'
+import { missingFileColours, rowsToAdd, toSubFieldState } from './colourImportPanel'
+import { rowsFromFormState } from './formStateRows'
 
 /**
  * "We found colours in your file that are not on your website yet."
@@ -26,15 +22,14 @@ import {
  * on. This file is the shell around it.
  */
 export const ImportColoursFromFile: UIFieldClientComponent = () => {
-  const { value: rows, setValue: setRows } = useField<Record<string, unknown>[]>({
-    path: 'colourways',
-  })
-  const fileColourDetails = useFormFields(([fields]) => fields?.fileColourDetails?.value)
+  // The whole form state, read the way ReadinessPanel reads it: an array field's own value
+  // is its ROW COUNT, so the rows are rebuilt from their flattened cells (colourImportPanel.ts).
+  const fields = useFormFields(([f]) => f as Record<string, { value?: unknown }>)
+  const { addFieldRow } = useForm()
   const [ticked, setTicked] = useState<Record<string, boolean>>({})
   const [added, setAdded] = useState(0)
 
-  const existing: ExistingRow[] = Array.isArray(rows) ? (rows as ExistingRow[]) : []
-  const missing = unmappedFileColours(toFileColours(fileColourDetails), existing)
+  const missing = missingFileColours(fields)
 
   if (missing.length === 0) {
     return added > 0 ? (
@@ -48,15 +43,16 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
   const add = () => {
     const chosen = missing.filter((colour) => ticked[colour.variantId])
     if (chosen.length === 0) return
-    // Append only, and re-read the growing list each time so two imported rows
-    // cannot claim the same slug.
-    const next = [...existing] as Record<string, unknown>[]
-    for (const colour of chosen) {
-      next.push(
-        buildImportedRow(colour, next as ExistingRow[]) as unknown as Record<string, unknown>,
-      )
+    const existing = rowsFromFormState(fields, 'colourways') as ExistingRow[]
+    // Appended at the end, one ADD_ROW each — the same action Payload's own "Add Colour"
+    // button uses — so no existing row moves (row order decides the default colour).
+    for (const row of rowsToAdd(chosen, existing)) {
+      addFieldRow({
+        path: 'colourways',
+        schemaPath: 'colourways',
+        subFieldState: toSubFieldState(row),
+      })
     }
-    setRows(next)
     setAdded(chosen.length)
     setTicked({})
   }

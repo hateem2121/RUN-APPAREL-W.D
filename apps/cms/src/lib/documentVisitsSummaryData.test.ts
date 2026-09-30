@@ -1,6 +1,6 @@
 import type { BasePayload } from 'payload'
 import { describe, expect, it } from 'vitest'
-import { loadVisitSummaries } from './documentVisitsSummaryData'
+import { lastEmailLine, loadVisitSummaries } from './documentVisitsSummaryData'
 
 /**
  * `loadVisitSummaries` runs exactly two `payload.find` calls and slices the 30-day
@@ -98,5 +98,60 @@ describe('loadVisitSummaries', () => {
     // A null country cannot appear in topCountries (summariseVisits only counts a
     // non-empty country) — the round trip through '' is what this proves.
     expect(result.last7.catalogue.topCountries).toEqual([])
+  })
+})
+
+describe('lastEmailLine', () => {
+  /*
+   * The row's `week` is the MONDAY OF THE WEEK THE EMAIL DESCRIBES, not the day it was sent.
+   * Until 2026-09-30 the page printed that Monday as "sent 2026-09-14" for an email that left
+   * on 27 September — which read as two missed weeks and hid a wrong send day (apexWeekly.test.ts).
+   */
+  it('says when it was sent, in Pakistan, and which week it covered', () => {
+    expect(
+      lastEmailLine({
+        week: '2026-09-28',
+        status: 'sent',
+        sentAt: '2026-10-05T04:00:00.000Z',
+        error: '',
+      }),
+    ).toBe('Last weekly email: sent 5 October 2026, covering 28 September to 4 October 2026')
+  })
+
+  it('uses the Pakistan day, not the UTC one, for a send just before midnight UTC', () => {
+    expect(
+      lastEmailLine({
+        week: '2026-09-14',
+        status: 'sent',
+        sentAt: '2026-09-20T20:30:00.000Z',
+        error: '',
+      }),
+    ).toBe('Last weekly email: sent 21 September 2026, covering 14 to 20 September 2026')
+  })
+
+  it('names a week that crosses a year end in full', () => {
+    expect(
+      lastEmailLine({
+        week: '2026-12-28',
+        status: 'sent',
+        sentAt: '2027-01-04T04:00:00.000Z',
+        error: '',
+      }),
+    ).toBe('Last weekly email: sent 4 January 2027, covering 28 December 2026 to 3 January 2027')
+  })
+
+  it('says a failed week was not sent, with the reason', () => {
+    expect(
+      lastEmailLine({
+        week: '2026-09-21',
+        status: 'failed',
+        sentAt: null,
+        error: 'not configured',
+      }),
+    ).toBe('Last weekly email: not sent (not configured), for 21 to 27 September 2026')
+  })
+
+  it('says so when there has never been one', () => {
+    expect(lastEmailLine(null)).toBe('No weekly email yet')
   })
 })

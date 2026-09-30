@@ -16,6 +16,55 @@ export interface VisitSummaries {
   lastEmail: LastWeeklyEmail | null
 }
 
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+/** '2026-09-28' → { day: 28, month: 'September', year: 2026 } */
+function parts(isoDay: string) {
+  const [year, month, day] = isoDay.split('-').map(Number)
+  return { day, month: MONTHS[(month ?? 1) - 1], year }
+}
+
+/** A Monday–Sunday span, naming the month and year only where they change. */
+function weekSpan(monday: string): string {
+  const from = parts(monday)
+  const to = parts(addDays(monday, 6))
+  const end = `${to.day} ${to.month} ${to.year}`
+  if (from.year !== to.year) return `${from.day} ${from.month} ${from.year} to ${end}`
+  if (from.month !== to.month) return `${from.day} ${from.month} to ${end}`
+  return `${from.day} to ${end}`
+}
+
+/**
+ * The line under the visit summary. `week` is the Monday of the week the email DESCRIBES,
+ * not the day it was sent: until 2026-09-30 the page printed it as "sent 2026-09-14" for an
+ * email that left on 27 September, which read as two missed weeks and hid that the trigger
+ * fired on Sundays (infra/apex-404/weekly.js, WEEKLY_CRON). The send day is the Pakistan day.
+ */
+export function lastEmailLine(lastEmail: LastWeeklyEmail | null): string {
+  if (lastEmail === null) return 'No weekly email yet'
+  const covering = weekSpan(lastEmail.week)
+  if (lastEmail.status !== 'sent') {
+    return `Last weekly email: not sent (${lastEmail.error}), for ${covering}`
+  }
+  const sent = lastEmail.sentAt ? parts(pakistanDay(new Date(lastEmail.sentAt))) : null
+  return sent
+    ? `Last weekly email: sent ${sent.day} ${sent.month} ${sent.year}, covering ${covering}`
+    : `Last weekly email: sent, covering ${covering}`
+}
+
 const text = (value: unknown): string => (typeof value === 'string' ? value : '')
 const num = (value: unknown): number => (typeof value === 'number' ? value : 0)
 

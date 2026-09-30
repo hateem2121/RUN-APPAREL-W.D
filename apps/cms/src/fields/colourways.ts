@@ -129,7 +129,7 @@ export const colourwaysField: ArrayField = {
       },
       admin: {
         description:
-          'The word in this colour’s link and QR code: wear-run.help/n001/navy. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.',
+          'The word for this colour in its link and QR code, like “bottle-green” in wear-run.com/products/r-ajm/bottle-green. Lowercase, no spaces. Never change it once QR codes are printed — switch the colour off instead.',
       },
       hooks: {
         beforeValidate: [

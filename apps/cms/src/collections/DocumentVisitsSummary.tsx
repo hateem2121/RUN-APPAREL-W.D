@@ -1,6 +1,6 @@
 import type { DocumentId, DocumentSummary } from '@run-apparel/shared'
 import type { BeforeListTableServerProps } from 'payload'
-import { loadVisitSummaries } from '../lib/documentVisitsSummaryData'
+import { lastEmailLine, loadVisitSummaries } from '../lib/documentVisitsSummaryData'
 
 const DOCUMENT_TITLES: Record<DocumentId, string> = {
   catalogue: 'Catalogue',
@@ -69,13 +69,7 @@ export async function DocumentVisitsSummary({ payload }: BeforeListTableServerPr
           <SummaryBlock title="Last 30 days" summary={summaries.last30[id]} />
         </div>
       ))}
-      <p>
-        {summaries.lastEmail === null
-          ? 'No weekly email yet'
-          : summaries.lastEmail.status === 'sent'
-            ? `Last weekly email: sent ${summaries.lastEmail.week}`
-            : `Last weekly email: not sent — ${summaries.lastEmail.error}`}
-      </p>
+      <p>{lastEmailLine(summaries.lastEmail)}</p>
     </section>
   )
 }

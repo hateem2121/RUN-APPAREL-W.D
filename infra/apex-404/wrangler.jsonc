@@ -98,12 +98,15 @@
 
   // TWO SCHEDULED JOBS, IN UTC (Pakistan is UTC+05:00 all year). weekly.js runs:
   //   - the daily clean-up for "5 0 * * *" (05:05 in Pakistan);
-  //   - the Monday summary email for "0 4 * * 1" (09:00), AND for ANY other string.
+  //   - the Monday summary email for "0 4 * * MON" (09:00), AND for ANY other string.
+  // ⚠️ THE DAY IS A NAME ON PURPOSE. Cloudflare counts weekdays 1 = SUNDAY … 7 = Saturday,
+  // not as standard cron does. Until 2026-09-30 this said "0 4 * * 1", so the "Monday" email
+  // went out every Sunday, six days after the week it described had ended (Workers logs).
   // Any other string is how a temporary "* * * * *" trigger sends the one owner-approved test
   // email (D38). ⚠️ `wrangler deploy` PUTs exactly this list and replaces every trigger the
   // Worker had (read in wrangler 4.122.0's deploy code, 2026-09-16). So a temporary trigger
   // does not survive the next deploy, and a trigger removed here is gone.
-  "triggers": { "crons": ["5 0 * * *", "0 4 * * 1"] },
+  "triggers": { "crons": ["5 0 * * *", "0 4 * * MON"] },
 
   "observability": { "enabled": true }
 }
