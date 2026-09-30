@@ -33,8 +33,11 @@ import { VISIT_SQL } from './visits.js'
 
 /** 00:05 UTC every day: 05:05 in Pakistan (UTC+05:00 all year). */
 export const CLEANUP_CRON = '5 0 * * *'
-/** 04:00 UTC every Monday: 09:00 in Pakistan. */
-export const WEEKLY_CRON = '0 4 * * 1'
+/**
+ * 04:00 UTC every Monday: 09:00 in Pakistan. `MON`, never a digit: Cloudflare counts 1 as
+ * SUNDAY, and '0 4 * * 1' sent this email on Sundays until 2026-09-30 (apexWeekly.test.ts).
+ */
+export const WEEKLY_CRON = '0 4 * * MON'
 export const RESEND_ENDPOINT = 'https://api.resend.com/emails'
 export const EMAIL_FROM = 'RUN APPAREL <noreply@wear-run.help>'
 export const ADMIN_VISITS_URL = 'https://cms.wear-run.help/admin/collections/document-visits'
