@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   evaluate,
   extractGlbJsonChunk,
+  jsonChunkRange,
   findLeftovers,
   judgeModelSizes,
   modelUrlsFromPayload,
@@ -52,6 +53,43 @@ const HEALTHY_JSON = JSON.stringify({
     copyright: '© RUN Apparel. All rights reserved.',
   },
   extensionsUsed: ['EXT_texture_webp', 'KHR_materials_emissive_strength'],
+})
+
+/**
+ * Issue #58 (2026-09-30): the probe used to fetch a fixed 600,000 bytes and reported a model
+ * whose chunk was 1,314,540 as "truncated", so the weekly check stayed red. It now reads the
+ * length from the file's first 20 bytes and fetches exactly that.
+ */
+describe('jsonChunkRange — how much of the file holds the JSON chunk', () => {
+  it('reads the last byte to fetch from the first 20 bytes alone', () => {
+    const full = glbBytes(HEALTHY_JSON)
+    const range = jsonChunkRange(full.subarray(0, 20))
+    expect('lastByte' in range && range.lastByte).toBeGreaterThan(20)
+    // The range it names is exactly enough for the chunk reader: one byte less is truncated.
+    const lastByte = 'lastByte' in range ? range.lastByte : 0
+    expect('text' in extractGlbJsonChunk(full.subarray(0, lastByte + 1))).toBe(true)
+    expect('error' in extractGlbJsonChunk(full.subarray(0, lastByte))).toBe(true)
+  })
+
+  it('handles a chunk far larger than the old fixed guess', () => {
+    const big = glbBytes(JSON.stringify({ asset: { version: '2.0' }, pad: 'x'.repeat(1_400_000) }))
+    const range = jsonChunkRange(big.subarray(0, 20))
+    expect('lastByte' in range && range.lastByte).toBeGreaterThan(1_400_000)
+  })
+
+  it('refuses a short prefix, a bad magic number and an absurd length, by name', () => {
+    const full = glbBytes(HEALTHY_JSON)
+    expect(jsonChunkRange(full.subarray(0, 12))).toEqual({
+      error: 'too few bytes (12) to hold a GLB header',
+    })
+    const notGlb = new Uint8Array(full.subarray(0, 20))
+    notGlb[0] = 0
+    expect(jsonChunkRange(notGlb)).toEqual({ error: 'not a GLB (bad magic)' })
+    const absurd = new Uint8Array(full.subarray(0, 20))
+    new DataView(absurd.buffer).setUint32(12, 900_000_000, true)
+    const result = jsonChunkRange(absurd)
+    expect('error' in result && result.error).toContain('not downloaded')
+  })
 })
 
 describe('extractGlbJsonChunk — pure GLB header parsing', () => {

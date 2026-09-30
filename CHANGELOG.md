@@ -46,6 +46,7 @@ timeline
 
 ### Fixed
 
+- The weekly model check now reads each model's own size marker instead of a fixed guess, so a larger model no longer turns the check red.
 - The script that draws the website's sharing picture runs again after the test-tool upgrade.
 - The shrink robot's container gets the same small updates the rest of the code got.
 - A garment address that does not exist now answers "not found" to search robots; people still see the helpful page.
