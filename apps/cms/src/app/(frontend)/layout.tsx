@@ -146,6 +146,13 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <a className="skip-link" href="#main">
           Skip to main content
         </a>
+        {/* The cookie choice; Google Analytics and Apollo start only after Accept.
+            ⚠️ HERE, STRAIGHT AFTER THE SKIP LINK, NOT AT THE END OF <body> where it was until
+            2026-10-01. It is fixed to the foot of the screen either way, so this moves no
+            pixel; it moves the TAB ORDER. At the end, a keyboard user reached the question
+            only after every link on the page and in the footer, while it covered the foot of
+            the screen the whole time (visual audit, WCAG 2.2 SC 2.4.11). */}
+        <ConsentBanner />
         <SiteHeader wordmark={settings.temporaryWordmark} />
         {/*
           ⚠️ tabindex="-1" IS WHAT MAKES THE SKIP LINK REACH A SCREEN READER.
@@ -161,8 +168,6 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         </main>
         <SiteFooter settings={settings} />
         <Analytics />
-        {/* The cookie choice; Google Analytics and Apollo start only after Accept. */}
-        <ConsentBanner />
         {/* The viewer's dot-and-ring cursor, dependency-free; fine pointers only. */}
         <Cursor />
         {/* The viewer's smooth scroll: trusted wheels only, off under reduced motion. */}

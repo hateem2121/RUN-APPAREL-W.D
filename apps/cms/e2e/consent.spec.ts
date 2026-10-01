@@ -58,6 +58,12 @@ const stored = (page: Page) =>
 
 const banner = (page: Page) => page.getByRole('region', { name: 'Cookie choice' })
 
+/**
+ * WebKit leaves links and buttons out of Tab by preference, as macOS Safari does; Option-Tab
+ * walks the order every other engine walks with Tab (`apps/viewer/e2e/a11y.spec.ts`).
+ */
+const tabKey = (browserName: string) => (browserName === 'webkit' ? 'Alt+Tab' : 'Tab')
+
 test.describe('the cookie choice', () => {
   test('under automation the question is absent, so every other suite sees the bare page', async ({
     page,
@@ -314,5 +320,207 @@ test.describe('the cookie choice', () => {
     await page.keyboard.press('Enter')
     await expect(banner(page)).toHaveCount(0)
     expect((await stored(page)).local).toEqual({ 'run-consent': 'declined' })
+  })
+
+  /*
+   * ⚠️ THE CARD MUST NEVER SIT ON WHAT A KEYBOARD USER IS ON (WCAG 2.2 SC 2.4.11, AA).
+   * Measured on the live site 2026-10-01 (visual audit): with the question open, 95 of 455
+   * Tab stops across ten pages were entirely under the card, including the contact form's
+   * own name and email fields at 390px. The browser scrolls a newly focused element only
+   * just into view, which is the bottom edge of the screen, which is where the card is.
+   * W3C's Understanding page (updated 2026-06-15) names this exact case as a failure and
+   * scroll padding as a way to pass.
+   */
+  test('with the question open, no Tab stop is ever entirely under the card', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    await liftAutomationGate(context)
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const path of ['/contact', '/privacy']) {
+      await page.goto(path)
+      await expect(banner(page)).toBeVisible()
+      const hidden: string[] = []
+      let reachedCard = false
+      for (let stop = 0; stop < 45; stop += 1) {
+        await page.keyboard.press(tabKey(browserName))
+        const under = await page.evaluate(() => {
+          const el = document.activeElement
+          const card = document.querySelector('.consent__card')
+          if (!(el instanceof HTMLElement) || !card || el === document.body) return null
+          if (card.contains(el)) return 'IN_CARD'
+          const a = el.getBoundingClientRect()
+          const c = card.getBoundingClientRect()
+          const entirely =
+            a.top >= c.top && a.bottom <= c.bottom && a.left >= c.left && a.right <= c.right
+          return entirely
+            ? `${el.tagName.toLowerCase()} “${el.textContent?.trim().slice(0, 30)}”`
+            : null
+        })
+        if (under === 'IN_CARD') reachedCard = true
+        else if (under) hidden.push(under)
+      }
+      // The control: a walk that never got anywhere would report nothing hidden either.
+      expect(reachedCard, `the Tab walk on ${path} never reached the question`).toBe(true)
+      expect(hidden, `Tab stops entirely under the card on ${path}`).toEqual([])
+    }
+  })
+
+  /*
+   * ⚠️ THE KEEP-CLEAR SCROLL ONCE THREW THE PAGE TO ITS FOOT. Found 2026-10-01: `<main>` is
+   * focusable (`tabIndex={-1}`, for the skip link), so the skip link and any click on plain
+   * text focus it, and the fallback in `ConsentBanner.tsx` read main's bottom edge as "under
+   * the card" and scrolled by the overlap. On the garment pages it moved every first visit
+   * to the footer (`apps/viewer/e2e/consent.spec.ts` has the measurement).
+   */
+  test('with the question open, the skip link and a click on text keep the page in place', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    await liftAutomationGate(context)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/privacy')
+    await expect(banner(page)).toBeVisible()
+
+    await page.keyboard.press(tabKey(browserName))
+    await expect(page.locator('.skip-link')).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('#main')).toBeFocused()
+    const mainTop = await page.evaluate(() =>
+      Math.round(document.querySelector('#main')?.getBoundingClientRect().top ?? -9999),
+    )
+    expect(
+      mainTop,
+      'the skip link left the start of the content off screen',
+    ).toBeGreaterThanOrEqual(-1)
+    expect(mainTop).toBeLessThan(844)
+
+    // From a fresh load at the top, as a visitor arrives: there <main> starts under the bar,
+    // which is where a lift capped only at its top still moved the page (60px, 2026-10-01).
+    await page.goto('/privacy')
+    await expect(banner(page)).toBeVisible()
+    const before = await page.evaluate(() => Math.round(window.scrollY))
+    // A raw mouse click on a paragraph already on screen: `locator.click()` scrolls its
+    // target into view first, which would measure Playwright's scroll, not the page's.
+    const text = await page.evaluate(() => {
+      for (const p of document.querySelectorAll('#main p')) {
+        const r = p.getBoundingClientRect()
+        if (r.top > 80 && r.bottom < innerHeight / 2)
+          return { x: r.left + 8, y: r.top + r.height / 2 }
+      }
+      return null
+    })
+    if (!text) throw new Error('no paragraph in the top half of the screen to click')
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await page.mouse.click(text.x, text.y)
+    // The control: the click must have focused <main>, or this measured nothing.
+    await expect(page.locator('#main')).toBeFocused()
+    expect(await page.evaluate(() => Math.round(window.scrollY)), 'a click moved the page').toBe(
+      before,
+    )
+  })
+
+  test('after the skip link, the next Tab is the question, not the menu bar', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    await liftAutomationGate(context)
+    await page.goto('/')
+    await expect(banner(page)).toBeVisible()
+    await page.keyboard.press(tabKey(browserName))
+    await expect(page.locator('.skip-link')).toBeFocused()
+    await page.keyboard.press(tabKey(browserName))
+    const inCard = await page.evaluate(
+      () => !!document.querySelector('.consent')?.contains(document.activeElement),
+    )
+    expect(inCard, 'the question is not the first stop after the skip link').toBe(true)
+  })
+
+  test('the footer link puts focus in the question, and answering hands it back', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.goto('/terms')
+    await banner(page).getByRole('button', { name: 'Decline' }).click()
+    await expect(banner(page)).toHaveCount(0)
+    const link = page.locator('.footer-legal').getByRole('link', { name: 'Cookies' })
+    await link.focus()
+    await page.keyboard.press('Enter')
+    await expect(banner(page)).toBeVisible()
+    await expect
+      .poll(() =>
+        page.evaluate(() => !!document.querySelector('.consent')?.contains(document.activeElement)),
+      )
+      .toBe(true)
+    await banner(page).getByRole('button', { name: 'Decline' }).focus()
+    await page.keyboard.press('Enter')
+    await expect(banner(page)).toHaveCount(0)
+    await expect(link).toBeFocused()
+  })
+
+  /*
+   * ⚠️ DECLINE MUST STAY DECLINED IN THE COOKIE JAR TOO. Measured on the live site 2026-10-01:
+   * after Accept, then Decline, `_ga_YBY5G3HQLD` was still stored on the next page, with a
+   * timestamp from the moment of the click. Google's script was still running in the page
+   * and wrote it again as the page unloaded. The clean-up therefore runs on every load
+   * while the answer is Decline, not only at the click. The test plants the late write
+   * itself (the trackers are answered with empty scripts here, so nothing real writes one).
+   */
+  test('DECLINED: a Google cookie written after the click is gone on the next page', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await watch(page)
+    await page.goto('/')
+    await banner(page).getByRole('button', { name: 'Decline' }).click()
+    await expect(banner(page)).toHaveCount(0)
+    await page.evaluate(() => {
+      // biome-ignore lint/suspicious/noDocumentCookie: planting the late write the test is about
+      document.cookie = '_ga_PLANTED=GS2.1.planted-by-the-test; path=/; max-age=3600'
+    })
+    const gaCookies = async () =>
+      (await context.cookies())
+        .map((cookie) => cookie.name)
+        .filter((name) => name.startsWith('_ga'))
+    // The control: the planted cookie really is in the jar before the next page loads.
+    expect(await gaCookies()).toEqual(['_ga_PLANTED'])
+    await page.goto('/products')
+    await expect.poll(gaCookies, 'a Google cookie outlived Decline').toEqual([])
+  })
+
+  /*
+   * SIDEWAYS PHONES ARE SHORT (owner, 2026-10-01: compact on short screens, same words).
+   * Measured live: 113px of a 360px-high screen, 31%, on top of the 60px bar, and the card
+   * covered the home page's own buttons. The same fifth-of-the-screen ceiling as upright.
+   */
+  test('on a sideways phone the question stays within a fifth of the screen', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    for (const [width, height] of [
+      [640, 360],
+      [667, 375],
+      [844, 390],
+    ]) {
+      await page.setViewportSize({ width, height })
+      await page.goto('/')
+      await expect(banner(page)).toBeVisible()
+      const card = await page.locator('.consent__card').boundingBox()
+      expect(card, `no card at ${width}x${height}`).not.toBeNull()
+      expect(
+        card?.height ?? Infinity,
+        `the question takes over a fifth of a ${width}x${height} screen`,
+      ).toBeLessThanOrEqual(height * 0.2)
+      for (const name of ['Accept', 'Decline']) {
+        const box = await banner(page).getByRole('button', { name }).boundingBox()
+        expect(box?.height ?? 0, `${name} is under the 44px touch floor`).toBeGreaterThanOrEqual(44)
+      }
+    }
   })
 })

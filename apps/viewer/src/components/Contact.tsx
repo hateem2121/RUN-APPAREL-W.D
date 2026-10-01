@@ -146,9 +146,14 @@ export function StageContact(props: ContactProps) {
  * overflowing there, which is fixed, and both full labels fit on one line.
  */
 export function MobileActionBar(props: ContactProps) {
+  /*
+   * An <aside>, so the bar is a landmark a screen reader can name and jump to. It sat outside
+   * every landmark: axe's `region` rule flagged it on all three garments at 390x844, the only
+   * automated finding of the 2026-10-01 visual audit across 40 scans.
+   */
   return (
-    <div className="action-bar">
+    <aside className="action-bar" aria-label="Contact">
       <ContactButtons {...props} />
-    </div>
+    </aside>
   )
 }

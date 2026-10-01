@@ -177,8 +177,13 @@
      IT (owner decision 2026-09-17). The band now starts at 92px — read off the page
      by the guard, re-pointed that day from "the header's height" to "where the stage band
      starts", because two things now sit above the band. On the live viewer, measured with
-     the new bar injected at eight viewports, the start moved 69 -> 92px everywhere. */
-  --header-h: 92px;
+     the new bar injected at eight viewports, the start moved 69 -> 92px everywhere.
+
+     ⚠️ 2026-10-01: DERIVED FROM THE BAR, because the bar stopped being one height. On a
+     screen 500px tall or less it rests at 52px (notch.css), and the fixed 92px left the
+     stage band 8px short at 844x390 on all four engines (the guard read 83.5px). 92 = the
+     60px bar + the 32px label row, so the row is the constant and the bar is read. */
+  --header-h: calc(var(--notch-h) + 32px);
 
   /* ── Type ───────────────────────────────────────────────────────── */
   /* Sizes were added 2026-08-14 and DOCUMENT what already shipped — the same

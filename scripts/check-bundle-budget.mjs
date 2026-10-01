@@ -149,6 +149,14 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   ⚠️ 2026-09-28, TY-02: the product name's stand-in faces (page.css, two `local()` @font-face
  *   rules and one scoped stack) — measured by building with and without them:
  *       page CSS       7,722 -> 7,898 B gzip   (+176)   budget 8,775 -> 8,951 (headroom 265)
+ *   ⚠️ 2026-10-01, the visual audit fixes (owner-approved roadmap): the cookie card keeps
+ *   focus clear of itself and goes to one row on short screens (packages/ui/src/base.css),
+ *   and page.css gains 12px colour names, 44px footer links and corner-bound spec notes; notch.css
+ *   rests the bar at 52px on short screens and tokens.css derives --header-h from it.
+ *   Measured by building with main's two files and then this branch's:
+ *       stylesheet     8,839 -> 9,037 B gzip   (+198)   budget 8,951 -> 9,149 (headroom 112)
+ *   The headroom was already 112 on main, not 265: the cookie card's own styles
+ *   (2026-09-30) spent 153 B of it without a raise here. Left as found, not restored.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -175,7 +183,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 8_951, note: 'CSS' },
+  stylesheet: { bytes: 9_149, note: 'CSS' },
 }
 
 /**

@@ -40,6 +40,20 @@
   --notch-r: var(--radius-panel);
 }
 
+/*
+ * A SIDEWAYS PHONE STARTS AT THE CONDENSED SIZE (visual audit 2026-10-01, owner-approved
+ * polish). At 640x360 the 60px bar was 17% of the screen, before the cookie card. 4px is the
+ * padding the site's scroll condense already ends at (site.css `notch-condense`, 52px), so
+ * this is a size the owner has approved, reached at rest; the 44px controls are untouched.
+ * Through --notch-pad-y, so --notch-h and the site's --notch-clearance follow by themselves.
+ * Pinned by apps/cms/e2e/motion.spec.ts.
+ */
+@media (max-height: 500px) {
+  :root {
+    --notch-pad-y: 4px;
+  }
+}
+
 /* ----------------------------------------------------------------- notch */
 
 /*

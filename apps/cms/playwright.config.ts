@@ -69,10 +69,15 @@ export default defineConfig({
      * WebKit for the menu bar's files: the engine behind iOS Safari, where a QR code scanned
      * off a garment tag opens, and the owner's decision of 2026-09-11 asks for three engines.
      * Scoped to these files for the reason Firefox's comment gives.
+     *
+     * `consent` joined 2026-10-01: the cookie card now promises a keyboard user's focus never
+     * sits under it, which is scroll and focus behaviour, exactly where engines differ, and a
+     * first visit from a QR code is a Safari visit. Run once locally before it joined: two of
+     * its tests needed Option-Tab, which WebKit uses for links (`tabKey` in the spec).
      */
     {
       name: 'webkit',
-      testMatch: /(navbar|themeSwitch|siteBar|globe)\.spec\.ts/,
+      testMatch: /(navbar|themeSwitch|siteBar|globe|consent)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

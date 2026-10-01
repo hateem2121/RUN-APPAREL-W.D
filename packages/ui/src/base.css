@@ -648,3 +648,74 @@ html.lenis body {
   flex: 1 1 0;
   padding: 10px 14px;
 }
+
+/* ⚠️ WHILE THE QUESTION IS OPEN, NOTHING A KEYBOARD USER IS ON MAY SIT UNDER IT (WCAG 2.2
+   SC 2.4.11, AA). Measured on the live site 2026-10-01 (visual audit): 95 of 455 Tab stops
+   across ten pages were ENTIRELY under the card, the contact form's own fields among them.
+   The browser scrolls a newly focused element only just into view, which is the bottom
+   edge of the screen, which is where the card is. W3C's Understanding page names scroll
+   padding as a way to pass; `html { scroll-padding-top }` in site.css already does the same
+   job for the bar at the top.
+
+   A rem VALUE, NOT THE CARD'S MEASURED HEIGHT. The card is text, so rem grows with exactly
+   what makes it taller; and a height written at runtime into a custom property is the
+   construct CI's WebKit was measured NOT to re-resolve (page.css, `.page` padding-bottom,
+   six mechanisms tried). 11rem = 176px clears the tallest card measured, 165px on a phone
+   360px wide. Too much room only scrolls a focused field a little higher than it had to;
+   too little hides it. e2e/consent.spec.ts walks the Tab order to prove it.
+
+   ⚠️ PADDING ALONE LEAVES THE LAST ROW OF THE PAGE UNDER THE CARD. Measured in that test:
+   with only the scroll padding, the footer's legal links (Products … Terms) stayed under it,
+   because the page cannot scroll past its own end. So while the question is open the page
+   gains the same height of empty room at its foot, behind the card. A pseudo-element's
+   block-size, not padding: the spacing allowlist in tokens.test.ts is for layout spacing,
+   and this is neither layout nor permanent; it goes when the question is answered. */
+:root:has(.consent) {
+  --consent-reserve: 11rem;
+  scroll-padding-block-end: var(--consent-reserve);
+}
+:root:has(.consent) body::after {
+  content: "";
+  display: block;
+  block-size: var(--consent-reserve);
+}
+
+/* Asked for again from the footer, the card takes focus (ConsentBanner.tsx). The ring goes on
+   the card the visitor sees, from the shared :focus-visible rule; the card is a plain box. */
+.consent__card:focus {
+  outline: none;
+}
+.consent__card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ⚠️ SHORT SCREENS GET ONE ROW (owner, 2026-10-01: "compact, same words"). A phone on its
+   side measured 113px of a 360px-high screen, 31%, under a 60px bar, and the card covered
+   the home page's own buttons. Text beside the buttons, which keep their 44px height and
+   stay equal: a grid of equal columns, so Decline is never the narrower of the two. The
+   reserve above shrinks to match the shorter card. */
+@media (max-height: 500px) {
+  :root:has(.consent) {
+    --consent-reserve: 5rem;
+  }
+  .consent {
+    padding-block: 4px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+  .consent__card {
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding: 6px 8px 6px 14px;
+  }
+  .consent__text {
+    flex: 1 1 auto;
+    line-height: 1.35;
+  }
+  .consent__actions {
+    flex: 0 0 auto;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+}

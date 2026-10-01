@@ -56,6 +56,7 @@ export const FIRST_PARTY_SKILLS = [
   '5th-grade-check',
   'audit-memory',
   'doc-refresh',
+  'visual-audit',
 ]
 
 /**

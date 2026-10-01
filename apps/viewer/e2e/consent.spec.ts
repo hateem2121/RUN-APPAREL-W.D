@@ -260,4 +260,165 @@ test.describe('the cookie choice on a garment page', () => {
       expect(box?.height ?? 0, `${name} is under the 44px touch floor`).toBeGreaterThanOrEqual(44)
     }
   })
+
+  /*
+   * ⚠️ NOTHING A KEYBOARD USER IS ON MAY SIT UNDER THE CARD (WCAG 2.2 SC 2.4.11, AA). The
+   * live audit of 2026-10-01 found 8 or 9 of about 20 Tab stops on each garment page entirely
+   * under it. On a phone that includes the action bar's EMAIL and WHATSAPP, which are fixed
+   * under the card and cannot be scrolled out from under it, so the bar steps aside while the
+   * question is open (base.css). The same two buttons sit in the page under the colourways.
+   * The website's suite has the account of the WebKit fallback this also exercises.
+   */
+  /*
+   * ⚠️ THE KEEP-CLEAR SCROLL ONCE THREW EVERY FIRST VISIT TO THE FOOTER. Found 2026-10-01 in
+   * the iOS Simulator, never in a suite: the card is absent under automation, so the layout
+   * suites' "the page opens at the very top" ran without it. `App.tsx` hands focus to the
+   * 2,245px page wrapper with `preventScroll`; the fallback in `ConsentBanner.tsx` read its
+   * bottom edge as "under the card" and scrolled by the overlap, landing at 1,574px of a
+   * 390x844 page in Chromium and WebKit alike. A click on text focuses <main>, as tall, and
+   * even capped at its top the lift moved it 60px, under the top bar; both are pinned here.
+   */
+  test('a first visit opens at the top, and a click on text does not move the page', async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openGarment(page)
+    await expect(banner(page)).toBeVisible()
+    // The hand-off is what used to move the page; asserting before it passes on broken code.
+    await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
+    expect(await page.evaluate(() => Math.round(window.scrollY)), 'opened scrolled down').toBe(0)
+
+    // ⚠️ A RAW MOUSE CLICK ON TEXT ALREADY ON SCREEN. `locator.click()` scrolls its target
+    // into view first, and the product's <h1> is below the fold here: the first draft
+    // measured Playwright's own 621px scroll and blamed the page.
+    const name = await page.locator('.stage-block__name').boundingBox()
+    if (!name) throw new Error('the product line above the garment is not on the page')
+    expect(name.y + name.height, 'the text to click is not on screen').toBeLessThan(844)
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await page.mouse.click(name.x + name.width / 2, name.y + name.height / 2)
+    // The control: the click must have focused something taller than the screen, or this
+    // measured nothing. Measured 2026-10-01: it is <main>, 1,870px, starting under the bar.
+    const tall = await page.evaluate(
+      () => (document.activeElement?.getBoundingClientRect().height ?? 0) > window.innerHeight,
+    )
+    expect(tall, 'the click did not focus a page-tall container').toBe(true)
+    expect(await page.evaluate(() => Math.round(window.scrollY)), 'a click moved the page').toBe(0)
+  })
+
+  test('with the question open, no Tab stop is ever entirely under the card', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openGarment(page)
+    await expect(banner(page)).toBeVisible()
+    const tabKey = browserName === 'webkit' ? 'Alt+Tab' : 'Tab'
+    const hidden: string[] = []
+    let reachedCard = false
+    for (let stop = 0; stop < 45; stop += 1) {
+      await page.keyboard.press(tabKey)
+      const under = await page.evaluate(() => {
+        const el = document.activeElement
+        const card = document.querySelector('.consent__card')
+        if (!(el instanceof HTMLElement) || !card || el === document.body) return null
+        if (card.contains(el)) return 'IN_CARD'
+        const a = el.getBoundingClientRect()
+        const c = card.getBoundingClientRect()
+        const entirely =
+          a.top >= c.top && a.bottom <= c.bottom && a.left >= c.left && a.right <= c.right
+        return entirely
+          ? `${el.tagName.toLowerCase()} “${el.textContent?.trim().slice(0, 30)}”`
+          : null
+      })
+      if (under === 'IN_CARD') reachedCard = true
+      else if (under) hidden.push(under)
+    }
+    expect(reachedCard, 'the Tab walk never reached the question').toBe(true)
+    expect(hidden, 'Tab stops entirely under the card').toEqual([])
+  })
+
+  test('after the skip link, the next Tab is the question', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await openGarment(page)
+    await expect(banner(page)).toBeVisible()
+    const tabKey = browserName === 'webkit' ? 'Alt+Tab' : 'Tab'
+    await page.keyboard.press(tabKey)
+    await expect(page.locator('.skip-link')).toBeFocused()
+    await page.keyboard.press(tabKey)
+    const inCard = await page.evaluate(
+      () => !!document.querySelector('.consent')?.contains(document.activeElement),
+    )
+    expect(inCard, 'the question is not the first stop after the skip link').toBe(true)
+  })
+
+  test('the footer link puts focus in the question, and answering hands it back', async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await watchTrackers(page)
+    await openGarment(page)
+    await banner(page).getByRole('button', { name: 'Decline' }).click()
+    await expect(banner(page)).toHaveCount(0)
+    const link = page.locator('.footer__meta').getByRole('link', { name: 'Cookies' })
+    await link.focus()
+    await page.keyboard.press('Enter')
+    await expect(banner(page)).toBeVisible()
+    await expect
+      .poll(() =>
+        page.evaluate(() => !!document.querySelector('.consent')?.contains(document.activeElement)),
+      )
+      .toBe(true)
+    await banner(page).getByRole('button', { name: 'Decline' }).focus()
+    await page.keyboard.press('Enter')
+    await expect(banner(page)).toHaveCount(0)
+    await expect(link).toBeFocused()
+  })
+
+  // Measured live 2026-10-01: `_ga_YBY5G3HQLD` outlived Decline. The test plants the late write.
+  test('DECLINED: a Google cookie written after the click is gone on the next load', async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await watchTrackers(page)
+    await openGarment(page)
+    await banner(page).getByRole('button', { name: 'Decline' }).click()
+    await expect(banner(page)).toHaveCount(0)
+    await page.evaluate(() => {
+      // biome-ignore lint/suspicious/noDocumentCookie: planting the late write the test is about
+      document.cookie = '_ga_PLANTED=GS2.1.planted-by-the-test; path=/; max-age=3600'
+    })
+    const gaCookies = async () =>
+      (await context.cookies())
+        .map((cookie) => cookie.name)
+        .filter((name) => name.startsWith('_ga'))
+    expect(await gaCookies(), 'the plant did not land').toEqual(['_ga_PLANTED'])
+    await page.reload()
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect.poll(gaCookies, 'a Google cookie outlived Decline').toEqual([])
+  })
+
+  test('on a sideways phone the question stays within a fifth of the screen', async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 640, height: 360 })
+    await openGarment(page)
+    await expect(banner(page)).toBeVisible()
+    const card = await page.locator('.consent__card').boundingBox()
+    expect(
+      card?.height ?? Infinity,
+      'the question takes over a fifth of the screen',
+    ).toBeLessThanOrEqual(360 * 0.2)
+  })
 })
