@@ -1,0 +1,10 @@
+# Trivy findings reviewed and accepted, each with its reason (read by the `dockerfile`
+# job in .github/workflows/security-scans.yml, which runs Trivy from the repository root).
+# An entry here is a decision, not a silencer: say why, and when.
+
+# DS-0026 "Add HEALTHCHECK instruction" (apps/shrink/Dockerfile), 2026-10-01.
+# Cloudflare Containers decide a container is ready by polling its ports (the Container
+# class's startAndWaitForPorts / pingEndpoint, developers.cloudflare.com/containers/api/
+# container-class/); Docker's HEALTHCHECK is not part of that and is never read. The
+# service still answers GET /health (container/server.ts), checked on a local run.
+DS-0026
