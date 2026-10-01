@@ -3574,6 +3574,24 @@ a.contact-block__value:active {
   visibility: hidden;
 }
 
+/*
+ * ⚠️ THE STILL STEPS BACK ONCE THE MODEL IS SHOWN (visual audit VA-28, reported by the owner). The
+ * model's canvas is transparent and lies over the still, so once the garment turned away from the
+ * photo's pose the page showed it twice — the photo behind, the model in front, two logos. The
+ * still fades out on --settle as the model is shown, and is back whenever the model is not:
+ * before it loads, if it fails, and while the link under it has keyboard focus (the rule above,
+ * which moves the model aside). Reduced motion makes the fade instant (base.css).
+ */
+.proof__frame > :is(img, picture) {
+  transition: opacity var(--settle) var(--ease);
+}
+
+.proof__figure:has(.live-garment[data-phase="shown"]):not(:has(.proof__link:focus-visible))
+  .proof__frame
+  > :is(img, picture) {
+  opacity: 0;
+}
+
 .live-garment__model {
   display: block;
   width: 100%;

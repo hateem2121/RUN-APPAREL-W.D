@@ -72,6 +72,13 @@ async function serveModel(page: Page, found: boolean) {
   )
 }
 
+/** The still under the model (VA-28): faded out while the model is shown, back otherwise. */
+const stillOpacity = (page: Page) =>
+  page.evaluate(() => {
+    const still = document.querySelector('.proof__frame > img, .proof__frame > picture')
+    return still ? getComputedStyle(still).opacity : 'no still'
+  })
+
 test.describe('№03 — the live 3D garment', () => {
   test('a real Meshopt-compressed model loads and is shown', async ({ page }) => {
     const errors: string[] = []
@@ -89,6 +96,8 @@ test.describe('№03 — the live 3D garment', () => {
     await expect(page.locator('.live-garment model-viewer')).toHaveCount(1)
     await expect(page.locator('.live-garment model-viewer')).toHaveAttribute('auto-rotate', '')
     expect(errors.filter((e) => /setMeshoptDecoder/.test(e))).toEqual([])
+    // VA-28: the still under the transparent model fades out, so the garment shows once.
+    await expect.poll(() => stillOpacity(page), { timeout: 3000 }).toBe('0')
   })
 
   /*
@@ -118,6 +127,8 @@ test.describe('№03 — the live 3D garment', () => {
     await page.locator('.proof__link').focus()
     await expect(page.locator('.proof__link')).toBeFocused()
     expect(await topmostAtLink(), 'the focused link is under the 3D model').toBe('link')
+    // With the model aside, the still comes back, so the focused link shows the garment.
+    await expect.poll(() => stillOpacity(page), { timeout: 3000 }).toBe('1')
   })
 
   test('under reduced motion the model is shown but does not turn by itself', async ({ page }) => {
@@ -142,6 +153,8 @@ test.describe('№03 — the live 3D garment', () => {
     })
     await expect(page.locator('.live-garment model-viewer')).toHaveCount(0)
     await expect(page.locator('.proof__frame')).toBeVisible()
+    // NEGATIVE CONTROL for VA-28: with no model shown, the still stays fully visible.
+    expect(await stillOpacity(page)).toBe('1')
     await expect(page.locator('.proof__link')).toHaveAttribute('href', /\/products\//)
   })
 
