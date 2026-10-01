@@ -17,9 +17,12 @@
  *     a canonical pointing elsewhere, a `noindex` on a page the sitemap offers).
  *   - `warning`: worth a look, not a defect (a title long enough to be cut in results).
  *
- * Plain JavaScript with no imports, so it runs under bare `node`; TypeScript tests import it
- * through `seo-page-rules.d.mts`.
+ * Plain JavaScript importing no PACKAGE (only a plain-JavaScript sibling), so it runs under
+ * bare `node` with nothing installed; TypeScript tests import it through
+ * `seo-page-rules.d.mts`.
  */
+
+import { stripUntilStable } from './strip-until-stable.mjs'
 
 /** Longest title a result usually shows whole; longer ones are cut with an ellipsis. */
 export const TITLE_MAX = 60
@@ -41,9 +44,9 @@ function stripComments(html) {
 
 /** Text as a reader sees it: entities for the five common characters, whitespace folded. */
 function text(value) {
+  // Tags stripped until none is left: one pass can leave one (strip-until-stable.mjs).
   return (
-    value
-      .replace(/<[^>]*>/g, '')
+    stripUntilStable(value, /<[^>]*>/g, '')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')

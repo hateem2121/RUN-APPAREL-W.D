@@ -17,6 +17,7 @@
  * Usage: node scripts/footer-facts-probe.mjs [siteUrl]
  */
 import { FOOTER_FACTS } from './apply-footer-facts.mjs'
+import { stripUntilStable } from './strip-until-stable.mjs'
 import { realpathSync } from 'node:fs'
 
 export const SITE_URL = 'https://wear-run.com/'
@@ -36,10 +37,10 @@ export function footerSection(html) {
 
 /** Pure: the footer's visible text — React's `<!-- -->` text separators and tags removed. */
 export function footerText(section) {
+  // Comments and tags stripped until none is left: one pass can leave one
+  // (strip-until-stable.mjs).
   return (
-    section
-      .replace(/<!--[\s\S]*?-->/g, '')
-      .replace(/<[^>]+>/g, ' ')
+    stripUntilStable(stripUntilStable(section, /<!--[\s\S]*?-->/g, ''), /<[^>]+>/g, ' ')
       .replace(/&#x27;|&#39;/g, "'")
       .replace(/&quot;/g, '"')
       // LAST, so text that shows an entity keeps it (2026-10-01).
