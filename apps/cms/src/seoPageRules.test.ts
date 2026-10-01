@@ -189,6 +189,15 @@ describe('across the site', () => {
   })
 })
 
+describe('text as a reader sees it', () => {
+  it('decodes each entity once — a heading that SHOWS &lt; keeps it', () => {
+    // GitHub's code scan (CodeQL js/double-escaping, 2026-10-01): `&amp;` was decoded
+    // first, so `&amp;lt;` (a page showing the four characters &lt;) became `<`.
+    const html = '<html><head><title>T</title></head><body><h1>A &amp;lt; B</h1></body></html>'
+    expect(readPage(html).h1).toEqual(['A &lt; B'])
+  })
+})
+
 describe('sitemapUrls', () => {
   it('lists the pages and not the pictures', () => {
     const xml = `<urlset><url><loc>https://wear-run.com</loc></url>

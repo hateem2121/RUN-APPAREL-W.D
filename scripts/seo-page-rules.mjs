@@ -41,15 +41,18 @@ function stripComments(html) {
 
 /** Text as a reader sees it: entities for the five common characters, whitespace folded. */
 function text(value) {
-  return value
-    .replace(/<[^>]*>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;|&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim()
+  return (
+    value
+      .replace(/<[^>]*>/g, '')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;|&#39;/g, "'")
+      // LAST, so `&amp;lt;` stays the four characters `&lt;` a reader sees (2026-10-01).
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+      .trim()
+  )
 }
 
 /** One attribute's value from a tag's source, quoted with `"` or `'`; `null` when absent. */
