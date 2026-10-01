@@ -1237,9 +1237,17 @@ test.describe('layout invariants', () => {
         scrollY: Math.round(window.scrollY),
         bandTop: document.querySelector('.stage-block')?.getBoundingClientRect().top ?? Number.NaN,
         bar: document.querySelector('.notch')?.getBoundingClientRect().height ?? Number.NaN,
-        token: Number.parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--header-h'),
-        ),
+        // RESOLVED, not read: a custom property's computed value is its TEXT, and since
+        // 2026-10-01 the token is `calc(var(--notch-h) + 32px)`. A probe sized by it
+        // measures what the layout actually subtracts.
+        token: (() => {
+          const probe = document.createElement('div')
+          probe.style.cssText = 'position:absolute;visibility:hidden;height:var(--header-h)'
+          document.body.append(probe)
+          const px = probe.getBoundingClientRect().height
+          probe.remove()
+          return px > 0 ? px : Number.NaN
+        })(),
       }))
       expect(m.scrollY, 'measure at the very top').toBe(0)
       expect(Number.isFinite(m.token), '--header-h did not resolve (tokens.css)').toBe(true)
@@ -1248,8 +1256,9 @@ test.describe('layout invariants', () => {
         `--header-h is ${m.token}px but the stage band starts at ${m.bandTop}px at ` +
           `${width}x${height}. Re-measure and update the token in tokens.css. Do not widen this tolerance.`,
       ).toBeLessThanOrEqual(1)
-      // SZ-09's intent: the bar never doubles at the default text size.
-      expect(Math.round(m.bar), 'the bar is not one 60px row').toBe(60)
+      // SZ-09's intent: the bar never doubles at the default text size. One row is 60px, or
+      // the condensed 52px it rests at on a screen 500px tall or less (notch.css, 2026-10-01).
+      expect(Math.round(m.bar), 'the bar is not one row').toBe(height <= 500 ? 52 : 60)
     })
   }
 

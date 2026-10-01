@@ -152,6 +152,48 @@ test.describe('FA-F-01 / FA-R-06 — the notch condenses, gated, with the right 
     expect(await height(0)).toBe(60)
     expect(await height(400), 'the bar condensed for a reader who asked it not to').toBe(60)
   })
+
+  /**
+   * Visual audit 2026-10-01 (owner-approved polish): on a sideways phone the 60px bar was
+   * 17% of a 360px-high screen. Under `max-height: 500px` it RESTS at the condensed size the
+   * owner already approved (52px, 4px padding) instead of reaching it only on scroll; the
+   * menu button keeps its full 44px. Reduced motion is emulated so the scroll animation
+   * cannot be what produced the 52.
+   */
+  test('on a sideways phone the bar rests at its condensed 52px, with a full-size button', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    for (const [width, height] of [
+      [640, 360],
+      [844, 390],
+    ]) {
+      await page.setViewportSize({ width, height })
+      await page.goto('/')
+      const bar = await page.evaluate(() => {
+        const notch = document.querySelector('.notch')!.getBoundingClientRect().height
+        const buttons = [...document.querySelectorAll('.notch a, .notch button')]
+          .map((el) => el.getBoundingClientRect())
+          .filter((box) => box.width > 0)
+        return {
+          notch: Math.round(notch),
+          shortest: Math.round(Math.min(...buttons.map((box) => box.height))),
+        }
+      })
+      expect(bar.notch, `the bar at ${width}x${height}`).toBe(52)
+      expect(bar.shortest, `a bar control under 44px at ${width}x${height}`).toBeGreaterThanOrEqual(
+        44,
+      )
+    }
+    // The control: a screen taller than 500px keeps the resting 60px bar.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    expect(
+      await page.evaluate(() =>
+        Math.round(document.querySelector('.notch')!.getBoundingClientRect().height),
+      ),
+    ).toBe(60)
+  })
 })
 
 test.describe('FA-F-05 — the page comes back where it was left', () => {

@@ -71,7 +71,8 @@ export function GuidePage({ guide }: { guide: Guide }) {
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
           <p className="label">[ BUYER GUIDE ]</p>
-          <h1 className="display display--hero">
+          {/* `hero-guide`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
+          <h1 className="display display--hero hero-guide">
             {guide.heading} <span className="serif-accent">{guide.headingAccent}</span>
           </h1>
           <p className="site-lede">{guide.lede}</p>

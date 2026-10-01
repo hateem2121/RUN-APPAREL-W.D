@@ -753,3 +753,40 @@ test.describe('AC-10 — the collapsed accordion is genuinely inert', () => {
     ).toBe(false)
   })
 })
+
+/*
+ * Every part of a phone garment page sits inside a landmark. axe files `region` as a best
+ * practice of moderate impact, so the scan above, which fails only serious and critical
+ * findings, never saw it: the visual audit of 2026-10-01 found the phone action bar outside
+ * every landmark on all three live garments, the only automated finding across 40 scans. The
+ * bar is an <aside> since (Contact.tsx); this keeps it, and anything added later, inside one.
+ */
+test('on a phone, every part of the page sits inside a landmark (axe region)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/n001/wine')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(page.locator('.action-bar'), 'the phone action bar is not on screen').toBeVisible()
+  const results = await new AxeBuilder({ page }).withRules(['region']).analyze()
+  expect(results.violations.flatMap((v) => v.nodes.map((n) => n.target.join(' ')))).toEqual([])
+})
+
+// Every footer link is a 44 x 44 target, both ways: "Terms" measured 36.1px wide on all three
+// live garments (visual audit, 2026-10-01). Width is the half a min-height never covered.
+test('every footer link is at least 44 x 44', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/n001/wine')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  const links = page.locator('.footer__meta a')
+  expect(await links.count(), 'no footer links found').toBeGreaterThan(0)
+  const small: string[] = []
+  for (const link of await links.all()) {
+    const box = await link.boundingBox()
+    if (!box || box.width < 44 || box.height < 44) {
+      small.push(
+        `${(await link.textContent())?.trim()} ${box?.width.toFixed(1)} x ${box?.height.toFixed(1)}`,
+      )
+    }
+  }
+  expect(small).toEqual([])
+})

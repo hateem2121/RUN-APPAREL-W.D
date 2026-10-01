@@ -157,6 +157,24 @@ correct in them, and every other piece of display text uses them too.
 and fails on any hero headline that breaks differently; `apps/cms/src/fallbackMetrics.test.ts`
 fails when a headline is reworded without re-running the script.
 
+**Body text and the guide headlines never swap (owner decision 2026-10-01, after the visual
+audit).** Stand-ins match *average* widths, and real text varies about the average: measured on
+94 paragraphs the body stand-in ran 0.4–0.5% wide (it is 98.19% since, from 98.61%), with single
+paragraphs about ±1% either side, so somewhere a paragraph always re-wraps — `/privacy` scored CLS
+0.2136 at 768px live, and six of seven guide headlines broke differently at some width (the
+printing guide measured 0.233 at 412px). So the site declares the same font files a second time
+with `font-display: optional` — `Archivo Optional` and `Instrument Serif Optional` — and uses them
+for `--font-body` and, through `.hero-guide`, for the guide headlines. CSS Fonts 4: an optional
+font not ready at first paint is not used on that page, and must never make it jump. The other
+headlines keep `swap` and the files they load are the same, so from the second page on everything
+is Archivo at first paint. The stack after an optional face must not name `Archivo Variable`, or a
+face that missed first paint falls through to the swapping one.
+
+**Card titles have a stand-in of their own.** `.product-card__name` is Archivo 700 at normal width,
+where the display stand-in (sized for 860 at 122%) is 28% too wide, so four guide-card titles
+broke onto two lines in it and one in Archivo. `Archivo Card Fallback` is 99.16%, measured on the
+22 card titles in Chromium and Firefox.
+
 **Machines with no Arial and no Georgia get Liberation (2026-09-11).** A Linux desktop, and CI's
 Playwright image, has neither, so every face above errored there and PR #10's font tests failed
 in CI while passing on a Mac. Liberation Sans has Arial's advance widths exactly (computed from
@@ -401,6 +419,52 @@ CONTACT links, are how a visitor gets anywhere, so they moved one step up the sc
 `--text-mono-lg`. The mono labels, chips and section numbers keep their 10–11px register —
 that scale is this system's own and was not the finding.
 
+**Two more moved to 12px on 2026-10-01 (owner decision, visual audit):** the contact form's
+field labels and legend, and the colour names on a garment's colourway tabs — words a buyer
+reads to act, not glances at. The chips and section numbers still keep 10–11px.
+
+### Page widths
+
+Two measures, on purpose (owner, 2026-10-01: document, do not merge):
+
+| Surface | Content width | Why |
+|---|---|---|
+| The website | `--site-max` **1180px**, **1440px** from 1600px wide | a fourth gallery column above 1600px (D4, FA-E-04); prose stays capped at 60–62ch |
+| A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that |
+
+### Breakpoints
+
+Content-led, not a framework's set: each width is where a measured layout stopped fitting.
+Listed from the stylesheets on 2026-10-01 (the visual audit had called the set
+undocumented). A new one needs the same: the layout it rescues, measured.
+
+| Query | Where | What changes |
+|---|---|---|
+| `max-height: 500px` | `base.css`, `notch.css`, `page.css` | sideways phones: the cookie card goes to one row, the bar rests at its condensed 52px; on a garment page the product line above the stage and the phone action bar are hidden |
+| `max-width: 359.98px` | `page.css` | narrower padding on the phone action bar's two buttons |
+| `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
+| `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
+| `720px`, and `184px + 14.9rem` | `notch.css`, `site.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
+| `768px` | `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
+| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, factory, timeline); facts go to three columns; the garment page's two-column stage, and the phone action bar is hidden |
+| `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
+| `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
+| `1100px` and `min-height: 720px` | `useIdentityInAside.ts` | the product's name and description move beside the garment (a script query, kept a strict subset of the CSS one) |
+| `1180px` | `site.css` | the product families go to five columns |
+| `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
+| container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |
+
+### The cookie card
+
+The choice is a fixed card at the foot of the screen (`base.css` `.consent`), with Decline and
+Accept the same size and style. Since 2026-10-01: it is the first stop after the skip link; while
+it is open the page keeps a strip clear of it (`scroll-padding-block-end` plus the same height of
+room at the foot) so no focused item sits under it (WCAG 2.2 SC 2.4.11); on a short screen it is
+one row; and on a garment page the phone action bar steps aside until it is answered. Safari
+does not scroll a field it already counts as on screen, so `ConsentBanner.tsx` lifts a focused
+field clear itself, and only one shorter than the room above the card: its first version also
+lifted page-tall containers and opened every garment page at the footer.
+
 ### Panels
 
 `--surface` background, `1px solid var(--line)`, `--radius-panel` (18px).
@@ -451,6 +515,7 @@ two `e2e/siteBar.spec.ts` suites.
 | under 720px, or too narrow for the inline row (`184px + 14.9rem`) | the name and the Speed Lines button; the menu drops below the bar |
 | under `114px + 7.25rem` (very large text on a narrow phone) | the button moves to a second row under the name |
 | otherwise | the name, the links and the light/dark switch in one row |
+| any width, screen 500px tall or less | as above, but the bar rests at its condensed 52px (4px padding) rather than 60px; the controls stay 44px (2026-10-01) |
 
 The menu is the browser's own popover: it opens and closes with scripting off, Escape and a
 tap outside close it, and the browser reports its state to assistive technology. The site's
@@ -596,6 +661,14 @@ it to `.lenis` on the assumption that it is one.
 `.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain }` is likewise
 active only mid-scroll. `packages/ui/src/base.css`'s own comment was already accurate; it
 was this document that implied permanence.
+
+**The hard stop is a 0.01ms transition on `all`, not "no transition".** It keeps
+`transitionend` firing, and it also means a script that writes a size and then measures it
+reads the OLD size for that instant. The footer wordmark refits itself that way, so under
+reduced motion it shrank for as long as the page was open (87.9px to 56.0px in three
+seconds on the live site, found 2026-10-01 by the screenshot suite). Anything that measures
+what it just sized gets `transition-property: none` on itself and on whatever inherits the
+size, as `.footer-mark` and `.footer-mark__layer` now do in `site.css`.
 
 ---
 

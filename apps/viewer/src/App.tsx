@@ -403,6 +403,13 @@ export default function App() {
         <a className="skip-link" href="#main-content">
           Skip to main content
         </a>
+        {/* The cookie choice. ⚠️ STRAIGHT AFTER THE SKIP LINK since 2026-10-01, for the TAB
+            ORDER: it was the last element of the page, so a keyboard user met the question
+            only after the whole garment page while it covered the foot of the screen (visual
+            audit, WCAG 2.2 SC 2.4.11). It is `position: fixed`, and `.page` sets no transform
+            or containment, so it is still an overlay and no part of the layout the stage band
+            is measured against. */}
+        <ConsentBanner />
         <Header wordmark={data.siteSettings.temporaryWordmark} />
         {/* `tabIndex={-1}` is what makes the skip link actually skip. <main> is not
             focusable by default, so following the fragment moves the SCROLL
@@ -580,9 +587,6 @@ export default function App() {
         <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />
         <Footer settings={data.siteSettings} />
       </div>
-      {/* The cookie choice. Outside `.page`, so it is a fixed overlay and no part of the
-          layout the stage band is measured against. */}
-      <ConsentBanner />
     </>
   )
 }

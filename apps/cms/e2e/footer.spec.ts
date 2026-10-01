@@ -102,6 +102,45 @@ test.describe('the footer geometry', () => {
     expect(await ratio()).toBeLessThanOrEqual(1)
   })
 
+  /*
+   * ⚠️ UNDER REDUCED MOTION THE WORDMARK SHRANK FOR AS LONG AS THE PAGE WAS OPEN. Found
+   * 2026-10-01 by the screenshot suite (visual.spec.ts), live on wear-run.com: 87.9px ->
+   * 56.0px in three seconds at 768 wide, and still going. base.css's hard stop gives every
+   * element a 0.01ms transition on `all`, so each size FooterWordmark set started a font-size
+   * transition; its next measurement read the old size mid-flight, the 0.995 safety margin
+   * compounded, and the size change re-fired the ResizeObserver, every frame.
+   *
+   * The test above could not see it: `scrollWidth` never reports less than the box, so a
+   * shrinking wordmark still measured a ratio of 1. This one measures the DRAWN text.
+   */
+  test('under reduced motion the wordmark holds its size and still spans the slab', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 768, height: 1024 })
+    await page.goto('/products')
+    const read = () =>
+      page.locator('.footer-mark').evaluate((el) => {
+        const text = el.querySelector('.footer-mark__layer')?.firstChild
+        const range = document.createRange()
+        if (text) range.selectNodeContents(text)
+        return {
+          size: Number.parseFloat(getComputedStyle(el).fontSize),
+          span: range.getBoundingClientRect().width / el.clientWidth,
+        }
+      })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const first = await read()
+    await page.waitForTimeout(1500)
+    const later = await read()
+    expect(
+      Math.abs(later.size - first.size),
+      `the wordmark went ${first.size}px -> ${later.size}px`,
+    ).toBeLessThan(0.5)
+    expect(later.span, 'the drawn wordmark no longer spans the slab').toBeGreaterThan(0.95)
+  })
+
   test('the dimension line is one row, ticks on the ends of its own text', async ({ page }) => {
     await page.goto('/contact')
     const rows = await page.locator('.footer-dim').evaluate((el) => {

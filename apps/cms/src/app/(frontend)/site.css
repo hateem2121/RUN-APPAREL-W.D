@@ -53,6 +53,16 @@
  * falls through to `system-ui` — today's behaviour, unchanged. Arial and Helvetica are
  * metric-identical here (both 0.44697em, computed, not assumed), so one entry covers both.
  *
+ * ⚠️ THE BODY FACE WAS RE-MEASURED ON REAL PARAGRAPHS ON 2026-10-01, 98.61% -> 98.19%. The
+ * lowercase-corpus average above leaves out the capitals, figures and punctuation real prose
+ * carries. Measured in the browser, each of 94 paragraphs from /privacy, /terms, /guides, two
+ * guides, / and /contact set on one line in Archivo and in this face: the stand-in ran 0.46%
+ * too wide in Chromium (ideal 98.15%) and 0.38% in Firefox (ideal 98.23%); 98.19% splits them.
+ * It mattered on long pages: /privacy at 768px lost a line in four paragraphs when Archivo
+ * arrived, 106px of page, and the visual audit measured CLS 0.2136 there. Ascent and descent
+ * are rescaled by 98.61/98.19 so the line box is unchanged (the formula calibrate-fallback.mjs
+ * documents). `e2e/fontSwap.spec.ts` now measures the text-heavy pages.
+ *
  * ⚠️ DECLARED IN THIS FILE AND NOT IN packages/ui/src/tokens.css. The viewer measured CLS
  * 0.000 — it did not have this problem until 2026-09-28, and then only for the product name, which
  * now carries its own copy of the display and serif faces in page.css — and base.css/tokens.css ship inside its
@@ -62,9 +72,9 @@
 @font-face {
   font-family: "Archivo Fallback";
   src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans");
-  size-adjust: 98.61%;
-  ascent-override: 89.03%;
-  descent-override: 21.29%;
+  size-adjust: 98.19%;
+  ascent-override: 89.41%;
+  descent-override: 21.38%;
   line-gap-override: 0%;
 }
 
@@ -76,6 +86,26 @@
   size-adjust: 128.24%;
   ascent-override: 68.47%;
   descent-override: 16.38%;
+  line-gap-override: 0%;
+}
+
+/*
+ * ⚠️ CARD TITLES HAVE THEIR OWN STAND-IN (2026-10-01). `.product-card__name` is Archivo 700 at
+ * NORMAL width, 18px, while the face above is sized for 860 at `font-stretch: 122%`, where Archivo
+ * is 28% wider than Arial Bold. So every card title painted 28% too wide in the stand-in: on /guides
+ * at 390px four guide titles sat on two lines and dropped to one when Archivo arrived, and the
+ * page jumped (e2e/fontSwap.spec.ts). Measured on all 22 card titles on /guides, /products and /,
+ * each on one line in Archivo and in Arial Bold: ideal 99.17% in Chromium, 99.15% in Firefox.
+ * Overrides derived from the display baseline (68.47 × 128.24 / 99.16, 16.38 × 128.24 / 99.16).
+ */
+@font-face {
+  font-family: "Archivo Card Fallback";
+  src:
+    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
+  font-weight: 700 900;
+  size-adjust: 99.16%;
+  ascent-override: 88.55%;
+  descent-override: 21.18%;
   line-gap-override: 0%;
 }
 
@@ -125,12 +155,105 @@
 }
 
 /*
+ * ⚠️ BODY TEXT NEVER SWAPS: "Archivo Optional" IS ARCHIVO WITH `font-display: optional` (owner
+ * decision 2026-10-01, after the visual audit). The stand-in faces match AVERAGE widths, and real
+ * paragraphs vary about it by ±1% — measured on 94 paragraphs (see "Archivo Fallback" above) — so
+ * somewhere a paragraph always re-wraps when Archivo arrives late: /privacy at 768px lost a line
+ * in four paragraphs, 106px of page, CLS 0.2136 on the live site. No `size-adjust` fixes a spread.
+ *
+ * `optional` removes the swap itself. CSS Fonts 4 (W3C, 13 September 2026): a font not ready for
+ * the first paint is not used on that page, and "an optional font must never cause the layout of
+ * the page to jump". The same spec reserves `swap` for "small pieces of text", which is why the
+ * headlines keep it (owner: headlines stay Archivo). Because the headlines load THE SAME FILES with
+ * `swap`, the browser always downloads them, so from the second page on the body has Archivo at
+ * first paint. A fast first visit gets Archivo everywhere; a slow one gets the matched stand-in for
+ * body text on that one page, which is the price of never moving.
+ *
+ * ⚠️ THE GUIDE HEADLINES USE IT TOO (owner decision 2026-10-01, `.hero-guide` below). Swept with
+ * the webfonts blocked and delivered at 28 widths: six of the seven guide headlines broke onto a
+ * different number of lines somewhere — 368-376, 400, 408, 424, 480, 1280 and 1440px — and
+ * /guides/garment-printing-methods at 412px was the live CLS of 0.233. Their ideal stand-in sizes
+ * span 126.2-130.0% (display) and 74.5-82.8% (serif), so one shared face cannot fit them and the
+ * /products way would be ~18 faces plus a calibration run per new guide. The face covers every
+ * weight and width the display style asks for (100-900, 62-125%).
+ *
+ * Same three files and ranges as `@fontsource-variable/archivo/wdth.css`, so the build serves one
+ * file per range to both families. ⚠️ A stack using this face must NOT also list "Archivo
+ * Variable": a face that missed first paint would fall through to the swapping one and jump after
+ * all.
+ */
+@font-face {
+  font-family: "Archivo Optional";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url("@fontsource-variable/archivo/files/archivo-vietnamese-wdth-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301,
+    U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: "Archivo Optional";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url("@fontsource-variable/archivo/files/archivo-latin-ext-wdth-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: "Archivo Optional";
+  font-style: normal;
+  font-display: optional;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url("@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* The serif accent's no-swap copy, for the guide headlines; same files as
+   `@fontsource/instrument-serif/400-italic.css` (woff2 only: every browser the site supports reads it). */
+@font-face {
+  font-family: "Instrument Serif Optional";
+  font-style: italic;
+  font-display: optional;
+  font-weight: 400;
+  src: url("@fontsource/instrument-serif/files/instrument-serif-latin-ext-400-italic.woff2")
+    format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: "Instrument Serif Optional";
+  font-style: italic;
+  font-display: optional;
+  font-weight: 400;
+  src: url("@fontsource/instrument-serif/files/instrument-serif-latin-400-italic.woff2")
+    format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
  * The three stacks, with each fallback inserted AFTER the real face and BEFORE the
- * generic one, so the webfont still wins the moment it arrives.
+ * generic one, so the webfont still wins the moment it arrives (headlines and the serif accent;
+ * body text is "Archivo Optional" above and keeps the stand-in for the page if it misses first paint).
  */
 :root {
   --font-display: "Archivo Variable", "Archivo", "Archivo Display Fallback", system-ui, sans-serif;
-  --font-body: "Archivo Variable", "Archivo", "Archivo Fallback", system-ui, sans-serif;
+  --font-body: "Archivo Optional", "Archivo Fallback", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif", "Instrument Serif Fallback", "Instrument Serif Fallback Liberation",
     Georgia, serif;
@@ -203,6 +326,16 @@
   ascent-override: 107.21%;
   descent-override: 33.57%;
   line-gap-override: 0%;
+}
+
+/* The guide headlines never swap: "Archivo Optional" and "Instrument Serif Optional" are the
+   no-swap copies of the same fonts, with the shared stand-ins after them for a slow first visit.
+   Why, and the sweep behind it: the "Archivo Optional" comment above. GuidePage.tsx sets it. */
+.hero-guide {
+  --font-display: "Archivo Optional", "Archivo Display Fallback", system-ui, sans-serif;
+  --font-serif:
+    "Instrument Serif Optional", "Instrument Serif Fallback",
+    "Instrument Serif Fallback Liberation", Georgia, serif;
 }
 
 .hero-products {
@@ -1151,6 +1284,15 @@ html {
   font-size: var(--text-footer-mark);
   line-height: 0.74;
   cursor: default;
+  /*
+   * ⚠️ NO TRANSITION HERE, OR THE WORDMARK SHRINKS FOREVER UNDER REDUCED MOTION. base.css's
+   * hard stop gives every element `transition-duration: 0.01ms` on the initial
+   * `transition-property: all`, so each size FooterWordmark wrote began a font-size
+   * transition, its next measurement read the old size, and the fit compounded: 87.9px ->
+   * 56.0px in 3s on the live site, 2026-10-01 (e2e/footer.spec.ts pins it). `none` touches
+   * nothing else: this box has no transition of its own, the layers' fades are their own.
+   */
+  transition-property: none;
 }
 
 .footer-mark__layer {
@@ -1164,6 +1306,11 @@ html {
   user-select: none;
   color: transparent;
   -webkit-text-stroke: 1.5px var(--footer-stroke);
+  /* The same reason as `.footer-mark`'s: this layer INHERITS the fitted size, and under
+     the reduced-motion hard stop it transitioned it, so FooterWordmark measured the old
+     glyphs — Firefox alternated 92.14px <-> 87.90px every frame (2026-10-01). The lit layer
+     below declares its own opacity transition, later, so it keeps its fade. */
+  transition-property: none;
 }
 
 .footer-mark__layer--lit {
@@ -1537,7 +1684,8 @@ html {
 }
 
 .product-card__name {
-  font-family: var(--font-display);
+  /* Its own stand-in: see "Archivo Card Fallback" at the top of this file. */
+  font-family: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
   font-weight: 700;
   font-size: var(--text-card-title);
   /* Its own token, not the wordmark's and not the fluid display one — see
@@ -1984,6 +2132,15 @@ a.contact-block__value:active {
  */
 .site-footer__tab:focus-visible {
   outline-offset: 2px;
+  /*
+   * ⚠️ TWO TONES, BECAUSE THE TAB STRADDLES TWO GROUNDS (visual audit, 2026-10-01). It sits on the
+   * slab's top edge, half over the paper page and half over the dark slab, and its ring is
+   * `--footer-text` (paper). Photographed focused at 1440x900: the ring showed only along the
+   * slab and vanished on the paper half. An ink band behind it (the shadow, under the outline)
+   * shows on paper; the outline shows on the slab. Forced-colours mode drops the shadow and keeps
+   * the outline, which the system colours then make visible on both.
+   */
+  box-shadow: 0 0 0 6px var(--ink);
 }
 
 /*
@@ -2402,7 +2559,9 @@ a.contact-block__value:active {
   display: block;
   margin-block-end: 8px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  /* 12px, one step up from the 11px mono register (owner decision 2026-10-01, visual audit): a
+     field's name is read, not glanced at, and B2B buyers skew older (tokens.css). */
+  font-size: var(--text-mono-lg);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   color: var(--muted);
@@ -3396,6 +3555,18 @@ a.contact-block__value:active {
   cursor: grab;
 }
 
+/*
+ * ⚠️ THE LAYER STEPS ASIDE WHILE THE LINK UNDER IT HAS KEYBOARD FOCUS (WCAG 2.2 SC 2.4.11). Lying
+ * over the poster link is the point of the layer (a drag turns the garment, see above), and it
+ * means the link's focus ring was drawn UNDER the model: the visual audit of 2026-10-01 found the
+ * X-MILO link at 1440x900 entirely covered when focused. For as long as the link has focus, the
+ * poster it shows — the same garment, still — is what a keyboard user sees, ring and all; the
+ * model is back the moment focus moves on. `:focus-visible`, so a mouse never sees it flicker.
+ */
+.proof__figure:has(.proof__link:focus-visible) .live-garment {
+  visibility: hidden;
+}
+
 .live-garment__model {
   display: block;
   width: 100%;
@@ -3442,7 +3613,7 @@ a.contact-block__value:active {
 .inquiry-form__legend {
   padding: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg); /* 12px with the field labels it heads (2026-10-01) */
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   color: var(--text);

@@ -495,6 +495,30 @@ pull request:
   against. It does **not** judge whether the artwork on the model is intact —
   that is not decidable over HTTP, and is gated at pipeline time instead.
 
+### The screenshot safety net — updating its pictures
+
+`apps/cms/e2e/visual.spec.ts` compares five website pages at 390, 768 and 1440 wide
+against reference pictures in `apps/cms/e2e/visual.spec.ts-snapshots/`. It runs only in
+CI's Linux image (it skips on a Mac, whose fonts render differently). When a page changes
+ON PURPOSE, the pictures must be remade in that same image. Added 2026-10-01; the first
+run caught a live bug (the footer wordmark shrinking under reduced motion).
+
+1. **Seed a fresh database the way CI does.** Move `apps/cms/.env`, `apps/cms/.dev.vars`
+   and `apps/cms/.wrangler/state` aside first, and put them back afterwards. Then, with any
+   throwaway `PAYLOAD_SECRET`: `pnpm seed:assets`, `pnpm --filter @run-apparel/cms migrate`,
+   `pnpm seed:cms`.
+2. **Build and serve the site on its own port:** in `apps/cms`, `CI=1 node e2e/prepare.mjs`,
+   then `CMS_E2E_PORT=4174 node e2e/serve.mjs`.
+3. **Run the spec inside CI's image** (the digest `ci.yml` pins), with the repository
+   mounted read-only and only the pictures' folder writable. Inside the container, a
+   one-line node relay forwards `localhost:4174` to `host.docker.internal:4174`, then run
+   `node /repo/apps/cms/node_modules/@playwright/test/cli.js test e2e/visual.spec.ts
+   --project=chromium --update-snapshots --output /tmp/pw` from `/repo/apps/cms`.
+4. **Run it again without `--update-snapshots`, twice.** Both must pass, or something on
+   the page is still moving. Mask it, never raise `maxDiffPixelRatio`.
+
+Look at every new picture before committing it: a picture of a broken page passes forever.
+
 ## The canonical raw garment
 
 **A raw CLO export is not a durable artifact in this system, and nothing in the

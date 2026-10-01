@@ -1096,7 +1096,14 @@ model-viewer.stage__model {
 
 .callout {
   position: absolute;
-  max-width: 240px;
+  /*
+   * ⚠️ A THIRD OF THE STAGE AT MOST, NOT A FLAT 240px (2026-10-01, visual audit). The notes show
+   * from 1000px, where the stage is only 439-452px wide, so two 240px notes spanned all of it:
+   * with the X-MILO PRO BIB's six features, [ PERFORMANCE ] ran from 42% to 97% of the stage
+   * and [ FABRIC ] from 3% to 49%, both over the garment. From 1280px the stage is 800px and 30%
+   * IS 240px, so nothing moves there; below it a long note wraps onto more lines in its corner.
+   */
+  max-width: min(240px, 30%);
   font-family: var(--font-mono);
   font-size: var(--text-mono-sm);
   letter-spacing: var(--tracking-caps-tight);
@@ -1158,6 +1165,20 @@ model-viewer.stage__model {
 
 .callout__value {
   color: var(--text);
+}
+
+/* Narrow stages (1000-1279px, before the stage reaches 800px): a long note keeps to four lines,
+   because capped at 30% the X-MILO's six features ran to eleven lines of 10px capitals down the
+   side of the garment (measured 2026-10-01). The notes are aria-hidden decoration; the full list
+   is in the product panel under the stage. */
+@media (max-width: 1279px) {
+  .callout__value {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+  }
 }
 
 /*
@@ -1934,7 +1955,9 @@ model-viewer.stage__model {
   border: 1.4px solid var(--line);
   border-radius: var(--radius-button);
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  /* 12px since 2026-10-01 (owner decision, visual audit): a colour's name is what a buyer reads
+     to choose it. One step up, the step `.btn` took for the same reason on 2026-09-11 (TY-07). */
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--text);
@@ -2190,6 +2213,18 @@ model-viewer.stage__model {
   flex: 1;
 }
 
+/* ⚠️ THE BAR STEPS ASIDE WHILE THE COOKIE QUESTION IS OPEN (2026-10-01). Both are fixed to
+   the foot of the screen and the card is the higher layer (--z-consent over --z-action-bar),
+   so the bar was already hidden to the eye; its EMAIL and WHATSAPP were still in the Tab
+   order, ENTIRELY under the card, and no scroll can move a fixed element out from under
+   another (WCAG 2.2 SC 2.4.11; e2e/consent.spec.ts found exactly these two). `visibility`
+   takes them out of the Tab order and the accessibility tree to match what is on screen,
+   and the bar returns the moment the question is answered. The same two buttons are in the
+   page under the colourways the whole time. */
+:root:has(.consent) .action-bar {
+  visibility: hidden;
+}
+
 /*
  * ⚠️ 18px, NOT 22px, BELOW 360px — 2026-09-11, when `.btn` went from 11px to 12px (audit TY-07).
  *
@@ -2383,7 +2418,11 @@ model-viewer.stage__model {
 .footer__meta a {
   display: inline-flex;
   align-items: center;
+  /* Width too since 2026-10-01: "Terms" measured 36.1 x 44 and "Privacy" 42.7 x 44 on all three
+     live garments (visual audit). Centred, so a short word sits in the middle of its target. */
+  justify-content: center;
   min-height: 44px;
+  min-width: var(--target-min);
   padding-block: 6px;
 }
 

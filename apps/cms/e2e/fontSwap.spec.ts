@@ -163,17 +163,31 @@ test.describe('PF-03 — the headline keeps its lines when the real fonts arrive
 test.describe('PF-03 — the layout-shift score while the fonts swap in', () => {
   const installObserver = (page: Page) =>
     page.addInitScript(() => {
-      const store = window as unknown as { __cls: number }
+      const store = window as unknown as { __cls: number; __moved: string[] }
       store.__cls = 0
+      store.__moved = []
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          const shift = entry as unknown as { hadRecentInput: boolean; value: number }
-          if (!shift.hadRecentInput) store.__cls += shift.value
+          const shift = entry as unknown as {
+            hadRecentInput: boolean
+            value: number
+            sources?: { node?: Node | null }[]
+          }
+          if (shift.hadRecentInput) continue
+          store.__cls += shift.value
+          // What moved, so a failure names the element instead of only a number.
+          for (const source of shift.sources ?? []) {
+            const node = source.node
+            const el = node instanceof Element ? node : node?.parentElement
+            if (el) store.__moved.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`)
+          }
         }
       }).observe({ type: 'layout-shift', buffered: true })
     })
   const readCls = (page: Page) =>
     page.evaluate(() => (window as unknown as { __cls: number }).__cls ?? 0)
+  const readMoved = (page: Page) =>
+    page.evaluate(() => [...new Set((window as unknown as { __moved: string[] }).__moved ?? [])])
 
   test('the instrument reports a planted shift (negative control)', async ({
     page,
@@ -196,8 +210,56 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
     ).toBeGreaterThan(0.1)
   })
 
-  for (const path of PAGES) {
-    for (const width of [390, 1350]) {
+  /*
+   * ⚠️ THE TEXT-HEAVY PAGES JOINED 2026-10-01, at 768 too. The visual audit measured them on
+   * the live site, where nothing had: Lighthouse mobile scored the printing guide 0.233 and named
+   * the Archivo and Instrument Serif files as the cause, and /privacy reached 0.2136 at 768x1024
+   * on one cold load and 0 with the webfonts blocked. A page that is mostly paragraphs adds up a
+   * small width difference over many lines, which three hero-led pages never showed.
+   */
+  /*
+   * ⚠️ EACH GUIDE AT THE WIDTH WHERE ITS HEADLINE BROKE DIFFERENTLY (swept 2026-10-01: fonts
+   * blocked vs delivered at 28 widths). The printing guide at 412px is the live CLS of 0.233. The
+   * guide headlines no longer swap (`.hero-guide` in site.css); these are the widths that prove it.
+   * A new guide joins with the width its own headline breaks at, if any.
+   */
+  for (const [path, width] of [
+    ['/guides/how-a-private-label-order-works', 368],
+    ['/guides/minimum-order-and-samples', 400],
+    ['/guides/garment-printing-methods', 412],
+    ['/guides/3d-garment-reference', 424],
+    ['/guides/private-label-packaging', 1280],
+    ['/guides/sportswear-fabrics-and-weights', 1440],
+  ] as const) {
+    test(`${path} at ${width}px, where its headline used to re-wrap, stays at or under 0.02`, async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
+      await installObserver(page)
+      await page.route(FONT_FILES, async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        await route.continue()
+      })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(path)
+      await page.evaluate(() => document.fonts.ready.then(() => true))
+      await page.waitForTimeout(300)
+      expect(
+        await readCls(page),
+        `layout shift at ${width}px while the fonts swapped in; moved: ${(await readMoved(page)).join(', ')}`,
+      ).toBeLessThanOrEqual(0.02)
+    })
+  }
+
+  for (const path of [
+    ...PAGES,
+    '/privacy',
+    '/terms',
+    '/guides',
+    '/guides/garment-printing-methods',
+  ]) {
+    for (const width of [390, 768, 1350]) {
       test(`${path} at ${width}px stays at or under 0.02 while the fonts arrive late`, async ({
         page,
         browserName,
@@ -220,7 +282,7 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
         await page.waitForTimeout(300)
         expect(
           await readCls(page),
-          `layout shift at ${width}px while the fonts swapped in`,
+          `layout shift at ${width}px while the fonts swapped in; moved: ${(await readMoved(page)).join(', ')}`,
         ).toBeLessThanOrEqual(0.02)
       })
     }

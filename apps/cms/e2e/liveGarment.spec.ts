@@ -91,6 +91,35 @@ test.describe('№03 — the live 3D garment', () => {
     expect(errors.filter((e) => /setMeshoptDecoder/.test(e))).toEqual([])
   })
 
+  /*
+   * WCAG 2.2 SC 2.4.11: the poster link lies UNDER the model by design (a drag turns the garment),
+   * so with the model shown its focus ring was drawn beneath it — the visual audit of 2026-10-01
+   * found the link entirely covered at 1440x900. While the link has keyboard focus the layer
+   * steps aside (site.css), so what is on top at the link's centre must be the link itself.
+   */
+  test('with the model shown, a keyboard-focused poster link is not under it', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const topmostAtLink = () =>
+      page.evaluate(() => {
+        const link = document.querySelector('.proof__link')
+        if (!link) return 'no link'
+        const box = link.getBoundingClientRect()
+        const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+        return top && link.contains(top) ? 'link' : (top?.tagName.toLowerCase() ?? 'nothing')
+      })
+    // The control: before focus, the model really is on top, so the check can see it.
+    expect(await topmostAtLink()).toBe('model-viewer')
+    await page.locator('.proof__link').focus()
+    await expect(page.locator('.proof__link')).toBeFocused()
+    expect(await topmostAtLink(), 'the focused link is under the 3D model').toBe('link')
+  })
+
   test('under reduced motion the model is shown but does not turn by itself', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await serveModel(page, true)

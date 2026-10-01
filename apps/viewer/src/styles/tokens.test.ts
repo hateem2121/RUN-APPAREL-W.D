@@ -928,6 +928,53 @@ function resolveToken(tokensSource: string, token: string): { light: string; dar
   return null
 }
 
+/*
+ * ⚠️ TWO TOKEN PAIRS SIT JUST UNDER AA ON --wash IN THE LIGHT THEME, AND NOTHING USES THEM YET.
+ * Computed in the visual audit of 2026-10-01 from tokens.css: `--muted` on `--wash` 4.48:1 and
+ * `--volt-deep` on `--wash` 4.02:1, against the 4.5:1 normal text needs. axe found no live
+ * instance on ten pages, so this is a guard, not a fix: a rule that paints `--wash` behind its own
+ * text must give that text a colour that clears 4.5:1 there, in both themes. Same-rule pairs only
+ * (inheritance is beyond a stylesheet scan); the planted control below proves it sees one.
+ */
+function washTextFailures(css: string, tokensSource: string, file: string): string[] {
+  const wash = resolveToken(tokensSource, '--wash')
+  if (!wash) return ['--wash does not resolve to a hex pair']
+  const failures: string[] = []
+  for (const block of stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const body = block[2] ?? ''
+    if (!/background(?:-color)?\s*:\s*var\(\s*--wash\s*\)/.test(body)) continue
+    const colour = /(?:^|;)\s*color\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)/.exec(body)?.[1]
+    if (!colour) continue
+    const text = resolveToken(tokensSource, colour)
+    if (!text) continue
+    for (const mode of ['light', 'dark'] as const) {
+      const ratio = contrast(text[mode], wash[mode])
+      if (ratio < 4.5) {
+        failures.push(
+          `${file} ${block[1]?.trim()}: ${colour} on --wash in ${mode} mode is ${ratio.toFixed(2)}:1`,
+        )
+      }
+    }
+  }
+  return failures
+}
+
+describe('text on the --wash surface', () => {
+  const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
+
+  it('every rule that paints --wash behind its text clears 4.5:1, in both themes', () => {
+    const failures = ['tokens.css', 'base.css', 'notch.css', 'page.css', 'site.css'].flatMap(
+      (file) => washTextFailures(readFileSync(cssPath(file), 'utf8'), tokensSource, file),
+    )
+    expect(failures).toEqual([])
+  })
+
+  it('NEGATIVE CONTROL: --muted text on --wash is caught (4.48:1 in light)', () => {
+    const planted = '.planted { background: var(--wash); color: var(--muted); }'
+    expect(washTextFailures(planted, tokensSource, 'planted')).toHaveLength(1)
+  })
+})
+
 describe('progress indicators', () => {
   it('every progress fill clears 3:1 against the background it sits on, in BOTH themes', () => {
     const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
@@ -1599,6 +1646,12 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Int
    * separately so a failure says what went wrong, not just that something did.
    */
   const BRAND = ['Archivo Variable', 'Archivo', 'Instrument Serif']
+  /*
+   * The brand faces again, with `font-display: optional` (site.css, owner decision 2026-10-01):
+   * body text and the guide headlines never swap fonts mid-visit. Same files as the brand
+   * imports, so they are the brand, not a third family — and the check below holds them to that.
+   */
+  const NO_SWAP_COPIES = ['Archivo Optional', 'Instrument Serif Optional']
   const SYSTEM = [
     'ui-monospace',
     'SF Mono',
@@ -1647,13 +1700,27 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Int
         for (const family of familiesOf(value)) {
           if (AI_DEFAULTS.test(family)) {
             offenders.push(`${name}:${line} names ${family}, a generic default face`)
-          } else if (!BRAND.includes(family) && !SYSTEM.includes(family) && !faces.has(family)) {
+          } else if (
+            !BRAND.includes(family) &&
+            !NO_SWAP_COPIES.includes(family) &&
+            !SYSTEM.includes(family) &&
+            !faces.has(family)
+          ) {
             offenders.push(`${name}:${line} names ${family}, which is not part of the type system`)
           }
         }
       }
     }
     for (const [family, src] of faces) {
+      if (NO_SWAP_COPIES.includes(family)) {
+        // A copy may load only the brand's own fontsource files, never a new webfont.
+        if (
+          !/^\s*url\("@fontsource(?:-variable)?\/(?:archivo|instrument-serif)\/files\//.test(src)
+        ) {
+          offenders.push(`@font-face "${family}" loads something other than the brand's own files`)
+        }
+        continue
+      }
       if (!/^\s*local\(/.test(src) || /url\(/.test(src)) {
         offenders.push(`@font-face "${family}" downloads a file — a stand-in must be local() only`)
       }
@@ -1669,10 +1736,11 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Int
         first.set(token, (first.get(token) ?? new Set()).add(familiesOf(match[2] ?? '')[0] ?? ''))
       }
     }
-    expect(Object.fromEntries([...first].map(([token, set]) => [token, [...set]]))).toEqual({
-      '--font-display': ['Archivo Variable'],
-      '--font-body': ['Archivo Variable'],
-      '--font-serif': ['Instrument Serif'],
+    // The brand face, or its no-swap copy where text must never move (site.css, 2026-10-01).
+    expect(Object.fromEntries([...first].map(([token, set]) => [token, [...set].sort()]))).toEqual({
+      '--font-display': ['Archivo Optional', 'Archivo Variable'],
+      '--font-body': ['Archivo Optional', 'Archivo Variable'],
+      '--font-serif': ['Instrument Serif', 'Instrument Serif Optional'],
     })
   })
 
