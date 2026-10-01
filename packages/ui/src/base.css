@@ -132,6 +132,23 @@ li {
   transform: translateY(0);
 }
 
+/*
+ * ⚠️ PARKED ABOVE THE PAGE WAS NOT HIDDEN ENOUGH (visual audit VA-26, 2026-10-01). At
+ * `translateY(-150%)` the link sat 75px above the top edge, and an iPhone's pull-down bounce
+ * shows exactly that strip: "Skip to main content" appeared above the hero on every page.
+ * While it is NOT focused it is now also clipped to nothing, the standard visually-hidden
+ * pattern (The A11y Project, `:not(:focus):not(:active)`), so no bounce, zoom or overscroll can
+ * reveal it. Focused, it is the full-size link the comment above insists on, sliding in as before.
+ */
+.skip-link:not(:focus):not(:active) {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .skip-link {
     /* Was `120ms ease-out` — the single raw duration-plus-easing in the whole

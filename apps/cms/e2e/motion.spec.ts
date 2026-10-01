@@ -357,19 +357,22 @@ test.describe('FA-H-10 — the skip link answers on --instant and actually moves
    * skip link that never leaves `translateY(-150%)` is focusable, announced, and
    * invisible — which is a WCAG 2.4.7 failure that every keyboard test still passes.
    */
-  test('it is off-screen at rest, on-screen when focused, on the --instant duration', async ({
+  test('it is unseen at rest, on-screen when focused, on the --instant duration', async ({
     page,
   }) => {
     await page.goto('/')
     const measured = await page.evaluate(() => {
       const link = document.querySelector('.skip-link') as HTMLElement
+      const box = link.getBoundingClientRect()
       return {
-        restTop: Math.round(link.getBoundingClientRect().top),
+        // Off-screen OR clipped to nothing: since VA-26 (2026-10-01) it is both, because an
+        // iPhone's pull-down bounce showed the off-screen strip above the page.
+        unseen: box.bottom <= 0 || (box.width <= 1 && box.height <= 1),
         duration: getComputedStyle(link).transitionDuration,
         instant: getComputedStyle(document.documentElement).getPropertyValue('--instant').trim(),
       }
     })
-    expect(measured.restTop, 'the skip link is visible before it is focused').toBeLessThan(-10)
+    expect(measured.unseen, 'the skip link is visible before it is focused').toBe(true)
     // `.12s` in the token, `0.12s` from getComputedStyle — compare as numbers.
     expect(
       Number.parseFloat(measured.duration),

@@ -634,8 +634,20 @@ test.describe('keyboard', () => {
      * ring around the entire page, which reads as a rendering fault. Both are asserted.
      */
     await page.goto('/')
+    /*
+     * VA-26: unfocused, the link is clipped to nothing, so an iPhone's pull-down bounce (which
+     * shows the strip above the page) cannot reveal "Skip to main content". Focused, it is a
+     * full-size link a sighted keyboard user can read.
+     */
+    const skip = page.locator('.skip-link')
+    const box = () => skip.evaluate((el) => el.getBoundingClientRect())
+    expect((await box()).width, 'the resting skip link has a readable box').toBeLessThanOrEqual(1)
+    await expect(skip).toHaveCSS('clip-path', 'inset(50%)')
+
     await page.keyboard.press('Tab')
-    await expect(page.locator('.skip-link')).toBeFocused()
+    await expect(skip).toBeFocused()
+    expect((await box()).width, 'the focused skip link is still clipped').toBeGreaterThan(80)
+    await expect(skip).toHaveCSS('clip-path', 'none')
 
     await page.keyboard.press('Enter')
     const landed = await page.evaluate(() => ({
@@ -704,6 +716,12 @@ test.describe('rendering', () => {
       const small = await page.evaluate(() =>
         [...document.querySelectorAll('a[href], button')]
           .filter((el) => el.getBoundingClientRect().height > 0)
+          // A control clipped to 1x1 is not on screen to be tapped: the skip link at rest since
+          // VA-26 (2026-10-01). Focused, it is full size, and "skip link reaches main" checks it.
+          .filter(
+            (el) =>
+              !(el.getBoundingClientRect().width <= 1 && el.getBoundingClientRect().height <= 1),
+          )
           .filter((el) => el.getBoundingClientRect().height < 43.95)
           .map((el) => `${(el.textContent ?? '').trim().slice(0, 24)}`),
       )
