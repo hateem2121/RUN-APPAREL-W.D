@@ -329,6 +329,8 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   host-pattern alerts that were already open). Fix at the root rather than dismissing.
   The JS/TS analysis takes ~2 min and runs beside the ~13-minute CI run, so PRs wait no
   longer. Undo: `PATCH …/code-scanning/default-setup` with `languages:["actions"]`.
+  🟢 `verify` also runs Knip, report-only (`pnpm exec knip --no-exit-code`); every ignore in
+  `knip.jsonc` says why — `sharp` is loaded from `tools/asset-pipeline` on purpose, not via Next.
   🟡 **`cache-mode` (GA 2026-09-10) is set on every workflow since 2026-10-01 EXCEPT
   `security-scans.yml`:** `none` where no job touches the cache, `read` for android-chrome,
   lighthouse-live and voiceover, and in ci.yml `none` with `write` on only verify, e2e,

@@ -67,3 +67,7 @@ as broken code and is a browser that never launched. Install once —
 `npx --yes pnpm@12.6.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 `tools/asset-pipeline`'s render harness needs chromium too. With all four present:
 **355 passed, 6 skipped, 41.8s** (measured 2026-08-27).
+
+🟡 **Known CI flake: `apps/cms/e2e/fontSwap.spec.ts:312`** ("/contact at 768px … fonts arrive
+late") failed on PRs #111 and #114 (2026-10-01) and passed on a re-run of the failed job.
+Re-run it before debugging it.
