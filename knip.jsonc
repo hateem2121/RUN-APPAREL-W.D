@@ -1,0 +1,38 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // REPORT ONLY (2026-10-01, owner-approved plan): Knip lists unused files, exports and
+  // packages in ci.yml's `verify` log and never fails it. Make it blocking only by owner
+  // decision, after it has been quiet for a while.
+  //
+  // Every entry below is a file something OTHER than an import runs, which Knip cannot
+  // see on its own: a person or a CI step runs `node scripts/x.mjs`, Claude Code runs the
+  // hooks and skills, Playwright's config starts the e2e servers, and the shrink
+  // container starts `container/server.ts`.
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", ".claude/hooks/*.mjs", ".claude/skills/*/*.mjs"],
+      // Type declarations for the .mjs scripts, read by TypeScript, not imported.
+      "ignore": ["scripts/*.d.mts"]
+    },
+    "apps/cms": {
+      "entry": [
+        "e2e/*.mjs",
+        "e2e/fixtures/*.entry.tsx",
+        "open-next.config.ts",
+        "scripts/*.mjs",
+        "src/seed/*.ts"
+      ]
+    },
+    "apps/viewer": {
+      "entry": ["scripts/*.mjs"],
+      "ignore": ["scripts/*.d.mts"]
+    },
+    "apps/shrink": {
+      // The container is plain Node outside the pnpm workspace; its server is the entry.
+      "entry": ["container/server.ts"]
+    },
+    "tools/asset-pipeline": {
+      "entry": ["scripts/*.mjs"]
+    }
+  }
+}

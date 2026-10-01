@@ -60,12 +60,6 @@ type Cached<T> = { value: T; expires: number }
 let settingsCache: Cached<PublicSiteSettings> | null = null
 let productsCache: Cached<ProductCard[]> | null = null
 
-/** Exported for the tests, which must not depend on wall-clock timing to prove a miss. */
-export function __clearContentCache(): void {
-  settingsCache = null
-  productsCache = null
-}
-
 let cachedPayload: Awaited<ReturnType<typeof getPayload>> | null = null
 
 async function client() {
