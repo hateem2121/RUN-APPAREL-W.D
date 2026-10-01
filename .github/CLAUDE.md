@@ -83,6 +83,14 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   gh api /repos/OWNER/REPO/git/commits/<sha> --jq .sha      # 404 => not a commit
   ```
   🟢 All six pins in this repo were re-verified as commits on 2026-08-25.
+  🟡 **Why exact commits matter, measured: on 2026-03-19 attackers force-pushed 76 of
+  77 `aquasecurity/trivy-action` tags to credential-stealing commits (CVE-2026-33634).**
+  Our pin `ed142fd…` is v0.36.0, released 2026-04-22 after the clean-up, signed and
+  verified (checked 2026-10-01); it installs Trivy v0.70.0. Never Trivy v0.69.4, the
+  malicious release. 🟡 `security-scans.yml` (2026-10-01) publishes Scorecard, which
+  forbids workflow/job-level `env` or `defaults`, containers, write permissions at the
+  workflow level, and any action in its job beyond checkout, upload-artifact,
+  upload-sarif, scorecard-action and harden-runner — break one and the publish fails.
   🟢 **History.** The org and its ruleset were deleted on 2026-09-02, leaving `main`
   unguarded while the repo was private on Free (the rulesets API answered 403 *"Upgrade
   to GitHub Pro"*). The repo went public on 2026-09-09 and was RE-CREATED CLEAN on
@@ -312,6 +320,19 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   contains the defect on purpose raises a real alert. Default setup has no
   path-exclusion config, so RENAME the fixture (`action.yml.fixture`) rather than
   dismissing an alert that will simply come back.
+  🟡 **Default setup scans `actions` AND `javascript-typescript` at the EXTENDED suite
+  since 2026-10-01 (owner)** — until then it scanned only the workflows; the first
+  JS/TS run found 56 alerts on `main`. Measured on PR #111 with a planted command
+  injection: the CodeQL check fails only on "New alerts in code changed by this pull
+  request", so an old alert does not block a PR — UNLESS the PR edits code inside that
+  alert's data flow, which makes it count as new (#111's escape change re-raised two
+  host-pattern alerts that were already open). Fix at the root rather than dismissing.
+  The JS/TS analysis takes ~2 min and runs beside the ~13-minute CI run, so PRs wait no
+  longer. Undo: `PATCH …/code-scanning/default-setup` with `languages:["actions"]`.
+  🟡 **`cache-mode` (GA 2026-09-10) is DEFERRED, not forgotten:** actionlint v1.7.12
+  (2026-03-30, the newest) predates it and errors on any unknown key ("unexpected key
+  … for "job" section"), so adding it would fail `verify` on every PR. Add it once an
+  actionlint release knows it; GitHub already defaults `pull_request` to read-only.
 
 - **🟡 CI's WebKit REPORTS A STALE COMPUTED STYLE, and no write beats it.** 2026-09-05,
   `.page`'s bottom reserve, read on one element in one pass:
