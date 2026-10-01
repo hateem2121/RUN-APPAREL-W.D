@@ -114,7 +114,7 @@ has failed here twice because of exactly that.
 ```bash
 bash scripts/test-alert-shell.sh                  # the alert branch nothing else exercises
 npx --yes pnpm@12.6.0 eval:artwork               # artwork legibility — gates the deploy
-cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
+cd apps/shrink/container && npm ci --no-audit --no-fund && npx tsc --noEmit
 ```
 
 - `apps/shrink/container` is **not a pnpm workspace member**, so `pnpm -r` skips it

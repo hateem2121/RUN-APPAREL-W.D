@@ -160,7 +160,7 @@ pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build   # 846 unit tes
 bash scripts/test-alert-shell.sh                  # the alert branch nothing else exercises
 node scripts/check-bundle-budget.mjs              # deterministic shell-weight gate (needs a build)
 pnpm eval:artwork                                 # artwork legibility — gates the deploy
-cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
+cd apps/shrink/container && npm ci --no-audit --no-fund && npx tsc --noEmit
 
 pnpm seed:assets   # placeholder GLBs/posters + merged N001 file
 pnpm dev:cms       # Payload admin on http://localhost:3000 (local D1/R2 emulation)

@@ -215,6 +215,19 @@
   // the safety argument above covers it unchanged. Listed path by path, like
   // the others, so any route outside @lhci/cli still fails the gate; the owner
   // chose this over an advisory-wide entry. DELETE WITH the entries above.
+  //
+  // ── basic-ftp, fixed by OVERRIDE 2026-10-01 (not allowlisted) ──────────────
+  // GHSA-c475-qrg2-pj4r, "basic-ftp: Quadratic-time CPU denial of service in
+  // Client.list()", high, published 2026-10-01 14:42 UTC — it failed `audit` on PR #113
+  // between two runs of unchanged dependencies. Range `<= 6.2.0`, patched in 6.2.1
+  // (published 2026-08-27, past the 24h cooldown). Reached only through @lhci/cli >
+  // … > proxy-agent > pac-proxy-agent > get-uri > basic-ftp, i.e. the Lighthouse dev
+  // tool. A patched version exists, so override (`basic-ftp: ^6.2.1` in
+  // pnpm-workspace.yaml), the same call as 2026-08-04 and 2026-09-30. It crosses a
+  // major: get-uri (even 8.0.1, the latest) still asks for ^5.3.1. basic-ftp 6.0.0's
+  // only breaking change makes separate transfer hosts opt-in (FTP-bounce protection);
+  // get-uri uses plain connect/list/download, and nothing here fetches an ftp:// URL.
+  // DELETE the override once get-uri itself depends on ^6.2.1.
   "allowlist": [
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
