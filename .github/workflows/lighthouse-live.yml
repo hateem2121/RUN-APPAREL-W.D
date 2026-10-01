@@ -50,6 +50,11 @@ on:
 permissions:
   contents: read
 
+# This workflow restores the pnpm store but never needs to save the main branch's copy;
+# ci.yml does that. Read only (GitHub `cache-mode`, 2026-10-01: least privilege against
+# cache poisoning).
+cache-mode: read
+
 concurrency:
   group: lighthouse-live
   # Nothing here deploys, and a newer deploy makes an older measurement moot.
