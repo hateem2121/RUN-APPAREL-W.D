@@ -70,7 +70,8 @@ export default async function PrivacyPage() {
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
           <p className="label">[ PRIVACY ]</p>
-          <h1 className="display display--hero">
+          {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
+          <h1 className="display display--hero hero-legal">
             We store nothing <span className="serif-accent">you did not&nbsp;choose.</span>
           </h1>
           <p className="site-lede">

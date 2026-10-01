@@ -252,6 +252,46 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
     })
   }
 
+  /*
+   * ⚠️ THE LEGAL HEADLINES NEVER SWAP EITHER (owner decision 2026-10-01, `.hero-legal` in site.css),
+   * found when the 150ms check below failed CI at /privacy 390px with CLS 0.0385, twice, on a run
+   * after one where it passed. Both headlines keep their line COUNT in either font, but `text-wrap:
+   * balance` picks a different split: "We store / nothing you / did not choose." in the stand-in,
+   * "… nothing / you did not choose." in Archivo. Swept 320-480px in steps of 8: 19 widths re-broke
+   * inside CI's image and 6 (440-480px) on a Mac; /terms re-broke at 344 and 352px inside the image.
+   * ⚠️ THE ORDER THE TWO FONTS LAND IN DECIDES IT, so these fix the worst one. Measured inside CI's
+   * image, /privacy at 390px: both fonts together scored 0.0197 (a pass by 0.0003, at 150ms or
+   * 600ms), Archivo first and the serif 450ms later 0.0384, the CI failure. In between, the headline
+   * is Archivo with a stand-in accent, a mix that splits differently again. At 448px every order
+   * scored 0.0358. Archivo is held past the stand-in's first paint; the serif lands well after it.
+   */
+  for (const [path, width] of [
+    ['/privacy', 390],
+    ['/privacy', 448],
+    ['/terms', 344],
+  ] as const) {
+    test(`${path} at ${width}px, where its headline re-broke, stays at or under 0.02 when Archivo lands before the serif`, async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
+      await installObserver(page)
+      await page.route(FONT_FILES, async (route) => {
+        const serif = /instrument-serif/.test(route.request().url())
+        await new Promise((resolve) => setTimeout(resolve, serif ? 600 : 150))
+        await route.continue()
+      })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(path)
+      await page.evaluate(() => document.fonts.ready.then(() => true))
+      await page.waitForTimeout(300)
+      expect(
+        await readCls(page),
+        `layout shift at ${width}px while the fonts swapped in; moved: ${(await readMoved(page)).join(', ')}`,
+      ).toBeLessThanOrEqual(0.02)
+    })
+  }
+
   for (const path of [
     ...PAGES,
     '/privacy',

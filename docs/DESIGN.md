@@ -164,9 +164,11 @@ paragraphs about ±1% either side, so somewhere a paragraph always re-wraps — 
 0.2136 at 768px live, and six of seven guide headlines broke differently at some width (the
 printing guide measured 0.233 at 412px). So the site declares the same font files a second time
 with `font-display: optional` — `Archivo Optional` and `Instrument Serif Optional` — and uses them
-for `--font-body` and, through `.hero-guide`, for the guide headlines. CSS Fonts 4: an optional
-font not ready at first paint is not used on that page, and must never make it jump. The other
-headlines keep `swap` and the files they load are the same, so from the second page on everything
+for `--font-body` and, through `.hero-guide`, for the guide headlines. The `/privacy` and `/terms`
+headlines joined them the same day, through `.hero-legal`: they keep their line count in either
+font, but `text-wrap: balance` moved a word between lines (CLS 0.0384 at 390px in CI). CSS Fonts 4:
+an optional font not ready at first paint is not used on that page, and must never make it jump.
+The other headlines keep `swap` and the files they load are the same, so from the second page on everything
 is Archivo at first paint. The stack after an optional face must not name `Archivo Variable`, or a
 face that missed first paint falls through to the swapping one.
 

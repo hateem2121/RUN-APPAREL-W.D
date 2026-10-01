@@ -330,8 +330,12 @@
 
 /* The guide headlines never swap: "Archivo Optional" and "Instrument Serif Optional" are the
    no-swap copies of the same fonts, with the shared stand-ins after them for a slow first visit.
-   Why, and the sweep behind it: the "Archivo Optional" comment above. GuidePage.tsx sets it. */
-.hero-guide {
+   Why, and the sweep behind it: the "Archivo Optional" comment above. GuidePage.tsx sets it.
+   The /privacy and /terms headlines joined them (`.hero-legal`, owner decision 2026-10-01): they
+   keep their line count in either font, but `text-wrap: balance` moves "you" between lines, CLS
+   0.0384 at 390px in CI. The sweep and the font order that causes it: e2e/fontSwap.spec.ts. */
+.hero-guide,
+.hero-legal {
   --font-display: "Archivo Optional", "Archivo Display Fallback", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif Optional", "Instrument Serif Fallback",
