@@ -88,6 +88,13 @@ buyer who wants a record of what they sent still has one.
 **Guard:** a test asserts the inquiry row exists after a submission whose mail
 step is forced to fail.
 
+**Amended 2026-10-01 (owner, visual audit VA-02): one step.** The two-step form with a
+progress bar (2026-09-29) is replaced by one column with every field showing: name, email
+and message first, then company, phone and files under "Optional details". Job title and
+Subject left the form. After Send the form gives way to a confirmation that a reload clears
+(VA-27). The rules above stand: store-then-notify, works with scripting off, email and
+WhatsApp links kept. Guard: `apps/cms/e2e/inquiry.spec.ts`.
+
 ### D4 · The gallery grows to four columns above 1600px — `FA-E-04`
 
 **Decision: a fourth column on wide screens. Nothing changes below 1600px.**

@@ -32,6 +32,10 @@ export function FilePicker() {
         <span className="inquiry-form__label">Files (optional)</span>
         <input
           className="inquiry-form__input inquiry-form__file"
+          // The id is where the form's list of mistakes links to; `data-check` puts this field
+          // in that list (InquiryFormEnhancer.tsx), with the explanation shown just below.
+          id="inquiry-files"
+          data-check
           type="file"
           name="files"
           multiple
@@ -51,6 +55,8 @@ export function FilePicker() {
               if (pick !== latest.current) return
               input.setCustomValidity(late ?? '')
               setProblem(late)
+              // The form's list of mistakes listens for this (InquiryFormEnhancer.tsx).
+              input.dispatchEvent(new Event('inquiry-checked', { bubbles: true }))
             })
           }}
         />

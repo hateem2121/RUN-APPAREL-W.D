@@ -26,10 +26,10 @@ remove them.
 
 ## The scripted pieces: complete without them (2026-09-29)
 
-The count-up, live 3D, lightbox, form stepper, phone code, file picker and globe are client
-islands over server markup that is already the whole page: the final figure, the poster, a
-link to the large photo, one form with both steps and one Send, the address with a directions
-link. Each starts from that state and enhances only after it mounts, and does nothing when the visitor asks
+The count-up, live 3D, lightbox, form helper (error lines and the list of mistakes, since the
+form became one step on 2026-10-01), phone code, file picker and globe are client islands over
+server markup that is already the whole page: the final figure, the poster, a link to the large
+photo, one form with every field and one Send, the address with a directions link. Each starts from that state and enhances only after it mounts, and does nothing when the visitor asks
 for reduced motion, or under `navigator.webdriver` unless a test lifts the flag. One
 motion duration is new, `--showpiece` (D26). Inquiry files go to the PRIVATE R2 bucket
 `run-apparel-inquiry-files` through `inquiry-files` (`collections/InquiryFiles.ts`), checked

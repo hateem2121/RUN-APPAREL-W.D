@@ -2542,25 +2542,9 @@ a.contact-block__value:active {
   max-width: 62ch;
 }
 
-.inquiry-form__row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-
-@media (min-width: 560px) {
-  .inquiry-form__row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 .inquiry-form__field {
   display: block;
   margin-block-start: 16px;
-}
-
-.inquiry-form__row .inquiry-form__field {
-  margin-block-start: 0;
 }
 
 .inquiry-form__label {
@@ -2624,10 +2608,13 @@ a.contact-block__value:active {
  * them off. `:user-invalid` waits until they have actually interacted with it — which is
  * the whole reason the pseudo-class exists.
  *
- * The border is not the only signal: the browser's own validation message says what is
- * wrong, and it is announced. Colour alone would be a WCAG 1.4.1 failure.
+ * The border is not the only signal: a sentence under the field says what is wrong and is
+ * announced with it (`aria-describedby`), or, without scripting, the browser's own message
+ * does. Colour alone would be a WCAG 1.4.1 failure. `[aria-invalid]` is the script's mark,
+ * set when the visitor leaves a wrongly filled field or presses Send (VA-02).
  */
-.inquiry-form__input:user-invalid {
+.inquiry-form__input:user-invalid,
+.inquiry-form__input[aria-invalid="true"] {
   border-color: var(--danger);
 }
 
@@ -3591,78 +3578,197 @@ a.contact-block__value:active {
   pointer-events: auto;
 }
 
-/* ------------------------------------------------ the contact page, 2026-09-29 */
+/* ------------------------------------------------ the contact page, single step (2026-10-01) */
 
 /*
- * The form's two steps. ⚠️ `[hidden]` IS RESTATED BECAUSE A CLASS WINS OVER IT: the user-agent
- * `display: none` on `[hidden]` loses to any author `display`, so without this line a hidden
- * step would show the moment a layout rule gave `.inquiry-form__step` a display of its own.
+ * The intro, the form and the direct contacts (owner, visual audit VA-02). On a phone they stack
+ * in that order; from 1000px the intro and the contacts share a column beside the form, the
+ * layout of the Balmoral and Clothing Network contact pages in the audit's benchmarks.
  */
-.inquiry-form__step {
+.inquiry-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "intro"
+    "main"
+    "details";
+}
+
+.inquiry-layout__intro {
+  grid-area: intro;
+}
+
+.inquiry-layout__main {
+  grid-area: main;
   min-width: 0;
-  margin: 0;
+}
+
+.inquiry-layout__details {
+  grid-area: details;
+  margin-block-start: 64px;
+}
+
+/*
+ * ⚠️ THE ADDRESS IS LEFT OUT BESIDE THE FORM ON A PHONE ONLY. The section straight after this
+ * one is the map with the same address and its directions link, so on a phone it would be read
+ * twice in a row (VA-41); the approved phone mockup shows email and WhatsApp alone.
+ */
+@media (width < 1000px) {
+  .inquiry-layout__details .contact-block:has(address) {
+    display: none;
+  }
+}
+
+@media (width >= 1000px) {
+  .inquiry-layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "intro main"
+      "details main";
+    column-gap: 64px;
+    align-items: start;
+  }
+
+  .inquiry-layout__details {
+    grid-template-columns: minmax(0, 1fr);
+    margin-block-start: 24px;
+  }
+}
+
+/*
+ * "Optional details" (W1): a fieldset, so a screen reader names the group once, drawn as a
+ * divider with a hairline to its right. A legend can be a flex container in all three engines.
+ */
+.inquiry-form__group {
+  min-width: 0;
+  margin: 24px 0 0;
   padding: 0;
   border: 0;
 }
 
-.inquiry-form__step[hidden] {
-  display: none;
-}
-
-/* A step that opens with a two-column row still keeps the legend's gap: row fields drop theirs. */
-.inquiry-form__step > .inquiry-form__row {
-  margin-block-start: 16px;
-}
-
-.inquiry-form__step + .inquiry-form__step {
-  margin-block-start: 24px;
-}
-
-.inquiry-form__legend {
+.inquiry-form__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
   padding: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-lg); /* 12px with the field labels it heads (2026-10-01) */
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps-snug);
-  color: var(--text);
-}
-
-/*
- * The progress bar. `role="progressbar"` and its values carry the meaning; the fill is only its
- * picture, drawn with `transform` so a change never re-lays the form out.
- */
-.inquiry-progress {
-  margin-block: 24px 16px;
-}
-
-.inquiry-progress__step {
-  margin: 0 0 8px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   color: var(--muted);
 }
 
-.inquiry-progress__track {
-  height: 6px;
-  overflow: hidden;
-  border: 1px solid var(--line-control);
-  border-radius: var(--radius-button);
-  background: var(--surface);
+.inquiry-form__divider::after {
+  content: "";
+  flex: 1;
+  border-block-start: 1px solid var(--line);
 }
 
-.inquiry-progress__fill {
-  display: block;
-  height: 100%;
-  background: var(--dimension);
-  transform-origin: left center;
-  transition: transform var(--ui) var(--ease);
+/*
+ * The sentence under a wrongly filled field (W2–W5). It arrives with a fade and a 4px rise on
+ * transform and opacity only (VA-02's motion table); reduced motion collapses it with every
+ * other animation (base.css). `[hidden]` is restated because a class can outrank it.
+ */
+.inquiry-form__error {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger);
+  animation: inquiry-note-in var(--ui) var(--ease) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .inquiry-progress__fill {
-    transition: none;
+.inquiry-form__error[hidden] {
+  display: none;
+}
+
+@keyframes inquiry-note-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/*
+ * The list shown on Send when something is wrong (W6), at the top of the form, each line a link
+ * to its field (GOV.UK error summary). It is a `.form-notice--bad` too: one look for every result
+ * message, and the one coloured edge VC-07 allows (scripts/vibecoded-rules.mjs).
+ */
+.inquiry-summary {
+  margin-block-end: 8px;
+  padding: 16px 18px;
+}
+
+.inquiry-summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.inquiry-summary__title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inquiry-summary__list {
+  margin: 8px 0 0;
+  padding-inline-start: 20px;
+}
+
+.inquiry-summary__list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--danger);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/*
+ * What replaces the form after a successful Send (W8–W10, VA-27): one panel, arriving with a fade
+ * and an 8px rise on --settle, once. It takes focus so a screen reader reads it (VA-01). It is a
+ * `.form-notice--ok` too, so its edge is the result notice's own (VC-07's one allowed use).
+ */
+.inquiry-done {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  font-size: var(--text-body);
+  animation: inquiry-done-in var(--settle) var(--ease) both;
+}
+
+.inquiry-done:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.inquiry-done__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-card-title);
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.inquiry-done__text,
+.inquiry-done__line {
+  margin: 0;
+}
+
+.inquiry-done__line {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.inquiry-done .btn {
+  justify-self: start;
+}
+
+@keyframes inquiry-done-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
 }
 
