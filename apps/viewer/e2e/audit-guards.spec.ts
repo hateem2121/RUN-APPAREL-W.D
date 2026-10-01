@@ -1924,7 +1924,9 @@ test.describe('prefers-contrast: more raises viewer ratios too (CO-10)', () => {
     await page.evaluate(() => document.fonts.ready)
     return page.evaluate(() => {
       const bar = document.querySelector('.notch') as HTMLElement
-      const navLink = document.querySelector('.nav-link') as HTMLElement
+      // A link that is NOT marked current: since VA-37 the garment page marks Products, which
+      // is already at full contrast, so it has nothing for prefers-contrast to raise.
+      const navLink = document.querySelector('.nav-link:not([aria-current])') as HTMLElement
       return {
         matches: matchMedia('(prefers-contrast: more)').matches,
         line: getComputedStyle(document.documentElement).getPropertyValue('--line').trim(),

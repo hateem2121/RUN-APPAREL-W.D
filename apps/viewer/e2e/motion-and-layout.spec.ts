@@ -593,7 +593,7 @@ test.describe('the bar survives a phone', () => {
         .evaluateAll((elements) =>
           elements.map((element) => element.getBoundingClientRect().height),
         )
-      expect(rows, 'the open menu holds Products, Contact and the switch').toHaveLength(3)
+      expect(rows, 'the open menu holds Products, Contact, Guides and the switch').toHaveLength(4)
       for (const height of rows) expect(height).toBeGreaterThanOrEqual(43.95)
     })
   }

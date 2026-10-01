@@ -76,6 +76,29 @@ test.describe('one menu bar on both hosts — the viewer', () => {
   }
 })
 
+test.describe('the menu says where the visitor is — the viewer (VA-37)', () => {
+  test('Products is marked as the current section, underlined like a current page', async ({
+    page,
+  }) => {
+    // Every garment page lives under the site's /products. `true`, not `page`: the link is the
+    // section, not this page.
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const products = page.locator('.notch__nav a[href$="/products"]')
+    await expect(products).toHaveAttribute('aria-current', 'true')
+    await expect(page.locator('.notch__nav a[href$="/contact"]')).not.toHaveAttribute(
+      'aria-current',
+      /.*/,
+    )
+    expect(
+      await products.evaluate((link) => getComputedStyle(link).textDecorationLine),
+      'marked by colour alone',
+    ).toBe('underline')
+    await expect(page.locator('.notch__nav a[href$="/guides"]')).toBeHidden()
+  })
+})
+
 test.describe('the focus ring in the dark bar (volt, both themes)', () => {
   for (const scheme of ['light', 'dark'] as const) {
     test(`${scheme}: every ring in the bar and the open menu reaches 4.5:1`, async ({

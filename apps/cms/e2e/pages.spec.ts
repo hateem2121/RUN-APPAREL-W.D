@@ -103,7 +103,8 @@ test.describe('every page renders real content', () => {
       }
 
       // The chrome the layout is responsible for.
-      await expect(browser.locator('.notch__nav a')).toHaveCount(2)
+      // Products, Contact and — shown in the phone menu only — Guides (VA-37).
+      await expect(browser.locator('.notch__nav a')).toHaveCount(3)
       await expect(browser.locator('main#main')).toBeVisible()
       await expect(browser.locator('.site-footer')).toBeVisible()
 
@@ -342,7 +343,8 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
 
     // and the page is still a page: the filters, the header and the footer are all there
     await expect(page.locator('.filter-bar .filter-chip').first()).toBeVisible()
-    await expect(page.locator('.notch__nav a')).toHaveCount(2)
+    // Products, Contact and — shown in the phone menu only — Guides (VA-37).
+    await expect(page.locator('.notch__nav a')).toHaveCount(3)
     await expect(page.locator('.site-footer')).toBeVisible()
   })
 

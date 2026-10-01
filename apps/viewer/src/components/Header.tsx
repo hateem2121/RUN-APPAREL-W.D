@@ -1,10 +1,12 @@
 import {
   markMenuClosing,
   SITE_MENU_ID,
+  SITE_MENU_LINKS,
   SITE_MENU_NAME,
   SITE_NAV_LABEL,
   SITE_NAV_LINKS,
   THEME_SWITCH_NAMES,
+  THEME_SWITCH_WORDS,
 } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
 import { SITE_ORIGIN } from '../lib/siteLinks'
@@ -93,8 +95,23 @@ export function Header({ wordmark }: HeaderProps) {
             <span className="visually-hidden">{SITE_MENU_NAME}</span>
           </button>
           <div className="notch__menu" id={SITE_MENU_ID} popover="auto">
+            {/*
+              Every garment page lives under the site's /products, so Products is the section the
+              visitor is in (VA-37: nothing in the menu said where you were). `true`, not `page`:
+              the link is the section, not this page.
+            */}
             {SITE_NAV_LINKS.map(({ href, label }) => (
-              <a className="nav-link" key={href} href={`${SITE_ORIGIN}${href}`}>
+              <a
+                className="nav-link"
+                key={href}
+                href={`${SITE_ORIGIN}${href}`}
+                aria-current={href === '/products' ? 'true' : undefined}
+              >
+                {label}
+              </a>
+            ))}
+            {SITE_MENU_LINKS.map(({ href, label }) => (
+              <a className="nav-link nav-link--menu" key={href} href={`${SITE_ORIGIN}${href}`}>
                 {label}
               </a>
             ))}
@@ -113,6 +130,9 @@ export function Header({ wordmark }: HeaderProps) {
                     strokeLinejoin="round"
                   />
                 </svg>
+                <span className="theme-toggle__words" aria-hidden="true">
+                  {THEME_SWITCH_WORDS.toDark}
+                </span>
                 <span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>
               </span>
               <span className="theme-toggle__face theme-toggle__face--to-light">
@@ -125,6 +145,9 @@ export function Header({ wordmark }: HeaderProps) {
                     strokeLinecap="round"
                   />
                 </svg>
+                <span className="theme-toggle__words" aria-hidden="true">
+                  {THEME_SWITCH_WORDS.toLight}
+                </span>
                 <span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>
               </span>
             </button>

@@ -140,7 +140,8 @@ test.describe('XS-05 — the light/dark switch on the site', () => {
       await page.setViewportSize({ width: 390, height: 800 })
       await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
       await expect(page.locator(OPEN)).toHaveCount(1)
-      await expect(page.locator(`#${SITE_MENU_ID} a`)).toHaveCount(2)
+      // Products, Contact and Guides, the phone menu's own (VA-37).
+      await expect(page.locator(`#${SITE_MENU_ID} a`)).toHaveCount(3)
       await expect(page.locator('.theme-toggle')).toBeHidden()
     })
   })

@@ -328,6 +328,12 @@
   }
 }
 
+/* Shown in the open phone menu only (VA-37 and VA-52, below): Guides, and the switch's words. */
+.nav-link--menu,
+.theme-toggle__words {
+  display: none;
+}
+
 /*
  * ⚠️ THE CURRENT PAGE IS MARKED BY AN UNDERLINE, NOT ONLY BY COLOUR.
  *
@@ -343,7 +349,7 @@
  * where colours are replaced wholesale and an underline is one of the few cues that
  * still carries meaning.
  */
-.nav-link[aria-current="page"] {
+.nav-link:is([aria-current="page"], [aria-current="true"]) {
   color: var(--notch-text, var(--text));
   text-decoration: underline;
   text-decoration-color: var(--volt);
@@ -366,7 +372,7 @@
  * underline is restored in a system colour that is guaranteed to contrast.
  */
 @media (forced-colors: active) {
-  .nav-link[aria-current="page"] {
+  .nav-link:is([aria-current="page"], [aria-current="true"]) {
     text-decoration-color: LinkText;
   }
 
@@ -717,13 +723,13 @@
     .notch__menu {
       flex-direction: column;
       align-items: stretch;
-      gap: 4px;
+      gap: 0;
       position: fixed;
       inset-block-start: calc(var(--notch-h) - 1px);
       inset-inline: var(--notch-r);
       width: auto;
       margin: 0;
-      padding: 12px;
+      padding: 4px 6px 12px;
       border: none;
       border-radius: 0 0 var(--notch-r) var(--notch-r);
       background: var(--notch-bg);
@@ -771,11 +777,48 @@
       }
     }
 
-    /* Full-width rows, 44px tall, as the owner approved them. */
+    /*
+     * THE ROWS (visual audit VA-37 and VA-52, owner-approved 2026-10-01). Full-width, 52px, 15px
+     * capitals, a hairline between rows, and ONE row style for all of them: the switch lost the
+     * pill outline it showed in dark mode only (its icon sat 0px inside it) and says what it does
+     * in words. Every row's text starts where the name above it does — the panel's 18px inset,
+     * then 6 + 6, as the bar's own 18 + 12 — so the menu reads as one column under the name.
+     */
     .notch__menu:popover-open .nav-link,
     .notch__menu:popover-open .theme-toggle {
       width: 100%;
       justify-content: flex-start;
+      min-height: calc(var(--target-min) + 8px);
+      padding-inline: 6px;
+      font-size: var(--text-sm);
+      border: 0;
+      border-block-end: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+      border-radius: 0;
+    }
+
+    .notch__menu:popover-open .nav-link--menu {
+      display: inline-flex;
+    }
+
+    .notch__menu:popover-open .theme-toggle {
+      height: auto;
+      color: var(--notch-muted);
+    }
+
+    .notch__menu:popover-open .theme-toggle__face {
+      align-items: center;
+      gap: 12px;
+    }
+
+    .notch__menu:popover-open .theme-toggle__words {
+      display: inline;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps-snug);
+    }
+
+    .notch__menu:popover-open > :last-child {
+      border-block-end: 0;
     }
 
     /* The rows arrive one after another, --stagger apart (VA-51). An animation, not a

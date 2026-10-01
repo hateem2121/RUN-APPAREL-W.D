@@ -24,6 +24,13 @@ export const SITE_NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ] as const
 
+/**
+ * Links the PHONE MENU adds after the bar's (visual audit VA-37, owner-approved 2026-10-01: Guides
+ * in the phone menu). Not in the wide bar: its one-row fit is measured for the two links above
+ * (docs/DESIGN.md, "The menu bar"), so notch.css shows these in the open phone menu only.
+ */
+export const SITE_MENU_LINKS = [{ href: '/guides', label: 'Guides' }] as const
+
 /** The navigation landmark's name. */
 export const SITE_NAV_LABEL = 'Main'
 
@@ -37,6 +44,17 @@ export const SITE_MENU_NAME = 'Menu'
 export const THEME_SWITCH_NAMES = {
   toDark: 'Switch to dark mode',
   toLight: 'Switch to light mode',
+} as const
+
+/**
+ * The switch's WORDS, shown beside its icon in the phone menu only (visual audit VA-52,
+ * owner-approved 2026-10-01: "DARK MODE" / "LIGHT MODE", the capitals set by CSS). Hidden from
+ * assistive technology, which keeps THEME_SWITCH_NAMES — and each name contains its words, so
+ * what a voice user reads aloud still works (WCAG 2.5.3, label in name).
+ */
+export const THEME_SWITCH_WORDS = {
+  toDark: 'Dark mode',
+  toLight: 'Light mode',
 } as const
 
 /**
@@ -63,6 +81,7 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$
  */
 export function siteBarAriaSnapshot(state: SiteBarState, wordmark: string): string {
   const links = SITE_NAV_LINKS.map(({ label }) => `link ${JSON.stringify(label)}`)
+  const menuLinks = SITE_MENU_LINKS.map(({ label }) => `link ${JSON.stringify(label)}`)
   const menu = `button ${JSON.stringify(SITE_MENU_NAME)}`
   const theSwitch = `button /^(${escapeRegExp(THEME_SWITCH_NAMES.toDark)}|${escapeRegExp(THEME_SWITCH_NAMES.toLight)})$/`
   const items =
@@ -70,7 +89,7 @@ export function siteBarAriaSnapshot(state: SiteBarState, wordmark: string): stri
       ? [...links, theSwitch]
       : state === 'phone-closed'
         ? [menu]
-        : [menu, ...links, theSwitch]
+        : [menu, ...links, ...menuLinks, theSwitch]
   return [
     '- banner:',
     '  - /children: equal',

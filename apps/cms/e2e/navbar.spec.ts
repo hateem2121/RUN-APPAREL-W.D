@@ -49,17 +49,18 @@ test.describe('navigation without JavaScript', () => {
       await page.setViewportSize({ width, height: 800 })
       await page.goto(path)
       const links = page.locator(`${MENU} a`)
-      await expect(links).toHaveCount(2)
+      // Products, Contact and Guides, the phone menu's own (VA-37).
+      await expect(links).toHaveCount(3)
       // ⚠️ BUG 1, DESIGNED OUT: an author `display` beat the browser's hide rule, so the "closed"
       // menu showed its links. Closed must really be closed.
       await expect(page.locator(OPEN)).toHaveCount(0)
-      for (let index = 0; index < 2; index++) await expect(links.nth(index)).toBeHidden()
+      for (let index = 0; index < 3; index++) await expect(links.nth(index)).toBeHidden()
 
       const button = page.getByRole('button', { name: SITE_MENU_NAME, exact: true })
       await expect(button).toBeVisible()
       await button.click()
       await expect(page.locator(OPEN)).toHaveCount(1)
-      for (let index = 0; index < 2; index++) await expect(links.nth(index)).toBeVisible()
+      for (let index = 0; index < 3; index++) await expect(links.nth(index)).toBeVisible()
       // Once the menu has landed (VA-51 gave it motion): with scripting off, a click whose
       // first stability check lands mid-motion never retries — measured 2026-10-01, 30s timeouts
       // in Chromium and WebKit while the link sat still and was what a tap at its centre hit.
@@ -86,8 +87,10 @@ test.describe('navigation without JavaScript', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
     const links = page.locator(`${MENU} a`)
-    await expect(links).toHaveCount(2)
+    await expect(links).toHaveCount(3)
     for (let index = 0; index < 2; index++) await expect(links.nth(index)).toBeVisible()
+    // Guides belongs to the phone menu only: the wide bar's one-row fit is measured for two.
+    await expect(links.nth(2)).toBeHidden()
     await expect(page.locator('.notch__menu-btn')).toBeHidden()
     await links.first().click()
     await expect(page).toHaveURL(/\/products$/)
@@ -175,6 +178,68 @@ test.describe('the open phone menu', () => {
       }
     })
   }
+
+  test('the rows: four, 52px, 15px, one hairline apart, in one column under the name (VA-37, VA-52)', async ({
+    page,
+  }) => {
+    /*
+     * VA-37 and VA-52 (owner, 2026-10-01): 11px items in a wide empty panel, the switch an icon in
+     * a pill outline that showed in dark mode only (its icon 0px inside it, 5px off the links'
+     * edge), no Guides. Dark mode, because that is where the outline was.
+     */
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/products')
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    await menuLanded(page)
+    const m = await page.evaluate((selector) => {
+      const textLeft = (element: Element) => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        return range.getBoundingClientRect().left
+      }
+      const rows = [...(document.querySelector(selector) as HTMLElement).children] as HTMLElement[]
+      return {
+        name: textLeft(document.querySelector('.notch__wordmark') as Element),
+        rows: rows.map((row) => {
+          const style = getComputedStyle(row)
+          const face = [...row.querySelectorAll('.theme-toggle__face')].find(
+            (candidate) => getComputedStyle(candidate).display !== 'none',
+          )
+          const icon = face?.querySelector('svg')
+          return {
+            tag: row.tagName.toLowerCase(),
+            href: row.getAttribute('href'),
+            height: row.getBoundingClientRect().height,
+            fontSize: style.fontSize,
+            hairline: style.borderBottomWidth,
+            outline: style.borderTopWidth,
+            start: icon ? icon.getBoundingClientRect().left : textLeft(row),
+            // The shown words only: the switch also holds its spoken name, visually hidden. And
+            // only if drawn — innerText reads a `display: none` element's text all the same
+            // (the first version of this test passed with the words hidden, 2026-10-01).
+            words: (() => {
+              const shown =
+                (face?.querySelector('.theme-toggle__words') as HTMLElement | null) ?? row
+              return shown.getClientRects().length > 0 ? shown.innerText.trim() : '(not drawn)'
+            })(),
+          }
+        }),
+      }
+    }, MENU)
+    expect(m.rows.map((row) => row.href)).toEqual(['/products', '/contact', '/guides', null])
+    for (const row of m.rows) {
+      expect(row.height, `${row.words}: under 52px`).toBeGreaterThanOrEqual(51.5)
+      expect(row.fontSize, `${row.words}: not 15px`).toBe('15px')
+      expect(Math.abs(row.start - m.name), `${row.words}: not under the name`).toBeLessThan(1)
+    }
+    expect(m.rows.slice(0, 3).map((row) => row.hairline)).toEqual(['1px', '1px', '1px'])
+    expect(m.rows[3]?.hairline, 'a hairline under the last row').toBe('0px')
+    const theSwitch = m.rows[3]
+    expect(theSwitch?.outline, 'the switch still draws its pill outline').toBe('0px')
+    expect(theSwitch?.words, 'the switch does not say what it does').toMatch(/^light mode$/i)
+  })
 
   test('Escape closes it and returns focus to the button; a tap outside closes it', async ({
     page,
@@ -464,10 +529,13 @@ test.describe('the menu closes itself when the page moves on', () => {
     await expect(page.locator(OPEN)).toHaveCount(0)
     const inBar = await page.evaluate((selector) => {
       const bar = document.querySelector('.notch')?.getBoundingClientRect()
-      const links = [...document.querySelectorAll(`${selector} a`)]
+      // The bar's two; Guides belongs to the phone menu only (VA-37) and stays out of it.
+      const links = [...document.querySelectorAll(`${selector} a:not(.nav-link--menu)`)]
+      const menuOnly = [...document.querySelectorAll(`${selector} a.nav-link--menu`)]
       return (
         Boolean(bar) &&
         links.length === 2 &&
+        menuOnly.every((link) => link.getBoundingClientRect().width === 0) &&
         links.every((link) => {
           const box = link.getBoundingClientRect()
           return bar && box.width > 0 && box.top >= bar.top && box.bottom <= bar.bottom

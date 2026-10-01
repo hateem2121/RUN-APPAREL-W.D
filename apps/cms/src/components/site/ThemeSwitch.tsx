@@ -1,6 +1,6 @@
 'use client'
 
-import { THEME_SWITCH_NAMES } from '@run-apparel/shared'
+import { THEME_SWITCH_NAMES, THEME_SWITCH_WORDS } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
 import { THEME_STORAGE_KEY } from '../../lib/themeBoot'
 import { PHONE_QUERY, THEME_COLOR } from '../../lib/themeColor'
@@ -112,6 +112,9 @@ export function ThemeSwitch() {
             strokeLinejoin="round"
           />
         </svg>
+        <span className="theme-toggle__words" aria-hidden="true">
+          {THEME_SWITCH_WORDS.toDark}
+        </span>
         <span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>
       </span>
       <span className="theme-toggle__face theme-toggle__face--to-light">
@@ -124,6 +127,9 @@ export function ThemeSwitch() {
             strokeLinecap="round"
           />
         </svg>
+        <span className="theme-toggle__words" aria-hidden="true">
+          {THEME_SWITCH_WORDS.toLight}
+        </span>
         <span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>
       </span>
     </button>

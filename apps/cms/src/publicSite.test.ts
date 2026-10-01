@@ -814,7 +814,11 @@ describe('location and contrast cues', () => {
     // Measured 2026-09-05 once the attribute was live: the ONLY difference between
     // current and non-current was alpha 0.7 → 1.0 on the same colour. That is a
     // colour-only distinction (WCAG 1.4.1) and barely perceptible at that.
-    const rule = /\.nav-link\[aria-current="page"\]\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
+    // Since VA-37 the same rule marks the current SECTION (`true`, the viewer's Products).
+    const rule =
+      /\.nav-link:is\(\[aria-current="page"\], \[aria-current="true"\]\)\s*\{[^}]*\}/.exec(
+        barCss(),
+      )?.[0] ?? ''
     expect(rule, 'the aria-current rule is missing').not.toBe('')
     expect(rule).toContain('text-decoration: underline')
   })
