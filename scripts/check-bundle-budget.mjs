@@ -151,9 +151,10 @@ const REPORT_ONLY = process.argv.includes('--report')
  *       page CSS       7,722 -> 7,898 B gzip   (+176)   budget 8,775 -> 8,951 (headroom 265)
  *   ⚠️ 2026-10-01, the visual audit fixes (owner-approved roadmap): the cookie card keeps
  *   focus clear of itself and goes to one row on short screens (packages/ui/src/base.css),
- *   and page.css gains 12px colour names, 44px footer links and corner-bound spec notes.
+ *   and page.css gains 12px colour names, 44px footer links and corner-bound spec notes; notch.css
+ *   rests the bar at 52px on short screens and tokens.css derives --header-h from it.
  *   Measured by building with main's two files and then this branch's:
- *       stylesheet     8,839 -> 9,020 B gzip   (+181)   budget 8,951 -> 9,132 (headroom 112)
+ *       stylesheet     8,839 -> 9,037 B gzip   (+198)   budget 8,951 -> 9,149 (headroom 112)
  *   The headroom was already 112 on main, not 265: the cookie card's own styles
  *   (2026-09-30) spent 153 B of it without a raise here. Left as found, not restored.
  * The dialog's SCRIPT is a lazy chunk
@@ -182,7 +183,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 9_132, note: 'CSS' },
+  stylesheet: { bytes: 9_149, note: 'CSS' },
 }
 
 /**

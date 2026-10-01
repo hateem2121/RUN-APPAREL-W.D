@@ -503,8 +503,10 @@ CI's Linux image (it skips on a Mac, whose fonts render differently). When a pag
 ON PURPOSE, the pictures must be remade in that same image. Added 2026-10-01; the first
 run caught a live bug (the footer wordmark shrinking under reduced motion).
 
-1. **Seed a fresh database the way CI does.** Move `apps/cms/.env`, `apps/cms/.dev.vars`
-   and `apps/cms/.wrangler/state` aside first, and put them back afterwards. Then, with any
+1. **Seed a fresh database the way CI does.** In the CMS app's folder, move your local
+   settings files (`.env` and `.dev.vars`) and the local database (the `state` folder inside
+   `.wrangler`) aside first, and put them back afterwards. None of the three is in git, which
+   is why they are named here and not cited as paths. Then, with any
    throwaway `PAYLOAD_SECRET`: `pnpm seed:assets`, `pnpm --filter @run-apparel/cms migrate`,
    `pnpm seed:cms`.
 2. **Build and serve the site on its own port:** in `apps/cms`, `CI=1 node e2e/prepare.mjs`,
