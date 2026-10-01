@@ -11,9 +11,11 @@ describe('stripUntilStable', () => {
   const COMMENT = /<!--[\s\S]*?-->/g
 
   it('removes a comment that a single pass would leave behind', () => {
-    const nested = '<!-<!-- a -->- b -->c'
-    expect(nested.replace(COMMENT, '')).toContain('<!--')
-    expect(stripUntilStable(nested, COMMENT, '')).toBe('c')
+    // One pass over '<!-<!-- a -->- b -->c' removes the inner comment and leaves
+    // '<!-- b -->c' — a brand-new comment. (Not re-run here: a one-pass strip in the
+    // code is the very pattern the code scan flags.) Both must end as plain text.
+    expect(stripUntilStable('<!-<!-- a -->- b -->c', COMMENT, '')).toBe('c')
+    expect(stripUntilStable('<!-- b -->c', COMMENT, '')).toBe('c')
   })
 
   it('leaves ordinary text alone', () => {
