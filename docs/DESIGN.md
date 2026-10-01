@@ -166,7 +166,9 @@ printing guide measured 0.233 at 412px). So the site declares the same font file
 with `font-display: optional` — `Archivo Optional` and `Instrument Serif Optional` — and uses them
 for `--font-body` and, through `.hero-guide`, for the guide headlines. The `/privacy` and `/terms`
 headlines joined them the same day, through `.hero-legal`: they keep their line count in either
-font, but `text-wrap: balance` moved a word between lines (CLS 0.0384 at 390px in CI). CSS Fonts 4:
+font, but `text-wrap: balance` moved a word between lines (CLS 0.0384 at 390px in CI). The four
+family pages followed through `.hero-family` (teamwear 0.063 at 1280px, casual-wear 0.028 at
+368px); the home headline keeps `swap` by the owner's choice, as the first impression. CSS Fonts 4:
 an optional font not ready at first paint is not used on that page, and must never make it jump.
 The other headlines keep `swap` and the files they load are the same, so from the second page on everything
 is Archivo at first paint. The stack after an optional face must not name `Archivo Variable`, or a
