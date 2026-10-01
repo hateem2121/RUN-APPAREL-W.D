@@ -397,6 +397,10 @@ test.describe('without JavaScript', () => {
     await expect(page.locator('.site-footer__tab')).toHaveAttribute('href', /^mailto:/)
     await expect(page.locator('.footer-legal a[href="/products"]')).toBeVisible()
     await expect(page.locator('.footer-block--contact a[href^="mailto:"]')).toBeVisible()
+    // VA-57: the number is READ grouped (ITU-T E.123) while the link keeps the bare digits.
+    const whatsapp = page.locator('.footer-block--contact a[href^="https://wa.me/"]')
+    await expect(whatsapp).toHaveText('WhatsApp +92 336 1777313')
+    await expect(whatsapp).toHaveAttribute('href', 'https://wa.me/923361777313')
     await expect(page.locator('.footer-clock__time span').first()).toHaveText('--:--')
     await expect(page.locator('.footer-status')).toHaveCount(0)
     await expect(page.locator('.cursor-dot')).toHaveCount(0)

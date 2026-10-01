@@ -1,4 +1,4 @@
-import { normalizeWhatsAppNumber } from '@run-apparel/shared'
+import { formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
 import Link from 'next/link'
 import { splitLastWord } from '../../lib/footerCopy'
 import { formatHours } from '../../lib/footerHours'
@@ -106,7 +106,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                     href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
                     rel="noopener"
                   >
-                    WhatsApp {settings.whatsappNumber}
+                    WhatsApp {formatPhoneForDisplay(settings.whatsappNumber)}
                   </a>
                 </li>
                 <li>{formatAddress()}</li>

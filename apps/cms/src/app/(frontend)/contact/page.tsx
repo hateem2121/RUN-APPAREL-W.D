@@ -1,4 +1,4 @@
-import { normalizeWhatsAppNumber } from '@run-apparel/shared'
+import { formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { getSiteSettings } from '../../../lib/content'
 import { CONTACT_HERO_PHOTO, contactHeroSrc, HERO_PHOTO } from '../../../lib/factoryPhotos'
@@ -290,7 +290,7 @@ export default async function ContactPage({
             <div className="contact-block">
               <p className="field-label">[ WhatsApp ]</p>
               <a className="contact-block__value" href={whatsapp} rel="noopener">
-                {settings.whatsappNumber}
+                {formatPhoneForDisplay(settings.whatsappNumber)}
               </a>
               <p className="contact-block__note">Fastest for a quick question.</p>
             </div>

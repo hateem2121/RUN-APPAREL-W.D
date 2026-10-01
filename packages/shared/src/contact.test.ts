@@ -4,6 +4,7 @@ import {
   buildEnquirySubject,
   buildMailtoUrl,
   buildWhatsAppUrl,
+  formatPhoneForDisplay,
   normalizeWhatsAppNumber,
 } from './contact'
 import { findBritishSpellings } from '../../../scripts/copy-rules.mjs'
@@ -61,6 +62,26 @@ describe('WhatsApp', () => {
     const url = buildWhatsAppUrl('+923361777313', ctx)
     expect(url.startsWith('https://wa.me/923361777313?text=')).toBe(true)
     expect(url).toContain(encodeURIComponent('Hello RUN Team,'))
+  })
+})
+
+describe('formatPhoneForDisplay (VA-57)', () => {
+  it('groups a Pakistani mobile number the way E.123 writes it', () => {
+    expect(formatPhoneForDisplay('+923361777313')).toBe('+92 336 1777313')
+    expect(formatPhoneForDisplay('923361777313')).toBe('+92 336 1777313')
+    expect(formatPhoneForDisplay(' +923361777313 ')).toBe('+92 336 1777313')
+  })
+  it('shows a number the owner already spaced exactly as typed', () => {
+    expect(formatPhoneForDisplay('+92 336 177 7313')).toBe('+92 336 177 7313')
+  })
+  it('never guesses a grouping for any other number', () => {
+    // Negative controls: a landline, another country and a malformed value stay as stored.
+    expect(formatPhoneForDisplay('+92524000000')).toBe('+92524000000')
+    expect(formatPhoneForDisplay('+4930123456')).toBe('+4930123456')
+    expect(formatPhoneForDisplay('+92336177731')).toBe('+92336177731')
+  })
+  it('leaves the link digits untouched', () => {
+    expect(normalizeWhatsAppNumber(formatPhoneForDisplay('+923361777313'))).toBe('923361777313')
   })
 })
 

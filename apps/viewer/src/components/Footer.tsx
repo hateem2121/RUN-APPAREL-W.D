@@ -1,6 +1,7 @@
 import {
   CONSENT_COPY,
   formatAddress,
+  formatPhoneForDisplay,
   CONSENT_OPEN_EVENT,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
@@ -52,7 +53,7 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
             rel="noopener noreferrer"
             onClick={() => track('whatsapp_clicked')}
           >
-            {settings.whatsappNumber}
+            {formatPhoneForDisplay(settings.whatsappNumber)}
           </a>
           {/*
             THE POSTAL ADDRESS, from the same constant the site footer prints
