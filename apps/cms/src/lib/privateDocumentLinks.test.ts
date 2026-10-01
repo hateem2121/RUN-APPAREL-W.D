@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { DOCUMENT_HOSTS } from '../../../../infra/apex-404/documents.js'
-import { escapeRegExp } from '../../regexEscape.mjs'
 import { Products } from '../collections/Products'
 import { CatalogueDefaults } from '../globals/CatalogueDefaults'
 import { SiteSettings } from '../globals/SiteSettings'
@@ -8,6 +7,7 @@ import {
   PRIVATE_DOCUMENT_HOSTS,
   PRIVATE_LINK_MESSAGE,
   privateDocumentLinkError,
+  privateHostInText,
   validateCatalogueUrl,
 } from './privateDocumentLinks'
 
@@ -91,13 +91,36 @@ describe('privateDocumentLinkError', () => {
    * than reaching into the module's internals.
    */
   describe('negative control: text-scan-only would let the Safe Links shape save', () => {
-    it('the plain host pattern, with no decoding and no URL-token parse, does not match it', () => {
-      const textScanOnly = new RegExp(
-        `(?<![a-z0-9.-])(?:${PRIVATE_DOCUMENT_HOSTS.map(escapeRegExp).join('|')})\\.?(?![a-z0-9.-])`,
-      )
+    it('the plain text scan, with no decoding and no URL-token parse, does not match it', () => {
       const safeLinks =
         'https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fcatalogue.wear-run.help%2Fx&data=1'
-      expect(textScanOnly.test(safeLinks.toLowerCase())).toBe(false)
+      expect(privateHostInText(safeLinks.toLowerCase())).toBeNull()
+    })
+  })
+
+  /**
+   * The text scan compares whole host names, with no pattern built from them (2026-10-01:
+   * GitHub's code scan flagged the host list flowing into a RegExp). A "whole host name"
+   * is a maximal run of host characters, with one trailing dot allowed — exactly what the
+   * old `(?<![a-z0-9.-])HOST\.?(?![a-z0-9.-])` pattern meant.
+   */
+  describe('privateHostInText', () => {
+    it.each([
+      ['see catalogue.wear-run.help/x', 'catalogue.wear-run.help'],
+      ['profile.wear-run.com.', 'profile.wear-run.com'],
+      ['(catalogue.wear-run.com)', 'catalogue.wear-run.com'],
+    ])('finds the whole host in %j', (text, host) => {
+      expect(privateHostInText(text)).toBe(host)
+    })
+
+    it.each([
+      'xcatalogue.wear-run.help',
+      'catalogue.wear-run.help.example.com',
+      'catalogue.wear-run.help..',
+      'catalogue-wear-run.help',
+      'catalogue.wear-run.helpx',
+    ])('does not find a look-alike in %j', (text) => {
+      expect(privateHostInText(text)).toBeNull()
     })
   })
 
