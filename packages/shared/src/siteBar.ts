@@ -80,3 +80,52 @@ export function siteBarAriaSnapshot(state: SiteBarState, wordmark: string): stri
     ...items.map((item) => `    - ${item}`),
   ].join('\n')
 }
+
+/** How long the phone menu stays marked as closing: well past its exit (`--instant`, 120ms). */
+export const MENU_CLOSING_MS = 300
+
+type ToggleListener = (event: { readonly newState?: string }) => void
+
+/** As much of the phone menu as `markMenuClosing` touches. A plain HTMLElement satisfies it. */
+export interface ClosingMenu {
+  readonly dataset: { closing?: string }
+  addEventListener(type: 'beforetoggle', listener: ToggleListener): void
+  removeEventListener(type: 'beforetoggle', listener: ToggleListener): void
+}
+
+interface Timers {
+  setTimeout(callback: () => void, ms: number): unknown
+  clearTimeout(id: unknown): void
+}
+
+/**
+ * ⚠️ THE PHONE MENU'S EXIT IS ANIMATED ONLY WHILE IT IS CLOSING (visual audit VA-51). notch.css
+ * keeps the panel on screen as it leaves by letting `display` and `overlay` ride its transition.
+ * On the plain list that transition ALSO ran when a phone turned from landscape to portrait: the
+ * inline links became the hidden menu, and the panel's exit played for 120ms in the phone's
+ * shape (caught by apps/cms/e2e/navbar.spec.ts, LA-06, 2026-10-01). So it lives on
+ * `.notch__menu[data-closing]`, and this sets that mark the moment the menu starts to close —
+ * `beforetoggle` fires for every way a popover closes (its button, Escape, a tap outside,
+ * hidePopover()) and never for a change of layout — and clears it once the exit is over.
+ * Without script the menu simply closes at once. Returns the clean-up for a React effect.
+ */
+export function markMenuClosing(menu: ClosingMenu): () => void {
+  const clock = globalThis as unknown as Timers
+  let timer: unknown
+  const onToggle: ToggleListener = (event) => {
+    clock.clearTimeout(timer)
+    if (event.newState === 'closed') {
+      menu.dataset.closing = ''
+      timer = clock.setTimeout(() => {
+        delete menu.dataset.closing
+      }, MENU_CLOSING_MS)
+    } else {
+      delete menu.dataset.closing
+    }
+  }
+  menu.addEventListener('beforetoggle', onToggle)
+  return () => {
+    clock.clearTimeout(timer)
+    menu.removeEventListener('beforetoggle', onToggle)
+  }
+}

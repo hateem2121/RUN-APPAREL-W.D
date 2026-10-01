@@ -614,6 +614,7 @@ same class of defect as the 1.00:1 skip link `tokens.test.ts` was written for.
 | `--settle` | 500ms |
 | `--slow` | 800ms |
 | `--showpiece` | 1400ms |
+| `--stagger` | 40ms |
 | `--reveal-y` | 24px |
 
 Both curves are **ease-out**: fast departure, slow arrival. Enter animations use
@@ -641,6 +642,7 @@ So the lock holds and the scale grows:
 | Wipes, scroll reveals | `--slow` |
 | The site's three showpieces only: the numbers counting up, the order timeline drawing, the contact globe's routes | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
 | Retargeted progress fills | `--fast` (see `page.css`'s note — a fill retargeted several times a second visibly trails the number beside it at anything slower) |
+| The pause between rows that arrive one after another — the phone menu's rows only (visual audit VA-51, 2026-10-01); never the page's entrance reveals (D8) | `--stagger` |
 
 **Do not "simplify" this by collapsing `--fast` and `--ui`.** They are 20ms apart
 and mean different things: `--fast` is for a value that keeps changing, `--ui` is

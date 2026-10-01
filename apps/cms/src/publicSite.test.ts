@@ -590,13 +590,16 @@ describe('the notch', () => {
     expect(closedMenuDisplays('.notch__menu:popover-open { display: flex; }')).toEqual([])
   })
 
-  it('sizes the open list by its two insets, never by the viewport (bug 2)', () => {
+  it('sizes the menu panel by the bar’s own insets, never by the viewport (bug 2, VA-51)', () => {
     // The browser styles [popover] `width: fit-content`; two insets alone gave 153-157px in
-    // three engines. `width: auto` is the cure; `100vw` includes a classic scrollbar.
-    const rule = /\.notch__menu:popover-open\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
-    expect(rule, 'the open-menu rule is missing').not.toBe('')
-    expect(rule).toMatch(/inset-inline: 12px/)
+    // three engines. `width: auto` is the cure; `100vw` includes a classic scrollbar. Since
+    // VA-51 the insets are the shell's padding, so the panel is exactly the open bar's width,
+    // and they sit on the closed list too, so the panel keeps its shape while it fades out.
+    const rule = /\.notch__menu\s*\{[^}]*position: fixed[^}]*\}/.exec(barCss())?.[0] ?? ''
+    expect(rule, 'the phone menu panel rule is missing').not.toBe('')
+    expect(rule).toMatch(/inset-inline: var\(--notch-r\)/)
     expect(rule).toMatch(/width: auto/)
+    expect(barCss()).toMatch(/\.notch-shell\s*\{[\s\S]*?padding-inline: var\(--notch-r\)/)
     expect(barCss()).not.toMatch(/100vw/)
   })
 

@@ -96,17 +96,12 @@
      showpieces — the numbers counting up, the order timeline drawing, the globe's routes —
      read as broken at 800ms. Those three only; reduced motion stops all of them. */
   --showpiece: 1400ms;
-  /* ⚠️ `--stagger` (60ms) WAS HERE AND NOTHING READ IT — declared 2026-08-14, flagged by
-     three audits (2026-08-14, 2026-09-05 and 2026-09-06 FA-T-01/FA-H-19), and shipped to
-     every visitor for the whole of that time. Deleted 2026-09-07 rather than given a use:
-     neither surface staggers anything, and the marketing site's new entrance animations
-     deliberately match the viewer's, which reveal each element on its own as it arrives.
-     If a stagger is ever wanted, adding a token back is one line — carrying a dead one is
-     what made two audits report the same thing twice.
-     ⚠️ Written `--stagger` rather than `--stagger:` on purpose: tokens.test.ts matches
-     `--name<colon>value;` against this file as raw text, and `[^;]` crosses newlines, so a
-     colon here makes a COMMENT parse as a declaration and the drift test compares
-     paragraphs of prose against a documented value. Found on the way to deleting it. */
+  /* The pause between rows that arrive one after another: the phone menu's rows (visual audit
+     VA-51, owner-approved 2026-10-01: "the links fading in 30-50 ms apart"). A 60ms stagger
+     token lived here from 2026-08-14 to 2026-09-07 with nothing reading it — three audits
+     reported it — and was deleted; it came back with its first reader (packages/ui/src/notch.css).
+     Not for the page's entrance reveals, which stay one element at a time (D8). */
+  --stagger: 40ms;
   --reveal-y: 24px;
 
   /* ── Targets ────────────────────────────────────────────────────── */

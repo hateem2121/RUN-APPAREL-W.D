@@ -467,8 +467,9 @@ li {
        final state rather than playing a 0.01ms flicker. Added 2026-08-14.
        ⚠️ This used to end "it matters more now that --stagger has a documented
        use." That was false when it was written and stayed false for three weeks:
-       nothing ever read --stagger, and the token was deleted on 2026-09-07. The
-       two declarations below are unaffected and still earn their place — they
+       nothing ever read --stagger, and the token was deleted on 2026-09-07. It came
+       back on 2026-10-01 with a real reader, the phone menu's rows (notch.css,
+       VA-51), and these two lines are what make those rows arrive at once. They
        collapse a delay from ANY source, which is the case that actually reaches a
        motion-sensitive visitor. */
     transition-delay: 0s !important;

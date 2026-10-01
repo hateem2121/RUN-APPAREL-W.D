@@ -1,4 +1,5 @@
 import {
+  markMenuClosing,
   SITE_MENU_ID,
   SITE_MENU_NAME,
   SITE_NAV_LABEL,
@@ -56,6 +57,12 @@ export function Header({ wordmark }: HeaderProps) {
     })
     observer.observe(button)
     return () => observer.disconnect()
+  }, [])
+
+  // The menu's exit is drawn only while it closes, never on a change of layout (VA-51).
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    return menu ? markMenuClosing(menu) : undefined
   }, [])
 
   const title = theme === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark

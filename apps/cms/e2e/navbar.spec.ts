@@ -1,4 +1,4 @@
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 import { SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '../../../packages/shared/src/siteBar'
 import { contrastOf, parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
 
@@ -15,6 +15,18 @@ const OPEN = `${MENU}:popover-open`
  */
 
 const PHONE_WIDTHS = [320, 360, 375, 390, 414, 430]
+
+/**
+ * The phone menu has finished arriving: the bar widened, the panel dropped in on a scale from
+ * 0.94 and the rows faded in (VA-51). Anything that measures the open menu waits for this — a
+ * row read mid-entry was 41.4px, and even reduced motion's 0.01ms leaves one frame.
+ */
+const menuLanded = (page: Page) =>
+  page.waitForFunction(() =>
+    (document.querySelector('.notch-shell') as HTMLElement)
+      .getAnimations({ subtree: true })
+      .every((a) => a.playState !== 'running' || a.timeline !== document.timeline),
+  )
 
 test.describe('navigation without JavaScript', () => {
   test.use({ javaScriptEnabled: false })
@@ -48,6 +60,20 @@ test.describe('navigation without JavaScript', () => {
       await button.click()
       await expect(page.locator(OPEN)).toHaveCount(1)
       for (let index = 0; index < 2; index++) await expect(links.nth(index)).toBeVisible()
+      // Once the menu has landed (VA-51 gave it motion): with scripting off, a click whose
+      // first stability check lands mid-motion never retries — measured 2026-10-01, 30s timeouts
+      // in Chromium and WebKit while the link sat still and was what a tap at its centre hit.
+      await expect
+        .poll(() =>
+          page
+            .locator('.notch-shell')
+            .evaluate((shell) =>
+              shell
+                .getAnimations({ subtree: true })
+                .every((a) => a.playState !== 'running' || a.timeline !== document.timeline),
+            ),
+        )
+        .toBe(true)
       // and they must actually navigate, not merely be painted
       await links.first().click()
       await expect(page).toHaveURL(/\/products$/)
@@ -93,17 +119,23 @@ test.describe('the phone menu before the page hydrates', () => {
 
 test.describe('the open phone menu', () => {
   for (const width of [320, 390]) {
-    test(`keeps a 12px gutter on BOTH sides and meets the bar at ${width}px`, async ({ page }) => {
+    test(`is one shape with the bar at ${width}px: its width, no gap, full height`, async ({
+      page,
+    }) => {
       /*
+       * VA-51 (owner, 2026-10-01): the bar was 191px wide and the panel under it 366px at 390,
+       * both rounded where they met, so they read as two cards. Open, the bar widens to the
+       * panel's width and squares its corners, and the panel continues it with no gap. The
+       * insets ARE the shell's padding (--notch-r), so the panel is the open bar's width by
+       * construction; this measures that it renders so.
+       *
        * ⚠️ BUG 2, DESIGNED OUT. The browser styles [popover] `width: fit-content`, so two insets
-       * alone left the panel 153-157px wide in all three engines (measured 2026-09-23), and
-       * the old rule's `calc(100vw - 24px)` sat flush against the right edge. `width: auto`
-       * restores the two-inset stretch.
+       * alone left the panel 153-157px wide in all three engines (measured 2026-09-23).
        */
       await page.setViewportSize({ width, height: 800 })
       await page.goto('/')
       // At rest, and after the scroll condense has made the bar up to 8px shorter (Chromium
-      // and WebKit; Firefox keeps the resting bar).
+      // and WebKit; Firefox keeps the resting bar): open, the bar is back at its full height.
       for (const scrollY of [0, 240]) {
         await page.evaluate((y) => window.scrollTo(0, y), scrollY)
         await page.evaluate(
@@ -111,24 +143,33 @@ test.describe('the open phone menu', () => {
         )
         await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
         await expect(page.locator(OPEN)).toHaveCount(1)
+        // The bar widens and the panel drops on --ui: measure once both have landed.
+        await menuLanded(page)
         const m = await page.evaluate((selector) => {
           const panel = document.querySelector(selector)?.getBoundingClientRect()
           const bar = document.querySelector('.notch')?.getBoundingClientRect()
           if (!panel || !bar) return null
           return {
-            left: panel.left,
-            right: document.documentElement.clientWidth - panel.right,
-            gap: panel.top - bar.bottom,
+            left: panel.left - bar.left,
+            right: panel.right - bar.right,
+            join: panel.top - bar.bottom,
+            barHeight: bar.height,
+            gutter: panel.left,
           }
         }, MENU)
         if (!m) throw new Error('no open menu or no bar to measure')
-        expect(Math.round(m.left), `left gutter at scrollY ${scrollY}`).toBe(12)
         expect(
-          Math.round(m.right),
-          `right gutter at scrollY ${scrollY}: the old rule sat flush`,
-        ).toBe(12)
-        expect(Math.round(m.gap), 'the menu overlaps the bar').toBeGreaterThanOrEqual(0)
-        expect(Math.round(m.gap), 'the menu hangs detached from the bar').toBeLessThanOrEqual(8)
+          Math.abs(m.left),
+          `the panel's left edge is not the bar's (scrollY ${scrollY})`,
+        ).toBeLessThan(0.5)
+        expect(
+          Math.abs(m.right),
+          `the panel's right edge is not the bar's (scrollY ${scrollY})`,
+        ).toBeLessThan(0.5)
+        expect(m.join, 'a gap opened between the bar and the panel').toBeLessThanOrEqual(0)
+        expect(m.join, 'the panel climbs over the bar').toBeGreaterThanOrEqual(-1.5)
+        expect(Math.round(m.barHeight), 'the open bar is not at its full height').toBe(60)
+        expect(Math.round(m.gutter), 'the panel is not inset by the fillet width').toBe(18)
         await page.keyboard.press('Escape')
         await expect(page.locator(OPEN)).toHaveCount(0)
       }
@@ -162,6 +203,7 @@ test.describe('the open phone menu', () => {
 
     await button.click()
     await expect(page.locator(OPEN)).toHaveCount(1)
+    await menuLanded(page)
     const point = await page.evaluate((selector) => {
       const panel = document.querySelector(selector)?.getBoundingClientRect()
       if (!panel) return null
@@ -384,6 +426,7 @@ test.describe('the menu closes itself when the page moves on', () => {
 
     await button.click()
     await expect(page.locator(OPEN)).toHaveCount(1)
+    await menuLanded(page)
     // An inert point under the open panel, found as the tap-outside test above finds one,
     // so the tap closes the menu instead of following a link.
     const point = await page.evaluate((selector) => {
@@ -959,6 +1002,97 @@ test.describe('the Speed Lines move, and hold still for reduced motion (owner, 2
  * `html { font-size }` does not. e2e/textSize.spec.ts sweeps that case with the right
  * instrument.
  */
+test.describe('the menu opens as one motion and closes faster; instant for reduced motion (VA-51)', () => {
+  /*
+   * Read in the same task as the click, as the Speed Lines test above does: a finished
+   * transition leaves getAnimations(). Only the properties the design names are compared —
+   * how an engine represents the discrete `display`/`overlay` steps differs, and is not the
+   * point.
+   */
+  const clickAndRead = () =>
+    `(() => {
+      document.querySelector('.notch__menu-btn').click()
+      // The corners are written as logical properties and reported by their physical names
+      // (border-bottom-left-radius …), so any radius counts as one.
+      const named = ['flex-grow', 'radius', 'box-shadow', 'opacity', 'scale', 'notch-row-in']
+      const read = (el) => el.getAnimations()
+        .map((a) => [String(a.transitionProperty ?? a.animationName).replace(/.*radius$/, 'radius'), a.effect.getTiming()])
+        .filter(([name]) => named.includes(name))
+        .map(([name, t]) => name + ':' + Math.round(Number(t.duration)) + ':' + Math.round(t.delay))
+        .sort()
+      const menu = document.querySelector('${MENU}')
+      return {
+        bar: read(document.querySelector('.notch')),
+        panel: read(menu),
+        rows: [...menu.children].map(read),
+        display: getComputedStyle(menu).display,
+        closing: menu.dataset.closing ?? null,
+      }
+    })()`
+
+  test('with motion: the bar widens and the panel drops on --ui, the rows --stagger apart; it closes on --instant', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/')
+    expect(
+      await page.evaluate(() => matchMedia('(prefers-reduced-motion: no-preference)').matches),
+    ).toBe(true)
+    const opening = await page.evaluate(clickAndRead())
+    expect(opening.bar).toEqual([
+      'box-shadow:220:0',
+      'flex-grow:220:0',
+      'radius:220:0',
+      'radius:220:0',
+    ])
+    expect(opening.panel).toEqual(['opacity:220:0', 'scale:220:0'])
+    expect(opening.rows).toEqual(opening.rows.map((_, index) => [`notch-row-in:220:${index * 40}`]))
+    expect(
+      opening.rows.length,
+      'the menu has fewer rows than links + switch',
+    ).toBeGreaterThanOrEqual(3)
+    await menuLanded(page)
+    const closing = await page.evaluate(clickAndRead())
+    expect(closing.closing, 'the menu was not marked as closing').toBe('')
+    expect(closing.bar).toContain('flex-grow:220:0')
+    if (browserName === 'chromium') {
+      // Chromium keeps a closing popover drawn (`display` and `overlay`, allow-discrete), so
+      // the panel leaves on --instant, the quicker of the two.
+      expect(closing.display, 'the panel vanished instead of leaving').toBe('flex')
+      expect(closing.panel, 'closing is not the quicker of the two').toEqual([
+        'opacity:120:0',
+        'scale:120:0',
+      ])
+    } else {
+      // Safari 26.6 and Firefox drop a closing popover at once — measured 2026-10-01: display
+      // none, no transition, with the same styles. The bar still narrows on --ui. If this
+      // starts failing, the engine has learned the exit: move it to the branch above.
+      expect(closing.display).toBe('none')
+      expect(closing.panel).toEqual([])
+    }
+  })
+
+  test('reduced motion: the bar, the panel and every row arrive at once', async ({ page }) => {
+    await page.goto('/')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/')
+    expect(
+      await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
+      'reduced motion never reached the page',
+    ).toBe(true)
+    const opening = await page.evaluate(clickAndRead())
+    for (const entry of [...opening.bar, ...opening.panel, ...opening.rows.flat()]) {
+      const [, duration, delay] = entry.split(':')
+      expect(Number(duration), `${entry} still animates under reduced motion`).toBeLessThan(1)
+      expect(Number(delay), `${entry} still waits under reduced motion`).toBeLessThanOrEqual(0)
+    }
+  })
+})
+
 test.describe('LA-06 — at normal text the bar is one 60px row at every width', () => {
   const WIDTHS = [
     320, 360, 375, 390, 414, 430, 600, 719, 720, 768, 820, 900, 1024, 1100, 1280, 1440, 1920,

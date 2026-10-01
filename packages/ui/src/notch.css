@@ -183,6 +183,12 @@
    * so a border would stop dead where the carved arcs begin.
    */
   box-shadow: var(--shadow-raised);
+  /* How the bar opens into the phone menu (VA-51, in the phone block below). */
+  transition:
+    flex-grow var(--ui) var(--ease),
+    border-end-start-radius var(--ui) var(--ease),
+    border-end-end-radius var(--ui) var(--ease),
+    box-shadow var(--ui) var(--ease);
 }
 
 /*
@@ -279,6 +285,9 @@
   align-items: center;
   flex-shrink: 0;
   gap: 4px;
+  /* At the bar's far end once it widens into the open phone menu (VA-51); 0 while the bar
+     is only as wide as its contents. */
+  margin-inline-start: auto;
 }
 
 /*
@@ -626,6 +635,14 @@
   }
 }
 
+/* A phone-menu row arriving (VA-51, below). */
+@keyframes notch-row-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
 @supports selector(:popover-open) {
   /* Phones — and any width too narrow for the inline row at the reader's text size (below). */
   @media (width < 720px), (width < calc(184px + 14.9rem)) {
@@ -646,39 +663,112 @@
     }
 
     /*
-     * ⚠️ BUG 1, DESIGNED OUT: this is the ONLY rule that gives the list a display on a
-     * phone, and only while it is open. An author `display` on a [popover] beats the
-     * browser's `[popover]:not(:popover-open) { display: none }` whatever the specificity, so
-     * the old inherited `.notch__nav { display: flex }` showed a "closed" menu open.
-     * publicSite.test.ts refuses any other rule that sets it.
+     * ⚠️ ONE SHAPE: THE BAR WIDENS INTO THE OPEN MENU (visual audit VA-51, asked for by the
+     * owner). The bar was 191px wide and the menu under it 296-406px, both with 18px corners
+     * where they met, so the join pinched in like a waist and they read as two cards. Open,
+     * the bar takes the shell's whole width and squares its lower corners, and the panel below
+     * continues it at exactly that width — `inset-inline: var(--notch-r)` is the shell's own
+     * padding — with square upper corners: one dark surface, the way supaste.com (the bar's
+     * model, see above), apple.com and linear.app open theirs.
+     *
+     * `flex-grow` 0 → 1 is what widens it, because the flexbox spec makes that continuous (a
+     * value under 1 takes that share of the free space): the bar grows from its own width, with
+     * nothing measured and no script, where `width: auto` → `100%` cannot be animated yet in
+     * Safari or Firefox (MDN: `interpolate-size` is not Baseline, read 2026-10-01).
+     *
+     * The site's scroll condense is paused while it is open, so the bar is back at its full
+     * --notch-h, which is where the panel starts — 1px higher, so no seam can open between them.
+     */
+    .notch-shell:has(.notch__menu:popover-open) .notch {
+      flex-grow: 1;
+      border-end-start-radius: 0;
+      border-end-end-radius: 0;
+      box-shadow: none;
+      animation: none;
+    }
+
+    /*
+     * ⚠️ BUG 1, DESIGNED OUT: only the open rule below gives the list a `display` on a phone.
+     * An author `display` on a [popover] beats the browser's
+     * `[popover]:not(:popover-open) { display: none }` whatever the specificity, so the old
+     * inherited `.notch__nav { display: flex }` showed a "closed" menu open.
+     * publicSite.test.ts refuses any other rule that sets it. Everything ELSE is on the closed
+     * list as well, so the panel keeps its place and shape while it fades out.
      *
      * ⚠️ BUG 2, DESIGNED OUT: the browser styles [popover] `width: fit-content`, so two
      * insets alone left the panel 153-157px wide in all three engines. `width: auto` restores
-     * the two-inset stretch: 366px of 366 in each (measured 2026-09-23). Never 100vw, which
-     * includes a classic scrollbar.
+     * the two-inset stretch (measured 2026-09-23). Never 100vw, which includes a classic
+     * scrollbar.
      *
      * Fixed under the bar at the height the bar is built from (--notch-h), not anchored: the
      * bar is at the top of the viewport on both hosts, and anchor positioning was still being
      * corrected in Safari 26.5.
+     *
+     * MOTION (VA-51): it drops from the bar — a fade and a `scale` from its top edge, on --ui
+     * and --ease, the curve the bar widens on — and goes back into it faster, on --instant.
+     * While it closes, `display` and `overlay` ride the transition (allow-discrete, MDN's
+     * popover pattern) so the exit is seen however the menu closes: its button, Escape or a
+     * tap outside. ONLY while it closes: see `[data-closing]` below. Reduced motion makes it
+     * all instant (base.css). A scroll inside the menu stays in the menu.
+     *
+     * The shadow is clipped at the top edge: cast upward it lay across the bar's lower half,
+     * a dark band through the join in dark mode.
      */
-    .notch__menu:popover-open {
-      display: flex;
+    .notch__menu {
       flex-direction: column;
       align-items: stretch;
       gap: 4px;
       position: fixed;
-      inset-block-start: var(--notch-h);
-      inset-inline: 12px;
+      inset-block-start: calc(var(--notch-h) - 1px);
+      inset-inline: var(--notch-r);
       width: auto;
       margin: 0;
       padding: 12px;
       border: none;
-      border-radius: var(--notch-r);
+      border-radius: 0 0 var(--notch-r) var(--notch-r);
       background: var(--notch-bg);
       color: var(--notch-text);
       box-shadow: var(--shadow-raised);
+      clip-path: inset(0 -32px -32px);
       max-block-size: calc(100svh - var(--notch-h) - 12px);
       overflow: auto;
+      overscroll-behavior: contain;
+      transform-origin: top center;
+      opacity: 0;
+      scale: 1 0.94;
+      transition:
+        opacity var(--instant) var(--ease),
+        scale var(--instant) var(--ease);
+    }
+
+    /*
+     * ⚠️ THE EXIT KEEPS THE PANEL DRAWN ONLY WHILE IT IS CLOSING. On the plain list this
+     * transition also ran when a phone turned from landscape to portrait — the inline links
+     * became the hidden menu and the exit played for 120ms in the panel's shape (LA-06 in
+     * navbar.spec.ts caught it). `data-closing` is set by markMenuClosing
+     * (packages/shared/src/siteBar.ts) on `beforetoggle`, which fires for every way a popover
+     * closes and for no change of layout. Without script the menu closes at once.
+     */
+    .notch__menu[data-closing] {
+      transition:
+        opacity var(--instant) var(--ease),
+        scale var(--instant) var(--ease),
+        display var(--instant) allow-discrete,
+        overlay var(--instant) allow-discrete;
+    }
+
+    .notch__menu:popover-open {
+      display: flex;
+      opacity: 1;
+      scale: 1;
+      transition-duration: var(--ui);
+    }
+
+    @starting-style {
+      .notch__menu:popover-open {
+        opacity: 0;
+        scale: 1 0.94;
+      }
     }
 
     /* Full-width rows, 44px tall, as the owner approved them. */
@@ -686,6 +776,24 @@
     .notch__menu:popover-open .theme-toggle {
       width: 100%;
       justify-content: flex-start;
+    }
+
+    /* The rows arrive one after another, --stagger apart (VA-51). An animation, not a
+       transition, so a row's own hover and press transitions are untouched. */
+    .notch__menu:popover-open > * {
+      animation: notch-row-in var(--ui) var(--ease) both;
+    }
+
+    .notch__menu:popover-open > :nth-child(2) {
+      animation-delay: var(--stagger);
+    }
+
+    .notch__menu:popover-open > :nth-child(3) {
+      animation-delay: calc(var(--stagger) * 2);
+    }
+
+    .notch__menu:popover-open > :nth-child(4) {
+      animation-delay: calc(var(--stagger) * 3);
     }
   }
 

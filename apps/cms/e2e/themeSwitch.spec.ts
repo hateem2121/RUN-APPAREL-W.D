@@ -112,6 +112,13 @@ test.describe('XS-05 — the light/dark switch on the site', () => {
     await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
     await expect(page.locator(OPEN)).toHaveCount(1)
     await expect(theSwitch).toBeVisible()
+    // Measured once the menu has landed: it drops in on a scale from 0.94 (VA-51), and even
+    // reduced motion's 0.01ms leaves one frame at 41.4px (44 x 0.94), caught in the full suite.
+    await page.waitForFunction(() =>
+      (document.querySelector('.notch-shell') as HTMLElement)
+        .getAnimations({ subtree: true })
+        .every((a) => a.playState !== 'running' || a.timeline !== document.timeline),
+    )
     expect((await theSwitch.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.95)
     await theSwitch.click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')

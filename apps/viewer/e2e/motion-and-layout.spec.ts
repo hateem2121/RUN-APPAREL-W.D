@@ -581,6 +581,13 @@ test.describe('the bar survives a phone', () => {
       expect(m.button).toEqual([44, 44])
       await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
       await expect(page.locator(OPEN)).toHaveCount(1)
+      // Measured once the menu has landed: it drops in on a scale from 0.94 (VA-51), and a row
+      // read mid-entry was 41.4px (44 x 0.94) in the full suite, 2026-10-01.
+      await page.waitForFunction(() =>
+        (document.querySelector('.notch-shell') as HTMLElement)
+          .getAnimations({ subtree: true })
+          .every((a) => a.playState !== 'running' || a.timeline !== document.timeline),
+      )
       const rows = await page
         .locator(`${MENU} a, ${MENU} button`)
         .evaluateAll((elements) =>

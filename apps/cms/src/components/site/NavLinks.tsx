@@ -1,6 +1,6 @@
 'use client'
 
-import { SITE_MENU_ID, SITE_NAV_LINKS } from '@run-apparel/shared'
+import { markMenuClosing, SITE_MENU_ID, SITE_NAV_LINKS } from '@run-apparel/shared'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
@@ -61,6 +61,12 @@ export function NavLinks() {
     })
     observer.observe(button)
     return () => observer.disconnect()
+  }, [])
+
+  // The menu's exit is drawn only while it closes, never on a change of layout (VA-51).
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    return menu ? markMenuClosing(menu) : undefined
   }, [])
 
   return (

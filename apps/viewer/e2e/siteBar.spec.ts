@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 import {
   SITE_BAR_WORDMARK,
   SITE_MENU_ID,
@@ -6,6 +6,18 @@ import {
   siteBarAriaSnapshot,
 } from '../../../packages/shared/src/siteBar'
 import { contrastOf, parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
+
+/**
+ * The phone menu has finished arriving: the bar widened, the panel dropped in on a scale from
+ * 0.94 and the rows faded in (VA-51). Anything that measures the open menu waits for this — a
+ * row read mid-entry was 41.4px, and even reduced motion's 0.01ms leaves one frame.
+ */
+const menuLanded = (page: Page) =>
+  page.waitForFunction(() =>
+    (document.querySelector('.notch-shell') as HTMLElement)
+      .getAnimations({ subtree: true })
+      .every((a) => a.playState !== 'running' || a.timeline !== document.timeline),
+  )
 
 /**
  * XS-02, XS-01, TY-08 — ONE menu bar on both hosts (owner decision 2026-09-17: "Same menu bars
@@ -170,6 +182,10 @@ test.describe('the page still scrolls after the menu — the viewer (SC-11)', ()
         'hidden',
       )
       expect(locked.lenisStopped, `${after}: smooth scrolling is left stopped`).toBe(false)
+      // The bar narrows back on --ui once the menu closes (VA-51). Aimed at mid-narrowing, the
+      // wheel landed beside the finished bar, on the 3D stage, and turned the garment instead
+      // (WebKit and Firefox, 2026-10-01). Aim where the bar ends up.
+      await menuLanded(page)
       const bar = await page.locator('header.notch-shell .notch').boundingBox()
       if (!bar) throw new Error('no bar to wheel over')
       await page.mouse.move(bar.x + 8, bar.y + bar.height / 2)
@@ -206,6 +222,7 @@ test.describe('the page still scrolls after the menu — the viewer (SC-11)', ()
 
     await button.click()
     await expect(page.locator(open)).toHaveCount(1)
+    await menuLanded(page)
     const point = await page.evaluate((selector) => {
       const panel = document.querySelector(selector)?.getBoundingClientRect()
       if (!panel) return null
