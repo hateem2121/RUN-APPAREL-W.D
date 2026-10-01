@@ -1,6 +1,7 @@
 import { buildImportedRow, type FileColour, type ImportedRow } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import {
+  defaultScratchRoot,
   modelKeyFor,
   PIPELINE_PACKAGES,
   pickSingle,
@@ -16,6 +17,23 @@ import {
  * 2026-09-27, $0 container cost). Its refusals are what keep a Mac-made model identical to
  * a robot-made one; each is tested here against the input that would break that promise.
  */
+
+describe('defaultScratchRoot', () => {
+  // GitHub's code scan (CodeQL js/insecure-temporary-file, 2026-10-01) flagged a fixed-name
+  // folder in the shared temp directory. The name stays fixed so a run can resume; the
+  // folder moves to the user's own cache, which no other account can write to.
+  it('uses the owner’s private cache folder, never the shared temp folder', () => {
+    expect(defaultScratchRoot({}, '/Users/someone')).toBe(
+      '/Users/someone/Library/Caches/run-apparel-process-local',
+    )
+  })
+
+  it('still honours PROCESS_LOCAL_SCRATCH when it is set', () => {
+    expect(defaultScratchRoot({ PROCESS_LOCAL_SCRATCH: '/Volumes/x/s' }, '/Users/someone')).toBe(
+      '/Volumes/x/s',
+    )
+  })
+})
 
 describe('pipelineOutputReason', () => {
   it('lets a raw CLO export through', () => {

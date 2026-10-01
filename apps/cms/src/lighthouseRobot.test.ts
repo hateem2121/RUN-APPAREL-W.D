@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PRODUCT } from '../../../scripts/live-products.mjs'
 import {
@@ -15,6 +17,7 @@ import {
   PAGES,
   PERFORMANCE_FLOORS,
   type Run,
+  readReport,
   readRun,
 } from '../../../scripts/lighthouse-robot.mjs'
 
@@ -526,5 +529,37 @@ describe('each measuring machine has its own floors', () => {
     expect((readRun(report) as { rttMs: number | null }).rttMs).toBeNull()
     Object.assign(report.audits, { 'network-rtt': { score: null, numericValue: 212.4 } })
     expect((readRun(report) as { rttMs: number | null }).rttMs).toBe(212.4)
+  })
+})
+
+/**
+ * Reading one saved report file. Pinned before 2026-10-01's change from "check it exists,
+ * then read it" to one read that handles a missing file: GitHub's code scan flags the
+ * check-then-read as a race (js/file-system-race). These cases held before and after.
+ */
+describe('readReport', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'lighthouse-report-'))
+
+  it('treats a missing report as "no report was written"', () => {
+    expect(readReport(join(dir, 'never-written.json'))).toEqual(readRun(null))
+  })
+
+  it('treats an empty report the same way', () => {
+    const file = join(dir, 'empty.json')
+    writeFileSync(file, '')
+    expect(readReport(file)).toEqual(readRun(null))
+  })
+
+  it('says so when the report is not valid JSON', () => {
+    const file = join(dir, 'broken.json')
+    writeFileSync(file, '{ not json')
+    expect(readReport(file)).toEqual({ missing: true, reason: 'the report was not valid JSON' })
+  })
+
+  it('reads a real report', () => {
+    const file = join(dir, 'real.json')
+    const lhr = { categories: { performance: { score: 0.9, auditRefs: [] } }, audits: {} }
+    writeFileSync(file, JSON.stringify(lhr))
+    expect(readReport(file)).toEqual(readRun(lhr))
   })
 })

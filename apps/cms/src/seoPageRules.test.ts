@@ -84,17 +84,16 @@ describe('the defect this file was written for', () => {
 })
 
 describe('one planted defect, one finding', () => {
-  const head = (extra: string, drop?: RegExp) =>
-    good({
-      head: `${`<title>X-MILO PRO SKIN-SUIT — Wine | RUN APPAREL</title>
+  // Drops one tag only when asked. It used to replace a never-matching /$^/ when nothing
+  // was to be dropped — a no-op GitHub's code scan flags (js/identity-replacement).
+  const head = (extra: string, drop?: RegExp) => {
+    const tags = `<title>X-MILO PRO SKIN-SUIT — Wine | RUN APPAREL</title>
          <meta name="description" content="Race fit · 88% Nylon / 12% Spandex, 160 - 220 GSM. Shown in Wine. See all 5 colorways in 3D." />
          <meta property="og:image" content="https://wear-run.com/og/rxps/wine.jpg" />
          <link rel="canonical" href="${URL_}" />
-         <script type="application/ld+json">{"@type":"Product"}</script>`.replace(
-        drop ?? /$^/,
-        '',
-      )}${extra}`,
-    })
+         <script type="application/ld+json">{"@type":"Product"}</script>`
+    return good({ head: `${drop ? tags.replace(drop, '') : tags}${extra}` })
+  }
 
   it.each([
     ['status', () => rules(good(), 404)],
@@ -187,6 +186,15 @@ describe('across the site', () => {
   it('ignores a page that did not answer 200, which has its own finding', () => {
     const broken = { ...page('https://x/b', 'A', 'One.'), status: 404 }
     expect(checkSite([page('https://x/a', 'A', 'One.'), broken])).toEqual([])
+  })
+})
+
+describe('text as a reader sees it', () => {
+  it('decodes each entity once — a heading that SHOWS &lt; keeps it', () => {
+    // GitHub's code scan (CodeQL js/double-escaping, 2026-10-01): `&amp;` was decoded
+    // first, so `&amp;lt;` (a page showing the four characters &lt;) became `<`.
+    const html = '<html><head><title>T</title></head><body><h1>A &amp;lt; B</h1></body></html>'
+    expect(readPage(html).h1).toEqual(['A &lt; B'])
   })
 })
 

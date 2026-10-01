@@ -246,6 +246,24 @@ export function buildEvent(options: BuildEventOptions): Record<string, unknown> 
 
   const frames = parseStack(isError ? error.stack : undefined)
 
+  // The cause chain, root cause FIRST: Sentry's spec sorts chained exceptions "oldest to
+  // newest". Drizzle wraps D1's own error as `cause`; without this, Sentry CMS-3/CMS-4
+  // showed only "Failed query: …" and never why D1 refused (2026-10-01). Bounded, so a
+  // cause that points back at itself cannot loop.
+  const causes: Record<string, unknown>[] = []
+  const seen = new Set<unknown>([error])
+  let cause: unknown = isError ? error.cause : undefined
+  while (cause !== undefined && cause !== null && !seen.has(cause) && causes.length < 4) {
+    seen.add(cause)
+    const causeFrames = parseStack(cause instanceof Error ? cause.stack : undefined)
+    causes.unshift({
+      type: cause instanceof Error ? cause.name : 'Error',
+      value: cause instanceof Error ? cause.message : String(cause),
+      ...(causeFrames.length ? { stacktrace: { frames: causeFrames } } : {}),
+    })
+    cause = cause instanceof Error ? cause.cause : undefined
+  }
+
   const tags: Record<string, string> = { runtime: 'cloudflare-workers' }
   if (context?.routerKind) tags.router_kind = context.routerKind
   if (context?.routeType) tags.route_type = context.routeType
@@ -264,6 +282,7 @@ export function buildEvent(options: BuildEventOptions): Record<string, unknown> 
     tags,
     exception: {
       values: [
+        ...causes,
         {
           type: isError ? error.name : 'Error',
           value,

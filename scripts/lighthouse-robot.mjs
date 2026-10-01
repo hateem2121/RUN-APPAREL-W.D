@@ -55,7 +55,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -433,10 +433,19 @@ function runLighthouse(url, formFactor, file) {
   }
 }
 
-function readReport(file) {
-  if (!existsSync(file) || statSync(file).size === 0) return readRun(null)
+export function readReport(file) {
+  // One read, not "does it exist? then read it": the file can change between the two
+  // (GitHub code scan, js/file-system-race, 2026-10-01). Missing or empty = no report.
+  let text
   try {
-    return readRun(JSON.parse(readFileSync(file, 'utf8')))
+    text = readFileSync(file, 'utf8')
+  } catch (error) {
+    if (error?.code === 'ENOENT') return readRun(null)
+    throw error
+  }
+  if (text === '') return readRun(null)
+  try {
+    return readRun(JSON.parse(text))
   } catch {
     return { missing: true, reason: 'the report was not valid JSON' }
   }

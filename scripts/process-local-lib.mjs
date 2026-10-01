@@ -8,6 +8,24 @@
  */
 
 /**
+ * Where the script keeps its working files when PROCESS_LOCAL_SCRATCH is not set.
+ *
+ * WHY NOT THE TEMP FOLDER (2026-10-01). It was `os.tmpdir()/run-apparel-process-local`.
+ * GitHub's code scan (CodeQL js/insecure-temporary-file) flags a FIXED name in the shared
+ * temp folder: another account on the machine could create it first and read or swap the
+ * files. The name must stay fixed — a run resumes from it and keeps `finished/` and
+ * `reports/` — so the folder moves to the user's own cache instead, which only they can
+ * write. Still outside the repository and the owner's garment folder, as main() checks.
+ *
+ * @param {Record<string, string | undefined>} env
+ * @param {string} home
+ * @returns {string}
+ */
+export function defaultScratchRoot(env, home) {
+  return env.PROCESS_LOCAL_SCRATCH ?? `${home}/Library/Caches/run-apparel-process-local`
+}
+
+/**
  * Is this glTF already pipeline output rather than a raw CLO export?
  *
  * ⚠️ A SECOND PASS SILENTLY DROPS ARTWORK PROTECTION (root CLAUDE.md, 🔴). The

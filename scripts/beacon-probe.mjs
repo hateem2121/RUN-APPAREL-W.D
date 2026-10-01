@@ -17,6 +17,7 @@
  *   node scripts/beacon-probe.mjs
  */
 import { realpathSync } from 'node:fs'
+import { escapeRegExp } from '../apps/cms/regexEscape.mjs'
 
 /** The home page and one garment page, both on wear-run.com since the domain move (2026-09-28). */
 export const PAGES = ['https://wear-run.com/', 'https://wear-run.com/products/rxps/wine']
@@ -24,7 +25,11 @@ export const BEACON_SRC = 'static.cloudflareinsights.com/beacon.min.js'
 
 /** Pure: does this (whole-body) HTML contain a beacon `<script src>` tag? */
 export function hasBeaconTag(html) {
-  return new RegExp(`<script[^>]*\\ssrc=["'][^"']*${BEACON_SRC}[^"']*["']`, 'i').test(html)
+  // Escaped: an unescaped `.` matched any character, so a look-alike host passed
+  // (GitHub code scan, js/incomplete-hostname-regexp, 2026-10-01).
+  return new RegExp(`<script[^>]*\\ssrc=["'][^"']*${escapeRegExp(BEACON_SRC)}[^"']*["']`, 'i').test(
+    html,
+  )
 }
 
 async function main() {

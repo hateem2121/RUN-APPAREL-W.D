@@ -60,12 +60,6 @@ type Cached<T> = { value: T; expires: number }
 let settingsCache: Cached<PublicSiteSettings> | null = null
 let productsCache: Cached<ProductCard[]> | null = null
 
-/** Exported for the tests, which must not depend on wall-clock timing to prove a miss. */
-export function __clearContentCache(): void {
-  settingsCache = null
-  productsCache = null
-}
-
 let cachedPayload: Awaited<ReturnType<typeof getPayload>> | null = null
 
 async function client() {
@@ -96,7 +90,12 @@ export async function getSiteSettings(): Promise<PublicSiteSettings> {
      * page it is reporting about.
      */
     void reportCaught('content.site-settings', err)
-    console.error('[content] site-settings unavailable, using defaults:', err)
+    console.error(
+      '[content] site-settings unavailable, using defaults:',
+      err,
+      // D1's own message travels as `cause` (Drizzle wraps it); the stack alone said nothing.
+      err instanceof Error ? err.cause : undefined,
+    )
     return FALLBACK_SITE_SETTINGS
   }
 }
@@ -123,7 +122,11 @@ export async function getProductCards(): Promise<ProductCard[]> {
   } catch (err) {
     // Same reasoning as site-settings above: caught on purpose, so nothing else sees it.
     void reportCaught('content.products', err)
-    console.error('[content] products unavailable:', err)
+    console.error(
+      '[content] products unavailable:',
+      err,
+      err instanceof Error ? err.cause : undefined,
+    )
     return []
   }
 }

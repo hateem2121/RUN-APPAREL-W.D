@@ -16,4 +16,8 @@
  */
 export const THEME_STORAGE_KEY = 'run-theme'
 
-export const THEME_BOOT_SCRIPT = `(()=>{try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}})()`
+// The key goes in as a plain quoted literal. It is a fixed word of letters and hyphens, so
+// it needs no escaping, and themeBoot.test.ts fails if it ever stops being one. It was
+// JSON.stringify until 2026-10-01, which GitHub's code scan flags as an unsafe escape for
+// script code (js/bad-code-sanitization).
+export const THEME_BOOT_SCRIPT = `(()=>{try{var t=localStorage.getItem('${THEME_STORAGE_KEY}');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}})()`

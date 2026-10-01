@@ -104,6 +104,14 @@ jobs:
       # left the orphan finder blind to the new field — and it can delete files.
       - run: pnpm lint
 
+      # REPORT ONLY (2026-10-01, owner-approved plan): Knip lists unused files, exports
+      # and packages. `--no-exit-code` keeps it from ever failing `verify`; read its list
+      # in this step's log. knip.jsonc names the files tools run directly (scripts, hooks,
+      # e2e servers), which took the first run from 87 "unused files" to 0. Make it
+      # blocking only by owner decision, once it has stayed quiet.
+      - name: Unused code report (Knip, does not block)
+        run: pnpm exec knip --no-exit-code
+
       # ⚠️ A REAL YAML PARSER, BECAUSE THE HAND-WRITTEN RULE CATCHES ONE SHAPE IN FOUR.
       #
       # `workflowHardening.test.ts` is line-and-regex based. It caught the 2026-08-30

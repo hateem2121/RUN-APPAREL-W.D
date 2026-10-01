@@ -42,12 +42,6 @@ export interface MigrationArgs {
   req: Record<string, unknown>
 }
 
-export interface Migration {
-  name: string
-  up: (args: never) => Promise<void>
-  down: (args: never) => Promise<void>
-}
-
 const dialect = new SQLiteSyncDialect()
 
 /** Open an in-memory database with the same foreign-key behaviour D1 has. */

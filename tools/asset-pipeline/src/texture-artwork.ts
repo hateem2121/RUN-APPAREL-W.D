@@ -487,11 +487,6 @@ export async function findArtworkAlphaProblems(document: Document): Promise<Artw
   return (await auditArtworkAlpha(document)).problems
 }
 
-/** The warnings only. */
-export async function findSoftArtworkOnBlend(document: Document): Promise<SoftArtworkOnBlend[]> {
-  return (await auditArtworkAlpha(document)).soft
-}
-
 /**
  * The GENEROUS classifier: does this picture deserve the higher compression budget?
  * Feeds `compressTexturesForArtwork` and the crushed-artwork warning. Since
