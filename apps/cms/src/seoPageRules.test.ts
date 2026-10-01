@@ -84,17 +84,16 @@ describe('the defect this file was written for', () => {
 })
 
 describe('one planted defect, one finding', () => {
-  const head = (extra: string, drop?: RegExp) =>
-    good({
-      head: `${`<title>X-MILO PRO SKIN-SUIT — Wine | RUN APPAREL</title>
+  // Drops one tag only when asked. It used to replace a never-matching /$^/ when nothing
+  // was to be dropped — a no-op GitHub's code scan flags (js/identity-replacement).
+  const head = (extra: string, drop?: RegExp) => {
+    const tags = `<title>X-MILO PRO SKIN-SUIT — Wine | RUN APPAREL</title>
          <meta name="description" content="Race fit · 88% Nylon / 12% Spandex, 160 - 220 GSM. Shown in Wine. See all 5 colorways in 3D." />
          <meta property="og:image" content="https://wear-run.com/og/rxps/wine.jpg" />
          <link rel="canonical" href="${URL_}" />
-         <script type="application/ld+json">{"@type":"Product"}</script>`.replace(
-        drop ?? /$^/,
-        '',
-      )}${extra}`,
-    })
+         <script type="application/ld+json">{"@type":"Product"}</script>`
+    return good({ head: `${drop ? tags.replace(drop, '') : tags}${extra}` })
+  }
 
   it.each([
     ['status', () => rules(good(), 404)],

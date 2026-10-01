@@ -21,6 +21,8 @@ import { breadcrumbJsonLd, faqJsonLd } from './structuredData'
 const FRONTEND = join(import.meta.dirname, '..', 'app', '(frontend)')
 const ORIGIN = 'https://wear-run.com'
 const BRAND_SUFFIX = ' — RUN APPAREL'
+/** A buyer-page title must LEAD with the term a buyer types. */
+const LEADS_WITH_SEARCH_TERM = /^(?:custom|private label)/i
 
 const everyWord = (page: (typeof FAMILY_PAGES)[number]): string =>
   [
@@ -78,10 +80,18 @@ describe('what a search result shows', () => {
 
     it(`${page.path}: the title and the heading both say what a buyer searches for`, () => {
       expect(page.title).toMatch(/manufacturer/i)
-      expect(page.title).toMatch(/^custom|private label/i)
+      expect(page.title).toMatch(LEADS_WITH_SEARCH_TERM)
       expect(`${page.heading} ${page.headingAccent}`).toMatch(/custom|private label/i)
     })
   }
+
+  it('negative control: a title with the search term NOT first is refused', () => {
+    // GitHub's code scan (CodeQL js/regex/missing-regexp-anchor, 2026-10-01): written as
+    // /^custom|private label/i, the `^` bound to "custom" alone, so "private label"
+    // passed anywhere in the title. Every live title leads with the term; this pins it.
+    expect('Casual Wear Private Label Manufacturer').not.toMatch(LEADS_WITH_SEARCH_TERM)
+    expect('Private Label Casual Wear Manufacturer').toMatch(LEADS_WITH_SEARCH_TERM)
+  })
 
   it('no two buyer pages share a title or a description', () => {
     expect(new Set(FAMILY_PAGES.map((page) => page.title)).size).toBe(FAMILY_PAGES.length)
