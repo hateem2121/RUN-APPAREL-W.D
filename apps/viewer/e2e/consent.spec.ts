@@ -52,6 +52,11 @@ async function openGarment(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/n001/wine')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  // ⚠️ WAIT FOR App.tsx's FOCUS HAND-OFF, or it lands mid-test. It moves focus to the page
+  // wrapper once the preloader leaves, which can be after the <h1> shows: a Tab pressed
+  // before it reached the skip link, then the hand-off took focus away ("inactive"). PR #110's
+  // CI failed "after the skip link…" on WebKit twice that way; 1 in 40 locally.
+  await page.waitForFunction(() => document.activeElement?.id === 'viewer-top')
 }
 
 const banner = (page: Page) => page.getByRole('region', { name: 'Cookie choice' })
