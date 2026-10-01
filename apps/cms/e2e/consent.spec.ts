@@ -524,3 +524,58 @@ test.describe('the cookie choice', () => {
     }
   })
 })
+
+/*
+ * VA-25 (owner, 2026-10-01, from an iPhone): a pale band sat under the dark footer. While the
+ * question is open base.css keeps 11rem of room at the page's foot, and it took the paper colour;
+ * an iPhone's bounce then showed more paper below it.
+ */
+test.describe('the room under the footer (VA-25)', () => {
+  test("with the question open, the room kept at the foot is the footer's colour", async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await expect(banner(page)).toBeVisible()
+    const look = await page.evaluate(() => {
+      const room = getComputedStyle(document.body, '::after')
+      const slab = document.querySelector('.site-footer__slab') as HTMLElement
+      return {
+        height: room.blockSize,
+        room: room.backgroundColor,
+        footer: getComputedStyle(slab).backgroundColor,
+      }
+    })
+    expect(look.height, 'the room is not the 11rem the card needs').toBe('176px')
+    expect(look.room, 'the room under the footer is not the footer colour').toBe(look.footer)
+  })
+
+  test.describe('on a touch phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+    test("the canvas a bounce shows below the page is the footer's colour too", async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
+      await page.goto('/')
+      const look = await page.evaluate(() => ({
+        touch: matchMedia('(hover: none)').matches,
+        canvas: getComputedStyle(document.documentElement).backgroundColor,
+        page: getComputedStyle(document.body).backgroundColor,
+        footer: getComputedStyle(document.querySelector('.site-footer__slab') as HTMLElement)
+          .backgroundColor,
+      }))
+      expect(look.touch, 'the emulated phone reports hover — this test measures nothing').toBe(true)
+      // Polled: the root's background has a 500ms colour transition for theme changes, and
+      // WebKit runs it once as the page loads (measured 2026-10-01: ink at 0.75 alpha at load,
+      // solid 500ms later). The settled colour is what a bounce shows.
+      await expect
+        .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor))
+        .toBe(look.footer)
+      // NEGATIVE CONTROL: the page itself keeps its paper; only the canvas beyond it changed.
+      expect(look.page).not.toBe(look.footer)
+    })
+  })
+})

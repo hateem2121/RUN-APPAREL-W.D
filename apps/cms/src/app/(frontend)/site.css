@@ -418,6 +418,31 @@ html {
 }
 
 /*
+ * ⚠️ THE ROOM KEPT FOR THE COOKIE QUESTION IS THE FOOTER'S COLOUR (visual audit VA-25). While the
+ * question is open, base.css adds 11rem of empty room at the page's foot so the last links can
+ * scroll clear of the card. It took the page's paper colour, so on a phone a pale band a third
+ * of a screen tall sat under the dark footer — reported by the owner from an iPhone. The footer
+ * is the last thing on every page of this site, so the room now reads as more footer. The value
+ * is `--footer-bg`'s, which is scoped to the footer and cannot be read from here.
+ */
+:root:has(.consent) body::after {
+  background: light-dark(var(--ink), var(--raised));
+}
+
+/*
+ * ⚠️ ON A PHONE THE CANVAS BEYOND THE PAGE IS THAT COLOUR TOO. An iPhone's bounce at the foot of a
+ * page shows the canvas below the footer, which was paper: the same pale band, for a moment, on
+ * every page. `body` keeps its own paper background, so nothing on the page changes; only the
+ * overscroll shows the footer's colour, and at the top it meets the bar's. Phones only, because
+ * a desktop's rubber-band at the top of a light page would show a dark band for no reason.
+ */
+@media (width < 720px) and (hover: none) {
+  html {
+    background-color: light-dark(var(--ink), var(--raised));
+  }
+}
+
+/*
  * ⚠️ THE PAGE'S WIDTH AND GUTTER ARE ONE SOURCE, BECAUSE THREE THINGS HAD TO AGREE AND
  * NOTHING MADE THEM.
  *
