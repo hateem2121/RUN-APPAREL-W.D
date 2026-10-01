@@ -1,4 +1,5 @@
 import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES, sourceMatches } from './publicViewerHeaders.mjs'
+import { escapeRegExp } from './regexEscape.mjs'
 
 /**
  * One site, three hostnames, and the rules that give it ONE address.
@@ -60,7 +61,9 @@ export const HANDED_BACK_TO_HELP = [
 ]
 const OLD_SITE_HOME = 'https://wear-run.help'
 
-export const hostPattern = (host) => `^${host.replace(/\./g, '\\.')}$`
+// Every special character escaped, not only the dot (regexEscape.mjs says why). For plain
+// host names the output is unchanged, so routes-manifest.json reads the same.
+export const hostPattern = (host) => `^${escapeRegExp(host)}$`
 
 /** The public paths the cms host hands to the main address. robots.txt deliberately stays. */
 export const CMS_PUBLIC_PATHS = [

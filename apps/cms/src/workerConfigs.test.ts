@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DOCUMENT_HOSTS, RETIRED_PATH_NAMES } from '../../../infra/apex-404/documents.js'
 import { CLEANUP_CRON, WEEKLY_CRON } from '../../../infra/apex-404/weekly.js'
+import { escapeRegExp } from '../regexEscape.mjs'
 
 /**
  * Invariants across all four wrangler configs.
@@ -244,7 +245,7 @@ describe('the apex route split (2026-09-06)', () => {
     ])
     for (const host of DOCUMENT_HOSTS) {
       expect(apex).toMatch(
-        new RegExp(`"pattern":\\s*"${host.replace(/\./g, '\\.')}",\\s*"custom_domain":\\s*true`),
+        new RegExp(`"pattern":\\s*"${escapeRegExp(host)}",\\s*"custom_domain":\\s*true`),
       )
     }
     expect(patterns(apex).some((p) => p?.endsWith('/*'))).toBe(false)

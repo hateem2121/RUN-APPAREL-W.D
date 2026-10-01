@@ -13,6 +13,8 @@
  * ⚠️ The host list must match `infra/apex-404/documents.js`; a test pins it.
  */
 
+import { escapeRegExp } from '../../regexEscape.mjs'
+
 export const PRIVATE_DOCUMENT_HOSTS = [
   'catalogue.wear-run.help',
   'catalogue.wear-run.com',
@@ -39,7 +41,7 @@ export const PRIVATE_LINK_MESSAGE =
  * hyphens are legal scheme characters) and so has no hostname at all. All four saved.
  */
 const PRIVATE_HOST_PATTERN = new RegExp(
-  `(?<![a-z0-9.-])(?:${PRIVATE_DOCUMENT_HOSTS.map((host) => host.replace(/\./g, '\\.')).join('|')})\\.?(?![a-z0-9.-])`,
+  `(?<![a-z0-9.-])(?:${PRIVATE_DOCUMENT_HOSTS.map(escapeRegExp).join('|')})\\.?(?![a-z0-9.-])`,
 )
 
 /**
