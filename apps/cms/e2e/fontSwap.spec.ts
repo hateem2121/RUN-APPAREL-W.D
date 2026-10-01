@@ -264,11 +264,20 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
    * 600ms), Archivo first and the serif 450ms later 0.0384, the CI failure. In between, the headline
    * is Archivo with a stand-in accent, a mix that splits differently again. At 448px every order
    * scored 0.0358. Archivo is held past the stand-in's first paint; the serif lands well after it.
+   *
+   * ⚠️ THE FOUR FAMILY PAGES JOINED THE SAME DAY (owner decision, `.hero-family`; the home headline
+   * keeps its swap on purpose). Measured this way before the fix, identical on a Mac and inside CI's
+   * image: teamwear 0.036 at 768px and 0.063 at 1280px (a word changes lines at every width from
+   * 768 to 1440), casual-wear 0.028 at 368px (five lines become four). Teamwear at 416px jumped
+   * on a Mac only (0.027 there, 0.001 in the image), so CI could never prove it and it is not here.
    */
   for (const [path, width] of [
     ['/privacy', 390],
     ['/privacy', 448],
     ['/terms', 344],
+    ['/custom-teamwear-manufacturer', 768],
+    ['/custom-teamwear-manufacturer', 1280],
+    ['/private-label-casual-wear-manufacturer', 368],
   ] as const) {
     test(`${path} at ${width}px, where its headline re-broke, stays at or under 0.02 when Archivo lands before the serif`, async ({
       page,

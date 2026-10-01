@@ -333,9 +333,13 @@
    Why, and the sweep behind it: the "Archivo Optional" comment above. GuidePage.tsx sets it.
    The /privacy and /terms headlines joined them (`.hero-legal`, owner decision 2026-10-01): they
    keep their line count in either font, but `text-wrap: balance` moves "you" between lines, CLS
-   0.0384 at 390px in CI. The sweep and the font order that causes it: e2e/fontSwap.spec.ts. */
+   0.0384 at 390px in CI. The sweep and the font order that causes it: e2e/fontSwap.spec.ts.
+   The four family pages joined the same day (`.hero-family`, FamilyLanding.tsx): teamwear moved
+   a word at every width from 768 to 1440px (CLS 0.063 at 1280px) and casual-wear lost a line at
+   368px. The home headline keeps its swap, by the owner's choice: it is the first impression. */
 .hero-guide,
-.hero-legal {
+.hero-legal,
+.hero-family {
   --font-display: "Archivo Optional", "Archivo Display Fallback", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif Optional", "Instrument Serif Fallback",
