@@ -75,7 +75,7 @@ pnpm --filter @run-apparel/viewer test:e2e   # its own CI job; gates the deploy 
 
 "It passed locally" has failed here because three gates are invisible from the
 workspace: `apps/shrink/container` is not a pnpm member (CI runs
-`npm install --no-audit --no-fund && npx tsc --noEmit` inside it), `eval:artwork` runs
+`npm ci --no-audit --no-fund && npx tsc --noEmit` inside it), `eval:artwork` runs
 in its own job, and `check-bundle-budget` exits 1 without a build.
 `node .claude/skills/gates/run-gates.mjs` runs all of them in order and stops at the
 first failure.

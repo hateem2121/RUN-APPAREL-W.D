@@ -204,9 +204,14 @@ jobs:
       # when a change to server.ts compiled only because someone thought to run
       # tsc there by hand. Its deps are tiny and it shares the pipeline source it
       # imports, so this costs seconds.
+      #
+      # `npm ci`, not `npm install` (2026-10-01): it installs exactly what
+      # package-lock.json says — the versions the Dockerfile's own `npm ci` ships — and
+      # fails if the lockfile is out of sync instead of quietly resolving afresh.
+      # OpenSSF Scorecard flagged the unpinned install (Pinned-Dependencies).
       - name: Typecheck shrink container
         working-directory: apps/shrink/container
-        run: npm install --no-audit --no-fund && npx tsc --noEmit
+        run: npm ci --no-audit --no-fund && npx tsc --noEmit
 
       # `test:coverage` rather than `test`: it runs the identical suites once, with
       # v8 coverage on, and each package's vitest.config.ts fails its own run on a

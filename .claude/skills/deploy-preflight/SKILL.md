@@ -86,7 +86,7 @@ documented in CLAUDE.md and a dependency change has already gone through it.
 The shrink container is **not** a workspace member, so the above skips it:
 
 ```bash
-cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit && cd -
+cd apps/shrink/container && npm ci --no-audit --no-fund && npx tsc --noEmit && cd -
 ```
 
 If a preset or anything under `tools/asset-pipeline/` changed, also run the
