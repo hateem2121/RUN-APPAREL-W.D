@@ -5,6 +5,7 @@ import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { brotliCompressSync, constants as zlib } from 'node:zlib'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.resolve(dirname, '../dist')
@@ -51,6 +52,35 @@ function loadGlobalHeaders() {
   return out
 }
 const GLOBAL_HEADERS = loadGlobalHeaders()
+
+/**
+ * ⚠️ COMPRESSED ONLY WHEN A TEST ASKS (`x-e2e-compress: 1`), AS THE LIVE SITE ALWAYS IS.
+ *
+ * Cloudflare sends this app's text files as brotli: the live stylesheet, 36,533 B, arrived as
+ * 8,805 B, and Node's brotli at quality 4 makes 8,797 B of the same file (measured 2026-10-01), so
+ * quality 4 it is. Fonts and models are already compressed, and production leaves them alone too.
+ *
+ * firstPaint.spec.ts (RO-08) asks for it. Uncompressed, every stylesheet byte cost that test about
+ * five times its own download time, sharing a 50,000 B/s line with the scripts and fonts — 1,253 B
+ * of menu styles read as +120 ms (4,776 → 4,896 ms), where a real visitor gets the brotli file.
+ * Opt-in, never global: the 1,100 other tests were measured against this server exactly as it is,
+ * and the content-length note below records what one small "harmless" change did to them.
+ */
+const COMPRESSIBLE = new Set(['.html', '.css', '.js', '.mjs', '.json', '.svg', '.txt'])
+
+function sendBody(req, res, body, ext) {
+  const wanted =
+    req.headers['x-e2e-compress'] === '1' &&
+    /\bbr\b/.test(String(req.headers['accept-encoding'] ?? '')) &&
+    COMPRESSIBLE.has(ext)
+  if (!wanted) {
+    res.end(body)
+    return
+  }
+  res.setHeader('content-encoding', 'br')
+  res.setHeader('vary', 'accept-encoding')
+  res.end(brotliCompressSync(Buffer.from(body), { params: { [zlib.BROTLI_PARAM_QUALITY]: 4 } }))
+}
 
 /**
  * Remove the Cloudflare Web Analytics beacon from the served shell.
@@ -488,14 +518,18 @@ const server = http.createServer((req, res) => {
     // `/` resolves to index.html here, so the shell reaches the browser through
     // THIS branch as well as the SPA fallback below — both need the beacon gone.
     if (path.extname(candidate) === '.html') {
-      res.end(stripBeacon(readFileSync(candidate, 'utf8')))
+      sendBody(req, res, stripBeacon(readFileSync(candidate, 'utf8')), '.html')
+      return
+    }
+    if (req.headers['x-e2e-compress'] === '1') {
+      sendBody(req, res, readFileSync(candidate), path.extname(candidate))
       return
     }
     createReadStream(candidate).pipe(res)
     return
   }
   res.setHeader('content-type', 'text/html; charset=utf-8')
-  res.end(stripBeacon(readFileSync(path.join(DIST, 'index.html'), 'utf8')))
+  sendBody(req, res, stripBeacon(readFileSync(path.join(DIST, 'index.html'), 'utf8')), '.html')
 })
 
 server.listen(PORT, () => {
