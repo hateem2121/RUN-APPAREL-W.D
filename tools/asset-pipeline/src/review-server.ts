@@ -71,7 +71,6 @@ export {
   MIN_ABS_OVERLAY_BIAS,
   MIN_NEAR,
   NEAR_FRACTION,
-  PRODUCTION_ENVIRONMENT_FILE,
   PRODUCTION_ENVIRONMENT_URL,
   productionEnvironmentPath,
 } from './viewer-page'
