@@ -5,6 +5,7 @@ import {
   THEME_SWITCH_NAMES,
 } from '../../../packages/shared/src/siteBar'
 import { parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
+import { PHONE_QUERY, THEME_COLOR } from '../src/lib/themeColor'
 
 const OPEN = `#${SITE_MENU_ID}:popover-open`
 
@@ -41,14 +42,20 @@ test.describe('XS-05 — the light/dark switch on the site', () => {
     await expect(
       page.getByRole('button', { name: THEME_SWITCH_NAMES.toLight, exact: true }),
     ).toBeVisible()
-    // The phone's browser bar follows the choice (the viewer's N6): one colour, no media.
+    // The phone's browser bar follows the choice (the viewer's N6): every tag takes the dark
+    // colour of its kind — the bar's on phones, the page's elsewhere — and keeps its own media,
+    // so a desktop never takes the phone colour (VA-50).
     const metas = await page
       .locator('meta[name="theme-color"]')
       .evaluateAll((tags) =>
         tags.map((tag) => `${tag.getAttribute('content')}|${tag.getAttribute('media') ?? ''}`),
       )
-    expect(metas.length).toBeGreaterThan(0)
-    for (const meta of metas) expect(meta).toBe('#1c1f18|')
+    const dark = (phone: boolean) =>
+      THEME_COLOR.find((t) => t.media.includes('dark') && t.media.includes(PHONE_QUERY) === phone)
+        ?.color
+    expect(metas).toEqual(
+      THEME_COLOR.map((t) => `${dark(t.media.includes(PHONE_QUERY))}|${t.media}`),
+    )
   })
 
   test('remembers the choice, and applies it before the first paint of the next page', async ({

@@ -11,11 +11,20 @@
          Values are `--bg` from packages/ui/src/tokens.css, which is the SOURCE OF
          TRUTH; docs/DESIGN.md is written from it and loses if the two disagree.
          Duplicated here because <meta> cannot read a custom property, and pinned
-         by an e2e assertion so the duplicate cannot drift silently.
+         by scripts/themeColor.test.ts so the duplicate cannot drift silently.
+
+         VA-50 (2026-10-01): on a phone the bar's own colour, `--notch-bg`
+         (light-dark(var(--ink), var(--raised))), from the two tags that come FIRST,
+         because the first tag whose media matches wins and a phone matches both.
+         "A phone" is the status-area strip's query in packages/ui/src/notch.css.
+         Safari 26 and 27 ignore these tags (the strip is for them); Android
+         Chrome reads them.
 
          `media` follows the OPERATING SYSTEM preference and cannot see
          `data-theme`, which is what the in-page toggle sets. The inline script
          below keeps these in step when the visitor has made an explicit choice. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light) and (width < 720px) and (hover: none)" content="#1d1f1a" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark) and (width < 720px) and (hover: none)" content="#363c2f" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f1efea" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1f18" />
     <meta
@@ -155,10 +164,13 @@
             // scripts and a new block is a new hash for gen-headers to carry.
             // (Written without the tag literal on purpose: themeColor.test.ts
             // counts them, and a comment naming one is a false positive.)
-            const chosen = stored === 'light' ? '#f1efea' : '#1c1f18'
+            // Only the colour changes, never `media` (VA-50): the phone tags must
+            // keep matching phones only, and each media value must stay unique.
+            const page = stored === 'light' ? '#f1efea' : '#1c1f18'
+            const phone = stored === 'light' ? '#1d1f1a' : '#363c2f'
             for (const tag of document.querySelectorAll('meta[name="theme-color"]')) {
-              tag.setAttribute('content', chosen)
-              tag.removeAttribute('media')
+              const onPhone = (tag.getAttribute('media') || '').includes('(hover: none)')
+              tag.setAttribute('content', onPhone ? phone : page)
             }
           }
         } catch {

@@ -62,6 +62,8 @@ export function Header({ wordmark }: HeaderProps) {
 
   return (
     <header className="notch-shell">
+      {/* The phone's status area takes the bar's colour from this strip (notch.css, VA-50). */}
+      <div className="notch-strip" aria-hidden="true" />
       <div className="notch">
         {/*
           THE WORDMARK IS A LINK HOME since 2026-09-07 — owner decision D5,

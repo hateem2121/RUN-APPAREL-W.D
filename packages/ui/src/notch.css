@@ -72,6 +72,10 @@
  */
 
 .notch-shell {
+  /* The bar's colour lives on the shell, not on .notch, so the status-area strip below — the
+     bar's sibling, not its child — reads the same value (VA-50). */
+  --notch-bg: light-dark(var(--ink), var(--raised));
+
   z-index: var(--z-header);
   display: flex;
   justify-content: center;
@@ -95,8 +99,38 @@
   pointer-events: none;
 }
 
+/*
+ * ⚠️ THE STATUS-AREA STRIP: A PHONE'S CLOCK AND BATTERY SIT ON THE BAR'S COLOUR (visual audit
+ * VA-50, asked for by the owner). Safari 26 and 27 no longer paint that area from
+ * `<meta name="theme-color">`; they take the colour of a fixed element touching the page's top
+ * edge, else the page's own. So the area was paper above a dark bar — two shapes. Proven in the
+ * iOS 26.5 and iOS 27 simulators, light and dark, on every page type: with this 6px strip the
+ * whole status area takes the bar's colour and the clock and battery turn white by themselves.
+ * The page's background alone does not do it (VA-25 made it the bar's colour on phones; the
+ * area stayed paper, measured the same day).
+ *
+ * Phones only, by owner decision: Safari on a Mac tints its own toolbar the same way, and the
+ * owner kept the desktop as it is. `pointer-events: auto` because the shell's `none` is
+ * inherited, and Safari finds the strip by hit-testing, so a strip it cannot hit is a strip it
+ * does not see. It sits under the bar in paint order, so the bar still takes its own taps.
+ */
+.notch-strip {
+  display: none;
+}
+
+@media (width < 720px) and (hover: none) {
+  .notch-strip {
+    display: block;
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: 6px;
+    background: var(--notch-bg);
+    pointer-events: auto;
+  }
+}
+
 .notch {
-  --notch-bg: light-dark(var(--ink), var(--raised));
   --notch-text: light-dark(var(--paper), var(--text));
   --notch-muted: light-dark(rgba(241, 239, 234, 0.7), rgba(236, 235, 228, 0.7));
 
