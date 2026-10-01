@@ -401,7 +401,9 @@ test.describe('the cookie choice on a garment page', () => {
       (await context.cookies())
         .map((cookie) => cookie.name)
         .filter((name) => name.startsWith('_ga'))
-    expect(await gaCookies(), 'the plant did not land').toEqual(['_ga_PLANTED'])
+    // Polled, not read once: on CI's mobile Safari a page-side write was not yet in the
+    // context's cookie list on one read (PR #109's last run, then passed on retry; 30/30 here).
+    await expect.poll(gaCookies, 'the plant did not land').toEqual(['_ga_PLANTED'])
     await page.reload()
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect.poll(gaCookies, 'a Google cookie outlived Decline').toEqual([])
