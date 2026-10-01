@@ -1,0 +1,95 @@
+name: Security scans
+
+# WHY THIS FILE EXISTS (2026-10-01, owner-approved plan). Two report-only scanners that
+# write to the Security tab and block nothing: neither is a required check, and the main
+# ruleset's code-scanning rule names CodeQL only, so their alerts cannot stop a merge.
+#
+# - scorecard: OpenSSF Scorecard grades the repository's security habits. Published to
+#   scorecard.dev (publish_results: true, owner's choice) for the README badge. Publishing
+#   imposes rules on this file (github.com/ossf/scorecard-action, "Workflow
+#   Restrictions"): no workflow- or job-level `env`/`defaults`, no container/services,
+#   only checkout / upload-artifact / upload-sarif / scorecard-action / harden-runner in
+#   its job, and only its job may hold `id-token: write`. Break one and the publish fails.
+# - dockerfile: Trivy's misconfiguration scan of apps/shrink/Dockerfile. Trivy is already
+#   pinned in ci.yml, so this adds no new tool (Hadolint was considered and not taken).
+#   Pinned v0.36.0 = 2026-04-22, after the 2026-03-19 tag hijack (CVE-2026-33634).
+#
+# NOT behind vars.DEPLOY_ENABLED: it reads the repository, never production.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, Wednesdays. GitHub's schedules land 19-90 minutes late here (measured).
+    - cron: '17 5 * * 3'
+  # Scorecard re-grades when branch protection changes, as its own example does.
+  branch_protection_rule:
+  workflow_dispatch: {}
+
+# Read-only for the whole workflow: Scorecard forbids workflow-level write permissions.
+# A `permissions:` block REPLACES the defaults, so `contents: read` must stay (uptime.yml).
+permissions:
+  contents: read
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scorecard
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: scorecard.sarif
+          results_format: sarif
+          publish_results: true
+      - name: Keep the raw result (14 days)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scorecard-${{ github.sha }}
+          path: scorecard.sarif
+          retention-days: 14
+          if-no-files-found: error
+      - name: Send to the Security tab
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: scorecard.sarif
+          category: scorecard
+
+  dockerfile:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Dockerfile check (Trivy config, report only)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: apps/shrink
+          format: sarif
+          output: trivy-config.sarif
+          exit-code: '0'
+      - name: Send to the Security tab
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-dockerfile
