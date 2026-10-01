@@ -86,6 +86,12 @@ there (audit CO-02, 2026-09-11). 0.55 is the value both `prefers-contrast: more`
 already raise `--line` to, so the system gained a role, not a new number: 3.48–3.77:1 light
 and 4.10–5.13:1 dark across `--bg`, `--surface`, `--wash` and `--raised`.
 
+**`--danger` is the one error colour**, shared by both apps since 2026-10-01 (it lived in the
+website's stylesheet until then): `#b3261e` in light, `#f2b8b5` in dark, for a wrongly filled
+field, its message and a refused send's notice. The dark value exists because the light one
+measured 2.33:1 on the dark surface; each clears 6:1 on its own theme's surface (6.21:1 light,
+8.90:1 dark).
+
 `--glow` and `--grain-color` are **dark-mode-only garnish and resolve to
 `transparent` in light**, which is how `.grain` is suppressed without a second
 rule — plus explicit `display: none` fallbacks for `[data-theme='light']`.

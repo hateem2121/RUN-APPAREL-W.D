@@ -275,6 +275,8 @@ test.describe('the inquiry form', () => {
     await expect(email).toHaveAccessibleDescription('Enter an email address like name@company.com.')
     // The sentence is not part of the field's name (it sits outside the label).
     await expect(email).toHaveAccessibleName('Email')
+    // In the shared error red (VA-22: `--danger` moved to packages/ui; light theme here).
+    await expect(form.locator('#inquiry-email-error')).toHaveCSS('color', 'rgb(179, 38, 30)')
 
     // A link in the list takes the visitor to its field.
     await summary.getByRole('link', { name: 'Enter your name.' }).click()

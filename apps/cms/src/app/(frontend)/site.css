@@ -434,20 +434,7 @@ html {
  * number.
  */
 :root {
-  /*
-   * ⚠️ `light-dark()`, AND THE FIXED VALUE IT REPLACED FAILED IN DARK MODE. This marks an
-   * invalid form field and the error notice — a UI boundary, so WCAG 1.4.11 asks 3:1
-   * against its own background. Measured 2026-09-07 against `--surface`:
-   *
-   *   #b3261e on #faf9f6 (light)  6.21:1  PASS
-   *   #b3261e on #23271f (dark)   2.33:1  FAIL
-   *   #f2b8b5 on #23271f (dark)   8.90:1  PASS
-   *
-   * Declared here rather than in packages/ui: only the site has a form. It is also never
-   * the ONLY signal — the browser's own validation message says what is wrong and is
-   * announced, because colour alone would be a WCAG 1.4.1 failure.
-   */
-  --danger: light-dark(#b3261e, #f2b8b5);
+  /* `--danger`, the error red, moved to packages/ui/src/tokens.css on 2026-10-01 (VA-22). */
   /*
    * ⚠️ THE MEASURE IS 56ch AND `ch` IS NOT A CHARACTER — audit FA-C-52.
    *

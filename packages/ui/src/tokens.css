@@ -69,6 +69,15 @@
   /* ── Focus ──────────────────────────────────────────────────────── */
   --focus-ring: light-dark(var(--volt-deep), var(--volt));
 
+  /* ── Error ──────────────────────────────────────────────────────── */
+  /* A wrongly filled field, its message and a refused send's notice. Shared since 2026-10-01
+     (visual audit VA-22): it lived in the website's own stylesheet, so the 3D pages could not
+     use the same red. ⚠️ light-dark(), because the fixed value it replaced FAILED in dark mode:
+     a UI boundary needs 3:1 against its background (WCAG 1.4.11), measured 2026-09-07 against
+     --surface — #b3261e on #faf9f6 6.21:1, #b3261e on #23271f 2.33:1, #f2b8b5 on #23271f
+     8.90:1. Never the only signal: the words beside it say what is wrong (WCAG 1.4.1). */
+  --danger: light-dark(#b3261e, #f2b8b5);
+
   /* ── Motion ─────────────────────────────────────────────────────── */
   /* SPLIT, not lowered — owner decision 2026-08-14. Every duration here was
      tuned for an ENTRANCE, so a button press also took 500ms. The vendored

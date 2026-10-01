@@ -1546,12 +1546,9 @@ describe('CO-08 — every literal colour is on the palette, or a named exception
    * stylesheet must equal one of those colours (a token's rgba() at a different alpha is
    * the same colour) or be one of the exceptions below, each explained where it lives.
    */
+  // `--danger` (#b3261e / #f2b8b5) was listed here until it joined the palette in tokens.css
+  // on 2026-10-01 (visual audit VA-22); as a token it needs no exception.
   const EXCEPTIONS = [
-    {
-      file: 'site.css',
-      colours: ['#b3261e', '#f2b8b5'],
-      why: 'the contact form error colour, --danger — contrast measured beside it',
-    },
     {
       file: 'site.css',
       colours: ['#111111', '#333333', '#999999'],
