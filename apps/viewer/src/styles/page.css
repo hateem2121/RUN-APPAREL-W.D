@@ -815,8 +815,16 @@
  * 603 and the rail's clearance returns to 25px.
  */
 /*
- * The AR entry point — iOS Quick Look only, rendered only when the device can
- * actually enter AR (see `arAvailable` in Stage.tsx).
+ * The AR entry point — iOS Quick Look only. Always in model-viewer's `ar-button`
+ * slot; model-viewer shows the slot only where AR may work (see Stage.tsx).
+ *
+ * ⚠️ A 44px CUBE, NOT A WORDED PILL (visual audit VA-49, found by the owner on an
+ * iPhone). "VIEW IN YOUR SPACE" was a 162x44 pill; measured on three garments at
+ * 375, 402 and 430 wide it covered part of the garment in 6 of 9 cases and touched
+ * it in one more — and on a garment page the printed artwork IS the product. The
+ * cube covers none of the nine, with 61-128px to spare. A small cube in the top-right
+ * corner is also Apple's own sign for "view this in AR" on the web (WebKit blog, 10
+ * Oct 2018). Its name stays in words for screen readers (`aria-label`).
  *
  * ⚠️ IT IS OURS BECAUSE THE DEFAULT ONE IS THE BUG. model-viewer paints
  * `#default-ar-button` inside its shadow root, over the canvas — the same geometry
@@ -839,30 +847,36 @@
  * against a rendered garment of unknown colour, and it is the token that already
  * exists for "must stay legible on either background".
  */
-.stage__ar {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  z-index: var(--z-stage-control);
-}
-
-/* TRY 3D AGAIN (issue #41) shares the AR button's look. Shared, not copied: the viewer's stylesheet has a
-   measured Lighthouse budget (lighthouserc.json), and a second copy of these twelve lines cost 174 B over it. */
+/* TRY 3D AGAIN (issue #41) shares the AR button's surface. Shared, not copied: the viewer's stylesheet has a
+   measured Lighthouse budget (lighthouserc.json), and a second copy of these lines cost 174 B over it. */
 .stage__ar,
 .stage__retry {
   display: inline-flex;
   align-items: center;
   min-height: var(--target-min);
-  padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--dimension);
+  cursor: pointer;
+}
+
+.stage__ar {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: var(--z-stage-control);
+  justify-content: center;
+  width: var(--target-min);
+  padding: 0;
+}
+
+.stage__retry {
+  padding: 10px 14px;
   font-family: var(--font-mono);
   font-size: var(--text-mono-sm);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  cursor: pointer;
 }
 
 @media (prefers-reduced-transparency: no-preference) {

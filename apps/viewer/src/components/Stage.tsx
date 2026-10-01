@@ -101,16 +101,6 @@ export function Stage({
    * hint FIRST and a sweep second, and why the sweep is only 14 degrees.
    */
   const [cueVisible, setCueVisible] = useState(false)
-  /**
-   * Whether to offer AR at all. Driven by model-viewer's own `canActivateAR`
-   * rather than by sniffing the user agent, so it is false on desktop, false on
-   * Android (Quick Look only) and false when the model has not loaded.
-   *
-   * The button is not merely hidden when this is false — it is not rendered, so it
-   * never enters the tab order and never occupies a slot the element would then
-   * lay out.
-   */
-  const [arAvailable, setArAvailable] = useState(false)
   const cueSpentRef = useRef(false)
   /**
    * Once per visit, and permanently. A cue that returns after every colourway
@@ -385,10 +375,6 @@ export function Stage({
 
       const onLoad = () => {
         dispatchPhase({ type: 'loaded' })
-
-        // AFTER load: `canActivateAR` depends on the loaded model, and reading it
-        // before returns false on a device that can.
-        setArAvailable(mvRef.current?.canActivateAR === true)
         clampNearPlane()
         biasDecals()
         // PROPERTY first, attribute second. React sets `src` on a custom element
@@ -1003,18 +989,44 @@ export function Stage({
               ar-scale="fixed"
             >
               {/*
-                OUR button, not model-viewer's.
-                ⚠️ The default `#default-ar-button` is a Google-styled pill placed
-                inside the shadow root, over the canvas — the exact geometry
-                StageControls.tsx measured and moved OUT of `.stage__canvas` in
-                August, when it covered 26px of garment at 1440x900 and 38px at
-                390x844. Letting the default render re-creates that defect.
+                OUR button, not model-viewer's, and in the slot from the first render.
+                ⚠️ The default `#default-ar-button` is placed inside the shadow root,
+                over the canvas — the exact geometry StageControls.tsx measured and
+                moved OUT of `.stage__canvas` in August, when it covered 26px of
+                garment at 1440x900 and 38px at 390x844.
+                ⚠️ ALWAYS SLOTTED (visual audit VA-49, found by the owner on an
+                iPhone). Anything in this slot replaces the default, and model-viewer
+                shows the slot only where AR may work (modelviewer.dev, "Slots ›
+                ar-button") — on desktop and Android it is `display: none`, out of
+                layout and out of the tab order. Ours used to be rendered only after
+                `load`, which left the slot EMPTY while an iPhone parsed the model:
+                the default showed bottom-right all that time, then vanished as ours
+                appeared top-right — two buttons, two corners. And the worded pill
+                (162x44) covered the garment in 6 of 9 measured iPhone cases; the
+                cube (44x44) covered none.
               */}
-              {arAvailable && (
-                <button type="button" slot="ar-button" className="stage__ar">
-                  VIEW IN YOUR SPACE
-                </button>
-              )}
+              <button
+                type="button"
+                slot="ar-button"
+                className="stage__ar"
+                aria-label="View in your space"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M12 3 4 7.5v9l8 4.5 8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </model-viewer>
           )}
 
