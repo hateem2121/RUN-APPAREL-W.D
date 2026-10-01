@@ -329,10 +329,16 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   host-pattern alerts that were already open). Fix at the root rather than dismissing.
   The JS/TS analysis takes ~2 min and runs beside the ~13-minute CI run, so PRs wait no
   longer. Undo: `PATCH …/code-scanning/default-setup` with `languages:["actions"]`.
-  🟡 **`cache-mode` (GA 2026-09-10) is DEFERRED, not forgotten:** actionlint v1.7.12
-  (2026-03-30, the newest) predates it and errors on any unknown key ("unexpected key
-  … for "job" section"), so adding it would fail `verify` on every PR. Add it once an
-  actionlint release knows it; GitHub already defaults `pull_request` to read-only.
+  🟡 **`cache-mode` (GA 2026-09-10) is set on every workflow since 2026-10-01 EXCEPT
+  `security-scans.yml`:** `none` where no job touches the cache, `read` for android-chrome,
+  lighthouse-live and voiceover, and in ci.yml `none` with `write` on only verify, e2e,
+  audit and lighthouse (the jobs that save the pnpm store). actionlint v1.7.12 (the newest)
+  predates the key, so `.github/actionlint.yaml` ignores exactly `unexpected key
+  "cache-mode"` — a typo such as `cache-mod` still fails `verify` (checked). Scorecard's
+  publish check rejects ANY actionlint warning in the file that publishes, so
+  security-scans.yml must never get the key; Scorecard's other checks tolerate it. Note
+  setup-node caches automatically only for npm, never for this pnpm repo, so only an
+  explicit `cache: pnpm` uses a cache here. Drop the ignore once actionlint knows the key.
 
 - **🟡 CI's WebKit REPORTS A STALE COMPUTED STYLE, and no write beats it.** 2026-09-05,
   `.page`'s bottom reserve, read on one element in one pass:

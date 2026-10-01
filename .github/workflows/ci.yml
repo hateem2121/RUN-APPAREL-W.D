@@ -38,8 +38,14 @@ concurrency:
 permissions:
   contents: read
 
+# Only the four jobs that restore AND save the pnpm store (verify, e2e, audit, lighthouse)
+# get `cache-mode: write`, set on each job; every other job uses no cache and gets none
+# (GitHub `cache-mode`, 2026-10-01: least privilege against cache poisoning).
+cache-mode: none
+
 jobs:
   verify:
+    cache-mode: write
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
@@ -487,6 +493,7 @@ jobs:
   # by the local test servers, their mock data and a per-run throwaway database. The
   # seeded admin's password is the dev default already printed in apps/cms/src/seed/seed.ts.
   e2e:
+    cache-mode: write
     needs: [e2e-shard]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
@@ -561,6 +568,7 @@ jobs:
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
   # explicitly allowlisted (with justification) in audit-ci.jsonc.
   audit:
+    cache-mode: write
     # `pull-requests: read` is what dependency-review needs to diff a PR's manifests.
     # Restating `contents: read` is not optional — a job-level block REPLACES the
     # workflow default, and omitting it 404s `actions/checkout` on this private repo.
@@ -840,6 +848,7 @@ jobs:
   # (which DOES carry the DSN) is weighed by nothing. Do not read a green run as a
   # statement about the live page's script weight.
   lighthouse:
+    cache-mode: write
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
