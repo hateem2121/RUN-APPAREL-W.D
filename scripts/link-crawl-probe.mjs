@@ -93,7 +93,10 @@ export function extractLinks(text, baseUrl) {
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       const raw = match[1]
-      if (!raw || raw.startsWith('#') || raw.startsWith('javascript:') || raw.startsWith('data:')) {
+      // Script and inline-data schemes are never crawlable links, in any letter case.
+      // vbscript: and the case-insensitive match were added 2026-10-01 (GitHub code scan,
+      // js/incomplete-url-scheme-check).
+      if (!raw || raw.startsWith('#') || /^(?:javascript|vbscript|data):/i.test(raw)) {
         continue
       }
       try {
