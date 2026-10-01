@@ -33,6 +33,7 @@ export type Run =
     }
 
 export declare function readRun(lhr: unknown): Run
+export declare function readReport(file: string): Run
 
 export interface Classified {
   kind: 'valid' | 'inconclusive' | 'broken' | 'wrong-version'
