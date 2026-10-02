@@ -174,8 +174,9 @@ export const VIEWER_ANALYTICS_EVENTS = [
    * in. There is no second place that would tell you if you forgot.
    *
    * `web_vitals` is the one event that carries numbers: `lcpMs` and `cls`, stored in
-   * their own columns since 2026-09-17 (audit PF-05b). A new number needs a column,
-   * a migration and a bound in `events.ts` — the name alone is not enough for it.
+   * their own columns since 2026-09-17 (audit PF-05b), and `inpMs` since 2026-10-02 (VA-14).
+   * A new number needs a column, a migration and a bound in `events.ts` — the name alone
+   * is not enough for it.
    */
   'web_vitals',
 ] as const

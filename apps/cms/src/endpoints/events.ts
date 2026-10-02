@@ -1,4 +1,4 @@
-import { VIEWER_ANALYTICS_EVENTS } from '@run-apparel/shared'
+import { VIEWER_ANALYTICS_EVENTS, isValidProductCode } from '@run-apparel/shared'
 import type { Endpoint, PayloadRequest } from 'payload'
 import { type RateLimitState, checkRateLimit, createRateLimitState } from './eventsRateLimit'
 
@@ -13,9 +13,10 @@ import { type RateLimitState, checkRateLimit, createRateLimitState } from './eve
  * personal data are ever persisted. Always answers 204 — a fire-and-forget
  * beacon must never see a 4xx/5xx.
  *
- * The only numbers it stores are a page-speed report's two (audit PF-05b,
- * 2026-09-17): `lcpMs` and `cls`, on an `analytics` / `web_vitals` item only, and
- * only inside the bounds below.
+ * The only numbers it stores are a page-speed report's three: `lcpMs` and `cls` (audit
+ * PF-05b, 2026-09-17) and `inpMs` (visual audit VA-14, 2026-10-02), on an `analytics` /
+ * `web_vitals` item only, and only inside the bounds below. That item's `product` is kept
+ * only if it is shaped like a product code (`productOf`).
  */
 
 export const MAX_EVENT_BATCH = 20
@@ -38,14 +39,16 @@ const KNOWN_ANALYTICS = new Set<string>(VIEWER_ANALYTICS_EVENTS)
 const BOT_UA = /bot|crawler|spider|headless|preview|scan|lighthouse|monitor|run-apparel-/i
 
 /**
- * The bounds on a page-speed report's two numbers (audit PF-05b).
+ * The bounds on a page-speed report's numbers (audit PF-05b; `inpMs` joined with VA-14).
  *
- * This endpoint is unauthenticated, and a number is as easy to forge as a name, so both
- * are bounded rather than trusted: ten minutes is far past any real paint, and a
- * layout-shift score of 10 far past any real page. Outside them the NUMBER is dropped,
- * never the row — the visit still counts. Text is refused too: the viewer converts both
- * to numbers before sending (apps/viewer/src/lib/telemetry.ts), so a string here did
- * not come from the viewer.
+ * This endpoint is unauthenticated, and a number is as easy to forge as a name, so each
+ * is bounded rather than trusted: ten minutes is far past any real paint, a layout-shift
+ * score of 10 far past any real page, and a minute far past any real tap (the "poor"
+ * line for INP is 500 ms — web.dev/articles/inp, read 2026-10-02). Outside them the
+ * NUMBER is dropped, never the row — the visit still counts. Text is refused too: the
+ * viewer converts them to numbers before sending (apps/viewer/src/lib/telemetry.ts), so
+ * a string here did not come from the viewer. A 0 is not special-cased: the viewer sends
+ * no `inpMs` at all for a visit with no tap, so a 0 never comes from it.
  *
  * Exported (M4, 2026-09-23) so collections/Events.ts's field `min`/`max` can import
  * the same values instead of repeating them as literals — the two drifting would let
@@ -57,6 +60,7 @@ const BOT_UA = /bot|crawler|spider|headless|preview|scan|lighthouse|monitor|run-
  */
 export const MAX_LCP_MS = 600_000
 export const MAX_CLS = 10
+export const MAX_INP_MS = 60_000
 const WEB_VITALS = 'web_vitals'
 
 const bounded = (value: unknown, max: number): number | undefined =>
@@ -76,12 +80,27 @@ export interface EventRecord {
   lcpMs?: number
   /** Cumulative Layout Shift for the visit — `web_vitals` analytics rows only. */
   cls?: number
+  /** Interaction to Next Paint for the visit, in milliseconds — `web_vitals` rows only. */
+  inpMs?: number
 }
 
 const cap = (value: unknown, max: number): string | undefined => {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   return trimmed.length ? trimmed.slice(0, max) : undefined
+}
+
+/**
+ * The product on a row. On a page-speed report (VA-14) it must be shaped like a product code
+ * (`isValidProductCode`: `N001`, `RX-PS`) or it is dropped and the row kept, the way a bad number
+ * is: this endpoint is unauthenticated, and until 2026-10-02 that field was empty on every
+ * report, so nothing else can be relied on to have checked it. Every other event keeps what it
+ * stored before — their `product` was never checked, and what they mean is not this change's
+ * to alter.
+ */
+const productOf = (value: unknown, vitals: boolean): string | undefined => {
+  const product = cap(value, LIMITS.product)
+  return vitals && product !== undefined && !isValidProductCode(product) ? undefined : product
 }
 
 /**
@@ -108,7 +127,7 @@ export function sanitizeEvents(rawItems: unknown, userAgent: string): EventRecor
     out.push({
       type: type as EventRecord['type'],
       event,
-      product: cap(rec.product, LIMITS.product),
+      product: productOf(rec.product, vitals),
       variant: cap(rec.variant, LIMITS.variant),
       placement: cap(rec.placement, LIMITS.placement),
       // Diagnostics and errors may carry a free-form message; analytics events
@@ -117,6 +136,7 @@ export function sanitizeEvents(rawItems: unknown, userAgent: string): EventRecor
       ua,
       lcpMs: vitals ? bounded(rec.lcpMs, MAX_LCP_MS) : undefined,
       cls: vitals ? bounded(rec.cls, MAX_CLS) : undefined,
+      inpMs: vitals ? bounded(rec.inpMs, MAX_INP_MS) : undefined,
     })
   }
   return out

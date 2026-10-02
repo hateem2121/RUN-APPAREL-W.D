@@ -6,7 +6,8 @@
  *
  * Privacy & safety:
  * - No IP or personal data is ever sent; only the named event + product/variant,
- *   and, on a `web_vitals` report only, its two page-speed numbers (audit PF-05b).
+ *   and, on a `web_vitals` report only, its page-speed numbers (audit PF-05b; INP joined on
+ *   2026-10-02, visual audit VA-14).
  * - Analytics events respect Do-Not-Track; operational diagnostics/errors do not.
  * - Never runs under automation (Playwright) so e2e stays clean and offline.
  * - Client errors are capped and de-duplicated per session.
@@ -29,9 +30,10 @@ interface QueuedEvent {
   variant?: string
   placement?: string
   message?: string
-  /** Page-speed numbers, on a `web_vitals` report only (audit PF-05b). */
+  /** Page-speed numbers, on a `web_vitals` report only (audit PF-05b; `inpMs` since VA-14). */
   lcpMs?: number
   cls?: number
+  inpMs?: number
 }
 
 let queue: QueuedEvent[] = []
@@ -60,8 +62,11 @@ function metric(value: string | undefined): number | undefined {
   return Number.isFinite(number) ? number : undefined
 }
 
-function vitalsOf(detail: Record<string, string>): Pick<QueuedEvent, 'lcpMs' | 'cls'> {
-  return { lcpMs: metric(detail.lcpMs), cls: metric(detail.cls) }
+function vitalsOf(detail: Record<string, string>): Pick<QueuedEvent, 'lcpMs' | 'cls' | 'inpMs'> {
+  // `inpMs` is absent from a report whose browser does not list the `event` entry type, or whose
+  // visit had no tap; `metric()` leaves it undefined and JSON.stringify then omits it, so the row
+  // stores nothing for it, never a 0 that reads as a perfect score (VA-14).
+  return { lcpMs: metric(detail.lcpMs), cls: metric(detail.cls), inpMs: metric(detail.inpMs) }
 }
 
 function flush(): void {

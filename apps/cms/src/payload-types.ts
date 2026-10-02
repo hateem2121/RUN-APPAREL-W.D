@@ -536,6 +536,7 @@ export interface Event {
    * Page steadiness (web vitals only): the layout-shift score for the visit.
    */
   cls?: number | null;
+  inpMs?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -928,6 +929,7 @@ export interface EventsSelect<T extends boolean = true> {
   ua?: T;
   lcpMs?: T;
   cls?: T;
+  inpMs?: T;
   updatedAt?: T;
   createdAt?: T;
 }

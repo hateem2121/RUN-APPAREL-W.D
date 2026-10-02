@@ -287,14 +287,19 @@ describe('POST /api/public/events', () => {
  * and, because this endpoint is unauthenticated, everything that may not.
  */
 describe('sanitizeEvents — the two page-speed numbers (PF-05b)', () => {
+  // `R-XPS`, not the slug `rxps`: the viewer sends the product CODE, and since VA-14 a speed report
+  // keeps its product only if it is shaped like one (eventsInp.test.ts has that rule's tests).
   const vitals = (extra: Record<string, unknown>) =>
-    sanitizeEvents([{ type: 'analytics', event: 'web_vitals', product: 'rxps', ...extra }], 'ua')[0]
+    sanitizeEvents(
+      [{ type: 'analytics', event: 'web_vitals', product: 'R-XPS', ...extra }],
+      'ua',
+    )[0]
 
   it('keeps an LCP in milliseconds and a CLS score on a web_vitals report', () => {
     expect(vitals({ lcpMs: 2400, cls: 0.012 })).toMatchObject({
       type: 'analytics',
       event: 'web_vitals',
-      product: 'rxps',
+      product: 'R-XPS',
       lcpMs: 2400,
       cls: 0.012,
     })
