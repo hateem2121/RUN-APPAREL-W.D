@@ -6,6 +6,9 @@ import { defineConfig } from 'vite'
 // @ts-expect-error — plain .mjs, as scripts/csp.mjs is. Every decision it makes is
 // a pure function with tests in scripts/sw.test.ts; this plugin is only the I/O.
 import { serviceWorkerSource, serviceWorkerVersion, shellFromBundle } from './scripts/sw.mjs'
+// @ts-expect-error — plain .mjs, as sw.mjs is. Its decisions are pure functions with tests in
+// scripts/quietModelViewer.test.ts; this file only registers it.
+import { quietModelViewer } from './scripts/quietModelViewer.mjs'
 
 /**
  * Source maps are uploaded to Sentry ONLY when an auth token is present, and are
@@ -30,6 +33,14 @@ const uploadSourceMaps = Boolean(
 export default defineConfig({
   plugins: [
     react(),
+    /**
+     * model-viewer's own `console.log` calls, removed from ITS modules only (visual audit VA-10,
+     * 2026-10-02): six debug messages — "[$updateSource] BAILING OUT EARLY!" and the like — were
+     * printed on every garment visit. The site's own `console.*` and the library's warnings and
+     * errors are untouched. Why it is a plugin and why its positions do not move:
+     * `scripts/quietModelViewer.mjs`. Proved on the built chunk by `scripts/preload.test.ts`.
+     */
+    quietModelViewer(),
     /**
      * Preload the two font faces a Latin visitor actually uses.
      *
