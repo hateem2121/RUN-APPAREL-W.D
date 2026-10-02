@@ -1502,6 +1502,22 @@ a.contact-block__value:active {
   color: var(--muted);
 }
 
+/*
+ * ⚠️ A FIGURE WHOSE LABEL LEADS INTO IT (VA-58, 2026-10-02): "MAKING CLOTHES SINCE" above "1889".
+ * The label is first in the MARKUP (`AboutSection.tsx`), so no `order` is needed and none is used;
+ * this only turns over the spacing that assumed the figure came first. The label sits at the top of
+ * the figure's rule with no margin of its own, and the figure takes the 8px that used to sit
+ * between figure and label. The figure is a `dd` here, so its margin stays the zero the base rule
+ * gives it (a browser's default would indent a `dd` 40px).
+ */
+.fact--label-first .fact__label {
+  margin: 0;
+}
+
+.fact--label-first .fact__value {
+  margin-block-start: 8px;
+}
+
 .facts-notes {
   display: grid;
   grid-template-columns: 1fr;
