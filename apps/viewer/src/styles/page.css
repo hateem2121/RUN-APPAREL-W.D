@@ -1886,6 +1886,16 @@ model-viewer.stage__model {
   font-size: var(--text-sm);
 }
 
+/* The Performance features, one to a line (visual audit VA-59, 2026-10-02). Plain on purpose: no
+   bullets and no indent, so the list reads as the `dd`'s own text broken where each feature ends,
+   in the same size and colour. `list-style: none` is why `ProductPanel.tsx` writes `role="list"`
+   out: Safari drops a bullet-less list's semantics without it. */
+.spec-list__features {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* ── Colourway tabs ────────────────────────────────────────────────── */
 .colourways {
   display: grid;

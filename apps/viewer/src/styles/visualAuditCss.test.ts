@@ -83,3 +83,12 @@ describe('VA-08: the camera views show their state in forced colours', () => {
     expect(offenders).toEqual([])
   })
 })
+
+describe('VA-59: the Performance features are a plain list', () => {
+  // e2e/spec-features.spec.ts measures one feature to a line in a real browser.
+  it('has no bullets and no indent, so it reads as the same text broken by line', () => {
+    expect(declared(rules, '.spec-list__features', 'list-style')).toBe('none')
+    expect(declared(rules, '.spec-list__features', 'margin')).toBe('0')
+    expect(declared(rules, '.spec-list__features', 'padding')).toBe('0')
+  })
+})
