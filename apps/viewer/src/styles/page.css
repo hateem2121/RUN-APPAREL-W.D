@@ -187,8 +187,21 @@
      was deleted 2026-09-24 when the bar moved to notch.css): `viewport-fit=cover`
      plus a two-column layout that is selected by a LANDSCAPE aspect ratio, which is
      exactly where a notch sits on a long edge. `max()`, not addition — the inset
-     only needs to win when it is larger than the design's own gutter. */
+     only needs to win when it is larger than the design's own gutter.
+
+     ⚠️ TWO GUTTERS ON A PHONE, ONE EVERYWHERE ELSE (visual audit VA-35, owner decision
+     2026-10-02). The words and the colours take the website's 20px margin; the garment's
+     card and its controls keep 8-12px, so the garment keeps its size. On a phone the
+     garment is limited by the card's WIDTH, so 20px there drew it 5% smaller on every
+     common iPhone (313 -> 298px wide at 390), and at 320px it pushed the HD button onto
+     a second row (the garment 22% smaller). The card sitting 8px wider than the text is
+     the product-photo pattern. From 667px the two values meet at 3vw. */
   --stage-gutter: max(
+    clamp(20px, 3vw, 40px),
+    env(safe-area-inset-left, 0px),
+    env(safe-area-inset-right, 0px)
+  );
+  --stage-media-gutter: max(
     clamp(8px, 3vw, 40px),
     env(safe-area-inset-left, 0px),
     env(safe-area-inset-right, 0px)
@@ -272,7 +285,7 @@
   position: relative;
   max-width: 1200px;
   margin: 0 auto;
-  padding: clamp(8px, 2vw, 24px) var(--stage-gutter);
+  padding: clamp(8px, 2vw, 24px) var(--stage-media-gutter);
   /* `max-width` centres this, and `margin: 0 auto` cannot do that for a flex
      item in a column — it is already stretched to the full width. Kept because
      the block is still width-constrained; the auto margins are what centre it. */
@@ -453,20 +466,30 @@
  */
 @media (max-width: 899px) {
   /*
-   * Both of these are charged to the canvas, and both are mobile-only.
-   *
-   * Together they are worth 8px of garment, measured. Both land on documented
-   * spacing steps: `tokens.test.ts` enforces the set in docs/DESIGN.md, and it
-   * rejected a first attempt that used 2px here — correctly, since a one-off
-   * value is how a scale stops being a decision. `.stage__inner`'s padding is
-   * not reduced on desktop, where nothing is competing for the height.
+   * Charged to the canvas, and mobile-only: 4px under the controls, bought back for the
+   * garment on 2026-08-20 (it lands on a documented spacing step; `tokens.test.ts` enforces
+   * the set in docs/DESIGN.md). A landscape phone keeps it: its garment is limited by
+   * HEIGHT. The upright phone takes the rhythm below instead.
    */
-  .stage__plinth {
-    margin-top: 8px;
-  }
-
   .stage__inner {
     padding-bottom: 4px;
+  }
+}
+
+/*
+ * THE UPRIGHT PHONE STACK'S ONE RHYTHM: 16px between groups (the label, the garment, its
+ * controls, the colours), 8px within one (visual audit VA-35, owner-approved 2026-10-02).
+ * Measured that day, the garment on an upright phone is limited by its card's WIDTH, so
+ * this height costs it nothing (313x228 drawn at 390x844 either way); only the shortest
+ * phones pay (320x640). 8px on top makes the product line's gap exactly 16 with the line's
+ * own 8px margin, where the fluid `2vw` above gave 16.6px at 430px and 23.4px at 768px.
+ * Upright only: below 501px of height the line is refused (`.stage-block__name`) and a
+ * landscape phone keeps its own top. The gap above the controls is `.stage__plinth`'s.
+ */
+@media (max-width: 899px) and (min-height: 501px) {
+  .stage__inner {
+    padding-top: 8px;
+    padding-bottom: 16px;
   }
 }
 
@@ -583,6 +606,16 @@
 @media (max-height: 500px) {
   .stage-block__name {
     display: none;
+  }
+}
+
+/* On an upright phone or tablet the line takes the stack's rhythm (VA-35): 8px under the label,
+   which it touched, and 8px over the garment's 8px top (see `.stage__inner`), 16px in all.
+   After the rule above on purpose — equal specificity, so source order decides. A short
+   desktop window that also shows the line keeps 0 / 6px: its garment is limited by height. */
+@media (max-width: 899px) and (min-height: 501px) {
+  .stage-block__name {
+    margin: 8px 0;
   }
 }
 
@@ -1219,6 +1252,18 @@ model-viewer.stage__model {
   margin-top: 12px;
 }
 
+/* 16px between the garment and its controls on an upright phone, the stack's one rhythm
+   (VA-35). A landscape phone keeps 12px: its garment is limited by HEIGHT, so it would pay.
+   ⚠️ HERE, AFTER THE RULE ABOVE, because the two have equal specificity: a phone-only
+   `margin-top: 8px` sat in the earlier `max-width: 899px` block from 2026-08-20 to
+   2026-10-02 and never applied once — this rule won by source order, so the gap stayed
+   12px while that block's comment counted it as 8px of garment saved. */
+@media (max-width: 899px) and (min-height: 501px) {
+  .stage__plinth {
+    margin-top: 16px;
+  }
+}
+
 /*
  * ⚠️ `.stage__caption` LIVED HERE UNTIL 2026-08-21 — the garment's name, set in
  * the wordmark's own display recipe, absolutely positioned at the left of the
@@ -1805,7 +1850,7 @@ model-viewer.stage__model {
 /* ── Colourway tabs ────────────────────────────────────────────────── */
 .colourways {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   /*
    * The rail sizes its dots from ITS OWN width, not the screen's: see `@container colourrail`
    * below for the side column narrower than five dots. A query on the screen was what stacked

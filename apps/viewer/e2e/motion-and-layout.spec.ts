@@ -2852,6 +2852,76 @@ test.describe('the page composes on one grid', () => {
 })
 
 /**
+ * VA-35 (visual audit; owner decisions 2026-10-01 and 2026-10-02): the phone stack keeps ONE
+ * rhythm — 16px between groups (the label, the garment, its controls, the colours) and 8px
+ * within one — and the words take the website's 20px margin while the garment's card keeps
+ * 8-12px, so the garment keeps its size. Measured on the live page before: the label touched
+ * the product line (0px), the controls sat 4px above the colours, and a phone-only 8px gap
+ * above the controls had never applied (an equal-specificity rule later in page.css won).
+ */
+test.describe('the phone stack keeps one rhythm (VA-35)', () => {
+  for (const [width, height] of [
+    [320, 640],
+    [390, 844],
+    [430, 932],
+  ] as const) {
+    test(`16px between groups, 8px within, words at 20px, at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const m = await page.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect()
+        const textLeft = (selector: string) => {
+          const el = document.querySelector(selector)
+          if (!el) return null
+          const range = document.createRange()
+          range.selectNodeContents(el)
+          return Math.round(range.getBoundingClientRect().left)
+        }
+        const tag = box('.viewer-tag .label')
+        const name = box('.stage-block__name')
+        const canvas = box('.stage__canvas')
+        const controls = box('.stage__plinth')
+        const colour = box('.colourways__name')
+        const dot = box('.colourway-tab')
+        const gap = (a?: DOMRect, b?: DOMRect) => (a && b ? Math.round(b.top - a.bottom) : null)
+        return {
+          gaps: {
+            'label > product line': gap(tag, name),
+            'product line > garment': gap(name, canvas),
+            'garment > controls': gap(canvas, controls),
+            'controls > colour name': gap(controls, colour),
+            'colour name > colours': gap(colour, dot),
+          },
+          words: [
+            textLeft('.stage-block__name'),
+            textLeft('.colourways__name'),
+            dot && Math.round(dot.left),
+          ],
+          card: canvas ? Math.round(canvas.left) : null,
+        }
+      })
+      expect(m.gaps).toEqual({
+        'label > product line': 8,
+        'product line > garment': 16,
+        'garment > controls': 16,
+        'controls > colour name': 16,
+        'colour name > colours': 8,
+      })
+      expect(m.words, "the words and the colours start at the website's 20px margin").toEqual([
+        20, 20, 20,
+      ])
+      expect(
+        m.card,
+        "the garment's card took the words' margin, and the garment drew 5% smaller",
+      ).toBeLessThanOrEqual(13)
+    })
+  }
+})
+
+/**
  * The colourway rail against the catalogue's worst case, not the fixture's.
  *
  * ⚠️ WHY THE NAMES ARE SERVED IN THE TEST. The fixture ships one product's five names, of
