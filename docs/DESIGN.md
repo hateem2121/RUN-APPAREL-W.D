@@ -620,6 +620,28 @@ The footer's own paper palette sits at the end of `footer.css` (FA-M-52). Both h
 `e2e/print.spec.ts` print from dark mode, set by the system and by the switch, and measure every
 word against white.
 
+### The products film
+
+Since 2026-10-02 the hoodie film plays behind the `/products` hero's words (the owner's request
+of 2026-10-01), under the home photo hero's own dark wash, so the words read as they do there.
+The files are built from the owner's original by `scripts/build-products-film.mjs`: a 4.5s loop
+whose seam (10.4, mean difference per channel) is smaller than two ordinary neighbouring frames
+(12–17), as AV1 (310 KB) and H.264 (899 KB, the owner's choice), plus a 15–36 KB still of its first
+frame. `apps/cms/src/components/site/ProductsFilm.tsx` shows the still first, and starts the film
+only once the page has loaded and the hero is on screen; it pauses off screen and in a hidden tab,
+never starts by itself under reduced motion, on Data Saver, on 2G or under automation, and its
+44px button reads "Pause video" or "Play video" (WCAG 2.2.2). The still and the film are placed
+like the home photo, so the hero is still exactly as tall as its words.
+
+**Served in pieces.** The site's static files answer a `Range` request with the whole file
+(measured live: `bytes=0-99` returned all 12,864 bytes of a photo, `200`), and iPhone Safari plays
+no video from a server that does that, so `wrangler.jsonc` runs the Worker first for `/film/*`
+only and `apps/cms/filmRange.mjs` cuts the bytes asked for. `next start` serves ranges itself, so
+the browser suite (`e2e/productsFilm.spec.ts`) cannot see this half: `src/filmRange.test.ts` can,
+and so can the local Cloudflare preview: `opennextjs-cloudflare build`, then `opennextjs-cloudflare
+preview --local-upstream wear-run.com --port 4174`, then `curl --range 0-99` on a film file must
+download 100 bytes, Apple's own test.
+
 ### Elevation
 
 `--shadow-raised` — one token, because this system has exactly one elevated

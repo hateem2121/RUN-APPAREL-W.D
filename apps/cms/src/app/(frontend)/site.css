@@ -2340,6 +2340,70 @@ a.contact-block__value:active {
   color: var(--text);
 }
 
+/*
+ * ------------------------------------------------ the /products film
+ *
+ * The hoodie film behind the /products hero's words (owner, 2026-10-01), under the photo hero's own
+ * dark wash above, so the words read exactly as they do on the home page. `ProductsFilm.tsx` has the
+ * behaviour; this places the still and the film on top of each other, and the pause button.
+ *
+ * ⚠️ THE HERO'S HEIGHT IS STILL ITS WORDS. The still and the film are absolutely placed inside
+ * `.site-hero__photo`, like the home photo, so they fill the hero without sizing it: measured before
+ * the change, the first garment card starts 662px down at 390x844 and 798px at 1440x900, and
+ * `e2e/productsFilm.spec.ts` holds both.
+ *
+ * `object-position: 50% 42%`, chosen by looking at the frame: it is a 9:16 portrait and the hero is
+ * wider than tall from a small tablet up, so only a band of it shows, and 42% keeps the embroidered
+ * logo in that band. The still uses the same, so the swap from still to film moves nothing.
+ */
+.site-hero__film {
+  position: absolute;
+  inset: 0;
+  object-position: 50% 42%;
+}
+
+/*
+ * The pause button: bottom right, in the hero's bottom padding (64px on a phone, so 44px fits with
+ * room on both sides), on the words' column edge. Nothing else ever sits in that padding, so the
+ * button can cover no word at any width.
+ */
+.film-toggle {
+  position: absolute;
+  inset-block-end: 16px;
+  inset-inline-end: max(
+    var(--site-gutter),
+    calc((100% - var(--site-max)) / 2 + var(--site-gutter))
+  );
+  display: grid;
+  place-items: center;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg) 64%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+.film-toggle svg {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .film-toggle:hover {
+    border-color: var(--dimension);
+  }
+}
+
+.film-toggle:active {
+  scale: 0.94;
+}
+
 /* ------------------------------------------------ №01 who we are */
 
 .about {

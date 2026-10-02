@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
+import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
 import { productsDescription } from '../../../lib/pageDescriptions'
@@ -122,19 +123,17 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           the images never use, making it slower rather than faster. */}
       {posterHost ? <link rel="preconnect" href={posterHost} /> : null}
       {products.length > 0 ? <JsonLd data={productListJsonLd(products)} /> : null}
-      <section className="site-hero">
-        <div className="blueprint site-hero__grid" aria-hidden="true" />
-        <div className="site-container">
-          <p className="label">[ 3D PRODUCT REFERENCES ]</p>
-          <h1 className="display display--hero hero-products">
-            Every garment, <span className="serif-accent">turnable.</span>
-          </h1>
-          <p className="site-lede">
-            These are development references, not a shop. Open one to turn the garment, inspect the
-            construction and see exactly how the artwork sits before a sample is ever cut.
-          </p>
-        </div>
-      </section>
+      {/* The hoodie film plays behind these words (owner, 2026-10-01); the words stay the server's. */}
+      <ProductsFilmHero>
+        <p className="label">[ 3D PRODUCT REFERENCES ]</p>
+        <h1 className="display display--hero hero-products">
+          Every garment, <span className="serif-accent">turnable.</span>
+        </h1>
+        <p className="site-lede">
+          These are development references, not a shop. Open one to turn the garment, inspect the
+          construction and see exactly how the artwork sits before a sample is ever cut.
+        </p>
+      </ProductsFilmHero>
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
