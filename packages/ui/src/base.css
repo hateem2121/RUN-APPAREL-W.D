@@ -244,6 +244,42 @@ li {
   letter-spacing: var(--tracking-display-sm);
 }
 
+/*
+ * ⚠️ MORE AIR FOR A HEADLINE THAT RUNS PAST THREE LINES, ON A PHONE ONLY (visual audit VA-45,
+ * 2026-10-02, owner-approved). `.display` sets its lines at 0.92 of their size: 31px lines under
+ * 34px type on a phone, 66 under 72 on a desktop. For a short uppercase headline that is the
+ * poster block it is meant to be; at five lines — the audit's /custom-teamwear-manufacturer at
+ * 390px — the lines nearly touch, and the serif accent's descenders reach the capitals below
+ * them, more so in volt on dark.
+ *
+ * 0.98 sits inside the owner's 0.96-1.0, and UNDER 1 on purpose: `e2e/audit-guards.spec.ts`
+ * holds every `.display` to "leads tighter than its own size, so the caps still stack as a
+ * block", which 1.0 would fail. Below 720px only, the width where the bar leaves its phone
+ * layout (notch.css); from there up every headline keeps 0.92, and so does any short one.
+ *
+ * ⚠️ A CLASS ON THE HEADLINE, BECAUSE CSS CANNOT COUNT A HEADLINE'S LINES: nothing in a
+ * stylesheet can tell a two-line headline from a five-line one, and a rule on `.display` itself
+ * would loosen the short ones too. So `display--long` goes on the headlines whose words are known
+ * to be long: the four buyer pages' (45-53 characters; the audit counts five lines for the
+ * first) and the seven guides' (36-46), whole templates, so sister pages match. On no other.
+ *
+ * Every other headline on both apps was checked, and sets on about three lines or fewer at
+ * 320-430px: the home, products, contact, privacy, terms, 404 and error headlines (22-36
+ * characters), the viewer's three notices and a product name (the garment files' names run to 27
+ * characters at most, docs/GARMENT-CATALOGUE-BASELINE.md). ⚠️ THAT IS AN ESTIMATE, NOT A
+ * MEASUREMENT: a width model calibrated on docs/DESIGN.md's "PRODUCTION." = 302.8px at 34px,
+ * which also gives the audit's five lines for the first buyer page. A CMS-written product name is
+ * the one headline whose length nobody here controls; a class set from its length would serve it,
+ * at the price of a character threshold that is a guess about glyph widths, so it waits for a name
+ * that needs it. The rule and who carries it: apps/viewer/src/styles/headlineLeading.test.ts; the
+ * lines, in a browser: apps/cms/e2e/headlineLeading.spec.ts.
+ */
+@media (width < 720px) {
+  .display--long {
+    line-height: 0.98;
+  }
+}
+
 /* The wordmark is display type at a FIXED size, so it takes a fixed value —
    the two wordmarks (header and footer) must agree, which is VIS-14, and the header's is
    `.notch__wordmark` in notch.css since 2026-09-24, on the same token. */

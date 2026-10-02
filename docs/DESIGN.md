@@ -268,6 +268,20 @@ tracking — and that is what `apps/viewer/e2e/audit-guards.spec.ts` asserts for
 FA-C-54. A guard written as "hero is bigger and tighter than section" fails
 against a page that is right; one was, before it was measured.
 
+### Display leading on phones
+
+`.display` sets its lines at 0.92 of their size, a poster block for a short headline. Under 720px
+a headline that runs past three lines takes **0.98** instead, through one modifier,
+`.display--long` in `packages/ui/src/base.css` (visual audit VA-45, owner-approved 2026-10-02). It is
+a class because a stylesheet cannot count a headline's lines. It is on the four buyer pages'
+headlines and the seven guides' (36-53 characters, whole templates) and on no other: every other
+headline on both apps sets on about three lines or fewer at 320-430px, by an estimate rather than a
+measurement. 0.98 stays under 1 because `apps/viewer/e2e/audit-guards.spec.ts` holds every
+`.display` to leading tighter than its own size. From 720px up, and for every short headline, it
+stays 0.92.
+`apps/viewer/src/styles/headlineLeading.test.ts` pins the rule and who carries it;
+`apps/cms/e2e/headlineLeading.spec.ts` measures the lines in a browser.
+
 ### The serif accent
 
 One Instrument Serif italic word per headline, set by `headingWithAccent()` in

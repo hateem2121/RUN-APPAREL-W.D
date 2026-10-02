@@ -99,8 +99,9 @@ export function FamilyLanding({
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
           <p className="label">{page.eyebrow}</p>
-          {/* `hero-family`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
-          <h1 className="display display--hero hero-family">
+          {/* `hero-family`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
+              `display--long`: 45-53 characters, so a phone sets it with more air (base.css, VA-45). */}
+          <h1 className="display display--hero display--long hero-family">
             {page.heading} <span className="serif-accent">{page.headingAccent}</span>
           </h1>
           {picture ? (
