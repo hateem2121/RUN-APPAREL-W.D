@@ -498,6 +498,14 @@ html {
   padding-block: clamp(64px, 9vw, 120px);
 }
 
+/* On the 2px scale where the browser can round, AFTER the rule it refines (visual audit VA-17;
+   why, and why behind `@supports`: the note above `--site-gutter`'s rounding in tokens.css). */
+@supports (width: round(1px, 2px)) {
+  .site-section {
+    padding-block: round(clamp(64px, 9vw, 120px), 2px);
+  }
+}
+
 .site-section + .site-section {
   border-top: 1px solid var(--line);
 }
@@ -511,6 +519,14 @@ html {
      bar (see --notch-clearance above), which on phones is larger than the clamp floor. */
   padding-block-start: max(clamp(64px, 11vw, 160px), var(--notch-clearance));
   padding-block-end: clamp(64px, 11vw, 160px);
+}
+
+/* The bar's clearance is not rounded, only the clamp beside it (VA-17, tokens.css). */
+@supports (width: round(1px, 2px)) {
+  .site-hero {
+    padding-block-start: max(round(clamp(64px, 11vw, 160px), 2px), var(--notch-clearance));
+    padding-block-end: round(clamp(64px, 11vw, 160px), 2px);
+  }
 }
 
 .site-hero__grid {

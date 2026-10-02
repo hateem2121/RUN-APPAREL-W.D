@@ -282,6 +282,9 @@
   background: var(--bg);
 }
 
+/* Each fluid padding and gap below has a rounded twin AFTER its rule: on the 2px scale where the
+   browser can round, and the plain `clamp()` where it cannot (visual audit VA-17; the reasoning
+   is the note above `--site-gutter`'s rounding in packages/ui/src/tokens.css). */
 .stage__inner {
   position: relative;
   max-width: 1200px;
@@ -291,6 +294,12 @@
      item in a column — it is already stretched to the full width. Kept because
      the block is still width-constrained; the auto margins are what centre it. */
   width: 100%;
+}
+
+@supports (width: round(1px, 2px)) {
+  .stage__inner {
+    padding-block: round(clamp(8px, 2vw, 24px), 2px);
+  }
 }
 
 /*
@@ -738,6 +747,12 @@
      */
     container-type: inline-size;
     container-name: stageaside;
+  }
+
+  @supports (width: round(1px, 2px)) {
+    .stage__aside {
+      padding-block: round(clamp(8px, 2vw, 24px), 2px);
+    }
   }
 
   /*
@@ -1819,6 +1834,14 @@ model-viewer.stage__model {
   gap: clamp(32px, 5vw, 64px);
 }
 
+@supports (width: round(1px, 2px)) {
+  .content {
+    padding-block: round(clamp(24px, 4vw, 56px), 2px);
+    padding-inline: round(clamp(16px, 4vw, 48px), 2px);
+    gap: round(clamp(32px, 5vw, 64px), 2px);
+  }
+}
+
 /*
  * ⚠️ THE PRODUCT NAME'S STAND-IN FACES (TY-02, 2026-09-28). Until then a late Archivo painted the
  * name first in plain `system-ui`, which is narrower, so three names re-wrapped when the font
@@ -2034,6 +2057,12 @@ model-viewer.stage__model {
    */
   width: 100%;
   padding: 0 var(--stage-gutter) clamp(12px, 2vw, 20px);
+}
+
+@supports (width: round(1px, 2px)) {
+  .stage-block .colourways {
+    padding-block-end: round(clamp(12px, 2vw, 20px), 2px);
+  }
 }
 
 /*
@@ -2364,9 +2393,18 @@ model-viewer.stage__model {
   background: var(--bg);
   border-top: 1px solid var(--line);
   /* The fade for the step-aside below (VA-54). OPACITY ONLY, on purpose: a `visibility` in this
-     list would also delay the cookie card's `visibility: hidden` two rules down, which has to be
+     list would also delay the cookie card's `visibility: hidden` further down, which has to be
      instant. */
   transition: opacity var(--fast) var(--ease);
+}
+
+/* The safe-area inset is never rounded, only the clamp beside it (VA-17), so the bar's
+   buttons never come 1px closer to a notch. */
+@supports (width: round(1px, 2px)) {
+  .action-bar {
+    padding-left: max(round(clamp(16px, 4vw, 24px), 2px), env(safe-area-inset-left, 0px));
+    padding-right: max(round(clamp(16px, 4vw, 24px), 2px), env(safe-area-inset-right, 0px));
+  }
 }
 
 .action-bar .btn {

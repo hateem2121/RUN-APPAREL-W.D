@@ -1025,6 +1025,17 @@ but it is a design change to a locked system, so it belongs to the owner and not
 to a passing refactor. Tightening the list is one edit here and one in the test,
 and the CSS it then rejects is exactly the work involved.
 
+**Fluid spacing keeps to the 2px grid too, since 2026-10-02 (visual audit VA-17).** Fourteen
+values (paddings, gaps and the site gutter) grow with the window through `clamp()`, and between their
+two ends they used to land off the grid (the audit counted 152 sizes such as 38.4 or 91.74px),
+where the gate above cannot look. Each now has a twin, `round(<the same clamp>, 2px)`, inside
+`@supports (width: round(1px, 2px))` and after its rule; the plain `clamp()` stays for a browser
+that does not know `round()` (Baseline only since May 2024), because that browser would drop the
+whole declaration and fall to 0. A safe-area inset or the bar's clearance is never rounded, only
+the clamp beside it. `apps/viewer/src/styles/fluidSpacing.test.ts` fails on a fluid spacing
+value without its twin, and both apps' `e2e/fluidSpacing.spec.ts` read the real paddings at
+widths where an unrounded value would be fractional.
+
 ## 7. Accessibility
 
 - `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, `--radius-chip` (6px)

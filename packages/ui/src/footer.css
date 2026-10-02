@@ -244,6 +244,14 @@
   align-items: start;
 }
 
+/* On the 2px scale where the browser can round, AFTER the rule it refines (visual audit VA-17;
+   why, and why behind `@supports`: the note above `--site-gutter`'s rounding in tokens.css). */
+@supports (width: round(1px, 2px)) {
+  .footer-cta {
+    padding-block-start: round(clamp(44px, 6vw, 84px), 2px);
+  }
+}
+
 .footer-side {
   display: grid;
   gap: 14px;
@@ -501,6 +509,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 24px;
+}
+
+@supports (width: round(1px, 2px)) {
+  .footer-facts {
+    padding-block-end: round(clamp(24px, 4vw, 64px), 2px);
+  }
 }
 
 /* On a phone bottom-right has nowhere to be bottom-right OF: measured 2026-09-05 the

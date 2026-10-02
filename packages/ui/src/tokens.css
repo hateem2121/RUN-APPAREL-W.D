@@ -386,6 +386,26 @@
   }
 }
 
+/*
+ * ⚠️ FLUID SPACING KEEPS TO THE 2px SCALE (visual audit VA-17, 2026-10-02). A `clamp()` that
+ * grows with the window lands between the scale's steps everywhere but its two ends: the audit
+ * counted 152 sizes such as 38.4 or 91.74px from the site's fluid paddings and gaps, while the
+ * gate (tokens.test.ts) can only check fixed values. `round(…, 2px)` puts each back on a step;
+ * `nearest` is its default, so the value moves at most 1px.
+ * ⚠️ BEHIND `@supports`, WITH THE `clamp()` LEFT IN PLACE ABOVE: `round()` is Baseline only since
+ * May 2024 (MDN, read 2026-10-02), so it is not yet "widely available", and a browser that does
+ * not know it drops the whole declaration: the padding would fall to 0, not to the unrounded
+ * size. Measured 2026-10-02 in Chromium, Firefox and WebKit: `round(clamp(8px, 2vw, 24px), 2px)`
+ * gives 8px at 390 wide and 12px at 640 (2vw is 12.8px). The same pattern sits beside each fluid
+ * spacing rule in footer.css, site.css and page.css; a safe-area inset or the bar's clearance is
+ * never rounded, only the clamp beside it, so nothing comes 1px closer to a notch.
+ */
+@supports (width: round(1px, 2px)) {
+  :root {
+    --site-gutter: round(clamp(20px, 5vw, 64px), 2px);
+  }
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
 }
