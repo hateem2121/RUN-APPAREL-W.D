@@ -1798,7 +1798,15 @@ model-viewer.stage__model {
 
 .product-info__statement {
   color: var(--muted);
-  max-width: 60ch;
+  /* ⚠️ 50ch, NOT 60 (visual audit VA-18, 2026-10-02). `ch` is the width of the digit 0 (MDN) and
+     ordinary words average narrower than that, so `60ch` held MORE than 60 characters: the audit
+     measured 76–83 a line on a phone held sideways, where 45–75 is comfortable (WCAG 1.4.8 allows
+     80 at most). Scaled from that, 50ch is about 63–69; `e2e/description-measure.spec.ts` counts
+     the real lines at six sizes where the paragraph sits in the page, not beside the garment.
+     In the side column (the identity beside the garment, VA-60) the column is at most 400px,
+     narrower than 50ch, so the cap does not bind there and the floors in `useIdentityInAside.ts`
+     are untouched. `max-inline-size` is the logical form of the same cap. */
+  max-inline-size: 50ch;
 }
 
 /*

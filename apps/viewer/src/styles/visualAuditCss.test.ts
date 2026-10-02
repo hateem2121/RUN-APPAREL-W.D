@@ -84,6 +84,19 @@ describe('VA-08: the camera views show their state in forced colours', () => {
   })
 })
 
+describe('VA-18: the garment description keeps a comfortable line length', () => {
+  // e2e/description-measure.spec.ts counts the characters on each real line.
+  it('is capped at 50ch, in the logical property', () => {
+    expect(declared(rules, '.product-info__statement', 'max-inline-size')).toBe('50ch')
+  })
+
+  it('has no second, physical cap beside it to fight the first', () => {
+    // Both name the same axis in a horizontal script, and the later one wins: a stray
+    // `max-width: 60ch` put back would quietly undo the fix.
+    expect(declared(rules, '.product-info__statement', 'max-width')).toBeUndefined()
+  })
+})
+
 describe('VA-59: the Performance features are a plain list', () => {
   // e2e/spec-features.spec.ts measures one feature to a line in a real browser.
   it('has no bullets and no indent, so it reads as the same text broken by line', () => {
