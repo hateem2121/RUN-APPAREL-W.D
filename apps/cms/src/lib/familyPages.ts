@@ -255,7 +255,32 @@ export function familyOf(page: FamilyPage): Family {
   return family
 }
 
+/**
+ * A family's filtered gallery, `/products?family=<slug>`: the same garments as the buyer page,
+ * with the other families' chips beside them. Never the buyer page, which `familyHref` prefers.
+ * Its canonical stays `/products` (`products/page.tsx`).
+ */
+export function familyGalleryHref(family: Family): string {
+  return `/products?family=${family.slug}`
+}
+
 /** Where a family's card or link should lead: its buyer page when it has one, else the filter. */
 export function familyHref(family: Family): string {
-  return familyPageFor(family)?.path ?? `/products?family=${family.slug}`
+  return familyPageFor(family)?.path ?? familyGalleryHref(family)
 }
+
+/*
+ * ⚠️ THE TWO WORDS THAT JOIN A BUYER PAGE AND ITS GALLERY (visual audit VA-33). From the home
+ * page "Outerwear" opened the buyer page and on /products the same word filtered the grid, so
+ * a buyer who knew one never found the other. The owner chose to link the two to each other
+ * (2026-10-01) and approved the words on 2026-10-02: "See all outerwear in 3D" on the buyer
+ * page, "About our outerwear" on the filtered gallery, and the same for sportswear, teamwear &
+ * uniforms and casual wear.
+ *
+ * Built from the family's own `name`, lower-cased, so the words cannot drift from the family
+ * they name: a rename in `families.ts` renames both links, and `familyCrossLinks.test.ts` pins
+ * the four approved pairs. Sports Accessories has no buyer page and no garments, so it has no
+ * link either way (`AboutFamily` draws nothing for a family without a page).
+ */
+export const seeAllLabel = (family: Family): string => `See all ${family.name.toLowerCase()} in 3D`
+export const aboutLabel = (family: Family): string => `About our ${family.name.toLowerCase()}`

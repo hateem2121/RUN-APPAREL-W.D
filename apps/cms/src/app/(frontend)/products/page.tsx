@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { AboutFamily } from '../../../components/site/FamilyCrossLinks'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
+import { familyGalleryHref, familyPageFor } from '../../../lib/familyPages'
 import { productsDescription } from '../../../lib/pageDescriptions'
 import { buildMetadata } from '../../../lib/seo'
 import { preconnectHost } from '../../../lib/posterHost'
@@ -110,6 +112,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const family = familyBySlug((await searchParams).family)
   const all = await getProductCards()
   const products = family ? all.filter((product) => product.category === family.name) : all
+  // The family's buyer page, when the owner has approved one: Sports Accessories has none.
+  const aboutPage = family ? familyPageFor(family) : null
   const posterHost = crossOriginPosterHost(products)
   const counts = new Map<string, number>()
   for (const product of all) {
@@ -155,7 +159,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               <Link
                 key={entry.slug}
                 className="filter-chip"
-                href={`/products?family=${entry.slug}`}
+                href={familyGalleryHref(entry)}
                 aria-current={family?.slug === entry.slug ? 'page' : undefined}
                 data-empty={(counts.get(entry.name) ?? 0) === 0 ? 'true' : undefined}
               >
@@ -164,6 +168,27 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               </Link>
             ))}
           </nav>
+
+          {/*
+            ⚠️ THE WAY BACK TO THE FAMILY'S BUYER PAGE SITS BESIDE THE COUNT, UNDER THE ACTIVE
+            CHIP (visual audit VA-33, owner-approved 2026-10-01; the words, 2026-10-02: "About
+            our outerwear"). From the home page the same word opened the buyer page, so a buyer
+            who arrived here never found it. It is drawn when the family HAS a buyer page and
+            whether or not the grid below has garments, so the empty family keeps its way out.
+            The canonical stays `/products` (see the top of this file): this is a link, not a
+            second page to index.
+          */}
+          {products.length > 0 || (family && aboutPage) ? (
+            <div className="result-bar">
+              {products.length > 0 ? (
+                <p className="result-count">
+                  {products.length} reference{products.length === 1 ? '' : 's'}
+                  {family ? ` in ${family.name}` : ''}
+                </p>
+              ) : null}
+              {family ? <AboutFamily family={family} /> : null}
+            </div>
+          ) : null}
 
           {products.length === 0 ? (
             /*
@@ -177,17 +202,11 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                 : 'The references are being updated. Email us and we will send the current set directly.'}
             </p>
           ) : (
-            <>
-              <p className="result-count">
-                {products.length} reference{products.length === 1 ? '' : 's'}
-                {family ? ` in ${family.name}` : ''}
-              </p>
-              <ul className="product-grid">
-                {products.map((product, index) => (
-                  <ProductCardItem key={product.slug} product={product} index={index} />
-                ))}
-              </ul>
-            </>
+            <ul className="product-grid">
+              {products.map((product, index) => (
+                <ProductCardItem key={product.slug} product={product} index={index} />
+              ))}
+            </ul>
           )}
         </div>
       </section>

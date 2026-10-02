@@ -509,6 +509,17 @@ screen reader hears a step's title before its picture; nothing in a row takes fo
 orders cannot disagree for a keyboard. The pictures are lazy and carry their width and height, and
 the wipe and drift that run as they scroll in stop under `prefers-reduced-motion`.
 
+### A family's two pages name each other
+
+A product family can have two pages: its buyer page (for example `/custom-outerwear-manufacturer`)
+and its filtered gallery (`/products?family=outerwear`). Since visual audit VA-33 (owner-approved
+2026-10-01, words 2026-10-02) each links to the other with the existing ghost button, never the
+primary one: the buyer page ends "What we make" with "See all outerwear in 3D", and the gallery
+puts "About our outerwear" beside its result count. The words are built from the family's own name,
+lower-cased (`seeAllLabel` and `aboutLabel` in `apps/cms/src/lib/familyPages.ts`), and Sports
+Accessories, which has no buyer page, has neither link. The gallery's canonical address stays
+`/products`: the link is a way across, not a second page to index.
+
 ### The cookie card
 
 The choice is a fixed card at the foot of the screen (`base.css` `.consent`), with Decline and

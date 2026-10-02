@@ -1357,6 +1357,29 @@ a.contact-block__value:active {
   margin-block-start: 8px;
 }
 
+/*
+ * The count, and on a family's filtered gallery the way back to its buyer page (visual audit
+ * VA-33): the count on the left, the button on the right where there is room and under it where
+ * there is not. The count used to be a bare paragraph and the grid took its 8px from the
+ * `.result-count + *` rule above; with a bar around it the grid is the BAR's sibling, so the
+ * same 8px is given here, and the button beside the count is kept out of the count's own rule.
+ */
+.result-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+
+.result-bar + * {
+  margin-block-start: 8px;
+}
+
+.result-bar > .btn {
+  margin-block-start: 0;
+}
+
 /* ------------------------------------------------ the family grid (FA-E-01) */
 
 /*

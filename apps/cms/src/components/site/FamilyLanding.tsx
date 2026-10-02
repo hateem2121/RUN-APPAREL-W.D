@@ -7,6 +7,7 @@ import { FAMILY_PAGE_ACTION, type FamilyPage, familyHref, familyOf } from '../..
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FactoryFigure } from './FactoryFigure'
 import { FactsBento } from './FactsBento'
+import { SeeAllInGallery } from './FamilyCrossLinks'
 import { JsonLd } from './JsonLd'
 import { ProductCardItem } from './ProductCardItem'
 
@@ -28,6 +29,12 @@ import { ProductCardItem } from './ProductCardItem'
  *
  * ⚠️ THE QUESTIONS ARE ON THE PAGE AND IN THE DATA FROM ONE LIST. `faqJsonLd` says why a
  * question the page does not show must never be in the data.
+ *
+ * ⚠️ THE LINK TO THE FAMILY'S GALLERY ENDS "WHAT WE MAKE", NOT THE GARMENT GRID (visual audit
+ * VA-33, owner-approved 2026-10-01). It is the buyer's way across to `/products?family=…`, and it
+ * has to be on the page whether or not the database holds garments for the family: the grid below
+ * only exists when it does (the CI seed holds one Sportswear garment), while the gallery answers
+ * an empty family with a designed message. `FamilyCrossLinks.tsx` has the words and the style.
  *
  * Renders the page without a garment grid when the family has no card to show (a database
  * wobble returns none): the words still stand, and no empty box is drawn.
@@ -90,6 +97,7 @@ export function FamilyLanding({
               <p>{entry.garments}</p>
             </div>
           ))}
+          <SeeAllInGallery family={family} />
         </div>
       </section>
 
