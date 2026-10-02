@@ -300,14 +300,16 @@ test.describe('VA-42 — the filters are one row that scrolls sideways on a phon
 
 test.describe('VA-42 — no card is left alone on the last row, at any width', () => {
   /*
-   * 40 is the audit's own count (3 x 13 + 1 at 1440px); 37 and 41 are one-over a row at three
-   * and four columns, 38 and 39 are the counts either side. The phone is held to the weaker
+   * 40 is the audit's own count (3 x 13 + 1 at 1440px, which had three columns then; four since the
+   * owner's call of 2026-10-02, so three are checked at 1280px); 37 and 41 are one-over a row at
+   * three and four columns, 38 and 39 are the counts either side. The phone is held to the weaker
    * promise two columns can keep: two cards, or one card that fills the row.
    */
   const COUNTS = [37, 38, 39, 40, 41]
 
   for (const { width, columns } of [
-    { width: 1440, columns: 3 },
+    { width: 1280, columns: 3 },
+    { width: 1440, columns: 4 },
     { width: 1920, columns: 4 },
   ]) {
     test(`at ${width}px (${columns} columns): the last row holds two cards or more, for ${COUNTS.join(', ')} cards`, async ({

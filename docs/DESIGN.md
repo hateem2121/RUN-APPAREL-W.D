@@ -489,7 +489,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
 | `1100px` and `min-height: 880px`, or `1280px` and `min-height: 800px` | `useIdentityInAside.ts` | the product's name and description move beside the garment, only where the longest live description leaves the contact buttons on screen (VA-60; a script query, kept a strict subset of the CSS one) |
 | `1180px` | `site.css` | the product families go to five columns |
-| `max-width: 899px`, `900px`, `1600px` | `site.css` | the product grid is two columns, three from 900px and four from 1600px, each with its own rule against a lone last card (VA-42) |
+| `max-width: 899px`, `900px`, `1440px` | `site.css` | the product grid is two columns, three from 900px and four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px), each with its own rule against a lone last card (VA-42) |
 | `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
 | container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |
 
@@ -527,14 +527,15 @@ Accessories, which has no buyer page, has neither link. The gallery's canonical 
 `/products` and the buyer pages share `.product-grid`. Visual audit VA-42 (owner's choice
 2026-10-02) found `/products` 30,363px long on a 390px phone, 36 screens with no garment on the
 first one, and at 1440px the 40 cards leaving one alone on the last row. Decision D1 stands: one
-long page, every garment in the document.
+long page, every garment in the document. Since the owner's call of 2026-10-02 the fourth column
+starts at 1440px, so the catalogue's 40 garments fill ten rows of four there; 1280px keeps three.
 
 | Width | Columns | Picture | The filter on `/products` |
 |---|---|---|---|
 | under 560px | 2 | square | one row that scrolls sideways |
 | 560 to 899px | 2 | 4:5 | wraps |
-| 900 to 1599px | 3 | 4:5 | wraps |
-| 1600px and up | 4 | 4:5 | wraps |
+| 900 to 1439px | 3 | 4:5 | wraps |
+| 1440px and up | 4 | 4:5 | wraps |
 
 The counts are written out rather than left to `auto-fill`, because the rule against a lone last
 card has to know them. With three or four columns and one card over, the second-to-last card
@@ -545,7 +546,8 @@ from 2 to 60, and `apps/cms/e2e/productsGrid.spec.ts` does it with real cards.
 
 On a phone the colour dots are 24 to 40px wide and still 44px tall: WCAG 2.2 SC 2.5.8 asks for 24px
 and the site holds every button to 44px tall, but five 44px-wide dots do not fit a 134px card.
-That is narrower than the 44px width §4 states for touch targets, which is the cost of the fix.
+That is narrower than the 44px width §4 states for touch targets, which is the cost of the fix;
+the owner accepted it on 2026-10-02.
 The card's text has 12px of padding and a long name wraps inside it. The filter row is a scroller
 of links, so Tab walks every chip and the browser scrolls each into view; it ends at the screen's
 edges and cannot make the page scroll sideways.

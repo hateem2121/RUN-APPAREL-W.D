@@ -81,7 +81,10 @@ test.describe('VA-29 — every step has its own photo, one square each', () => {
         Math.abs(row.frame.width - row.frame.height),
         `${label}: the picture is ${row.frame.width} x ${row.frame.height}, not a square`,
       ).toBeLessThanOrEqual(1)
-      expect(row.frame.width, `${label}: the picture is under 300px wide`).toBeGreaterThan(300)
+      // 280px squares from 900px (owner's choice, 2026-10-02, to shorten the section).
+      expect(row.frame.width, `${label}: the picture is under 279px wide`).toBeGreaterThanOrEqual(
+        279,
+      )
     }
     // Eight pictures, one shape: no width or height differs from another by more than a pixel.
     expect(spread(measured.map((row) => row.frame.width)), 'the widths differ').toBeLessThanOrEqual(

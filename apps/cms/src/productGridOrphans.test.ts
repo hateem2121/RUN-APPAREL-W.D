@@ -210,6 +210,8 @@ const RULES = parseRules(SITE_CSS)
 const WIDTHS = [
   { width: 390, columns: 2 },
   { width: 1280, columns: 3 },
+  // Four from 1440px since 2026-10-02 (the owner's call; it was 1600px, decision D4).
+  { width: 1440, columns: 4 },
   { width: 1920, columns: 4 },
 ] as const
 
@@ -220,10 +222,10 @@ describe('the grid has the column counts the rules assume', () => {
     })
   }
 
-  it('is two below 900px, three from 900px, four from 1600px, and never auto-fill', () => {
+  it('is two below 900px, three from 900px, four from 1440px, and never auto-fill', () => {
     expect([320, 559, 560, 899].map((width) => columnsAt(width, RULES))).toEqual([2, 2, 2, 2])
-    expect([900, 1599].map((width) => columnsAt(width, RULES))).toEqual([3, 3])
-    expect([1600, 2560].map((width) => columnsAt(width, RULES))).toEqual([4, 4])
+    expect([900, 1280, 1439].map((width) => columnsAt(width, RULES))).toEqual([3, 3, 3])
+    expect([1440, 1600, 2560].map((width) => columnsAt(width, RULES))).toEqual([4, 4, 4])
     expect(SITE_CSS).not.toMatch(/\.product-grid\s*\{[^}]*auto-fill/)
   })
 })
@@ -264,8 +266,8 @@ describe('no card is left alone on the last row, whatever the count (VA-42)', ()
   }
 
   // The count the audit named, and the ones the brief asked about by name.
-  it('holds for 37, 38, 39, 40 and 41 cards at 1440 and 1920px, where 40 was the failure', () => {
-    for (const width of [1440, 1920]) {
+  it('holds for 37, 38, 39, 40 and 41 cards at 1280, 1440 and 1920px (40 was the failure at three columns)', () => {
+    for (const width of [1280, 1440, 1920]) {
       for (const count of [37, 38, 39, 40, 41]) {
         const rows = rowsOf(layOut(count, width, RULES).placed)
         expect(
@@ -277,19 +279,21 @@ describe('no card is left alone on the last row, whatever the count (VA-42)', ()
   })
 
   // NEGATIVE CONTROL, run both ways: with the rules that move cards taken out, the model shows the
-  // lone card at 1440px (40 = 3 x 13 + 1), 1920px (41 = 4 x 10 + 1) and a hole beside the last
-  // card on a phone (41 is odd), so the tests above are able to fail.
+  // lone card at 1280px (40 = 3 x 13 + 1, three columns), at 1440px and 1920px (41 = 4 x 10 + 1,
+  // four columns) and a hole beside the last card on a phone (41 is odd), so the tests above are
+  // able to fail.
   it('sees the lone card when the rules are removed', () => {
     const without = RULES.filter(
       (rule) => !/nth-last-child|last-child/.test(rule.selector) || !CARD_RULE.test(rule.selector),
     )
     const rows = (count: number, width: number) => rowsOf(layOut(count, width, without).placed)
-    expect(rows(40, 1440).at(-1)).toEqual([1])
+    expect(rows(40, 1280).at(-1)).toEqual([1])
+    expect(rows(41, 1440).at(-1)).toEqual([1])
     expect(rows(41, 1920).at(-1)).toEqual([1])
     expect(rows(41, 390).at(-1)).toEqual([1])
     // …and the same counts are fixed with the rules in place.
-    expect(rows(40, 1440)).not.toEqual(rowsOf(layOut(40, 1440, RULES).placed))
-    expect(rowsOf(layOut(40, 1440, RULES).placed).at(-1)).toEqual([1, 1])
+    expect(rows(40, 1280)).not.toEqual(rowsOf(layOut(40, 1280, RULES).placed))
+    expect(rowsOf(layOut(40, 1280, RULES).placed).at(-1)).toEqual([1, 1])
   })
 
   it('leaves a single card on a page as it is', () => {

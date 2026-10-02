@@ -124,7 +124,9 @@ describe('what the timeline draws', () => {
       expect(srcset, `step ${index + 1}`).toContain(
         `/factory/${photo?.slug}-${large}.webp ${large}w`,
       )
-      expect(attr(tag, 'sizes'), `step ${index + 1} has no sizes`).toMatch(/400px/)
+      expect(attr(tag, 'sizes'), `step ${index + 1} has no sizes`).toMatch(
+        /\(min-width: 900px\) 280px/,
+      )
     }
   })
 
@@ -245,7 +247,8 @@ describe('the square frame, in the stylesheet', () => {
     const wide = /@media \(min-width: 900px\) \{([\s\S]*?)\n\}/g
     const blocks = [...SITE_CSS.matchAll(wide)].map((match) => match[1] ?? '')
     const own = blocks.find((block) => block.includes('.timeline__step {')) ?? ''
-    expect(own).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 400px\)/)
+    // 280px since the owner's choice of 2026-10-02 (it was 400px: four screens tall at 1440px).
+    expect(own).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 280px\)/)
     expect(own).toMatch(/\.timeline__step > \.photo-figure \{\s*order:\s*0/)
   })
 })

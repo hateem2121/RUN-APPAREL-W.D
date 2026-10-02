@@ -29,12 +29,12 @@ const PHOTOS = new Map(FACTORY_PHOTOS.map((photo) => [photo.slug, photo]))
 
 /**
  * How wide a step's picture draws, from `.timeline__step` in site.css: the whole column minus the
- * timeline's 24px line gutter and the page's gutters (about 64px in all) on a phone, a 400px column
- * from 900px, and a 400px cap between. Only a hint to pick between the two pre-built widths, so
+ * timeline's 24px line gutter and the page's gutters (about 64px in all) on a phone, a 400px cap from
+ * 480px, and a 280px column from 900px (the owner's choice of 2026-10-02, to shorten the section). Only a hint to pick between the two pre-built widths, so
  * close is enough: 400px is also the width the files were cut for (`FACTORY_PHOTO_WIDTHS`), so a
  * 1x screen takes the small file and a 2x screen the large one.
  */
-const SIZES = '(min-width: 480px) 400px, calc(100vw - 64px)'
+const SIZES = '(min-width: 900px) 280px, (min-width: 480px) 400px, calc(100vw - 64px)'
 
 function StepPhoto({ slug }: { slug: string }) {
   const photo = PHOTOS.get(slug)

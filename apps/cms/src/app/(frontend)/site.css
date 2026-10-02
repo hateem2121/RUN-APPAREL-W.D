@@ -739,17 +739,18 @@ html {
 }
 
 /*
- * ⚠️ TWO CARDS A ROW BELOW 900px, THREE FROM 900px, FOUR FROM 1600px (visual audit VA-42, the
- * owner's choice 2026-10-02). The audit measured /products at 30,363px on a 390px phone, 36 screens,
+ * ⚠️ TWO CARDS A ROW BELOW 900px, THREE FROM 900px, FOUR FROM 1440px (visual audit VA-42, the
+ * owner's choice 2026-10-02; four from 1440px, not 1600px, is the owner's own call of the same day,
+ * so the catalogue's 40 garments fill ten rows of four on a 1440px screen). The audit measured /products at 30,363px on a 390px phone, 36 screens,
  * each card about a screen tall, and the teamwear buyer page at 20,880px; on a phone not one garment
  * was in sight on the first screen. Two to a row, with a shorter picture (below), is the fix; decision
  * D1 stands: one long page, every garment in the document.
  *
  * ⚠️ THE COUNTS ARE WRITTEN OUT, NOT `auto-fill`. The rule that keeps one card from standing alone on
  * the last row (below) has to know how many columns a row has, and `auto-fill` leaves that to the
- * browser. The widths match what `auto-fill, minmax(260px, 1fr)` gave from 920px (three, and four
- * from 1600px: decision D4, `--site-max` in tokens.css); the only change above a phone is that
- * 900-919px now has three columns of 254px rather than two of 393px. `e2e/composition.spec.ts`
+ * browser. Three from 900px matches what `auto-fill, minmax(260px, 1fr)` gave from 920px, so
+ * 900-919px now has three columns of 254px rather than two of 393px. Four started at 1600px
+ * (decision D4) until the owner moved it to 1440px on 2026-10-02; 1280px keeps three, as D4 asks. `e2e/composition.spec.ts`
  * (LA-12) asserts the counts at 375, 700, 1280 and 1920px.
  */
 @media (min-width: 900px) {
@@ -759,7 +760,7 @@ html {
   }
 }
 
-@media (min-width: 1600px) {
+@media (min-width: 1440px) {
   .product-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -785,13 +786,13 @@ html {
  * exact selectors over every count from 2 to 60 at each column count, and `e2e/productsGrid.spec.ts`
  * does the same with real cards in a browser.
  */
-@media (min-width: 900px) and (max-width: 1599px) {
+@media (min-width: 900px) and (max-width: 1439px) {
   .product-grid > .product-card:nth-last-child(2):nth-child(3n) {
     grid-column-start: 1;
   }
 }
 
-@media (min-width: 1600px) {
+@media (min-width: 1440px) {
   .product-grid > .product-card:nth-last-child(2):nth-child(4n) {
     grid-column-start: 1;
   }
@@ -3007,9 +3008,12 @@ a.contact-block__value:active {
   max-width: 400px;
 }
 
+/* 280px from 900px, not 400px (owner's choice, 2026-10-02): with eight steps the 400px squares made
+   "How an order works" 3,808px tall at 1440px, about four screens; 280px squares make it 2,848px.
+   Each photo keeps its whole square cut, only smaller. Phones keep the 400px cap above. */
 @media (min-width: 900px) {
   .timeline__step {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 280px);
     column-gap: 64px;
   }
 

@@ -105,6 +105,11 @@ ordinary laptops. On a 1920px monitor it left the same three garments as a
 
 **Guard:** a layout test asserts three columns at 1280px and four at 1920px.
 
+**Amended 2026-10-02 (owner, visual audit VA-42):** the fourth column now starts at **1440px**, so
+the 40 garments fill ten rows of four on a 1440px screen instead of leaving one alone. 1280px keeps
+three, so the guard above still holds; `apps/cms/src/productGridOrphans.test.ts` and
+`apps/cms/e2e/productsGrid.spec.ts` check 1440px too.
+
 ### D5 · The viewer wordmark becomes a link home — `FA-W-02`
 
 **Decision: the company name in the viewer header links to `wear-run.help`.**
