@@ -303,6 +303,13 @@ device stops reading as an accent and starts reading as a second typeface.
 | `.label` | 10px | 0.12em | Tag chips, 4/8px padding, 6px radius |
 | `.section-number` | 10px | 0.14em | Section numbering, `--muted` |
 
+**A label on the website's heroes never leaves its last words alone (VA-43, 2026-10-02).**
+`.site-hero .label` carries `text-wrap: balance` (in `site.css`, not on the shared `.label`, so the
+garment pages' colour-name labels are untouched), so the teamwear page's label no longer wraps to
+"STYLE ]" alone at 390px. On a phone (`max-width: 40rem`, which follows the reader's text size) the
+home hero's label is two deliberate lines, "…SINCE 1889" and "START FROM 50 PIECES PER STYLE ]", with
+the dot between them dropped; from 40rem it is one line with its dot. The words are the same.
+
 ### Body
 
 `17px / 1.55`. **Paragraphs and list items are capped at `60ch`** — a measure limit,

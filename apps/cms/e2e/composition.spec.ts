@@ -1,4 +1,5 @@
 import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { FACTS } from '../src/lib/companyFacts'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -673,6 +674,126 @@ test.describe('TY-12 / TY-13 — no headline strands its last word', () => {
       }
     })
   }
+})
+
+test.describe('VA-43 — a hero label never leaves its last words alone', () => {
+  /**
+   * Visual audit 2026-10-02. At 390px the teamwear page's "[ TEAMWEAR & UNIFORMS · FROM 50 PIECES
+   * PER STYLE ]" wrapped and left "STYLE ]" on a line of its own, and on the home page the label's
+   * second line began with the separator dot. `.site-hero .label` carries `text-wrap: balance`
+   * now, and on a phone the home label is two deliberate lines with no dot (site.css).
+   *
+   * LINES ARE COUNTED PER WORD, as the headline test above counts them, and a word with no box
+   * (the hidden dot) is not a word on any line. A label that wraps must have its shortest line at
+   * least half the longest; the audit's case was 7 characters against 40.
+   */
+  const linesOf = (page: import('@playwright/test').Page, selector: string) =>
+    page.evaluate((target) => {
+      const label = document.querySelector(target)
+      if (!label) return []
+      const words: { mid: number; text: string }[] = []
+      const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const value = node.nodeValue ?? ''
+        const re = /\S+/g
+        for (let match = re.exec(value); match; match = re.exec(value)) {
+          const range = document.createRange()
+          range.setStart(node, match.index)
+          range.setEnd(node, match.index + match[0].length)
+          const rect = range.getBoundingClientRect()
+          if (rect.width > 0) words.push({ mid: rect.top + rect.height / 2, text: match[0] })
+        }
+      }
+      const tolerance = Number.parseFloat(getComputedStyle(label).fontSize) * 0.6
+      const lines: string[][] = []
+      let lineMid = Number.NEGATIVE_INFINITY
+      for (const word of words) {
+        if (Math.abs(word.mid - lineMid) > tolerance) {
+          lines.push([])
+          lineMid = word.mid
+        }
+        lines[lines.length - 1]?.push(word.text)
+      }
+      return lines.map((line) => line.join(' '))
+    }, selector)
+
+  /** The shortest line as a share of the longest, in characters; 1 for a label on one line. */
+  const balance = (lines: string[]) =>
+    lines.length < 2
+      ? 1
+      : Math.min(...lines.map((l) => l.length)) / Math.max(...lines.map((l) => l.length))
+
+  test('the detector flags a planted stranded last line (negative control)', async ({ page }) => {
+    await page.goto('/custom-teamwear-manufacturer')
+    await page.evaluate(() => {
+      const planted = document.createElement('p')
+      planted.id = 'label-control'
+      planted.textContent = 'AAAAAAAAAAAA AAAAAAAAAAAA B ]'
+      planted.style.cssText =
+        'font-family:monospace;font-size:16px;width:26ch;white-space:normal;text-wrap:wrap'
+      document.querySelector('main')?.prepend(planted)
+    })
+    const lines = await linesOf(page, '#label-control')
+    expect(lines, 'the planted label did not wrap into two lines').toHaveLength(2)
+    expect(balance(lines), lines.join(' / ')).toBeLessThan(0.5)
+  })
+
+  for (const width of [320, 390]) {
+    test(`no buyer page's label strands its last words at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 })
+      for (const path of FAMILY_PAGE_SOURCES) {
+        await page.goto(path)
+        await settle(page)
+        const lines = await linesOf(page, '.site-hero .label')
+        expect(
+          lines.length,
+          `${path}: the label was not found, so nothing was measured`,
+        ).toBeGreaterThan(0)
+        expect(
+          balance(lines),
+          `${path} at ${width}px: ${lines.join(' / ')}`,
+        ).toBeGreaterThanOrEqual(0.5)
+        if (lines.length > 1) {
+          const last = lines[lines.length - 1] ?? ''
+          expect(
+            last.split(' ').length,
+            `${path} at ${width}px ends on "${last}"`,
+          ).toBeGreaterThanOrEqual(3)
+        }
+      }
+    })
+  }
+
+  test('the teamwear label, the audit’s case, is two balanced lines at 390px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/custom-teamwear-manufacturer')
+    await settle(page)
+    const lines = await linesOf(page, '.site-hero .label')
+    expect(lines.length, lines.join(' / ')).toBe(2)
+    expect(lines[1], 'the label still ends on "STYLE ]" alone').not.toBe('STYLE ]')
+  })
+
+  test('the home label is two lines with no dot on a phone, and one line with its dot from 40rem', async ({
+    page,
+  }) => {
+    const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value
+    const first = '[ PRIVATE LABEL MANUFACTURER SINCE 1889'
+    const second = `START FROM ${minimum} PIECES PER STYLE ]`
+    for (const width of [360, 390, 414, 639]) {
+      await page.setViewportSize({ width, height: 844 })
+      await page.goto('/')
+      await settle(page)
+      expect(await linesOf(page, '.site-hero .label'), `${width}px`).toEqual([first, second])
+    }
+    for (const width of [641, 1280]) {
+      await page.setViewportSize({ width, height: 844 })
+      await page.goto('/')
+      await settle(page)
+      expect(await linesOf(page, '.site-hero .label'), `${width}px`).toEqual([
+        `${first} · ${second}`,
+      ])
+    }
+  })
 })
 
 test.describe('TY-12 — no heading splits a word across two lines', () => {

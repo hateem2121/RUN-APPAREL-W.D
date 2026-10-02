@@ -28,6 +28,7 @@ const css = (...parts: string[]) =>
 const BASE = css('packages', 'ui', 'src', 'base.css')
 const TOKENS = css('packages', 'ui', 'src', 'tokens.css')
 const NOTCH = css('packages', 'ui', 'src', 'notch.css')
+const SITE = css('apps', 'cms', 'src', 'app', '(frontend)', 'site.css')
 
 interface Rule {
   /** The headers of the at-rules this rule sits inside, outermost first. */
@@ -322,5 +323,71 @@ describe('VA-19 — the menu icon folds by transform and opacity, never by width
     expect(findLayoutPropertyTransitions(planted).map((violation) => violation.selector)).toEqual([
       '.notch__icon-line',
     ])
+  })
+})
+
+describe('VA-43 — hero labels balance their lines, and the home label breaks in two on a phone', () => {
+  /** `rem`, not px: it follows the reader's text size, which the label's width follows too. */
+  const PHONE = '@media (max-width: 40rem)'
+
+  /** Everything wrong with the website's label rules, as sentences. */
+  function problemsWith(source: string): string[] {
+    const problems: string[] = []
+    const rules = rulesOf(source)
+    const balanced = rules.find(
+      (rule) => rule.at.length === 0 && rule.selector === '.site-hero .label',
+    )
+    if (balanced?.declarations.get('text-wrap') !== 'balance') {
+      problems.push('.site-hero .label does not balance its lines')
+    }
+    const phone = rules.filter((rule) => rule.at.join() === PHONE)
+    if (
+      phone.find((rule) => rule.selector === '.label__dot')?.declarations.get('display') !== 'none'
+    ) {
+      problems.push(`the dot is not hidden inside ${PHONE}`)
+    }
+    if (
+      phone.find((rule) => rule.selector === '.label__tail')?.declarations.get('display') !==
+      'block'
+    ) {
+      problems.push(`the second half does not take its own line inside ${PHONE}`)
+    }
+    return problems
+  }
+
+  it("balances every hero label on the site, and splits the home hero's on a phone", () => {
+    expect(problemsWith(SITE)).toEqual([])
+  })
+
+  it("leaves the shared .label alone: the garment pages' colour-name labels were not measured for it", () => {
+    expect(topLevel(BASE, '.label').has('text-wrap')).toBe(false)
+  })
+
+  // NEGATIVE CONTROLS: nothing balanced, a px query that ignores the reader's text size, and a
+  // dot that stays.
+  it('sees each fault: no balance, a px query, a dot that is never hidden', () => {
+    expect(problemsWith('')).toEqual([
+      '.site-hero .label does not balance its lines',
+      `the dot is not hidden inside ${PHONE}`,
+      `the second half does not take its own line inside ${PHONE}`,
+    ])
+    const inPixels = `
+      .site-hero .label { text-wrap: balance; }
+      @media (max-width: 640px) {
+        .label__dot { display: none; }
+        .label__tail { display: block; }
+      }
+    `
+    expect(problemsWith(inPixels)).toEqual([
+      `the dot is not hidden inside ${PHONE}`,
+      `the second half does not take its own line inside ${PHONE}`,
+    ])
+    const dotStays = `
+      .site-hero .label { text-wrap: balance; }
+      @media (max-width: 40rem) {
+        .label__tail { display: block; }
+      }
+    `
+    expect(problemsWith(dotStays)).toEqual([`the dot is not hidden inside ${PHONE}`])
   })
 })

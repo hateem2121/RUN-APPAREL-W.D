@@ -529,6 +529,43 @@ html {
   font-size: clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem);
 }
 
+/*
+ * ⚠️ A HERO LABEL NEVER LEAVES ITS LAST WORDS ALONE (visual audit VA-43, 2026-10-02). At 390px the
+ * teamwear page's "[ TEAMWEAR & UNIFORMS · FROM 50 PIECES PER STYLE ]" wrapped and left "STYLE ]" on a
+ * line of its own. `balance` (MDN: Baseline since 2024) chooses where an existing wrap falls and
+ * adds no line, so a one-line label is untouched and no height moves. It is scoped to the hero
+ * labels HERE, not put on `.label` in base.css: the garment pages' labels hold a colourway name that
+ * wraps on its own measured rules (VA-32), and nothing there was measured for this.
+ * `e2e/composition.spec.ts` counts each label's lines in a browser.
+ */
+.site-hero .label {
+  text-wrap: balance;
+}
+
+/*
+ * The home hero's label, on a phone: two deliberate lines, and no dot (VA-43, round 4). At 390px its
+ * second line began with the separator ("· START FROM 50 PIECES PER STYLE ]"), because the browser
+ * chose where to break and a dot is a place to break. The words are the same and in the same order;
+ * only the dot between the two halves goes, and the second half takes its own line.
+ *
+ * `40rem`, not 640px: `rem` in a media query is the browser's own text size, which is what the
+ * label's width follows (its type is in rem), so a reader at larger text gets two lines where the
+ * label stops fitting, as `notch.css` fits the bar. At the default size the label is about 541px
+ * (73 characters of 10px mono at 0.12em tracking, 7.2px each, plus 16px of padding: computed, not
+ * measured) against a 577px column at 641px, so from 40rem it is one line with its dot.
+ * ⚠️ At 320px the FIRST half is wider than the line (about 281px of text in a 264px line), so it takes
+ * two balanced lines there and the label is three; from about 340px wide it is the two lines.
+ */
+@media (max-width: 40rem) {
+  .label__dot {
+    display: none;
+  }
+
+  .label__tail {
+    display: block;
+  }
+}
+
 .site-lede {
   max-width: var(--site-measure);
   /*
