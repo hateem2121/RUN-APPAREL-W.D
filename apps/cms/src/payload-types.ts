@@ -39,7 +39,7 @@ export type ProductColourway =
        */
       altText?: string | null;
       /**
-       * A colour code like #22314E, only so you can recognise the row at a glance. Buyers never see it.
+       * A colour code like #22314E. Buyers see it as this colour’s round swatch on the product cards and on the garment page.
        */
       hexSwatch?: string | null;
       /**
