@@ -10,7 +10,7 @@ import {
 
 /**
  * Source guards for the polish fixes of the 2026-10-02 visual audit (VA-16, VA-18, VA-19,
- * VA-43, VA-46). Each `describe` carries its audit ID, so a future reader can find the
+ * VA-43, VA-46, VA-47). Each `describe` carries its audit ID, so a future reader can find the
  * measurement it came from.
  *
  * ⚠️ THESE READ STYLESHEETS, AND A STYLESHEET CANNOT SAY HOW A BROWSER DRAWS IT. What each one
@@ -532,6 +532,53 @@ describe('VA-46 — both buttons answer a pointer the same way', () => {
     expect(problemsWith(unreadable)).toEqual([
       '.btn--ghost:hover text is 1.00:1 in light mode',
       '.btn--ghost:hover text is 1.00:1 in dark mode',
+    ])
+  })
+})
+
+describe('VA-47 — a guide card is the link target, and the stretch stays inside the card', () => {
+  /**
+   * The link's `::after` is stretched over the card (`inset: 0`), which only means "the card" if the
+   * card is the nearest positioned ancestor. Lose `position: relative` on the card, or give it to the
+   * link, and the stretch covers the page or only the title: with the first, a click ANYWHERE on the
+   * page opens the first guide. Nothing a unit test of the markup could see.
+   */
+  function problemsWith(source: string): string[] {
+    const problems: string[] = []
+    if (topLevel(source, '.guide-card').get('position') !== 'relative') {
+      problems.push(
+        '.guide-card is not position: relative, so the stretched link would not stop at the card',
+      )
+    }
+    if (topLevel(source, '.guide-card__link').has('position')) {
+      problems.push('.guide-card__link is positioned, so the stretch would cover only the title')
+    }
+    const stretch = topLevel(source, '.guide-card__link::after')
+    if (stretch.get('content') !== '""') problems.push('the link has no ::after to stretch')
+    if (stretch.get('position') !== 'absolute') problems.push('the ::after is not absolute')
+    if (stretch.get('inset') !== '0') problems.push('the ::after does not fill the card (inset: 0)')
+    return problems
+  }
+
+  it('positions the card, and stretches the link’s ::after over exactly it', () => {
+    expect(problemsWith(SITE)).toEqual([])
+  })
+
+  // NEGATIVE CONTROLS: the three ways the stretch goes wrong.
+  it('sees each fault: an unpositioned card, a positioned link, no stretch', () => {
+    expect(problemsWith('.guide-card { padding: 20px; }')).toEqual([
+      '.guide-card is not position: relative, so the stretched link would not stop at the card',
+      'the link has no ::after to stretch',
+      'the ::after is not absolute',
+      'the ::after does not fill the card (inset: 0)',
+    ])
+    const positionedLink = `
+      .guide-card { position: relative; }
+      .guide-card__link { position: relative; }
+      .guide-card__link::after { content: ""; position: absolute; inset: 0; }
+    `
+    expect(problemsWith(positionedLink)).toEqual([
+      '.guide-card__link is positioned, so the stretch would cover only the title',
     ])
   })
 })

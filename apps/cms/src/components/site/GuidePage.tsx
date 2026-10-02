@@ -36,12 +36,17 @@ function Block({ block }: { block: GuideBlock }) {
   )
 }
 
-/** The other guides and the buyer pages, as the chips `/products` filters with. */
-export function GuideLinks({ current }: { current: string }) {
+/**
+ * The other guides and the buyer pages, as the chips `/products` filters with.
+ *
+ * `guides={false}` leaves the guides out: the index shows every guide as a card already, so the
+ * same seven as chips was the repetition VA-47 removed (2026-10-02). Every guide page keeps them.
+ */
+export function GuideLinks({ current, guides = true }: { current: string; guides?: boolean }) {
   const buyerPages = FAMILIES.map((family) => ({ family, page: familyPageFor(family) }))
   return (
     <nav className="filter-bar" aria-label="More to read">
-      {GUIDES.filter((guide) => guide.path !== current).map((guide) => (
+      {(guides ? GUIDES.filter((guide) => guide.path !== current) : []).map((guide) => (
         <Link key={guide.path} className="filter-chip" href={guide.path}>
           {guide.title}
         </Link>

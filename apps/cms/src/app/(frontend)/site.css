@@ -2442,6 +2442,108 @@ a.contact-block__value:active {
   scale: 0.98;
 }
 
+/* ------------------------------------------------ the guides index (VA-47) */
+
+/*
+ * ⚠️ EACH GUIDE IS ONE CARD AND ONE LINK (visual audit VA-47, 2026-10-02). The index listed every
+ * guide twice: a card with its own button, then a chip for the same guide at the foot of the page.
+ * The card is the target now and the title is the link (`GuideCard.tsx` has the markup and the
+ * reasons), so there is no button to style and one place to hover.
+ *
+ * The grid is the family grid's shape for the family grid's reason (FA-E-01): a short list of a
+ * known length is a composition, not an `auto-fill` that strands its last card. One column below
+ * 560px, two above it, and an odd last card spans both so the rectangle is whole.
+ *
+ * ⚠️ THE LINK IS STRETCHED OVER THE CARD (Inclusive Components, "Cards", read 2026-10-02). `.guide-card`
+ * is the containing block and the link's `::after` fills it, so a click or tap anywhere on the card is
+ * a click on the link, while the link itself stays the title. The overlay paints above the card's plain
+ * text, which therefore cannot be selected: these are signposts, not reading. The keyboard ring stays
+ * the global one on the title (not overridden, so the focused element still shows its own), and the
+ * card answers it too, as every card does, with the lift and the accent edge below.
+ *
+ * The hover is the family card's, because the audit's finding was cards and chips agreeing and buttons
+ * not (VA-46): lift 4px and an accent edge on a mouse, the same on keyboard focus, the press on touch.
+ */
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-grid > li:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 559px) {
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.guide-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* `max-width: none`: base.css caps every `li` at 60ch (about 584px at 17px), which would leave
+     the odd last card, spanning both columns, at half the row (the timeline's phases hit the same
+     cap, above). The cap is a measure for text, and the card is a box; the description keeps its own. */
+  max-width: none;
+  padding: 20px;
+  transition:
+    translate var(--ui) var(--ease),
+    border-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+/* The site's own measure, as `.prose p` and `.site-lede` keep it, so the wide last card's lines
+   stay inside the 75 characters FA-C-52 holds the site's prose to: at 55ch of 15px (474px) the
+   seven real descriptions set at most 71 characters a line, computed from Archivo's advance
+   widths without kerning (not measured in a browser), against up to 79 under the page's 60ch. */
+.guide-card .product-card__desc {
+  max-width: var(--site-measure);
+}
+
+.guide-card__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.guide-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* The button's own three words, kept as a quiet cue (GuideCard.tsx): accent ink, mono, like the family cue. */
+.guide-card__cue {
+  margin-block-start: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-sm);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--dimension);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guide-card:hover {
+    translate: 0 -4px;
+    border-color: var(--dimension);
+  }
+}
+
+.guide-card:has(.guide-card__link:focus-visible) {
+  translate: 0 -4px;
+  border-color: var(--dimension);
+}
+
+.guide-card:has(.guide-card__link:active) {
+  scale: 0.98;
+}
+
 /* ------------------------------------------------ №04 how an order works */
 
 .timeline {

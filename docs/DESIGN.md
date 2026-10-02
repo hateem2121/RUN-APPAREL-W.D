@@ -526,6 +526,14 @@ from 900px wide or on a screen 500px tall or less (see Breakpoints).
 
 `--surface` background, `1px solid var(--line)`, `--radius-panel` (18px).
 
+**A guide card on the website's guides index is one link (VA-47, 2026-10-02).** The index used to
+list each guide twice, as a card with its own button and as a chip at the foot of the page. Now the
+card's heading is the only link, named by the guide's title, and its `::after` is stretched over the
+card (`site.css`, `.guide-card__link`), so a click or tap anywhere on it opens the guide. Nothing
+interactive sits inside it, and the card hovers as the family cards do: a 4px lift and an accent
+edge on a mouse and on keyboard focus, the press on touch. The foot of the page keeps only the
+buyer-page chips; each guide page still lists its sibling guides.
+
 ### Motifs
 
 - `.blueprint` — two 1px `--grid` gradients at `26px 26px`, i.e. graph paper.

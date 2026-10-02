@@ -1,5 +1,6 @@
 import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import AxeBuilder from '@axe-core/playwright'
+import { GUIDES } from '../src/lib/guides'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -311,6 +312,85 @@ test.describe('the product gallery', () => {
     // Not a fixed wait: the swap happens on mount, so poll for the outcome instead.
     await expect(page.locator('.product-card__img')).toHaveCount(0, { timeout: 10_000 })
     await expect(cards.first().locator('.product-card__placeholder')).toBeVisible()
+  })
+})
+
+/*
+ * VA-47 (visual audit 2026-10-02): the guides index listed every guide twice, as a card with its
+ * own "Read this guide" button and again as a chip at the foot of the same page: 14 links to 7
+ * pages. Each guide is now ONE card whose heading is the link, stretched over the card by
+ * `.guide-card__link::after` (site.css); the foot keeps only the buyer pages.
+ * `guides/page.test.ts` reads the same promises from the markup; this reads them as a visitor
+ * meets them. Reduced motion is emulated, as every layout suite here does, so the page's entrance
+ * is not mid-flight when a box is measured.
+ */
+test.describe('the guides index lists each guide once (VA-47)', () => {
+  test('one link per guide, named by its title, nothing interactive inside a card', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/guides')
+    await expect(page.locator('.guide-card')).toHaveCount(GUIDES.length)
+    for (const guide of GUIDES) {
+      await expect(
+        page.locator(`main a[href="${guide.path}"]`),
+        `${guide.path} is linked more than once on the index`,
+      ).toHaveCount(1)
+      await expect(
+        page.getByRole('link', { name: guide.title, exact: true }),
+        `no link is named "${guide.title}"`,
+      ).toHaveCount(1)
+    }
+    await expect(page.locator('.guide-card a')).toHaveCount(GUIDES.length)
+    await expect(page.locator('.guide-card button, .guide-card .btn, .guide-card a a')).toHaveCount(
+      0,
+    )
+  })
+
+  test('the whole card is the link: a point on its description reaches it, and a point on the headline does not', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/guides')
+    // What link, if any, lies under the middle of an element? A pseudo-element answers as its anchor.
+    const linkUnder = (selector: string) =>
+      page
+        .locator(selector)
+        .first()
+        .evaluate((element) => {
+          element.scrollIntoView({ block: 'center' })
+          const box = element.getBoundingClientRect()
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+          return hit?.closest('a')?.getAttribute('href') ?? null
+        })
+    const middle = GUIDES[Math.floor(GUIDES.length / 2)]
+    if (!middle) throw new Error('there are no guides to look at')
+    const description = `.guide-card:has(a[href="${middle.path}"]) .product-card__desc`
+    expect(
+      await linkUnder(description),
+      'a point on the description does not reach the card’s link',
+    ).toBe(middle.path)
+    // The stretch must stop at its card. Without `position: relative` on the card it would cover
+    // the page, and the headline above the grid would open the first guide.
+    expect(
+      await linkUnder('h1'),
+      'the headline lies under a guide link: the stretch escaped its card',
+    ).toBeNull()
+    // And it is a real click that arrives: on the description, far from the title.
+    const box = await page.locator(description).boundingBox()
+    if (!box) throw new Error('the description has no box to click')
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(page).toHaveURL(new RegExp(`${middle.path}$`))
+  })
+
+  test('the foot of the page links the buyer pages and no guide', async ({ page }) => {
+    await page.goto('/guides')
+    const foot = page.getByRole('navigation', { name: 'More to read' })
+    await expect(foot.locator('a')).toHaveCount(FAMILY_PAGE_SOURCES.length)
+    for (const path of FAMILY_PAGE_SOURCES)
+      await expect(foot.locator(`a[href="${path}"]`)).toHaveCount(1)
+    for (const guide of GUIDES) await expect(foot.locator(`a[href="${guide.path}"]`)).toHaveCount(0)
   })
 })
 
