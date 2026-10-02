@@ -373,18 +373,6 @@ li {
   border: 1.4px solid var(--btn-primary-bg);
 }
 
-/* Hover is gated on a real pointer throughout this file and page.css. A touch
-   device has no hover, but it still MATCHES :hover on tap and holds that state
-   until you tap elsewhere — so an ungated rule reads as "stuck". This product is
-   reached by scanning a QR code, i.e. overwhelmingly from a phone. Added
-   2026-08-13; `isCoarsePointer()` already gated the JS behaviours (Cursor.tsx,
-   ColourwayTabs.tsx) and only the CSS appearance was missed. */
-@media (hover: hover) and (pointer: fine) {
-  .btn--primary:hover {
-    transform: translateY(-2px);
-  }
-}
-
 .btn--ghost {
   background: transparent;
   color: var(--text);
@@ -392,8 +380,39 @@ li {
   border: 1.4px solid var(--line-control);
 }
 
-/* Ghost hover inverts text/bg. */
+/* Hover is gated on a real pointer throughout this file and page.css. A touch
+   device has no hover, but it still MATCHES :hover on tap and holds that state
+   until you tap elsewhere — so an ungated rule reads as "stuck". This product is
+   reached by scanning a QR code, i.e. overwhelmingly from a phone. Added
+   2026-08-13; `isCoarsePointer()` already gated the JS behaviours (Cursor.tsx,
+   ColourwayTabs.tsx) and only the CSS appearance was missed.
+
+   ⚠️ BOTH BUTTONS ANSWER A POINTER THE SAME WAY: THEY LIFT 2PX AND INVERT (VA-46, visual audit
+   2026-10-02). The primary button used to lift with no change of colour, and the outline button
+   filled solid with no lift, so the site's two buttons spoke two languages while its cards and
+   chips agreed. Inverting is what the outline button already did (the page's text and ground
+   swap), so the primary now does the same with its OWN pair: fill and text swap, and its border
+   keeps the old fill, so the button never loses its edge (ink-and-volt becomes volt with an ink
+   edge in light mode; volt becomes ink with a volt edge in dark). Each pair is two tokens that
+   already flip with the theme, so nothing is new: the text is 13.06:1 on the primary's swapped
+   fill in both themes and 14.47:1 light / 13.96:1 dark on the outline button's, against the 4.5:1
+   12px text needs. ⚠️ THE EDGE IS WHAT KEEPS THE PRIMARY A BUTTON: its swapped fill alone is
+   1.11:1 against the paper (volt) and 1.00:1 against the dark page (ink); the kept border is
+   14.47:1 and 13.11:1. The lift is ONE rule for both, so they cannot drift apart again.
+   The colours and the lift ride the transitions `.btn` already lists (--ui). Reduced motion
+   needs no gate: base.css collapses every duration to 0.01ms, so the change is instant rather
+   than absent, as it is for the cards. `transform` is the lift's property and Cursor.tsx's
+   magnet owns `translate`; they compose. */
 @media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .btn--primary:hover {
+    background: var(--btn-primary-text);
+    color: var(--btn-primary-bg);
+  }
+
   .btn--ghost:hover {
     background: var(--text);
     color: var(--bg);

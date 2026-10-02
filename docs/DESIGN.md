@@ -436,10 +436,19 @@ code with a phone, so it is the common case rather than the edge case.
 .btn           mono 12px (--text-mono-lg) UPPERCASE · tracking 0.1em · padding 14/22px
                radius --radius-button (10px) · min-height 44px
 .btn--primary  --btn-primary-bg fill, 1.4px border of the same
-               hover: translateY(-2px)
+               hover: INVERTS (fill and text swap; the border keeps the old fill) and lifts 2px
 .btn--ghost    transparent, 1.4px --line-control border (3:1, see §1)
-               hover: INVERTS to --text bg with --bg text
+               hover: INVERTS to --text bg with --bg text and lifts 2px
 ```
+
+**Both buttons answer a pointer the same way since 2026-10-02 (VA-46).** The primary button used
+to lift with no colour change and the outline button filled solid with no lift, while the site's
+cards and chips agreed with each other. Now both invert and both lift 2px (one `.btn:hover` rule, so
+they cannot drift), on a fine pointer only, from the tokens above. The text clears 4.5:1 on every
+swapped fill (13.06:1 for the primary in both themes; 14.47:1 light and 13.96:1 dark for the outline
+button), and the primary keeps its old fill as its border, because its swapped fill alone is
+1.11:1 against the paper or 1.00:1 against the dark page. Reduced motion collapses the transition
+to 0.01ms as it does for the cards: the change is instant, not absent.
 
 **12px since 2026-09-11 (audit TY-07).** A button's words, and the site's PRODUCTS and
 CONTACT links, are how a visitor gets anywhere, so they moved one step up the scale to

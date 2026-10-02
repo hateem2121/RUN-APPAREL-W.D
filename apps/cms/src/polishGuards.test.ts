@@ -104,10 +104,12 @@ function resolveToken(tokens: string, name: string, mode: Mode): string {
 /** `var(--token)` and nothing else (a raw fallback is a raw value in a token's clothes). */
 const bareToken = (value: string | undefined) => /^var\(\s*(--[\w-]+)\s*\)$/.exec(value ?? '')?.[1]
 
+/** The four surfaces anything on the site sits on, in both themes. */
+const GROUNDS = ['--bg', '--surface', '--wash', '--raised'] as const
+
 describe('VA-16 — native controls draw in the brand, not the system blue', () => {
   /** What a control's state needs against the ground it sits on (WCAG 1.4.11). */
   const FLOOR = 3
-  const GROUNDS = ['--bg', '--surface', '--wash', '--raised'] as const
 
   /** Everything wrong with the two declarations on <html>, as sentences. */
   function failuresOf(html: Map<string, string>, tokens = TOKENS): string[] {
@@ -389,5 +391,147 @@ describe('VA-43 — hero labels balance their lines, and the home label breaks i
       }
     `
     expect(problemsWith(dotStays)).toEqual([`the dot is not hidden inside ${PHONE}`])
+  })
+})
+
+describe('VA-46 — both buttons answer a pointer the same way', () => {
+  const FINE = '@media (hover: hover) and (pointer: fine)'
+  const LIFT = 'translateY(-2px)'
+  /** What 12px text needs (WCAG 1.4.3), and what a control's edge needs (1.4.11). */
+  const TEXT_FLOOR = 4.5
+  const EDGE_FLOOR = 3
+
+  const ratio = (foreground: string, background: string, mode: Mode, tokens: string) =>
+    contrastOf(resolveToken(tokens, foreground, mode), resolveToken(tokens, background, mode))
+
+  /** The property each comma-separated part of a `transition` value names, in order. */
+  const transitioned = (value: string | undefined) =>
+    (value ?? '').split(',').map((part) => part.trim().split(/\s+/)[0])
+
+  /** Everything wrong with the buttons' hover rules, as sentences. */
+  function problemsWith(source: string, tokens = TOKENS): string[] {
+    const problems: string[] = []
+    const rules = rulesOf(source)
+    const find = (selector: string, at: string[] = []) =>
+      rules.find((rule) => rule.selector === selector && rule.at.join() === at.join())
+    const hover = (selector: string) => find(selector, [FINE])
+
+    // A hover on a button outside the fine-pointer block would stick after a tap.
+    for (const rule of rules) {
+      if (/\.btn[\w-]*:hover/.test(rule.selector) && rule.at.join() !== FINE) {
+        problems.push(`${rule.selector} is outside ${FINE}`)
+      }
+    }
+    // ONE lift for both, and neither variant sets one of its own.
+    if (hover('.btn:hover')?.declarations.get('transform') !== LIFT) {
+      problems.push(`.btn:hover does not lift both buttons by ${LIFT}`)
+    }
+    for (const variant of ['.btn--primary', '.btn--ghost']) {
+      const rest = find(variant)
+      const over = hover(`${variant}:hover`)
+      if (over?.declarations.has('transform')) {
+        problems.push(`${variant}:hover sets its own transform: the lift is one rule`)
+      }
+      const hoverFill = over?.declarations.get('background')
+      const fill = bareToken(hoverFill)
+      const text = bareToken(over?.declarations.get('color'))
+      if (!fill || !text) {
+        problems.push(`${variant}:hover does not change colour from two tokens`)
+        continue
+      }
+      if (hoverFill === rest?.declarations.get('background')) {
+        problems.push(`${variant}:hover keeps its resting fill`)
+      }
+      for (const mode of ['light', 'dark'] as const) {
+        const value = ratio(text, fill, mode, tokens)
+        if (value < TEXT_FLOOR) {
+          problems.push(`${variant}:hover text is ${value.toFixed(2)}:1 in ${mode} mode`)
+        }
+      }
+    }
+    // The primary's swapped fill is the page's own colour, so its EDGE is what keeps it a button:
+    // the border is the old fill, hover must leave it alone, and it must clear 3:1 on every ground.
+    const edge = /var\(\s*(--[\w-]+)\s*\)/.exec(
+      find('.btn--primary')?.declarations.get('border') ?? '',
+    )?.[1]
+    if (!edge) problems.push('.btn--primary has no token for its border')
+    if (
+      hover('.btn--primary:hover')?.declarations.has('border-color') ||
+      hover('.btn--primary:hover')?.declarations.has('border')
+    ) {
+      problems.push('.btn--primary:hover sets its own border: its edge keeps the old fill')
+    }
+    if (edge) {
+      for (const mode of ['light', 'dark'] as const) {
+        for (const ground of GROUNDS) {
+          const value = ratio(edge, ground, mode, tokens)
+          if (value < EDGE_FLOOR) {
+            problems.push(
+              `the primary's edge on ${ground} in ${mode} mode is ${value.toFixed(2)}:1`,
+            )
+          }
+        }
+      }
+    }
+    // The colours and the lift ease on the transitions `.btn` already lists.
+    const eased = transitioned(find('.btn')?.declarations.get('transition'))
+    for (const property of ['transform', 'background-color', 'color', 'border-color']) {
+      if (!eased.includes(property)) problems.push(`.btn does not transition ${property}`)
+    }
+    return problems
+  }
+
+  it('lifts both buttons 2px with one rule, and inverts both, on a fine pointer only', () => {
+    expect(problemsWith(BASE)).toEqual([])
+  })
+
+  it('names the pairs the audit measured: the primary swaps its own two tokens, the outline button the page’s', () => {
+    const rules = rulesOf(BASE)
+    const declared = (selector: string) =>
+      rules.find((rule) => rule.selector === selector && rule.at.join() === FINE)?.declarations
+    expect(declared('.btn--primary:hover')?.get('background')).toBe('var(--btn-primary-text)')
+    expect(declared('.btn--primary:hover')?.get('color')).toBe('var(--btn-primary-bg)')
+    expect(declared('.btn--ghost:hover')?.get('background')).toBe('var(--text)')
+    expect(declared('.btn--ghost:hover')?.get('color')).toBe('var(--bg)')
+  })
+
+  // NEGATIVE CONTROLS, run both ways: the OLD rules (a lift with no colour, a fill with no lift),
+  // an edge that disappears, a hover that is not gated, and text that cannot be read.
+  const OLD = `
+    .btn { transition: transform var(--ui) var(--ease), background-color var(--ui) var(--ease), color var(--ui) var(--ease), border-color var(--ui) var(--ease); }
+    .btn--primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); border: 1.4px solid var(--btn-primary-bg); }
+    .btn--ghost { background: transparent; color: var(--text); border: 1.4px solid var(--line-control); }
+    @media (hover: hover) and (pointer: fine) { .btn--primary:hover { transform: translateY(-2px); } }
+    @media (hover: hover) and (pointer: fine) { .btn--ghost:hover { background: var(--text); color: var(--bg); border-color: var(--text); } }
+  `
+  it('sees the fault: the old rules, one language per button', () => {
+    expect(problemsWith(OLD)).toEqual([
+      `.btn:hover does not lift both buttons by ${LIFT}`,
+      '.btn--primary:hover sets its own transform: the lift is one rule',
+      '.btn--primary:hover does not change colour from two tokens',
+    ])
+  })
+
+  it('sees the fault: an edge that goes, a hover that is not gated, text that cannot be read', () => {
+    const good = BASE
+    const edgeGone = good.replace(
+      '.btn--primary:hover {',
+      '.btn--primary:hover {\n    border-color: var(--btn-primary-text);',
+    )
+    expect(problemsWith(edgeGone)).toEqual([
+      '.btn--primary:hover sets its own border: its edge keeps the old fill',
+    ])
+    const ungated = `${good}\n.btn--ghost:hover { background: var(--text); color: var(--bg); }`
+    expect(problemsWith(ungated)).toEqual([
+      '.btn--ghost:hover is outside @media (hover: hover) and (pointer: fine)',
+    ])
+    const unreadable = good.replace(
+      'color: var(--bg);\n    border-color: var(--text);',
+      'color: var(--text);\n    border-color: var(--text);',
+    )
+    expect(problemsWith(unreadable)).toEqual([
+      '.btn--ghost:hover text is 1.00:1 in light mode',
+      '.btn--ghost:hover text is 1.00:1 in dark mode',
+    ])
   })
 })

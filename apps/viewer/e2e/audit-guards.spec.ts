@@ -2699,3 +2699,54 @@ test.describe('MO-23 — all five named motion affordances are present', () => {
     ).toBe(true)
   })
 })
+
+/**
+ * VA-46 (visual audit 2026-10-02): the garment pages' two buttons answer a mouse the way the
+ * website's do (`apps/cms/e2e/motion.spec.ts` has the account): both lift 2px and invert, from
+ * the shared `.btn:hover` rule in `packages/ui/src/base.css`. These are the page's own Email and
+ * WhatsApp links, read as the visitor reads them.
+ *
+ * Reduced motion is emulated, so the transition is 0.01ms and the settled state is what is read;
+ * it is polled because "settled" is a frame away. A touch phone has no hover and the rule is
+ * behind `(hover: hover)`, so the iPhone project skips.
+ */
+test.describe('both buttons answer a mouse the same way, on a garment page too (VA-46)', () => {
+  test('Email and WhatsApp each lift 2px and invert, and go back when the mouse leaves', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a touch phone has no hover')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const ground = await page.evaluate(() => {
+      const style = getComputedStyle(document.body)
+      return { text: style.color, page: style.backgroundColor }
+    })
+    for (const name of ['Email Us', 'WhatsApp Us']) {
+      const button = page.getByRole('link', { name }).first()
+      const read = () =>
+        button.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return { transform: style.transform, fill: style.backgroundColor, text: style.color }
+        })
+      await button.scrollIntoViewIfNeeded()
+      const rest = await read()
+      expect(rest.transform, `${name} is lifted at rest`).toBe('none')
+      await button.hover()
+      // The primary (Email) swaps its own two colours; the outline button (WhatsApp) takes the page's.
+      const swapped =
+        name === 'Email Us'
+          ? { fill: rest.text, text: rest.fill }
+          : { fill: ground.text, text: ground.page }
+      await expect
+        .poll(read, { message: `${name} did not lift 2px and invert` })
+        .toEqual({ transform: 'matrix(1, 0, 0, 1, 0, -2)', ...swapped })
+      await page.mouse.move(0, 0)
+      await expect
+        .poll(read, { message: `${name} stayed lifted after the mouse left` })
+        .toEqual(rest)
+    }
+  })
+})
