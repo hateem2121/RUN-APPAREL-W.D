@@ -1486,6 +1486,14 @@ model-viewer.stage__model {
   bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
+  /* ⚠️ ITS OWN TEXT'S WIDTH, NOT THE ROOM `left: 50%` LEAVES IT (visual audit VA-07,
+     2026-10-02). With `width: auto` an absolutely placed box is sized to fit the room
+     it is left — here the right half of the stage — so its width can follow that room
+     instead of its text. On a real iPhone, whose monospace face is wider than the
+     Mac's, the final M of "PINCH TO ZOOM" crossed the pill's rounded edge.
+     `max-content` lets the text decide, and the translate above keeps the pill
+     centred. The bottom-centre position is the owner's decision and is unchanged. */
+  width: max-content;
   display: flex;
   align-items: center;
   gap: 8px;
