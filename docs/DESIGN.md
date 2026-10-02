@@ -566,6 +566,24 @@ itself (never a preload link: one per page is pinned), its space is reserved by 
 and the image's width and height so nothing moves when it lands, and its alt text is its own. A
 family with no picture at all keeps the hero it had, with nothing drawn.
 
+### The margin inside a garment picture
+
+The renders are cropped tight, so in a box with no margin each garment ran to the edge (visual audit
+VA-55, owner's choice 2026-10-02: the sports bra touched both sides, the jacket's sleeves the sides
+and the bottom, the bib shorts top and bottom). The pictures on the home family cards, in the
+product cards' swipe gallery and in the buyer page's hero now keep a margin, as `padding` on the
+picture itself: `calc(var(--picture-inset) * 1.25) var(--picture-inset)`, with `--picture-inset: 7%`.
+The property is declared in `apps/cms/src/app/(frontend)/site.css`, not `tokens.css`, because only the
+website's cards read it.
+
+`object-fit: contain` fits the picture into what the padding leaves, so the 4:5 boxes are the size they
+were and a 4:5 render lands 7% from every edge. Percentage padding is measured against the width, so the
+block value is 1.25 times the inline one to reach the same fraction of the height. A render taller than
+4:5 is bound by the height and keeps its 7% of height; a wider one keeps its 7% of width. The browser
+test holds a floor of 6%, the bottom of the owner's "about 6-8%". Sports Accessories, whose photo is the
+one on black, has the same margin: the owner kept the photo and chose to give it the margin. The home
+page's 3D section picture has none, because the live model lies exactly over its frame.
+
 ### The cookie card
 
 The choice is a fixed card at the foot of the screen (`base.css` `.consent`), with Decline and

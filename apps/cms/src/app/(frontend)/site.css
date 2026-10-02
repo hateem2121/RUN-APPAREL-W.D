@@ -445,6 +445,21 @@ html {
   --site-measure: 55ch;
   /* `--site-max`, `--site-gutter` and `--site-content` moved to packages/ui/src/tokens.css on
      2026-10-02 (VA-31): the footer that lines up with them is drawn on the garment pages too. */
+
+  /*
+   * ⚠️ THE MARGIN INSIDE A GARMENT PICTURE'S BOX (visual audit VA-55, owner's choice 2026-10-02).
+   * The renders are cropped tight, so inside a box with no margin each garment ran to the edge: on
+   * the home family cards the sports bra touched both sides and the jacket's sleeves reached the
+   * sides and the bottom, and the bib shorts touched top and bottom on the home page and on
+   * /products. 7% of the box's width at the sides, and 1.25 x that above and below, which is the
+   * same 7% of the box's HEIGHT in a 4:5 box: percentage padding is always measured against the
+   * width, so the vertical value has to be scaled to land on the same fraction. The owner asked
+   * for about 6-8%; 7% leaves a picture 86% of the box's width and height, and every garment at
+   * least 7% from each edge whatever the shape of its render (a render taller than 4:5 is
+   * height-bound and keeps its 7% of height; a wider one keeps its 7% of width).
+   * `e2e/pictureInset.spec.ts` measures where the picture is drawn, in a real engine.
+   */
+  --picture-inset: 7%;
 }
 
 .site-container {
@@ -905,10 +920,13 @@ html {
  * placeholder on `error` wherever scripting is available. This layer still earns its
  * place — it covers the window before hydration, and every no-JS case.
  *
- * ⚠️ NO `padding` HERE, THOUGH THE BROKEN TEXT WOULD READ BETTER WITH IT. Padding insets
+ * ⚠️ NO `padding` ON THIS RULE, THOUGH THE BROKEN TEXT WOULD READ BETTER WITH IT. Padding insets
  * the content box of a replaced element, so `object-fit: contain` fits the poster inside
  * it — measured, a 16px pad put a visible margin around every poster that loaded
  * correctly. Changing the normal case to improve the failure case is the wrong trade.
+ * Since VA-55 (2026-10-02) the card pictures DO carry a margin, deliberately, on the three
+ * frames named under `.product-card__img` below; this rule stays bare for the home page's
+ * 3D section, whose picture must fill its frame.
  */
 /* The <picture> around a resized card picture (ProductPoster.tsx) adds no box of its own. */
 .product-card__picture {
@@ -927,6 +945,29 @@ html {
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/*
+ * ⚠️ THE INSET (visual audit VA-55, owner's choice 2026-10-02; the measure is `--picture-inset`
+ * at the top of this file). Padding on a replaced element insets the box `object-fit` fits the
+ * picture into, so `contain` draws the garment inside the margin and the frame behind it, the
+ * 4:5 box the card keeps (MDN, `object-fit`: it applies to the content box; read 2026-10-02), is
+ * the same size it was. On exactly three pictures: the home family cards, the swipe gallery's
+ * slides on the product cards (so /products and the buyer pages), and the buyer page's hero.
+ * Sports Accessories has the same margin as the others: the owner kept its photo (on black, the
+ * only one) and chose to give it the margin too.
+ *
+ * ⚠️ NOT ON `.product-card__img` ITSELF. That rule is also the home page's 3D section picture, and
+ * the live model lies exactly over its frame (`.live-garment`, D24): an inset still under a model
+ * that fills the frame would make the garment jump larger as the model fades in. The swipe's own
+ * geometry is untouched too: a slide is still the strip's whole width (`slideAt` in
+ * `lib/cardGallery.ts`), and the padding sits inside the picture, not on the slide. A broken
+ * picture's alt text is inset by the same margin, which is a fine place for it.
+ */
+.family-card__img,
+.card-gallery__slide .product-card__img,
+.family-hero__frame .product-card__img {
+  padding: calc(var(--picture-inset) * 1.25) var(--picture-inset);
 }
 
 .product-card__placeholder {
