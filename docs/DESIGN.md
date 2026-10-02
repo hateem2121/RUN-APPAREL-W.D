@@ -570,6 +570,7 @@ nothing moved — with one stated exception below.
 |---|---|---|
 | `--z-hero-grid` | -1 | the site's `.site-hero__grid` — the blueprint grid behind the hero copy |
 | `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
+| `--z-card-control` | 1 | the site's `.card-gallery__arrow` — previous / next over a gallery card's picture (VA-30) |
 | `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
 | `--z-footer-glow` | 6 | the site's `.footer-glow` — the light, blended over the slab's content |
 | `--z-header` | 40 | the bar; both hosts' `.notch-shell` share it since 2026-09-24 |

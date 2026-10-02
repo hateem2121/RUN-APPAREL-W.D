@@ -1680,20 +1680,82 @@ html {
   cursor: pointer;
 }
 
+/*
+ * Each dot is its colour (visual audit VA-30, 2026-10-02): `--swatch` is the colour's
+ * `hexSwatch`, set on the button by CardGallery.tsx, the value the garment page paints its
+ * swatches with. The ring is --line-control, the control-edge token, with the paper inset,
+ * exactly as `.colourway-tab__swatch` draws it on the garment page — so a near-white colour
+ * (Butter, #FDFDC8) still reads against the card and a near-black one in dark mode. A colour
+ * with no swatch keeps the empty ring.
+ *
+ * The chosen dot wears an OUTLINE 2px clear of it, in the headline colour: a shape that
+ * appears, not a fill that changes, so it survives every colour the swatch could be — and
+ * Windows High Contrast, which keeps outlines and repaints fills (VA-08's half for these dots).
+ */
 .card-gallery__dot::before {
   content: "";
-  inline-size: 8px;
-  block-size: 8px;
+  inline-size: 16px;
+  block-size: 16px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--muted);
-  transition:
-    background-color var(--ui) var(--ease),
-    border-color var(--ui) var(--ease);
+  border: 1px solid var(--line-control);
+  background: var(--swatch, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color var(--ui) var(--ease);
 }
 
 .card-gallery__dot[aria-pressed="true"]::before {
-  background: var(--headline);
-  border-color: var(--headline);
+  outline-color: var(--headline);
+}
+
+/*
+ * Previous / next over the picture (VA-30): 44px buttons at the picture's middle edges, on the
+ * paper tone so they read over a dark render as well as the light ground. Shown while a mouse
+ * is over the picture or the card holds keyboard focus; never on a touch screen, which swipes.
+ */
+.card-gallery__arrow {
+  position: absolute;
+  inset-block-start: 50%;
+  z-index: var(--z-card-control);
+  display: grid;
+  place-items: center;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--headline);
+  cursor: pointer;
+  translate: 0 -50%;
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+}
+
+.card-gallery__arrow--prev {
+  inset-inline-start: 8px;
+}
+
+.card-gallery__arrow--next {
+  inset-inline-end: 8px;
+}
+
+.product-card__figure:focus-within .card-gallery__arrow,
+.card-gallery__arrow:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-card__figure:hover .card-gallery__arrow {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .card-gallery__arrow {
+    display: none;
+  }
 }
 
 .product-card__body {
@@ -1960,8 +2022,15 @@ address.contact-block__value {
  * rather than absent — which is the correct outcome. The feedback still exists.
  */
 /* Not while a colour dot is pressed: choosing a colour is not opening the garment, and the
-   whole card shrinking under a 44px dot read as a mis-tap (2026-09-28). */
-.product-card:active:not(:has(.card-gallery__dots :active)) {
+   whole card shrinking under a 44px dot read as a mis-tap (2026-09-28).
+   ⚠️ AND NOT WHILE THE PICTURE IS PRESSED: THAT KILLED THE SWIPE ON IPHONE (visual audit VA-30,
+   2026-10-02). A finger on the picture is a press, so the card began scaling as the swipe began,
+   and Safari dropped the strip's scroll mid-gesture: on iOS 26.5 a slow sideways drag never
+   moved the colour, with this exclusion it does — tried both ways in the simulator. The
+   card still answers a press on its text (FA-R-01). The browser test pins both halves in
+   Chromium and Firefox only: this suite runs WebKit for the bar's files alone
+   (playwright.config.ts), so the iPhone half rests on the simulator check. */
+.product-card:active:not(:has(.card-gallery :active, .card-gallery__dots :active)) {
   scale: 0.97;
 }
 

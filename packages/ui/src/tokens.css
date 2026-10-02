@@ -323,6 +323,8 @@
   --z-hero-grid: -1; /* .site-hero__grid — the blueprint grid behind the hero copy */
   --z-footer-tab: 2; /* .site-footer__tab — seated on the slab's top edge, above it */
   --z-footer-glow: 6; /* .footer-glow — the light, blended over the slab's content */
+  /* A fourth, 2026-10-02 (visual audit VA-30): above the card's picture strip, under the header. */
+  --z-card-control: 1; /* .card-gallery__arrow — previous / next over a gallery card's picture */
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;

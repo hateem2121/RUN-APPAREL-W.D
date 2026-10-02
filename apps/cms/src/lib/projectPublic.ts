@@ -137,7 +137,7 @@ export interface ProductCard {
   posterAlt: string
   /** The colourway the card links to — the first addressable one, i.e. the default. */
   defaultColourSlug: string
-  /** Colour NAMES. Never hex — see the warning on `toProductCard`. */
+  /** Colour names, in row order. Each colour's swatch rides on `colours`. */
   colourNames: string[]
   /** One swipeable picture per addressable colourway, in row order. */
   colours: CardColour[]
@@ -169,6 +169,13 @@ export interface LiveModel {
 export interface CardColour {
   slug: string
   name: string
+  /**
+   * The colour's swatch, `#rrggbb`, painted into its dot on the card (visual audit VA-30,
+   * owner-approved 2026-10-01) — the same `hexSwatch` the garment page paints its swatches
+   * with. `null` when the row has none or holds anything but a colour code; the dot then
+   * draws an empty ring rather than a guessed colour.
+   */
+  swatch: string | null
   image: { url: string; alt: string; kind: 'render' | 'poster' } | null
 }
 
@@ -215,10 +222,11 @@ export function mergeSiteSettings(
  * load, with both sides green — the only symptom a buyer clicking a card and meeting
  * "[ REFERENCE UNAVAILABLE ]".
  *
- * ⚠️ `hexSwatch` IS DELIBERATELY NOT PROJECTED. Its field description in colourways.ts
- * reads "Buyers never see it" — it exists so an editor can recognise a row at a
- * glance and is not maintained as a public-facing colour. Painting the gallery with it
- * would turn an internal aid into a design surface without anyone deciding to.
+ * `hexSwatch` IS PROJECTED SINCE 2026-10-02, onto each card colour as `swatch` (visual audit
+ * VA-30, owner-approved). It was held back because its field description said "Buyers never
+ * see it" — which had stopped being true: the garment pages paint every swatch from it, and
+ * all 200 live colours carry one. So the gallery's dots showed grey where every other screen
+ * showed the colour. The description now says where buyers see it (colourways.ts).
  */
 export function toProductCard(
   product: Record<string, unknown> | null | undefined,
@@ -299,6 +307,9 @@ function toCardColour(
   fallback: unknown,
 ): CardColour {
   const name = text(colour.displayName) || text(colour.slug)
+  // The CMS refuses anything else on save (colourways.ts); checked again here because the
+  // value lands in a style attribute, and a row saved before that rule could hold anything.
+  const swatch = /^#[0-9a-fA-F]{6}$/.test(text(colour.hexSwatch)) ? text(colour.hexSwatch) : null
   const kinds: Array<[unknown, 'render' | 'poster']> = [
     [colour.renderImage, 'render'],
     [colour.posterPreview, 'poster'],
@@ -312,10 +323,11 @@ function toCardColour(
     return {
       slug: text(colour.slug),
       name,
+      swatch,
       image: { url, alt: text(media.alt) || `${productName} in ${name}`, kind },
     }
   }
-  return { slug: text(colour.slug), name, image: null }
+  return { slug: text(colour.slug), name, swatch, image: null }
 }
 
 /**

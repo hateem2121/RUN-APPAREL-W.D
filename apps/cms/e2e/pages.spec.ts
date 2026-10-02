@@ -171,6 +171,125 @@ test.describe('the product gallery', () => {
     expect(new Set(tops).size, `dot rows at ${tops.join(', ')}`).toBe(1)
   })
 
+  /*
+   * VA-30 (visual audit, owner-approved 2026-10-01): each dot is its colour, the chosen one
+   * ringed, and a mouse gets previous / next buttons that wrap round. The CI seed's five
+   * colours carry the pipeline's swatches (src/seed/seed.ts), so painted dots are visible here.
+   */
+  test('paints each dot its colour, rings the chosen one, and steps with the arrows (VA-30)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+    const card = page.locator('.product-card', { has: page.locator('.card-gallery__dot') }).first()
+    if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+    const read = () =>
+      card.evaluate((element) =>
+        [...element.querySelectorAll('.card-gallery__dot')].map((dot) => {
+          const style = getComputedStyle(dot, '::before')
+          return {
+            fill: style.backgroundColor,
+            ring: style.outlineColor,
+            pressed: dot.getAttribute('aria-pressed') === 'true',
+          }
+        }),
+      )
+    const dots = await read()
+    const opaque = (colour: string) => !/^rgba\(.*,\s*0\)$|transparent/.test(colour)
+    expect(
+      dots.map((dot) => opaque(dot.fill)),
+      'a dot is not painted its colour',
+    ).toEqual(dots.map(() => true))
+    expect(new Set(dots.map((dot) => dot.fill)).size, 'two dots share one colour').toBe(dots.length)
+    expect(
+      dots.map((dot) => opaque(dot.ring)),
+      'the ring is not on the chosen dot alone',
+    ).toEqual(dots.map((dot) => dot.pressed))
+
+    // The arrows: hidden until a mouse is over the picture, then one colour on, round the end.
+    const next = card.locator('.card-gallery__arrow--next')
+    const previous = card.locator('.card-gallery__arrow--prev')
+    await page.mouse.move(0, 0)
+    await expect(next).toHaveCSS('opacity', '0')
+    await card.locator('.product-card__figure').hover()
+    await expect(next).toHaveCSS('opacity', '1')
+    // Clicks need the card's script: wait for React to own the button.
+    await page.waitForFunction(
+      (el) => !!el && Object.keys(el).some((key) => key.startsWith('__reactProps')),
+      await next.elementHandle(),
+    )
+    const pressedAt = async () => (await read()).findIndex((dot) => dot.pressed)
+    await next.click()
+    await expect.poll(pressedAt, { message: 'next did not move to the second colour' }).toBe(1)
+    await previous.click()
+    await previous.click()
+    await expect
+      .poll(pressedAt, { message: 'previous did not wrap from the first colour to the last' })
+      .toBe(dots.length - 1)
+  })
+
+  /*
+   * VA-30, the iPhone swipe. A finger on the picture is a press, and while the whole card
+   * scaled to 0.97 under it, iOS Safari dropped the strip's scroll mid-gesture: a slow sideways
+   * drag never moved the colour (iOS 26.5 simulator, 2026-10-02, shown both ways). Only the
+   * card's text answers a press now; the picture answers with its swipe. Playwright cannot
+   * drive a native touch scroll, so this pins the cause.
+   */
+  test('pressing the picture never shrinks the card; pressing its text does (VA-30)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+    const card = page.locator('.product-card', { has: page.locator('.card-gallery__dot') }).first()
+    if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+    const scale = () => card.evaluate((element) => getComputedStyle(element).scale)
+    const pressAndRead = async (selector: string) => {
+      // On screen first: a press below the fold lands on nothing, and reads as "no press".
+      await card.locator(selector).scrollIntoViewIfNeeded()
+      const box = await card.locator(selector).boundingBox()
+      if (!box) throw new Error(`no ${selector} to press`)
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.waitForTimeout(300)
+      const pressed = await scale()
+      // Away before letting go, so the press never becomes a click that leaves the page.
+      await page.mouse.move(2, 2)
+      await page.mouse.up()
+      return pressed
+    }
+    expect(
+      await pressAndRead('.card-gallery'),
+      'the card shrank under a press on its picture',
+    ).toBe('none')
+    expect(await pressAndRead('.product-card__link'), 'the card ignored a press on its text').toBe(
+      '0.97',
+    )
+  })
+
+  test('hides the arrows on a touch screen, which swipes (VA-30)', async ({
+    browser,
+    browserName,
+  }) => {
+    test.skip(browserName === 'firefox', 'Firefox has no mobile emulation in Playwright')
+    const context = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport: { width: 390, height: 844 },
+    })
+    try {
+      const page = await context.newPage()
+      await page.goto('/products')
+      const card = page
+        .locator('.product-card', { has: page.locator('.card-gallery__dot') })
+        .first()
+      if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+      expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
+      await expect(card.locator('.card-gallery__arrow--next')).toBeHidden()
+    } finally {
+      await context.close()
+    }
+  })
+
   test('falls back to the placeholder when every poster fails', async ({ page }) => {
     /*
      * The poster `error` event fires while the HTML is still parsing — BEFORE React

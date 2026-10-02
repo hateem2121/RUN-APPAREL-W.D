@@ -114,9 +114,18 @@ describe('toProductCard', () => {
     expect(card?.colourNames).toEqual(['Lime'])
   })
 
-  it('never exposes hexSwatch — the CMS says buyers never see it', () => {
+  /*
+   * VA-30 (owner-approved 2026-10-01): the card's dots carry each colour's swatch, as the
+   * garment page's swatches always have. Until then this test pinned the opposite, on a field
+   * description ("Buyers never see it") that the garment pages had already made untrue.
+   */
+  it("carries each colour's swatch for the card dots, and nothing that is not a colour code", () => {
     const card = toProductCard(product())
-    expect(JSON.stringify(card)).not.toContain('#5b1f2e')
+    expect(card?.colours.map((colour) => colour.swatch)).toEqual(['#5b1f2e', '#e8c4c4'])
+    for (const bad of ['red', '#12345', '#1234567', 'url(x)', '#5b1f2e; color: red', '']) {
+      const odd = toProductCard(product({ colourways: [{ slug: 'wine', hexSwatch: bad }] }))
+      expect(odd?.colours[0]?.swatch, `"${bad}" reached a style attribute`).toBeNull()
+    }
   })
 
   it('falls back to the slug when a product or colour has no name', () => {
@@ -276,6 +285,7 @@ describe('toProductCard', () => {
         {
           slug: 'wine',
           name: 'Wine',
+          swatch: null,
           image: {
             url: `${SITE_MEDIA}/rxps-wine-render.webp`,
             alt: 'Studio render',
@@ -285,6 +295,7 @@ describe('toProductCard', () => {
         {
           slug: 'blush',
           name: 'Blush',
+          swatch: null,
           image: {
             url: `${SITE_MEDIA}/rxps-blush-poster.webp`,
             alt: 'Blush poster',
