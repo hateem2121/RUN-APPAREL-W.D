@@ -905,8 +905,8 @@ html {
  * with no swatch keeps the empty ring.
  *
  * The chosen dot wears an OUTLINE 2px clear of it, in the headline colour: a shape that
- * appears, not a fill that changes, so it survives every colour the swatch could be — and
- * Windows High Contrast, which keeps outlines and repaints fills (VA-08's half for these dots).
+ * appears, not a fill that changes, so it survives every colour the swatch could be. It did NOT
+ * survive Windows High Contrast as first written: see the forced-colours block below (VA-08).
  */
 .card-gallery__dot::before {
   content: "";
@@ -923,6 +923,35 @@ html {
 
 .card-gallery__dot[aria-pressed="true"]::before {
   outline-color: var(--headline);
+}
+
+/*
+ * ⚠️ HIGH CONTRAST: ONLY THE CHOSEN DOT MAY WEAR A RING (visual audit VA-08, the gallery-dots half,
+ * 2026-10-02). The comment above says Windows High Contrast "keeps outlines". It keeps them as
+ * outlines, and repaints the colour of every one: CSS Color Adjustment 1 §3.1 (read 2026-10-02)
+ * force-adjusts "the <color> components of all properties", and gives only `background-color` an
+ * exception, for transparency. So the `outline: 2px solid transparent` that every UNCHOSEN dot
+ * carries became a solid system-colour ring on all five dots, the swatch fill became one system
+ * colour on all five, and the ring that marks the chosen one marked every one. (The state was still
+ * spoken: `aria-pressed`, and the colour's name sits in the row.)
+ *
+ * Fixed with SHAPE, which forced colours never touches, not colour: an unchosen dot has no outline
+ * at all, and the chosen one has a 2px solid ring in `Highlight`, the system's own colour for what is
+ * selected (the garment page's colour tab and camera buttons use it the same way). `forced-color-adjust:
+ * none` is NOT used to keep the swatch colours: tokens.test.ts allows it on one selector, the garment
+ * page's colour swatch, and a dot here would be the second. The chosen dot is found by `:not(…)` on the
+ * unchosen side so both rules are equally specific. Written from the specification and shown in an
+ * emulated forced-colours browser (Chromium and Firefox; `e2e/pages.spec.ts`), never on a real
+ * Windows machine.
+ */
+@media (forced-colors: active) {
+  .card-gallery__dot:not([aria-pressed="true"])::before {
+    outline-style: none;
+  }
+
+  .card-gallery__dot[aria-pressed="true"]::before {
+    outline: 2px solid Highlight;
+  }
 }
 
 /*

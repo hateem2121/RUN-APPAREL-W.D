@@ -9,7 +9,7 @@ import {
 } from '../../../scripts/served-css-motion-probe.mjs'
 
 /**
- * Source guards for the polish fixes of the 2026-10-02 visual audit (VA-16, VA-18, VA-19,
+ * Source guards for the polish fixes of the 2026-10-02 visual audit (VA-08, VA-16, VA-18, VA-19,
  * VA-43, VA-46, VA-47). Each `describe` carries its audit ID, so a future reader can find the
  * measurement it came from.
  *
@@ -579,6 +579,88 @@ describe('VA-47 — a guide card is the link target, and the stretch stays insid
     `
     expect(problemsWith(positionedLink)).toEqual([
       '.guide-card__link is positioned, so the stretch would cover only the title',
+    ])
+  })
+})
+
+describe('VA-08 — in high contrast only the chosen product-card dot wears a ring', () => {
+  /**
+   * Forced colours repaints the COLOUR of every outline and keeps a transparency only for a
+   * background (CSS Color Adjustment 1 §3.1, read 2026-10-02), so the `outline: 2px solid
+   * transparent` every dot carries would show on all of them. What survives is shape: an unchosen
+   * dot has no outline, the chosen one a 2px solid ring in `Highlight`. `forced-color-adjust:
+   * none` is not the way out: `tokens.test.ts` allows it on one selector, and this is not it.
+   */
+  const FORCED = '@media (forced-colors: active)'
+
+  function problemsWith(source: string): string[] {
+    const problems: string[] = []
+    const inBlock = rulesOf(source).filter((rule) => rule.at.join() === FORCED)
+    const unchosen = inBlock.find(
+      (rule) => rule.selector === '.card-gallery__dot:not([aria-pressed="true"])::before',
+    )
+    const chosen = inBlock.find(
+      (rule) => rule.selector === '.card-gallery__dot[aria-pressed="true"]::before',
+    )
+    if (unchosen?.declarations.get('outline-style') !== 'none') {
+      problems.push(`an unchosen dot keeps its outline inside ${FORCED}`)
+    }
+    if (chosen?.declarations.get('outline') !== '2px solid Highlight') {
+      problems.push(`the chosen dot has no 2px solid Highlight ring inside ${FORCED}`)
+    }
+    for (const rule of [unchosen, chosen]) {
+      if (rule?.declarations.has('forced-color-adjust')) {
+        problems.push(`${rule.selector} opts out of the palette`)
+      }
+    }
+    return problems
+  }
+
+  it('takes the ring off the unchosen dots and gives the chosen one a Highlight ring', () => {
+    expect(problemsWith(SITE)).toEqual([])
+  })
+
+  it('leaves the ordinary rules as they were: a transparent ring on every dot, the headline colour on the chosen one', () => {
+    // The block exists BECAUSE of these two rules; if they change, re-read the block.
+    const base = rulesOf(SITE).filter((rule) => rule.at.length === 0)
+    const ring = base.find((rule) => rule.selector === '.card-gallery__dot::before')
+    expect(ring?.declarations.get('outline')).toBe('2px solid transparent')
+    const chosen = base.find(
+      (rule) => rule.selector === '.card-gallery__dot[aria-pressed="true"]::before',
+    )
+    expect(chosen?.declarations.get('outline-color')).toBe('var(--headline)')
+  })
+
+  // NEGATIVE CONTROLS: no block at all, a ring left on the unchosen dots, a ring that is not
+  // Highlight, and the opt-out.
+  it('sees each fault: no block, a ring left on, the wrong ring, an opt-out', () => {
+    expect(problemsWith('')).toEqual([
+      `an unchosen dot keeps its outline inside ${FORCED}`,
+      `the chosen dot has no 2px solid Highlight ring inside ${FORCED}`,
+    ])
+    const ringLeftOn = `
+      @media (forced-colors: active) {
+        .card-gallery__dot[aria-pressed="true"]::before { outline: 2px solid Highlight; }
+      }
+    `
+    expect(problemsWith(ringLeftOn)).toEqual([`an unchosen dot keeps its outline inside ${FORCED}`])
+    const wrongRing = `
+      @media (forced-colors: active) {
+        .card-gallery__dot:not([aria-pressed="true"])::before { outline-style: none; }
+        .card-gallery__dot[aria-pressed="true"]::before { outline: 1px solid CanvasText; }
+      }
+    `
+    expect(problemsWith(wrongRing)).toEqual([
+      `the chosen dot has no 2px solid Highlight ring inside ${FORCED}`,
+    ])
+    const optOut = `
+      @media (forced-colors: active) {
+        .card-gallery__dot:not([aria-pressed="true"])::before { outline-style: none; forced-color-adjust: none; }
+        .card-gallery__dot[aria-pressed="true"]::before { outline: 2px solid Highlight; }
+      }
+    `
+    expect(problemsWith(optOut)).toEqual([
+      '.card-gallery__dot:not([aria-pressed="true"])::before opts out of the palette',
     ])
   })
 })

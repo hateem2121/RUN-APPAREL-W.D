@@ -230,6 +230,79 @@ test.describe('the product gallery', () => {
   })
 
   /*
+   * VA-08, the gallery-dots half (visual audit 2026-10-02): in high contrast every dot wore a ring,
+   * so none looked chosen. Forced colours repaints the COLOUR of every outline (CSS Color
+   * Adjustment 1 §3.1) and exempts only a background's transparency, so the transparent ring that
+   * each unchosen dot carries became a solid system-colour ring. `site.css` now takes the ring off
+   * the unchosen dots and gives the chosen one a 2px solid `Highlight` ring: SHAPE, which forced
+   * colours leaves alone, and which is what is asserted. What the colour became is not: it is the
+   * user's palette, and only that it is opaque and is not the page's own is read.
+   *
+   * ⚠️ THE INSTRUMENT CARRIES ITS OWN POSITIVE CONTROL, as the site's other forced-colours test does
+   * (`motion.spec.ts`, FA-G-52): a probe styled with two colours no theme uses must come back
+   * substituted. WebKit reports `matches: true` for the query under Playwright's emulation without
+   * substituting anything (measured 2026-09-24, `apps/viewer/e2e/audit-guards.spec.ts`), so the
+   * skip is on the stronger signal. Chromium and Firefox substitute for real.
+   */
+  test('in high contrast only the chosen dot wears a ring (VA-08)', async ({
+    page,
+    browserName,
+  }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+    const active = await page.evaluate(() => window.matchMedia('(forced-colors: active)').matches)
+    test.skip(!active, `${browserName} does not emulate forced-colors`)
+    const card = page.locator('.product-card', { has: page.locator('.card-gallery__dot') }).first()
+    if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+
+    const measured = await card.evaluate((element) => {
+      const probe = document.createElement('div')
+      probe.textContent = 'probe'
+      probe.style.color = 'rgb(1, 2, 3)'
+      probe.style.backgroundColor = 'rgb(4, 5, 6)'
+      document.body.appendChild(probe)
+      const probeStyle = getComputedStyle(probe)
+      const control = { color: probeStyle.color, background: probeStyle.backgroundColor }
+      probe.remove()
+      const dots = [...element.querySelectorAll('.card-gallery__dot')].map((dot) => {
+        const style = getComputedStyle(dot, '::before')
+        return {
+          pressed: dot.getAttribute('aria-pressed') === 'true',
+          style: style.outlineStyle,
+          width: style.outlineWidth,
+          colour: style.outlineColor,
+        }
+      })
+      return { control, dots, ground: getComputedStyle(document.body).backgroundColor }
+    })
+
+    test.skip(
+      measured.control.color === 'rgb(1, 2, 3)',
+      `${browserName} reports forced-colors active but does not substitute colour`,
+    )
+    expect(measured.control.background, 'forced-colors is not actually applying').not.toBe(
+      'rgb(4, 5, 6)',
+    )
+    expect(measured.dots.length, 'the card has no dots to measure').toBeGreaterThan(1)
+    const chosen = measured.dots.filter((dot) => dot.pressed)
+    expect(chosen, 'not exactly one dot is chosen').toHaveLength(1)
+    // A ring on the chosen dot alone: the unchosen ones draw no outline at all.
+    expect(
+      measured.dots.map((dot) => dot.style !== 'none'),
+      'a dot other than the chosen one wears a ring',
+    ).toEqual(measured.dots.map((dot) => dot.pressed))
+    // And that ring is the 2px solid one, in an opaque colour that is not the page's own.
+    expect([chosen[0]?.style, chosen[0]?.width]).toEqual(['solid', '2px'])
+    expect(chosen[0]?.colour, 'the chosen ring is not an opaque colour').not.toMatch(
+      /^rgba\(.*,\s*0\)$|transparent/,
+    )
+    expect(chosen[0]?.colour, 'the chosen ring is the page colour, and cannot be seen').not.toBe(
+      measured.ground,
+    )
+  })
+
+  /*
    * VA-30, the iPhone swipe. A finger on the picture is a press, and while the whole card
    * scaled to 0.97 under it, iOS Safari dropped the strip's scroll mid-gesture: a slow sideways
    * drag never moved the colour (iOS 26.5 simulator, 2026-10-02, shown both ways). Only the
