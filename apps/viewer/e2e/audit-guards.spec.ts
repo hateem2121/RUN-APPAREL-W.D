@@ -2107,7 +2107,7 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
  *
  * ⚠️ THE COLLAPSE MECHANISM AND THE IDENTITY-PLACEMENT MECHANISM ARE TWO DIFFERENT
  * QUERIES. The product identity moves into `.stage__aside` under the narrower, JS-driven
- * `IDENTITY_IN_ASIDE_QUERY` (`useIdentityInAside.ts`, 1100px + 720px height) — checking
+ * `IDENTITY_IN_ASIDE_QUERY` (`useIdentityInAside.ts`, 1100px + 880px or 1280px + 800px) — checking
  * only whether the heading sits in `.stage__aside` cannot see `.stage-block` itself: if
  * the CSS `row` layout leaked all the way down to 320px, the heading would still have
  * left the aside (320px is below 1100px either way), and this test would pass while the

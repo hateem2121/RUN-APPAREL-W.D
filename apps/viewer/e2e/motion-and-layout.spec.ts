@@ -2256,8 +2256,8 @@ test.describe('the garment is named on the first screen', () => {
      * compact line unconditionally would pass all six sizes and quietly put a second
      * name on every desktop page, above a heading that already says it.
      *
-     * 1440x900 puts the identity in the aside (`min-width: 1100px` AND
-     * `min-height: 720px`), so `identityInAside` is true and the element is absent
+     * 1440x900 puts the identity in the aside (from 1280px wide it needs 800px of
+     * height, VA-60), so `identityInAside` is true and the element is absent
      * from the DOM entirely — not merely hidden.
      */
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -3005,6 +3005,52 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
       if (!seen.listed) gaps.push(`${width}px: the colours are not a list here`)
       if (!seen.email) gaps.push(`${width}px: no email control on screen`)
       if (!seen.whatsapp) gaps.push(`${width}px: no WhatsApp control on screen`)
+    }
+    expect(gaps).toEqual([])
+  })
+})
+
+/**
+ * VA-60 (visual audit, owner decision 2026-10-02): live descriptions run to 454 characters, and
+ * the side column's old floor (1100 x 720) had been measured with the fixture's 145. From 1100
+ * to 1280px wide and 720 to 800px tall those garments put Email and WhatsApp below the screen —
+ * at 1100x799 by 8px. The description now goes beside the garment only where copy longer than
+ * any live garment's still leaves both on screen (useIdentityInAside.ts has the per-engine
+ * table), and under it otherwise. This walks each step of that floor and the pixel below it.
+ */
+test.describe('the longest description never pushes the contact buttons off screen (VA-60)', () => {
+  test('at each step of the side-column floor, and one pixel below it', async ({ page }) => {
+    test.setTimeout(180_000)
+    await serveGarment(page, LONGEST_COPY)
+    const gaps: string[] = []
+    for (const [width, height, beside] of [
+      [1100, 880, true],
+      [1150, 880, true],
+      [1200, 880, true],
+      [1279, 880, true],
+      [1100, 879, false],
+      [1279, 879, false],
+      [1280, 800, true],
+      [1366, 800, true],
+      [1440, 800, true],
+      [1920, 800, true],
+      [1280, 799, false],
+      [1920, 799, false],
+      // Where the old 1100 x 720 floor put it beside the garment and the buttons went under.
+      [1100, 800, false],
+      [1280, 760, false],
+    ] as const) {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const inAside = (await page.locator('.stage__aside h1').count()) === 1
+      const seen = await page.evaluate(contactOnScreen)
+      const at = `${width}x${height}`
+      if (inAside !== beside) {
+        gaps.push(`${at}: the description is ${inAside ? 'beside' : 'under'} the garment`)
+      }
+      if (!seen.email) gaps.push(`${at}: no email control on screen`)
+      if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen`)
     }
     expect(gaps).toEqual([])
   })

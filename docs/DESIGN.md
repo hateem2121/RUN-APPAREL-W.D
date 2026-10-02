@@ -459,7 +459,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, factory, timeline); facts go to three columns; the garment page's two-column stage, and the phone action bar is hidden |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
 | `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
-| `1100px` and `min-height: 720px` | `useIdentityInAside.ts` | the product's name and description move beside the garment (a script query, kept a strict subset of the CSS one) |
+| `1100px` and `min-height: 880px`, or `1280px` and `min-height: 800px` | `useIdentityInAside.ts` | the product's name and description move beside the garment, only where the longest live description leaves the contact buttons on screen (VA-60; a script query, kept a strict subset of the CSS one) |
 | `1180px` | `site.css` | the product families go to five columns |
 | `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
 | container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |

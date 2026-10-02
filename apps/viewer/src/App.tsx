@@ -463,8 +463,8 @@ export default function App() {
               query here instead is the mistake `useIdentityInAside.ts` was written
               about. This line exists for exactly one condition: the `<h1>` is not
               on the first screen. That is true whenever the identity has NOT moved
-              into the aside, which is its own query (`min-width: 1100px` AND
-              `min-height: 720px`) and a strict subset of the two-column one.
+              into the aside, which is its own query (880px tall from 1100px wide,
+              800px from 1280px, since VA-60) and a strict subset of the two-column one.
 
               Keying it to `max-width: 699px` left three real devices anonymous,
               measured 2026-09-05 with reveals forced:

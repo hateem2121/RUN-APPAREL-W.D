@@ -30,10 +30,18 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   colourway rail's container query wraps five swatches onto two rows, costing 60px
   at exactly the width where the narrower column is already making the paragraph
   taller. Measured needs — 900px wide: 797px tall · 1024: 758 · 1100: **677** ·
-  1280+: **664**. The floor is `(min-width: 1100px) and (min-height: 720px)`, and
-  1024x768 is excluded on purpose: it fits by 10px, and a ten-pixel margin on a
-  layout whose inputs are a CMS textarea and a font is a coincidence, not an
-  invariant. `useIdentityInAside.ts` carries the table; `useIdentityInAside.test.tsx`
+  1280+: **664**. The floor became 1100 x 720, and 1024x768 is excluded on purpose: it
+  fits by 10px, and a ten-pixel margin on a layout whose inputs are a CMS textarea and
+  a font is a coincidence, not an invariant.
+  🟡 **The third floor was measured — against the FIXTURE's 145-character description.**
+  Live descriptions run to 454 characters, and on 2026-10-02 (VA-60) those garments put
+  Email and WhatsApp below the screen from 1100 to 1280px wide and 720 to 800px tall.
+  Re-measured with copy longer than any live garment's, in all three engines — Firefox
+  sets the name on three lines where Chromium sets two — the floor is now two steps:
+  `(min-width: 1280px) and (min-height: 800px)` and `(min-width: 1100px) and (min-height: 880px)`.
+  `motion-and-layout.spec.ts` serves that copy (`LONGEST_COPY`) at each step. Measure
+  layout with the catalogue's worst content, never the fixture's.
+  `useIdentityInAside.ts` carries the tables; `useIdentityInAside.test.tsx`
   pins the identity query as a strict subset of the CSS one, because outside that
   block `.product-info--aside` has no styles at all — a 69px viewport-sized heading
   in a 260px column.

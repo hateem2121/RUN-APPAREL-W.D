@@ -516,7 +516,7 @@
  * The compact garment name, portrait phones only.
  *
  * Hidden everywhere else because everywhere else already shows the real thing: the
- * `<h1>` is in the aside from 1100x720 up, and in `.content` above the fold on any
+ * `<h1>` is in the aside from 1100x880 and 1280x800 up (VA-60), and in `.content` above the fold on any
  * screen tall enough. This exists for exactly the case where neither is true.
  *
  * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a

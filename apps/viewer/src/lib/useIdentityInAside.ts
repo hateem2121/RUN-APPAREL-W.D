@@ -54,20 +54,42 @@ export const TWO_COLUMN_QUERY =
  *
  * 720 rather than 677: 1100x720 leaves 43px of slack and 1280x720 leaves 56px.
  *
- * ⚠️ RESIDUAL, STATED RATHER THAN HIDDEN: a description roughly twice this one's
- * length would exceed even that slack. It degrades to the band growing and the
- * page scrolling — `justify-content: safe center` on the aside keeps the top of
- * the stack reachable — rather than to hidden product. If the identity gains a
- * field, or the catalogue's descriptions get materially longer, re-run
- * `probe-fit` and move these numbers; do not round either of them down.
+ * ⚠️ THAT SLACK WAS THE FIXTURE'S, AND THE LIVE CATALOGUE SPENT IT (visual audit VA-60,
+ * owner decision 2026-10-02). The table above was measured with the fixture's
+ * 145-character description; live descriptions run to 454 ("ARMOR-TECH JACKET") and live
+ * names to 25 characters ("THE KINETIC MATRIX JACKET"), and from 1100 to 1280px wide and
+ * 720 to 800px tall those garments pushed Email and WhatsApp below the screen — at
+ * 1100x799 by 8px. Re-measured that day with copy longer than any live garment's (462 and
+ * 26 characters, `LONGEST_COPY` in motion-and-layout.spec.ts), the height the column
+ * needs for both buttons to stay on screen:
+ *
+ *     viewport width   Firefox   Chromium   WebKit
+ *     1100-1150          865      808-811     721
+ *     1200               842        789       721
+ *     1250               808        760       721
+ *     1280+              783        738       721
+ *
+ * Firefox sets the name on three lines where Chromium sets two. So the floor has two
+ * steps, each clear of Firefox: 880px of height from 1100px wide, 800px from 1280px.
+ * Shorter windows show the name and description under the garment, as narrower screens
+ * always have.
+ *
+ * ⚠️ RESIDUAL, STATED RATHER THAN HIDDEN: a description much longer than 462 characters
+ * would exceed even these floors. It degrades to the band growing and the page
+ * scrolling — `justify-content: safe center` on the aside keeps the top of the stack
+ * reachable — and the contact test then fails. If the identity gains a field, or the
+ * catalogue's descriptions get materially longer, re-measure and move these numbers;
+ * do not round either of them down.
  *
  * ⚠️ IT MUST STAY A SUBSET OF `TWO_COLUMN_QUERY`. `.product-info--aside`'s styles
  * — including the container-query heading size — live inside the two-column block
  * in page.css, so an identity rendered outside that block would be unstyled: a
  * 69px viewport-sized heading in a 260px column. The test asserts the subset
- * relation structurally rather than trusting this comment.
+ * relation structurally rather than trusting this comment: each step of this list is
+ * `(min-width: …)` of at least 900px narrowed with `and`.
  */
-export const IDENTITY_IN_ASIDE_QUERY = '(min-width: 1100px) and (min-height: 720px)'
+export const IDENTITY_IN_ASIDE_QUERY =
+  '(min-width: 1280px) and (min-height: 800px), (min-width: 1100px) and (min-height: 880px)'
 
 /**
  * TWO signals, and the second one is not belt-and-braces.
