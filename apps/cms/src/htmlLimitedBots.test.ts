@@ -5,6 +5,7 @@ import { shouldServeStreamingMetadata } from 'next/dist/server/lib/streaming-met
 import { describe, expect, it } from 'vitest'
 import {
   AI_CRAWLER_UAS,
+  CRAWLERS_NEEDING_A_HEAD,
   HTML_LIMITED_BOTS,
   NEXT_DEFAULT_HTML_LIMITED_BOTS,
 } from '../htmlLimitedBots.mjs'
@@ -137,6 +138,14 @@ describe('nobody is left out since 2026-10-02 (owner, visual audit VA-15)', () =
    * (MOTOG4_USERAGENT, DESKTOP_USERAGENT): neither names Lighthouse, so Next's default, whose
    * `Chrome-Lighthouse` entry was written for older versions, streams to both.
    */
+  it('the earlier list still names every crawler that runs no script, should the switch ever go', () => {
+    const list = new RegExp(CRAWLERS_NEEDING_A_HEAD, 'i')
+    for (const [name, ua] of Object.entries({ ...AI_CRAWLERS, ...UNFURLERS })) {
+      expect(list.test(ua), name).toBe(true)
+    }
+    expect(list.test(BROWSER), 'the list would catch a plain browser').toBe(false)
+  })
+
   it('Lighthouse 13 gets one under both of its identities, which never name Lighthouse', () => {
     for (const ua of [LIGHTHOUSE_PHONE, LIGHTHOUSE_DESKTOP]) {
       expect(ua).not.toMatch(/lighthouse/i)

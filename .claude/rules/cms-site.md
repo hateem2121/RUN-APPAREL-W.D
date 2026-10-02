@@ -26,7 +26,7 @@ remove them.
 
 ## The scripted pieces: complete without them (2026-09-29)
 
-The count-up, live 3D, lightbox, form helper (error lines and the list of mistakes, since the
+The count-up, live 3D, form helper (error lines and the list of mistakes, since the
 form became one step on 2026-10-01), phone code, file picker and globe are client islands over
 server markup that is already the whole page: the final figure, the poster, a link to the large
 photo, one form with every field and one Send, the address with a directions link. Each starts from that state and enhances only after it mounts, and does nothing when the visitor asks

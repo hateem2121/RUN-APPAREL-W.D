@@ -12,7 +12,7 @@ import { JsonLd } from './JsonLd'
  * ⚠️ ONE PRIMARY BUTTON, at the end, in the buyer pages' words (`e2e/copy.spec.ts`, CT-08).
  * A guide is read top to bottom, so the way in comes after the answer, not before it.
  *
- * The closing heading and sentence are the home page's own (№07), so the guides add no
+ * The closing heading and sentence are the home page's own (№06), so the guides add no
  * claim the site does not already make.
  */
 function Block({ block }: { block: GuideBlock }) {

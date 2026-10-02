@@ -25,7 +25,7 @@ import { onSiteMedia } from './siteMedia'
  * visual audit VA-31 (2026-10-02): the garment pages draw the same footer, from the same
  * projection. Re-exported here so the website's code and tests keep one import path.
  */
-export { EMPTY_FOOTER, type FooterHours, type FooterSettings }
+export { EMPTY_FOOTER, type FooterSettings }
 
 /**
  * The shared settings the viewer also uses, plus the tab icon only the public site needs.
