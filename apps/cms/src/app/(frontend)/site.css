@@ -545,6 +545,19 @@ html {
 }
 
 /*
+ * ⚠️ FROM 1920px THIS HEADLINE KEEPS GROWING, WITH THE SHARED ONE (visual audit VA-12, 2026-10-02).
+ * `.site-hero .display--hero` is more specific than the `.display--hero` that packages/ui/src/base.css
+ * grows from 1920px, so it would hold the 72px ceiling by itself; this is the same size, written
+ * again, and base.css has the reasoning and the 144px ceiling. Nothing below 1920px changes, and the
+ * rule above is untouched.
+ */
+@media (min-width: 1920px) {
+  .site-hero .display--hero {
+    font-size: max(4.5rem, min(3.75vw, 9rem));
+  }
+}
+
+/*
  * ⚠️ A HERO LABEL NEVER LEAVES ITS LAST WORDS ALONE (visual audit VA-43, 2026-10-02). At 390px the
  * teamwear page's "[ TEAMWEAR & UNIFORMS · FROM 50 PIECES PER STYLE ]" wrapped and left "STYLE ]" on a
  * line of its own. `balance` (MDN: Baseline since 2024) chooses where an existing wrap falls and

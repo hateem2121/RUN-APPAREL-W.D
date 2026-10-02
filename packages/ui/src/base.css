@@ -280,6 +280,41 @@ li {
   }
 }
 
+/*
+ * ⚠️ FROM 1920px THE DISPLAY SIZES KEEP GROWING (visual audit VA-12, 2026-10-02, owner-approved).
+ * Both stop at their `clamp()` ceilings — the hero at 72px from 1333px wide, the section headline at
+ * 46px from 1150px — so on a 2560x1440 screen the audit measured the home hero covering 43% of the
+ * height, with type drawn for a laptop. Below 1920px NOTHING here applies and the two `clamp()` rules
+ * above are untouched (tokens.test.ts, TY-03, pins them); from 1920px a size that starts at exactly
+ * the old ceiling takes over and grows with the window.
+ *
+ *   hero     max(4.5rem, min(3.75vw, 9rem))          72px at 1920, 96px at 2560, 144px from 3840
+ *   section  max(2.875rem, min(2.3958vw, 5.75rem))   46px at 1920, 61px at 2560, 92px from 3840
+ *
+ * `3.75vw` and `2.3958vw` are 72px and 46px divided by 1920, so the size is continuous at 1920. The
+ * `max()` keeps the rem ceiling underneath, so a visitor who raised the browser's text size never gets
+ * less than before (4.5rem is 90px at a 20px root). The `min()` is a ceiling at 3840px, and it is
+ * worked out, not a taste: the page's column stops at `--site-max` (1440px: 1312px of text), and the
+ * word that fixed the hero's floor on 2026-09-11, "PRODUCTION.", is 8.9em wide (302.8px at 34px,
+ * docs/DESIGN.md §3), so it stops fitting that column at 147px. 144px keeps 2% of room, where the
+ * engines differ on that word by under 1% (278.6px against 280.38px at 31.36px), so a word is not
+ * split — the owner's rule of that day. The stage stops growing at the same 3840px (page.css).
+ *
+ * Tracking goes with it (`--tracking-display-large`, tokens.css), because a px tracking would loosen
+ * the type as it grows; `.serif-accent` inherits it.
+ */
+@media (min-width: 1920px) {
+  .display--hero {
+    font-size: max(4.5rem, min(3.75vw, 9rem));
+    letter-spacing: var(--tracking-display-large);
+  }
+
+  .display--section {
+    font-size: max(2.875rem, min(2.3958vw, 5.75rem));
+    letter-spacing: var(--tracking-display-large);
+  }
+}
+
 /* The wordmark is display type at a FIXED size, so it takes a fixed value —
    the two wordmarks (header and footer) must agree, which is VIS-14, and the header's is
    `.notch__wordmark` in notch.css since 2026-09-24, on the same token. */

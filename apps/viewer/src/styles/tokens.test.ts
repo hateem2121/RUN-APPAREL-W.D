@@ -676,6 +676,21 @@ describe('raw values in component stylesheets', () => {
     },
     // The footer's rules moved from site.css to the shared footer.css on 2026-10-02 (VA-31).
     { file: 'footer.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
+    // VA-12 (2026-10-02): from 1920px the hero and the section headline keep growing, each in a
+    // `@media (min-width: 1920px)` rule that starts at its old ceiling (72px, 46px) and stops at
+    // 144px and 92px at 3840px. The five above are untouched; these three are added, and
+    // `src/styles/largeScreens.test.ts` computes both sets at the pinned widths.
+    { file: 'base.css', selector: '.display--hero', value: 'max(4.5rem, min(3.75vw, 9rem))' },
+    {
+      file: 'base.css',
+      selector: '.display--section',
+      value: 'max(2.875rem, min(2.3958vw, 5.75rem))',
+    },
+    {
+      file: 'site.css',
+      selector: '.site-hero .display--hero',
+      value: 'max(4.5rem, min(3.75vw, 9rem))',
+    },
   ] as const
   const RATIOS = [{ file: 'base.css', selector: '.serif-accent', value: '1.07em' }] as const
 

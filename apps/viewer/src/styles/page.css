@@ -805,6 +805,59 @@
 }
 
 /*
+ * ⚠️ FROM 1920px THE STAGE KEEPS GROWING (visual audit VA-12, 2026-10-02, owner-approved). At 2560x1440
+ * the stage stopped at 800x980: 21% of the screen, against 43% at 1440x900. Two numbers did it, and
+ * they have to move TOGETHER (the comment on `.stage__canvas` above says why: raise the cap alone and
+ * the garment turns width-limited and gains nothing): the 1200px measure, and the 980px cap.
+ * Below 1920px NOTHING here applies, and the rules it overrides are untouched.
+ *
+ *   measure   max(1200px, min(62.5vw, calc(100svh * 1200 / 1080), 2400px))
+ *   cap       max(980px,  min(calc(100vw * 980 / 1920), 1960px))
+ *
+ * Both are the 1920x1080 design scaled by the SMALLER of the window's width and height: 62.5vw is
+ * 1200/1920 and the svh term is 1200/1080, so on a 16:9 screen the two agree and the stage is a
+ * straight scale-up, and an ultrawide that is only 1080 tall does not grow (its garment is limited by
+ * height, and more width would be empty canvas). The cap is 980/1920 of the width. The ratios are
+ * written as the ratios, not as rounded vw numbers, so 2560x1440 gives exactly 1600px and 3840x2160
+ * exactly 2400px and 1960px. Both stop at those 3840x2160 values: the headline stops there too
+ * (base.css), and a window wider than 4K would only be asking the GPU for a bigger drawing buffer.
+ *
+ * What that gives, by the arithmetic of the rules above this one (no browser was run, so nothing here
+ * is measured): the aside stays `clamp(260px, 30%, 400px)` and the gap 40px, so the canvas is
+ *
+ *   window      measure   canvas wide   cap
+ *   1920x1080   1200      800           980     (as before)
+ *   2560x1440   1600      1160          1306
+ *   3840x2160   2400      1960          1960
+ *
+ * and its height is what the window leaves it, as everywhere else: the band is one screen less the bar
+ * and label row (`--header-h`), and the plinth, the colour rail and the stage's padding come out of that
+ * (about 105px together on 2026-08-20: the 726px canvas the comment on `.stage__canvas` records, in an
+ * 831px band; not measured again, and the rail has changed since). So roughly 1160x1200 at
+ * 2560x1440 — about 38% of that screen against 21% — and below the cap, so the WINDOW sets it, not the
+ * cap. A 1920x1080 window is unchanged and not near the cap either. The canvas is wider than the garment
+ * needs (the garment is 0.82 wide to 1 tall and fills 86.3% of the canvas's height), and the surplus is
+ * canvas background: width-limited is the expensive side to be wrong on. The garment's own pixels grow
+ * with it; model-viewer's adaptive render scale (Stage.tsx, `minimumRenderScale`) walks the drawing
+ * buffer down if frames are slow.
+ *
+ * ⚠️ NOT MOVED, ON PURPOSE: `.content` and the sections under the stage keep their 1200px column (the
+ * owner's page widths), and the aside keeps its width and its description, so the product's name beside
+ * a larger garment stays at its own column-sized 25-40px. The contact buttons sit in that aside, whose
+ * content is no taller than at 1920x1080 inside a band that is at least as tall, so the VA-60 floor holds.
+ */
+@media (min-width: 1920px) {
+  .stage-block {
+    --stage-measure: max(1200px, min(62.5vw, calc(100svh * 1200 / 1080), 2400px));
+    padding-inline: max(var(--stage-gutter), calc((100% - var(--stage-measure)) / 2));
+  }
+
+  .stage__canvas {
+    max-height: max(980px, min(calc(100vw * 980 / 1920), 1960px));
+  }
+}
+
+/*
  * The scroll cue — and where it lives is the whole reason it is affordable.
  *
  * `.stage-block` reserves `--action-bar-h + 16px` at its bottom so the colourway

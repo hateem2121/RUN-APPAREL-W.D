@@ -282,6 +282,41 @@ stays 0.92.
 `apps/viewer/src/styles/headlineLeading.test.ts` pins the rule and who carries it;
 `apps/cms/e2e/headlineLeading.spec.ts` measures the lines in a browser.
 
+### Display type and the stage past 1920px (VA-12)
+
+Visual audit VA-12, owner-approved 2026-10-01, built 2026-10-02. Both stopped growing early: the
+hero at 72px from 1333px wide, the section headline at 46px from 1150px, and a garment page's stage
+at 800x980 — 21% of a 2560x1440 screen, against 43% at 1440x900 — so on a large monitor the type and
+the garment looked drawn for a laptop. From 1920px, and only from there, they keep growing until
+3840px (a 4K screen) and then stop.
+
+| Window | `.display--hero` | `.display--section` | Stage measure | Canvas width |
+|---|---|---|---|---|
+| 1440x900 and 1919x1080 (pinned: nothing below 1920px changes) | 72px | 46px | 1200px | 800px |
+| 1920x1080 | 72px | 46px | 1200px | 800px |
+| 2560x1440 | 96px | 61px | 1600px | 1160px |
+| 3840x2160 and above | 144px | 92px | 2400px | 1960px |
+
+- The sizes are `max(4.5rem, min(3.75vw, 9rem))` and `max(2.875rem, min(2.3958vw, 5.75rem))`, in
+  rules gated by `@media (min-width: 1920px)` in `base.css` and `site.css`. The two `clamp()` rules
+  above are untouched (TY-03 pins them), and the new ones start at exactly the old ceilings, so
+  nothing moves at 1920px; the rem floor keeps a reader's larger text size.
+- The 144px ceiling is worked out: the page's column is 1312px of text at most and "PRODUCTION." is
+  8.9em wide, so it stops fitting at 147px; 144px leaves 2%.
+- Tracking scales with the type: `--tracking-display-large` is `-0.03em`, which is what the two px
+  tokens give at the 1920px sizes, and it keeps large type as tight as §3 asks.
+- The stage (`page.css`): measure `max(1200px, min(62.5vw, calc(100svh * 1200 / 1080), 2400px))` and
+  canvas cap `max(980px, min(calc(100vw * 980 / 1920), 1960px))`, the 1920x1080 design scaled by the smaller of the window's width
+  and height — so a window that is wide and only 1080px tall does not grow, because its garment is
+  limited by height. The measure and the cap move together: raised alone, the garment turns
+  width-limited and gains nothing.
+- Not moved: the page columns (`--site-max`, the garment pages' 1200px content), the aside's width,
+  and the product's name in it (`.product-info--aside`, sized to its own column).
+- The canvas widths are arithmetic. Its height is what the window leaves it, roughly 1200px at
+  2560x1440 (about 38% of that screen); that was not measured here.
+  `apps/viewer/src/styles/largeScreens.test.ts` computes the rules at the pinned widths, and both
+  `e2e/largeScreens.spec.ts` files ask a browser.
+
 ### The serif accent
 
 One Instrument Serif italic word per headline, set by `headingWithAccent()` in
@@ -513,6 +548,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `1180px` | `site.css` | the product families go to five columns |
 | `max-width: 899px`, `900px`, `1440px` | `site.css` | the product grid is two columns, three from 900px and four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px), each with its own rule against a lone last card (VA-42) |
 | `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
+| `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12) |
 | container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |
 
 ### Pictures in rows: the order timeline
