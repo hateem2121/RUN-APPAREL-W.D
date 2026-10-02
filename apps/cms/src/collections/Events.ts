@@ -86,8 +86,17 @@ export const Events: CollectionConfig = {
         description: 'Page steadiness (web vitals only): the layout-shift score for the visit.',
       },
     },
-    // No `admin.description`, deliberately: it would be new words on an admin screen that the
-    // audit's fix text does not give (VA-14). A proposal is in the hand-over notes.
-    { name: 'inpMs', type: 'number', min: 0, max: MAX_INP_MS },
+    {
+      name: 'inpMs',
+      type: 'number',
+      min: 0,
+      max: MAX_INP_MS,
+      admin: {
+        // The owner's choice of words, 2026-10-02 (VA-14): taps, clicks and key presses, so a
+        // reading from a computer visit is described too.
+        description:
+          'Page response (web vitals only): milliseconds the slowest tap, click or key press of the visit took to show on screen.',
+      },
+    },
   ],
 }

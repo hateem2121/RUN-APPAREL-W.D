@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
@@ -61,10 +63,12 @@ const EVENTS_DDL = `CREATE TABLE events (
   updated_at text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   created_at text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   lcp_ms numeric,
-  cls numeric
+  cls numeric,
+  inp_ms numeric
 )`
-// The last two arrive with migration 20260917_120000_add_web_vitals_values (audit PF-05b).
-// ALTER TABLE ADD appends, which is why they sit after created_at here as they do in D1.
+// lcp_ms and cls arrive with migration 20260917_120000_add_web_vitals_values (audit PF-05b),
+// inp_ms with 20261002_120000_add_web_vitals_inp (VA-14). ALTER TABLE ADD appends, which is
+// why they sit after created_at here as they do in D1.
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -78,9 +82,10 @@ interface Row {
   product?: string
   message?: string
   ua?: string
-  /** The two page-speed numbers; `web_vitals` rows only in real data. */
+  /** The three page-speed numbers; `web_vitals` rows only in real data. */
   lcpMs?: number | null
   cls?: number | null
+  inpMs?: number | null
   /** An exact ISO timestamp; otherwise `ageMs` before now, default one hour. */
   createdAt?: string
   ageMs?: number
@@ -90,7 +95,7 @@ function query(sql: string, rows: Row[]): Record<string, unknown>[] {
   const db = new DatabaseSync(':memory:')
   db.exec(EVENTS_DDL)
   const insert = db.prepare(
-    'INSERT INTO events (type, event, product, message, ua, lcp_ms, cls, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO events (type, event, product, message, ua, lcp_ms, cls, inp_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   )
   for (const r of rows) {
     const at = r.createdAt ?? new Date(Date.now() - (r.ageMs ?? HOUR)).toISOString()
@@ -102,6 +107,7 @@ function query(sql: string, rows: Row[]): Record<string, unknown>[] {
       r.ua ?? null,
       r.lcpMs ?? null,
       r.cls ?? null,
+      r.inpMs ?? null,
       at,
       at,
     )
@@ -221,6 +227,8 @@ describe('page speed query (PF-05b)', () => {
       lcp_p75: 3000,
       cls_n: 5,
       cls_p75: 0.05,
+      inp_n: 0,
+      inp_p75: null,
     })
   })
 
@@ -253,6 +261,8 @@ describe('page speed query (PF-05b)', () => {
       lcp_p75: 2000,
       cls_n: 0,
       cls_p75: null,
+      inp_n: 0,
+      inp_p75: null,
     })
   })
 
@@ -267,8 +277,30 @@ describe('page speed query (PF-05b)', () => {
 
   it('answers a quiet week with zero, not with nothing', () => {
     expect(query(VITALS, [])).toEqual([
-      { visits: 0, browsers: 0, lcp_n: 0, lcp_p75: null, cls_n: 0, cls_p75: null },
+      {
+        visits: 0,
+        browsers: 0,
+        lcp_n: 0,
+        lcp_p75: null,
+        cls_n: 0,
+        cls_p75: null,
+        inp_n: 0,
+        inp_p75: null,
+      },
     ])
+  })
+
+  it('reports the 75th percentile of the tap time too, by nearest rank (VA-14)', () => {
+    const tap = (inpMs: number, ua: string = PHONE) => vital(null, null, ua, { inpMs })
+    const [week] = query(VITALS, [tap(80), tap(600, OTHER_PHONE), tap(200), tap(120), tap(320)])
+    // Five taps, sorted 80, 120, 200, 320, 600: rank ceil(0.75 × 5) = 4 → 320.
+    expect(week).toMatchObject({ visits: 5, browsers: 2, lcp_n: 0, inp_n: 5, inp_p75: 320 })
+  })
+
+  it('counts a report that carries only a tap time (VA-14)', () => {
+    // The outer WHERE must name inp_ms too, or this report would be dropped.
+    const [week] = query(VITALS, [vital(null, null, PHONE, { inpMs: 150 })])
+    expect(week).toMatchObject({ visits: 1, inp_n: 1, inp_p75: 150 })
   })
 
   it('reaches the weekly issue, and a failed read says so rather than hiding', () => {
@@ -277,6 +309,49 @@ describe('page speed query (PF-05b)', () => {
     expect(issueStep).toContain("steps.vitals.outputs.visits != '0'")
     expect(issueStep).toContain('"$VITALS_SUMMARY"')
     expect(issueStep).toContain('Page speed could not be read this week')
+  })
+})
+
+/**
+ * THE WORDS THE WEEKLY ISSUE PRINTS (VA-14, 2026-10-02). The summary is a `node -e` script inside
+ * the page-speed step, so it is run here the way CI runs it, against a made-up answer from D1,
+ * and the "Tapping" line is held to the owner's approved wording of 2026-10-02:
+ * "**Tapping:** 3 in 4 visits answered a tap within N ms (M visits; 200 ms or less counts as good)."
+ * The script sits in a double-quoted shell string and uses no `$`, backslash-quote or backtick,
+ * so the text between the quotes is exactly what the shell hands to node.
+ */
+function vitalsSummary(result: Record<string, unknown>): string {
+  const start = WORKFLOW.indexOf('- name: Read the last 7 days of page speed')
+  const step = WORKFLOW.slice(start, WORKFLOW.indexOf('- name:', start + 1))
+  const summary = [...step.matchAll(/node -e "([\s\S]*?)"\n/g)]
+    .map((match) => match[1] ?? '')
+    .find((script) => script.includes('lines.push'))
+  if (!summary) throw new Error('the page-speed step has no summary script')
+  const dir = mkdtempSync(join(tmpdir(), 'vitals-'))
+  try {
+    writeFileSync(join(dir, 'vitals.json'), JSON.stringify([{ results: [result] }]))
+    return execFileSync(process.execPath, ['-e', summary], { cwd: dir, encoding: 'utf8' })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+const WEEK = { visits: 60, browsers: 40, lcp_n: 60, lcp_p75: 2100, cls_n: 60, cls_p75: 0.02 }
+
+describe('the words the weekly issue prints (VA-14)', () => {
+  it('says the tap time in the owner’s approved words', () => {
+    expect(vitalsSummary({ ...WEEK, inp_n: 55, inp_p75: 184.6 })).toContain(
+      '- **Tapping:** 3 in 4 visits answered a tap within 185 ms (55 visits; 200 ms or less counts as good).',
+    )
+  })
+
+  it('prints no Tapping line in a week with no tap times', () => {
+    const text = vitalsSummary({ ...WEEK, inp_n: 0, inp_p75: null })
+    // The control: the summary did run, so a missing line is the script's choice.
+    expect(text).toContain(
+      '- **Loading:** 3 in 4 visits had the main content on screen within 2.1 s',
+    )
+    expect(text).not.toContain('Tapping')
   })
 })
 

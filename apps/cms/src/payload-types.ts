@@ -536,6 +536,9 @@ export interface Event {
    * Page steadiness (web vitals only): the layout-shift score for the visit.
    */
   cls?: number | null;
+  /**
+   * Page response (web vitals only): milliseconds the slowest tap, click or key press of the visit took to show on screen.
+   */
   inpMs?: number | null;
   updatedAt: string;
   createdAt: string;
