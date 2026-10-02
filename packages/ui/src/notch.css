@@ -551,6 +551,8 @@
 .notch__icon-line {
   position: absolute;
   inset-inline-start: 0;
+  /* Every line is the icon's full 20px; the shorter two are SCALED (below), never resized. */
+  width: 100%;
   block-size: 0;
   border-block-start: 2px solid currentColor;
   border-radius: var(--radius-pill);
@@ -559,32 +561,43 @@
    * even and fold into an X". Reduced motion needs nothing here — base.css collapses every
    * transition to 0.01ms and every delay to 0s with !important, and navbar.spec.ts measures
    * that it reaches these lines.
+   *
+   * ⚠️ TRANSFORM AND OPACITY ONLY, NEVER WIDTH (VA-19, visual audit 2026-10-02). The lines used
+   * to animate `width`, which is layout on every frame; web.dev (read 2026-10-02) names
+   * `transform` and `opacity` as the only two properties that stay on the compositor, and says to
+   * resize with a scale. The look is unchanged because the line's width is just its length:
+   * 12, 20 and 16px are a 20px line at scale 0.6, 1 and 0.8, and the fold's centre still travels
+   * right as the short line grows (the old width change did the same). The centre is the
+   * transform-origin on purpose (the default, so none is written): the open state turns each line
+   * about its middle, so the short ones are shifted back to the left edge by half what the
+   * scale took off (20px x 0.4 / 2 = 4px; x 0.2 / 2 = 2px) and sit exactly where they did.
+   * Left-to-right only: the lines hang from the left edge, and the site has no right-to-left page.
+   * The end caps (1px radius) are 0.6px and 0.8px wide on the two short lines, sub-pixel.
+   * The motion probe's allow-list entry for this selector is gone with the width
+   * (scripts/served-css-motion-probe.mjs), so a width transition here fails MO-16 again.
    */
   transition:
-    width var(--ui) var(--ease),
     transform var(--ui) var(--ease),
     opacity var(--ui) var(--ease);
 }
 
 .notch__icon-line:nth-child(1) {
   inset-block-start: 0;
-  width: 12px;
+  transform: translateX(-4px) scaleX(0.6);
 }
 
 .notch__icon-line:nth-child(2) {
   inset-block-start: 7px;
-  width: 20px;
   transition-delay: 20ms;
 }
 
 .notch__icon-line:nth-child(3) {
   inset-block-start: 14px;
-  width: 16px;
+  transform: translateX(-2px) scaleX(0.8);
   transition-delay: 40ms;
 }
 
 .notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(1) {
-  width: 20px;
   transform: translateY(7px) rotate(45deg);
 }
 
@@ -593,7 +606,6 @@
 }
 
 .notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(3) {
-  width: 20px;
   transform: translateY(-7px) rotate(-45deg);
 }
 

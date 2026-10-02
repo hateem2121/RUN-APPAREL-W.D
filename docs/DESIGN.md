@@ -563,6 +563,13 @@ tap outside close it, and the browser reports its state to assistive technology.
 bar is fixed and condenses as the page scrolls; the viewer's is in the page flow and does not,
 so `--header-h` still measures where its 3D stage starts.
 
+The Speed Lines icon's three lines are each drawn the icon's full 20px and shortened with
+`scaleX` (0.6, 1 and 0.8 of it: the 12, 20 and 16px they have always been), so folding into an X
+moves only `transform` and `opacity` and stays on the compositor (VA-19, 2026-10-02). They used to
+animate `width`, which is layout on every frame; `scripts/served-css-motion-probe.mjs` no longer
+carries an exception for them. The customisation panel's grid rows are the other animation that
+moves layout; that one is deliberate and stays (`page.css`).
+
 ### The footer
 
 One footer on the public site and the 3D garment pages since 2026-10-02 (visual audit VA-31,

@@ -407,20 +407,31 @@ test.describe('the open phone menu', () => {
     await page.goto('/')
     const lines = page.locator('.notch__menu-btn .notch__icon-line')
     await expect(lines).toHaveCount(3)
+    /*
+     * VA-19 (2026-10-02): the lines are all 20px wide and the short ones are SCALED, so their
+     * CSS width no longer says how long they are drawn. Their drawn length is the 20px times how
+     * far the matrix stretches the line's own axis: `hypot(a, b)`, the first column, which a
+     * rotation leaves at 1 (`none` has no numbers: the identity).
+     */
     const read = () =>
       lines.evaluateAll((elements) =>
         elements.map((element) => {
           const style = getComputedStyle(element)
           const numbers = (style.transform.match(/-?[\d.]+/g) ?? []).map(Number)
-          return { width: style.width, opacity: style.opacity, b: numbers[1] ?? 0 }
+          const [a = 1, b = 0] = numbers
+          return {
+            length: Math.round(Number.parseFloat(style.width) * Math.hypot(a, b)),
+            opacity: style.opacity,
+            b,
+          }
         }),
       )
-    // closed: three uneven lines (owner's pick, Option B)
-    expect((await read()).map((line) => line.width)).toEqual(['12px', '20px', '16px'])
+    // closed: three uneven lines (owner's pick, Option B), drawn 12 / 20 / 16px long
+    expect((await read()).map((line) => line.length)).toEqual([12, 20, 16])
     await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
     await expect
-      .poll(async () => (await read()).map((line) => `${line.width}/${line.opacity}`))
-      .toEqual(['20px/1', '20px/0', '20px/1'])
+      .poll(async () => (await read()).map((line) => `${line.length}/${line.opacity}`))
+      .toEqual(['20/1', '20/0', '20/1'])
     const [top, , bottom] = await read()
     // the matrix's second number is sin(angle): +0.707 for 45deg, -0.707 for -45deg
     expect(top?.b ?? 0, 'the top line did not turn').toBeGreaterThan(0.7)
@@ -997,11 +1008,9 @@ test.describe('the Speed Lines move, and hold still for reduced motion (owner, 2
       await page.evaluate(() => matchMedia('(prefers-reduced-motion: no-preference)').matches),
     ).toBe(true)
     const running = await page.evaluate(clickAndRead())
-    expect(running).toEqual([
-      ['transform:220:0', 'width:220:0'],
-      ['opacity:220:20'],
-      ['transform:220:40', 'width:220:40'],
-    ])
+    // VA-19 (2026-10-02): `width` is gone from this list on purpose. Every property that runs
+    // is one the compositor can carry; a `width` entry here is the layout animation coming back.
+    expect(running).toEqual([['transform:220:0'], ['opacity:220:20'], ['transform:220:40']])
     await expect
       .poll(() =>
         page

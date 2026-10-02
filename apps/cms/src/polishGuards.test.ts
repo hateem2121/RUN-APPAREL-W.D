@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
+import {
+  extractLeafRules,
+  findLayoutPropertyTransitions,
+  LAYOUT_TRANSITION_ALLOW_LIST,
+} from '../../../scripts/served-css-motion-probe.mjs'
 
 /**
  * Source guards for the polish fixes of the 2026-10-02 visual audit (VA-16, VA-18, VA-19,
@@ -22,6 +27,7 @@ const css = (...parts: string[]) =>
 
 const BASE = css('packages', 'ui', 'src', 'base.css')
 const TOKENS = css('packages', 'ui', 'src', 'tokens.css')
+const NOTCH = css('packages', 'ui', 'src', 'notch.css')
 
 interface Rule {
   /** The headers of the at-rules this rule sits inside, outermost first. */
@@ -217,5 +223,104 @@ describe("VA-18 — the cookie card's sentence has a line length of its own", ()
     expect(problemsWith(undefined)).toEqual(['max-inline-size is missing, not a number of ch'])
     expect(problemsWith('403px')).toEqual(['max-inline-size is 403px, not a number of ch'])
     expect(problemsWith('54ch')).toEqual([])
+  })
+})
+
+describe('VA-19 — the menu icon folds by transform and opacity, never by width', () => {
+  /** The property each comma-separated part of a `transition` value names, in order. */
+  const transitionedProperties = (value: string | undefined) =>
+    (value ?? '').split(',').map((part) => part.trim().split(/\s+/)[0])
+
+  const iconRules = (source: string) =>
+    rulesOf(source).filter((rule) => rule.selector.includes('.notch__icon-line'))
+
+  /** Everything wrong with the icon lines' rules, as sentences. */
+  function problemsWith(source: string): string[] {
+    const problems: string[] = []
+    const rules = iconRules(source)
+    const base = rules.find((rule) => rule.selector === '.notch__icon-line')
+    if (!base) return ['no .notch__icon-line rule']
+    const names = transitionedProperties(base.declarations.get('transition'))
+    if (names.join() !== 'transform,opacity') {
+      problems.push(
+        `the lines transition ${names.join(', ') || 'nothing'}, not transform and opacity`,
+      )
+    }
+    for (const rule of rules) {
+      if (rule !== base && rule.declarations.has('width')) {
+        problems.push(`${rule.selector} sets a width: the lines are scaled, never resized`)
+      }
+    }
+    // The two short lines: scaled, and shifted back to the left edge by half of what the scale
+    // took off a 20px line, or they would sit centred instead of hanging from the edge.
+    for (const [child, scale] of [
+      [1, 0.6],
+      [3, 0.8],
+    ] as const) {
+      const rule = rules.find((entry) => entry.selector === `.notch__icon-line:nth-child(${child})`)
+      const match = /^translateX\((-?[\d.]+)px\) scaleX\(([\d.]+)\)$/.exec(
+        rule?.declarations.get('transform') ?? '',
+      )
+      if (!match) {
+        problems.push(`line ${child} is not translateX(Npx) scaleX(S)`)
+        continue
+      }
+      const [shift, factor] = [Number(match[1]), Number(match[2])]
+      if (factor !== scale) problems.push(`line ${child} is scaled ${factor}, not ${scale}`)
+      if (Math.abs(shift + ((1 - factor) * 20) / 2) > 0.001) {
+        problems.push(
+          `line ${child}: shift ${shift}px does not anchor a ${factor} scale at the edge`,
+        )
+      }
+    }
+    return problems
+  }
+
+  it('transitions transform and opacity only, with no width on any line', () => {
+    expect(problemsWith(NOTCH)).toEqual([])
+  })
+
+  it('keeps the open state to the same two properties, so the fold cannot bring a width back', () => {
+    const open = iconRules(NOTCH).filter((rule) => rule.selector.includes(':popover-open'))
+    expect(open.length, 'no open-state rules were found, so nothing was measured').toBe(3)
+    for (const rule of open) {
+      expect(
+        [...rule.declarations.keys()].filter((name) => name !== 'transform' && name !== 'opacity'),
+      ).toEqual([])
+    }
+  })
+
+  it('leaves the motion probe no exception for these lines, and the shared stylesheet passes without one', () => {
+    expect(LAYOUT_TRANSITION_ALLOW_LIST).toEqual([])
+    expect(findLayoutPropertyTransitions(extractLeafRules(NOTCH))).toEqual([])
+  })
+
+  // NEGATIVE CONTROLS, run both ways: the old rules are caught, by the guard and by the probe.
+  it('sees the fault: the old width transition and the old widths', () => {
+    const old = `
+      .notch__icon-line { width: 100%; transition: width 220ms, transform 220ms, opacity 220ms; }
+      .notch__icon-line:nth-child(1) { width: 12px; }
+      .notch__icon-line:nth-child(3) { transform: translateX(-2px) scaleX(0.8); }
+    `
+    const problems = problemsWith(old)
+    expect(problems).toContain(
+      'the lines transition width, transform, opacity, not transform and opacity',
+    )
+    expect(problems).toContain(
+      '.notch__icon-line:nth-child(1) sets a width: the lines are scaled, never resized',
+    )
+    expect(problems).toContain('line 1 is not translateX(Npx) scaleX(S)')
+    // a shift that does not match its scale is caught too (line 3 here is right, line 1 absent)
+    expect(
+      problemsWith(`
+        .notch__icon-line { transition: transform 220ms, opacity 220ms; }
+        .notch__icon-line:nth-child(1) { transform: translateX(-2px) scaleX(0.6); }
+        .notch__icon-line:nth-child(3) { transform: translateX(-2px) scaleX(0.8); }
+      `),
+    ).toEqual(['line 1: shift -2px does not anchor a 0.6 scale at the edge'])
+    const planted = extractLeafRules('.notch__icon-line { transition: width 220ms; }')
+    expect(findLayoutPropertyTransitions(planted).map((violation) => violation.selector)).toEqual([
+      '.notch__icon-line',
+    ])
   })
 })
