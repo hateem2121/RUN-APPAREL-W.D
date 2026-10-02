@@ -550,6 +550,22 @@ The card's text has 12px of padding and a long name wraps inside it. The filter 
 of links, so Tab walks every chip and the browser scrolls each into view; it ends at the screen's
 edges and cannot make the page scroll sideways.
 
+### A buyer page opens on its family's picture
+
+Home and contact open on a factory photo; the four buyer pages opened on plain paper until visual
+audit VA-48 (owner's choice 2026-10-02). Each now opens on the picture its family's card shows on
+the home page (`familyPictures` in `apps/cms/src/lib/families.ts`: the first garment's studio render,
+else its poster, else the family's own photo), in a 4:5 frame, `.family-hero__frame`. The label and
+the headline keep the full column; the picture sits beside the lede and the buttons from 900px
+and after them on a phone. It is beside the lede and not behind the headline because the 72px
+display type that takes three lines across the column would take six in half of it, and because no
+text is then ever over the picture: the headline and lede keep paper's contrast, in both themes.
+
+The picture is the page's largest paint, so it is eager with `fetchpriority="high"` on the image
+itself (never a preload link: one per page is pinned), its space is reserved by the frame's ratio
+and the image's width and height so nothing moves when it lands, and its alt text is its own. A
+family with no picture at all keeps the hero it had, with nothing drawn.
+
 ### The cookie card
 
 The choice is a fixed card at the foot of the screen (`base.css` `.consent`), with Decline and

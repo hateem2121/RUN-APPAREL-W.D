@@ -609,6 +609,54 @@ html {
   }
 }
 
+/*
+ * ⚠️ A BUYER PAGE'S HERO OPENS ON THE FAMILY'S PICTURE (visual audit VA-48, owner's choice
+ * 2026-10-02; `FamilyLanding.tsx` says why it is beside the lede and not behind the headline). The
+ * label and the headline run the full column as they always did; under them the lede and the
+ * buttons are on the left and the picture on the right from 900px, and on a phone the picture
+ * comes after them (it is after them in the markup too, so the reading and tab order never
+ * disagree and no `order` is needed). 900px and 420px are the numbers `.proof` and the order
+ * timeline already use for a column with a picture beside it.
+ *
+ * ⚠️ THE FRAME RESERVES THE PICTURE'S SPACE: `aspect-ratio: 4 / 5` is the ratio of the 1200 x 1500
+ * renders and of every other garment frame on the site, so the hero is the same height before the
+ * file arrives and after it (visual audit: nothing may shift). `max-width` stops it stretching to
+ * the page's width between a phone and 900px, where a 4:5 box would be taller than the screen.
+ * The 16px above the picture lines its top up with the lede's first line, which carries the same
+ * 16px of margin (`.site-lede`). The frame is paper (`--bg`) with the line colour for its edge, as
+ * every garment frame is, and no text sits over it.
+ */
+.family-hero__body {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+
+.family-hero__picture {
+  max-width: 420px;
+}
+
+.family-hero__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+@media (min-width: 900px) {
+  .family-hero__body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    gap: 64px;
+  }
+
+  .family-hero__picture {
+    margin-block-start: 16px;
+  }
+}
+
 /* ----------------------------------------------------------------- notch */
 
 /*

@@ -2,12 +2,13 @@ import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import Link from 'next/link'
 import type { ProductCard, PublicSiteSettings } from '../../lib/content'
 import { FACTORY_PHOTOS, factoryPhotoSrc } from '../../lib/factoryPhotos'
-import { FAMILIES } from '../../lib/families'
+import { FAMILIES, familyPictures } from '../../lib/families'
 import { FAMILY_PAGE_ACTION, type FamilyPage, familyHref, familyOf } from '../../lib/familyPages'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FactoryFigure } from './FactoryFigure'
 import { FactsBento } from './FactsBento'
 import { SeeAllInGallery } from './FamilyCrossLinks'
+import { FamilyHeroPicture } from './FamilyHeroPicture'
 import { JsonLd } from './JsonLd'
 import { ProductCardItem } from './ProductCardItem'
 
@@ -30,6 +31,16 @@ import { ProductCardItem } from './ProductCardItem'
  * ⚠️ THE QUESTIONS ARE ON THE PAGE AND IN THE DATA FROM ONE LIST. `faqJsonLd` says why a
  * question the page does not show must never be in the data.
  *
+ * ⚠️ THE HERO OPENS ON THE FAMILY'S PICTURE (visual audit VA-48, owner's choice 2026-10-02): home and
+ * contact open on a factory photo and these four pages opened on plain paper, so they read as less
+ * finished than the pages that link to them. The picture is the one the family's home-page card
+ * shows (`familyPictures`), drawn by `FamilyHeroPicture`. It sits BESIDE THE LEDE, not behind the
+ * headline: the headline is the site's 72px display type, set across the whole column it takes
+ * three lines, and in the half-width column a beside-the-headline picture leaves it would take six.
+ * No text is ever over the picture, so the headline and lede keep the contrast they have on paper,
+ * in both themes. A family with no picture at all (no garment yet, no photo of its own) keeps the
+ * hero exactly as it was: the same words, in the same order, with nothing drawn.
+ *
  * ⚠️ THE LINK TO THE FAMILY'S GALLERY ENDS "WHAT WE MAKE", NOT THE GARMENT GRID (visual audit
  * VA-33, owner-approved 2026-10-01). It is the buyer's way across to `/products?family=…`, and it
  * has to be on the page whether or not the database holds garments for the family: the grid below
@@ -50,12 +61,30 @@ export function FamilyLanding({
 }) {
   const family = familyOf(page)
   const garments = products.filter((product) => product.category === family.name)
+  const picture = familyPictures(products)[family.slug] ?? null
   const photos = page.photos
     .map((slug) => FACTORY_PHOTOS.find((photo) => photo.slug === slug))
     .filter((photo) => photo !== undefined)
   const others = FAMILIES.filter(
     (entry) =>
       entry.slug !== family.slug && products.some((product) => product.category === entry.name),
+  )
+
+  // The lede and the two buttons: one definition for the hero with a picture and the hero without.
+  const words = (
+    <>
+      <p className="site-lede">{page.lede}</p>
+      <div className="site-actions">
+        <Link className="btn btn--primary" href="/contact#inquiry">
+          {FAMILY_PAGE_ACTION}
+        </Link>
+        {garments.length > 0 ? (
+          <a className="btn btn--ghost" href="#garments">
+            See the garments in 3D
+          </a>
+        ) : null}
+      </div>
+    </>
   )
 
   return (
@@ -74,17 +103,14 @@ export function FamilyLanding({
           <h1 className="display display--hero hero-family">
             {page.heading} <span className="serif-accent">{page.headingAccent}</span>
           </h1>
-          <p className="site-lede">{page.lede}</p>
-          <div className="site-actions">
-            <Link className="btn btn--primary" href="/contact#inquiry">
-              {FAMILY_PAGE_ACTION}
-            </Link>
-            {garments.length > 0 ? (
-              <a className="btn btn--ghost" href="#garments">
-                See the garments in 3D
-              </a>
-            ) : null}
-          </div>
+          {picture ? (
+            <div className="family-hero__body">
+              <div>{words}</div>
+              <FamilyHeroPicture picture={picture} />
+            </div>
+          ) : (
+            words
+          )}
         </div>
       </section>
 
