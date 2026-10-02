@@ -149,8 +149,11 @@ test.describe('the fixed bar steps aside while the same buttons are in the page 
     ).toBeLessThanOrEqual(0.001)
     expect(Number.parseFloat(instant.delay), 'reduced motion left a delay on the bar').toBe(0)
     await showPair(page)
+    // 3s, as in the tests above: "instant" is asserted by the durations, not by this wait. One
+    // frame can take about a second while the garment's 3D model loads (950ms measured in
+    // Chromium, 2026-10-02), and a 1s wait here failed about one run in three under load.
     await expect
-      .poll(async () => (await barStyle(page)).visibility, { timeout: 1_000 })
+      .poll(async () => (await barStyle(page)).visibility, { timeout: 3_000 })
       .toBe('hidden')
     const tuckedInstant = await transitionLists(page)
     expect(

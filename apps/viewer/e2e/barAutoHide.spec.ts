@@ -132,7 +132,10 @@ test.describe('on a touch phone, the bar leaves and returns (VA-40)', () => {
     expect(await barBottom(page)).toBeGreaterThan(0)
     await expect(page.locator(OPEN)).toHaveCount(1)
 
-    await page.keyboard.press('Escape')
+    // Closed the way a phone visitor closes it: a second tap on its button. An Escape press makes
+    // Chromium mark the still-focused button as keyboard focus, and keyboard focus inside the bar
+    // rightly holds it there (the next test) — measured 2026-10-02, Chromium only.
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).tap()
     await expect(page.locator(OPEN)).toHaveCount(0)
     await scrollTo(page, 800)
     await scrollTo(page, 1000)
@@ -196,7 +199,13 @@ test.describe('on a touch phone, the bar leaves and returns (VA-40)', () => {
         const style = getComputedStyle(bar)
         const properties = style.transitionProperty.split(',').map((value) => value.trim())
         const times = style.transitionDuration.split(',').map((value) => value.trim())
-        const at = (name: string) => Number.parseFloat(times[properties.indexOf(name)] ?? 'NaN')
+        // A shorter duration list is repeated to match the properties (CSS Transitions 1, "lists of
+        // different lengths"; the computed value keeps the short list): base.css's reduced-motion
+        // rule sets ONE duration for every property.
+        const at = (name: string) => {
+          const index = properties.indexOf(name)
+          return index === -1 ? Number.NaN : Number.parseFloat(times[index % times.length] ?? 'NaN')
+        }
         return { transform: at('transform'), visibility: at('visibility') }
       })
     await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -216,13 +225,30 @@ test.describe('on a touch phone, the bar leaves and returns (VA-40)', () => {
     const reduced = await durations()
     expect(reduced.transform, 'the slide still takes time under reduced motion').toBeLessThan(0.001)
     expect(reduced.visibility).toBeLessThan(0.001)
-    // And it is on screen, or off it, within two frames of the scroll — not part way.
-    await scrollTo(page, 700)
-    await frames(page)
+    // And it is on screen or off it, never part way, within a few frames of the scroll.
+    // ⚠️ COUNTED IN FRAMES, AND NOT TWO: Chromium gives a new transition its start time on the frame
+    // AFTER the one that made it, so even the 0.01ms reduced-motion slide lands on the third frame
+    // after the scroll there (measured 2026-10-02: frames 1 and 2 at the start, 3 at the end), where
+    // WebKit lands on the second. And one frame can take about a second while the garment's 3D model
+    // loads (950ms measured), so a bound in milliseconds would be a coin flip.
+    const path = await page.evaluate(async () => {
+      const bar = document.querySelector('header.notch-shell .notch') as HTMLElement
+      const bottoms = [Math.round(bar.getBoundingClientRect().bottom)]
+      window.scrollTo(0, 700)
+      for (let frame = 0; frame < 6 && (bottoms.at(-1) ?? 1) > 0; frame++) {
+        await new Promise((done) => requestAnimationFrame(done))
+        bottoms.push(Math.round(bar.getBoundingClientRect().bottom))
+      }
+      return bottoms
+    })
     expect(
-      await barBottom(page),
-      'with reduced motion the bar was not gone in two frames',
+      path.at(-1),
+      `with reduced motion the bar was not gone within six frames (its bottom edge, frame by frame: ${path})`,
     ).toBeLessThanOrEqual(0)
+    expect(
+      path.filter((bottom) => bottom > 0 && bottom !== path[0]),
+      `with reduced motion the bar was seen part way (its bottom edge, frame by frame: ${path})`,
+    ).toEqual([])
   })
 })
 
