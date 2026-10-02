@@ -1481,6 +1481,41 @@ test.describe('the colourway rail is a real tablist with a selected state (AC-08
 })
 
 /**
+ * VA-61 — after arrowing through the colours, Tab LEAVES the list (APG tabs pattern: "Tab: moves
+ * focus to the next element in the tab sequence outside the tablist"). Measured 2026-10-02 in all
+ * three engines before the fix: arrowed from Black, the last tab and the chosen one, round to
+ * Wine, the one tab stop stayed on Black, so Tab landed on Black, still inside the list. The unit
+ * test pins the tabindex that decides it; only a real browser moves focus on a real Tab.
+ */
+test.describe('Tab leaves the colour list from the tab the visitor arrowed to (VA-61)', () => {
+  test('arrowed from the last colour round to the first, Tab lands outside the list', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/n001/black')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const black = page.getByRole('tab', { name: 'Black' })
+    await expect(black, 'the fixture no longer opens on Black').toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await black.focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(page.getByRole('tab', { name: 'Wine' })).toBeFocused()
+    // WebKit skips buttons on a plain Tab; Option-Tab walks them (a11y.spec.ts, AC-05).
+    await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab')
+    const landed = await page.evaluate(() => {
+      const el = document.activeElement
+      return {
+        role: el?.getAttribute('role') ?? el?.tagName ?? '',
+        inList: Boolean(el?.closest('[role="tablist"]')),
+      }
+    })
+    expect(landed.inList, `Tab stayed in the colour list, on a ${landed.role}`).toBe(false)
+  })
+})
+
+/**
  * AC-16 — the chosen colourway is never shown by colour alone: `aria-selected="true"` carries
  * the state for assistive technology, AND the chosen control differs by more than a hue. On the
  * dots (VA-32, 2026-10-02) that is a ring only the chosen dot wears: every other dot's border is

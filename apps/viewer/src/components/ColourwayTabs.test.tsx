@@ -171,6 +171,33 @@ describe('ColourwayTabs keyboard pattern', () => {
    * preventDefault() would swallow Tab and trap keyboard focus inside the tablist —
    * strictly worse than the missing arrow keys this fix is about.
    */
+  /**
+   * VA-61, measured 2026-10-02 in Chromium, Firefox and WebKit: arrowing from Black (the last tab,
+   * selected) round to Wine left the ONE tab stop on Black, so the next Tab landed on Black, still
+   * inside the list, instead of leaving it as the APG tabs pattern says. An arrow press blurs the
+   * old tab on its way to the new one, and that blur reset the stop to the selected tab.
+   */
+  it('keeps the tab stop on the tab arrowed to, so Tab leaves the list from there', () => {
+    render('black')
+    const [wine, navy, black] = [tabAt(0), tabAt(1), tabAt(2)]
+    black.focus()
+    press(black, 'ArrowRight')
+    expect(document.activeElement).toBe(wine)
+    expect(
+      tabs().map((t) => t.tabIndex),
+      'the stop stayed on the selected tab, so Tab from Wine lands on Black, inside the list',
+    ).toEqual([0, -1, -1])
+    press(wine, 'ArrowRight')
+    expect(tabs().map((t) => t.tabIndex)).toEqual([-1, 0, -1])
+
+    // Leaving the list hands the stop back to the selected tab, for the next Tab in.
+    act(() => {
+      navy.blur()
+    })
+    expect(tabs().map((t) => t.tabIndex)).toEqual([-1, -1, 0])
+    expect(black.tabIndex).toBe(0)
+  })
+
   it('leaves Tab alone rather than trapping focus', () => {
     render('wine')
     const wine = tabAt(0)

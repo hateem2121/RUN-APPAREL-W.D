@@ -147,6 +147,8 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
   )
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+  // The tablist, so a blur can tell focus moving between tabs from focus leaving them.
+  const listRef = useRef<HTMLDivElement>(null)
   /**
    * The tab that has focus right now, for the name written above the dots (VA-32). Its own state,
    * set on focus and cleared on blur, because an arrow press blurs the old tab BEFORE focusing the
@@ -217,7 +219,7 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
       <p className="colourways__name" aria-hidden="true">
         <ColourName name={shown.displayName} />
       </p>
-      <div className="colourways__list" role="tablist" aria-label="Select colorway">
+      <div ref={listRef} className="colourways__list" role="tablist" aria-label="Select colorway">
         {colourways.map((colourway, index) => (
           <button
             key={colourway.variantId}
@@ -256,7 +258,7 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               preview(colourway)
               setFocusShown(colourway.slug)
             }}
-            onBlur={() => {
+            onBlur={(event) => {
               preview(null)
               setFocusShown(null)
               // Return the tab stop to the selected tab when focus leaves the
@@ -264,7 +266,13 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               // natural home here — and it means Tab re-entry lands on the
               // colourway actually being shown rather than wherever the user
               // last arrowed to and abandoned.
-              setFocusedSlug(null)
+              //
+              // ⚠️ ONLY WHEN FOCUS LEAVES THE LIST (VA-61, 2026-10-02). An arrow press
+              // blurs the old tab on its way to the new one, and resetting on THAT blur
+              // put the stop back on the selected tab mid-navigation: arrowed from Black
+              // round to Wine, Tab landed on Black, still inside the list, in all three
+              // engines. The APG tabs pattern has Tab leave the tablist.
+              if (!listRef.current?.contains(event.relatedTarget)) setFocusedSlug(null)
             }}
           >
             {/* Decorative: the name beside it already carries the meaning, so a
