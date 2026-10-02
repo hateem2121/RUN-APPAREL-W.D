@@ -1,3 +1,4 @@
+import { nameSegments } from '../src/lib/cardName'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -17,8 +18,8 @@ import { expect, type Page, test } from './offlineMedia'
  *
  * What would have to break for these to fail: one card to a row again on a phone, the filter row
  * wrapping back into rows (or, worse, making the PAGE scroll sideways), a colour dot pushed off a
- * 134px card where it cannot be tapped, a long name clipped by its card, or a card alone with a
- * hole beside it when the count is one more than a row.
+ * 134px card where it cannot be tapped, a long name clipped by its card or broken mid-word, or a
+ * card alone with a hole beside it when the count is one more than a row.
  */
 
 const PHONES = [320, 390, 430] as const
@@ -218,6 +219,87 @@ test.describe('VA-42 — two cards a row on a phone, with a square picture', () 
     expect(overflow.colour, 'the colour name runs past its box').toBeLessThanOrEqual(1)
     expect(Math.max(...overflow.cards), 'a card clips something sideways').toBeLessThanOrEqual(1)
     expect(await noSidewaysScroll(page)).toBeLessThanOrEqual(0)
+  })
+})
+
+test.describe('VA-42 — on a phone a garment name shrinks rather than split a word', () => {
+  /*
+   * The live catalogue's longest words (its 40 names, read off wear-run.com/products on 2026-10-02),
+   * in names that use them. PERFORMANCE is the widest: 140.1px at 18px on a Mac and 139.0px in CI's
+   * Linux, against 108px of card at 320px. At a fixed 18px, eight of these words broke mid-word at
+   * 320px, three or four at 375, and V-NECK and ZIP-UP at their hyphen at 390; CI's seeded name
+   * caught one of them. Each name is set the way the card renders it, through `nameSegments`: its
+   * words, every hyphenated one in a `.product-card__word` (site.css, `.product-card__name`).
+   */
+  const NAMES = [
+    'PERFORMANCE WINDBREAKER JACKET',
+    'METRO-SHIELD SWEATSHIRT',
+    'CLASSIC V-NECK ZIP-UP TEE',
+    'SCUBA-NECK ARMOR-TECH AGGRESSOR',
+    'ENDURANCE HYDRA-FIT SKIN-SUIT',
+  ]
+
+  /** Each name in turn in the first card's heading: the words a line breaks, and any overflow. */
+  const brokenWords = (page: Page) =>
+    page.evaluate((names) => {
+      const heading = document.querySelector('.product-card__name') as HTMLElement
+      const broken: string[] = []
+      let overflow = 0
+      for (const segments of names) {
+        heading.replaceChildren(
+          ...segments.map((part) => {
+            if (!part.whole) return document.createTextNode(part.text)
+            const word = document.createElement('span')
+            word.className = 'product-card__word'
+            word.textContent = part.text
+            return word
+          }),
+        )
+        overflow = Math.max(overflow, heading.scrollWidth - heading.clientWidth)
+        // A word is broken when its letters sit on more than one line (the TY-12 detector).
+        const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const value = node.nodeValue ?? ''
+          const words = /\S+/g
+          for (let match = words.exec(value); match; match = words.exec(value)) {
+            const range = document.createRange()
+            range.setStart(node, match.index)
+            range.setEnd(node, match.index + match[0].length)
+            const tops = new Set(
+              [...range.getClientRects()]
+                .filter((rect) => rect.width > 0)
+                .map((rect) => Math.round(rect.top)),
+            )
+            if (tops.size > 1) broken.push(match[0])
+          }
+        }
+      }
+      return { broken, overflow, size: getComputedStyle(heading).fontSize }
+    }, NAMES.map(nameSegments))
+
+  for (const width of [320, 340, 360, 375, 390, 414, 430]) {
+    test(`at ${width}px no word of a long name breaks, and no name runs past its card`, async ({
+      page,
+    }, testInfo) => {
+      await open(page, width)
+      await page.evaluate(() => document.fonts.ready)
+      const { broken, overflow, size } = await brokenWords(page)
+      testInfo.annotations.push({ type: 'name size', description: `${size} at ${width}px` })
+      expect(broken, `${width}px: words broken across two lines`).toEqual([])
+      expect(overflow, `${width}px: a name runs past its card`).toBeLessThanOrEqual(1)
+    })
+  }
+
+  test('the check sees a broken word: the same names at a fixed 18px break at 320px (negative control)', async ({
+    page,
+  }) => {
+    await open(page, 320)
+    await page.evaluate(() => document.fonts.ready)
+    await page.addStyleTag({
+      content: '.product-card__body .product-card__name { font-size: 18px !important }',
+    })
+    const { broken } = await brokenWords(page)
+    expect(broken, broken.join(', ')).toContain('PERFORMANCE')
   })
 })
 

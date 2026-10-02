@@ -691,6 +691,15 @@ describe('raw values in component stylesheets', () => {
       selector: '.site-hero .display--hero',
       value: 'max(4.5rem, min(3.75vw, 9rem))',
     },
+    // VA-42 follow-up (owner, 2026-10-02): on a phone a garment name shrinks with its card rather
+    // than split a word. The card's body is the container, so 12.3cqi is 12.3% of the room the name
+    // has, and the catalogue's widest word fits from 13.3px at 320px to 18px from about 415px.
+    // `apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words at seven phone widths.
+    {
+      file: 'site.css',
+      selector: '.product-card__body .product-card__name',
+      value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
+    },
   ] as const
   const RATIOS = [{ file: 'base.css', selector: '.serif-accent', value: '1.07em' }] as const
 

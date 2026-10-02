@@ -1292,6 +1292,42 @@ html {
   overflow-wrap: anywhere;
 }
 
+/*
+ * A hyphenated word (V-NECK, ZIP-UP) in one piece: it moves to the next line whole, and still wraps
+ * inside itself when it alone is wider than the card, so nothing is clipped (`lib/cardName.ts`;
+ * owner's call 2026-10-02, after "V-" ended a line at 390px).
+ */
+.product-card__word {
+  display: inline-block;
+  max-width: 100%;
+}
+
+/*
+ * ⚠️ ON A PHONE A GARMENT NAME SHRINKS RATHER THAN SPLIT A WORD (owner's choice 2026-10-02, the rule
+ * set for the hero headline on 2026-09-11). Two cards a row (VA-42) leave a name 108px at 320px,
+ * 135.5px at 375 and 143px at 390, and the live catalogue's widest word, PERFORMANCE, is 140.1px at
+ * 18px (139.0px in CI's Linux). Measured with all 40 live names in this card at 18px: eight words
+ * broke mid-word at 320px, three or four at 375, and V-NECK and ZIP-UP at their hyphen at 390. CI
+ * caught one of them, "Performance" in its seeded name at 320px.
+ *
+ * So the size follows the card's own width: the body is the container, and 12.3cqi is 12.3% of the
+ * room a name has. PERFORMANCE is 7.78 times its font size wide, and 7.78 x 12.3% = 96% of the room,
+ * so the widest word fits with 4% to spare: about 13.3px at 320px, 16.7px at 375, 17.6px at 390, and
+ * the full 18px from about 415px. `--text-xs` (13px) is the floor; below it `overflow-wrap: anywhere`
+ * above is still the last resort. A garment with a word wider than PERFORMANCE needs this number
+ * measured again: `e2e/productsGrid.spec.ts` sets the catalogue's long words in a phone card at seven
+ * widths and fails when one splits.
+ */
+@media (max-width: 559px) {
+  .product-card__body {
+    container-type: inline-size;
+  }
+
+  .product-card__body .product-card__name {
+    font-size: clamp(var(--text-xs), 12.3cqi, var(--text-card-title));
+  }
+}
+
 .product-card__meta {
   display: flex;
   flex-wrap: wrap;

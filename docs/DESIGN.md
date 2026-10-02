@@ -219,9 +219,9 @@ do — swapping the import silently flattens every headline back to normal width
 .footer-q         clamp(27px, 4.3vw, 52px) · --tracking-display-sm · the site footer's question
 ```
 
-These ranges, and the two narrower variants below, are the only `clamp()` font sizes the
+These ranges, and the narrower variants below, are the only `clamp()` font sizes the
 stylesheets may use: `apps/viewer/src/styles/tokens.test.ts` (TY-03) lists each one by
-selector and fails on a sixth, or on one of these five that this file stops naming.
+selector and fails on any other, or on one of them that this file stops naming.
 
 **The marketing site lowers the hero floor on the narrowest phones (owner decision
 2026-09-11).** Its `.site-hero .display--hero` is `clamp(min(34px, 9.6vw), 5.4vw, 72px)`:
@@ -231,6 +231,15 @@ split there.) At the 34px floor "PRODUCTION." is
 302.8px wide and the `/contact` column 280px, so `overflow-wrap: anywhere` split it as
 "PRODUCTIO / N." in all three engines. The viewer's product title keeps the shared clamp.
 `apps/cms/e2e/composition.spec.ts` fails if any heading on the site splits a word.
+
+**On a phone a garment card's name shrinks with its card rather than split a word (owner
+decision 2026-10-02, the same rule).** Below 560px `.product-card__body .product-card__name`
+takes a range in `cqi`, the card's body being the container: 13.3px at 320px, 16.7px at 375,
+17.6px at 390 and the full 18px from about 415px (measured in Chromium). Two cards a row
+(VA-42) leave a name 108px at 320px, and the catalogue's widest word, PERFORMANCE, is 140.1px
+at 18px, so at a fixed 18px eight live words broke mid-word at 320px. A hyphenated word
+(V-NECK) is held whole. `apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words in
+a phone card at seven widths.
 
 **Tracking follows the optical size — changed 2026-08-15 by owner decision.**
 
