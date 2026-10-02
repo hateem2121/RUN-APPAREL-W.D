@@ -668,11 +668,93 @@ html {
  */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin: 24px 0 0;
   padding: 0;
   list-style: none;
+}
+
+/*
+ * ⚠️ TWO CARDS A ROW BELOW 900px, THREE FROM 900px, FOUR FROM 1600px (visual audit VA-42, the
+ * owner's choice 2026-10-02). The audit measured /products at 30,363px on a 390px phone, 36 screens,
+ * each card about a screen tall, and the teamwear buyer page at 20,880px; on a phone not one garment
+ * was in sight on the first screen. Two to a row, with a shorter picture (below), is the fix; decision
+ * D1 stands: one long page, every garment in the document.
+ *
+ * ⚠️ THE COUNTS ARE WRITTEN OUT, NOT `auto-fill`. The rule that keeps one card from standing alone on
+ * the last row (below) has to know how many columns a row has, and `auto-fill` leaves that to the
+ * browser. The widths match what `auto-fill, minmax(260px, 1fr)` gave from 920px (three, and four
+ * from 1600px: decision D4, `--site-max` in tokens.css); the only change above a phone is that
+ * 900-919px now has three columns of 254px rather than two of 393px. `e2e/composition.spec.ts`
+ * (LA-12) asserts the counts at 375, 700, 1280 and 1920px.
+ */
+@media (min-width: 900px) {
+  .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/*
+ * ⚠️ NO CARD IS LEFT ALONE ON THE LAST ROW, WHATEVER THE COUNT (visual audit VA-42: at 1440px the 40
+ * cards made 13 rows of three and one card on its own, 40 being 3 x 13 + 1). The three rules below
+ * answer the three column counts, and each matches only when the count leaves exactly one card over:
+ *
+ *   three or four columns, count = a multiple + 1: the card BEFORE the last starts the last row
+ *     (`grid-column-start: 1`), so the last row holds two cards and the row above it two (three
+ *     columns) or three (four). A grid with the default sparse packing only ever moves forward, so a
+ *     column behind the cursor means the next row: that is the whole mechanism, and why this does
+ *     not use `grid-auto-flow: dense`, which would pull a card out of reading order instead.
+ *   two columns, odd count: the last card spans both and lies down, its picture and dots on the
+ *     left and its words on the right. Two columns cannot give a last row two cards from an odd
+ *     count, so the card fills the row instead of leaving a hole beside it.
+ *
+ * `:nth-last-child(2):nth-child(3n)` is the second-to-last card, and only when that card is a
+ * multiple of three, which is the same as the count being one more. A lone card (`:only-child`) is
+ * left as it is: there is nothing for it to be beside. `src/productGridOrphans.test.ts` runs these
+ * exact selectors over every count from 2 to 60 at each column count, and `e2e/productsGrid.spec.ts`
+ * does the same with real cards in a browser.
+ */
+@media (min-width: 900px) and (max-width: 1599px) {
+  .product-grid > .product-card:nth-last-child(2):nth-child(3n) {
+    grid-column-start: 1;
+  }
+}
+
+@media (min-width: 1600px) {
+  .product-grid > .product-card:nth-last-child(2):nth-child(4n) {
+    grid-column-start: 1;
+  }
+}
+
+@media (max-width: 899px) {
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
+  }
+
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) > .product-card__figure {
+    grid-area: 1 / 1;
+  }
+
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) > .card-gallery__dots {
+    grid-area: 2 / 1;
+    align-self: start;
+  }
+
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) > .product-card__link {
+    grid-area: 1 / 2 / 3 / 3;
+    border-inline-start: 1px solid var(--line);
+  }
 }
 
 /* The five garment families on the homepage. `.panel` supplies the surface from
@@ -733,6 +815,20 @@ html {
    */
   background: var(--bg);
   border-bottom: 1px solid var(--line);
+}
+
+/*
+ * ⚠️ SQUARE BELOW 560px (visual audit VA-42, owner's choice 2026-10-02: "a shorter picture").
+ * Two cards to a row leave a picture 134px wide at 320px and 169px at 390px; a 4:5 box there is
+ * 211px tall at 390px, a square 169px, so a row is 42px shorter and the page about a fifth
+ * shorter. The render keeps its own shape inside the square (`object-fit: contain`, the note
+ * above), so it is drawn about 20% smaller than the 4:5 box would draw it. From 560px the box is
+ * 4:5 as before.
+ */
+@media (max-width: 559px) {
+  .product-card__figure {
+    aspect-ratio: 1 / 1;
+  }
 }
 
 /*
@@ -955,6 +1051,50 @@ html {
 }
 
 /*
+ * ⚠️ THE DOTS FIT A TWO-UP CARD (visual audit VA-42, 2026-10-02). Five buttons 44px wide are 220px,
+ * and a phone card is 134px wide at 320px and 169px at 390px: the row would have run off the
+ * card, whose `overflow: hidden` clips what is past its edge, so a colour would have been
+ * unreachable. Each dot is now 24 to 40px wide and still 44px TALL, and the row has the card's
+ * whole width to share out: five dots are 31.8px wide at 390px and 24.8px at 320px (the 4px of
+ * padding each side is what lets five 24px dots fit 132px), and the painted 16px dot stays in the
+ * middle of its button.
+ *
+ * Why those numbers. WCAG 2.2 SC 2.5.8 asks for a target of at least 24 by 24 CSS px (Understanding
+ * page "updated 11 May 2026", read 2026-10-02), so 24px is the narrowest a dot may get; and the
+ * 44px HEIGHT is what `e2e/navbar.spec.ts` holds every button on /products to at 390px, so the
+ * height stays. The width is narrower than the 44px DESIGN.md states for touch targets, which is
+ * the cost of five colours in 134px; a card with more than five wraps its dots onto a second
+ * row rather than clipping one. The colour's name goes above the dots, not beside them, so the
+ * dots of two neighbouring cards sit on one line.
+ */
+@media (max-width: 559px) {
+  .card-gallery__dots {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    padding: 4px 4px 0;
+  }
+
+  /* 4px + 8px puts the name on the body text's 12px edge. */
+  .card-gallery__colour {
+    margin-inline-end: 0;
+    padding-inline-start: 8px;
+  }
+
+  .card-gallery__pick {
+    flex-wrap: wrap;
+    margin-inline-start: 0;
+  }
+
+  .card-gallery__dot {
+    flex: 1 1 24px;
+    inline-size: auto;
+    min-inline-size: 24px;
+    max-inline-size: 40px;
+  }
+}
+
+/*
  * Previous / next over the picture (VA-30): 44px buttons at the picture's middle edges, on the
  * paper tone so they read over a dark render as well as the light ground. Shown while a mouse
  * is over the picture or the card holds keyboard focus; never on a touch screen, which swipes.
@@ -1010,6 +1150,14 @@ html {
   padding: 20px;
 }
 
+/* A two-up card is 134px wide at 320px and 169px at 390px: 12px of padding, not 20px, leaves its words 108 and 143px (VA-42). */
+@media (max-width: 559px) {
+  .product-card__body {
+    gap: 6px;
+    padding: 12px;
+  }
+}
+
 .product-card__name {
   /* Its own stand-in: see "Archivo Card Fallback" at the top of this file. */
   font-family: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
@@ -1020,6 +1168,9 @@ html {
   letter-spacing: var(--tracking-card-title);
   color: var(--headline);
   margin: 0;
+  /* A long unbroken word (a garment called "Compression-Tights-Pro") in a 110px column would be
+     clipped by the card's `overflow: hidden`; let it break instead (VA-42). */
+  overflow-wrap: anywhere;
 }
 
 .product-card__meta {
@@ -1439,9 +1590,16 @@ a.contact-block__value:active {
  *
  * The clamp is the other half: without it one long description reintroduces the same
  * imbalance from the other direction.
+ *
+ * ⚠️ FROM 900px ONLY, SINCE VA-42 (2026-10-02). Below it the grid is two cards wide and a ragged
+ * bottom edge sits between two neighbours, so there the cards stretch to the row's height. The
+ * figure ratio the note above protects is not at risk: the picture is a fixed box and only blank
+ * card is added below the words.
  */
-.product-grid {
-  align-items: start;
+@media (min-width: 900px) {
+  .product-grid {
+    align-items: start;
+  }
 }
 
 /*
@@ -1691,6 +1849,45 @@ a.contact-block__value:active {
 
 .filter-chip:active {
   scale: 0.97;
+}
+
+/*
+ * ⚠️ ONE ROW THAT SCROLLS SIDEWAYS BELOW 560px (visual audit VA-42, owner's choice 2026-10-02). On a
+ * 390px phone the six chips wrapped into three rows, 172px of the first screen, and with the heading
+ * and the intro they pushed every garment below the fold. One row is 44px. The row runs to the
+ * screen's edges (the gutter is taken back with a negative margin and given back as padding, so the
+ * first chip still lines up with the page) and a half-hidden chip at the right edge says there
+ * is more.
+ *
+ * Usable by keyboard with no script: every chip is a link, so Tab walks them and the browser
+ * scrolls each focused chip into view; the row itself needs no tab stop because it holds focusable
+ * things (axe's `scrollable-region-focusable` is about a scroller with none). It cannot make the PAGE
+ * scroll sideways: the row is its own scroller and ends at the viewport's edges, and
+ * `overscroll-behavior-x: contain` stops a swipe past the last chip turning into the browser's Back.
+ * 4px of padding above and below keeps the 2px focus ring + 2px offset from being clipped by the
+ * scroller. From 560px the chips wrap, as they always did. Only /products' own filter carries
+ * `filter-bar--scroll`: a buyer page's "Other product families" list shares `.filter-bar` and was not
+ * part of the finding.
+ */
+@media (max-width: 559px) {
+  .filter-bar--scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin-inline: calc(var(--site-gutter) * -1);
+    padding-block: 4px;
+    padding-inline: var(--site-gutter);
+    scroll-padding-inline: var(--site-gutter);
+  }
+
+  .filter-bar--scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-bar--scroll .filter-chip {
+    flex: 0 0 auto;
+  }
 }
 
 /* The whole family card is the link, so the anchor has to fill it. */

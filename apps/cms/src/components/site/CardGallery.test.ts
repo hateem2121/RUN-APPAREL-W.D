@@ -36,7 +36,7 @@ describe('CardGallery: the card draws a card-sized picture (owner, 2026-09-29)',
     expect(img).toMatch(
       /srcSet="[^"]*width=400[^"]* 400w, [^"]*width=720[^"]* 720w, [^"]*width=1080[^"]* 1080w"/,
     )
-    expect(img).toMatch(/sizes="\(max-width: 585px\) calc\(100vw - 42px\), 340px"/)
+    expect(img).toMatch(/sizes="\(max-width: 899px\) calc\(45vw - 6px\), 340px"/)
   })
 
   it('keeps the first card eager and high priority, and the size it reserves', () => {

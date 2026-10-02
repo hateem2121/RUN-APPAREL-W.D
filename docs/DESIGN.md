@@ -481,6 +481,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 359.98px` | `page.css` | narrower padding on the phone action bar's two buttons |
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
 | `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
+| `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' filter is one row that scrolls sideways (VA-42) |
 | `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
 | `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, factory, timeline); facts go to three columns; the garment page's two-column stage, and the phone action bar is hidden |
@@ -488,6 +489,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
 | `1100px` and `min-height: 880px`, or `1280px` and `min-height: 800px` | `useIdentityInAside.ts` | the product's name and description move beside the garment, only where the longest live description leaves the contact buttons on screen (VA-60; a script query, kept a strict subset of the CSS one) |
 | `1180px` | `site.css` | the product families go to five columns |
+| `max-width: 899px`, `900px`, `1600px` | `site.css` | the product grid is two columns, three from 900px and four from 1600px, each with its own rule against a lone last card (VA-42) |
 | `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
 | container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |
 
@@ -519,6 +521,34 @@ puts "About our outerwear" beside its result count. The words are built from the
 lower-cased (`seeAllLabel` and `aboutLabel` in `apps/cms/src/lib/familyPages.ts`), and Sports
 Accessories, which has no buyer page, has neither link. The gallery's canonical address stays
 `/products`: the link is a way across, not a second page to index.
+
+### The product grid: two on a phone, and never one alone
+
+`/products` and the buyer pages share `.product-grid`. Visual audit VA-42 (owner's choice
+2026-10-02) found `/products` 30,363px long on a 390px phone, 36 screens with no garment on the
+first one, and at 1440px the 40 cards leaving one alone on the last row. Decision D1 stands: one
+long page, every garment in the document.
+
+| Width | Columns | Picture | The filter on `/products` |
+|---|---|---|---|
+| under 560px | 2 | square | one row that scrolls sideways |
+| 560 to 899px | 2 | 4:5 | wraps |
+| 900 to 1599px | 3 | 4:5 | wraps |
+| 1600px and up | 4 | 4:5 | wraps |
+
+The counts are written out rather than left to `auto-fill`, because the rule against a lone last
+card has to know them. With three or four columns and one card over, the second-to-last card
+starts the last row, so it holds two. With two columns and an odd count the last card spans both
+and lies down, its picture on the left and its words on the right. A single card on a page is
+left alone. `apps/cms/src/productGridOrphans.test.ts` runs the real selectors over every count
+from 2 to 60, and `apps/cms/e2e/productsGrid.spec.ts` does it with real cards.
+
+On a phone the colour dots are 24 to 40px wide and still 44px tall: WCAG 2.2 SC 2.5.8 asks for 24px
+and the site holds every button to 44px tall, but five 44px-wide dots do not fit a 134px card.
+That is narrower than the 44px width §4 states for touch targets, which is the cost of the fix.
+The card's text has 12px of padding and a long name wraps inside it. The filter row is a scroller
+of links, so Tab walks every chip and the browser scrolls each into view; it ends at the screen's
+edges and cannot make the page scroll sideways.
 
 ### The cookie card
 

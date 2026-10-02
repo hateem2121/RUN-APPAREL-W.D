@@ -146,8 +146,12 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             URL that can be shared, bookmarked, opened in a new tab and reached with
             scripting off, and `aria-current="page"` is what tells a screen reader which
             view is showing — the same mechanism the header nav uses.
+
+            On a phone it is ONE ROW THAT SCROLLS SIDEWAYS (`filter-bar--scroll`, visual audit VA-42):
+            three wrapped rows had filled 172px of the first screen. Tab still walks every chip
+            and the browser scrolls each one into view, so it needs no script.
           */}
-          <nav className="filter-bar" aria-label="Filter by product family">
+          <nav className="filter-bar filter-bar--scroll" aria-label="Filter by product family">
             <Link
               className="filter-chip"
               href="/products"

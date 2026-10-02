@@ -1404,15 +1404,21 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
 })
 
 /**
- * LA-12 — the gallery (`.product-grid`, `auto-fill, minmax(260px, 1fr)`, 24px gap,
- * `site.css:1242-1249`) genuinely reaches 1/2/3/4 columns as the content column widens,
- * including the ≥1600px fourth column the owner added deliberately (FA-E-04). Reads the
- * ACTUAL rendered column count off `getComputedStyle`, never assumed from a viewport
+ * LA-12 — the gallery (`.product-grid`) genuinely reaches 2/2/3/4 columns as the content
+ * column widens, including the ≥1600px fourth column the owner added deliberately (FA-E-04).
+ * Reads the ACTUAL rendered column count off `getComputedStyle`, never assumed from a viewport
  * width formula, per this batch's "measured never computed" rule.
+ *
+ * ⚠️ A PHONE HAS TWO COLUMNS SINCE 2026-10-02 (visual audit VA-42, the owner's choice): this
+ * asserted ONE column at 375px, from the `auto-fill, minmax(260px, 1fr)` the grid used until
+ * then, and one card a row was why the page ran to 36 phone screens. The counts are written
+ * out in `site.css` now (two below 900px, three from 900px, four from 1600px), because the rule
+ * that keeps a card from standing alone on the last row has to know them.
+ * `e2e/productsGrid.spec.ts` holds the phone layout and that rule.
  */
-test.describe('LA-12 — the gallery genuinely reaches 1/2/3/4 columns', () => {
+test.describe('LA-12 — the gallery genuinely reaches 2, 3 and 4 columns', () => {
   const CASES = [
-    { width: 375, columns: 1 },
+    { width: 375, columns: 2 },
     { width: 700, columns: 2 },
     { width: 1280, columns: 3 },
     { width: 1920, columns: 4 },

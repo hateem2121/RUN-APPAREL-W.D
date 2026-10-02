@@ -74,9 +74,11 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
     expect(cardImage(onHost)).toEqual({ src: onHost })
   })
 
-  // Two columns start at 586 px (2 x 260 px cards + a 24 px gap + 42 px of gutters), so a
-  // full-width `sizes` above that over-fetches.
-  it('treats the page as one column only below 586 px', () => {
-    expect(cardImage(RENDER).sizes).toBe('(max-width: 585px) calc(100vw - 42px), 340px')
+  // The grid is two cards wide below 900 px since 2026-10-02 (visual audit VA-42): a phone card is
+  // 134-169 px, so a full-width `sizes` would have a phone fetch the 1,080 file for a 169 px card.
+  // 45vw - 6px is (100vw - two gutters - a 12 px gap) / 2 once the gutter is 5vw; from 900 px it is
+  // the 340 px three columns measured.
+  it('treats the page as two columns below 900 px and 340 px above', () => {
+    expect(cardImage(RENDER).sizes).toBe('(max-width: 899px) calc(45vw - 6px), 340px')
   })
 })
