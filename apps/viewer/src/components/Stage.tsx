@@ -18,6 +18,7 @@ import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadPr
 import { CAMERA_DECAY_MS } from '../lib/motion'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
+import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { HdImageButton } from './HdImageButton'
 import { type CameraView, StageControls } from './StageControls'
@@ -115,6 +116,11 @@ export function Stage({
   }, [])
   // Re-reads when a keyboard is attached or detached — see lib/useCoarsePointer.ts.
   const coarsePointer = useCoarsePointer()
+  // Re-reads when the visitor turns reduced motion on or off mid-visit (VA-20) — see
+  // lib/usePrefersReducedMotion.ts. Only for what is decided WHILE RENDERING: the camera's
+  // damping and the loading sweep. `applyView`, the idle sweep and the placeholder fade read
+  // `prefersReducedMotion()` at the moment they act, which is already current.
+  const reduceMotion = usePrefersReducedMotion()
   const loadedSrcRef = useRef<string | null>(null)
   /**
    * When this colourway's model download began, for the one number a QR-scan
@@ -962,7 +968,7 @@ export function Stage({
               max-camera-orbit="auto 160deg 200%"
               min-field-of-view={MIN_FIELD_OF_VIEW}
               interaction-prompt="none"
-              interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
+              interpolation-decay={reduceMotion ? 1 : CAMERA_DECAY_MS}
               touch-action={TOUCH_ACTION}
               disable-tap={DISABLE_TAP}
               pan-sensitivity={PAN_SENSITIVITY}
@@ -1250,7 +1256,7 @@ export function Stage({
               */}
               <span
                 className={`stage__loading-bar${
-                  showsIndeterminateSweep(load.phase, prefersReducedMotion())
+                  showsIndeterminateSweep(load.phase, reduceMotion)
                     ? ' stage__loading-bar--indeterminate'
                     : ''
                 }`}
