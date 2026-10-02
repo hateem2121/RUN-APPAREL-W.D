@@ -955,7 +955,7 @@ html {
   place-items: center;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
@@ -1077,7 +1077,7 @@ html {
 .card-gallery__colour {
   margin-inline-end: 12px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
@@ -1281,7 +1281,7 @@ html {
   flex-wrap: wrap;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   color: var(--muted);
 }
 
@@ -1305,7 +1305,7 @@ html {
 .viewer-cue {
   display: block;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   color: var(--muted);
 }
 
@@ -1619,6 +1619,16 @@ a.contact-block__value:active {
   letter-spacing: inherit;
 }
 
+/* Text that is read is 12px (visual audit VA-11, owner's choice 2026-10-02): the subheads, the
+   gallery's count and the facts' two labels ("Where we ship", "Certification"). The shared rule
+   above stays a copy of `.section-number` (publicSite.test.ts holds the two together), and the
+   bracketed labels on /contact keep its 10px, as every bracket label does. */
+.subhead,
+.result-count,
+.facts-notes .field-label {
+  font-size: var(--text-mono-lg);
+}
+
 /*
  * The count, and on a family's filtered gallery the way back to its buyer page (visual audit
  * VA-33): the count on the left, the button on the right where there is room and under it where
@@ -1817,7 +1827,7 @@ a.contact-block__value:active {
   margin: 8px 0 0;
   margin-inline-start: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   /* Normal letters (visual audit VA-44, owner's choice 2026-10-02): "Building, first stitch to sealed bag" is a sentence, 36 capitals. */
   color: var(--muted);
 }
@@ -1898,7 +1908,7 @@ a.contact-block__value:active {
   border: 1px solid var(--line);
   border-radius: var(--radius-chip);
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   text-decoration: none;
@@ -1912,7 +1922,7 @@ a.contact-block__value:active {
 }
 
 .filter-chip__count {
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   /*
    * ⚠️ NO `opacity`. It was 0.7 over `--muted`, measured 2.85:1 in light mode and 3.98:1
    * in dark (audit CO-01, CO-04): the only text on the site under the 4.5:1 AA floor. The
@@ -2447,7 +2457,7 @@ a.contact-block__value:active {
 .proof__caption {
   margin-block-start: 10px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
@@ -2761,7 +2771,7 @@ a.contact-block__value:active {
 .photo-figure__caption {
   margin-block-start: 10px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   /* Normal letters, not capitals (visual audit VA-44, owner's choice 2026-10-02): a caption is read, and the longest ran 68 capitals
      ("The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces"). The words are typed
      in normal case in lib/factoryPhotos.ts, so the names keep their own capitals. */
@@ -2820,7 +2830,7 @@ a.contact-block__value:active {
 .family-card__cue {
   margin-block-start: auto;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--dimension);
@@ -2931,7 +2941,7 @@ a.contact-block__value:active {
 .guide-card__cue {
   margin-block-start: auto;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--dimension);
@@ -2988,7 +2998,7 @@ a.contact-block__value:active {
 
 .timeline__name {
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-wide);
   text-transform: uppercase;
   color: var(--dimension);
@@ -3063,7 +3073,7 @@ a.contact-block__value:active {
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);

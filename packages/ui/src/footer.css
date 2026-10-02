@@ -135,7 +135,7 @@
   color: var(--ink);
   text-decoration: none;
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-instrument);
   text-transform: uppercase;
   white-space: nowrap;
@@ -269,7 +269,7 @@
 .footer-eyebrow {
   margin: 0 0 14px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
   color: var(--footer-muted);
@@ -312,7 +312,7 @@
   border-top: 1px solid currentColor;
   color: var(--volt);
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-instrument);
   text-transform: uppercase;
   white-space: nowrap;
@@ -414,7 +414,7 @@
 
 .footer-clock__city {
   white-space: normal;
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-clock-caption);
   color: var(--footer-muted);
 }
@@ -427,7 +427,7 @@
 
 .footer-clock__time small {
   margin-inline-start: 6px;
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-wide);
   color: var(--footer-muted);
 }
@@ -437,7 +437,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-spaced);
   text-transform: uppercase;
   color: var(--footer-muted);
@@ -516,7 +516,7 @@
 .footer-block h3 {
   margin: 0 0 12px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   font-weight: 400;
   letter-spacing: var(--tracking-caps-spaced);
   text-transform: uppercase;
@@ -543,7 +543,7 @@
   align-items: center;
   min-height: var(--target-min);
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-link-mono);
   text-transform: uppercase;
   color: var(--footer-text);
@@ -553,7 +553,7 @@
 
 .footer-block__sub {
   color: var(--footer-muted);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
 }
 
 /* The address is read and copied, so it is set in normal letters (visual audit VA-44, owner's choice 2026-10-02): it ran 42 capitals,
@@ -620,7 +620,7 @@
   padding: 16px 0 22px;
   border-top: 1px solid var(--footer-line);
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-legal);
   text-transform: uppercase;
   color: var(--footer-muted);

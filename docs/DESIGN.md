@@ -517,6 +517,17 @@ that scale is this system's own and was not the finding.
 field labels and legend, and the colour names on a garment's colourway tabs — words a buyer
 reads to act, not glances at. The chips and section numbers still keep 10–11px.
 
+**Every text that is read is 12px since 2026-10-02 (owner's choice, visual audit VA-11).** The
+footer's headings, links, address, tab and small print; photo captions; the /products filter
+chips and their counts; card cues ("View the range →", "Read this guide", "Opens the 3D
+viewer"), colour names on cards and the gallery's count; fact labels, timeline step names and
+the "We"/"You" tags; subheads and the facts' labels; and on a garment page the camera buttons,
+the HD IMAGE button, the spec notes on the stage, the product line above it on a phone, the
+retry button, the touch hint and the download count. They take `--text-mono-lg`. Only the
+decorative register keeps 10–11px: bracket labels (`.label`, the bracketed `.field-label`s on
+/contact, the spec list's `[ Fabric ]`), section numbers, the timeline's step numbers,
+"[ Photo to come ]" and the arrow signs.
+
 ### Page widths
 
 Two measures, on purpose (owner, 2026-10-01: document, do not merge):

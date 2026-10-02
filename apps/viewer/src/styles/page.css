@@ -584,7 +584,7 @@
   margin: 0 0 6px;
   padding: 0 var(--stage-gutter);
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   line-height: 1.4;
   text-transform: uppercase;
@@ -961,7 +961,7 @@
 .stage__retry {
   padding: 10px 14px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
@@ -1206,7 +1206,7 @@ model-viewer.stage__model {
    */
   max-width: min(240px, 30%);
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   color: var(--muted);
@@ -1421,7 +1421,7 @@ model-viewer.stage__model {
   padding: 8px 16px;
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--text);
@@ -1477,6 +1477,23 @@ model-viewer.stage__model {
 @container (min-width: 22rem) {
   .hd-image-btn__more {
     display: inline;
+  }
+}
+
+/*
+ * ⚠️ 12px OF SIDE PADDING, NOT 16px, IN A ROW NARROWER THAN 24rem (visual audit VA-11,
+ * 2026-10-02). The camera buttons' words went from 10px to 12px, and the row stopped fitting on
+ * one line: measured at 320-325px wide (Front, Back, Side and HD need 304px of a 301px row) and
+ * at 352-377px, where the HD label is the full "HD IMAGE" (356px of a 353px row at 375). The pill
+ * then wrapped onto a second line and the garment gave up 54px on the commonest small phones.
+ * At 12px they need 282px and 334px, so the row keeps one line from 320px up, and from 24rem
+ * (about 404px wide) there is room for the full 16px again. Each button keeps its 44px height
+ * and its 64px minimum width, so no target shrinks. rem, like the label's query above, so a
+ * larger text size reaches for the narrower padding sooner.
+ */
+@container (max-width: 24rem) {
+  .camera-btn {
+    padding-inline: 12px;
   }
 }
 
@@ -1560,7 +1577,7 @@ model-viewer.stage__model {
      and here the "body content" is a garment in an arbitrary colour. */
   background: var(--bg);
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-tight);
   text-transform: uppercase;
   /* `--text`, not `--muted`: this is the one line whose whole job is being noticed. */
@@ -1667,7 +1684,7 @@ model-viewer.stage__model {
 }
 
 .stage__loading-detail {
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }

@@ -215,6 +215,9 @@
   --text-body: 1.0625rem; /* 17px at the 16px default */
   --text-sm: 0.9375rem; /* 15px */
   --text-xs: 0.8125rem; /* 13px */
+  /* Since 2026-10-02 (visual audit VA-11, owner's choice) every text that is READ is at least
+     12px: it takes --text-mono-lg below. These two are left to the decorative register: bracket
+     labels, section numbers, the timeline's step numbers, "[ Photo to come ]", the arrow signs. */
   --text-mono: 0.6875rem; /* 11px — .mono, content labels */
   --text-mono-sm: 0.625rem; /* 10px */ /* .label, .section-number — chips */
 
