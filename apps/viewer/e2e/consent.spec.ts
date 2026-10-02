@@ -428,4 +428,58 @@ test.describe('the cookie choice on a garment page', () => {
       'the question takes over a fifth of the screen',
     ).toBeLessThanOrEqual(360 * 0.2)
   })
+
+  // VA-18 (visual audit 2026-10-02): the same sentence and the same shared cap as the website's
+  // (`apps/cms/e2e/consent.spec.ts` has the account). Counted from Range rects, never from a
+  // width, because `ch` is a zero's width and renders more characters than it names.
+  test('the sentence keeps to 45-75 characters a line, in three lines, from 1024px up (VA-18)', async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 1024, height: 900 })
+    await openGarment(page)
+    await expect(banner(page)).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    for (const width of [1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      const lines = await page.evaluate(() => {
+        const sentence = document.querySelector('.consent__text') as HTMLElement
+        const rows = new Map<number, string>()
+        const walker = document.createTreeWalker(sentence, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const value = node.nodeValue ?? ''
+          for (let index = 0; index < value.length; index++) {
+            const range = document.createRange()
+            range.setStart(node, index)
+            range.setEnd(node, index + 1)
+            const rect = range.getBoundingClientRect()
+            if (rect.width === 0 && rect.height === 0) continue
+            const row = Math.round(rect.top)
+            rows.set(row, (rows.get(row) ?? '') + value[index])
+          }
+        }
+        return [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, text]) => text.trim().length)
+      })
+      expect(
+        lines.length,
+        `${width}px: the sentence did not render, so nothing was measured`,
+      ).toBeGreaterThan(1)
+      // The last line is a ragged end, not a measure of the column.
+      for (const [index, length] of lines.slice(0, -1).entries()) {
+        expect(
+          length,
+          `${width}px: line ${index + 1} has ${length} characters`,
+        ).toBeGreaterThanOrEqual(45)
+        expect(
+          length,
+          `${width}px: line ${index + 1} has ${length} characters`,
+        ).toBeLessThanOrEqual(75)
+      }
+      expect(
+        lines.length,
+        `${width}px: ${lines.join(', ')} characters; a fourth line is a taller card`,
+      ).toBe(3)
+    }
+  })
 })

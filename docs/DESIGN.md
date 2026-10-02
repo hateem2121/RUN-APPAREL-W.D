@@ -485,6 +485,11 @@ does not scroll a field it already counts as on screen, so `ConsentBanner.tsx` l
 field clear itself, and only one shorter than the room above the card: its first version also
 lifted page-tall containers and opened every garment page at the footer.
 
+Its sentence is capped at **54ch** (VA-18, 2026-10-02), not left to the page's `p` cap of 60ch,
+which let it run 76–79 characters a line from 1024px up. 54ch holds about 67; below 48ch the
+sentence tips from three lines to four and the card grows. Both apps' browser suites count the
+rendered lines (`consent.spec.ts`).
+
 ### The phone contact bar
 
 On a phone the fixed bar at the foot of the screen (`page.css` `.action-bar`) is the persistent

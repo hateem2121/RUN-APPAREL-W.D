@@ -661,6 +661,21 @@ html.lenis body {
 /* Takes the row beside the buttons when there is room; wraps above them when not. */
 .consent__text {
   flex: 1 1 300px;
+  /* VA-18, visual audit 2026-10-02: the sentence ran 76-79 characters a line from 1024px up,
+     past the 45-75 that reads comfortably. Nothing capped it but the page-wide
+     `p { max-width: 60ch }`, and `ch` is the width of a zero, which in Archivo is wider than the
+     average letter: 60ch is 448.5px at 13px and holds about 75 characters of this sentence.
+     54ch is 403.6px and holds 67 and 66 on its first two lines. Computed from Archivo's own
+     advance widths, without kerning, because no browser was run for it: the same computation
+     gives 75 at 60ch where the audit counted 76-79, so a browser fits a character or two more.
+     consent.spec.ts counts the rendered lines in both apps.
+     ⚠️ NOT NARROWER. From 48ch (359px) down the sentence tips from three lines to four, and the
+     card grows a line taller to carry "Privacy notice" alone. 54ch keeps three lines even if the
+     text renders 2 percent wider or narrower. It is a cap, not a width: it only bites once the
+     card is about 773px wide (a 790px window), so every phone and a 768px tablet are unchanged.
+     The room the sentence gives up goes to the two buttons, which stay equal (about 22px wider
+     each at the card's full 880px). */
+  max-inline-size: 54ch;
   margin: 0;
   font-size: var(--text-xs);
   line-height: 1.45;
