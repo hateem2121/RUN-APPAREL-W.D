@@ -4,6 +4,8 @@ import {
   type EnquiryContext,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
+import { useEffect, useRef } from 'react'
+import { startActionBarStepsAside } from '../lib/actionBarStepsAside'
 import { track } from '../lib/analytics'
 
 interface ContactProps {
@@ -36,6 +38,10 @@ interface ContactProps {
  * audit reports zero violations, and the cost is one extra Tab press. If this
  * ever does need fixing, the answer is a distinguishing accessible name — not
  * deleting one of them.
+ *
+ * ⚠️ SINCE VA-54 (2026-10-02) THE BAR STEPS ASIDE WHILE THE IN-PAGE PAIR IS ON SCREEN
+ * (`<MobileActionBar>` below), so while that pair is in view only one pair is on screen or
+ * reachable. At every other scroll position the duplication stands exactly as recorded here.
  */
 function ContactButtons({ settings, enquiry }: ContactProps) {
   return (
@@ -146,13 +152,23 @@ export function StageContact(props: ContactProps) {
  * overflowing there, which is fixed, and both full labels fit on one line.
  */
 export function MobileActionBar(props: ContactProps) {
+  const bar = useRef<HTMLElement>(null)
+  /*
+   * ⚠️ IT STEPS ASIDE WHILE THE PAGE'S OWN PAIR IS ON SCREEN (visual audit VA-54, 2026-10-02).
+   * At the end of a phone page "Develop this with us" showed EMAIL US and WHATSAPP US and the bar
+   * showed the same two buttons at the same moment. This sets one attribute on the bar while that
+   * pair is in view above it; the fade, and keeping a hidden bar out of the Tab order and the
+   * accessibility tree, are CSS (`.action-bar[data-tucked]`). The reasoning is in
+   * `lib/actionBarStepsAside.ts`. Both pairs stay in the page; only one is shown at a time.
+   */
+  useEffect(() => (bar.current ? startActionBarStepsAside(bar.current) : undefined), [])
   /*
    * An <aside>, so the bar is a landmark a screen reader can name and jump to. It sat outside
    * every landmark: axe's `region` rule flagged it on all three garments at 390x844, the only
    * automated finding of the 2026-10-01 visual audit across 40 scans.
    */
   return (
-    <aside className="action-bar" aria-label="Contact">
+    <aside ref={bar} className="action-bar" aria-label="Contact">
       <ContactButtons {...props} />
     </aside>
   )

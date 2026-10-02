@@ -477,6 +477,22 @@ does not scroll a field it already counts as on screen, so `ConsentBanner.tsx` l
 field clear itself, and only one shorter than the room above the card: its first version also
 lifted page-tall containers and opened every garment page at the footer.
 
+### The phone contact bar
+
+On a phone the fixed bar at the foot of the screen (`page.css` `.action-bar`) is the persistent
+way to start a conversation, and the page's own EMAIL US and WHATSAPP US under "Develop this with
+us" are what a screen reader meets reading down. Both stay (`Contact.tsx` records why). Since
+2026-10-02 (visual audit VA-54) the bar fades away while the page's own pair is on screen above
+it, because at 402x874 and 375x667 the same two buttons were shown twice at the same moment, and
+it returns when that pair scrolls off. `lib/actionBarStepsAside.ts` sets `data-tucked` on the bar
+from an `IntersectionObserver` whose bottom edge is pulled up by the bar's own height; the fade,
+and leaving the Tab order and the accessibility tree, are CSS: `opacity` over `--fast`, and
+`visibility`, which hides the bar once the fade ends and shows it again at once. A bar with
+keyboard focus inside it stays until focus leaves, and under reduced motion the change is
+instant. The cookie card hides the bar separately, with no fade. The bar keeps its place in the
+layout throughout, so the room the page reserves for it is unchanged, and it is still not shown
+from 900px wide or on a screen 500px tall or less (see Breakpoints).
+
 ### Panels
 
 `--surface` background, `1px solid var(--line)`, `--radius-panel` (18px).
@@ -671,6 +687,7 @@ So the lock holds and the scale grows:
 | Wipes, scroll reveals | `--slow` |
 | The site's three showpieces only: the numbers counting up, the order timeline drawing, the contact globe's routes | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
 | Retargeted progress fills | `--fast` (see `page.css`'s note — a fill retargeted several times a second visibly trails the number beside it at anything slower) |
+| The phone contact bar fading away while the page's own Email and WhatsApp are on screen (VA-54, 2026-10-02) | `--fast`, as the audit's fix text asks. It follows the scroll position, which a visitor can reverse at any moment, so it is the retargeted case above rather than a state a finger is waiting on (`--ui`, 20ms slower). See "The phone contact bar" |
 | The pause between rows that arrive one after another — the phone menu's rows only (visual audit VA-51, 2026-10-01); never the page's entrance reveals (D8) | `--stagger` |
 
 **Do not "simplify" this by collapsing `--fast` and `--ui`.** They are 20ms apart

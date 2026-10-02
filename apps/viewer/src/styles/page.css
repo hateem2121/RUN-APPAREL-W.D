@@ -2292,6 +2292,10 @@ model-viewer.stage__model {
   */
   background: var(--bg);
   border-top: 1px solid var(--line);
+  /* The fade for the step-aside below (VA-54). OPACITY ONLY, on purpose: a `visibility` in this
+     list would also delay the cookie card's `visibility: hidden` two rules down, which has to be
+     instant. */
+  transition: opacity var(--fast) var(--ease);
 }
 
 .action-bar .btn {
@@ -2308,6 +2312,32 @@ model-viewer.stage__model {
    page under the colourways the whole time. */
 :root:has(.consent) .action-bar {
   visibility: hidden;
+}
+
+/* ⚠️ THE BAR STEPS ASIDE WHILE THE PAGE'S OWN EMAIL AND WHATSAPP ARE ON SCREEN (visual audit VA-54,
+   2026-10-02). At the end of a phone page "Develop this with us" showed the same two buttons the bar
+   shows, at the same moment. `lib/actionBarStepsAside.ts` sets `data-tucked` on the bar while that
+   pair is in view above it; this fades the bar out over `--fast` and back. `visibility` takes its
+   two buttons out of the Tab order and the accessibility tree while it is away, so exactly one
+   pair is reachable at a time (the cookie card's rule above does the same, with no fade).
+   WHY `visibility` GETS A DURATION AND NO DELAY: while either end of a `visibility` transition is
+   `visible` the value stays `visible` for the whole duration and flips to `hidden` only at its end
+   (MDN `visibility`, read 2026-10-02), so `visibility var(--fast) linear` hides the bar just after
+   the fade finishes. On the way back this rule no longer matches, so the bar's own list above
+   (opacity only) applies and `visibility` is `visible` at once while the opacity fades up. The
+   spelling `visibility 0s linear var(--fast)` does the same and was refused by tokens.test.ts, which
+   allows no raw duration in a `transition`. `linear` because the flip must land at the end, and no
+   easing curve can overshoot it.
+   `:not(:focus-within)`: a bar with keyboard focus inside it stays until focus leaves, so a visitor
+   standing on one of its buttons is never left on one that vanished. Reduced motion collapses every
+   duration to 0.01ms (base.css), so the fade and the flip are instant there. The bar keeps its place
+   in the layout the whole time, so `--action-bar-h` and every reserve that reads it are unchanged. */
+.action-bar[data-tucked]:not(:focus-within) {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--fast) var(--ease),
+    visibility var(--fast) linear;
 }
 
 /*

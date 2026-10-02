@@ -97,6 +97,38 @@ describe('VA-18: the garment description keeps a comfortable line length', () =>
   })
 })
 
+describe('VA-54: the phone bar steps aside for the page’s own Email and WhatsApp', () => {
+  // e2e/action-bar-steps-aside.spec.ts measures it in a real browser; lib/actionBarStepsAside.test.ts
+  // holds when the attribute is set.
+  const tucked = '.action-bar[data-tucked]:not(:focus-within)'
+
+  it('fades out and leaves the Tab order and the accessibility tree, unless focus is inside it', () => {
+    // The `:not(:focus-within)` is in the selector itself, so finding the rule proves the
+    // exemption: a bar a keyboard visitor is standing on must not vanish under them.
+    expect(declared(rules, tucked, 'opacity')).toBe('0')
+    expect(declared(rules, tucked, 'visibility')).toBe('hidden')
+  })
+
+  it('fades over --fast; visibility flips after the fade going out and at once coming back', () => {
+    // Going out the bar uses the tucked list: `visibility` has the fade's own duration, so it stays
+    // `visible` until the fade ends. Coming back it uses the base list, which names opacity only,
+    // so `visibility` is `visible` at once. No raw duration anywhere: tokens.test.ts forbids one.
+    expect(declared(rules, '.action-bar', 'transition')).toBe('opacity var(--fast) var(--ease)')
+    expect(declared(rules, tucked, 'transition')).toBe(
+      'opacity var(--fast) var(--ease), visibility var(--fast) linear',
+    )
+  })
+
+  it('leaves the cookie card’s own step-aside instant, and the bar’s breakpoints where they were', () => {
+    // A `visibility` in the base transition would have delayed this one by the fade.
+    expect(declared(rules, ':root:has(.consent) .action-bar', 'visibility')).toBe('hidden')
+    expect(declared(rules, ':root:has(.consent) .action-bar', 'transition')).toBeUndefined()
+    // viewer-layout.md: `.contact-rail` and `.action-bar` breakpoints must stay equal.
+    expect(declared(rules, '.action-bar', 'display', ['@media (min-width: 900px)'])).toBe('none')
+    expect(declared(rules, '.action-bar', 'display', ['@media (max-height: 500px)'])).toBe('none')
+  })
+})
+
 describe('VA-56: with scripting off the loading screen is not drawn over the page', () => {
   // e2e/noscript-message.spec.ts hit-tests the message in a real browser with JavaScript off,
   // and holds the loading screen on for a visitor who has it on.
