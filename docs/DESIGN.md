@@ -92,6 +92,14 @@ field, its message and a refused send's notice. The dark value exists because th
 measured 2.33:1 on the dark surface; each clears 6:1 on its own theme's surface (6.21:1 light,
 8.90:1 dark).
 
+**Native controls draw in the brand's ink, not the system's blue (VA-16, 2026-10-02).** `base.css`
+sets `accent-color: var(--btn-primary-bg)` and `caret-color: var(--text)` once on `<html>`; both
+inherit, so every text cursor and native checkbox, radio or range follows. Each clears 3:1 (WCAG
+1.4.11) on all four grounds in both themes (cursor 12.71–16.63:1 light, 9.53–13.96:1 dark; accent
+12.71–16.63:1 light, 8.95–13.11:1 dark). **Not `--volt` for the accent:** 1.03–1.27:1 on the light
+grounds. `apps/cms/src/polishGuards.test.ts` computes the ratios from `tokens.css` and fails on
+that choice.
+
 `--glow` and `--grain-color` are **dark-mode-only garnish and resolve to
 `transparent` in light**, which is how `.grain` is suppressed without a second
 rule — plus explicit `display: none` fallbacks for `[data-theme='light']`.

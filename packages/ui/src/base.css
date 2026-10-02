@@ -15,6 +15,20 @@ html {
      already provide the feedback, and two overlapping affordances read as a bug
      rather than as emphasis. */
   -webkit-tap-highlight-color: transparent;
+
+  /* VA-16, visual audit 2026-10-02. Native controls drew in the system's blue, which belongs
+     to neither theme: the text cursor in a field (on iPhone, where the contact form is mostly
+     filled in) and the tick of any native checkbox or range. Both properties inherit, so one
+     declaration here reaches every control, present and future. The pair is the brand's ink
+     in each theme, and each was measured against all four grounds (--bg, --surface, --wash,
+     --raised): the cursor, --text, is 12.71-16.63:1 light and 9.53-13.96:1 dark; the accent,
+     --btn-primary-bg (ink in light, volt in dark: the primary button's fill), is 12.71-16.63:1
+     light and 8.95-13.11:1 dark, against the 3:1 a control's state needs (WCAG 1.4.11).
+     ⚠️ NOT --volt FOR THE ACCENT, the tempting brand colour: on the light grounds it is only
+     1.03-1.27:1, an invisible checked box. Forced colours replaces both (CSS Color Adjustment
+     lists them), so nothing here fights high contrast. */
+  accent-color: var(--btn-primary-bg);
+  caret-color: var(--text);
 }
 
 body {
