@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { escapeRegExp } from '../regexEscape.mjs'
 
 /**
  * VA-55 (visual audit, owner's choice 2026-10-02): the renders are cropped tight, so inside a card's
@@ -35,7 +36,7 @@ const THREE = [
 ]
 
 function insetRule() {
-  const selector = THREE.map((entry) => entry.replace(/[.]/g, '\\.')).join(',\\s*')
+  const selector = THREE.map((entry) => escapeRegExp(entry)).join(',\\s*')
   return declared(selector)
 }
 

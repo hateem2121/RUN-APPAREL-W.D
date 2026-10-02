@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { stripUntilStable } from '../../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it } from 'vitest'
 import { FAMILIES } from '../../../lib/families'
 import { familyPageFor } from '../../../lib/familyPages'
@@ -35,7 +36,7 @@ const decoded = (text: string) =>
 const anchorsIn = (html: string): Anchor[] =>
   [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map((match) => ({
     href: /href="([^"]*)"/.exec(match[1] ?? '')?.[1] ?? '',
-    name: decoded((match[2] ?? '').replace(/<[^>]*>/g, '').trim()),
+    name: decoded(stripUntilStable(match[2] ?? '', /<[^>]*>/g, '').trim()),
     nested: /<(a|button|input|select|textarea)\b/.test(match[2] ?? ''),
   }))
 

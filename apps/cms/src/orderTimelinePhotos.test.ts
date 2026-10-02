@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { escapeRegExp } from '../regexEscape.mjs'
 import { describe, expect, it, vi } from 'vitest'
 import { AboutSection } from './components/site/AboutSection'
 import { OrderTimeline } from './components/site/OrderTimeline'
@@ -233,9 +234,7 @@ describe('the factory strip is gone, and the numbering closed up (VA-29)', () =>
 
 describe('the square frame, in the stylesheet', () => {
   const rule = (selector: string) =>
-    new RegExp(`(?:^|\\n)${selector.replace(/[.>]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(
-      SITE_CSS,
-    )?.[1] ?? ''
+    new RegExp(`(?:^|\\n)${escapeRegExp(selector)}\\s*\\{([^}]*)\\}`).exec(SITE_CSS)?.[1] ?? ''
 
   it('is one 1:1 box, and the picture fills it by cover', () => {
     expect(rule('.photo-figure__frame--square')).toMatch(/aspect-ratio:\s*1\s*\/\s*1/)

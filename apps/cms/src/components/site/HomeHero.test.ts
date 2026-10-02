@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it, vi } from 'vitest'
 import { FACTS } from '../../lib/companyFacts'
 import { HomeHero } from './HomeHero'
@@ -21,7 +22,7 @@ const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value ??
 const SAID = `[ Private label manufacturer since 1889 · Start from ${minimum} pieces per style ]`
 
 const labelMarkup = (html: string) => /<p class="label">(.*?)<\/p>/s.exec(html)?.[1] ?? ''
-const textOf = (markup: string) => markup.replace(/<[^>]*>/g, '')
+const textOf = (markup: string) => stripUntilStable(markup, /<[^>]*>/g, '')
 
 describe('the home hero label, split in two halves', () => {
   const html = renderToStaticMarkup(createElement(HomeHero))

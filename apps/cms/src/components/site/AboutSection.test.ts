@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it } from 'vitest'
 import { ABOUT } from '../../lib/aboutCopy'
 import { AboutSection } from './AboutSection'
@@ -25,7 +26,7 @@ function groupsIn(html: string): string[][] {
   // `fact` as a whole word: the section also holds `factory…` figures.
   return [...html.matchAll(/<div class="fact(?: [^"]*)?">([\s\S]*?)<\/div>/g)].map((group) =>
     [...(group[1] ?? '').matchAll(/<d[td]\b[^>]*>([\s\S]*?)<\/d[td]>/g)].map((entry) =>
-      (entry[1] ?? '').replace(/<[^>]*>/g, '').trim(),
+      stripUntilStable(entry[1] ?? '', /<[^>]*>/g, '').trim(),
     ),
   )
 }
