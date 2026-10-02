@@ -77,71 +77,110 @@ test.beforeEach(async ({ page }) => {
 })
 
 /**
- * SZ-06: for every word in every rail label — does a long one carry a soft hyphen, and is
- * any syllable of it split across lines?
+ * VA-32: every DRAWN word group of a colour name — in a tab's label or in the chosen name above
+ * the dots — sits on one line and inside its own box. A name may break only BETWEEN its groups
+ * (after a "/"), never inside one; this replaces SZ-06's soft-hyphen instrument.
  *
- * RUNS IN THE PAGE (handed to `page.evaluate`), so it references nothing outside itself.
- *
- * ⚠️ LINES ARE READ FROM EACH CHARACTER'S LAST RECT. Chromium also reports a rect on the
- * PREVIOUS line for a range that starts just after a soft break, so a range over a whole
- * syllable — or a character's FIRST rect — reads a clean "TERRA-" / "COTTA" as a split
- * "cotta" (measured 2026-09-17 against a screenshot that showed the clean break). The
- * research that found SZ-06 was misled the same way by first rects.
- *
- * `safe` is the longest syllable a line holds on every engine at the width under test; a
- * longer one ("quoise") may still be broken by `overflow-wrap: anywhere` and is only
- * reported, in `oversize`.
+ * RUNS IN THE PAGE (handed to `page.evaluate`), so it references nothing outside itself. A group
+ * is an inline `nowrap` span: broken across lines it shows two client rects; spilling out of its
+ * tab, a right edge past the tab's. Groups that are not drawn (a dot's hidden label) are skipped.
  */
-function railBreaks(safe: number) {
-  const SHY = '\u{00AD}'
-  const lineCount = (tops: number[]) => {
-    let count = 0
-    let last = Number.NEGATIVE_INFINITY
-    for (const top of [...tops].sort((a, b) => a - b)) {
-      if (top - last > 2) count += 1
-      last = top
-    }
-    return count
-  }
+function nameBreaks() {
   const out = {
-    labels: [] as string[],
-    unhyphenated: [] as string[],
+    parts: 0,
     split: [] as string[],
-    oversize: [] as string[],
-    brokenAtShy: 0,
+    spill: [] as string[],
+    shown: [] as string[],
+    lines: [] as number[],
   }
-  for (const label of document.querySelectorAll('.colourway-tab__label')) {
-    const node = label.firstChild
-    if (!node || node.nodeType !== Node.TEXT_NODE) continue
-    const text = node.nodeValue ?? ''
-    out.labels.push(text.split(SHY).join(''))
-    for (const match of text.matchAll(/[\p{L}\u{00AD}]+/gu)) {
-      const word = match[0]
-      const letters = word.split(SHY).join('')
-      if (letters.length >= 7 && !word.includes(SHY)) out.unhyphenated.push(letters)
-      const wordTops: number[] = []
-      let offset = match.index ?? 0
-      for (const syllable of word.split(SHY)) {
-        const tops: number[] = []
-        for (let i = offset; i < offset + syllable.length; i += 1) {
-          const range = document.createRange()
-          range.setStart(node, i)
-          range.setEnd(node, i + 1)
-          const rects = [...range.getClientRects()].filter((rect) => rect.width > 0.5)
-          const last = rects.at(-1)
-          if (last) tops.push(last.top)
-        }
-        wordTops.push(...tops)
-        if (lineCount(tops) > 1) {
-          if (syllable.length <= safe) out.split.push(`${syllable} (in ${letters})`)
-          else out.oversize.push(`${syllable} (in ${letters})`)
-        }
-        offset += syllable.length + 1
-      }
-      if (lineCount(wordTops) > 1) out.brokenAtShy += 1
-    }
+  for (const part of document.querySelectorAll<HTMLElement>('.colourway-tab__part')) {
+    const rects = [...part.getClientRects()].filter((rect) => rect.width > 0.5)
+    if (rects.length === 0) continue
+    out.parts += 1
+    const text = part.textContent ?? ''
+    if (rects.length > 1) out.split.push(text)
+    const box = part.closest('.colourway-tab, .colourways__name')?.getBoundingClientRect()
+    if (box && Math.max(...rects.map((rect) => rect.right)) > box.right + 0.5) out.spill.push(text)
+  }
+  for (const element of document.querySelectorAll<HTMLElement>(
+    '.colourways__name, .colourway-tab__label',
+  )) {
+    if (element.getClientRects().length === 0) continue
+    out.shown.push(element.textContent ?? '')
+    const tops = new Set(
+      [...element.querySelectorAll('.colourway-tab__part')].map((part) =>
+        Math.round(part.getBoundingClientRect().top),
+      ),
+    )
+    out.lines.push(tops.size)
   }
   return out
+}
+
+/**
+ * Serve the fixture garment with other words in it: `names` as its colourway names in row order,
+ * and the product's name and description. The fixture's own are short, and layout that holds for
+ * short words is the defect this repo keeps shipping (tests-and-fixtures.md).
+ */
+function serveGarment(
+  page: Page,
+  copy: { names?: readonly string[]; productName?: string; shortDescription?: string },
+) {
+  return page.route('**/api/public/viewer/**', async (route) => {
+    const response = await route.fetch()
+    const body = (await response.json()) as {
+      product: Record<string, unknown>
+      colourways?: { slug: string; displayName: string }[]
+      selectedColourway?: { slug: string; displayName: string } | null
+    }
+    const { names, ...product } = copy
+    Object.assign(body.product, product)
+    body.colourways?.forEach((colourway, index) => {
+      colourway.displayName = names?.[index] ?? colourway.displayName
+    })
+    const selected = body.colourways?.find((c) => c.slug === body.selectedColourway?.slug)
+    if (body.selectedColourway && selected) {
+      body.selectedColourway.displayName = selected.displayName
+    }
+    await route.fulfill({ response, json: body })
+  })
+}
+
+/**
+ * Copy longer than any live garment's (measured 2026-10-02, all 40): the longest description was
+ * 454 characters (r-atj) and the longest name 25 ("THE KINETIC MATRIX JACKET"). Invented, so a
+ * test does not carry a product's words; 462 and 26 characters, so it cannot pass for less.
+ */
+const LONGEST_COPY = {
+  productName: 'THE VELOCITY MATRIX JACKET',
+  shortDescription:
+    'A four-way stretch shell cut for cold early starts and long training blocks. Bonded seams ' +
+    'keep the weight down, laser-cut vents open under the arms and across the back, and a ' +
+    'brushed inner face holds warmth without trapping heat. Reflective trims sit on the cuffs, ' +
+    'hem and shoulders for low light, the zipped chest pocket takes a phone, and the dropped ' +
+    'back hem stays put when the rider leans forward into a headwind for hours on end through ' +
+    'rain, grit and cold.',
+}
+
+/**
+ * RUNS IN THE PAGE. Whether an email AND a WhatsApp control are wholly on screen, unscrolled —
+ * LA-11's own measure — and whether the colours are drawn as the list (a row shows its name).
+ */
+function contactOnScreen() {
+  const inView = (el: Element) => {
+    const r = el.getBoundingClientRect()
+    const cs = getComputedStyle(el)
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false
+    return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
+  }
+  const persistent = [
+    ...document.querySelectorAll('.contact-rail a, .action-bar a, .stage__contact a'),
+  ].filter(inView)
+  return {
+    listed: (document.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
+    email: persistent.some((a) => a.getAttribute('href')?.startsWith('mailto:')),
+    whatsapp: persistent.some((a) => a.getAttribute('href')?.includes('wa.me')),
+  }
 }
 
 const VIEWPORTS = [
@@ -1951,7 +1990,9 @@ test.describe('the colourway rail fits the screen', () => {
           spillingLabels: tabs
             .filter((t) => {
               const label = t.querySelector('.colourway-tab__label')
-              if (!label) return false
+              // A dot draws no label (VA-32): a hidden one measures 0x0 at the corner, not a
+              // spill. The names those dots stand for are measured above them, by nameBreaks.
+              if (!label || label.getClientRects().length === 0) return false
               const b = t.getBoundingClientRect()
               const l = label.getBoundingClientRect()
               return l.left < b.left - 0.5 || l.right > b.right + 0.5
@@ -2813,152 +2854,66 @@ test.describe('the page composes on one grid', () => {
 /**
  * The colourway rail against the catalogue's worst case, not the fixture's.
  *
- * ⚠️ WHY THE LABELS ARE REWRITTEN IN THE TEST. The fixture ships production's five
- * names for ONE product, of which one is long ('Pebble / Optic White', 20 chars).
- * Six of the eleven live products ship SEVERAL two-word names, and that is what
- * strands a swatch at tablet widths — five long labels, not one. No single fixture
- * product can carry both shapes, and the strand guard above deliberately measures
- * the shipped fixture as-is, so this is the other half rather than a substitute for
- * it: same page, labels replaced with the longest name the catalogue actually
- * contains, in the container band where the old flex layout decided rows by content.
+ * ⚠️ WHY THE NAMES ARE SERVED IN THE TEST. The fixture ships one product's five names, of
+ * which one is long ('Pebble / Optic White'). The live catalogue (200 colourways, read
+ * 2026-10-02) has names whose single word group is wider still ("Bottle Green /", 139px of
+ * 12px capitals) and products with several two-word names at once. No single fixture product
+ * carries all of that, so the same page is served the catalogue's longest names instead.
  */
 test.describe('the colourway rail survives the catalogue, not just the fixture', () => {
-  for (const [width, height] of [
-    [768, 1024],
-    [834, 1194],
-  ] as const) {
-    test(`five long colour names still lay out in one row at ${width}x${height}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width, height })
-      await page.goto('/n001/wine')
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-      const layout = await page.evaluate(() => {
-        for (const label of document.querySelectorAll('.colourway-tab__label')) {
-          label.textContent = 'Pebble / Optic White'
-        }
-        const tabs = [...document.querySelectorAll('.colourway-tab')].map((t) =>
-          Math.round(t.getBoundingClientRect().top),
-        )
-        const rows = [...new Set(tabs)].sort((a, b) => a - b)
-        return { counts: rows.map((top) => tabs.filter((t) => t === top).length) }
-      })
-
-      expect(
-        layout.counts,
-        `five equally-long swatches laid out as ${layout.counts.join(' + ')}. With ` +
-          `equal grid columns this cannot depend on the label at all; a wrapping ` +
-          `flex row lays them out 4 + 1 here.`,
-      ).toEqual([5])
-    })
-  }
-
-  test('a long one-word colour name stays inside its own tab', async ({ page }) => {
-    // Audit FA-E-08, measured live on r-ajm at 1440x900: five 65.6px cells, and
-    // "TERRACOTTA" rendered 66.2px — 0.3px across its own right border into the
-    // neighbouring swatch. `.colourway-tab` is overflow: visible, so nothing clips
-    // and nothing is unreadable; the rail simply has no slack, and the name is read
-    // out of a garment file by variant-colour.ts rather than typed by anyone.
-    //
-    // The fixture cannot exhibit it — its longest WORD is six characters and it
-    // wraps at the spaces — so the name is written in. It is a real production
-    // value, not a stress string.
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-    const spill = await page.evaluate(() => {
-      const worst = { text: '', spill: Number.NEGATIVE_INFINITY, cell: 0 }
-      for (const label of document.querySelectorAll('.colourway-tab__label')) {
-        label.textContent = 'Terracotta'
-      }
-      for (const label of document.querySelectorAll('.colourway-tab__label')) {
-        const tab = label.closest('.colourway-tab')
-        if (!tab) continue
-        const range = document.createRange()
-        range.selectNodeContents(label)
-        const text = range.getBoundingClientRect()
-        const cell = tab.getBoundingClientRect()
-        const over = Math.max(cell.left - text.left, text.right - cell.right)
-        if (over > worst.spill) {
-          worst.text = label.textContent ?? ''
-          worst.spill = Math.round(over * 10) / 10
-          worst.cell = Math.round(cell.width * 10) / 10
-        }
-      }
-      return worst
-    })
-
-    expect(
-      spill.spill,
-      `"${spill.text}" reaches ${spill.spill}px past the edge of its ${spill.cell}px ` +
-        `tab, into the swatch beside it. See overflow-wrap on .colourway-tab__label.`,
-    ).toBeLessThanOrEqual(0)
-  })
-
   /**
-   * SZ-06, 2026-09-17: a long one-word colour name breaks at a SYLLABLE. Measured live that
-   * day on all 80 pages, 50 of 400 labels broke inside a word at 390px ("TERRACO" / "TTA")
-   * and 70 at 320px. `src/lib/softHyphenate.ts` now puts soft hyphens in the label. The
-   * fixture's names are all short, so real live names are served in their place.
-   *
-   * ⚠️ WHAT IS PROMISED DEPENDS ON THE WIDTH, BECAUSE THE FONT DOES. A 10px mono cell is
-   * 6.62px in Chromium and Firefox and 6.78px in WebKit, tracking included. At 390px the label
-   * box is 52.92px, so seven cells fit everywhere; at 320px it is 39.75px, so five fit
-   * everywhere and a sixth only in Chromium. A syllable up to that length is never split.
-   * Every word of seven letters or more carries a soft hyphen at both widths — the assertion
-   * a helper that returns its input unchanged fails.
+   * VA-32 (owner, 2026-10-01 and 2026-10-02): colour names break only after a "/", never inside a
+   * word, reopening SZ-06's soft hyphens, which the owner found cramped. The colours are dots with
+   * the chosen name written above them, on phones and tablets alike, and a list with each name on
+   * a row of its own in a tall side column. The spill check here also covers FA-E-08 ("TERRACOTTA"
+   * 0.3px past its tab at 1440x900), whose own test measured the five-across tabs this replaced.
    */
   const LONG_NAMES = [
-    ['Terracotta / Blush', 'Lavender / Indigo', 'Tangerine', 'Turquoise', 'Magenta / Burgundy'],
-    ['Fuchsia', 'Mustard', 'Blush / Fuchsia', 'Burgundy', 'Tangerine / Rust'],
+    ['Terracotta / Blush', 'Bottle Green / Mint', 'Tangerine', 'Turquoise', 'Magenta / Burgundy'],
+    [
+      'Pebble / Optic White',
+      'Slate / Powder Blue',
+      'Blush / Fuchsia',
+      'Burgundy',
+      'Tangerine / Rust',
+    ],
   ] as const
-  /** The longest syllable a rail line holds on every engine, by page width. */
-  const SAFE_SYLLABLE: Readonly<Record<number, number>> = { 390: 7, 320: 5 }
 
-  /** Serve the fixture garment with `names` as its colourway names, in row order. */
-  const serveNames = (page: Page, names: readonly string[]) =>
-    page.route('**/api/public/viewer/**', async (route) => {
-      const response = await route.fetch()
-      const body = (await response.json()) as {
-        colourways?: { slug: string; displayName: string }[]
-        selectedColourway?: { slug: string; displayName: string } | null
-      }
-      body.colourways?.forEach((colourway, index) => {
-        colourway.displayName = names[index] ?? colourway.displayName
-      })
-      const selected = body.colourways?.find((c) => c.slug === body.selectedColourway?.slug)
-      if (body.selectedColourway && selected) {
-        body.selectedColourway.displayName = selected.displayName
-      }
-      await route.fulfill({ response, json: body })
-    })
-
-  for (const width of [390, 320] as const) {
+  for (const [width, height, layout] of [
+    [320, 640, 'dots'],
+    [390, 844, 'dots'],
+    [768, 1024, 'dots'],
+    [834, 1194, 'dots'],
+    [1280, 720, 'dots'],
+    [1440, 1100, 'list'],
+    // The narrowest list: a 190px column, where a long name takes a second line after its "/".
+    [900, 1100, 'narrow list'],
+  ] as const) {
     for (const [set, names] of LONG_NAMES.entries()) {
-      test(`long colour names break only at a soft hyphen at ${width}px (set ${set + 1}, SZ-06)`, async ({
+      test(`colour names never break inside a word at ${width}x${height}, ${layout} (set ${set + 1}, VA-32)`, async ({
         page,
       }) => {
-        await serveNames(page, names)
-        await page.setViewportSize({ width, height: 812 })
+        await serveGarment(page, { names })
+        await page.setViewportSize({ width, height })
         await page.goto('/n001/wine')
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-        const report = await page.evaluate(railBreaks, SAFE_SYLLABLE[width] ?? 0)
-        expect(report.labels, 'the live names never reached the rail').toEqual([...names])
-        expect(report.unhyphenated, 'a word of seven letters or more has no soft hyphen').toEqual(
-          [],
-        )
-        expect(report.split, `a syllable that fits a ${width}px line was broken inside`).toEqual([])
-        expect(
-          report.brokenAtShy,
-          'no name broke across lines, so this test exercised nothing',
-        ).toBeGreaterThan(0)
-        test.info().annotations.push({
-          type: `SZ-06 ${width}px set ${set + 1}`,
-          description: `syllables too long for a line, broken by the safety net: ${report.oversize.join(', ') || 'none'}`,
-        })
+        const report = await page.evaluate(nameBreaks)
+        expect(report.parts, 'no word group was drawn, so this measured nothing').toBeGreaterThan(0)
+        expect(report.split, 'a word group broke across lines').toEqual([])
+        expect(report.spill, 'a word group ran out of its box').toEqual([])
+        if (layout === 'dots') {
+          // the dots carry no words; the line above them carries the chosen colour's name
+          expect(report.shown).toEqual([names[0]])
+          expect(report.lines, 'the name above the dots took more than one line').toEqual([1])
+        } else {
+          expect(report.shown).toEqual([...names])
+        }
+        if (layout === 'list') {
+          expect(report.lines, 'a name in the list took more than one line').toEqual(
+            names.map(() => 1),
+          )
+        }
 
         const tabs = page.getByRole('tab')
         await expect(tabs).toHaveCount(names.length)
@@ -2972,22 +2927,86 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
     }
   }
 
-  test('the syllable instrument sees a word split inside itself (negative control)', async ({
+  test('the instrument sees a word group split across lines (negative control)', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.setViewportSize({ width: 1440, height: 1100 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await page.evaluate(() => {
-      const label = document.querySelector<HTMLElement>('.colourway-tab__label')
-      if (!label) throw new Error('no rail label on the page')
-      label.textContent = 'Blush'
-      label.style.width = '20px'
+    await page.addStyleTag({
+      content:
+        '.colourway-tab__part { white-space: normal !important } .colourway-tab__label { display: block; width: 30px }',
     })
-    const report = await page.evaluate(railBreaks, 7)
-    expect(report.split, 'a five-letter word forced onto three lines was not reported').toContain(
-      'Blush (in Blush)',
-    )
+    const report = await page.evaluate(nameBreaks)
+    expect(report.split, 'a group forced across lines was not reported').toContain('Optic White')
+  })
+
+  for (const [width, height] of [
+    [390, 844],
+    [768, 1024],
+  ] as const) {
+    test(`every colour is a dot in one row, the chosen one ringed, its name above, at ${width}x${height} (VA-32)`, async ({
+      page,
+    }) => {
+      await serveGarment(page, { names: LONG_NAMES[1] })
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const m = await page.evaluate(() => {
+        const tabs = [...document.querySelectorAll<HTMLElement>('.colourway-tab')]
+        const name = document.querySelector('.colourways__name')?.getBoundingClientRect()
+        return {
+          boxes: tabs.map((tab) => {
+            const box = tab.getBoundingClientRect()
+            return [Math.round(box.width), Math.round(box.height), Math.round(box.top)]
+          }),
+          rings: tabs.map((tab) => {
+            const style = getComputedStyle(tab)
+            return `${tab.getAttribute('aria-selected')}:${style.borderTopWidth}:${style.borderTopColor}`
+          }),
+          nameBottom: name ? Math.round(name.bottom) : null,
+        }
+      })
+      const tops = new Set(m.boxes.map(([, , top]) => top))
+      expect(tops.size, 'the dots wrapped onto a second row').toBe(1)
+      for (const [boxWidth, boxHeight] of m.boxes) expect([boxWidth, boxHeight]).toEqual([44, 44])
+      const selected = m.rings.filter((ring) => ring.startsWith('true:'))
+      expect(selected, 'not exactly one chosen dot').toHaveLength(1)
+      expect(selected[0], 'the chosen dot has no 2px ring').toMatch(/^true:2px:/)
+      for (const ring of m.rings.filter((r) => r.startsWith('false:'))) {
+        expect(ring, 'an unchosen dot wears a ring').toMatch(/rgba\(0, 0, 0, 0\)$/)
+      }
+      expect(m.nameBottom, 'the name is not above the dots').toBeLessThanOrEqual(
+        Math.min(...m.boxes.map(([, , top]) => top ?? 0)),
+      )
+    })
+  }
+
+  /**
+   * VA-32's list is ~180px taller than the dots, and from 1100px the side column also holds the
+   * product's name and description. Measured 2026-10-02 against the live catalogue, the list at
+   * 1280x800 and 1440x900 pushed Email and WhatsApp off the screen, so it shows only from 1080px
+   * of height (page.css). This walks the widths at exactly that height with copy LONGER than any
+   * live garment's: the 454-character description was the longest, and "THE KINETIC MATRIX
+   * JACKET" the longest name (25). The fixture's own copy is 145 characters and fits anywhere —
+   * against it this test could not fail.
+   */
+  test('the colour list leaves both contact buttons on screen at its shortest height (VA-32)', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000)
+    await serveGarment(page, LONGEST_COPY)
+    const gaps: string[] = []
+    for (const width of [900, 1000, 1099, 1100, 1150, 1200, 1279, 1280, 1366, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 1080 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const seen = await page.evaluate(contactOnScreen)
+      if (!seen.listed) gaps.push(`${width}px: the colours are not a list here`)
+      if (!seen.email) gaps.push(`${width}px: no email control on screen`)
+      if (!seen.whatsapp) gaps.push(`${width}px: no WhatsApp control on screen`)
+    }
+    expect(gaps).toEqual([])
   })
 })
 

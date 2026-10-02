@@ -213,16 +213,19 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   the one place it is cheapest to forget — and it bit again on 2026-09-04, when
   five single-word labels hid a two-word wrap defect the same test could not see.
 
-- **🟡 The compact colourway styling is a `@container` query, not a media query — do
-  not convert it back.** It asked `max-width: 767px` until 2026-08-20, which
-  predicted the rail's own width only while the rail spanned the page. The moment
+- **🟡 The colourway rail's width rule is a `@container` query, not a media query — do
+  not convert it back.** The rail asked the SCREEN's width (767px) until 2026-08-20,
+  which predicted the rail's own width only while the rail spanned the page. The moment
   it moved into the two-column layout's 260px aside, an 844px-wide screen took the
   DESKTOP pill treatment — pills needing 606px — inside a 217px box and stacked
   into FOUR rows: the aside grew to 396px inside a 321px band and pushed the
-  contact buttons to y=448 on a 390px screen. `.colourways` carries
-  `container-type: inline-size` — **never `size`**, which would make the block axis
-  a containment root too, and this element is a flex item inside a band whose whole
-  job is dividing height.
+  contact buttons to y=448 on a 390px screen. Since VA-32 (2026-10-02) the colours are
+  44px dots at every width, and the one width query left lays a side column narrower
+  than five dots (252px) out 3 + 2 rather than 4 + 1. The tall-column LIST is a media
+  query on purpose: it asks for the window's HEIGHT, which a container cannot know.
+  `.colourways` carries `container-type: inline-size` — **never `size`**, which would
+  make the block axis a containment root too, and this element is a flex item inside a
+  band whose whole job is dividing height.
 
 - **🟡 Removing an element breaks the WORDS describing it and the TESTS keyed on it.**
   The stage stopped painting a poster 2026-08-21. `LOAD_NOTICE` and `aria-label` both

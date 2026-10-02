@@ -21,8 +21,10 @@ Several "findings" of the 2026-10-01 audit were decided long before it. Grep fir
 - `docs/DECISIONS-BETA-WEBSITE.md` and `docs/DECISION-*.md` — e.g. D1 (one long products
   page), D4 (four columns from 1600px), D18 (no camera momentum), D26 (`--showpiece` motion).
 - Earlier audit IDs live in code comments, not in `docs/`, so `git grep` the ID: FA-B-04
-  (ragged card rows are deliberate) is in `apps/cms/src/app/(frontend)/site.css`; SZ-06
-  (colour names break only at soft hyphens) in `apps/viewer/e2e/motion-and-layout.spec.ts`.
+  (ragged card rows are deliberate) is in `apps/cms/src/app/(frontend)/site.css`; VA-32
+  (colour dots with the chosen name above, a list only in a tall side column, names
+  breaking only after a "/") in `apps/viewer/src/styles/page.css` — it reopened and
+  replaced SZ-06's soft hyphens on 2026-10-02, owner decision.
 - `docs/DESIGN.md` — page widths, breakpoints, the type scale, reduced motion as a hard stop.
 - `packages/shared/src/pageTitle.ts` — the tab-title format, brand dropped past 60 characters.
 - The contact form marks OPTIONAL fields, never required ones (the UK government pattern).

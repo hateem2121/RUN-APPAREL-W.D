@@ -1,8 +1,33 @@
 import type { ViewerColourway } from '@run-apparel/shared'
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { HOVER_INTENT_MS } from '../lib/motion'
-import { softHyphenate } from '../lib/softHyphenate'
+
+/**
+ * A colour name's word groups, each kept whole: "Pebble / Optic White" is "Pebble /" and
+ * "Optic White", and the only place a line may break is the space between them.
+ *
+ * ⚠️ NO BREAKS INSIDE A WORD (visual audit VA-32, owner-approved 2026-10-01, reopening SZ-06).
+ * SZ-06 put soft hyphens at syllables so a name could break inside a word ("TAN-" / "GERINE")
+ * in the 66px tabs of the old five-across rail; the owner found the result cramped. Now the colours
+ * are dots with the chosen name written above them, and a list in a tall side column (page.css),
+ * so a name needs no break at all, or one, after the "/".
+ */
+export function nameParts(name: string): string[] {
+  const parts = name.split(/\s*\/\s*/)
+  return parts.map((part, index) => (index < parts.length - 1 ? `${part} /` : part))
+}
+
+/** A colour name as unbreakable word groups, the space between them the only break. */
+function ColourName({ name }: { name: string }) {
+  return nameParts(name).map((part, index) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: a name's parts are fixed and ordered
+    <Fragment key={index}>
+      {index > 0 && ' '}
+      <span className="colourway-tab__part">{part}</span>
+    </Fragment>
+  ))
+}
 
 /**
  * The tablist's panel is the 3D stage, which lives in App.tsx as a sibling.
@@ -86,10 +111,22 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
     }
   }
 
+  /**
+   * The colourway the garment is previewing, for the name written above the dots (VA-32): set in
+   * the same timeout that swaps the garment, so the name and the garment change together.
+   */
+  const [previewed, setPreviewed] = useState<string | null>(null)
+
   const preview = (colourway: ViewerColourway | null) => {
     if (!canPreview) return
     clearPending()
-    pending.current = setTimeout(() => onPreview(colourway), colourway ? HOVER_INTENT_MS : 0)
+    pending.current = setTimeout(
+      () => {
+        onPreview(colourway)
+        setPreviewed(colourway?.slug ?? null)
+      },
+      colourway ? HOVER_INTENT_MS : 0,
+    )
   }
 
   // A tab can unmount mid-hover (colourway list refetch); without this the
@@ -110,6 +147,17 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
   )
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+  /**
+   * The tab that has focus right now, for the name written above the dots (VA-32). Its own state,
+   * set on focus and cleared on blur, because an arrow press blurs the old tab BEFORE focusing the
+   * new one: the new tab's focus arrives last, so this ends on the tab the visitor is on.
+   */
+  const [focusShown, setFocusShown] = useState<string | null>(null)
+  // The name follows the visitor: the tab they are on, else the colour the garment is previewing
+  // under the pointer, else the chosen one.
+  const shown =
+    colourways.find((colourway) => colourway.slug === (focusShown ?? previewed ?? selected.slug)) ??
+    selected
 
   /**
    * Arrow-key navigation with MANUAL activation: arrows move focus, Enter/Space
@@ -131,8 +179,9 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
     const last = colourways.length - 1
     let next: number
     switch (event.key) {
-      // Up/Down as well as Left/Right: the list wraps to a second row on narrow
-      // viewports, where pressing Down and having nothing happen reads as broken.
+      // Up/Down as well as Left/Right: the dots wrap to a second row in a narrow side
+      // column and the list runs down the page, where pressing Down and having nothing
+      // happen reads as broken.
       case 'ArrowRight':
       case 'ArrowDown':
         next = index === last ? 0 : index + 1
@@ -159,6 +208,15 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
 
   return (
     <section className="colourways" aria-label="Colorways" data-reveal>
+      {/*
+        The colour's name above the dots (VA-32, owner 2026-10-02): the dots carry no words. The
+        one keyboard focus is on, else the one the pointer is previewing on the garment, else the
+        chosen one. Hidden from assistive technology, which hears each tab's own name and which
+        is selected; page.css hides it where the colours are a list, whose rows carry the names.
+      */}
+      <p className="colourways__name" aria-hidden="true">
+        <ColourName name={shown.displayName} />
+      </p>
       <div className="colourways__list" role="tablist" aria-label="Select colorway">
         {colourways.map((colourway, index) => (
           <button
@@ -166,9 +224,9 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
             type="button"
             role="tab"
             /**
-             * The plain name, because the label below carries soft hyphens (SZ-06) and a
-             * screen reader must never be handed one. The stage panel is labelled by this
-             * tab's id (App.tsx), so it inherits the same clean name.
+             * The plain name, in one piece: the label below is split into word groups for
+             * line breaking (VA-32). The stage panel is labelled by this tab's id (App.tsx),
+             * so it inherits the same clean name.
              */
             aria-label={colourway.displayName}
             id={colourwayTabId(colourway.slug)}
@@ -189,13 +247,18 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
             onClick={() => {
               clearPending()
               onPreview(null)
+              setPreviewed(null)
               onSelect(colourway)
             }}
             onMouseEnter={() => preview(colourway)}
             onMouseLeave={() => preview(null)}
-            onFocus={() => preview(colourway)}
+            onFocus={() => {
+              preview(colourway)
+              setFocusShown(colourway.slug)
+            }}
             onBlur={() => {
               preview(null)
+              setFocusShown(null)
               // Return the tab stop to the selected tab when focus leaves the
               // list. onBlur already restores the preview, so the reset has a
               // natural home here — and it means Tab re-entry lands on the
@@ -225,9 +288,8 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               the ordinal that shared this span on 2026-08-20. What must not come
               back is the pseudo-element.
 
-              The span itself stays. It is the flex sibling of the swatch, and the
-              two must not become separate rows when a tab stacks on a narrow
-              container.
+              The span itself stays: it is the swatch's flex sibling, shown in the
+              list and on a colourway with no swatch, hidden on the dots (VA-32).
             */}
             {/*
               ⚠️ THE "01 / 02 / 03" PREFIX WAS REMOVED HERE ON 2026-08-20 —
@@ -254,7 +316,7 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               one.
 
               The argument for it was "selected state is never colour-only". It
-              never was colour-only. `[aria-selected="true"]` INVERTS THE FILL:
+              never was colour-only. `[aria-selected="true"]` INVERTED THE FILL:
               measured in both themes, the tab's background goes from the page
               surface to `--btn-primary-bg` at 14.47:1 in light and 13.11:1 in
               dark, and greyscale luminance flips 0.864 -> 0.013 (light) and
@@ -262,6 +324,8 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               distinction, so WCAG 1.4.1 is satisfied without it — and
               `aria-selected` already carries the state for assistive technology,
               which is why the dot had to be `aria-hidden` in the first place.
+              (Since VA-32 the list's rows still invert; a dot instead wears a
+              ring only the chosen one has, a shape rather than a hue. page.css.)
 
               It was also the third cue for one piece of state, on the tightest
               control on the page: the "01 / 02" ordinal went on 2026-08-20 for
@@ -269,7 +333,9 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
               `.colourway-tab__label` span that existed to keep the pair on one
               line.
             */}
-            <span className="colourway-tab__label">{softHyphenate(colourway.displayName)}</span>
+            <span className="colourway-tab__label">
+              <ColourName name={colourway.displayName} />
+            </span>
           </button>
         ))}
       </div>
