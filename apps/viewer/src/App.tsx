@@ -16,6 +16,7 @@ import { startActionBarHeight } from './lib/actionBarHeight'
 import { track } from './lib/analytics'
 import { type ViewerFetchFailure, ViewerFetchError, fetchViewerData } from './lib/api'
 import { diagnostic } from './lib/diagnostic'
+import { isFocusUnclaimed } from './lib/focusHandoff'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { useIdentityInAside } from './lib/useIdentityInAside'
 
@@ -325,11 +326,24 @@ export default function App() {
    * effect goes. `e2e/motion-and-layout.spec.ts` → "the page opens at the very
    * top" pins it, and waits for this hand-off before measuring — asserting
    * straight after the <h1> appears is flaky in the direction that PASSES.
+   *
+   * ⚠️ AND IT YIELDS TO A VISITOR WHO HAS ALREADY MOVED FOCUS (visual audit VA-05,
+   * 2026-10-02). The page behind the curtain is live — Tab-able — from the moment
+   * the data arrives until the curtain has gone, up to 1.2 s (the 400 ms floor plus
+   * the 800 ms wipe, `lib/motion.ts`), and a keyboard user does not wait for it.
+   * Measured with normal motion: Tab at 1.5 s reached "Skip to main content" and
+   * the hand-off pulled focus to the wrapper within 400 ms; a phone menu opened in
+   * that window lost its focus the same way, with the menu still open. Only a focus
+   * nobody has claimed is handed over (`isFocusUnclaimed`, `lib/focusHandoff.ts`),
+   * and the flag below is set either way, so the hand-off never comes back later and
+   * takes it. `e2e/focus-handoff.spec.ts` presses Tab and opens the menu during the
+   * curtain.
    */
   const focusHandedOff = useRef(false)
   useEffect(() => {
     if (state.kind !== 'ready' || !preloaderGone || focusHandedOff.current) return
     focusHandedOff.current = true
+    if (!isFocusUnclaimed(document)) return
     document.getElementById(PAGE_TOP_ID)?.focus({ preventScroll: true })
   }, [state.kind, preloaderGone])
 
