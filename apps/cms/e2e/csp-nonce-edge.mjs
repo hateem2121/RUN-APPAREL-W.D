@@ -8,7 +8,8 @@
  * - the policy carries a nonce;
  * - script-src no longer allows 'unsafe-inline';
  * - NO securitypolicyviolation fired;
- * - React hydrated the page.
+ * - React hydrated the page;
+ * - the page is in standards mode, its doctype first (worker.mjs, 2026-10-03).
  * Exits 0 if all of that holds, 1 if anything failed, and 2 if nothing answered.
  *
  * ⚠️ WHY NOT THE PLAYWRIGHT SUITE: it serves the site with `next start`, which never runs
@@ -81,7 +82,16 @@ for (const [name, engine, launchOptions] of ENGINES) {
     const hydrated = await page.evaluate(() =>
       Object.keys(document.body).some((key) => key.startsWith('__reactFiber')),
     )
+    // Standards mode (2026-10-03): on this runtime Next could stream a script before the
+    // doctype, and every page was drawn in quirks mode; worker.mjs writes the doctype first.
+    const mode = await page.evaluate(() => ({
+      compat: document.compatMode,
+      doctype: document.doctype?.name ?? null,
+    }))
     const problems = []
+    if (mode.compat !== 'CSS1Compat' || mode.doctype !== 'html') {
+      problems.push(`quirks mode (compatMode ${mode.compat}, doctype ${mode.doctype})`)
+    }
     if (response?.status() !== expectedStatus) {
       problems.push(`HTTP ${response?.status()}, expected ${expectedStatus}`)
     }
@@ -109,6 +119,6 @@ for (const [name, engine, launchOptions] of ENGINES) {
 console.log(
   failures > 0
     ? `\n[csp-nonce-edge] ${failures} page load(s) failed.`
-    : '\n[csp-nonce-edge] every page, every engine: nonced, nothing blocked, hydrated.',
+    : '\n[csp-nonce-edge] every page, every engine: nonced, nothing blocked, hydrated, standards mode.',
 )
 process.exit(failures > 0 ? 1 : 0)

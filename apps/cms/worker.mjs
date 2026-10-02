@@ -58,9 +58,43 @@ export default {
       }
       const init = { status: response.status, statusText: response.statusText, headers }
       if (response.body === null) return new Response(null, init)
+      /*
+       * ⚠️ THE DOCTYPE COMES FIRST, BECAUSE ON CLOUDFLARE NEXT CAN PUT A SCRIPT BEFORE IT
+       * (2026-10-03, found by lighthouse-live after #116: best-practices/doctype failed on every
+       * website page, and the live home page reported `document.compatMode` "BackCompat").
+       * Next slips its legacy-browser script into the head by finding `</head>` in the FIRST
+       * piece of the page it streams; when the head is longer than that piece it puts the script
+       * before everything instead, a fallback written for partial prerendering
+       * (`createHeadInsertionTransformStream`, next/dist/server/stream-utils/
+       * node-web-streams-helper.js, 16.3.6). The head carries the whole stylesheet (RO-08, 74,525
+       * bytes on the home page), and this runtime streams smaller pieces than `next start`, so
+       * pages began `<script …></script><!DOCTYPE html>` and browsers drew them in quirks mode
+       * (`next start`, the browser suites' server, never showed it; neither setting of
+       * htmlLimitedBots changed it, measured in `opennextjs-cloudflare preview`).
+       *
+       * A doctype written ahead of the first element seen before the real one restores standards
+       * mode and changes nothing else: the browser already parses that script into the head, and
+       * a doctype met inside the head is ignored (HTML parsing, "in head": a DOCTYPE token is a
+       * parse error and is dropped), so the page's tree is exactly what it was.
+       * e2e/csp-nonce-edge.mjs checks standards mode on every page, in three engines.
+       */
+      let doctypeSeen = false
+      let doctypeWritten = false
       // Every <script>: inline, external and JSON-LD. The nonce is harmless on the last two,
       // and it keeps working if 'strict-dynamic' is ever added.
       const rewritten = new HTMLRewriter()
+        .onDocument({
+          doctype() {
+            doctypeSeen = true
+          },
+        })
+        .on('script, link, meta, style', {
+          element(element) {
+            if (doctypeSeen || doctypeWritten) return
+            element.before('<!DOCTYPE html>', { html: true })
+            doctypeWritten = true
+          },
+        })
         .on('script', {
           element(element) {
             element.setAttribute('nonce', nonce)
