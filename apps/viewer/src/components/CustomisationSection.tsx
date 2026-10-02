@@ -35,7 +35,15 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
 
   return (
     <section className="customise" aria-labelledby="customise-heading" data-reveal>
-      <p className="section-number">&#8470;02 — CUSTOMIZATION — &#8470;02</p>
+      {/*
+        ⚠️ THE NUMBER IS WRITTEN ONCE (visual audit VA-39, 2026-10-02). It read "№02 —
+        CUSTOMIZATION — №02", which looks like a typo, where the website's labels carry it once
+        ("№02 — What we make"). Sentence case here, as the website writes its source: `.section-number`
+        (packages/ui/src/base.css) sets `text-transform: uppercase`, so a visitor still sees capitals,
+        and a screen reader gets the words as written rather than a shouted line (MDN, text-transform,
+        read 2026-10-02: it changes the drawing, not the text). `sectionLabels.test.tsx` holds it.
+      */}
+      <p className="section-number">&#8470;02 — Customization</p>
       <h2 id="customise-heading" className="display display--section">
         FROM IDEA TO <span className="serif-accent">production</span>.
       </h2>

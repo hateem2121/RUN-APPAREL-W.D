@@ -69,7 +69,7 @@ function ContactButtons({ settings, enquiry }: ContactProps) {
 export function ContactSection(props: ContactProps) {
   return (
     <section className="contact" aria-labelledby="contact-heading" data-reveal>
-      <p className="section-number">&#8470;03 — START THE CONVERSATION — &#8470;03</p>
+      <p className="section-number">&#8470;03 — Start the conversation</p>
       <h2 id="contact-heading" className="display display--section">
         Develop this with <span className="serif-accent">us</span>.
       </h2>
