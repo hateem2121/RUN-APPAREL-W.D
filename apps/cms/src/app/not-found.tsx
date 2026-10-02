@@ -102,7 +102,7 @@ export default function NotFound() {
           <section className="site-hero">
             <div className="blueprint site-hero__grid" aria-hidden="true" />
             <div className="site-container">
-              <p className="label">[ 404 · PAGE NOT FOUND ]</p>
+              <p className="label">[ 404 · Page not found ]</p>
               <h1 className="display display--hero">
                 That page isn&rsquo;t here. <span className="serif-accent">The rest&nbsp;is.</span>
               </h1>

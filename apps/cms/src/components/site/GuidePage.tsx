@@ -45,7 +45,7 @@ function Block({ block }: { block: GuideBlock }) {
 export function GuideLinks({ current, guides = true }: { current: string; guides?: boolean }) {
   const buyerPages = FAMILIES.map((family) => ({ family, page: familyPageFor(family) }))
   return (
-    <nav className="filter-bar" aria-label="More to read">
+    <nav className="filter-bar filter-bar--titles" aria-label="More to read">
       {(guides ? GUIDES.filter((guide) => guide.path !== current) : []).map((guide) => (
         <Link key={guide.path} className="filter-chip" href={guide.path}>
           {guide.title}
@@ -75,7 +75,7 @@ export function GuidePage({ guide }: { guide: Guide }) {
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">[ BUYER GUIDE ]</p>
+          <p className="label">[ Buyer guide ]</p>
           {/* `hero-guide`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
           <h1 className="display display--hero hero-guide">
             {guide.heading} <span className="serif-accent">{guide.headingAccent}</span>

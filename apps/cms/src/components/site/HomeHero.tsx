@@ -63,8 +63,8 @@ export function HomeHero() {
           included, is exactly what it was: `HomeHero.test.ts` holds it.
         */}
         <p className="label">
-          [ PRIVATE LABEL MANUFACTURER SINCE 1889<span className="label__dot"> · </span>
-          <span className="label__tail">START FROM {minimum} PIECES PER STYLE ]</span>
+          [ Private label manufacturer since 1889<span className="label__dot"> · </span>
+          <span className="label__tail">Start from {minimum} pieces per style ]</span>
         </p>
         <h1 className="display display--hero">
           Made to order. <span className="serif-accent">Made&nbsp;properly.</span>

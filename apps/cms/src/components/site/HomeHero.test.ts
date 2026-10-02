@@ -17,7 +17,8 @@ vi.mock('next/link', () => ({
  * browser (`e2e/composition.spec.ts`); `polishGuards.test.ts` holds the CSS that does the breaking.
  */
 const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value ?? ''
-const SAID = `[ PRIVATE LABEL MANUFACTURER SINCE 1889 · START FROM ${minimum} PIECES PER STYLE ]`
+// In normal letters since 2026-10-02 (visual audit VA-44, the owner's choice): same words, same order.
+const SAID = `[ Private label manufacturer since 1889 · Start from ${minimum} pieces per style ]`
 
 const labelMarkup = (html: string) => /<p class="label">(.*?)<\/p>/s.exec(html)?.[1] ?? ''
 const textOf = (markup: string) => markup.replace(/<[^>]*>/g, '')
@@ -34,18 +35,18 @@ describe('the home hero label, split in two halves', () => {
     const markup = labelMarkup(html)
     expect(markup).toContain('<span class="label__dot"> · </span>')
     expect(markup).toContain(
-      `<span class="label__tail">START FROM ${minimum} PIECES PER STYLE ]</span>`,
+      `<span class="label__tail">Start from ${minimum} pieces per style ]</span>`,
     )
     // Two halves, and the dot between them: the first half stops at 1889, with no space of its own.
     expect(
-      markup.startsWith('[ PRIVATE LABEL MANUFACTURER SINCE 1889<span class="label__dot">'),
+      markup.startsWith('[ Private label manufacturer since 1889<span class="label__dot">'),
     ).toBe(true)
   })
 
   // NEGATIVE CONTROL: a split that loses the dot, or its spaces, is not the same sentence.
   it('sees the fault: a split that drops the dot or a space no longer says it', () => {
-    const noDot = `[ PRIVATE LABEL MANUFACTURER SINCE 1889<span class="label__dot"></span><span class="label__tail">START FROM ${minimum} PIECES PER STYLE ]</span>`
-    const noSpaces = `[ PRIVATE LABEL MANUFACTURER SINCE 1889<span class="label__dot">·</span><span class="label__tail">START FROM ${minimum} PIECES PER STYLE ]</span>`
+    const noDot = `[ Private label manufacturer since 1889<span class="label__dot"></span><span class="label__tail">Start from ${minimum} pieces per style ]</span>`
+    const noSpaces = `[ Private label manufacturer since 1889<span class="label__dot">·</span><span class="label__tail">Start from ${minimum} pieces per style ]</span>`
     expect(textOf(noDot)).not.toBe(SAID)
     expect(textOf(noSpaces)).not.toBe(SAID)
   })

@@ -129,7 +129,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
       {products.length > 0 ? <JsonLd data={productListJsonLd(products)} /> : null}
       {/* The hoodie film plays behind these words (owner, 2026-10-01); the words stay the server's. */}
       <ProductsFilmHero>
-        <p className="label">[ 3D PRODUCT REFERENCES ]</p>
+        <p className="label">[ 3D product references ]</p>
         <h1 className="display display--hero hero-products">
           Every garment, <span className="serif-accent">turnable.</span>
         </h1>

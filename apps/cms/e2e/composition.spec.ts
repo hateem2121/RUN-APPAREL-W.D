@@ -764,21 +764,28 @@ test.describe('VA-43 — a hero label never leaves its last words alone', () => 
     })
   }
 
-  test('the teamwear label, the audit’s case, is two balanced lines at 390px', async ({ page }) => {
+  test('the teamwear label, the audit’s case, never ends on a word alone at 390px', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/custom-teamwear-manufacturer')
     await settle(page)
     const lines = await linesOf(page, '.site-hero .label')
-    expect(lines.length, lines.join(' / ')).toBe(2)
-    expect(lines[1], 'the label still ends on "STYLE ]" alone').not.toBe('STYLE ]')
+    // In capitals it took two lines and left "STYLE ]" alone; in normal letters (VA-44, the owner's
+    // choice of 2026-10-02) it fits on one. Either is fine: what may never happen is the lone word.
+    expect(lines.length, lines.join(' / ')).toBeLessThanOrEqual(2)
+    expect(lines.at(-1)?.toLowerCase(), 'the label still ends on "style ]" alone').not.toBe(
+      'style ]',
+    )
   })
 
   test('the home label is two lines with no dot on a phone, and one line with its dot from 40rem', async ({
     page,
   }) => {
     const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value
-    const first = '[ PRIVATE LABEL MANUFACTURER SINCE 1889'
-    const second = `START FROM ${minimum} PIECES PER STYLE ]`
+    // In normal letters since 2026-10-02 (visual audit VA-44, the owner's choice).
+    const first = '[ Private label manufacturer since 1889'
+    const second = `Start from ${minimum} pieces per style ]`
     for (const width of [360, 390, 414, 639]) {
       await page.setViewportSize({ width, height: 844 })
       await page.goto('/')
@@ -1153,6 +1160,10 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
           selector: `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`,
           textTransform: getComputedStyle(el).textTransform,
           text: (el.textContent ?? '').trim().slice(0, 30),
+          // The bracket label above each page's headline is in normal letters since 2026-10-02
+          // (visual audit VA-44, the owner's choice); the test below holds that. It still counts
+          // for the control, and the rest of the register keeps its capitals and is checked here.
+          heroLabel: el.classList.contains('label') && el.closest('.site-hero') !== null,
         }))
       })
 
@@ -1165,11 +1176,26 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
         `${path} has no .mono/.label/.section-number element`,
       ).toBeGreaterThan(0)
 
-      const wrong = measured.filter((m) => m.textTransform !== 'uppercase')
+      const wrong = measured.filter((m) => !m.heroLabel && m.textTransform !== 'uppercase')
       expect(
         wrong.map((m) => `${m.selector} is "${m.textTransform}": "${m.text}"`),
         `${path}: an element in the mono/caps register is not text-transform: uppercase`,
       ).toEqual([])
+    })
+  }
+})
+
+test.describe('the bracket label above each headline is in normal letters (VA-44)', () => {
+  for (const path of PAGES) {
+    test(`${path}: its hero label is set in normal letters, same words`, async ({ page }) => {
+      await page.goto(path)
+      await settle(page)
+      const label = page.locator('.site-hero .label').first()
+      await expect(label).toBeVisible()
+      expect(await label.evaluate((el) => getComputedStyle(el).textTransform)).toBe('none')
+      // Typed in normal case: a label typed in capitals would still shout with the rule off.
+      const text = (await label.innerText()).replace(/[^A-Za-z]/g, '')
+      expect(text, 'the label is typed in capitals').not.toBe(text.toUpperCase())
     })
   }
 })

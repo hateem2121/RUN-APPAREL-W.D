@@ -1598,6 +1598,14 @@ a.contact-block__value:active {
   margin-block-start: 8px;
 }
 
+/* A subhead is read as a line, so it is set in normal letters (visual audit VA-44, owner's choice 2026-10-02): "The 3D references are
+   indicative" on Terms was 32 capitals. The rule above stays shared with the form labels and the
+   result count, which keep their short capitals; this only lifts the subhead out of it. */
+.subhead {
+  text-transform: none;
+  letter-spacing: inherit;
+}
+
 /*
  * The count, and on a family's filtered gallery the way back to its buyer page (visual audit
  * VA-33): the count on the left, the button on the right where there is room and under it where
@@ -1797,8 +1805,7 @@ a.contact-block__value:active {
   margin-inline-start: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps-snug);
+  /* Normal letters (visual audit VA-44, owner's choice 2026-10-02): "Building, first stitch to sealed bag" is a sentence, 36 capitals. */
   color: var(--muted);
 }
 
@@ -2742,8 +2749,9 @@ a.contact-block__value:active {
   margin-block-start: 10px;
   font-family: var(--font-mono);
   font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-snug);
-  text-transform: uppercase;
+  /* Normal letters, not capitals (visual audit VA-44, owner's choice 2026-10-02): a caption is read, and the longest ran 68 capitals
+     ("The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces"). The words are typed
+     in normal case in lib/factoryPhotos.ts, so the names keep their own capitals. */
   color: var(--muted);
 }
 
@@ -3496,4 +3504,22 @@ a.contact-block__value:active {
   flex-shrink: 0;
   font-family: var(--font-mono);
   color: var(--muted);
+}
+
+/*
+ * ------------------------------------------------ titles and labels in normal letters (visual audit VA-44, owner's choice 2026-10-02)
+ *
+ * Long runs of capitals read slowly (the audit counted runs of 31 to 74 characters). The owner chose
+ * normal letters for the guide titles listed at the foot of each guide and for the bracket labels
+ * above every page's headline; the words are the same, typed in normal case in the source. Short
+ * labels elsewhere (chips that name a family, buttons, section numbers) keep their capitals.
+ */
+.filter-bar--titles .filter-chip {
+  text-transform: none;
+  letter-spacing: inherit;
+}
+
+.site-hero .label {
+  text-transform: none;
+  letter-spacing: inherit;
 }

@@ -32,7 +32,7 @@ export default function GuidesPage() {
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">[ BUYER GUIDES ]</p>
+          <p className="label">[ Buyer guides ]</p>
           <h1 className="display display--hero">
             {GUIDES_INDEX.heading}{' '}
             <span className="serif-accent">{GUIDES_INDEX.headingAccent}</span>

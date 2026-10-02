@@ -303,6 +303,14 @@ device stops reading as an accent and starts reading as a second typeface.
 | `.label` | 10px | 0.12em | Tag chips, 4/8px padding, 6px radius |
 | `.section-number` | 10px | 0.14em | Section numbering, `--muted` |
 
+**Long runs of capitals are set in normal letters since 2026-10-02 (visual audit VA-44, the owner's
+choice).** Capitals read slowly past a few words, and the audit counted runs of 31 to 74 characters.
+So the bracket label above every page's headline, photo captions, the figures' descriptions, the
+guide titles listed at the foot of each guide, the legal pages' subheads and the footer's address
+are in normal letters, with the same words, typed in normal case in the source. Short labels keep
+their capitals: chips that name a family, buttons, section numbers, the footer's other lines and the
+garment pages' field labels. `e2e/composition.spec.ts` holds both halves (CR-06 and VA-44).
+
 **A label on the website's heroes never leaves its last words alone (VA-43, 2026-10-02).**
 `.site-hero .label` carries `text-wrap: balance` (in `site.css`, not on the shared `.label`, so the
 garment pages' colour-name labels are untouched), so the teamwear page's label no longer wraps to

@@ -96,7 +96,7 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                     WhatsApp {formatPhoneForDisplay(settings.whatsappNumber)}
                   </a>
                 </li>
-                <li>{formatAddress()}</li>
+                <li className="footer-block__address">{formatAddress()}</li>
                 {f.worksCoordinates ? (
                   <li className="footer-block__sub">{f.worksCoordinates}</li>
                 ) : null}

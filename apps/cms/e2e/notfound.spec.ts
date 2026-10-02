@@ -191,7 +191,9 @@ test.describe('the 404 shadows nothing', () => {
        */
       const body = await response.text()
       const rendered = body.replace(/<script[\s\S]*?<\/script>/g, '')
-      expect(rendered).not.toContain('404 · PAGE NOT FOUND')
+      // Any letter case: the label is in normal letters since 2026-10-02 (visual audit VA-44), and
+      // a check on the old capitals would pass for ever while checking nothing.
+      expect(rendered).not.toMatch(/404 · page not found/i)
     })
   }
 })

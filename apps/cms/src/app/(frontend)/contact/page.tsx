@@ -116,7 +116,7 @@ export default async function ContactPage({
         </picture>
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">[ CONTACT ]</p>
+          <p className="label">[ Contact ]</p>
           <h1 className="display display--hero">Let&rsquo;s talk production.</h1>
           {/*
            * ⚠️ THE WORDING IS MEASURED, NOT JUST WRITTEN (2026-09-26). "Reach us directly — email
