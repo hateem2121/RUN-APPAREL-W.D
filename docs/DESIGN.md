@@ -547,6 +547,19 @@ accessibility tree, `siteFooterAriaSnapshot`. The garment pages get the footer's
 their API answer (`siteSettings.footer`), from the same projection the website uses. WCAG 2.2
 SC 3.2.6 Consistent Help asks for contact details in the same place on every page of a site.
 
+### Paper
+
+A printed page is light whatever theme it was printed from (visual audit VA-04, 2026-10-02:
+printed from dark mode, the headline measured 1.27:1 and body text 1.20:1 on white, because a
+browser drops background colours on paper and printing changes neither the system setting nor
+a saved choice). `packages/ui/src/tokens.css` narrows `color-scheme` to light in print, so every
+`light-dark()` token takes its light half; `notch.css` prints the bar's words in ink with no
+pill and no status strip; `base.css` hides the cookie card and switches transitions off on
+paper, because even the 0.01ms reduced-motion transition held the dark colour for a frame.
+The footer's own paper palette sits at the end of `footer.css` (FA-M-52). Both hosts'
+`e2e/print.spec.ts` print from dark mode, set by the system and by the switch, and measure every
+word against white.
+
 ### Elevation
 
 `--shadow-raised` — one token, because this system has exactly one elevated

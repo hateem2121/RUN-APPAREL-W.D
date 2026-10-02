@@ -376,3 +376,21 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 }
+
+/*
+ * ⚠️ PAPER HAS NO DARK THEME (visual audit VA-04, 2026-10-02). Printed from dark mode, every
+ * website page came out as light text on white paper — headline 1.27:1, body 1.20:1, measured
+ * against white — because a browser drops background colours on paper but keeps the dark
+ * theme's text colours: printing changes neither `prefers-color-scheme` nor a saved choice.
+ * One declaration answers every token: `color-scheme: light` resolves each `light-dark()` to its
+ * light half, natively, and through lightningcss's fallback, which compiles a `color-scheme`
+ * declaration into its `--lightningcss-light` / `--lightningcss-dark` switches rather than into
+ * a media query (lightningcss.dev, "Transpilation", read 2026-10-02). `:root[data-theme]`
+ * matches the theme switch's own specificity, and this block comes after it.
+ */
+@media print {
+  :root,
+  :root[data-theme] {
+    color-scheme: light;
+  }
+}

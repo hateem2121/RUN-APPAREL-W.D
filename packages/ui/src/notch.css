@@ -930,3 +930,25 @@
     border: 1px solid CanvasText;
   }
 }
+
+/*
+ * ⚠️ THE BAR ON PAPER (visual audit VA-04, 2026-10-02). Its words are paper-coloured on an ink
+ * pill, and a browser drops the pill when printing, so the bar printed white on white (1.15:1).
+ * On paper the pill goes and the words are ink; the status strip above it, a band of the bar's
+ * colour, has nothing to do there. With "background graphics" switched on the pill would print
+ * again, so it is made transparent rather than trusted to vanish.
+ */
+@media print {
+  .notch-shell {
+    --notch-bg: transparent;
+  }
+
+  .notch {
+    --notch-text: var(--ink);
+    --notch-muted: var(--ink);
+  }
+
+  .notch-strip {
+    display: none;
+  }
+}

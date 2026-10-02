@@ -1438,6 +1438,10 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         'tokens.css :root: light dark',
         'tokens.css :root[data-theme="light"]: light',
         'tokens.css :root[data-theme="dark"]: dark',
+        // Paper (visual audit VA-04, 2026-10-02): `@media print { :root, :root[data-theme] }` narrows
+        // every page to light when printed, from either theme. The scanner names the line nearest
+        // the brace.
+        'tokens.css :root[data-theme]: light',
         // The site's photo hero and its photo lightbox (owner, 2026-09-29) share one rule
         // (`.site-hero--photo, .lightbox`): text on a photograph's ink in BOTH themes. The
         // scanner names the selector line nearest the brace, which is `.lightbox`.

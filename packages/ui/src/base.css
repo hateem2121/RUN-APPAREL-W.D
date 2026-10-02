@@ -737,3 +737,22 @@ html.lenis body {
     grid-auto-columns: 1fr;
   }
 }
+
+/* Paper, two rules (visual audit VA-04, 2026-10-02).
+   The cookie question is a screen device: on paper it would print over the page's foot on every
+   sheet. The choice itself is untouched.
+   And nothing transitions: printing switches the page to its light colours (tokens.css), and a
+   colour transition, even the 0.01ms one the reduced-motion rule above gives every element,
+   holds the dark value until the next frame — measured in Chromium: the token already ink, the
+   headline still volt at 1.27:1 on white. Paper has no next frame to wait for. */
+@media print {
+  .consent {
+    display: none;
+  }
+
+  *,
+  ::before,
+  ::after {
+    transition: none !important;
+  }
+}
