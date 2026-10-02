@@ -29,7 +29,7 @@
 - [ ] `pnpm seed:assets && pnpm build` ← the one that catches dependency breaks
 - [ ] `node scripts/check-bundle-budget.mjs`
 - [ ] `pnpm eval:artwork`
-- [ ] `cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit`
+- [ ] `cd apps/shrink/container && npm ci --no-audit --no-fund && npx tsc --noEmit`
       ← not a workspace member; `pnpm -r` skips it
 
 ## ⚠️ Risk checklist

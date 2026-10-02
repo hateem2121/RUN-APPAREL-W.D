@@ -1,5 +1,7 @@
 /** Types for `process-local-lib.mjs`, so `apps/cms/src/processLocal.test.ts` is typed. */
 
+export function defaultScratchRoot(env: Record<string, string | undefined>, home: string): string
+
 export function pipelineOutputReason(gltf: {
   asset?: { generator?: unknown; copyright?: unknown }
 }): string | null

@@ -40,6 +40,12 @@ describe('missingFacts', () => {
     expect(footerText('<li>MOQ <!-- -->50</li>')).toContain('MOQ 50')
   })
 
+  it('decodes each entity once — text that SHOWS an entity keeps it', () => {
+    // GitHub's code scan (CodeQL js/double-escaping, 2026-10-01): `&amp;` was decoded
+    // first, so a footer showing a literal `&#39;` was read as an apostrophe.
+    expect(footerText('a &amp;#39; b')).toBe('a &#39; b')
+  })
+
   it('names each fact of a block that disappeared', () => {
     expect(missingFacts(page(footer({ capacity: false })))).toEqual([
       `text "MOQ ${cap.moq}"`,

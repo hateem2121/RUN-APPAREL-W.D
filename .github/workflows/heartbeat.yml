@@ -46,6 +46,11 @@ on:
 permissions:
   contents: read
 
+# No job here uses the Actions cache, so it may neither read nor write one. Scheduled and
+# manual runs would otherwise be allowed to WRITE it (GitHub `cache-mode`, 2026-10-01: least
+# privilege against cache poisoning).
+cache-mode: none
+
 jobs:
   check:
     # Same gate as the workflows it watches. Before go-live they are all skipped on
@@ -146,6 +151,9 @@ jobs:
           # exits 1 when the main ruleset and ci.yml's deploy.needs disagree, and 2 when
           # it cannot compare them, so failing is its job; heartbeat owns only whether
           # its daily schedule still runs at all.
+          # security-scans.yml (added 2026-10-01) is watched for COMPLETION too: a failed
+          # Scorecard publish or Trivy download is a finding to read in that run, never
+          # "the scan stopped running".
           WATCHED="
           uptime.yml:24:completed:every 6 hours, at :23
           nightly-backup.yml:36:success:nightly
@@ -155,6 +163,7 @@ jobs:
           r2-budget.yml:192:completed:weekly on Mondays
           link-crawl.yml:192:completed:weekly on Mondays
           required-checks.yml:36:completed:daily at 04:29 UTC, and after each ci.yml change on main
+          security-scans.yml:192:completed:weekly on Wednesdays, and after each merge to main
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped

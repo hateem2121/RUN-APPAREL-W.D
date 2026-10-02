@@ -58,10 +58,11 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
+  defaultScratchRoot,
   modelKeyFor,
   PIPELINE_PACKAGES,
   pickSingle,
@@ -77,9 +78,8 @@ const PIPELINE = join(REPO, 'tools', 'asset-pipeline')
 const OWNER_FOLDER =
   process.env.GARMENT_SOURCE_DIR ?? '/Users/hateemjamshaid/Documents/3D Catalouge Products'
 const CMS = process.env.CMS_ORIGIN ?? 'https://cms.wear-run.help'
-const SCRATCH_ROOT = resolve(
-  process.env.PROCESS_LOCAL_SCRATCH ?? join(tmpdir(), 'run-apparel-process-local'),
-)
+// The user's own cache, not the shared temp folder — defaultScratchRoot says why.
+const SCRATCH_ROOT = resolve(defaultScratchRoot(process.env, homedir()))
 const CMS_TIMEOUT_MS = 120_000
 
 // ── Arguments ─────────────────────────────────────────────────────────────────

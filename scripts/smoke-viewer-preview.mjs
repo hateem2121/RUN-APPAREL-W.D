@@ -35,6 +35,7 @@ import https from 'node:https'
 import zlib from 'node:zlib'
 import { canonicalHrefs } from './canonical-tags.mjs'
 import { DEFAULT_PRODUCT, LIVE_PRODUCTS, squashCode } from './live-products.mjs'
+import { stripUntilStable } from './strip-until-stable.mjs'
 
 /**
  * Mirrors `apps/viewer/worker/crawlerCacheHeaders.ts`'s two predicates of the same name.
@@ -269,7 +270,8 @@ async function runChecks() {
   //     renamed in index.html) is a silent no-op, not an error. Counted with comments
   //     removed, as a crawler parses it. Exactly one: two would mean it landed outside
   //     `#root`, where the app never replaces it.
-  const bare = html.replace(/<!--[\s\S]*?-->/g, '')
+  // Until none is left: one pass can leave a comment behind (strip-until-stable.mjs).
+  const bare = stripUntilStable(html, /<!--[\s\S]*?-->/g, '')
   const headings = bare.match(/<h1[\s>]/gi)?.length ?? 0
   if (headings !== 1) {
     fail(`the page a crawler receives has ${headings} <h1> elements, expected exactly 1.`)

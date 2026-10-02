@@ -12,3 +12,14 @@
 self-hosted-runner:
   labels:
     - ubuntu-26.04
+
+# WHY ONE ERROR IS IGNORED (2026-10-01). `cache-mode` (generally available on GitHub
+# since 2026-09-10) limits what a workflow may do with the Actions cache, against cache
+# poisoning. actionlint 1.7.12 predates it and reports `unexpected key "cache-mode"`.
+# The pattern matches that one key, in the workflow and job sections only, so any other
+# unknown key — a typo, `cache-mod` — still fails `verify` (checked by a planted typo).
+# zizmor 1.30.1 accepts the key. Delete this once an actionlint release knows it.
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      - 'unexpected key "cache-mode" for "(workflow|job)" section'

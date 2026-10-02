@@ -44,8 +44,6 @@ export interface PlaceholderColourway {
   ink: string
 }
 
-export const PLACEHOLDER_PRODUCT_CODE = 'N001'
-
 /**
  * FIVE colourways, with production's slugs — changed 2026-08-31, and the count is
  * the point.

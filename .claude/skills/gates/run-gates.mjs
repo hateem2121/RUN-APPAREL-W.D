@@ -62,7 +62,8 @@ const GATES = [
   {
     name: 'container-install',
     why: 'NOT a pnpm member — pnpm -r skips it, and npm ci is where a desynced second lockfile bites',
-    argv: ['npm', 'install', '--no-audit', '--no-fund'],
+    // `ci`, as CI and the Dockerfile do: exactly the lockfile, never a fresh resolve.
+    argv: ['npm', 'ci', '--no-audit', '--no-fund'],
     cwd: 'apps/shrink/container',
   },
   {

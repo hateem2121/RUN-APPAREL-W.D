@@ -53,9 +53,10 @@ test.describe('FA-N-04 — every page names itself', () => {
       // L-06 / FI-01: what a search result shows. Entities are decoded first so an `&amp;`
       // is measured as the one character a reader sees.
       const shown = description
-        .replace(/&amp;/g, '&')
         .replace(/&#x27;|&#39;/g, "'")
         .replace(/&quot;/g, '"')
+        // LAST, so each entity is decoded once (GitHub code scan, js/double-escaping).
+        .replace(/&amp;/g, '&')
       expect(
         shown.length,
         `${page.path} description is cut off in search results`,

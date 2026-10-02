@@ -1,0 +1,68 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // REPORT ONLY (2026-10-01, owner-approved plan): Knip lists unused files, exports and
+  // packages in ci.yml's `verify` log and never fails it. Make it blocking only by owner
+  // decision, after it has been quiet for a while.
+  //
+  // Every entry below is a file something OTHER than an import runs, which Knip cannot
+  // see on its own: a person or a CI step runs `node scripts/x.mjs`, Claude Code runs the
+  // hooks and skills, Playwright's config starts the e2e servers, and the shrink
+  // container starts `container/server.ts`.
+  //
+  // An export used inside its own file is not dead code — only its `export` word is
+  // unneeded. Counted 2026-10-01: 63 of 67 "unused exports" and 32 of 33 types were that.
+  // Ignoring them leaves the report short enough that a new finding is noticed.
+  "ignoreExportsUsedInFile": true,
+  // Programs installed on the machine, not npm packages: Ghostscript renders the PDF
+  // pages (document-pages.mjs); the two drivers run the phone browser tests.
+  "ignoreBinaries": ["gs", "chromedriver", "safaridriver"],
+  "ignoreIssues": {
+    // Documents the PDF page-part ID format beside the code that builds and parses it.
+    // Every merge redeploys this Worker first, so it is not touched for a tidy-up.
+    "infra/apex-404/manifest.js": ["exports"]
+  },
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", ".claude/hooks/*.mjs", ".claude/skills/*/*.mjs"],
+      // Type declarations for the .mjs scripts, read by TypeScript, not imported.
+      "ignore": ["scripts/*.d.mts"],
+      // Deliberately NOT root dependencies (checked 2026-10-01: none resolves from the root).
+      // sharp is loaded from tools/asset-pipeline through createRequire (it is native and
+      // must not spread); capture-doc-screenshots.mjs loads Playwright from the app folder it
+      // is run in; vitest.coverage.mjs names vitest/node only in a JSDoc type.
+      "ignoreDependencies": ["sharp", "@playwright/test", "vitest"]
+    },
+    "apps/cms": {
+      "entry": [
+        "e2e/*.mjs",
+        "e2e/fixtures/*.entry.tsx",
+        "open-next.config.ts",
+        "scripts/*.mjs",
+        "src/seed/*.ts"
+      ],
+      // A byte-for-byte mirror of apps/viewer/src/lib/camera-near-plane.ts, kept equal by
+      // src/lib/render/viewerParity.test.ts, so it carries the viewer's exports too.
+      "ignore": ["src/lib/render/camera-near-plane.ts"],
+      // `server-only` is Next.js's own (next/dist/compiled/server-only). sharp is loaded by
+      // the hand-run gen-icons.mjs from tools/asset-pipeline, deliberately not listed here.
+      "ignoreDependencies": ["server-only", "sharp"]
+    },
+    "apps/viewer": {
+      "entry": ["scripts/*.mjs"],
+      "ignore": ["scripts/*.d.mts"],
+      // wrangler runs from the root (`pnpm --filter @run-apparel/viewer exec wrangler`, in
+      // package.json and ci.yml). sharp is loaded by the hand-run gen-favicon.mjs from
+      // tools/asset-pipeline and "must not become" a viewer dependency (that script says why).
+      "ignoreDependencies": ["wrangler", "sharp"]
+    },
+    "apps/shrink": {
+      // The container is plain Node outside the pnpm workspace, with its own
+      // package.json; its server is the entry and aws4fetch is installed there.
+      "entry": ["container/server.ts"],
+      "ignoreDependencies": ["aws4fetch"]
+    },
+    "tools/asset-pipeline": {
+      "entry": ["scripts/*.mjs"]
+    }
+  }
+}

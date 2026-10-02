@@ -179,6 +179,31 @@ describe('buildEvent', () => {
     expect(at(values, 0, 'exception value')).not.toHaveProperty('stacktrace')
   })
 
+  /**
+   * Sentry CMS-3 and CMS-4 (2026-09-27/29) read only "Failed query: select …": Drizzle
+   * wraps D1's own error as `cause`, and only the wrapper was sent, so the reason the
+   * database refused was lost. Sentry's spec: chained exceptions go in `values`, "sorted
+   * oldest to newest" — the root cause first, the error the code caught last.
+   */
+  it('sends the cause chain, root cause first, so the real database error is visible', () => {
+    const d1 = new Error('D1_ERROR: Network connection lost.')
+    const error = new Error('Failed query: select "id" from "site_settings"', { cause: d1 })
+    const event = buildEvent({ error })
+    const values = (event.exception as { values: Record<string, unknown>[] }).values
+    expect(values.map((v) => v.value)).toEqual([
+      'D1_ERROR: Network connection lost.',
+      'Failed query: select "id" from "site_settings"',
+    ])
+  })
+
+  it('stops following a cause chain that loops back on itself', () => {
+    const a = new Error('a')
+    const b = new Error('b', { cause: a })
+    ;(a as { cause?: unknown }).cause = b
+    const values = (buildEvent({ error: b }).exception as { values: unknown[] }).values
+    expect(values.length).toBeLessThanOrEqual(5)
+  })
+
   it('handles a thrown non-Error without losing it', () => {
     const event = buildEvent({ error: 'a string was thrown', id: 'b'.repeat(32) })
     const values = (event.exception as { values: Record<string, unknown>[] }).values

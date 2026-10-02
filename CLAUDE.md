@@ -75,7 +75,7 @@ pnpm --filter @run-apparel/viewer test:e2e   # its own CI job; gates the deploy 
 
 "It passed locally" has failed here because three gates are invisible from the
 workspace: `apps/shrink/container` is not a pnpm member (CI runs
-`npm install --no-audit --no-fund && npx tsc --noEmit` inside it), `eval:artwork` runs
+`npm ci --no-audit --no-fund && npx tsc --noEmit` inside it), `eval:artwork` runs
 in its own job, and `check-bundle-budget` exits 1 without a build.
 `node .claude/skills/gates/run-gates.mjs` runs all of them in order and stops at the
 first failure.
@@ -105,6 +105,8 @@ first failure.
 - **Lint blocks** node builtins in Worker code (`packages/shared/src`, `apps/shrink/src`,
   `apps/viewer/src`, `apps/viewer/worker`) and imports between apps (`biome.jsonc` →
   `noRestrictedImports`). Test files are exempt; `apps/shrink/container/` is plain Node.
+- 🟡 **CodeQL (Extended) blocks a merge on new alerts.** Strip markup with `scripts/strip-until-stable.mjs`
+  and escape text for a RegExp with `apps/cms/regexEscape.mjs`; a one-pass `replace` or a home-made escape raises one.
 - **Look for the decision before re-deciding.** Settled calls live in `docs/DECISION-*.md`,
   `docs/DECISIONS-BETA-WEBSITE.md` and `.agents/skills/`. On 2026-08-15 a session
   re-researched Tailwind while `.agents/skills/pick-ui-library/SKILL.md` had already

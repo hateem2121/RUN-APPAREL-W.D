@@ -24,6 +24,14 @@ describe('hasBeaconTag', () => {
     expect(hasBeaconTag(html)).toBe(true)
   })
 
+  it('matches the beacon address literally — a dot is not "any character"', () => {
+    // GitHub's code scan (CodeQL js/incomplete-hostname-regexp, 2026-10-01): the address
+    // went into the pattern with its dots unescaped, so a look-alike host matched.
+    expect(
+      hasBeaconTag('<script src="https://staticXcloudflareinsights.com/beacon.min.js"></script>'),
+    ).toBe(false)
+  })
+
   it('is false when no beacon script is present', () => {
     expect(hasBeaconTag('<script src="/assets/index.js"></script>')).toBe(false)
   })

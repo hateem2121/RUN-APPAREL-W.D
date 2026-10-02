@@ -23,6 +23,11 @@ on:
 permissions:
   contents: read
 
+# No job here uses the Actions cache, so it may neither read nor write one. Scheduled and
+# manual runs would otherwise be allowed to WRITE it (GitHub `cache-mode`, 2026-10-01: least
+# privilege against cache poisoning).
+cache-mode: none
+
 jobs:
   crawl:
     # Same gate as the rest of this repo's scheduled network checks — nothing runs

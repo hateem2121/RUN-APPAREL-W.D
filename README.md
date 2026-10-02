@@ -1,6 +1,7 @@
 # RUN APPAREL — see every garment in 3D
 
 [![CI status](https://github.com/hateem2121/RUN-APPAREL-W.D/actions/workflows/ci.yml/badge.svg)](https://github.com/hateem2121/RUN-APPAREL-W.D/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hateem2121/RUN-APPAREL-W.D/badge)](https://scorecard.dev/viewer/?uri=github.com/hateem2121/RUN-APPAREL-W.D)
 [![Website: wear-run.help](https://img.shields.io/website?url=https%3A%2F%2Fwear-run.help&label=wear-run.help)](https://wear-run.help)
 [![Licence: proprietary](https://img.shields.io/badge/licence-proprietary-1d1f1a)](LICENSE)
 

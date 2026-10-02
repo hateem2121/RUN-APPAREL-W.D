@@ -16,6 +16,11 @@ on:
 permissions:
   contents: read
 
+# No job here uses the Actions cache, so it may neither read nor write one. Scheduled and
+# manual runs would otherwise be allowed to WRITE it (GitHub `cache-mode`, 2026-10-01: least
+# privilege against cache poisoning).
+cache-mode: none
+
 # A backup run overlapping the next one would have two exports writing the same
 # stamped paths. Queue instead of cancel: a half-finished backup is worse than a
 # late one.

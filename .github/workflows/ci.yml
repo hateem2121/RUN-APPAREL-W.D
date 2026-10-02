@@ -38,8 +38,14 @@ concurrency:
 permissions:
   contents: read
 
+# Only the four jobs that restore AND save the pnpm store (verify, e2e, audit, lighthouse)
+# get `cache-mode: write`, set on each job; every other job uses no cache and gets none
+# (GitHub `cache-mode`, 2026-10-01: least privilege against cache poisoning).
+cache-mode: none
+
 jobs:
   verify:
+    cache-mode: write
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
@@ -103,6 +109,14 @@ jobs:
       # when adding a Media relationship. Following that instruction would have
       # left the orphan finder blind to the new field — and it can delete files.
       - run: pnpm lint
+
+      # REPORT ONLY (2026-10-01, owner-approved plan): Knip lists unused files, exports
+      # and packages. `--no-exit-code` keeps it from ever failing `verify`; read its list
+      # in this step's log. knip.jsonc names the files tools run directly (scripts, hooks,
+      # e2e servers), which took the first run from 87 "unused files" to 0. Make it
+      # blocking only by owner decision, once it has stayed quiet.
+      - name: Unused code report (Knip, does not block)
+        run: pnpm exec knip --no-exit-code
 
       # ⚠️ A REAL YAML PARSER, BECAUSE THE HAND-WRITTEN RULE CATCHES ONE SHAPE IN FOUR.
       #
@@ -196,9 +210,14 @@ jobs:
       # when a change to server.ts compiled only because someone thought to run
       # tsc there by hand. Its deps are tiny and it shares the pipeline source it
       # imports, so this costs seconds.
+      #
+      # `npm ci`, not `npm install` (2026-10-01): it installs exactly what
+      # package-lock.json says — the versions the Dockerfile's own `npm ci` ships — and
+      # fails if the lockfile is out of sync instead of quietly resolving afresh.
+      # OpenSSF Scorecard flagged the unpinned install (Pinned-Dependencies).
       - name: Typecheck shrink container
         working-directory: apps/shrink/container
-        run: npm install --no-audit --no-fund && npx tsc --noEmit
+        run: npm ci --no-audit --no-fund && npx tsc --noEmit
 
       # `test:coverage` rather than `test`: it runs the identical suites once, with
       # v8 coverage on, and each package's vitest.config.ts fails its own run on a
@@ -474,6 +493,7 @@ jobs:
   # by the local test servers, their mock data and a per-run throwaway database. The
   # seeded admin's password is the dev default already printed in apps/cms/src/seed/seed.ts.
   e2e:
+    cache-mode: write
     needs: [e2e-shard]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
@@ -548,6 +568,7 @@ jobs:
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
   # explicitly allowlisted (with justification) in audit-ci.jsonc.
   audit:
+    cache-mode: write
     # `pull-requests: read` is what dependency-review needs to diff a PR's manifests.
     # Restating `contents: read` is not optional — a job-level block REPLACES the
     # workflow default, and omitting it 404s `actions/checkout` on this private repo.
@@ -827,6 +848,7 @@ jobs:
   # (which DOES carry the DSN) is weighed by nothing. Do not read a green run as a
   # statement about the live page's script weight.
   lighthouse:
+    cache-mode: write
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:

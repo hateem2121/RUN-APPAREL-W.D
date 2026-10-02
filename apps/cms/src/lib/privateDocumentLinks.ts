@@ -23,11 +23,20 @@ export const PRIVATE_DOCUMENT_HOSTS = [
 export const PRIVATE_LINK_MESSAGE =
   'This field is public — the product API shows it to anyone. Do not paste the private catalogue or profile link here.'
 
+/** A run of characters that can make up a host name. */
+const HOST_CHARACTER_RUN = /[a-z0-9.-]+/g
+
 /**
- * Matches a private host anywhere in the text, as a WHOLE hostname: not preceded by a
- * hostname character, optionally followed by one trailing dot, and then not followed by
- * a hostname character. Built from PRIVATE_DOCUMENT_HOSTS with the dots escaped, so the
- * two can never say different hosts (a test pins that below).
+ * The private host named anywhere in the text, as a WHOLE hostname, or null: a maximal
+ * run of hostname characters equal to a private host, with one trailing dot allowed. So
+ * `xcatalogue.…` and `catalogue.wear-run.help.example.com` do not count.
+ *
+ * WHY EXACT COMPARISON, NOT A PATTERN (2026-10-01). This was a RegExp built from
+ * PRIVATE_DOCUMENT_HOSTS (`(?<![a-z0-9.-])HOST\.?(?![a-z0-9.-])`). GitHub's code scan
+ * flags host names flowing into a RegExp (js/incomplete-hostname-regexp,
+ * js/regex/missing-regexp-anchor): one unescaped character there quietly matches other
+ * hosts. Comparing whole runs with `includes` means the host list is never a pattern at
+ * all, and it says exactly what the pattern did.
  *
  * WHY A TEXT SCAN, NOT ONLY `new URL(text).hostname` (2026-09-15). Parsing the whole
  * trimmed value as ONE url missed a private link that was not the entire field: `Catalogue:
@@ -38,9 +47,13 @@ export const PRIVATE_LINK_MESSAGE =
  * `https://` parses as a URL whose SCHEME is `catalogue.wear-run.help` (dots and
  * hyphens are legal scheme characters) and so has no hostname at all. All four saved.
  */
-const PRIVATE_HOST_PATTERN = new RegExp(
-  `(?<![a-z0-9.-])(?:${PRIVATE_DOCUMENT_HOSTS.map((host) => host.replace(/\./g, '\\.')).join('|')})\\.?(?![a-z0-9.-])`,
-)
+export function privateHostInText(text: string): string | null {
+  for (const run of text.match(HOST_CHARACTER_RUN) ?? []) {
+    const host = run.endsWith('.') ? run.slice(0, -1) : run
+    if ((PRIVATE_DOCUMENT_HOSTS as readonly string[]).includes(host)) return host
+  }
+  return null
+}
 
 /**
  * Percent-decode once — some mail scanners (Outlook Safe Links) wrap a link as
@@ -104,7 +117,7 @@ export function privateDocumentLinkError(value: unknown): string | null {
   const text = value.trim().toLowerCase()
   if (text === '') return null
   return decodedVariants(text).some(
-    (variant) => PRIVATE_HOST_PATTERN.test(variant) || hostFromUrlTokens(variant) !== null,
+    (variant) => privateHostInText(variant) !== null || hostFromUrlTokens(variant) !== null,
   )
     ? PRIVATE_LINK_MESSAGE
     : null

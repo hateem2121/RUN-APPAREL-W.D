@@ -42,6 +42,14 @@ describe('the theme boot script (XS-05)', () => {
     expect(() => run(new Error('SecurityError'))).not.toThrow()
   })
 
+  it('embeds the key as a plain literal, which is only safe while the key is a plain word', () => {
+    // GitHub's code scan (CodeQL js/bad-code-sanitization, 2026-10-01) flags JSON.stringify
+    // as an escape for text pasted into script code. A fixed key of letters and hyphens
+    // needs no escaping at all — so the key's shape is the thing to pin, not an escaper.
+    expect(THEME_STORAGE_KEY).toMatch(/^[a-z-]+$/)
+    expect(THEME_BOOT_SCRIPT).toContain(`localStorage.getItem('${THEME_STORAGE_KEY}')`)
+  })
+
   it('never writes, and cannot end its own <script> element', () => {
     // A plain visit must leave nothing on the device (e2e/headers.spec.ts): reading only.
     expect(THEME_BOOT_SCRIPT).not.toMatch(/setItem|removeItem|cookie/)

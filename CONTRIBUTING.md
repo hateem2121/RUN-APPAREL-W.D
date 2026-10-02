@@ -95,7 +95,7 @@ node scripts/check-bundle-budget.mjs               # deterministic shell-weight 
 npx --yes pnpm@12.6.0 eval:artwork                # separate CI job — gates the deploy
 
 # NOT a workspace member — pnpm -r skips it entirely, CI runs it separately:
-cd apps/shrink/container && npm install --no-audit --no-fund && npx tsc --noEmit
+cd apps/shrink/container && npm ci --no-audit --no-fund && npx tsc --noEmit
 ```
 
 ⚠️ **`pnpm test` IS NOT THE GATE, AND THIS SAID IT WAS UNTIL 2026-08-30.** Vitest

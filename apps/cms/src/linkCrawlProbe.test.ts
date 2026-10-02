@@ -50,6 +50,13 @@ describe('extractLinks — pure, no network', () => {
     expect(links).toEqual([])
   })
 
+  it('ignores vbscript: too, and a script scheme in any letter case', () => {
+    // GitHub's code scan (CodeQL js/incomplete-url-scheme-check, 2026-10-01): the check
+    // knew javascript: and data: but not vbscript:, and compared case-sensitively.
+    const html = `<a href="vbscript:msgbox(1)">x</a><a href="JavaScript:void(0)">y</a><img src="DATA:image/png;base64,AAAA">`
+    expect(extractLinks(html, 'https://wear-run.help/')).toEqual([])
+  })
+
   it('de-duplicates', () => {
     const html = `<a href="/a">1</a><a href="/a">2</a>`
     const links = extractLinks(html, 'https://wear-run.help/')

@@ -50,9 +50,14 @@ WORKDIR /app
 # node_modules makes npm write symlink paths that do not exist in this image):
 #   cd $(mktemp -d) && cp <repo>/tools/asset-pipeline/package.json . \
 #     && npm install --package-lock-only
-COPY tools/asset-pipeline/package.json tools/asset-pipeline/package-lock.json tools/asset-pipeline/
-RUN cd tools/asset-pipeline && npm ci --omit=dev --no-audit --no-fund
-COPY tools/asset-pipeline tools/asset-pipeline
+#
+# WORKDIR, not `RUN cd …` (Trivy DS-0013, 2026-10-01). A COPY destination is relative to
+# WORKDIR, so `./` lands in the same /app/tools/asset-pipeline the old paths named —
+# compared on a before/after build of this image.
+WORKDIR /app/tools/asset-pipeline
+COPY tools/asset-pipeline/package.json tools/asset-pipeline/package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY tools/asset-pipeline ./
 
 # --- Container service --------------------------------------------------------
 # Installs its own deps (aws4fetch) plus tsx, used to run the TypeScript server
@@ -72,11 +77,11 @@ COPY tools/asset-pipeline tools/asset-pipeline
 # `tsx` and `typescript` are devDependencies AND the runtime — `server.ts` is executed
 # as TypeScript. Adding `--omit=dev` to "match" the line above produces an image that
 # builds cleanly and cannot start.
-COPY apps/shrink/container/package.json apps/shrink/container/package-lock.json apps/shrink/container/
-RUN cd apps/shrink/container && npm ci --no-audit --no-fund
-COPY apps/shrink/container apps/shrink/container
-
 WORKDIR /app/apps/shrink/container
+COPY apps/shrink/container/package.json apps/shrink/container/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY apps/shrink/container ./
+
 EXPOSE 8080
 
 # --- Drop root ----------------------------------------------------------------
