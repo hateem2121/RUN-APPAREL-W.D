@@ -96,10 +96,10 @@ const nextConfig = {
    */
   agentRules: false,
   /*
-   * Crawlers that must receive a finished `<head>` instead of streamed metadata.
-   * htmlLimitedBots.mjs carries the measurement and the warning that this value REPLACES
-   * Next's default rather than extending it; src/htmlLimitedBots.test.ts fails if the
-   * embedded copy of that default ever stops matching the installed Next.
+   * Every visitor receives a finished `<head>` instead of streamed metadata (owner's choice,
+   * 2026-10-02, visual audit VA-15): Lighthouse 13 no longer names itself, so it was served
+   * the streamed head and sometimes found no description. htmlLimitedBots.mjs carries the
+   * measurements, and the earlier list of crawlers that needed one.
    */
   htmlLimitedBots: HTML_LIMITED_BOTS,
   transpilePackages: ['@run-apparel/shared'],

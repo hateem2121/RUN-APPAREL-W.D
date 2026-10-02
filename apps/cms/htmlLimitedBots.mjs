@@ -1,6 +1,17 @@
 /**
  * Which crawlers must be given a COMPLETE `<head>` rather than a streamed one.
  *
+ * ⚠️ SINCE 2026-10-02 THE ANSWER IS EVERYONE (owner's choice, visual audit VA-15): next.config.mjs
+ * now receives `.*`, Next's documented switch that turns streamed metadata off for every visitor.
+ * Lighthouse 13 no longer names itself in its user agent (13.5.0's phone and desktop strings are
+ * plain Chrome, `core/config/constants.js`), so the `Chrome-Lighthouse` entry below no longer
+ * catches it; it was served streamed metadata, and its description check reads `head meta` only,
+ * so a run that looked before the browser moved the tags into the head reported "no meta
+ * description" (1 of 5 runs, on /products and on a guide, 2026-10-01). Measured live the same
+ * day, a complete head costs nothing a visitor can feel: 143ms median to the first byte for an
+ * agent that already got one, 154ms for a browser. The lists below stay: robots.txt reads them,
+ * and they record who could not do without a complete head even before everyone got one.
+ *
  * Next 15.2+ streams metadata: it flushes the document shell first and emits `<title>`,
  * the canonical link and the Open Graph tags later, in the body, where React moves them
  * into the head on the client. For a browser that is invisible and faster. For a crawler
@@ -159,10 +170,17 @@ export const TRAINING_ONLY_UAS = [
 ]
 
 /**
- * The value for `next.config.mjs` -> `htmlLimitedBots`.
+ * Every agent that needed a complete head before 2026-10-02: Next's default plus the AI crawlers.
+ * It was the value of `next.config.mjs` -> `htmlLimitedBots` until then.
  *
  * A pattern SOURCE, not a RegExp: Next serialises it into the build output and
  * reconstructs it with `new RegExp(pattern, 'i')`, so it is matched case-insensitively
  * and must not carry flags or delimiters of its own.
  */
-export const HTML_LIMITED_BOTS = `${NEXT_DEFAULT_HTML_LIMITED_BOTS}|${AI_CRAWLER_UAS.join('|')}`
+export const CRAWLERS_NEEDING_A_HEAD = `${NEXT_DEFAULT_HTML_LIMITED_BOTS}|${AI_CRAWLER_UAS.join('|')}`
+
+/**
+ * What next.config.mjs passes: every user agent (VA-15, above). Still a pattern SOURCE, for the
+ * reason given for CRAWLERS_NEEDING_A_HEAD.
+ */
+export const HTML_LIMITED_BOTS = '.*'

@@ -59,6 +59,10 @@ const UNFURLERS: Record<string, string> = {
 const BROWSER =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
 const GOOGLEBOT = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+const LIGHTHOUSE_PHONE =
+  'Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36'
+const LIGHTHOUSE_DESKTOP =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 
 const ours = new RegExp(HTML_LIMITED_BOTS, 'i')
 const nextDefault = new RegExp(NEXT_DEFAULT_HTML_LIMITED_BOTS, 'i')
@@ -110,24 +114,35 @@ describe('nothing already covered is lost', () => {
   }
 })
 
-describe('who is deliberately excluded', () => {
+describe('nobody is left out since 2026-10-02 (owner, visual audit VA-15)', () => {
   /*
-   * A pattern that matched a browser would turn streaming metadata off for every human
-   * visitor — the option's failure mode is silent and site-wide, so it is asserted.
+   * These two were "a plain browser keeps streamed metadata" and "Googlebot is excluded, because
+   * it executes JavaScript", the 2026-09-07 decision. The owner chose a complete head for every
+   * visitor on 2026-10-02 once Lighthouse 13 turned out to be served the streamed one, and
+   * approved these two tests changing with it. Measured live, it costs nothing a visitor can feel
+   * (htmlLimitedBots.mjs has the numbers).
    */
-  it('a plain browser keeps streamed metadata', () => {
-    expect(ours.test(BROWSER)).toBe(false)
-    expect(shouldServeStreamingMetadata(BROWSER, HTML_LIMITED_BOTS)).toBe(true)
+  it('a plain browser gets a complete head', () => {
+    expect(ours.test(BROWSER)).toBe(true)
+    expect(shouldServeStreamingMetadata(BROWSER, HTML_LIMITED_BOTS)).toBe(false)
+  })
+
+  it('Googlebot gets one too, although Next’s default leaves it out', () => {
+    expect(nextDefault.test(GOOGLEBOT)).toBe(false)
+    expect(shouldServeStreamingMetadata(GOOGLEBOT, HTML_LIMITED_BOTS)).toBe(false)
   })
 
   /*
-   * Googlebot runs a real browser and moves the tags into the head itself, so Next puts
-   * it on the OTHER list on purpose. Adding it here would cost it a blocking render for
-   * nothing. The assertion records that this is a decision rather than an oversight.
+   * The cause of VA-15. Copied from lighthouse 13.5.0's core/config/constants.js
+   * (MOTOG4_USERAGENT, DESKTOP_USERAGENT): neither names Lighthouse, so Next's default, whose
+   * `Chrome-Lighthouse` entry was written for older versions, streams to both.
    */
-  it('Googlebot is excluded, because it executes JavaScript', () => {
-    expect(nextDefault.test(GOOGLEBOT)).toBe(false)
-    expect(ours.test(GOOGLEBOT)).toBe(false)
+  it('Lighthouse 13 gets one under both of its identities, which never name Lighthouse', () => {
+    for (const ua of [LIGHTHOUSE_PHONE, LIGHTHOUSE_DESKTOP]) {
+      expect(ua).not.toMatch(/lighthouse/i)
+      expect(shouldServeStreamingMetadata(ua, NEXT_DEFAULT_HTML_LIMITED_BOTS), ua).toBe(true)
+      expect(shouldServeStreamingMetadata(ua, HTML_LIMITED_BOTS), ua).toBe(false)
+    }
   })
 })
 
