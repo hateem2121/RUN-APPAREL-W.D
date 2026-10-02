@@ -5,6 +5,7 @@ import {
   THEME_SWITCH_NAMES,
 } from '../../../packages/shared/src/siteBar'
 import { parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
+import { THEME_STORAGE_KEY } from '../src/lib/themeBoot'
 import { PHONE_QUERY, THEME_COLOR } from '../src/lib/themeColor'
 
 const OPEN = `#${SITE_MENU_ID}:popover-open`
@@ -145,4 +146,83 @@ test.describe('XS-05 — the light/dark switch on the site', () => {
       await expect(page.locator('.theme-toggle')).toBeHidden()
     })
   })
+})
+
+/**
+ * VA-38 (visual audit 2026-10-02) said the switch "names the wrong action before the script runs:
+ * the server always writes 'Switch to dark mode'; the script corrects it about a second later".
+ * The server writes BOTH names, one in each face, and `notch.css` shows the face for the page's
+ * theme (`data-theme`, else the system's), so by that reading the name is the page's own from the
+ * first paint. This reads it to see whether the finding holds.
+ *
+ * THE SCRIPTS ARE REFUSED, not waited for: every `.js` request is aborted, so React never
+ * hydrates. The proof that it did not is the tooltip, which only the script writes. The small
+ * inline script that applies a returning visitor's stored choice (`lib/themeBoot.ts`) is not a
+ * request, so it still runs, as it does before the first paint. The four cases are the system's
+ * preference crossed with a stored choice that disagrees with it, which is where a wrong name
+ * could hide. `apps/viewer/src/components/themeSwitchName.test.tsx` holds the `data-theme` half in
+ * a unit test; the system-preference half only a browser can read.
+ *
+ * ⚠️ IF A CASE HERE FAILS the finding is true and the switch needs the neutral label the audit asked
+ * for ("Change colour theme" until the script has run); `siteBarAriaSnapshot` would then need that
+ * name in its theme-switch pattern too, or the bar's snapshot tests would have to wait for hydration.
+ */
+test.describe('VA-38 — before any script has run, the switch is named for the page it is on', () => {
+  const CASES = [
+    {
+      colorScheme: 'light',
+      stored: null,
+      expected: THEME_SWITCH_NAMES.toDark,
+      other: THEME_SWITCH_NAMES.toLight,
+    },
+    {
+      colorScheme: 'dark',
+      stored: null,
+      expected: THEME_SWITCH_NAMES.toLight,
+      other: THEME_SWITCH_NAMES.toDark,
+    },
+    {
+      colorScheme: 'light',
+      stored: 'dark',
+      expected: THEME_SWITCH_NAMES.toLight,
+      other: THEME_SWITCH_NAMES.toDark,
+    },
+    {
+      colorScheme: 'dark',
+      stored: 'light',
+      expected: THEME_SWITCH_NAMES.toDark,
+      other: THEME_SWITCH_NAMES.toLight,
+    },
+  ] as const
+
+  for (const { colorScheme, stored, expected, other } of CASES) {
+    test(`a ${colorScheme} system${stored ? ` with a stored ${stored} choice` : ''} hears "${expected}"`, async ({
+      page,
+    }) => {
+      await page.route(
+        (url) => url.pathname.endsWith('.js'),
+        (route) => route.abort(),
+      )
+      if (stored) {
+        await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), {
+          key: THEME_STORAGE_KEY,
+          value: stored,
+        })
+      }
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
+      await page.setViewportSize({ width: 1280, height: 800 })
+      await page.goto('/')
+      const switchButton = page.locator('.theme-toggle')
+      // The control: the script did not run, or this is not the state before it.
+      await expect(
+        switchButton,
+        'the page hydrated, so this reads the state AFTER the script',
+      ).not.toHaveAttribute('title', /./)
+      await expect(page.getByRole('button', { name: expected, exact: true })).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: other, exact: true }),
+        `the switch also answers to "${other}", the wrong action`,
+      ).toHaveCount(0)
+    })
+  }
 })
