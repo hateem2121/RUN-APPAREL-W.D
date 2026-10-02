@@ -123,3 +123,55 @@ one. Measured from the installed `package.json` files on 2026-09-26.
 
 To re-check either: `npm view payload peerDependencies.graphql` and
 `npm view @google/model-viewer peerDependencies.three`, against the newest versions.
+
+---
+
+## A package we patch: `@google/model-viewer` 4.3.1 (2026-10-02)
+
+Not a hold, but it changes what upgrading that package means, so it is written down here.
+`pnpm-workspace.yaml` carries one `patchedDependencies` entry, and
+`patches/@google__model-viewer@4.3.1.patch` is its file.
+
+**What it does.** The library calls `console.log` nine times in its own source (four in
+`lib/model-viewer-base.js`, three in `lib/features/ar.js`, one each in
+`lib/three-components/Renderer.js` and `lib/three-components/ARRenderer.js`: "[$updateSource]
+BAILING OUT EARLY!" and the like), and a garment page printed six of them on every visit (visual
+audit VA-10). The patch turns those nine statements, and only those, into one-line comments. No
+line moves, so the library's shipped source maps stay aligned. Its `console.warn` and
+`console.error` calls, which are real problem reports, and everything of `three` are untouched.
+
+**Why a patch and not a bundler rule.** Read 2026-10-02:
+
+| way | verdict |
+| --- | --- |
+| Next.js `compiler.removeConsole` | documented for "application code (not `node_modules`)", with `exclude` as its only option (nextjs.org/docs/architecture/nextjs-compiler, v16.3.8, page updated 2025-05-19). No per-package form, and it would delete the site's own `console.log` calls too |
+| a Turbopack `rules` loader | documented, and `condition.path` can aim at one package (nextjs.org/docs/app/api-reference/config/next-config-js/turbopack, v16.3.8, page updated 2026-08-25), but it is custom loader code that reaches the website only; the garment pages build with Vite |
+| a Vite plugin | reaches the garment pages only |
+| a pnpm patch (pnpm.io/cli/patch) | nine one-line changes; reaches every bundler, both apps and `tools/asset-pipeline` |
+
+**Measured 2026-10-02.** The website's build (Next.js 16.3.6, Turbopack): each of the nine
+messages stood once in the client files and once in the server files, 18 in all. With the patch: 0
+of 18, while the library's own warning text is still in both, so the scan was reading the library.
+The garment pages' build: the model-viewer chunk went from 1,024,019 to 1,023,362 bytes, "BAILING
+OUT EARLY" from 1 to 0, `console.log` from 13 to 4 (the four left are not model-viewer's: three.js's
+own `log()` helper and others), `console.warn` stayed 84 and `console.error` stayed 24.
+
+**It cannot be lost quietly.** With the entry taken out of `pnpm-workspace.yaml`,
+`pnpm install --frozen-lockfile` fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`. Installing another
+version of the package fails with `ERR_PNPM_UNUSED_PATCH`. Both were measured with pnpm 12.6.0.
+`apps/cms/src/modelViewerQuiet.test.ts` reads the installed library for a `console.log`, the patch
+for anything but those nine lines, and, in CI's built-config step, the website build for the nine
+messages.
+
+**When model-viewer is upgraded.** pnpm refuses until the entry is dealt with:
+
+1. Change the version in `apps/cms`, `apps/viewer` and `tools/asset-pipeline`, delete the entry and
+   the patch file, run `pnpm install`.
+2. Run `apps/cms/src/modelViewerQuiet.test.ts`. If the new version no longer prints through
+   `console.log`, nothing is left to patch: delete that test and stop.
+3. If it still prints: `pnpm patch @google/model-viewer@<new version>`, turn each `console.log(...)`
+   line in the folder's `lib/` (not `lib/test/`) into a one-line comment, then
+   `pnpm patch-commit '<the folder it printed>'`. Update the test's list of messages if they changed.
+
+The pipeline's own npm lockfile, which only Docker reads, lists model-viewer as a development
+dependency and is not patched.

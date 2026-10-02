@@ -1,0 +1,92 @@
+diff --git a/lib/features/ar.js b/lib/features/ar.js
+index c8e92ad137309db4bbd9bc4ad4a927b42ab5ac5d..05f597786b7068bda03fde120dedf4aaba738570 100644
+--- a/lib/features/ar.js
++++ b/lib/features/ar.js
+@@ -210,7 +210,7 @@ configuration or device capabilities');
+             this[$arMode] = arMode;
+         }
+         async [$enterARWithWebXR]() {
+-            console.log('Attempting to present in AR with WebXR...');
++            // (debug output removed by this repository's patch, visual audit VA-10)
+             await this[$triggerLoad]();
+             try {
+                 this[$arButtonContainer].removeEventListener('click', this[$onARButtonContainerClick]);
+@@ -308,7 +308,7 @@ configuration or device capabilities');
+             };
+             self.addEventListener('hashchange', undoHashChange, { once: true });
+             this[$arAnchor].setAttribute('href', intent);
+-            console.log('Attempting to present in AR with Scene Viewer...');
++            // (debug output removed by this repository's patch, visual audit VA-10)
+             this[$arAnchor].click();
+         }
+         /**
+@@ -352,7 +352,7 @@ configuration or device capabilities');
+             anchor.style.display = 'none';
+             if (!anchor.isConnected)
+                 this.shadowRoot.appendChild(anchor);
+-            console.log('Attempting to present in AR with Quick Look...');
++            // (debug output removed by this repository's patch, visual audit VA-10)
+             anchor.click();
+             anchor.removeChild(img);
+             if (generateUsdz) {
+diff --git a/lib/model-viewer-base.js b/lib/model-viewer-base.js
+index df2f31a8dcbe9c2c2e42dbf8d7a7dc8f1772a534..8a4aaf9a4a067ef1924da4b11ebc56f823124dcf 100644
+--- a/lib/model-viewer-base.js
++++ b/lib/model-viewer-base.js
+@@ -166,7 +166,7 @@ export default class ModelViewerElementBase extends ReactiveElement {
+             const targetNode = customEv.target;
+             const extraModels = Array.from(this.querySelectorAll('extra-model'));
+             const childIndex = extraModels.indexOf(targetNode);
+-            console.log(`[onExtraModelChanged] childIndex: ${childIndex} srcChanged: ${customEv.detail.srcChanged} offset: ${customEv.detail.offset}`);
++            // (debug output removed by this repository's patch, visual audit VA-10)
+             if (childIndex === -1)
+                 return;
+             const modelIndex = this.src ? childIndex + 1 : childIndex;
+@@ -260,7 +260,7 @@ export default class ModelViewerElementBase extends ReactiveElement {
+                         const oldVisibility = this.modelIsVisible;
+                         this[$isElementInViewport] = entry.isIntersecting;
+                         this[$announceModelVisibility](oldVisibility);
+-                        console.log(`IntersectionObserver fired! isIntersecting: ${entry.isIntersecting}`);
++                        // (debug output removed by this repository's patch, visual audit VA-10)
+                         if (this[$isElementInViewport] && !this.loaded) {
+                             this[$updateSource]();
+                         }
+@@ -519,10 +519,10 @@ export default class ModelViewerElementBase extends ReactiveElement {
+         const extraModels = Array.from(this.querySelectorAll('extra-model'));
+         const extraUrlsList = extraModels.map(m => m.src).filter(src => src != null);
+         const extraUrlsMatch = extraUrlsList.join(',') === (scene.extraUrls || []).join(',');
+-        console.log(`[$updateSource] called! \nsrc: ${this.src}\nextraUrls: ${extraUrlsList.join(',')}\nloaded: ${this.loaded}`);
++        // (debug output removed by this repository's patch, visual audit VA-10)
+         if (this.loaded || !this[$shouldAttemptPreload]() ||
+             (this.src === scene.url && extraUrlsMatch)) {
+-            console.log('[$updateSource] BAILING OUT EARLY!');
++            // (debug output removed by this repository's patch, visual audit VA-10)
+             return;
+         }
+         const source = this.src;
+diff --git a/lib/three-components/ARRenderer.js b/lib/three-components/ARRenderer.js
+index 6bfe4526a6cf343f7d32c44ac74ba1fa81e0fe87..360205dc6627e763a35ab937d0c15c8d49de3b15 100644
+--- a/lib/three-components/ARRenderer.js
++++ b/lib/three-components/ARRenderer.js
+@@ -873,7 +873,7 @@ export class ARRenderer extends EventDispatcher {
+                 // control
+                 if (this.isWorldSpaceReady()) {
+                     // Use the hit point directly without floor constraints
+-                    console.log('[processInput] Setting goalPosition.y to hit.y:', hit.y);
++                    // (debug output removed by this repository's patch, visual audit VA-10)
+                     this.goalPosition.add(hit);
+                 }
+                 else if (this.placeOnWall === false) {
+diff --git a/lib/three-components/Renderer.js b/lib/three-components/Renderer.js
+index cf288c8838a8f2b774b849782259fa0d4d9ead10..e9830387a0d433eff0338b63d66fbf65ee96282f 100644
+--- a/lib/three-components/Renderer.js
++++ b/lib/three-components/Renderer.js
+@@ -316,7 +316,7 @@ export class Renderer extends EventDispatcher {
+     copyPixels(scene, width, height) {
+         const context2D = scene.context;
+         if (context2D == null) {
+-            console.log('could not acquire 2d context');
++            // (debug output removed by this repository's patch, visual audit VA-10)
+             return;
+         }
+         context2D.clearRect(0, 0, width, height);

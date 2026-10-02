@@ -24,7 +24,7 @@
     "test:e2e": "playwright test",
     "check:visuals": "node scripts/check-doc-visuals.mjs",
     "test:routes": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/hostRulesManifest.test.ts",
-    "test:built-config": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/htmlLimitedBots.test.ts src/notFoundCsp.test.ts src/cspNonceMarker.test.ts src/cssDiscipline.test.ts src/servedCssMotionProbe.test.ts"
+    "test:built-config": "REQUIRE_BUILD_ARTIFACTS=1 vitest run src/htmlLimitedBots.test.ts src/notFoundCsp.test.ts src/cspNonceMarker.test.ts src/cssDiscipline.test.ts src/servedCssMotionProbe.test.ts src/modelViewerQuiet.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
