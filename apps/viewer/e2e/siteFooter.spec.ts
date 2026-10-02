@@ -74,6 +74,26 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(EMPTY_FOOTER)))
   })
 
+  // VA-44 (the owner's choice, 2026-10-02): the address is in normal letters. An accessibility
+  // snapshot reads the words, never the capitals CSS draws, and the first rule lost to
+  // `.footer-block li` unseen; this asks the computed style (apps/cms/e2e/composition.spec.ts too).
+  test('sets the address in normal letters, while the email link beside it keeps its capitals', async ({
+    page,
+  }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const address = footer(page).locator('.footer-block__address')
+    await expect(address).toHaveCount(1)
+    const facts = await address.evaluate((el) => ({
+      address: getComputedStyle(el).textTransform,
+      link: getComputedStyle(el.closest('.footer-block')?.querySelector('a') ?? el).textTransform,
+    }))
+    expect(facts.address, 'the address is still set in capitals').toBe('none')
+    expect(facts.link, 'the email link lost its capitals, or the block was not found').toBe(
+      'uppercase',
+    )
+  })
+
   test('adds each claim block the website has, in the shared order, marks included', async ({
     page,
   }) => {

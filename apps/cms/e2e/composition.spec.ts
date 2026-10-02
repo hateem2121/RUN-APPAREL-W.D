@@ -1198,6 +1198,30 @@ test.describe('the bracket label above each headline is in normal letters (VA-44
       expect(text, 'the label is typed in capitals').not.toBe(text.toUpperCase())
     })
   }
+
+  // The footer address too (the owner's same choice). Its first rule lost to `.footer-block li`,
+  // a class and an element, and the address shipped in capitals for a day: a computed style is
+  // the only thing that sees which rule won. apps/viewer/e2e/siteFooter.spec.ts asks the same.
+  test('the footer address is in normal letters, and the email link beside it keeps its capitals', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await settle(page)
+    const address = page.locator('footer .footer-block__address').first()
+    await expect(address).toBeVisible()
+    const facts = await address.evaluate((el) => ({
+      address: getComputedStyle(el).textTransform,
+      link: getComputedStyle(el.closest('.footer-block')?.querySelector('a') ?? el).textTransform,
+      typed: el.textContent ?? '',
+    }))
+    expect(facts.address, 'the address is still set in capitals').toBe('none')
+    // The control: the rule reached the address and nothing else in its block.
+    expect(facts.link, 'the email link lost its capitals, or the block was not found').toBe(
+      'uppercase',
+    )
+    const letters = facts.typed.replace(/[^A-Za-z]/g, '')
+    expect(letters, 'the address is typed in capitals').not.toBe(letters.toUpperCase())
+  })
 })
 
 /*

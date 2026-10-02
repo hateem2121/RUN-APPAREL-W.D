@@ -557,8 +557,11 @@
 }
 
 /* The address is read and copied, so it is set in normal letters (visual audit VA-44, owner's choice 2026-10-02): it ran 42 capitals,
-   "13 KM DASKA ROAD, SIALKOT, 51040, PAKISTAN". The footer's short lines keep their capitals. */
-.footer-block__address {
+   "13 KM DASKA ROAD, SIALKOT, 51040, PAKISTAN". The footer's short lines keep their capitals.
+   ⚠️ TWO CLASSES, NOT ONE: `.footer-block li` above is a class AND an element, so a bare
+   `.footer-block__address` lost to it and the address stayed in capitals (found 2026-10-02, the
+   day it shipped, by a survey of computed styles; both apps' e2e now ask the page). */
+.footer-block .footer-block__address {
   text-transform: none;
   letter-spacing: inherit;
 }
