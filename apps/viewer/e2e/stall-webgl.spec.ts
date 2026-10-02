@@ -54,8 +54,10 @@ test('a download that stops sending retries, then offers TRY 3D AGAIN, which loa
   )
   const retry = page.getByRole('button', { name: 'TRY 3D AGAIN' })
   await expect(retry).toBeVisible()
-  // The owner's rule: no picture in any failure state — the download-time photo leaves with the download.
-  await expect(page.locator('.stage__placeholder, .stage img')).toHaveCount(0)
+  // The blurred download-time photo leaves with the download, and the colour's picture is drawn
+  // sharp in its place (VA-03, owner-approved 2026-10-01; until then no failure state drew one).
+  await expect(page.locator('.stage__placeholder')).toHaveCount(0)
+  await expect(page.locator('.stage__picture')).toBeVisible()
   // Stopping is not loading: the readout is gone, not frozen.
   await expect(page.locator('.stage__loading')).toHaveCount(0)
 

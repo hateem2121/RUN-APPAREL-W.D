@@ -245,5 +245,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
     mounted so its live region can announce. **Key a test on what the VISITOR gets.**
   Since 2026-09-03 (fix plan Rank 6) the stage paints the colourway's photo DURING THE
-  DOWNLOAD only — `.stage__placeholder`, blurred, cross-fading into the 3D — and every
-  failure state still shows no image, so the words above stay true.
+  DOWNLOAD — `.stage__placeholder`, blurred, cross-fading into the 3D — and since
+  2026-10-02 (VA-03, owner-approved) every failure state draws it sharp as
+  `.stage__picture`, inside the note's box and above it. The notice's words never claimed a
+  picture, so they stay true either way; a test of "no image in a failure state" is now wrong.

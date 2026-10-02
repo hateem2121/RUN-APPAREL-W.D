@@ -869,8 +869,7 @@ export function Stage({
    * The colourway's photo WHILE THE MODEL DOWNLOADS (fix plan Rank 6, 2026-09-03; audits
    * LIVE-04, LIVE-06). Blurred by how much is still to come, then cross-faded into the 3D
    * on `load` and unmounted once the fade is over. See lib/placeholder.ts for the rules.
-   * It is never shown in a failure state — those keep the 2026-08-21 decision: a notice,
-   * the specs and the enquiry buttons, no still image standing in for the model.
+   * In a failure state the same photo is drawn sharp instead, as `fallbackPicture` below.
    */
   const placeholder = placeholderAsset(displayed, product)
   const [placeholderStage, setPlaceholderStage] = useState<'shown' | 'leaving' | 'gone'>('shown')
@@ -892,6 +891,16 @@ export function Stage({
     placeholder !== null &&
     !fallback &&
     (loading ? placeholderStage !== 'gone' : placeholderStage === 'leaving')
+  /*
+   * VA-03 (visual audit, owner-approved 2026-10-01): WHEN 3D CANNOT RUN, THE COLOUR'S PICTURE.
+   * From 2026-08-21 no failure state drew one, so a visitor with Data Saver on, a device without
+   * WebGL, or a download that stopped got an empty grid and a sentence — measured live on
+   * /products/r-afp/butter with 3D off: the picture downloaded, then never drawn. Every live
+   * colourway has one now, and on this site the printed artwork IS the product. So every
+   * fallback draws it, sharp and described, with the notice kept underneath; a product with no
+   * picture keeps the notice alone.
+   */
+  const fallbackPicture = fallback ? placeholder : null
   // NOT `performance`: that name shadows the global for the whole component, and
   // the byte-counting effect above calls `performance.now()`. As a shadowed
   // string it would throw "performance.now is not a function" at runtime, with
@@ -1066,20 +1075,20 @@ export function Stage({
 
           {/*
            * THE POSTER IMAGE WAS REMOVED 2026-08-21 by owner decision — the stage
-           * never shows a photograph of the garment now, either as a pre-3D
-           * placeholder or as a failure fallback.
+           * showed no photograph of the garment, either as a pre-3D placeholder or as a
+           * failure fallback.
            *
-           * SINCE 2026-09-03 (fix plan Rank 6) ONE HALF OF THAT IS BACK, BY THE OWNER'S
-           * OWN DESIGN: the colourway's photo is painted DURING THE DOWNLOAD only —
-           * `.stage__placeholder` above, aria-hidden, blurred by the bytes still to
-           * come, cross-fading into the 3D on `load`. Measured 2026-08-30, a customer
-           * on 2 Mbit looked at an empty stage for 45–62 s. Every failure state is
-           * unchanged: no image, the notice below, the specs and the enquiry buttons.
+           * SINCE 2026-09-03 (fix plan Rank 6) the colourway's photo is painted DURING
+           * THE DOWNLOAD — `.stage__placeholder` above, aria-hidden, blurred by the bytes
+           * still to come, cross-fading into the 3D on `load`. Measured 2026-08-30, a
+           * customer on 2 Mbit looked at an empty stage for 45–62 s. SINCE 2026-10-02
+           * (VA-03) every failure state draws it too, sharp and described, as
+           * `.stage__picture` above.
            *
            * The explanatory MESSAGE is deliberately KEPT (see `LOAD_NOTICE`
            * above): when 3D genuinely cannot run, the visitor is still told why and
-           * still gets the colour, fabric, specs and the enquiry buttons. What they
-           * no longer get is a still image standing in for the model.
+           * still gets the colour, fabric, specs and the enquiry buttons, now under
+           * the colour's picture.
            *
            * The CMS side matches: `publishGating.ts` no longer demands a photo per
            * colour, and its photo-DESCRIPTION rule now applies only where a photo
@@ -1280,6 +1289,20 @@ export function Stage({
           {/* The note and TRY 3D AGAIN stack in ONE positioned box, so the button can
               never overlap a note that wraps to four lines on a 328px phone stage. */}
           <div className="stage__failure">
+            {/* Inside the note's box, first: the picture takes the height the note and
+                TRY 3D AGAIN leave, so neither ever covers the garment (VA-03). */}
+            {fallbackPicture && (
+              <img
+                className="stage__picture"
+                src={fallbackPicture.url}
+                alt={fallbackPicture.alt || `${product.productName} in ${displayed.displayName}`}
+                decoding="async"
+                draggable={false}
+                {...(fallbackPicture.width && fallbackPicture.height
+                  ? { width: fallbackPicture.width, height: fallbackPicture.height }
+                  : {})}
+              />
+            )}
             <p
               className="stage__error"
               role="status"

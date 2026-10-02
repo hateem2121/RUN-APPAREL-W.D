@@ -573,8 +573,9 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
   await expect(notice).toHaveText(
     'The 3D view is not available. The colors, fabric and specifications on this page are correct, and you can still send an inquiry below.',
   )
-  // No image stands in for the model any more, in any state.
-  await expect(page.locator('.stage img')).toHaveCount(0)
+  // The colour's picture stands in for the model, sharp, above the notice (VA-03,
+  // owner-approved 2026-10-01; from 2026-08-21 until then no failure state drew one).
+  await expect(page.locator('.stage__picture')).toBeVisible()
 
   // Added 2026-08-14: the live region must not still be offering to rotate a
   // model that is gone. The webglcontextlost branch sets fallback and now also

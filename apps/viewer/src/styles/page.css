@@ -1683,6 +1683,37 @@ model-viewer.stage__model {
   padding: 10px 16px;
 }
 
+/*
+ * VA-03 (visual audit, owner-approved 2026-10-01): when 3D cannot run, the colour's picture,
+ * first in the note's box. With a picture the box fills the stage down to the note's usual
+ * place, and the picture takes the height the note and TRY 3D AGAIN leave, so neither covers
+ * the garment at any width or text size; no height is guessed. `min-height: 0`, because a flex
+ * item's automatic minimum would let the picture push the note out of the stage (the
+ * grid-item trap that once overflowed a poster by 926px). `contain`: a 4:5 picture in a wide
+ * band letterboxes, never crops.
+ */
+/* 16px from every edge, not the note's usual 72px from the foot: that gap is the camera buttons'
+   room, and they are not drawn when 3D cannot run. Measured 2026-10-02 at 320x640, it was the
+   difference between a 66px and a 106px-tall garment. */
+.stage__failure:has(.stage__picture) {
+  inset: 16px;
+  max-width: none;
+  transform: none;
+}
+
+.stage__failure:has(.stage__picture) > .stage__error {
+  max-width: min(90%, 420px);
+}
+
+.stage__picture {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Retired-colourway notice ──────────────────────────────────────── */
 .notice {
   display: flex;
