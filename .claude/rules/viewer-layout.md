@@ -30,10 +30,18 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   colourway rail's container query wraps five swatches onto two rows, costing 60px
   at exactly the width where the narrower column is already making the paragraph
   taller. Measured needs — 900px wide: 797px tall · 1024: 758 · 1100: **677** ·
-  1280+: **664**. The floor is `(min-width: 1100px) and (min-height: 720px)`, and
-  1024x768 is excluded on purpose: it fits by 10px, and a ten-pixel margin on a
-  layout whose inputs are a CMS textarea and a font is a coincidence, not an
-  invariant. `useIdentityInAside.ts` carries the table; `useIdentityInAside.test.tsx`
+  1280+: **664**. The floor became 1100 x 720, and 1024x768 is excluded on purpose: it
+  fits by 10px, and a ten-pixel margin on a layout whose inputs are a CMS textarea and
+  a font is a coincidence, not an invariant.
+  🟡 **The third floor was measured — against the FIXTURE's 145-character description.**
+  Live descriptions run to 454 characters, and on 2026-10-02 (VA-60) those garments put
+  Email and WhatsApp below the screen from 1100 to 1280px wide and 720 to 800px tall.
+  Re-measured with copy longer than any live garment's, in all three engines — Firefox
+  sets the name on three lines where Chromium sets two — the floor is now two steps:
+  `(min-width: 1280px) and (min-height: 800px)` and `(min-width: 1100px) and (min-height: 880px)`.
+  `motion-and-layout.spec.ts` serves that copy (`LONGEST_COPY`) at each step. Measure
+  layout with the catalogue's worst content, never the fixture's.
+  `useIdentityInAside.ts` carries the tables; `useIdentityInAside.test.tsx`
   pins the identity query as a strict subset of the CSS one, because outside that
   block `.product-info--aside` has no styles at all — a 69px viewport-sized heading
   in a 260px column.
@@ -213,16 +221,19 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   the one place it is cheapest to forget — and it bit again on 2026-09-04, when
   five single-word labels hid a two-word wrap defect the same test could not see.
 
-- **🟡 The compact colourway styling is a `@container` query, not a media query — do
-  not convert it back.** It asked `max-width: 767px` until 2026-08-20, which
-  predicted the rail's own width only while the rail spanned the page. The moment
+- **🟡 The colourway rail's width rule is a `@container` query, not a media query — do
+  not convert it back.** The rail asked the SCREEN's width (767px) until 2026-08-20,
+  which predicted the rail's own width only while the rail spanned the page. The moment
   it moved into the two-column layout's 260px aside, an 844px-wide screen took the
   DESKTOP pill treatment — pills needing 606px — inside a 217px box and stacked
   into FOUR rows: the aside grew to 396px inside a 321px band and pushed the
-  contact buttons to y=448 on a 390px screen. `.colourways` carries
-  `container-type: inline-size` — **never `size`**, which would make the block axis
-  a containment root too, and this element is a flex item inside a band whose whole
-  job is dividing height.
+  contact buttons to y=448 on a 390px screen. Since VA-32 (2026-10-02) the colours are
+  44px dots at every width, and the one width query left lays a side column narrower
+  than five dots (252px) out 3 + 2 rather than 4 + 1. The tall-column LIST is a media
+  query on purpose: it asks for the window's HEIGHT, which a container cannot know.
+  `.colourways` carries `container-type: inline-size` — **never `size`**, which would
+  make the block axis a containment root too, and this element is a flex item inside a
+  band whose whole job is dividing height.
 
 - **🟡 Removing an element breaks the WORDS describing it and the TESTS keyed on it.**
   The stage stopped painting a poster 2026-08-21. `LOAD_NOTICE` and `aria-label` both
@@ -234,5 +245,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
     mounted so its live region can announce. **Key a test on what the VISITOR gets.**
   Since 2026-09-03 (fix plan Rank 6) the stage paints the colourway's photo DURING THE
-  DOWNLOAD only — `.stage__placeholder`, blurred, cross-fading into the 3D — and every
-  failure state still shows no image, so the words above stay true.
+  DOWNLOAD — `.stage__placeholder`, blurred, cross-fading into the 3D — and since
+  2026-10-02 (VA-03, owner-approved) every failure state draws it sharp as
+  `.stage__picture`, inside the note's box and above it. The notice's words never claimed a
+  picture, so they stay true either way; a test of "no image in a failure state" is now wrong.

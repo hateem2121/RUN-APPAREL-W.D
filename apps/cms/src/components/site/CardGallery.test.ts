@@ -7,6 +7,7 @@ import { CardGallery } from './CardGallery'
 const colour = (url: string): CardColour => ({
   slug: 'wine',
   name: 'Wine',
+  swatch: '#825353',
   image: { url, alt: 'Studio render: X-MILO PRO BIB in Wine', kind: 'render' },
 })
 
@@ -35,7 +36,7 @@ describe('CardGallery: the card draws a card-sized picture (owner, 2026-09-29)',
     expect(img).toMatch(
       /srcSet="[^"]*width=400[^"]* 400w, [^"]*width=720[^"]* 720w, [^"]*width=1080[^"]* 1080w"/,
     )
-    expect(img).toMatch(/sizes="\(max-width: 585px\) calc\(100vw - 42px\), 340px"/)
+    expect(img).toMatch(/sizes="\(max-width: 899px\) calc\(45vw - 6px\), 340px"/)
   })
 
   it('keeps the first card eager and high priority, and the size it reserves', () => {
@@ -51,5 +52,35 @@ describe('CardGallery: the card draws a card-sized picture (owner, 2026-09-29)',
     const img = firstImg('/api/media/file/r-xmp-wine-render.webp')
     expect(img).toContain('src="/api/media/file/r-xmp-wine-render.webp"')
     expect(img).not.toMatch(/srcset|sizes=/i)
+  })
+})
+
+describe('CardGallery: the dots are the colours, and arrows step through them (VA-30)', () => {
+  const render = (colours: CardColour[]) => {
+    const props: ComponentProps<typeof CardGallery> = {
+      productSlug: 'r-xmp',
+      productName: 'X-MILO PRO BIB',
+      garmentPages: '/products',
+      colours,
+      index: 3,
+      children: 'X-MILO PRO BIB',
+    }
+    return renderToStaticMarkup(createElement(CardGallery, props))
+  }
+  const wine = colour('https://media.example/wine.webp')
+  const blush: CardColour = { ...wine, slug: 'blush', name: 'Blush', swatch: null }
+
+  it('paints each dot with its swatch, and leaves a colour without one an empty ring', () => {
+    const dots = render([wine, blush]).match(/<button[^>]*class="card-gallery__dot"[^>]*>/g) ?? []
+    expect(dots).toHaveLength(2)
+    expect(dots[0]).toContain('style="--swatch:#825353"')
+    expect(dots[1]).not.toContain('style=')
+  })
+
+  it('draws a previous and a next button, named for the garment, only when there is a colour to move to', () => {
+    const html = render([wine, blush])
+    expect(html).toContain('aria-label="Previous colour of X-MILO PRO BIB"')
+    expect(html).toContain('aria-label="Next colour of X-MILO PRO BIB"')
+    expect(render([wine])).not.toContain('card-gallery__arrow')
   })
 })

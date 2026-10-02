@@ -9,7 +9,13 @@ import { LINEAGE } from './companyFacts'
  * repeats none of №05's numbers (`aboutCopy.test.ts`).
  */
 
-export type AboutPoint = { value: string; label: string }
+/**
+ * `labelFirst` puts the label ABOVE its figure, in the page's reading order as well as on screen:
+ * "Making clothes since" then "1889" reads as a sentence, where the figure first read as "1889,
+ * making clothes since" (visual audit VA-58, 2026-10-02, owner's decision). A figure whose label
+ * says what it counts ("Building, first stitch to sealed bag") stays figure-first.
+ */
+export type AboutPoint = { value: string; label: string; labelFirst?: true }
 
 export const ABOUT = {
   // Not "A family trade" — the owner, 2026-09-29: it "may let people think that we are
@@ -24,7 +30,7 @@ export const ABOUT = {
   // Only what is this section's own: №05 shows the headcount and floor area two sections
   // later, and saying them twice made both weaker (2026-09-29).
   points: [
-    { value: '1889', label: 'Making clothes since' },
+    { value: '1889', label: 'Making clothes since', labelFirst: true },
     { value: 'One', label: 'Building, first stitch to sealed bag' },
   ] satisfies AboutPoint[],
 } as const

@@ -59,11 +59,24 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails'
  */
 const FROM = process.env.INQUIRY_FROM?.trim() || 'inquiries@wear-run.help'
 
-const back = (request: NextRequest, params: string) =>
-  NextResponse.redirect(new URL(`/contact${params}`, request.url), {
+/*
+ * ⚠️ EVERY RETURN NAMES THE RESULT ITSELF AS ITS ANCHOR (visual audit VA-01). Without an anchor
+ * the page reloaded at the top and the result sat a screen or more below the hero: 37px of it
+ * visible at 1440x900, none at all on a phone held sideways.
+ *
+ * ⚠️ THE RESULT, NOT THE SECTION. With `#inquiry` (the section) Chromium applied the anchor after
+ * the page's script had focused the result and, the section not being focusable, dropped focus
+ * to <body> — 10 of 10 runs under load, measured 2026-10-01, a race the script cannot win. The
+ * result panels are focusable (`tabIndex={-1}`, `InquiryOutcome.tsx`), so with the anchor on them
+ * the browser itself moves focus there, with scripting off as well.
+ */
+const back = (request: NextRequest, params: string, anchor: 'inquiry-done' | 'inquiry-problem') =>
+  NextResponse.redirect(new URL(`/contact${params}#${anchor}`, request.url), {
     // 303: the browser must follow with GET, or a refresh re-posts the form.
     status: 303,
   })
+const sent = (request: NextRequest) => back(request, '?sent=1', 'inquiry-done')
+const refused = (request: NextRequest, params: string) => back(request, params, 'inquiry-problem')
 
 /** Never throws. A notification is a nice-to-have; the inquiry is the thing. */
 async function notify(
@@ -153,7 +166,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     raw = Object.fromEntries(form.entries())
     attached = form.getAll('files')
   } catch {
-    return back(request, '?error=unreadable')
+    return refused(request, '?error=unreadable')
   }
 
   /*
@@ -161,11 +174,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    * detected is how the next version of it learns to skip the field. Nothing is stored
    * and nothing is sent; it simply sees the same thank-you a person does.
    */
-  if (isHoneypotTripped(raw)) return back(request, '?sent=1')
+  if (isHoneypotTripped(raw)) return sent(request)
 
   const result = validateInquiry(raw)
   if (!result.ok)
-    return back(request, `?error=invalid&fields=${Object.keys(result.errors).join(',')}`)
+    return refused(request, `?error=invalid&fields=${Object.keys(result.errors).join(',')}`)
 
   /*
    * ⚠️ FILES ARE CHECKED BEFORE THE INQUIRY IS STORED, AND A REFUSAL STORES NOTHING. A program
@@ -175,7 +188,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    * never arrived.
    */
   const files = await checkFiles(attached)
-  if (!files.ok) return back(request, `?error=files&reason=${files.reason}`)
+  if (!files.ok) return refused(request, `?error=files&reason=${files.reason}`)
 
   /*
    * ⚠️ THE ALLOWANCE IS SPENT ONLY BY AN INQUIRY THAT PASSED EVERY CHECK (final review,
@@ -186,7 +199,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    */
   const ip =
     request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!checkInquiryRate(ip, Date.now())) return back(request, '?error=too-many')
+  if (!checkInquiryRate(ip, Date.now())) return refused(request, '?error=too-many')
 
   const receivedAt = new Date()
   let created: { id: string | number } | null = null
@@ -207,7 +220,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (err) {
     // The one genuinely bad outcome: nothing stored. Say so rather than thanking them.
     console.error('[inquiry] could not be stored:', err)
-    return back(request, '?error=storage')
+    return refused(request, '?error=storage')
   }
 
   // The files, after the inquiry they belong to. A failure here is recorded, never fatal.
@@ -302,5 +315,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // The visitor's experience does not depend on the email. Their message is safe either way.
-  return back(request, '?sent=1')
+  return sent(request)
 }

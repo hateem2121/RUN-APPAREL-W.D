@@ -263,10 +263,14 @@ jobs:
       # The viewer has measured LCP and CLS on every visit since 2026-09-04. Until
       # 2026-09-17 both numbers were dropped before they were stored
       # (apps/viewer/src/lib/telemetry.ts, apps/cms/src/endpoints/events.ts); they now
-      # have their own columns, and this reads them back once a week.
+      # have their own columns, and this reads them back once a week. Since VA-14
+      # (2026-10-02) the viewer also sends INP, how fast a visit answered its slowest tap
+      # (`inp_ms`, migration 20261002_120000_add_web_vitals_inp); the "Tapping" line is the
+      # owner's wording of 2026-10-02. ⚠️ If this step ever runs before that migration, the
+      # read fails on the missing column and the issue says so, as for any failed read.
       #
-      # The 75th percentile, because that is where both metrics are judged (2.5 s and
-      # 0.1 are the published "good" lines). SQLite has no percentile function, so it is
+      # The 75th percentile, because that is where all three metrics are judged (2.5 s,
+      # 0.1 and 200 ms are the published "good" lines). SQLite has no percentile function, so it is
       # a nearest-rank ORDER BY with an OFFSET of ceil(0.75 × n) − 1, and
       # apps/cms/src/diagnosticsDigest.test.ts runs this exact SQL. Our own tools are left
       # out, as in the digest query above. Only visits that carry a number are counted.
@@ -291,7 +295,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote \
-            --json --command "WITH w AS (SELECT ua, lcp_ms, cls FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%')) SELECT count(*) AS visits, count(DISTINCT ua) AS browsers, count(lcp_ms) AS lcp_n, (SELECT lcp_ms FROM w WHERE lcp_ms IS NOT NULL ORDER BY lcp_ms LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE lcp_ms IS NOT NULL)) AS lcp_p75, count(cls) AS cls_n, (SELECT cls FROM w WHERE cls IS NOT NULL ORDER BY cls LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE cls IS NOT NULL)) AS cls_p75 FROM w WHERE (lcp_ms IS NOT NULL OR cls IS NOT NULL);" \
+            --json --command "WITH w AS (SELECT ua, lcp_ms, cls, inp_ms FROM events WHERE type = 'analytics' AND event = 'web_vitals' AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND (ua IS NULL OR ua NOT LIKE '%run-apparel-%')) SELECT count(*) AS visits, count(DISTINCT ua) AS browsers, count(lcp_ms) AS lcp_n, (SELECT lcp_ms FROM w WHERE lcp_ms IS NOT NULL ORDER BY lcp_ms LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE lcp_ms IS NOT NULL)) AS lcp_p75, count(cls) AS cls_n, (SELECT cls FROM w WHERE cls IS NOT NULL ORDER BY cls LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE cls IS NOT NULL)) AS cls_p75, count(inp_ms) AS inp_n, (SELECT inp_ms FROM w WHERE inp_ms IS NOT NULL ORDER BY inp_ms LIMIT 1 OFFSET (SELECT (3 * count(*) + 3) / 4 - 1 FROM w WHERE inp_ms IS NOT NULL)) AS inp_p75 FROM w WHERE (lcp_ms IS NOT NULL OR cls IS NOT NULL OR inp_ms IS NOT NULL);" \
             > vitals.json
           visits=$(node -e "const r=(require('./vitals.json')[0]?.results??[{}])[0]??{};console.log(Number(r.visits)||0)")
           echo "visits=$visits" >> "$GITHUB_OUTPUT"
@@ -307,6 +311,8 @@ jobs:
               if (lcp !== null && Number.isFinite(lcp)) lines.push('- **Loading:** 3 in 4 visits had the main content on screen within ' + (lcp / 1000).toFixed(1) + ' s (' + (num(r.lcp_n) || 0) + ' visits; 2.5 s or less counts as good).');
               const cls = num(r.cls_p75);
               if (cls !== null && Number.isFinite(cls)) lines.push('- **Steadiness:** 3 in 4 visits had a layout-shift score of ' + cls.toFixed(3) + ' or less (' + (num(r.cls_n) || 0) + ' visits; 0.1 or less counts as good).');
+              const inp = num(r.inp_p75);
+              if (inp !== null && Number.isFinite(inp)) lines.push('- **Tapping:** 3 in 4 visits answered a tap within ' + Math.round(inp) + ' ms (' + (num(r.inp_n) || 0) + ' visits; 200 ms or less counts as good).');
               if (visits < 50) lines.push('Fewer than 50 visits: read these as a hint, not a verdict.');
               console.log(lines.join('\n'));
             "

@@ -1,44 +1,63 @@
 import { checkFiles, formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
 
 /**
- * The contact form's small decisions, pure so each is a unit test: the progress bar, the file
- * picker's early warning, the message after a submission and the admin link in the email.
- * Imported by the form's client islands and by the page, so nothing here may touch Node.
+ * The contact form's small decisions, pure so each is a unit test: the words the single-step
+ * form shows, the message under a wrongly filled field, the file picker's early warning, the
+ * message after a submission and the admin link in the email. Imported by the form's client
+ * islands and by the page, so nothing here may touch Node.
+ *
+ * ⚠️ ONE STEP SINCE 2026-10-01 (owner, visual audit VA-02). The two-step form and its progress
+ * bar (2026-09-29) were replaced by one column with every field showing; the bar's arithmetic
+ * left with it. Every new line of wording below was approved by the owner as W1–W10.
  */
-
-export type ProgressInput = {
-  /** Any field has been focused. */
-  started: boolean
-  requiredDone: number
-  requiredTotal: number
-  onStepTwo: boolean
-  optionalDone: number
-  optionalTotal: number
-}
 
 /** "25 MB", as the page and the note under the picker say it (formatBytes would give "25.0 MB"). */
 const LIMIT = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
 
-const share = (done: number, total: number) => (total > 0 ? Math.min(done, total) / total : 1)
+/** W1, above the optional fields. */
+export const OPTIONAL_DIVIDER = 'Optional details'
+/** W6, the heading of the list of mistakes shown on Send. */
+export const SUMMARY_HEADING = 'Check these before sending:'
+/** W7, the Send button while the inquiry is on its way. */
+export const SENDING_LABEL = 'Sending…'
+/** W8, the heading of the confirmation that replaces the form. */
+export const RECEIVED_HEADING = 'Inquiry received.'
+/** W9, the link under the confirmation that shows an empty form again. */
+export const SEND_ANOTHER = 'Send another inquiry'
+/** W10's opening words; the email address and WhatsApp number follow it. */
+export const NEED_US_SOONER = 'Need us sooner?'
+
+/** The parts of `ValidityState` the form's messages depend on. */
+export type FieldValidity = Pick<ValidityState, 'valid' | 'valueMissing' | 'typeMismatch'>
+
+/** W2, W3 and W5: a required field left empty. */
+const MISSING: Record<string, string> = {
+  name: 'Enter your name.',
+  email: 'Enter your email address.',
+  message: 'Tell us what you are making. One sentence is enough.',
+}
 
 /**
- * 0–100. Step 1's three required fields fill it to half; opening step 2 moves it on, and the
- * optional details fill the rest (owner, 2026-09-29: "two steps plus a live progress bar").
+ * The sentence shown under a field and in the list at the top of the form, or null when the
+ * field is fine. Written as instructions, in the field's own words (GOV.UK error message
+ * guidance, updated Jan 2024).
  *
- * ⚠️ IT STARTS AT 10, NOT 0, ONCE A FIELD IS FOCUSED. A bar that begins with a little already
- * done is finished more often than one that starts empty (Nunes & Drèze's endowed-progress
- * effect), and it is honest here: focusing the form IS the first step. It never shows before
- * that, so nobody is told they have progress they did not make.
- *
- * ⚠️ AND IT REACHES 100 ONLY WITH EVERY OPTIONAL DETAIL GIVEN. The bar measures the form, not
- * permission to send: "Send inquiry" is offered from step 1, and the page says the details are
- * optional, so a buyer who sends at 60% has done nothing wrong.
+ * ⚠️ THE FILE FIELD SPEAKS FOR ITSELF. The picker already explains a refused pick in its own
+ * words (`pickedFileProblem`) and puts the same text in the field's custom validity, so that text
+ * is passed through here unchanged rather than replaced by a second, vaguer sentence.
  */
-export function formProgress(input: ProgressInput): number {
-  if (!input.started && input.requiredDone === 0) return 0
-  const stepOne = 10 + 40 * share(input.requiredDone, input.requiredTotal)
-  const stepTwo = input.onStepTwo ? 10 + 40 * share(input.optionalDone, input.optionalTotal) : 0
-  return Math.round(Math.min(100, stepOne + stepTwo))
+export function fieldError(
+  name: string,
+  validity: FieldValidity,
+  customMessage = '',
+): string | null {
+  if (validity.valid) return null
+  if (name === 'files') return customMessage || null
+  if (validity.valueMissing) return MISSING[name] ?? null
+  // W4.
+  if (name === 'email' && validity.typeMismatch)
+    return 'Enter an email address like name@company.com.'
+  return null
 }
 
 /**

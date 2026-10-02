@@ -1,14 +1,15 @@
-import { normalizeWhatsAppNumber } from '@run-apparel/shared'
+import { formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { getSiteSettings } from '../../../lib/content'
 import { CONTACT_HERO_PHOTO, contactHeroSrc, HERO_PHOTO } from '../../../lib/factoryPhotos'
 import { HONEYPOT_FIELD, MAX_LENGTHS } from '../../../lib/inquiry'
-import { inquiryNotice } from '../../../lib/inquiryForm'
+import { inquiryNotice, OPTIONAL_DIVIDER } from '../../../lib/inquiryForm'
 import { buildMetadata } from '../../../lib/seo'
 import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
 import { ContactGlobe } from '../../../components/site/ContactGlobe'
 import { FilePicker } from '../../../components/site/FilePicker'
-import { InquiryStepper } from '../../../components/site/InquiryStepper'
+import { InquiryFormEnhancer } from '../../../components/site/InquiryFormEnhancer'
+import { InquiryProblem, InquiryReceived } from '../../../components/site/InquiryOutcome'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { PhoneField } from '../../../components/site/PhoneField'
 
@@ -115,7 +116,7 @@ export default async function ContactPage({
         </picture>
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">[ CONTACT ]</p>
+          <p className="label">[ Contact ]</p>
           <h1 className="display display--hero">Let&rsquo;s talk production.</h1>
           {/*
            * ⚠️ THE WORDING IS MEASURED, NOT JUST WRITTEN (2026-09-26). "Reach us directly — email
@@ -137,124 +138,154 @@ export default async function ContactPage({
       {/*
        * ⚠️ THE FORM COMES FIRST, DIRECTLY UNDER THE HERO (owner, 2026-09-29), and `id="inquiry"` is
        * where every "Start a conversation" link on the site lands (`/contact#inquiry`).
+       *
+       * ⚠️ ONE STEP SINCE 2026-10-01 (owner, visual audit VA-02): one column, every field showing,
+       * the three required ones first and the rest under "Optional details". The two-step form and
+       * its progress bar (2026-09-29) are gone. On wide screens the heading and the direct contacts
+       * stand in a column beside the form, so a buyer who would rather email sees how at once (the
+       * Balmoral and Clothing Network contact pages in the audit's benchmarks); on a phone they
+       * follow the form. They replace the separate contact block that sat further down (VA-41).
        */}
       <section className="site-section" id="inquiry">
-        <div className="site-container">
-          <p className="subhead">What helps us reply faster</p>
-          <h2 className="display display--section">
-            Send what you have. <span className="serif-accent">A sketch is&nbsp;enough.</span>
-          </h2>
-          <p className="site-lede">
-            Styles and quantities, your target fabric or a reference garment, any artwork, and the
-            date you need it by. None of it is required to start the conversation.
-          </p>
-          {notice ? (
-            <p
-              className={`form-notice form-notice--${notice.kind}`}
-              role={notice.kind === 'ok' ? 'status' : 'alert'}
-            >
-              {notice.text}
+        <div className="site-container inquiry-layout">
+          <div className="inquiry-layout__intro">
+            <p className="subhead">What helps us reply faster</p>
+            <h2 className="display display--section">
+              Send what you have. <span className="serif-accent">A sketch is&nbsp;enough.</span>
+            </h2>
+            <p className="site-lede">
+              Styles and quantities, your target fabric or a reference garment, any artwork, and the
+              date you need it by. None of it is required to start the conversation.
             </p>
-          ) : null}
+          </div>
 
-          {/*
-           * ⚠️ `multipart/form-data` SINCE 2026-09-29, for the files. The route reads it with
-           * `request.formData()` either way, so a plain-text post from an old cached page still
-           * works.
-           */}
-          <form
-            className="inquiry-form"
-            method="post"
-            action="/contact/submit"
-            encType="multipart/form-data"
-          >
-            <InquiryStepper
-              emailHref={`mailto:${settings.email}`}
-              stepOne={
-                <>
-                  <label className="inquiry-form__field">
-                    <span className="inquiry-form__label">Your name</span>
-                    <input
-                      className="inquiry-form__input"
-                      type="text"
-                      name="name"
-                      required
-                      maxLength={MAX_LENGTHS.name}
-                      autoComplete="name"
-                    />
-                  </label>
-
-                  <label className="inquiry-form__field">
-                    <span className="inquiry-form__label">Email</span>
-                    <input
-                      className="inquiry-form__input"
-                      type="email"
-                      name="email"
-                      required
-                      maxLength={MAX_LENGTHS.email}
-                      autoComplete="email"
-                    />
-                  </label>
-
-                  <label className="inquiry-form__field">
-                    <span className="inquiry-form__label">What are you making?</span>
-                    <textarea
-                      className="inquiry-form__input inquiry-form__textarea"
-                      name="message"
-                      required
-                      rows={6}
-                      maxLength={MAX_LENGTHS.message}
-                      /*
-                        ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly
-                        above it word for word — the same sentence twice on one phone screen,
-                        which a screenshot showed and no test would have. A placeholder is a poor
-                        place for guidance anyway: it disappears the moment someone starts
-                        typing, exactly when they might want to re-read it.
-                      */
-                    />
-                  </label>
-                </>
-              }
-              stepTwo={
-                <>
-                  <div className="inquiry-form__row">
-                    <label className="inquiry-form__field">
-                      <span className="inquiry-form__label">Company (optional)</span>
-                      <input
-                        className="inquiry-form__input"
-                        type="text"
-                        name="company"
-                        maxLength={MAX_LENGTHS.company}
-                        autoComplete="organization"
-                      />
-                    </label>
-                    <label className="inquiry-form__field">
-                      <span className="inquiry-form__label">Job title (optional)</span>
-                      <input
-                        className="inquiry-form__input"
-                        type="text"
-                        name="jobTitle"
-                        maxLength={MAX_LENGTHS.jobTitle}
-                        autoComplete="organization-title"
-                      />
-                    </label>
-                  </div>
-                  <PhoneField />
-                  <label className="inquiry-form__field">
-                    <span className="inquiry-form__label">Subject (optional)</span>
-                    <input
-                      className="inquiry-form__input"
-                      type="text"
-                      name="subject"
-                      maxLength={MAX_LENGTHS.subject}
-                    />
-                  </label>
-                  <FilePicker />
-                </>
-              }
-            />
+          <div className="inquiry-layout__main">
+            {/*
+             * After Send the confirmation takes the form's place and the form is hidden (VA-27);
+             * a refused Send shows its reason above the form. Both take focus on arrival, so a
+             * screen reader reads them, and both clear their code from the address (VA-01).
+             */}
+            {notice?.kind === 'ok' ? (
+              <InquiryReceived
+                thanks={notice.text}
+                email={settings.email}
+                whatsappHref={whatsapp}
+                whatsappLabel={formatPhoneForDisplay(settings.whatsappNumber)}
+              />
+            ) : notice ? (
+              <InquiryProblem>{notice.text}</InquiryProblem>
+            ) : null}
 
             {/*
+             * ⚠️ `multipart/form-data` SINCE 2026-09-29, for the files. The route reads it with
+             * `request.formData()` either way, so a plain-text post from an old cached page still
+             * works.
+             *
+             * ⚠️ EACH MESSAGE SITS OUTSIDE ITS LABEL, linked by `aria-describedby`. Inside the label
+             * it would become part of the field's NAME ("Your name Enter your name."), which a
+             * screen reader repeats on every visit to the field (GOV.UK error message pattern).
+             */}
+            <form
+              className="inquiry-form"
+              id="inquiry-form"
+              method="post"
+              action="/contact/submit"
+              encType="multipart/form-data"
+              hidden={notice?.kind === 'ok'}
+            >
+              <InquiryFormEnhancer />
+
+              <div className="inquiry-form__field">
+                <label className="inquiry-form__label" htmlFor="inquiry-name">
+                  Your name
+                </label>
+                <input
+                  className="inquiry-form__input"
+                  id="inquiry-name"
+                  type="text"
+                  name="name"
+                  required
+                  maxLength={MAX_LENGTHS.name}
+                  autoComplete="name"
+                  data-check
+                />
+                <p className="inquiry-form__error" id="inquiry-name-error" hidden />
+              </div>
+
+              <div className="inquiry-form__field">
+                <label className="inquiry-form__label" htmlFor="inquiry-email">
+                  Email
+                </label>
+                <input
+                  className="inquiry-form__input"
+                  id="inquiry-email"
+                  type="email"
+                  name="email"
+                  required
+                  maxLength={MAX_LENGTHS.email}
+                  autoComplete="email"
+                  spellCheck={false}
+                  data-check
+                />
+                <p className="inquiry-form__error" id="inquiry-email-error" hidden />
+              </div>
+
+              <div className="inquiry-form__field">
+                <label className="inquiry-form__label" htmlFor="inquiry-message">
+                  What are you making?
+                </label>
+                <textarea
+                  className="inquiry-form__input inquiry-form__textarea"
+                  id="inquiry-message"
+                  name="message"
+                  required
+                  rows={6}
+                  maxLength={MAX_LENGTHS.message}
+                  data-check
+                  /*
+                    ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly
+                    above it word for word — the same sentence twice on one phone screen,
+                    which a screenshot showed and no test would have. A placeholder is a poor
+                    place for guidance anyway: it disappears the moment someone starts
+                    typing, exactly when they might want to re-read it.
+                  */
+                />
+                <p className="inquiry-form__error" id="inquiry-message-error" hidden />
+              </div>
+
+              {/*
+               * The optional half, grouped so a screen reader hears "Optional details" once for the
+               * group. Job title and Subject left the form on 2026-10-01 (owner, VA-02): the message
+               * already says what Subject asked, and fewer optional fields suit a first B2B contact.
+               * The route still accepts both, so a page cached before then still sends.
+               */}
+              <fieldset className="inquiry-form__group">
+                <legend className="inquiry-form__divider">{OPTIONAL_DIVIDER}</legend>
+                <label className="inquiry-form__field">
+                  <span className="inquiry-form__label">Company (optional)</span>
+                  <input
+                    className="inquiry-form__input"
+                    type="text"
+                    name="company"
+                    maxLength={MAX_LENGTHS.company}
+                    autoComplete="organization"
+                  />
+                </label>
+                <PhoneField />
+                <FilePicker />
+              </fieldset>
+
+              <div className="site-actions">
+                {/* One of the site's agreed primary labels (CT-08, `e2e/copy.spec.ts`). */}
+                <button className="btn btn--primary" type="submit">
+                  Send inquiry
+                </button>
+                <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
+                  Or email us instead
+                </a>
+              </div>
+
+              {/*
               ⚠️ THE HONEYPOT. Hidden from sight and from assistive technology, and a bot
               that fills every field it can find gives itself away. `aria-hidden` plus
               `tabIndex={-1}` keep it out of the accessibility tree and the tab order, so
@@ -263,23 +294,20 @@ export default async function ContactPage({
               real person out — which is the failure mode that makes honeypots infamous.
               It is not a CAPTCHA and the rate limiter is the real backstop.
             */}
-            <div className="inquiry-form__trap" aria-hidden="true">
-              <label htmlFor={HONEYPOT_FIELD}>Website</label>
-              <input
-                id={HONEYPOT_FIELD}
-                type="text"
-                name={HONEYPOT_FIELD}
-                tabIndex={-1}
-                autoComplete="off"
-              />
-            </div>
-          </form>
-        </div>
-      </section>
+              <div className="inquiry-form__trap" aria-hidden="true">
+                <label htmlFor={HONEYPOT_FIELD}>Website</label>
+                <input
+                  id={HONEYPOT_FIELD}
+                  type="text"
+                  name={HONEYPOT_FIELD}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+            </form>
+          </div>
 
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <div className="contact-grid">
+          <div className="inquiry-layout__details contact-grid">
             <div className="contact-block">
               <p className="field-label">[ Partnerships ]</p>
               <a className="contact-block__value" href={`mailto:${settings.email}`}>
@@ -290,7 +318,7 @@ export default async function ContactPage({
             <div className="contact-block">
               <p className="field-label">[ WhatsApp ]</p>
               <a className="contact-block__value" href={whatsapp} rel="noopener">
-                {settings.whatsappNumber}
+                {formatPhoneForDisplay(settings.whatsappNumber)}
               </a>
               <p className="contact-block__note">Fastest for a quick question.</p>
             </div>

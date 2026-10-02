@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { isAdmin } from '../access/roles'
-import { MAX_CLS, MAX_LCP_MS } from '../endpoints/events'
+import { MAX_CLS, MAX_INP_MS, MAX_LCP_MS } from '../endpoints/events'
 
 /**
  * First-party viewer telemetry sink — analytics events, diagnostics and
@@ -59,13 +59,13 @@ export const Events: CollectionConfig = {
       admin: { description: 'Coarse, truncated user-agent. No IP is stored.' },
     },
     /*
-     * A page-speed report's two numbers (audit PF-05b, 2026-09-17). Set ONLY on
-     * `analytics` / `web_vitals` rows, and bounded, by endpoints/events.ts; every other
-     * row leaves them empty. The bounds are IMPORTED from there (M4, 2026-09-23),
-     * not repeated as literals, so an out-of-range number is refused even if a
-     * future write skips the endpoint, and the two can never quietly drift apart —
-     * a field tighter than the endpoint would fail payload.create and drop the
-     * whole row silently.
+     * A page-speed report's numbers (audit PF-05b, 2026-09-17; `inpMs` joined with VA-14,
+     * 2026-10-02). Set ONLY on `analytics` / `web_vitals` rows, and bounded, by
+     * endpoints/events.ts; every other row leaves them empty. The bounds are IMPORTED from
+     * there (M4, 2026-09-23), not repeated as literals, so an out-of-range number is refused
+     * even if a future write skips the endpoint, and the two can never quietly drift apart —
+     * a field tighter than the endpoint would fail payload.create and drop the whole row
+     * silently.
      */
     {
       name: 'lcpMs',
@@ -84,6 +84,18 @@ export const Events: CollectionConfig = {
       max: MAX_CLS,
       admin: {
         description: 'Page steadiness (web vitals only): the layout-shift score for the visit.',
+      },
+    },
+    {
+      name: 'inpMs',
+      type: 'number',
+      min: 0,
+      max: MAX_INP_MS,
+      admin: {
+        // The owner's choice of words, 2026-10-02 (VA-14): taps, clicks and key presses, so a
+        // reading from a computer visit is described too.
+        description:
+          'Page response (web vitals only): milliseconds the slowest tap, click or key press of the visit took to show on screen.',
       },
     },
   ],

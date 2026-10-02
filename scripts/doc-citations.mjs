@@ -191,6 +191,14 @@ export const ALLOWED_ABSENT = new Map([
     'scripts/ingest-from-archive.mjs',
     'existed; retired 2026-09-24 by owner decision and deleted with the R2 archive bucket it copied from. Cited in the PAST TENSE by apps/cms/CLAUDE.md, which says so in the same sentence.',
   ],
+  [
+    'apps/cms/src/lib/wordmarkFit.ts',
+    "moved to packages/shared/src/wordmarkFit.ts on 2026-10-02 (visual audit VA-31: the garment pages draw the website footer too). Cited by docs/archive/agent-memory/2026-09-26-cms-CLAUDE.md, a snapshot of that day's notes, not an index; the live rule (.claude/rules/cms-site.md) cites the new path.",
+  ],
+  [
+    'apps/cms/src/lib/cursorBus.ts',
+    'moved to packages/shared/src/cursorBus.ts on 2026-10-02 (visual audit VA-31), with the same archived snapshot as its only citer; the live rule cites the new path.',
+  ],
 ])
 
 /**

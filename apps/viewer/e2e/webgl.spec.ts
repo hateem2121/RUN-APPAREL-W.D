@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { devices, expect, test } from '@playwright/test'
 
 /**
  * The headline feature — real WebGL. Runs only in the `webgl` project (software
@@ -573,8 +573,9 @@ test('a lost WebGL context is reported as such, not as a failed colour swap', as
   await expect(notice).toHaveText(
     'The 3D view is not available. The colors, fabric and specifications on this page are correct, and you can still send an inquiry below.',
   )
-  // No image stands in for the model any more, in any state.
-  await expect(page.locator('.stage img')).toHaveCount(0)
+  // The colour's picture stands in for the model, sharp, above the notice (VA-03,
+  // owner-approved 2026-10-01; from 2026-08-21 until then no failure state drew one).
+  await expect(page.locator('.stage__picture')).toBeVisible()
 
   // Added 2026-08-14: the live region must not still be offering to rotate a
   // model that is gone. The webglcontextlost branch sets fallback and now also
@@ -841,9 +842,10 @@ test.describe('AR — iOS Quick Look only', () => {
   test('offers no AR button on a device that cannot enter AR (negative control)', async ({
     page,
   }) => {
-    // Desktop Chrome reports canActivateAR === false, so the button must not be in
-    // the DOM at all — not merely hidden. A hidden button is still a tab stop and
-    // still occupies the slot.
+    // Desktop Chrome reports canActivateAR === false. Our button stays in the slot
+    // anyway (VA-49), so model-viewer's default can never render in its place, and
+    // model-viewer hides the whole slot itself (`display: none`). Asserted as what the
+    // visitor gets: nothing drawn, and nothing the Tab key can reach.
     await page.goto('/n001/wine')
     await page.locator('model-viewer').waitFor({ state: 'attached', timeout: 30_000 })
     await page.waitForFunction(
@@ -858,7 +860,16 @@ test.describe('AR — iOS Quick Look only', () => {
           ?.canActivateAR,
     )
     expect(canActivate, 'desktop unexpectedly reports AR support — rethink this test').toBe(false)
-    await expect(page.locator('.stage__ar')).toHaveCount(0)
+    const ours = page.locator('.stage__ar')
+    await expect(ours, 'our AR button left the slot, so the default can take it').toHaveCount(1)
+    await expect(ours).toBeHidden()
+    expect(
+      await ours.evaluate((el: HTMLElement) => {
+        el.focus()
+        return document.activeElement === el
+      }),
+      'the AR button is hidden but still takes keyboard focus',
+    ).toBe(false)
     // And model-viewer's own default button must not have taken its place.
     const defaultButton = await page.evaluate(() => {
       const mv = document.querySelector('model-viewer') as
@@ -877,9 +888,71 @@ test.describe('AR — iOS Quick Look only', () => {
     expect(
       defaultButton.area,
       "model-viewer's own AR button is painting over the canvas — it covered 26-38px " +
-        'of garment when last measured. Our slotted .stage__ar replaces it, and only ' +
-        'renders when AR is actually available.',
+        'of garment when last measured. Our slotted .stage__ar replaces it, and ' +
+        'model-viewer shows it only where AR may work.',
     ).toBe(0)
+  })
+
+  test.describe('on an iPhone that can open Quick Look', () => {
+    // model-viewer decides this ONCE, at import, from two facts (`lib/constants.js`,
+    // 4.3.1): "iPhone" in the user agent, and `relList.supports('ar')` on a link.
+    // Desktop Chrome has neither, so without this every AR test here runs the
+    // desktop path — which is how VA-49 reached production unseen.
+    test.use({ userAgent: devices['iPhone 13'].userAgent, viewport: { width: 390, height: 844 } })
+
+    test('only our cube shows, from the first frame to the last, in the corner (VA-49)', async ({
+      page,
+    }) => {
+      await page.addInitScript(() => {
+        const supports = DOMTokenList.prototype.supports
+        DOMTokenList.prototype.supports = function (this: DOMTokenList, token: string) {
+          return token === 'ar' || supports.call(this, token)
+        }
+        // Every frame of the load: the largest box model-viewer's own button drew.
+        const w = window as unknown as { __defaultArMax: number }
+        w.__defaultArMax = 0
+        const sample = () => {
+          const fab = document
+            .querySelector('model-viewer')
+            ?.shadowRoot?.getElementById('default-ar-button')
+          if (fab) {
+            const box = fab.getBoundingClientRect()
+            w.__defaultArMax = Math.max(w.__defaultArMax, Math.round(box.width * box.height))
+          }
+          requestAnimationFrame(sample)
+        }
+        requestAnimationFrame(sample)
+      })
+      await page.goto('/n001/wine')
+      await page.waitForFunction(
+        () =>
+          (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded === true,
+        undefined,
+        { timeout: 30_000 },
+      )
+      expect(
+        await page.evaluate(
+          () =>
+            (document.querySelector('model-viewer') as { canActivateAR?: boolean } | null)
+              ?.canActivateAR,
+        ),
+        'model-viewer did not take this for an AR-capable iPhone — the test would measure nothing',
+      ).toBe(true)
+      expect(
+        await page.evaluate(() => (window as unknown as { __defaultArMax: number }).__defaultArMax),
+        "model-viewer's own AR button was drawn during the load: a second button, in another corner",
+      ).toBe(0)
+
+      const cube = page.getByRole('button', { name: 'View in your space', exact: true })
+      await expect(cube).toBeVisible()
+      const box = await cube.boundingBox()
+      const stage = await page.locator('model-viewer').boundingBox()
+      if (!box || !stage) throw new Error('nothing to measure')
+      expect({ width: box.width, height: box.height }).toEqual({ width: 44, height: 44 })
+      // The stage's top-right corner, 12px in from both edges.
+      expect(Math.round(stage.x + stage.width - (box.x + box.width))).toBe(12)
+      expect(Math.round(box.y - stage.y)).toBe(12)
+    })
   })
 })
 

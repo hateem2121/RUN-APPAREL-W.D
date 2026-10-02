@@ -133,7 +133,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     familySlug: 'teamwear-uniforms',
     title: 'Custom Teamwear & Team Uniform Manufacturer',
     description: `Custom teamwear and team uniforms made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
-    eyebrow: `[ TEAMWEAR & UNIFORMS · FROM ${MINIMUM} PIECES PER STYLE ]`,
+    eyebrow: `[ Teamwear & Uniforms · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom teamwear and team uniforms,',
     headingAccent: 'made to your spec.',
     lede: `RUN APPAREL is a private label teamwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make team kit to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
@@ -168,7 +168,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     familySlug: 'sportswear',
     title: 'Custom Activewear & Sportswear Manufacturer',
     description: `Custom activewear and sportswear made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
-    eyebrow: `[ SPORTSWEAR · FROM ${MINIMUM} PIECES PER STYLE ]`,
+    eyebrow: `[ Sportswear · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom activewear and sportswear',
     headingAccent: 'made to your spec.',
     lede: `RUN APPAREL is a private label activewear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make sportswear to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
@@ -199,7 +199,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     familySlug: 'outerwear',
     title: 'Custom Outerwear & Jacket Manufacturer',
     description: `Custom jackets and outerwear made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
-    eyebrow: `[ OUTERWEAR · FROM ${MINIMUM} PIECES PER STYLE ]`,
+    eyebrow: `[ Outerwear · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom jackets and outerwear,',
     headingAccent: 'made to your spec.',
     lede: `RUN APPAREL is a private label outerwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make jackets to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
@@ -224,7 +224,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     familySlug: 'casual-wear',
     title: 'Private Label Casual Wear Manufacturer',
     description: `Private label casual wear made to order, from ${MINIMUM} pieces per style: hoodies, tracksuits, polos and fleece. Sample in ${SAMPLE_DAYS} working days. See each garment in 3D.`,
-    eyebrow: `[ CASUAL WEAR · FROM ${MINIMUM} PIECES PER STYLE ]`,
+    eyebrow: `[ Casual Wear · From ${MINIMUM} pieces per style ]`,
     heading: 'Private label casual wear,',
     headingAccent: 'made to your spec.',
     lede: `RUN APPAREL is a private label casual wear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make everyday clothing to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
@@ -255,7 +255,32 @@ export function familyOf(page: FamilyPage): Family {
   return family
 }
 
+/**
+ * A family's filtered gallery, `/products?family=<slug>`: the same garments as the buyer page,
+ * with the other families' chips beside them. Never the buyer page, which `familyHref` prefers.
+ * Its canonical stays `/products` (`products/page.tsx`).
+ */
+export function familyGalleryHref(family: Family): string {
+  return `/products?family=${family.slug}`
+}
+
 /** Where a family's card or link should lead: its buyer page when it has one, else the filter. */
 export function familyHref(family: Family): string {
-  return familyPageFor(family)?.path ?? `/products?family=${family.slug}`
+  return familyPageFor(family)?.path ?? familyGalleryHref(family)
 }
+
+/*
+ * ⚠️ THE TWO WORDS THAT JOIN A BUYER PAGE AND ITS GALLERY (visual audit VA-33). From the home
+ * page "Outerwear" opened the buyer page and on /products the same word filtered the grid, so
+ * a buyer who knew one never found the other. The owner chose to link the two to each other
+ * (2026-10-01) and approved the words on 2026-10-02: "See all outerwear in 3D" on the buyer
+ * page, "About our outerwear" on the filtered gallery, and the same for sportswear, teamwear &
+ * uniforms and casual wear.
+ *
+ * Built from the family's own `name`, lower-cased, so the words cannot drift from the family
+ * they name: a rename in `families.ts` renames both links, and `familyCrossLinks.test.ts` pins
+ * the four approved pairs. Sports Accessories has no buyer page and no garments, so it has no
+ * link either way (`AboutFamily` draws nothing for a family without a page).
+ */
+export const seeAllLabel = (family: Family): string => `See all ${family.name.toLowerCase()} in 3D`
+export const aboutLabel = (family: Family): string => `About our ${family.name.toLowerCase()}`

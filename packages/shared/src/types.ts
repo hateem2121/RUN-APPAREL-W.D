@@ -1,3 +1,5 @@
+import type { FooterSettings } from './siteFooter'
+
 /**
  * Public viewer API contract shared between apps/cms (producer) and
  * apps/viewer (consumer). Only published, public-safe data ever crosses
@@ -117,6 +119,12 @@ export interface ViewerSiteSettings {
   temporaryWordmark: string
   footerLine: string
   legalLine: string
+  /**
+   * The website's footer, which the garment pages draw too since visual audit VA-31
+   * (2026-10-02). Optional, because an API answer cached before then has none: the garment
+   * page then draws the footer's default copy and no claim (`EMPTY_FOOTER`).
+   */
+  footer?: FooterSettings
 }
 
 export interface ViewerApiSuccess {
@@ -166,8 +174,9 @@ export const VIEWER_ANALYTICS_EVENTS = [
    * in. There is no second place that would tell you if you forgot.
    *
    * `web_vitals` is the one event that carries numbers: `lcpMs` and `cls`, stored in
-   * their own columns since 2026-09-17 (audit PF-05b). A new number needs a column,
-   * a migration and a bound in `events.ts` — the name alone is not enough for it.
+   * their own columns since 2026-09-17 (audit PF-05b), and `inpMs` since 2026-10-02 (VA-14).
+   * A new number needs a column, a migration and a bound in `events.ts` — the name alone
+   * is not enough for it.
    */
   'web_vitals',
 ] as const

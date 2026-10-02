@@ -92,9 +92,18 @@ export function HdImageButton({
         </svg>
         {/* ONE inline box for the label: in an inline-flex button each loose text run is
             its own flex item, so the 6px gap landed ON TOP of the word space — "HD   IMAGE",
-            seen on the iPhone simulator 2026-09-27. */}
+            seen on the iPhone simulator 2026-09-27.
+
+            ⚠️ A NORMAL SPACE, NOT `&nbsp;` (visual audit VA-09, 2026-10-02). The label was
+            "HD" + a NO-BREAK space + "IMAGE" while the spoken name below starts "HD image:
+            studio render of …" with a plain one, so the visible words and the name differed by
+            one character. Lighthouse's label-in-name check compares them strictly and failed
+            it, and WCAG 2.5.3 asks that the name contain the words shown. `.hd-image-btn`
+            already sets `white-space: nowrap` (page.css), which is what keeps the two words on
+            one line, so the no-break space was never doing that job. The space is a JS string so
+            it is not trimmed as the edge of a JSX line. */}
         <span>
-          HD<span className="hd-image-btn__more">&nbsp;IMAGE</span>
+          HD<span className="hd-image-btn__more">{' IMAGE'}</span>
         </span>
       </button>
       {mounted && (

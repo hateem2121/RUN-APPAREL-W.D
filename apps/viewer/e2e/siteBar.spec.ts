@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 import {
   SITE_BAR_WORDMARK,
   SITE_MENU_ID,
@@ -6,6 +6,18 @@ import {
   siteBarAriaSnapshot,
 } from '../../../packages/shared/src/siteBar'
 import { contrastOf, parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
+
+/**
+ * The phone menu has finished arriving: the bar widened, the panel dropped in on a scale from
+ * 0.94 and the rows faded in (VA-51). Anything that measures the open menu waits for this — a
+ * row read mid-entry was 41.4px, and even reduced motion's 0.01ms leaves one frame.
+ */
+const menuLanded = (page: Page) =>
+  page.waitForFunction(() =>
+    (document.querySelector('.notch-shell') as HTMLElement)
+      .getAnimations({ subtree: true })
+      .every((a) => a.playState !== 'running' || a.timeline !== document.timeline),
+  )
 
 /**
  * XS-02, XS-01, TY-08 — ONE menu bar on both hosts (owner decision 2026-09-17: "Same menu bars
@@ -62,6 +74,29 @@ test.describe('one menu bar on both hosts — the viewer', () => {
       expect(m.colour, "the name is not in the bar's own text colour").toBe(m.barColour)
     })
   }
+})
+
+test.describe('the menu says where the visitor is — the viewer (VA-37)', () => {
+  test('Products is marked as the current section, underlined like a current page', async ({
+    page,
+  }) => {
+    // Every garment page lives under the site's /products. `true`, not `page`: the link is the
+    // section, not this page.
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const products = page.locator('.notch__nav a[href$="/products"]')
+    await expect(products).toHaveAttribute('aria-current', 'true')
+    await expect(page.locator('.notch__nav a[href$="/contact"]')).not.toHaveAttribute(
+      'aria-current',
+      /.*/,
+    )
+    expect(
+      await products.evaluate((link) => getComputedStyle(link).textDecorationLine),
+      'marked by colour alone',
+    ).toBe('underline')
+    await expect(page.locator('.notch__nav a[href$="/guides"]')).toBeHidden()
+  })
 })
 
 test.describe('the focus ring in the dark bar (volt, both themes)', () => {
@@ -170,6 +205,10 @@ test.describe('the page still scrolls after the menu — the viewer (SC-11)', ()
         'hidden',
       )
       expect(locked.lenisStopped, `${after}: smooth scrolling is left stopped`).toBe(false)
+      // The bar narrows back on --ui once the menu closes (VA-51). Aimed at mid-narrowing, the
+      // wheel landed beside the finished bar, on the 3D stage, and turned the garment instead
+      // (WebKit and Firefox, 2026-10-01). Aim where the bar ends up.
+      await menuLanded(page)
       const bar = await page.locator('header.notch-shell .notch').boundingBox()
       if (!bar) throw new Error('no bar to wheel over')
       await page.mouse.move(bar.x + 8, bar.y + bar.height / 2)
@@ -206,6 +245,7 @@ test.describe('the page still scrolls after the menu — the viewer (SC-11)', ()
 
     await button.click()
     await expect(page.locator(open)).toHaveCount(1)
+    await menuLanded(page)
     const point = await page.evaluate((selector) => {
       const panel = document.querySelector(selector)?.getBoundingClientRect()
       if (!panel) return null
@@ -227,5 +267,86 @@ test.describe('the page still scrolls after the menu — the viewer (SC-11)', ()
     await page.setViewportSize({ width: 1280, height: 800 })
     await expect(page.locator(open)).toHaveCount(0)
     await stillScrolls('closed by widening past the phone layout')
+  })
+})
+
+/*
+ * VA-50 (owner, 2026-10-01, from an iPhone): the strip around the clock and battery stayed paper
+ * above the dark bar. Safari 26 and 27 ignore `theme-color` and take that area's colour from a
+ * fixed element touching the page's top edge, found by hit-testing — so a 6px strip in the bar's
+ * colour, on phones only (owner decision). Asserted where Safari looks: what the top edge holds
+ * beside the bar. Android Chrome still reads `theme-color`, so that must give the same colour.
+ * apps/cms/e2e/siteBar.spec.ts runs the same test on the site.
+ */
+test.describe('the phone status area takes the bar colour (VA-50) — the viewer', () => {
+  /** What Safari and Chrome would each take for the browser's own bar, as #rrggbb. */
+  const probe = () => {
+    const hex = (rgb: string) =>
+      `#${(rgb.match(/\d+/g) ?? [])
+        .slice(0, 3)
+        .map((n) => Number(n).toString(16).padStart(2, '0'))
+        .join('')}`
+    const strip = document.querySelector('.notch-strip') as HTMLElement
+    const box = strip.getBoundingClientRect()
+    const style = getComputedStyle(strip)
+    const themeColour = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')]
+      .find((tag) => !tag.media || matchMedia(tag.media).matches)
+      ?.content.toLowerCase()
+    return {
+      touch: matchMedia('(hover: none)').matches,
+      display: style.display,
+      position: style.position,
+      box: [box.top, box.height, box.width - innerWidth],
+      hit: document.elementFromPoint(4, 2) === strip,
+      strip: hex(style.backgroundColor),
+      bar: hex(getComputedStyle(document.querySelector('.notch') as HTMLElement).backgroundColor),
+      page: hex(getComputedStyle(document.body).backgroundColor),
+      themeColour,
+    }
+  }
+
+  test.describe('on a touch phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+    for (const scheme of ['light', 'dark'] as const) {
+      test(`${scheme}: the top edge holds a strip in the bar's colour`, async ({
+        page,
+        browserName,
+      }) => {
+        test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
+        await page.emulateMedia({ colorScheme: scheme })
+        await page.goto('/n001/wine')
+        await expect(page.locator('.notch')).toBeVisible()
+        // The loading screen covers the top edge until it has gone (WebKit, measured at 0ms).
+        await expect(page.locator('.preloader')).toHaveCount(0)
+        const top = await page.evaluate(probe)
+        expect(top.touch, 'the emulated phone reports hover — this test measures nothing').toBe(
+          true,
+        )
+        expect(top.position).toBe('fixed')
+        expect(top.box, 'not a full-width 6px strip at the very top').toEqual([0, 6, 0])
+        expect(top.strip, "the strip is not the bar's colour").toBe(top.bar)
+        expect(
+          top.hit,
+          'Safari finds the strip by hit-testing, and the top edge holds something else',
+        ).toBe(true)
+        expect(top.themeColour, "Android's bar would not be the bar's colour").toBe(top.bar)
+      })
+    }
+  })
+
+  test.describe('on a desktop', () => {
+    // Its own context: the iPhone project would otherwise report touch at any width.
+    test.use({ hasTouch: false, isMobile: false })
+    test('no strip, and the browser bar takes the page colour', async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 800 })
+      await page.goto('/n001/wine')
+      await expect(page.locator('.notch')).toBeVisible()
+      await expect(page.locator('.preloader')).toHaveCount(0)
+      const top = await page.evaluate(probe)
+      expect(top.touch).toBe(false)
+      expect(top.display).toBe('none')
+      expect(top.hit).toBe(false)
+      expect(top.themeColour, 'a desktop took the phone colour').toBe(top.page)
+    })
   })
 })

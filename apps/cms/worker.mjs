@@ -24,6 +24,7 @@
  */
 import openNext from './.open-next/worker.js'
 import { newNonce, nonceable, noncedHeaders } from './cspNonce.mjs'
+import { filmResponse, servesFilm } from './filmRange.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
@@ -36,6 +37,10 @@ export default {
     // from `_headers`, so the nonce guard below must never see it. Without the binding
     // (a local preview) the request falls through to Next and 404s, which is honest.
     if (env.VIEWER && forwardsToViewer(new URL(request.url))) return env.VIEWER.fetch(request)
+    // The /products film, in the pieces iPhone Safari asks for: the static assets would send the
+    // whole file to every range request (filmRange.mjs has the measurements). Only `/film/*` reaches
+    // this line before the assets do (`run_worker_first` in wrangler.jsonc).
+    if (servesFilm(new URL(request.url))) return filmResponse(request, env)
 
     const response = await openNext.fetch(request, env, ctx)
     try {

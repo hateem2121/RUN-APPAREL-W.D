@@ -14,6 +14,22 @@ interface ProductPanelProps {
 }
 
 /**
+ * A key for each feature that stays distinct when the same words are typed twice.
+ *
+ * The CMS holds the features as a list of free text, so two rows can read alike, and React
+ * needs a different key for each sibling: `['a', 'a', 'b']` gives `a#1`, `a#2`, `b#1`. The order
+ * is the CMS's and never changes between renders, so the key never moves between rows.
+ */
+function withKeys(features: string[]): { feature: string; key: string }[] {
+  const seen = new Map<string, number>()
+  return features.map((feature) => {
+    const occurrence = (seen.get(feature) ?? 0) + 1
+    seen.set(feature, occurrence)
+    return { feature, key: `${feature}#${occurrence}` }
+  })
+}
+
+/**
  * What lives in `.content` under the stage band.
  *
  * ⚠️ THIS COMPONENT RETURNS TWO DIFFERENT SHAPES, and the difference is not
@@ -66,7 +82,27 @@ export function ProductPanel({ data, selected, selectedIndex, showIdentity }: Pr
       {product.performanceFeatures.length > 0 && (
         <div>
           <dt>[ Performance ]</dt>
-          <dd>{product.performanceFeatures.join(' / ')}</dd>
+          {/*
+            ONE FEATURE TO A LINE, AS A LIST (visual audit VA-59, 2026-10-02). They were
+            `.join(' / ')`-ed into one string, and in a phone's half-width column that read
+            as a run-on: "Eco poly stretch / Engineered seam placement / Digital sublimation
+            print / Flex jersey panels" over five lines. Same words, same order, no CMS change;
+            the list also tells a screen reader how many there are before it reads them.
+
+            ⚠️ `role="list"` LOOKS REDUNDANT AND IS NOT. `.spec-list__features` sets `list-style:
+            none` (page.css), and Safari then drops a list's semantics unless the role is written
+            out; the Chrome team's accessibility guidance (modern-web-guidance) says the same.
+            The website's own bullet-less lists (its footer links, its card grids) do not write
+            the role out; if that is ever decided site-wide, it is a separate change.
+          */}
+          <dd>
+            {/* biome-ignore lint/a11y/noRedundantRoles: Safari drops list semantics under list-style: none unless the role is written out */}
+            <ul className="spec-list__features" role="list">
+              {withKeys(product.performanceFeatures).map(({ feature, key }) => (
+                <li key={key}>{feature}</li>
+              ))}
+            </ul>
+          </dd>
         </div>
       )}
     </dl>

@@ -101,7 +101,8 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
             })(),
             linksInBar: (() => {
               const bar = document.querySelector('.notch')?.getBoundingClientRect()
-              const links = [...document.querySelectorAll('#site-menu a')]
+              // The bar's own; Guides is the phone menu's only (VA-37) and never inline.
+              const links = [...document.querySelectorAll('#site-menu a:not(.nav-link--menu)')]
               return (
                 links.length > 0 &&
                 links.every((link) => {

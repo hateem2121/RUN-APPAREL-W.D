@@ -81,6 +81,7 @@ describe('familyPictures', () => {
   const colour = (url: string, kind: 'render' | 'poster') => ({
     slug: 'c',
     name: 'C',
+    swatch: null,
     image: { url, alt: `${kind} alt`, kind },
   })
   const card = (over: Partial<ProductCard>): ProductCard => ({
@@ -114,7 +115,9 @@ describe('familyPictures', () => {
   })
 
   it('falls back to the card poster when the colour has no picture', () => {
-    const pictures = familyPictures([card({ colours: [{ slug: 'c', name: 'C', image: null }] })])
+    const pictures = familyPictures([
+      card({ colours: [{ slug: 'c', name: 'C', swatch: null, image: null }] }),
+    ])
     expect(pictures.sportswear).toEqual({
       url: 'https://media.example/poster.webp',
       alt: 'poster alt',

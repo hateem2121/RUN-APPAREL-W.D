@@ -157,6 +157,16 @@ const REPORT_ONLY = process.argv.includes('--report')
  *       stylesheet     8,839 -> 9,037 B gzip   (+198)   budget 8,951 -> 9,149 (headroom 112)
  *   The headroom was already 112 on main, not 265: the cookie card's own styles
  *   (2026-09-30) spent 153 B of it without a raise here. Left as found, not restored.
+ *   ⚠️ 2026-10-02, the second visual audit (owner-approved, one PR; the owner chose on 2026-10-01
+ *   to raise this ONCE at the end by the measured growth, and approved the figure on 2026-10-02).
+ *   Measured by building main (origin/main d6f446f8) and this branch in turn, gzip level 9, both
+ *   .css files:
+ *       stylesheet     9,037 -> 12,286 B gzip  (+3,249)   budget 9,149 -> 12,398 (headroom 112)
+ *   Main's 9,037 matches the 2026-10-01 figure above to the byte. Where it went, each sheet
+ *   minified with the build's own minifier and gzipped alone: the website's footer, now on the
+ *   garment pages too (packages/ui/src/footer.css, VA-31) +2,799; the bar and its phone menu
+ *   (notch.css: one shape with the menu, the status strip, the hairline, the bar that leaves)
+ *   +620; page.css +397 net of the old footer it lost; base.css and tokens.css +319.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -183,7 +193,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 9_149, note: 'CSS' },
+  stylesheet: { bytes: 12_398, note: 'CSS' },
 }
 
 /**

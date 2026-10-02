@@ -523,4 +523,118 @@ test.describe('the cookie choice', () => {
       }
     }
   })
+
+  /*
+   * VA-18 (visual audit 2026-10-02): from 1024px up the sentence ran 76-79 characters a line,
+   * past the 45-75 that reads comfortably. `.consent__text` is capped at 54ch now (base.css).
+   * COUNTED from Range rects, as `legibility.spec.ts` counts the prose and never `width / one
+   * character's width`: `ch` is the width of a zero, which renders more characters than it names.
+   * The cap was chosen so the sentence is still THREE lines, so the card does not grow taller.
+   * The card is absent under automation, so the gate is lifted here as in every test above.
+   */
+  test('the sentence keeps to 45-75 characters a line, in three lines, from 1024px up (VA-18)', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.setViewportSize({ width: 1024, height: 900 })
+    await page.goto('/')
+    await expect(banner(page)).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    for (const width of [1024, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      const lines = await page.evaluate(() => {
+        const sentence = document.querySelector('.consent__text') as HTMLElement
+        const rows = new Map<number, string>()
+        const walker = document.createTreeWalker(sentence, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const value = node.nodeValue ?? ''
+          for (let index = 0; index < value.length; index++) {
+            const range = document.createRange()
+            range.setStart(node, index)
+            range.setEnd(node, index + 1)
+            const rect = range.getBoundingClientRect()
+            if (rect.width === 0 && rect.height === 0) continue
+            const row = Math.round(rect.top)
+            rows.set(row, (rows.get(row) ?? '') + value[index])
+          }
+        }
+        return [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, text]) => text.trim().length)
+      })
+      expect(
+        lines.length,
+        `${width}px: the sentence did not render, so nothing was measured`,
+      ).toBeGreaterThan(1)
+      // The last line is a ragged end, not a measure of the column.
+      for (const [index, length] of lines.slice(0, -1).entries()) {
+        expect(
+          length,
+          `${width}px: line ${index + 1} has ${length} characters`,
+        ).toBeGreaterThanOrEqual(45)
+        expect(
+          length,
+          `${width}px: line ${index + 1} has ${length} characters`,
+        ).toBeLessThanOrEqual(75)
+      }
+      expect(
+        lines.length,
+        `${width}px: ${lines.join(', ')} characters; a fourth line is a taller card`,
+      ).toBe(3)
+    }
+  })
+})
+
+/*
+ * VA-25 (owner, 2026-10-01, from an iPhone): a pale band sat under the dark footer. While the
+ * question is open base.css keeps 11rem of room at the page's foot, and it took the paper colour;
+ * an iPhone's bounce then showed more paper below it.
+ */
+test.describe('the room under the footer (VA-25)', () => {
+  test("with the question open, the room kept at the foot is the footer's colour", async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await expect(banner(page)).toBeVisible()
+    const look = await page.evaluate(() => {
+      const room = getComputedStyle(document.body, '::after')
+      const slab = document.querySelector('.site-footer__slab') as HTMLElement
+      return {
+        height: room.blockSize,
+        room: room.backgroundColor,
+        footer: getComputedStyle(slab).backgroundColor,
+      }
+    })
+    expect(look.height, 'the room is not the 11rem the card needs').toBe('176px')
+    expect(look.room, 'the room under the footer is not the footer colour').toBe(look.footer)
+  })
+
+  test.describe('on a touch phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+    test("the canvas a bounce shows below the page is the footer's colour too", async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
+      await page.goto('/')
+      const look = await page.evaluate(() => ({
+        touch: matchMedia('(hover: none)').matches,
+        canvas: getComputedStyle(document.documentElement).backgroundColor,
+        page: getComputedStyle(document.body).backgroundColor,
+        footer: getComputedStyle(document.querySelector('.site-footer__slab') as HTMLElement)
+          .backgroundColor,
+      }))
+      expect(look.touch, 'the emulated phone reports hover — this test measures nothing').toBe(true)
+      // Polled: the root's background has a 500ms colour transition for theme changes, and
+      // WebKit runs it once as the page loads (measured 2026-10-01: ink at 0.75 alpha at load,
+      // solid 500ms later). The settled colour is what a bounce shows.
+      await expect
+        .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor))
+        .toBe(look.footer)
+      // NEGATIVE CONTROL: the page itself keeps its paper; only the canvas beyond it changed.
+      expect(look.page).not.toBe(look.footer)
+    })
+  })
 })

@@ -14,8 +14,9 @@
   // Ignoring them leaves the report short enough that a new finding is noticed.
   "ignoreExportsUsedInFile": true,
   // Programs installed on the machine, not npm packages: Ghostscript renders the PDF
-  // pages (document-pages.mjs); the two drivers run the phone browser tests.
-  "ignoreBinaries": ["gs", "chromedriver", "safaridriver"],
+  // pages (document-pages.mjs); the two drivers run the phone browser tests; ffmpeg
+  // prepares the /products film from the owner's original (build-products-film.mjs).
+  "ignoreBinaries": ["gs", "chromedriver", "safaridriver", "ffmpeg"],
   "ignoreIssues": {
     // Documents the PDF page-part ID format beside the code that builds and parses it.
     // Every merge redeploys this Worker first, so it is not touched for a tidy-up.

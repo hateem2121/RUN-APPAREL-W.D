@@ -21,6 +21,27 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
+ * Call `callback` with the new answer each time the visitor turns reduced motion on or off, until
+ * the returned function is called (visual audit VA-20, 2026-10-02).
+ *
+ * `prefersReducedMotion()` is never stale in itself — it asks the browser every time — but code
+ * that decides ONCE (the polish layer's smooth scroll and cursor) or reads while rendering
+ * (`usePrefersReducedMotion`) cannot see a change that lands between its reads, and a visitor who
+ * turned reduced motion on mid-visit kept the motion they had just asked to stop. This is how they
+ * hear it. `addEventListener('change', …)` on the query's list is the form MDN recommends
+ * (`MediaQueryList: change event`, read 2026-10-02).
+ *
+ * Plain on purpose, with no React: the polish modules import this file and must stay React-free
+ * (the comment at the top of `polish/index.ts`).
+ */
+export function onReducedMotionChange(callback: (reduce: boolean) => void): () => void {
+  const list = window.matchMedia('(prefers-reduced-motion: reduce)')
+  const listener = (event: MediaQueryListEvent) => callback(event.matches)
+  list.addEventListener('change', listener)
+  return () => list.removeEventListener('change', listener)
+}
+
+/**
  * True only when the device has NO fine pointer at all.
  *
  * ⚠️ It asked `(pointer: coarse)` alone until 2026-08-13, and that describes only

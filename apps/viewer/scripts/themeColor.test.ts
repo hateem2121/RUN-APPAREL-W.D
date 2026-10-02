@@ -26,33 +26,55 @@ const uiStyles = join(viewerRoot, '..', '..', 'packages', 'ui', 'src')
 const html = readFileSync(join(viewerRoot, 'index.html'), 'utf8')
 const tokens = readFileSync(join(uiStyles, 'tokens.css'), 'utf8')
 
-/** The two halves of `--bg: light-dark(<light>, <dark>)`. */
-function backgroundTokens(): { light: string; dark: string } {
+/** The two halves of `--<name>: light-dark(<light>, <dark>)`. */
+function pairToken(name: string): { light: string; dark: string } {
   const match = tokens.match(
-    /--bg:\s*light-dark\(\s*(#[0-9a-fA-F]{3,8})\s*,\s*(#[0-9a-fA-F]{3,8})\s*\)/,
+    new RegExp(
+      `--${name}:\\s*light-dark\\(\\s*(#[0-9a-fA-F]{3,8})\\s*,\\s*(#[0-9a-fA-F]{3,8})\\s*\\)`,
+    ),
   )
-  if (!match) throw new Error('--bg is no longer a light-dark() pair in tokens.css')
+  if (!match) throw new Error(`--${name} is no longer a light-dark() pair in tokens.css`)
   return { light: match[1]!.toLowerCase(), dark: match[2]!.toLowerCase() }
 }
 
+/**
+ * A phone, as the status-area strip in notch.css defines one (VA-50). Read from notch.css, so
+ * the tags and the strip cannot disagree about what a phone is.
+ */
+const notch = readFileSync(join(uiStyles, 'notch.css'), 'utf8')
+const PHONE = notch.match(/@media (\([^{]*\)) \{\s*\.notch-strip \{/)?.[1] ?? 'missing'
+
+/** Every theme-color tag, in document order: [media, content]. */
+function themeColorTags(source: string): [string, string][] {
+  return [...source.matchAll(/<meta name="theme-color" media="([^"]*)" content="([^"]*)"/g)].map(
+    (m) => [m[1]!, m[2]!.toLowerCase()],
+  )
+}
+
 describe('theme-color', () => {
-  it('declares one tag per colour scheme', () => {
-    expect(html).toMatch(/<meta name="theme-color" media="\(prefers-color-scheme: light\)"/)
-    expect(html).toMatch(/<meta name="theme-color" media="\(prefers-color-scheme: dark\)"/)
+  it('declares the phone colours first, then the page colours, one per scheme', () => {
+    // The first tag whose media matches wins (the HTML standard; what Chrome implements),
+    // and a phone matches both its own tag and the page's — so the phone tags come first.
+    expect(PHONE).toBe('(width < 720px) and (hover: none)')
+    expect(themeColorTags(html).map(([media]) => media)).toEqual([
+      `(prefers-color-scheme: light) and ${PHONE}`,
+      `(prefers-color-scheme: dark) and ${PHONE}`,
+      '(prefers-color-scheme: light)',
+      '(prefers-color-scheme: dark)',
+    ])
   })
 
-  it('matches --bg in tokens.css, which is the source of truth', () => {
-    const { light, dark } = backgroundTokens()
-    const tags = [
-      ...html.matchAll(
-        /<meta name="theme-color" media="\(prefers-color-scheme: (light|dark)\)" content="(#[0-9a-fA-F]{3,8})"/g,
-      ),
-    ]
-    expect(tags, 'expected exactly two theme-color tags').toHaveLength(2)
-
-    const byScheme = Object.fromEntries(tags.map((m) => [m[1]!, m[2]!.toLowerCase()]))
-    expect(byScheme.light, 'light theme-color has drifted from --bg').toBe(light)
-    expect(byScheme.dark, 'dark theme-color has drifted from --bg').toBe(dark)
+  it('matches the tokens: --bg for the page, the bar colour on phones', () => {
+    const bg = pairToken('bg')
+    const ink = tokens.match(/--ink:\s*(#[0-9a-fA-F]{3,8});/)?.[1]?.toLowerCase()
+    // --notch-bg is light-dark(var(--ink), var(--raised)), as notch.css says.
+    expect(notch).toMatch(/--notch-bg: light-dark\(var\(--ink\), var\(--raised\)\)/)
+    expect(themeColorTags(html).map(([, content]) => content)).toEqual([
+      ink,
+      pairToken('raised').dark,
+      bg.light,
+      bg.dark,
+    ])
   })
 
   it('keeps the explicit toggle in step, inside the EXISTING inline script', () => {
@@ -71,6 +93,16 @@ describe('theme-color', () => {
     const inlineScripts = [...html.matchAll(/<script\s*>/gi)]
     expect(inlineScripts, 'a second inline script would add a second CSP hash').toHaveLength(1)
     expect(html).toContain('meta[name="theme-color"]')
+    // The script's own copies of the colours, light then dark, page then phone (VA-50) —
+    // the same values as the tags, so an explicit choice paints what the OS would have.
+    const [phoneLight, phoneDark, pageLight, pageDark] = themeColorTags(html).map(([, c]) => c)
+    const picks = [...html.matchAll(/stored === 'light' \? '(#[0-9a-fA-F]+)' : '(#[0-9a-fA-F]+)'/g)]
+    expect(picks.map((m) => [m[1]!.toLowerCase(), m[2]!.toLowerCase()])).toEqual([
+      [pageLight, pageDark],
+      [phoneLight, phoneDark],
+    ])
+    // It recolours and never rewrites `media`: the phone tags must keep matching phones only.
+    expect(html).not.toMatch(/removeAttribute\('media'\)|setAttribute\('media'/)
   })
 })
 

@@ -3,8 +3,7 @@ import { buildViewerResponse } from './endpoints/projectViewer'
 import { mergeSiteSettings } from './lib/projectPublic'
 
 /**
- * XS-08 — contact details identical across hosts; the postal address is site-only
- * BY DESIGN.
+ * XS-08 — contact details identical across hosts.
  *
  * Step 1 confirmed these are NOT one shared function, despite both reading the
  * same `site-settings` global document — they are two independently-maintained
@@ -12,10 +11,15 @@ import { mergeSiteSettings } from './lib/projectPublic'
  * `buildViewerResponse`'s inline `siteSettings` block (the viewer's public API
  * contract, deliberately whitelist-only — see that file's own docblock). This
  * test is the CONTRACT between them: given the same input document, both must
- * resolve `email` and `whatsappNumber` to the same string, and the postal-address
- * -shaped field (`worksCoordinates`, part of `FooterSettings`) must be present on
- * the site side and simply ABSENT (not merely empty) from the viewer's payload —
- * the audit's own documented, intentional asymmetry, not a gap to close.
+ * resolve `email` and `whatsappNumber` to the same string.
+ *
+ * ⚠️ THE FOOTER HALF WAS REVERSED ON PURPOSE (visual audit VA-31). Until 2026-10-02 the
+ * second test asserted the footer — and its works-location field, `worksCoordinates` —
+ * was ABSENT from the viewer's payload: the two hosts were meant to end differently. The
+ * owner chose one footer everywhere and approved changing this test the same day, so it
+ * now asserts the opposite: both hosts resolve the SAME footer from the same document
+ * (WCAG 2.2 SC 3.2.6 Consistent Help asks for contact details in the same place on
+ * every page of a site).
  *
  * A minor, unreachable-in-practice observation found while confirming Step 1: the
  * two projections resolve an EMPTY string differently (`mergeSiteSettings` uses
@@ -94,15 +98,13 @@ describe('contact parity across hosts (XS-08)', () => {
     expect(site.whatsappNumber).toBe(settingsDoc.whatsappNumber)
   })
 
-  it('the postal-address-shaped field reaches the site and is simply absent from the viewer, by design', () => {
+  it('the footer reaches both hosts with the same details, the works location included (VA-31)', () => {
     const site = mergeSiteSettings(settingsDoc)
     const viewer = buildViewerResponse(product(), [colourway()], settingsDoc, origin, 'navy', deps)!
 
     expect(site.footer.worksCoordinates).toBe(settingsDoc.worksCoordinates)
-    // The viewer's siteSettings object is a deliberate whitelist (see
-    // projectViewer.ts's own docblock) — no footer key, and specifically no
-    // worksCoordinates anywhere in the payload.
-    expect(viewer.siteSettings).not.toHaveProperty('footer')
-    expect(JSON.stringify(viewer)).not.toContain(settingsDoc.worksCoordinates)
+    // The same projection on both sides, so one footer, field for field.
+    expect(viewer.siteSettings.footer).toEqual(site.footer)
+    expect(viewer.siteSettings.footer?.worksCoordinates).toBe(settingsDoc.worksCoordinates)
   })
 })

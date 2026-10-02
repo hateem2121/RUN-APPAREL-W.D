@@ -35,16 +35,22 @@ import { SITE_MEDIA_ORIGIN } from './siteMedia'
 export const CARD_WIDTHS = [400, 720, 1080] as const
 
 /**
- * How wide a card draws: one column below 586 px (`.product-grid` is auto-fill minmax(260px, 1fr):
- * two 260 px cards, a 24 px gap and 42 px of gutters need 586), else ~310–340 px. Measured on the
- * live page 2026-09-29: 348 px at 390, 369 at 412, 332 at 768, 333 at 1280, 308 at 1920.
+ * How wide a card draws, from `.product-grid` in site.css (visual audit VA-42, 2026-10-02): two
+ * columns below 900 px, three from 900 and four from 1,600, so the card is ~134–169 px on a phone
+ * and ~250–390 px up to 899, then ~254–335 px. Below 900 a card is
+ * `(100vw − two gutters − a 12 px gap) / 2`. `45vw − 6px` is exact above 400 px, where the gutter is
+ * 5vw, and 4 px too wide at 320 px (138 px asked for, 134 px drawn): close enough, since the browser
+ * only uses it to choose between three files. From 900 px it is the 340 px the
+ * live page measured 2026-09-29 (333 px at 1280, 308 at 1920). Until VA-42 this said one column
+ * below 586 px (348 px at 390) and a phone fetched the 1,080 file for a 169 px card.
  *
  * The `w` numbers describe the 4:5 BOX, not the picture inside it. A render taller than 4:5 comes
  * back narrower than the box, but it is height-bound in the card too (`object-fit: contain`), so
  * the height it needs is what the box gives: a 3x phone's 434 px-tall card needs 1,302 px, and
- * the 1,080 box is 1,350 px tall.
+ * the 1,080 box is 1,350 px tall. Below 560 px the box is square (169 px tall at 390 px), which
+ * only means the file is a little larger than the picture needs.
  */
-export const CARD_SIZES = '(max-width: 585px) calc(100vw - 42px), 340px'
+export const CARD_SIZES = '(max-width: 899px) calc(45vw - 6px), 340px'
 
 const RESIZING_ORIGIN = `${SITE_MEDIA_ORIGIN}/`
 const DEFAULT_WIDTH = 720

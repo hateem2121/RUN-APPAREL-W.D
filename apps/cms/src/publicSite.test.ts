@@ -590,13 +590,16 @@ describe('the notch', () => {
     expect(closedMenuDisplays('.notch__menu:popover-open { display: flex; }')).toEqual([])
   })
 
-  it('sizes the open list by its two insets, never by the viewport (bug 2)', () => {
+  it('sizes the menu panel by the bar’s own insets, never by the viewport (bug 2, VA-51)', () => {
     // The browser styles [popover] `width: fit-content`; two insets alone gave 153-157px in
-    // three engines. `width: auto` is the cure; `100vw` includes a classic scrollbar.
-    const rule = /\.notch__menu:popover-open\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
-    expect(rule, 'the open-menu rule is missing').not.toBe('')
-    expect(rule).toMatch(/inset-inline: 12px/)
+    // three engines. `width: auto` is the cure; `100vw` includes a classic scrollbar. Since
+    // VA-51 the insets are the shell's padding, so the panel is exactly the open bar's width,
+    // and they sit on the closed list too, so the panel keeps its shape while it fades out.
+    const rule = /\.notch__menu\s*\{[^}]*position: fixed[^}]*\}/.exec(barCss())?.[0] ?? ''
+    expect(rule, 'the phone menu panel rule is missing').not.toBe('')
+    expect(rule).toMatch(/inset-inline: var\(--notch-r\)/)
     expect(rule).toMatch(/width: auto/)
+    expect(barCss()).toMatch(/\.notch-shell\s*\{[\s\S]*?padding-inline: var\(--notch-r\)/)
     expect(barCss()).not.toMatch(/100vw/)
   })
 
@@ -682,7 +685,9 @@ describe('the notch', () => {
     // for. --shadow-raised is the token that exists for this; tokens.css records the
     // floating colourway preview hitting the same wall over the same --bg. Drop the
     // shadow and the bar stops reading as a distinct object on dark.
-    expect(barCss()).toMatch(/\.notch\s*\{[^}]*box-shadow: var\(--shadow-raised\)/)
+    // Since VA-40 (2026-10-02) the list opens with the bar's hairline, so the token is asked for
+    // anywhere in the declaration, not first; apps/viewer/src/styles/barEdge.test.ts holds the ring.
+    expect(barCss()).toMatch(/\.notch\s*\{[^}]*box-shadow:[^;]*var\(--shadow-raised\)/)
   })
 
   it('renders exactly ONE set of links, from the one list both hosts share', () => {
@@ -811,7 +816,11 @@ describe('location and contrast cues', () => {
     // Measured 2026-09-05 once the attribute was live: the ONLY difference between
     // current and non-current was alpha 0.7 → 1.0 on the same colour. That is a
     // colour-only distinction (WCAG 1.4.1) and barely perceptible at that.
-    const rule = /\.nav-link\[aria-current="page"\]\s*\{[^}]*\}/.exec(barCss())?.[0] ?? ''
+    // Since VA-37 the same rule marks the current SECTION (`true`, the viewer's Products).
+    const rule =
+      /\.nav-link:is\(\[aria-current="page"\], \[aria-current="true"\]\)\s*\{[^}]*\}/.exec(
+        barCss(),
+      )?.[0] ?? ''
     expect(rule, 'the aria-current rule is missing').not.toBe('')
     expect(rule).toContain('text-decoration: underline')
   })

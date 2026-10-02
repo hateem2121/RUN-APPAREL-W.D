@@ -71,8 +71,19 @@ The service worker's own test asserts the cache contains **no `.glb`**, explicit
 future "helpful" addition fails rather than silently shipping 53.69 MB of precache to a
 phone on a trade-show connection.
 
+## The website gets no offline page either (decided 2026-10-02)
+
+Everything above is about the 3D garment pages. The visual audit of 2026-10-02 (VA-23) found
+that, offline after a first visit, a garment page shows its own offline notice and recovers by
+itself, while the website's pages (home, `/products`, `/contact`, the guides) show the browser's
+own error. **The owner decided the website gets no offline page**, because the first two reasons
+above hold for it as well: a service worker only helps a second visit from the same device, and
+iOS Safari clears it after 7 days without a visit. Building one would add a second service worker
+beside the garment pages' (scope `/products/`, `apps/viewer/scripts/sw.mjs`) for a visitor nobody
+has measured.
+
 ## What would change this
 
 A second-visit rate that is actually measured rather than assumed, or an install-to-home-screen
 flow that lifts the ITP eviction. Neither exists today. Until one does, precaching models
-is a cost with no measured beneficiary.
+is a cost with no measured beneficiary, and a website offline page is too.

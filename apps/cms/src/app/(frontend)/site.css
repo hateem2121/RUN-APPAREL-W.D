@@ -417,37 +417,8 @@ html {
   scroll-padding-top: var(--notch-clearance);
 }
 
-/*
- * ⚠️ THE PAGE'S WIDTH AND GUTTER ARE ONE SOURCE, BECAUSE THREE THINGS HAD TO AGREE AND
- * NOTHING MADE THEM.
- *
- * These were literals here and a near-copy in `.site-footer` (`clamp(20px, 4.4vw, 64px)`
- * against this `5vw`). Both clamps share a 20px floor and a 64px ceiling, so they were
- * plainly meant to be the same number — and they missed each other by 4.6–6.2px at
- * 768–1024, then by 130px at 1440 and 370px at 1920, because the footer is full-bleed
- * and the page is centred (audit FA-D-01). Five pixels is the worst available value: too
- * small to read as contrast, large enough to read as a mistake.
- *
- * Naming them also makes the width a single dial. `--site-max` is the ONLY thing the
- * 1600px query below changes, and the gallery's fourth column, the wider hero and the
- * footer's edge all follow from it — they cannot drift apart, because there is one
- * number.
- */
 :root {
-  /*
-   * ⚠️ `light-dark()`, AND THE FIXED VALUE IT REPLACED FAILED IN DARK MODE. This marks an
-   * invalid form field and the error notice — a UI boundary, so WCAG 1.4.11 asks 3:1
-   * against its own background. Measured 2026-09-07 against `--surface`:
-   *
-   *   #b3261e on #faf9f6 (light)  6.21:1  PASS
-   *   #b3261e on #23271f (dark)   2.33:1  FAIL
-   *   #f2b8b5 on #23271f (dark)   8.90:1  PASS
-   *
-   * Declared here rather than in packages/ui: only the site has a form. It is also never
-   * the ONLY signal — the browser's own validation message says what is wrong and is
-   * announced, because colour alone would be a WCAG 1.4.1 failure.
-   */
-  --danger: light-dark(#b3261e, #f2b8b5);
+  /* `--danger`, the error red, moved to packages/ui/src/tokens.css on 2026-10-01 (VA-22). */
   /*
    * ⚠️ THE MEASURE IS 56ch AND `ch` IS NOT A CHARACTER — audit FA-C-52.
    *
@@ -472,23 +443,23 @@ html {
    * follows, and narrowing them would move a layout the audit passed (FA-D-03, FA-I-06).
    */
   --site-measure: 55ch;
-  --site-max: 1180px;
-  --site-gutter: clamp(20px, 5vw, 64px);
-  /* what a `.site-container` child actually gets, at the cap */
-  --site-content: calc(var(--site-max) - var(--site-gutter) * 2);
-}
+  /* `--site-max`, `--site-gutter` and `--site-content` moved to packages/ui/src/tokens.css on
+     2026-10-02 (VA-31): the footer that lines up with them is drawn on the garment pages too. */
 
-/*
- * Owner decision 2026-09-07 (audit FA-E-04): below 1600px nothing changes at all; above
- * it the page widens so a fourth gallery column fills space that was empty margin.
- * 1440 − 128 = 1312px of content takes four 260px minimum tracks with 24px gaps
- * (4 × 260 + 3 × 24 = 1112), where 1052px took three. Prose is unaffected — `p, li` are
- * capped at 60ch and `.site-lede` at 62ch, so nothing gets a longer line to read.
- */
-@media (min-width: 1600px) {
-  :root {
-    --site-max: 1440px;
-  }
+  /*
+   * ⚠️ THE MARGIN INSIDE A GARMENT PICTURE'S BOX (visual audit VA-55, owner's choice 2026-10-02).
+   * The renders are cropped tight, so inside a box with no margin each garment ran to the edge: on
+   * the home family cards the sports bra touched both sides and the jacket's sleeves reached the
+   * sides and the bottom, and the bib shorts touched top and bottom on the home page and on
+   * /products. 7% of the box's width at the sides, and 1.25 x that above and below, which is the
+   * same 7% of the box's HEIGHT in a 4:5 box: percentage padding is always measured against the
+   * width, so the vertical value has to be scaled to land on the same fraction. The owner asked
+   * for about 6-8%; 7% leaves a picture 86% of the box's width and height, and every garment at
+   * least 7% from each edge whatever the shape of its render (a render taller than 4:5 is
+   * height-bound and keeps its 7% of height; a wider one keeps its 7% of width).
+   * `e2e/pictureInset.spec.ts` measures where the picture is drawn, in a real engine.
+   */
+  --picture-inset: 7%;
 }
 
 .site-container {
@@ -527,6 +498,14 @@ html {
   padding-block: clamp(64px, 9vw, 120px);
 }
 
+/* On the 2px scale where the browser can round, AFTER the rule it refines (visual audit VA-17;
+   why, and why behind `@supports`: the note above `--site-gutter`'s rounding in tokens.css). */
+@supports (width: round(1px, 2px)) {
+  .site-section {
+    padding-block: round(clamp(64px, 9vw, 120px), 2px);
+  }
+}
+
 .site-section + .site-section {
   border-top: 1px solid var(--line);
 }
@@ -540,6 +519,14 @@ html {
      bar (see --notch-clearance above), which on phones is larger than the clamp floor. */
   padding-block-start: max(clamp(64px, 11vw, 160px), var(--notch-clearance));
   padding-block-end: clamp(64px, 11vw, 160px);
+}
+
+/* The bar's clearance is not rounded, only the clamp beside it (VA-17, tokens.css). */
+@supports (width: round(1px, 2px)) {
+  .site-hero {
+    padding-block-start: max(round(clamp(64px, 11vw, 160px), 2px), var(--notch-clearance));
+    padding-block-end: round(clamp(64px, 11vw, 160px), 2px);
+  }
 }
 
 .site-hero__grid {
@@ -571,6 +558,56 @@ html {
  */
 .site-hero .display--hero {
   font-size: clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem);
+}
+
+/*
+ * ⚠️ FROM 1920px THIS HEADLINE KEEPS GROWING, WITH THE SHARED ONE (visual audit VA-12, 2026-10-02).
+ * `.site-hero .display--hero` is more specific than the `.display--hero` that packages/ui/src/base.css
+ * grows from 1920px, so it would hold the 72px ceiling by itself; this is the same size, written
+ * again, and base.css has the reasoning and the 144px ceiling. Nothing below 1920px changes, and the
+ * rule above is untouched.
+ */
+@media (min-width: 1920px) {
+  .site-hero .display--hero {
+    font-size: max(4.5rem, min(3.75vw, 9rem));
+  }
+}
+
+/*
+ * ⚠️ A HERO LABEL NEVER LEAVES ITS LAST WORDS ALONE (visual audit VA-43, 2026-10-02). At 390px the
+ * teamwear page's "[ TEAMWEAR & UNIFORMS · FROM 50 PIECES PER STYLE ]" wrapped and left "STYLE ]" on a
+ * line of its own. `balance` (MDN: Baseline since 2024) chooses where an existing wrap falls and
+ * adds no line, so a one-line label is untouched and no height moves. It is scoped to the hero
+ * labels HERE, not put on `.label` in base.css: the garment pages' labels hold a colourway name that
+ * wraps on its own measured rules (VA-32), and nothing there was measured for this.
+ * `e2e/composition.spec.ts` counts each label's lines in a browser.
+ */
+.site-hero .label {
+  text-wrap: balance;
+}
+
+/*
+ * The home hero's label, on a phone: two deliberate lines, and no dot (VA-43, round 4). At 390px its
+ * second line began with the separator ("· START FROM 50 PIECES PER STYLE ]"), because the browser
+ * chose where to break and a dot is a place to break. The words are the same and in the same order;
+ * only the dot between the two halves goes, and the second half takes its own line.
+ *
+ * `40rem`, not 640px: `rem` in a media query is the browser's own text size, which is what the
+ * label's width follows (its type is in rem), so a reader at larger text gets two lines where the
+ * label stops fitting, as `notch.css` fits the bar. At the default size the label is about 541px
+ * (73 characters of 10px mono at 0.12em tracking, 7.2px each, plus 16px of padding: computed, not
+ * measured) against a 577px column at 641px, so from 40rem it is one line with its dot.
+ * ⚠️ At 320px the FIRST half is wider than the line (about 281px of text in a 264px line), so it takes
+ * two balanced lines there and the label is three; from about 340px wide it is the two lines.
+ */
+@media (max-width: 40rem) {
+  .label__dot {
+    display: none;
+  }
+
+  .label__tail {
+    display: block;
+  }
 }
 
 .site-lede {
@@ -613,6 +650,54 @@ html {
 @media (max-width: 430px) {
   .site-actions > * {
     flex: 1 1 100%;
+  }
+}
+
+/*
+ * ⚠️ A BUYER PAGE'S HERO OPENS ON THE FAMILY'S PICTURE (visual audit VA-48, owner's choice
+ * 2026-10-02; `FamilyLanding.tsx` says why it is beside the lede and not behind the headline). The
+ * label and the headline run the full column as they always did; under them the lede and the
+ * buttons are on the left and the picture on the right from 900px, and on a phone the picture
+ * comes after them (it is after them in the markup too, so the reading and tab order never
+ * disagree and no `order` is needed). 900px and 420px are the numbers `.proof` and the order
+ * timeline already use for a column with a picture beside it.
+ *
+ * ⚠️ THE FRAME RESERVES THE PICTURE'S SPACE: `aspect-ratio: 4 / 5` is the ratio of the 1200 x 1500
+ * renders and of every other garment frame on the site, so the hero is the same height before the
+ * file arrives and after it (visual audit: nothing may shift). `max-width` stops it stretching to
+ * the page's width between a phone and 900px, where a 4:5 box would be taller than the screen.
+ * The 16px above the picture lines its top up with the lede's first line, which carries the same
+ * 16px of margin (`.site-lede`). The frame is paper (`--bg`) with the line colour for its edge, as
+ * every garment frame is, and no text sits over it.
+ */
+.family-hero__body {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+
+.family-hero__picture {
+  max-width: 420px;
+}
+
+.family-hero__frame {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+@media (min-width: 900px) {
+  .family-hero__body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+    gap: 64px;
+  }
+
+  .family-hero__picture {
+    margin-block-start: 16px;
   }
 }
 
@@ -662,771 +747,6 @@ html {
   }
 }
 
-/* ---------------------------------------------------------------- footer */
-
-/*
- * "The Quiet Room" — docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md.
- * A full-screen dark slab from tablet widths up, mostly empty on purpose, ending in the
- * company's name at the width of the screen.
- *
- * ⚠️ THE TAB SITS ON THE SLAB'S TOP EDGE, OUTSIDE THE CLIP. `.site-footer` is unclipped
- * and positions; `.site-footer__slab` clips (the wordmark is cropped by its bottom edge).
- * The first draft put the tab inside the slab and it never rose out of anything.
- */
-.site-footer {
-  /* the page's gutter, not a near-copy of it — see the :root note (FA-D-01) */
-  --footer-pad: var(--site-gutter);
-  --footer-bg: light-dark(var(--ink), var(--raised));
-  --footer-text: light-dark(var(--paper), var(--text));
-  /* dark is 0.68, not 0.6: on --raised, 0.6 measured 4.57:1 — AA by 0.07 */
-  --footer-muted: light-dark(rgba(241, 239, 234, 0.6), rgba(236, 235, 228, 0.68));
-  --footer-line: light-dark(rgba(241, 239, 234, 0.16), rgba(236, 235, 228, 0.16));
-  --footer-grid: light-dark(rgba(241, 239, 234, 0.07), rgba(236, 235, 228, 0.06));
-  --footer-stroke: light-dark(rgba(241, 239, 234, 0.26), rgba(236, 235, 228, 0.24));
-  position: relative;
-  /* room for the tab, which is seated above the slab's edge */
-  padding-block-start: var(--target-min);
-}
-
-/* The SLAB owns --gx/--gy (set by FooterGlow from the ring's trailed point) and every
-   glow layer inherits them, so one write lights everything. */
-.site-footer__slab {
-  --gx: -1000px;
-  --gy: -1000px;
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0 var(--footer-pad);
-  background: var(--footer-bg);
-  color: var(--footer-text);
-  /* In dark mode --raised sits at 1.47:1 against the page — the header notch's
-     figure, fixed there with --shadow-raised. A slab is too wide for a shadow to
-     read as an edge, so a hairline; invisible against light-mode ink. */
-  border-top: 1px solid var(--footer-line);
-}
-
-/*
- * ⚠️ THE CONTENT COLUMN, NOT THE SLAB. The slab must stay full-bleed — it carries the
- * background, the blueprint grid, the glow and the cropped wordmark, all of which are
- * meant to run to the edge. What was wrong is that its TEXT ran to the edge too, so the
- * footer's left edge left the page's by up to 370px (FA-D-01).
- *
- * This reproduces `.site-container`'s geometry exactly rather than approximating it:
- * the slab's padding supplies the gutter, and this centres a `--site-content`-wide
- * column inside what remains. Checked against the audit's measured table at every
- * width it sampled — 20.0 at 320, 38.4 at 768, 51.2 at 1024, 194.0 at 1440, 434.0 at
- * 1920 — all of which now match the page to the pixel by construction.
- *
- * `flex` and `flex-direction` are inherited responsibilities, not decoration:
- * `.footer-grow`'s `flex: 1 1 auto` is what holds the Quiet Room open, and it needs a
- * flex column parent. Moving it a level down without this would collapse the band the
- * owner confirmed on 2026-09-07 that they want kept.
- */
-.site-footer__inner {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: var(--site-content);
-  margin-inline: auto;
-}
-
-/* the blueprint grid (base.css's recipe) fading in toward the bottom */
-.site-footer__slab::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--footer-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--footer-grid) 1px, transparent 1px);
-  background-size: 26px 26px;
-  mask: linear-gradient(to bottom, transparent 30%, #000 100%);
-  pointer-events: none;
-}
-
-/* One full screen from tablet up. `svh`, not `dvh`: the viewer measured dvh resizing
-   a stage 14 times in one swipe; a footer's height must not follow the toolbar. On a
-   phone the content sets the height — a dark screen after the page is thumb-travel
-   past nothing. */
-@media (min-width: 768px) {
-  .site-footer__slab {
-    min-height: 100svh;
-  }
-}
-
-/* ── the flipped notch ─────────────────────────────────────────────────────
- *   header (.notch)              footer tab
- *   border-end-*-radius          border-start-*-radius
- *   fillet inset-block-start: 0  fillet inset-block-end: 0
- *   mask circle at *,100%        mask circle at *,0
- * The fillets live OUTSIDE the tab's box, one --notch-r each; the max-width reserves
- * exactly that (see .notch-shell for why "exactly"). */
-.site-footer__tab {
-  --arrow-w: 14px;
-  --arrow-gap: 10px;
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 50%;
-  translate: -50% 0;
-  z-index: var(--z-footer-tab);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--target-min);
-  max-width: calc(100% - var(--notch-r) * 2);
-  padding-inline: 24px;
-  background: var(--volt);
-  color: var(--ink);
-  text-decoration: none;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  letter-spacing: var(--tracking-instrument);
-  text-transform: uppercase;
-  white-space: nowrap;
-  border-start-start-radius: var(--notch-r);
-  border-start-end-radius: var(--notch-r);
-  /* Ungated, unlike the hover transition further down — a press happens on both
-     pointer types and this tab is the footer's only call to action. */
-  transition: background-color var(--instant) var(--ease);
-}
-
-/*
- * ⚠️ THE TAB PRESSES WITH COLOUR, NOT WITH `scale` LIKE EVERY OTHER CONTROL HERE.
- *
- * Its two concave fillets are `::before`/`::after` drawn OUTSIDE its own box, seating it
- * into the slab's top edge (see the geometry note above). A transform on the tab scales
- * its pseudo-elements with it, so `scale: 0.97` would lift the tab off the edge and open
- * a hairline gap where the fillets were — the exact property the audit scored 9 for
- * keeping still (FA-R-09: "its width, and therefore its two carved corner fillets, never
- * change"). Colour costs a paint and moves no geometry.
- *
- * 88% volt / 12% ink measures 10.4:1 against the ink label — the hover mix goes the
- * other way, toward white, so press and hover never look like the same state.
- */
-.site-footer__tab:active {
-  background: color-mix(in srgb, var(--volt) 88%, var(--ink));
-}
-
-.site-footer__tab::before,
-.site-footer__tab::after {
-  content: "";
-  position: absolute;
-  inset-block-end: 0;
-  width: var(--notch-r);
-  height: var(--notch-r);
-  background: var(--volt);
-  pointer-events: none;
-}
-
-.site-footer__tab::before {
-  inset-inline-end: 100%;
-  mask: radial-gradient(circle at 0 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
-}
-
-.site-footer__tab::after {
-  inset-inline-start: 100%;
-  mask: radial-gradient(circle at 100% 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
-}
-
-/* The label rests centred; on hover it slides left and the arrow arrives. The tab's
-   WIDTH NEVER CHANGES — the arrow's slot is always reserved and the label is nudged
-   right by half of it at rest — so the fillets never move. Touch has no hover, so
-   there the arrow is simply always shown. */
-.site-footer__tab-arrow {
-  font-family: var(--font-display);
-  width: var(--arrow-w);
-  margin-inline-start: var(--arrow-gap);
-  text-align: end;
-}
-
-.site-footer__tab:focus-visible {
-  outline: 2px solid var(--footer-text);
-  outline-offset: 4px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .site-footer__tab {
-    transition: background-color var(--fast) var(--ease);
-  }
-
-  .site-footer__tab:hover {
-    background: color-mix(in srgb, var(--volt) 88%, white);
-  }
-
-  .site-footer__tab-label {
-    transform: translateX(calc((var(--arrow-w) + var(--arrow-gap)) / 2));
-    transition: transform var(--ui) var(--ease);
-  }
-
-  .site-footer__tab-arrow {
-    opacity: 0;
-    transform: translateX(-6px);
-    transition:
-      opacity var(--fast) var(--ease),
-      transform var(--ui) var(--ease);
-  }
-
-  .site-footer__tab:hover .site-footer__tab-label,
-  .site-footer__tab:focus-visible .site-footer__tab-label {
-    transform: translateX(0);
-  }
-
-  .site-footer__tab:hover .site-footer__tab-arrow,
-  .site-footer__tab:focus-visible .site-footer__tab-arrow {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* ── the question ──────────────────────────────────────────────────────── */
-.footer-cta {
-  position: relative;
-  padding-block-start: clamp(44px, 6vw, 84px);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
-  align-items: start;
-}
-
-.footer-side {
-  display: grid;
-  gap: 14px;
-  justify-items: end;
-}
-
-@media (max-width: 720px) {
-  .footer-cta {
-    /*
-     * `minmax(0, 1fr)`, NOT `1fr` (audit TY-11). A bare `1fr` keeps an AUTOMATIC minimum, so
-     * the nowrap promise line below could stretch the whole column past the slab — and the
-     * slab is `overflow: hidden`, so at 200% browser text every paragraph in the column was
-     * clipped mid-word instead of wrapping. The two-column rule above already had this right.
-     */
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .footer-side {
-    justify-items: start;
-  }
-}
-
-.footer-eyebrow {
-  margin: 0 0 14px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-eyebrow);
-  text-transform: uppercase;
-  color: var(--footer-muted);
-}
-
-.footer-q {
-  margin: 0;
-  max-width: 22ch;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-stretch: 122%;
-  font-size: clamp(27px, 4.3vw, 52px);
-  line-height: 1;
-  letter-spacing: var(--tracking-display-sm);
-  text-wrap: balance;
-}
-
-.footer-q em {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  font-stretch: 100%;
-  color: var(--volt);
-}
-
-.footer-derisk {
-  margin: 16px 0 0;
-  max-width: 44ch;
-  font-size: var(--text-sm);
-  color: var(--footer-muted);
-}
-
-/* the dimension line: end ticks on the ends of the text, so it is fit-content and
-   nowrap — a wrapped one measured half of what it labelled. */
-.footer-dim {
-  position: relative;
-  width: fit-content;
-  margin: 24px 0 0;
-  padding-block-start: 8px;
-  border-top: 1px solid currentColor;
-  color: var(--volt);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-instrument);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.footer-dim::before,
-.footer-dim::after {
-  content: "";
-  position: absolute;
-  inset-block-start: -4px;
-  width: 1px;
-  height: 8px;
-  background: currentColor;
-}
-
-.footer-dim::before {
-  inset-inline-start: 0;
-}
-
-.footer-dim::after {
-  inset-inline-end: 0;
-}
-
-/*
- * One column below 720px, so the promise may wrap when it genuinely cannot fit — at 200% text on a
- * phone (audit TY-11). At normal sizes it still fits on one row, so its ticks stay on the ends of
- * its own text (footer.spec.ts). After the rules above rather than inside the 720px block with the
- * rest of the CTA's narrow layout, so a more specific selector never precedes a less specific one
- * (Biome's noDescendingSpecificity); `.footer-cta` keeps it to the promise line.
- */
-@media (max-width: 720px) {
-  .footer-cta .footer-dim {
-    white-space: normal;
-  }
-}
-
-/* ── the clock, corner-bracketed ───────────────────────────────────────── */
-/*
- * ⚠️ `max-width: 100%` AND A CAPTION THAT MAY WRAP (LA-06 sweep, 2026-09-25). With the whole
- * clock on `nowrap`, a reader at 200% text on a 320px phone lost the last 40.8px of
- * "SIALKOT · HQ & WORKS" off the right edge (0.8px at 360), and WebKit let the page slide
- * sideways by 3px. The time stays on one line; only the caption breaks, between words.
- * Measured with the browser's own text size (`Page.setFontSizes`), not an injected
- * `html { font-size }` — e2e/textSize.spec.ts explains why only the first is real.
- */
-.footer-clock {
-  position: relative;
-  display: inline-grid;
-  gap: 4px;
-  max-width: 100%;
-  padding: 10px 14px 8px;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.footer-clock i {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.footer-clock::before,
-.footer-clock::after,
-.footer-clock i::before,
-.footer-clock i::after {
-  content: "";
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border: 1px solid var(--footer-muted);
-  pointer-events: none;
-}
-
-.footer-clock::before {
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  border-width: 1px 0 0 1px;
-}
-
-.footer-clock::after {
-  inset-block-end: 0;
-  inset-inline-end: 0;
-  border-width: 0 1px 1px 0;
-}
-
-.footer-clock i::before {
-  inset-block-start: 0;
-  inset-inline-end: 0;
-  border-width: 1px 1px 0 0;
-}
-
-.footer-clock i::after {
-  inset-block-end: 0;
-  inset-inline-start: 0;
-  border-width: 0 0 1px 1px;
-}
-
-.footer-clock__city {
-  white-space: normal;
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-clock-caption);
-  color: var(--footer-muted);
-}
-
-.footer-clock__time {
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-caps-compact);
-  font-weight: 500;
-}
-
-.footer-clock__time small {
-  margin-inline-start: 6px;
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-wide);
-  color: var(--footer-muted);
-}
-
-.footer-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-spaced);
-  text-transform: uppercase;
-  color: var(--footer-muted);
-}
-
-.footer-status::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--footer-muted);
-}
-
-.footer-status[data-state="open"] {
-  color: var(--footer-text);
-}
-
-.footer-status[data-state="open"]::before {
-  background: var(--volt);
-  box-shadow: var(--shadow-raised);
-}
-
-/* ── the facts, 2 × 2, bottom-right ────────────────────────────────────── */
-.footer-grow {
-  flex: 1 1 auto;
-  min-height: 24px;
-}
-
-/*
- * ⚠️ `auto-fit`, NOT `repeat(2, …)`, AND THAT CLOSES TWO FINDINGS AT ONCE.
- *
- * The fixed two-track grid assumed a 2 × 2 the site cannot currently reach: three of the
- * four blocks are conditional on CMS fields that are empty, so ONE block renders — into
- * a two-column grid with a `border-top` drawn across the whole 640px block. The rule ran
- * 51.9–56.4% further right than anything beneath it, on the emptiest surface on the site
- * (FA-D-02).
- *
- * The same declaration also closed a hole between two breakpoints. Below 421px the grid
- * went single-column and below 721px it stopped right-aligning, but nothing made it
- * single-column BETWEEN them — so at 430px (iPhone 15/16 Pro Max) the sole contact block
- * was 183px wide with an empty 183px column beside it, sixteen pixels narrower than the
- * same block at 414px (FA-E-06). `auto-fit` collapses empty tracks by definition, so the
- * 420px query is not replaced, it is unnecessary.
- *
- * `min(100%, 280px)` rather than a bare minimum: a bare `minmax(280px, 1fr)` overflows a
- * 320px screen once the gutters are taken, which is the classic auto-fit mistake.
- */
-.footer-facts {
-  /*
-   * ⚠️ `fit-content`, AND WITHOUT IT THE auto-fit ABOVE DOES NOT ACTUALLY FIX FA-D-02.
-   * Measured 2026-09-07: `auto-fit` collapses the empty tracks, but the surviving track is
-   * `1fr` of a 640px box, so one block still filled 640px while its widest ink was 303.6px
-   * — the same 52% overshoot, now drawn by one track instead of two. The rule is a
-   * `border-top` on this element, so the element has to be the width of its content.
-   */
-  width: fit-content;
-  max-width: 640px;
-  margin-inline-start: auto;
-  padding: 24px 0 clamp(24px, 4vw, 64px);
-  border-top: 1px solid var(--footer-line);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  gap: 24px;
-}
-
-/* On a phone bottom-right has nowhere to be bottom-right OF: measured 2026-09-05 the
-   block kept its desktop right-alignment and sat in the right 264px of a 390px screen
-   with a dead gutter beside it. Full width there. */
-@media (max-width: 720px) {
-  .footer-facts {
-    max-width: none;
-    margin-inline-start: 0;
-  }
-}
-
-.footer-block h3 {
-  margin: 0 0 12px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  font-weight: 400;
-  letter-spacing: var(--tracking-caps-spaced);
-  text-transform: uppercase;
-  color: var(--footer-muted);
-}
-
-.footer-block ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  /* no gap: every row is already a 44px touch target (below), and the list
-     measures its own pitch from that */
-  gap: 0;
-}
-
-.footer-block li,
-.footer-block a {
-  /* THE 44px TOUCH FLOOR. navbar.spec.ts measures every link on every page at 390px
-     and the first footer build shipped 16px rows: six controls under the floor. Real
-     44px rows, not a padding/negative-margin trick — that would overlap neighbouring
-     targets and hide the miss from the gate rather than fix it. */
-  display: flex;
-  align-items: center;
-  min-height: var(--target-min);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  letter-spacing: var(--tracking-link-mono);
-  text-transform: uppercase;
-  color: var(--footer-text);
-  text-decoration: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.footer-block__sub {
-  color: var(--footer-muted);
-  font-size: var(--text-mono-sm);
-}
-
-/*
- * The certification bodies' marks: ONE row of small, same-height marks under the facts (D25;
- * layout ruled by the owner 2026-09-29). Marks under each entry grew the footer slab from one
- * screen (900 px) to 1,173 px at 768 px wide with the production entries, and centred the
- * first two entries; one row adds a single line. It spans every facts column, so it is as
- * wide as the rule above it at most and never widens it. They are pictures, never links, so
- * the 44px floor does not apply.
- *
- * ⚠️ TRANSPARENT, AND THE ARTWORK IS THE "ON-DARK" VERSION (owner, 2026-09-29). The slab is dark in
- * both themes (`--footer-bg` is ink in light mode, `--raised` in dark). The first build put every
- * mark on a paper chip; the owner wanted them transparent. Removing the chip alone made the
- * dark lettering (Sedex, SMETA, GRS) vanish, and whitening everything turned OEKO-TEX and GOTS
- * into blank shapes — both measured in a side-by-side the owner chose from. So each SVG in
- * `public/standards/` keeps its brand colours and has its black and dark-grey fills recoloured
- * to #ecebe6 (the paper tone; an <img> cannot read a CSS token), and ISO's dark blue lightened to
- * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back. Height is fixed
- * and width follows each file's own width/height attributes, which also reserve the box before
- * the lazy image loads.
- */
-.footer-marks {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 20px;
-}
-
-.footer-logo {
-  display: block;
-  width: auto;
-  height: 32px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .footer-block a:hover {
-    color: var(--volt);
-  }
-}
-
-.footer-block a:focus-visible {
-  outline: 2px solid var(--volt);
-  outline-offset: 2px;
-}
-
-/* ── legal ─────────────────────────────────────────────────────────────── */
-.footer-legal {
-  display: flex;
-  flex-wrap: wrap;
-  /* center, not baseline: the links are 44px touch targets, the text is not */
-  align-items: center;
-  gap: 12px 24px;
-  padding: 16px 0 22px;
-  border-top: 1px solid var(--footer-line);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-legal);
-  text-transform: uppercase;
-  color: var(--footer-muted);
-}
-
-.footer-legal .nav-link {
-  /* keeps the shared 44px min-height — the first build zeroed it and failed the floor */
-  padding-inline: 0;
-  /* …and a 44px WIDTH floor too (audit SZ-03): "Terms" measured 34px wide at 390px, a
-     comfortable height on a target a thumb could still miss. `inline-flex` keeps the word
-     where it was; the extra width sits after it. */
-  min-width: var(--target-min);
-  --notch-muted: var(--footer-muted);
-  --notch-text: var(--footer-text);
-}
-
-/* the same ring every other footer link gets — measured 2026-09-05 these two fell
-   back to the browser's `auto 1px` while the rest showed the design's 2px volt */
-.footer-legal .nav-link:focus-visible {
-  outline: 2px solid var(--volt);
-  outline-offset: 2px;
-}
-
-/* ── the wordmark: outlined, fitted, cropped, spotlit ──────────────────────
-   Two identical layers. The base is always there. The lit layer is a volt stroke
-   with a 30% volt fill, masked to the light's point, and fades out. Fine pointers
-   only; the base outline IS the design. The font-size here is a first paint only —
-   FooterWordmark measures the rendered text and scales it to the slab's width. */
-.footer-mark {
-  position: relative;
-  margin-inline: calc(var(--footer-pad) * -1);
-  margin-block-end: -0.2em;
-  font-size: var(--text-footer-mark);
-  line-height: 0.74;
-  cursor: default;
-  /*
-   * ⚠️ NO TRANSITION HERE, OR THE WORDMARK SHRINKS FOREVER UNDER REDUCED MOTION. base.css's
-   * hard stop gives every element `transition-duration: 0.01ms` on the initial
-   * `transition-property: all`, so each size FooterWordmark wrote began a font-size
-   * transition, its next measurement read the old size, and the fit compounded: 87.9px ->
-   * 56.0px in 3s on the live site, 2026-10-01 (e2e/footer.spec.ts pins it). `none` touches
-   * nothing else: this box has no transition of its own, the layers' fades are their own.
-   */
-  transition-property: none;
-}
-
-.footer-mark__layer {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-stretch: 122%;
-  letter-spacing: var(--tracking-footer-mark);
-  line-height: inherit;
-  white-space: nowrap;
-  text-align: center;
-  user-select: none;
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--footer-stroke);
-  /* The same reason as `.footer-mark`'s: this layer INHERITS the fitted size, and under
-     the reduced-motion hard stop it transitioned it, so FooterWordmark measured the old
-     glyphs — Firefox alternated 92.14px <-> 87.90px every frame (2026-10-01). The lit layer
-     below declares its own opacity transition, later, so it keeps its fade. */
-  transition-property: none;
-}
-
-.footer-mark__layer--lit {
-  position: absolute;
-  inset: 0;
-  --mx: -1000px;
-  --my: -1000px;
-  color: color-mix(in srgb, var(--volt) 30%, transparent);
-  -webkit-text-stroke: 1.5px var(--volt);
-  opacity: 0;
-  transition: opacity var(--ui) var(--ease);
-  mask-image: radial-gradient(
-    circle 170px at var(--mx) var(--my),
-    #000 0%,
-    rgba(0, 0, 0, 0.55) 45%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
-
-.footer-mark[data-lit="true"] .footer-mark__layer--lit {
-  opacity: 1;
-}
-
-@media (hover: none), (prefers-reduced-motion: reduce) {
-  .footer-mark__layer--lit {
-    display: none;
-  }
-}
-
-/* ── the glow (footer only) — driven by FooterGlow from the cursor ring ─── */
-.footer-glow {
-  position: absolute;
-  inset: 0;
-  z-index: var(--z-footer-glow);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--ui) var(--ease);
-}
-
-.site-footer__slab[data-glow="true"] .footer-glow {
-  opacity: 1;
-}
-
-.footer-glow--halo {
-  background: radial-gradient(
-    circle 230px at var(--gx) var(--gy),
-    rgba(205, 243, 69, 0.22) 0%,
-    rgba(205, 243, 69, 0.07) 50%,
-    transparent 100%
-  );
-  mix-blend-mode: screen;
-}
-
-.site-footer__slab[data-glow="true"][data-over="true"] .footer-glow--halo {
-  opacity: 0.32;
-}
-
-.footer-glow--transfer {
-  background: radial-gradient(
-    circle 170px at var(--gx) var(--gy),
-    var(--volt) 0%,
-    rgba(205, 243, 69, 0.55) 50%,
-    transparent 100%
-  );
-  mix-blend-mode: multiply;
-}
-
-.footer-glow--grid {
-  background-image:
-    linear-gradient(rgba(205, 243, 69, 0.42) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(205, 243, 69, 0.42) 1px, transparent 1px);
-  background-size: 26px 26px;
-  mask-image:
-    radial-gradient(
-      circle 200px at var(--gx) var(--gy),
-      #000 0%,
-      rgba(0, 0, 0, 0.5) 50%,
-      transparent 100%
-    ),
-    linear-gradient(to bottom, transparent 30%, #000 100%);
-  mask-composite: intersect;
-}
-
-@media (hover: none), (prefers-reduced-motion: reduce) {
-  .footer-glow {
-    display: none;
-  }
-}
-
-/* Windows High Contrast: the tab's fillets and the grid are decoration and may go;
-   the tab keeps a border, the wordmark keeps a stroke in a system colour. */
-@media (forced-colors: active) {
-  .site-footer__tab {
-    border: 1px solid CanvasText;
-  }
-
-  .site-footer__tab::before,
-  .site-footer__tab::after,
-  .site-footer__slab::before {
-    display: none;
-  }
-
-  .footer-mark__layer {
-    -webkit-text-stroke-color: CanvasText;
-  }
-}
-
 /* ------------------------------------------------------- product gallery */
 
 /*
@@ -1440,11 +760,94 @@ html {
  */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin: 24px 0 0;
   padding: 0;
   list-style: none;
+}
+
+/*
+ * ⚠️ TWO CARDS A ROW BELOW 900px, THREE FROM 900px, FOUR FROM 1440px (visual audit VA-42, the
+ * owner's choice 2026-10-02; four from 1440px, not 1600px, is the owner's own call of the same day,
+ * so the catalogue's 40 garments fill ten rows of four on a 1440px screen). The audit measured /products at 30,363px on a 390px phone, 36 screens,
+ * each card about a screen tall, and the teamwear buyer page at 20,880px; on a phone not one garment
+ * was in sight on the first screen. Two to a row, with a shorter picture (below), is the fix; decision
+ * D1 stands: one long page, every garment in the document.
+ *
+ * ⚠️ THE COUNTS ARE WRITTEN OUT, NOT `auto-fill`. The rule that keeps one card from standing alone on
+ * the last row (below) has to know how many columns a row has, and `auto-fill` leaves that to the
+ * browser. Three from 900px matches what `auto-fill, minmax(260px, 1fr)` gave from 920px, so
+ * 900-919px now has three columns of 254px rather than two of 393px. Four started at 1600px
+ * (decision D4) until the owner moved it to 1440px on 2026-10-02; 1280px keeps three, as D4 asks. `e2e/composition.spec.ts`
+ * (LA-12) asserts the counts at 375, 700, 1280 and 1920px.
+ */
+@media (min-width: 900px) {
+  .product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/*
+ * ⚠️ NO CARD IS LEFT ALONE ON THE LAST ROW, WHATEVER THE COUNT (visual audit VA-42: at 1440px the 40
+ * cards made 13 rows of three and one card on its own, 40 being 3 x 13 + 1). The three rules below
+ * answer the three column counts, and each matches only when the count leaves exactly one card over:
+ *
+ *   three or four columns, count = a multiple + 1: the card BEFORE the last starts the last row
+ *     (`grid-column-start: 1`), so the last row holds two cards and the row above it two (three
+ *     columns) or three (four). A grid with the default sparse packing only ever moves forward, so a
+ *     column behind the cursor means the next row: that is the whole mechanism, and why this does
+ *     not use `grid-auto-flow: dense`, which would pull a card out of reading order instead.
+ *   two columns, odd count: the last card spans both and lies down, its picture and dots on the
+ *     left and its words on the right. Two columns cannot give a last row two cards from an odd
+ *     count, so the card fills the row instead of leaving a hole beside it.
+ *
+ * `:nth-last-child(2):nth-child(3n)` is the second-to-last card, and only when that card is a
+ * multiple of three, which is the same as the count being one more. A lone card (`:only-child`) is
+ * left as it is: there is nothing for it to be beside. `src/productGridOrphans.test.ts` runs these
+ * exact selectors over every count from 2 to 60 at each column count, and `e2e/productsGrid.spec.ts`
+ * does the same with real cards in a browser.
+ */
+@media (min-width: 900px) and (max-width: 1439px) {
+  .product-grid > .product-card:nth-last-child(2):nth-child(3n) {
+    grid-column-start: 1;
+  }
+}
+
+@media (min-width: 1440px) {
+  .product-grid > .product-card:nth-last-child(2):nth-child(4n) {
+    grid-column-start: 1;
+  }
+}
+
+@media (max-width: 899px) {
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
+  }
+
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) > .product-card__figure {
+    grid-area: 1 / 1;
+  }
+
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) > .card-gallery__dots {
+    grid-area: 2 / 1;
+    align-self: start;
+  }
+
+  .product-grid > .product-card:last-child:nth-child(odd):not(:only-child) > .product-card__link {
+    grid-area: 1 / 2 / 3 / 3;
+    border-inline-start: 1px solid var(--line);
+  }
 }
 
 /* The five garment families on the homepage. `.panel` supplies the surface from
@@ -1508,6 +911,20 @@ html {
 }
 
 /*
+ * ⚠️ SQUARE BELOW 560px (visual audit VA-42, owner's choice 2026-10-02: "a shorter picture").
+ * Two cards to a row leave a picture 134px wide at 320px and 169px at 390px; a 4:5 box there is
+ * 211px tall at 390px, a square 169px, so a row is 42px shorter and the page about a fifth
+ * shorter. The render keeps its own shape inside the square (`object-fit: contain`, the note
+ * above), so it is drawn about 20% smaller than the 4:5 box would draw it. From 560px the box is
+ * 4:5 as before.
+ */
+@media (max-width: 559px) {
+  .product-card__figure {
+    aspect-ratio: 1 / 1;
+  }
+}
+
+/*
  * ⚠️ THE TEXT PROPERTIES HERE ARE THE BROKEN-IMAGE FALLBACK, AND THEY LOOK POINTLESS.
  *
  * While the poster loads they change nothing — a rendered bitmap covers the box and an
@@ -1533,10 +950,13 @@ html {
  * placeholder on `error` wherever scripting is available. This layer still earns its
  * place — it covers the window before hydration, and every no-JS case.
  *
- * ⚠️ NO `padding` HERE, THOUGH THE BROKEN TEXT WOULD READ BETTER WITH IT. Padding insets
+ * ⚠️ NO `padding` ON THIS RULE, THOUGH THE BROKEN TEXT WOULD READ BETTER WITH IT. Padding insets
  * the content box of a replaced element, so `object-fit: contain` fits the poster inside
  * it — measured, a 16px pad put a visible margin around every poster that loaded
  * correctly. Changing the normal case to improve the failure case is the wrong trade.
+ * Since VA-55 (2026-10-02) the card pictures DO carry a margin, deliberately, on the three
+ * frames named under `.product-card__img` below; this rule stays bare for the home page's
+ * 3D section, whose picture must fill its frame.
  */
 /* The <picture> around a resized card picture (ProductPoster.tsx) adds no box of its own. */
 .product-card__picture {
@@ -1551,10 +971,33 @@ html {
   place-items: center;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/*
+ * ⚠️ THE INSET (visual audit VA-55, owner's choice 2026-10-02; the measure is `--picture-inset`
+ * at the top of this file). Padding on a replaced element insets the box `object-fit` fits the
+ * picture into, so `contain` draws the garment inside the margin and the frame behind it, the
+ * 4:5 box the card keeps (MDN, `object-fit`: it applies to the content box; read 2026-10-02), is
+ * the same size it was. On exactly three pictures: the home family cards, the swipe gallery's
+ * slides on the product cards (so /products and the buyer pages), and the buyer page's hero.
+ * Sports Accessories has the same margin as the others: the owner kept its photo (on black, the
+ * only one) and chose to give it the margin too.
+ *
+ * ⚠️ NOT ON `.product-card__img` ITSELF. That rule is also the home page's 3D section picture, and
+ * the live model lies exactly over its frame (`.live-garment`, D24): an inset still under a model
+ * that fills the frame would make the garment jump larger as the model fades in. The swipe's own
+ * geometry is untouched too: a slide is still the strip's whole width (`slideAt` in
+ * `lib/cardGallery.ts`), and the padding sits inside the picture, not on the slide. A broken
+ * picture's alt text is inset by the same margin, which is a fine place for it.
+ */
+.family-card__img,
+.card-gallery__slide .product-card__img,
+.family-hero__frame .product-card__img {
+  padding: calc(var(--picture-inset) * 1.25) var(--picture-inset);
 }
 
 .product-card__placeholder {
@@ -1650,7 +1093,7 @@ html {
 .card-gallery__colour {
   margin-inline-end: 12px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
@@ -1668,20 +1111,155 @@ html {
   cursor: pointer;
 }
 
+/*
+ * Each dot is its colour (visual audit VA-30, 2026-10-02): `--swatch` is the colour's
+ * `hexSwatch`, set on the button by CardGallery.tsx, the value the garment page paints its
+ * swatches with. The ring is --line-control, the control-edge token, with the paper inset,
+ * exactly as `.colourway-tab__swatch` draws it on the garment page — so a near-white colour
+ * (Butter, #FDFDC8) still reads against the card and a near-black one in dark mode. A colour
+ * with no swatch keeps the empty ring.
+ *
+ * The chosen dot wears an OUTLINE 2px clear of it, in the headline colour: a shape that
+ * appears, not a fill that changes, so it survives every colour the swatch could be. It did NOT
+ * survive Windows High Contrast as first written: see the forced-colours block below (VA-08).
+ */
 .card-gallery__dot::before {
   content: "";
-  inline-size: 8px;
-  block-size: 8px;
+  inline-size: 16px;
+  block-size: 16px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--muted);
-  transition:
-    background-color var(--ui) var(--ease),
-    border-color var(--ui) var(--ease);
+  border: 1px solid var(--line-control);
+  background: var(--swatch, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color var(--ui) var(--ease);
 }
 
 .card-gallery__dot[aria-pressed="true"]::before {
-  background: var(--headline);
-  border-color: var(--headline);
+  outline-color: var(--headline);
+}
+
+/*
+ * ⚠️ HIGH CONTRAST: ONLY THE CHOSEN DOT MAY WEAR A RING (visual audit VA-08, the gallery-dots half,
+ * 2026-10-02). The comment above says Windows High Contrast "keeps outlines". It keeps them as
+ * outlines, and repaints the colour of every one: CSS Color Adjustment 1 §3.1 (read 2026-10-02)
+ * force-adjusts "the <color> components of all properties", and gives only `background-color` an
+ * exception, for transparency. So the `outline: 2px solid transparent` that every UNCHOSEN dot
+ * carries became a solid system-colour ring on all five dots, the swatch fill became one system
+ * colour on all five, and the ring that marks the chosen one marked every one. (The state was still
+ * spoken: `aria-pressed`, and the colour's name sits in the row.)
+ *
+ * Fixed with SHAPE, which forced colours never touches, not colour: an unchosen dot has no outline
+ * at all, and the chosen one has a 2px solid ring in `Highlight`, the system's own colour for what is
+ * selected (the garment page's colour tab and camera buttons use it the same way). `forced-color-adjust:
+ * none` is NOT used to keep the swatch colours: tokens.test.ts allows it on one selector, the garment
+ * page's colour swatch, and a dot here would be the second. The chosen dot is found by `:not(…)` on the
+ * unchosen side so both rules are equally specific. Written from the specification and shown in an
+ * emulated forced-colours browser (Chromium and Firefox; `e2e/pages.spec.ts`), never on a real
+ * Windows machine.
+ */
+@media (forced-colors: active) {
+  .card-gallery__dot:not([aria-pressed="true"])::before {
+    outline-style: none;
+  }
+
+  .card-gallery__dot[aria-pressed="true"]::before {
+    outline: 2px solid Highlight;
+  }
+}
+
+/*
+ * ⚠️ THE DOTS FIT A TWO-UP CARD (visual audit VA-42, 2026-10-02). Five buttons 44px wide are 220px,
+ * and a phone card is 134px wide at 320px and 169px at 390px: the row would have run off the
+ * card, whose `overflow: hidden` clips what is past its edge, so a colour would have been
+ * unreachable. Each dot is now 24 to 40px wide and still 44px TALL, and the row has the card's
+ * whole width to share out: five dots are 31.8px wide at 390px and 24.8px at 320px (the 4px of
+ * padding each side is what lets five 24px dots fit 132px), and the painted 16px dot stays in the
+ * middle of its button.
+ *
+ * Why those numbers. WCAG 2.2 SC 2.5.8 asks for a target of at least 24 by 24 CSS px (Understanding
+ * page "updated 11 May 2026", read 2026-10-02), so 24px is the narrowest a dot may get; and the
+ * 44px HEIGHT is what `e2e/navbar.spec.ts` holds every button on /products to at 390px, so the
+ * height stays. The width is narrower than the 44px DESIGN.md states for touch targets, which is
+ * the cost of five colours in 134px; a card with more than five wraps its dots onto a second
+ * row rather than clipping one. The colour's name goes above the dots, not beside them, so the
+ * dots of two neighbouring cards sit on one line.
+ */
+@media (max-width: 559px) {
+  .card-gallery__dots {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    padding: 4px 4px 0;
+  }
+
+  /* 4px + 8px puts the name on the body text's 12px edge. */
+  .card-gallery__colour {
+    margin-inline-end: 0;
+    padding-inline-start: 8px;
+  }
+
+  .card-gallery__pick {
+    flex-wrap: wrap;
+    margin-inline-start: 0;
+  }
+
+  .card-gallery__dot {
+    flex: 1 1 24px;
+    inline-size: auto;
+    min-inline-size: 24px;
+    max-inline-size: 40px;
+  }
+}
+
+/*
+ * Previous / next over the picture (VA-30): 44px buttons at the picture's middle edges, on the
+ * paper tone so they read over a dark render as well as the light ground. Shown while a mouse
+ * is over the picture or the card holds keyboard focus; never on a touch screen, which swipes.
+ */
+.card-gallery__arrow {
+  position: absolute;
+  inset-block-start: 50%;
+  z-index: var(--z-card-control);
+  display: grid;
+  place-items: center;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--headline);
+  cursor: pointer;
+  translate: 0 -50%;
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+}
+
+.card-gallery__arrow--prev {
+  inset-inline-start: 8px;
+}
+
+.card-gallery__arrow--next {
+  inset-inline-end: 8px;
+}
+
+.product-card__figure:focus-within .card-gallery__arrow,
+.card-gallery__arrow:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-card__figure:hover .card-gallery__arrow {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .card-gallery__arrow {
+    display: none;
+  }
 }
 
 .product-card__body {
@@ -1689,6 +1267,14 @@ html {
   flex-direction: column;
   gap: 8px;
   padding: 20px;
+}
+
+/* A two-up card is 134px wide at 320px and 169px at 390px: 12px of padding, not 20px, leaves its words 108 and 143px (VA-42). */
+@media (max-width: 559px) {
+  .product-card__body {
+    gap: 6px;
+    padding: 12px;
+  }
 }
 
 .product-card__name {
@@ -1701,6 +1287,45 @@ html {
   letter-spacing: var(--tracking-card-title);
   color: var(--headline);
   margin: 0;
+  /* A long unbroken word (a garment called "Compression-Tights-Pro") in a 110px column would be
+     clipped by the card's `overflow: hidden`; let it break instead (VA-42). */
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A hyphenated word (V-NECK, ZIP-UP) in one piece: it moves to the next line whole, and still wraps
+ * inside itself when it alone is wider than the card, so nothing is clipped (`lib/cardName.ts`;
+ * owner's call 2026-10-02, after "V-" ended a line at 390px).
+ */
+.product-card__word {
+  display: inline-block;
+  max-width: 100%;
+}
+
+/*
+ * ⚠️ ON A PHONE A GARMENT NAME SHRINKS RATHER THAN SPLIT A WORD (owner's choice 2026-10-02, the rule
+ * set for the hero headline on 2026-09-11). Two cards a row (VA-42) leave a name 108px at 320px,
+ * 135.5px at 375 and 143px at 390, and the live catalogue's widest word, PERFORMANCE, is 140.1px at
+ * 18px (139.0px in CI's Linux). Measured with all 40 live names in this card at 18px: eight words
+ * broke mid-word at 320px, three or four at 375, and V-NECK and ZIP-UP at their hyphen at 390. CI
+ * caught one of them, "Performance" in its seeded name at 320px.
+ *
+ * So the size follows the card's own width: the body is the container, and 12.3cqi is 12.3% of the
+ * room a name has. PERFORMANCE is 7.78 times its font size wide, and 7.78 x 12.3% = 96% of the room,
+ * so the widest word fits with 4% to spare: about 13.3px at 320px, 16.7px at 375, 17.6px at 390, and
+ * the full 18px from about 415px. `--text-xs` (13px) is the floor; below it `overflow-wrap: anywhere`
+ * above is still the last resort. A garment with a word wider than PERFORMANCE needs this number
+ * measured again: `e2e/productsGrid.spec.ts` sets the catalogue's long words in a phone card at seven
+ * widths and fails when one splits.
+ */
+@media (max-width: 559px) {
+  .product-card__body {
+    container-type: inline-size;
+  }
+
+  .product-card__body .product-card__name {
+    font-size: clamp(var(--text-xs), 12.3cqi, var(--text-card-title));
+  }
 }
 
 .product-card__meta {
@@ -1708,7 +1333,7 @@ html {
   flex-wrap: wrap;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   color: var(--muted);
 }
 
@@ -1732,7 +1357,7 @@ html {
 .viewer-cue {
   display: block;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   color: var(--muted);
 }
 
@@ -1948,8 +1573,15 @@ address.contact-block__value {
  * rather than absent — which is the correct outcome. The feedback still exists.
  */
 /* Not while a colour dot is pressed: choosing a colour is not opening the garment, and the
-   whole card shrinking under a 44px dot read as a mis-tap (2026-09-28). */
-.product-card:active:not(:has(.card-gallery__dots :active)) {
+   whole card shrinking under a 44px dot read as a mis-tap (2026-09-28).
+   ⚠️ AND NOT WHILE THE PICTURE IS PRESSED: THAT KILLED THE SWIPE ON IPHONE (visual audit VA-30,
+   2026-10-02). A finger on the picture is a press, so the card began scaling as the swipe began,
+   and Safari dropped the strip's scroll mid-gesture: on iOS 26.5 a slow sideways drag never
+   moved the colour, with this exclusion it does — tried both ways in the simulator. The
+   card still answers a press on its text (FA-R-01). The browser test pins both halves in
+   Chromium and Firefox only: this suite runs WebKit for the bar's files alone
+   (playwright.config.ts), so the iPhone half rests on the simulator check. */
+.product-card:active:not(:has(.card-gallery :active, .card-gallery__dots :active)) {
   scale: 0.97;
 }
 
@@ -2031,6 +1663,47 @@ a.contact-block__value:active {
   margin-block-start: 8px;
 }
 
+/* A subhead is read as a line, so it is set in normal letters (visual audit VA-44, owner's choice 2026-10-02): "The 3D references are
+   indicative" on Terms was 32 capitals. The rule above stays shared with the form labels and the
+   result count, which keep their short capitals; this only lifts the subhead out of it. */
+.subhead {
+  text-transform: none;
+  letter-spacing: inherit;
+}
+
+/* Text that is read is 12px (visual audit VA-11, owner's choice 2026-10-02): the subheads, the
+   gallery's count and the facts' two labels ("Where we ship", "Certification"). The shared rule
+   above stays a copy of `.section-number` (publicSite.test.ts holds the two together), and the
+   bracketed labels on /contact keep its 10px, as every bracket label does. */
+.subhead,
+.result-count,
+.facts-notes .field-label {
+  font-size: var(--text-mono-lg);
+}
+
+/*
+ * The count, and on a family's filtered gallery the way back to its buyer page (visual audit
+ * VA-33): the count on the left, the button on the right where there is room and under it where
+ * there is not. The count used to be a bare paragraph and the grid took its 8px from the
+ * `.result-count + *` rule above; with a bar around it the grid is the BAR's sibling, so the
+ * same 8px is given here, and the button beside the count is kept out of the count's own rule.
+ */
+.result-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+
+.result-bar + * {
+  margin-block-start: 8px;
+}
+
+.result-bar > .btn {
+  margin-block-start: 0;
+}
+
 /* ------------------------------------------------ the family grid (FA-E-01) */
 
 /*
@@ -2090,9 +1763,16 @@ a.contact-block__value:active {
  *
  * The clamp is the other half: without it one long description reintroduces the same
  * imbalance from the other direction.
+ *
+ * ⚠️ FROM 900px ONLY, SINCE VA-42 (2026-10-02). Below it the grid is two cards wide and a ragged
+ * bottom edge sits between two neighbours, so there the cards stretch to the row's height. The
+ * figure ratio the note above protects is not at risk: the picture is a fixed box and only blank
+ * card is added below the words.
  */
-.product-grid {
-  align-items: start;
+@media (min-width: 900px) {
+  .product-grid {
+    align-items: start;
+  }
 }
 
 /*
@@ -2130,26 +1810,6 @@ a.contact-block__value:active {
 }
 
 /* ------------------------------------------------ focus and theme (FA-R-08, FA-R-05) */
-
-/*
- * Every focusable element already had a visible ring; the finding was that there were
- * three variants on one page (audit FA-R-08). The page/footer split is justified — the
- * volt ring is what carries contrast against the dark slab — but the tab's 4px offset
- * made it the only ring on the site that does not sit 2px from its control, for no
- * reason the design gives.
- */
-.site-footer__tab:focus-visible {
-  outline-offset: 2px;
-  /*
-   * ⚠️ TWO TONES, BECAUSE THE TAB STRADDLES TWO GROUNDS (visual audit, 2026-10-01). It sits on the
-   * slab's top edge, half over the paper page and half over the dark slab, and its ring is
-   * `--footer-text` (paper). Photographed focused at 1440x900: the ring showed only along the
-   * slab and vanished on the paper half. An ink band behind it (the shadow, under the outline)
-   * shows on paper; the outline shows on the slab. Forced-colours mode drops the shadow and keeps
-   * the outline, which the system colours then make visible on both.
-   */
-  box-shadow: 0 0 0 6px var(--ink);
-}
 
 /*
  * ⚠️ AN OS THEME SWITCH AT SUNSET FLIPPED THE WHOLE PAGE IN ONE FRAME — near-white ground
@@ -2219,10 +1879,25 @@ a.contact-block__value:active {
   margin: 8px 0 0;
   margin-inline-start: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps-snug);
+  font-size: var(--text-mono-lg);
+  /* Normal letters (visual audit VA-44, owner's choice 2026-10-02): "Building, first stitch to sealed bag" is a sentence, 36 capitals. */
   color: var(--muted);
+}
+
+/*
+ * ⚠️ A FIGURE WHOSE LABEL LEADS INTO IT (VA-58, 2026-10-02): "MAKING CLOTHES SINCE" above "1889".
+ * The label is first in the MARKUP (`AboutSection.tsx`), so no `order` is needed and none is used;
+ * this only turns over the spacing that assumed the figure came first. The label sits at the top of
+ * the figure's rule with no margin of its own, and the figure takes the 8px that used to sit
+ * between figure and label. The figure is a `dd` here, so its margin stays the zero the base rule
+ * gives it (a browser's default would indent a `dd` 40px).
+ */
+.fact--label-first .fact__label {
+  margin: 0;
+}
+
+.fact--label-first .fact__value {
+  margin-block-start: 8px;
 }
 
 .facts-notes {
@@ -2285,7 +1960,7 @@ a.contact-block__value:active {
   border: 1px solid var(--line);
   border-radius: var(--radius-chip);
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   text-decoration: none;
@@ -2299,7 +1974,7 @@ a.contact-block__value:active {
 }
 
 .filter-chip__count {
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   /*
    * ⚠️ NO `opacity`. It was 0.7 over `--muted`, measured 2.85:1 in light mode and 3.98:1
    * in dark (audit CO-01, CO-04): the only text on the site under the 4.5:1 AA floor. The
@@ -2346,6 +2021,45 @@ a.contact-block__value:active {
 
 .filter-chip:active {
   scale: 0.97;
+}
+
+/*
+ * ⚠️ ONE ROW THAT SCROLLS SIDEWAYS BELOW 560px (visual audit VA-42, owner's choice 2026-10-02). On a
+ * 390px phone the six chips wrapped into three rows, 172px of the first screen, and with the heading
+ * and the intro they pushed every garment below the fold. One row is 44px. The row runs to the
+ * screen's edges (the gutter is taken back with a negative margin and given back as padding, so the
+ * first chip still lines up with the page) and a half-hidden chip at the right edge says there
+ * is more.
+ *
+ * Usable by keyboard with no script: every chip is a link, so Tab walks them and the browser
+ * scrolls each focused chip into view; the row itself needs no tab stop because it holds focusable
+ * things (axe's `scrollable-region-focusable` is about a scroller with none). It cannot make the PAGE
+ * scroll sideways: the row is its own scroller and ends at the viewport's edges, and
+ * `overscroll-behavior-x: contain` stops a swipe past the last chip turning into the browser's Back.
+ * 4px of padding above and below keeps the 2px focus ring + 2px offset from being clipped by the
+ * scroller. From 560px the chips wrap, as they always did. Only /products' own filter carries
+ * `filter-bar--scroll`: a buyer page's "Other product families" list shares `.filter-bar` and was not
+ * part of the finding.
+ */
+@media (max-width: 559px) {
+  .filter-bar--scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin-inline: calc(var(--site-gutter) * -1);
+    padding-block: 4px;
+    padding-inline: var(--site-gutter);
+    scroll-padding-inline: var(--site-gutter);
+  }
+
+  .filter-bar--scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-bar--scroll .filter-chip {
+    flex: 0 0 auto;
+  }
 }
 
 /* The whole family card is the link, so the anchor has to fill it. */
@@ -2542,25 +2256,9 @@ a.contact-block__value:active {
   max-width: 62ch;
 }
 
-.inquiry-form__row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-
-@media (min-width: 560px) {
-  .inquiry-form__row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 .inquiry-form__field {
   display: block;
   margin-block-start: 16px;
-}
-
-.inquiry-form__row .inquiry-form__field {
-  margin-block-start: 0;
 }
 
 .inquiry-form__label {
@@ -2624,10 +2322,13 @@ a.contact-block__value:active {
  * them off. `:user-invalid` waits until they have actually interacted with it — which is
  * the whole reason the pseudo-class exists.
  *
- * The border is not the only signal: the browser's own validation message says what is
- * wrong, and it is announced. Colour alone would be a WCAG 1.4.1 failure.
+ * The border is not the only signal: a sentence under the field says what is wrong and is
+ * announced with it (`aria-describedby`), or, without scripting, the browser's own message
+ * does. Colour alone would be a WCAG 1.4.1 failure. `[aria-invalid]` is the script's mark,
+ * set when the visitor leaves a wrongly filled field or presses Send (VA-02).
  */
-.inquiry-form__input:user-invalid {
+.inquiry-form__input:user-invalid,
+.inquiry-form__input[aria-invalid="true"] {
   border-color: var(--danger);
 }
 
@@ -2672,55 +2373,11 @@ a.contact-block__value:active {
 /* ------------------------------------------------------------ print (FA-M-52) */
 
 /*
- * ⚠️ PRESSING Cmd-P LOST EVERY WAY OF CONTACTING THE COMPANY, and the rest of the page
- * printed fine, which is what made it easy to miss.
- *
- * There was no print stylesheet anywhere in this repo — zero matches for `@media print`
- * across all three source trees. The footer slab paints its own dark background and sets
- * its text near-white; browsers omit background colours from print by default, so the
- * dark panel vanished and the white text stayed white. Measured against white paper:
- * **14 of 14 text runs below 3:1**, all at 1.15–1.27:1, where AA body text needs 4.5:1.
- * What a buyer lost: the email address, the WhatsApp number, the factory address, the
- * response-time promise and the company's legal name.
- *
- * ⚠️ `color-scheme: light` WOULD NOT HAVE FIXED IT, AND WOULD HAVE LOOKED LIKE IT DID.
- * lightningcss downlevels `light-dark()` into a pair of `@media (prefers-color-scheme)`
- * blocks, and that polyfill keys off the MEDIA QUERY rather than off computed
- * `color-scheme` — print does not change `prefers-color-scheme`, so a visitor printing
- * from dark mode would still get the dark values out of the built CSS. The same trap
- * SiteHeader.tsx records for a theme toggle. Explicit values are the only reliable
- * answer here.
- *
- * The footer already reads every one of its colours from local custom properties, so
- * redefining those six is the whole fix — all 14 runs at once, with no per-element rules.
+ * The FOOTER's print palette (FA-M-52: pressing Cmd-P once lost every way of contacting the
+ * company) lives with the footer in packages/ui/src/footer.css since 2026-10-02 (VA-31), at
+ * the end of that file. What follows is the rest of the page.
  */
 @media print {
-  .site-footer {
-    --footer-bg: #fff;
-    --footer-text: #111;
-    --footer-muted: #333;
-    --footer-line: #999;
-    --footer-grid: transparent;
-    --footer-stroke: #999;
-    /* the serif accent in the CTA and the dimension line read this directly */
-    --volt: #111;
-  }
-
-  .site-footer__slab {
-    min-height: 0;
-    border-top: 1px solid #999;
-  }
-
-  /*
-   * The Quiet Room is a screen device — a full viewport of deliberately empty slab. On
-   * paper it is a blank sheet between the question and the contact details, so the band
-   * that holds it open is released. The band itself is not being reconsidered: the owner
-   * confirmed it on 2026-09-07 (FA-B-03) and it is untouched on screen.
-   */
-  .footer-grow {
-    display: none;
-  }
-
   /* Fixed chrome cannot be fixed on paper — it reprints on every sheet. */
   .notch-shell {
     position: static;
@@ -2728,10 +2385,6 @@ a.contact-block__value:active {
 
   /* Decoration, interaction and things that only mean something on a screen. */
   .site-hero__grid,
-  .footer-glow,
-  .footer-mark,
-  .site-footer__tab,
-  .footer-status,
   .skip-link,
   .cursor-dot,
   .cursor-ring {
@@ -2773,7 +2426,6 @@ a.contact-block__value:active {
   .product-card,
   .family-card,
   .fact,
-  .footer-block,
   .contact-block,
   .site-empty {
     break-inside: avoid;
@@ -2857,7 +2509,7 @@ a.contact-block__value:active {
 .proof__caption {
   margin-block-start: 10px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
@@ -2882,81 +2534,6 @@ a.contact-block__value:active {
   .proof__link:active {
     scale: 1;
   }
-}
-
-/* ------------------------------------------------ inside the factory (OI-3, 2026-09-25) */
-
-/*
- * ⚠️ EVERY PICTURE IS ONE HEIGHT, SET FROM THE COLUMN WIDTH — NOT BY `aspect-ratio`. A wide
- * tile spans two columns AND the gap between them, so an 8:5 ratio on it comes out
- * `gap / 1.6` (15px) taller than a 4:5 single beside it, and a mixed row's bottoms and
- * captions no longer line up. Here the grid is a size container and every picture is
- * `1.25 ×` one column tall, whatever it spans; a wide picture is cropped ~1% more by
- * `object-fit` to fit, on a file `scripts/build-factory-photos.mjs` already cut to 8:5.
- *
- * Two columns below 900px, four from 900px: the two counts at which the committed order in
- * `lib/factoryPhotos.ts` leaves no hole (`src/factoryPhotos.test.ts` checks both). No
- * `grid-auto-flow: dense` — it would fill a hole by moving a picture out of reading order.
- */
-.factory-grid {
-  --factory-columns: 2;
-  --factory-gap: 24px;
-  container-type: inline-size;
-  display: grid;
-  grid-template-columns: repeat(var(--factory-columns), minmax(0, 1fr));
-  gap: var(--factory-gap);
-  margin: 24px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (min-width: 900px) {
-  .factory-grid {
-    --factory-columns: 4;
-  }
-}
-
-.factory-tile--wide {
-  grid-column: span 2;
-}
-
-/* The same reset `.proof__figure` carries: a UA `<figure>` margin shrinks and shifts it. */
-.factory-tile__figure {
-  margin: 0;
-}
-
-/*
- * The explicit height reserves the tile before the picture arrives (the CLS rule
- * `.proof__frame` states).
- */
-/* The clipping frame the scroll wipe and drift work inside (the section above). */
-.factory-tile__frame {
-  display: block;
-  overflow: hidden;
-  /* On the frame, not the picture: the drift scales the picture, which would scale its
-     border out of the clip. */
-  background: var(--bg);
-  border: 1px solid var(--line);
-}
-
-.factory-tile__img {
-  display: block;
-  width: 100%;
-  height: calc(
-    (100cqi - (var(--factory-columns) - 1) * var(--factory-gap)) /
-    var(--factory-columns) *
-    1.25
-  );
-  object-fit: cover;
-}
-
-.factory-tile__caption {
-  margin-block-start: 10px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-snug);
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 /*
@@ -3018,9 +2595,7 @@ a.contact-block__value:active {
  * which `--text` (#ecebe4) is about 7:1 and `--muted` (#a2a695) would be about 3.4:1 — under
  * AA. axe cannot compute contrast over an image, so the arithmetic is the check.
  */
-/* The lightbox shares this block: it too puts text and controls on a photograph's ink. */
-.site-hero--photo,
-.lightbox {
+.site-hero--photo {
   color-scheme: dark;
   /* The dark halves of tokens.css's pairs, re-declared here (see above). */
   --bg: #1c1f18;
@@ -3080,6 +2655,104 @@ a.contact-block__value:active {
   color: var(--text);
 }
 
+/*
+ * ⚠️ ON PAPER A PHOTO HERO IS AN ORDINARY HERO (visual audit VA-04, found 2026-10-02 when the film
+ * made /products one). The block above re-declares the hero's tokens with the dark theme's own
+ * values, so the paper rule in tokens.css (`color-scheme: light`) cannot reach them: printed from
+ * either theme, the home, contact and products headlines came out volt on white, 1.27:1, over a
+ * photograph the browser still printed while dropping its wash. So on paper the photo, the film and
+ * the pause button go, and every re-declared token takes the page's value again (`inherit`: the
+ * parent's, which the paper rule has already made light). e2e/print.spec.ts prints all three.
+ */
+@media print {
+  .site-hero--photo {
+    color-scheme: light;
+    --bg: inherit;
+    --text: inherit;
+    --muted: inherit;
+    --grid: inherit;
+    --line: inherit;
+    --line-control: inherit;
+    --label-bg: inherit;
+    --label-text: inherit;
+    --btn-primary-bg: inherit;
+    --btn-primary-text: inherit;
+    --headline: inherit;
+    --serif-accent: inherit;
+    --dimension: inherit;
+    --focus-ring: inherit;
+  }
+
+  .site-hero__photo,
+  .film-toggle {
+    display: none;
+  }
+}
+
+/*
+ * ------------------------------------------------ the /products film
+ *
+ * The hoodie film behind the /products hero's words (owner, 2026-10-01), under the photo hero's own
+ * dark wash above, so the words read exactly as they do on the home page. `ProductsFilm.tsx` has the
+ * behaviour; this places the still and the film on top of each other, and the pause button.
+ *
+ * ⚠️ THE HERO'S HEIGHT IS STILL ITS WORDS. The still and the film are absolutely placed inside
+ * `.site-hero__photo`, like the home photo, so they fill the hero without sizing it: measured before
+ * the change, the first garment card starts 662px down at 390x844 and 798px at 1440x900, and
+ * `e2e/productsFilm.spec.ts` holds both.
+ *
+ * `object-position: 50% 42%`, chosen by looking at the frame: it is a 9:16 portrait and the hero is
+ * wider than tall from a small tablet up, so only a band of it shows, and 42% keeps the embroidered
+ * logo in that band. The still uses the same, so the swap from still to film moves nothing.
+ */
+.site-hero__film {
+  position: absolute;
+  inset: 0;
+  object-position: 50% 42%;
+}
+
+/*
+ * The pause button: bottom right, in the hero's bottom padding (64px on a phone, so 44px fits with
+ * room on both sides), on the words' column edge. Nothing else ever sits in that padding, so the
+ * button can cover no word at any width.
+ */
+.film-toggle {
+  position: absolute;
+  inset-block-end: 16px;
+  inset-inline-end: max(
+    var(--site-gutter),
+    calc((100% - var(--site-max)) / 2 + var(--site-gutter))
+  );
+  display: grid;
+  place-items: center;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg) 64%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+.film-toggle svg {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .film-toggle:hover {
+    border-color: var(--dimension);
+  }
+}
+
+.film-toggle:active {
+  scale: 0.94;
+}
+
 /* ------------------------------------------------ №01 who we are */
 
 .about {
@@ -3128,6 +2801,18 @@ a.contact-block__value:active {
   aspect-ratio: 4 / 5;
 }
 
+/*
+ * The order timeline's shape (visual audit VA-29, owner's choice 2026-10-02): one square for
+ * every picture, whatever shape its file has, so eight rows line up. `object-fit: cover` on
+ * `.photo-figure__img` cuts the file to it and each picture's `focus` (lib/factoryPhotos.ts)
+ * decides which part stays. A square, not 8:5 or 4:5, because the eight files are four of each
+ * and a square gives up the least of both: a wide file keeps 62.5% of its width, a tall one 80%
+ * of its height, where either of their own shapes would keep half of the other four.
+ */
+.photo-figure__frame--square {
+  aspect-ratio: 1 / 1;
+}
+
 .photo-figure__img {
   display: block;
   width: 100%;
@@ -3138,9 +2823,10 @@ a.contact-block__value:active {
 .photo-figure__caption {
   margin-block-start: 10px;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-snug);
-  text-transform: uppercase;
+  font-size: var(--text-mono-lg);
+  /* Normal letters, not capitals (visual audit VA-44, owner's choice 2026-10-02): a caption is read, and the longest ran 68 capitals
+     ("The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces"). The words are typed
+     in normal case in lib/factoryPhotos.ts, so the names keep their own capitals. */
   color: var(--muted);
 }
 
@@ -3196,7 +2882,7 @@ a.contact-block__value:active {
 .family-card__cue {
   margin-block-start: auto;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--dimension);
@@ -3227,6 +2913,118 @@ a.contact-block__value:active {
   scale: 0.98;
 }
 
+/* ------------------------------------------------ the guides index (VA-47) */
+
+/*
+ * ⚠️ EACH GUIDE IS ONE CARD AND ONE LINK (visual audit VA-47, 2026-10-02). The index listed every
+ * guide twice: a card with its own button, then a chip for the same guide at the foot of the page.
+ * The card is the target now and the title is the link (`GuideCard.tsx` has the markup and the
+ * reasons), so there is no button to style and one place to hover.
+ *
+ * The grid is the family grid's shape for the family grid's reason (FA-E-01): a short list of a
+ * known length is a composition, not an `auto-fill` that strands its last card. One column below
+ * 560px, two above it, and an odd last card spans both so the rectangle is whole.
+ *
+ * ⚠️ THE LINK IS STRETCHED OVER THE CARD (Inclusive Components, "Cards", read 2026-10-02). `.guide-card`
+ * is the containing block and the link's `::after` fills it, so a click or tap anywhere on the card is
+ * a click on the link, while the link itself stays the title. The overlay paints above the card's plain
+ * text, which therefore cannot be selected: these are signposts, not reading. The keyboard ring stays
+ * the global one on the title (not overridden, so the focused element still shows its own), and the
+ * card answers it too, as every card does, with the lift and the accent edge below.
+ *
+ * The hover is the family card's, because the audit's finding was cards and chips agreeing and buttons
+ * not (VA-46): lift 4px and an accent edge on a mouse, the same on keyboard focus, the press on touch.
+ */
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-grid > li:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 559px) {
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.guide-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* `max-width: none`: base.css caps every `li` at 60ch (about 584px at 17px), which would leave
+     the odd last card, spanning both columns, at half the row (the timeline's phases hit the same
+     cap, above). The cap is a measure for text, and the card is a box; the description keeps its own. */
+  max-width: none;
+  padding: 20px;
+  transition:
+    translate var(--ui) var(--ease),
+    border-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
+}
+
+/*
+ * ⚠️ A WIDTH IN `em`, NOT `ch`: HOW MANY CHARACTERS A LINE HOLDS DEPENDS ON THE FONT THAT DRAWS IT
+ * (CI, 2026-10-02). The wide last card's descriptions were held to `--site-measure` (55ch) on a
+ * COMPUTED 71 characters a line. CI drew them in a fallback font: body text is "Archivo Optional"
+ * (`font-display: optional`, so a slow first load keeps the fallback), CI's image has no Arial, so
+ * "Archivo Fallback" fell through to Liberation Sans at full size, and a 495px line held 79
+ * characters against the 75 FA-C-52 holds the site's prose to. `ch` is the width of a ZERO in the
+ * element's font (MDN, <length>, read 2026-10-02), so a `ch` cap moves with the font while the
+ * letters it is meant to count do not move with it. An Android phone has no Arial either.
+ * `em` follows only the text size: 29em is 435px at 15px in any font. Measured 2026-10-02 in
+ * Chromium on the Mac and in CI's Linux image, at 768, 1180 and 1440px: at most 67 characters a
+ * line here and 66 in the form's file note (which shares the cap). In the failing run CI's fallback
+ * averaged 6.28px a character, so 435px holds about 69 even in that font (computed, not measured).
+ */
+.guide-card .product-card__desc {
+  max-width: 29em;
+}
+
+.guide-card__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.guide-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* The button's own three words, kept as a quiet cue (GuideCard.tsx): accent ink, mono, like the family cue. */
+.guide-card__cue {
+  margin-block-start: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--dimension);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guide-card:hover {
+    translate: 0 -4px;
+    border-color: var(--dimension);
+  }
+}
+
+.guide-card:has(.guide-card__link:focus-visible) {
+  translate: 0 -4px;
+  border-color: var(--dimension);
+}
+
+.guide-card:has(.guide-card__link:active) {
+  scale: 0.98;
+}
+
 /* ------------------------------------------------ №04 how an order works */
 
 .timeline {
@@ -3254,28 +3052,15 @@ a.contact-block__value:active {
 }
 
 /* ⚠️ `max-width: none`: base.css caps every `li` at 60ch, which squeezed the copy column of a
-   two-column phase to 100px (measured at 1440, 2026-09-29). The prose inside keeps its cap. */
+   two-column step to 100px (measured at 1440, 2026-09-29). The prose inside keeps its cap. */
 .timeline__phase,
 .timeline__step {
   max-width: none;
 }
 
-.timeline__phase {
-  display: grid;
-  gap: 24px;
-}
-
-@media (min-width: 900px) {
-  .timeline__phase {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
-    gap: 64px;
-    align-items: start;
-  }
-}
-
 .timeline__name {
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-wide);
   text-transform: uppercase;
   color: var(--dimension);
@@ -3289,7 +3074,49 @@ a.contact-block__value:active {
   list-style: none;
 }
 
+/*
+ * ⚠️ A STEP IS ONE ROW: ITS WORDS AND ITS OWN PICTURE (visual audit VA-29, owner's choice
+ * 2026-10-02). A phase held two steps and one picture beside them, in a shape of its own (wide,
+ * tall, wide, tall), so the rows of the four phases did not line up. Now each of the eight steps
+ * has a square of the same size: the words on the left and the picture on the right from 900px,
+ * both starting at the row's top edge, and on a phone the picture above its words. The words
+ * come first in the markup (OrderTimeline.tsx says why), so `order: -1` moves the picture up
+ * on a phone and is switched off again from 900px.
+ *
+ * 400px is the width the files were cut for (`FACTORY_PHOTO_WIDTHS`), so a 1x screen takes the
+ * small file and a 2x screen the large one, and it is the cap between a phone and 900px, where a
+ * one-column picture would otherwise stretch to the page's width: 667px square at 768px (768
+ * less two 38px gutters and the timeline's 24px line gutter).
+ * The 12px between a picture and its words is half the 24px between two steps, so each picture
+ * reads as belonging to the words under it and not to the words above.
+ */
 .timeline__step {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.timeline__step > .photo-figure {
+  order: -1;
+  max-width: 400px;
+}
+
+/* 280px from 900px, not 400px (owner's choice, 2026-10-02): with eight steps the 400px squares made
+   "How an order works" 3,808px tall at 1440px, about four screens; 280px squares make it 2,848px.
+   Each photo keeps its whole square cut, only smaller. Phones keep the 400px cap above. */
+@media (min-width: 900px) {
+  .timeline__step {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 280px);
+    column-gap: 64px;
+  }
+
+  .timeline__step > .photo-figure {
+    order: 0;
+  }
+}
+
+/* The words: the number and the You / We chip on one line, the title and body under the chip. */
+.timeline__text {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 12px;
@@ -3308,7 +3135,7 @@ a.contact-block__value:active {
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
@@ -3337,8 +3164,10 @@ a.contact-block__value:active {
  * ⚠️ 50ch, NOT `--site-measure` (55ch): CI COUNTED 77 CHARACTERS ON ONE LINE. At 768 px the
  * timeline is one column and the body reaches its cap, 495 px at 55ch. This Mac fitted that in
  * 75 characters; CI's Linux Chromium set the same copy at 77 (PR #94, legibility.spec.ts FA-C-52,
- * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is at
- * most 420 px, so the cap only matters in one-column layouts.
+ * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is what
+ * the row leaves beside its 400 px picture and 64 px gap (322 px at 900, 564 px at 1440, worked
+ * out from the layout rather than measured), so the cap bites in one column and again from
+ * about 1,050 px.
  */
 .timeline__body {
   font-size: var(--text-sm);
@@ -3439,106 +3268,6 @@ a.contact-block__value:active {
   }
 }
 
-/* ------------------------------------------------ the factory gallery, large */
-
-.factory-tile__open {
-  display: block;
-  color: inherit;
-  cursor: zoom-in;
-}
-
-.factory-tile__open:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.lightbox__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  background: color-mix(in srgb, var(--ink) 94%, transparent);
-}
-
-/* Colours come from the dark block shared with the hero, above. */
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 16px;
-  padding: 24px 0;
-}
-
-.lightbox__strip {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.lightbox__strip:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
-}
-
-.lightbox__slide {
-  display: grid;
-  flex: 0 0 100%;
-  max-width: none;
-  min-height: 0;
-  place-items: center;
-  padding-inline: var(--site-gutter);
-  scroll-snap-align: center;
-}
-
-.lightbox__figure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  height: 100%;
-  min-height: 0;
-  margin: 0;
-  justify-content: center;
-}
-
-.lightbox__img {
-  display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
-  min-height: 0;
-  object-fit: contain;
-}
-
-.lightbox__caption,
-.lightbox__count {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-snug);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.lightbox__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding-inline: var(--site-gutter);
-}
-
 /* ------------------------------------------------ №03 the live garment (D24) */
 
 /*
@@ -3575,6 +3304,24 @@ a.contact-block__value:active {
   visibility: hidden;
 }
 
+/*
+ * ⚠️ THE STILL STEPS BACK ONCE THE MODEL IS SHOWN (visual audit VA-28, reported by the owner). The
+ * model's canvas is transparent and lies over the still, so once the garment turned away from the
+ * photo's pose the page showed it twice — the photo behind, the model in front, two logos. The
+ * still fades out on --settle as the model is shown, and is back whenever the model is not:
+ * before it loads, if it fails, and while the link under it has keyboard focus (the rule above,
+ * which moves the model aside). Reduced motion makes the fade instant (base.css).
+ */
+.proof__frame > :is(img, picture) {
+  transition: opacity var(--settle) var(--ease);
+}
+
+.proof__figure:has(.live-garment[data-phase="shown"]):not(:has(.proof__link:focus-visible))
+  .proof__frame
+  > :is(img, picture) {
+  opacity: 0;
+}
+
 .live-garment__model {
   display: block;
   width: 100%;
@@ -3591,78 +3338,197 @@ a.contact-block__value:active {
   pointer-events: auto;
 }
 
-/* ------------------------------------------------ the contact page, 2026-09-29 */
+/* ------------------------------------------------ the contact page, single step (2026-10-01) */
 
 /*
- * The form's two steps. ⚠️ `[hidden]` IS RESTATED BECAUSE A CLASS WINS OVER IT: the user-agent
- * `display: none` on `[hidden]` loses to any author `display`, so without this line a hidden
- * step would show the moment a layout rule gave `.inquiry-form__step` a display of its own.
+ * The intro, the form and the direct contacts (owner, visual audit VA-02). On a phone they stack
+ * in that order; from 1000px the intro and the contacts share a column beside the form, the
+ * layout of the Balmoral and Clothing Network contact pages in the audit's benchmarks.
  */
-.inquiry-form__step {
+.inquiry-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "intro"
+    "main"
+    "details";
+}
+
+.inquiry-layout__intro {
+  grid-area: intro;
+}
+
+.inquiry-layout__main {
+  grid-area: main;
   min-width: 0;
-  margin: 0;
+}
+
+.inquiry-layout__details {
+  grid-area: details;
+  margin-block-start: 64px;
+}
+
+/*
+ * ⚠️ THE ADDRESS IS LEFT OUT BESIDE THE FORM ON A PHONE ONLY. The section straight after this
+ * one is the map with the same address and its directions link, so on a phone it would be read
+ * twice in a row (VA-41); the approved phone mockup shows email and WhatsApp alone.
+ */
+@media (width < 1000px) {
+  .inquiry-layout__details .contact-block:has(address) {
+    display: none;
+  }
+}
+
+@media (width >= 1000px) {
+  .inquiry-layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "intro main"
+      "details main";
+    column-gap: 64px;
+    align-items: start;
+  }
+
+  .inquiry-layout__details {
+    grid-template-columns: minmax(0, 1fr);
+    margin-block-start: 24px;
+  }
+}
+
+/*
+ * "Optional details" (W1): a fieldset, so a screen reader names the group once, drawn as a
+ * divider with a hairline to its right. A legend can be a flex container in all three engines.
+ */
+.inquiry-form__group {
+  min-width: 0;
+  margin: 24px 0 0;
   padding: 0;
   border: 0;
 }
 
-.inquiry-form__step[hidden] {
-  display: none;
-}
-
-/* A step that opens with a two-column row still keeps the legend's gap: row fields drop theirs. */
-.inquiry-form__step > .inquiry-form__row {
-  margin-block-start: 16px;
-}
-
-.inquiry-form__step + .inquiry-form__step {
-  margin-block-start: 24px;
-}
-
-.inquiry-form__legend {
+.inquiry-form__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
   padding: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-mono-lg); /* 12px with the field labels it heads (2026-10-01) */
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps-snug);
-  color: var(--text);
-}
-
-/*
- * The progress bar. `role="progressbar"` and its values carry the meaning; the fill is only its
- * picture, drawn with `transform` so a change never re-lays the form out.
- */
-.inquiry-progress {
-  margin-block: 24px 16px;
-}
-
-.inquiry-progress__step {
-  margin: 0 0 8px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   color: var(--muted);
 }
 
-.inquiry-progress__track {
-  height: 6px;
-  overflow: hidden;
-  border: 1px solid var(--line-control);
-  border-radius: var(--radius-button);
-  background: var(--surface);
+.inquiry-form__divider::after {
+  content: "";
+  flex: 1;
+  border-block-start: 1px solid var(--line);
 }
 
-.inquiry-progress__fill {
-  display: block;
-  height: 100%;
-  background: var(--dimension);
-  transform-origin: left center;
-  transition: transform var(--ui) var(--ease);
+/*
+ * The sentence under a wrongly filled field (W2–W5). It arrives with a fade and a 4px rise on
+ * transform and opacity only (VA-02's motion table); reduced motion collapses it with every
+ * other animation (base.css). `[hidden]` is restated because a class can outrank it.
+ */
+.inquiry-form__error {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger);
+  animation: inquiry-note-in var(--ui) var(--ease) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .inquiry-progress__fill {
-    transition: none;
+.inquiry-form__error[hidden] {
+  display: none;
+}
+
+@keyframes inquiry-note-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/*
+ * The list shown on Send when something is wrong (W6), at the top of the form, each line a link
+ * to its field (GOV.UK error summary). It is a `.form-notice--bad` too: one look for every result
+ * message, and the one coloured edge VC-07 allows (scripts/vibecoded-rules.mjs).
+ */
+.inquiry-summary {
+  margin-block-end: 8px;
+  padding: 16px 18px;
+}
+
+.inquiry-summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.inquiry-summary__title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inquiry-summary__list {
+  margin: 8px 0 0;
+  padding-inline-start: 20px;
+}
+
+.inquiry-summary__list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--danger);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/*
+ * What replaces the form after a successful Send (W8–W10, VA-27): one panel, arriving with a fade
+ * and an 8px rise on --settle, once. It takes focus so a screen reader reads it (VA-01). It is a
+ * `.form-notice--ok` too, so its edge is the result notice's own (VC-07's one allowed use).
+ */
+.inquiry-done {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  font-size: var(--text-body);
+  animation: inquiry-done-in var(--settle) var(--ease) both;
+}
+
+.inquiry-done:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.inquiry-done__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-card-title);
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.inquiry-done__text,
+.inquiry-done__line {
+  margin: 0;
+}
+
+.inquiry-done__line {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.inquiry-done .btn {
+  justify-self: start;
+}
+
+@keyframes inquiry-done-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
 }
 
@@ -3696,6 +3562,9 @@ a.contact-block__value:active {
 
 .inquiry-form__note {
   margin: 8px 0 0;
+  /* In `em`, not the 60ch every `p` gets, for the reason at `.guide-card .product-card__desc`: in
+     CI's fallback font this note set 86 characters a line in a 540px column (2026-10-02). */
+  max-width: 29em;
   font-size: var(--text-sm);
   color: var(--muted);
 }
@@ -3723,4 +3592,22 @@ a.contact-block__value:active {
   flex-shrink: 0;
   font-family: var(--font-mono);
   color: var(--muted);
+}
+
+/*
+ * ------------------------------------------------ titles and labels in normal letters (visual audit VA-44, owner's choice 2026-10-02)
+ *
+ * Long runs of capitals read slowly (the audit counted runs of 31 to 74 characters). The owner chose
+ * normal letters for the guide titles listed at the foot of each guide and for the bracket labels
+ * above every page's headline; the words are the same, typed in normal case in the source. Short
+ * labels elsewhere (chips that name a family, buttons, section numbers) keep their capitals.
+ */
+.filter-bar--titles .filter-chip {
+  text-transform: none;
+  letter-spacing: inherit;
+}
+
+.site-hero .label {
+  text-transform: none;
+  letter-spacing: inherit;
 }

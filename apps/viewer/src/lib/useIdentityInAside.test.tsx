@@ -205,45 +205,68 @@ describe('the CSS and the hook agree on where the aside exists', () => {
    * and without the styles that size its heading.
    *
    * Proved structurally rather than by sampling viewports: TWO_COLUMN_QUERY's
-   * FIRST clause is `(min-width: 900px)`, and IDENTITY_IN_ASIDE_QUERY is that same
-   * clause narrowed with `and`. A conjunction can only ever match a subset of its
-   * own first conjunct, so the relation holds for every viewport, including the
-   * ones nobody thought to test.
+   * FIRST clause is `(min-width: 900px)`, and each step of IDENTITY_IN_ASIDE_QUERY
+   * is a `(min-width: …)` of at least that, narrowed with `and`. A conjunction can
+   * only ever match a subset of its own first conjunct, and a list of subsets is a
+   * subset, so the relation holds for every viewport, including the ones nobody
+   * thought to test.
+   *
+   * ⚠️ IT WAS ONE CONJUNCTION, AND A COMMA WAS REFUSED OUTRIGHT, until VA-60
+   * (2026-10-02) needed two steps: 880px of height from 1100px wide, 800px from
+   * 1280px. A comma is safe exactly when EVERY step carries the width floor, which is
+   * what is checked now; a step without one could match a landscape phone however
+   * high the other step's floor is, and the control below proves that is caught.
    */
-  it('the identity query is strictly narrower than the two-column query', () => {
-    const minWidth = (query: string) => {
-      const match = /\(min-width: (\d+)px\)/.exec(query)
-      return match ? Number(match[1]) : null
-    }
-    // TWO_COLUMN_QUERY is a comma list — a viewport matches if ANY clause does — so
-    // the widest viewport it can EXCLUDE is bounded by its most permissive clause.
-    const widestTwoColumnFloor = Math.min(
-      ...TWO_COLUMN_QUERY.split(',').map((clause) => minWidth(clause) ?? Number.POSITIVE_INFINITY),
-    )
-    const identityFloor = minWidth(IDENTITY_IN_ASIDE_QUERY)
+  const steps = (query: string) => query.split(',').map((step) => step.trim())
+  const minWidth = (query: string) => {
+    const match = /\(min-width: (\d+)px\)/.exec(query)
+    return match ? Number(match[1]) : null
+  }
+  // The floor of TWO_COLUMN_QUERY's one unconditional clause, `(min-width: 900px)`: every
+  // viewport at least that wide is two columns. Its other clause (700px) holds only for a
+  // landscape shape, so a step floored at 700 could still match a 700x900 portrait window
+  // outside the block. Until VA-60 this took the SMALLEST floor of the list (700), which
+  // let exactly that pass; the control below now proves it is refused.
+  const widestTwoColumnFloor = minWidth(
+    steps(TWO_COLUMN_QUERY).find((clause) => !clause.includes(' and ')) ?? '',
+  ) as number
+  /** What makes a step unsafe; empty when every step is narrower than the two-column query. */
+  const wideSteps = (query: string) =>
+    steps(query).flatMap((step) => {
+      const floor = minWidth(step)
+      if (floor === null) return [`"${step}" has no width floor`]
+      if (floor < widestTwoColumnFloor) return [`"${step}" floors width at ${floor}px`]
+      if (/\bor\b|\bnot\b/.test(step)) return [`"${step}" is not a plain conjunction`]
+      return []
+    })
 
-    expect(identityFloor, 'the identity query has no min-width clause').not.toBeNull()
+  it('the identity query is strictly narrower than the two-column query, step by step', () => {
     expect(
-      (identityFloor ?? 0) >= widestTwoColumnFloor,
-      `IDENTITY_IN_ASIDE_QUERY floors width at ${identityFloor}px, but the widest ` +
-        `viewport TWO_COLUMN_QUERY can exclude is ${widestTwoColumnFloor}px. A ` +
-        'narrower identity query renders <ProductIdentity> into a viewport where the ' +
+      wideSteps(IDENTITY_IN_ASIDE_QUERY),
+      `The widest viewport TWO_COLUMN_QUERY can exclude is ${widestTwoColumnFloor}px. A ` +
+        'step narrower than that renders <ProductIdentity> into a viewport where the ' +
         'two-column block does not apply, so `.product-info--aside` is unstyled — a ' +
         '69px viewport-sized heading in a 260px column.',
-    ).toBe(true)
-    // `and`, not a comma: a comma would make it a UNION and could match outside the
-    // two-column block however high the width floor is.
-    expect(
-      IDENTITY_IN_ASIDE_QUERY.includes(','),
-      'the identity query must be a conjunction, never a comma list',
-    ).toBe(false)
+    ).toEqual([])
   })
 
-  it('the identity query carries a height floor, which is the whole point of it', () => {
-    expect(
-      /\(min-height: (\d+)px\)/.exec(IDENTITY_IN_ASIDE_QUERY)?.[1],
-      'without a height floor a landscape phone gets the paragraph and the band ' +
-        'grows to 726px in a 390px viewport — measured 2026-08-21',
-    ).toBeDefined()
+  /** The control for the check above: a step without the width floor must be reported. */
+  it('would report a step that a landscape phone could match', () => {
+    expect(wideSteps('(min-width: 1280px) and (min-height: 800px), (min-height: 880px)')).toEqual([
+      '"(min-height: 880px)" has no width floor',
+    ])
+    expect(wideSteps('(min-width: 700px) and (min-height: 880px)')).toEqual([
+      '"(min-width: 700px) and (min-height: 880px)" floors width at 700px',
+    ])
+  })
+
+  it('every step of the identity query carries a height floor, which is the whole point of it', () => {
+    for (const step of steps(IDENTITY_IN_ASIDE_QUERY)) {
+      expect(
+        /\(min-height: (\d+)px\)/.exec(step)?.[1],
+        `"${step}": without a height floor a landscape phone gets the paragraph and ` +
+          'the band grows to 726px in a 390px viewport — measured 2026-08-21',
+      ).toBeDefined()
+    }
   })
 })

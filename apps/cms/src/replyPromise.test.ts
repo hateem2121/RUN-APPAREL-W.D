@@ -25,13 +25,19 @@ const PROMISES = [
   'apps/cms/src/app/(frontend)/contact/page.tsx',
   'apps/cms/src/app/(frontend)/privacy/page.tsx',
   'apps/cms/src/globals/SiteSettings.ts',
-  'apps/cms/src/lib/projectPublic.ts',
+  // The footer's code default moved here from apps/cms/src/lib/projectPublic.ts on 2026-10-02
+  // (VA-31): the garment pages draw the same footer.
+  'packages/shared/src/siteFooter.ts',
   'scripts/contact-error-messages.mjs',
 ]
 
 describe('the reply promise is 24 hours everywhere', () => {
   it('no site source promises a reply in business days', () => {
-    const files = [...walk(CMS_SRC), join(REPO, 'scripts', 'contact-error-messages.mjs')]
+    const files = [
+      ...walk(CMS_SRC),
+      join(REPO, 'scripts', 'contact-error-messages.mjs'),
+      join(REPO, 'packages', 'shared', 'src', 'siteFooter.ts'),
+    ]
     const offenders = files
       // `\s+`, not a space: JSX wraps prose, and the contact page's own lede kept
       // "2 business\n            days" live for a day after this test went green (2026-09-25).

@@ -674,7 +674,32 @@ describe('raw values in component stylesheets', () => {
       selector: '.site-hero .display--hero',
       value: 'clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem)',
     },
-    { file: 'site.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
+    // The footer's rules moved from site.css to the shared footer.css on 2026-10-02 (VA-31).
+    { file: 'footer.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
+    // VA-12 (2026-10-02): from 1920px the hero and the section headline keep growing, each in a
+    // `@media (min-width: 1920px)` rule that starts at its old ceiling (72px, 46px) and stops at
+    // 144px and 92px at 3840px. The five above are untouched; these three are added, and
+    // `src/styles/largeScreens.test.ts` computes both sets at the pinned widths.
+    { file: 'base.css', selector: '.display--hero', value: 'max(4.5rem, min(3.75vw, 9rem))' },
+    {
+      file: 'base.css',
+      selector: '.display--section',
+      value: 'max(2.875rem, min(2.3958vw, 5.75rem))',
+    },
+    {
+      file: 'site.css',
+      selector: '.site-hero .display--hero',
+      value: 'max(4.5rem, min(3.75vw, 9rem))',
+    },
+    // VA-42 follow-up (owner, 2026-10-02): on a phone a garment name shrinks with its card rather
+    // than split a word. The card's body is the container, so 12.3cqi is 12.3% of the room the name
+    // has, and the catalogue's widest word fits from 13.3px at 320px to 18px from about 415px.
+    // `apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words at seven phone widths.
+    {
+      file: 'site.css',
+      selector: '.product-card__body .product-card__name',
+      value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
+    },
   ] as const
   const RATIOS = [{ file: 'base.css', selector: '.serif-accent', value: '1.07em' }] as const
 
@@ -963,9 +988,14 @@ describe('text on the --wash surface', () => {
   const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
 
   it('every rule that paints --wash behind its text clears 4.5:1, in both themes', () => {
-    const failures = ['tokens.css', 'base.css', 'notch.css', 'page.css', 'site.css'].flatMap(
-      (file) => washTextFailures(readFileSync(cssPath(file), 'utf8'), tokensSource, file),
-    )
+    const failures = [
+      'tokens.css',
+      'base.css',
+      'notch.css',
+      'footer.css',
+      'page.css',
+      'site.css',
+    ].flatMap((file) => washTextFailures(readFileSync(cssPath(file), 'utf8'), tokensSource, file))
     expect(failures).toEqual([])
   })
 
@@ -1432,10 +1462,17 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         'tokens.css :root: light dark',
         'tokens.css :root[data-theme="light"]: light',
         'tokens.css :root[data-theme="dark"]: dark',
-        // The site's photo hero and its photo lightbox (owner, 2026-09-29) share one rule
-        // (`.site-hero--photo, .lightbox`): text on a photograph's ink in BOTH themes. The
-        // scanner names the selector line nearest the brace, which is `.lightbox`.
-        'site.css .lightbox: dark',
+        // Paper (visual audit VA-04, 2026-10-02): `@media print { :root, :root[data-theme] }` narrows
+        // every page to light when printed, from either theme. The scanner names the line nearest
+        // the brace.
+        'tokens.css :root[data-theme]: light',
+        // The site's photo hero (owner, 2026-09-29): text on a photograph's ink in BOTH themes.
+        // It shared this rule with the photo lightbox until 2026-10-02, when the lightbox went
+        // with the factory strip (visual audit VA-29), so the scanner now names `.site-hero--photo`.
+        'site.css .site-hero--photo: dark',
+        // ...and on paper it goes light like every page (VA-04, found 2026-10-02 when the film made
+        // /products a photo hero): its re-declared dark colours were out of the paper rule's reach.
+        'site.css .site-hero--photo: light',
       ].sort(),
     )
   })
@@ -1546,14 +1583,12 @@ describe('CO-08 — every literal colour is on the palette, or a named exception
    * stylesheet must equal one of those colours (a token's rgba() at a different alpha is
    * the same colour) or be one of the exceptions below, each explained where it lives.
    */
+  // `--danger` (#b3261e / #f2b8b5) was listed here until it joined the palette in tokens.css
+  // on 2026-10-01 (visual audit VA-22); as a token it needs no exception.
   const EXCEPTIONS = [
     {
-      file: 'site.css',
-      colours: ['#b3261e', '#f2b8b5'],
-      why: 'the contact form error colour, --danger — contrast measured beside it',
-    },
-    {
-      file: 'site.css',
+      // In the shared footer.css since 2026-10-02 (VA-31), with the rest of the footer's rules.
+      file: 'footer.css',
       colours: ['#111111', '#333333', '#999999'],
       why: 'the printed footer (@media print) — paper has no dark theme',
     },

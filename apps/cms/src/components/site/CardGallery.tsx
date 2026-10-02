@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode, useRef, useState } from 'react'
+import { type CSSProperties, type ReactNode, useRef, useState } from 'react'
 import { colourHref, slideAt, slidesToLoad } from '../../lib/cardGallery'
 import { cardImage } from '../../lib/cardImage'
 import type { CardColour } from '../../lib/projectPublic'
@@ -48,9 +48,16 @@ import { ViewerCue } from './ViewerCue'
  * colour's neighbours as soon as the visitor touches, points at or focuses the card.
  * Without scripting only the first picture loads; the other slides stay blank.
  *
- * ⚠️ THE DOTS ARE NOT PAINTED IN THE GARMENT'S COLOURS. The only colour value the CMS holds
- * is `hexSwatch`, and its field description says buyers never see it (see `toProductCard`).
- * The colour's NAME is printed beside the dots instead.
+ * THE DOTS ARE PAINTED IN THE GARMENT'S COLOURS SINCE 2026-10-02 (visual audit VA-30,
+ * owner-approved): each carries its colour's `hexSwatch`, the value the garment page paints
+ * its swatches with, and the chosen one wears a ring. They were grey until then, held back by
+ * a field description ("Buyers never see it") the garment pages had already made untrue. The
+ * colour's NAME stays printed beside them: a dot alone says which, not what.
+ *
+ * PREVIOUS / NEXT ARROWS over the picture (VA-30; the W3C carousel pattern's slide buttons):
+ * a mouse could change colour only through the small dots. They appear on hover and whenever
+ * the card holds keyboard focus, are real buttons in the tab order, and wrap from the last
+ * colour to the first. A touch screen has the swipe, so they are hidden there (site.css).
  */
 export function CardGallery({
   productSlug,
@@ -86,10 +93,30 @@ export function CardGallery({
   const showing = colours[active] ?? colours[0]
   const href = colourHref(garmentPages, productSlug, showing?.slug ?? '')
 
+  /**
+   * The colour a dot or an arrow is gliding the strip to, until it lands.
+   *
+   * ⚠️ WITHOUT IT, TWO QUICK ARROW PRESSES LOST THEIR PLACE (VA-30, caught by the browser test
+   * 2026-10-02). A smooth scroll reports every slide it crosses, so mid-glide `active` read the
+   * colour passing by, and the second press counted from that: "previous" twice from the
+   * second colour landed on the first instead of wrapping to the last. So while a glide is on
+   * its way the passing slides are not shown, and a press counts from the destination. A
+   * finger, the wheel or a key takes over at once (`handOver`): the glide is no longer ours.
+   */
+  const heading = useRef<number | null>(null)
+  /** Hand the strip back to the visitor — only for input ON the strip, never an arrow's press. */
+  const handOver = (event: { target: EventTarget }) => {
+    if (strip.current?.contains(event.target as Node)) heading.current = null
+  }
+
   const onScroll = () => {
     const el = strip.current
     if (!el) return
     const at = slideAt(el.scrollLeft, el.clientWidth, colours.length)
+    if (heading.current !== null) {
+      if (at !== heading.current) return
+      heading.current = null
+    }
     setActive(at)
     want(at)
   }
@@ -98,18 +125,30 @@ export function CardGallery({
     const el = strip.current
     if (!el) return
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    heading.current = target
     el.scrollTo({ left: target * el.clientWidth, behavior: still ? 'auto' : 'smooth' })
     setActive(target)
     want(target)
   }
+  /** One colour on, either way, round from the last to the first, counted from where it is going. */
+  const step = (by: number) =>
+    show(((heading.current ?? active) + by + colours.length) % colours.length)
 
   return (
     <>
       <figure
         className="product-card__figure"
         onPointerEnter={engage}
-        onPointerDown={engage}
-        onTouchStart={engage}
+        onPointerDown={(event) => {
+          engage()
+          handOver(event)
+        }}
+        onTouchStart={(event) => {
+          engage()
+          handOver(event)
+        }}
+        onWheel={handOver}
+        onKeyDown={handOver}
         onFocus={engage}
       >
         <div className="card-gallery" ref={strip} onScroll={onScroll}>
@@ -141,6 +180,44 @@ export function CardGallery({
             </a>
           ))}
         </div>
+        {colours.length > 1 ? (
+          <>
+            <button
+              type="button"
+              className="card-gallery__arrow card-gallery__arrow--prev"
+              aria-label={`Previous colour of ${productName}`}
+              onClick={() => step(-1)}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                <path
+                  d="m15 5-7 7 7 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="card-gallery__arrow card-gallery__arrow--next"
+              aria-label={`Next colour of ${productName}`}
+              onClick={() => step(1)}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                <path
+                  d="m9 5 7 7-7 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </>
+        ) : null}
       </figure>
       {colours.length > 1 ? (
         <div
@@ -164,6 +241,8 @@ export function CardGallery({
                 aria-label={`Show ${colour.name}`}
                 aria-pressed={slide === active}
                 onClick={() => show(slide)}
+                // The colour itself, read by `.card-gallery__dot::before`; none, an empty ring.
+                style={colour.swatch ? ({ '--swatch': colour.swatch } as CSSProperties) : undefined}
               />
             ))}
           </span>

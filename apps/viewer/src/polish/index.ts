@@ -1,4 +1,4 @@
-import { isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
+import { isCoarsePointer, onReducedMotionChange, prefersReducedMotion } from '../lib/capabilities'
 import { startReveals } from './reveal'
 
 /**
@@ -22,11 +22,33 @@ import { startReveals } from './reveal'
 let started = false
 let stopCursor: (() => void) | null = null
 let stopScroll: (() => void) | null = null
+let stopWatchingMotion: (() => void) | null = null
 
 export function startPolish(): void {
   if (started || typeof document === 'undefined') return
   started = true
   startReveals()
+
+  /**
+   * ⚠️ STOP WHAT MOVES THE MOMENT REDUCED MOTION TURNS ON (visual audit VA-20, 2026-10-02).
+   *
+   * Both layers below decide ONCE, here, at startup. A visitor who turned reduced motion on
+   * during the visit kept a scroller that glides and a cursor that chases the pointer until the
+   * next page — the motion they had just asked to stop. CSS already followed the setting (a media
+   * query is live), so the page's own transitions went still and these two did not.
+   *
+   * One direction on purpose. Stopping motion is the half that matters, and turning the setting
+   * back OFF mid-visit does not restart them: the next page picks it up from the start, and a
+   * restart would be new code that nobody asked for. `started` stays true, so `startPolish()`
+   * cannot be called again either.
+   *
+   * Registered BEFORE the two imports below resolve, so a flip while they are still loading is
+   * not missed: the stop finds nothing to stop yet, and the late start declines by itself —
+   * `startSmoothScroll()` and `<Cursor>` each ask the setting again when they run.
+   */
+  stopWatchingMotion = onReducedMotionChange((reduce) => {
+    if (reduce) stopPolish()
+  })
 
   /**
    * Lenis is gated BEFORE its import, for the same reason Motion is below.
@@ -81,8 +103,13 @@ export function startPolish(): void {
     })
 }
 
-/** Exposed for tests and for symmetry; the cursor is never torn down in the app. */
+/**
+ * Stops the smooth scroll and the cursor, and stops listening for the setting. Called when reduced
+ * motion is turned on mid-visit (see `startPolish`), and by tests.
+ */
 export function stopPolish(): void {
+  stopWatchingMotion?.()
+  stopWatchingMotion = null
   stopCursor?.()
   stopCursor = null
   stopScroll?.()

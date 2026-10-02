@@ -1,4 +1,4 @@
-import { FACTORY_PHOTOS } from '../src/lib/factoryPhotos'
+import { ORDER_PHASES } from '../src/lib/orderProcess'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -15,9 +15,11 @@ import { expect, type Page, test } from './offlineMedia'
  * so.
  *
  * ⚠️ UNTIL 2026-09-25 THIS PINNED EXACTLY ONE PICTURE. The owner then chose a strip of their
- * own factory photos below The works (OI-3, section №04), so the count is now the poster plus
- * the strip's list (`src/lib/factoryPhotos.ts`), each served from `/factory/`. A picture
- * anywhere else still fails — which is the point the one-picture rule was making.
+ * own factory photos below The works (OI-3), so the count was the poster plus the strip's list.
+ * On 2026-10-02 the owner removed that strip (visual audit VA-29): the factory pictures are now
+ * the building and its roof in №01 and one photo per step of the order timeline in №04
+ * (`src/lib/orderProcess.ts`), each served from `/factory/`. A picture anywhere else still
+ * fails — which is the point the one-picture rule was making.
  *
  * src/publicSite.test.ts pins that every viewer link carries the caption (XS-09); this
  * pins what is ON the page. Counted in the rendered DOM, not in source, because a
@@ -103,11 +105,16 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
       'a picture that is neither the factory nor a garment from the CMS (IM-12)',
     ).toEqual([])
 
-    const factory = await page
-      .locator('.factory-grid img')
+    const timeline = await page
+      .locator('.timeline img')
       .evaluateAll((images) => images.map((img) => img.getAttribute('src') ?? ''))
-    expect(factory, 'the factory gallery is not the list in src/lib/factoryPhotos.ts').toEqual(
-      FACTORY_PHOTOS.map((photo) => expect.stringMatching(new RegExp(`^/factory/${photo.slug}-`))),
+    expect(
+      timeline,
+      "the order timeline's pictures are not the steps' photos in src/lib/orderProcess.ts",
+    ).toEqual(
+      ORDER_PHASES.flatMap((phase) => phase.steps).map((step) =>
+        expect.stringMatching(new RegExp(`^/factory/${step.photo}-`)),
+      ),
     )
   })
 

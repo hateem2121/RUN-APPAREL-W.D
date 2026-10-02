@@ -1,9 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { AboutFamily } from '../../../components/site/FamilyCrossLinks'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
+import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES, familyBySlug } from '../../../lib/families'
+import { familyGalleryHref, familyPageFor } from '../../../lib/familyPages'
 import { productsDescription } from '../../../lib/pageDescriptions'
 import { buildMetadata } from '../../../lib/seo'
 import { preconnectHost } from '../../../lib/posterHost'
@@ -109,6 +112,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const family = familyBySlug((await searchParams).family)
   const all = await getProductCards()
   const products = family ? all.filter((product) => product.category === family.name) : all
+  // The family's buyer page, when the owner has approved one: Sports Accessories has none.
+  const aboutPage = family ? familyPageFor(family) : null
   const posterHost = crossOriginPosterHost(products)
   const counts = new Map<string, number>()
   for (const product of all) {
@@ -122,19 +127,17 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           the images never use, making it slower rather than faster. */}
       {posterHost ? <link rel="preconnect" href={posterHost} /> : null}
       {products.length > 0 ? <JsonLd data={productListJsonLd(products)} /> : null}
-      <section className="site-hero">
-        <div className="blueprint site-hero__grid" aria-hidden="true" />
-        <div className="site-container">
-          <p className="label">[ 3D PRODUCT REFERENCES ]</p>
-          <h1 className="display display--hero hero-products">
-            Every garment, <span className="serif-accent">turnable.</span>
-          </h1>
-          <p className="site-lede">
-            These are development references, not a shop. Open one to turn the garment, inspect the
-            construction and see exactly how the artwork sits before a sample is ever cut.
-          </p>
-        </div>
-      </section>
+      {/* The hoodie film plays behind these words (owner, 2026-10-01); the words stay the server's. */}
+      <ProductsFilmHero>
+        <p className="label">[ 3D product references ]</p>
+        <h1 className="display display--hero hero-products">
+          Every garment, <span className="serif-accent">turnable.</span>
+        </h1>
+        <p className="site-lede">
+          These are development references, not a shop. Open one to turn the garment, inspect the
+          construction and see exactly how the artwork sits before a sample is ever cut.
+        </p>
+      </ProductsFilmHero>
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
@@ -143,8 +146,12 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             URL that can be shared, bookmarked, opened in a new tab and reached with
             scripting off, and `aria-current="page"` is what tells a screen reader which
             view is showing — the same mechanism the header nav uses.
+
+            On a phone it is ONE ROW THAT SCROLLS SIDEWAYS (`filter-bar--scroll`, visual audit VA-42):
+            three wrapped rows had filled 172px of the first screen. Tab still walks every chip
+            and the browser scrolls each one into view, so it needs no script.
           */}
-          <nav className="filter-bar" aria-label="Filter by product family">
+          <nav className="filter-bar filter-bar--scroll" aria-label="Filter by product family">
             <Link
               className="filter-chip"
               href="/products"
@@ -156,7 +163,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               <Link
                 key={entry.slug}
                 className="filter-chip"
-                href={`/products?family=${entry.slug}`}
+                href={familyGalleryHref(entry)}
                 aria-current={family?.slug === entry.slug ? 'page' : undefined}
                 data-empty={(counts.get(entry.name) ?? 0) === 0 ? 'true' : undefined}
               >
@@ -165,6 +172,27 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               </Link>
             ))}
           </nav>
+
+          {/*
+            ⚠️ THE WAY BACK TO THE FAMILY'S BUYER PAGE SITS BESIDE THE COUNT, UNDER THE ACTIVE
+            CHIP (visual audit VA-33, owner-approved 2026-10-01; the words, 2026-10-02: "About
+            our outerwear"). From the home page the same word opened the buyer page, so a buyer
+            who arrived here never found it. It is drawn when the family HAS a buyer page and
+            whether or not the grid below has garments, so the empty family keeps its way out.
+            The canonical stays `/products` (see the top of this file): this is a link, not a
+            second page to index.
+          */}
+          {products.length > 0 || (family && aboutPage) ? (
+            <div className="result-bar">
+              {products.length > 0 ? (
+                <p className="result-count">
+                  {products.length} reference{products.length === 1 ? '' : 's'}
+                  {family ? ` in ${family.name}` : ''}
+                </p>
+              ) : null}
+              {family ? <AboutFamily family={family} /> : null}
+            </div>
+          ) : null}
 
           {products.length === 0 ? (
             /*
@@ -178,17 +206,11 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                 : 'The references are being updated. Email us and we will send the current set directly.'}
             </p>
           ) : (
-            <>
-              <p className="result-count">
-                {products.length} reference{products.length === 1 ? '' : 's'}
-                {family ? ` in ${family.name}` : ''}
-              </p>
-              <ul className="product-grid">
-                {products.map((product, index) => (
-                  <ProductCardItem key={product.slug} product={product} index={index} />
-                ))}
-              </ul>
-            </>
+            <ul className="product-grid">
+              {products.map((product, index) => (
+                <ProductCardItem key={product.slug} product={product} index={index} />
+              ))}
+            </ul>
           )}
         </div>
       </section>

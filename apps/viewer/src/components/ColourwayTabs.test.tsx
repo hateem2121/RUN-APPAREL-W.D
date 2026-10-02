@@ -2,7 +2,8 @@ import type { ViewerColourway } from '@run-apparel/shared'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './ColourwayTabs'
+import { HOVER_INTENT_MS } from '../lib/motion'
+import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId, nameParts } from './ColourwayTabs'
 
 // The preview path is not what these tests are about, and a fine pointer is the
 // case where keyboard focus also previews.
@@ -170,6 +171,33 @@ describe('ColourwayTabs keyboard pattern', () => {
    * preventDefault() would swallow Tab and trap keyboard focus inside the tablist —
    * strictly worse than the missing arrow keys this fix is about.
    */
+  /**
+   * VA-61, measured 2026-10-02 in Chromium, Firefox and WebKit: arrowing from Black (the last tab,
+   * selected) round to Wine left the ONE tab stop on Black, so the next Tab landed on Black, still
+   * inside the list, instead of leaving it as the APG tabs pattern says. An arrow press blurs the
+   * old tab on its way to the new one, and that blur reset the stop to the selected tab.
+   */
+  it('keeps the tab stop on the tab arrowed to, so Tab leaves the list from there', () => {
+    render('black')
+    const [wine, navy, black] = [tabAt(0), tabAt(1), tabAt(2)]
+    black.focus()
+    press(black, 'ArrowRight')
+    expect(document.activeElement).toBe(wine)
+    expect(
+      tabs().map((t) => t.tabIndex),
+      'the stop stayed on the selected tab, so Tab from Wine lands on Black, inside the list',
+    ).toEqual([0, -1, -1])
+    press(wine, 'ArrowRight')
+    expect(tabs().map((t) => t.tabIndex)).toEqual([-1, 0, -1])
+
+    // Leaving the list hands the stop back to the selected tab, for the next Tab in.
+    act(() => {
+      navy.blur()
+    })
+    expect(tabs().map((t) => t.tabIndex)).toEqual([-1, -1, 0])
+    expect(black.tabIndex).toBe(0)
+  })
+
   it('leaves Tab alone rather than trapping focus', () => {
     render('wine')
     const wine = tabAt(0)
@@ -206,11 +234,11 @@ describe('ColourwayTabs ARIA wiring', () => {
   })
 })
 
-describe('ColourwayTabs long colour names (SZ-06)', () => {
+describe('ColourwayTabs long colour names (VA-32: breaks only after a "/")', () => {
   const LONG = COLOURWAYS.map((colourway, index) => ({
     ...colourway,
     displayName:
-      ['Terracotta / Blush', 'Lavender / Indigo', 'Black'][index] ?? colourway.displayName,
+      ['Terracotta / Blush', 'Pebble / Optic White', 'Black'][index] ?? colourway.displayName,
   }))
 
   function renderLong() {
@@ -226,23 +254,90 @@ describe('ColourwayTabs long colour names (SZ-06)', () => {
     })
   }
 
-  it('puts the soft hyphens in the visible label', () => {
-    renderLong()
-    expect(tabAt(0).querySelector('.colourway-tab__label')?.textContent).toBe(
-      'Ter\u{00AD}ra\u{00AD}cotta / Blush',
-    )
-    expect(tabAt(2).querySelector('.colourway-tab__label')?.textContent).toBe('Black')
+  it('splits a name only at its "/", keeping each word group whole', () => {
+    expect(nameParts('Pebble / Optic White')).toEqual(['Pebble /', 'Optic White'])
+    expect(nameParts('Terracotta/Blush')).toEqual(['Terracotta /', 'Blush'])
+    expect(nameParts('Tangerine')).toEqual(['Tangerine'])
   })
 
-  it('names every tab with the plain colour name, so a screen reader never meets one', () => {
+  it('draws the label as whole word groups with a plain space between — no hidden hyphens', () => {
+    renderLong()
+    const parts = [...tabAt(1).querySelectorAll('.colourway-tab__label .colourway-tab__part')]
+    expect(parts.map((part) => part.textContent)).toEqual(['Pebble /', 'Optic White'])
+    expect(tabAt(1).querySelector('.colourway-tab__label')?.textContent).toBe(
+      'Pebble / Optic White',
+    )
+    for (const tab of tabs()) expect(tab.textContent ?? '').not.toContain('\u{00AD}')
+  })
+
+  it('names every tab with the plain colour name', () => {
     renderLong()
     expect(tabs().map((tab) => tab.getAttribute('aria-label'))).toEqual([
       'Terracotta / Blush',
-      'Lavender / Indigo',
+      'Pebble / Optic White',
       'Black',
     ])
-    for (const tab of tabs()) {
-      expect(tab.getAttribute('aria-label') ?? '').not.toContain('\u{00AD}')
+  })
+
+  it('writes the chosen colour above the dots, follows the arrow keys, and returns on leaving', () => {
+    renderLong()
+    const line = () => host.querySelector('.colourways__name')
+    expect(line()?.getAttribute('aria-hidden')).toBe('true')
+    expect(line()?.textContent).toBe('Terracotta / Blush')
+    tabAt(0).focus()
+    press(tabAt(0), 'ArrowRight')
+    expect(line()?.textContent, 'the line did not follow the colour being previewed').toBe(
+      'Pebble / Optic White',
+    )
+    act(() => {
+      tabAt(1).blur()
+    })
+    expect(line()?.textContent, 'the line kept a colour nobody chose').toBe('Terracotta / Blush')
+  })
+
+  /**
+   * Hovering a dot turns the garment that colour, so the name above must turn with it — in the
+   * same moment, not before the garment and not never (the line named only the chosen colour
+   * while the pointer previewed another, in the first VA-32 build).
+   */
+  it('follows the colour the pointer previews, in step with the garment, and returns when it leaves', () => {
+    vi.useFakeTimers()
+    try {
+      const onPreview = vi.fn<(colourway: ViewerColourway | null) => void>()
+      act(() => {
+        root.render(
+          <ColourwayTabs
+            colourways={LONG}
+            selected={LONG[0]!}
+            onSelect={onSelect}
+            onPreview={onPreview}
+          />,
+        )
+      })
+      const line = () => host.querySelector('.colourways__name')?.textContent
+      const pointer = (type: 'mouseover' | 'mouseout') =>
+        act(() => {
+          tabAt(1).dispatchEvent(
+            new MouseEvent(type, { bubbles: true, relatedTarget: document.body }),
+          )
+        })
+
+      pointer('mouseover')
+      expect(line(), 'the name moved before the garment did').toBe('Terracotta / Blush')
+      act(() => {
+        vi.advanceTimersByTime(HOVER_INTENT_MS)
+      })
+      expect(onPreview).toHaveBeenLastCalledWith(expect.objectContaining({ slug: 'navy' }))
+      expect(line(), 'the garment shows a colour the name does not').toBe('Pebble / Optic White')
+
+      pointer('mouseout')
+      act(() => {
+        vi.runOnlyPendingTimers()
+      })
+      expect(onPreview).toHaveBeenLastCalledWith(null)
+      expect(line(), 'the line kept a colour nobody chose').toBe('Terracotta / Blush')
+    } finally {
+      vi.useRealTimers()
     }
   })
 })

@@ -14,7 +14,7 @@ export default function SiteError({ reset }: { error: Error; reset: () => void }
     <section className="site-hero">
       <div className="blueprint site-hero__grid" aria-hidden="true" />
       <div className="site-container">
-        <p className="label">[ ERROR · SOMETHING WENT WRONG ]</p>
+        <p className="label">[ Error · Something went wrong ]</p>
         <h1 className="display display--hero">
           This page didn&rsquo;t load. <span className="serif-accent">Try&nbsp;again.</span>
         </h1>

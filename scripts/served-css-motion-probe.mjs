@@ -141,13 +141,15 @@ export function findForbiddenWillChangeOrTransitionAll(rules, allowList = WILL_C
 }
 
 /**
- * `.notch__icon-line` — the three lines of the phone menu's hamburger icon, which morph
- * into an X (Phase 1b-B, `packages/ui/src/notch.css:488-521`). Each line is a fixed
- * ~20x16px decorative box; the `width` change is the icon's own two-frame line-length
- * morph, not a page-layout-affecting animation, and reflows only that tiny box. Kept as
- * an explicit, reviewed exception rather than silently widening MO-16's rule.
+ * EMPTY since 2026-10-02 (visual audit VA-19). It held one reviewed exception,
+ * `.notch__icon-line` — the three lines of the phone menu's icon, which animated their
+ * `width` while folding into an X. They now scale (`transform: scaleX`, `packages/ui/src/notch.css`),
+ * which stays on the compositor, so nothing needs the exception and a `width` transition
+ * on that selector is a MO-16 violation again. `apps/cms/src/polishGuards.test.ts` pins the
+ * list at empty and shows the probe catching that regression. Add a selector back only as
+ * a deliberate, reviewed decision, never to make a red run go away.
  */
-export const LAYOUT_TRANSITION_ALLOW_LIST = ['.notch__icon-line']
+export const LAYOUT_TRANSITION_ALLOW_LIST = []
 
 /** MO-16 — a `transition`/`transition-property` declaration naming a layout property. */
 export function findLayoutPropertyTransitions(rules, allowList = LAYOUT_TRANSITION_ALLOW_LIST) {

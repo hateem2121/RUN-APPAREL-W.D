@@ -63,3 +63,21 @@ allowBuilds:
   esbuild: true
   sharp: true
   workerd: true
+
+# One local patch, to a library's own source. @google/model-viewer 4.3.1 prints nine debug
+# messages through console.log ("[$updateSource] BAILING OUT EARLY!" and the like), six of them
+# on every garment visit, on the garment pages and the website's home page alike (visual audit
+# VA-10, 2026-10-02). The patch turns those nine statements, and only those, into one-line
+# comments: no line moves, so the library's shipped source maps stay aligned, and its console.warn
+# and console.error (real problem reports) and everything of three.js are untouched.
+# Why a patch and not a bundler rule: pnpm documents it (pnpm.io/cli/patch); Next.js documents
+# removeConsole for "application code (not node_modules)" with no per-package form; a Turbopack
+# loader would cover the website only, and the garment pages build with Vite. One patch reaches
+# every bundler, both apps and the render harness, and cannot be lost quietly: a frozen install
+# refuses to run when this entry and the lockfile's own `patchedDependencies:` block disagree
+# (ERR_PNPM_LOCKFILE_CONFIG_MISMATCH, measured 2026-10-02). It is pinned to this exact version:
+# installing another one fails with ERR_PNPM_UNUSED_PATCH (measured 2026-10-02, pnpm 12.6.0), so an
+# upgrade cannot skip it either. How to redo it, and when to delete it: docs/DEPENDENCY-HOLDS.md.
+# apps/cms/src/modelViewerQuiet.test.ts guards it.
+patchedDependencies:
+  '@google/model-viewer@4.3.1': patches/@google__model-viewer@4.3.1.patch

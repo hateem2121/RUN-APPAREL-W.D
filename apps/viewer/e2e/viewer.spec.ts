@@ -157,10 +157,10 @@ test.describe('RUN APPAREL 3D viewer', () => {
     // This ASSERTED A POSTER IMAGE until 2026-08-21 (`.stage img` visible), which
     // is why the whole test died on that line the moment the poster was removed —
     // and, worse, why the copy assertion at the bottom was never reached while the
-    // copy was wrong. The stage no longer paints a photograph in any state, so
-    // there is nothing image-shaped left to check here; what the visitor actually
-    // gets is the notice, and that is what the bottom of this test now proves.
-    await expect(page.locator('.stage img')).toHaveCount(0)
+    // copy was wrong. Since 2026-10-02 (VA-03, owner-approved) the stage draws the
+    // colour's picture again when 3D cannot run, with the notice kept underneath, and
+    // the bottom of this test still proves the notice's words.
+    await expect(page.locator('.stage__picture')).toBeVisible()
     // Scoped to the in-page section. Since 2026-08-14 the mobile action bar also
     // says "Email Us" — it had dropped the verb only on the device the product is
     // actually opened with, which was the wrong surface to abbreviate — so an

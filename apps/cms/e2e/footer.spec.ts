@@ -1,4 +1,5 @@
 import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
+import { siteFooterAriaSnapshot } from '../../../packages/shared/src/siteFooter'
 import { expect, test } from './offlineMedia'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
@@ -219,6 +220,35 @@ test.describe('claims render only from real values', () => {
   })
 })
 
+/*
+ * VA-31 — ONE footer on both hosts (visual audit, owner-approved 2026-10-01): the garment pages
+ * draw this footer too since 2026-10-02, and apps/viewer/e2e/siteFooter.spec.ts holds theirs to
+ * the same template. The template is built from what the garment pages' API answers, so this is
+ * also the cross-check that both projections agree: whatever the database holds, the footer the
+ * website draws must be the footer the garment pages would draw from the same document.
+ */
+test.describe('one footer on both hosts (VA-31)', () => {
+  test("renders the shared accessibility tree, from the garment pages' own data", async ({
+    page,
+    request,
+  }) => {
+    const answer = await request.get('/api/public/viewer/n001/wine')
+    expect(answer.status()).toBe(200)
+    const { siteSettings } = await answer.json()
+    expect(siteSettings.footer, 'the garment API carries the footer').toBeTruthy()
+    await page.goto('/products')
+    await expect(page.locator('footer.site-footer')).toMatchAriaSnapshot(
+      siteFooterAriaSnapshot({
+        footer: siteSettings.footer,
+        email: siteSettings.email,
+        whatsappNumber: siteSettings.whatsappNumber,
+        legalLine: siteSettings.legalLine,
+        footerLine: siteSettings.footerLine,
+      }),
+    )
+  })
+})
+
 test.describe('the cursor and the glow', () => {
   test('present on a fine pointer once the mouse moves', async ({ page, context }) => {
     await liftAutomationGate(context)
@@ -397,6 +427,10 @@ test.describe('without JavaScript', () => {
     await expect(page.locator('.site-footer__tab')).toHaveAttribute('href', /^mailto:/)
     await expect(page.locator('.footer-legal a[href="/products"]')).toBeVisible()
     await expect(page.locator('.footer-block--contact a[href^="mailto:"]')).toBeVisible()
+    // VA-57: the number is READ grouped (ITU-T E.123) while the link keeps the bare digits.
+    const whatsapp = page.locator('.footer-block--contact a[href^="https://wa.me/"]')
+    await expect(whatsapp).toHaveText('WhatsApp +92 336 1777313')
+    await expect(whatsapp).toHaveAttribute('href', 'https://wa.me/923361777313')
     await expect(page.locator('.footer-clock__time span').first()).toHaveText('--:--')
     await expect(page.locator('.footer-status')).toHaveCount(0)
     await expect(page.locator('.cursor-dot')).toHaveCount(0)

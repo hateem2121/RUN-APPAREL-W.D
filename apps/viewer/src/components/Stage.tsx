@@ -18,6 +18,7 @@ import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadPr
 import { CAMERA_DECAY_MS } from '../lib/motion'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
+import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { HdImageButton } from './HdImageButton'
 import { type CameraView, StageControls } from './StageControls'
@@ -101,16 +102,6 @@ export function Stage({
    * hint FIRST and a sweep second, and why the sweep is only 14 degrees.
    */
   const [cueVisible, setCueVisible] = useState(false)
-  /**
-   * Whether to offer AR at all. Driven by model-viewer's own `canActivateAR`
-   * rather than by sniffing the user agent, so it is false on desktop, false on
-   * Android (Quick Look only) and false when the model has not loaded.
-   *
-   * The button is not merely hidden when this is false — it is not rendered, so it
-   * never enters the tab order and never occupies a slot the element would then
-   * lay out.
-   */
-  const [arAvailable, setArAvailable] = useState(false)
   const cueSpentRef = useRef(false)
   /**
    * Once per visit, and permanently. A cue that returns after every colourway
@@ -125,6 +116,11 @@ export function Stage({
   }, [])
   // Re-reads when a keyboard is attached or detached — see lib/useCoarsePointer.ts.
   const coarsePointer = useCoarsePointer()
+  // Re-reads when the visitor turns reduced motion on or off mid-visit (VA-20) — see
+  // lib/usePrefersReducedMotion.ts. Only for what is decided WHILE RENDERING: the camera's
+  // damping and the loading sweep. `applyView`, the idle sweep and the placeholder fade read
+  // `prefersReducedMotion()` at the moment they act, which is already current.
+  const reduceMotion = usePrefersReducedMotion()
   const loadedSrcRef = useRef<string | null>(null)
   /**
    * When this colourway's model download began, for the one number a QR-scan
@@ -385,10 +381,6 @@ export function Stage({
 
       const onLoad = () => {
         dispatchPhase({ type: 'loaded' })
-
-        // AFTER load: `canActivateAR` depends on the loaded model, and reading it
-        // before returns false on a device that can.
-        setArAvailable(mvRef.current?.canActivateAR === true)
         clampNearPlane()
         biasDecals()
         // PROPERTY first, attribute second. React sets `src` on a custom element
@@ -883,8 +875,7 @@ export function Stage({
    * The colourway's photo WHILE THE MODEL DOWNLOADS (fix plan Rank 6, 2026-09-03; audits
    * LIVE-04, LIVE-06). Blurred by how much is still to come, then cross-faded into the 3D
    * on `load` and unmounted once the fade is over. See lib/placeholder.ts for the rules.
-   * It is never shown in a failure state — those keep the 2026-08-21 decision: a notice,
-   * the specs and the enquiry buttons, no still image standing in for the model.
+   * In a failure state the same photo is drawn sharp instead, as `fallbackPicture` below.
    */
   const placeholder = placeholderAsset(displayed, product)
   const [placeholderStage, setPlaceholderStage] = useState<'shown' | 'leaving' | 'gone'>('shown')
@@ -906,6 +897,16 @@ export function Stage({
     placeholder !== null &&
     !fallback &&
     (loading ? placeholderStage !== 'gone' : placeholderStage === 'leaving')
+  /*
+   * VA-03 (visual audit, owner-approved 2026-10-01): WHEN 3D CANNOT RUN, THE COLOUR'S PICTURE.
+   * From 2026-08-21 no failure state drew one, so a visitor with Data Saver on, a device without
+   * WebGL, or a download that stopped got an empty grid and a sentence — measured live on
+   * /products/r-afp/butter with 3D off: the picture downloaded, then never drawn. Every live
+   * colourway has one now, and on this site the printed artwork IS the product. So every
+   * fallback draws it, sharp and described, with the notice kept underneath; a product with no
+   * picture keeps the notice alone.
+   */
+  const fallbackPicture = fallback ? placeholder : null
   // NOT `performance`: that name shadows the global for the whole component, and
   // the byte-counting effect above calls `performance.now()`. As a shadowed
   // string it would throw "performance.now is not a function" at runtime, with
@@ -967,7 +968,7 @@ export function Stage({
               max-camera-orbit="auto 160deg 200%"
               min-field-of-view={MIN_FIELD_OF_VIEW}
               interaction-prompt="none"
-              interpolation-decay={prefersReducedMotion() ? 1 : CAMERA_DECAY_MS}
+              interpolation-decay={reduceMotion ? 1 : CAMERA_DECAY_MS}
               touch-action={TOUCH_ACTION}
               disable-tap={DISABLE_TAP}
               pan-sensitivity={PAN_SENSITIVITY}
@@ -1003,18 +1004,44 @@ export function Stage({
               ar-scale="fixed"
             >
               {/*
-                OUR button, not model-viewer's.
-                ⚠️ The default `#default-ar-button` is a Google-styled pill placed
-                inside the shadow root, over the canvas — the exact geometry
-                StageControls.tsx measured and moved OUT of `.stage__canvas` in
-                August, when it covered 26px of garment at 1440x900 and 38px at
-                390x844. Letting the default render re-creates that defect.
+                OUR button, not model-viewer's, and in the slot from the first render.
+                ⚠️ The default `#default-ar-button` is placed inside the shadow root,
+                over the canvas — the exact geometry StageControls.tsx measured and
+                moved OUT of `.stage__canvas` in August, when it covered 26px of
+                garment at 1440x900 and 38px at 390x844.
+                ⚠️ ALWAYS SLOTTED (visual audit VA-49, found by the owner on an
+                iPhone). Anything in this slot replaces the default, and model-viewer
+                shows the slot only where AR may work (modelviewer.dev, "Slots ›
+                ar-button") — on desktop and Android it is `display: none`, out of
+                layout and out of the tab order. Ours used to be rendered only after
+                `load`, which left the slot EMPTY while an iPhone parsed the model:
+                the default showed bottom-right all that time, then vanished as ours
+                appeared top-right — two buttons, two corners. And the worded pill
+                (162x44) covered the garment in 6 of 9 measured iPhone cases; the
+                cube (44x44) covered none.
               */}
-              {arAvailable && (
-                <button type="button" slot="ar-button" className="stage__ar">
-                  VIEW IN YOUR SPACE
-                </button>
-              )}
+              <button
+                type="button"
+                slot="ar-button"
+                className="stage__ar"
+                aria-label="View in your space"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M12 3 4 7.5v9l8 4.5 8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </model-viewer>
           )}
 
@@ -1054,20 +1081,20 @@ export function Stage({
 
           {/*
            * THE POSTER IMAGE WAS REMOVED 2026-08-21 by owner decision — the stage
-           * never shows a photograph of the garment now, either as a pre-3D
-           * placeholder or as a failure fallback.
+           * showed no photograph of the garment, either as a pre-3D placeholder or as a
+           * failure fallback.
            *
-           * SINCE 2026-09-03 (fix plan Rank 6) ONE HALF OF THAT IS BACK, BY THE OWNER'S
-           * OWN DESIGN: the colourway's photo is painted DURING THE DOWNLOAD only —
-           * `.stage__placeholder` above, aria-hidden, blurred by the bytes still to
-           * come, cross-fading into the 3D on `load`. Measured 2026-08-30, a customer
-           * on 2 Mbit looked at an empty stage for 45–62 s. Every failure state is
-           * unchanged: no image, the notice below, the specs and the enquiry buttons.
+           * SINCE 2026-09-03 (fix plan Rank 6) the colourway's photo is painted DURING
+           * THE DOWNLOAD — `.stage__placeholder` above, aria-hidden, blurred by the bytes
+           * still to come, cross-fading into the 3D on `load`. Measured 2026-08-30, a
+           * customer on 2 Mbit looked at an empty stage for 45–62 s. SINCE 2026-10-02
+           * (VA-03) every failure state draws it too, sharp and described, as
+           * `.stage__picture` above.
            *
            * The explanatory MESSAGE is deliberately KEPT (see `LOAD_NOTICE`
            * above): when 3D genuinely cannot run, the visitor is still told why and
-           * still gets the colour, fabric, specs and the enquiry buttons. What they
-           * no longer get is a still image standing in for the model.
+           * still gets the colour, fabric, specs and the enquiry buttons, now under
+           * the colour's picture.
            *
            * The CMS side matches: `publishGating.ts` no longer demands a photo per
            * colour, and its photo-DESCRIPTION rule now applies only where a photo
@@ -1229,7 +1256,7 @@ export function Stage({
               */}
               <span
                 className={`stage__loading-bar${
-                  showsIndeterminateSweep(load.phase, prefersReducedMotion())
+                  showsIndeterminateSweep(load.phase, reduceMotion)
                     ? ' stage__loading-bar--indeterminate'
                     : ''
                 }`}
@@ -1268,6 +1295,20 @@ export function Stage({
           {/* The note and TRY 3D AGAIN stack in ONE positioned box, so the button can
               never overlap a note that wraps to four lines on a 328px phone stage. */}
           <div className="stage__failure">
+            {/* Inside the note's box, first: the picture takes the height the note and
+                TRY 3D AGAIN leave, so neither ever covers the garment (VA-03). */}
+            {fallbackPicture && (
+              <img
+                className="stage__picture"
+                src={fallbackPicture.url}
+                alt={fallbackPicture.alt || `${product.productName} in ${displayed.displayName}`}
+                decoding="async"
+                draggable={false}
+                {...(fallbackPicture.width && fallbackPicture.height
+                  ? { width: fallbackPicture.width, height: fallbackPicture.height }
+                  : {})}
+              />
+            )}
             <p
               className="stage__error"
               role="status"

@@ -19,6 +19,7 @@ import * as migration_20260926_200000_add_product_versions from './20260926_2000
 import * as migration_20260927_120000_colourway_render_image from './20260927_120000_colourway_render_image';
 import * as migration_20260929_120000_inquiry_details_and_files from './20260929_120000_inquiry_details_and_files';
 import * as migration_20260930_160000_product_garment_type from './20260930_160000_product_garment_type';
+import * as migration_20261002_120000_add_web_vitals_inp from './20261002_120000_add_web_vitals_inp'
 
 export const migrations = [
   {
@@ -125,5 +126,10 @@ export const migrations = [
     up: migration_20260930_160000_product_garment_type.up,
     down: migration_20260930_160000_product_garment_type.down,
     name: '20260930_160000_product_garment_type',
+  },
+  {
+    up: migration_20261002_120000_add_web_vitals_inp.up,
+    down: migration_20261002_120000_add_web_vitals_inp.down,
+    name: '20261002_120000_add_web_vitals_inp',
   },
 ];

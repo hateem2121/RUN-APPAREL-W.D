@@ -1,17 +1,22 @@
 'use client'
 
-import { THEME_SWITCH_NAMES } from '@run-apparel/shared'
+import { THEME_SWITCH_NAMES, THEME_SWITCH_WORDS } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
 import { THEME_STORAGE_KEY } from '../../lib/themeBoot'
-import { THEME_COLOR } from '../../lib/themeColor'
+import { PHONE_QUERY, THEME_COLOR } from '../../lib/themeColor'
 
 type Theme = 'light' | 'dark'
 
-/** The phone's browser-bar colour per theme: the pinned copy of --bg the meta tags carry. */
-const BAR_COLOUR: Record<Theme, string> = {
-  light: THEME_COLOR.find((entry) => entry.media.includes('light'))?.color ?? '',
-  dark: THEME_COLOR.find((entry) => entry.media.includes('dark'))?.color ?? '',
+/** One colour per theme for one kind of tag — the phone's (the bar) or the page's — as pinned. */
+function coloursFor(phone: boolean): Record<Theme, string> {
+  const pick = (theme: Theme) =>
+    THEME_COLOR.find(
+      (entry) => entry.media.includes(theme) && entry.media.includes(PHONE_QUERY) === phone,
+    )?.color ?? ''
+  return { light: pick('light'), dark: pick('dark') }
 }
+const PHONE_COLOUR = coloursFor(true)
+const PAGE_COLOUR = coloursFor(false)
 
 function storedTheme(): Theme | null {
   try {
@@ -28,11 +33,18 @@ function appliedTheme(): Theme {
   )
 }
 
-/** `media` follows the OS and cannot see `data-theme`, so an explicit choice repoints them. */
+/**
+ * `media` follows the OS and cannot see `data-theme`, so an explicit choice recolours every tag
+ * to the chosen theme — the phone tags to the bar's colour, the rest to the page's.
+ *
+ * ⚠️ ONLY THE COLOUR CHANGES, NEVER `media` (VA-50). This used to strip `media` from every tag,
+ * which was harmless with two tags of one kind; with phone tags first it would make them match
+ * everywhere, desktops included, and the HTML standard requires each media value to stay unique.
+ */
 function paintBrowserBar(theme: Theme) {
   for (const tag of document.querySelectorAll('meta[name="theme-color"]')) {
-    tag.setAttribute('content', BAR_COLOUR[theme])
-    tag.removeAttribute('media')
+    const phone = tag.getAttribute('media')?.includes(PHONE_QUERY) === true
+    tag.setAttribute('content', (phone ? PHONE_COLOUR : PAGE_COLOUR)[theme])
   }
 }
 
@@ -100,6 +112,9 @@ export function ThemeSwitch() {
             strokeLinejoin="round"
           />
         </svg>
+        <span className="theme-toggle__words" aria-hidden="true">
+          {THEME_SWITCH_WORDS.toDark}
+        </span>
         <span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>
       </span>
       <span className="theme-toggle__face theme-toggle__face--to-light">
@@ -112,6 +127,9 @@ export function ThemeSwitch() {
             strokeLinecap="round"
           />
         </svg>
+        <span className="theme-toggle__words" aria-hidden="true">
+          {THEME_SWITCH_WORDS.toLight}
+        </span>
         <span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>
       </span>
     </button>

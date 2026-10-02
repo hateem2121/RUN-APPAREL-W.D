@@ -26,10 +26,10 @@ remove them.
 
 ## The scripted pieces: complete without them (2026-09-29)
 
-The count-up, live 3D, lightbox, form stepper, phone code, file picker and globe are client
-islands over server markup that is already the whole page: the final figure, the poster, a
-link to the large photo, one form with both steps and one Send, the address with a directions
-link. Each starts from that state and enhances only after it mounts, and does nothing when the visitor asks
+The count-up, live 3D, form helper (error lines and the list of mistakes, since the
+form became one step on 2026-10-01), phone code, file picker and globe are client islands over
+server markup that is already the whole page: the final figure, the poster, a link to the large
+photo, one form with every field and one Send, the address with a directions link. Each starts from that state and enhances only after it mounts, and does nothing when the visitor asks
 for reduced motion, or under `navigator.webdriver` unless a test lifts the flag. One
 motion duration is new, `--showpiece` (D26). Inquiry files go to the PRIVATE R2 bucket
 `run-apparel-inquiry-files` through `inquiry-files` (`collections/InquiryFiles.ts`), checked
@@ -87,6 +87,13 @@ main narrowed `Media.read` — the catch-all test expects that, not 200.
 ## The public site footer
 
 Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
+
+🟡 **The garment pages draw this footer too since 2026-10-02 (visual audit VA-31).** Its rules
+are `packages/ui/src/footer.css` (not site.css), its words, links and rules are
+`packages/shared/src/siteFooter.ts`, and both browser suites hold it to `siteFooterAriaSnapshot`
+— so a block added or moved in `SiteFooter.tsx` must move in `apps/viewer/src/components/Footer.tsx`
+in the same change, or both suites fail.
+
 Four things that bit while building it:
 
 - **The CTA tab sits ON the slab's top edge, OUTSIDE the clipped box.** `<footer>` is
@@ -95,11 +102,11 @@ Four things that bit while building it:
   curved into an edge that was already behind them.
 - **The wordmark is fitted by measuring the rendered text**, after `document.fonts.ready`.
   Two fixed sizes both ran the name off the edge; the name is a CMS field, so its length is
-  an input. `apps/cms/src/lib/wordmarkFit.ts`.
+  an input. `packages/shared/src/wordmarkFit.ts` (shared since 2026-10-02, below).
 - **🟡 The cursor honours `navigator.webdriver`** (as the viewer's does), so Playwright never
   sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
   does, and also asserts the honest default — absent under automation.
-- **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`apps/cms/src/lib/cursorBus.ts`),
+- **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`packages/shared/src/cursorBus.ts`),
   never the raw pointer, and its 180ms linger needs its own timer tick: the bus publishes
   only while the ring moves, so without one a hand-off caught inside the window stayed lit
   over empty ground for good. The browser suite found that on its first run.

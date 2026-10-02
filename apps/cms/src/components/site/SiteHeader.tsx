@@ -54,6 +54,9 @@ import { ThemeSwitch } from './ThemeSwitch'
 export function SiteHeader({ wordmark }: { wordmark: string }) {
   return (
     <header className="notch-shell">
+      {/* The phone's status area takes the bar's colour from this strip (notch.css, VA-50).
+          In the markup, not added by script: React removes a node it did not render. */}
+      <div className="notch-strip" aria-hidden="true" />
       <div className="notch">
         <Link className="notch__wordmark" href="/">
           {wordmark}

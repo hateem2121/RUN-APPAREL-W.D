@@ -609,31 +609,37 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
     await expect(page).toHaveTitle(/^Velocity Performance Tee — Men's Training Tee, (?!Wine$).+$/)
   })
 
-  test('AC-15: every link name is unique, except the two accepted doubled contact buttons', async ({
-    page,
-  }) => {
+  test('AC-15: a repeated link name always goes to the same page', async ({ page }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    // "Email Us" and "WhatsApp Us" render twice on purpose — action-bar and
-    // contact-rail both render <ContactSection> at different breakpoints
-    // (apps/viewer/src/components/Contact.tsx's own comment names this exactly).
-    const ACCEPTED_DOUBLES = new Set(['Email Us', 'WhatsApp Us'])
-
-    const names = await page.evaluate(() =>
-      [...document.querySelectorAll('a[href]')]
-        .map((a) => (a.textContent ?? '').trim())
-        .filter((name) => name.length > 0),
+    /*
+     * Until 2026-10-02 no link name could repeat except the doubled contact buttons ("Email Us"
+     * and "WhatsApp Us": the action bar and the contact rail both render <ContactSection>,
+     * apps/viewer/src/components/Contact.tsx). That day the website's footer joined these pages
+     * (visual audit VA-31) and repeats the bar's Products, Contact and Guides, as footers do. The
+     * owner chose the rule WCAG 2.2 SC 2.4.4 (Link Purpose) states — the same words must never
+     * lead to different places — over stripping those links from one host's footer.
+     */
+    const links = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLAnchorElement>('a[href]')]
+        .map((a) => ({ name: (a.textContent ?? '').trim(), href: a.href }))
+        .filter((link) => link.name.length > 0),
     )
-    const counts = new Map<string, number>()
-    for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
-    const unexpectedDuplicates = [...counts.entries()].filter(
-      ([name, count]) => count > 1 && !ACCEPTED_DOUBLES.has(name),
-    )
+    const ambiguous = (list: { name: string; href: string }[]) => {
+      const places = new Map<string, Set<string>>()
+      for (const { name, href } of list) places.set(name, (places.get(name) ?? new Set()).add(href))
+      return [...places.entries()]
+        .filter(([, hrefs]) => hrefs.size > 1)
+        .map(([name, hrefs]) => `${name}: ${[...hrefs].join(' | ')}`)
+    }
+    expect(ambiguous(links), 'one link name, two destinations').toEqual([])
+    // The repeats this rule now allows are really there, so it is not passing on an empty page.
+    expect(links.filter((link) => link.name === 'Products').length).toBeGreaterThan(1)
+    // NEGATIVE CONTROL: the same rule sees a "Products" that goes somewhere else.
     expect(
-      unexpectedDuplicates,
-      `link names repeated more than once, outside the accepted doubles: ${JSON.stringify(unexpectedDuplicates)}`,
-    ).toEqual([])
+      ambiguous([...links, { name: 'Products', href: 'https://wear-run.com/guides' }]),
+    ).toHaveLength(1)
   })
 
   test('AC-17: nothing flashes more than 3 times a second (no repeating CSS animation)', async ({
@@ -777,12 +783,17 @@ test('every footer link is at least 44 x 44', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/n001/wine')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  const links = page.locator('.footer__meta a')
+  // The website's footer since 2026-10-02 (VA-31): every link in it, the tab included.
+  const links = page.locator('footer.site-footer a')
   expect(await links.count(), 'no footer links found').toBeGreaterThan(0)
   const small: string[] = []
   for (const link of await links.all()) {
     const box = await link.boundingBox()
-    if (!box || box.width < 44 || box.height < 44) {
+    // 43.95, the website's own floor (apps/cms/e2e/navbar.spec.ts): measured 2026-10-02, Firefox
+    // reported the shared footer's "Terms" as 43.99999237 through boundingBox() while its own
+    // getBoundingClientRect() was exactly 44 — float rounding at a fractional x (101.28), not a
+    // smaller target. Anything genuinely under 44 is still caught.
+    if (!box || box.width < 43.95 || box.height < 43.95) {
       small.push(
         `${(await link.textContent())?.trim()} ${box?.width.toFixed(1)} x ${box?.height.toFixed(1)}`,
       )

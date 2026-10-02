@@ -1,8 +1,13 @@
 'use client'
 
+import {
+  type FooterHours,
+  isOpenAt,
+  opensAt,
+  SITE_FOOTER_WORDS,
+  worksClock,
+} from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
-import { isOpenAt, worksClock } from '../../lib/footerHours'
-import type { FooterHours } from '../../lib/projectPublic'
 
 /**
  * A live Sialkot clock and, when the owner has set hours, an open/closed light derived
@@ -28,18 +33,18 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
     <>
       <span className="footer-clock">
         <i aria-hidden="true" />
-        <span className="footer-clock__city">Sialkot · HQ &amp; works</span>
+        <span className="footer-clock__city">{SITE_FOOTER_WORDS.clockCity}</span>
         <span className="footer-clock__time">
           <span>{now ? worksClock(now) : '--:--'}</span>
-          <small>PKT</small>
+          <small>{SITE_FOOTER_WORDS.clockZone}</small>
         </span>
       </span>
-      {open === null ? null : (
+      {open === null || !hours ? null : (
         // `data-state`, NOT `data-open`: publicSite.test.ts forbids `data-open` in the
         // site's CSS so a state attribute can never hide the nav links again. This is a
         // status light, not a disclosure, and it does not need that name.
         <span className="footer-status" data-state={open ? 'open' : 'closed'}>
-          {open ? 'Open now' : `Opens ${hours?.open} PKT`}
+          {open ? SITE_FOOTER_WORDS.openNow : opensAt(hours.open)}
         </span>
       )}
     </>

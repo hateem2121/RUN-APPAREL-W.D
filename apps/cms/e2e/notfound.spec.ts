@@ -33,7 +33,8 @@ test.describe('the branded 404', () => {
     expect(response?.status()).toBe(404)
 
     await expect(page.locator('h1')).toContainText(/isn.t here/i)
-    await expect(page.locator('.notch__nav a')).toHaveCount(2)
+    // Products, Contact and — shown in the phone menu only — Guides (VA-37).
+    await expect(page.locator('.notch__nav a')).toHaveCount(3)
     // both routes out are offered
     await expect(page.locator('main a[href="/products"]')).toBeVisible()
     await expect(page.locator('main a[href="/contact"]')).toBeVisible()
@@ -190,7 +191,9 @@ test.describe('the 404 shadows nothing', () => {
        */
       const body = await response.text()
       const rendered = body.replace(/<script[\s\S]*?<\/script>/g, '')
-      expect(rendered).not.toContain('404 · PAGE NOT FOUND')
+      // Any letter case: the label is in normal letters since 2026-10-02 (visual audit VA-44), and
+      // a check on the old capitals would pass for ever while checking nothing.
+      expect(rendered).not.toMatch(/404 · page not found/i)
     })
   }
 })

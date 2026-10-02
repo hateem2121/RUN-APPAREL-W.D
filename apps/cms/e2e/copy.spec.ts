@@ -69,6 +69,54 @@ test.describe('the 1889 wording and the confirmed numbers on the home page (CT-0
 })
 
 /**
+ * VA-58 (visual audit 2026-10-02, the owner's decision): №01's first figure read "1889" over "MAKING
+ * CLOTHES SINCE", so in order it said "1889, making clothes since". The label is now first in the
+ * MARKUP and above the year on screen, with the same words; the neighbour ("One" over "Building,
+ * first stitch to sealed bag") keeps its order. Both are measured because they must agree: an
+ * `order` in CSS would draw the label first and leave a screen reader on the old order.
+ */
+for (const width of [390, 1280]) {
+  test(`№01 reads "Making clothes since 1889", and its other figure as it did, at ${width}px`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/')
+    const facts = page.locator('.about__points .fact')
+    await expect(facts, 'the №01 figures were not found, so nothing was measured').toHaveCount(2)
+    const read = (index: number) =>
+      facts.nth(index).evaluate((fact) => {
+        const [first, second] = [...fact.children] as HTMLElement[]
+        const above =
+          (first?.getBoundingClientRect().bottom ?? 0) <=
+          (second?.getBoundingClientRect().top ?? 0) + 0.5
+        return {
+          // textContent, not innerText: CSS sets these in capitals, and this checks the words.
+          words: [first?.textContent, second?.textContent],
+          markup: [
+            first?.className.includes('fact__label') ? 'label' : 'value',
+            second?.className.includes('fact__label') ? 'label' : 'value',
+          ],
+          firstIsAbove: above,
+        }
+      })
+    expect(
+      await read(0),
+      'the 1889 figure does not read label first, in markup and on screen',
+    ).toEqual({
+      words: ['Making clothes since', '1889'],
+      markup: ['label', 'value'],
+      firstIsAbove: true,
+    })
+    expect(await read(1), 'the second figure changed its order').toEqual({
+      words: ['One', 'Building, first stitch to sealed bag'],
+      markup: ['value', 'label'],
+      firstIsAbove: true,
+    })
+  })
+}
+
+/**
  * CT-08: one primary action per screen, and only agreed labels. The list is what the pages
  * carried on 2026-09-15 — a new primary button is a design decision, so adding one means
  * adding its label here on purpose. A screen is one viewport-high slice of the page; the

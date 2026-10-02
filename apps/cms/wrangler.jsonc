@@ -88,7 +88,13 @@
   ],
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // The /products film only: worker.mjs serves it in the pieces (`Range`) iPhone Safari needs,
+    // which the static assets do not (filmRange.mjs). Every other file is still served by the
+    // assets before the Worker runs. A list, not `true`, which would put the Worker in front of
+    // every image and script; this site has no single-page fallback, so the list changes nothing
+    // about page visits (the viewer's wrangler.jsonc explains that rule).
+    "run_worker_first": ["/film/*"]
   },
   "d1_databases": [
     {

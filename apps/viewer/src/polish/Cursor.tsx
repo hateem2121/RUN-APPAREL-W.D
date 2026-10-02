@@ -1,3 +1,4 @@
+import { publishCursor } from '@run-apparel/shared'
 import { motion, useMotionValue, useSpring } from 'motion/react'
 import { createElement, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -129,9 +130,27 @@ export function Cursor() {
       setPointer(isInteractive(event.target as Element | null))
     }
 
+    /*
+     * The footer's light follows the RING, never the raw pointer (visual audit VA-31, the
+     * website's footer on these pages since 2026-10): lit from the pointer, the website's halo
+     * sat 390px ahead of the ring on a fast move (apps/cms/src/components/site/Cursor.tsx
+     * publishes the same point). One publish per frame, however many springs moved in it.
+     */
+    let busFrame = 0
+    const publishRing = () => {
+      if (busFrame) return
+      busFrame = requestAnimationFrame(() => {
+        busFrame = 0
+        publishCursor({ x: ringX.get(), y: ringY.get(), placed, now: performance.now() })
+      })
+    }
+    const stopRingX = ringX.on('change', publishRing)
+    const stopRingY = ringY.on('change', publishRing)
+
     const onLeave = () => {
       placed = false
       setArmed(false)
+      publishCursor({ x: ringX.get(), y: ringY.get(), placed, now: performance.now() })
     }
 
     window.addEventListener('mousemove', onMove, { passive: true })
@@ -199,6 +218,9 @@ export function Cursor() {
     })
 
     return () => {
+      stopRingX()
+      stopRingY()
+      cancelAnimationFrame(busFrame)
       root.classList.remove('has-custom-cursor')
       window.removeEventListener('mousemove', onMove)
       document.removeEventListener('pointerover', onOver)

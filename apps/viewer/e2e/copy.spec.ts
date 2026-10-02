@@ -22,7 +22,8 @@ test.describe('the footer', () => {
     page,
   }) => {
     await page.goto('/n001/wine')
-    const meta = page.locator('.footer__meta')
+    // The website's footer since 2026-10-02 (VA-31); the old footer's `.footer__meta` is gone.
+    const meta = page.locator('footer.site-footer')
     await expect(meta.getByRole('link', { name: 'Privacy', exact: true })).toHaveAttribute(
       'href',
       'https://wear-run.com/privacy',

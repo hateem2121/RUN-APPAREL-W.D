@@ -1,9 +1,11 @@
 import {
   SITE_MENU_ID,
+  SITE_MENU_LINKS,
   SITE_MENU_NAME,
   SITE_NAV_LABEL,
   SITE_NAV_LINKS,
   THEME_SWITCH_NAMES,
+  THEME_SWITCH_WORDS,
 } from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
@@ -52,7 +54,13 @@ describe("Header — the website's bar", () => {
         link.textContent,
         link.getAttribute('href'),
       ]),
-    ).toEqual(SITE_NAV_LINKS.map(({ href, label }) => [label, `${SITE_ORIGIN}${href}`]))
+    ).toEqual(
+      // The bar's two, then the phone menu's own (VA-37: Guides), all to the site.
+      [...SITE_NAV_LINKS, ...SITE_MENU_LINKS].map(({ href, label }) => [
+        label,
+        `${SITE_ORIGIN}${href}`,
+      ]),
+    )
     expect(host.querySelector('nav')?.getAttribute('aria-label')).toBe(SITE_NAV_LABEL)
   })
 
@@ -75,12 +83,21 @@ describe("Header — the website's bar", () => {
     const theSwitch = host.querySelector(`#${SITE_MENU_ID} button.theme-toggle`)
     expect(theSwitch).not.toBeNull()
     expect(theSwitch?.hasAttribute('aria-label')).toBe(false)
-    expect(theSwitch?.querySelector('.theme-toggle__face--to-dark')?.textContent).toBe(
-      THEME_SWITCH_NAMES.toDark,
-    )
-    expect(theSwitch?.querySelector('.theme-toggle__face--to-light')?.textContent).toBe(
-      THEME_SWITCH_NAMES.toLight,
-    )
+    for (const [way, face] of [
+      ['toDark', '.theme-toggle__face--to-dark'],
+      ['toLight', '.theme-toggle__face--to-light'],
+    ] as const) {
+      const shown = theSwitch?.querySelector(face)
+      // What assistive technology hears: the face minus what is hidden from it.
+      const spoken = [...(shown?.querySelectorAll(':scope > :not([aria-hidden="true"])') ?? [])]
+        .map((node) => node.textContent)
+        .join('')
+      expect(spoken).toBe(THEME_SWITCH_NAMES[way])
+      // What the phone menu shows beside the icon (VA-52), hidden from assistive technology.
+      expect(shown?.querySelector('.theme-toggle__words[aria-hidden="true"]')?.textContent).toBe(
+        THEME_SWITCH_WORDS[way],
+      )
+    }
     // light system, nothing stored: a press would switch to dark
     expect(theSwitch?.getAttribute('title')).toBe(THEME_SWITCH_NAMES.toDark)
   })

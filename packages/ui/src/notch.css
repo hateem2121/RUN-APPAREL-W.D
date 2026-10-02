@@ -38,6 +38,12 @@
    * and tokens.test.ts cannot see it: the property IS defined, just not in that scope.
    */
   --notch-r: var(--radius-panel);
+  /*
+   * HOW FAR PAST ITS OWN HEIGHT A BAR THAT LEAVES MUST GO (VA-40, "the bar leaves", below). Its
+   * shadow reaches 32px below it (`--shadow-raised` is 0 8px 24px: 8 down, then 24 of blur) and
+   * its hairline 1px; 40px clears both, so no band of shadow is left on the screen's top edge.
+   */
+  --notch-away: 40px;
 }
 
 /*
@@ -72,6 +78,30 @@
  */
 
 .notch-shell {
+  /* The bar's colour lives on the shell, not on .notch, so the status-area strip below — the
+     bar's sibling, not its child — reads the same value (VA-50). */
+  --notch-bg: light-dark(var(--ink), var(--raised));
+  /*
+   * ⚠️ THE BAR'S HAIRLINE (visual audit VA-40, 2026-10-02, owner-approved). Over a dark photograph
+   * the bar's shadow and its curved edges vanish — the website's dark "Browse the references" button
+   * scrolling under it read as one dark shape — so a 1px ring in the paper colour outlines it. Paper
+   * at 22% in the light theme, where the bar is ink and meets dark photos; 12% in the dark theme,
+   * where the bar (`--raised`) is already lighter than the page and a stronger ring would glow.
+   * Computed with scripts/contrast-rules.mjs and held by `apps/viewer/src/styles/barEdge.test.ts`:
+   * over a dark photo (#202420) the ring reads 1.95:1 in the light theme and 1.41:1 in the dark;
+   * over the light page it is paper on paper, 1.00:1, so it cannot look heavier there.
+   *
+   * ⚠️ IT OUTLINES THE BAR, NOT THE TWO FLARES AT ITS TOP CORNERS. Those are masked pseudo-elements
+   * painted over the bar's own shadow, so where they are opaque they cover the ring, and their
+   * curved edge carries none: by the arithmetic of an 18px flare the ring shows from about 14px
+   * down each side (not measured, nothing here can render it). A border would stop at the same
+   * place, which is why the shadow rule below refuses one.
+   */
+  --notch-edge: light-dark(
+    color-mix(in srgb, var(--paper) 22%, transparent),
+    color-mix(in srgb, var(--paper) 12%, transparent)
+  );
+
   z-index: var(--z-header);
   display: flex;
   justify-content: center;
@@ -95,8 +125,38 @@
   pointer-events: none;
 }
 
+/*
+ * ⚠️ THE STATUS-AREA STRIP: A PHONE'S CLOCK AND BATTERY SIT ON THE BAR'S COLOUR (visual audit
+ * VA-50, asked for by the owner). Safari 26 and 27 no longer paint that area from
+ * `<meta name="theme-color">`; they take the colour of a fixed element touching the page's top
+ * edge, else the page's own. So the area was paper above a dark bar — two shapes. Proven in the
+ * iOS 26.5 and iOS 27 simulators, light and dark, on every page type: with this 6px strip the
+ * whole status area takes the bar's colour and the clock and battery turn white by themselves.
+ * The page's background alone does not do it (VA-25 made it the bar's colour on phones; the
+ * area stayed paper, measured the same day).
+ *
+ * Phones only, by owner decision: Safari on a Mac tints its own toolbar the same way, and the
+ * owner kept the desktop as it is. `pointer-events: auto` because the shell's `none` is
+ * inherited, and Safari finds the strip by hit-testing, so a strip it cannot hit is a strip it
+ * does not see. It sits under the bar in paint order, so the bar still takes its own taps.
+ */
+.notch-strip {
+  display: none;
+}
+
+@media (width < 720px) and (hover: none) {
+  .notch-strip {
+    display: block;
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: 6px;
+    background: var(--notch-bg);
+    pointer-events: auto;
+  }
+}
+
 .notch {
-  --notch-bg: light-dark(var(--ink), var(--raised));
   --notch-text: light-dark(var(--paper), var(--text));
   --notch-muted: light-dark(rgba(241, 239, 234, 0.7), rgba(236, 235, 228, 0.7));
 
@@ -148,7 +208,21 @@
    * Not a border: the fillets are pseudo-elements outside this element's border box,
    * so a border would stop dead where the carved arcs begin.
    */
-  box-shadow: var(--shadow-raised);
+  /* The hairline first: the first shadow is the top one, and it must lie over the soft one (VA-40,
+     `--notch-edge` above). The soft one is still `--shadow-raised`, the bar's only separation in dark mode. */
+  box-shadow:
+    0 0 0 1px var(--notch-edge),
+    var(--shadow-raised);
+  /* How the bar opens into the phone menu (VA-51, in the phone block below), and how it comes back
+     after leaving (VA-40, "the bar leaves" below). `visibility` is `step-start` here so a returning
+     bar is visible, and focusable, at once; its leaving list holds it until the slide has finished. */
+  transition:
+    flex-grow var(--ui) var(--ease),
+    border-end-start-radius var(--ui) var(--ease),
+    border-end-end-radius var(--ui) var(--ease),
+    box-shadow var(--ui) var(--ease),
+    transform var(--ui) var(--ease),
+    visibility var(--ui) step-start;
 }
 
 /*
@@ -199,6 +273,41 @@
  * `@supports` proves the property parses, not that the result looks right.
  */
 
+/*
+ * ⚠️ THE BAR LEAVES ON A PHONE (visual audit VA-40, 2026-10-02, owner-approved), WHEN A PAGE ASKS.
+ * The bar and the label row under it took 92px of an 874px screen at all times. The garment pages
+ * set `data-bar-hidden` on the shell while the visitor scrolls down and take it off as they scroll up
+ * (apps/viewer/src/lib/barAutoHide.ts); the website never sets it, so its bar is as it was.
+ *
+ * - `transform`, the compositor's own property, and the existing `--ui` and `--ease`: 220ms. Reduced
+ *   motion makes it instant with the rule in base.css, which reaches every transition and delay.
+ * - HIDDEN MEANS NOT FOCUSABLE: `visibility: hidden` takes the bar out of the Tab order and the
+ *   accessibility tree once it is clear of the screen (`step-end`: it is held until the slide ends).
+ *   Coming back is the other way round (`step-start` in the list above): visible at once. The script
+ *   never leaves it hidden while its menu is open or focus is inside it, and a Tab brings it back.
+ * - THE STATUS STRIP STAYS (VA-50). It is the shell's other child, `position: fixed`, and only
+ *   `.notch` moves, so the clock and battery keep the bar's colour. A transform on the shell would
+ *   have carried the strip with it, and nothing here can prove Safari still tints the area then.
+ * - Phones only, by the strip's own query (`hover: none`, under 720px), and `screen` only: paper
+ *   keeps its bar whatever the page was doing. The script holds the same string
+ *   (`BAR_AUTOHIDE_QUERY`), and `barEdge.test.ts` fails if the two differ.
+ * - The list repeats the one above with `step-end` in place of `step-start`: a transition takes its
+ *   timing from the style it arrives at, and `visibility` must wait going out and not coming back.
+ */
+@media screen and (width < 720px) and (hover: none) {
+  .notch-shell[data-bar-hidden] .notch {
+    transform: translateY(calc(-100% - var(--notch-away)));
+    visibility: hidden;
+    transition:
+      flex-grow var(--ui) var(--ease),
+      border-end-start-radius var(--ui) var(--ease),
+      border-end-end-radius var(--ui) var(--ease),
+      box-shadow var(--ui) var(--ease),
+      transform var(--ui) var(--ease),
+      visibility var(--ui) step-end;
+  }
+}
+
 .notch__wordmark {
   /*
    * ⚠️ `block` + `line-height`, NOT `inline-flex` + `align-items`. Both centre the text
@@ -245,6 +354,9 @@
   align-items: center;
   flex-shrink: 0;
   gap: 4px;
+  /* At the bar's far end once it widens into the open phone menu (VA-51); 0 while the bar
+     is only as wide as its contents. */
+  margin-inline-start: auto;
 }
 
 /*
@@ -285,6 +397,12 @@
   }
 }
 
+/* Shown in the open phone menu only (VA-37 and VA-52, below): Guides, and the switch's words. */
+.nav-link--menu,
+.theme-toggle__words {
+  display: none;
+}
+
 /*
  * ⚠️ THE CURRENT PAGE IS MARKED BY AN UNDERLINE, NOT ONLY BY COLOUR.
  *
@@ -300,7 +418,7 @@
  * where colours are replaced wholesale and an underline is one of the few cues that
  * still carries meaning.
  */
-.nav-link[aria-current="page"] {
+.nav-link:is([aria-current="page"], [aria-current="true"]) {
   color: var(--notch-text, var(--text));
   text-decoration: underline;
   text-decoration-color: var(--volt);
@@ -323,7 +441,7 @@
  * underline is restored in a system colour that is guaranteed to contrast.
  */
 @media (forced-colors: active) {
-  .nav-link[aria-current="page"] {
+  .nav-link:is([aria-current="page"], [aria-current="true"]) {
     text-decoration-color: LinkText;
   }
 
@@ -502,6 +620,8 @@
 .notch__icon-line {
   position: absolute;
   inset-inline-start: 0;
+  /* Every line is the icon's full 20px; the shorter two are SCALED (below), never resized. */
+  width: 100%;
   block-size: 0;
   border-block-start: 2px solid currentColor;
   border-radius: var(--radius-pill);
@@ -510,32 +630,43 @@
    * even and fold into an X". Reduced motion needs nothing here — base.css collapses every
    * transition to 0.01ms and every delay to 0s with !important, and navbar.spec.ts measures
    * that it reaches these lines.
+   *
+   * ⚠️ TRANSFORM AND OPACITY ONLY, NEVER WIDTH (VA-19, visual audit 2026-10-02). The lines used
+   * to animate `width`, which is layout on every frame; web.dev (read 2026-10-02) names
+   * `transform` and `opacity` as the only two properties that stay on the compositor, and says to
+   * resize with a scale. The look is unchanged because the line's width is just its length:
+   * 12, 20 and 16px are a 20px line at scale 0.6, 1 and 0.8, and the fold's centre still travels
+   * right as the short line grows (the old width change did the same). The centre is the
+   * transform-origin on purpose (the default, so none is written): the open state turns each line
+   * about its middle, so the short ones are shifted back to the left edge by half what the
+   * scale took off (20px x 0.4 / 2 = 4px; x 0.2 / 2 = 2px) and sit exactly where they did.
+   * Left-to-right only: the lines hang from the left edge, and the site has no right-to-left page.
+   * The end caps (1px radius) are 0.6px and 0.8px wide on the two short lines, sub-pixel.
+   * The motion probe's allow-list entry for this selector is gone with the width
+   * (scripts/served-css-motion-probe.mjs), so a width transition here fails MO-16 again.
    */
   transition:
-    width var(--ui) var(--ease),
     transform var(--ui) var(--ease),
     opacity var(--ui) var(--ease);
 }
 
 .notch__icon-line:nth-child(1) {
   inset-block-start: 0;
-  width: 12px;
+  transform: translateX(-4px) scaleX(0.6);
 }
 
 .notch__icon-line:nth-child(2) {
   inset-block-start: 7px;
-  width: 20px;
   transition-delay: 20ms;
 }
 
 .notch__icon-line:nth-child(3) {
   inset-block-start: 14px;
-  width: 16px;
+  transform: translateX(-2px) scaleX(0.8);
   transition-delay: 40ms;
 }
 
 .notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(1) {
-  width: 20px;
   transform: translateY(7px) rotate(45deg);
 }
 
@@ -544,7 +675,6 @@
 }
 
 .notch__menu-btn:has(+ .notch__menu:popover-open) .notch__icon-line:nth-child(3) {
-  width: 20px;
   transform: translateY(-7px) rotate(-45deg);
 }
 
@@ -592,6 +722,14 @@
   }
 }
 
+/* A phone-menu row arriving (VA-51, below). */
+@keyframes notch-row-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
 @supports selector(:popover-open) {
   /* Phones — and any width too narrow for the inline row at the reader's text size (below). */
   @media (width < 720px), (width < calc(184px + 14.9rem)) {
@@ -612,46 +750,174 @@
     }
 
     /*
-     * ⚠️ BUG 1, DESIGNED OUT: this is the ONLY rule that gives the list a display on a
-     * phone, and only while it is open. An author `display` on a [popover] beats the
-     * browser's `[popover]:not(:popover-open) { display: none }` whatever the specificity, so
-     * the old inherited `.notch__nav { display: flex }` showed a "closed" menu open.
-     * publicSite.test.ts refuses any other rule that sets it.
+     * ⚠️ ONE SHAPE: THE BAR WIDENS INTO THE OPEN MENU (visual audit VA-51, asked for by the
+     * owner). The bar was 191px wide and the menu under it 296-406px, both with 18px corners
+     * where they met, so the join pinched in like a waist and they read as two cards. Open,
+     * the bar takes the shell's whole width and squares its lower corners, and the panel below
+     * continues it at exactly that width — `inset-inline: var(--notch-r)` is the shell's own
+     * padding — with square upper corners: one dark surface, the way supaste.com (the bar's
+     * model, see above), apple.com and linear.app open theirs.
+     *
+     * `flex-grow` 0 → 1 is what widens it, because the flexbox spec makes that continuous (a
+     * value under 1 takes that share of the free space): the bar grows from its own width, with
+     * nothing measured and no script, where `width: auto` → `100%` cannot be animated yet in
+     * Safari or Firefox (MDN: `interpolate-size` is not Baseline, read 2026-10-01).
+     *
+     * The site's scroll condense is paused while it is open, so the bar is back at its full
+     * --notch-h, which is where the panel starts — 1px higher, so no seam can open between them.
+     */
+    .notch-shell:has(.notch__menu:popover-open) .notch {
+      flex-grow: 1;
+      border-end-start-radius: 0;
+      border-end-end-radius: 0;
+      box-shadow: none;
+      animation: none;
+    }
+
+    /*
+     * ⚠️ BUG 1, DESIGNED OUT: only the open rule below gives the list a `display` on a phone.
+     * An author `display` on a [popover] beats the browser's
+     * `[popover]:not(:popover-open) { display: none }` whatever the specificity, so the old
+     * inherited `.notch__nav { display: flex }` showed a "closed" menu open.
+     * publicSite.test.ts refuses any other rule that sets it. Everything ELSE is on the closed
+     * list as well, so the panel keeps its place and shape while it fades out.
      *
      * ⚠️ BUG 2, DESIGNED OUT: the browser styles [popover] `width: fit-content`, so two
      * insets alone left the panel 153-157px wide in all three engines. `width: auto` restores
-     * the two-inset stretch: 366px of 366 in each (measured 2026-09-23). Never 100vw, which
-     * includes a classic scrollbar.
+     * the two-inset stretch (measured 2026-09-23). Never 100vw, which includes a classic
+     * scrollbar.
      *
      * Fixed under the bar at the height the bar is built from (--notch-h), not anchored: the
      * bar is at the top of the viewport on both hosts, and anchor positioning was still being
      * corrected in Safari 26.5.
+     *
+     * MOTION (VA-51): it drops from the bar — a fade and a `scale` from its top edge, on --ui
+     * and --ease, the curve the bar widens on — and goes back into it faster, on --instant.
+     * While it closes, `display` and `overlay` ride the transition (allow-discrete, MDN's
+     * popover pattern) so the exit is seen however the menu closes: its button, Escape or a
+     * tap outside. ONLY while it closes: see `[data-closing]` below. Reduced motion makes it
+     * all instant (base.css). A scroll inside the menu stays in the menu.
+     *
+     * The shadow is clipped at the top edge: cast upward it lay across the bar's lower half,
+     * a dark band through the join in dark mode.
      */
-    .notch__menu:popover-open {
-      display: flex;
+    .notch__menu {
       flex-direction: column;
       align-items: stretch;
-      gap: 4px;
+      gap: 0;
       position: fixed;
-      inset-block-start: var(--notch-h);
-      inset-inline: 12px;
+      inset-block-start: calc(var(--notch-h) - 1px);
+      inset-inline: var(--notch-r);
       width: auto;
       margin: 0;
-      padding: 12px;
+      padding: 4px 6px 12px;
       border: none;
-      border-radius: var(--notch-r);
+      border-radius: 0 0 var(--notch-r) var(--notch-r);
       background: var(--notch-bg);
       color: var(--notch-text);
       box-shadow: var(--shadow-raised);
+      clip-path: inset(0 -32px -32px);
       max-block-size: calc(100svh - var(--notch-h) - 12px);
       overflow: auto;
+      overscroll-behavior: contain;
+      transform-origin: top center;
+      opacity: 0;
+      scale: 1 0.94;
+      transition:
+        opacity var(--instant) var(--ease),
+        scale var(--instant) var(--ease);
     }
 
-    /* Full-width rows, 44px tall, as the owner approved them. */
+    /*
+     * ⚠️ THE EXIT KEEPS THE PANEL DRAWN ONLY WHILE IT IS CLOSING. On the plain list this
+     * transition also ran when a phone turned from landscape to portrait — the inline links
+     * became the hidden menu and the exit played for 120ms in the panel's shape (LA-06 in
+     * navbar.spec.ts caught it). `data-closing` is set by markMenuClosing
+     * (packages/shared/src/siteBar.ts) on `beforetoggle`, which fires for every way a popover
+     * closes and for no change of layout. Without script the menu closes at once.
+     */
+    .notch__menu[data-closing] {
+      transition:
+        opacity var(--instant) var(--ease),
+        scale var(--instant) var(--ease),
+        display var(--instant) allow-discrete,
+        overlay var(--instant) allow-discrete;
+    }
+
+    .notch__menu:popover-open {
+      display: flex;
+      opacity: 1;
+      scale: 1;
+      transition-duration: var(--ui);
+    }
+
+    @starting-style {
+      .notch__menu:popover-open {
+        opacity: 0;
+        scale: 1 0.94;
+      }
+    }
+
+    /*
+     * THE ROWS (visual audit VA-37 and VA-52, owner-approved 2026-10-01). Full-width, 52px, 15px
+     * capitals, a hairline between rows, and ONE row style for all of them: the switch lost the
+     * pill outline it showed in dark mode only (its icon sat 0px inside it) and says what it does
+     * in words. Every row's text starts where the name above it does — the panel's 18px inset,
+     * then 6 + 6, as the bar's own 18 + 12 — so the menu reads as one column under the name.
+     */
     .notch__menu:popover-open .nav-link,
     .notch__menu:popover-open .theme-toggle {
       width: 100%;
       justify-content: flex-start;
+      min-height: calc(var(--target-min) + 8px);
+      padding-inline: 6px;
+      font-size: var(--text-sm);
+      border: 0;
+      border-block-end: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+      border-radius: 0;
+    }
+
+    .notch__menu:popover-open .nav-link--menu {
+      display: inline-flex;
+    }
+
+    .notch__menu:popover-open .theme-toggle {
+      height: auto;
+      color: var(--notch-muted);
+    }
+
+    .notch__menu:popover-open .theme-toggle__face {
+      align-items: center;
+      gap: 12px;
+    }
+
+    .notch__menu:popover-open .theme-toggle__words {
+      display: inline;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-caps-snug);
+    }
+
+    .notch__menu:popover-open > :last-child {
+      border-block-end: 0;
+    }
+
+    /* The rows arrive one after another, --stagger apart (VA-51). An animation, not a
+       transition, so a row's own hover and press transitions are untouched. */
+    .notch__menu:popover-open > * {
+      animation: notch-row-in var(--ui) var(--ease) both;
+    }
+
+    .notch__menu:popover-open > :nth-child(2) {
+      animation-delay: var(--stagger);
+    }
+
+    .notch__menu:popover-open > :nth-child(3) {
+      animation-delay: calc(var(--stagger) * 2);
+    }
+
+    .notch__menu:popover-open > :nth-child(4) {
+      animation-delay: calc(var(--stagger) * 3);
     }
   }
 
@@ -743,5 +1009,29 @@
 @media (forced-colors: active) {
   .notch__menu:popover-open {
     border: 1px solid CanvasText;
+  }
+}
+
+/*
+ * ⚠️ THE BAR ON PAPER (visual audit VA-04, 2026-10-02). Its words are paper-coloured on an ink
+ * pill, and a browser drops the pill when printing, so the bar printed white on white (1.15:1).
+ * On paper the pill goes and the words are ink; the status strip above it, a band of the bar's
+ * colour, has nothing to do there. With "background graphics" switched on the pill would print
+ * again, so it is made transparent rather than trusted to vanish.
+ */
+@media print {
+  .notch-shell {
+    --notch-bg: transparent;
+    /* No hairline on paper either: there is no pill for it to outline (VA-40). */
+    --notch-edge: transparent;
+  }
+
+  .notch {
+    --notch-text: var(--ink);
+    --notch-muted: var(--ink);
+  }
+
+  .notch-strip {
+    display: none;
   }
 }

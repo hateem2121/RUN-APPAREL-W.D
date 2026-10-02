@@ -57,8 +57,14 @@ export function HomeHero() {
       </picture>
       <div className="blueprint site-hero__grid" aria-hidden="true" />
       <div className="site-container">
+        {/*
+          ONE SENTENCE IN TWO HALVES (VA-43, 2026-10-02): the dot between them is its own span so
+          a phone can drop it and give the second half a line (site.css). The text, spaces
+          included, is exactly what it was: `HomeHero.test.ts` holds it.
+        */}
         <p className="label">
-          [ PRIVATE LABEL MANUFACTURER SINCE 1889 · START FROM {minimum} PIECES PER STYLE ]
+          [ Private label manufacturer since 1889<span className="label__dot"> · </span>
+          <span className="label__tail">Start from {minimum} pieces per style ]</span>
         </p>
         <h1 className="display display--hero">
           Made to order. <span className="serif-accent">Made&nbsp;properly.</span>

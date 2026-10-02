@@ -68,23 +68,14 @@ const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
  *       320px            300.80px          5 (1 row)  5 (1 row)  3 + 2
  *       321px            301.74px          5 (1 row)  5 (1 row)  5 (1 row)
  *
- * The rail is a container query — `@container colourrail (max-width: 300px)`
- * drops it to `repeat(3, 1fr)` for the two-column aside, which measures 260px —
- * and at a 320px viewport the container's own content box lands on **300.8px**.
- * Chromium and Firefox read that as above the threshold; WebKit does not. From
- * 321px up all three agree, so the divergence is exactly one pixel wide and it
- * sits at the WCAG 1.4.10 reflow width, on the engine every QR scan opens in.
+ * The rail was a container query then, `@container colourrail (max-width: 300px)`
+ * dropping it to three columns, and at a 320px viewport the container's own content
+ * box lands on **300.8px**: Chromium and Firefox read that as above the threshold,
+ * WebKit did not. The threshold later moved to 280px, out of that pixel's way.
  *
- * `page.css` says of that 300: "any threshold in between works; 300 sits in the
- * middle of a 60px gap rather than against either edge." The gap is between the
- * ASIDE (260) and the RAIL (320) — but the query does not see the rail's 320, it
- * sees the container's 300.8, so the real margin is 0.8px, not 20.
- *
- * NOT FIXED HERE. This file guards findings; it does not move layout thresholds,
- * and the audit measured Chromium only. The 320px row is therefore skipped on
- * WebKit with the measurement attached, rather than deleted, weakened to
- * "3 + 2 is fine", or quietly left red. Every other width is asserted on all
- * four projects.
+ * Since VA-32 (2026-10-02) the colours are 44px dots, five in 252px, and the only
+ * query left is for a side column narrower than that (`width < 252px`, page.css), which
+ * no phone reaches: the 300.8px rail clears it by 48.8px in every engine.
  */
 test.describe('the colourway rail seats five swatches in one row (FA-E-61)', () => {
   const PHONE_WIDTHS = [320, 360, 375, 390, 393, 402, 414, 430] as const
@@ -118,54 +109,37 @@ test.describe('the colourway rail seats five swatches in one row (FA-E-61)', () 
       expect(total, 'the fixture no longer serves five colourways').toBe(5)
       expect(
         counts,
-        `the rail wrapped to ${counts.join(' + ')} at ${width}px. Five colourways ` +
-          'on one row is what the removed "01/02/03" prefix was traded for — it ' +
-          "took the required width from 368px to 290.5px against a 320px phone's " +
-          '300.8px. Re-tune the minmax floor in page.css .colourways__list; do not ' +
-          'relax this. See audit FA-E-61.',
+        `the rail wrapped to ${counts.join(' + ')} at ${width}px. Five 44px dots and ` +
+          "four 8px gaps are 252px against a 320px phone's 300.8px rail (VA-32): see " +
+          '.colourways__list and its narrow-column rule in page.css; do not relax ' +
+          'this. See audit FA-E-61.',
       ).toEqual([5])
     })
   }
 })
 
-/* ══ FA-E-09 — colourway labels are optically centred in one box height ══════ */
+/* ══ FA-E-09 — a colour control holds its content in its middle ══════════════ */
 
 /**
- * Measured on r-ajm: 3-line labels leave 10.5 px of bottom slack and 2-line
- * labels 16.8 px inside IDENTICAL 77.5 px tabs — a 6.3 px difference, exactly
- * half a 12.5 px line. The label block is centred rather than top-aligned, which
- * is the right choice and the reason the raggedness is the minimum possible.
+ * The finding, measured on r-ajm (2026-09-06): five-across tabs carried names of one, two and
+ * three lines in IDENTICAL 77.5px boxes, and the short names had to sit in the middle of the
+ * height the longest imposed, not hang from its top.
  *
- * Two properties hold that up and neither is obvious from reading the rule:
- * `.colourways__list` is a grid, so every tab is STRETCHED to its track and the
- * heights are equal; and `.colourway-tab` is `align-items: center`, so each
- * label sits in the middle of whatever height the tallest name imposed. Change
- * either — a `flex-start` "tidy-up", or the list going back to a wrapping flex —
- * and the short names hang from the top of a tall box with all the slack under
- * them. Nothing else in the suite reads either property.
- *
- * ⚠️ THE FIXTURE IS WHAT MAKES THIS MEASURABLE. `serve.mjs` ships one two-word
- * 20-character name ('Pebble / Optic White') beside four short ones, so the tabs
- * really do carry different line counts. Against five short names every tab is
- * one line, every slack is identical, and the assertion passes without ever
- * meeting the case it exists for — so the differing line count is asserted first.
+ * Since VA-32 (2026-10-02) those boxes are gone. The colours are dots, a 28px swatch in a 44px
+ * circle, and in a tall side column a list whose rows each take their own name's height. What
+ * survives is the property: every control's content sits in its middle. Two declarations hold it
+ * up and nothing else in the suite reads them: `.colourway-tab` is `align-items: center;
+ * justify-content: center` (the dot, both ways), and the list's rows keep `align-items: center`
+ * (a name beside a 14px swatch, in a row at least 44px tall). A `flex-start` "tidy-up" hangs the
+ * swatch from the top of its circle, or the name from the top of its row.
  */
-test.describe('colourway labels are optically centred (FA-E-09)', () => {
-  /*
-   * Both branches of the rail, because they centre by different declarations and
-   * only one of them is reachable from a phone. Below a 500px CONTAINER the tab
-   * is `flex-direction: column; justify-content: center` (swatch above name);
-   * above it, the base rule's `align-items: center` (swatch beside name). 320
-   * reaches the first, 768 — where `.colourways` still spans the page — the
-   * second.
-   */
-  for (const { width, height } of [
-    { width: 320, height: 812 },
-    { width: 768, height: 1024 },
-  ]) {
-    test(`tabs share one height and their contents sit in the middle of it at ${width}px`, async ({
-      page,
-    }) => {
+test.describe('a colour control holds its content in its middle (FA-E-09)', () => {
+  for (const { width, height, layout } of [
+    { width: 320, height: 812, layout: 'dots' },
+    { width: 768, height: 1024, layout: 'dots' },
+    { width: 1100, height: 1100, layout: 'list' },
+  ] as const) {
+    test(`the ${layout} at ${width}x${height}`, async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
@@ -173,70 +147,51 @@ test.describe('colourway labels are optically centred (FA-E-09)', () => {
 
       const tabs = await page.evaluate(() =>
         [...document.querySelectorAll('.colourway-tab')].map((tab) => {
-          const label = tab.querySelector('.colourway-tab__label')
           const style = getComputedStyle(tab)
           const box = tab.getBoundingClientRect()
-          const padTop =
-            Number.parseFloat(style.paddingTop) + Number.parseFloat(style.borderTopWidth)
-          const padBottom =
-            Number.parseFloat(style.paddingBottom) + Number.parseFloat(style.borderBottomWidth)
-
-          /*
-           * The union of the tab's own children — swatch AND name — not the name
-           * alone. In the compact branch the swatch sits ABOVE the name, so a
-           * name-only measurement reads a deliberate, correct layout as
-           * off-centre by half the swatch. What is centred, in both branches, is
-           * the content as a group.
-           */
-          const children = [...tab.children].map((child) => child.getBoundingClientRect())
-          const contentTop = Math.min(...children.map((r) => r.top))
-          const contentBottom = Math.max(...children.map((r) => r.bottom))
-
-          const lineHeight = label
-            ? Number.parseFloat(getComputedStyle(label).lineHeight || '0')
-            : 0
+          const inset = (side: 'Top' | 'Right' | 'Bottom' | 'Left') =>
+            Number.parseFloat(style.getPropertyValue(`padding-${side.toLowerCase()}`)) +
+            Number.parseFloat(style.getPropertyValue(`border-${side.toLowerCase()}-width`))
+          // The union of what the control draws: the swatch, and the name where it shows.
+          const drawn = [...tab.children]
+            .filter((child) => child.getClientRects().length > 0)
+            .map((child) => child.getBoundingClientRect())
+          const top = Math.min(...drawn.map((r) => r.top))
+          const bottom = Math.max(...drawn.map((r) => r.bottom))
+          const left = Math.min(...drawn.map((r) => r.left))
+          const right = Math.max(...drawn.map((r) => r.right))
           return {
-            name: label?.textContent?.trim() ?? '?',
-            height: Math.round(box.height * 10) / 10,
-            // How many line boxes the name broke into.
-            lines:
-              label && lineHeight > 0
-                ? Math.max(1, Math.round(label.getBoundingClientRect().height / lineHeight))
-                : 0,
-            topSlack: contentTop - (box.top + padTop),
-            bottomSlack: box.bottom - padBottom - contentBottom,
+            name: tab.getAttribute('aria-label') ?? '?',
+            nameShown:
+              (tab.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
+            above: top - (box.top + inset('Top')),
+            below: box.bottom - inset('Bottom') - bottom,
+            before: left - (box.left + inset('Left')),
+            after: box.right - inset('Right') - right,
           }
         }),
       )
 
       expect(tabs.length, 'no colourway tabs on the page').toBe(5)
-
-      // The fixture must present more than one line count, or "centred" and
-      // "top-aligned" are indistinguishable and this passes vacuously.
-      const lineCounts = [...new Set(tabs.map((t) => t.lines))]
+      // The control: the layout under test is the one drawn. A dot carries no name; a row does.
       expect(
-        lineCounts.length,
-        `every colourway label wrapped to the same ${lineCounts[0]} line(s) at ` +
-          `${width}px, so this test cannot tell a centred label from a top-aligned ` +
-          'one. serve.mjs must keep a long two-word display name — see its ' +
-          'COLOURWAYS comment.',
-      ).toBeGreaterThan(1)
-
-      const heights = [...new Set(tabs.map((t) => t.height))]
-      expect(
-        heights,
-        `the colourway tabs are ${heights.join(', ')}px tall — a rail of different-sized ` +
-          'buttons. The grid track is what stretches them to one height.',
-      ).toHaveLength(1)
+        tabs.map((tab) => tab.nameShown),
+        `this is not the ${layout} at ${width}x${height}`,
+      ).toEqual(tabs.map(() => layout === 'list'))
 
       for (const tab of tabs) {
         expect(
-          Math.abs(tab.topSlack - tab.bottomSlack),
-          `"${tab.name}" hangs off-centre in its tab: ${tab.topSlack.toFixed(1)}px above, ` +
-            `${tab.bottomSlack.toFixed(1)}px below. With names of different lengths the ` +
-            'short ones must sit in the middle of the height the longest one imposed, ' +
-            'not at the top of it. See audit FA-E-09.',
+          Math.abs(tab.above - tab.below),
+          `"${tab.name}" hangs off-centre: ${tab.above.toFixed(1)}px above, ` +
+            `${tab.below.toFixed(1)}px below. See audit FA-E-09.`,
         ).toBeLessThanOrEqual(1)
+        if (layout === 'dots') {
+          expect(
+            Math.abs(tab.before - tab.after),
+            `"${tab.name}"'s swatch sits off-centre in its dot: ${tab.before.toFixed(1)}px ` +
+              `before, ${tab.after.toFixed(1)}px after.`,
+          ).toBeLessThanOrEqual(1)
+        }
       }
     })
   }
@@ -1409,8 +1364,10 @@ test.describe('the tracking and leading curves are correct by class (FA-C-54)', 
  * unselected swatches under 3:1 in light and 88 in dark. It was a THEME-FLAT ink tone, so a
  * pale swatch vanished into the light page and a dark one into the dark page.
  * `--line-control` flips with the theme: 0 of 320 under 3:1, worst 3.39 light and 4.94 dark.
- * The selected swatch takes `currentColor`, the selected tab's own text colour, which stands
- * 13–14:1 off the inverted fill; `--line-control` there failed every selected ring in dark.
+ * On the dots (VA-32, 2026-10-02) the chosen swatch sits on the page like the other four, so
+ * `--line-control` serves all five. In the list the chosen row's fill inverts and its swatch
+ * takes `currentColor`, the row's own text colour, which stands 13–14:1 off that fill;
+ * `--line-control` there failed every selected ring in dark. Both layouts are graded.
  *
  * ⚠️ ONLY THE OUTER PAIR IS GRADED, ON PURPOSE. For a border, `measureContrastInPage` returns
  * the ring against the swatch's OWN fill (`pairs[0]`) and against what the swatch sits on
@@ -1423,8 +1380,14 @@ test.describe('the tracking and leading curves are correct by class (FA-C-54)', 
  * lets the light and the dark half fail at all; FA-T-10 above guards the first.
  */
 test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', () => {
-  for (const scheme of ['light', 'dark'] as const) {
-    test(`${scheme}: all five rings, the selected one included`, async ({ page }) => {
+  for (const [scheme, layout, width, height] of [
+    ['light', 'dots', 1280, 720],
+    ['dark', 'dots', 1280, 720],
+    ['light', 'list', 1440, 1100],
+    ['dark', 'list', 1440, 1100],
+  ] as const) {
+    test(`${scheme}, ${layout}: all five rings, the selected one included`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
       // Navigate BEFORE emulating — Firefox drops emulation set on about:blank (measured
       // 2026-09-07, apps/cms/e2e/legibility.spec.ts) — then again so it applies.
       await page.goto('/n001/wine')
@@ -1434,6 +1397,7 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
 
       const state = await page.evaluate(() => ({
         reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        listed: (document.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
         ground: getComputedStyle(document.body).backgroundColor,
         selected: [...document.querySelectorAll('.colourway-tab__swatch')]
           .filter((element) => element.getClientRects().length > 0)
@@ -1445,6 +1409,7 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
       // The controls. An un-revealed rail is opacity 0 and grades 1:1 whatever the ring is,
       // and a scheme that never applied would grade the other theme twice.
       expect(state.reduced, 'reduced motion never reached the page').toBe(true)
+      expect(state.listed, `this is not the ${layout}`).toBe(layout === 'list')
       const groundLuminance = relativeLuminance(parseCssColour(state.ground).rgb)
       if (scheme === 'dark') {
         expect(groundLuminance, `the page ground is ${state.ground}, not dark`).toBeLessThan(0.2)
@@ -1474,7 +1439,7 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
       expect(
         failing,
         `${scheme}: a swatch ring under 3:1 lets the colour vanish into its tab (WCAG 1.4.11). ` +
-          'Unselected rings use --line-control and the selected one currentColor; see ' +
+          "Rings use --line-control; the list's chosen row, on its inverted fill, currentColor. See " +
           '.colourway-tab__swatch in apps/viewer/src/styles/page.css.',
       ).toEqual([])
     })
@@ -1516,37 +1481,108 @@ test.describe('the colourway rail is a real tablist with a selected state (AC-08
 })
 
 /**
- * AC-16 — the selected colourway tab is never colour-only: `aria-selected="true"`
- * carries the state for assistive technology, AND the same tab inverts its fill
- * (`ColourwayTabs.tsx:256-263` — the selected tab's background moves to
- * `--btn-primary-bg`, a 13-14:1 luminance swing, not a hue change alone). This is
- * a REDUNDANCY check (both signals agree), separate from CO-12's ring-contrast
- * grade above.
+ * VA-61 — after arrowing through the colours, Tab LEAVES the list (APG tabs pattern: "Tab: moves
+ * focus to the next element in the tab sequence outside the tablist"). Measured 2026-10-02 in all
+ * three engines before the fix: arrowed from Black, the last tab and the chosen one, round to
+ * Wine, the one tab stop stayed on Black, so Tab landed on Black, still inside the list. The unit
+ * test pins the tabindex that decides it; only a real browser moves focus on a real Tab.
+ */
+test.describe('Tab leaves the colour list from the tab the visitor arrowed to (VA-61)', () => {
+  test('arrowed from the last colour round to the first, Tab lands outside the list', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto('/n001/black')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const black = page.getByRole('tab', { name: 'Black' })
+    await expect(black, 'the fixture no longer opens on Black').toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await black.focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(page.getByRole('tab', { name: 'Wine' })).toBeFocused()
+    // WebKit skips buttons on a plain Tab; Option-Tab walks them (a11y.spec.ts, AC-05).
+    await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab')
+    const landed = await page.evaluate(() => {
+      const el = document.activeElement
+      return {
+        role: el?.getAttribute('role') ?? el?.tagName ?? '',
+        inList: Boolean(el?.closest('[role="tablist"]')),
+      }
+    })
+    expect(landed.inList, `Tab stayed in the colour list, on a ${landed.role}`).toBe(false)
+  })
+})
+
+/**
+ * AC-16 — the chosen colourway is never shown by colour alone: `aria-selected="true"` carries
+ * the state for assistive technology, AND the chosen control differs by more than a hue. On the
+ * dots (VA-32, 2026-10-02) that is a ring only the chosen dot wears: every other dot's border is
+ * transparent, so a ring APPEARS rather than changing colour. In the list the row's fill inverts,
+ * a 13-14:1 luminance swing (page.css, the `.colourway-tab__dot` note). This is a REDUNDANCY check
+ * (both signals agree), separate from CO-12's ring-contrast grade above.
  */
 test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
-  test('aria-selected agrees with a real fill inversion, on exactly one tab', async ({ page }) => {
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  for (const { width, height, layout } of [
+    { width: 390, height: 844, layout: 'dots' },
+    { width: 1440, height: 1100, layout: 'list' },
+  ] as const) {
+    test(`${layout}: aria-selected agrees with a cue that is more than a hue, on exactly one tab`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const tabs = await page.evaluate(() =>
-      [...document.querySelectorAll('.colourway-tab')].map((el) => ({
-        selected: el.getAttribute('aria-selected') === 'true',
-        background: getComputedStyle(el).backgroundColor,
-      })),
-    )
-    expect(tabs.length, 'no colourway tabs found').toBeGreaterThan(1)
+      const { ground, tabs } = await page.evaluate(() => ({
+        ground: getComputedStyle(document.body).backgroundColor,
+        tabs: [...document.querySelectorAll('.colourway-tab')].map((el) => {
+          const style = getComputedStyle(el)
+          return {
+            selected: el.getAttribute('aria-selected') === 'true',
+            listed: (el.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
+            borderWidth: Number.parseFloat(style.borderTopWidth),
+            borderStyle: style.borderTopStyle,
+            borderColour: style.borderTopColor,
+            background: style.backgroundColor,
+          }
+        }),
+      }))
+      expect(tabs.length, 'no colourway tabs found').toBeGreaterThan(1)
+      expect(
+        tabs.map((t) => t.listed),
+        `this is not the ${layout}`,
+      ).toEqual(tabs.map(() => layout === 'list'))
 
-    const selectedTabs = tabs.filter((t) => t.selected)
-    expect(selectedTabs, 'exactly one tab should carry aria-selected="true"').toHaveLength(1)
+      const selectedTabs = tabs.filter((t) => t.selected)
+      expect(selectedTabs, 'exactly one tab should carry aria-selected="true"').toHaveLength(1)
+      const chosen = selectedTabs[0] as (typeof tabs)[number]
+      const others = tabs.filter((t) => !t.selected)
 
-    const selectedBg = (selectedTabs[0] as { background: string }).background
-    const unselectedBgs = new Set(tabs.filter((t) => !t.selected).map((t) => t.background))
-    expect(
-      unselectedBgs.has(selectedBg),
-      `the selected tab's background (${selectedBg}) does not differ from an unselected ` +
-        `tab's — aria-selected would be the ONLY signal of which colourway is active`,
-    ).toBe(false)
-  })
+      if (layout === 'dots') {
+        const ring = (t: (typeof tabs)[number]) =>
+          t.borderStyle !== 'none' &&
+          t.borderWidth >= 1 &&
+          parseCssColour(t.borderColour).alpha > 0.5
+        expect(ring(chosen), `the chosen dot wears no ring (${chosen.borderColour})`).toBe(true)
+        expect(
+          others.filter(ring).map((t) => t.borderColour),
+          'an unchosen dot wears a ring too, so the ring no longer tells them apart',
+        ).toEqual([])
+      } else {
+        expect(
+          contrastOf(chosen.background, ground),
+          `the chosen row's fill (${chosen.background}) barely differs from the page ` +
+            `(${ground}): aria-selected would be the ONLY signal of which colourway is active`,
+        ).toBeGreaterThanOrEqual(3)
+        expect(
+          others.filter((t) => parseCssColour(t.background).alpha > 0).map((t) => t.background),
+          'an unchosen row is filled too',
+        ).toEqual([])
+      }
+    })
+  }
 })
 
 /**
@@ -1924,7 +1960,9 @@ test.describe('prefers-contrast: more raises viewer ratios too (CO-10)', () => {
     await page.evaluate(() => document.fonts.ready)
     return page.evaluate(() => {
       const bar = document.querySelector('.notch') as HTMLElement
-      const navLink = document.querySelector('.nav-link') as HTMLElement
+      // A link that is NOT marked current: since VA-37 the garment page marks Products, which
+      // is already at full contrast, so it has nothing for prefers-contrast to raise.
+      const navLink = document.querySelector('.nav-link:not([aria-current])') as HTMLElement
       return {
         matches: matchMedia('(prefers-contrast: more)').matches,
         line: getComputedStyle(document.documentElement).getPropertyValue('--line').trim(),
@@ -2069,7 +2107,7 @@ test.describe('the serif accent stays within its style and its budget (TY-09)', 
  *
  * ⚠️ THE COLLAPSE MECHANISM AND THE IDENTITY-PLACEMENT MECHANISM ARE TWO DIFFERENT
  * QUERIES. The product identity moves into `.stage__aside` under the narrower, JS-driven
- * `IDENTITY_IN_ASIDE_QUERY` (`useIdentityInAside.ts`, 1100px + 720px height) — checking
+ * `IDENTITY_IN_ASIDE_QUERY` (`useIdentityInAside.ts`, 1100px + 880px or 1280px + 800px) — checking
  * only whether the heading sits in `.stage__aside` cannot see `.stage-block` itself: if
  * the CSS `row` layout leaked all the way down to 320px, the heading would still have
  * left the aside (320px is below 1100px either way), and this test would pass while the
@@ -2659,5 +2697,56 @@ test.describe('MO-23 — all five named motion affordances are present', () => {
       present.cameraButtons,
       'no .stage__controls .camera-btn — camera buttons affordance missing',
     ).toBe(true)
+  })
+})
+
+/**
+ * VA-46 (visual audit 2026-10-02): the garment pages' two buttons answer a mouse the way the
+ * website's do (`apps/cms/e2e/motion.spec.ts` has the account): both lift 2px and invert, from
+ * the shared `.btn:hover` rule in `packages/ui/src/base.css`. These are the page's own Email and
+ * WhatsApp links, read as the visitor reads them.
+ *
+ * Reduced motion is emulated, so the transition is 0.01ms and the settled state is what is read;
+ * it is polled because "settled" is a frame away. A touch phone has no hover and the rule is
+ * behind `(hover: hover)`, so the iPhone project skips.
+ */
+test.describe('both buttons answer a mouse the same way, on a garment page too (VA-46)', () => {
+  test('Email and WhatsApp each lift 2px and invert, and go back when the mouse leaves', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a touch phone has no hover')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const ground = await page.evaluate(() => {
+      const style = getComputedStyle(document.body)
+      return { text: style.color, page: style.backgroundColor }
+    })
+    for (const name of ['Email Us', 'WhatsApp Us']) {
+      const button = page.getByRole('link', { name }).first()
+      const read = () =>
+        button.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return { transform: style.transform, fill: style.backgroundColor, text: style.color }
+        })
+      await button.scrollIntoViewIfNeeded()
+      const rest = await read()
+      expect(rest.transform, `${name} is lifted at rest`).toBe('none')
+      await button.hover()
+      // The primary (Email) swaps its own two colours; the outline button (WhatsApp) takes the page's.
+      const swapped =
+        name === 'Email Us'
+          ? { fill: rest.text, text: rest.fill }
+          : { fill: ground.text, text: ground.page }
+      await expect
+        .poll(read, { message: `${name} did not lift 2px and invert` })
+        .toEqual({ transform: 'matrix(1, 0, 0, 1, 0, -2)', ...swapped })
+      await page.mouse.move(0, 0)
+      await expect
+        .poll(read, { message: `${name} stayed lifted after the mouse left` })
+        .toEqual(rest)
+    }
   })
 })

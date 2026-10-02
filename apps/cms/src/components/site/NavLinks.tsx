@@ -1,6 +1,6 @@
 'use client'
 
-import { SITE_MENU_ID, SITE_NAV_LINKS } from '@run-apparel/shared'
+import { markMenuClosing, SITE_MENU_ID, SITE_MENU_LINKS, SITE_NAV_LINKS } from '@run-apparel/shared'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
@@ -63,6 +63,12 @@ export function NavLinks() {
     return () => observer.disconnect()
   }, [])
 
+  // The menu's exit is drawn only while it closes, never on a change of layout (VA-51).
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    return menu ? markMenuClosing(menu) : undefined
+  }, [])
+
   return (
     <>
       {SITE_NAV_LINKS.map(({ href, label }) => (
@@ -73,6 +79,17 @@ export function NavLinks() {
           // `page`, not `true` — the value names WHAT is current, and assistive
           // technology announces "current page" for it. `true` is the generic fallback
           // and reads as "current item" with no context.
+          aria-current={pathname === href ? 'page' : undefined}
+        >
+          {label}
+        </Link>
+      ))}
+      {/* In the phone menu only (VA-37): `nav-link--menu` is hidden in the wide bar (notch.css). */}
+      {SITE_MENU_LINKS.map(({ href, label }) => (
+        <Link
+          className="nav-link nav-link--menu"
+          key={href}
+          href={href}
           aria-current={pathname === href ? 'page' : undefined}
         >
           {label}

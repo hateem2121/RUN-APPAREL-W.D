@@ -242,3 +242,61 @@ describe('the lazy chunks stay lazy', () => {
     ).toBe(false)
   })
 })
+
+describe('the model-viewer chunk is quiet (VA-10)', () => {
+  /**
+   * `@google/model-viewer` 4.3.1 prints its own debugging — nine `console.log` calls in its library
+   * source, six of them on every garment visit (visual audit VA-10, 2026-10-02). A pnpm patch turns
+   * those calls into comments in the installed package (`pnpm-workspace.yaml` →
+   * `patchedDependencies`; docs/DEPENDENCY-HOLDS.md). apps/cms/src/modelViewerQuiet.test.ts reads
+   * the installed library and the website's build; THIS reads the chunk the garment pages actually
+   * ship. It lives in this file because CI runs this file after a real build (`test:preload`); a unit
+   * run on a clean checkout has no chunk to read. (Until 2026-10-02 a Vite plugin did this for the
+   * garment pages alone; the patch replaced it because it reaches the website's build too.)
+   *
+   * Measured on the build, before and after the change: `model-viewer-*.js` 1,024,019 → 1,023,362
+   * bytes; "BAILING OUT EARLY" 1 → 0; `console.log` 13 → 4 (the four left are three.js's `log()`
+   * helper, a `WorkerPool.debug()` method and two calls behind a debug flag in a gain-map parser —
+   * none of them model-viewer's); `console.warn` 84 → 84 and `console.error` 24 → 24.
+   */
+  const assets = join(DIST, 'assets')
+  const modelViewerChunk = () => {
+    const file = readdirSync(assets).find((f) => /^model-viewer-.*\.js$/.test(f))
+    expect(file, 'no model-viewer chunk was emitted — did advancedChunks change?').toBeTruthy()
+    return readFileSync(join(assets, file as string), 'utf8')
+  }
+
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('prints none of the library’s own debug messages', () => {
+    const source = modelViewerChunk()
+    // One message from each of the four files that carry a call, by its own words.
+    for (const message of [
+      '[$updateSource]',
+      'BAILING OUT EARLY',
+      'IntersectionObserver fired',
+      '[onExtraModelChanged]',
+      'Attempting to present in AR',
+      'could not acquire 2d context',
+      '[processInput]',
+    ]) {
+      expect(
+        source.includes(message),
+        `the built model-viewer chunk still carries "${message}": the visitor's console prints ` +
+          'a library’s debugging on every visit. Is the `@google/model-viewer` entry still under ' +
+          '`patchedDependencies` in pnpm-workspace.yaml, for the version that is installed?',
+      ).toBe(false)
+    }
+  })
+
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(
+    'still carries the library’s warnings, so the check above looked at the real chunk',
+    () => {
+      const source = modelViewerChunk()
+      // The control: a warning the library means. A chunk the patch had emptied or replaced
+      // would pass the test above for the wrong reason. If an upgrade rewords this text, update it.
+      expect(source).toContain('interact() failed because an existing interaction is running')
+      expect(source.length, 'the model-viewer chunk is nowhere near its size').toBeGreaterThan(
+        500_000,
+      )
+    },
+  )
+})

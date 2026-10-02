@@ -1,4 +1,5 @@
 import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { FACTS } from '../src/lib/companyFacts'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -675,6 +676,133 @@ test.describe('TY-12 / TY-13 — no headline strands its last word', () => {
   }
 })
 
+test.describe('VA-43 — a hero label never leaves its last words alone', () => {
+  /**
+   * Visual audit 2026-10-02. At 390px the teamwear page's "[ TEAMWEAR & UNIFORMS · FROM 50 PIECES
+   * PER STYLE ]" wrapped and left "STYLE ]" on a line of its own, and on the home page the label's
+   * second line began with the separator dot. `.site-hero .label` carries `text-wrap: balance`
+   * now, and on a phone the home label is two deliberate lines with no dot (site.css).
+   *
+   * LINES ARE COUNTED PER WORD, as the headline test above counts them, and a word with no box
+   * (the hidden dot) is not a word on any line. A label that wraps must have its shortest line at
+   * least half the longest; the audit's case was 7 characters against 40.
+   */
+  const linesOf = (page: import('@playwright/test').Page, selector: string) =>
+    page.evaluate((target) => {
+      const label = document.querySelector(target)
+      if (!label) return []
+      const words: { mid: number; text: string }[] = []
+      const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const value = node.nodeValue ?? ''
+        const re = /\S+/g
+        for (let match = re.exec(value); match; match = re.exec(value)) {
+          const range = document.createRange()
+          range.setStart(node, match.index)
+          range.setEnd(node, match.index + match[0].length)
+          const rect = range.getBoundingClientRect()
+          if (rect.width > 0) words.push({ mid: rect.top + rect.height / 2, text: match[0] })
+        }
+      }
+      const tolerance = Number.parseFloat(getComputedStyle(label).fontSize) * 0.6
+      const lines: string[][] = []
+      let lineMid = Number.NEGATIVE_INFINITY
+      for (const word of words) {
+        if (Math.abs(word.mid - lineMid) > tolerance) {
+          lines.push([])
+          lineMid = word.mid
+        }
+        lines[lines.length - 1]?.push(word.text)
+      }
+      return lines.map((line) => line.join(' '))
+    }, selector)
+
+  /** The shortest line as a share of the longest, in characters; 1 for a label on one line. */
+  const balance = (lines: string[]) =>
+    lines.length < 2
+      ? 1
+      : Math.min(...lines.map((l) => l.length)) / Math.max(...lines.map((l) => l.length))
+
+  test('the detector flags a planted stranded last line (negative control)', async ({ page }) => {
+    await page.goto('/custom-teamwear-manufacturer')
+    await page.evaluate(() => {
+      const planted = document.createElement('p')
+      planted.id = 'label-control'
+      planted.textContent = 'AAAAAAAAAAAA AAAAAAAAAAAA B ]'
+      planted.style.cssText =
+        'font-family:monospace;font-size:16px;width:26ch;white-space:normal;text-wrap:wrap'
+      document.querySelector('main')?.prepend(planted)
+    })
+    const lines = await linesOf(page, '#label-control')
+    expect(lines, 'the planted label did not wrap into two lines').toHaveLength(2)
+    expect(balance(lines), lines.join(' / ')).toBeLessThan(0.5)
+  })
+
+  for (const width of [320, 390]) {
+    test(`no buyer page's label strands its last words at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 })
+      for (const path of FAMILY_PAGE_SOURCES) {
+        await page.goto(path)
+        await settle(page)
+        const lines = await linesOf(page, '.site-hero .label')
+        expect(
+          lines.length,
+          `${path}: the label was not found, so nothing was measured`,
+        ).toBeGreaterThan(0)
+        expect(
+          balance(lines),
+          `${path} at ${width}px: ${lines.join(' / ')}`,
+        ).toBeGreaterThanOrEqual(0.5)
+        if (lines.length > 1) {
+          const last = lines[lines.length - 1] ?? ''
+          expect(
+            last.split(' ').length,
+            `${path} at ${width}px ends on "${last}"`,
+          ).toBeGreaterThanOrEqual(3)
+        }
+      }
+    })
+  }
+
+  test('the teamwear label, the audit’s case, never ends on a word alone at 390px', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/custom-teamwear-manufacturer')
+    await settle(page)
+    const lines = await linesOf(page, '.site-hero .label')
+    // In capitals it took two lines and left "STYLE ]" alone; in normal letters (VA-44, the owner's
+    // choice of 2026-10-02) it fits on one. Either is fine: what may never happen is the lone word.
+    expect(lines.length, lines.join(' / ')).toBeLessThanOrEqual(2)
+    expect(lines.at(-1)?.toLowerCase(), 'the label still ends on "style ]" alone').not.toBe(
+      'style ]',
+    )
+  })
+
+  test('the home label is two lines with no dot on a phone, and one line with its dot from 40rem', async ({
+    page,
+  }) => {
+    const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value
+    // In normal letters since 2026-10-02 (visual audit VA-44, the owner's choice).
+    const first = '[ Private label manufacturer since 1889'
+    const second = `Start from ${minimum} pieces per style ]`
+    for (const width of [360, 390, 414, 639]) {
+      await page.setViewportSize({ width, height: 844 })
+      await page.goto('/')
+      await settle(page)
+      expect(await linesOf(page, '.site-hero .label'), `${width}px`).toEqual([first, second])
+    }
+    for (const width of [641, 1280]) {
+      await page.setViewportSize({ width, height: 844 })
+      await page.goto('/')
+      await settle(page)
+      expect(await linesOf(page, '.site-hero .label'), `${width}px`).toEqual([
+        `${first} · ${second}`,
+      ])
+    }
+  })
+})
+
 test.describe('TY-12 — no heading splits a word across two lines', () => {
   /**
    * `.display` carries `overflow-wrap: anywhere`, so a word wider than its column breaks instead
@@ -1032,6 +1160,10 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
           selector: `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`,
           textTransform: getComputedStyle(el).textTransform,
           text: (el.textContent ?? '').trim().slice(0, 30),
+          // The bracket label above each page's headline is in normal letters since 2026-10-02
+          // (visual audit VA-44, the owner's choice); the test below holds that. It still counts
+          // for the control, and the rest of the register keeps its capitals and is checked here.
+          heroLabel: el.classList.contains('label') && el.closest('.site-hero') !== null,
         }))
       })
 
@@ -1044,13 +1176,52 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
         `${path} has no .mono/.label/.section-number element`,
       ).toBeGreaterThan(0)
 
-      const wrong = measured.filter((m) => m.textTransform !== 'uppercase')
+      const wrong = measured.filter((m) => !m.heroLabel && m.textTransform !== 'uppercase')
       expect(
         wrong.map((m) => `${m.selector} is "${m.textTransform}": "${m.text}"`),
         `${path}: an element in the mono/caps register is not text-transform: uppercase`,
       ).toEqual([])
     })
   }
+})
+
+test.describe('the bracket label above each headline is in normal letters (VA-44)', () => {
+  for (const path of PAGES) {
+    test(`${path}: its hero label is set in normal letters, same words`, async ({ page }) => {
+      await page.goto(path)
+      await settle(page)
+      const label = page.locator('.site-hero .label').first()
+      await expect(label).toBeVisible()
+      expect(await label.evaluate((el) => getComputedStyle(el).textTransform)).toBe('none')
+      // Typed in normal case: a label typed in capitals would still shout with the rule off.
+      const text = (await label.innerText()).replace(/[^A-Za-z]/g, '')
+      expect(text, 'the label is typed in capitals').not.toBe(text.toUpperCase())
+    })
+  }
+
+  // The footer address too (the owner's same choice). Its first rule lost to `.footer-block li`,
+  // a class and an element, and the address shipped in capitals for a day: a computed style is
+  // the only thing that sees which rule won. apps/viewer/e2e/siteFooter.spec.ts asks the same.
+  test('the footer address is in normal letters, and the email link beside it keeps its capitals', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await settle(page)
+    const address = page.locator('footer .footer-block__address').first()
+    await expect(address).toBeVisible()
+    const facts = await address.evaluate((el) => ({
+      address: getComputedStyle(el).textTransform,
+      link: getComputedStyle(el.closest('.footer-block')?.querySelector('a') ?? el).textTransform,
+      typed: el.textContent ?? '',
+    }))
+    expect(facts.address, 'the address is still set in capitals').toBe('none')
+    // The control: the rule reached the address and nothing else in its block.
+    expect(facts.link, 'the email link lost its capitals, or the block was not found').toBe(
+      'uppercase',
+    )
+    const letters = facts.typed.replace(/[^A-Za-z]/g, '')
+    expect(letters, 'the address is typed in capitals').not.toBe(letters.toUpperCase())
+  })
 })
 
 /*
@@ -1203,8 +1374,10 @@ test.describe('section spacing has at most two distinct rhythms across a width s
  */
 test.describe('LA-01 — the home page section order is locked', () => {
   // D23 (owner, 2026-09-29): who we are → what we make → 3D → how an order works → the
-  // numbers → the factory → talk to us. Credibility still leads, which is what D6 protected.
-  test('hero first, then №01 through №07 in DOM order', async ({ page }) => {
+  // numbers → talk to us. Credibility still leads, which is what D6 protected. The factory strip
+  // that sat before "talk to us" as №06 was removed on 2026-10-02 (visual audit VA-29, the
+  // owner's choice), and "talk to us" took its number, so the sequence stops at №06.
+  test('hero first, then №01 through №06 in DOM order', async ({ page }) => {
     await page.goto('/')
     await settle(page)
 
@@ -1226,7 +1399,6 @@ test.describe('LA-01 — the home page section order is locked', () => {
       '№04',
       '№05',
       '№06',
-      '№07',
     ])
   })
 })
@@ -1265,8 +1437,8 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
     // Everything else is recorded (annotation above), not graded — LA-02 is an input
     // fact for other areas' work (LA-12's column context, the owner's home-page
     // question), not a pass/fail judgement in itself.
-    // Hero + №01–№07 since D23 (2026-09-29).
-    expect(facts.sectionCount, 'home page rendered without its 8 sections').toBe(8)
+    // Hero + №01–№06: №07 went when the factory strip was removed (2026-10-02, VA-29).
+    expect(facts.sectionCount, 'home page rendered without its 7 sections').toBe(7)
     expect(facts.words, 'home page rendered almost no text').toBeGreaterThan(50)
   })
 
@@ -1282,15 +1454,21 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
 })
 
 /**
- * LA-12 — the gallery (`.product-grid`, `auto-fill, minmax(260px, 1fr)`, 24px gap,
- * `site.css:1242-1249`) genuinely reaches 1/2/3/4 columns as the content column widens,
- * including the ≥1600px fourth column the owner added deliberately (FA-E-04). Reads the
- * ACTUAL rendered column count off `getComputedStyle`, never assumed from a viewport
+ * LA-12 — the gallery (`.product-grid`) genuinely reaches 2/2/3/4 columns as the content
+ * column widens, including the ≥1600px fourth column the owner added deliberately (FA-E-04).
+ * Reads the ACTUAL rendered column count off `getComputedStyle`, never assumed from a viewport
  * width formula, per this batch's "measured never computed" rule.
+ *
+ * ⚠️ A PHONE HAS TWO COLUMNS SINCE 2026-10-02 (visual audit VA-42, the owner's choice): this
+ * asserted ONE column at 375px, from the `auto-fill, minmax(260px, 1fr)` the grid used until
+ * then, and one card a row was why the page ran to 36 phone screens. The counts are written
+ * out in `site.css` now (two below 900px, three from 900px, four from 1600px), because the rule
+ * that keeps a card from standing alone on the last row has to know them.
+ * `e2e/productsGrid.spec.ts` holds the phone layout and that rule.
  */
-test.describe('LA-12 — the gallery genuinely reaches 1/2/3/4 columns', () => {
+test.describe('LA-12 — the gallery genuinely reaches 2, 3 and 4 columns', () => {
   const CASES = [
-    { width: 375, columns: 1 },
+    { width: 375, columns: 2 },
     { width: 700, columns: 2 },
     { width: 1280, columns: 3 },
     { width: 1920, columns: 4 },

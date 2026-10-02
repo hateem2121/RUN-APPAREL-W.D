@@ -274,7 +274,8 @@ test.describe('RO-09 — every contact-form error route renders its own message'
       await page.goto(`/contact${query}`)
       const expected = expectedContactNotice(params)
       if (!expected) throw new Error(`test case "${name}" has no expected notice — fix the fixture`)
-      const notice = page.locator(params.sent ? '.form-notice--ok' : '.form-notice--bad')
+      // A successful Send is answered by the confirmation that replaces the form (VA-27).
+      const notice = page.locator(params.sent ? '.inquiry-done__text' : '.form-notice--bad')
       await expect(notice).toBeVisible()
       await expect(notice).toHaveText(expected)
     })

@@ -1,7 +1,9 @@
 import {
   CONSENT_OPEN_EVENT,
   DEFAULT_SITE_SETTINGS,
+  EMPTY_FOOTER,
   formatAddress,
+  SITE_FOOTER_LINKS,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { act } from 'react'
@@ -11,11 +13,13 @@ import { Footer } from './Footer'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 /**
- * The footer is the company's identity block on the one surface reached by
- * scanning a physical garment tag — audit FA-Q-09 measured it holding a wordmark,
- * a tagline and a legal line, while the marketing site's footer prints email,
- * WhatsApp and a postal address. The buyer most likely to be verifying a supplier
- * was the one shown least about them.
+ * The garment pages draw the WEBSITE's footer since 2026-10-02 (visual audit VA-31). The
+ * contact details stay what audit FA-Q-09 asked for on the one surface reached by scanning a
+ * physical garment tag — email, WhatsApp and the postal address — now in the website's
+ * Contact block, with the website's call to action, clock and bottom row around them.
+ *
+ * The browser suites hold both footers to one template (`siteFooterAriaSnapshot`); these
+ * tests pin what the template cannot see: the addresses the links go to.
  */
 
 let host: HTMLDivElement
@@ -40,7 +44,9 @@ const settings: ViewerSiteSettings = {
 
 const render = (node: React.ReactNode) => act(() => root.render(node))
 
-const links = () => [...host.querySelectorAll<HTMLAnchorElement>('.footer__meta a')]
+const links = () => [...host.querySelectorAll<HTMLAnchorElement>('footer a')]
+const byText = (label: string) => links().find((a) => a.textContent === label)
+const headings = () => [...host.querySelectorAll('footer h3')].map((h) => h.textContent)
 
 describe('Footer', () => {
   it('prints the contact details the CMS holds, as readable text', () => {
@@ -59,9 +65,10 @@ describe('Footer', () => {
     render(<Footer settings={settings} />)
 
     const wa = links().find((a) => (a.getAttribute('href') ?? '').includes('wa.me'))
-    // The displayed value keeps its spaces and its `+`; the href must not.
+    // The displayed value keeps its spaces and its `+`; the href must not. The words around
+    // it are the website footer's since VA-31.
     expect(wa?.getAttribute('href')).toBe('https://wa.me/441234567890')
-    expect(wa?.textContent).toBe('+44 1234 567890')
+    expect(wa?.textContent).toBe('WhatsApp +44 1234 567890')
     expect(wa?.getAttribute('rel')).toContain('noopener')
   })
 
@@ -75,14 +82,23 @@ describe('Footer', () => {
     expect(mailto?.getAttribute('href')).not.toContain('?')
   })
 
-  it('offers the one route out that is not an enquiry', () => {
+  it("offers routes out that are not an enquiry: the website's own pages", () => {
     render(<Footer settings={settings} />)
 
-    // Audit FA-W-01: six anchors, three destinations, and every one of them either
-    // an enquiry or the skip link. This is the secondary action for the buyer who
-    // is interested and not yet ready to email.
-    const home = links().find((a) => a.getAttribute('href') === 'https://wear-run.com')
-    expect(home?.textContent).toBe('wear-run.com')
+    // Audit FA-W-01 found every anchor on this page was an enquiry or the skip link. The
+    // website's bottom row answers it with Products and Guides (the "wear-run.com" link the
+    // old footer carried went with it, VA-31).
+    expect(byText('Products')?.getAttribute('href')).toBe('https://wear-run.com/products')
+    expect(byText('Guides')?.getAttribute('href')).toBe('https://wear-run.com/guides')
+  })
+
+  it("sends the call to action to the website's contact page", () => {
+    render(<Footer settings={settings} />)
+
+    // The website's tab goes to the email instead only ON /contact; a garment page never is.
+    const tab = host.querySelector<HTMLAnchorElement>('.site-footer__tab')
+    expect(tab?.getAttribute('href')).toBe('https://wear-run.com/contact')
+    expect(tab?.textContent).toContain(EMPTY_FOOTER.ctaLabel)
   })
 
   it('still shows the legal line', () => {
@@ -90,12 +106,13 @@ describe('Footer', () => {
     expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
   })
 
-  it('links the privacy notice and the terms on the marketing site', () => {
+  it('links every page in the bottom row on the website, in the shared order', () => {
     render(<Footer settings={settings} />)
 
     // Both surfaces process visitor data, and the notice says it covers these pages; a
     // visitor looks for it in the footer of the page they are on.
-    const byText = (label: string) => links().find((a) => a.textContent === label)
+    const row = [...host.querySelectorAll<HTMLAnchorElement>('.footer-legal a')]
+    expect(row.map((a) => a.textContent)).toEqual(SITE_FOOTER_LINKS.map((link) => link.label))
     expect(byText('Privacy')?.getAttribute('href')).toBe('https://wear-run.com/privacy')
     expect(byText('Terms')?.getAttribute('href')).toBe('https://wear-run.com/terms')
   })
@@ -108,7 +125,7 @@ describe('Footer', () => {
    */
   it('offers the cookie question again, and stays a real link when no banner answers', () => {
     render(<Footer settings={settings} />)
-    const cookies = links().find((a) => a.textContent === 'Cookies')
+    const cookies = byText('Cookies')
     expect(cookies?.getAttribute('href')).toBe('https://wear-run.com/privacy#cookies')
 
     // Read at the document, which is above React's root, so the footer's handler has run.
@@ -144,6 +161,68 @@ describe('Footer', () => {
 
   it('prints the postal address the site footer prints', () => {
     render(<Footer settings={settings} />)
-    expect(host.querySelector('.footer__meta')?.textContent).toContain(formatAddress())
+    expect(host.querySelector('.footer-block--contact')?.textContent).toContain(formatAddress())
+  })
+
+  it('draws no claim block for a blank claim, and each claim block once it is set', () => {
+    render(<Footer settings={settings} />)
+    expect(headings()).toEqual(['Contact'])
+    expect(host.querySelector('.footer-marks')).toBeNull()
+
+    render(
+      <Footer
+        settings={{
+          ...settings,
+          footer: {
+            ...EMPTY_FOOTER,
+            capacity: { moq: '300 pieces', leadTime: '6 weeks', hours: null },
+            worksCoordinates: '32.4945° N, 74.5229° E',
+            certifications: ['Suppliers: OEKO-TEX, GOTS'],
+            socialLinks: [{ label: 'LinkedIn', url: 'https://www.linkedin.com/company/x' }],
+          },
+        }}
+      />,
+    )
+    expect(headings()).toEqual(['Contact', 'Capacity', 'Standards', 'Elsewhere'])
+    expect(host.textContent).toContain('MOQ 300 pieces')
+    expect(host.textContent).toContain('32.4945° N, 74.5229° E')
+    // The marks follow from the entry's words, in the order named, from the website's files.
+    const marks = [...host.querySelectorAll<HTMLImageElement>('.footer-marks img')]
+    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', 'GOTS'])
+    expect(marks.map((img) => img.getAttribute('src'))).toEqual([
+      '/standards/oeko-tex.svg',
+      '/standards/gots.svg',
+    ])
+    expect(byText('LinkedIn')?.getAttribute('href')).toBe('https://www.linkedin.com/company/x')
+  })
+
+  it('draws the default footer from an API answer cached before the footer joined it', () => {
+    const { footer: _dropped, ...older } = settings
+    render(<Footer settings={older} />)
+    expect(host.querySelector('.footer-q')?.textContent).toBe(EMPTY_FOOTER.ctaQuestion)
+    expect(host.querySelector('.footer-q em')?.textContent).toBe('properly')
+    expect(headings()).toEqual(['Contact'])
+  })
+
+  it('counts the email and WhatsApp clicks, as the footer it replaced did', () => {
+    render(<Footer settings={settings} />)
+    const events: string[] = []
+    const listen = (event: Event) => {
+      events.push((event as CustomEvent<{ event: string }>).detail.event)
+    }
+    document.addEventListener('run:analytics', listen)
+    const stay = (event: Event) => event.preventDefault()
+    document.addEventListener('click', stay)
+    try {
+      for (const a of links().filter((l) => /^(mailto:|https:\/\/wa\.me)/.test(l.href))) {
+        act(() => {
+          a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        })
+      }
+    } finally {
+      document.removeEventListener('run:analytics', listen)
+      document.removeEventListener('click', stay)
+    }
+    expect(events).toEqual(['email_clicked', 'whatsapp_clicked'])
   })
 })

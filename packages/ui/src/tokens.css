@@ -69,6 +69,15 @@
   /* ── Focus ──────────────────────────────────────────────────────── */
   --focus-ring: light-dark(var(--volt-deep), var(--volt));
 
+  /* ── Error ──────────────────────────────────────────────────────── */
+  /* A wrongly filled field, its message and a refused send's notice. Shared since 2026-10-01
+     (visual audit VA-22): it lived in the website's own stylesheet, so the 3D pages could not
+     use the same red. ⚠️ light-dark(), because the fixed value it replaced FAILED in dark mode:
+     a UI boundary needs 3:1 against its background (WCAG 1.4.11), measured 2026-09-07 against
+     --surface — #b3261e on #faf9f6 6.21:1, #b3261e on #23271f 2.33:1, #f2b8b5 on #23271f
+     8.90:1. Never the only signal: the words beside it say what is wrong (WCAG 1.4.1). */
+  --danger: light-dark(#b3261e, #f2b8b5);
+
   /* ── Motion ─────────────────────────────────────────────────────── */
   /* SPLIT, not lowered — owner decision 2026-08-14. Every duration here was
      tuned for an ENTRANCE, so a button press also took 500ms. The vendored
@@ -87,17 +96,12 @@
      showpieces — the numbers counting up, the order timeline drawing, the globe's routes —
      read as broken at 800ms. Those three only; reduced motion stops all of them. */
   --showpiece: 1400ms;
-  /* ⚠️ `--stagger` (60ms) WAS HERE AND NOTHING READ IT — declared 2026-08-14, flagged by
-     three audits (2026-08-14, 2026-09-05 and 2026-09-06 FA-T-01/FA-H-19), and shipped to
-     every visitor for the whole of that time. Deleted 2026-09-07 rather than given a use:
-     neither surface staggers anything, and the marketing site's new entrance animations
-     deliberately match the viewer's, which reveal each element on its own as it arrives.
-     If a stagger is ever wanted, adding a token back is one line — carrying a dead one is
-     what made two audits report the same thing twice.
-     ⚠️ Written `--stagger` rather than `--stagger:` on purpose: tokens.test.ts matches
-     `--name<colon>value;` against this file as raw text, and `[^;]` crosses newlines, so a
-     colon here makes a COMMENT parse as a declaration and the drift test compares
-     paragraphs of prose against a documented value. Found on the way to deleting it. */
+  /* The pause between rows that arrive one after another: the phone menu's rows (visual audit
+     VA-51, owner-approved 2026-10-01: "the links fading in 30-50 ms apart"). A 60ms stagger
+     token lived here from 2026-08-14 to 2026-09-07 with nothing reading it — three audits
+     reported it — and was deleted; it came back with its first reader (packages/ui/src/notch.css).
+     Not for the page's entrance reveals, which stay one element at a time (D8). */
+  --stagger: 40ms;
   --reveal-y: 24px;
 
   /* ── Targets ────────────────────────────────────────────────────── */
@@ -211,6 +215,9 @@
   --text-body: 1.0625rem; /* 17px at the 16px default */
   --text-sm: 0.9375rem; /* 15px */
   --text-xs: 0.8125rem; /* 13px */
+  /* Since 2026-10-02 (visual audit VA-11, owner's choice) every text that is READ is at least
+     12px: it takes --text-mono-lg below. These two are left to the decorative register: bracket
+     labels, section numbers, the timeline's step numbers, "[ Photo to come ]", the arrow signs. */
   --text-mono: 0.6875rem; /* 11px — .mono, content labels */
   --text-mono-sm: 0.625rem; /* 10px */ /* .label, .section-number — chips */
 
@@ -225,6 +232,11 @@
   --text-wordmark-sm: 1rem; /* 16px — the bar's .notch__wordmark, .footer__brand */
   --text-note: 0.875rem; /* 14px — .stage__error, .notice, .contact__micro */
   --text-mono-lg: 0.75rem; /* 12px — tracked caps one step above --text-mono */
+  /* 12px in the body face — the cookie card's sentence (the owner asked for smaller text in the
+     card on 2026-10-02, visual audit VA-13). Its own name, not --text-mono-lg's: that one is the
+     tracked-caps register, and this is running text. 12px is the floor VA-11 keeps for text that
+     is read. */
+  --text-fine: 0.75rem;
 
   /* ── The marketing site's two, added 2026-09-06 ──────────────────────
      apps/cms reads this file too, and the three gates above started scanning
@@ -247,6 +259,15 @@
      Measured: 320px viewport → -0.015em; 1440px → -0.030em. */
   --tracking-display-lg: clamp(-2.16px, -0.16vw, -0.4px);
   --tracking-display-sm: clamp(-1.38px, -0.1vw, -0.26px);
+  /*
+   * ⚠️ DISPLAY TYPE PAST 1920px (visual audit VA-12, 2026-10-02): THE SAME OPTICAL TIGHTNESS, IN em.
+   * Both tokens above bottom out in px — -2.16px and -1.38px from about 1350px up — which is -0.03em
+   * on the 72px hero and the 46px section headline they were drawn for. From 1920px those two keep
+   * growing (base.css), and a px tracking would loosen them as they grow: at 144px, -2.16px is
+   * -0.015em, half the tightness DESIGN.md §3 asks of large type. `-0.03em` is the value both
+   * already have at their 1920px sizes, so nothing moves at 1920 and it scales from there.
+   */
+  --tracking-display-large: -0.03em;
 
   /* ── Tracking for everything that is NOT display type ───────────────
      Added 2026-09-05, documenting 21 shipped values. Three steps carried 15 of
@@ -319,6 +340,31 @@
   --z-hero-grid: -1; /* .site-hero__grid — the blueprint grid behind the hero copy */
   --z-footer-tab: 2; /* .site-footer__tab — seated on the slab's top edge, above it */
   --z-footer-glow: 6; /* .footer-glow — the light, blended over the slab's content */
+  /* A fourth, 2026-10-02 (visual audit VA-30): above the card's picture strip, under the header. */
+  --z-card-control: 1; /* .card-gallery__arrow — previous / next over a gallery card's picture */
+
+  /*
+   * ⚠️ THE PAGE'S WIDTH AND GUTTER ARE ONE SOURCE, BECAUSE THREE THINGS HAD TO AGREE AND
+   * NOTHING MADE THEM.
+   *
+   * These were literals in site.css and a near-copy in `.site-footer` (`clamp(20px, 4.4vw, 64px)`
+   * against this `5vw`). Both clamps share a 20px floor and a 64px ceiling, so they were
+   * plainly meant to be the same number — and they missed each other by 4.6–6.2px at
+   * 768–1024, then by 130px at 1440 and 370px at 1920, because the footer is full-bleed
+   * and the page is centred (audit FA-D-01). Five pixels is the worst available value: too
+   * small to read as contrast, large enough to read as a mistake.
+   *
+   * Naming them also makes the width a single dial. `--site-max` is the ONLY thing the
+   * 1600px query below changes, and the gallery's fourth column, the wider hero and the
+   * footer's edge all follow from it — they cannot drift apart, because there is one
+   * number.
+   */
+  /* In this file since 2026-10-02 (visual audit VA-31): the footer lines up with this column on
+     the garment pages too, so the page's width is one source for both hosts. */
+  --site-max: 1180px;
+  --site-gutter: clamp(20px, 5vw, 64px);
+  /* what a `.site-container` child actually gets, at the cap */
+  --site-content: calc(var(--site-max) - var(--site-gutter) * 2);
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
@@ -327,10 +373,61 @@
     ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+/*
+ * Owner decision 2026-09-07 (audit FA-E-04): below 1600px nothing changes at all; above
+ * it the page widens so a fourth gallery column fills space that was empty margin.
+ * 1440 − 128 = 1312px of content takes four 260px minimum tracks with 24px gaps
+ * (4 × 260 + 3 × 24 = 1112), where 1052px took three. Prose is unaffected — `p, li` are
+ * capped at 60ch and `.site-lede` at 62ch, so nothing gets a longer line to read.
+ */
+@media (min-width: 1600px) {
+  :root {
+    --site-max: 1440px;
+  }
+}
+
+/*
+ * ⚠️ FLUID SPACING KEEPS TO THE 2px SCALE (visual audit VA-17, 2026-10-02). A `clamp()` that
+ * grows with the window lands between the scale's steps everywhere but its two ends: the audit
+ * counted 152 sizes such as 38.4 or 91.74px from the site's fluid paddings and gaps, while the
+ * gate (tokens.test.ts) can only check fixed values. `round(…, 2px)` puts each back on a step;
+ * `nearest` is its default, so the value moves at most 1px.
+ * ⚠️ BEHIND `@supports`, WITH THE `clamp()` LEFT IN PLACE ABOVE: `round()` is Baseline only since
+ * May 2024 (MDN, read 2026-10-02), so it is not yet "widely available", and a browser that does
+ * not know it drops the whole declaration: the padding would fall to 0, not to the unrounded
+ * size. Measured 2026-10-02 in Chromium, Firefox and WebKit: `round(clamp(8px, 2vw, 24px), 2px)`
+ * gives 8px at 390 wide and 12px at 640 (2vw is 12.8px). The same pattern sits beside each fluid
+ * spacing rule in footer.css, site.css and page.css; a safe-area inset or the bar's clearance is
+ * never rounded, only the clamp beside it, so nothing comes 1px closer to a notch.
+ */
+@supports (width: round(1px, 2px)) {
+  :root {
+    --site-gutter: round(clamp(20px, 5vw, 64px), 2px);
+  }
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+}
+
+/*
+ * ⚠️ PAPER HAS NO DARK THEME (visual audit VA-04, 2026-10-02). Printed from dark mode, every
+ * website page came out as light text on white paper — headline 1.27:1, body 1.20:1, measured
+ * against white — because a browser drops background colours on paper but keeps the dark
+ * theme's text colours: printing changes neither `prefers-color-scheme` nor a saved choice.
+ * One declaration answers every token: `color-scheme: light` resolves each `light-dark()` to its
+ * light half, natively, and through lightningcss's fallback, which compiles a `color-scheme`
+ * declaration into its `--lightningcss-light` / `--lightningcss-dark` switches rather than into
+ * a media query (lightningcss.dev, "Transpilation", read 2026-10-02). `:root[data-theme]`
+ * matches the theme switch's own specificity, and this block comes after it.
+ */
+@media print {
+  :root,
+  :root[data-theme] {
+    color-scheme: light;
+  }
 }

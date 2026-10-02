@@ -1,11 +1,15 @@
 import {
+  markMenuClosing,
   SITE_MENU_ID,
+  SITE_MENU_LINKS,
   SITE_MENU_NAME,
   SITE_NAV_LABEL,
   SITE_NAV_LINKS,
   THEME_SWITCH_NAMES,
+  THEME_SWITCH_WORDS,
 } from '@run-apparel/shared'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { startBarAutoHide } from '../lib/barAutoHide'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { appliedTheme, type Theme, toggleTheme } from '../lib/theme'
 
@@ -58,10 +62,23 @@ export function Header({ wordmark }: HeaderProps) {
     return () => observer.disconnect()
   }, [])
 
+  // The menu's exit is drawn only while it closes, never on a change of layout (VA-51).
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    return menu ? markMenuClosing(menu) : undefined
+  }, [])
+
+  // On a phone the bar leaves while the visitor scrolls down and returns as they scroll up
+  // (VA-40). The script only sets `data-bar-hidden`; notch.css does the rest.
+  const shell = useRef<HTMLElement>(null)
+  useEffect(() => (shell.current ? startBarAutoHide(shell.current) : undefined), [])
+
   const title = theme === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark
 
   return (
-    <header className="notch-shell">
+    <header className="notch-shell" ref={shell}>
+      {/* The phone's status area takes the bar's colour from this strip (notch.css, VA-50). */}
+      <div className="notch-strip" aria-hidden="true" />
       <div className="notch">
         {/*
           THE WORDMARK IS A LINK HOME since 2026-09-07 — owner decision D5,
@@ -84,8 +101,23 @@ export function Header({ wordmark }: HeaderProps) {
             <span className="visually-hidden">{SITE_MENU_NAME}</span>
           </button>
           <div className="notch__menu" id={SITE_MENU_ID} popover="auto">
+            {/*
+              Every garment page lives under the site's /products, so Products is the section the
+              visitor is in (VA-37: nothing in the menu said where you were). `true`, not `page`:
+              the link is the section, not this page.
+            */}
             {SITE_NAV_LINKS.map(({ href, label }) => (
-              <a className="nav-link" key={href} href={`${SITE_ORIGIN}${href}`}>
+              <a
+                className="nav-link"
+                key={href}
+                href={`${SITE_ORIGIN}${href}`}
+                aria-current={href === '/products' ? 'true' : undefined}
+              >
+                {label}
+              </a>
+            ))}
+            {SITE_MENU_LINKS.map(({ href, label }) => (
+              <a className="nav-link nav-link--menu" key={href} href={`${SITE_ORIGIN}${href}`}>
                 {label}
               </a>
             ))}
@@ -104,6 +136,9 @@ export function Header({ wordmark }: HeaderProps) {
                     strokeLinejoin="round"
                   />
                 </svg>
+                <span className="theme-toggle__words" aria-hidden="true">
+                  {THEME_SWITCH_WORDS.toDark}
+                </span>
                 <span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>
               </span>
               <span className="theme-toggle__face theme-toggle__face--to-light">
@@ -116,6 +151,9 @@ export function Header({ wordmark }: HeaderProps) {
                     strokeLinecap="round"
                   />
                 </svg>
+                <span className="theme-toggle__words" aria-hidden="true">
+                  {THEME_SWITCH_WORDS.toLight}
+                </span>
                 <span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>
               </span>
             </button>

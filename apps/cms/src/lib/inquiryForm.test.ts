@@ -1,49 +1,60 @@
 import { describe, expect, it } from 'vitest'
 import {
-  formProgress,
+  fieldError,
   inquiryAdminUrl,
   inquiryNotice,
+  NEED_US_SOONER,
+  OPTIONAL_DIVIDER,
   pickedFileProblem,
   pickProblem,
+  RECEIVED_HEADING,
+  SEND_ANOTHER,
+  SENDING_LABEL,
+  SUMMARY_HEADING,
 } from './inquiryForm'
 import { MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
 
 const MB = 1024 * 1024
 
-describe('formProgress — the bar above the two-step form', () => {
-  const start = {
-    started: false,
-    requiredDone: 0,
-    requiredTotal: 3,
-    onStepTwo: false,
-    optionalDone: 0,
-    optionalTotal: 7,
-  }
+const fine = { valid: true, valueMissing: false, typeMismatch: false }
+const empty = { valid: false, valueMissing: true, typeMismatch: false }
+const malformed = { valid: false, valueMissing: false, typeMismatch: true }
 
-  it('is empty until the buyer touches the form', () => {
-    expect(formProgress(start)).toBe(0)
+describe('the single-step form says exactly the words the owner approved (W1–W10)', () => {
+  it('keeps each approved line word for word', () => {
+    expect(OPTIONAL_DIVIDER).toBe('Optional details')
+    expect(SUMMARY_HEADING).toBe('Check these before sending:')
+    expect(SENDING_LABEL).toBe('Sending…')
+    expect(RECEIVED_HEADING).toBe('Inquiry received.')
+    expect(SEND_ANOTHER).toBe('Send another inquiry')
+    expect(NEED_US_SOONER).toBe('Need us sooner?')
+  })
+})
+
+describe('fieldError — the sentence under a wrongly filled field', () => {
+  it('tells the buyer what to do for each required field left empty (W2, W3, W5)', () => {
+    expect(fieldError('name', empty)).toBe('Enter your name.')
+    expect(fieldError('email', empty)).toBe('Enter your email address.')
+    expect(fieldError('message', empty)).toBe(
+      'Tell us what you are making. One sentence is enough.',
+    )
   })
 
-  it('gives a small head start the moment any field is focused (endowed progress)', () => {
-    expect(formProgress({ ...start, started: true })).toBe(10)
+  it('shows what a valid email looks like when one is mistyped (W4)', () => {
+    expect(fieldError('email', malformed)).toBe('Enter an email address like name@company.com.')
   })
 
-  it('fills to half as the three required fields are done, never past it on step 1', () => {
-    expect(formProgress({ ...start, started: true, requiredDone: 1 })).toBe(23)
-    expect(formProgress({ ...start, started: true, requiredDone: 3 })).toBe(50)
+  it("passes the file picker's own explanation through unchanged", () => {
+    const refused = { valid: false, valueMissing: false, typeMismatch: false }
+    expect(fieldError('files', refused, 'You chose 6 files.')).toBe('You chose 6 files.')
   })
 
-  it('moves when step 2 opens, and reaches 100 only when every optional detail is given', () => {
-    const ready = { ...start, started: true, requiredDone: 3, onStepTwo: true }
-    expect(formProgress(ready)).toBe(60)
-    expect(formProgress({ ...ready, optionalDone: 7 })).toBe(100)
-  })
-
-  it('stays within 0–100 whatever it is given', () => {
-    expect(formProgress({ ...start, started: true, requiredDone: 9, requiredTotal: 0 })).toBe(50)
-    expect(
-      formProgress({ ...start, started: true, requiredDone: 3, onStepTwo: true, optionalDone: 99 }),
-    ).toBe(100)
+  // NEGATIVE CONTROLS: a valid field, an optional field and an unknown failure say nothing.
+  it('says nothing about a field that is fine, or one it has no words for', () => {
+    expect(fieldError('name', fine)).toBeNull()
+    expect(fieldError('email', fine)).toBeNull()
+    expect(fieldError('company', empty)).toBeNull()
+    expect(fieldError('files', { ...fine, valid: false })).toBeNull()
   })
 })
 

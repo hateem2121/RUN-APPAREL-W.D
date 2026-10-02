@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Builds the home page's "Inside the factory" pictures (OI-3) from the owner's originals.
+ * Builds the home page's factory photos (OI-3) from the owner's originals: the building and its
+ * roof in №01, one photo per step of "How an order works" in №04. (The "Inside the factory" strip
+ * they were first made for was removed on 2026-10-02, owner's choice, visual audit VA-29/VA-34.)
  *
  * ⚠️ THE ORIGINALS NEVER ENTER THE REPOSITORY. They live in the owner's own folder on their
  * Mac (4,000–5,000 px, up to 16 MB each) and this repo is public; only the web-sized,

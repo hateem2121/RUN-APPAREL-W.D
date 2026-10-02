@@ -15,6 +15,20 @@ html {
      already provide the feedback, and two overlapping affordances read as a bug
      rather than as emphasis. */
   -webkit-tap-highlight-color: transparent;
+
+  /* VA-16, visual audit 2026-10-02. Native controls drew in the system's blue, which belongs
+     to neither theme: the text cursor in a field (on iPhone, where the contact form is mostly
+     filled in) and the tick of any native checkbox or range. Both properties inherit, so one
+     declaration here reaches every control, present and future. The pair is the brand's ink
+     in each theme, and each was measured against all four grounds (--bg, --surface, --wash,
+     --raised): the cursor, --text, is 12.71-16.63:1 light and 9.53-13.96:1 dark; the accent,
+     --btn-primary-bg (ink in light, volt in dark: the primary button's fill), is 12.71-16.63:1
+     light and 8.95-13.11:1 dark, against the 3:1 a control's state needs (WCAG 1.4.11).
+     ⚠️ NOT --volt FOR THE ACCENT, the tempting brand colour: on the light grounds it is only
+     1.03-1.27:1, an invisible checked box. Forced colours replaces both (CSS Color Adjustment
+     lists them), so nothing here fights high contrast. */
+  accent-color: var(--btn-primary-bg);
+  caret-color: var(--text);
 }
 
 body {
@@ -132,6 +146,23 @@ li {
   transform: translateY(0);
 }
 
+/*
+ * ⚠️ PARKED ABOVE THE PAGE WAS NOT HIDDEN ENOUGH (visual audit VA-26, 2026-10-01). At
+ * `translateY(-150%)` the link sat 75px above the top edge, and an iPhone's pull-down bounce
+ * shows exactly that strip: "Skip to main content" appeared above the hero on every page.
+ * While it is NOT focused it is now also clipped to nothing, the standard visually-hidden
+ * pattern (The A11y Project, `:not(:focus):not(:active)`), so no bounce, zoom or overscroll can
+ * reveal it. Focused, it is the full-size link the comment above insists on, sliding in as before.
+ */
+.skip-link:not(:focus):not(:active) {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .skip-link {
     /* Was `120ms ease-out` — the single raw duration-plus-easing in the whole
@@ -211,6 +242,77 @@ li {
 .display--section {
   font-size: clamp(1.625rem, 4vw, 2.875rem);
   letter-spacing: var(--tracking-display-sm);
+}
+
+/*
+ * ⚠️ MORE AIR FOR A HEADLINE THAT RUNS PAST THREE LINES, ON A PHONE ONLY (visual audit VA-45,
+ * 2026-10-02, owner-approved). `.display` sets its lines at 0.92 of their size: 31px lines under
+ * 34px type on a phone, 66 under 72 on a desktop. For a short uppercase headline that is the
+ * poster block it is meant to be; at five lines — the audit's /custom-teamwear-manufacturer at
+ * 390px — the lines nearly touch, and the serif accent's descenders reach the capitals below
+ * them, more so in volt on dark.
+ *
+ * 0.98 sits inside the owner's 0.96-1.0, and UNDER 1 on purpose: `e2e/audit-guards.spec.ts`
+ * holds every `.display` to "leads tighter than its own size, so the caps still stack as a
+ * block", which 1.0 would fail. Below 720px only, the width where the bar leaves its phone
+ * layout (notch.css); from there up every headline keeps 0.92, and so does any short one.
+ *
+ * ⚠️ A CLASS ON THE HEADLINE, BECAUSE CSS CANNOT COUNT A HEADLINE'S LINES: nothing in a
+ * stylesheet can tell a two-line headline from a five-line one, and a rule on `.display` itself
+ * would loosen the short ones too. So `display--long` goes on the headlines whose words are known
+ * to be long: the four buyer pages' (45-53 characters; the audit counts five lines for the
+ * first) and the seven guides' (36-46), whole templates, so sister pages match. On no other.
+ *
+ * Every other headline on both apps was checked, and sets on about three lines or fewer at
+ * 320-430px: the home, products, contact, privacy, terms, 404 and error headlines (22-36
+ * characters), the viewer's three notices and a product name (the garment files' names run to 27
+ * characters at most, docs/GARMENT-CATALOGUE-BASELINE.md). ⚠️ THAT IS AN ESTIMATE, NOT A
+ * MEASUREMENT: a width model calibrated on docs/DESIGN.md's "PRODUCTION." = 302.8px at 34px,
+ * which also gives the audit's five lines for the first buyer page. A CMS-written product name is
+ * the one headline whose length nobody here controls; a class set from its length would serve it,
+ * at the price of a character threshold that is a guess about glyph widths, so it waits for a name
+ * that needs it. The rule and who carries it: apps/viewer/src/styles/headlineLeading.test.ts; the
+ * lines, in a browser: apps/cms/e2e/headlineLeading.spec.ts.
+ */
+@media (width < 720px) {
+  .display--long {
+    line-height: 0.98;
+  }
+}
+
+/*
+ * ⚠️ FROM 1920px THE DISPLAY SIZES KEEP GROWING (visual audit VA-12, 2026-10-02, owner-approved).
+ * Both stop at their `clamp()` ceilings — the hero at 72px from 1333px wide, the section headline at
+ * 46px from 1150px — so on a 2560x1440 screen the audit measured the home hero covering 43% of the
+ * height, with type drawn for a laptop. Below 1920px NOTHING here applies and the two `clamp()` rules
+ * above are untouched (tokens.test.ts, TY-03, pins them); from 1920px a size that starts at exactly
+ * the old ceiling takes over and grows with the window.
+ *
+ *   hero     max(4.5rem, min(3.75vw, 9rem))          72px at 1920, 96px at 2560, 144px from 3840
+ *   section  max(2.875rem, min(2.3958vw, 5.75rem))   46px at 1920, 61px at 2560, 92px from 3840
+ *
+ * `3.75vw` and `2.3958vw` are 72px and 46px divided by 1920, so the size is continuous at 1920. The
+ * `max()` keeps the rem ceiling underneath, so a visitor who raised the browser's text size never gets
+ * less than before (4.5rem is 90px at a 20px root). The `min()` is a ceiling at 3840px, and it is
+ * worked out, not a taste: the page's column stops at `--site-max` (1440px: 1312px of text), and the
+ * word that fixed the hero's floor on 2026-09-11, "PRODUCTION.", is 8.9em wide (302.8px at 34px,
+ * docs/DESIGN.md §3), so it stops fitting that column at 147px. 144px keeps 2% of room, where the
+ * engines differ on that word by under 1% (278.6px against 280.38px at 31.36px), so a word is not
+ * split — the owner's rule of that day. The stage stops growing at the same 3840px (page.css).
+ *
+ * Tracking goes with it (`--tracking-display-large`, tokens.css), because a px tracking would loosen
+ * the type as it grows; `.serif-accent` inherits it.
+ */
+@media (min-width: 1920px) {
+  .display--hero {
+    font-size: max(4.5rem, min(3.75vw, 9rem));
+    letter-spacing: var(--tracking-display-large);
+  }
+
+  .display--section {
+    font-size: max(2.875rem, min(2.3958vw, 5.75rem));
+    letter-spacing: var(--tracking-display-large);
+  }
 }
 
 /* The wordmark is display type at a FIXED size, so it takes a fixed value —
@@ -342,18 +444,6 @@ li {
   border: 1.4px solid var(--btn-primary-bg);
 }
 
-/* Hover is gated on a real pointer throughout this file and page.css. A touch
-   device has no hover, but it still MATCHES :hover on tap and holds that state
-   until you tap elsewhere — so an ungated rule reads as "stuck". This product is
-   reached by scanning a QR code, i.e. overwhelmingly from a phone. Added
-   2026-08-13; `isCoarsePointer()` already gated the JS behaviours (Cursor.tsx,
-   ColourwayTabs.tsx) and only the CSS appearance was missed. */
-@media (hover: hover) and (pointer: fine) {
-  .btn--primary:hover {
-    transform: translateY(-2px);
-  }
-}
-
 .btn--ghost {
   background: transparent;
   color: var(--text);
@@ -361,8 +451,39 @@ li {
   border: 1.4px solid var(--line-control);
 }
 
-/* Ghost hover inverts text/bg. */
+/* Hover is gated on a real pointer throughout this file and page.css. A touch
+   device has no hover, but it still MATCHES :hover on tap and holds that state
+   until you tap elsewhere — so an ungated rule reads as "stuck". This product is
+   reached by scanning a QR code, i.e. overwhelmingly from a phone. Added
+   2026-08-13; `isCoarsePointer()` already gated the JS behaviours (Cursor.tsx,
+   ColourwayTabs.tsx) and only the CSS appearance was missed.
+
+   ⚠️ BOTH BUTTONS ANSWER A POINTER THE SAME WAY: THEY LIFT 2PX AND INVERT (VA-46, visual audit
+   2026-10-02). The primary button used to lift with no change of colour, and the outline button
+   filled solid with no lift, so the site's two buttons spoke two languages while its cards and
+   chips agreed. Inverting is what the outline button already did (the page's text and ground
+   swap), so the primary now does the same with its OWN pair: fill and text swap, and its border
+   keeps the old fill, so the button never loses its edge (ink-and-volt becomes volt with an ink
+   edge in light mode; volt becomes ink with a volt edge in dark). Each pair is two tokens that
+   already flip with the theme, so nothing is new: the text is 13.06:1 on the primary's swapped
+   fill in both themes and 14.47:1 light / 13.96:1 dark on the outline button's, against the 4.5:1
+   12px text needs. ⚠️ THE EDGE IS WHAT KEEPS THE PRIMARY A BUTTON: its swapped fill alone is
+   1.11:1 against the paper (volt) and 1.00:1 against the dark page (ink); the kept border is
+   14.47:1 and 13.11:1. The lift is ONE rule for both, so they cannot drift apart again.
+   The colours and the lift ride the transitions `.btn` already lists (--ui). Reduced motion
+   needs no gate: base.css collapses every duration to 0.01ms, so the change is instant rather
+   than absent, as it is for the cards. `transform` is the lift's property and Cursor.tsx's
+   magnet owns `translate`; they compose. */
 @media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .btn--primary:hover {
+    background: var(--btn-primary-text);
+    color: var(--btn-primary-bg);
+  }
+
   .btn--ghost:hover {
     background: var(--text);
     color: var(--bg);
@@ -450,8 +571,9 @@ li {
        final state rather than playing a 0.01ms flicker. Added 2026-08-14.
        ⚠️ This used to end "it matters more now that --stagger has a documented
        use." That was false when it was written and stayed false for three weeks:
-       nothing ever read --stagger, and the token was deleted on 2026-09-07. The
-       two declarations below are unaffected and still earn their place — they
+       nothing ever read --stagger, and the token was deleted on 2026-09-07. It came
+       back on 2026-10-01 with a real reader, the phone menu's rows (notch.css,
+       VA-51), and these two lines are what make those rows arrive at once. They
        collapse a delay from ANY source, which is the case that actually reaches a
        motion-sensitive visitor. */
     transition-delay: 0s !important;
@@ -587,8 +709,13 @@ html.lenis body {
    with a label chip and 15px text: 28% of a phone screen. Owner, the same day: make it
    small. Current regulator guidance agrees with both halves — a choice nobody can see
    is not consent, and a notice should not take more than about a fifth of the screen
-   or cover the menu. So: 13px text, no chip, one thin row on a wide screen and a short
+   or cover the menu. So: small text, no chip, one thin row on a wide screen and a short
    stack on a phone. Both browser suites hold it under 20% of a phone's height.
+   12px since 2026-10-02 (owner's choice, visual audit VA-13), was 13px: measured, the card is
+   4-5px shorter on every screen (75 to 71px on a phone held sideways, 147 to 142px upright at
+   390x844, 95 to 90px at 1440x900) and keeps its line count. The owner chose it knowing that no
+   card height uncovers the home hero's buttons on a sideways phone, which sit in the screen's
+   bottom fifth. 12px is the floor for read text (VA-11).
 
    FIXED, so it cannot shift the page under a reader (no layout shift to measure), and
    NOT ANIMATED: it is a question, not an entrance, and an element that holds still
@@ -629,8 +756,25 @@ html.lenis body {
 /* Takes the row beside the buttons when there is room; wraps above them when not. */
 .consent__text {
   flex: 1 1 300px;
+  /* VA-18, visual audit 2026-10-02: the sentence ran 76-79 characters a line from 1024px up,
+     past the 45-75 that reads comfortably. Nothing capped it but the page-wide
+     `p { max-width: 60ch }`, and `ch` is the width of a zero, which in Archivo is wider than the
+     average letter: 60ch is 448.5px at 13px and holds about 75 characters of this sentence.
+     54ch is 403.6px and holds 67 and 66 on its first two lines. Computed from Archivo's own
+     advance widths, without kerning, because no browser was run for it: the same computation
+     gives 75 at 60ch where the audit counted 76-79, so a browser fits a character or two more.
+     consent.spec.ts counts the rendered lines in both apps.
+     ⚠️ NOT NARROWER. From 48ch (359px) down the sentence tips from three lines to four, and the
+     card grows a line taller to carry "Privacy notice" alone. 54ch keeps three lines even if the
+     text renders 2 percent wider or narrower. It is a cap, not a width: it only bites once the
+     card is about 773px wide (a 790px window), so every phone and a 768px tablet are unchanged.
+     The room the sentence gives up goes to the two buttons, which stay equal (about 22px wider
+     each at the card's full 880px). */
+  max-inline-size: 54ch;
   margin: 0;
-  font-size: var(--text-xs);
+  /* The px figures above were computed at the old 13px. `ch` scales with the text, so at 12px
+     the cap still holds the same characters a line, in a narrower column (VA-13). */
+  font-size: var(--text-fine);
   line-height: 1.45;
 }
 .consent__text a {
@@ -717,5 +861,24 @@ html.lenis body {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
+  }
+}
+
+/* Paper, two rules (visual audit VA-04, 2026-10-02).
+   The cookie question is a screen device: on paper it would print over the page's foot on every
+   sheet. The choice itself is untouched.
+   And nothing transitions: printing switches the page to its light colours (tokens.css), and a
+   colour transition, even the 0.01ms one the reduced-motion rule above gives every element,
+   holds the dark value until the next frame — measured in Chromium: the token already ink, the
+   headline still volt at 1.27:1 on white. Paper has no next frame to wait for. */
+@media print {
+  .consent {
+    display: none;
+  }
+
+  *,
+  ::before,
+  ::after {
+    transition: none !important;
   }
 }

@@ -1,5 +1,6 @@
 import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import AxeBuilder from '@axe-core/playwright'
+import { GUIDES } from '../src/lib/guides'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -103,7 +104,8 @@ test.describe('every page renders real content', () => {
       }
 
       // The chrome the layout is responsible for.
-      await expect(browser.locator('.notch__nav a')).toHaveCount(2)
+      // Products, Contact and — shown in the phone menu only — Guides (VA-37).
+      await expect(browser.locator('.notch__nav a')).toHaveCount(3)
       await expect(browser.locator('main#main')).toBeVisible()
       await expect(browser.locator('.site-footer')).toBeVisible()
 
@@ -170,6 +172,198 @@ test.describe('the product gallery', () => {
     expect(new Set(tops).size, `dot rows at ${tops.join(', ')}`).toBe(1)
   })
 
+  /*
+   * VA-30 (visual audit, owner-approved 2026-10-01): each dot is its colour, the chosen one
+   * ringed, and a mouse gets previous / next buttons that wrap round. The CI seed's five
+   * colours carry the pipeline's swatches (src/seed/seed.ts), so painted dots are visible here.
+   */
+  test('paints each dot its colour, rings the chosen one, and steps with the arrows (VA-30)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+    const card = page.locator('.product-card', { has: page.locator('.card-gallery__dot') }).first()
+    if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+    const read = () =>
+      card.evaluate((element) =>
+        [...element.querySelectorAll('.card-gallery__dot')].map((dot) => {
+          const style = getComputedStyle(dot, '::before')
+          return {
+            fill: style.backgroundColor,
+            ring: style.outlineColor,
+            pressed: dot.getAttribute('aria-pressed') === 'true',
+          }
+        }),
+      )
+    const dots = await read()
+    const opaque = (colour: string) => !/^rgba\(.*,\s*0\)$|transparent/.test(colour)
+    expect(
+      dots.map((dot) => opaque(dot.fill)),
+      'a dot is not painted its colour',
+    ).toEqual(dots.map(() => true))
+    expect(new Set(dots.map((dot) => dot.fill)).size, 'two dots share one colour').toBe(dots.length)
+    expect(
+      dots.map((dot) => opaque(dot.ring)),
+      'the ring is not on the chosen dot alone',
+    ).toEqual(dots.map((dot) => dot.pressed))
+
+    // The arrows: hidden until a mouse is over the picture, then one colour on, round the end.
+    const next = card.locator('.card-gallery__arrow--next')
+    const previous = card.locator('.card-gallery__arrow--prev')
+    await page.mouse.move(0, 0)
+    await expect(next).toHaveCSS('opacity', '0')
+    await card.locator('.product-card__figure').hover()
+    await expect(next).toHaveCSS('opacity', '1')
+    // Clicks need the card's script: wait for React to own the button.
+    await page.waitForFunction(
+      (el) => !!el && Object.keys(el).some((key) => key.startsWith('__reactProps')),
+      await next.elementHandle(),
+    )
+    const pressedAt = async () => (await read()).findIndex((dot) => dot.pressed)
+    await next.click()
+    await expect.poll(pressedAt, { message: 'next did not move to the second colour' }).toBe(1)
+    await previous.click()
+    await previous.click()
+    await expect
+      .poll(pressedAt, { message: 'previous did not wrap from the first colour to the last' })
+      .toBe(dots.length - 1)
+  })
+
+  /*
+   * VA-08, the gallery-dots half (visual audit 2026-10-02): in high contrast every dot wore a ring,
+   * so none looked chosen. Forced colours repaints the COLOUR of every outline (CSS Color
+   * Adjustment 1 §3.1) and exempts only a background's transparency, so the transparent ring that
+   * each unchosen dot carries became a solid system-colour ring. `site.css` now takes the ring off
+   * the unchosen dots and gives the chosen one a 2px solid `Highlight` ring: SHAPE, which forced
+   * colours leaves alone, and which is what is asserted. What the colour became is not: it is the
+   * user's palette, and only that it is opaque and is not the page's own is read.
+   *
+   * ⚠️ THE INSTRUMENT CARRIES ITS OWN POSITIVE CONTROL, as the site's other forced-colours test does
+   * (`motion.spec.ts`, FA-G-52): a probe styled with two colours no theme uses must come back
+   * substituted. WebKit reports `matches: true` for the query under Playwright's emulation without
+   * substituting anything (measured 2026-09-24, `apps/viewer/e2e/audit-guards.spec.ts`), so the
+   * skip is on the stronger signal. Chromium and Firefox substitute for real.
+   */
+  test('in high contrast only the chosen dot wears a ring (VA-08)', async ({
+    page,
+    browserName,
+  }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+    const active = await page.evaluate(() => window.matchMedia('(forced-colors: active)').matches)
+    test.skip(!active, `${browserName} does not emulate forced-colors`)
+    const card = page.locator('.product-card', { has: page.locator('.card-gallery__dot') }).first()
+    if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+
+    const measured = await card.evaluate((element) => {
+      const probe = document.createElement('div')
+      probe.textContent = 'probe'
+      probe.style.color = 'rgb(1, 2, 3)'
+      probe.style.backgroundColor = 'rgb(4, 5, 6)'
+      document.body.appendChild(probe)
+      const probeStyle = getComputedStyle(probe)
+      const control = { color: probeStyle.color, background: probeStyle.backgroundColor }
+      probe.remove()
+      const dots = [...element.querySelectorAll('.card-gallery__dot')].map((dot) => {
+        const style = getComputedStyle(dot, '::before')
+        return {
+          pressed: dot.getAttribute('aria-pressed') === 'true',
+          style: style.outlineStyle,
+          width: style.outlineWidth,
+          colour: style.outlineColor,
+        }
+      })
+      return { control, dots, ground: getComputedStyle(document.body).backgroundColor }
+    })
+
+    test.skip(
+      measured.control.color === 'rgb(1, 2, 3)',
+      `${browserName} reports forced-colors active but does not substitute colour`,
+    )
+    expect(measured.control.background, 'forced-colors is not actually applying').not.toBe(
+      'rgb(4, 5, 6)',
+    )
+    expect(measured.dots.length, 'the card has no dots to measure').toBeGreaterThan(1)
+    const chosen = measured.dots.filter((dot) => dot.pressed)
+    expect(chosen, 'not exactly one dot is chosen').toHaveLength(1)
+    // A ring on the chosen dot alone: the unchosen ones draw no outline at all.
+    expect(
+      measured.dots.map((dot) => dot.style !== 'none'),
+      'a dot other than the chosen one wears a ring',
+    ).toEqual(measured.dots.map((dot) => dot.pressed))
+    // And that ring is the 2px solid one, in an opaque colour that is not the page's own.
+    expect([chosen[0]?.style, chosen[0]?.width]).toEqual(['solid', '2px'])
+    expect(chosen[0]?.colour, 'the chosen ring is not an opaque colour').not.toMatch(
+      /^rgba\(.*,\s*0\)$|transparent/,
+    )
+    expect(chosen[0]?.colour, 'the chosen ring is the page colour, and cannot be seen').not.toBe(
+      measured.ground,
+    )
+  })
+
+  /*
+   * VA-30, the iPhone swipe. A finger on the picture is a press, and while the whole card
+   * scaled to 0.97 under it, iOS Safari dropped the strip's scroll mid-gesture: a slow sideways
+   * drag never moved the colour (iOS 26.5 simulator, 2026-10-02, shown both ways). Only the
+   * card's text answers a press now; the picture answers with its swipe. Playwright cannot
+   * drive a native touch scroll, so this pins the cause.
+   */
+  test('pressing the picture never shrinks the card; pressing its text does (VA-30)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/products')
+    const card = page.locator('.product-card', { has: page.locator('.card-gallery__dot') }).first()
+    if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+    const scale = () => card.evaluate((element) => getComputedStyle(element).scale)
+    const pressAndRead = async (selector: string) => {
+      // On screen first: a press below the fold lands on nothing, and reads as "no press".
+      await card.locator(selector).scrollIntoViewIfNeeded()
+      const box = await card.locator(selector).boundingBox()
+      if (!box) throw new Error(`no ${selector} to press`)
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.waitForTimeout(300)
+      const pressed = await scale()
+      // Away before letting go, so the press never becomes a click that leaves the page.
+      await page.mouse.move(2, 2)
+      await page.mouse.up()
+      return pressed
+    }
+    expect(
+      await pressAndRead('.card-gallery'),
+      'the card shrank under a press on its picture',
+    ).toBe('none')
+    expect(await pressAndRead('.product-card__link'), 'the card ignored a press on its text').toBe(
+      '0.97',
+    )
+  })
+
+  test('hides the arrows on a touch screen, which swipes (VA-30)', async ({
+    browser,
+    browserName,
+  }) => {
+    test.skip(browserName === 'firefox', 'Firefox has no mobile emulation in Playwright')
+    const context = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport: { width: 390, height: 844 },
+    })
+    try {
+      const page = await context.newPage()
+      await page.goto('/products')
+      const card = page
+        .locator('.product-card', { has: page.locator('.card-gallery__dot') })
+        .first()
+      if ((await card.count()) === 0) test.skip(true, 'no card with more than one colour here')
+      expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
+      await expect(card.locator('.card-gallery__arrow--next')).toBeHidden()
+    } finally {
+      await context.close()
+    }
+  })
+
   test('falls back to the placeholder when every poster fails', async ({ page }) => {
     /*
      * The poster `error` event fires while the HTML is still parsing — BEFORE React
@@ -191,6 +385,90 @@ test.describe('the product gallery', () => {
     // Not a fixed wait: the swap happens on mount, so poll for the outcome instead.
     await expect(page.locator('.product-card__img')).toHaveCount(0, { timeout: 10_000 })
     await expect(cards.first().locator('.product-card__placeholder')).toBeVisible()
+  })
+})
+
+/*
+ * VA-47 (visual audit 2026-10-02): the guides index listed every guide twice, as a card with its
+ * own "Read this guide" button and again as a chip at the foot of the same page: 14 links to 7
+ * pages. Each guide is now ONE card whose heading is the link, stretched over the card by
+ * `.guide-card__link::after` (site.css); the foot keeps only the buyer pages.
+ * `guides/page.test.ts` reads the same promises from the markup; this reads them as a visitor
+ * meets them. Reduced motion is emulated, as every layout suite here does, so the page's entrance
+ * is not mid-flight when a box is measured.
+ */
+test.describe('the guides index lists each guide once (VA-47)', () => {
+  test('one link per guide, named by its title, nothing interactive inside a card', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/guides')
+    await expect(page.locator('.guide-card')).toHaveCount(GUIDES.length)
+    for (const guide of GUIDES) {
+      await expect(
+        page.locator(`main a[href="${guide.path}"]`),
+        `${guide.path} is linked more than once on the index`,
+      ).toHaveCount(1)
+      await expect(
+        page.getByRole('link', { name: guide.title, exact: true }),
+        `no link is named "${guide.title}"`,
+      ).toHaveCount(1)
+    }
+    await expect(page.locator('.guide-card a')).toHaveCount(GUIDES.length)
+    await expect(page.locator('.guide-card button, .guide-card .btn, .guide-card a a')).toHaveCount(
+      0,
+    )
+  })
+
+  test('the whole card is the link: a point on its description reaches it, and a point on the headline does not', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/guides')
+    // What link, if any, lies under the middle of an element? A pseudo-element answers as its anchor.
+    const linkUnder = (selector: string) =>
+      page
+        .locator(selector)
+        .first()
+        .evaluate((element) => {
+          element.scrollIntoView({ block: 'center' })
+          const box = element.getBoundingClientRect()
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+          return hit?.closest('a')?.getAttribute('href') ?? null
+        })
+    const middle = GUIDES[Math.floor(GUIDES.length / 2)]
+    if (!middle) throw new Error('there are no guides to look at')
+    const description = `.guide-card:has(a[href="${middle.path}"]) .product-card__desc`
+    expect(
+      await linkUnder(description),
+      'a point on the description does not reach the card’s link',
+    ).toBe(middle.path)
+    // The stretch must stop at its card. Without `position: relative` on the card it would cover
+    // the page, and the headline above the grid would open the first guide.
+    expect(
+      await linkUnder('h1'),
+      'the headline lies under a guide link: the stretch escaped its card',
+    ).toBeNull()
+    // And it is a real click that arrives: on the description, far from the title. Scrolled back
+    // first: the headline check above scrolled the page to the top, and `boundingBox` does not
+    // scroll, so the click landed below the window and reached nothing (2026-10-02, both engines).
+    // `locator.click()` cannot do this job: it would refuse, because the link's overlay is what
+    // receives the pointer there, which is the very thing being proven.
+    await page.locator(description).scrollIntoViewIfNeeded()
+    const box = await page.locator(description).boundingBox()
+    if (!box) throw new Error('the description has no box to click')
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(page).toHaveURL(new RegExp(`${middle.path}$`))
+  })
+
+  test('the foot of the page links the buyer pages and no guide', async ({ page }) => {
+    await page.goto('/guides')
+    const foot = page.getByRole('navigation', { name: 'More to read' })
+    await expect(foot.locator('a')).toHaveCount(FAMILY_PAGE_SOURCES.length)
+    for (const path of FAMILY_PAGE_SOURCES)
+      await expect(foot.locator(`a[href="${path}"]`)).toHaveCount(1)
+    for (const guide of GUIDES) await expect(foot.locator(`a[href="${guide.path}"]`)).toHaveCount(0)
   })
 })
 
@@ -342,7 +620,8 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
 
     // and the page is still a page: the filters, the header and the footer are all there
     await expect(page.locator('.filter-bar .filter-chip').first()).toBeVisible()
-    await expect(page.locator('.notch__nav a')).toHaveCount(2)
+    // Products, Contact and — shown in the phone menu only — Guides (VA-37).
+    await expect(page.locator('.notch__nav a')).toHaveCount(3)
     await expect(page.locator('.site-footer')).toBeVisible()
   })
 

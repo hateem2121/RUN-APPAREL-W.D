@@ -1,3 +1,4 @@
+import { nameSegments } from '../../lib/cardName'
 import type { ProductCard } from '../../lib/content'
 import { GARMENT_PAGES } from '../../lib/seo'
 import { CardGallery } from './CardGallery'
@@ -20,6 +21,10 @@ import { ViewerCue } from './ViewerCue'
  *
  * `heading` keeps the outline honest: `h2` where the cards hang off the page's `h1`, `h3`
  * where they sit under a section heading.
+ *
+ * The name's hyphenated words (V-NECK, ZIP-UP) are each held in one piece, so a two-up phone card
+ * never ends a line on "V-" (`lib/cardName.ts`, owner's call 2026-10-02). The words read exactly as
+ * before: the spans add no characters, and the heading's text is the name.
  */
 export function ProductCardItem({
   product,
@@ -42,7 +47,17 @@ export function ProductCardItem({
         index={index}
       >
         <div className="product-card__body">
-          <Heading className="product-card__name">{product.productName}</Heading>
+          <Heading className="product-card__name">
+            {nameSegments(product.productName).map((part) =>
+              part.whole ? (
+                <span key={part.at} className="product-card__word">
+                  {part.text}
+                </span>
+              ) : (
+                part.text
+              ),
+            )}
+          </Heading>
           <p className="product-card__meta">
             <span>{product.productCode}</span>
             {product.category ? <span>· {product.category}</span> : null}

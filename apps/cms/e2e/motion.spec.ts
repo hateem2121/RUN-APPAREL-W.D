@@ -83,6 +83,87 @@ test.describe('FA-H-05 — a press is answered immediately', () => {
   })
 })
 
+test.describe('VA-46 — both buttons answer a mouse the same way', () => {
+  /**
+   * Visual audit 2026-10-02, measured live: the primary button lifted 2px with no change of colour
+   * and the outline button filled solid with no lift, while the cards and chips agreed with each
+   * other. Both now lift 2px and invert (`packages/ui/src/base.css`, `.btn:hover`).
+   *
+   * Reduced motion is emulated, as every layout suite here does: the transition collapses to
+   * 0.01ms, so the settled state is what is read, and it is polled because "settled" is a frame
+   * away. Both themes are read, because each button's pair is two tokens that flip.
+   *
+   * ⚠️ WHAT SWAPPED IS ASSERTED, NOT A COLOUR. The primary button's hover fill is its resting TEXT
+   * colour and its hover text its resting FILL; the outline button's fill is the page's text and its
+   * text the page's ground. A literal colour would pass in one theme and fail in the other.
+   */
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`a mouse over either lifts it 2px and inverts it, in ${colorScheme} mode`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.goto('/')
+      const ground = await page.evaluate(() => {
+        const style = getComputedStyle(document.body)
+        return { text: style.color, page: style.backgroundColor }
+      })
+      const read = (selector: string) =>
+        page
+          .locator(selector)
+          .last()
+          .evaluate((element) => {
+            const style = getComputedStyle(element)
+            return { transform: style.transform, fill: style.backgroundColor, text: style.color }
+          })
+      // The closing section's buttons sit on the page's own ground, so the page's tokens are theirs.
+      for (const selector of ['main .btn--primary', 'main .btn--ghost']) {
+        const button = page.locator(selector).last()
+        await button.scrollIntoViewIfNeeded()
+        const rest = await read(selector)
+        expect(rest.transform, `${selector} is lifted at rest`).toBe('none')
+        await button.hover()
+        // The primary button swaps its own two colours; the outline button takes the page's.
+        const swapped = selector.endsWith('primary')
+          ? { fill: rest.text, text: rest.fill }
+          : { fill: ground.text, text: ground.page }
+        await expect
+          .poll(() => read(selector), { message: `${selector} did not lift 2px and invert` })
+          .toEqual({ transform: 'matrix(1, 0, 0, 1, 0, -2)', ...swapped })
+        // And it is a hover, not a state: it goes when the mouse does.
+        await page.mouse.move(0, 0)
+        await expect
+          .poll(() => read(selector), { message: `${selector} stayed lifted after the mouse left` })
+          .toEqual(rest)
+      }
+    })
+  }
+
+  test('a touch screen gets no hover state: the lift never sticks after a tap', async ({
+    browser,
+    browserName,
+  }) => {
+    test.skip(browserName === 'firefox', 'Firefox has no mobile emulation in Playwright')
+    const context = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport: { width: 390, height: 844 },
+    })
+    try {
+      const page = await context.newPage()
+      await page.goto('/')
+      expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
+      const button = page.locator('main .btn--primary').last()
+      await button.scrollIntoViewIfNeeded()
+      // A touch device still MATCHES :hover on a tap; the rule sits behind `(hover: hover)`.
+      await button.hover()
+      expect(await button.evaluate((element) => getComputedStyle(element).transform)).toBe('none')
+    } finally {
+      await context.close()
+    }
+  })
+})
+
 test.describe('FA-F-01 / FA-R-06 — the notch condenses, gated, with the right fallback', () => {
   /**
    * MEASURED 2026-09-06: 60px → 52px over `scroll(root block) 0 160px` in Chromium and
@@ -357,19 +438,22 @@ test.describe('FA-H-10 — the skip link answers on --instant and actually moves
    * skip link that never leaves `translateY(-150%)` is focusable, announced, and
    * invisible — which is a WCAG 2.4.7 failure that every keyboard test still passes.
    */
-  test('it is off-screen at rest, on-screen when focused, on the --instant duration', async ({
+  test('it is unseen at rest, on-screen when focused, on the --instant duration', async ({
     page,
   }) => {
     await page.goto('/')
     const measured = await page.evaluate(() => {
       const link = document.querySelector('.skip-link') as HTMLElement
+      const box = link.getBoundingClientRect()
       return {
-        restTop: Math.round(link.getBoundingClientRect().top),
+        // Off-screen OR clipped to nothing: since VA-26 (2026-10-01) it is both, because an
+        // iPhone's pull-down bounce showed the off-screen strip above the page.
+        unseen: box.bottom <= 0 || (box.width <= 1 && box.height <= 1),
         duration: getComputedStyle(link).transitionDuration,
         instant: getComputedStyle(document.documentElement).getPropertyValue('--instant').trim(),
       }
     })
-    expect(measured.restTop, 'the skip link is visible before it is focused').toBeLessThan(-10)
+    expect(measured.unseen, 'the skip link is visible before it is focused').toBe(true)
     // `.12s` in the token, `0.12s` from getComputedStyle — compare as numbers.
     expect(
       Number.parseFloat(measured.duration),
@@ -503,15 +587,15 @@ test.describe('FA-G-52 — Windows High Contrast is answered, not fought', () =>
 })
 
 /**
- * MO-17, the site half: the home page reveals exactly five sections on scroll (four until the
- * factory strip joined as №04 on 2026-09-25, OI-3), and by
+ * MO-17, the site half: the home page reveals exactly six sections on scroll (№01–№06; seven
+ * until the factory strip, then №06, was removed on 2026-10-02, visual audit VA-29), and by
  * RISING alone — `site-reveal` animates `transform` and never `opacity`. The fade was taken
  * out on purpose: text mid-fade failed contrast checks (7 violations on the home page, 0
  * without it; see `site.css`). The viewer's half, fade AND rise, is in
  * apps/viewer/e2e/motion-and-layout.spec.ts.
  */
 test.describe('MO-17 — the site reveals by rising alone', () => {
-  test('seven home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
+  test('six home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
     await page.goto('/')
     const found = await page.evaluate(() => {
       const properties = new Set<string>()
@@ -542,8 +626,8 @@ test.describe('MO-17 — the site reveals by rising alone', () => {
         properties: [...properties].sort(),
       }
     })
-    // №01–№07 since D23 (2026-09-29); the hero never reveals.
-    expect(found.sections, 'the home page reveals a different number of sections').toBe(7)
+    // №01–№06 since 2026-10-02 (№07 went with the factory strip); the hero never reveals.
+    expect(found.sections, 'the home page reveals a different number of sections').toBe(6)
     expect(found.keyframes, 'no `site-reveal` keyframes in the served CSS').toBeGreaterThan(0)
     expect(found.properties, 'the site reveal animates something besides a rise').toEqual([
       'transform',
@@ -608,12 +692,14 @@ test.describe('№05 — the numbers count up, and only when they may', () => {
  * The scroll motion (owner, 2026-09-29): the timeline draws, the photos wipe open and drift.
  * What would have to break: motion for someone who asked for none, or a photo left half-clipped
  * once it is on screen — which is how a scroll animation turns into missing content.
+ * Since 2026-10-02 the photos measured are the order timeline's eight (`.timeline`), one per step:
+ * the factory strip they were measured on is gone (visual audit VA-29).
  */
 test.describe('scroll motion — the timeline draws, the photos open and drift', () => {
   const targets = {
     '.timeline__line': 'timeline-draw',
-    '.factory-grid .photo-wipe': 'photo-wipe',
-    '.factory-grid .photo-parallax': 'photo-drift',
+    '.timeline .photo-wipe': 'photo-wipe',
+    '.timeline .photo-parallax': 'photo-drift',
   } as const
 
   const names = (page: Page) =>
@@ -646,7 +732,7 @@ test.describe('scroll motion — the timeline draws, the photos open and drift',
   test('a photo scrolled into view is fully open, whatever the engine', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.goto('/')
-    const frame = page.locator('.factory-grid .photo-wipe').first()
+    const frame = page.locator('.timeline .photo-wipe').first()
     await frame.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     // "Fully open" is `none` or an inset whose every edge is zero — Chromium writes the
     // animation's end as `inset(0px 0px 0%)`.

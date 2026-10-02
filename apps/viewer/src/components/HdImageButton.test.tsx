@@ -81,13 +81,42 @@ describe('HdImageButton', () => {
   it('is present on a colour with a render, named for what it opens', () => {
     mount(colourway('wine', true))
     const button = host.querySelector('button')
-    // A no-break space: the two words never split across lines inside the pill.
-    expect(button?.textContent?.replace(/\u00a0/g, ' ')).toContain('HD IMAGE')
+    // A plain space (VA-09): `white-space: nowrap` keeps the two words on one line, and a
+    // no-break space made the visible label differ from the spoken name by one character.
+    // This used to normalise \u00a0 to a space first, which is what hid it.
+    expect(
+      button?.textContent,
+      'the label is not "HD" + a plain space + "IMAGE" (a no-break space looks identical)',
+    ).toContain('HD IMAGE')
     expect(button?.getAttribute('aria-label')).toBe(
       'HD image: studio render of Velocity Performance Tee in Wine',
     )
     expect(button?.getAttribute('aria-haspopup')).toBe('dialog')
     expect(button?.disabled).toBe(false)
+  })
+
+  /**
+   * VA-09 (visual audit, 2026-10-02). Lighthouse's label-in-name check failed this button: the
+   * words it shows were "HD" + a no-break space + "IMAGE", and the name it speaks starts
+   * "HD image: studio render of …" with a plain space. The check compares the two strictly and
+   * does not treat U+00A0 as a space, so this must not either — no normalising before comparing.
+   * WCAG 2.5.3 (Label in Name): the name contains the text that is presented visually.
+   */
+  it('shows words that its spoken name starts with (label in name, VA-09)', () => {
+    mount(colourway('wine', true))
+    const button = host.querySelector('button')
+    const name = button?.getAttribute('aria-label') ?? ''
+    const full = button?.textContent ?? ''
+    // Under 22rem wide page.css hides the second word, and only this first one is shown.
+    const short = button?.querySelector('span')?.firstChild?.textContent ?? ''
+    expect(short).toBe('HD')
+    expect(full, 'a no-break space is back in the visible label').not.toContain(' ')
+    for (const visible of [full, short]) {
+      expect(
+        name.toLowerCase().startsWith(visible.toLowerCase()),
+        `the visible words "${visible}" are not the start of the name "${name}"`,
+      ).toBe(true)
+    }
   })
 
   it('requests no render before intent, and exactly one on pointer-down', async () => {

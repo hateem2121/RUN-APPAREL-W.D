@@ -12,7 +12,7 @@ import { JsonLd } from './JsonLd'
  * ⚠️ ONE PRIMARY BUTTON, at the end, in the buyer pages' words (`e2e/copy.spec.ts`, CT-08).
  * A guide is read top to bottom, so the way in comes after the answer, not before it.
  *
- * The closing heading and sentence are the home page's own (№07), so the guides add no
+ * The closing heading and sentence are the home page's own (№06), so the guides add no
  * claim the site does not already make.
  */
 function Block({ block }: { block: GuideBlock }) {
@@ -36,12 +36,17 @@ function Block({ block }: { block: GuideBlock }) {
   )
 }
 
-/** The other guides and the buyer pages, as the chips `/products` filters with. */
-export function GuideLinks({ current }: { current: string }) {
+/**
+ * The other guides and the buyer pages, as the chips `/products` filters with.
+ *
+ * `guides={false}` leaves the guides out: the index shows every guide as a card already, so the
+ * same seven as chips was the repetition VA-47 removed (2026-10-02). Every guide page keeps them.
+ */
+export function GuideLinks({ current, guides = true }: { current: string; guides?: boolean }) {
   const buyerPages = FAMILIES.map((family) => ({ family, page: familyPageFor(family) }))
   return (
-    <nav className="filter-bar" aria-label="More to read">
-      {GUIDES.filter((guide) => guide.path !== current).map((guide) => (
+    <nav className="filter-bar filter-bar--titles" aria-label="More to read">
+      {(guides ? GUIDES.filter((guide) => guide.path !== current) : []).map((guide) => (
         <Link key={guide.path} className="filter-chip" href={guide.path}>
           {guide.title}
         </Link>
@@ -70,9 +75,10 @@ export function GuidePage({ guide }: { guide: Guide }) {
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">[ BUYER GUIDE ]</p>
-          {/* `hero-guide`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
-          <h1 className="display display--hero hero-guide">
+          <p className="label">[ Buyer guide ]</p>
+          {/* `hero-guide`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
+              `display--long`: 36-46 characters, so a phone sets it with more air (base.css, VA-45). */}
+          <h1 className="display display--hero display--long hero-guide">
             {guide.heading} <span className="serif-accent">{guide.headingAccent}</span>
           </h1>
           <p className="site-lede">{guide.lede}</p>

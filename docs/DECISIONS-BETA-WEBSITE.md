@@ -88,6 +88,13 @@ buyer who wants a record of what they sent still has one.
 **Guard:** a test asserts the inquiry row exists after a submission whose mail
 step is forced to fail.
 
+**Amended 2026-10-01 (owner, visual audit VA-02): one step.** The two-step form with a
+progress bar (2026-09-29) is replaced by one column with every field showing: name, email
+and message first, then company, phone and files under "Optional details". Job title and
+Subject left the form. After Send the form gives way to a confirmation that a reload clears
+(VA-27). The rules above stand: store-then-notify, works with scripting off, email and
+WhatsApp links kept. Guard: `apps/cms/e2e/inquiry.spec.ts`.
+
 ### D4 · The gallery grows to four columns above 1600px — `FA-E-04`
 
 **Decision: a fourth column on wide screens. Nothing changes below 1600px.**
@@ -97,6 +104,11 @@ ordinary laptops. On a 1920px monitor it left the same three garments as a
 1280px one, with empty space either side.
 
 **Guard:** a layout test asserts three columns at 1280px and four at 1920px.
+
+**Amended 2026-10-02 (owner, visual audit VA-42):** the fourth column now starts at **1440px**, so
+the 40 garments fill ten rows of four on a 1440px screen instead of leaving one alone. 1280px keeps
+three, so the guard above still holds; `apps/cms/src/productGridOrphans.test.ts` and
+`apps/cms/e2e/productsGrid.spec.ts` check 1440px too.
 
 ### D5 · The viewer wordmark becomes a link home — `FA-W-02`
 
@@ -505,6 +517,16 @@ promise, no shipping regions, no fixed shipment window ("days may vary order to 
 **Guard:** `apps/cms/e2e/composition.spec.ts` (LA-01) pins №01–№07;
 `apps/cms/src/lib/orderProcess.test.ts` refuses an unconfirmed promise.
 
+**Amended 2026-10-02 (owner's choice, visual audit VA-29 with VA-34): one photo for every step,
+and no factory strip.** №04 gives each of its eight steps its own photo, all cut to one square,
+the words on the left and the photo on the right (above the words on a phone). The four phases,
+the You / We markers and the drawn line stay. Every room the "Inside the factory" strip showed
+was then pictured above it, so the strip (№06) and its lightbox were removed and "Talk to us"
+became №06: the order is now №01–№06, and each of the ten photos is on the page once (№01 the
+building and its roof, №04 the other eight). Steps 2 and 8 have no photo of their own subject, so
+the testing lab and the tagging table stand in; the owner chose them. LA-01 now pins №01–№06.
+**Guard:** `apps/cms/src/orderTimelinePhotos.test.ts` and `apps/cms/e2e/orderTimeline.spec.ts`.
+
 ### D24 · The home page's garment turns in real 3D — reverses the 2026-09-07 still
 
 **Decision: live 3D on scroll. Owner, 2026-09-29.** The owner asked for "more innovative and
@@ -536,8 +558,9 @@ a certificate. That is why the heading stays "Standards" and every entry keeps i
 text ("Parent: …", "Suppliers: …") — the picture says which body, the words say who holds it.
 
 The artwork is the owner's own vector files, converted to plain SVG paths and trimmed to the
-mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `apps/cms/src/lib/standardsLogos.ts`
-records each one's source file). Six marks, and only these:
+mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `packages/shared/src/standardsLogos.ts`
+records each one's source file — in the shared package since 2026-10-02, when the garment pages
+took the same footer, VA-31). Six marks, and only these:
 
 - **Parent (DURUS INDUSTRIES):** Sedex, SMETA.
 - **Suppliers:** ISO 9001, OEKO-TEX STANDARD 100, GOTS, GRS. amfori BSCI stays in the text only.

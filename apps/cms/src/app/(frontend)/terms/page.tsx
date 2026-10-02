@@ -37,7 +37,7 @@ export default async function TermsPage() {
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">[ TERMS ]</p>
+          <p className="label">[ Terms ]</p>
           {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
           <h1 className="display display--hero hero-legal">
             A reference, <span className="serif-accent">not a&nbsp;promise.</span>
