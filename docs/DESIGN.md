@@ -491,6 +491,24 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
 | container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |
 
+### Pictures in rows: the order timeline
+
+№04 gives each of its eight steps one photo, every one cut to the same **1:1** square (visual
+audit VA-29, owner's choice 2026-10-02). The shape is CSS, not eight files: `.photo-figure__frame--square`
+(`aspect-ratio: 1 / 1`) frames the picture, `object-fit: cover` cuts it, and each photo's own
+`object-position` (its `focus` in `apps/cms/src/lib/factoryPhotos.ts`) keeps its subject in. A
+square, because the eight files are four 8:5 and four 4:5 and a square gives up the least of both.
+
+| Width | One step's row |
+|---|---|
+| 900px and up | the words on the left, the photo on the right in a 400px column, both starting at the row's top edge |
+| under 900px | the photo above its words, as wide as the column up to 400px |
+
+The words come first in the markup and `order` lifts the photo above them on a phone only, so a
+screen reader hears a step's title before its picture; nothing in a row takes focus, so the two
+orders cannot disagree for a keyboard. The pictures are lazy and carry their width and height, and
+the wipe and drift that run as they scroll in stop under `prefers-reduced-motion`.
+
 ### The cookie card
 
 The choice is a fixed card at the foot of the screen (`base.css` `.consent`), with Decline and

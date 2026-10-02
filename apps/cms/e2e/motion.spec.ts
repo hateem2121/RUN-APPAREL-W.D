@@ -587,15 +587,15 @@ test.describe('FA-G-52 — Windows High Contrast is answered, not fought', () =>
 })
 
 /**
- * MO-17, the site half: the home page reveals exactly five sections on scroll (four until the
- * factory strip joined as №04 on 2026-09-25, OI-3), and by
+ * MO-17, the site half: the home page reveals exactly six sections on scroll (№01–№06; seven
+ * until the factory strip, then №06, was removed on 2026-10-02, visual audit VA-29), and by
  * RISING alone — `site-reveal` animates `transform` and never `opacity`. The fade was taken
  * out on purpose: text mid-fade failed contrast checks (7 violations on the home page, 0
  * without it; see `site.css`). The viewer's half, fade AND rise, is in
  * apps/viewer/e2e/motion-and-layout.spec.ts.
  */
 test.describe('MO-17 — the site reveals by rising alone', () => {
-  test('seven home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
+  test('six home sections reveal, and the keyframes never touch opacity', async ({ page }) => {
     await page.goto('/')
     const found = await page.evaluate(() => {
       const properties = new Set<string>()
@@ -626,8 +626,8 @@ test.describe('MO-17 — the site reveals by rising alone', () => {
         properties: [...properties].sort(),
       }
     })
-    // №01–№07 since D23 (2026-09-29); the hero never reveals.
-    expect(found.sections, 'the home page reveals a different number of sections').toBe(7)
+    // №01–№06 since 2026-10-02 (№07 went with the factory strip); the hero never reveals.
+    expect(found.sections, 'the home page reveals a different number of sections').toBe(6)
     expect(found.keyframes, 'no `site-reveal` keyframes in the served CSS').toBeGreaterThan(0)
     expect(found.properties, 'the site reveal animates something besides a rise').toEqual([
       'transform',
@@ -692,12 +692,14 @@ test.describe('№05 — the numbers count up, and only when they may', () => {
  * The scroll motion (owner, 2026-09-29): the timeline draws, the photos wipe open and drift.
  * What would have to break: motion for someone who asked for none, or a photo left half-clipped
  * once it is on screen — which is how a scroll animation turns into missing content.
+ * Since 2026-10-02 the photos measured are the order timeline's eight (`.timeline`), one per step:
+ * the factory strip they were measured on is gone (visual audit VA-29).
  */
 test.describe('scroll motion — the timeline draws, the photos open and drift', () => {
   const targets = {
     '.timeline__line': 'timeline-draw',
-    '.factory-grid .photo-wipe': 'photo-wipe',
-    '.factory-grid .photo-parallax': 'photo-drift',
+    '.timeline .photo-wipe': 'photo-wipe',
+    '.timeline .photo-parallax': 'photo-drift',
   } as const
 
   const names = (page: Page) =>
@@ -730,7 +732,7 @@ test.describe('scroll motion — the timeline draws, the photos open and drift',
   test('a photo scrolled into view is fully open, whatever the engine', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.goto('/')
-    const frame = page.locator('.factory-grid .photo-wipe').first()
+    const frame = page.locator('.timeline .photo-wipe').first()
     await frame.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     // "Fully open" is `none` or an inset whose every edge is zero — Chromium writes the
     // animation's end as `inset(0px 0px 0%)`.

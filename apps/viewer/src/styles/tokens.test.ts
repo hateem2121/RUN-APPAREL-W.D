@@ -1442,10 +1442,10 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         // every page to light when printed, from either theme. The scanner names the line nearest
         // the brace.
         'tokens.css :root[data-theme]: light',
-        // The site's photo hero and its photo lightbox (owner, 2026-09-29) share one rule
-        // (`.site-hero--photo, .lightbox`): text on a photograph's ink in BOTH themes. The
-        // scanner names the selector line nearest the brace, which is `.lightbox`.
-        'site.css .lightbox: dark',
+        // The site's photo hero (owner, 2026-09-29): text on a photograph's ink in BOTH themes.
+        // It shared this rule with the photo lightbox until 2026-10-02, when the lightbox went
+        // with the factory strip (visual audit VA-29), so the scanner now names `.site-hero--photo`.
+        'site.css .site-hero--photo: dark',
       ].sort(),
     )
   })

@@ -1324,8 +1324,10 @@ test.describe('section spacing has at most two distinct rhythms across a width s
  */
 test.describe('LA-01 — the home page section order is locked', () => {
   // D23 (owner, 2026-09-29): who we are → what we make → 3D → how an order works → the
-  // numbers → the factory → talk to us. Credibility still leads, which is what D6 protected.
-  test('hero first, then №01 through №07 in DOM order', async ({ page }) => {
+  // numbers → talk to us. Credibility still leads, which is what D6 protected. The factory strip
+  // that sat before "talk to us" as №06 was removed on 2026-10-02 (visual audit VA-29, the
+  // owner's choice), and "talk to us" took its number, so the sequence stops at №06.
+  test('hero first, then №01 through №06 in DOM order', async ({ page }) => {
     await page.goto('/')
     await settle(page)
 
@@ -1347,7 +1349,6 @@ test.describe('LA-01 — the home page section order is locked', () => {
       '№04',
       '№05',
       '№06',
-      '№07',
     ])
   })
 })
@@ -1386,8 +1387,8 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
     // Everything else is recorded (annotation above), not graded — LA-02 is an input
     // fact for other areas' work (LA-12's column context, the owner's home-page
     // question), not a pass/fail judgement in itself.
-    // Hero + №01–№07 since D23 (2026-09-29).
-    expect(facts.sectionCount, 'home page rendered without its 8 sections').toBe(8)
+    // Hero + №01–№06: №07 went when the factory strip was removed (2026-10-02, VA-29).
+    expect(facts.sectionCount, 'home page rendered without its 7 sections').toBe(7)
     expect(facts.words, 'home page rendered almost no text').toBeGreaterThan(50)
   })
 

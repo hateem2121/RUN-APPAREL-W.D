@@ -512,6 +512,16 @@ promise, no shipping regions, no fixed shipment window ("days may vary order to 
 **Guard:** `apps/cms/e2e/composition.spec.ts` (LA-01) pins №01–№07;
 `apps/cms/src/lib/orderProcess.test.ts` refuses an unconfirmed promise.
 
+**Amended 2026-10-02 (owner's choice, visual audit VA-29 with VA-34): one photo for every step,
+and no factory strip.** №04 gives each of its eight steps its own photo, all cut to one square,
+the words on the left and the photo on the right (above the words on a phone). The four phases,
+the You / We markers and the drawn line stay. Every room the "Inside the factory" strip showed
+was then pictured above it, so the strip (№06) and its lightbox were removed and "Talk to us"
+became №06: the order is now №01–№06, and each of the ten photos is on the page once (№01 the
+building and its roof, №04 the other eight). Steps 2 and 8 have no photo of their own subject, so
+the testing lab and the tagging table stand in; the owner chose them. LA-01 now pins №01–№06.
+**Guard:** `apps/cms/src/orderTimelinePhotos.test.ts` and `apps/cms/e2e/orderTimeline.spec.ts`.
+
 ### D24 · The home page's garment turns in real 3D — reverses the 2026-09-07 still
 
 **Decision: live 3D on scroll. Owner, 2026-09-29.** The owner asked for "more innovative and

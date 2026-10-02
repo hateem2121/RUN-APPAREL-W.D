@@ -2,7 +2,6 @@ import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { AboutSection } from '../../components/site/AboutSection'
-import { FactoryPhotos } from '../../components/site/FactoryPhotos'
 import { FactsBento } from '../../components/site/FactsBento'
 import { FamilyCard } from '../../components/site/FamilyCard'
 import { HomeHero } from '../../components/site/HomeHero'
@@ -117,13 +116,18 @@ export default async function HomePage() {
 
       {/*
         ⚠️ THE ORDER IS DECISION D23 (owner, 2026-09-29), WHICH AMENDS D6: who we are → what we
-        make → the 3D → how an order works → the numbers → the factory → talk to us. D6's point
-        survives — credibility still comes before capability — and `e2e/composition.spec.ts`
-        (LA-01) pins the №01–№07 order so the next reorder is a decision, not a drift.
+        make → the 3D → how an order works → the numbers → talk to us. D6's point survives —
+        credibility still comes before capability — and `e2e/composition.spec.ts` (LA-01) pins
+        the №01–№06 order so the next reorder is a decision, not a drift.
+
+        ⚠️ A SEVENTH SECTION, "INSIDE THE FACTORY", SAT BETWEEN THE NUMBERS AND TALK TO US UNTIL
+        2026-10-02. The owner removed it (visual audit VA-29 with VA-34, their choice): its ten
+        photos repeated the eight in №04 and the two in №01, so every room it showed was already
+        pictured, and the closing section took its number (№06) so the sequence has no gap.
 
         ⚠️ `№` ALONE — NOT `N°` AND NOT `N№` (FA-Q-08, FA-Q-51). The numero sign already means
         "number"; measured present in `--font-mono` at the same advance as "0" and "N". Two
-        digits, because there are seven sections and `007` implies a scale that does not exist.
+        digits, because there are six sections and `006` implies a scale that does not exist.
       */}
       <AboutSection />
 
@@ -195,27 +199,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/*
-        The full gallery stays (owner, 2026-09-29) — the one place to browse every photo,
-        including the ones the sections above already use.
-      */}
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№06 — Inside the factory</p>
-          <h2 className="display display--section">
-            Where your order <span className="serif-accent">is&nbsp;made.</span>
-          </h2>
-          <p className="site-lede">
-            One building, from the first stitch to the sealed bag. These are the rooms your order
-            passes through.
-          </p>
-          <FactoryPhotos />
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <p className="section-number">№07 — Talk to us</p>
+          <p className="section-number">№06 — Talk to us</p>
           <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
           <p className="site-lede">
             Send the styles, quantities and specs you have — a sketch is enough to start. We reply

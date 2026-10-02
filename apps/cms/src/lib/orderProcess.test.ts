@@ -49,8 +49,10 @@ describe('the order timeline', () => {
     expect(text).toMatch(/credited back/i)
   })
 
-  it('shows a factory photo that exists for every phase', () => {
+  // The picture moved from the phase to the step on 2026-10-02 (VA-29): eight steps, eight photos.
+  // `orderTimelinePhotos.test.ts` pins which, and refuses a repeat.
+  it('shows a factory photo that exists for every step', () => {
     const slugs = new Set(FACTORY_PHOTOS.map((photo) => photo.slug))
-    for (const phase of ORDER_PHASES) expect(slugs.has(phase.photo), phase.photo).toBe(true)
+    for (const step of steps) expect(slugs.has(step.photo), step.photo).toBe(true)
   })
 })

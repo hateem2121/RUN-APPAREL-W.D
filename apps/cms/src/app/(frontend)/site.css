@@ -2144,81 +2144,6 @@ a.contact-block__value:active {
   }
 }
 
-/* ------------------------------------------------ inside the factory (OI-3, 2026-09-25) */
-
-/*
- * ⚠️ EVERY PICTURE IS ONE HEIGHT, SET FROM THE COLUMN WIDTH — NOT BY `aspect-ratio`. A wide
- * tile spans two columns AND the gap between them, so an 8:5 ratio on it comes out
- * `gap / 1.6` (15px) taller than a 4:5 single beside it, and a mixed row's bottoms and
- * captions no longer line up. Here the grid is a size container and every picture is
- * `1.25 ×` one column tall, whatever it spans; a wide picture is cropped ~1% more by
- * `object-fit` to fit, on a file `scripts/build-factory-photos.mjs` already cut to 8:5.
- *
- * Two columns below 900px, four from 900px: the two counts at which the committed order in
- * `lib/factoryPhotos.ts` leaves no hole (`src/factoryPhotos.test.ts` checks both). No
- * `grid-auto-flow: dense` — it would fill a hole by moving a picture out of reading order.
- */
-.factory-grid {
-  --factory-columns: 2;
-  --factory-gap: 24px;
-  container-type: inline-size;
-  display: grid;
-  grid-template-columns: repeat(var(--factory-columns), minmax(0, 1fr));
-  gap: var(--factory-gap);
-  margin: 24px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (min-width: 900px) {
-  .factory-grid {
-    --factory-columns: 4;
-  }
-}
-
-.factory-tile--wide {
-  grid-column: span 2;
-}
-
-/* The same reset `.proof__figure` carries: a UA `<figure>` margin shrinks and shifts it. */
-.factory-tile__figure {
-  margin: 0;
-}
-
-/*
- * The explicit height reserves the tile before the picture arrives (the CLS rule
- * `.proof__frame` states).
- */
-/* The clipping frame the scroll wipe and drift work inside (the section above). */
-.factory-tile__frame {
-  display: block;
-  overflow: hidden;
-  /* On the frame, not the picture: the drift scales the picture, which would scale its
-     border out of the clip. */
-  background: var(--bg);
-  border: 1px solid var(--line);
-}
-
-.factory-tile__img {
-  display: block;
-  width: 100%;
-  height: calc(
-    (100cqi - (var(--factory-columns) - 1) * var(--factory-gap)) /
-    var(--factory-columns) *
-    1.25
-  );
-  object-fit: cover;
-}
-
-.factory-tile__caption {
-  margin-block-start: 10px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-snug);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 /*
  * ------------------------------------- more contrast, when it is asked for (FA-H-09)
  *
@@ -2278,9 +2203,7 @@ a.contact-block__value:active {
  * which `--text` (#ecebe4) is about 7:1 and `--muted` (#a2a695) would be about 3.4:1 — under
  * AA. axe cannot compute contrast over an image, so the arithmetic is the check.
  */
-/* The lightbox shares this block: it too puts text and controls on a photograph's ink. */
-.site-hero--photo,
-.lightbox {
+.site-hero--photo {
   color-scheme: dark;
   /* The dark halves of tokens.css's pairs, re-declared here (see above). */
   --bg: #1c1f18;
@@ -2450,6 +2373,18 @@ a.contact-block__value:active {
 
 .photo-figure__frame--single {
   aspect-ratio: 4 / 5;
+}
+
+/*
+ * The order timeline's shape (visual audit VA-29, owner's choice 2026-10-02): one square for
+ * every picture, whatever shape its file has, so eight rows line up. `object-fit: cover` on
+ * `.photo-figure__img` cuts the file to it and each picture's `focus` (lib/factoryPhotos.ts)
+ * decides which part stays. A square, not 8:5 or 4:5, because the eight files are four of each
+ * and a square gives up the least of both: a wide file keeps 62.5% of its width, a tall one 80%
+ * of its height, where either of their own shapes would keep half of the other four.
+ */
+.photo-figure__frame--square {
+  aspect-ratio: 1 / 1;
 }
 
 .photo-figure__img {
@@ -2680,23 +2615,10 @@ a.contact-block__value:active {
 }
 
 /* ⚠️ `max-width: none`: base.css caps every `li` at 60ch, which squeezed the copy column of a
-   two-column phase to 100px (measured at 1440, 2026-09-29). The prose inside keeps its cap. */
+   two-column step to 100px (measured at 1440, 2026-09-29). The prose inside keeps its cap. */
 .timeline__phase,
 .timeline__step {
   max-width: none;
-}
-
-.timeline__phase {
-  display: grid;
-  gap: 24px;
-}
-
-@media (min-width: 900px) {
-  .timeline__phase {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
-    gap: 64px;
-    align-items: start;
-  }
 }
 
 .timeline__name {
@@ -2715,7 +2637,46 @@ a.contact-block__value:active {
   list-style: none;
 }
 
+/*
+ * ⚠️ A STEP IS ONE ROW: ITS WORDS AND ITS OWN PICTURE (visual audit VA-29, owner's choice
+ * 2026-10-02). A phase held two steps and one picture beside them, in a shape of its own (wide,
+ * tall, wide, tall), so the rows of the four phases did not line up. Now each of the eight steps
+ * has a square of the same size: the words on the left and the picture on the right from 900px,
+ * both starting at the row's top edge, and on a phone the picture above its words. The words
+ * come first in the markup (OrderTimeline.tsx says why), so `order: -1` moves the picture up
+ * on a phone and is switched off again from 900px.
+ *
+ * 400px is the width the files were cut for (`FACTORY_PHOTO_WIDTHS`), so a 1x screen takes the
+ * small file and a 2x screen the large one, and it is the cap between a phone and 900px, where a
+ * one-column picture would otherwise stretch to the page's width: 667px square at 768px (768
+ * less two 38px gutters and the timeline's 24px line gutter).
+ * The 12px between a picture and its words is half the 24px between two steps, so each picture
+ * reads as belonging to the words under it and not to the words above.
+ */
 .timeline__step {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.timeline__step > .photo-figure {
+  order: -1;
+  max-width: 400px;
+}
+
+@media (min-width: 900px) {
+  .timeline__step {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+    column-gap: 64px;
+  }
+
+  .timeline__step > .photo-figure {
+    order: 0;
+  }
+}
+
+/* The words: the number and the You / We chip on one line, the title and body under the chip. */
+.timeline__text {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 12px;
@@ -2763,8 +2724,10 @@ a.contact-block__value:active {
  * ⚠️ 50ch, NOT `--site-measure` (55ch): CI COUNTED 77 CHARACTERS ON ONE LINE. At 768 px the
  * timeline is one column and the body reaches its cap, 495 px at 55ch. This Mac fitted that in
  * 75 characters; CI's Linux Chromium set the same copy at 77 (PR #94, legibility.spec.ts FA-C-52,
- * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is at
- * most 420 px, so the cap only matters in one-column layouts.
+ * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is what
+ * the row leaves beside its 400 px picture and 64 px gap (322 px at 900, 564 px at 1440, worked
+ * out from the layout rather than measured), so the cap bites in one column and again from
+ * about 1,050 px.
  */
 .timeline__body {
   font-size: var(--text-sm);
@@ -2863,106 +2826,6 @@ a.contact-block__value:active {
     animation: none;
     scale: none;
   }
-}
-
-/* ------------------------------------------------ the factory gallery, large */
-
-.factory-tile__open {
-  display: block;
-  color: inherit;
-  cursor: zoom-in;
-}
-
-.factory-tile__open:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.lightbox__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  background: color-mix(in srgb, var(--ink) 94%, transparent);
-}
-
-/* Colours come from the dark block shared with the hero, above. */
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 16px;
-  padding: 24px 0;
-}
-
-.lightbox__strip {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.lightbox__strip:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
-}
-
-.lightbox__slide {
-  display: grid;
-  flex: 0 0 100%;
-  max-width: none;
-  min-height: 0;
-  place-items: center;
-  padding-inline: var(--site-gutter);
-  scroll-snap-align: center;
-}
-
-.lightbox__figure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  height: 100%;
-  min-height: 0;
-  margin: 0;
-  justify-content: center;
-}
-
-.lightbox__img {
-  display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
-  min-height: 0;
-  object-fit: contain;
-}
-
-.lightbox__caption,
-.lightbox__count {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-snug);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.lightbox__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding-inline: var(--site-gutter);
 }
 
 /* ------------------------------------------------ №03 the live garment (D24) */

@@ -1,16 +1,19 @@
 /**
- * The home page's "Inside the factory" strip (OI-3, owner's choice 2026-09-25: a photo strip
- * below the existing sections, all three groups — making, checking and finishing, premises).
+ * The owner's factory photos (OI-3, 2026-09-25): ten pictures of the building and the rooms an
+ * order passes through. The building and its roof sit in №01 "Who we are", the other eight in
+ * №04 "How an order works", one for each step (`lib/orderProcess.ts`). A strip below №05 showed
+ * all ten a second time until 2026-10-02, when the owner chose to remove it (visual audit VA-29
+ * with VA-34: every room it showed was already pictured above it).
  *
  * The files are written by `scripts/build-factory-photos.mjs` from the owner's originals and
  * served from `apps/cms/public/factory/`; `src/factoryPhotos.test.ts` fails if one is missing
  * or is not the size declared here.
  *
- * ⚠️ THE ORDER IS THE LAYOUT. A `wide` tile spans two grid columns at 8:5 and a `single` one
- * column at 4:5, so both are the same height. This order fills every row at two columns (a
- * phone) AND at four (a desktop) — wide, wide | wide, single, single | … — with no
- * `grid-auto-flow: dense`, which would fill holes by moving pictures out of reading order.
- * The test checks both column counts, so a reorder that leaves a hole fails there first.
+ * ⚠️ `shape` IS THE SHAPE OF THE FILE, NOT OF WHAT THE PAGE DRAWS. The script cuts each original
+ * to 8:5 (`wide`) or 4:5 (`single`) so a phone never downloads pixels nobody sees. The order
+ * timeline then cuts all eight to ONE square in CSS (`.photo-figure__frame--square`), which is
+ * what `focus` below steers. Nothing else depends on the order of this list: until 2026-10-02 it
+ * WAS the layout of the strip, and `factoryPhotos.test.ts` once checked that no row had a hole.
  *
  * ⚠️ THE BUILDING IS NAMED IN ITS CAPTION (the owner's ruling on these photos). Its sign reads DURUS;
  * DURUS INDUSTRIES is the parent company and RUN APPAREL produces in the same building,
@@ -26,9 +29,21 @@ export type FactoryPhoto = {
   shape: FactoryPhotoShape
   alt: string
   caption: string
+  /**
+   * Where the subject sits when the timeline cuts this picture to a square, as `[across, down]`
+   * percentages for `object-position` — set only on the eight pictures the timeline draws.
+   *
+   * ⚠️ ONE AXIS DOES THE WORK (visual audit VA-29, chosen by looking at each file 2026-10-02). In
+   * a square, `object-fit: cover` shows a `wide` file at full height and 62.5% of its width, and a
+   * `single` file at full width and 80% of its height, so a wide picture moves only across and a
+   * tall one only down; the other number is 50 and changes nothing. The page's scroll drift
+   * (`.photo-parallax`, scale 1.12) takes a further 6% off every edge of what is kept, so the
+   * subject is set in the middle of the kept part, not against its edge.
+   */
+  focus?: readonly [x: number, y: number]
 }
 
-/** Widths written per shape (1× and 2×); the height follows from the tile's ratio. */
+/** Widths written per shape (1× and 2×); the height follows from the file's ratio. */
 export const FACTORY_PHOTO_WIDTHS: Record<FactoryPhotoShape, readonly [number, number]> = {
   wide: [640, 1200],
   single: [400, 800],
@@ -55,48 +70,64 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
   {
     slug: 'showroom',
     shape: 'wide',
+    // Right of centre: the rack, the two mannequins on the right and the RUN APPAREL wall behind them.
+    focus: [90, 50],
     alt: 'Mannequins in black and blue compression wear in front of a concrete wall with the RUN APPAREL logo.',
     caption: 'Our showroom',
   },
   {
     slug: 'screen-printing',
     shape: 'single',
+    // The printer's eyes and the squeegee in the same frame; the ink pots at the foot are the part given up.
+    focus: [50, 25],
     alt: 'A printer pulls ink across a screen with a squeegee, pots of colored ink beside him.',
     caption: 'Screen printing',
   },
   {
     slug: 'inspection',
     shape: 'single',
+    // From the top: the inspector's face, the bar light and the jacket's chest; the hem is the part given up.
+    focus: [50, 5],
     alt: 'An inspector holds a green zip jacket under a bar light.',
     caption: 'Inspection under light',
   },
   {
     slug: 'stitching',
     shape: 'wide',
+    // The middle rows of operators and the ZERO Defects sign; the crates in the corner are given up.
+    focus: [60, 50],
     alt: 'Rows of sewing machines with operators in red shirts and red crates of cut pieces in the aisle.',
     caption: 'The stitching floor',
   },
   {
     slug: 'lab',
     shape: 'wide',
+    // The technician at the color-viewing cabinet, the oven and the sample rack.
+    focus: [55, 50],
     alt: 'Two technicians in lab coats at benches with a color-viewing cabinet and an oven.',
     caption: 'The testing lab',
   },
   {
     slug: 'tagging',
     shape: 'wide',
+    // Both hands and the tag gun.
+    focus: [55, 50],
     alt: 'Hands fastening a tag to navy pants with a tag gun.',
     caption: 'Tagging',
   },
   {
     slug: 'final-check',
     shape: 'single',
+    // Low: the jacket on the lit table and the sheets beside it, with the hanging jackets just above.
+    focus: [50, 80],
     alt: 'A green track jacket laid on a lit table beside inspection sheets, more jackets hanging behind.',
     caption: 'Final check',
   },
   {
     slug: 'packing',
     shape: 'single',
+    // The sewn label and the gloved hands; the top of the glove is the part given up.
+    focus: [50, 20],
     alt: 'A gloved hand slides a black T-shirt with a RUN label into a clear bag.',
     caption: 'Packing',
   },
