@@ -685,7 +685,9 @@ describe('the notch', () => {
     // for. --shadow-raised is the token that exists for this; tokens.css records the
     // floating colourway preview hitting the same wall over the same --bg. Drop the
     // shadow and the bar stops reading as a distinct object on dark.
-    expect(barCss()).toMatch(/\.notch\s*\{[^}]*box-shadow: var\(--shadow-raised\)/)
+    // Since VA-40 (2026-10-02) the list opens with the bar's hairline, so the token is asked for
+    // anywhere in the declaration, not first; apps/viewer/src/styles/barEdge.test.ts holds the ring.
+    expect(barCss()).toMatch(/\.notch\s*\{[^}]*box-shadow:[^;]*var\(--shadow-raised\)/)
   })
 
   it('renders exactly ONE set of links, from the one list both hosts share', () => {

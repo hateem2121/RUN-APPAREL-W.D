@@ -712,6 +712,41 @@ animate `width`, which is layout on every frame; `scripts/served-css-motion-prob
 carries an exception for them. The customisation panel's grid rows are the other animation that
 moves layout; that one is deliberate and stays (`page.css`).
 
+### The bar's hairline, and the bar that leaves (VA-40)
+
+Visual audit VA-40, owner-approved 2026-10-01, built 2026-10-02. The bar and the label row under it took
+92px of an 874px phone at all times, and over a dark photograph the bar's shadow and curved edges
+vanished (the website's dark "Browse the references" button scrolling under it read as one shape).
+
+**The hairline** is in the shared stylesheet, so both hosts have it: a 1px ring in the paper colour,
+the first layer of the bar's shadow, `--notch-edge` in `packages/ui/src/notch.css` — paper at 22% in
+the light theme and 12% in the dark. Computed with `scripts/contrast-rules.mjs` and held by
+`apps/viewer/src/styles/barEdge.test.ts`: over a dark photograph (#202420) it reads 1.95:1 in the
+light theme and 1.41:1 in the dark; over the light page it is paper on paper, 1.00:1, so it cannot
+look heavier there. It outlines the bar and not the two flares at its top corners (masks, painted over
+the bar's own shadow). It is transparent on paper and not drawn in forced-colours mode.
+
+**The bar that leaves** is the garment pages' alone, on a phone (`screen`, under 720px,
+`hover: none` — the phone the status-area strip defines): while the visitor scrolls down it slides off
+the screen by a `transform`, and it returns as soon as they scroll up. The page's script sets
+`data-bar-hidden` on the shell (`apps/viewer/src/lib/barAutoHide.ts`); the rule that answers it is
+in `notch.css`, and the website never sets the attribute.
+
+| It stays on screen when | Why |
+|---|---|
+| the page is within 8px of the top | a bar at the top of the page is the page's first thing |
+| its menu is open | the menu hangs from it |
+| keyboard focus is inside it, or a Tab was pressed | a keyboard visitor must not lose the control they are on |
+| the page is scrolled less than 16px down since the last turn | a nudge or a flick does not move it; coming back takes 6px up |
+
+- It moves with `transform` on `--ui` and `--ease` (220ms), nothing that moves layout, so the stage
+  below never shifts. Reduced motion makes it instant, by the shared rule in `base.css`.
+- **Away means not focusable and not announced**: `visibility: hidden`, held until the slide ends and
+  lifted at once when it returns. A Tab press brings it back.
+- **The status strip stays** (VA-50). Only the bar moves, never the shell, so the clock and battery
+  keep the bar's colour; whether Safari would still tint the area if the strip left was not tested.
+- Paper keeps the bar: the rule is for `screen` only.
+
 ### The footer
 
 One footer on the public site and the 3D garment pages since 2026-10-02 (visual audit VA-31,

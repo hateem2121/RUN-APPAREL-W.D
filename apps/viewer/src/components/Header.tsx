@@ -8,7 +8,8 @@ import {
   THEME_SWITCH_NAMES,
   THEME_SWITCH_WORDS,
 } from '@run-apparel/shared'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { startBarAutoHide } from '../lib/barAutoHide'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { appliedTheme, type Theme, toggleTheme } from '../lib/theme'
 
@@ -67,10 +68,15 @@ export function Header({ wordmark }: HeaderProps) {
     return menu ? markMenuClosing(menu) : undefined
   }, [])
 
+  // On a phone the bar leaves while the visitor scrolls down and returns as they scroll up
+  // (VA-40). The script only sets `data-bar-hidden`; notch.css does the rest.
+  const shell = useRef<HTMLElement>(null)
+  useEffect(() => (shell.current ? startBarAutoHide(shell.current) : undefined), [])
+
   const title = theme === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark
 
   return (
-    <header className="notch-shell">
+    <header className="notch-shell" ref={shell}>
       {/* The phone's status area takes the bar's colour from this strip (notch.css, VA-50). */}
       <div className="notch-strip" aria-hidden="true" />
       <div className="notch">

@@ -115,7 +115,8 @@
  *
  * ⚠️ NO SCROLL CONDENSE. The site's bar shrinks 8px over the first 160px of scroll; in the
  * flow that would move the 3D stage under a thumb that is scrolling it. e2e asserts the bar
- * keeps its 60px here.
+ * keeps its 60px here. (On a phone it does LEAVE while the visitor scrolls down, by a transform
+ * that moves no layout — notch.css "the bar leaves", VA-40 — so the stage never shifts.)
  *
  * The old header's lessons still hold inside the bar: every control's 44px is a floor only
  * with `flex-shrink: 0` (a declared width on a shrinkable flex child is a MAXIMUM — the

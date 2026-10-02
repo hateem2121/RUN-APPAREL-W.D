@@ -38,6 +38,12 @@
    * and tokens.test.ts cannot see it: the property IS defined, just not in that scope.
    */
   --notch-r: var(--radius-panel);
+  /*
+   * HOW FAR PAST ITS OWN HEIGHT A BAR THAT LEAVES MUST GO (VA-40, "the bar leaves", below). Its
+   * shadow reaches 32px below it (`--shadow-raised` is 0 8px 24px: 8 down, then 24 of blur) and
+   * its hairline 1px; 40px clears both, so no band of shadow is left on the screen's top edge.
+   */
+  --notch-away: 40px;
 }
 
 /*
@@ -75,6 +81,26 @@
   /* The bar's colour lives on the shell, not on .notch, so the status-area strip below — the
      bar's sibling, not its child — reads the same value (VA-50). */
   --notch-bg: light-dark(var(--ink), var(--raised));
+  /*
+   * ⚠️ THE BAR'S HAIRLINE (visual audit VA-40, 2026-10-02, owner-approved). Over a dark photograph
+   * the bar's shadow and its curved edges vanish — the website's dark "Browse the references" button
+   * scrolling under it read as one dark shape — so a 1px ring in the paper colour outlines it. Paper
+   * at 22% in the light theme, where the bar is ink and meets dark photos; 12% in the dark theme,
+   * where the bar (`--raised`) is already lighter than the page and a stronger ring would glow.
+   * Computed with scripts/contrast-rules.mjs and held by `apps/viewer/src/styles/barEdge.test.ts`:
+   * over a dark photo (#202420) the ring reads 1.95:1 in the light theme and 1.41:1 in the dark;
+   * over the light page it is paper on paper, 1.00:1, so it cannot look heavier there.
+   *
+   * ⚠️ IT OUTLINES THE BAR, NOT THE TWO FLARES AT ITS TOP CORNERS. Those are masked pseudo-elements
+   * painted over the bar's own shadow, so where they are opaque they cover the ring, and their
+   * curved edge carries none: by the arithmetic of an 18px flare the ring shows from about 14px
+   * down each side (not measured, nothing here can render it). A border would stop at the same
+   * place, which is why the shadow rule below refuses one.
+   */
+  --notch-edge: light-dark(
+    color-mix(in srgb, var(--paper) 22%, transparent),
+    color-mix(in srgb, var(--paper) 12%, transparent)
+  );
 
   z-index: var(--z-header);
   display: flex;
@@ -182,13 +208,21 @@
    * Not a border: the fillets are pseudo-elements outside this element's border box,
    * so a border would stop dead where the carved arcs begin.
    */
-  box-shadow: var(--shadow-raised);
-  /* How the bar opens into the phone menu (VA-51, in the phone block below). */
+  /* The hairline first: the first shadow is the top one, and it must lie over the soft one (VA-40,
+     `--notch-edge` above). The soft one is still `--shadow-raised`, the bar's only separation in dark mode. */
+  box-shadow:
+    0 0 0 1px var(--notch-edge),
+    var(--shadow-raised);
+  /* How the bar opens into the phone menu (VA-51, in the phone block below), and how it comes back
+     after leaving (VA-40, "the bar leaves" below). `visibility` is `step-start` here so a returning
+     bar is visible, and focusable, at once; its leaving list holds it until the slide has finished. */
   transition:
     flex-grow var(--ui) var(--ease),
     border-end-start-radius var(--ui) var(--ease),
     border-end-end-radius var(--ui) var(--ease),
-    box-shadow var(--ui) var(--ease);
+    box-shadow var(--ui) var(--ease),
+    transform var(--ui) var(--ease),
+    visibility var(--ui) step-start;
 }
 
 /*
@@ -238,6 +272,41 @@
  * technique. Revisit only with a rendered screenshot, never with @supports alone —
  * `@supports` proves the property parses, not that the result looks right.
  */
+
+/*
+ * ⚠️ THE BAR LEAVES ON A PHONE (visual audit VA-40, 2026-10-02, owner-approved), WHEN A PAGE ASKS.
+ * The bar and the label row under it took 92px of an 874px screen at all times. The garment pages
+ * set `data-bar-hidden` on the shell while the visitor scrolls down and take it off as they scroll up
+ * (apps/viewer/src/lib/barAutoHide.ts); the website never sets it, so its bar is as it was.
+ *
+ * - `transform`, the compositor's own property, and the existing `--ui` and `--ease`: 220ms. Reduced
+ *   motion makes it instant with the rule in base.css, which reaches every transition and delay.
+ * - HIDDEN MEANS NOT FOCUSABLE: `visibility: hidden` takes the bar out of the Tab order and the
+ *   accessibility tree once it is clear of the screen (`step-end`: it is held until the slide ends).
+ *   Coming back is the other way round (`step-start` in the list above): visible at once. The script
+ *   never leaves it hidden while its menu is open or focus is inside it, and a Tab brings it back.
+ * - THE STATUS STRIP STAYS (VA-50). It is the shell's other child, `position: fixed`, and only
+ *   `.notch` moves, so the clock and battery keep the bar's colour. A transform on the shell would
+ *   have carried the strip with it, and nothing here can prove Safari still tints the area then.
+ * - Phones only, by the strip's own query (`hover: none`, under 720px), and `screen` only: paper
+ *   keeps its bar whatever the page was doing. The script holds the same string
+ *   (`BAR_AUTOHIDE_QUERY`), and `barEdge.test.ts` fails if the two differ.
+ * - The list repeats the one above with `step-end` in place of `step-start`: a transition takes its
+ *   timing from the style it arrives at, and `visibility` must wait going out and not coming back.
+ */
+@media screen and (width < 720px) and (hover: none) {
+  .notch-shell[data-bar-hidden] .notch {
+    transform: translateY(calc(-100% - var(--notch-away)));
+    visibility: hidden;
+    transition:
+      flex-grow var(--ui) var(--ease),
+      border-end-start-radius var(--ui) var(--ease),
+      border-end-end-radius var(--ui) var(--ease),
+      box-shadow var(--ui) var(--ease),
+      transform var(--ui) var(--ease),
+      visibility var(--ui) step-end;
+  }
+}
 
 .notch__wordmark {
   /*
@@ -953,6 +1022,8 @@
 @media print {
   .notch-shell {
     --notch-bg: transparent;
+    /* No hairline on paper either: there is no pill for it to outline (VA-40). */
+    --notch-edge: transparent;
   }
 
   .notch {
