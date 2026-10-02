@@ -2573,6 +2573,40 @@ a.contact-block__value:active {
 }
 
 /*
+ * ⚠️ ON PAPER A PHOTO HERO IS AN ORDINARY HERO (visual audit VA-04, found 2026-10-02 when the film
+ * made /products one). The block above re-declares the hero's tokens with the dark theme's own
+ * values, so the paper rule in tokens.css (`color-scheme: light`) cannot reach them: printed from
+ * either theme, the home, contact and products headlines came out volt on white, 1.27:1, over a
+ * photograph the browser still printed while dropping its wash. So on paper the photo, the film and
+ * the pause button go, and every re-declared token takes the page's value again (`inherit`: the
+ * parent's, which the paper rule has already made light). e2e/print.spec.ts prints all three.
+ */
+@media print {
+  .site-hero--photo {
+    color-scheme: light;
+    --bg: inherit;
+    --text: inherit;
+    --muted: inherit;
+    --grid: inherit;
+    --line: inherit;
+    --line-control: inherit;
+    --label-bg: inherit;
+    --label-text: inherit;
+    --btn-primary-bg: inherit;
+    --btn-primary-text: inherit;
+    --headline: inherit;
+    --serif-accent: inherit;
+    --dimension: inherit;
+    --focus-ring: inherit;
+  }
+
+  .site-hero__photo,
+  .film-toggle {
+    display: none;
+  }
+}
+
+/*
  * ------------------------------------------------ the /products film
  *
  * The hoodie film behind the /products hero's words (owner, 2026-10-01), under the photo hero's own

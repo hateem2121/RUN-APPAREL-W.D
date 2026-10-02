@@ -712,7 +712,10 @@ pill and no status strip; `base.css` hides the cookie card and switches transiti
 paper, because even the 0.01ms reduced-motion transition held the dark colour for a frame.
 The footer's own paper palette sits at the end of `footer.css` (FA-M-52). Both hosts'
 `e2e/print.spec.ts` print from dark mode, set by the system and by the switch, and measure every
-word against white.
+word against white. The photo heroes (home, contact, and products with its film) re-declare their
+own dark colours, which the paper rule cannot reach, so on paper `site.css` drops the photo, the
+film and the pause button and hands those colours back to the page (found 2026-10-02: volt on
+white, 1.27:1, from either theme).
 
 ### The products film
 

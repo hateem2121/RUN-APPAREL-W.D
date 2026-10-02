@@ -29,7 +29,9 @@ const darkModes = [
   { how: 'the theme switch', theme: 'dark' },
 ] as const
 
-for (const path of ['/privacy', '/products']) {
+// The home, contact and products pages open on a PHOTO hero, dark in both themes on screen, which
+// re-declares its own colours; site.css hands them back to the page on paper (found 2026-10-02).
+for (const path of ['/', '/contact', '/privacy', '/products']) {
   for (const { how, theme } of darkModes) {
     test(`${path}: printed from dark mode set by ${how}, every word is dark on white`, async ({
       page,
