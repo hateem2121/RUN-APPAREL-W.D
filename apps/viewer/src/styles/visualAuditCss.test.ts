@@ -25,3 +25,61 @@ describe('VA-07: the gesture hint is as wide as its own text', () => {
     expect(declared(rules, '.stage__hint', 'bottom')).toBe('10px')
   })
 })
+
+describe('VA-08: the camera views show their state in forced colours', () => {
+  // e2e/forced-colors-camera.spec.ts measures the buttons under the browser's own emulation.
+  const forced = ['@media (forced-colors: active)']
+  const chosen = '.camera-btn[aria-pressed="true"]'
+
+  it('gives every view an edge, in a system colour', () => {
+    expect(declared(rules, '.camera-btn', 'border', forced)).toBe('1px solid ButtonText')
+  })
+
+  it('fills the chosen view with the system selection pair, also while the pointer is on it', () => {
+    // The hover selector is a second one, not a nicety: the page's own hover rule outweighs
+    // `chosen` and would take the fill away exactly while the pointer is on the button. It sits
+    // under the same pointer gate as that rule (tokens.test.ts requires every :hover to).
+    const gate = '@media (hover: hover) and (pointer: fine)'
+    const cases = [
+      { selector: chosen, within: forced },
+      { selector: `${chosen}:hover`, within: [...forced, gate] },
+    ]
+    for (const { selector, within } of cases) {
+      expect(declared(rules, selector, 'background-color', within), selector).toBe('Highlight')
+      expect(declared(rules, selector, 'color', within), selector).toBe('HighlightText')
+    }
+  })
+
+  it('keeps the 3px ring the chosen view already had (CO-09 pins it in a browser)', () => {
+    expect(declared(rules, chosen, 'outline', forced)).toBe('3px solid Highlight')
+  })
+
+  it('writes only system colours inside any forced-colors block', () => {
+    // Author colours are replaced there, so a hex, rgb(), hsl() or var() in these blocks
+    // would be a rule that looks like it works and does nothing.
+    const colourProperties = [
+      'color',
+      'background',
+      'background-color',
+      'border',
+      'border-color',
+      'outline',
+      'outline-color',
+    ]
+    const offenders = rules
+      .filter((rule) => rule.atRules.includes('@media (forced-colors: active)'))
+      .flatMap((rule) =>
+        colourProperties
+          .map((property) => [property, rule.declarations[property]] as const)
+          .filter(
+            ([, value]) =>
+              value !== undefined &&
+              /#[0-9a-f]{3,8}\b|\b(?:rgb|hsl|oklch|oklab|color-mix|light-dark)\(|var\(/i.test(
+                value,
+              ),
+          )
+          .map(([property, value]) => `${rule.selectors.join(', ')} { ${property}: ${value} }`),
+      )
+    expect(offenders).toEqual([])
+  })
+})

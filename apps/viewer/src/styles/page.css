@@ -2405,6 +2405,60 @@ model-viewer.stage__model {
 }
 
 /*
+ * The camera views in forced colours, second part (visual audit VA-08, 2026-10-02).
+ *
+ * The block above gives the CHOSEN view a 3px `Highlight` ring, and `audit-guards.spec.ts`
+ * -> CO-09 pins it. What the audit's own check found is the other half: FRONT / BACK / SIDE
+ * have no edge of their own — only the pill around them does — and the chosen one is a ring
+ * around plain words where normally it is a filled pill. Forced colours replaces every author
+ * colour with the visitor's palette, so the dark fill that says "this one" is gone and the
+ * three read as loose words.
+ *
+ * Two things survive forced colours and are used here. BORDERS keep their width and style
+ * (only the colour is replaced; MDN `forced-colors`), and SYSTEM COLOURS are the one kind of
+ * colour the browser leaves alone (CSS Color Adjust 1 forces only a colour "other than a
+ * system color"). So every view gets a 1px `ButtonText` edge, and the chosen one is filled
+ * with the system's own selection pair — `Highlight` with `HighlightText`, the forced-colours
+ * form of the dark pill, and a pair every palette the visitor can pick guarantees to read.
+ *
+ * ⚠️ THE HOVER SELECTOR IS REPEATED ON PURPOSE, INSIDE THE SAME POINTER GATE. `.camera-btn:not(
+ * :disabled):hover` (three classes of weight, painted in the page's own colours) would win over
+ * the fill, and the chosen view would lose it exactly while the pointer is on it. Its twin sits
+ * under `(hover: hover) and (pointer: fine)` because `tokens.test.ts` requires every `:hover`
+ * rule to (an ungated one sticks after a tap on a phone) — the first draft of this block had it
+ * outside, and that test caught it.
+ *
+ * ⚠️ A BORDER FOR THE EDGE, NOT AN OUTLINE. The global keyboard focus ring is an outline too;
+ * an outline here would replace it on every view the way the ring above already does on the
+ * chosen one, and the others must keep theirs.
+ *
+ * Not measured on a real Windows machine. `e2e/forced-colors-camera.spec.ts` measures it under
+ * Playwright's emulation, which substitutes colours in Chromium and Firefox but not in WebKit
+ * (`audit-guards.spec.ts` -> CO-09 records the WebKit gap), so it skips there.
+ */
+@media (forced-colors: active) {
+  .camera-btn {
+    border: 1px solid ButtonText;
+  }
+
+  .camera-btn:disabled {
+    border-color: GrayText;
+  }
+
+  .camera-btn[aria-pressed="true"] {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .camera-btn[aria-pressed="true"]:hover {
+      background-color: Highlight;
+      color: HighlightText;
+    }
+  }
+}
+
+/*
  * `prefers-contrast: more` is a request, not a diagnosis — the visitor has told the
  * OS that default contrast is not enough for them. The two things this page leans
  * on hardest are hairlines: `--line` at 18% opacity separates every panel, and the
