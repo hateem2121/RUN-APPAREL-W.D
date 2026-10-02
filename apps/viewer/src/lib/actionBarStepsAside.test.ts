@@ -185,3 +185,82 @@ describe('startActionBarStepsAside', () => {
     expect(bar.hasAttribute(TUCKED_ATTRIBUTE), 'the bar was left tucked').toBe(false)
   })
 })
+
+/*
+ * The footer too (2026-10-03, owner's iPhone screenshot): over the dark footer the paper bar was a
+ * white block, extended by Safari into the strip behind its toolbar. The footer carries the email,
+ * WhatsApp and "Start an inquiry" itself, so the bar steps aside while ANY of the footer is above it.
+ */
+function pageFooter() {
+  const footer = document.createElement('footer')
+  footer.className = 'site-footer'
+  document.body.append(footer)
+  return footer
+}
+
+describe('startActionBarStepsAside and the footer', () => {
+  it('watches the footer with a watcher of its own: any of it above the bar counts', () => {
+    const bar = barOfHeight(72.4)
+    const pair = inPagePair()
+    const footer = pageFooter()
+    startActionBarStepsAside(bar)
+    expect(live()).toHaveLength(2)
+    expect(live()[0]?.observed, 'the pair keeps its own watcher').toEqual([pair])
+    expect(live()[1]?.observed).toEqual([footer])
+    expect(live()[1]?.options).toEqual({ rootMargin: '0px 0px -73px 0px', threshold: 0 })
+  })
+
+  it('tucks the bar while the footer shows, and while either of the two does', () => {
+    const bar = barOfHeight(72)
+    inPagePair()
+    pageFooter()
+    startActionBarStepsAside(bar)
+    const [pairWatch, footerWatch] = live()
+    footerWatch?.report(0.01)
+    expect(bar.hasAttribute(TUCKED_ATTRIBUTE), 'a sliver of footer is above the bar').toBe(true)
+    footerWatch?.report(0)
+    expect(bar.hasAttribute(TUCKED_ATTRIBUTE)).toBe(false)
+    pairWatch?.report(1)
+    footerWatch?.report(0.3)
+    pairWatch?.report(0)
+    expect(bar.hasAttribute(TUCKED_ATTRIBUTE), 'the pair left but the footer still shows').toBe(
+      true,
+    )
+    footerWatch?.report(0)
+    expect(bar.hasAttribute(TUCKED_ATTRIBUTE), 'neither shows and the bar stayed away').toBe(false)
+  })
+
+  it('watches the footer alone on a page with no in-page pair', () => {
+    const bar = barOfHeight(72)
+    const footer = pageFooter()
+    startActionBarStepsAside(bar)
+    expect(live()).toHaveLength(1)
+    expect(live()[0]?.observed).toEqual([footer])
+    live()[0]?.report(0.2)
+    expect(bar.hasAttribute(TUCKED_ATTRIBUTE)).toBe(true)
+  })
+
+  it('rebuilds both watchers when the bar changes height, and stops both when stopped', () => {
+    let height = 72
+    const bar = barOfHeight(height)
+    bar.getBoundingClientRect = () => ({ height }) as DOMRect
+    inPagePair()
+    pageFooter()
+    const stop = startActionBarStepsAside(bar)
+    height = 106.1
+    resizing[0]?.callback()
+    expect(intersection).toHaveLength(4)
+    expect(
+      intersection.slice(0, 2).every((observer) => observer.disconnected),
+      'an old watcher was left running',
+    ).toBe(true)
+    expect(live().map((observer) => observer.options.rootMargin)).toEqual([
+      '0px 0px -107px 0px',
+      '0px 0px -107px 0px',
+    ])
+    live()[1]?.report(0.5)
+    stop()
+    expect(live(), 'a watcher is still running').toHaveLength(0)
+    expect(bar.hasAttribute(TUCKED_ATTRIBUTE), 'the bar was left tucked').toBe(false)
+  })
+})

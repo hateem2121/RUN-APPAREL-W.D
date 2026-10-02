@@ -184,3 +184,113 @@ test.describe('the fixed bar steps aside while the same buttons are in the page 
     expect(back.durations, 'the bar does not fade back over --fast').toEqual(['0.2s'])
   })
 })
+
+/*
+ * The footer too (2026-10-03, the owner's iPhone screenshot). Over the dark footer the paper bar,
+ * which iPhone Safari extends into the strip behind its own toolbar, was a white block a fifth of
+ * the screen tall. Now the bar steps aside while any of the footer is above it, and the room kept
+ * for the bar under the footer (`.page`'s padding) is the footer's colour, so the page ends in the
+ * footer's colour. Asserted on the PIXELS at the foot of the screen: a computed style can name the
+ * right colour while something else is painted there.
+ */
+type Rgb = { r: number; g: number; b: number }
+
+const rgbOf = (css: string): Rgb => {
+  const [r = 0, g = 0, b = 0] = (css.match(/[\d.]+/g) ?? []).map(Number)
+  return { r, g, b }
+}
+const distance = (a: Rgb, b: Rgb) =>
+  Math.max(Math.abs(a.r - b.r), Math.abs(a.g - b.g), Math.abs(a.b - b.b))
+
+/** The mean colour of the bottom `rows` pixels of the screen, decoded in the page (no image library). */
+async function footOfScreen(page: Page, rows: number): Promise<Rgb> {
+  const size = page.viewportSize()
+  if (!size) throw new Error('no viewport')
+  const shot = (
+    await page.screenshot({
+      clip: { x: 0, y: size.height - rows, width: size.width, height: rows },
+    })
+  ).toString('base64')
+  return page.evaluate(async (b64) => {
+    const img = new Image()
+    img.src = `data:image/png;base64,${b64}`
+    await img.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('no 2d context')
+    ctx.drawImage(img, 0, 0)
+    const { data } = ctx.getImageData(0, 0, img.width, img.height)
+    let r = 0
+    let g = 0
+    let b = 0
+    for (let i = 0; i < data.length; i += 4) {
+      r += data[i] ?? 0
+      g += data[i + 1] ?? 0
+      b += data[i + 2] ?? 0
+    }
+    const n = data.length / 4
+    return { r: r / n, g: g / n, b: b / n }
+  }, shot)
+}
+
+test.describe('at the end of the page the bar steps aside and the footer runs to the bottom edge', () => {
+  for (const phone of PHONES) {
+    test(`at ${phone.name} the foot of the screen is the footer's colour, not paper`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: phone.width, height: phone.height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(bar(page)).toBeVisible()
+      const colours = await page.evaluate(() => {
+        const probe = document.createElement('div')
+        probe.style.background = 'var(--bg)'
+        document.body.append(probe)
+        const paper = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        const slab = document.querySelector('.site-footer__slab') as HTMLElement
+        return { paper, footer: getComputedStyle(slab).backgroundColor }
+      })
+      const footer = rgbOf(colours.footer)
+      const paper = rgbOf(colours.paper)
+      expect(
+        distance(footer, paper),
+        'the footer and the paper are the same colour',
+      ).toBeGreaterThan(100)
+
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await expect
+        .poll(async () => (await barStyle(page)).visibility, {
+          message: 'the bar stayed up over the footer',
+          timeout: 3_000,
+        })
+        .toBe('hidden')
+      // The bottom 48px are inside the room kept for the bar (74px here), under the footer.
+      const foot = await footOfScreen(page, 48)
+      expect(
+        distance(foot, footer),
+        `the foot of the screen is ${JSON.stringify(foot)}`,
+      ).toBeLessThan(8)
+
+      // NEGATIVE CONTROL: with the room left unpainted, the same pixels are the page's paper — the
+      // check sees the white band the owner reported.
+      await page.addStyleTag({ content: '.page { background-image: none !important; }' })
+      const plain = await footOfScreen(page, 48)
+      expect(
+        distance(plain, paper),
+        `unpainted, the foot is ${JSON.stringify(plain)}`,
+      ).toBeLessThan(8)
+
+      // And the bar is back, usable, once the footer has scrolled off.
+      await scrollToTop(page)
+      await expect
+        .poll(async () => (await barStyle(page)).visibility, {
+          message: 'the bar did not come back once the footer scrolled off',
+          timeout: 3_000,
+        })
+        .toBe('visible')
+    })
+  }
+})

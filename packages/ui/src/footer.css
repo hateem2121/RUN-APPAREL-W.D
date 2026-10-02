@@ -839,15 +839,29 @@
 }
 
 /*
- * ⚠️ ON A PHONE THE CANVAS BEYOND THE PAGE IS THAT COLOUR TOO. An iPhone's bounce at the foot of a
- * page shows the canvas below the footer, which was paper: the same pale band, for a moment, on
- * every page. `body` keeps its own paper background, so nothing on the page changes; only the
- * overscroll shows the footer's colour, and at the top it meets the bar's. Phones only, because
- * a desktop's rubber-band at the top of a light page would show a dark band for no reason.
+ * ⚠️ ON A PHONE THE COLOUR BEYOND THE PAGE IS THAT COLOUR TOO. An iPhone's bounce at the foot of a
+ * page, and the strip behind Safari's address bar once a page is scrolled to its end, show the
+ * colour beyond the page, which was paper: the same pale band on every page. Only what lies past
+ * the page's edges changes, and at the top it meets the bar's colour. Phones only, because a
+ * desktop's rubber-band at the top of a light page would show a dark band for no reason.
+ *
+ * ⚠️ SAFARI READS THAT COLOUR FROM `body` AS WELL AS `html`, WHICH THE 2026-10-01 FIX MISSED.
+ * Chromium paints the canvas with the root's background, so a rule on `html` alone passed every
+ * test. WebKit extends `LocalFrameView::documentBackgroundColor()`, which paints body's background
+ * COLOUR over html's (WebKit source, read 2026-10-03), so the opaque paper body kept the band paper
+ * on the owner's iPhone, on every page (screenshot 2026-10-02; reproduced in the iOS 26.5
+ * simulator). So on a phone body's colour is transparent and its paper is an IMAGE layer: the page
+ * paints exactly as before, and the colour WebKit adds up is html's alone. `html body` so this wins
+ * over base.css's `body` rule whichever file loads last.
  */
 @media (width < 720px) and (hover: none) {
   html {
     background-color: light-dark(var(--ink), var(--raised));
+  }
+
+  html body {
+    background-color: transparent;
+    background-image: linear-gradient(var(--bg), var(--bg));
   }
 }
 

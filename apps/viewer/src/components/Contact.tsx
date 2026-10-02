@@ -41,7 +41,8 @@ interface ContactProps {
  *
  * ⚠️ SINCE VA-54 (2026-10-02) THE BAR STEPS ASIDE WHILE THE IN-PAGE PAIR IS ON SCREEN
  * (`<MobileActionBar>` below), so while that pair is in view only one pair is on screen or
- * reachable. At every other scroll position the duplication stands exactly as recorded here.
+ * reachable; since 2026-10-03 also while the footer is, which carries the same routes. At every
+ * other scroll position the duplication stands exactly as recorded here.
  */
 function ContactButtons({ settings, enquiry }: ContactProps) {
   return (
@@ -160,6 +161,8 @@ export function MobileActionBar(props: ContactProps) {
    * pair is in view above it; the fade, and keeping a hidden bar out of the Tab order and the
    * accessibility tree, are CSS (`.action-bar[data-tucked]`). The reasoning is in
    * `lib/actionBarStepsAside.ts`. Both pairs stay in the page; only one is shown at a time.
+   * Since 2026-10-03 it also steps aside while any of the footer is above it: over the dark
+   * footer the paper bar was a white block on an iPhone (owner's screenshot).
    */
   useEffect(() => (bar.current ? startActionBarStepsAside(bar.current) : undefined), [])
   /*

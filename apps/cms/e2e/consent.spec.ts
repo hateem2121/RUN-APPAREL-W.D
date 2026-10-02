@@ -636,5 +636,40 @@ test.describe('the room under the footer (VA-25)', () => {
       // NEGATIVE CONTROL: the page itself keeps its paper; only the canvas beyond it changed.
       expect(look.page).not.toBe(look.footer)
     })
+
+    /*
+     * ⚠️ THE CHECK ABOVE IS CHROMIUM'S RULE; SAFARI'S ADDS `body` (owner's iPhone, 2026-10-02: the
+     * band was still there on every page). WebKit takes the colour beyond the page from
+     * `LocalFrameView::documentBackgroundColor()`, body's background COLOUR painted over html's
+     * (WebKit source, read 2026-10-03), so html's alone proved nothing about an iPhone. On a phone
+     * body's colour is see-through, leaving html's, and its paper is an image layer instead.
+     */
+    test("Safari's colour beyond the page is the footer's too: body's own colour is see-through", async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
+      await page.goto('/')
+      const look = await page.evaluate(() => {
+        const probe = document.createElement('div')
+        probe.style.background = 'var(--bg)'
+        document.body.append(probe)
+        const paper = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        const body = getComputedStyle(document.body)
+        return {
+          touch: matchMedia('(hover: none)').matches,
+          bodyColour: body.backgroundColor,
+          bodyImage: body.backgroundImage,
+          paper,
+        }
+      })
+      expect(look.touch, 'the emulated phone reports hover — this test measures nothing').toBe(true)
+      expect(look.bodyColour, "body's colour would be painted over the footer's").toBe(
+        'rgba(0, 0, 0, 0)',
+      )
+      // NEGATIVE CONTROL for the change itself: the page still paints its paper, as an image.
+      expect(look.bodyImage).toBe(`linear-gradient(${look.paper}, ${look.paper})`)
+    })
   })
 })
