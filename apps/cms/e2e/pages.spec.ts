@@ -450,7 +450,12 @@ test.describe('the guides index lists each guide once (VA-47)', () => {
       await linkUnder('h1'),
       'the headline lies under a guide link: the stretch escaped its card',
     ).toBeNull()
-    // And it is a real click that arrives: on the description, far from the title.
+    // And it is a real click that arrives: on the description, far from the title. Scrolled back
+    // first: the headline check above scrolled the page to the top, and `boundingBox` does not
+    // scroll, so the click landed below the window and reached nothing (2026-10-02, both engines).
+    // `locator.click()` cannot do this job: it would refuse, because the link's overlay is what
+    // receives the pointer there, which is the very thing being proven.
+    await page.locator(description).scrollIntoViewIfNeeded()
     const box = await page.locator(description).boundingBox()
     if (!box) throw new Error('the description has no box to click')
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)

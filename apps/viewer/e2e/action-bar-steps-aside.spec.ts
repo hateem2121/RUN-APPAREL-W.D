@@ -162,7 +162,10 @@ test.describe('the fixed bar steps aside while the same buttons are in the page 
     // the Tab order only after it has finished fading, not before.
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     const away = await transitionLists(page)
-    expect(away.fast).toBe('200ms')
+    // The built stylesheet is minified, so the token reads ".2s" there, not the "200ms" written in
+    // tokens.css (all four engines, 2026-10-02): compare the time, never the spelling.
+    const ms = (time: string) => Number.parseFloat(time) * (time.endsWith('ms') ? 1 : 1000)
+    expect(ms(away.fast), `--fast is ${away.fast}`).toBe(200)
     expect(away.properties, 'the way out names both opacity and visibility').toEqual([
       'opacity',
       'visibility',
