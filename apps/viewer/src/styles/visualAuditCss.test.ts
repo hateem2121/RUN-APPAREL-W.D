@@ -97,6 +97,21 @@ describe('VA-18: the garment description keeps a comfortable line length', () =>
   })
 })
 
+describe('VA-56: with scripting off the loading screen is not drawn over the page', () => {
+  // e2e/noscript-message.spec.ts hit-tests the message in a real browser with JavaScript off,
+  // and holds the loading screen on for a visitor who has it on.
+  it('hides the loading screen under scripting: none, and only there', () => {
+    expect(
+      declared(rules, '.preloader', 'display', ['@media (scripting: none)']),
+      'with scripts off nothing ever removes the loading screen, so it must not be drawn',
+    ).toBe('none')
+    expect(
+      declared(rules, '.preloader', 'display'),
+      'everyone else still gets the loading screen while the garment loads',
+    ).toBe('grid')
+  })
+})
+
 describe('VA-59: the Performance features are a plain list', () => {
   // e2e/spec-features.spec.ts measures one feature to a line in a real browser.
   it('has no bullets and no indent, so it reads as the same text broken by line', () => {

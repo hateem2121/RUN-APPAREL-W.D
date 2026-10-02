@@ -2529,6 +2529,18 @@ model-viewer.stage__model {
 .preloader--exit {
   clip-path: inset(0 0 100% 0);
 }
+
+/* ⚠️ WITH SCRIPTING OFF THE LOADING SCREEN IS NOT DRAWN (visual audit VA-56, 2026-10-02).
+   `index.html` paints it from the HTML itself (RO-08), so a visitor without JavaScript got
+   "PREPARING…" for ever — fixed over the whole screen and over the page's own no-JavaScript
+   message, because only the app ever takes it away. `scripting: none` is Baseline widely
+   available since December 2023 (MDN), and `notch.css` already uses it for the theme switch; a
+   browser without it keeps the old behaviour, no worse than before. */
+@media (scripting: none) {
+  .preloader {
+    display: none;
+  }
+}
 .preloader__grid {
   position: absolute;
   inset: 0;

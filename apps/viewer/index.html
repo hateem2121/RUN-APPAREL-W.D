@@ -189,11 +189,22 @@
     ></script>
   </head>
   <body>
+    <!--
+      VA-56 (visual audit, 2026-10-02): with scripts off this message is all a visitor gets, and two
+      things were wrong with it. The loading screen below is drawn over the whole screen and, without
+      a script, nothing ever takes it away, so it covered the message and said "PREPARING…" for ever:
+      page.css now hides it when scripting is off (`@media (scripting: none)`). And the message sat
+      outside every landmark (an AccessLint finding): it is inside a main element now. With scripts
+      on, the browser treats the content of this block as text, not as elements (MDN), so the app's
+      own main element is the only one.
+    -->
     <noscript>
-      <p style="margin: 2rem; max-width: 36rem; font: 1rem/1.5 system-ui, sans-serif">
-        This 3D garment reference needs JavaScript. Turn it on to see the garment, or contact
-        RUN APPAREL at <a href="https://wear-run.com/contact">wear-run.com/contact</a>.
-      </p>
+      <main>
+        <p style="margin: 2rem; max-width: 36rem; font: 1rem/1.5 system-ui, sans-serif">
+          This 3D garment reference needs JavaScript. Turn it on to see the garment, or contact
+          RUN APPAREL at <a href="https://wear-run.com/contact">wear-run.com/contact</a>.
+        </p>
+      </main>
     </noscript>
     <!--
       RO-08: the loading screen, drawn from the HTML itself. On slow 3G nothing painted
