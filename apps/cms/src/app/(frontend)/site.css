@@ -2970,12 +2970,22 @@ a.contact-block__value:active {
     scale var(--instant) var(--ease);
 }
 
-/* The site's own measure, as `.prose p` and `.site-lede` keep it, so the wide last card's lines
-   stay inside the 75 characters FA-C-52 holds the site's prose to: at 55ch of 15px (474px) the
-   seven real descriptions set at most 71 characters a line, computed from Archivo's advance
-   widths without kerning (not measured in a browser), against up to 79 under the page's 60ch. */
+/*
+ * ⚠️ A WIDTH IN `em`, NOT `ch`: HOW MANY CHARACTERS A LINE HOLDS DEPENDS ON THE FONT THAT DRAWS IT
+ * (CI, 2026-10-02). The wide last card's descriptions were held to `--site-measure` (55ch) on a
+ * COMPUTED 71 characters a line. CI drew them in a fallback font: body text is "Archivo Optional"
+ * (`font-display: optional`, so a slow first load keeps the fallback), CI's image has no Arial, so
+ * "Archivo Fallback" fell through to Liberation Sans at full size, and a 495px line held 79
+ * characters against the 75 FA-C-52 holds the site's prose to. `ch` is the width of a ZERO in the
+ * element's font (MDN, <length>, read 2026-10-02), so a `ch` cap moves with the font while the
+ * letters it is meant to count do not move with it. An Android phone has no Arial either.
+ * `em` follows only the text size: 29em is 435px at 15px in any font. Measured 2026-10-02 in
+ * Chromium on the Mac and in CI's Linux image, at 768, 1180 and 1440px: at most 67 characters a
+ * line here and 66 in the form's file note (which shares the cap). In the failing run CI's fallback
+ * averaged 6.28px a character, so 435px holds about 69 even in that font (computed, not measured).
+ */
 .guide-card .product-card__desc {
-  max-width: var(--site-measure);
+  max-width: 29em;
 }
 
 .guide-card__link {
@@ -3552,6 +3562,9 @@ a.contact-block__value:active {
 
 .inquiry-form__note {
   margin: 8px 0 0;
+  /* In `em`, not the 60ch every `p` gets, for the reason at `.guide-card .product-card__desc`: in
+     CI's fallback font this note set 86 characters a line in a 540px column (2026-10-02). */
+  max-width: 29em;
   font-size: var(--text-sm);
   color: var(--muted);
 }
