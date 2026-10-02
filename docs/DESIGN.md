@@ -327,6 +327,7 @@ enforced globally in `base.css`, not per-component.
 | `--text-wordmark-sm` | 1rem | 16px — the bar's `.notch__wordmark` |
 | `--text-note` | 0.875rem | 14px — `.stage__error`, `.notice`, `.contact__micro` |
 | `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono`; since 2026-09-11 also `.btn` and the site's `.nav-link` (audit TY-07) |
+| `--text-fine` | 0.75rem | 12px in the body face — the cookie card's sentence (owner, 2026-10-02, VA-13); the floor for read text |
 | `--text-card-title` | 1.125rem | 18px — the marketing site's `.product-card__name`; the wordmark's size in a different role |
 | `--text-footer-mark` | 12vw | first paint only — the site's cropped footer wordmark, refitted to the slab's width by `FooterWordmark.tsx` once fonts load |
 

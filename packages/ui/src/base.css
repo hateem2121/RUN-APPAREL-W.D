@@ -638,8 +638,13 @@ html.lenis body {
    with a label chip and 15px text: 28% of a phone screen. Owner, the same day: make it
    small. Current regulator guidance agrees with both halves — a choice nobody can see
    is not consent, and a notice should not take more than about a fifth of the screen
-   or cover the menu. So: 13px text, no chip, one thin row on a wide screen and a short
+   or cover the menu. So: small text, no chip, one thin row on a wide screen and a short
    stack on a phone. Both browser suites hold it under 20% of a phone's height.
+   12px since 2026-10-02 (owner's choice, visual audit VA-13), was 13px: measured, the card is
+   4-5px shorter on every screen (75 to 71px on a phone held sideways, 147 to 142px upright at
+   390x844, 95 to 90px at 1440x900) and keeps its line count. The owner chose it knowing that no
+   card height uncovers the home hero's buttons on a sideways phone, which sit in the screen's
+   bottom fifth. 12px is the floor for read text (VA-11).
 
    FIXED, so it cannot shift the page under a reader (no layout shift to measure), and
    NOT ANIMATED: it is a question, not an entrance, and an element that holds still
@@ -696,7 +701,9 @@ html.lenis body {
      each at the card's full 880px). */
   max-inline-size: 54ch;
   margin: 0;
-  font-size: var(--text-xs);
+  /* The px figures above were computed at the old 13px. `ch` scales with the text, so at 12px
+     the cap still holds the same characters a line, in a narrower column (VA-13). */
+  font-size: var(--text-fine);
   line-height: 1.45;
 }
 .consent__text a {

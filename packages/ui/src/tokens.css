@@ -229,6 +229,11 @@
   --text-wordmark-sm: 1rem; /* 16px — the bar's .notch__wordmark, .footer__brand */
   --text-note: 0.875rem; /* 14px — .stage__error, .notice, .contact__micro */
   --text-mono-lg: 0.75rem; /* 12px — tracked caps one step above --text-mono */
+  /* 12px in the body face — the cookie card's sentence (the owner asked for smaller text in the
+     card on 2026-10-02, visual audit VA-13). Its own name, not --text-mono-lg's: that one is the
+     tracked-caps register, and this is running text. 12px is the floor VA-11 keeps for text that
+     is read. */
+  --text-fine: 0.75rem;
 
   /* ── The marketing site's two, added 2026-09-06 ──────────────────────
      apps/cms reads this file too, and the three gates above started scanning
