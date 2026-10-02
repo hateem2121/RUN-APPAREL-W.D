@@ -1,3 +1,4 @@
+import { EMPTY_FOOTER } from './siteFooter'
 import type { ViewerSiteSettings } from './types'
 
 /**
@@ -14,4 +15,7 @@ export const DEFAULT_SITE_SETTINGS: ViewerSiteSettings = {
   temporaryWordmark: 'RUN APPAREL',
   footerLine: 'RUN THE EXTRA MILE.',
   legalLine: '© RUN APPAREL (PVT) LTD',
+  // The footer's default copy and no claim (visual audit VA-31): what a garment page draws when
+  // the API is unreachable, the same footer the website draws during an outage.
+  footer: EMPTY_FOOTER,
 }

@@ -543,8 +543,9 @@ a certificate. That is why the heading stays "Standards" and every entry keeps i
 text ("Parent: …", "Suppliers: …") — the picture says which body, the words say who holds it.
 
 The artwork is the owner's own vector files, converted to plain SVG paths and trimmed to the
-mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `apps/cms/src/lib/standardsLogos.ts`
-records each one's source file). Six marks, and only these:
+mark (`apps/cms/public/standards/`, 3.7–22.6 KB each; `packages/shared/src/standardsLogos.ts`
+records each one's source file — in the shared package since 2026-10-02, when the garment pages
+took the same footer, VA-31). Six marks, and only these:
 
 - **Parent (DURUS INDUSTRIES):** Sedex, SMETA.
 - **Suppliers:** ISO 9001, OEKO-TEX STANDARD 100, GOTS, GRS. amfori BSCI stays in the text only.

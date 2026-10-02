@@ -87,6 +87,13 @@ main narrowed `Media.read` — the catch-all test expects that, not 200.
 ## The public site footer
 
 Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
+
+🟡 **The garment pages draw this footer too since 2026-10-02 (visual audit VA-31).** Its rules
+are `packages/ui/src/footer.css` (not site.css), its words, links and rules are
+`packages/shared/src/siteFooter.ts`, and both browser suites hold it to `siteFooterAriaSnapshot`
+— so a block added or moved in `SiteFooter.tsx` must move in `apps/viewer/src/components/Footer.tsx`
+in the same change, or both suites fail.
+
 Four things that bit while building it:
 
 - **The CTA tab sits ON the slab's top edge, OUTSIDE the clipped box.** `<footer>` is
@@ -95,11 +102,11 @@ Four things that bit while building it:
   curved into an edge that was already behind them.
 - **The wordmark is fitted by measuring the rendered text**, after `document.fonts.ready`.
   Two fixed sizes both ran the name off the edge; the name is a CMS field, so its length is
-  an input. `apps/cms/src/lib/wordmarkFit.ts`.
+  an input. `packages/shared/src/wordmarkFit.ts` (shared since 2026-10-02, below).
 - **🟡 The cursor honours `navigator.webdriver`** (as the viewer's does), so Playwright never
   sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
   does, and also asserts the honest default — absent under automation.
-- **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`apps/cms/src/lib/cursorBus.ts`),
+- **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`packages/shared/src/cursorBus.ts`),
   never the raw pointer, and its 180ms linger needs its own timer tick: the bus publishes
   only while the ring moves, so without one a hand-off caught inside the window stayed lit
   over empty ground for good. The browser suite found that on its first run.

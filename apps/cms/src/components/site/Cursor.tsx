@@ -1,7 +1,7 @@
 'use client'
 
+import { publishCursor } from '@run-apparel/shared'
 import { useEffect } from 'react'
-import { publishCursor } from '../../lib/cursorBus'
 import { FRAME_MS, isInteractive, ringTransform, trail } from '../../lib/cursorMath'
 
 /**

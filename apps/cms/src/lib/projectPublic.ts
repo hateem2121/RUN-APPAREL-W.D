@@ -1,4 +1,10 @@
-import { DEFAULT_SITE_SETTINGS, type ViewerSiteSettings } from '@run-apparel/shared'
+import {
+  DEFAULT_SITE_SETTINGS,
+  EMPTY_FOOTER,
+  type FooterHours,
+  type FooterSettings,
+  type ViewerSiteSettings,
+} from '@run-apparel/shared'
 import { isAddressableColourway } from './colourwayAccess'
 import { onSiteMedia } from './siteMedia'
 
@@ -14,57 +20,28 @@ import { onSiteMedia } from './siteMedia'
  * stays a thin Payload wrapper around them.
  */
 
-/**
- * The shared settings the viewer also uses, plus the one field only the public site
- * needs. Kept as an EXTENSION rather than added to ViewerSiteSettings in
- * packages/shared: that type is the viewer's API contract, and the viewer has no tab
- * icon to set. Widening it would push a field into the public viewer payload that
- * nothing there reads.
+/*
+ * The footer's types and its default copy live in @run-apparel/shared (siteFooter.ts) since
+ * visual audit VA-31 (2026-10-02): the garment pages draw the same footer, from the same
+ * projection. Re-exported here so the website's code and tests keep one import path.
  */
-/** Working hours, parsed. Days are 0–6 with Sunday 0, matching `Date#getDay()`. */
-export interface FooterHours {
-  firstDay: number
-  lastDay: number
-  /** `HH:MM`, works local time (Asia/Karachi). */
-  open: string
-  close: string
-}
+export { EMPTY_FOOTER, type FooterHours, type FooterSettings }
 
-export interface FooterSettings {
-  ctaLabel: string
-  ctaQuestion: string
-  ctaSubline: string
-  ctaPromise: string
-  capacity: { moq: string; leadTime: string; hours: FooterHours | null }
-  worksCoordinates: string
-  certifications: string[]
-  socialLinks: { label: string; url: string }[]
-}
-
+/**
+ * The shared settings the viewer also uses, plus the tab icon only the public site needs.
+ * Kept as an EXTENSION rather than added to ViewerSiteSettings in packages/shared: that type
+ * is the viewer's API contract, and the viewer has no tab icon to set. Widening it would
+ * push a field into the public viewer payload that nothing there reads.
+ */
 export interface PublicSiteSettings extends ViewerSiteSettings {
   /** Owner-uploaded tab icon. `null` falls back to the built-in mark in public/. */
   logoUrl: string | null
   logoMimeType: string | null
   /**
-   * cms-only, NOT on the shared ViewerSiteSettings: the viewer API returns that type
-   * to the 3D pages, and its fixtures and smoke gates must not move for a footer.
+   * Required here: the website always projects one. Optional on ViewerSiteSettings since the
+   * garment pages joined it (VA-31), because an API answer cached before then has none.
    */
   footer: FooterSettings
-}
-
-/**
- * Copy has a default; a claim does not. The split is the whole point of this object —
- * a blank certification list renders NO block, never an example one.
- */
-export const EMPTY_FOOTER: FooterSettings = {
-  ctaLabel: 'Start an inquiry',
-  ctaQuestion: 'Have a garment that needs making properly?',
-  ctaSubline: 'Send a tech pack, a sketch, or just the idea.',
-  ctaPromise: 'Reply within 24 hours',
-  capacity: { moq: '', leadTime: '', hours: null },
-  worksCoordinates: '',
-  certifications: [],
-  socialLinks: [],
 }
 
 /**
@@ -191,7 +168,8 @@ const text = (value: unknown): string => (typeof value === 'string' ? value.trim
 export function mergeSiteSettings(
   doc: Record<string, unknown> | null | undefined,
 ): PublicSiteSettings {
-  const pick = (key: keyof ViewerSiteSettings): string =>
+  // The text fields only: the footer is an object with its own projection, below.
+  const pick = (key: Exclude<keyof ViewerSiteSettings, 'footer'>): string =>
     text(doc?.[key]) || DEFAULT_SITE_SETTINGS[key]
   // Populated only at depth >= 1. At depth 0 Payload leaves an upload as a bare row
   // id, which is a number, not a URL — rendering it would emit a broken icon link.

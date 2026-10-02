@@ -236,9 +236,10 @@ Measured at the ends after the change: **320px viewport → -0.015em**,
 **1440px → -0.030em**. The old flat value sat in the middle, so this is looser
 where it was tight and tighter where it was loose.
 
-The wordmark (`.notch__wordmark`, `.footer__brand`) keeps a fixed `-0.02em`: it
-is display type at a FIXED size, so it has no optical range to follow — and the
-two must agree with each other, which they did not until 2026-08-14.
+The wordmark (`.notch__wordmark`; until 2026-10-02 also the garment pages' `.footer__brand`,
+retired with their old footer, VA-31) keeps a fixed `-0.02em`: it is display type at a FIXED
+size, so it has no optical range to follow — and the two had to agree with each other, which
+they did not until 2026-08-14.
 
 ⚠️ **THE RULE IS SIZE-SPECIFIC TRACKING, NOT "hero is the tighter class", and the
 two stop coinciding above 1100px.** `apps/viewer/src/styles/page.css` re-sizes
@@ -308,7 +309,7 @@ enforced globally in `base.css`, not per-component.
 | `--text-xs` | 0.8125rem | 13px |
 | `--text-mono` | 0.6875rem | 11px |
 | `--text-mono-sm` | 0.625rem | 10px |
-| `--text-wordmark-sm` | 1rem | 16px — the bar's `.notch__wordmark`, `.footer__brand` |
+| `--text-wordmark-sm` | 1rem | 16px — the bar's `.notch__wordmark` |
 | `--text-note` | 0.875rem | 14px — `.stage__error`, `.notice`, `.contact__micro` |
 | `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono`; since 2026-09-11 also `.btn` and the site's `.nav-link` (audit TY-07) |
 | `--text-card-title` | 1.125rem | 18px — the marketing site's `.product-card__name`; the wordmark's size in a different role |
@@ -364,10 +365,10 @@ and it shipped as 21 literals until 2026-09-05.
 |---|---|---|
 | `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.callout`, `.preloader__status` |
 | `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.stage-block__name` |
-| `--tracking-caps-wide` | 0.14em | `.section-number`, `.footer__line`; the site's `.footer-clock__time small` |
+| `--tracking-caps-wide` | 0.14em | `.section-number`; the footer's `.footer-clock__time small` |
 | `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
-| `--tracking-wordmark` | -0.02em | the bar's `.notch__wordmark`, `.footer__brand`, and the aside heading that borrows it |
+| `--tracking-wordmark` | -0.02em | the bar's `.notch__wordmark`, and the aside heading that borrows it |
 | `--tracking-card-title` | -0.02em | the site's `.product-card__name` |
 | `--tracking-caps-snug` | 0.08em | the marketing site: `.nav-link`, `.product-card__img` alt text, `.product-card__placeholder` |
 | `--tracking-caps-spaced` | 0.16em | the site footer's facts headings, `.footer-block h3`, and the open light `.footer-status` |
@@ -398,7 +399,8 @@ change made to tidy a table.
 **`--tracking-wordmark` is the one with a history.** *Display* above records that
 `.notch__wordmark` and `.footer__brand` "must agree with each other, which they
 did not until 2026-08-14". They agreed as two literals for a year; a token is what
-stops the third divergence.
+stops the third divergence. (`.footer__brand` went with the garment pages' old footer on
+2026-10-02, VA-31.)
 
 ---
 
@@ -439,7 +441,7 @@ Two measures, on purpose (owner, 2026-10-01: document, do not merge):
 
 | Surface | Content width | Why |
 |---|---|---|
-| The website | `--site-max` **1180px**, **1440px** from 1600px wide | a fourth gallery column above 1600px (D4, FA-E-04); prose stays capped at 60–62ch |
+| The website | `--site-max` **1180px**, **1440px** from 1600px wide | a fourth gallery column above 1600px (D4, FA-E-04); prose stays capped at 60–62ch. In `tokens.css` since 2026-10-02: the footer lines up with this column on the garment pages too (VA-31) |
 | A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that |
 
 ### Breakpoints
@@ -454,8 +456,8 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 359.98px` | `page.css` | narrower padding on the phone action bar's two buttons |
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
 | `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
-| `720px`, and `184px + 14.9rem` | `notch.css`, `site.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
-| `768px` | `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
+| `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
+| `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
 | `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, factory, timeline); facts go to three columns; the garment page's two-column stage, and the phone action bar is hidden |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
 | `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
@@ -531,6 +533,19 @@ The menu is the browser's own popover: it opens and closes with scripting off, E
 tap outside close it, and the browser reports its state to assistive technology. The site's
 bar is fixed and condenses as the page scrolls; the viewer's is in the page flow and does not,
 so `--header-h` still measures where its 3D stage starts.
+
+### The footer
+
+One footer on the public site and the 3D garment pages since 2026-10-02 (visual audit VA-31,
+owner-approved 2026-10-01: the garment pages had ended in a pale footer of their own, which no
+decision chose). The bar's arrangement: its stylesheet is
+[`packages/ui/src/footer.css`](../packages/ui/src/footer.css); its words, links and rules are
+[`packages/shared/src/siteFooter.ts`](../packages/shared/src/siteFooter.ts); each app writes the
+same markup in its own framework (`apps/cms/src/components/site/SiteFooter.tsx`,
+`apps/viewer/src/components/Footer.tsx`), and both browser suites hold the result to one
+accessibility tree, `siteFooterAriaSnapshot`. The garment pages get the footer's details in
+their API answer (`siteSettings.footer`), from the same projection the website uses. WCAG 2.2
+SC 3.2.6 Consistent Help asks for contact details in the same place on every page of a site.
 
 ### Elevation
 
@@ -681,7 +696,7 @@ reads the OLD size for that instant. The footer wordmark refits itself that way,
 reduced motion it shrank for as long as the page was open (87.9px to 56.0px in three
 seconds on the live site, found 2026-10-01 by the screenshot suite). Anything that measures
 what it just sized gets `transition-property: none` on itself and on whatever inherits the
-size, as `.footer-mark` and `.footer-mark__layer` now do in `site.css`.
+size, as `.footer-mark` and `.footer-mark__layer` now do in `footer.css`.
 
 ---
 

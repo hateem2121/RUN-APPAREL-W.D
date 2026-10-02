@@ -16,8 +16,13 @@
  * emblem beside a supplier list would read as endorsement (owner, 2026-09-29). None of
  * them has a record, and `standardsLogos.test.ts` fails if one appears.
  *
- * ADDING ONE IS ONE TABLE ENTRY: a file in `public/standards/`, its size, and the words
- * that name it. `standardsLogos.test.ts` then checks the file exists at the recorded size.
+ * ADDING ONE IS ONE TABLE ENTRY: a file in `apps/cms/public/standards/`, its size, and the
+ * words that name it. `apps/cms/src/lib/standardsLogos.test.ts` then checks the file exists
+ * at the recorded size — the test stays beside the files.
+ *
+ * In this package since 2026-10-02 (visual audit VA-31): the garment pages draw the same
+ * footer, so they must choose the same marks. They are on the same address as the website
+ * (wear-run.com), so the `src` paths below resolve to the website's files on both.
  *
  * The artwork is the owner's own vector files (Illustrator, in ~/Documents/Factory
  * Images), converted to plain SVG paths — no text, no fonts, no embedded rasters — and

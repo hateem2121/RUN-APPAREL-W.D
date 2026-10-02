@@ -1,9 +1,14 @@
-import { formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
+import {
+  capacityLines,
+  formatPhoneForDisplay,
+  marksFor,
+  normalizeWhatsAppNumber,
+  SITE_FOOTER_LINKS,
+  SITE_FOOTER_WORDS,
+  splitLastWord,
+} from '@run-apparel/shared'
 import Link from 'next/link'
-import { splitLastWord } from '../../lib/footerCopy'
-import { formatHours } from '../../lib/footerHours'
 import type { PublicSiteSettings } from '../../lib/projectPublic'
-import { marksFor } from '../../lib/standardsLogos'
 import { formatAddress } from '../../lib/structuredData'
 import { ConsentLink } from './ConsentLink'
 import { FooterClock } from './FooterClock'
@@ -28,12 +33,20 @@ import { FooterWordmark } from './FooterWordmark'
  * ⚠️ EVERY CLAIM BLOCK IS CONDITIONAL. Capacity, Standards and Elsewhere render only
  * from real values; a blank claim renders no block and never an example. See the
  * comment above the footer fields in SiteSettings.ts.
+ *
+ * ⚠️ THE GARMENT PAGES DRAW THIS FOOTER TOO (visual audit VA-31, 2026-10-02):
+ * apps/viewer/src/components/Footer.tsx. The words, links and rules are shared
+ * (@run-apparel/shared siteFooter.ts), the stylesheet is packages/ui/src/footer.css, and both
+ * browser suites hold the rendered footer to `siteFooterAriaSnapshot` — so a block added or
+ * moved here must be added or moved there in the same change, or both suites fail.
  */
 export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
   const f = settings.footer
   const q = splitLastWord(f.ctaQuestion)
   const hours = f.capacity.hours
+  const capacity = capacityLines(f.capacity)
   const marks = marksFor(f.certifications)
+  const words = SITE_FOOTER_WORDS
   /*
    * ⚠️ THE FACTS AREA RENDERS ONE BLOCK OF FOUR TODAY, AND THAT IS THE CODE BEING RIGHT.
    *
@@ -55,7 +68,6 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
    * It is an owner task, not an engineering one, and it is ten minutes:
    * `docs/OWNER-CHECKLIST.md` §5 now carries the exact strings to paste.
    */
-  const showCapacity = Boolean(f.capacity.moq || f.capacity.leadTime || hours)
 
   return (
     <footer className="site-footer">
@@ -78,7 +90,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
         <div className="site-footer__inner">
           <div className="footer-cta">
             <div>
-              <p className="footer-eyebrow">Start here</p>
+              <p className="footer-eyebrow">{words.eyebrow}</p>
               <h2 className="footer-q">
                 {q.head}
                 <em>{q.last}</em>
@@ -96,7 +108,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 
           <div className="footer-facts">
             <div className="footer-block footer-block--contact">
-              <h3>Contact</h3>
+              <h3>{words.contact}</h3>
               <ul>
                 <li>
                   <a href={`mailto:${settings.email}`}>{settings.email}</a>
@@ -116,13 +128,13 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
               </ul>
             </div>
 
-            {showCapacity ? (
+            {capacity.length > 0 ? (
               <div className="footer-block footer-block--capacity">
-                <h3>Capacity</h3>
+                <h3>{words.capacity}</h3>
                 <ul>
-                  {f.capacity.moq ? <li>MOQ {f.capacity.moq}</li> : null}
-                  {f.capacity.leadTime ? <li>Lead time {f.capacity.leadTime}</li> : null}
-                  {hours ? <li>{formatHours(hours)}</li> : null}
+                  {capacity.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
                 </ul>
               </div>
             ) : null}
@@ -146,7 +158,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
              */}
             {f.certifications.length > 0 ? (
               <div className="footer-block footer-block--standards">
-                <h3>Standards</h3>
+                <h3>{words.standards}</h3>
                 <ul>
                   {/*
                    * ⚠️ THE TEXT LINE STAYS WITH THE MARKS (owner's ruling 2026-09-16, kept when
@@ -164,7 +176,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 
             {f.socialLinks.length > 0 ? (
               <div className="footer-block footer-block--elsewhere">
-                <h3>Elsewhere</h3>
+                <h3>{words.elsewhere}</h3>
                 <ul>
                   {f.socialLinks.map((link) => (
                     <li key={link.url}>
@@ -178,7 +190,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
             ) : null}
 
             {marks.length > 0 ? (
-              <div className="footer-marks" role="group" aria-label="Marks of the standards above">
+              <div className="footer-marks" role="group" aria-label={words.marks}>
                 {marks.map((logo) => (
                   // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, and these are already-optimised SVGs of a few KB, which next/image would pass through unchanged (ProductPoster.tsx measures why).
                   <img
@@ -204,30 +216,22 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
           <div className="footer-legal">
             <span>{settings.legalLine}</span>
             <span>{settings.footerLine}</span>
-            <Link className="nav-link" href="/products">
-              Products
-            </Link>
-            <Link className="nav-link" href="/contact">
-              Contact
-            </Link>
-            {/* The buyer guides (owner, 2026-09-30): a page nothing links to is rarely found. */}
-            <Link className="nav-link" href="/guides">
-              Guides
-            </Link>
             {/*
-              The privacy notice is a legal requirement, not a nicety — the trigger is
-              processing personal data, not setting cookies, and both surfaces process at
-              least an IP address while the viewer sends errors to Sentry in the US
-              (audit FA-O-75, FA-O-76). The footer is where a visitor looks for it.
+              The bottom row, in SITE_FOOTER_LINKS's order (each entry says why it is here): the
+              privacy notice is a legal requirement — both surfaces process at least an IP address
+              (audit FA-O-75, FA-O-76) — and the cookie link is the way back to the cookie
+              question, one click from every page, drawn by ConsentLink because it reopens the
+              question in place.
             */}
-            <Link className="nav-link" href="/privacy">
-              Privacy
-            </Link>
-            {/* The way back to the cookie question, one click from every page. */}
-            <ConsentLink />
-            <Link className="nav-link" href="/terms">
-              Terms
-            </Link>
+            {SITE_FOOTER_LINKS.map((link) =>
+              link.consent ? (
+                <ConsentLink key={link.href} />
+              ) : (
+                <Link key={link.href} className="nav-link" href={link.href}>
+                  {link.label}
+                </Link>
+              ),
+            )}
           </div>
         </div>
 

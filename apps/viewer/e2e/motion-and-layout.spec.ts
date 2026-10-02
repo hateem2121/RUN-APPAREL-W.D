@@ -3290,7 +3290,7 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
         stage: document.querySelector('.stage-block .stage'),
         rail: document.querySelector('[role="tablist"]'),
         details: document.querySelector('main .content'),
-        footer: document.querySelector('footer.footer'),
+        footer: document.querySelector('footer.site-footer'),
       }
       const missing = Object.entries(parts)
         .filter(([, el]) => !el)
@@ -3397,7 +3397,7 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
           barHeight: barShown ? (bar as HTMLElement).getBoundingClientRect().height : 0,
           documentHeight: document.documentElement.scrollHeight,
           footerBottom:
-            (document.querySelector('footer.footer')?.getBoundingClientRect().bottom ??
+            (document.querySelector('footer.site-footer')?.getBoundingClientRect().bottom ??
               Number.NaN) + window.scrollY,
         }
       })
@@ -3687,10 +3687,13 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
   /**
    * MO-17, the viewer half: exactly four blocks reveal on scroll — colourways, customise,
    * contact, footer — and each by fading AND rising (opacity + transform). The site's half,
-   * rise only, is in apps/cms/e2e/motion.spec.ts. A fifth reveal, or one that lost its
+   * rise only, is in apps/cms/e2e/motion.spec.ts. A fourth reveal, or one that lost its
    * fade, is a change to the design this pins.
+   *
+   * THREE SINCE 2026-10-02: the footer was the fourth, and its reveal went with it when these
+   * pages took the website's footer (visual audit VA-31), which has never revealed on the site.
    */
-  test('four blocks reveal, each by fading and rising', async ({ page }) => {
+  test('three blocks reveal, each by fading and rising', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -3702,12 +3705,7 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
           .map((p) => p.trim()),
       })),
     )
-    expect(inventory.map((r) => r.block).sort()).toEqual([
-      'colourways',
-      'contact',
-      'customise',
-      'footer',
-    ])
+    expect(inventory.map((r) => r.block).sort()).toEqual(['colourways', 'contact', 'customise'])
     for (const r of inventory) {
       expect(r.properties, `${r.block} does not fade`).toContain('opacity')
       expect(r.properties, `${r.block} does not rise`).toContain('transform')

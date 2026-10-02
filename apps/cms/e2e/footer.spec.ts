@@ -1,4 +1,5 @@
 import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
+import { siteFooterAriaSnapshot } from '../../../packages/shared/src/siteFooter'
 import { expect, test } from './offlineMedia'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
@@ -216,6 +217,35 @@ test.describe('claims render only from real values', () => {
     const hasHours =
       (await page.locator('.footer-block--capacity li', { hasText: /PKT/ }).count()) > 0
     expect(hasStatus).toBe(hasHours)
+  })
+})
+
+/*
+ * VA-31 — ONE footer on both hosts (visual audit, owner-approved 2026-10-01): the garment pages
+ * draw this footer too since 2026-10-02, and apps/viewer/e2e/siteFooter.spec.ts holds theirs to
+ * the same template. The template is built from what the garment pages' API answers, so this is
+ * also the cross-check that both projections agree: whatever the database holds, the footer the
+ * website draws must be the footer the garment pages would draw from the same document.
+ */
+test.describe('one footer on both hosts (VA-31)', () => {
+  test("renders the shared accessibility tree, from the garment pages' own data", async ({
+    page,
+    request,
+  }) => {
+    const answer = await request.get('/api/public/viewer/n001/wine')
+    expect(answer.status()).toBe(200)
+    const { siteSettings } = await answer.json()
+    expect(siteSettings.footer, 'the garment API carries the footer').toBeTruthy()
+    await page.goto('/products')
+    await expect(page.locator('footer.site-footer')).toMatchAriaSnapshot(
+      siteFooterAriaSnapshot({
+        footer: siteSettings.footer,
+        email: siteSettings.email,
+        whatsappNumber: siteSettings.whatsappNumber,
+        legalLine: siteSettings.legalLine,
+        footerLine: siteSettings.footerLine,
+      }),
+    )
   })
 })
 

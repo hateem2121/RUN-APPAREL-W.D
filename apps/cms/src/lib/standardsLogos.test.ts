@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { logosFor, marksFor, STANDARDS_LOGOS } from './standardsLogos'
+// The table moved to @run-apparel/shared on 2026-10-02 (VA-31); the files it names stay here.
+import { logosFor, marksFor, STANDARDS_LOGOS } from '@run-apparel/shared'
 
 const PUBLIC_DIR = join(import.meta.dirname, '..', '..', 'public')
 
@@ -180,8 +181,14 @@ describe('the logo files', () => {
   })
 
   it('the footer draws the marks with no chip behind them', () => {
-    const css = readFileSync(join(import.meta.dirname, '../app/(frontend)/site.css'), 'utf8')
+    // The footer's stylesheet is shared with the garment pages since 2026-10-02 (VA-31).
+    const css = readFileSync(
+      join(import.meta.dirname, '../../../../packages/ui/src/footer.css'),
+      'utf8',
+    )
     const rule = css.match(/\.footer-logo\s*\{[^}]*\}/)?.[0] ?? ''
+    // Found first: a rule that moved away would otherwise pass the next line by being empty.
+    expect(rule, '.footer-logo is not in the footer stylesheet').not.toBe('')
     expect(rule).not.toMatch(/background/)
   })
 

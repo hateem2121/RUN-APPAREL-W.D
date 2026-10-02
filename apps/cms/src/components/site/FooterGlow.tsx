@@ -1,7 +1,7 @@
 'use client'
 
+import { type CursorPoint, subscribeToCursor } from '@run-apparel/shared'
 import { useEffect, useRef } from 'react'
-import { type CursorPoint, subscribeToCursor } from '../../lib/cursorBus'
 
 /** Anything under the light that should carry it instead of the halo. */
 const CONTENT =

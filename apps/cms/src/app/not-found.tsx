@@ -4,6 +4,7 @@ import '@fontsource/instrument-serif/400-italic.css'
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
 import '@run-apparel/ui/notch.css'
+import '@run-apparel/ui/footer.css'
 import './(frontend)/site.css'
 
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'

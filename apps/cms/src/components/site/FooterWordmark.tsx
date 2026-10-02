@@ -1,7 +1,7 @@
 'use client'
 
+import { fitScale } from '@run-apparel/shared'
 import { useEffect, useRef } from 'react'
-import { fitScale } from '../../lib/wordmarkFit'
 
 /**
  * The company's name at the width of the slab, cropped by its bottom edge. Two

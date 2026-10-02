@@ -2382,77 +2382,9 @@ model-viewer.stage__model {
 }
 
 /* ── Footer ────────────────────────────────────────────────────────── */
-.footer {
-  margin-top: auto;
-  border-top: 1px solid var(--line);
-  padding: clamp(24px, 4vw, 40px) clamp(16px, 4vw, 48px)
-    calc(24px + env(safe-area-inset-bottom, 0px));
-}
-
-.footer__inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  gap: 10px;
-}
-
-.footer__brand {
-  font-family: var(--font-display);
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: var(--text-wordmark-sm);
-  /* Matches the bar's `.notch__wordmark` (packages/ui/src/notch.css), owner decision
-     2026-09-24. The same wordmark was set two different ways on one page: a
-     different weight and stretch at the top than at the bottom, so the brand read
-     as two slightly different logotypes between the top and bottom of a single
-     scroll. */
-  letter-spacing: var(--tracking-wordmark);
-}
-
-.footer__line {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-sm);
-  letter-spacing: var(--tracking-caps-wide);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.footer__meta {
-  display: flex;
-  flex-wrap: wrap;
-  /* No row gap: each link below is 44px tall already, so a wrapped row needs no more. */
-  gap: 0 16px;
-  align-items: center;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-/*
- * The smallest target on the page was a link to the same place as a 40px button.
- *
- * Measured 2026-08-20: 105 x 20.1px — the only interactive element in the viewer
- * under WCAG 2.5.8's 24px floor. It PASSES the criterion, on the spacing
- * exception: it is the only target in this row, so no other target's 24px circle
- * can intersect its own. That exemption is also why the automated audit reported
- * zero violations and this had to be found by measuring every control.
- *
- * Passing on an exemption is not the same as being comfortable to hit, and the
- * exemption evaporates the moment a second link is added to this row. 6px of
- * vertical padding takes it to 32px and costs the footer nothing.
- *
- * 44px since 2026-09-26, the floor the site's own footer holds (`navbar.spec.ts`):
- * five links share this row now, and it was the one place a thumb got less.
- */
-.footer__meta a {
-  display: inline-flex;
-  align-items: center;
-  /* Width too since 2026-10-01: "Terms" measured 36.1 x 44 and "Privacy" 42.7 x 44 on all three
-     live garments (visual audit). Centred, so a short word sits in the middle of its target. */
-  justify-content: center;
-  min-height: 44px;
-  min-width: var(--target-min);
-  padding-block: 6px;
-}
+/* The website's footer since 2026-10-02 (visual audit VA-31): its rules are
+   packages/ui/src/footer.css, shared with the website, imported in main.tsx. The pale
+   three-line footer these rules drew is gone. */
 
 /* ── Unavailable state ─────────────────────────────────────────────── */
 .unavailable {

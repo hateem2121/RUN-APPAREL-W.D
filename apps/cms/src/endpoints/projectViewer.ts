@@ -5,6 +5,7 @@ import {
   type ViewerMediaAsset,
 } from '@run-apparel/shared'
 import { isAddressableColourway } from '../lib/colourwayAccess'
+import { projectFooter } from '../lib/projectPublic'
 import { onSiteMedia } from '../lib/siteMedia'
 
 /**
@@ -215,6 +216,14 @@ export function buildViewerResponse(
       ),
       footerLine: String(settings.footerLine ?? DEFAULT_SITE_SETTINGS.footerLine),
       legalLine: String(settings.legalLine ?? DEFAULT_SITE_SETTINGS.legalLine),
+      /*
+       * The website's footer, projected by the website's own function from the same document
+       * (visual audit VA-31, owner-approved 2026-10-01; the test that kept it off this payload,
+       * XS-08 in contactParity.test.ts, was changed with the owner's okay on 2026-10-02). Every
+       * field is public website copy or a public claim, the same words every website page
+       * prints, so the whitelist above still holds: nothing private crosses.
+       */
+      footer: projectFooter(settings),
     },
   }
 }

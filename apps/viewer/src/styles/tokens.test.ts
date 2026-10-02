@@ -674,7 +674,8 @@ describe('raw values in component stylesheets', () => {
       selector: '.site-hero .display--hero',
       value: 'clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem)',
     },
-    { file: 'site.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
+    // The footer's rules moved from site.css to the shared footer.css on 2026-10-02 (VA-31).
+    { file: 'footer.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
   ] as const
   const RATIOS = [{ file: 'base.css', selector: '.serif-accent', value: '1.07em' }] as const
 
@@ -963,9 +964,14 @@ describe('text on the --wash surface', () => {
   const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
 
   it('every rule that paints --wash behind its text clears 4.5:1, in both themes', () => {
-    const failures = ['tokens.css', 'base.css', 'notch.css', 'page.css', 'site.css'].flatMap(
-      (file) => washTextFailures(readFileSync(cssPath(file), 'utf8'), tokensSource, file),
-    )
+    const failures = [
+      'tokens.css',
+      'base.css',
+      'notch.css',
+      'footer.css',
+      'page.css',
+      'site.css',
+    ].flatMap((file) => washTextFailures(readFileSync(cssPath(file), 'utf8'), tokensSource, file))
     expect(failures).toEqual([])
   })
 
@@ -1550,7 +1556,8 @@ describe('CO-08 — every literal colour is on the palette, or a named exception
   // on 2026-10-01 (visual audit VA-22); as a token it needs no exception.
   const EXCEPTIONS = [
     {
-      file: 'site.css',
+      // In the shared footer.css since 2026-10-02 (VA-31), with the rest of the footer's rules.
+      file: 'footer.css',
       colours: ['#111111', '#333333', '#999999'],
       why: 'the printed footer (@media print) — paper has no dark theme',
     },

@@ -1,3 +1,5 @@
+import type { FooterSettings } from './siteFooter'
+
 /**
  * Public viewer API contract shared between apps/cms (producer) and
  * apps/viewer (consumer). Only published, public-safe data ever crosses
@@ -117,6 +119,12 @@ export interface ViewerSiteSettings {
   temporaryWordmark: string
   footerLine: string
   legalLine: string
+  /**
+   * The website's footer, which the garment pages draw too since visual audit VA-31
+   * (2026-10-02). Optional, because an API answer cached before then has none: the garment
+   * page then draws the footer's default copy and no claim (`EMPTY_FOOTER`).
+   */
+  footer?: FooterSettings
 }
 
 export interface ViewerApiSuccess {
