@@ -1349,6 +1349,13 @@ export function renderSummary(result) {
     '',
     '- Skim the table. Each "what changed" link opens GitHub\'s own comparison of the two versions.',
     '- The safety check is a first filter, not a review: it cannot tell whether new advice suits this website. If anything looks odd, close this pull request. Nothing else depends on it.',
+    // A pull request opened with the workflow's token gets its checks HELD until a person
+    // approves them (.github/CLAUDE.md, the GITHUB_TOKEN trap, measured on #123).
+    ...(wrote
+      ? [
+          "- GitHub does not start this pull request's checks by itself, because a robot opened it. When you are happy with the changes, press **Approve workflows to run** in the box at the bottom of this page. If merging is still blocked once the checks pass, approve the pull request too (Files changed, then Review changes).",
+        ]
+      : []),
     '',
   )
   const text = out.join('\n')

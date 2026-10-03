@@ -693,7 +693,8 @@ jobs:
    * that makes them.
    *
    * A TAG AND A DIGEST since 2026-09-29 (owner decision). Until then it was the tag
-   * alone, deliberately: `.github/dependabot.yml` declares no docker ecosystem, so a
+   * alone, deliberately: `.github/dependabot.yml` declared no docker ecosystem (its one
+   * `docker` block, since 2026-10-03, covers apps/shrink/Dockerfile and not this file), so a
    * digest pin would go stale in silence. That reasoning holds for the digest and the
    * tag alike — nothing refreshes either, and a Playwright bump here is always made by
    * hand — while a tag can be REPUBLISHED under the same name and a digest cannot. So

@@ -1855,6 +1855,23 @@ describe('refresh, on a temp copy of real skills', () => {
       expect(workflow).not.toContain('--accept')
     })
   })
+
+  it('leaves starting the checks to a person, and holds no Actions write permission for it', () => {
+    /*
+     * GitHub holds the checks of a pull request this job's token opens until a person approves
+     * them, and the run the job used to start itself never counted (#123, 2026-10-03,
+     * .github/CLAUDE.md). Starting one again would only spend runner time and ask for
+     * `actions: write` to do it.
+     */
+    const workflow = readFileSync(real('.github', 'workflows', 'refresh-skills.yml'), 'utf8')
+    // The file's own comments tell that history, so read only the lines that run or grant.
+    const live = workflow
+      .split('\n')
+      .filter((line) => !/^\s*#/.test(line))
+      .join('\n')
+    expect(live).toContain('gh pr create') // the right step
+    expect(live).not.toMatch(/gh workflow run|actions: write/)
+  })
 })
 
 // ── What a person reads ──────────────────────────────────────────────────────
@@ -1887,6 +1904,8 @@ describe('the summary and the report', () => {
     )
     expect(summary).toContain('1 skill already matches its original project and was left alone.')
     expect(summary).toContain('### Updated (2)')
+    // GitHub holds a robot pull request's checks; the body names the button that starts them.
+    expect(summary).toContain('press **Approve workflows to run**')
     // The planted value itself is never printed, only the pattern's name and where it is.
     expect(summary).not.toContain('qqqq')
     expect(summary).not.toContain('cut short')
@@ -1899,6 +1918,8 @@ describe('the summary and the report', () => {
     expect(summary).toContain('Nothing was changed.')
     expect(summary).toContain('3 skills already match their original project and were left alone.')
     expect(summary).toContain('Nothing was blocked.')
+    // A preview opens no pull request, so there are no checks to approve.
+    expect(summary).not.toContain('Approve workflows to run')
   })
 
   it('keeps a hostile file name from breaking the Markdown or hiding behind a direction mark', async () => {

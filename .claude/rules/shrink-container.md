@@ -13,7 +13,9 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
 
 - **`apps/shrink/container` is not a workspace member.** It installs with plain
   `npm` inside Docker, so it cannot use `workspace:*` deps, and `pnpm -r` skips
-  it. It has its own CI typecheck step; keep it.
+  it. It has its own CI typecheck step; keep it. Since 2026-10-03 its packages get their
+  own weekly Dependabot pull request (the `/apps/shrink/container` block in
+  `.github/dependabot.yml`); the workspace's npm block never reached them.
   🟢 **The typecheck step was never the gap — `npm ci` is.** `tools/asset-pipeline`
   carries a SECOND lockfile (`package-lock.json`, npm's, read only by
   `apps/shrink/Dockerfile`) that no workspace tooling maintains, so bumping that

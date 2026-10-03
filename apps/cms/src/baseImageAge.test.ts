@@ -3,7 +3,10 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * The container's base image is pinned by digest, and nothing refreshes it.
+ * The container's base image is pinned by digest. Since 2026-10-03 Dependabot proposes
+ * digest bumps (`.github/dependabot.yml`, the `docker` block, owner decision); before that
+ * nothing refreshed it. This test is still the reminder, because a proposal is not a merge
+ * and Dependabot leaves the `# PINNED-ON:` date it reads alone.
  *
  * Pinning is correct: `node:24-slim` is a moving tag that picks up Node patch releases
  * and rebuilt system libraries, and `sharp` links against those — a change in the WebP
@@ -64,15 +67,16 @@ describe('the container base image pin', () => {
 
     expect(
       age,
-      `The container base image was pinned ${age} days ago and nothing refreshes it.\n` +
+      `The container base image was pinned ${age} days ago.\n` +
         'Base images are rebuilt mainly for OS security fixes, so this is the reminder.\n\n' +
-        'To refresh:\n' +
+        'If Dependabot has an open pull request for it, finish that one: look at a\n' +
+        'rendered garment print, and set PINNED-ON in apps/shrink/Dockerfile to today in\n' +
+        'the same pull request. Otherwise, to refresh by hand:\n' +
         '  docker pull node:24-slim\n' +
         '  docker inspect --format="{{index .RepoDigests 0}}" node:24-slim\n' +
         '  # put that digest in apps/shrink/Dockerfile, update PINNED-ON to today,\n' +
         '  # then rebuild the image and confirm it still starts.\n\n' +
-        'Do NOT unpin it, and do NOT add a docker ecosystem to dependabot.yml — see\n' +
-        'the comment beside the pin for why both of those are wrong here.',
+        'Do NOT unpin it — see the comment beside the pin for why.',
     ).toBeLessThanOrEqual(MAX_AGE_DAYS)
   })
 

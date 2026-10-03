@@ -629,7 +629,7 @@ setup, written down so a session can tell why something changed overnight.
 | npm global tools, pipx apps, `uv` | Mondays at 11:30 | `~/Library/LaunchAgents/help.wear-run.weekly-tool-updates.plist`, which runs `~/.local/bin/weekly-tool-updates.sh` (log in `~/Library/Logs/`) |
 | codebase-memory-mcp | **A reminder only**; a session updates it (§1, "Upgrading") | the same weekly script |
 | Vendored agent skills | A pull request every Monday | `.github/workflows/refresh-skills.yml` |
-| Website, CMS and pipeline libraries | Pull requests every Monday | `.github/dependabot.yml` |
+| Website, CMS, pipeline and shrink-container libraries, the shrink base image, GitHub Actions | Pull requests every Monday | `.github/dependabot.yml` |
 
 Traps found while setting it up:
 
