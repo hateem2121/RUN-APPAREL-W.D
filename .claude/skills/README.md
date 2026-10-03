@@ -71,13 +71,13 @@ the keystroke point 4 is about.
 
 | Skill | Source | Licence |
 |---|---|---|
-| `performance-optimization` | `addyosmani/agent-skills` @ `f03b4a84b08b` | MIT |
+| `performance-optimization` | `addyosmani/agent-skills` @ `a06bc63b3f8b` | MIT |
 | `observability-and-instrumentation` | `addyosmani/agent-skills` @ `a06bc63b3f8b` | MIT |
-| `emil-design-eng` | `emilkowalski/skills` @ `de33dbed0002` | MIT |
-| `review-animations` | `emilkowalski/skills` @ `de33dbed0002` | MIT |
+| `emil-design-eng` | `emilkowalski/skills` @ `e8a175de22ae` | MIT |
+| `review-animations` | `emilkowalski/skills` @ `e8a175de22ae` | MIT |
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
-| `vercel-react-view-transitions` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
+| `vercel-react-view-transitions` | `vercel-labs/agent-skills` @ `063bee94c3f4` | MIT |
 | `web-design-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `writing-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `motion` | `motiondivision/ai-kit` @ `1140efe9ad5e` | **unstated** — local only since 2026-09-10 |
