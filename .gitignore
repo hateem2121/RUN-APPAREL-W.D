@@ -163,3 +163,13 @@ docs/audit-*/scratch/
 .claude/skills/motion/
 .claude/skills/web-design-guidelines/
 .claude/skills/writing-guidelines/
+
+# The Impeccable design plugin, enabled for this project in .claude/settings.json on
+# 2026-10-03, writes its hook caches INTO the project: .impeccable/hook.cache.json,
+# .impeccable/hook.pending.json and .impeccable/build/state.json (read from its own
+# source, crates/hook). That is per-machine state and this repository is PUBLIC, so
+# none of it may be committed. .impeccable/config.json is the one file Impeccable means
+# to share — design-rule exceptions a reviewer should see in a pull request — so it
+# stays committable.
+.impeccable/*
+!.impeccable/config.json

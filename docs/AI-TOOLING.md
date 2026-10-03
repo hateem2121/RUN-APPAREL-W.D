@@ -466,10 +466,10 @@ the cookbook is the reference for how to call it — not a thing to copy wholesa
 | File | Committed | What it does |
 |---|---|---|
 | `launch.json` | yes | Dev-server definitions for viewer (5173) and cms (3000). Invokes pnpm via `npx --yes pnpm@12.6.0`, because pnpm is not necessarily on `PATH` — see the note under "Full-suite verification". |
-| `settings.json` | yes | Permission allowlist for read-only commands, plus the guard hook below. |
+| `settings.json` | yes | Permission allowlist for read-only commands, the guard hook below, and the Impeccable design plugin (`enabledPlugins` and `extraKnownMarketplaces`) — see "The Impeccable design plugin" below. |
 | `settings.local.json` | **no** (gitignored) | `CBM_ALLOWED_ROOT`. Machine-specific; see above. |
 | `hooks/guard-pipeline-input.mjs` | yes | The guard below. |
-| `skills/` | yes | Four vendored third-party skills, pinned to a commit. Provenance, licences, the reason for each, why a fifth was dropped, and a review date are in `.claude/skills/README.md`. |
+| `skills/` | yes | Our own skills plus vendored third-party ones, each pinned to a commit. Provenance, licences, the reason for each, what was dropped and why, and a review date are in `.claude/skills/README.md`. |
 
 ### The pipeline guard hook
 
@@ -529,6 +529,49 @@ Two limits, stated because they are easy to over-trust:
   gate that blocks the documented fix gets switched off.
 
 ---
+
+### The Impeccable design plugin (added 2026-10-03)
+
+**In plain words:** a design coach for Claude, switched on for this project only. It
+checks page code for common design mistakes after each edit, and adds 24 design
+commands such as `/impeccable audit`, `/impeccable critique` and `/impeccable polish`.
+
+On 2026-10-03 the owner chose the **full plugin** (its engine and hooks, not just its
+instructions), at **project scope** (no other project on the machine runs it), with
+**auto-update on** — for a third-party marketplace, Claude Code's default is off. Both
+choices live in `.claude/settings.json`: `enabledPlugins` turns it on, and
+`extraKnownMarketplaces` names its source, `pbakaus/impeccable`, with `"autoUpdate": true`.
+Another machine needs `claude plugin install impeccable@impeccable --scope project` once.
+
+What it runs, from `claude plugin details impeccable` and its own source:
+
+| Part | What it does |
+|---|---|
+| 3 hooks | `SessionStart`, `PostToolUse` on `Edit\|Write`, and `Stop` (its "Design deep pass", up to 30 s). Each runs the engine. Plugin hooks run outside the sandbox. |
+| The engine | A native program its launcher downloads on first use, from the project's GitHub releases into `~/.impeccable/bin/<version>/`. Version 0.1.11 was 14,845,040 bytes, and its SHA-256 matched the digest GitHub recorded. **No build attestation is published (GitHub answered 404) and the program is ad-hoc signed**, so trust rests on GitHub's release record and that checksum. |
+| 1 skill | 24 commands, loaded when used. About 389 tokens sit in every session. |
+| 4 helper agents | Some commands start them as subagents. |
+
+**The checker is on by default.** With no Impeccable config file in the project, its
+edit hook runs after every edit to `.ts`, `.tsx`, `.js`, `.jsx`, `.css` and `.html`
+files, among others — most of this repository, Worker code included. In Claude Code it
+never blocks an edit; it adds a reminder. **Its findings are advice: `docs/DESIGN.md`
+and the owner's approval win**, the same ruling `.claude/skills/README.md` makes for
+the other design skills.
+
+It writes caches into the project folder (`.impeccable/hook.cache.json`,
+`.impeccable/hook.pending.json`, `.impeccable/build/state.json`), and `.gitignore`
+keeps them all out of git except `.impeccable/config.json`, which Impeccable means to be
+shared. Its hook code has no network library; some design commands do fetch ideas from
+`impeccable.style`.
+
+- **Switch the checker off for this project:** run `/impeccable hooks off`, or set
+  `IMPECCABLE_HOOK_DISABLED=1` for one shell.
+- **Remove the plugin:** `claude plugin uninstall impeccable@impeccable --scope project`,
+  then delete both entries from `.claude/settings.json`.
+- **Ask the owner before `/impeccable init` or `/impeccable document` writes a root
+  `PRODUCT.md` or `DESIGN.md`.** This repository is public, its design authority is
+  `docs/DESIGN.md`, and every new document must pass the docs gates.
 
 ## 5. Cloudflare — account-scoped, deliberately not in `.mcp.json`
 
