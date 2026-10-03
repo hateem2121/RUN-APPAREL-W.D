@@ -19,9 +19,9 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   since 2026-08-29.** Every release from `5.20260808.1` on fails that package's typecheck
   with `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` x3 plus one
   arity error — **all four in one 15-line function**, `readGlbGenerator`
-  (`tools/asset-pipeline/src/validate.ts:45`). Re-measured on `5.20260925.1` (2026-09-26): still
+  (`tools/asset-pipeline/src/validate.ts:45`). Re-measured on `5.20260926.1` (2026-10-03): still
   broken, so the hold stands where it applies.
-  **It applies nowhere else.** `apps/cms` and `apps/viewer` run `5.20260925.1` (raised 2026-09-26) and
+  **It applies nowhere else.** `apps/cms` and `apps/viewer` run `5.20260926.1` (raised 2026-10-03) and
   typecheck clean; the hold had frozen 24 days of updates across both for a fault
   neither has. It surfaces only in `apps/shrink` because that package sets
   `"types": ["@cloudflare/workers-types"]` with no node types, and its tsconfig reaches
@@ -31,7 +31,7 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   🟡 **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
   `dependencyPolicy.test.ts`, which asserts the hold in `apps/shrink` AND asserts it has
   not widened again. wrangler 4.141.0 wants `^5.20260925.1`; `apps/cms` and `apps/viewer`
-  were raised to `5.20260925.1` on 2026-09-26 and satisfy it, so only `apps/shrink` still
+  were raised to `5.20260926.1` on 2026-10-03 and satisfy it, so only `apps/shrink` still
   shows the unmet-peer warning — and that one is the real hold. **Do not "fix" shrink's by raising workers-types**, which
   trades it for the real break.
   Releasing it does not need Cloudflare: move `SIZE_WARNING_BYTES` and `GlbReport` into a
