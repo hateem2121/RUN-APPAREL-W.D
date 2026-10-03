@@ -197,7 +197,7 @@ Dependencies are pinned to the latest stable releases. Deliberate exceptions:
   on breaks that package's typecheck, but all four errors are in one 15-line function
   (`readGlbGenerator`), and it surfaces only there because `apps/shrink` sets
   `types: ["@cloudflare/workers-types"]` with no node types. **`apps/cms` and
-  `apps/viewer` run `5.20260925.1`** (raised 2026-09-26) and typecheck clean — the wider hold had frozen
+  `apps/viewer` run `5.20260926.1`** (raised 2026-10-03) and typecheck clean — the wider hold had frozen
   24 days of updates across both for a fault neither has. wrangler 4.141.0 asks for `^5.20260925.1`, which cms and viewer meet, so
   **only `apps/shrink` shows an unmet-peer warning** — the real hold. Do not "fix" shrink's by raising workers-types. The split is enforced by
   `dependencyPolicy.test.ts`, which also asserts the hold has not widened again.

@@ -29,6 +29,15 @@ It had been applied to all three workspaces that declare it. Measured that day:
 | `apps/viewer` | **5.20260925.1** (raised that day) | passes |
 | `apps/shrink` | 5.20260804.1 (held) | passes — and fails on 5.20260925.1 with the same four errors in `readGlbGenerator` |
 
+**Re-measured 2026-10-03** on Dependabot's `needs-hand-sync` pull request (#121), which
+raised all three:
+
+| workspace | version | typecheck |
+| --- | --- | --- |
+| `apps/cms` | **5.20260926.1** (raised that day) | passes |
+| `apps/viewer` | **5.20260926.1** (raised that day) | passes |
+| `apps/shrink` | 5.20260804.1 (held) | passes — and failed on 5.20260926.1 in CI with the same four errors in `readGlbGenerator` |
+
 Negative control run in both directions: bumping `apps/shrink` too produces exactly
 four errors, all in `tools/asset-pipeline/src/validate.ts` lines 47-50, which is
 `readGlbGenerator`. Restoring the hold clears them. So the break is real, and it is
