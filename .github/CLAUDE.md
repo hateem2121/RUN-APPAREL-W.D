@@ -392,3 +392,18 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   now captures wrangler's output and prints it through `redactPresignedUrls`, and
   `apps/cms/src/backupD1Redaction.test.ts` runs it against a fake runner that prints a
   real-shaped link. Before any step runs a CLI against production, ask what it PRINTS.
+
+- **🟡 A PULL REQUEST OPENED WITH `GITHUB_TOKEN` STARTS NO WORKFLOW RUNS, so
+  `refresh-skills.yml` starts `ci.yml` itself.** GitHub's docs, read 2026-10-03: "events
+  triggered by the GITHUB_TOKEN will not create a new workflow run", except
+  `workflow_dispatch` and `repository_dispatch`. A robot PR would wait forever on the six
+  required checks, so the robot runs `gh workflow run ci.yml --ref <its branch>`: every
+  gating job runs (`scripts/ci-changed-paths.mjs` treats a manual run as "everything
+  changed", so the shrink image audit runs too) and both deploy jobs stay off, because they
+  need `refs/heads/main`. Socket's check is an App webhook, not a workflow run, so it posts
+  anyway. Opening the PR at all needed the repository setting *Allow GitHub Actions to create
+  and approve pull requests*, switched on 2026-10-03 by owner decision (the ruleset still
+  requires 0 approvals). 🟡 **NOT YET MEASURED: whether CodeQL default setup analyses a
+  robot PR** — it runs as Actions too, and the ruleset's `code_scanning` rule may hold the
+  merge until it has. Read the first robot PR's merge state; if it waits on CodeQL, a PERSON
+  closing and reopening the PR starts every pull_request workflow.

@@ -404,6 +404,14 @@ re-indexes, which in practice is the same session.
 To bump: change `PINNED_VERSION`, run `pnpm index:ai --cold`, and re-measure the
 node/edge counts above in the same commit — they are claims about a specific build.
 
+**Since 2026-10-03 the owner's Mac reminds instead of updating** (owner decision, when
+everything else was set to update itself — §6). Its weekly script prints a reminder and
+shows a notification when a newer release is out, and a session bumps it on purpose, as
+above. Install with `npm install -g codebase-memory-mcp@<version>
+--allow-scripts=codebase-memory-mcp`: npm now blocks install scripts by default, and this
+package's `postinstall` is what downloads and checksum-verifies the binary, so without the
+flag the update leaves the server with no program to run.
+
 ---
 
 ## 2. @google/model-viewer (already a dependency)
@@ -601,3 +609,39 @@ API token in the workflow, not an OAuth server in `.mcp.json`.
 missing from the repo." That framing was wrong: the connector follows the
 **account**, not the machine, so a fresh session anywhere the owner is signed in
 already has it. Only headless runs are affected.
+
+---
+
+## 6. Keeping the tooling current (the owner's Mac, 2026-10-03)
+
+**In plain words:** what updates itself, how often, and the traps found while setting it up.
+
+On 2026-10-03 the owner asked for every skill, tool, plugin and connector to stay at its
+latest version. Only the last two rows live in this repository; the rest is the Mac's own
+setup, written down so a session can tell why something changed overnight.
+
+| What | How it updates | Where it is set |
+|---|---|---|
+| Claude plugins | In the background after a session starts | `~/.claude/settings.json`: `autoUpdate` on each `extraKnownMarketplaces` entry, plus `FORCE_AUTOUPDATE_PLUGINS=1` in its `env` |
+| The Impeccable plugin | The same, for this project only | `.claude/settings.json` (§4) |
+| MCP connectors started by npx, pipx or uvx | The newest release at each start (`@latest`; pipx reuses a download for up to 14 days) | `~/.claude.json` and the desktop app's `claude_desktop_config.json` |
+| Homebrew tools and apps | Daily at 11:00 | `brew autoupdate` (tap `domt4/autoupdate`) |
+| npm global tools, pipx apps, `uv` | Mondays at 11:30 | `~/Library/LaunchAgents/help.wear-run.weekly-tool-updates.plist`, which runs `~/.local/bin/weekly-tool-updates.sh` (log in `~/Library/Logs/`) |
+| codebase-memory-mcp | **A reminder only**; a session updates it (§1, "Upgrading") | the same weekly script |
+| Vendored agent skills | A pull request every Monday | `.github/workflows/refresh-skills.yml` |
+| Website, CMS and pipeline libraries | Pull requests every Monday | `.github/dependabot.yml` |
+
+Traps found while setting it up:
+
+- **The desktop app starts Claude Code with `DISABLE_AUTOUPDATER=1`** (it updates its own
+  copy), and that also switches off every PLUGIN update, official ones included.
+  `FORCE_AUTOUPDATE_PLUGINS=1` turns plugin updates back on (code.claude.com, "Plugin
+  loading reference", read 2026-10-03).
+- **`claude plugin marketplace add` declares the marketplace in the USER settings** unless
+  it is given `--scope`. For a project-only plugin, declare it in the project's settings.
+- **`npm update -g` stops at its first error, and then nothing updates.** A leftover
+  `corepack` entry (Node 25 no longer ships it) tried to re-create `/opt/homebrew/bin/pnpm`
+  and failed with EEXIST. The weekly script updates each outdated package by name instead.
+- **`/opt/homebrew/bin/uv` points at the standalone `~/.local/bin/uv`**, the copy the
+  Search Console connector runs. Homebrew's own `uv` could not link over it, so it is
+  pinned (`brew pin uv`) and the standalone copy updates itself (`uv self update`) weekly.

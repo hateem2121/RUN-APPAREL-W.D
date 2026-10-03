@@ -26,7 +26,9 @@ points for which, and why that distinction is smaller than it looks.
    is injected into an agent's context and shapes what it does, so it deserves at
    least as much review as code.
 2. **Pinned.** An installer re-resolves to whatever upstream is today. These are
-   fixed at the SHAs below and move only when someone changes them here.
+   fixed at the SHAs below and move only when someone changes them here. Since
+   2026-10-03 a weekly robot proposes those changes (see "The weekly refresh robot"
+   below): still pinned, still reviewed, no longer forgotten.
 3. **Scoped to this project.** `npx impeccable install` and friends write into 15+
    agent directories (`.cursor`, `.codex`, `.gemini`, `.trae`, …). Nothing here
    needs that.
@@ -339,6 +341,26 @@ documentation and search-industry references (`developers.google.com`, `schema.o
 `example.com` placeholders); the only shell commands are example `curl` checks of a
 page's robots headers, in one `ai-seo` reference file.
 
+## The weekly refresh robot (2026-10-03)
+
+The owner asked on 2026-10-03 for every skill to stay at its latest version. Every Monday
+`.github/workflows/refresh-skills.yml` runs `scripts/refresh-vendored-skills.mjs`, which:
+
+- takes every vendored skill in git: the table above (not its three local-only rows,
+  which git does not have) and `skills-lock.json` — 24 skills on 2026-10-03;
+- compares each folder, file by file, with its upstream's newest commit;
+- scans what changed with the checks in "Scanned before committing" (non-text files,
+  credential access, instruction-override wording, secret-shaped strings) and checks the
+  upstream licence is still MIT or Apache-2.0. Only NEW findings count, so a skill whose
+  prose already mentions `localStorage` is not blocked for it;
+- applies the clean updates, moves the SHA in the table and recomputes the lockfile hash
+  exactly as the `skills` installer does (verified against the `animate` entry);
+- opens ONE pull request, closing last week's if it is still open, and starts `ci.yml`
+  on it. A blocked update is left out and the run ends red, naming the reason.
+
+Run it by hand with `gh workflow run refresh-skills.yml`, or as a local dry run that
+writes nothing: `node scripts/refresh-vendored-skills.mjs`.
+
 ## Not here: Impeccable
 
 On 2026-10-03 the owner chose the FULL Impeccable plugin (its engine and hooks) over a
@@ -349,9 +371,11 @@ Impeccable design plugin".
 
 ## Updating
 
-Re-fetch at a new SHA and update the table in the same commit. Do not edit the
-vendored files in place — a local edit that upstream does not have is
-indistinguishable from drift.
+Re-fetch at a new SHA and update the table in the same commit; the robot above does
+exactly that every Monday, and `node scripts/refresh-vendored-skills.mjs --write --only
+<name>` does it by hand for one skill. Do not edit the vendored files in place — a local
+edit that upstream does not have is indistinguishable from drift, and the robot would
+overwrite it.
 
 **Review by 2026-11-13 (three months).** Not a rule about staleness — pinned files
 do not rot — but about *relevance*: point 4 above describes 57 skills that nobody
