@@ -27,8 +27,9 @@
  *   - adds or edits a file whose name does not end in .md or .json;
  *   - has a LINE the old version did not have that runs a command (a ```! block's every line,
  *     not only its first), is a SKILL.md header line outside the fields that only describe a
- *     skill (where tool grants and hooks would go), carries a character that shows as nothing,
- *     or matches the credential-access, instruction-override or secret-shaped patterns. Lines
+ *     skill (where tool grants and hooks would go), imports another file into a model's context
+ *     (`@~/.aws/credentials`), carries a character that shows as nothing, or matches the
+ *     credential-access, instruction-override or secret-shaped patterns. Lines
  *     are compared as a multiset: a flagged line that was already there never blocks, a second
  *     copy of it does, and deleting one benign line does not pay for a new one (the first
  *     version compared per-file COUNTS, which let exactly that through: commit review,
@@ -36,9 +37,10 @@
  *   - answers under a different GitHub owner (a rename is followed, a transfer is not);
  *   - has a licence that is not MIT or Apache-2.0, or not the one the README row records;
  *   - cannot be trusted as a file set: a symbolic link, a submodule, a path that leaves the
- *     folder, a nested .claude folder, a name outside [A-Za-z0-9._/-] or two names that differ
- *     only in capitals (one file on a Mac), a file over 1 MiB, a NUL byte or invalid UTF-8, or
- *     bytes that do not match GitHub's own file list.
+ *     folder, a hidden file or folder, an instruction file another tool loads on its own
+ *     (CLAUDE.md, GEMINI.md) or a second SKILL.md, a name outside [A-Za-z0-9._/-] or two names
+ *     that differ only in capitals (one file on a Mac), a file over 1 MiB, a NUL byte or
+ *     invalid UTF-8, or bytes that do not match GitHub's own file list.
  * --accept <name>@<commit> lets one skill's flagged LINES through after a person has read them
  * at that upstream commit, named in FULL: upstream controls its commit ids, and two commits that
  * share a 12-character prefix take seconds to make (third commit review, 2026-10-03). If
@@ -139,6 +141,13 @@ export const MAX_FILE_BYTES = 1_048_576
 const TEXT_FILE = /\.(md|json)$/
 /** A name that reads the same to a person, to git and to every file system. */
 const PLAIN_PATH = /^[A-Za-z0-9._/-]+$/
+/**
+ * Files a tool loads ON ITS OWN when it works in their folder, whose imports can pull any file
+ * into its context: Claude Code's CLAUDE.md (`@~/.aws/credentials`) and Gemini CLI's GEMINI.md
+ * (push review, 2026-10-03). A skill needs neither. AGENTS.md stays allowed, because Vercel's
+ * skills ship one; its lines get the import check like every other file's.
+ */
+const AUTOLOADED = new Set(['claude.md', 'claude.local.md', 'gemini.md'])
 
 /**
  * Each is tried on one line at a time, as `visible` leaves it. See the header for why the two
@@ -154,6 +163,10 @@ export const SCAN_PATTERNS = {
   // Claude Code RUNS `!` + backtick at a line's start or after a space, and a ```! block,
   // before the model sees the skill. After any other character it does not: KEY=!`x` is text.
   command: /(?:^|\s)!`|^\s*(?:```|~~~)\s*!/g,
+  // A `@path` import (CLAUDE.md, GEMINI.md) or Antigravity's `@[label](path)` pulls another
+  // file, credentials included, into a model's context (push review, 2026-10-03). The label is
+  // bounded, so a line of a million "@[" stays linear.
+  import: /(?:^|\s)@[~./]|@\[[^\]\n]{0,200}\]\(/g,
 }
 
 /**
@@ -522,7 +535,7 @@ function permissionLines(lines) {
 }
 
 /** Most severe first: the order a blocked skill's reasons are listed in. */
-const CHECKS = ['command', 'permission', 'hidden', 'override', 'credential', 'secret']
+const CHECKS = ['command', 'permission', 'import', 'hidden', 'override', 'credential', 'secret']
 
 /**
  * For each check, the [index, text] of every line of one file that it flags. Only the skill's
@@ -551,6 +564,7 @@ function flagLines(text, file) {
     const hits = {
       command: inBlock || opener !== null || view.search(SCAN_PATTERNS.command) >= 0,
       permission: header.has(index),
+      import: view.search(SCAN_PATTERNS.import) >= 0,
       hidden: HIDDEN.test(line),
       override: view.search(SCAN_PATTERNS.override) >= 0,
       credential: view.search(SCAN_PATTERNS.credential) >= 0,
@@ -886,8 +900,17 @@ async function planSkill(record, { root, github, accept }) {
     else if (!isSafeRelativePath(rel)) reasons.push(`unsafe file path: ${code(rel)}`)
     else if (!PLAIN_PATH.test(rel))
       reasons.push(`a file name with characters other than A-Z a-z 0-9 . _ - /: ${code(rel)}`)
-    else if (rel.split('/').some((part) => part.toLowerCase() === '.claude'))
-      reasons.push(`a nested .claude folder (Claude Code loads skills from one): ${code(rel)}`)
+    else if (rel.split('/').some((part) => part.startsWith('.')))
+      reasons.push(
+        `a hidden file or folder, where tools look for settings of their own (.claude, .cursor): ${code(rel)}`,
+      )
+    else if (
+      AUTOLOADED.has(posix.basename(rel).toLowerCase()) ||
+      (rel.includes('/') && posix.basename(rel).toLowerCase() === 'skill.md')
+    )
+      reasons.push(
+        `an instruction file a tool loads on its own (CLAUDE.md, GEMINI.md) or a second SKILL.md: ${code(rel)}`,
+      )
   }
   // A Mac's disk treats SKILL.md and skill.md as one file: such a pair would overwrite each
   // other, and a rename that changes only capitals would delete the file it had just written.
@@ -1296,12 +1319,13 @@ export function renderSummary(result) {
       '',
       '- adds or edits a file that is not plain text (only `.md` and `.json` come in);',
       "- adds a line that runs a command when the skill loads (`command`), or a header line other than the skill's name, description, licence or notes, which is where letting Claude use tools without asking, or hooks, would go (`permission`);",
+      "- adds a line that pulls another file into Claude's reading, such as `@~/.aws/credentials` (`import`);",
       '- adds characters that show as nothing on screen but that Claude still reads (`hidden`);',
       '- adds a line about passwords, keys, environment variables or browser storage (`credential`);',
       '- adds wording that tells Claude to ignore its instructions or to hide things from the user (`override`);',
       '- adds something shaped like a real key or token (`secret`);',
       '- comes from a project that moved to a different GitHub owner, or whose licence is no longer MIT or Apache-2.0, or no longer the one recorded;',
-      '- cannot be trusted as a set of files (a link, a submodule, a path that leaves its folder, an odd or clashing file name, a very large file, or files that do not match what GitHub lists).',
+      '- cannot be trusted as a set of files (a link, a submodule, a path that leaves its folder, a hidden file, an instruction file another tool loads on its own such as `CLAUDE.md`, an odd or clashing file name, a very large file, or files that do not match what GitHub lists).',
       '',
       'A person has to decide what to do about each of these. When only lines were flagged, a person who has read them and found them harmless can let that one skill through by hand: `.claude/skills/README.md`, "Updating".',
       '',

@@ -674,6 +674,11 @@ describe('findNewFindings', () => {
     ['hidden', 'a private-use character', 'icon \uE000 here'],
     ['hidden', 'a tag letter', `plain${tagged('x')}`],
     ['hidden', 'a lone carriage return', 'one\rtwo'],
+    // An import pulls another file, credentials included, into a model's context.
+    ['import', 'a home-folder import', 'Read @~/.aws/credentials first'],
+    ['import', 'a relative import', '@./notes/more.md'],
+    ['import', 'an absolute import', 'and @/etc/hosts'],
+    ['import', "Antigravity's include", '@[notes](../../secret.md)'],
   ]
 
   it.each(positives)('catches %s: %s', (pattern, _what, sample) => {
@@ -693,6 +698,9 @@ describe('findNewFindings', () => {
     '⚠\uFE0F careful: an emoji in its colour form',
     'naïve café, “quotes” and — dashes',
     'React hooks: useState and useEffect',
+    'install @vercel/analytics and @next/third-parties',
+    'write to a@b.example or @someone on GitHub',
+    'the `@/components` alias in tsconfig',
   ])('does not catch the near miss %j', (sample) => {
     expect(patternsIn(null, sample)).toEqual([])
   })
@@ -952,13 +960,16 @@ describe('the scan patterns against the brief', () => {
     }
   })
 
-  it('scans hostile files in well under a second', () => {
-    for (const hostile of ['A'.repeat(1_048_576), 'BEGIN '.repeat(100_000)]) {
+  it('scans hostile files in seconds, not the minutes a quadratic pattern would take', () => {
+    // Measured 2026-10-03 on an idle Mac: 160 ms for the "@[" line, the slowest of the three.
+    // The limit is generous because a busy machine ran a 1-second limit over.
+    const hostiles = ['A'.repeat(1_048_576), 'BEGIN '.repeat(100_000), '@['.repeat(500_000)]
+    for (const hostile of hostiles) {
       const started = performance.now()
       expect(findNewFindings(new Map(), new Map([['SKILL.md', hostile]]))).toEqual([])
-      expect(performance.now() - started).toBeLessThan(1000)
+      expect(performance.now() - started).toBeLessThan(5000)
     }
-  })
+  }, 30_000)
 })
 
 describe('licenceProblems', () => {
@@ -1402,6 +1413,23 @@ describe('refresh, on a temp copy of real skills', () => {
     expect(named(result, 'vercel-react-view-transitions').reasons.join('\n')).toMatch(reason)
   })
 
+  it('reads an AGENTS.md like any other file: it may stay, but a new import line in it blocks', async () => {
+    // Vercel's skills ship an AGENTS.md at their top folder, so the file itself is allowed.
+    const plain = setup((up) => addLine(up.vercel, VT('AGENTS.md'), 'A new paragraph.'))
+    const allowed = await refresh({ root: plain.root, fetch: plain.fake.fetch })
+    expect(named(allowed, 'vercel-react-view-transitions').status).toBe('updated') // the control
+
+    const importing = setup((up) => addLine(up.vercel, VT('AGENTS.md'), '@[notes](~/.netrc)'))
+    const result = await refresh({ root: importing.root, fetch: importing.fake.fetch })
+    expect(named(result, 'vercel-react-view-transitions')).toMatchObject({
+      status: 'blocked',
+      acceptable: true,
+    })
+    expect(named(result, 'vercel-react-view-transitions').reasons.join('\n')).toMatch(
+      /new import pattern in `AGENTS\.md`, line \d+/,
+    )
+  })
+
   it('blocks a repository that now answers under another owner, and follows a rename', async () => {
     const moved = setup((up) => {
       up.marketing.aliases = ['coreyhaines31/marketingskills']
@@ -1552,9 +1580,26 @@ describe('refresh, on a temp copy of real skills', () => {
       /not plain text \(not valid UTF-8\)/,
     ],
     [
-      'a nested .claude folder',
+      'a hidden folder where a tool keeps its settings',
       (up) => up.marketing.files.set(SEO('.claude/settings.json'), Buffer.from('{}\n')),
-      /a nested \.claude folder/,
+      /a hidden file or folder/,
+    ],
+    [
+      // Claude Code loads it on its own once it reads a file beside it, imports and all.
+      'a CLAUDE.md inside the skill (push review, 2026-10-03)',
+      (up) =>
+        up.marketing.files.set(SEO('references/CLAUDE.md'), Buffer.from('Notes for agents.\n')),
+      /an instruction file a tool loads on its own/,
+    ],
+    [
+      'a GEMINI.md',
+      (up) => up.marketing.files.set(SEO('GEMINI.md'), Buffer.from('Notes for agents.\n')),
+      /an instruction file a tool loads on its own/,
+    ],
+    [
+      'a second SKILL.md below the skill folder',
+      (up) => up.marketing.files.set(SEO('extra/SKILL.md'), Buffer.from('# Extra skill\n')),
+      /a second SKILL\.md/,
     ],
     [
       'a file name with more than plain letters',

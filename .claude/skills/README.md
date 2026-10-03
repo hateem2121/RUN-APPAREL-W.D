@@ -359,19 +359,23 @@ The owner asked on 2026-10-03 for every skill to stay at its latest version. Eve
   which git does not have) and `skills-lock.json` — 24 skills on 2026-10-03;
 - compares each folder, file by file, with its upstream's newest commit;
 - scans what changed LINE BY LINE with the checks in "Scanned before committing"
-  (credential access, instruction-override wording, secret-shaped strings), plus the three
+  (credential access, instruction-override wording, secret-shaped strings), plus the four
   that exist because a skill is not only text: a line that runs a command when the skill
   loads (every line of a command block, not only its first), a `SKILL.md` header line
   outside the fields that only describe a skill (name, description, licence, notes), which
-  is where tool grants and hooks would go, and characters that show as nothing
-  (zero-width, direction marks, the invisible "tag" letters that can spell a whole
-  instruction). The header check fails closed because YAML can spell `allowed-tools` in
-  ways no pattern for the name sees (second commit review, 2026-10-03). Only NEW lines count, so a
+  is where tool grants and hooks would go, a line that imports another file into a model's
+  reading (`@~/.aws/credentials`, or Antigravity's `@[label](path)`), and characters that
+  show as nothing (zero-width, direction marks, the invisible "tag" letters that can spell
+  a whole instruction). The header check fails closed because YAML can spell
+  `allowed-tools` in ways no pattern for the name sees (second commit review, 2026-10-03). Only NEW lines count, so a
   skill whose prose already mentions `localStorage` is not blocked for it, and deleting
   one old line does not let a different new one through (a per-file count did, until the
   commit review of 2026-10-03);
-- also blocks a new or edited file that is not `.md` or `.json`, odd or clashing file
-  names, a repository that now answers under another owner, and a licence that is not
+- also blocks a new or edited file that is not `.md` or `.json`; a hidden file or folder;
+  a `CLAUDE.md` or `GEMINI.md`, which those tools load on their own when they work in its
+  folder, imports and all (push review, 2026-10-03; Vercel's `AGENTS.md` stays allowed and
+  its lines are scanned like any other); a second `SKILL.md`; odd or clashing file
+  names; a repository that now answers under another owner; and a licence that is not
   MIT or Apache-2.0 or not the one in the table. With no licence file upstream, the
   licence is the one the skill's own `SKILL.md` declares, the rule the Vercel rows above
   already follow;
