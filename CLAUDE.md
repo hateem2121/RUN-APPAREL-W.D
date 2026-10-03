@@ -144,7 +144,7 @@ file comes back; a hook names the others.
   `tools/asset-pipeline/CLAUDE.md` before changing any preset, threshold or export setting.
 - **Thirteen more traps live in `apps/cms/CLAUDE.md`** — Payload and its gotchas; the
   website and scripted product writes are in `cms-*` path rules.
-- **Sixteen more traps live in `.github/CLAUDE.md`** — workflows, the ruleset, and
+- **Seventeen more traps live in `.github/CLAUDE.md`** — workflows, the ruleset, and
   reading CI.
 
 Path rules in `.claude/rules/`:

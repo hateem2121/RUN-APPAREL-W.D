@@ -1,12 +1,15 @@
 version: 2
-# QUIET MODE for npm: routine version-update PRs are OFF
-# (open-pull-requests-limit: 0) so the branch list stays clean. Dependabot still
-# opens a PR automatically when a real SECURITY vulnerability is found in an npm
-# dependency — those are rare and worth seeing. Day-to-day vulnerability protection
-# also runs on every change via the audit-ci gate in .github/workflows/ci.yml.
-#
-# To re-enable routine npm updates later, raise that limit (e.g. 5-10); the
-# grouping/ignore rules are kept ready for that.
+# WEEKLY UPDATE PULL REQUESTS since 2026-10-03 (owner decision: "everything set to
+# auto-update to the latest version"). Until then npm ran in QUIET MODE
+# (open-pull-requests-limit: 0) and only security advisories opened a PR; those still open
+# on their own, and audit-ci still blocks high/critical advisories on every change.
+# Every Monday, after a 7-day cooldown, the npm block below opens:
+#   - ONE grouped PR with every minor and patch update that can move on its own;
+#   - ONE grouped PR for the packages that cannot (`needs-hand-sync`, below) — CI fails it
+#     until a session finishes the by-hand step, by design;
+#   - one PR per MAJOR update outside that group, because majors are the ones that need
+#     code changes, and one broken major must not hold back the others.
+# ci.yml's gates test each PR before the owner merges it.
 updates:
   # Application + tooling dependencies (pnpm workspace, npm ecosystem).
   - package-ecosystem: npm
@@ -14,12 +17,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    # 0 = no routine version-update PRs (security-update PRs still open).
-    open-pull-requests-limit: 0
-    # Inert while the limit above is 0 — cooldown governs VERSION updates only, and
-    # GitHub's options reference says it "does not apply to security updates". Set so
-    # that re-enabling routine updates cannot skip the same 7-day wait the actions below
-    # get (zizmor's dependabot-cooldown, 2026-09-29). pnpm's own minimumReleaseAge
+    # The two groups + up to two separate major updates at a time.
+    open-pull-requests-limit: 4
+    # Version updates wait 7 days after a release (zizmor's dependabot-cooldown,
+    # 2026-09-29; the same wait the actions below get). GitHub's options reference says
+    # cooldown "does not apply to security updates". pnpm's own minimumReleaseAge
     # (pnpm-workspace.yaml) still applies to every install.
     cooldown:
       default-days: 7
@@ -28,11 +30,87 @@ updates:
         update-types:
           - minor
           - patch
-    # TypeScript: block MAJOR bumps. All five workspaces are on 7.0.2 since
-    # 2026-08-12 (the CMS's Next-16 pin to TS 6 was resolved by Next 16.3.0);
-    # this rule now exists so nothing crosses to TS 8 without a deliberate build.
+        # The same list as `needs-hand-sync` below, written out twice on purpose: YAML
+        # anchors would avoid that, but GitHub's Dependabot reference does not say its
+        # parser accepts them. Change both lists together.
+        exclude-patterns:
+          # tools/asset-pipeline declares these, and it keeps a SECOND, npm lockfile that
+          # only Docker reads. A pnpm-side bump leaves it out of sync, and
+          # scripts/check-lockfile-sync.mjs fails the PR (the image build died on `npm ci`
+          # on 2026-08-12 for exactly this). Regenerating it is the procedure in
+          # tools/asset-pipeline/CLAUDE.md.
+          - "@gltf-transform/*"
+          - "@types/node"
+          - "@vitest/coverage-v8"
+          - "draco3dgltf"
+          - "gltf-validator"
+          - "ktx2-encoder"
+          - "meshoptimizer"
+          - "sharp"
+          - "tsx"
+          - "typescript"
+          - "vite"
+          - "vitest"
+          # ci.yml's Playwright container tag must equal this version
+          # (apps/cms/src/workflowHardening.test.ts), so the tag and its digest move with it.
+          - "@playwright/test"
+          # HELD for apps/shrink only (docs/DEPENDENCY-HOLDS.md): newer releases break that
+          # package's typecheck; apps/cms and apps/viewer may move.
+          - "@cloudflare/workers-types"
+      # Packages CI cannot move on its own (the reasons are beside the list above): one PR
+      # a week that fails until a session finishes the by-hand step.
+      needs-hand-sync:
+        patterns:
+          - "@gltf-transform/*"
+          - "@types/node"
+          - "@vitest/coverage-v8"
+          - "draco3dgltf"
+          - "gltf-validator"
+          - "ktx2-encoder"
+          - "meshoptimizer"
+          - "sharp"
+          - "tsx"
+          - "typescript"
+          - "vite"
+          - "vitest"
+          - "@playwright/test"
+          - "@cloudflare/workers-types"
     ignore:
+      # TypeScript: block MAJOR bumps. All five workspaces are on 7.0.2 since
+      # 2026-08-12 (the CMS's Next-16 pin to TS 6 was resolved by Next 16.3.0);
+      # this rule now exists so nothing crosses to TS 8 without a deliberate build.
       - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      # PATCHED (pnpm-workspace.yaml patchedDependencies): any other version fails the
+      # install with ERR_PNPM_UNUSED_PATCH, so Dependabot could not even build the PR.
+      # docs/DEPENDENCY-HOLDS.md says when to drop the patch.
+      - dependency-name: "@google/model-viewer"
+      # Held by other packages' own ranges (docs/DEPENDENCY-HOLDS.md, 2026-09-26):
+      # model-viewer 4.3.1 declares three ^0.183.0, and payload 3.90.2 declares
+      # graphql ^16.8.1. Release each when that range widens.
+      - dependency-name: three
+      - dependency-name: graphql
+        update-types:
+          - version-update:semver-major
+
+  # The shrink container's base image (apps/shrink/Dockerfile), since 2026-10-03 (owner
+  # decision, told that CI does not render garments inside this image). The pin is a
+  # digest because sharp links against the image's system libraries; a digest bump
+  # carries operating-system security fixes, and apps/cms/src/baseImageAge.test.ts still
+  # turns CI red when the pin ages. 🟡 Before merging one of these, check a rendered
+  # garment print: the printed artwork is the product.
+  - package-ecosystem: docker
+    directory: /apps/shrink
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
+    ignore:
+      # Stay on Node 24, the runtime the whole project and CI use; only refresh it.
+      - dependency-name: node
         update-types:
           - version-update:semver-major
 

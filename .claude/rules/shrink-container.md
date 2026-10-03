@@ -28,19 +28,18 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   than as a permissions problem. Verified by running the image: writes `/tmp`,
   refused `/app`, service starts and answers. The base image is **digest-pinned**
   for build reproducibility (sharp links against system libs).
-  🟡 **NOTHING AUTOMATED REFRESHES THAT PIN.**
-  `.github/dependabot.yml` declares no `docker` ecosystem at all. Of the two it does
-  declare, npm sits at `open-pull-requests-limit: 0` by deliberate quiet-mode decision,
-  so only security advisories open a PR, and github-actions at
-  `open-pull-requests-limit: 1` since 2026-09-10 (owner decision). *(Corrected
-  2026-09-26: this used to say both sat at 0.)* Bump the digest by hand.
-  Do not unpin it to make an update easier, and do not "fix" this by adding a third
-  ecosystem — it would either sit at 0 and change nothing,
-  or break the quiet mode on purpose. The same absence is why the Playwright container
-  in `.github/workflows/ci.yml` was pinned by TAG alone until 2026-09-29; since then it
-  is tag AND digest (owner decision — a tag can be republished, a digest cannot), both
-  bumped by hand in the same change, and `workflowHardening.test.ts` refuses an image
-  without the digest.
+  🟡 **SINCE 2026-10-03 DEPENDABOT PROPOSES DIGEST BUMPS — CHECK A PRINT BEFORE MERGING
+  ONE.** `.github/dependabot.yml` gained a `docker` ecosystem for `apps/shrink` that day
+  (owner decision, told that CI does not render garments inside this image): one pull
+  request at a time, Node 24 only, after a 7-day cooldown. Until then nothing automated
+  refreshed the pin. A digest bump changes the system libraries sharp links against, so
+  look at a rendered garment print before merging one; `apps/cms/src/baseImageAge.test.ts`
+  still turns CI red when the pin ages. Do not unpin it to make an update easier. The
+  Playwright container in `.github/workflows/ci.yml` was pinned by TAG alone until
+  2026-09-29; since then it is tag AND digest (owner decision — a tag can be republished, a
+  digest cannot), both bumped by hand in the same change, and `workflowHardening.test.ts`
+  refuses an image without the digest. Dependabot's `needs-hand-sync` group proposes the
+  `@playwright/test` bump; the session that finishes it moves the tag and digest with it.
 - **🟢 A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
 

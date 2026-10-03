@@ -714,13 +714,16 @@ only route back is a fresh CLO export, which is byte-different and needs
 re-calibrating from scratch (see "Replacing or adding a garment" above — that is
 now a followable procedure rather than a research task).
 
-**Dependency updates**: Dependabot runs in **quiet mode** — routine version-bump
-PRs are off (`open-pull-requests-limit: 0` in `.github/dependabot.yml`) to keep the
-branch list clean for a solo maintainer, but it still opens a PR automatically for
-a real **security** advisory. Day-to-day, `audit-ci` blocks high/critical
-vulnerabilities on every change. To resume routine updates, raise the limits in
-`.github/dependabot.yml` (grouping/ignore rules are kept ready); the same CI gates
-run on any Dependabot PR before merge.
+**Dependency updates**: since 2026-10-03 (owner decision) Dependabot opens update PRs
+every Monday, each version at least 7 days old: one grouped PR with every minor and patch
+npm update that can move on its own; one grouped `needs-hand-sync` PR for the packages
+tied to something CI cannot change itself (tools/asset-pipeline's second lockfile, the
+Playwright container tag, the `apps/shrink` workers-types hold), which fails until a
+session finishes it; one PR per other major update; one for the shrink container's
+base-image digest (check a garment print before merging it); and one for a GitHub Action.
+The lists and the reasons are in `.github/dependabot.yml`. Security PRs still open on their
+own, and `audit-ci` blocks high/critical vulnerabilities on every change. The vendored
+agent skills have their own weekly robot: `.github/workflows/refresh-skills.yml`.
 
 ## The CSP error on every live page load — RESOLVED 2026-08-06
 
