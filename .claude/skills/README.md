@@ -79,6 +79,15 @@ the keystroke point 4 is about.
 | `web-design-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `writing-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `motion` | `motiondivision/ai-kit` @ `1140efe9ad5e` | **unstated** — local only since 2026-09-10 |
+| `seo-audit` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `ai-seo` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `schema` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `site-architecture` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `programmatic-seo` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `content-strategy` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `copywriting` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `copy-editing` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
+| `cro` | `coreyhaines31/marketingskills` @ `dda3841f0b29` | MIT |
 
 ⚠️ **THE THREE "UNSTATED" ROWS ARE NOT IN THE PUBLIC REPOSITORY — since 2026-09-10.**
 The repository went public on 2026-09-09, and a file with no licence carries no
@@ -126,7 +135,7 @@ a review starts giving advice nobody recognises.
 
 ## When two skills disagree
 
-Four pairs here overlap. Each ruling exists because the alternative is an agent
+Six pairs here overlap. Each ruling exists because the alternative is an agent
 picking whichever it read most recently.
 
 - **Animation advice.** `review-animations` (Emil Kowalski) and the `motion` skill's
@@ -161,6 +170,15 @@ picking whichever it read most recently.
   `vercel-react-native-skills` were deliberately **not** installed for this reason;
   see the `browser-testing-with-devtools` note below for why that matters more than
   it looks.
+- **Marketing copy vs this house's rules.** `copywriting`, `copy-editing` and `cro`
+  write persuasive copy by design. **The root `CLAUDE.md` and the owner win**: the
+  owner approves every page's text before it ships, and facts about the company come
+  from the owner, never from a card's examples. Use the cards for structure and
+  options, not as a source of claims.
+- **Impeccable vs `docs/DESIGN.md`.** The Impeccable plugin, enabled for this project
+  on 2026-10-03, brings its own taste: it flags "overused" fonts and pure black, for
+  example. **`docs/DESIGN.md` wins**, the same ruling as `emil-design-eng`: an advisor,
+  not a gate. It is not in this folder; see "Not here: Impeccable" below.
 
 ## The Motion MCP server
 
@@ -245,6 +263,28 @@ Added 2026-08-13 — 5 of the 9 skills in `vercel-labs/agent-skills`, plus Motio
 - **`motion`** — the strongest fit of the set: `motion` 13.1.0 is already a shipped
   dependency, and its offline `best-practices/` half needs no server or account.
 
+Added 2026-10-03 — 9 of the 50 skills in `coreyhaines31/marketingskills` (v2.11.17,
+MIT; 52.5k ⭐, pushed that day), at the owner's request, for the website's SEO work:
+
+- **`seo-audit`, `ai-seo`, `schema`, `site-architecture`, `programmatic-seo`** — the
+  site already ships structured data, a sitemap and its own crawl check
+  (`scripts/seo-crawl.mjs`). These review that work; they do not replace it.
+- **`content-strategy`, `copywriting`, `copy-editing`, `cro`** — for the next buyer
+  pages and guides, and the contact form. Advisors only: see "Marketing copy" below.
+
+**Why 9 and not all 50 — measured, not taste.** Claude Code gives the skill listing a
+budget of 1% of the model's context window, and when the listing overflows it drops the
+descriptions of the least-used skills first, which includes every new one. The 50
+descriptions total 37,200 characters (each capped at Claude Code's 1,536); these 9 total
+6,549. The other 41 serve app and software companies (paywalls, churn, sign-up flows,
+app stores) or ads and outreach this project does not run.
+
+**`product-marketing` is left out on purpose.** It is the set's foundation card, and it
+writes a positioning document (audience, competitors, messaging) to
+`.agents/product-marketing.md`. In a PUBLIC repository that would publish a business
+document by accident. The nine cards only read that file when it exists, so they work
+without it.
+
 ## Removed: `browser-testing-with-devtools`
 
 Vendored 2026-08-06, **dropped the same day**. Its own frontmatter says it
@@ -292,6 +332,21 @@ The installer runs a scan of its own and reported "Safe, 0 alerts" for all five
 Vercel skills. That is corroboration, not the check — it is the vendor grading its
 own homework, and the four bullets above were run independently.
 
+Repeated 2026-10-03 on the nine marketing skills, on the same axes. **Executables:
+none**: every file is `.md` or `.json`. **Credential access and instruction-override:
+none** (the same patterns as above). **Secret-shaped strings: none.** **Endpoints:**
+documentation and search-industry references (`developers.google.com`, `schema.org`,
+`example.com` placeholders); the only shell commands are example `curl` checks of a
+page's robots headers, in one `ai-seo` reference file.
+
+## Not here: Impeccable
+
+On 2026-10-03 the owner chose the FULL Impeccable plugin (its engine and hooks) over a
+vendored copy of its instructions, so it is enabled in `.claude/settings.json` rather
+than copied into this folder, and it auto-updates, also the owner's choice. What it
+runs, what it writes and how to switch it off are in `docs/AI-TOOLING.md`, under "The
+Impeccable design plugin".
+
 ## Updating
 
 Re-fetch at a new SHA and update the table in the same commit. Do not edit the
@@ -310,4 +365,5 @@ and the table growing 2.5× in a day is the argument *for* reviewing it together
 for tracking six dates. Three rows have a named thing to check on that date:
 `web-design-guidelines` and `writing-guidelines` (their rules are fetched live, so
 they cannot drift-detect) and `web-design-guidelines` again (whether it has started
-repeating `accesslint`).
+repeating `accesslint`). The nine marketing rows added on 2026-10-03 join the same
+review.

@@ -117,5 +117,17 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "impeccable": {
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "impeccable@impeccable": true
   }
 }
