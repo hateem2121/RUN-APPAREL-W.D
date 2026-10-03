@@ -3579,13 +3579,23 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const tab = page.locator('.colourway-tab').nth(1)
+    await expect(tab, 'no second colourway tab to press').toBeVisible()
     await tab.scrollIntoViewIfNeeded()
-    const box = await tab.boundingBox()
-    expect(box, 'no second colourway tab to press').not.toBeNull()
-    await page.mouse.move(
-      (box?.x ?? 0) + (box?.width ?? 0) / 2,
-      (box?.y ?? 0) + (box?.height ?? 0) / 2,
-    )
+    /*
+     * ⚠️ AIM ONLY ONCE THE RAIL HAS LANDED (2026-10-03). This test asks for motion, so the colourway
+     * rail's reveal runs: `.colourways` starts `--reveal-y` (24px) low and rises over --slow. The aim
+     * used to be the tab's box read straight after the <h1>, and a probe over 60 runs read it mid-rise
+     * twice (y 384 against a settled 360). A 44px tab that rises 24px leaves its old centre 2px below
+     * it, so a press that lands late misses: two of four full local gate runs that day failed with
+     * "the press never reached the tab", the press held back by the 3D engine's long task. Planting a
+     * restarted rise and a 900ms wait missed 10 times in 10 with the old aim and hit 10 in 10 with this
+     * one. `hover()` then checks the tab is stable and is what a pointer there would hit
+     * (playwright.dev/docs/actionability), and leaves the mouse on it for the press below.
+     */
+    await expect
+      .poll(() => page.locator('.colourways').evaluate((el) => getComputedStyle(el).transform))
+      .toBe('none')
+    await tab.hover()
     await page.evaluate(() => {
       const el = document.querySelectorAll('.colourway-tab')[1] as HTMLElement
       const w = window as unknown as {
