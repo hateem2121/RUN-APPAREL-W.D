@@ -15,20 +15,19 @@
 # sharp links against those. A change in the WebP encoder shows up as printed
 # artwork looking different for no reason anyone can trace to a commit, which is
 # the single hardest class of bug in this repository to attribute.
-# WARNING: NOTHING AUTOMATED REFRESHES THIS DIGEST. This comment claimed Dependabot's
-# `docker` ecosystem did until 2026-08-25, and that was never true:
-# .github/dependabot.yml declares only `npm` and `github-actions`, and both sit at
-# `open-pull-requests-limit: 0` by a deliberate quiet-mode decision. Bump it by
-# hand. Do not unpin it to make an update easier, and do not "fix" this by adding
-# a `docker` ecosystem — it would either sit at 0 and change nothing, or break
-# the quiet mode on purpose. See the same correction in the root CLAUDE.md.
+# DEPENDABOT PROPOSES DIGEST BUMPS SINCE 2026-10-03 (owner decision): the `docker` block in
+# .github/dependabot.yml opens one at a time, Node 24 only, after a 7-day cooldown. Until
+# then nothing automated refreshed this digest, and until 2026-08-25 this comment wrongly
+# said Dependabot did. A bump changes the system libraries sharp links against, so look at
+# a rendered garment print before merging one. Do not unpin it to make an update easier.
 #
 # PINNED-ON: 2026-09-26
 # ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
 # the pin is older than the refresh window. Base images are rebuilt mainly to pick up
 # operating-system security fixes, so pinning is correct and never refreshing is not —
 # and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
-# commit as the digest, or the gate is measuring a lie.
+# pull request as the digest (Dependabot moves only the digest), or the gate is measuring
+# a lie.
 FROM node:24-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 
 WORKDIR /app

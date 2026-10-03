@@ -99,12 +99,38 @@ updates:
         update-types:
           - version-update:semver-major
 
+  # The shrink container's own packages (apps/shrink/container), since 2026-10-03: the one
+  # package list Dependabot did not reach. It is not a pnpm workspace member and keeps its
+  # own npm lockfile, which Docker installs with `npm ci`, so the block above never sees
+  # it. ci.yml installs and typechecks it on every pull request, and
+  # scripts/check-lockfile-sync.mjs checks the lockfile still matches. GitHub's options
+  # reference (read 2026-10-03) allows a second npm block when the directories differ.
+  - package-ecosystem: npm
+    directory: /apps/shrink/container
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 1
+    cooldown:
+      default-days: 7
+    groups:
+      shrink-container:
+        patterns:
+          - "*"
+    ignore:
+      # As in the block above: nothing crosses to a new TypeScript major on its own.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+
   # The shrink container's base image (apps/shrink/Dockerfile), since 2026-10-03 (owner
   # decision, told that CI does not render garments inside this image). The pin is a
   # digest because sharp links against the image's system libraries; a digest bump
   # carries operating-system security fixes, and apps/cms/src/baseImageAge.test.ts still
-  # turns CI red when the pin ages. 🟡 Before merging one of these, check a rendered
-  # garment print: the printed artwork is the product.
+  # turns CI red when the pin ages. That test counts from the Dockerfile's `# PINNED-ON:`
+  # date, which Dependabot does not move, so set it to the merge day in the same pull
+  # request. 🟡 Before merging one of these, check a rendered garment print: the printed
+  # artwork is the product.
   - package-ecosystem: docker
     directory: /apps/shrink
     schedule:
