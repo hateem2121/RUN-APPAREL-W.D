@@ -403,7 +403,9 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   need `refs/heads/main`. Socket's check is an App webhook, not a workflow run, so it posts
   anyway. Opening the PR at all needed the repository setting *Allow GitHub Actions to create
   and approve pull requests*, switched on 2026-10-03 by owner decision (the ruleset still
-  requires 0 approvals). 🟡 **NOT YET MEASURED: whether CodeQL default setup analyses a
-  robot PR** — it runs as Actions too, and the ruleset's `code_scanning` rule may hold the
-  merge until it has. Read the first robot PR's merge state; if it waits on CodeQL, a PERSON
-  closing and reopening the PR starts every pull_request workflow.
+  requires 0 approvals). ✅ **MEASURED on the first robot PR (#123, 2026-10-03):** CodeQL
+  default setup DOES analyse it (both `Analyze` checks started with the PR), and GitHub did
+  create a `pull_request` run of `ci.yml`, which ended `action_required` with **0 jobs**: it
+  waits for a person to approve it and runs nothing, so the dispatched run is the one that
+  carries the checks. If a robot PR ever sits waiting on a check, a PERSON closing and
+  reopening it starts every pull_request workflow.
