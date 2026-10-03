@@ -154,6 +154,9 @@ jobs:
           # security-scans.yml (added 2026-10-01) is watched for COMPLETION too: a failed
           # Scorecard publish or Trivy download is a finding to read in that run, never
           # "the scan stopped running".
+          # refresh-skills.yml (added 2026-10-03) is watched for COMPLETION too: it ends
+          # red on purpose when its safety check blocks a skill, so that a person reads
+          # why; heartbeat owns only whether its Monday schedule still runs at all.
           WATCHED="
           uptime.yml:24:completed:every 6 hours, at :23
           nightly-backup.yml:36:success:nightly
@@ -164,6 +167,7 @@ jobs:
           link-crawl.yml:192:completed:weekly on Mondays
           required-checks.yml:36:completed:daily at 04:29 UTC, and after each ci.yml change on main
           security-scans.yml:192:completed:weekly on Wednesdays, and after each merge to main
+          refresh-skills.yml:192:completed:weekly on Mondays
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped

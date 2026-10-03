@@ -361,9 +361,12 @@ The owner asked on 2026-10-03 for every skill to stay at its latest version. Eve
 - scans what changed LINE BY LINE with the checks in "Scanned before committing"
   (credential access, instruction-override wording, secret-shaped strings), plus the three
   that exist because a skill is not only text: a line that runs a command when the skill
-  loads, a header field that grants tools or runs hooks (`allowed-tools`, `hooks`,
-  `shell`), and characters that show as nothing (zero-width, direction marks, the
-  invisible "tag" letters that can spell a whole instruction). Only NEW lines count, so a
+  loads (every line of a command block, not only its first), a `SKILL.md` header line
+  outside the fields that only describe a skill (name, description, licence, notes), which
+  is where tool grants and hooks would go, and characters that show as nothing
+  (zero-width, direction marks, the invisible "tag" letters that can spell a whole
+  instruction). The header check fails closed because YAML can spell `allowed-tools` in
+  ways no pattern for the name sees (second commit review, 2026-10-03). Only NEW lines count, so a
   skill whose prose already mentions `localStorage` is not blocked for it, and deleting
   one old line does not let a different new one through (a per-file count did, until the
   commit review of 2026-10-03);
@@ -397,12 +400,15 @@ exactly that every Monday, and `node scripts/refresh-vendored-skills.mjs --write
 edit that upstream does not have is indistinguishable from drift, and the robot would
 overwrite it.
 
-**When the robot blocks a skill only for lines it flagged**, read those lines (the robot's
-pull request quotes them). If they are harmless, `node scripts/refresh-vendored-skills.mjs
---write --only <name> --accept <name>` copies that one skill in and records what was let
-through. `--accept` waives the line checks and nothing else, and the weekly workflow never
-passes it (a test pins that). Anything else that blocks a skill needs a decision on this
-table, not a flag.
+**When the robot blocks a skill only for lines it flagged**, run the dry run
+(`node scripts/refresh-vendored-skills.mjs --only <name>`): it prints EVERY flagged line,
+where a reason quotes three, and the upstream commit they are at. Read them all. If they are
+harmless, `node scripts/refresh-vendored-skills.mjs --write --only <name> --accept
+<name>@<commit>` copies that one skill in and records what was let through. The accept
+holds only at that commit: if upstream has moved since, it waives nothing, so lines pushed
+after the reading cannot ride along (second commit review, 2026-10-03). `--accept` waives
+the line checks and nothing else, and the weekly workflow never passes it (a test pins
+that). Anything else that blocks a skill needs a decision on this table, not a flag.
 
 **Review by 2026-11-13 (three months).** Not a rule about staleness — pinned files
 do not rot — but about *relevance*: point 4 above describes 57 skills that nobody

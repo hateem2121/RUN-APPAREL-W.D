@@ -25,20 +25,23 @@
  *
  * The scan BLOCKS the skill, and leaves it exactly as it was, when the new version:
  *   - adds or edits a file whose name does not end in .md or .json;
- *   - has a LINE the old version did not have that runs a command, sits under allowed-tools,
- *     hooks or shell in SKILL.md's header, carries a character that shows as nothing, or
- *     matches the credential-access, instruction-override or secret-shaped patterns. Lines are
- *     compared as a multiset: a flagged line that was already there never blocks, a second copy
- *     of it does, and deleting one benign line does not pay for a new one (the first version
- *     compared per-file COUNTS, which let exactly that through: commit review, 2026-10-03);
+ *   - has a LINE the old version did not have that runs a command (a ```! block's every line,
+ *     not only its first), is a SKILL.md header line outside the fields that only describe a
+ *     skill (where tool grants and hooks would go), carries a character that shows as nothing,
+ *     or matches the credential-access, instruction-override or secret-shaped patterns. Lines
+ *     are compared as a multiset: a flagged line that was already there never blocks, a second
+ *     copy of it does, and deleting one benign line does not pay for a new one (the first
+ *     version compared per-file COUNTS, which let exactly that through: commit review,
+ *     2026-10-03);
  *   - answers under a different GitHub owner (a rename is followed, a transfer is not);
  *   - has a licence that is not MIT or Apache-2.0, or not the one the README row records;
  *   - cannot be trusted as a file set: a symbolic link, a submodule, a path that leaves the
  *     folder, a nested .claude folder, a name outside [A-Za-z0-9._/-] or two names that differ
  *     only in capitals (one file on a Mac), a file over 1 MiB, a NUL byte or invalid UTF-8, or
  *     bytes that do not match GitHub's own file list.
- * --accept lets one skill's flagged LINES through after a person has read them. It waives no
- * other check, and the weekly workflow never passes it.
+ * --accept <name>@<commit> lets one skill's flagged LINES through after a person has read them
+ * at that upstream commit; if upstream has moved since, it waives nothing. It waives no other
+ * check, and the weekly workflow never passes it.
  * Without --write nothing is written (README and lock included). With --write, a skill that
  * passes has its changed files written, files that vanished upstream deleted, its README row's
  * commit cell set to upstream's head (12 hex) and its skills-lock.json hash recomputed.
@@ -103,6 +106,7 @@ import { parseArgs } from 'node:util'
  *   status: 'unchanged' | 'updated' | 'blocked' | 'error',
  *   oldSha: string | null, newSha: string | null, added: string[], changed: string[],
  *   removed: string[], reasons: string[], accepted: string[], acceptable: boolean,
+ *   flagged?: { file: string, pattern: string, lines: { number: number, text: string }[] }[],
  *   message?: string, hasReadmeRow: boolean, hasLockEntry: boolean,
  *   plan?: { dir: string, writes: Map<string, Uint8Array>, deletes: string[] },
  * }} SkillResult
@@ -466,14 +470,31 @@ export function resolveSkillDir(root, name) {
  */
 const visible = (line) => line.normalize('NFKC').replace(HIDDEN_ALL, '')
 
-/** SKILL.md header fields that change what Claude Code DOES, not what the model reads. */
-const PERMISSION_FIELDS = new Set(['allowed-tools', 'hooks', 'shell'])
-const PERMISSION_FIELD_TEXT = /(?:^|[\s{,])["']?(?:allowed-tools|hooks|shell)["']?\s*:/i
-const TOP_LEVEL_FIELD = /^["']?([A-Za-z0-9_-]+)["']?\s*:/
+/**
+ * SKILL.md header fields that only DESCRIBE a skill. Measured 2026-10-03: the vendored skills
+ * use name, description, metadata, license and disable-model-invocation. Every other field may
+ * change what Claude Code DOES (allowed-tools grants tools, hooks and shell run commands,
+ * disable-model-invocation decides when the skill loads), and YAML can spell a key in ways no
+ * line pattern sees ("allowed\x2Dtools", `? hooks`, a whole header indented). So the check
+ * fails closed: a header line is plain only when it sits, written plainly, under one of these
+ * fields (commit review, 2026-10-03, which bypassed a list of the dangerous ones).
+ */
+const PLAIN_FIELDS = new Set([
+  'name',
+  'description',
+  'license',
+  'metadata',
+  'compatibility',
+  'argument-hint',
+  'when_to_use',
+])
+const PLAIN_FIELD_LINE = /^([a-z][a-z0-9_-]*):(?:\s|$)/
+/** Where Claude Code's header ends: `---` at the very start of a line. An indented one does not. */
+const HEADER_END = /^---[ \t]*$/
 
 /**
- * The indexes of SKILL.md's header lines that belong to a PERMISSION_FIELDS field: its own
- * line, the indented lines of its value, and a line that names one in flow style ({hooks: …}).
+ * The indexes of SKILL.md's header lines that are not plain: any line outside a PLAIN_FIELDS
+ * field, including the indented lines of such a field's value.
  *
  * @param {string[]} lines
  * @returns {Set<number>}
@@ -481,13 +502,18 @@ const TOP_LEVEL_FIELD = /^["']?([A-Za-z0-9_-]+)["']?\s*:/
 function permissionLines(lines) {
   const found = new Set()
   if (lines[0]?.trim() !== '---') return found
-  let field = ''
+  // Fail closed: before a plain field starts, an indented line could begin a whole indented
+  // header, which YAML reads as top-level fields.
+  let plain = false
   for (let index = 1; index < lines.length; index++) {
     const line = lines[index] ?? ''
-    if (line.trim() === '---') break
-    const top = TOP_LEVEL_FIELD.exec(line)
-    if (top) field = (top[1] ?? '').toLowerCase()
-    if (PERMISSION_FIELDS.has(field) || PERMISSION_FIELD_TEXT.test(line)) found.add(index)
+    if (HEADER_END.test(line)) break
+    if (line.trim() === '' || line.startsWith('#')) continue
+    if (!/^\s/.test(line)) {
+      const field = PLAIN_FIELD_LINE.exec(line)?.[1]
+      plain = field !== undefined && PLAIN_FIELDS.has(field)
+    }
+    if (!plain) found.add(index)
   }
   return found
 }
@@ -508,11 +534,19 @@ function flagLines(text, file) {
   const header = file === 'SKILL.md' ? permissionLines(lines) : new Set()
   /** @type {Record<string, [number, string][]>} */
   const flagged = Object.fromEntries(CHECKS.map((check) => [check, []]))
+  // Every line of a ```! block runs, not only its first (commit review, 2026-10-03). The block
+  // ends only at a CommonMark closing fence, so a line such as ```js inside it does not end it.
+  let fence = ''
   lines.forEach((line, index) => {
     const view = visible(line)
+    const inBlock = fence !== ''
+    const opener = /^\s*(`{3,}|~{3,})\s*!/.exec(view)
+    const closer = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(view)?.[1]
+    if (inBlock && closer?.[0] === fence[0] && closer.length >= fence.length) fence = ''
+    else if (!inBlock && opener) fence = opener[1] ?? ''
     /** @type {Record<string, boolean>} */
     const hits = {
-      command: view.search(SCAN_PATTERNS.command) >= 0,
+      command: inBlock || opener !== null || view.search(SCAN_PATTERNS.command) >= 0,
       permission: header.has(index),
       hidden: HIDDEN.test(line),
       override: view.search(SCAN_PATTERNS.override) >= 0,
@@ -764,7 +798,9 @@ async function mapLimit(items, limit, fn) {
 
 /**
  * @param {SkillRecord} record
- * @param {{ root: string, github: ReturnType<typeof createGithub>, accept: Set<string> }} context
+ * @param {{
+ *   root: string, github: ReturnType<typeof createGithub>, accept: Map<string, string>,
+ * }} context
  * @returns {Promise<SkillResult>}
  */
 async function planSkill(record, { root, github, accept }) {
@@ -903,15 +939,25 @@ async function planSkill(record, { root, github, accept }) {
   }
   if (reasons.length > 0) return block(reasons)
 
-  // Flagged lines are the one thing a person may waive (--accept), after reading them.
-  const findings = findNewFindings(localFiles, newFiles).map(describeFinding)
-  if (findings.length > 0 && !accept.has(record.name)) {
-    return { ...block(findings), acceptable: true }
+  // Flagged lines are the one thing a person may waive (--accept), and only at the upstream
+  // commit they read: a push after the reading could add lines nobody saw (commit review,
+  // 2026-10-03), so an accept that names another commit waives nothing.
+  const flagged = findNewFindings(localFiles, newFiles)
+  const findings = flagged.map(describeFinding)
+  const reviewed = accept.get(record.name)
+  if (findings.length > 0 && !(reviewed && head.startsWith(reviewed))) {
+    const moved = reviewed
+      ? [
+          `--accept named ${code(reviewed)}, but upstream is now at ${code(result.newSha)}: read what changed since, then accept that commit`,
+        ]
+      : []
+    return { ...block([...moved, ...findings]), acceptable: true, flagged }
   }
   return {
     ...result,
     status: 'updated',
     accepted: findings,
+    flagged,
     plan: { dir: local.dir, writes: fetched, deletes: result.removed },
   }
 }
@@ -999,8 +1045,18 @@ export async function refresh({
   const records = collectSkills(rows, lock)
 
   const wanted = new Set(only)
-  const accepted = new Set(accept)
-  const unknown = [...new Set([...wanted, ...accepted])].filter(
+  /** @type {Map<string, string>} each accepted skill, and the upstream commit that was read */
+  const accepted = new Map()
+  for (const entry of accept) {
+    const pinned = /^([^@\s]+)@([0-9a-f]{7,40})$/.exec(entry)
+    if (!pinned?.[1] || !pinned[2]) {
+      throw new Error(
+        `--accept needs the upstream commit that was read, as <name>@<commit> from the report: ${tidy(entry)}`,
+      )
+    }
+    accepted.set(pinned[1], pinned[2])
+  }
+  const unknown = [...new Set([...wanted, ...accepted.keys()])].filter(
     (name) => !records.some((record) => record.name === name),
   )
   if (unknown.length > 0) {
@@ -1008,7 +1064,7 @@ export async function refresh({
       `not a vendored skill this script can refresh (unknown, or local-only): ${unknown.map((name) => tidy(name)).join(', ')}`,
     )
   }
-  const leftOut = [...accepted].filter((name) => wanted.size > 0 && !wanted.has(name))
+  const leftOut = [...accepted.keys()].filter((name) => wanted.size > 0 && !wanted.has(name))
   if (leftOut.length > 0) {
     throw new Error(
       `--accept names a skill that --only leaves out: ${leftOut.map((name) => tidy(name)).join(', ')}`,
@@ -1066,6 +1122,31 @@ const movedTo = (r) =>
 
 /** GitHub refuses a pull-request body over 65,536 characters, which would fail the workflow. */
 const MAX_SUMMARY_CHARS = 60_000
+const MAX_REPORT_LINES = 200
+
+/**
+ * Every flagged line of a blocked skill, for the person deciding whether to --accept it: a
+ * reason quotes three, and an accept waives all of them (commit review, 2026-10-03). A list
+ * too long to read is cut and says so, rather than inviting an accept nobody could check.
+ *
+ * @param {SkillResult} r
+ */
+function everyFlaggedLine(r) {
+  const all = (r.flagged ?? []).flatMap(({ file, pattern, lines }) =>
+    lines.map(({ number, text }) => {
+      const shown =
+        visible(text).search(SCAN_PATTERNS.secret) >= 0
+          ? '(not shown: shaped like a key)'
+          : tidy(text, 200)
+      return `        ${pattern.padEnd(10)}  ${tidy(`${file}:${number}`)}  ${shown}`
+    }),
+  )
+  if (all.length <= MAX_REPORT_LINES) return all
+  return [
+    ...all.slice(0, MAX_REPORT_LINES),
+    `        … and ${all.length - MAX_REPORT_LINES} more: too many to judge here; read the upstream change instead`,
+  ]
+}
 
 const describeFiles = ({ changed, added, removed }) =>
   [
@@ -1127,8 +1208,10 @@ export function renderReport(result) {
       lines.push(`  ${label(r)}`)
       for (const reason of r.reasons) lines.push(`      - ${reason}`)
       if (r.acceptable) {
+        lines.push('      Only lines were flagged. Every one of them, to read before accepting:')
+        lines.push(...everyFlaggedLine(r))
         lines.push(
-          `      Only lines were flagged. If a person has read them and they are harmless: --write --only ${r.name} --accept ${r.name}`,
+          `      If all are harmless: --write --only ${r.name} --accept ${r.name}@${r.newSha}`,
         )
       }
     }
@@ -1206,7 +1289,7 @@ export function renderSummary(result) {
       'A blocked skill was left exactly as it was. The safety check stops a change that:',
       '',
       '- adds or edits a file that is not plain text (only `.md` and `.json` come in);',
-      '- adds a line that runs a command when the skill loads (`command`), or a header field that lets Claude use tools without asking or run hooks (`permission`);',
+      "- adds a line that runs a command when the skill loads (`command`), or a header line other than the skill's name, description, licence or notes, which is where letting Claude use tools without asking, or hooks, would go (`permission`);",
       '- adds characters that show as nothing on screen but that Claude still reads (`hidden`);',
       '- adds a line about passwords, keys, environment variables or browser storage (`credential`);',
       '- adds wording that tells Claude to ignore its instructions or to hide things from the user (`override`);',
@@ -1251,9 +1334,11 @@ const USAGE = `Usage: node scripts/refresh-vendored-skills.mjs [--write] [--summ
   --write           apply the updates: files, the README table's commits, skills-lock.json
   --summary <file>  also write a plain-English Markdown summary, for a pull-request body
   --only a,b        limit the run to these skills
-  --accept a,b      let these skills' flagged LINES through, once a person has read them and
-                    found them harmless; every other check still applies, and the weekly
-                    workflow never passes this
+  --accept a@<commit>,b@<commit>
+                    let these skills' flagged LINES through, once a person has read every one
+                    at that upstream commit (the report prints them and the commit); if
+                    upstream has moved since, nothing is waived. Every other check still
+                    applies, and the weekly workflow never passes this
 
 Environment: GITHUB_TOKEN (optional) is sent to api.github.com and raises GitHub's hourly
 request limit. GITHUB_OUTPUT (GitHub Actions) receives changed=true|false and blocked=<n>.`
