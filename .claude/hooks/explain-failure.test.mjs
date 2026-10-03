@@ -69,11 +69,11 @@ check('names the second lockfile when npm ci fails', () => {
   if (!got.includes('tools/asset-pipeline')) throw new Error('did not name the second lockfile')
 })
 
-check('names the held workers-types version for readUInt32LE', () => {
+check('names the module to import instead for readUInt32LE', () => {
   const got = run(
     bashFailure("Exit code 2\nProperty 'readUInt32LE' does not exist on type 'NonSharedBuffer'"),
   )
-  if (!got.includes('5.20260804.1')) throw new Error('did not name the held version')
+  if (!got.includes('glb-report.ts')) throw new Error('did not name glb-report.ts')
 })
 
 check('names the git identity deadlock for a blocked merge', () => {

@@ -1,6 +1,12 @@
 import { describeSpecIssues } from '../../../tools/asset-pipeline/src/gltf-spec'
-import type { GlbReport } from '../../../tools/asset-pipeline/src/validate'
-import { SIZE_WARNING_BYTES, describeSoftArtwork } from '../../../tools/asset-pipeline/src/validate'
+// From glb-report.ts, NEVER validate.ts: any import of validate.ts, even `import type`, puts
+// its Node Buffer calls in apps/shrink's Worker-types typecheck, which is what held
+// @cloudflare/workers-types back until 2026-10-03 (see glb-report.ts).
+import {
+  type GlbReport,
+  SIZE_WARNING_BYTES,
+  describeSoftArtwork,
+} from '../../../tools/asset-pipeline/src/glb-report'
 import type { OptimizeResult } from '../../../tools/asset-pipeline/src/optimize'
 import { describePrecision } from '../../../tools/asset-pipeline/src/precision'
 import { describeRawCensus } from '../../../tools/asset-pipeline/src/raw-census'

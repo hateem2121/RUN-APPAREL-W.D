@@ -8,7 +8,8 @@ paths:
 # The shrink Worker and its Container
 
 Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked. The
-`@cloudflare/workers-types` hold that applies to `apps/shrink` only is in
+rule that `apps/shrink` must never reach `tools/asset-pipeline/src/validate.ts` (it held
+`@cloudflare/workers-types` back in this package until 2026-10-03) is in
 `.claude/rules/dependencies.md`, which loads for any `package.json`.
 
 - **`apps/shrink/container` is not a workspace member.** It installs with plain

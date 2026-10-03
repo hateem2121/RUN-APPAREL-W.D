@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -15,13 +15,15 @@ import { describe, expect, it } from 'vitest'
  *    CLAUDE.md draws from it is that `tsc --noEmit` passed the entire time — only
  *    `pnpm build` failed. A silent split is the state that produced that.
  *
- * 2. A DELIBERATE HOLD BEING SILENTLY LIFTED. `@cloudflare/workers-types` is held at
- *    5.20260804.1 because every release from 5.20260808.1 on breaks the apps/shrink
- *    typecheck — and, critically, breaks it NOWHERE ELSE: tools/asset-pipeline
- *    typechecks the same file and passes, because it sets `types: ["node"]` while the
- *    Worker sets `types: ["@cloudflare/workers-types"]`. So a well-meaning bump looks
- *    fine in four workspaces out of five, and root CLAUDE.md's advice —
- *    "Bisect; do not revert the plausible one" — was earned across four releases.
+ * 2. A DELIBERATE HOLD BEING SILENTLY LIFTED. `@cloudflare/workers-types` was held at
+ *    5.20260804.1 in apps/shrink from 2026-08-12 to 2026-10-03, because every release
+ *    from 5.20260808.1 on broke that package's typecheck — and, critically, broke it
+ *    NOWHERE ELSE: tools/asset-pipeline typechecks the same file and passes, because it
+ *    sets `types: ["node"]` while the Worker sets `types: ["@cloudflare/workers-types"]`.
+ *    So a well-meaning bump looked fine in four workspaces out of five, and root
+ *    CLAUDE.md's advice — "Bisect; do not revert the plausible one" — was earned across
+ *    four releases. It was released by fixing the cause; the last describe block below
+ *    keeps it released.
  *
  * The holds below are the ones the repo documents in prose. Restating them as an
  * assertion is what makes the prose checkable; the reason string is required so an
@@ -50,39 +52,27 @@ const allDeps = (rel: string) => {
   return { ...pkg.dependencies, ...pkg.devDependencies }
 }
 
+interface Hold {
+  dep: string
+  version: string
+  /** The only workspaces held. */
+  scope: readonly string[]
+  /** What the unaffected workspaces run, asserted so a narrow hold cannot quietly widen. */
+  elsewhere: string
+  why: string
+  releaseWhen: string
+}
+
 /**
  * Deliberate holds. Each MUST carry the reason and the condition that would release
  * it — an entry without one is indistinguishable from a version nobody has updated.
+ *
+ * NONE SINCE 2026-10-03. The last held `@cloudflare/workers-types` at 5.20260804.1 in
+ * apps/shrink (narrowed to that package on 2026-08-29) and ended when its cause did: the
+ * shrink report stopped importing tools/asset-pipeline/src/validate.ts. Its measurements
+ * are in docs/DEPENDENCY-HOLDS.md; the last describe block below keeps it released.
  */
-const HOLDS = [
-  {
-    dep: '@cloudflare/workers-types',
-    version: '5.20260804.1',
-    /**
-     * NARROWED 2026-08-29 from every workspace to apps/shrink alone.
-     *
-     * The break is real but it is not general: all four errors are in ONE 15-line
-     * function, readGlbGenerator (tools/asset-pipeline/src/validate.ts:44-52). It
-     * surfaces only in apps/shrink because that package sets
-     * types: ["@cloudflare/workers-types"] with no node types, and its tsconfig pulls
-     * validate.ts in transitively - container/report.ts imports SIZE_WARNING_BYTES
-     * from it as a VALUE. tools/asset-pipeline typechecks the same file and passes,
-     * because it sets types: ["node"].
-     *
-     * So holding three packages froze 24 days of updates across apps/cms and
-     * apps/viewer for a fault neither of them has. Both ran 5.20260827.1 from 2026-08-29,
-     * 5.20260925.1 from 2026-09-26 and 5.20260926.1 from 2026-10-03 (Dependabot's #121);
-     * each time all five workspaces typechecked clean -
-     * measured, not assumed.
-     */
-    scope: ['apps/shrink'],
-    /** What the unaffected workspaces run, asserted so the narrowing cannot un-narrow. */
-    elsewhere: '5.20260926.1',
-    why: 'every release from 5.20260808.1 on fails the apps/shrink typecheck with "Property readUInt32LE does not exist on type NonSharedBuffer" x3 plus one arity error, ALL in readGlbGenerator (validate.ts:44-52). Bisected 2026-08-12 across 0804/0808/0809/0810; re-measured 2026-08-18 on 5.20260817.1 and again 2026-08-29 on 5.20260827.1 and 2026-09-26 on 5.20260925.1 and 2026-10-03 on 5.20260926.1 (Dependabot PR #121, in CI), still broken. It surfaces ONLY in apps/shrink, which sets types:["@cloudflare/workers-types"] with no node types.',
-    releaseWhen:
-      'either the Buffer typings settle upstream, or readGlbGenerator stops being reachable from the apps/shrink program. container/report.ts imports SIZE_WARNING_BYTES from validate.ts as a VALUE, so moving that constant and the GlbReport type into a node-free module would release the hold without waiting on Cloudflare. Retry with the apps/shrink typecheck specifically, never pnpm typecheck alone.',
-  },
-] as const
+const HOLDS: readonly Hold[] = []
 
 describe('shared dependency versions', () => {
   /**
@@ -228,5 +218,73 @@ describe('toolchain pins', () => {
       `package.json pins pnpm@${pinned} but .claude/settings.json allowlists a different ` +
         'version — every allowed command would start prompting again.',
     ).toContain(`pnpm@${pinned}`)
+  })
+})
+
+/**
+ * Every .ts file the entry files reach through RELATIVE imports, type-only ones included:
+ * what tsc puts in a program, packages aside. `import type` counts because tsc still loads
+ * and checks the file it names (measured 2026-10-03 with `tsc --explainFiles`).
+ */
+function reachableFiles(entries: string[]): Set<string> {
+  const seen = new Set<string>()
+  const queue = entries.map((entry) => join(REPO_ROOT, entry))
+  while (queue.length > 0) {
+    const file = queue.pop() as string
+    if (seen.has(file)) continue
+    seen.add(file)
+    for (const match of readFileSync(file, 'utf8').matchAll(
+      /(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g,
+    )) {
+      const spec = match[1]
+      if (!spec) continue
+      const base = join(dirname(file), spec)
+      const target = [
+        base,
+        base.replace(/\.js$/, '.ts'),
+        `${base}.ts`,
+        join(base, 'index.ts'),
+      ].find((candidate) => candidate.endsWith('.ts') && existsSync(candidate))
+      if (target) queue.push(target)
+    }
+  }
+  return seen
+}
+
+describe('the @cloudflare/workers-types hold stays released (2026-10-03)', () => {
+  /*
+   * apps/shrink typechecks src/ and container/report.ts under Cloudflare's Worker types and
+   * no Node types (apps/shrink/tsconfig.json). Until 2026-10-03 the report imported
+   * tools/asset-pipeline/src/validate.ts, and every workers-types release from 5.20260808.1 on
+   * failed there on readGlbGenerator's Node Buffer calls, so apps/shrink was held at
+   * 5.20260804.1. Reaching validate.ts again, directly or through another file, even with
+   * `import type`, brings the failure back (one planted `import type` returned all four
+   * errors), and tsc's message names neither the import nor the fix. This names both.
+   */
+  const shrinkSrc = join(REPO_ROOT, 'apps', 'shrink', 'src')
+  const entries = [
+    'apps/shrink/container/report.ts',
+    ...readdirSync(shrinkSrc, { recursive: true })
+      .map(String)
+      .filter((file) => file.endsWith('.ts'))
+      .map((file) => join('apps', 'shrink', 'src', file)),
+  ]
+  const reached = reachableFiles(entries)
+  const pipeline = (file: string) => join(REPO_ROOT, 'tools', 'asset-pipeline', 'src', file)
+
+  it("nothing apps/shrink typechecks reaches the pipeline's validate.ts", () => {
+    expect(
+      reached.has(pipeline('validate.ts')),
+      'apps/shrink reaches tools/asset-pipeline/src/validate.ts. Under Worker types its\n' +
+        'readGlbGenerator fails ("readUInt32LE does not exist on type NonSharedBuffer"). Import\n' +
+        "the report's shape, SIZE_WARNING_BYTES and describeSoftArtwork from glb-report.ts.",
+    ).toBe(false)
+  })
+
+  it('follows the imports it guards (the guard must not pass by finding nothing)', () => {
+    expect(entries.length).toBeGreaterThan(5)
+    // The report imports glb-report.ts, and glb-report.ts imports texture-artwork.ts.
+    expect(reached.has(pipeline('glb-report.ts'))).toBe(true)
+    expect(reached.has(pipeline('texture-artwork.ts'))).toBe(true)
   })
 })

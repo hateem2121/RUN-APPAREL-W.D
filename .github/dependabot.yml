@@ -54,9 +54,8 @@ updates:
           # ci.yml's Playwright container tag must equal this version
           # (apps/cms/src/workflowHardening.test.ts), so the tag and its digest move with it.
           - "@playwright/test"
-          # HELD for apps/shrink only (docs/DEPENDENCY-HOLDS.md): newer releases break that
-          # package's typecheck; apps/cms and apps/viewer may move.
-          - "@cloudflare/workers-types"
+          # (`@cloudflare/workers-types` was listed here until 2026-10-03, while it was held
+          # for apps/shrink; the hold ended, so it now moves with the minor-and-patch group.)
           # The RUNBOOK's pasted outage commands pin the installed version
           # (apps/cms/src/runbookCommands.test.ts), and a person re-checks their flags
           # before moving them: Dependabot's 4.141.0 bump failed for exactly this (2026-10-03).
@@ -78,7 +77,6 @@ updates:
           - "vite"
           - "vitest"
           - "@playwright/test"
-          - "@cloudflare/workers-types"
           - "wrangler"
     ignore:
       # TypeScript: block MAJOR bumps. All five workspaces are on 7.0.2 since

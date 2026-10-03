@@ -15,8 +15,8 @@
  * `@sentry/cloudflare` would work and is the official route. It is not used here
  * because this Worker needs exactly one thing — post a JSON event — and the repo pays
  * a real price for dependencies: a 24-hour publish cooldown that silently no-ops a
- * bump, a second npm lockfile the Dockerfile reads, and a held `workers-types` that
- * already constrains this package. Sentry's envelope format is a documented wire
+ * bump, a second npm lockfile the Dockerfile reads, and a Worker-only typecheck that held
+ * `workers-types` back in this package for seven weeks. Sentry's envelope format is a documented wire
  * protocol; this implements that directly, in ~40 lines, with no install.
  *
  * Verified against Sentry's own spec (develop.sentry.dev, "Envelopes"):
