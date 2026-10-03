@@ -27,9 +27,10 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  // FOUR ENTRIES since 2026-09-26: two extract-zip advisories x two routes (at the
-  // bottom). Two from 2026-09-10 to 2026-09-26. One from
-  // 2026-08-13, empty from 2026-08-12 before that; getting back to empty is the goal.
+  // SIX ENTRIES since 2026-10-03: braces x two routes, and two extract-zip advisories
+  // x two routes (all at the bottom). Four from 2026-09-26 to 2026-10-03, two from
+  // 2026-09-10 to 2026-09-26, one from 2026-08-13, empty from 2026-08-12 before that;
+  // getting back to empty is the goal.
   //
   // Two GHSA-mh99-v99m-4gvg (brace-expansion DoS) paths lived here from
   // 2026-07-27, correctly: at the time the only patched release was 5.0.8, there
@@ -228,10 +229,34 @@
   // only breaking change makes separate transfer hosts opt-in (FTP-bounce protection);
   // get-uri uses plain connect/list/download, and nothing here fetches an ftp:// URL.
   // DELETE the override once get-uri itself depends on ^6.2.1.
+  //
+  // ── braces, added 2026-10-03: NO FIXED RELEASE EXISTS ──────────────────────
+  // GHSA-vfj7-8cjw-p6xm (CVE-2026-93687), "braces vulnerable to stack-exhaustion
+  // denial of service through deeply nested patterns", high (CVSS 7.5), range
+  // `<= 3.0.3`. Published 2026-09-18, updated 2026-10-02 22:36 UTC, and it failed
+  // `audit` on PR #117 the next morning with no dependency change. 3.0.3
+  // (2024-05-21) is the newest braces on npm and the report says
+  // `patched_versions_unpublished`, so there is nothing to override to. The owner
+  // chose (2026-10-03) to allowlist its TWO routes; `pnpm audit` prints 47 paths:
+  //   1. `*>sass>chokidar>braces` — 46 paths, one per workspace and parent. sass
+  //      1.77.4 is pinned by @payloadcms/next 3.90.2 and allows only chokidar 3
+  //      (3.6.0 here, which needs braces). sass calls chokidar for its `--watch`
+  //      mode alone, with globbing off (`disableGlobbing: true` in sass.dart.js),
+  //      and nothing here runs sass in watch mode.
+  //   2. the one storage-plugin path (find-node-modules > findup-sync > micromatch):
+  //      @payloadcms/plugin-cloud-storage 3.90.2 lists find-node-modules but its
+  //      built code never calls it (no use in its dist, checked 2026-10-03).
+  // The bug needs an attacker to hand braces a deeply nested pattern; every pattern
+  // it could see here is written in code, never by a visitor. The wildcard keeps
+  // entry 1 scoped to sass's watcher, so braces arriving by any other route still
+  // fails the gate. DELETE BOTH once braces ships a fix (then override, as for
+  // brace-expansion above) or once sass moves to chokidar 4+, which has no braces.
   "allowlist": [
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
-    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip"
+    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
+    "GHSA-vfj7-8cjw-p6xm|*>sass>chokidar>braces",
+    "GHSA-vfj7-8cjw-p6xm|apps__cms>@payloadcms/storage-r2>@payloadcms/plugin-cloud-storage>find-node-modules>findup-sync>micromatch>braces"
   ]
 }

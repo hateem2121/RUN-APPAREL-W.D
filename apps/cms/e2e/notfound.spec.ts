@@ -1,3 +1,4 @@
+import { stripUntilStable } from '../../../scripts/strip-until-stable.mjs'
 import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 
@@ -190,7 +191,12 @@ test.describe('the 404 shadows nothing', () => {
        * and the fix is always the same.
        */
       const body = await response.text()
-      const rendered = body.replace(/<script[\s\S]*?<\/script>/g, '')
+      // Every spelling of a script block goes, in any letter case and with any end tag
+      // (`</script >`, `</script x>`), pass after pass until none is left. One lower-case pass
+      // is what GitHub's code scan flagged (#74 + #75, 2026-10-02: js/bad-tag-filter and
+      // js/incomplete-multi-character-sanitization); dismissing the same two as test code on
+      // 2026-10-01 (#2 + #6) did not survive the next edit beside this line.
+      const rendered = stripUntilStable(body, /<script\b[\s\S]*?<\/script[^>]*>/gi, '')
       // Any letter case: the label is in normal letters since 2026-10-02 (visual audit VA-44), and
       // a check on the old capitals would pass for ever while checking nothing.
       expect(rendered).not.toMatch(/404 · page not found/i)

@@ -80,6 +80,24 @@
 }
 
 /*
+ * ⚠️ THE ROOM KEPT FOR THE BAR IS THE FOOTER'S COLOUR (2026-10-03, owner's iPhone screenshot). The
+ * footer is the last thing in `.page`, so this room sits UNDER it, and the bar no longer covers it:
+ * it steps aside while the footer is on screen (`lib/actionBarStepsAside.ts`). In the page's paper
+ * the room read as the same white band the owner reported on every page, so it is painted the
+ * footer's colour, exactly the padding's height and nowhere else. The value is `--footer-bg`'s,
+ * which is scoped to the footer and cannot be read from here (footer.css says the same).
+ */
+.page {
+  background-image: linear-gradient(
+    light-dark(var(--ink), var(--raised)),
+    light-dark(var(--ink), var(--raised))
+  );
+  background-repeat: no-repeat;
+  background-position: bottom;
+  background-size: 100% max(var(--action-bar-h), 4.5rem);
+}
+
+/*
  * The page wrapper takes focus when the preloader leaves (`App.tsx`, audit
  * FA-H-26), so that the next Tab starts at the top of the document — at the skip
  * link — instead of inside <main>, past the header.
@@ -98,6 +116,7 @@
 @media (min-width: 900px) {
   .page {
     padding-bottom: 0;
+    background-image: none;
   }
 }
 
@@ -2494,6 +2513,7 @@ model-viewer.stage__model {
 
   .page {
     padding-bottom: 0;
+    background-image: none;
   }
 }
 

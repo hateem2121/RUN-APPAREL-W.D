@@ -687,7 +687,10 @@ way to start a conversation, and the page's own EMAIL US and WHATSAPP US under "
 us" are what a screen reader meets reading down. Both stay (`Contact.tsx` records why). Since
 2026-10-02 (visual audit VA-54) the bar fades away while the page's own pair is on screen above
 it, because at 402x874 and 375x667 the same two buttons were shown twice at the same moment, and
-it returns when that pair scrolls off. `lib/actionBarStepsAside.ts` sets `data-tucked` on the bar
+it returns when that pair scrolls off. Since 2026-10-03 it also fades while any of the footer is
+above it (owner's choice): over the dark footer the paper bar was a white block on an iPhone, and
+the footer carries the email, WhatsApp and "Start an inquiry" itself; the room kept for the bar
+under the footer is painted the footer's colour. `lib/actionBarStepsAside.ts` sets `data-tucked` on the bar
 from an `IntersectionObserver` whose bottom edge is pulled up by the bar's own height; the fade,
 and leaving the Tab order and the accessibility tree, are CSS: `opacity` over `--fast`, and
 `visibility`, which hides the bar once the fade ends and shows it again at once. A bar with
@@ -965,7 +968,7 @@ So the lock holds and the scale grows:
 | Wipes, scroll reveals | `--slow` |
 | The site's three showpieces only: the numbers counting up, the order timeline drawing, the contact globe's routes | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
 | Retargeted progress fills | `--fast` (see `page.css`'s note — a fill retargeted several times a second visibly trails the number beside it at anything slower) |
-| The phone contact bar fading away while the page's own Email and WhatsApp are on screen (VA-54, 2026-10-02) | `--fast`, as the audit's fix text asks. It follows the scroll position, which a visitor can reverse at any moment, so it is the retargeted case above rather than a state a finger is waiting on (`--ui`, 20ms slower). See "The phone contact bar" |
+| The phone contact bar fading away while the page's own Email and WhatsApp, or the footer, are on screen (VA-54, 2026-10-02; the footer 2026-10-03) | `--fast`, as the audit's fix text asks. It follows the scroll position, which a visitor can reverse at any moment, so it is the retargeted case above rather than a state a finger is waiting on (`--ui`, 20ms slower). See "The phone contact bar" |
 | The pause between rows that arrive one after another — the phone menu's rows only (visual audit VA-51, 2026-10-01); never the page's entrance reveals (D8) | `--stagger` |
 
 **Do not "simplify" this by collapsing `--fast` and `--ui`.** They are 20ms apart
