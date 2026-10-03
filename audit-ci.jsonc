@@ -230,6 +230,20 @@
   // get-uri uses plain connect/list/download, and nothing here fetches an ftp:// URL.
   // DELETE the override once get-uri itself depends on ^6.2.1.
   //
+  // ── lodash-es, fixed by OVERRIDE 2026-10-03 (not allowlisted) ──────────────
+  // GHSA-r5fr-rjxr-66jc, "lodash vulnerable to Code Injection via `_.template` imports
+  // key names", high, published 2026-04-01. It failed `audit` on Dependabot's PR #122
+  // (mermaid 11.17.2 -> 12.0.0): mermaid 12 depends on chevrotain ~11.1.2, which pins
+  // lodash-es to exactly 4.17.23, inside the range `>= 4.0.0, <= 4.17.23`. Patched in
+  // 4.18.0 (published 2026-03-31; 4.18.1 on 2026-04-01, both far past the 24h cooldown,
+  // no install script, no dependencies). Reached only through apps/cms > mermaid >
+  // chevrotain (+ @chevrotain/*), i.e. the docs-diagram checker
+  // (apps/cms/scripts/check-doc-visuals.mjs and its test), never website code. A patched
+  // version exists, so override (`lodash-es: ^4.18.0` in pnpm-workspace.yaml), the same
+  // call as basic-ftp above. It stays inside major 4, and the doc-visuals check still
+  // draws every diagram with it. DELETE the override once chevrotain itself depends on
+  // lodash-es ^4.18.0.
+  //
   // ── braces, added 2026-10-03: NO FIXED RELEASE EXISTS ──────────────────────
   // GHSA-vfj7-8cjw-p6xm (CVE-2026-93687), "braces vulnerable to stack-exhaustion
   // denial of service through deeply nested patterns", high (CVSS 7.5), range
