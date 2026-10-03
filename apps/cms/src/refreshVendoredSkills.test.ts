@@ -1706,7 +1706,7 @@ describe('refresh, on a temp copy of real skills', () => {
 
   describe('--accept, after a person has read the flagged lines at one upstream commit', () => {
     const read = (fake: ReturnType<typeof fakeGitHub>) =>
-      `seo-audit@${sha12(fake, 'coreyhaines31/marketingskills')}`
+      `seo-audit@${fake.commit('coreyhaines31/marketingskills')}`
 
     it('lets that skill through, and says what was let through', async () => {
       const { root, fake } = setup((up) =>
@@ -1745,12 +1745,32 @@ describe('refresh, on a temp copy of real skills', () => {
     it('waives nothing once upstream has moved past the commit that was read', async () => {
       const { root, fake } = setup((up) => addLine(up.marketing, SEO('SKILL.md'), PLANTED.override))
       const before = snapshot(root)
-      const stale = 'seo-audit@0000000aaaaa'
+      const head = fake.commit('coreyhaines31/marketingskills')
+      const stale = `seo-audit@${'0'.repeat(40)}`
       const result = await refresh({ root, fetch: fake.fetch, write: true, accept: [stale] })
       expect(named(result, 'seo-audit')).toMatchObject({ status: 'blocked', acceptable: true })
       expect(named(result, 'seo-audit').reasons.join('\n')).toContain(
-        `--accept named \`0000000aaaaa\`, but upstream is now at \`${sha12(fake, 'coreyhaines31/marketingskills')}\``,
+        `--accept named \`${'0'.repeat(40)}\`, but upstream is now at \`${head}\``,
       )
+      expect(snapshot(root)).toEqual(before)
+    })
+
+    it('waives nothing for a commit that only shares the first 12 characters (third review)', async () => {
+      // Upstream controls its commit ids: two that share a 12-character prefix take seconds to
+      // make, so a person who read one must not thereby accept the other.
+      const { root, fake } = setup((up) => addLine(up.marketing, SEO('SKILL.md'), PLANTED.override))
+      const head = fake.commit('coreyhaines31/marketingskills')
+      const lookalike = `${head.slice(0, 12)}${head.slice(12).replace(/./g, (c) => (c === 'f' ? 'e' : 'f'))}`
+      expect(lookalike).not.toBe(head)
+      expect(lookalike.slice(0, 12)).toBe(head.slice(0, 12))
+      const before = snapshot(root)
+      const result = await refresh({
+        root,
+        fetch: fake.fetch,
+        write: true,
+        accept: [`seo-audit@${lookalike}`],
+      })
+      expect(named(result, 'seo-audit')).toMatchObject({ status: 'blocked', acceptable: true })
       expect(snapshot(root)).toEqual(before)
     })
 
@@ -1764,19 +1784,23 @@ describe('refresh, on a temp copy of real skills', () => {
       expect(planted.filter((line) => reasons.includes(line))).toHaveLength(3) // the control
       const report = renderReport(result)
       for (const line of planted) expect(report).toContain(line)
-      expect(report).toContain(`--accept seo-audit@${sha12(fake, 'coreyhaines31/marketingskills')}`)
+      // The whole commit, not the 12 characters the version column shows.
+      expect(report).toContain(`--accept seo-audit@${fake.commit('coreyhaines31/marketingskills')}`)
     })
 
-    it('refuses an accept with no commit, a name it does not know, and one --only leaves out', async () => {
+    it('refuses an accept with no commit or a short one, a name it does not know, and one --only leaves out', async () => {
       const { root, fake } = setup()
-      await expect(refresh({ root, fetch: fake.fetch, accept: ['seo-audit'] })).rejects.toThrow(
-        /needs the upstream commit/,
-      )
-      await expect(refresh({ root, fetch: fake.fetch, accept: ['nope@abcdef1'] })).rejects.toThrow(
+      const full = 'a'.repeat(40)
+      for (const entry of ['seo-audit', 'seo-audit@abcdef123456']) {
+        await expect(refresh({ root, fetch: fake.fetch, accept: [entry] })).rejects.toThrow(
+          /needs the full 40-character upstream commit/,
+        )
+      }
+      await expect(refresh({ root, fetch: fake.fetch, accept: [`nope@${full}`] })).rejects.toThrow(
         /unknown/,
       )
       await expect(
-        refresh({ root, fetch: fake.fetch, only: ['animate'], accept: ['seo-audit@abcdef1'] }),
+        refresh({ root, fetch: fake.fetch, only: ['animate'], accept: [`seo-audit@${full}`] }),
       ).rejects.toThrow(/--only leaves out/)
     })
 
@@ -1920,7 +1944,7 @@ describe('run', () => {
     // Only lines were flagged, so the report lists them and says how a person lets them through.
     expect(out.join('\n')).toContain(PLANTED.override)
     expect(out.join('\n')).toContain(
-      `--write --only vercel-react-view-transitions --accept vercel-react-view-transitions@${sha12(fake, 'vercel-labs/agent-skills')}`,
+      `--write --only vercel-react-view-transitions --accept vercel-react-view-transitions@${fake.commit('vercel-labs/agent-skills')}`,
     )
     expect(text(seoDir(root), 'SKILL.md')).toContain('A new line.')
     const printed = [...out, ...err, readFileSync(summaryFile, 'utf8')].join('\n')
@@ -1989,7 +2013,7 @@ describe('run', () => {
     const { root, fake } = setup((up) => addLine(up.marketing, SEO('SKILL.md'), PLANTED.override))
     const before = snapshot(root)
     const { out, io } = capture()
-    const read = `seo-audit@${sha12(fake, 'coreyhaines31/marketingskills')}`
+    const read = `seo-audit@${fake.commit('coreyhaines31/marketingskills')}`
     const argv = ['--only', 'seo-audit', '--accept', read]
     expect(await run({ argv, fetch: fake.fetch, root, ...io })).toBe(0)
     expect(out.join('\n')).toContain('Would update 1:')

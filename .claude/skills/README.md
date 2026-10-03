@@ -402,11 +402,13 @@ overwrite it.
 
 **When the robot blocks a skill only for lines it flagged**, run the dry run
 (`node scripts/refresh-vendored-skills.mjs --only <name>`): it prints EVERY flagged line,
-where a reason quotes three, and the upstream commit they are at. Read them all. If they are
-harmless, `node scripts/refresh-vendored-skills.mjs --write --only <name> --accept
+where a reason quotes three, and the full upstream commit they are at. Read them all. If
+they are harmless, `node scripts/refresh-vendored-skills.mjs --write --only <name> --accept
 <name>@<commit>` copies that one skill in and records what was let through. The accept
-holds only at that commit: if upstream has moved since, it waives nothing, so lines pushed
-after the reading cannot ride along (second commit review, 2026-10-03). `--accept` waives
+holds only at that exact commit, all 40 characters of it: if upstream has moved since, it
+waives nothing, so lines pushed after the reading cannot ride along, and a 12-character
+prefix is refused because upstream can make two commits that share one in seconds (second
+and third commit reviews, 2026-10-03). `--accept` waives
 the line checks and nothing else, and the weekly workflow never passes it (a test pins
 that). Anything else that blocks a skill needs a decision on this table, not a flag.
 

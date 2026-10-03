@@ -40,8 +40,10 @@
  *     only in capitals (one file on a Mac), a file over 1 MiB, a NUL byte or invalid UTF-8, or
  *     bytes that do not match GitHub's own file list.
  * --accept <name>@<commit> lets one skill's flagged LINES through after a person has read them
- * at that upstream commit; if upstream has moved since, it waives nothing. It waives no other
- * check, and the weekly workflow never passes it.
+ * at that upstream commit, named in FULL: upstream controls its commit ids, and two commits that
+ * share a 12-character prefix take seconds to make (third commit review, 2026-10-03). If
+ * upstream has moved since, it waives nothing. It waives no other check, and the weekly
+ * workflow never passes it.
  * Without --write nothing is written (README and lock included). With --write, a skill that
  * passes has its changed files written, files that vanished upstream deleted, its README row's
  * commit cell set to upstream's head (12 hex) and its skills-lock.json hash recomputed.
@@ -104,8 +106,9 @@ import { parseArgs } from 'node:util'
  * @typedef {{
  *   name: string, repo: string, upstream: string | null,
  *   status: 'unchanged' | 'updated' | 'blocked' | 'error',
- *   oldSha: string | null, newSha: string | null, added: string[], changed: string[],
- *   removed: string[], reasons: string[], accepted: string[], acceptable: boolean,
+ *   oldSha: string | null, newSha: string | null, head: string | null, added: string[],
+ *   changed: string[], removed: string[], reasons: string[], accepted: string[],
+ *   acceptable: boolean,
  *   flagged?: { file: string, pattern: string, lines: { number: number, text: string }[] }[],
  *   message?: string, hasReadmeRow: boolean, hasLockEntry: boolean,
  *   plan?: { dir: string, writes: Map<string, Uint8Array>, deletes: string[] },
@@ -812,6 +815,7 @@ async function planSkill(record, { root, github, accept }) {
     status: 'unchanged',
     oldSha: record.readme?.sha ?? null,
     newSha: null,
+    head: null,
     added: [],
     changed: [],
     removed: [],
@@ -842,6 +846,7 @@ async function planSkill(record, { root, github, accept }) {
   }
   const head = await github.head(info.fullName, info.defaultBranch)
   result.newSha = head.slice(0, 12)
+  result.head = head
   const entries = await github.tree(info.fullName, head)
 
   const prefix = `${record.folder}/`
@@ -940,15 +945,15 @@ async function planSkill(record, { root, github, accept }) {
   if (reasons.length > 0) return block(reasons)
 
   // Flagged lines are the one thing a person may waive (--accept), and only at the upstream
-  // commit they read: a push after the reading could add lines nobody saw (commit review,
-  // 2026-10-03), so an accept that names another commit waives nothing.
+  // commit they read, compared whole: a push after the reading could add lines nobody saw
+  // (commit reviews, 2026-10-03), so an accept that names any other commit waives nothing.
   const flagged = findNewFindings(localFiles, newFiles)
   const findings = flagged.map(describeFinding)
   const reviewed = accept.get(record.name)
-  if (findings.length > 0 && !(reviewed && head.startsWith(reviewed))) {
+  if (findings.length > 0 && reviewed !== head) {
     const moved = reviewed
       ? [
-          `--accept named ${code(reviewed)}, but upstream is now at ${code(result.newSha)}: read what changed since, then accept that commit`,
+          `--accept named ${code(reviewed)}, but upstream is now at ${code(head)}: read what changed since, then accept that commit`,
         ]
       : []
     return { ...block([...moved, ...findings]), acceptable: true, flagged }
@@ -1048,10 +1053,10 @@ export async function refresh({
   /** @type {Map<string, string>} each accepted skill, and the upstream commit that was read */
   const accepted = new Map()
   for (const entry of accept) {
-    const pinned = /^([^@\s]+)@([0-9a-f]{7,40})$/.exec(entry)
+    const pinned = /^([^@\s]+)@([0-9a-f]{40})$/.exec(entry)
     if (!pinned?.[1] || !pinned[2]) {
       throw new Error(
-        `--accept needs the upstream commit that was read, as <name>@<commit> from the report: ${tidy(entry)}`,
+        `--accept needs the full 40-character upstream commit that was read, as <name>@<commit> from the report: ${tidy(entry)}`,
       )
     }
     accepted.set(pinned[1], pinned[2])
@@ -1085,6 +1090,7 @@ export async function refresh({
         status: 'error',
         oldSha: record.readme?.sha ?? null,
         newSha: null,
+        head: null,
         added: [],
         changed: [],
         removed: [],
@@ -1211,7 +1217,7 @@ export function renderReport(result) {
         lines.push('      Only lines were flagged. Every one of them, to read before accepting:')
         lines.push(...everyFlaggedLine(r))
         lines.push(
-          `      If all are harmless: --write --only ${r.name} --accept ${r.name}@${r.newSha}`,
+          `      If all are harmless: --write --only ${r.name} --accept ${r.name}@${r.head}`,
         )
       }
     }
@@ -1336,9 +1342,9 @@ const USAGE = `Usage: node scripts/refresh-vendored-skills.mjs [--write] [--summ
   --only a,b        limit the run to these skills
   --accept a@<commit>,b@<commit>
                     let these skills' flagged LINES through, once a person has read every one
-                    at that upstream commit (the report prints them and the commit); if
-                    upstream has moved since, nothing is waived. Every other check still
-                    applies, and the weekly workflow never passes this
+                    at that upstream commit, named in full (the report prints the lines and
+                    the 40-character commit); if upstream has moved since, nothing is waived.
+                    Every other check still applies, and the weekly workflow never passes this
 
 Environment: GITHUB_TOKEN (optional) is sent to api.github.com and raises GitHub's hourly
 request limit. GITHUB_OUTPUT (GitHub Actions) receives changed=true|false and blocked=<n>.`
