@@ -57,6 +57,10 @@ updates:
           # HELD for apps/shrink only (docs/DEPENDENCY-HOLDS.md): newer releases break that
           # package's typecheck; apps/cms and apps/viewer may move.
           - "@cloudflare/workers-types"
+          # The RUNBOOK's pasted outage commands pin the installed version
+          # (apps/cms/src/runbookCommands.test.ts), and a person re-checks their flags
+          # before moving them: Dependabot's 4.141.0 bump failed for exactly this (2026-10-03).
+          - "wrangler"
       # Packages CI cannot move on its own (the reasons are beside the list above): one PR
       # a week that fails until a session finishes the by-hand step.
       needs-hand-sync:
@@ -75,6 +79,7 @@ updates:
           - "vitest"
           - "@playwright/test"
           - "@cloudflare/workers-types"
+          - "wrangler"
     ignore:
       # TypeScript: block MAJOR bumps. All five workspaces are on 7.0.2 since
       # 2026-08-12 (the CMS's Next-16 pin to TS 6 was resolved by Next 16.3.0);

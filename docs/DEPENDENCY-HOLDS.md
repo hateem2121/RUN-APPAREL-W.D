@@ -92,7 +92,7 @@ fails. Both directions have controls.
   the container typecheck all exit 0. **Do not "fix" the warning by raising
   workers-types** — that trades a cosmetic warning for the real `readUInt32LE`
   break above, i.e. the same bad trade in the opposite direction.
-  ✅ **wrangler 4.137.0 raised the peer to `^5.20260921.1` and 4.140.0 to `^5.20260923.1`,
+  ✅ **wrangler 4.137.0 raised the peer to `^5.20260921.1`, 4.140.0 to `^5.20260923.1` and 4.141.0 (2026-10-03) to `^5.20260925.1`,
   which briefly put the same cosmetic warning on `apps/cms` and `apps/viewer`.** Both were
   raised to `5.20260925.1` on 2026-09-26, so the warning is back to `apps/shrink` alone —
   the real hold.

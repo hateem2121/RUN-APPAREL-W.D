@@ -30,7 +30,7 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   `"types": ["node"]`. `@types/node` looks like the culprit and is not.
   🟡 **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
   `dependencyPolicy.test.ts`, which asserts the hold in `apps/shrink` AND asserts it has
-  not widened again. wrangler 4.140.0 wants `^5.20260923.1`; `apps/cms` and `apps/viewer`
+  not widened again. wrangler 4.141.0 wants `^5.20260925.1`; `apps/cms` and `apps/viewer`
   were raised to `5.20260925.1` on 2026-09-26 and satisfy it, so only `apps/shrink` still
   shows the unmet-peer warning — and that one is the real hold. **Do not "fix" shrink's by raising workers-types**, which
   trades it for the real break.
