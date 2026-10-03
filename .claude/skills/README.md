@@ -72,7 +72,7 @@ the keystroke point 4 is about.
 | Skill | Source | Licence |
 |---|---|---|
 | `performance-optimization` | `addyosmani/agent-skills` @ `f03b4a84b08b` | MIT |
-| `observability-and-instrumentation` | `addyosmani/agent-skills` @ `f03b4a84b08b` | MIT |
+| `observability-and-instrumentation` | `addyosmani/agent-skills` @ `a06bc63b3f8b` | MIT |
 | `emil-design-eng` | `emilkowalski/skills` @ `de33dbed0002` | MIT |
 | `review-animations` | `emilkowalski/skills` @ `de33dbed0002` | MIT |
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
@@ -341,6 +341,15 @@ documentation and search-industry references (`developers.google.com`, `schema.o
 `example.com` placeholders); the only shell commands are example `curl` checks of a
 page's robots headers, in one `ai-seo` reference file.
 
+**"Every file is `.md` or `.json`" does not mean nothing runs.** Found 2026-10-03 on
+[Claude Code's skills page](https://code.claude.com/docs/en/skills): Claude Code runs a
+`SKILL.md` line that starts with `!` and a backtick, and a block fenced with three
+backticks and `!`, BEFORE the model reads the skill; `allowed-tools` in the header lets
+those tools run without asking, and `hooks` keeps commands running for the rest of the
+session. Measured the same day on every vendored skill: **no such line and no such
+field.** The only characters that show as nothing are four zero-width spaces in one
+`improve-animations` template file. The robot below blocks any new one of each.
+
 ## The weekly refresh robot (2026-10-03)
 
 The owner asked on 2026-10-03 for every skill to stay at its latest version. Every Monday
@@ -349,14 +358,25 @@ The owner asked on 2026-10-03 for every skill to stay at its latest version. Eve
 - takes every vendored skill in git: the table above (not its three local-only rows,
   which git does not have) and `skills-lock.json` — 24 skills on 2026-10-03;
 - compares each folder, file by file, with its upstream's newest commit;
-- scans what changed with the checks in "Scanned before committing" (non-text files,
-  credential access, instruction-override wording, secret-shaped strings) and checks the
-  upstream licence is still MIT or Apache-2.0. Only NEW findings count, so a skill whose
-  prose already mentions `localStorage` is not blocked for it;
+- scans what changed LINE BY LINE with the checks in "Scanned before committing"
+  (credential access, instruction-override wording, secret-shaped strings), plus the three
+  that exist because a skill is not only text: a line that runs a command when the skill
+  loads, a header field that grants tools or runs hooks (`allowed-tools`, `hooks`,
+  `shell`), and characters that show as nothing (zero-width, direction marks, the
+  invisible "tag" letters that can spell a whole instruction). Only NEW lines count, so a
+  skill whose prose already mentions `localStorage` is not blocked for it, and deleting
+  one old line does not let a different new one through (a per-file count did, until the
+  commit review of 2026-10-03);
+- also blocks a new or edited file that is not `.md` or `.json`, odd or clashing file
+  names, a repository that now answers under another owner, and a licence that is not
+  MIT or Apache-2.0 or not the one in the table. With no licence file upstream, the
+  licence is the one the skill's own `SKILL.md` declares, the rule the Vercel rows above
+  already follow;
 - applies the clean updates, moves the SHA in the table and recomputes the lockfile hash
   exactly as the `skills` installer does (verified against the `animate` entry);
 - opens ONE pull request, closing last week's if it is still open, and starts `ci.yml`
-  on it. A blocked update is left out and the run ends red, naming the reason.
+  on it. A blocked update is left out and the run ends red, naming the reason; the pull
+  request quotes each flagged line with its number (never a line shaped like a key).
 
 Run it by hand with `gh workflow run refresh-skills.yml`, or as a local dry run that
 writes nothing: `node scripts/refresh-vendored-skills.mjs`.
@@ -376,6 +396,13 @@ exactly that every Monday, and `node scripts/refresh-vendored-skills.mjs --write
 <name>` does it by hand for one skill. Do not edit the vendored files in place — a local
 edit that upstream does not have is indistinguishable from drift, and the robot would
 overwrite it.
+
+**When the robot blocks a skill only for lines it flagged**, read those lines (the robot's
+pull request quotes them). If they are harmless, `node scripts/refresh-vendored-skills.mjs
+--write --only <name> --accept <name>` copies that one skill in and records what was let
+through. `--accept` waives the line checks and nothing else, and the weekly workflow never
+passes it (a test pins that). Anything else that blocks a skill needs a decision on this
+table, not a flag.
 
 **Review by 2026-11-13 (three months).** Not a rule about staleness — pinned files
 do not rot — but about *relevance*: point 4 above describes 57 skills that nobody

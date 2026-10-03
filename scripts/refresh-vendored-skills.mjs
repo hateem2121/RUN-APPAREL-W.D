@@ -16,15 +16,29 @@
  * WHAT IT DOES. For every skill in the README table or in skills-lock.json (the README rows
  * marked "unstated" are local-only and skipped) it asks GitHub for the default branch's head,
  * lists the skill's upstream folder, and compares it with the local folder by git blob id.
- * Only a skill that DIFFERS is scanned, before any file is touched. The scan BLOCKS the skill,
- * and leaves it exactly as it was, when the new version:
- *   - adds a file whose name does not end in .md or .json (nothing executable comes in);
- *   - has MORE credential-access, instruction-override or secret-shaped matches in a file than
- *     the old version of that file had (so a benign mention that is already there never blocks);
- *   - sits in a repository whose licence is not MIT or Apache-2.0, or is not the one the README
- *     row records;
+ * Only a skill that DIFFERS is scanned, before any file is touched.
+ *
+ * A SKILL IS NOT ONLY TEXT. Claude Code runs a line's `!` + backtick command and a ```! block
+ * before the model reads the skill, lets the tools named in `allowed-tools` run without asking,
+ * and keeps a skill's `hooks` running for the rest of the session (code.claude.com/docs/en/skills,
+ * read 2026-10-03). So ".md and .json only" does not mean "nothing executable": lines are read.
+ *
+ * The scan BLOCKS the skill, and leaves it exactly as it was, when the new version:
+ *   - adds or edits a file whose name does not end in .md or .json;
+ *   - has a LINE the old version did not have that runs a command, sits under allowed-tools,
+ *     hooks or shell in SKILL.md's header, carries a character that shows as nothing, or
+ *     matches the credential-access, instruction-override or secret-shaped patterns. Lines are
+ *     compared as a multiset: a flagged line that was already there never blocks, a second copy
+ *     of it does, and deleting one benign line does not pay for a new one (the first version
+ *     compared per-file COUNTS, which let exactly that through: commit review, 2026-10-03);
+ *   - answers under a different GitHub owner (a rename is followed, a transfer is not);
+ *   - has a licence that is not MIT or Apache-2.0, or not the one the README row records;
  *   - cannot be trusted as a file set: a symbolic link, a submodule, a path that leaves the
- *     folder, a file over 1 MiB, a NUL byte, or bytes that do not match GitHub's own file list.
+ *     folder, a nested .claude folder, a name outside [A-Za-z0-9._/-] or two names that differ
+ *     only in capitals (one file on a Mac), a file over 1 MiB, a NUL byte or invalid UTF-8, or
+ *     bytes that do not match GitHub's own file list.
+ * --accept lets one skill's flagged LINES through after a person has read them. It waives no
+ * other check, and the weekly workflow never passes it.
  * Without --write nothing is written (README and lock included). With --write, a skill that
  * passes has its changed files written, files that vanished upstream deleted, its README row's
  * commit cell set to upstream's head (12 hex) and its skills-lock.json hash recomputed.
@@ -34,10 +48,9 @@
  * MEASURED 2026-10-03, WHICH SHAPED RULES BELOW.
  * - `vercel-labs/agent-skills` has no licence GitHub can detect (`license: null`; the README
  *   says the same: no LICENSE file at its root). Three README rows say MIT because the skills'
- *   own frontmatter declares `license: MIT`. This script reads only GitHub's repository-level
- *   licence, so those three are BLOCKED whenever upstream changes them (today:
- *   vercel-react-view-transitions). Accepting a frontmatter licence as a fallback is a policy
- *   choice that was not made here.
+ *   own frontmatter declares `license: MIT`, the source the README accepts ("Unstated is
+ *   measured, not lazy"). So when GitHub finds no licence file, the licence is the one the NEW
+ *   SKILL.md declares, and it must still be allowed and match the README row.
  * - The lock names eight skills `emilkowalski/skill`; the README names the same upstream
  *   `emilkowalski/skills`. GitHub answers the first with `full_name: emilkowalski/skills`, so
  *   repositories are keyed by the full_name GitHub reports and fetched once.
@@ -86,10 +99,11 @@ import { parseArgs } from 'node:util'
  *   problems: string[],
  * }} SkillRecord
  * @typedef {{
- *   name: string, repo: string, status: 'unchanged' | 'updated' | 'blocked' | 'error',
+ *   name: string, repo: string, upstream: string | null,
+ *   status: 'unchanged' | 'updated' | 'blocked' | 'error',
  *   oldSha: string | null, newSha: string | null, added: string[], changed: string[],
- *   removed: string[], reasons: string[], message?: string, hasReadmeRow: boolean,
- *   hasLockEntry: boolean,
+ *   removed: string[], reasons: string[], accepted: string[], acceptable: boolean,
+ *   message?: string, hasReadmeRow: boolean, hasLockEntry: boolean,
  *   plan?: { dir: string, writes: Map<string, Uint8Array>, deletes: string[] },
  * }} SkillResult
  * @typedef {{
@@ -116,9 +130,11 @@ export const ALLOWED_LICENCES = ['MIT', 'Apache-2.0']
 /** The largest vendored file today is 108,261 bytes (vercel-react-best-practices/AGENTS.md). */
 export const MAX_FILE_BYTES = 1_048_576
 const TEXT_FILE = /\.(md|json)$/
+/** A name that reads the same to a person, to git and to every file system. */
+const PLAIN_PATH = /^[A-Za-z0-9._/-]+$/
 
 /**
- * Counted per file, in the old and in the new version. See the header for why the two
+ * Each is tried on one line at a time, as `visible` leaves it. See the header for why the two
  * `[A-Z]` forms are written without a `+` and the key header's tail is bounded.
  */
 export const SCAN_PATTERNS = {
@@ -128,7 +144,22 @@ export const SCAN_PATTERNS = {
     /ignore (all |the )?previous|disregard|do not tell the user|don.t tell the user|without telling/gi,
   secret:
     /sk-[A-Za-z0-9]{12,}|AKIA[0-9A-Z]{12,}|ghp_[A-Za-z0-9]{20,}|xox[bap]-|BEGIN [A-Z ]{0,40}PRIVATE KEY/g,
+  // Claude Code RUNS `!` + backtick at a line's start or after a space, and a ```! block,
+  // before the model sees the skill. After any other character it does not: KEY=!`x` is text.
+  command: /(?:^|\s)!`|^\s*(?:```|~~~)\s*!/g,
 }
+
+/**
+ * Characters a model reads and a person does not see: Unicode's default-ignorable set (zero-
+ * width spaces and joiners, bidirectional overrides, variation selectors, and the U+E0000 "tag"
+ * letters, which can spell a whole instruction invisibly), control and private-use characters,
+ * the line and paragraph separators and the blank braille cell. Tab is ordinary and U+FE0F only
+ * asks for an emoji's colour form, so both are left out. Measured 2026-10-03: the vendored
+ * skills hold four, all U+200B, in improve-animations/PLAN-TEMPLATE.md.
+ */
+const HIDDEN = /(?!\t|\uFE0F)[\p{Default_Ignorable_Code_Point}\p{Cc}\p{Co}\p{Zl}\p{Zp}\u2800]/u
+const HIDDEN_ALL = new RegExp(HIDDEN.source, 'gu')
+const hex = (ch) => `U+${(ch.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}`
 
 const NAME_CELL = /^`([^`\s]+)`$/
 const SOURCE_CELL = /^`([^`\s/]+\/[^`\s/]+)`\s*@\s*`([0-9a-f]{7,40})`$/
@@ -139,20 +170,26 @@ const REPO_NAME = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/
 const FULL_SHA = /^[0-9a-f]{40}$/
 
 const decoder = new TextDecoder()
-const count = (text, regex) => (text.match(regex) ?? []).length
+const strictUtf8 = new TextDecoder('utf-8', { fatal: true })
 const toText = (content) => (typeof content === 'string' ? content : decoder.decode(content))
 
-/** A value from outside (a file name, an error) made safe to print on one line. */
+/**
+ * A value from outside (a file name, a line, an error) made safe to print on one line: a line
+ * break becomes a space, and a character that shows as nothing is shown by its code point, so
+ * the report cannot hide from its reader what the scan saw.
+ */
 function tidy(value, max = 160) {
   const text = [...String(value)]
-    .map((ch) => (ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127 ? ' ' : ch))
+    .map((ch) => (ch < ' ' ? ' ' : HIDDEN.test(ch) ? `<${hex(ch)}>` : ch))
     .join('')
     .trim()
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+  const chars = [...text]
+  return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : text
 }
 
 /** `tidy`, in a Markdown code span that cannot break out of a table cell. */
-const code = (value) => `\`${tidy(value).split('`').join("'").split('|').join('/')}\``
+const code = (value, max = 160) =>
+  `\`${tidy(value, max).split('`').join("'").split('|').join('/')}\``
 
 /**
  * An error's message with its cause. Node's fetch reports a DNS failure as just "fetch failed"
@@ -422,47 +459,207 @@ export function resolveSkillDir(root, name) {
 // ── The safety scan ───────────────────────────────────────────────────────────
 
 /**
- * A match count that went UP in a file, per pattern. A file the old version did not have
- * starts from zero. Nothing is reported for a pattern whose count stayed or fell.
+ * A line as the patterns read it: compatibility forms folded (ｄｉｓｒｅｇａｒｄ is disregard) and
+ * hidden characters removed (ignore<U+200B> previous is ignore previous).
+ *
+ * @param {string} line
+ */
+const visible = (line) => line.normalize('NFKC').replace(HIDDEN_ALL, '')
+
+/** SKILL.md header fields that change what Claude Code DOES, not what the model reads. */
+const PERMISSION_FIELDS = new Set(['allowed-tools', 'hooks', 'shell'])
+const PERMISSION_FIELD_TEXT = /(?:^|[\s{,])["']?(?:allowed-tools|hooks|shell)["']?\s*:/i
+const TOP_LEVEL_FIELD = /^["']?([A-Za-z0-9_-]+)["']?\s*:/
+
+/**
+ * The indexes of SKILL.md's header lines that belong to a PERMISSION_FIELDS field: its own
+ * line, the indented lines of its value, and a line that names one in flow style ({hooks: …}).
+ *
+ * @param {string[]} lines
+ * @returns {Set<number>}
+ */
+function permissionLines(lines) {
+  const found = new Set()
+  if (lines[0]?.trim() !== '---') return found
+  let field = ''
+  for (let index = 1; index < lines.length; index++) {
+    const line = lines[index] ?? ''
+    if (line.trim() === '---') break
+    const top = TOP_LEVEL_FIELD.exec(line)
+    if (top) field = (top[1] ?? '').toLowerCase()
+    if (PERMISSION_FIELDS.has(field) || PERMISSION_FIELD_TEXT.test(line)) found.add(index)
+  }
+  return found
+}
+
+/** Most severe first: the order a blocked skill's reasons are listed in. */
+const CHECKS = ['command', 'permission', 'hidden', 'override', 'credential', 'secret']
+
+/**
+ * For each check, the [index, text] of every line of one file that it flags. Only the skill's
+ * own top-level SKILL.md has a header that Claude Code reads.
+ *
+ * @param {string} text
+ * @param {string} file the path inside the skill folder
+ * @returns {Record<string, [number, string][]>}
+ */
+function flagLines(text, file) {
+  const lines = text.split(/\r?\n/)
+  const header = file === 'SKILL.md' ? permissionLines(lines) : new Set()
+  /** @type {Record<string, [number, string][]>} */
+  const flagged = Object.fromEntries(CHECKS.map((check) => [check, []]))
+  lines.forEach((line, index) => {
+    const view = visible(line)
+    /** @type {Record<string, boolean>} */
+    const hits = {
+      command: view.search(SCAN_PATTERNS.command) >= 0,
+      permission: header.has(index),
+      hidden: HIDDEN.test(line),
+      override: view.search(SCAN_PATTERNS.override) >= 0,
+      credential: view.search(SCAN_PATTERNS.credential) >= 0,
+      secret: view.search(SCAN_PATTERNS.secret) >= 0,
+    }
+    for (const check of CHECKS) if (hits[check]) flagged[check]?.push([index, line])
+  })
+  return flagged
+}
+
+/**
+ * The entries of `now` that no equal line in `before` pays for: lines compared as a multiset.
+ *
+ * @param {[number, string][]} before
+ * @param {[number, string][]} now
+ */
+function beyond(before, now) {
+  const budget = new Map()
+  for (const [, line] of before) budget.set(line, (budget.get(line) ?? 0) + 1)
+  return now.filter(([, line]) => {
+    const left = budget.get(line) ?? 0
+    if (left > 0) budget.set(line, left - 1)
+    return left === 0
+  })
+}
+
+/**
+ * Every line a check flags in the new version of a file that the old version did not have. A
+ * file the old version did not have starts from nothing. The header says why lines are
+ * compared as a multiset rather than counted.
  *
  * @param {Map<string, Uint8Array | string>} oldFiles
  * @param {Map<string, Uint8Array | string>} newFiles
- * @returns {{ file: string, pattern: string, before: number, after: number }[]}
+ * @returns {{ file: string, pattern: string, lines: { number: number, text: string }[] }[]}
  */
 export function findNewFindings(oldFiles, newFiles) {
   const findings = []
   for (const [file, content] of newFiles) {
     const before = oldFiles.get(file)
     if (before === content) continue
-    const text = toText(content)
-    const oldText = before === undefined ? '' : toText(before)
-    for (const [pattern, regex] of Object.entries(SCAN_PATTERNS)) {
-      const after = count(text, regex)
-      const prior = count(oldText, regex)
-      if (after > prior) findings.push({ file, pattern, before: prior, after })
+    const old = flagLines(before === undefined ? '' : toText(before), file)
+    const now = flagLines(toText(content), file)
+    for (const pattern of CHECKS) {
+      const lines = beyond(old[pattern] ?? [], now[pattern] ?? [])
+      if (lines.length > 0) {
+        findings.push({
+          file,
+          pattern,
+          lines: lines.map(([index, text]) => ({ number: index + 1, text })),
+        })
+      }
     }
   }
   return findings
 }
 
+/** "line 4", or "lines 4, 9, 12 and 3 more". */
+function lineNumbers(lines) {
+  const numbers = lines.map((line) => line.number)
+  const more = numbers.length > 8 ? ` and ${numbers.length - 8} more` : ''
+  return `${numbers.length === 1 ? 'line' : 'lines'} ${numbers.slice(0, 8).join(', ')}${more}`
+}
+
+/** The hidden characters on some lines, counted: "U+200B ×2, U+E0041 ×43". */
+function hiddenList(lines) {
+  const tally = new Map()
+  for (const { text } of lines) {
+    for (const [ch] of text.matchAll(HIDDEN_ALL)) tally.set(hex(ch), (tally.get(hex(ch)) ?? 0) + 1)
+  }
+  const all = [...tally].map(([name, times]) => (times === 1 ? name : `${name} ×${times}`))
+  return all.length > 6
+    ? `${all.slice(0, 6).join(', ')} and ${all.length - 6} more`
+    : all.join(', ')
+}
+
 /**
- * @param {string | null | undefined} spdx GitHub's `license.spdx_id`; null when it found none
+ * A blocked skill's reason, quoting each new line so the person deciding reads what the scan
+ * read. A line shaped like a key is never repeated: the summary becomes a public PR body.
+ *
+ * @param {{ file: string, pattern: string, lines: { number: number, text: string }[] }} finding
+ */
+export function describeFinding({ file, pattern, lines }) {
+  const where = `${code(file)}, ${lineNumbers(lines)}`
+  if (pattern === 'hidden') return `new hidden characters in ${where}: ${hiddenList(lines)}`
+  if (pattern === 'secret')
+    return `new secret pattern in ${where} (not shown: it may be a real key)`
+  const quoted = lines
+    .slice(0, 3)
+    .map(({ text }) =>
+      visible(text).search(SCAN_PATTERNS.secret) >= 0
+        ? '(not shown: shaped like a key)'
+        : code(text, 100),
+    )
+  return `new ${pattern} pattern in ${where}: ${quoted.join(' and ')}${lines.length > 3 ? ' …' : ''}`
+}
+
+/**
+ * Why some downloaded bytes are not plain text, or null when they are.
+ *
+ * @param {Uint8Array} bytes
+ */
+function plainTextProblem(bytes) {
+  if (bytes.includes(0)) return 'NUL byte'
+  try {
+    strictUtf8.decode(bytes)
+  } catch {
+    return 'not valid UTF-8'
+  }
+  return null
+}
+
+/**
+ * The licence a skill declares in its own SKILL.md header (`license: MIT`), or null.
+ *
+ * @param {string} text
+ */
+export function declaredLicence(text) {
+  const lines = text.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') return null
+  for (const line of lines.slice(1)) {
+    if (line.trim() === '---') return null
+    if (!line.startsWith('license:')) continue
+    const value = line.slice('license:'.length).trim()
+    const first = value[0]
+    const quoted = value.length >= 2 && (first === '"' || first === "'") && value.at(-1) === first
+    return (quoted ? value.slice(1, -1).trim() : value) || null
+  }
+  return null
+}
+
+/**
+ * @param {string | null | undefined} spdx the licence id found; null when there is none
  * @param {string | undefined} readmeLicence the README row's licence cell
+ * @param {string} source who reports `spdx`, as the reason says it
  * @returns {string[]}
  */
-export function licenceProblems(spdx, readmeLicence) {
+export function licenceProblems(spdx, readmeLicence, source = 'upstream reports') {
   if (!spdx || !ALLOWED_LICENCES.includes(spdx)) {
     const found = spdx ? `"${tidy(spdx, 40)}"` : 'no licence'
-    return [`licence changed: upstream reports ${found} (allowed: ${ALLOWED_LICENCES.join(', ')})`]
+    return [`licence changed: ${source} ${found} (allowed: ${ALLOWED_LICENCES.join(', ')})`]
   }
   if (readmeLicence && PLAIN_LICENCE.test(readmeLicence) && readmeLicence !== spdx) {
-    return [`licence changed: README says "${tidy(readmeLicence, 40)}", upstream reports "${spdx}"`]
+    return [`licence changed: README says "${tidy(readmeLicence, 40)}", ${source} "${spdx}"`]
   }
   return []
 }
-
-const describeFinding = ({ file, pattern, before, after }) =>
-  `new ${pattern} pattern in ${code(file)}: ${after} ${after === 1 ? 'match' : 'matches'} (was ${before})`
 
 // ── GitHub ────────────────────────────────────────────────────────────────────
 
@@ -567,14 +764,15 @@ async function mapLimit(items, limit, fn) {
 
 /**
  * @param {SkillRecord} record
- * @param {{ root: string, github: ReturnType<typeof createGithub> }} context
+ * @param {{ root: string, github: ReturnType<typeof createGithub>, accept: Set<string> }} context
  * @returns {Promise<SkillResult>}
  */
-async function planSkill(record, { root, github }) {
+async function planSkill(record, { root, github, accept }) {
   /** @type {SkillResult} */
   const result = {
     name: record.name,
     repo: record.repo,
+    upstream: null,
     status: 'unchanged',
     oldSha: record.readme?.sha ?? null,
     newSha: null,
@@ -582,6 +780,8 @@ async function planSkill(record, { root, github }) {
     changed: [],
     removed: [],
     reasons: [],
+    accepted: [],
+    acceptable: false,
     hasReadmeRow: Boolean(record.readme),
     hasLockEntry: Boolean(record.lock),
   }
@@ -593,6 +793,17 @@ async function planSkill(record, { root, github }) {
   if (local.dir === null) return block([local.problem])
 
   const info = await github.repo(record.repo)
+  result.upstream = info.fullName
+  // GitHub answers a RENAMED repository under its new name (emilkowalski/skill is now
+  // emilkowalski/skills) and a TRANSFERRED one under its new owner. A rename is followed; a
+  // transfer would copy a stranger's instructions in under the old name (commit review,
+  // 2026-10-03), so a person looks first.
+  const owner = (name) => name.split('/')[0]?.toLowerCase()
+  if (owner(info.fullName) !== owner(record.repo)) {
+    return block([
+      `upstream moved to another owner: ${code(record.repo)} now answers as ${code(info.fullName)}`,
+    ])
+  }
   const head = await github.head(info.fullName, info.defaultBranch)
   result.newSha = head.slice(0, 12)
   const entries = await github.tree(info.fullName, head)
@@ -632,10 +843,24 @@ async function planSkill(record, { root, github }) {
     else if (entry.type !== 'blob')
       reasons.push(`unexpected entry type ${code(entry.type)}: ${code(rel)}`)
     else if (!isSafeRelativePath(rel)) reasons.push(`unsafe file path: ${code(rel)}`)
+    else if (!PLAIN_PATH.test(rel))
+      reasons.push(`a file name with characters other than A-Z a-z 0-9 . _ - /: ${code(rel)}`)
+    else if (rel.split('/').some((part) => part.toLowerCase() === '.claude'))
+      reasons.push(`a nested .claude folder (Claude Code loads skills from one): ${code(rel)}`)
   }
-  for (const rel of result.added) {
+  // A Mac's disk treats SKILL.md and skill.md as one file: such a pair would overwrite each
+  // other, and a rename that changes only capitals would delete the file it had just written.
+  const byFoldedName = new Map()
+  for (const rel of [...upstream.keys(), ...result.removed]) {
+    const other = byFoldedName.get(rel.toLowerCase())
+    if (other === undefined) byFoldedName.set(rel.toLowerCase(), rel)
+    else reasons.push(`two names that differ only in capitals: ${code(other)} and ${code(rel)}`)
+  }
+  // Edited as well as added: a helper script already in a skill could otherwise be rewritten
+  // into anything (commit review, 2026-10-03).
+  for (const rel of [...result.added, ...result.changed]) {
     if (!TEXT_FILE.test(rel))
-      reasons.push(`non-text file: ${code(rel)} (only .md and .json come in)`)
+      reasons.push(`non-text file: ${code(rel)} (only .md and .json come in, new or edited)`)
   }
   for (const rel of [...result.added, ...result.changed]) {
     const size = upstream.get(rel).size
@@ -643,7 +868,8 @@ async function planSkill(record, { root, github }) {
       reasons.push(`file over ${MAX_FILE_BYTES} bytes: ${code(rel)} (${size})`)
     }
   }
-  reasons.push(...licenceProblems(info.spdx, record.readme?.licence))
+  // A repository with no licence file is judged after the download, by its new SKILL.md.
+  if (info.spdx !== null) reasons.push(...licenceProblems(info.spdx, record.readme?.licence))
   if (reasons.length > 0) return block(reasons)
 
   const wanted = [...result.added, ...result.changed]
@@ -661,15 +887,31 @@ async function planSkill(record, { root, github }) {
   const newFiles = new Map()
   for (const rel of upstream.keys()) newFiles.set(rel, fetched.get(rel) ?? localFiles.get(rel))
   for (const rel of wanted) {
-    if (fetched.get(rel).includes(0)) reasons.push(`not plain text (NUL byte): ${code(rel)}`)
+    const problem = plainTextProblem(fetched.get(rel))
+    if (problem) reasons.push(`not plain text (${problem}): ${code(rel)}`)
   }
-  for (const finding of findNewFindings(localFiles, newFiles))
-    reasons.push(describeFinding(finding))
+  if (info.spdx === null) {
+    // The README's rule for the vercel rows: no licence file, so SKILL.md's own `license:`.
+    const skill = newFiles.get('SKILL.md')
+    reasons.push(
+      ...licenceProblems(
+        skill === undefined ? null : declaredLicence(toText(skill)),
+        record.readme?.licence,
+        'the repository has no licence file and SKILL.md declares',
+      ),
+    )
+  }
   if (reasons.length > 0) return block(reasons)
 
+  // Flagged lines are the one thing a person may waive (--accept), after reading them.
+  const findings = findNewFindings(localFiles, newFiles).map(describeFinding)
+  if (findings.length > 0 && !accept.has(record.name)) {
+    return { ...block(findings), acceptable: true }
+  }
   return {
     ...result,
     status: 'updated',
+    accepted: findings,
     plan: { dir: local.dir, writes: fetched, deletes: result.removed },
   }
 }
@@ -735,7 +977,8 @@ function applyUpdates(root, updated) {
 
 /**
  * @param {{
- *   root: string, fetch?: FetchLike, write?: boolean, only?: string[], token?: string,
+ *   root: string, fetch?: FetchLike, write?: boolean, only?: string[], accept?: string[],
+ *   token?: string,
  * }} options
  * @returns {Promise<RefreshResult>}
  */
@@ -744,6 +987,7 @@ export async function refresh({
   fetch: fetchFn = globalThis.fetch,
   write = false,
   only = [],
+  accept = [],
   token,
 }) {
   const realRoot = realpathSync(root)
@@ -755,10 +999,19 @@ export async function refresh({
   const records = collectSkills(rows, lock)
 
   const wanted = new Set(only)
-  const unknown = [...wanted].filter((name) => !records.some((record) => record.name === name))
+  const accepted = new Set(accept)
+  const unknown = [...new Set([...wanted, ...accepted])].filter(
+    (name) => !records.some((record) => record.name === name),
+  )
   if (unknown.length > 0) {
     throw new Error(
       `not a vendored skill this script can refresh (unknown, or local-only): ${unknown.map((name) => tidy(name)).join(', ')}`,
+    )
+  }
+  const leftOut = [...accepted].filter((name) => wanted.size > 0 && !wanted.has(name))
+  if (leftOut.length > 0) {
+    throw new Error(
+      `--accept names a skill that --only leaves out: ${leftOut.map((name) => tidy(name)).join(', ')}`,
     )
   }
 
@@ -767,11 +1020,12 @@ export async function refresh({
   const results = []
   for (const record of records.filter((r) => wanted.size === 0 || wanted.has(r.name))) {
     try {
-      results.push(await planSkill(record, { root: realRoot, github }))
+      results.push(await planSkill(record, { root: realRoot, github, accept: accepted }))
     } catch (error) {
       results.push({
         name: record.name,
         repo: record.repo,
+        upstream: null,
         status: 'error',
         oldSha: record.readme?.sha ?? null,
         newSha: null,
@@ -779,6 +1033,8 @@ export async function refresh({
         changed: [],
         removed: [],
         reasons: [],
+        accepted: [],
+        acceptable: false,
         message: describeError(error),
         hasReadmeRow: Boolean(record.readme),
         hasLockEntry: Boolean(record.lock),
@@ -803,6 +1059,13 @@ export async function refresh({
 }
 
 // ── What a person reads ───────────────────────────────────────────────────────
+
+/** The name GitHub now gives a renamed repository, or null when it still has the old one. */
+const movedTo = (r) =>
+  r.upstream && r.upstream.toLowerCase() !== r.repo.toLowerCase() ? r.upstream : null
+
+/** GitHub refuses a pull-request body over 65,536 characters, which would fail the workflow. */
+const MAX_SUMMARY_CHARS = 60_000
 
 const describeFiles = ({ changed, added, removed }) =>
   [
@@ -844,7 +1107,10 @@ export function renderReport(result) {
     )
   }
   const width = Math.max(0, ...result.results.map((r) => r.name.length))
-  const label = (r) => `${r.name.padEnd(width)}  ${r.repo}`
+  const label = (r) => {
+    const moved = movedTo(r)
+    return `${r.name.padEnd(width)}  ${r.repo}${moved ? ` (now ${moved})` : ''}`
+  }
   if (updated.length > 0) {
     lines.push('', `${wrote ? 'Updated' : 'Would update'} ${updated.length}:`)
     for (const r of updated) {
@@ -852,6 +1118,7 @@ export function renderReport(result) {
         `  ${label(r)}  ${r.oldSha ?? 'not recorded'} -> ${r.newSha}  (${describeFiles(r)})`,
       )
       lines.push(`      ${fileList(r)}`)
+      for (const reason of r.accepted) lines.push(`      accepted after review: ${reason}`)
     }
   }
   if (blocked.length > 0) {
@@ -859,6 +1126,11 @@ export function renderReport(result) {
     for (const r of blocked) {
       lines.push(`  ${label(r)}`)
       for (const reason of r.reasons) lines.push(`      - ${reason}`)
+      if (r.acceptable) {
+        lines.push(
+          `      Only lines were flagged. If a person has read them and they are harmless: --write --only ${r.name} --accept ${r.name}`,
+        )
+      }
     }
   }
   if (errors.length > 0) {
@@ -900,11 +1172,13 @@ export function renderSummary(result) {
     out.push('| Skill | Original project | Version (old to new) | Files |', '|---|---|---|---|')
     for (const r of updated) {
       // A skill that is only in skills-lock.json has no README row, so no old commit on record.
-      const compare = `https://github.com/${r.repo}/compare/${r.oldSha}...${r.newSha}`
+      const compare = `https://github.com/${r.upstream ?? r.repo}/compare/${r.oldSha}...${r.newSha}`
       const version = r.oldSha
         ? `${code(r.oldSha)} to ${code(r.newSha)} ([what changed](${compare}))`
         : `no version on record; now ${code(r.newSha)}`
-      out.push(`| ${code(r.name)} | ${code(r.repo)} | ${version} | ${describeFiles(r)} |`)
+      const moved = movedTo(r)
+      const project = `${code(r.repo)}${moved ? ` (now ${code(moved)})` : ''}`
+      out.push(`| ${code(r.name)} | ${project} | ${version} | ${describeFiles(r)} |`)
     }
     out.push(
       '',
@@ -913,6 +1187,12 @@ export function renderSummary(result) {
         : 'With `--write` the version numbers in `.claude/skills/README.md` and the fingerprints in `skills-lock.json` would be updated to match.',
       '',
     )
+    const waived = updated.filter((r) => r.accepted.length > 0)
+    if (waived.length > 0) {
+      out.push('Let through with `--accept`, after a person read these lines:', '')
+      for (const r of waived) out.push(`- ${code(r.name)}: ${r.accepted.join('; ')}`)
+      out.push('')
+    }
   }
 
   out.push('### Blocked — NOT updated', '')
@@ -925,14 +1205,16 @@ export function renderSummary(result) {
       '',
       'A blocked skill was left exactly as it was. The safety check stops a change that:',
       '',
-      '- adds a file that is not plain text (only `.md` and `.json` come in);',
-      '- mentions passwords, keys, environment variables or browser storage more than before (`credential`);',
+      '- adds or edits a file that is not plain text (only `.md` and `.json` come in);',
+      '- adds a line that runs a command when the skill loads (`command`), or a header field that lets Claude use tools without asking or run hooks (`permission`);',
+      '- adds characters that show as nothing on screen but that Claude still reads (`hidden`);',
+      '- adds a line about passwords, keys, environment variables or browser storage (`credential`);',
       '- adds wording that tells Claude to ignore its instructions or to hide things from the user (`override`);',
       '- adds something shaped like a real key or token (`secret`);',
-      '- comes from a project whose licence is no longer MIT or Apache-2.0, or no longer the one recorded;',
-      '- cannot be trusted as a set of files (a link, a submodule, a path that leaves its folder, a very large file, or files that do not match what GitHub lists).',
+      '- comes from a project that moved to a different GitHub owner, or whose licence is no longer MIT or Apache-2.0, or no longer the one recorded;',
+      '- cannot be trusted as a set of files (a link, a submodule, a path that leaves its folder, an odd or clashing file name, a very large file, or files that do not match what GitHub lists).',
       '',
-      'A person has to decide what to do about each of these.',
+      'A person has to decide what to do about each of these. When only lines were flagged, a person who has read them and found them harmless can let that one skill through by hand: `.claude/skills/README.md`, "Updating".',
       '',
     )
   }
@@ -956,7 +1238,9 @@ export function renderSummary(result) {
     '- The safety check is a first filter, not a review: it cannot tell whether new advice suits this website. If anything looks odd, close this pull request. Nothing else depends on it.',
     '',
   )
-  return out.join('\n')
+  const text = out.join('\n')
+  if (text.length <= MAX_SUMMARY_CHARS) return text
+  return `${text.slice(0, MAX_SUMMARY_CHARS)}\n\n… cut short to fit a pull request. Run \`node scripts/refresh-vendored-skills.mjs\` for the whole list.\n`
 }
 
 // ── Command line ──────────────────────────────────────────────────────────────
@@ -967,6 +1251,9 @@ const USAGE = `Usage: node scripts/refresh-vendored-skills.mjs [--write] [--summ
   --write           apply the updates: files, the README table's commits, skills-lock.json
   --summary <file>  also write a plain-English Markdown summary, for a pull-request body
   --only a,b        limit the run to these skills
+  --accept a,b      let these skills' flagged LINES through, once a person has read them and
+                    found them harmless; every other check still applies, and the weekly
+                    workflow never passes this
 
 Environment: GITHUB_TOKEN (optional) is sent to api.github.com and raises GitHub's hourly
 request limit. GITHUB_OUTPUT (GitHub Actions) receives changed=true|false and blocked=<n>.`
@@ -1000,6 +1287,7 @@ export async function run({
         write: { type: 'boolean', default: false },
         summary: { type: 'string' },
         only: { type: 'string' },
+        accept: { type: 'string' },
         help: { type: 'boolean', short: 'h', default: false },
       },
       strict: true,
@@ -1014,16 +1302,20 @@ export async function run({
     return 0
   }
 
+  /** @param {string | undefined} value */
+  const names = (value) =>
+    (value ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean)
   let result
   try {
     result = await refresh({
       root,
       fetch: fetchFn,
       write: values.write,
-      only: (values.only ?? '')
-        .split(',')
-        .map((name) => name.trim())
-        .filter(Boolean),
+      only: names(values.only),
+      accept: names(values.accept),
       token,
     })
   } catch (error) {
