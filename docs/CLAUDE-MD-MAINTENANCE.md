@@ -141,7 +141,7 @@ file is kept at `docs/archive/agent-memory/2026-09-26-root-CLAUDE.md`.
 | 🔴 Never run the pipeline on its own output | Root; `guard-pipeline-input.mjs` enforces it |
 | `PRAGMA foreign_keys=OFF` is a no-op on D1 | `.claude/rules/d1-migrations.md` |
 | `apps/shrink/container` is not a workspace member; `npm ci`; uid 1000; the digest pin | `.claude/rules/shrink-container.md` (Dependabot sentence corrected) |
-| Run `pnpm build` before pushing a dependency change; the `workers-types` hold; the 24h cooldown | `.claude/rules/dependencies.md` |
+| Run `pnpm build` before pushing a dependency change; the `workers-types` hold (released 2026-10-03; the rule that replaced it); the 24h cooldown | `.claude/rules/dependencies.md` |
 | `fileColours` is not in `GATED_FIELDS`; colour names read from the file | `.claude/rules/products-and-colours.md`; root keeps the QR-slug and row-order rules |
 | Read `cf-cache-status` off the GET | Root, short; full incident in `.claude/rules/deploy-and-live-checks.md` |
 | Cloudflare API writes with inline JSON | Root, short; `.claude/rules/deploy-and-live-checks.md` |

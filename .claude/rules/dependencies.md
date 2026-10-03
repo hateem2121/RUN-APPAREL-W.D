@@ -15,28 +15,21 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   refused TS 7 outright; RESOLVED by 16.3.0. The lesson is not about TypeScript:
   `tsc --noEmit` passed on 7 the whole time it was broken, so `pnpm typecheck` was
   green and **only `pnpm build` failed.**
-- **`@cloudflare/workers-types` is HELD at `5.20260804.1` — for `apps/shrink` ONLY,
-  since 2026-08-29.** Every release from `5.20260808.1` on fails that package's typecheck
-  with `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` x3 plus one
-  arity error — **all four in one 15-line function**, `readGlbGenerator`
-  (`tools/asset-pipeline/src/validate.ts:45`). Re-measured on `5.20260926.1` (2026-10-03): still
-  broken, so the hold stands where it applies.
-  **It applies nowhere else.** `apps/cms` and `apps/viewer` run `5.20260926.1` (raised 2026-10-03) and
-  typecheck clean; the hold had frozen 24 days of updates across both for a fault
-  neither has. It surfaces only in `apps/shrink` because that package sets
-  `"types": ["@cloudflare/workers-types"]` with no node types, and its tsconfig reaches
-  `validate.ts` transitively — `container/report.ts` imports `SIZE_WARNING_BYTES` from it
-  as a **value**. `tools/asset-pipeline` checks the same file and passes, because it sets
-  `"types": ["node"]`. `@types/node` looks like the culprit and is not.
-  🟡 **Bisect; do not revert the plausible one.** The split is deliberate and pinned by
-  `dependencyPolicy.test.ts`, which asserts the hold in `apps/shrink` AND asserts it has
-  not widened again. wrangler 4.141.0 wants `^5.20260925.1`; `apps/cms` and `apps/viewer`
-  were raised to `5.20260926.1` on 2026-10-03 and satisfy it, so only `apps/shrink` still
-  shows the unmet-peer warning — and that one is the real hold. **Do not "fix" shrink's by raising workers-types**, which
-  trades it for the real break.
-  Releasing it does not need Cloudflare: move `SIZE_WARNING_BYTES` and `GlbReport` into a
-  node-free module and `readGlbGenerator` stops being reachable. History and the re-test:
-  `docs/DEPENDENCY-HOLDS.md`.
+- **🟡 `apps/shrink` must never reach `tools/asset-pipeline/src/validate.ts`, not even with
+  `import type`.** That package typechecks `container/report.ts` under
+  `"types": ["@cloudflare/workers-types"]` with no node types, and every workers-types release
+  from `5.20260808.1` on fails `validate.ts`'s `readGlbGenerator` there with
+  `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` x3 plus one arity error.
+  That HELD `@cloudflare/workers-types` at `5.20260804.1` in `apps/shrink` from 2026-08-12 to
+  2026-10-03, while `apps/cms` and `apps/viewer` moved on. **RELEASED 2026-10-03** by fixing
+  the cause: the report's shape, `SIZE_WARNING_BYTES` and `describeSoftArtwork` moved into
+  the node-free `tools/asset-pipeline/src/glb-report.ts` (`validate.ts` re-exports them), and
+  the report imports them from there. The written fix had named only the constant and the
+  type, but `tsc --explainFiles` showed a type-only import pulls the whole file in too.
+  `dependencyPolicy.test.ts` follows apps/shrink's imports and fails, naming the fix, if
+  `validate.ts` is reached again; all three workspaces now share one version.
+  🟡 **Bisect; do not revert the plausible one** — `@types/node` looked like the culprit
+  and was not. History and every measurement: `docs/DEPENDENCY-HOLDS.md`.
 - **🟡 The 24h cooldown blocks a bump SILENTLY, and `--latest` is the wrong tool.**
   `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440`. A too-fresh version is not
   an error — `pnpm update -r <pkg> --latest` **exits 0 and leaves the old version

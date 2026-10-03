@@ -718,9 +718,10 @@ now a followable procedure rather than a research task).
 every Monday, each version at least 7 days old: one grouped PR with every minor and patch
 npm update that can move on its own; one grouped `needs-hand-sync` PR for the packages
 tied to something CI cannot change itself (tools/asset-pipeline's second lockfile, the
-Playwright container tag, the `apps/shrink` workers-types hold), which fails until a
-session finishes it; one PR per other major update; one for the shrink container's
-base-image digest (check a garment print before merging it); and one for a GitHub Action.
+Playwright container tag, the RUNBOOK's pinned wrangler commands), which fails until a
+session finishes it; one PR per other major update; one for the shrink container's own
+packages; one for its base-image digest (check a garment print before merging it); and
+one for a GitHub Action.
 The lists and the reasons are in `.github/dependabot.yml`. Security PRs still open on their
 own, and `audit-ci` blocks high/critical vulnerabilities on every change. The vendored
 agent skills have their own weekly robot: `.github/workflows/refresh-skills.yml`.

@@ -11,6 +11,33 @@ trusting the dates.
 
 ---
 
+## RELEASED 2026-10-03 — `@cloudflare/workers-types` is one version everywhere again
+
+The owner chose to fix the cause after Dependabot's pull request #126 proposed raising
+`apps/shrink` to `5.20260926.1`. Measured that day, in a real worktree on that branch:
+
+| step | result |
+| --- | --- |
+| `apps/shrink` typecheck on `5.20260926.1`, before the change | exit 1, the same four errors, `validate.ts` lines 48-51 |
+| `tsc --explainFiles` on `apps/shrink` | `validate.ts` was in the program only because `container/report.ts` (a value and a type import) and `src/containerReport.test.ts` (a type-only import) named it |
+| after the change | exit 0, and `validate.ts` is no longer in the program |
+| one `import type { GlbReport } from '…/validate'` planted back | the same four errors return |
+
+**What changed.** The report's shape (`GlbReport`), `SIZE_WARNING_BYTES` and
+`describeSoftArtwork` moved into `tools/asset-pipeline/src/glb-report.ts`, which imports
+nothing from Node; `validate.ts` re-exports all three, so the pipeline's own imports did not
+change, and the Worker's report imports them from the new file. The fix written below on
+2026-08-29 named only the constant and the type: `describeSoftArtwork` was imported from the
+same file since, and a type-only import pulls the whole file into the typecheck too.
+
+**What keeps it released.** `apps/cms/src/dependencyPolicy.test.ts` follows every relative
+import `apps/shrink` typechecks and fails, naming the fix, if `validate.ts` is reached again
+(three planted breaks: a direct type import, an import through `glb-report.ts`, and
+`apps/shrink` pinned back to the old version, which its shared-version rule refuses). The
+`explain-failure` hook names the same fix when the `readUInt32LE` error appears.
+
+---
+
 ## NARROWED 2026-08-29 — the hold now covers `apps/shrink` only
 
 It had been applied to all three workspaces that declare it. Measured that day:
@@ -48,7 +75,8 @@ node types, and its tsconfig reaches `validate.ts` transitively because
 `container/report.ts` imports `SIZE_WARNING_BYTES` from it as a **value**.
 `tools/asset-pipeline` checks the same file under `"types": ["node"]` and passes.
 
-**How to release it without waiting on Cloudflare.** Move `SIZE_WARNING_BYTES` and the
+**How to release it without waiting on Cloudflare** (done 2026-10-03, with one more
+function than this names — see the top of this page). Move `SIZE_WARNING_BYTES` and the
 `GlbReport` type into a module with no node imports. `report.ts` then imports types and
 a constant only, `validate.ts` never enters the Worker's program, and
 `readGlbGenerator` stops being typechecked under Worker types. Not done here because it

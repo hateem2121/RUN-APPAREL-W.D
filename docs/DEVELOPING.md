@@ -192,16 +192,15 @@ Dependencies are pinned to the latest stable releases. Deliberate exceptions:
   *major* TS bumps (`.github/dependabot.yml`) so no workspace crosses that line
   silently. The lesson that outlived the pin is in `CLAUDE.md`: `tsc --noEmit`
   passed the whole time it was broken, so only `pnpm build` caught it.
-- `@cloudflare/workers-types` is **held at `5.20260804.1` for `apps/shrink` ONLY**,
-  narrowed from all three packages on 2026-08-29. Every release from `5.20260808.1`
-  on breaks that package's typecheck, but all four errors are in one 15-line function
-  (`readGlbGenerator`), and it surfaces only there because `apps/shrink` sets
-  `types: ["@cloudflare/workers-types"]` with no node types. **`apps/cms` and
-  `apps/viewer` run `5.20260926.1`** (raised 2026-10-03) and typecheck clean — the wider hold had frozen
-  24 days of updates across both for a fault neither has. wrangler 4.141.0 asks for `^5.20260925.1`, which cms and viewer meet, so
-  **only `apps/shrink` shows an unmet-peer warning** — the real hold. Do not "fix" shrink's by raising workers-types. The split is enforced by
-  `dependencyPolicy.test.ts`, which also asserts the hold has not widened again.
-  History: `docs/DEPENDENCY-HOLDS.md`.
+- `@cloudflare/workers-types` is **one version in all three packages again since
+  2026-10-03** (`5.20260926.1` that day). From 2026-08-12 it was held at `5.20260804.1`
+  for `apps/shrink`, whose typecheck failed on every release from `5.20260808.1` in one
+  15-line function (`readGlbGenerator`) of `tools/asset-pipeline/src/validate.ts`, because
+  `apps/shrink` sets `types: ["@cloudflare/workers-types"]` with no node types and its
+  report imported that file. The report now imports from the node-free
+  `tools/asset-pipeline/src/glb-report.ts` instead, and `dependencyPolicy.test.ts` fails if
+  `apps/shrink` reaches `validate.ts` again — even through `import type`, which still pulls
+  the whole file into the typecheck. History: `docs/DEPENDENCY-HOLDS.md`.
 - `packageManager` is pinned to **pnpm 12.6.0** (since 2026-09-26; 10.34.5 before).
   The `minimumReleaseAge` supply-chain policy is declared **in-repo**
   (`pnpm-workspace.yaml` → `minimumReleaseAge: 1440`, i.e. 24h, with the trusted

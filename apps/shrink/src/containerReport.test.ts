@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildReportText, objectUrl, suggestedFilename } from '../container/report'
-import type { GlbReport } from '../../../tools/asset-pipeline/src/validate'
+import type { GlbReport } from '../../../tools/asset-pipeline/src/glb-report'
 import type { OptimizeResult } from '../../../tools/asset-pipeline/src/optimize'
 
 /**

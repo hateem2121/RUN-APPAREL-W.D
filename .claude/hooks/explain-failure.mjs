@@ -92,10 +92,11 @@ const EXPLANATIONS = [
     name: 'workers-types-readuint32le',
     when: (text) => text.includes('readuint32le') || text.includes('nonsharedbuffer'),
     note:
-      'Expected: @cloudflare/workers-types is HELD at 5.20260804.1 and every release from\n' +
-      '5.20260808.1 on reproduces exactly this in tools/asset-pipeline/src/validate.ts, but only\n' +
-      "under apps/shrink's tsconfig. If the hold is intact, something raised it — do not chase the\n" +
-      'error, check the installed version. Do NOT "fix" it by raising workers-types.',
+      "This means apps/shrink's typecheck reached tools/asset-pipeline/src/validate.ts again. Any\n" +
+      'import of that file, even `import type`, makes the Worker types check its readGlbGenerator,\n' +
+      'and every @cloudflare/workers-types from 5.20260808.1 on fails exactly here (it held the\n' +
+      'package at 5.20260804.1 until 2026-10-03). Import from tools/asset-pipeline/src/glb-report.ts\n' +
+      'instead. Do NOT "fix" it by pinning workers-types back.',
   },
   {
     name: 'merge-blocked-unattributed',

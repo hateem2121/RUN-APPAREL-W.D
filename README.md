@@ -85,7 +85,7 @@ pie title Files in each part (counted 2026-09-26)
 
 ## 🔧 Held on purpose
 
-`@cloudflare/workers-types` stays at `5.20260804.1` in `apps/shrink` — see [docs/DEPENDENCY-HOLDS.md](docs/DEPENDENCY-HOLDS.md).
+A few packages wait on purpose, each until something outside our control changes — the list and the reasons are in [docs/DEPENDENCY-HOLDS.md](docs/DEPENDENCY-HOLDS.md).
 
 ## 🆘 Help, 🔒 security, 📜 licence, 🤝 conduct
 

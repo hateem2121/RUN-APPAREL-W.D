@@ -64,8 +64,11 @@ These are runnable today. They are a starting set, not the whole list — grep f
 - `command -v pnpm; pnpm --version` — the file says this has measured BOTH ways.
 - `node scripts/doc-citations.mjs` — claimed to print a summary and exit 1 on failure.
 - `node -e "require('node:sqlite')"` — claimed built into the pinned Node 24.
-- The held `@cloudflare/workers-types` version, and the wrangler version beside it —
-  the file names exact numbers and an intentional unmet-peer warning.
+- `npx --yes pnpm@12.6.0 --filter @run-apparel/shrink typecheck` — the dependencies rule
+  says `apps/shrink` no longer reaches `validate.ts`, so it takes the same
+  `@cloudflare/workers-types` as `apps/cms` and `apps/viewer` (a hold until 2026-10-03).
+- The wrangler version the RUNBOOK's pasted commands pin — the files name exact numbers,
+  and `apps/cms/src/runbookCommands.test.ts` compares them with the installed one.
 - `node .claude/skills/check-live/check-live.mjs` — the live product slugs and the
   claim that a viewer 200 proves nothing.
 - Any `Nms` / `N bytes` / `N tests` figure stated as a measurement.
