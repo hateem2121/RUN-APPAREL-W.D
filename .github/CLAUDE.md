@@ -393,19 +393,22 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   `apps/cms/src/backupD1Redaction.test.ts` runs it against a fake runner that prints a
   real-shaped link. Before any step runs a CLI against production, ask what it PRINTS.
 
-- **🟡 A PULL REQUEST OPENED WITH `GITHUB_TOKEN` STARTS NO WORKFLOW RUNS, so
-  `refresh-skills.yml` starts `ci.yml` itself.** GitHub's docs, read 2026-10-03: "events
-  triggered by the GITHUB_TOKEN will not create a new workflow run", except
-  `workflow_dispatch` and `repository_dispatch`. A robot PR would wait forever on the six
-  required checks, so the robot runs `gh workflow run ci.yml --ref <its branch>`: every
-  gating job runs (`scripts/ci-changed-paths.mjs` treats a manual run as "everything
-  changed", so the shrink image audit runs too) and both deploy jobs stay off, because they
-  need `refs/heads/main`. Socket's check is an App webhook, not a workflow run, so it posts
-  anyway. Opening the PR at all needed the repository setting *Allow GitHub Actions to create
-  and approve pull requests*, switched on 2026-10-03 by owner decision (the ruleset still
-  requires 0 approvals). ✅ **MEASURED on the first robot PR (#123, 2026-10-03):** CodeQL
-  default setup DOES analyse it (both `Analyze` checks started with the PR), and GitHub did
-  create a `pull_request` run of `ci.yml`, which ended `action_required` with **0 jobs**: it
-  waits for a person to approve it and runs nothing, so the dispatched run is the one that
-  carries the checks. If a robot PR ever sits waiting on a check, a PERSON closing and
-  reopening it starts every pull_request workflow.
+- **🟡 A PULL REQUEST OPENED WITH `GITHUB_TOKEN` WAITS FOR A PERSON TO START ITS CHECKS.**
+  GitHub's docs ("Triggering a workflow", read 2026-10-03): its `pull_request` event
+  "creates workflow runs in an **approval-required** state", and a user with write access
+  starts them with **Approve workflows to run** in the merge box; only `workflow_dispatch`
+  and `repository_dispatch` runs start as usual. `refresh-skills.yml` opens its weekly PR
+  this way, and its body tells the owner to read the diff, then press that button.
+  ✅ **MEASURED on the first robot PR (#123, 2026-10-03), and it overturned the note that
+  stood here:** the held `ci.yml` run sat at `action_required` with **0 jobs**, while the
+  run the robot started itself (`gh workflow run ci.yml --ref <branch>`) went green on the
+  same commit and did NOT count. GraphQL's `isRequired(pullRequestNumber:)` named the HELD
+  run's checks as the required ones, so the PR stayed BLOCKED with every check green until
+  that run was approved (the button, or
+  `gh api -X POST repos/hateem2121/RUN-APPAREL-W.D/actions/runs/<id>/approve`). The PR had
+  also been given an approving review first, so whether the ruleset needed that too was not
+  separated: if a robot PR is still blocked once its checks pass, approve the PR. The robot
+  stopped dispatching `ci.yml` the same day and no longer holds `actions: write`. CodeQL's
+  default setup and Socket's check started without the button. Opening the PR at all needed
+  the repository setting *Allow GitHub Actions to create and approve pull requests*,
+  switched on 2026-10-03 by owner decision (the ruleset still requires 0 approvals).

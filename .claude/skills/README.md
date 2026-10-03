@@ -381,9 +381,12 @@ The owner asked on 2026-10-03 for every skill to stay at its latest version. Eve
   already follow;
 - applies the clean updates, moves the SHA in the table and recomputes the lockfile hash
   exactly as the `skills` installer does (verified against the `animate` entry);
-- opens ONE pull request, closing last week's if it is still open, and starts `ci.yml`
-  on it. A blocked update is left out and the run ends red, naming the reason; the pull
-  request quotes each flagged line with its number (never a line shaped like a key).
+- opens ONE pull request, closing last week's if it is still open. A blocked update is
+  left out and the run ends red, naming the reason; the pull request quotes each flagged
+  line with its number (never a line shaped like a key). GitHub holds a robot pull
+  request's checks until a person presses **Approve workflows to run** in its merge box,
+  so read the diff, then press it (`.github/CLAUDE.md`, the `GITHUB_TOKEN` trap, has what
+  was measured on the first one, #123).
 
 Run it by hand with `gh workflow run refresh-skills.yml`, or as a local dry run that
 writes nothing: `node scripts/refresh-vendored-skills.mjs`.

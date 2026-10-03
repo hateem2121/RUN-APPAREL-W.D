@@ -14,11 +14,15 @@ on:
 # upstream, applies only the changes that pass the same safety scan a hand update gets, and
 # opens a pull request. Nothing reaches main until the owner merges it after ci.yml's gates.
 #
-# WHY IT STARTS ci.yml ITSELF. GitHub's docs (read 2026-10-03): "events triggered by the
-# GITHUB_TOKEN will not create a new workflow run", with workflow_dispatch and
-# repository_dispatch as the exceptions. A pull request opened with this job's token would
-# therefore wait forever on the required checks. ci.yml accepts workflow_dispatch, and on a
-# branch other than main every gating job runs while both deploy jobs stay off.
+# A PERSON STARTS ITS CHECKS. GitHub's docs (read 2026-10-03, "Triggering a workflow"): when
+# a workflow using GITHUB_TOKEN opens a pull request, "the resulting pull_request event
+# creates workflow runs in an approval-required state", and a user with write access starts
+# them with "Approve workflows to run" in the merge box. That is the right gate for a robot
+# that copies other people's text: read the diff, then approve. The pull-request body says so.
+# Until 2026-10-03 this job also ran `gh workflow run ci.yml` on its branch, which needed
+# `actions: write`. Measured on the first robot pull request (#123) that day: the dispatched
+# run went green and did not count, because the required checks wait for the held
+# pull_request run (.github/CLAUDE.md, the GITHUB_TOKEN trap). So it no longer starts one.
 # Opening a pull request at all needs the repository setting "Allow GitHub Actions to create
 # and approve pull requests", switched on 2026-10-03 (owner decision; the ruleset still
 # requires 0 approvals, so nothing became weaker).
@@ -44,7 +48,6 @@ jobs:
     permissions:
       contents: write # push the update branch, delete a superseded one
       pull-requests: write # open the pull request, close a superseded one
-      actions: write # start ci.yml on the new branch
     steps:
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -66,7 +69,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/refresh-vendored-skills.mjs --write --summary "$RUNNER_TEMP/skills-summary.md"
 
-      - name: Open a pull request and start its checks
+      - name: Open a pull request
         if: steps.refresh.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -82,7 +85,6 @@ jobs:
             --title 'Agent skills: weekly refresh from upstream' \
             --body-file "$RUNNER_TEMP/skills-summary.md")"
           echo "Opened $url"
-          gh workflow run ci.yml --ref "$branch"
           # A robot pull request still open from an earlier week is now out of date.
           for n in $(gh pr list --state open --json number,headRefName \
             --jq ".[] | select(.headRefName | startswith(\"robot/refresh-skills-\")) | select(.headRefName != \"$branch\") | .number"); do
