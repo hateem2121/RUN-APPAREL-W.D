@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { SITE_MENU_ID, SITE_MENU_NAME } from '../../../packages/shared/src/siteBar'
+import { LONGEST_COPY } from './garmentCopy'
 import { stageFallsBack } from './stage'
 
 const MENU = `#${SITE_MENU_ID}`
@@ -144,22 +145,6 @@ function serveGarment(
     }
     await route.fulfill({ response, json: body })
   })
-}
-
-/**
- * Copy longer than any live garment's (measured 2026-10-02, all 40): the longest description was
- * 454 characters (r-atj) and the longest name 25 ("THE KINETIC MATRIX JACKET"). Invented, so a
- * test does not carry a product's words; 462 and 26 characters, so it cannot pass for less.
- */
-const LONGEST_COPY = {
-  productName: 'THE VELOCITY MATRIX JACKET',
-  shortDescription:
-    'A four-way stretch shell cut for cold early starts and long training blocks. Bonded seams ' +
-    'keep the weight down, laser-cut vents open under the arms and across the back, and a ' +
-    'brushed inner face holds warmth without trapping heat. Reflective trims sit on the cuffs, ' +
-    'hem and shoulders for low light, the zipped chest pocket takes a phone, and the dropped ' +
-    'back hem stays put when the rider leans forward into a headwind for hours on end through ' +
-    'rain, grit and cold.',
 }
 
 /**

@@ -19,6 +19,7 @@ import { diagnostic } from './lib/diagnostic'
 import { isFocusUnclaimed } from './lib/focusHandoff'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { useIdentityInAside } from './lib/useIdentityInAside'
+import { usePrinting } from './lib/usePrinting'
 
 type AppState =
   | { kind: 'loading' }
@@ -90,8 +91,12 @@ export default function App() {
    * ⚠️ NOT "is the layout two columns". A landscape phone IS two columns and is
    * still the wrong home for a paragraph — see `useIdentityInAside.ts` for the
    * 726px-band measurement that put the height clause in that query.
+   *
+   * Never while printing (polish F14, lib/usePrinting.ts): paper takes the one-column
+   * arrangement whatever screen it is printed from, so page.css lays out one sheet, not two.
    */
-  const identityInAside = useIdentityInAside()
+  const printing = usePrinting()
+  const identityInAside = useIdentityInAside() && !printing
   /**
    * Where the garment's facts go (polish D10, owner-approved 2026-10-03): the four corners of
    * the 3D window on every computer, which is exactly where the name and description sit beside

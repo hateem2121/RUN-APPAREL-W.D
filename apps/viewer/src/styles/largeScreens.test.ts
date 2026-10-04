@@ -76,6 +76,8 @@ function mediaHolds(prelude: string, window: Window): boolean {
       .every((part) => {
         const feature = part.trim()
         if (feature === 'screen' || feature === 'all') return true
+        // A window on a screen is never paper (the print rules, polish F14).
+        if (feature === 'print') return false
         const range = feature.match(/^\(\s*(min|max)-(width|height):\s*(\d+(?:\.\d+)?)px\s*\)$/)
         if (range) {
           const size = range[2] === 'width' ? window.width : window.height
@@ -456,11 +458,13 @@ describe('what the change touches and what it leaves', () => {
       '@media (min-width: 1920px)',
     ])
     // The portrait gate is polish F11 (2026-10-04), not this change: an upright tablet's garment
-    // window is a fixed share of its screen, so its cap is released there.
+    // window is a fixed share of its screen, so its cap is released there. The print gate is
+    // polish F14: on paper the window is a fixed size.
     expect(gates(STYLESHEETS.page, '.stage__canvas', 'max-height')).toEqual([
       '@media (min-width: 900px)',
       '@media (min-width: 700px) and (orientation: portrait)',
       '@media (min-width: 1920px)',
+      '@media print',
     ])
     expect(gates(STYLESHEETS.page, '.stage-block', 'padding-inline')).toEqual([
       `@media ${TWO_COLUMN_QUERY}`,

@@ -21,6 +21,7 @@ import { pictureHeadStart } from '../lib/pictureFirst'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
+import { usePrinting } from '../lib/usePrinting'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { HdImageButton } from './HdImageButton'
 import { SpecGroups } from './SpecGroups'
@@ -954,6 +955,39 @@ export function Stage({
   const fallbackPicture = fallback ? (!savesData() && selected.renderScreen) || placeholder : null
 
   /*
+   * POLISH F14: ON PAPER THE WINDOW HOLDS THE CHOSEN COLOUR'S PICTURE, NOT THE 3D. A browser
+   * prints a WebGL canvas as the last frame it drew, at the size it drew it: printed from a
+   * 1440px window (Chromium, A4, 2026-10-04) the garment came out cropped and pushed to one side.
+   * So page.css hides the model in print and shows this still picture instead, on paper only
+   * (`display: none` on a screen). The selected colour, never the one a pointer is resting on:
+   * the sheet names the selected one.
+   *
+   * ⚠️ WHEN IT LOADS IS THE WHOLE DESIGN. Every live garment is one 3D file holding every colour
+   * (all 68 products, production D1 read 2026-10-04), so changing colour downloads no picture,
+   * and this must not start doing so for a sheet almost nobody prints. Measured 2026-10-04:
+   *
+   *   - The poster painted while the 3D downloads: the copy is made only once that poster has
+   *     arrived (`printWaits`, then `heldPosters`), and eager, so no engine waits to see it.
+   *     Made while the poster was still arriving, the copy was a request of its own in 3 of 16
+   *     Chromium page loads; made after, the browser hands the finished picture over (one request
+   *     in 11 of 12 runs, four engines). A rare repeat costs nothing live: the media host marks
+   *     pictures `max-age=604800`, so the browser answers it from its own cache. The test server
+   *     marks nothing, which is how the repeats showed (`e2e/print.spec.ts` asks the page
+   *     whether the copy came after the poster, which a request count cannot hold).
+   *   - Any other colour: `lazy`, so a hidden picture never downloads.
+   *
+   * While the page prints (`usePrinting`) every case turns eager: Chrome has loaded lazy pictures
+   * for print since January 2022, and Safari does only after that switch (WebKit bug 224547,
+   * still open at its last update 2024-11-08).
+   */
+  const printPicture = fallback ? null : placeholderAsset(selected, product)
+  const [heldPosters, setHeldPosters] = useState<ReadonlySet<string>>(() => new Set())
+  const holdPoster = useCallback((url: string) => {
+    setHeldPosters((held) => (held.has(url) ? held : new Set(held).add(url)))
+  }, [])
+  const printing = usePrinting()
+
+  /*
    * POLISH D9 (owner-approved 2026-10-03): "HD IMAGE" shows the colour's studio render IN the
    * 3D window, and the same button then reads "VIEW IN 3D". The model stays loaded underneath
    * (`visibility: hidden`, page.css), so going back is instant; FRONT / BACK / SIDE step aside,
@@ -964,6 +998,16 @@ export function Stage({
   const [hdShown, setHdShown] = useState(false)
   const hdPicture = selected.renderScreen ?? selected.render ?? null
   const showHd = hdShown && hdPicture !== null && !fallback
+  // F14 (above): eager once held or printing; no copy at all while the same picture is still
+  // arriving for the download placeholder (which is painted only while the HD picture is not).
+  const printHeld = printPicture !== null && heldPosters.has(printPicture.url)
+  const printWaits =
+    !printing &&
+    !printHeld &&
+    showPlaceholder &&
+    !showHd &&
+    placeholder !== null &&
+    placeholder.url === printPicture?.url
   // A colour with no render has nothing to show: back to the 3D (the button leaves with it).
   useEffect(() => {
     if (!selected.render) setHdShown(false)
@@ -1180,6 +1224,21 @@ export function Stage({
                 ? { width: placeholder.width, height: placeholder.height }
                 : {})}
               style={{ filter: `blur(${placeholderBlurPx(load.phase, load.percent)}px)` }}
+              onLoad={() => holdPoster(placeholder.url)}
+            />
+          )}
+
+          {/* F14: paper only (page.css). `loading` before `src`, so it is lazy from the start. */}
+          {printPicture && !printWaits && (
+            <img
+              className="stage__print"
+              loading={printing || printHeld ? 'eager' : 'lazy'}
+              src={printPicture.url}
+              alt={printPicture.alt || `${product.productName} in ${selected.displayName}`}
+              draggable={false}
+              {...(printPicture.width && printPicture.height
+                ? { width: printPicture.width, height: printPicture.height }
+                : {})}
             />
           )}
 

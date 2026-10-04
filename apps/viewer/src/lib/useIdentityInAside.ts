@@ -38,7 +38,7 @@ export const TWO_COLUMN_QUERY =
  *   (orientation: landscape)    an upright tablet keeps one column (TWO_COLUMN_QUERY).
  *
  * MEASURED 2026-10-04 with copy longer than any live garment's (`LONGEST_COPY` in
- * e2e/motion-and-layout.spec.ts: a 462-character description, a 26-character name, five two-part
+ * e2e/garmentCopy.ts: a 462-character description, a 26-character name, five two-part
  * colour names), the window height the column needs for Email and WhatsApp to be on screen:
  *
  *                                   Chromium / Firefox   WebKit (sets that name on 3 lines at some widths)
@@ -95,7 +95,7 @@ export const TWO_COLUMN_QUERY =
  * names to 25 characters ("THE KINETIC MATRIX JACKET"), and from 1100 to 1280px wide and
  * 720 to 800px tall those garments pushed Email and WhatsApp below the screen — at
  * 1100x799 by 8px. Re-measured that day with copy longer than any live garment's (462 and
- * 26 characters, `LONGEST_COPY` in motion-and-layout.spec.ts), the height the column
+ * 26 characters, `LONGEST_COPY`, now in e2e/garmentCopy.ts), the height the column
  * needs for both buttons to stay on screen:
  *
  *     viewport width   Firefox   Chromium   WebKit

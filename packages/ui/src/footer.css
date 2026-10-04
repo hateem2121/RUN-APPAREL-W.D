@@ -900,6 +900,8 @@
     --footer-stroke: #999;
     /* the serif accent in the CTA and the dimension line read this directly */
     --volt: #111;
+    /* the room kept above the slab is the tab's, and the tab is not printed */
+    padding-block-start: 0;
   }
 
   .site-footer__slab {
@@ -923,6 +925,31 @@
   .site-footer__tab,
   .footer-status {
     display: none !important;
+  }
+
+  /*
+   * ⚠️ THE GRID LAYER COVERED THE CONTACT DETAILS ON PAPER (polish F14, 2026-10-04). It is a
+   * masked layer laid over the whole slab, and printed (Chromium, A4 and Letter) it came out as
+   * an opaque white sheet: the email, WhatsApp number and address were in the PDF's text and
+   * nowhere on the page. With `--footer-grid` transparent it has nothing to draw anyway.
+   */
+  .site-footer__slab::before {
+    display: none;
+  }
+
+  /* Rows at the height of their words: the 44px floor is for fingers, and paper has none. */
+  .footer-block li,
+  .footer-block a,
+  .footer-legal .nav-link {
+    min-height: 0;
+  }
+
+  .footer-facts {
+    padding-block: 12px;
+  }
+
+  .footer-legal {
+    padding-block: 8px 0;
   }
 
   /* Nothing that reads as one block should be split across a sheet. */

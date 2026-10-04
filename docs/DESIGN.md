@@ -835,6 +835,19 @@ own dark colours, which the paper rule cannot reach, so on paper `site.css` drop
 film and the pause button and hands those colours back to the page (found 2026-10-02: volt on
 white, 1.27:1, from either theme).
 
+A garment page prints as one spec sheet (polish F14, 2026-10-04; it ran to three sheets with the
+Email / WhatsApp bar on each): the colour's picture on the left at 76 x 95mm (4:5, the posters'
+shape), the labels, name and description beside it, then the facts and the contact details
+across the sheet, inside 10mm margins. One A4 or Letter sheet holds the catalogue's fullest
+garment (the longest description and six performance features). Three things make it work:
+`apps/viewer/src/lib/usePrinting.ts` gives paper the one-column arrangement whatever screen
+it is printed from (on a computer the facts sit in the 3D window's corners); a still picture
+stands in for the 3D, whose canvas prints as its last frame, cropped; and the print block at the
+end of `apps/viewer/src/styles/page.css` floats the picture and hides everything made for a
+screen. The shared footer had a grid layer that printed as an opaque white sheet over the
+contact details; `footer.css` drops it on paper. `apps/viewer/e2e/print.spec.ts` prints both
+paper sizes from a computer and a phone.
+
 ### The products film
 
 Since 2026-10-02 the hoodie film plays behind the `/products` hero's words (the owner's request

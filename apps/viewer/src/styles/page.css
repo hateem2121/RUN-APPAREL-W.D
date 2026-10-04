@@ -1719,6 +1719,17 @@ model-viewer.stage__model {
   visibility: hidden;
 }
 
+/* POLISH F14: the still picture a printed sheet shows in the window (Stage.tsx). Paper only; the
+   print block at the end of this file shows it. */
+.stage__print {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 /* ── Retired-colourway notice ──────────────────────────────────────── */
 .notice {
   display: flex;
@@ -3070,5 +3081,181 @@ summary.spec-item__row:focus-visible {
         0 0 0 2px var(--bg),
         0 0 0 4px currentColor;
     }
+  }
+}
+
+/*
+ * ── PAPER: one clean sheet per garment (polish F14) ─────────────────────────────────────
+ *
+ * What a buyer prints is a spec sheet: the garment, its name and colour, the words, the facts
+ * and who to contact. Printed before this, a garment page ran to three A4 sheets (measured
+ * 2026-10-04 from a 1440x900 window, Chromium): the fixed Email / WhatsApp bar at the foot of
+ * every sheet, the camera and HD buttons, the colour dots as empty rings (paper drops their
+ * fill), the two long sections, and the footer's question on a sheet of its own.
+ * MDN "Printing" (modified 2025-11-07): `@media print`, `@page` margins, `break-inside`.
+ * The bar, the footer's colours and the light theme on paper are already in packages/ui
+ * (notch.css, footer.css, tokens.css); this is the garment page's part.
+ */
+@media print {
+  @page {
+    margin: 10mm;
+  }
+
+  /* Screen devices: buttons, bars, the window's download picture, contour lines and 3D notices,
+     the colour dots (the chosen colour is in the label above the name), the two long sections,
+     and the footer's question, logos and links. (The menu bar's links: notch.css.) */
+  .action-bar,
+  .stage__plinth,
+  .stage__more,
+  .stage__hint,
+  .stage__loading,
+  .stage__placeholder,
+  .stage__contours,
+  .stage__error,
+  .stage__retry,
+  .colourways,
+  .stage__contact,
+  .product-info__more,
+  .customise,
+  .contact,
+  .site-footer__tab,
+  .footer-cta,
+  .footer-block--capacity,
+  .footer-block--standards,
+  .footer-block--elsewhere,
+  .footer-marks,
+  .footer-legal > :not(:first-child) {
+    display: none !important;
+  }
+
+  /* The bar prints once, at the top of the sheet, not over every sheet. */
+  .notch-shell {
+    position: static;
+  }
+
+  /* No room kept for a phone's bar, and no footer-coloured band in it (the iPhone note at the
+     top of this file): on paper it is only blank space at the foot of the sheet. */
+  .page {
+    padding-bottom: 0;
+    background-image: none;
+  }
+
+  /*
+   * A SPEC SHEET: the picture on the left, the labels, name and words beside it, then the facts
+   * and the contact details across the sheet. One column of them ran to 355mm with the longest
+   * description (measured 2026-10-04 at A4's printable width), where a sheet holds 277mm (A4) or
+   * 259mm (Letter) inside these margins. The page is always in its one-column arrangement here
+   * (App.tsx, `usePrinting`), so
+   * one float does it: the band floats, `.content` and `.product-info` become plain blocks that
+   * flow beside it, and the facts clear it. The picture is 4:5, the posters' shape.
+   */
+  .stage-block {
+    float: left;
+    width: 76mm;
+    min-height: 0;
+    margin: 0 8mm 6mm 0;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .stage__inner {
+    padding: 0;
+  }
+
+  .stage__canvas {
+    flex: none;
+    height: 95mm;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .content {
+    display: block;
+    padding: 0;
+  }
+
+  .product-info {
+    display: block;
+  }
+
+  .product-info > * + * {
+    margin-top: 4mm;
+  }
+
+  /* Boxes of their own, so each sits beside the picture whole: as plain blocks, their width
+     limits (50ch, 60ch) would be counted from under the picture. */
+  .product-info__statement,
+  .product-info__colour-note {
+    display: flow-root;
+  }
+
+  .spec-groups-frame {
+    clear: both;
+    padding-top: 6mm;
+  }
+
+  /* Rows at the height of their words: the 24px floor is for fingers (WCAG 2.5.8). With the
+     catalogue's most facts (six performance features) and its longest description, these and the
+     10mm margins are what keep the sheet to one Letter page. */
+  .spec-item__row {
+    min-height: 0;
+  }
+
+  .spec-group__items {
+    gap: 4px;
+  }
+
+  /* A bullet's centre dot is a background, and paper drops backgrounds; a border prints. */
+  .spec-item__bullet::after {
+    box-sizing: border-box;
+    background: none;
+    border: 2px solid var(--ink);
+  }
+
+  /* The footer under the facts, at the sheet's left edge like everything above it. On paper a
+     width query measures the whole page box, margins included (MDN "width", modified 2026-04-20),
+     so A4 counts as 794px and the footer took the wide screen's right-hand column. */
+  .site-footer__slab {
+    padding-inline: 0;
+  }
+
+  .site-footer__inner {
+    max-width: none;
+  }
+
+  .footer-facts {
+    width: auto;
+    max-width: none;
+    margin-inline-start: 0;
+    border-top: 0;
+  }
+
+  /* The window on paper: the colour's still picture (Stage.tsx says why), with the 3D kept out
+     of sight under it. With the HD picture showing, that picture prints instead. */
+  .stage__model {
+    visibility: hidden;
+  }
+
+  .stage__print {
+    display: block;
+  }
+
+  .stage__canvas[data-hd] .stage__print {
+    display: none;
+  }
+
+  /* The description in full: paper has no "Read more". */
+  .product-info__statement[data-clamped] {
+    display: flow-root;
+    -webkit-line-clamp: unset;
+    line-clamp: none;
+    overflow: visible;
+  }
+
+  /* Whole blocks, never split across sheets. */
+  .product-info,
+  .spec-groups,
+  .footer-block {
+    break-inside: avoid;
   }
 }

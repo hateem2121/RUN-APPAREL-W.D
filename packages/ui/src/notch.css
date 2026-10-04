@@ -1048,12 +1048,20 @@
     --notch-bg: transparent;
   }
 
+  /* No shadow either: printed (Chromium, A4, 2026-10-04) the soft shadow came out as a solid
+     grey box around the name, with the pill's shape cut out of it (polish F14). */
   .notch {
     --notch-text: var(--ink);
     --notch-muted: var(--ink);
+    box-shadow: none;
   }
 
   .notch-strip {
     display: none;
+  }
+
+  /* The menu's links and buttons are for a screen; on paper the bar is the name (polish F14). */
+  .notch__nav {
+    display: none !important;
   }
 }
