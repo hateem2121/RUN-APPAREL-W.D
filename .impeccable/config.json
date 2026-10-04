@@ -23,6 +23,13 @@
         "files": ["apps/cms/e2e/findability.spec.ts"],
         "createdAt": "2026-10-04T07:27:03.650Z",
         "reason": "Claude, 2026-10-04: test code, not UI; the matches are regexes that find <img> tags in the served HTML and a test name, and this Playwright spec renders no image"
+      },
+      {
+        "rule": "overused-font",
+        "value": "instrument serif",
+        "files": ["apps/cms/e2e/composition.spec.ts"],
+        "createdAt": "2026-10-04T07:39:43.067Z",
+        "reason": "Claude, 2026-10-04: test code, not UI; it forces the site's own accent font (docs/DESIGN.md:136 --font-serif, :331) so a spacing measurement does not depend on which font arrives first"
       }
     ]
   }
