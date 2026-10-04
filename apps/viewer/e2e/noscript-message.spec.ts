@@ -40,10 +40,20 @@ test.describe('with JavaScript off, the page shows its message and nothing cover
     await page.goto('/n001/wine')
     const message = page.locator('p', { hasText: MESSAGE })
     await expect(message).toBeVisible()
-    // A trial click: every actionability check, the hit test included, and no click.
-    await message.click({ trial: true, timeout: 5_000 })
+    /*
+     * A trial click: every actionability check, the hit test included, and no click.
+     *
+     * ⚠️ `noWaitAfter`, OR WebKIT HANGS AFTER THE HIT TEST PASSES. With scripts off, WebKit's call
+     * log read "trial click action done" and then "waiting for scheduled navigations to finish"
+     * until the 5s timeout, on the link only, in 3 of 3 full local runs on 2026-10-04 (viewer-
+     * webkit and viewer-mobile-safari; alone it passed). A trial click navigates nowhere, so that
+     * wait guards nothing here. Playwright 1.63's `locator.click` still honours the option (its
+     * docs: deprecated only in that it "will default to `true` in the future").
+     */
+    await message.click({ trial: true, noWaitAfter: true, timeout: 5_000 })
     await page.getByRole('link', { name: 'wear-run.com/contact' }).click({
       trial: true,
+      noWaitAfter: true,
       timeout: 5_000,
     })
   })
