@@ -66,11 +66,16 @@ newer Playwright.
 therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never
 the nonce. To see the guard:
 1. Run `opennextjs-cloudflare build`.
-2. Put a throwaway `PAYLOAD_SECRET` in a `.dev.vars` (gitignored) and run
-   `opennextjs-cloudflare preview --local-upstream wear-run.help`.
-3. Run `node e2e/csp-nonce-edge.mjs`: 3 engines × 6 page types.
+2. Put a throwaway `PAYLOAD_SECRET` in a `.dev.vars` (gitignored). In a fresh worktree, apply
+   the migrations to its local D1 first (`PAYLOAD_SECRET=<throwaway> pnpm --filter
+   @run-apparel/cms migrate`). Without them every page logs "no such table", and the preview
+   exited after 2–3 minutes twice (2026-10-04).
+3. Start `cms-edge` from `.claude/launch.json`, which runs `opennextjs-cloudflare preview
+   --local-upstream wear-run.com --port 4174`. 🟡 Not `wear-run.help`: since the domain move
+   that host only 308s to wear-run.com, so a preview pinned to it serves no page.
+4. Run `node e2e/csp-nonce-edge.mjs --origin=http://localhost:4174`: 3 engines × 6 page types.
 
-After a deploy, run it with `--origin=https://wear-run.help`. 🟡 A control that skips the nonce
+After a deploy, run it with `--origin=https://wear-run.com`. 🟡 A control that skips the nonce
 on an EXTERNAL script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
 on an INLINE script breaks a page, so plant the fault there. 🟡 A local `curl` without
 `--compressed` counts ZERO scripts: the local runtime gzips a page the way Cloudflare's edge
