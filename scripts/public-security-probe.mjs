@@ -336,8 +336,15 @@ export function evaluate(observations, now, { daily = false } = {}) {
         if (seenNonces.has(nonce)) problems.push('a nonce was served twice: a cached page?')
         seenNonces.add(nonce)
       }
-      if (!/\bno-store\b/.test(o.headers?.['cache-control'] ?? '')) {
-        problems.push('the page is cacheable, so its nonce could be reused')
+      // A SHARED cache keeping a page would hand one visitor's nonce to the next. The guard sends
+      // `private, no-cache, …` since polish X13 (2026-10-04: `no-store` blocked the instant Back,
+      // apps/cms/cspNonce.mjs → NONCED_PAGE_CACHE_CONTROL); Next's old `no-store` still passes,
+      // so a run between the merge and its deploy stays green.
+      const cache = o.headers?.['cache-control'] ?? ''
+      const keptByNoOne = /\bno-store\b/.test(cache)
+      const keptOnlyByTheBrowser = /\bprivate\b/.test(cache) && /\bno-cache\b/.test(cache)
+      if (/\b(?:public|s-maxage)\b/.test(cache) || !(keptByNoOne || keptOnlyByTheBrowser)) {
+        problems.push(`the page is cacheable ("${cache}"), so its nonce could be reused`)
       }
     } else if (o.kind === 'admin-csp') {
       if (o.status !== 200) problems.push(`HTTP ${o.status}, expected 200`)

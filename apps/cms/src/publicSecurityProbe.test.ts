@@ -2,7 +2,7 @@ import { SECURITY_TXT } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { TRAINING_ONLY_UAS } from '../htmlLimitedBots.mjs'
 import { REDIRECT_HEADERS, TARGETS, evaluate } from '../../../scripts/public-security-probe.mjs'
-import { newNonce, withNonce } from '../cspNonce.mjs'
+import { NONCED_PAGE_CACHE_CONTROL, newNonce, withNonce } from '../cspNonce.mjs'
 import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
 
 /**
@@ -228,13 +228,16 @@ const FALLBACK = PUBLIC_PAGE_CSP
 const HTML = (n: string) =>
   `<html><head><script nonce="${n}">(self.__next_f=self.__next_f||[]).push([0])</script>` +
   `<script src="/_next/static/chunks/a.js" nonce="${n}" async=""></script></head></html>`
-const NO_STORE = 'private, no-cache, no-store, max-age=0, must-revalidate'
+// The cache rule the guard REALLY sends since polish X13 (2026-10-04), from the same source.
+const PAGE_CACHE = NONCED_PAGE_CACHE_CONTROL
+// Next's rule before X13: still what production sends between a merge and its deploy.
+const NEXT_NO_STORE = 'private, no-cache, no-store, max-age=0, must-revalidate'
 
 const pageCsp = (over: Partial<Observation> = {}): Observation => ({
   name: 'site /',
   kind: 'page-csp',
   status: 200,
-  headers: { 'content-security-policy': NONCED(N1), 'cache-control': NO_STORE },
+  headers: { 'content-security-policy': NONCED(N1), 'cache-control': PAGE_CACHE },
   body: HTML(N1),
   ...over,
 })
@@ -250,7 +253,7 @@ describe('the script guard, seen from outside (SE-04)', () => {
   it('passes nonced pages with distinct nonces, and an unchanged admin policy', () => {
     const second = pageCsp({
       name: 'site / again',
-      headers: { 'content-security-policy': NONCED(N2), 'cache-control': NO_STORE },
+      headers: { 'content-security-policy': NONCED(N2), 'cache-control': PAGE_CACHE },
       body: HTML(N2),
     })
     const result = evaluate([pageCsp(), second, adminCsp()], NOW)
@@ -261,12 +264,12 @@ describe('the script guard, seen from outside (SE-04)', () => {
   it.each<[string, Partial<Observation>, string]>([
     [
       'the fallback policy (the guard fell open)',
-      { headers: { 'content-security-policy': FALLBACK, 'cache-control': NO_STORE } },
+      { headers: { 'content-security-policy': FALLBACK, 'cache-control': PAGE_CACHE } },
       "'unsafe-inline'",
     ],
     [
       'a policy with no nonce',
-      { headers: { 'content-security-policy': "script-src 'self'", 'cache-control': NO_STORE } },
+      { headers: { 'content-security-policy': "script-src 'self'", 'cache-control': PAGE_CACHE } },
       'no nonce',
     ],
     [
@@ -298,6 +301,28 @@ describe('the script guard, seen from outside (SE-04)', () => {
       },
       'cacheable',
     ],
+    [
+      'a page a shared cache may keep, though marked private elsewhere',
+      {
+        headers: {
+          'content-security-policy': NONCED(N1),
+          'cache-control': 'private, no-cache, s-maxage=60',
+        },
+      },
+      'cacheable',
+    ],
+    [
+      'a page the browser may reuse for ten minutes without asking',
+      {
+        headers: { 'content-security-policy': NONCED(N1), 'cache-control': 'private, max-age=600' },
+      },
+      'cacheable',
+    ],
+    [
+      'a page with no cache rule at all',
+      { headers: { 'content-security-policy': NONCED(N1) } },
+      'cacheable',
+    ],
     ['the wrong status', { status: 500 }, 'expected 200'],
   ])('FAILS %s', (_label, over, expected) => {
     const result = evaluate([pageCsp(over)], NOW)
@@ -305,11 +330,19 @@ describe('the script guard, seen from outside (SE-04)', () => {
     expect(result.failures[0]).toContain(expected)
   })
 
+  // Between the merge and the deploy (~15 minutes) production still sends Next's own rule.
+  it("still passes Next's `no-store`, so a run before the X13 deploy is not a false alarm", () => {
+    const old = pageCsp({
+      headers: { 'content-security-policy': NONCED(N1), 'cache-control': NEXT_NO_STORE },
+    })
+    expect(evaluate([old], NOW).failures).toEqual([])
+  })
+
   it("recognises the guard's own nonces: two fresh ones, on the real policy", () => {
     const page = (name: string, n: string) =>
       pageCsp({
         name,
-        headers: { 'content-security-policy': NONCED(n), 'cache-control': NO_STORE },
+        headers: { 'content-security-policy': NONCED(n), 'cache-control': PAGE_CACHE },
         body: HTML(n),
       })
     const result = evaluate([page('site /', newNonce()), page('site / again', newNonce())], NOW)

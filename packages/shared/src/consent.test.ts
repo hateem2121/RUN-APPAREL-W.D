@@ -9,6 +9,7 @@ import {
   GA_MEASUREMENT_ID,
   parseConsent,
   readConsent,
+  restoreTrackers,
   safeStorage,
   startTrackers,
   TRACKER_CSP,
@@ -262,6 +263,58 @@ describe('the two buttons', () => {
     expect(declineTrackers(win, storage, jar)).toBe(true)
     expect(readConsent(storage)).toBe('declined')
     expect(storage.getItem('apolloAnonId')).toBeNull()
+  })
+})
+
+// Polish audit X13: Back or Forward can restore a page exactly as it was left, so a choice made
+// on another page in between must be caught up on (`restoreTrackers`, called on `pageshow`).
+describe('a page brought back by Back or Forward', () => {
+  const jar = { hostname: 'wear-run.com', readCookies: () => '', writeCookie: () => {} }
+  const pageViews = (win: TrackerWindow) =>
+    (win.dataLayer ?? [])
+      .map((entry) => Array.from(entry as ArrayLike<unknown>))
+      .filter((entry) => entry[0] === 'event' && entry[1] === 'page_view').length
+
+  it('still unanswered: the question stays, nothing starts', () => {
+    const { win, scripts } = fakeWindow()
+    expect(restoreTrackers(win, fakeStorage(), jar)).toEqual({ answered: false, reload: false })
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('accepted on another page since: both trackers start here, and the question closes', () => {
+    const { win, scripts } = fakeWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
+    expect(restoreTrackers(win, storage, jar)).toEqual({ answered: true, reload: false })
+    expect(scripts).toHaveLength(2)
+  })
+
+  it('accepted and already running: the restore is counted once, and nothing loads twice', () => {
+    const { win, scripts } = fakeWindow()
+    const storage = fakeStorage()
+    acceptTrackers(win, storage)
+    expect(pageViews(win)).toBe(0)
+    restoreTrackers(win, storage, jar)
+    expect(pageViews(win)).toBe(1)
+    expect(scripts).toHaveLength(2)
+    const last = win.dataLayer?.at(-1)
+    expect(Object.prototype.toString.call(last)).toBe('[object Arguments]')
+  })
+
+  it('declined on another page since, with Google running here: asks for a reload', () => {
+    const { win } = fakeWindow()
+    const storage = fakeStorage()
+    acceptTrackers(win, storage)
+    writeConsent(storage, 'declined')
+    expect(restoreTrackers(win, storage, jar)).toEqual({ answered: true, reload: true })
+    expect(pageViews(win)).toBe(0)
+  })
+
+  it('declined, nothing running: clears what the trackers stored again, no reload', () => {
+    const { win, scripts } = fakeWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'declined', apolloAnonId: 'x' })
+    expect(restoreTrackers(win, storage, jar)).toEqual({ answered: true, reload: false })
+    expect(storage.getItem('apolloAnonId')).toBeNull()
+    expect(scripts).toHaveLength(0)
   })
 })
 

@@ -8,6 +8,7 @@ import {
   declineTrackers,
   forgetTrackers,
   readConsent,
+  restoreTrackers,
   safeStorage,
   startTrackers,
   type TrackerWindow,
@@ -88,7 +89,21 @@ export function ConsentBanner() {
       setOpen(true)
     }
     document.addEventListener(CONSENT_OPEN_EVENT, reopen)
-    return () => document.removeEventListener(CONSENT_OPEN_EVENT, reopen)
+
+    // Back or Forward can bring this page back exactly as it was left (polish audit X13):
+    // catch up with a choice made on another page since. `consent.ts` has the four cases.
+    const restored = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      const { answered, reload } = restoreTrackers(trackerWindow(), storage(), cookieJar())
+      if (reload) window.location.reload()
+      // Only the question put up unasked closes; one the visitor asked for stays open.
+      else if (answered && returnTo.current === null) setOpen(false)
+    }
+    window.addEventListener('pageshow', restored)
+    return () => {
+      document.removeEventListener(CONSENT_OPEN_EVENT, reopen)
+      window.removeEventListener('pageshow', restored)
+    }
   }, [])
 
   /*

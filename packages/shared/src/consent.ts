@@ -162,6 +162,17 @@ export interface TrackerWindow {
 /** The one hostname whose visits are real visitors'. Every other host forwards here. */
 export const LIVE_HOSTNAME = 'wear-run.com'
 
+/** Google's `gtag()`, writing to this window's queue. */
+function gtagOn(win: TrackerWindow): (...args: unknown[]) => void {
+  const queue: unknown[] = win.dataLayer ?? []
+  win.dataLayer = queue
+  // gtag.js accepts only real `arguments` objects in this queue; a plain array is ignored.
+  return function gtag(..._args: unknown[]) {
+    // biome-ignore lint/complexity/noArguments: gtag.js requires the Arguments object itself
+    queue.push(arguments)
+  }
+}
+
 function loadScript(win: TrackerWindow, src: string, onload: (() => void) | null = null): void {
   const script = win.document.createElement('script')
   script.src = src
@@ -186,13 +197,7 @@ export function startTrackers(win: TrackerWindow): void {
   if (win.runTrackersStarted) return
   win.runTrackersStarted = true
 
-  const queue: unknown[] = win.dataLayer ?? []
-  win.dataLayer = queue
-  // gtag.js accepts only real `arguments` objects in this queue; a plain array is ignored.
-  function gtag(..._args: unknown[]) {
-    // biome-ignore lint/complexity/noArguments: gtag.js requires the Arguments object itself
-    queue.push(arguments)
-  }
+  const gtag = gtagOn(win)
   gtag('consent', 'default', {
     analytics_storage: 'granted',
     ad_storage: 'denied',
@@ -286,4 +291,37 @@ export function declineTrackers(
   writeConsent(storage, 'declined')
   forgetTrackers(storage, jar)
   return win.runTrackersStarted === true
+}
+
+/**
+ * Back or Forward brought this page back from the browser's instant copy, the back/forward
+ * cache (polish audit X13, 2026-10-04). The copy returns exactly as it was left, so a choice
+ * made on ANOTHER page in between is news to it. Garment pages could always be restored like
+ * this; website pages can since X13 dropped their `no-store`. web.dev ("Back/forward cache",
+ * updated 2 Jul 2026): update the page on `pageshow` when `event.persisted` is true, and count
+ * the restore as a page view, because most analytics tools do not.
+ *
+ * - Declined, with Google running on this page: it must RELOAD, by `declineTrackers`'s rule
+ *   (a started script cannot be stopped).
+ * - Declined, nothing running: clear again, as every page load does.
+ * - Accepted and running: one page view for the restore.
+ * - Accepted on another page, nothing running here: start both; Google's `config` counts
+ *   the view itself.
+ *
+ * `answered` lets the component close the question it put up unasked.
+ */
+export function restoreTrackers(
+  win: TrackerWindow,
+  storage: ConsentStorage,
+  jar: CookieJar,
+): { answered: boolean; reload: boolean } {
+  const choice = readConsent(storage)
+  if (choice === 'declined') {
+    if (win.runTrackersStarted === true) return { answered: true, reload: true }
+    forgetTrackers(storage, jar)
+  } else if (choice === 'accepted') {
+    if (win.runTrackersStarted === true) gtagOn(win)('event', 'page_view')
+    else startTrackers(win)
+  }
+  return { answered: choice !== null, reload: false }
 }

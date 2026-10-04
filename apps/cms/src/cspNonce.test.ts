@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { NONCE_PATTERN, newNonce, nonceable, noncedHeaders, withNonce } from '../cspNonce.mjs'
+import {
+  NONCE_PATTERN,
+  NONCED_PAGE_CACHE_CONTROL,
+  newNonce,
+  nonceable,
+  noncedHeaders,
+  withNonce,
+} from '../cspNonce.mjs'
 import { PUBLIC_PAGE_CSP, notFoundCspRule, publicPageCspRules } from '../publicViewerHeaders.mjs'
 
 /**
@@ -102,7 +109,7 @@ describe('withNonce: script-src only, and only the expected shape', () => {
 })
 
 describe('noncedHeaders', () => {
-  it('sets the nonced policy, drops Content-Length and ETag, keeps everything else', () => {
+  it('sets the nonced policy and the page cache rule, drops Content-Length and ETag, keeps everything else', () => {
     const headers = new Headers({
       'content-type': 'text/html; charset=utf-8',
       'content-security-policy': PUBLIC_PAGE_CSP,
@@ -115,10 +122,28 @@ describe('noncedHeaders', () => {
     expect(out?.get('content-security-policy')).toBe(withNonce(PUBLIC_PAGE_CSP, NONCE))
     expect(out?.has('content-length')).toBe(false)
     expect(out?.has('etag')).toBe(false)
-    expect(out?.get('cache-control')).toBe(headers.get('cache-control'))
+    expect(out?.get('cache-control')).toBe(NONCED_PAGE_CACHE_CONTROL)
     expect(out?.get('content-type')).toBe('text/html; charset=utf-8')
     expect(headers.get('content-security-policy')).toBe(PUBLIC_PAGE_CSP) // input untouched
   })
+
+  // X13 (2026-10-04): Next's `no-store` kept every page out of the browser's back/forward
+  // cache, measured live on all five. The nonce needs only that no SHARED cache keeps a page.
+  it('lets Back restore the page (no `no-store`) but keeps it out of every shared cache', () => {
+    expect(NONCED_PAGE_CACHE_CONTROL).not.toMatch(/no-store/)
+    expect(NONCED_PAGE_CACHE_CONTROL).toMatch(/\bprivate\b/)
+    expect(NONCED_PAGE_CACHE_CONTROL).toMatch(/\bno-cache\b/)
+  })
+
+  // The guard owns the rule, so a page that someday renders as cacheable still leaves private.
+  it.each(['public, s-maxage=31536000, stale-while-revalidate', 'public, max-age=60', ''])(
+    'replaces "%s" with the page cache rule',
+    (incoming) => {
+      const headers = new Headers({ 'content-security-policy': PUBLIC_PAGE_CSP })
+      if (incoming) headers.set('cache-control', incoming)
+      expect(noncedHeaders(headers, NONCE)?.get('cache-control')).toBe(NONCED_PAGE_CACHE_CONTROL)
+    },
+  )
 
   it('returns null when the policy cannot be nonced', () => {
     expect(noncedHeaders(new Headers({ 'content-security-policy': ADMIN_CSP }), NONCE)).toBeNull()
@@ -150,7 +175,8 @@ describe('noncedHeaders', () => {
 describe('a nonced page is never cached (pinned statically here; live by the probe)', () => {
   // A cacheable page would hand one visitor's nonce to the next. All five pages render per
   // request today; the 404 cannot declare it (not-found.tsx records that `dynamic` changed
-  // nothing), so the probe's live `no-store` check covers it.
+  // nothing), so the guard's own `private` (NONCED_PAGE_CACHE_CONTROL) and the probe's live
+  // check cover it.
   const APP = join(import.meta.dirname, 'app', '(frontend)')
   it.each([
     'page.tsx',
