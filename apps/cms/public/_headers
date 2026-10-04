@@ -1,0 +1,30 @@
+# How long a browser may keep the website's static files (polish audit X12, 2026-10-04).
+#
+# Without this file every static file left the edge as "public, max-age=0, must-revalidate"
+# (Cloudflare's default for Workers Static Assets), so a second page view asked the server about
+# every font, stylesheet, script and photo again. The font answer arrived after ~112 ms, past
+# `font-display: optional`'s ~100 ms window, and Chrome then refused the real font for the whole
+# page (the D11 finding: body text drawn in Arial 60 times out of 60).
+#
+# Next's build output under /_next/static/ is content-hashed: a changed file gets a new name, so a
+# year with `immutable` is safe (OpenNext for Cloudflare, "Caching"). The photo folders keep fixed
+# names, so they get a week; a replaced photo reaches a returning visitor within seven days.
+#
+# ⚠️ NO `/*` RULE. Rules that both match are COMBINED, not overridden: a `/*` Cache-Control would
+# be appended to every rule below and ship two contradictory values (.claude/rules/viewer-headers.md).
+# src/staticHeaders.test.ts reads this file and fails on that.
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/factory/*
+  Cache-Control: public, max-age=604800
+
+/families/*
+  Cache-Control: public, max-age=604800
+
+/standards/*
+  Cache-Control: public, max-age=604800
+
+/film/*
+  Cache-Control: public, max-age=604800
