@@ -70,12 +70,14 @@ const banner = (page: Page) => page.getByRole('region', { name: 'Cookie choice' 
  * `aplo-evnt.com`; a real PostHog sends to `us.i.posthog.com`. Any one in `seen` means a
  * stand-in was bypassed and this run has just appeared in the owner's reports.
  */
+// Hosts a real tracker SENDS to. Compared whole, never by prefix: `seen` holds `host` + path,
+// and a prefix match would also accept `aplo-evnt.com.example` (CodeQL, PR #127).
+const SENDING_HOSTS = ['aplo-evnt.com', 'us.i.posthog.com']
+
 function assertNothingReal(seen: string[]) {
   const real = seen.filter(
     (entry) =>
-      entry.includes('/g/collect') ||
-      entry.startsWith('aplo-evnt.com') ||
-      entry.startsWith('us.i.posthog.com'),
+      entry.includes('/g/collect') || SENDING_HOSTS.includes(entry.slice(0, entry.indexOf('/'))),
   )
   expect(real, 'a real tracker ran: the local stand-ins were bypassed').toEqual([])
 }
