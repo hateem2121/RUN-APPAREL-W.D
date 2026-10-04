@@ -306,9 +306,10 @@ describe('the hosts the security policy must admit', () => {
     expect(TRACKER_CSP.script).toEqual([
       'https://www.googletagmanager.com',
       'https://assets.apollo.io',
-      'https://*.posthog.com',
+      'https://us-assets.i.posthog.com',
     ])
-    expect(TRACKER_CSP.connect).toContain('https://*.posthog.com')
+    expect(TRACKER_CSP.connect).toContain('https://us.i.posthog.com')
+    expect(TRACKER_CSP.connect).toContain('https://us-assets.i.posthog.com')
     expect(TRACKER_CSP.connect).toContain('https://aplo-evnt.com')
   })
 
@@ -321,6 +322,19 @@ describe('the hosts the security policy must admit', () => {
   it('does NOT admit LiveIntent, so a visitor is never identified as a person', () => {
     const all = [...TRACKER_CSP.script, ...TRACKER_CSP.connect, ...TRACKER_CSP.img].join(' ')
     expect(all).not.toMatch(/liadm/)
+  })
+
+  /*
+   * PostHog's own guide suggests `*.posthog.com`. As a SCRIPT source that admits code served
+   * for any PostHog project, an attacker's included (commit review, 2026-10-04). Its script
+   * loads code from one host only, so the policy names that host and nothing wider.
+   */
+  it('admits PostHog by its exact hosts, never by a wildcard', () => {
+    const all = [...TRACKER_CSP.script, ...TRACKER_CSP.connect, ...TRACKER_CSP.img].join(' ')
+    expect(all).not.toMatch(/\*\.(i\.)?posthog\.com/)
+    expect(TRACKER_CSP.script.filter((host) => host.includes('posthog'))).toEqual([
+      'https://us-assets.i.posthog.com',
+    ])
   })
 
   it('never uses a bare wildcard or a scheme-only source', () => {

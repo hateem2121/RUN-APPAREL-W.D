@@ -53,14 +53,15 @@ const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsi
  * ⚠️ `d-code.liadm.com` MUST STAY OUT. Apollo's script tries to load it to identify a
  * visitor as a person; leaving it out is what holds Apollo to company-level tracking.
  *
- * PostHog joined on 2026-10-04, under the same Accept, as `*.posthog.com`: the form its
- * own CSP guide asks for. Its replay recorder's `blob:` worker is already admitted by
- * `worker-src` below.
+ * PostHog joined on 2026-10-04, under the same Accept, by its two EXACT hosts, not the
+ * `*.posthog.com` its CSP guide suggests: as a script source that would admit code served for
+ * any PostHog project (consent.ts has the account). Its replay recorder's `blob:` worker is
+ * already admitted by `worker-src` below.
  */
 const TRACKER_SCRIPT =
-  'https://www.googletagmanager.com https://assets.apollo.io https://*.posthog.com'
+  'https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com'
 const TRACKER_CONNECT =
-  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com https://*.posthog.com'
+  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com'
 const TRACKER_IMG = 'https://*.google-analytics.com https://*.googletagmanager.com'
 
 /**

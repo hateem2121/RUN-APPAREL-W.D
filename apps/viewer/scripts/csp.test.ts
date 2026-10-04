@@ -150,9 +150,10 @@ describe('buildCsp — third-party allow-list (PF-15)', () => {
     'https://*.analytics.google.com',
     'https://*.google-analytics.com',
     'https://*.googletagmanager.com',
-    'https://*.posthog.com',
     'https://aplo-evnt.com',
     'https://assets.apollo.io',
+    'https://us-assets.i.posthog.com',
+    'https://us.i.posthog.com',
     'https://www.googletagmanager.com',
   ]
 

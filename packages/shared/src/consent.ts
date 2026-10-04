@@ -32,9 +32,11 @@ export const GA_MEASUREMENT_ID = 'G-YBY5G3HQLD'
 export const APOLLO_APP_ID = '69ddf8fa0fd941000d64bc24'
 
 /**
- * PostHog's project token: public by design, like the two above (it is the `phc_` key every
- * PostHog page prints). The project is on PostHog's US cloud, read through its own API on
- * 2026-10-04; the owner chose to keep it there.
+ * PostHog's project token: public by design, like the two above. PostHog's docs call it "a
+ * public, client-side key", "safe to expose in client-side code" and write-only: it can send
+ * events, never read them (posthog.com/docs/feature-flags/installation, read 2026-10-04). The
+ * project is on PostHog's US cloud, read through its own API on 2026-10-04; the owner chose to
+ * keep it there.
  */
 export const POSTHOG_PROJECT_TOKEN = 'phc_koNg9SmLSye49u8trEjUf9kd5cTYUveERNRDYKbW9p5y'
 export const POSTHOG_API_HOST = 'https://us.i.posthog.com'
@@ -59,21 +61,32 @@ const POSTHOG_SCRIPT = 'https://us-assets.i.posthog.com/static/array.js'
  * the host absent the browser refuses that script whatever the server answers; Apollo's
  * code catches the failure and still reports the visit. `consent.test.ts` pins the absence.
  *
- * PostHog's is the one wildcard its own guide asks for, `*.posthog.com`, in both lists: it
- * loads `array.js` and later its replay recorder from `us-assets.i.posthog.com` and sends to
- * `us.i.posthog.com`, and says its sub-hosts "may change over time" (posthog.com/docs/
- * advanced/content-security-policy, read 2026-10-04). Its recorder also starts a worker
- * from a `blob:` address; both pages' `worker-src 'self' blob:` already allows that, for the
- * 3D decoders.
+ * PostHog's are its two exact hosts. Read in its script (array.js 1.435.8, 2026-10-04): every
+ * piece of CODE it loads (itself, the replay recorder, the project's `/array/<token>/config.js`)
+ * comes from `us-assets.i.posthog.com`, and it SENDS to `us.i.posthog.com`.
+ *
+ * ⚠️ NOT THE `*.posthog.com` ITS OWN CSP GUIDE SUGGESTS. A script source of every PostHog host
+ * would admit code served for ANY PostHog project, an attacker's included, which turns an
+ * injection on this site into a way round the policy. The commit review of 2026-10-04 flagged
+ * it, and the hosts above are all the script uses. If PostHog ever moves them, replay stops (and
+ * on the garment pages the policy reports the block to Sentry): a failure, never a silent widening.
+ *
+ * Its recorder starts a worker from a `blob:` address; both pages' `worker-src 'self' blob:`
+ * already allows that, for the 3D decoders.
  */
 export const TRACKER_CSP = {
-  script: ['https://www.googletagmanager.com', 'https://assets.apollo.io', 'https://*.posthog.com'],
+  script: [
+    'https://www.googletagmanager.com',
+    'https://assets.apollo.io',
+    'https://us-assets.i.posthog.com',
+  ],
   connect: [
     'https://*.google-analytics.com',
     'https://*.analytics.google.com',
     'https://*.googletagmanager.com',
     'https://aplo-evnt.com',
-    'https://*.posthog.com',
+    'https://us.i.posthog.com',
+    'https://us-assets.i.posthog.com',
   ],
   img: ['https://*.google-analytics.com', 'https://*.googletagmanager.com'],
 } as const
