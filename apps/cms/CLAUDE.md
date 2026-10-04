@@ -134,6 +134,9 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   from the fallbacks is never kept. A CMS edit reaches the site within about a minute.
   🟡 Do NOT switch on OpenNext's incremental cache instead: Next pre-builds `/sitemap.xml`
   without the database, and that cache would serve it with none of the 200 garment pages.
+  🟡 A page that will be kept is drawn from a CLEAN request (`keptRenderRequest`): none of the
+  visitor's headers reach Next, because one visitor's `x-middleware-prefetch: 1` drew an empty
+  200 (probe, 2026-10-04). Do not pass the visitor's request through "for the logs".
 
 - **`apps/viewer/src/styles/tokens.test.ts` scans JSX as well as CSS**, so a literal
   `style={{ padding: '20px' }}` in a `.tsx` fails the build — three had walked past a

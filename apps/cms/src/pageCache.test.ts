@@ -5,9 +5,11 @@ import { HTML_LIMITED_BOTS } from '../htmlLimitedBots.mjs'
 import {
   CONTENT_VERSION_KEY,
   drawingToKeep,
+  KEPT_RENDER_HEADERS,
   keepablePage,
   keepablePageRequest,
   keptHeaders,
+  keptRenderRequest,
   keptRenders,
   PAGE_CACHE_SECONDS,
   pageCacheKey,
@@ -74,6 +76,44 @@ describe('which requests may be answered from a kept copy', () => {
 
   it('reads a cookie that merely CONTAINS the name as no login', () => {
     expect(keepablePageRequest(page('/', { headers: { cookie: 'my-payload-token=x' } }))).toBe(true)
+  })
+})
+
+describe('the request a kept page is drawn from', () => {
+  // Headers from the 2026-10-04 probe (pageCache.mjs): each is a way a visitor could try to
+  // make the copy everyone gets differ from the page a plain visit draws.
+  const crafted = page('/products', {
+    headers: {
+      accept: 'text/x-component',
+      'accept-language': 'de-DE',
+      'user-agent': 'Mozilla/5.0 (crafted)',
+      cookie: 'consent=granted',
+      'x-matched-path': '/privacy',
+      'x-middleware-prefetch': '1',
+      'x-forwarded-host': 'evil.example',
+      'next-url': '/privacy',
+    },
+  })
+
+  it('keeps the address and asks for the page', () => {
+    const clean = keptRenderRequest(crafted)
+    expect(clean.url).toBe(`https://${SITE_HOST}/products`)
+    expect(clean.method).toBe('GET')
+  })
+
+  it('carries none of the visitor’s headers, only the fixed ones', () => {
+    expect(Object.fromEntries(keptRenderRequest(crafted).headers)).toEqual(KEPT_RENDER_HEADERS)
+  })
+
+  it('is the same request for a crafted visit as for a plain one', () => {
+    const plain = keptRenderRequest(page('/products'))
+    expect(Object.fromEntries(plain.headers)).toEqual(
+      Object.fromEntries(keptRenderRequest(crafted).headers),
+    )
+  })
+
+  it('its fixed user agent gets the crawler page shape, as every visitor does', () => {
+    expect(new RegExp(HTML_LIMITED_BOTS).test(KEPT_RENDER_HEADERS['user-agent'])).toBe(true)
   })
 })
 

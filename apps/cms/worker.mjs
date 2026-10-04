@@ -32,6 +32,7 @@ import {
   keepablePage,
   keepablePageRequest,
   keptHeaders,
+  keptRenderRequest,
   keptRenders,
   pageCacheKey,
   pageCacheTiming,
@@ -114,8 +115,10 @@ export default {
       response = kept.hit
       cacheState = 'hit'
     } else if (kept) {
+      // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
       const render = { spoiled: false }
-      response = await keptRenders().run(render, () => openNext.fetch(request, env, ctx))
+      const clean = keptRenderRequest(request)
+      response = await keptRenders().run(render, () => openNext.fetch(clean, env, ctx))
       cacheState = 'miss'
       if (keepablePage(response)) response = keepWhenWhole(response, kept.key, render, ctx)
     } else {

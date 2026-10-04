@@ -39,7 +39,8 @@
  * policy, with no cookie of its own, that arrived whole and was drawn from the database
  * rather than from the fallbacks (spoilKeptRender). Pages do not differ between browsers
  * because HTML_LIMITED_BOTS is '.*' (htmlLimitedBots.mjs: every visitor gets the crawler's
- * page shape). src/pageCache.test.ts fails if that changes.
+ * page shape). src/pageCache.test.ts fails if that changes. And a page that will be kept is
+ * drawn from a clean request carrying none of the visitor's headers (keptRenderRequest).
  *
  * Pure apart from AsyncLocalStorage, so vitest reaches every decision; worker.mjs applies them.
  */
@@ -79,6 +80,29 @@ export function keepablePageRequest(request) {
   if (NEVER_KEPT_PATHS.test(url.pathname)) return false
   if (REQUEST_HEADERS_NEVER_KEPT.some((name) => request.headers.has(name))) return false
   return !SIGNED_IN_OR_DRAFT.test(request.headers.get('cookie') ?? '')
+}
+
+/**
+ * ⚠️ A PAGE THAT WILL BE KEPT IS DRAWN FROM A CLEAN REQUEST (2026-10-04), so nothing one visitor
+ * sends can shape the copy everyone then gets. The key holds the page, the deploy and the content,
+ * so the drawing may depend on nothing else. Next.js 16.3.8 (30 Sep 2026) fixed four advisories
+ * of one kind, a crafted request that makes a cache keep the wrong answer (GHSA-4jqv-mc3x-m676,
+ * GHSA-mcj8-r9mp-w47p and two more). Probed the same day on the local edge preview with fifteen
+ * crafted requests (`x-matched-path`, `x-invoke-query`, `next-url`, `x-forwarded-host` and more):
+ * fourteen drew the same page as a plain visit, and `x-middleware-prefetch: 1` drew an empty 200
+ * that only keepablePage's checks refused. A list of headers to refuse is always one name short, so the
+ * drawing gets a fixed request instead: the same address, and only what every visitor's copy is
+ * drawn with. The user agent is fixed because HTML_LIMITED_BOTS ('.*') gives every agent the
+ * crawler's page shape (src/pageCache.test.ts pins both).
+ */
+export const KEPT_RENDER_HEADERS = Object.freeze({
+  accept: 'text/html',
+  'user-agent': 'RUN APPAREL page cache',
+})
+
+/** The request a kept page is drawn from: the visitor's address and nothing else of theirs. */
+export function keptRenderRequest(request) {
+  return new Request(request.url, { method: 'GET', headers: KEPT_RENDER_HEADERS })
 }
 
 /** The cache key: the page, the deploy that drew it, and the content it was drawn from. */
