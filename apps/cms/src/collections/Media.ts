@@ -6,6 +6,7 @@ import {
   isAuthenticated,
   isAuthenticatedFieldLevel,
 } from '../access/roles'
+import { keptPagesAfterChange, keptPagesAfterDelete } from '../lib/contentVersion'
 import {
   IMAGE_MIME_TYPES,
   MODEL_MIME_TYPES,
@@ -160,6 +161,9 @@ export const Media: CollectionConfig = {
         )
       },
     ],
+    // A picture's change reaches the website's kept pages (pageCache.mjs, polish X15).
+    afterChange: [keptPagesAfterChange],
+    afterDelete: [keptPagesAfterDelete],
   },
   fields: [
     {

@@ -152,6 +152,20 @@
       "service": "run-apparel-viewer-site"
     }
   ],
+  // The stored page cache (pageCache.mjs; polish X15, created 2026-10-04): ONE key, the content
+  // version every CMS save rewrites (src/lib/contentVersion.ts). The kept pages themselves sit
+  // in Cloudflare's cache, not here. Empty is fine: worker.mjs reads a missing key as `none`.
+  "kv_namespaces": [
+    {
+      "binding": "SITE_CACHE",
+      "id": "68732140e2544366a8d0c0d0cc8a48cc"
+    }
+  ],
+  // Which deploy drew a kept page: a new deploy renames every script file, so the page cache
+  // keys on it (pageCache.mjs). Without it worker.mjs keeps nothing.
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
+  },
   // Producer binding: a raw upload enqueues a shrink job. The consumer + the
   // Container that runs the asset pipeline live in the separate apps/shrink
   // Worker (kept out of this OpenNext Worker, which cannot host a Durable

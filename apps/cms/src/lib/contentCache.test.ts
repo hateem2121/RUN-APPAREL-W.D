@@ -23,13 +23,15 @@ function makeReader<T>(load: () => Promise<T>, fallback: T) {
     clear: () => {
       cache = null
     },
-    read: async (): Promise<T> => {
-      if (cache && cache.expires > Date.now()) return cache.value
+    // `keeping` stands for drawingToKeep(); `spoil` for spoilKeptRender() (pageCache.mjs).
+    read: async ({ keeping = false, spoil = () => {} } = {}): Promise<T> => {
+      if (!keeping && cache && cache.expires > Date.now()) return cache.value
       try {
         const value = await load()
         cache = { value, expires: Date.now() + TTL_MS }
         return value
       } catch {
+        spoil()
         return fallback
       }
     },
@@ -80,15 +82,47 @@ describe('the content cache policy', () => {
     await reader.read()
     expect(load).toHaveBeenCalledTimes(2)
   })
+
+  // Polish X15: a kept page lives a day under the version naming the latest save, so it
+  // must hold the database's content, not a minute of memory from before that save.
+  it('a page being drawn to keep reads the database even when the memory is fresh', async () => {
+    const load = vi.fn().mockResolvedValueOnce(['before the save']).mockResolvedValue(['after'])
+    const reader = makeReader(load, [])
+    await reader.read()
+    expect(await reader.read({ keeping: true })).toEqual(['after'])
+    expect(load).toHaveBeenCalledTimes(2)
+  })
+
+  it('a page drawn from a fallback is never kept', async () => {
+    const spoil = vi.fn()
+    const reader = makeReader(vi.fn().mockRejectedValue(new Error('D1 down')), ['fallback'])
+    expect(await reader.read({ keeping: true, spoil })).toEqual(['fallback'])
+    expect(spoil).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('content.ts implements that policy', () => {
   const source = () => readFileSync(join(import.meta.dirname, 'content.ts'), 'utf8')
 
-  it('checks the cache before reading, in both readers', () => {
+  it('checks the cache before reading, in both readers, unless drawing a page to keep', () => {
     const code = source()
-    expect(code).toMatch(/if \(settingsCache && settingsCache\.expires > Date\.now\(\)\)/)
-    expect(code).toMatch(/if \(productsCache && productsCache\.expires > Date\.now\(\)\)/)
+    expect(code).toMatch(
+      /if \(!drawingToKeep\(\) && settingsCache && settingsCache\.expires > Date\.now\(\)\)/,
+    )
+    expect(code).toMatch(
+      /if \(!drawingToKeep\(\) && productsCache && productsCache\.expires > Date\.now\(\)\)/,
+    )
+  })
+
+  it('both readers spoil a kept page when they fall back', () => {
+    const code = source()
+    for (const name of ['getSiteSettings', 'getProductCards']) {
+      const body = new RegExp(`export async function ${name}[\\s\\S]*?\\n}`).exec(code)?.[0] ?? ''
+      const fallback = body.slice(body.indexOf('} catch'))
+      expect(fallback, `${name}: a fallback page could be kept for a day`).toContain(
+        'spoilKeptRender()',
+      )
+    }
   })
 
   it('stores only inside the try block, so a failure is never cached', () => {

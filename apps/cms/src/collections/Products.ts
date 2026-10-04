@@ -4,6 +4,7 @@ import { isAdmin, isAdminOrEditor, isAuthenticated } from '../access/roles'
 import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
 import { deriveSlug } from '../fields/deriveSlug'
+import { keptPagesAfterChange, keptPagesAfterDelete } from '../lib/contentVersion'
 import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 import { GARMENT_PAGES } from '../lib/seo'
 import type { CatalogueDefault } from '../payload-types'
@@ -254,6 +255,9 @@ export const Products: CollectionConfig = {
         return data
       },
     ],
+    // Every product change reaches the website's kept pages (pageCache.mjs, polish X15).
+    afterChange: [keptPagesAfterChange],
+    afterDelete: [keptPagesAfterDelete],
   },
   fields: [
     // ── Sidebar: the two things changed most often, always visible ──────────

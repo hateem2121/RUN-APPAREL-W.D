@@ -125,10 +125,15 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   change to routing, middleware, headers or `next.config.mjs`. Same shape as the TypeScript
   pin in the root file, one level deeper.
 
-- **🟡 Public page content is cached in-process for 60 seconds** (`src/lib/content.ts`), which
-  took `/products` from 302 ms to 5.7 ms in workerd. It is NOT shared between isolates and
-  NOT cleared on save, so a CMS edit can take a minute to appear — owner's decision
-  2026-09-05 over an R2 incremental cache plus a D1 tag table. Failures are never cached.
+- **🟡 Public pages are cached twice** (polish X15, 2026-10-04). `worker.mjs` keeps whole pages
+  in Cloudflare's cache and answers from them before Next even loads (`pageCache.mjs`); each
+  answer still gets its own nonce. The key holds the deploy (`CF_VERSION_METADATA`) and a
+  content version that every save of a product, a picture or the site settings rewrites in KV
+  (`SITE_CACHE`, `src/lib/contentVersion.ts`). Behind it, `src/lib/content.ts` keeps content in
+  memory for 60 seconds per isolate; a page drawn to be kept skips that memory, and a page drawn
+  from the fallbacks is never kept. A CMS edit reaches the site within about a minute.
+  🟡 Do NOT switch on OpenNext's incremental cache instead: Next pre-builds `/sitemap.xml`
+  without the database, and that cache would serve it with none of the 200 garment pages.
 
 - **`apps/viewer/src/styles/tokens.test.ts` scans JSX as well as CSS**, so a literal
   `style={{ padding: '20px' }}` in a `.tsx` fails the build — three had walked past a

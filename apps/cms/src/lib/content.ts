@@ -2,6 +2,7 @@ import 'server-only'
 import { reportCaught } from './reportCaught'
 import config from '@payload-config'
 import { getPayload } from 'payload'
+import { drawingToKeep, spoilKeptRender } from '../../pageCache.mjs'
 import {
   FALLBACK_SITE_SETTINGS,
   type ProductCard,
@@ -38,17 +39,22 @@ export type { ProductCard, PublicSiteSettings }
  * in 20.8 ms, and `/products` in **302 ms** — fifteen times slower, because it queries
  * D1 for every published product at depth 1 on every single request. The pages are
  * `force-dynamic` (they must be: no D1 binding exists during `next build`), and
- * `Cache-Control` is `no-store`, so nothing anywhere kept a copy.
+ * `Cache-Control` was `no-store`, so nothing anywhere kept a copy.
  *
  * ⚠️ WHAT THIS IS NOT. It is not shared between Workers isolates and it is not cleared
  * when the CMS is saved, so a change can take up to TTL_MS to appear — the owner chose
- * this trade on 2026-09-05 over the alternative, which needed a new R2 bucket for
- * Next's incremental cache plus a tag table in the production database. That remains the
- * upgrade path if instant invalidation is ever wanted; nothing here blocks it.
+ * this trade on 2026-09-05. Since 2026-10-04 the stored page cache (pageCache.mjs, run by
+ * worker.mjs; polish X15) keeps whole pages in front of it. OpenNext's incremental cache, the
+ * upgrade path named here before, would have served a sitemap built without the database.
+ *
+ * ⚠️ A PAGE BEING DRAWN TO KEEP NEVER READS THIS MEMORY (`drawingToKeep`). A kept page lives
+ * for a day under the content version that names the latest save, so it must hold the
+ * database's content, not up to a minute of memory from before that save.
  *
  * ⚠️ FAILURES ARE NEVER CACHED. Both readers below fall back to defaults when D1 is
  * unhappy, and caching that fallback would turn a bad second into a bad minute. Only a
- * successful read is stored.
+ * successful read is stored, and a page drawn from a fallback is never kept
+ * (`spoilKeptRender`): it would be a bad day.
  *
  * Public, non-personalised data only. Nothing user-specific passes through here, so
  * there is no risk of one visitor being served another's response.
@@ -69,7 +75,9 @@ async function client() {
 
 /** Site-wide settings, falling back to the shared defaults on any failure. */
 export async function getSiteSettings(): Promise<PublicSiteSettings> {
-  if (settingsCache && settingsCache.expires > Date.now()) return settingsCache.value
+  if (!drawingToKeep() && settingsCache && settingsCache.expires > Date.now()) {
+    return settingsCache.value
+  }
   try {
     const payload = await client()
     // depth 1 populates the `logo` upload; at depth 0 it is a bare row id.
@@ -90,6 +98,7 @@ export async function getSiteSettings(): Promise<PublicSiteSettings> {
      * page it is reporting about.
      */
     void reportCaught('content.site-settings', err)
+    spoilKeptRender()
     console.error(
       '[content] site-settings unavailable, using defaults:',
       err,
@@ -102,7 +111,9 @@ export async function getSiteSettings(): Promise<PublicSiteSettings> {
 
 /** Every product the viewer can actually serve, in the order the CMS orders them. */
 export async function getProductCards(): Promise<ProductCard[]> {
-  if (productsCache && productsCache.expires > Date.now()) return productsCache.value
+  if (!drawingToKeep() && productsCache && productsCache.expires > Date.now()) {
+    return productsCache.value
+  }
   try {
     const payload = await client()
     const res = await payload.find({
@@ -122,6 +133,7 @@ export async function getProductCards(): Promise<ProductCard[]> {
   } catch (err) {
     // Same reasoning as site-settings above: caught on purpose, so nothing else sees it.
     void reportCaught('content.products', err)
+    spoilKeptRender()
     console.error(
       '[content] products unavailable:',
       err,

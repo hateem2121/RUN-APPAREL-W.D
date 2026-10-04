@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 import { IMAGE_MIME_TYPES } from '../collections/mediaRules'
 import { isAdmin, isAuthenticated } from '../access/roles'
+import { keptPagesAfterGlobalChange } from '../lib/contentVersion'
 import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 
 const DAY_OPTIONS = [
@@ -35,6 +36,10 @@ export const SiteSettings: GlobalConfig = {
     // System configuration is Admin-only to change; editors may view it.
     read: isAuthenticated,
     update: isAdmin,
+  },
+  // Every page shows these settings, so a save reaches the kept pages (pageCache.mjs, X15).
+  hooks: {
+    afterChange: [keptPagesAfterGlobalChange],
   },
   fields: [
     { name: 'companyName', type: 'text', required: true, defaultValue: 'RUN APPAREL (PVT) LTD' },
