@@ -1,3 +1,4 @@
+import { CATEGORY_PAGE_PATHS } from './categoryPages'
 import { formatAddress } from './company'
 import { CONSENT_COPY } from './consent'
 import { formatPhoneForDisplay } from './contact'
@@ -64,6 +65,8 @@ export const EMPTY_FOOTER: FooterSettings = {
 export const SITE_FOOTER_WORDS = {
   eyebrow: 'Start here',
   contact: 'Contact',
+  /** The four category pages (polish F9, the owner's Q22): the home page's №02 heading. */
+  made: 'What we make',
   capacity: 'Capacity',
   standards: 'Standards',
   elsewhere: 'Elsewhere',
@@ -94,6 +97,36 @@ export const SITE_FOOTER_LINKS = [
   { href: '/privacy#cookies', label: CONSENT_COPY.change, consent: true },
   { href: '/terms', label: 'Terms', consent: false },
 ] as const
+
+/**
+ * The "What we make" group's links: each category's page, as paths on the site, in the order the
+ * website lists the families (polish F9, the owner's Q22 of 2026-10-04: "a footer group on every
+ * page"). The audit found the four pages reached only from the home page's cards, the guides and
+ * each other. The labels are the categories' own names, as each page's label reads.
+ */
+export const SITE_FOOTER_MADE: readonly { href: string; label: string }[] = Object.entries(
+  CATEGORY_PAGE_PATHS,
+).flatMap(([label, href]) => (href ? [{ href, label }] : []))
+
+/**
+ * The Standards block's lines: entries naming the same holder become one line (polish X23). The
+ * owner's entries are written one per claim, and two began "Suppliers:" one under the other (the
+ * audit read them as a repeat). Joined with "; " after the first's holder, so each claim keeps its
+ * own words: "Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS; amfori BSCI audits". The holder is what
+ * comes before the first colon, matched without regard to case; an entry with no colon stands
+ * alone. The stored entries are unchanged, so the marks (`marksFor`) still read each one.
+ */
+export function standardsLines(certifications: readonly string[]): string[] {
+  const lines: { holder: string | null; text: string }[] = []
+  for (const entry of certifications) {
+    const colon = entry.indexOf(':')
+    const holder = colon > 0 ? entry.slice(0, colon).trim().toLowerCase() : null
+    const same = holder ? lines.find((line) => line.holder === holder) : undefined
+    if (same) same.text = `${same.text}; ${entry.slice(colon + 1).trim()}`
+    else lines.push({ holder, text: entry.trim() })
+  }
+  return lines.map((line) => line.text)
+}
 
 /** The Capacity block's lines, each only when its claim is set. Empty means no block. */
 export function capacityLines(capacity: FooterSettings['capacity']): string[] {
@@ -155,6 +188,21 @@ export function siteFooterAriaSnapshot(
   add(2, `listitem: ${q(formatAddress())}`)
   if (footer.worksCoordinates) add(2, `listitem: ${q(footer.worksCoordinates)}`)
 
+  // The two link groups next (polish X23, F9), so on a phone, two short columns, they share a row.
+  add(1, `heading ${q(words.made)} [level=3]`)
+  add(1, 'list:')
+  for (const link of SITE_FOOTER_MADE) {
+    add(2, 'listitem:')
+    add(3, `link ${q(link.label)}`)
+  }
+  if (footer.socialLinks.length > 0) {
+    add(1, `heading ${q(words.elsewhere)} [level=3]`)
+    add(1, 'list:')
+    for (const link of footer.socialLinks) {
+      add(2, 'listitem:')
+      add(3, `link ${q(link.label)}`)
+    }
+  }
   const capacity = capacityLines(footer.capacity)
   if (capacity.length > 0) {
     add(1, `heading ${q(words.capacity)} [level=3]`)
@@ -164,15 +212,7 @@ export function siteFooterAriaSnapshot(
   if (footer.certifications.length > 0) {
     add(1, `heading ${q(words.standards)} [level=3]`)
     add(1, 'list:')
-    for (const name of footer.certifications) add(2, `listitem: ${q(name)}`)
-  }
-  if (footer.socialLinks.length > 0) {
-    add(1, `heading ${q(words.elsewhere)} [level=3]`)
-    add(1, 'list:')
-    for (const link of footer.socialLinks) {
-      add(2, 'listitem:')
-      add(3, `link ${q(link.label)}`)
-    }
+    for (const line of standardsLines(footer.certifications)) add(2, `listitem: ${q(line)}`)
   }
   const marks = marksFor(footer.certifications)
   if (marks.length > 0) {

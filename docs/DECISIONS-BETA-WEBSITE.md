@@ -155,6 +155,15 @@ fixed; the space is not.
 **Guard:** a test asserts the footer's content edge agrees with the page
 container's at every audited width.
 
+**Amended 2026-10-04 (owner's polish plan, X23 and F9):** the band stays; its range was measured
+on a footer of one block. The facts gained "What we make" (four links, with every database) and
+now run the column's width in up to five columns. Measured at 900px tall: with the test
+database the band is 214, 208 and 126px at 768, 1024 and 1440px, so `e2e/footer.spec.ts` (DS-09)
+holds it to 100–323px, a floor that still fails a band removed or squeezed to its 24px minimum.
+With the live footer's five blocks the band was already at that 24px minimum at every width
+before X23 (measured on wear-run.com: the slab 996–1,120px tall, past one screen), and with the
+same values drawn into this build it is 24–59px, in a slab of 900–970px.
+
 ### D8 · The marketing site gets the viewer's entrance animations — `FA-H-11`
 
 **Decision: add matching fade-ins, using the existing motion tokens.**

@@ -316,7 +316,6 @@
   --tracking-clock-caption: 0.18em; /* .footer-clock__city — "SIALKOT · HQ & WORKS" */
   --tracking-eyebrow: 0.2em; /* .footer-eyebrow — the mono eyebrow over the question */
   --tracking-legal: 0.13em; /* .footer-legal — the © line and its two links */
-  --tracking-link-mono: 0.055em; /* .footer-block a — the email and WhatsApp rows */
   --tracking-footer-mark: -0.045em; /* .footer-mark__layer — the cropped outline wordmark at 122% stretch */
 
   /* ── Layering ───────────────────────────────────────────────────────

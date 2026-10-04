@@ -1426,27 +1426,33 @@ test.describe('the bracket label above each headline is in normal letters (VA-44
     })
   }
 
-  // The footer address too (the owner's same choice). Its first rule lost to `.footer-block li`,
-  // a class and an element, and the address shipped in capitals for a day: a computed style is
-  // the only thing that sees which rule won. apps/viewer/e2e/siteFooter.spec.ts asks the same.
-  test('the footer address is in normal letters, and the email link beside it keeps its capitals', async ({
+  // The footer address too (the owner's same choice), and since polish X23 every line of the
+  // footer's facts: the audit counted about two and a half phone screens of capitals there. The
+  // address's first rule lost to `.footer-block li`, a class and an element, and it shipped in
+  // capitals for a day: a computed style is the only thing that sees which rule won.
+  // apps/viewer/e2e/siteFooter.spec.ts asks the same.
+  test("the footer's facts are in normal letters, and their headings keep their capitals", async ({
     page,
   }) => {
     await page.goto('/')
     await settle(page)
     const address = page.locator('footer .footer-block__address').first()
     await expect(address).toBeVisible()
-    const facts = await address.evaluate((el) => ({
-      address: getComputedStyle(el).textTransform,
-      link: getComputedStyle(el.closest('.footer-block')?.querySelector('a') ?? el).textTransform,
-      typed: el.textContent ?? '',
+    const facts = await page.evaluate(() => ({
+      lines: [...document.querySelectorAll('footer .footer-block li, footer .footer-block a')].map(
+        (el) => `${getComputedStyle(el).textTransform} ${(el.textContent ?? '').trim()}`,
+      ),
+      headings: [...document.querySelectorAll('footer .footer-block h3')].map(
+        (el) => getComputedStyle(el).textTransform,
+      ),
+      address: document.querySelector('footer .footer-block__address')?.textContent ?? '',
     }))
-    expect(facts.address, 'the address is still set in capitals').toBe('none')
-    // The control: the rule reached the address and nothing else in its block.
-    expect(facts.link, 'the email link lost its capitals, or the block was not found').toBe(
-      'uppercase',
-    )
-    const letters = facts.typed.replace(/[^A-Za-z]/g, '')
+    // Contact and "What we make" are there with any database: never a vacuous pass.
+    expect(facts.lines.length, 'the footer has no fact lines').toBeGreaterThanOrEqual(7)
+    expect(facts.lines.filter((line) => !line.startsWith('none '))).toEqual([])
+    // The control: the rule reached the lines and not the headings over them.
+    expect(new Set(facts.headings)).toEqual(new Set(['uppercase']))
+    const letters = facts.address.replace(/[^A-Za-z]/g, '')
     expect(letters, 'the address is typed in capitals').not.toBe(letters.toUpperCase())
   })
 })

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { CATEGORY_PAGE_PATHS } from './categoryPages'
 import { CONSENT_COPY } from './consent'
 import {
   capacityLines,
@@ -6,8 +7,10 @@ import {
   type FooterSettings,
   opensAt,
   SITE_FOOTER_LINKS,
+  SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
   siteFooterAriaSnapshot,
+  standardsLines,
 } from './siteFooter'
 
 const content = (footer: Partial<FooterSettings> = {}) => ({
@@ -57,6 +60,51 @@ describe('the shared footer (VA-31)', () => {
   it('words the closed light from the opening time', () => {
     expect(opensAt('09:00')).toBe('Opens 09:00 PKT')
   })
+
+  // Polish F9 (the owner's Q22): the four category pages, under the categories' own names.
+  it('links every category page, in the order the website lists the families', () => {
+    expect(SITE_FOOTER_MADE).toEqual([
+      { label: 'Teamwear & Uniforms', href: '/custom-teamwear-manufacturer' },
+      { label: 'Sportswear', href: '/custom-activewear-manufacturer' },
+      { label: 'Outerwear', href: '/custom-outerwear-manufacturer' },
+      { label: 'Casual Wear', href: '/private-label-casual-wear-manufacturer' },
+    ])
+    expect(SITE_FOOTER_MADE).toHaveLength(Object.keys(CATEGORY_PAGE_PATHS).length)
+  })
+})
+
+// Polish X23: two entries both began "Suppliers:", one under the other.
+describe('standardsLines', () => {
+  it("joins the owner's two supplier entries into one line and keeps the rest as they are", () => {
+    expect(
+      standardsLines([
+        'Parent: SEDEX-registered, SMETA-audited',
+        'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+        'Suppliers: amfori BSCI audits',
+        'Group: registered with the SECP',
+      ]),
+    ).toEqual([
+      'Parent: SEDEX-registered, SMETA-audited',
+      'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS; amfori BSCI audits',
+      'Group: registered with the SECP',
+    ])
+  })
+
+  it('joins entries apart in the list, at the first one, whatever their case', () => {
+    expect(standardsLines(['Suppliers: GOTS', 'Parent: Sedex', 'suppliers : GRS'])).toEqual([
+      'Suppliers: GOTS; GRS',
+      'Parent: Sedex',
+    ])
+  })
+
+  it('leaves an entry with no holder on a line of its own', () => {
+    expect(standardsLines(['OEKO-TEX', 'OEKO-TEX', ': GOTS'])).toEqual([
+      'OEKO-TEX',
+      'OEKO-TEX',
+      ': GOTS',
+    ])
+    expect(standardsLines([])).toEqual([])
+  })
 })
 
 describe('siteFooterAriaSnapshot', () => {
@@ -74,27 +122,37 @@ describe('siteFooterAriaSnapshot', () => {
     expect(snapshot).not.toContain(SITE_FOOTER_WORDS.standards)
     expect(snapshot).not.toContain(SITE_FOOTER_WORDS.elsewhere)
     expect(snapshot).not.toContain('group')
+    // "What we make" is not a claim: it is there with a blank database too, after Contact.
+    expect(snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.made}" [level=3]`)).toBeGreaterThan(
+      snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.contact}"`),
+    )
+    for (const link of SITE_FOOTER_MADE) expect(snapshot).toContain(`link "${link.label}"`)
     expect(lines.slice(-6)).toEqual(SITE_FOOTER_LINKS.map((link) => `  - link "${link.label}"`))
   })
 
-  it('adds each claim block only when its claim is set, between Contact and the bottom row', () => {
+  it('adds each claim block only when its claim is set, in the order both footers draw them', () => {
     const snapshot = siteFooterAriaSnapshot(
       content({
         capacity: { moq: '300 pieces', leadTime: '', hours: null },
         worksCoordinates: '32.4945° N, 74.5229° E',
-        certifications: ['Suppliers: OEKO-TEX, GOTS'],
+        certifications: ['Suppliers: OEKO-TEX', 'Suppliers: GOTS'],
         socialLinks: [{ label: 'LinkedIn', url: 'https://www.linkedin.com/company/x' }],
       }),
     )
     const at = (text: string) => snapshot.indexOf(text)
     expect(at('listitem: "32.4945° N, 74.5229° E"')).toBeGreaterThan(at('"Contact"'))
-    expect(at('"Capacity"')).toBeGreaterThan(at('"Contact"'))
+    // Contact, the two link groups (side by side on a phone, X23), then the two claims.
+    expect(at(`"${SITE_FOOTER_WORDS.made}"`)).toBeGreaterThan(at('"Contact"'))
+    expect(at('"Elsewhere"')).toBeGreaterThan(at(`"${SITE_FOOTER_WORDS.made}"`))
+    expect(at('"Capacity"')).toBeGreaterThan(at('"Elsewhere"'))
     expect(at('"Standards"')).toBeGreaterThan(at('"Capacity"'))
-    expect(at('"Elsewhere"')).toBeGreaterThan(at('"Standards"'))
-    // The marks follow from the entry's words: OEKO-TEX, then GOTS, in the order named.
+    // One holder, one line.
+    expect(snapshot).toContain('listitem: "Suppliers: OEKO-TEX; GOTS"')
+    // The marks follow from the entries' words: OEKO-TEX, then GOTS, in the order named.
     expect(snapshot).toContain(
       `  - group "${SITE_FOOTER_WORDS.marks}":\n    - img "OEKO-TEX"\n    - img "GOTS"`,
     )
+    expect(at('group')).toBeGreaterThan(at('"Standards"'))
     expect(at('link "Products"')).toBeGreaterThan(at('group'))
   })
 

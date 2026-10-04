@@ -33,11 +33,16 @@ const content = (footer: FooterSettings): SiteFooterContent => ({
   footerLine: DEFAULT_SITE_SETTINGS.footerLine,
 })
 
+/** Two entries for one holder, as the live footer has (polish X23 draws them as one line). */
 const CLAIMS: FooterSettings = {
   ...EMPTY_FOOTER,
   capacity: { moq: '300 pieces', leadTime: '6 weeks', hours: null },
   worksCoordinates: '32.4945° N, 74.5229° E',
-  certifications: ['Parent: SEDEX-registered, SMETA-audited', 'Suppliers: OEKO-TEX, GOTS'],
+  certifications: [
+    'Parent: SEDEX-registered, SMETA-audited',
+    'Suppliers: OEKO-TEX, GOTS',
+    'Suppliers: amfori BSCI audits',
+  ],
   socialLinks: [{ label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel' }],
 }
 
@@ -80,24 +85,30 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     )
   })
 
-  // VA-44 (the owner's choice, 2026-10-02): the address is in normal letters. An accessibility
-  // snapshot reads the words, never the capitals CSS draws, and the first rule lost to
-  // `.footer-block li` unseen; this asks the computed style (apps/cms/e2e/composition.spec.ts too).
-  test('sets the address in normal letters, while the email link beside it keeps its capitals', async ({
+  // VA-44 (the owner's choice, 2026-10-02): the address is in normal letters, and since polish X23
+  // every line of the footer's facts. An accessibility snapshot reads the words, never the
+  // capitals CSS draws, and the first rule lost to `.footer-block li` unseen; this asks the
+  // computed style (apps/cms/e2e/composition.spec.ts too).
+  test("sets the footer's facts in normal letters, while their headings keep their capitals", async ({
     page,
   }) => {
+    await serveFooter(page, CLAIMS)
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const address = footer(page).locator('.footer-block__address')
-    await expect(address).toHaveCount(1)
-    const facts = await address.evaluate((el) => ({
-      address: getComputedStyle(el).textTransform,
-      link: getComputedStyle(el.closest('.footer-block')?.querySelector('a') ?? el).textTransform,
+    await expect(footer(page).locator('.footer-block__address')).toHaveCount(1)
+    const facts = await footer(page).evaluate((el) => ({
+      lines: [...el.querySelectorAll('.footer-block li, .footer-block a')].map(
+        (line) => `${getComputedStyle(line).textTransform} ${(line.textContent ?? '').trim()}`,
+      ),
+      headings: [...el.querySelectorAll('.footer-block h3')].map(
+        (heading) => getComputedStyle(heading).textTransform,
+      ),
     }))
-    expect(facts.address, 'the address is still set in capitals').toBe('none')
-    expect(facts.link, 'the email link lost its capitals, or the block was not found').toBe(
-      'uppercase',
-    )
+    // Every claim block is there (CLAIMS), so a rule missing from any block shows.
+    expect(facts.headings).toHaveLength(5)
+    expect(facts.lines.filter((line) => !line.startsWith('none '))).toEqual([])
+    // The control: the rule reached the lines and not the headings over them.
+    expect(new Set(facts.headings)).toEqual(new Set(['uppercase']))
   })
 
   test('adds each claim block the website has, in the shared order, marks included', async ({
@@ -128,6 +139,36 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
         )
         .toBe(true)
     }
+    // The two supplier entries are one line (polish X23); the snapshot above holds the rest.
+    await expect(
+      footer(page).getByText('Suppliers: OEKO-TEX, GOTS; amfori BSCI audits'),
+    ).toHaveCount(1)
+    // One area for every mark, not one height (X23): Sedex is a wide wordmark, OEKO-TEX a tall
+    // label, and at one 32px height their areas were 3,804 and 726 square pixels.
+    const areas = await marks.evaluateAll((all) =>
+      all.map((img) => {
+        const box = img.getBoundingClientRect()
+        return Math.round(box.width * box.height)
+      }),
+    )
+    for (const area of areas) expect(Math.abs(area - 36 * 36) / (36 * 36)).toBeLessThan(0.06)
+  })
+
+  // Polish X23: on a phone two short columns, and the two link groups side by side.
+  test('on a phone the two link groups share a row, under Contact', async ({ page }) => {
+    await serveFooter(page, CLAIMS)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const at = await footer(page).evaluate((el) => {
+      const box = (kind: string) =>
+        el.querySelector(`.footer-block--${kind}`)?.getBoundingClientRect() ?? null
+      return { contact: box('contact'), made: box('made'), elsewhere: box('elsewhere') }
+    })
+    expect(at.contact && at.made && at.elsewhere, 'a footer block is missing').toBeTruthy()
+    expect(at.made?.top, 'the two link groups are not on one row').toBe(at.elsewhere?.top)
+    expect(at.elsewhere?.left ?? 0).toBeGreaterThan((at.made?.right ?? 0) - 1)
+    expect(at.made?.top ?? 0).toBeGreaterThanOrEqual(at.contact?.bottom ?? 0)
   })
 
   /*

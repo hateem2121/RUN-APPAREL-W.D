@@ -395,9 +395,10 @@ not what a visitor reads first.
 choice).** Capitals read slowly past a few words, and the audit counted runs of 31 to 74 characters.
 So the bracket label above every page's headline, photo captions, the figures' descriptions, the
 guide titles listed at the foot of each guide, the legal pages' subheads and the footer's address
-are in normal letters, with the same words, typed in normal case in the source. Short labels keep
-their capitals: chips that name a family, buttons, section numbers, the footer's other lines and the
-garment pages' field labels. `e2e/composition.spec.ts` holds both halves (CR-06 and VA-44).
+are in normal letters, with the same words, typed in normal case in the source; since polish X23
+(2026-10-04) every line of the footer's facts is too. Short labels keep their capitals: chips that
+name a family, buttons, section numbers, the footer's headings and legal row, and the garment
+pages' field labels. `e2e/composition.spec.ts` holds both halves (CR-06 and VA-44).
 
 **A label on the website's heroes never leaves its last words alone (VA-43, 2026-10-02).**
 `.site-hero .label` carries `text-wrap: balance` (in `site.css`, not on the shared `.label`, so the
@@ -491,10 +492,10 @@ and it shipped as 21 literals until 2026-09-05.
 | `--tracking-clock-caption` | 0.18em | `.footer-clock__city` — "SIALKOT · HQ & WORKS" |
 | `--tracking-eyebrow` | 0.2em | `.footer-eyebrow` — the mono eyebrow over the footer's question |
 | `--tracking-legal` | 0.13em | `.footer-legal` — the © line and its two links |
-| `--tracking-link-mono` | 0.055em | `.footer-block a` — the email and WhatsApp rows |
 | `--tracking-footer-mark` | -0.045em | `.footer-mark__layer` — the cropped outline wordmark at 122% stretch |
 
-**The eight site rows landed 2026-09-06, the day the two branches merged.** The
+**The eight site rows landed 2026-09-06, the day the two branches merged** (seven since polish
+X23 retired `--tracking-link-mono` with the footer's capital info lines). The
 marketing site (`apps/cms`) reads the same token file, and this branch's
 `tokens.test.ts` deliberately scans its stylesheet, so the three gates above reached
 21 values the navbar and footer had shipped as literals. They are named by **role**
@@ -612,7 +613,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one). The garment's facts follow the same query into the 3D window's four corners, unless the 3D cannot run (polish D10; `specsInCorners` in `App.tsx` decides, so they are drawn once) |
 | `1024px` and `min-height: 656px`, sideways, and container `colourrail` `350px` | `page.css` | beside the garment, each colour's name under its dot, three to a row (polish D8) |
 | `1180px` | `site.css` | the product families go to five columns |
-| `1280px` | `site.css` | the website's column widens to 1440px (polish D1; it was 1180px until 1600px) |
+| `1280px` | `site.css`, `footer.css` | the website's column widens to 1440px (polish D1; it was 1180px until 1600px); the footer's facts go to five columns (polish X23) |
 | `max-width: 899px`, `900px`, `1440px`, `1920px` | `site.css` | the product grid is two columns, three from 900px, four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px) and five from 1920px (polish D1), each with its own rule against a lone last card (VA-42) |
 | `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12); the website's column is 1600px (polish D1) |
 | container `colourrail`: `252px`, `350px` | `page.css` | below 252px the dots go three to a row (3 + 2, VA-32); from 350px, beside the garment, each dot has its name under it (polish D8) |
@@ -871,6 +872,17 @@ same markup in its own framework (`apps/cms/src/components/site/SiteFooter.tsx`,
 accessibility tree, `siteFooterAriaSnapshot`. The garment pages get the footer's details in
 their API answer (`siteSettings.footer`), from the same projection the website uses. WCAG 2.2
 SC 3.2.6 Consistent Help asks for contact details in the same place on every page of a site.
+
+**The facts since polish X23 and F9 (2026-10-04).** Five blocks in one order on both hosts:
+Contact, "What we make" (the four category pages, F9, the owner's Q22), Elsewhere, Capacity and
+Standards, then one row of the standards' marks. They run the column's width from its left edge,
+under a rule as wide as the legal row's: two columns on a phone (the two link groups side by side,
+Contact and the two claims across both), three from 720px, five from 1280px. They were a box of up
+to 640px pushed to the right, which left a gap under the question on a computer and stood about two
+and a half phone screens tall. Their lines are in normal letters (only the headings and the legal
+row keep capitals); entries naming the same holder share a line (`standardsLines`: the two
+"Suppliers:" entries); and every mark is drawn at one area, a 36px square's, not one height
+(`markBox`), three to a row on a phone.
 
 ### Paper
 

@@ -150,63 +150,61 @@
 }
 
 /*
- * ⚠️ `auto-fit`, NOT `repeat(2, …)`, AND THAT CLOSES TWO FINDINGS AT ONCE.
+ * ⚠️ THE FACTS RUN THE WIDTH OF THE COLUMN, IN COLUMNS OF THEIR OWN (polish X23 and F9, owner-
+ * approved plan of 2026-10-04). Until then they were one box of up to 640px pushed to the right,
+ * bottom-right to answer the question at the top-left: on a computer the columns began about 40%
+ * across and left a gap under the big heading, and on a phone the blocks stood one above another
+ * for about two and a half screens. Now the blocks, five with "What we make" (F9), take one row
+ * from 1280px, three columns from a tablet, and on a phone two short columns: the two link groups
+ * side by side, Contact and the two claims across both, as their lines are long.
  *
- * The fixed two-track grid assumed a 2 × 2 the site cannot currently reach: three of the
- * four blocks are conditional on CMS fields that are empty, so ONE block renders — into
- * a two-column grid with a `border-top` drawn across the whole 640px block. The rule ran
- * 51.9–56.4% further right than anything beneath it, on the emptiest surface on the site
- * (FA-D-02).
- *
- * The same declaration also closed a hole between two breakpoints. Below 421px the grid
- * went single-column and below 721px it stopped right-aligning, but nothing made it
- * single-column BETWEEN them — so at 430px (iPhone 15/16 Pro Max) the sole contact block
- * was 183px wide with an empty 183px column beside it, sixteen pixels narrower than the
- * same block at 414px (FA-E-06). `auto-fit` collapses empty tracks by definition, so the
- * 420px query is not replaced, it is unnecessary.
- *
- * `min(100%, 280px)` rather than a bare minimum: a bare `minmax(280px, 1fr)` overflows a
- * 320px screen once the gutters are taken, which is the classic auto-fit mistake.
+ * The rule over them spans the column, as the legal row's under them does. FA-D-02 (2026-09-07)
+ * once drew this box to its content's width because a blank database left one block under a 640px
+ * rule; there are now always two (Contact and "What we make"), and the live footer has five.
  */
 .footer-facts {
-  /*
-   * ⚠️ `fit-content`, AND WITHOUT IT THE auto-fit ABOVE DOES NOT ACTUALLY FIX FA-D-02.
-   * Measured 2026-09-07: `auto-fit` collapses the empty tracks, but the surviving track is
-   * `1fr` of a 640px box, so one block still filled 640px while its widest ink was 303.6px
-   * — the same 52% overshoot, now drawn by one track instead of two. The rule is a
-   * `border-top` on this element, so the element has to be the width of its content.
-   */
-  width: fit-content;
-  max-width: 640px;
-  margin-inline-start: auto;
   padding: 24px 0 clamp(24px, 4vw, 64px);
   border-top: 1px solid var(--footer-line);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
+}
+
+.footer-block--contact,
+.footer-block--capacity,
+.footer-block--standards {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  .footer-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .footer-block--contact,
+  .footer-block--capacity {
+    grid-column: auto;
+  }
+
+  .footer-block--standards {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 1280px) {
+  .footer-facts {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .footer-block--standards {
+    grid-column: auto;
+  }
 }
 
 @supports (width: round(1px, 2px)) {
   .footer-facts {
     padding-block-end: round(clamp(24px, 4vw, 64px), 2px);
   }
-}
-
-/* On a phone bottom-right has nowhere to be bottom-right OF: measured 2026-09-05 the
-   block kept its desktop right-alignment and sat in the right 264px of a 390px screen
-   with a dead gutter beside it. Full width there. */
-@media (max-width: 720px) {
-  .footer-facts {
-    max-width: none;
-    margin-inline-start: 0;
-  }
-}
-
-/* The facts sit bottom-right to answer the question at the top-left. The garment pages' footer
-   has no question (`.site-footer--no-prompt`, polish Q42), and at 1280px the facts left the slab's
-   whole left half empty (screenshot, 2026-10-04): they start at the column's left edge there. */
-.site-footer--no-prompt .footer-facts {
-  margin-inline-start: 0;
 }
 
 .footer-block h3 {
@@ -229,6 +227,15 @@
   gap: 0;
 }
 
+/*
+ * ⚠️ IN NORMAL LETTERS, NOT CAPITALS (polish X23). The headings above stay short capitals; what
+ * is under them is read and copied: an email, a phone number, an address, a supplier list.
+ * VA-44 (2026-10-02) took the address out of capitals first, when it ran 42 of them; the audit of
+ * 3 October counted about two and a half phone screens of capital lines here, and MDN's
+ * `text-transform` page (modified 20 April 2026) notes that long runs of uppercase are hard to
+ * read for people with dyslexia. The letters are the entries' own, so "WhatsApp" and "OEKO-TEX"
+ * read as their owners write them.
+ */
 .footer-block li,
 .footer-block a {
   /* THE 44px TOUCH FLOOR. navbar.spec.ts measures every link on every page at 390px
@@ -240,8 +247,6 @@
   min-height: var(--target-min);
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-link-mono);
-  text-transform: uppercase;
   color: var(--footer-text);
   text-decoration: none;
   font-variant-numeric: tabular-nums;
@@ -250,16 +255,6 @@
 .footer-block__sub {
   color: var(--footer-muted);
   font-size: var(--text-mono-lg);
-}
-
-/* The address is read and copied, so it is set in normal letters (visual audit VA-44, owner's choice 2026-10-02): it ran 42 capitals,
-   "13 KM DASKA ROAD, SIALKOT, 51040, PAKISTAN". The footer's short lines keep their capitals.
-   ⚠️ TWO CLASSES, NOT ONE: `.footer-block li` above is a class AND an element, so a bare
-   `.footer-block__address` lost to it and the address stayed in capitals (found 2026-10-02, the
-   day it shipped, by a survey of computed styles; both apps' e2e now ask the page). */
-.footer-block .footer-block__address {
-  text-transform: none;
-  letter-spacing: inherit;
 }
 
 /*
@@ -277,9 +272,11 @@
  * into blank shapes — both measured in a side-by-side the owner chose from. So each SVG in
  * `public/standards/` keeps its brand colours and has its black and dark-grey fills recoloured
  * to #ecebe6 (the paper tone; an <img> cannot read a CSS token), and ISO's dark blue lightened to
- * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back. Height is fixed
- * and width follows each file's own width/height attributes, which also reserve the box before
- * the lazy image loads.
+ * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back.
+ * ⚠️ NO HEIGHT HERE SINCE POLISH X23: each mark is drawn at the width and height its `<img>`
+ * carries, one area for every mark (`markBox`, packages/shared/src/standardsLogos.ts), where a
+ * single 32px height made the wordmarks long and the badges small. The attributes also reserve the
+ * box before the lazy image loads.
  */
 .footer-marks {
   grid-column: 1 / -1;
@@ -289,10 +286,17 @@
   gap: 12px 20px;
 }
 
+/* Three a row on a phone: six marks overran one row of a 390px screen by about 40px and left the
+   last alone on a second (polish X23, 2026-10-04). */
+@media (width < 720px) {
+  .footer-marks {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+  }
+}
+
 .footer-logo {
   display: block;
-  width: auto;
-  height: 32px;
 }
 
 @media (hover: hover) and (pointer: fine) {

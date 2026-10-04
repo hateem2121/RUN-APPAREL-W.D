@@ -3200,6 +3200,7 @@ summary.spec-item__row:focus-visible {
   .customise,
   .related,
   .contact,
+  .footer-block--made,
   .footer-block--capacity,
   .footer-block--standards,
   .footer-block--elsewhere,
@@ -3296,10 +3297,10 @@ summary.spec-item__row:focus-visible {
     max-width: none;
   }
 
+  /* Contact is the one block left on paper, so it takes the sheet's width (polish X23 made the
+     facts a grid of columns). */
   .footer-facts {
-    width: auto;
-    max-width: none;
-    margin-inline-start: 0;
+    grid-template-columns: minmax(0, 1fr);
     border-top: 0;
   }
 

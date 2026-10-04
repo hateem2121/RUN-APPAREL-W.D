@@ -4,10 +4,13 @@ import {
   EMPTY_FOOTER,
   formatAddress,
   formatPhoneForDisplay,
+  markBox,
   marksFor,
   normalizeWhatsAppNumber,
   SITE_FOOTER_LINKS,
+  SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
+  standardsLines,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { track } from '../lib/analytics'
@@ -83,6 +86,33 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
               </ul>
             </div>
 
+            {/* The four category pages (polish F9), then Elsewhere: SiteFooter.tsx says why. */}
+            <div className="footer-block footer-block--made">
+              <h3>{words.made}</h3>
+              <ul>
+                {SITE_FOOTER_MADE.map((link) => (
+                  <li key={link.href}>
+                    <a href={`${SITE_ORIGIN}${link.href}`}>{link.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {f.socialLinks.length > 0 ? (
+              <div className="footer-block footer-block--elsewhere">
+                <h3>{words.elsewhere}</h3>
+                <ul>
+                  {f.socialLinks.map((link) => (
+                    <li key={link.url}>
+                      <a href={link.url} rel="noopener">
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             {capacity.length > 0 ? (
               <div className="footer-block footer-block--capacity">
                 <h3>{words.capacity}</h3>
@@ -98,23 +128,8 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
               <div className="footer-block footer-block--standards">
                 <h3>{words.standards}</h3>
                 <ul>
-                  {f.certifications.map((name) => (
-                    <li key={name}>{name}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {f.socialLinks.length > 0 ? (
-              <div className="footer-block footer-block--elsewhere">
-                <h3>{words.elsewhere}</h3>
-                <ul>
-                  {f.socialLinks.map((link) => (
-                    <li key={link.url}>
-                      <a href={link.url} rel="noopener">
-                        {link.label}
-                      </a>
-                    </li>
+                  {standardsLines(f.certifications).map((line) => (
+                    <li key={line}>{line}</li>
                   ))}
                 </ul>
               </div>
@@ -132,8 +147,8 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                     key={logo.slug}
                     className="footer-logo"
                     src={logo.src}
-                    width={logo.width}
-                    height={logo.height}
+                    width={markBox(logo).width}
+                    height={markBox(logo).height}
                     alt={logo.alt}
                     loading="lazy"
                     decoding="async"

@@ -4,11 +4,13 @@ import {
   EMPTY_FOOTER,
   formatAddress,
   SITE_FOOTER_LINKS,
+  SITE_FOOTER_MADE,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { SITE_ORIGIN } from '../lib/siteLinks'
 import { Footer } from './Footer'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -168,9 +170,20 @@ describe('Footer', () => {
     expect(host.querySelector('.footer-block--contact')?.textContent).toContain(formatAddress())
   })
 
+  // Polish F9 (the owner's Q22): the four category pages, on the website, from every footer.
+  it('links "What we make" to the website\'s four category pages', () => {
+    render(<Footer settings={settings} />)
+    const made = [...host.querySelectorAll<HTMLAnchorElement>('.footer-block--made a')]
+    expect(made.map((a) => [a.textContent, a.getAttribute('href')])).toEqual(
+      SITE_FOOTER_MADE.map((link) => [link.label, `${SITE_ORIGIN}${link.href}`]),
+    )
+    expect(made).toHaveLength(4)
+  })
+
   it('draws no claim block for a blank claim, and each claim block once it is set', () => {
     render(<Footer settings={settings} />)
-    expect(headings()).toEqual(['Contact'])
+    // "What we make" is not a claim: it is there with nothing set.
+    expect(headings()).toEqual(['Contact', 'What we make'])
     expect(host.querySelector('.footer-marks')).toBeNull()
 
     render(
@@ -187,7 +200,8 @@ describe('Footer', () => {
         }}
       />,
     )
-    expect(headings()).toEqual(['Contact', 'Capacity', 'Standards', 'Elsewhere'])
+    // The website's order since polish X23: the two link groups, then the two claims.
+    expect(headings()).toEqual(['Contact', 'What we make', 'Elsewhere', 'Capacity', 'Standards'])
     expect(host.textContent).toContain('MOQ 300 pieces')
     expect(host.textContent).toContain('32.4945° N, 74.5229° E')
     // The marks follow from the entry's words, in the order named, from the website's files.
@@ -204,7 +218,7 @@ describe('Footer', () => {
     const { footer: _dropped, ...older } = settings
     render(<Footer settings={older} />)
     // The facts with no claim (no capacity, standards or links), and the legal row.
-    expect(headings()).toEqual(['Contact'])
+    expect(headings()).toEqual(['Contact', 'What we make'])
     expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
   })
 
