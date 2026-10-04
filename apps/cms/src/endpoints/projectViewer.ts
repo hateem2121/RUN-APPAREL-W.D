@@ -44,6 +44,18 @@ export const toMediaAsset = (media: unknown, origin: string): ViewerMediaAsset |
   }
 }
 
+/**
+ * A model's size in bytes, as Payload recorded it on upload, or null (polish F12, 2026-10-04).
+ * The garment page's download percentage needs a total, and the media host sends models gzipped
+ * with no `content-length` (ViewerProduct.glbBytes). Checked live before relying on it: all 40
+ * models in use carry one, and three read back from the host byte for byte.
+ */
+export const mediaBytes = (media: unknown): number | null => {
+  if (!media || typeof media !== 'object') return null
+  const size = (media as { filesize?: unknown }).filesize
+  return typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : null
+}
+
 type Doc = Record<string, unknown>
 
 export interface ProjectionDeps {
@@ -143,6 +155,7 @@ export function buildViewerResponse(
       // The HD studio render behind the "HD IMAGE" button; null hides the button.
       render: toMediaAsset(doc.renderImage, origin),
       glbUrl: separateMode ? (toMediaAsset(doc.glbAsset, origin)?.url ?? null) : null,
+      glbBytes: separateMode ? mediaBytes(doc.glbAsset) : null,
       isDefault: colourways.length === 0,
       altText: String(doc.altText ?? ''),
       hexSwatch: (doc.hexSwatch as string | null) ?? null,
@@ -168,6 +181,7 @@ export function buildViewerResponse(
       category: product.category as ViewerApiSuccess['product']['category'],
       variantMode: separateMode ? 'separate-glb-per-colour' : 'single-glb-variants',
       glbUrl: separateMode ? null : (toMediaAsset(product.glbAsset, origin)?.url ?? null),
+      glbBytes: separateMode ? null : mediaBytes(product.glbAsset),
       posterFallback: toMediaAsset(product.posterFallback, origin),
       fabricComposition: String(product.fabricComposition ?? ''),
       gsm: String(product.gsm ?? ''),

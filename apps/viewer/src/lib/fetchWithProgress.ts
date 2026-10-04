@@ -1,7 +1,7 @@
 export interface FetchProgress {
   /** Bytes received so far, cumulative. */
   loaded: number
-  /** Bytes the server said to expect, or 0 when it did not say. */
+  /** Bytes to expect (the server's `content-length`, else the garment data's size), or 0. */
   total: number
 }
 
@@ -35,9 +35,12 @@ export class DownloadStalledError extends Error {
  * GLB with the environment HDR, so it is not even about the garment alone.
  * Verified against @google/model-viewer 4.3.1.
  *
- * `media.wear-run.help` makes this workable: it sends `content-length`
- * (28,271,780 for N001), sends no `content-encoding` so that figure is the real
- * transfer size, and allows the viewer origin to read it.
+ * `media.wear-run.help` made this workable when it was written: it sent `content-length`
+ * (28,271,780 for N001) and no `content-encoding`, so that figure was the real transfer
+ * size. ⚠️ NO LONGER (polish F12): measured 2026-10-04, both media hosts answer a browser's
+ * `accept-encoding` with a gzipped body and NO `content-length`, and the percentage and time
+ * left vanished. The garment data now carries the model's size (`expectedBytes`, from
+ * `glbBytes`); see the total below.
  *
  * ⚠️ The caller MUST treat a rejection as "use the plain URL instead", never as
  * an error to show. Every failure mode here — offline, CORS, a 5xx, an aborted
@@ -50,7 +53,7 @@ export async function fetchWithProgress(
   url: string,
   onProgress: (progress: FetchProgress) => void,
   signal?: AbortSignal,
-  options: { stallMs?: number } = {},
+  options: { stallMs?: number; expectedBytes?: number | null } = {},
 ): Promise<Blob> {
   /**
    * ⚠️ THE NO-PROGRESS WATCHDOG — issue #41. On 2026-09-24 Cloudflare's Islamabad edge answered `200` with the
@@ -93,10 +96,17 @@ export async function fetchWithProgress(
 
   try {
     arm()
-    return await readCounted(url, internal.signal, onProgress, arm, (bytes) => {
-      loaded = bytes
-      arm()
-    })
+    return await readCounted(
+      url,
+      internal.signal,
+      onProgress,
+      arm,
+      options.expectedBytes,
+      (bytes) => {
+        loaded = bytes
+        arm()
+      },
+    )
   } catch (error) {
     if (stalled) throw new DownloadStalledError(url, loaded, options.stallMs as number)
     throw error
@@ -112,6 +122,7 @@ async function readCounted(
   signal: AbortSignal,
   onProgress: (progress: FetchProgress) => void,
   onHeaders: () => void,
+  expectedBytes: number | null | undefined,
   onChunk: (loaded: number) => void,
 ): Promise<Blob> {
   const response = await fetch(url, { signal })
@@ -151,12 +162,26 @@ async function readCounted(
     )
   }
 
-  const header = response.headers.get('content-length')
+  /**
+   * ⚠️ THE TOTAL (polish F12, 2026-10-04). The bytes counted below are the body AFTER the browser
+   * has decompressed it, so a `content-length` is the same unit only when nothing is encoded:
+   * beside a `content-encoding` it counts the compressed bytes and the percentage would pass 100
+   * before the end. The header is trusted only then; otherwise the garment data's size, which is
+   * the uncompressed file's (ViewerProduct.glbBytes). The media hosts gzip every model and send no
+   * header (measured the same day), so in production the data's size is the one in use.
+   */
+  const encoding = (response.headers.get('content-encoding') ?? 'identity').trim().toLowerCase()
+  const header = encoding === 'identity' ? response.headers.get('content-length') : null
   const parsed = header === null ? Number.NaN : Number(header)
   // 0 rather than NaN: `percentComplete` and `secondsRemaining` both treat a
   // non-positive total as "cannot promise a percentage" and return null, which
   // is the honest readout. NaN would propagate into the formatters instead.
-  const total = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  const fromHeader = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  const fromData =
+    typeof expectedBytes === 'number' && Number.isFinite(expectedBytes) && expectedBytes > 0
+      ? expectedBytes
+      : 0
+  let total = fromHeader || fromData
 
   const body = response.body
   if (!body) {
@@ -177,6 +202,9 @@ async function readCounted(
     // Cumulative. Reporting the chunk size instead would send the bar backwards
     // on every chunk after the first.
     loaded += value.byteLength
+    // A size from the data that the bytes outgrow was wrong (the file changed without its
+    // record): no percentage beats one that reads 100 and "preparing" mid-download.
+    if (!fromHeader && loaded > total) total = 0
     onChunk(loaded)
     onProgress({ loaded, total })
   }

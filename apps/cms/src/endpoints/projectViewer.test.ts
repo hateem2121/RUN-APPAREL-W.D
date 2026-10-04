@@ -12,13 +12,21 @@ const media = (url: string) => ({
   mimeType: 'image/webp',
 })
 
+// A model as Payload stores it: every live one carries the size it recorded on upload
+// (`filesize`, checked against production 2026-10-04 — polish F12).
+const model = (url: string, filesize: number) => ({
+  ...media(url),
+  mimeType: 'model/gltf-binary',
+  filesize,
+})
+
 const product = (o: Record<string, unknown> = {}) => ({
   productCode: 'N001',
   slug: 'n001',
   productName: 'Velocity Tee',
   category: 'Sportswear',
   variantMode: 'single-glb-variants',
-  glbAsset: media('/media/n001.glb'),
+  glbAsset: model('/media/n001.glb', 3_839_756),
   posterFallback: media('/media/fallback.webp'),
   fabricComposition: 'Poly',
   gsm: '160',
@@ -40,7 +48,7 @@ const colourway = (o: Record<string, unknown> = {}) => ({
   slug: 'navy',
   sequence: 1,
   posterPreview: media('/media/navy.webp'),
-  glbAsset: media('/media/navy.glb'),
+  glbAsset: model('/media/navy.glb', 1_886_524),
   isDefault: true,
   altText: 'navy',
   hexSwatch: '#123456',
@@ -219,6 +227,8 @@ describe('buildViewerResponse', () => {
         'category',
         'variantMode',
         'glbUrl',
+        // The model's size (polish F12): a number about a public file, for the percentage.
+        'glbBytes',
         'posterFallback',
         'fabricComposition',
         'gsm',
@@ -251,6 +261,7 @@ describe('buildViewerResponse', () => {
         // The HD studio render (2026-09-27): a public product picture, like the poster.
         'render',
         'glbUrl',
+        'glbBytes',
         'isDefault',
         'altText',
         'hexSwatch',
@@ -347,6 +358,28 @@ describe('buildViewerResponse', () => {
     const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)!
     expect(body.product.glbUrl).toBe('https://cms.example/media/n001.glb')
     expect(body.colourways[0]!.glbUrl).toBeNull()
+    // Its size travels with it, and only with it (polish F12).
+    expect(body.product.glbBytes).toBe(3_839_756)
+    expect(body.colourways[0]!.glbBytes).toBeNull()
+  })
+
+  it('a model with no recorded size, or a nonsense one, gives null: no percentage, no lie (F12)', () => {
+    for (const glbAsset of [
+      media('/media/n001.glb'),
+      { ...model('/media/n001.glb', 0), filesize: '3839756' },
+      model('/media/n001.glb', 0),
+      model('/media/n001.glb', -1),
+    ]) {
+      const body = buildViewerResponse(
+        product({ glbAsset }),
+        [colourway()],
+        {},
+        origin,
+        null,
+        deps,
+      )!
+      expect(body.product.glbBytes, JSON.stringify(glbAsset)).toBeNull()
+    }
   })
 
   it('separate-glb: product.glbUrl null, colourway.glbUrl set', () => {
@@ -360,6 +393,8 @@ describe('buildViewerResponse', () => {
     )!
     expect(body.product.glbUrl).toBeNull()
     expect(body.colourways[0]!.glbUrl).toBe('https://cms.example/media/navy.glb')
+    expect(body.product.glbBytes).toBeNull()
+    expect(body.colourways[0]!.glbBytes).toBe(1_886_524)
   })
 
   it('substitutes the default and flags fallback when the requested colourway is missing', () => {

@@ -66,6 +66,8 @@ export interface ViewerColourway {
   render: ViewerMediaAsset | null
   /** Dedicated GLB — populated only when the parent product uses "separate-glb-per-colour". */
   glbUrl: string | null
+  /** That GLB's size in bytes (`ViewerProduct.glbBytes` says why), with the same rule. */
+  glbBytes: number | null
   isDefault: boolean
   altText: string
   hexSwatch: string | null
@@ -79,6 +81,15 @@ export interface ViewerProduct {
   variantMode: VariantMode
   /** Production merged GLB — populated only when variantMode is "single-glb-variants". */
   glbUrl: string | null
+  /**
+   * That GLB's size in bytes, as the CMS recorded it when the file was uploaded; null when it
+   * did not (polish F12, 2026-10-04). The media host sends the model gzipped and so without a
+   * `content-length` (measured live the same day), and the garment page's percentage and time
+   * left need a total: this is it. It is the UNCOMPRESSED size, which is what a browser counts
+   * as it reads the decompressed body. OPTIONAL in practice: an answer cached before the field
+   * existed has none, and the page then shows the download without a percentage, as before.
+   */
+  glbBytes: number | null
   posterFallback: ViewerMediaAsset | null
   fabricComposition: string
   gsm: string

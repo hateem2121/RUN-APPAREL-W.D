@@ -70,6 +70,9 @@ export function Stage({
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
   const glbUrl = separateMode ? selected.glbUrl : product.glbUrl
+  // The model's size, for the download's percentage (polish F12). `?? null`: an API answer cached
+  // before the field existed has none, and the readout then shows no percentage, as it did.
+  const glbBytes = (separateMode ? selected.glbBytes : product.glbBytes) ?? null
 
   // What the model should currently DISPLAY, as opposed to what is selected.
   const displayed = displayedColourway(separateMode, preview, selected)
@@ -689,6 +692,7 @@ export function Stage({
 
     downloadWithRetries(glbUrl, {
       signal: controller.signal,
+      expectedBytes: glbBytes,
       onProgress: ({ loaded, total }) => {
         if (cancelled) return
         setBytesLoaded(loaded)
@@ -762,7 +766,7 @@ export function Stage({
       // between colourways in separate-GLB mode accumulates a copy per swap.
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [glbUrl, fallback, product.productCode])
+  }, [glbUrl, glbBytes, fallback, product.productCode])
 
   const applyView = (view: CameraView) => {
     const mv = mvRef.current

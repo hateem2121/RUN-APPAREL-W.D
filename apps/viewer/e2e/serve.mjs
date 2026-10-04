@@ -12,6 +12,12 @@ const DIST = path.resolve(dirname, '../dist')
 const ASSETS = path.resolve(dirname, '../../../tools/asset-pipeline/output')
 const PORT = Number(process.env.PORT ?? 4173)
 
+/** A seeded asset's size in bytes, or null before `pnpm seed:assets` has made it. */
+function fixtureBytes(name) {
+  const file = path.join(ASSETS, name)
+  return existsSync(file) ? statSync(file).size : null
+}
+
 // Apply the generated dist/_headers "/*" block (incl. the CSP) to every
 // response, so the e2e suite validates the real Content-Security-Policy the way
 // Cloudflare will serve it — a missing directive surfaces as a securitypolicy
@@ -285,6 +291,7 @@ function colourwayPayload(origin, c) {
         }
       : null,
     glbUrl: null,
+    glbBytes: null,
     isDefault: c.isDefault,
     altText: `Velocity Performance Tee in ${c.displayName}`,
     hexSwatch: c.hexSwatch,
@@ -361,6 +368,10 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: meta.hasGlb ? `${origin}/fixtures/${meta.glbFile ?? 'n001.glb'}` : null,
+      // The model's size, as the CMS sends it since polish F12 (2026-10-04): production's models
+      // arrive gzipped with no `content-length`, like this server's (below), and this is the
+      // total the percentage is drawn from. Read off the real file so it can never drift.
+      glbBytes: meta.hasGlb ? fixtureBytes(meta.glbFile ?? 'n001.glb') : null,
       posterFallback: fallback.poster,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',
@@ -466,16 +477,21 @@ const server = http.createServer((req, res) => {
     if (existsSync(file)) {
       res.setHeader('content-type', MIME[path.extname(file)] ?? 'application/octet-stream')
       /*
-       * ⚠️ NO `content-length`, AND THAT MAKES ONE WHOLE UI STATE UNREACHABLE HERE.
+       * ⚠️ NO `content-length`, AS IN PRODUCTION SINCE 2026-10.
        *
-       * Node streams chunked without it, so `fetchWithProgress` reads a null
-       * content-length and `bytesTotal` stays 0. `describeLoad` returns `preparing`
-       * only for `bytesTotal > 0 && bytesLoaded >= bytesTotal`, so that phase never
-       * occurs in e2e: its "PREPARING 3D MODEL…" title, its indeterminate sweep, and
-       * its live-region announcement "Download complete. Preparing the interactive
-       * 3D model." have never been exercised by any browser test. Production DOES
-       * send the header — measured on the live model 2026-09-04,
-       * `content-length: 3883016` — so this fixture is less faithful than it looks.
+       * Node streams chunked without it. Production sent the header once — measured on
+       * the live model 2026-09-04, `content-length: 3883016` — and stopped: the media
+       * hosts gzip models and send none (measured 2026-10-04), exactly as this server
+       * does. Since polish F12 the total comes from the garment data's `glbBytes` (the
+       * payload above carries the fixture's own size), so `bytesTotal` is no longer 0
+       * here, and the `preparing` phase — `describeLoad` returns it for `bytesTotal > 0
+       * && bytesLoaded >= bytesTotal`: its "PREPARING 3D MODEL…" title, its sweep and its
+       * announcement — can occur in e2e, which it never could before.
+       *
+       * Re-measured 2026-10-04 with the total from the data: the full suite passed the
+       * test the next paragraph is about (1,544 passed; the two failures were the known
+       * WebKit noscript flake and stall-webgl's readout, which now shows the total).
+       * Whether the HEADER itself would still trip it was not measured.
        *
        * ⚠️ IT WAS ADDED ON 2026-09-04 AND THEN REVERTED, and the reason is worth
        * more than the line was. With `res.setHeader('content-length', statSync(file)

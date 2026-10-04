@@ -223,6 +223,23 @@ if (!modelUrl) {
       } else {
         console.log(`  size      ${(bytes / 1024 / 1024).toFixed(1)} MB`)
       }
+
+      // The size the garment data declares (polish F12, 2026-10-04) is the total behind the
+      // page's download percentage, since the media hosts gzip models and send no length. A file
+      // replaced without its CMS record would make that percentage wrong, so it must match the
+      // file. Absent from an API answer cached before the field existed: then said, not failed.
+      const declared = separateMode ? selected?.glbBytes : product.glbBytes
+      if (declared == null) {
+        console.log(
+          '  bytes     WARN: the payload names no glbBytes, so the page shows no percentage',
+        )
+      } else if (bytes && declared !== bytes) {
+        fail(
+          `the garment data says the model is ${declared} bytes and the file is ${bytes} — the page's download percentage would be wrong`,
+        )
+      } else if (bytes) {
+        console.log(`  bytes     ${declared} in the data, the same as the file`)
+      }
     }
   } catch (err) {
     fail(`the model URL could not be fetched: ${err.message}`)

@@ -36,8 +36,9 @@ test('a download that stops sending retries, then offers TRY 3D AGAIN, which loa
 
   // The first attempt stalls AFTER 64 KB (the fixture sends that much, then nothing), so the readout has moved
   // off zero. That is what makes the next assertion mean something: "TRYING AGAIN" shows only once the retry has
-  // reset the count to 0, and a stale 0.1 MB would keep it hidden.
-  await expect(page.locator('.stage__loading-detail').first()).toHaveText('0.1 MB')
+  // reset the count to 0, and a stale 0.1 MB would keep it hidden. "0.1 / 0.1 MB" since polish F12: the garment
+  // data now names the model's size (86,100 bytes here), so the readout shows a total, and both round to 0.1.
+  await expect(page.locator('.stage__loading-detail').first()).toHaveText('0.1 / 0.1 MB')
   const retryLine = page.locator('.stage__loading-detail', { hasText: 'DOWNLOAD STOPPED' })
   await expect(retryLine).toHaveCount(0)
   await page.clock.fastForward(12_500)

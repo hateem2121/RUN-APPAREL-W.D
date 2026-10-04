@@ -22,6 +22,7 @@ const streamOf = (chunks: Uint8Array[]): ReadableStream<Uint8Array> =>
 const stubFetch = (opts: {
   chunks: Uint8Array[]
   contentLength?: string | null
+  contentEncoding?: string | null
   ok?: boolean
   status?: number
 }) => {
@@ -29,8 +30,12 @@ const stubFetch = (opts: {
     ok: opts.ok ?? true,
     status: opts.status ?? 200,
     headers: {
-      get: (name: string) =>
-        name.toLowerCase() === 'content-length' ? (opts.contentLength ?? null) : null,
+      get: (name: string) => {
+        const key = name.toLowerCase()
+        if (key === 'content-length') return opts.contentLength ?? null
+        if (key === 'content-encoding') return opts.contentEncoding ?? null
+        return null
+      },
     },
     body: streamOf(opts.chunks),
   }))
@@ -59,8 +64,8 @@ describe('fetchWithProgress', () => {
     stubFetch({ chunks: [new Uint8Array(10)], contentLength: '28271780' })
     const seen: number[] = []
     await fetchWithProgress('https://media.example/x.glb', (p) => seen.push(p.total))
-    // The real N001 GLB. media.wear-run.help sends this header with no
-    // content-encoding, which is what makes the count truthful.
+    // The real N001 GLB, as media.wear-run.help sent it with no content-encoding, which made
+    // the count truthful. It gzips models since (polish F12; the block below).
     expect(seen).toEqual([28_271_780])
   })
 
@@ -88,6 +93,60 @@ describe('fetchWithProgress', () => {
     // gets exactly today's behaviour rather than an error screen.
     stubFetch({ chunks: [], ok: false, status: 404 })
     await expect(fetchWithProgress('https://media.example/x.glb', () => {})).rejects.toThrow(/404/)
+  })
+})
+
+/**
+ * Polish F12 (2026-10-04): both media hosts now send models gzipped with no `content-length`,
+ * so the total comes from the garment data's size (`glbBytes`). What would have to break for
+ * these to fail: the size not used, a compressed length mistaken for the file's, or a wrong
+ * size held onto until the readout claimed "preparing" mid-download.
+ */
+describe('the total when the host compresses the model (polish F12)', () => {
+  const URL_ = 'https://media.example/x.glb'
+  const totals = async (expectedBytes: number | null | undefined) => {
+    const seen: number[] = []
+    await fetchWithProgress(URL_, (p) => seen.push(p.total), undefined, { expectedBytes })
+    return seen
+  }
+
+  it('takes the size in the garment data when no content-length comes (production)', async () => {
+    stubFetch({ chunks: [new Uint8Array(10)], contentLength: null, contentEncoding: 'gzip' })
+    expect(await totals(3_839_756)).toEqual([3_839_756])
+  })
+
+  it('ignores a content-length beside a content-encoding: it counts the compressed bytes', async () => {
+    stubFetch({ chunks: [new Uint8Array(10)], contentLength: '2900000', contentEncoding: 'gzip' })
+    expect(await totals(3_839_756)).toEqual([3_839_756])
+    stubFetch({ chunks: [new Uint8Array(10)], contentLength: '2900000', contentEncoding: 'gzip' })
+    expect(await totals(null), 'a compressed length became the total').toEqual([0])
+  })
+
+  it('still trusts the header when nothing is encoded, the exact transfer size', async () => {
+    stubFetch({ chunks: [new Uint8Array(10)], contentLength: '28271780', contentEncoding: null })
+    expect(await totals(5)).toEqual([28_271_780])
+    stubFetch({
+      chunks: [new Uint8Array(10)],
+      contentLength: '28271780',
+      contentEncoding: 'identity',
+    })
+    expect(await totals(5)).toEqual([28_271_780])
+  })
+
+  it('drops a size the bytes outgrow, rather than read 100% and "preparing" mid-download', async () => {
+    stubFetch({
+      chunks: [new Uint8Array(60), new Uint8Array(60)],
+      contentLength: null,
+      contentEncoding: 'gzip',
+    })
+    expect(await totals(100)).toEqual([100, 0])
+  })
+
+  it('refuses a size that is not a positive number', async () => {
+    for (const bad of [0, -5, Number.NaN, Number.POSITIVE_INFINITY, undefined]) {
+      stubFetch({ chunks: [new Uint8Array(10)], contentLength: null, contentEncoding: 'gzip' })
+      expect(await totals(bad), String(bad)).toEqual([0])
+    }
   })
 })
 

@@ -61,7 +61,14 @@ afterEach(async () => {
  * with a plausible content-length — that is the incident, not a contrivance: the
  * object really was there, and HEAD really did say so.
  */
-async function startOrigin({ getStatus }: { getStatus: number }): Promise<number> {
+async function startOrigin({
+  getStatus,
+  glbBytes,
+}: {
+  getStatus: number
+  /** The model's size as the garment data declares it (polish F12); absent if unset. */
+  glbBytes?: number
+}): Promise<number> {
   server = createServer((req, res) => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname
     const port = (server!.address() as { port: number }).port
@@ -75,6 +82,7 @@ async function startOrigin({ getStatus }: { getStatus: number }): Promise<number
             productName: 'Test Skinsuit',
             variantMode: 'single-glb-with-variants',
             glbUrl: `http://127.0.0.1:${port}/model.glb`,
+            ...(glbBytes === undefined ? {} : { glbBytes }),
           },
           colourways: [{ slug: 'wine' }, { slug: 'black' }],
           selectedColourway: { slug: 'wine' },
@@ -151,5 +159,26 @@ describe('post-deploy smoke test — cached 404', () => {
 
     expect(code).toBe(0)
     expect(output).toContain('bare GET 200')
+  }, 30_000)
+})
+
+/*
+ * Polish F12 (2026-10-04): the garment data's `glbBytes` is the total behind the page's download
+ * percentage. A file replaced without its record would make the percentage lie, so the
+ * post-deploy check holds the two together.
+ */
+describe('post-deploy smoke test — the size behind the download percentage (F12)', () => {
+  it('fails when the garment data names a size the file does not have', async () => {
+    const port = await startOrigin({ getStatus: 200, glbBytes: 1_234_567 })
+    const { code, output } = await runSmoke(port, { browserGet: false })
+    expect(code).not.toBe(0)
+    expect(output).toContain("the page's download percentage would be wrong")
+  }, 30_000)
+
+  it('passes when it is the file’s own size', async () => {
+    const port = await startOrigin({ getStatus: 200, glbBytes: 28_271_780 })
+    const { code, output } = await runSmoke(port, { browserGet: false })
+    expect(code).toBe(0)
+    expect(output).toContain('28271780 in the data, the same as the file')
   }, 30_000)
 })

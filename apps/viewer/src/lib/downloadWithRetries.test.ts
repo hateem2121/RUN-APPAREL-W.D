@@ -52,4 +52,13 @@ describe('downloadWithRetries (issue #41)', () => {
     await downloadWithRetries('u', { onProgress: () => {}, signal: ac.signal, fetcher })
     expect(fetcher).toHaveBeenCalledWith('u', expect.any(Function), ac.signal, { stallMs: 12_000 })
   })
+
+  it('passes the garment data’s size to every attempt, for the percentage (polish F12)', async () => {
+    const fetcher = vi.fn().mockImplementationOnce(stall).mockImplementationOnce(ok)
+    await downloadWithRetries('u', { onProgress: () => {}, fetcher, expectedBytes: 3_839_756 })
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    for (const call of fetcher.mock.calls) {
+      expect(call[3]).toEqual({ stallMs: 12_000, expectedBytes: 3_839_756 })
+    }
+  })
 })

@@ -1129,3 +1129,69 @@ test('over the 3D model the dot and ring step aside for the grab hand (F4)', asy
     .poll(state, { message: 'over a control on the model the dot and ring did not come back' })
     .toMatchObject({ dot: 'false', ring: 'false', grows: 'true' })
 })
+
+/*
+ * Polish F12 (2026-10-04): the download's percentage came back. Production's models arrive
+ * gzipped with no `content-length` (measured live that day), and this server sends none either,
+ * so the only total left is the size in the garment data (`glbBytes`). Slowed through CDP to
+ * 60 kB/s, or the 86 kB fixture is gone before a reading can be taken. The control takes the
+ * size out of the data and must see no percentage at all.
+ */
+for (const withSize of [true, false]) {
+  test(
+    withSize
+      ? 'the download shows a percentage with no content-length, from the size in the data (F12)'
+      : 'NEGATIVE CONTROL: without the size in the data the download shows no percentage (F12)',
+    async ({ page }) => {
+      test.setTimeout(90_000)
+      const cdp = await page.context().newCDPSession(page)
+      await cdp.send('Network.enable')
+      await cdp.send('Network.emulateNetworkConditions', {
+        offline: false,
+        latency: 50,
+        downloadThroughput: 60_000,
+        uploadThroughput: 60_000,
+      })
+      const lengths: (string | null)[] = []
+      page.on('response', (response) => {
+        if (response.url().includes('/fixtures/n001.glb')) {
+          lengths.push(response.headers()['content-length'] ?? null)
+        }
+      })
+      if (!withSize) {
+        await page.route('**/api/public/viewer/**', async (route) => {
+          const response = await route.fetch()
+          const body = (await response.json()) as { product?: { glbBytes?: unknown } }
+          if (body.product) body.product.glbBytes = null
+          await route.fulfill({ response, json: body })
+        })
+      }
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 60_000 })
+
+      const percents: number[] = []
+      const deadline = Date.now() + 60_000
+      while (Date.now() < deadline) {
+        const title = await page.evaluate(
+          () => document.querySelector('.stage__loading-title')?.textContent ?? null,
+        )
+        if (title === null) break // the readout left: the model is in
+        const percent = /(\d+)%/.exec(title)
+        if (percent && title.startsWith('LOADING')) percents.push(Number(percent[1]))
+        await page.waitForTimeout(60)
+      }
+      await expect(page.locator('model-viewer'), 'the model never arrived').toBeVisible()
+      expect(lengths, 'the model was not fetched once, with no length, as in production').toEqual([
+        null,
+      ])
+      if (withSize) {
+        expect(percents.length, `percentages seen: ${percents.join(', ')}`).toBeGreaterThanOrEqual(
+          3,
+        )
+        expect(Math.max(...percents)).toBeLessThan(100)
+      } else {
+        expect(percents, 'a percentage with no total to take it from').toEqual([])
+      }
+    },
+  )
+}
