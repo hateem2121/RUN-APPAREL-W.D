@@ -1,5 +1,6 @@
 export * from './types'
 export * from './slugs'
+export * from './categoryPages'
 export * from './pageTitle'
 export * from './variants'
 export * from './contact'

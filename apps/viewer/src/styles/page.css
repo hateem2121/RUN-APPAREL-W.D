@@ -1765,6 +1765,58 @@ model-viewer.stage__model {
 }
 
 /*
+ * The trail, Home › Products › <category> › <garment> (polish S5, GarmentTrail.tsx): the house
+ * label's voice (mono capitals, 12px, the floor for read text, VA-11), muted, with the garment
+ * itself in the page's text colour. Links are underlined at rest, so they never rest on colour
+ * alone, and each is 24px tall (WCAG 2.5.8). A long garment name wraps onto its own line.
+ */
+.trail__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.trail__list > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trail__list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trail__list a:hover {
+    color: var(--text);
+  }
+}
+
+.trail__current {
+  color: var(--text);
+}
+
+.trail__separator {
+  flex: none;
+}
+
+/*
  * ⚠️ THE PRODUCT NAME'S STAND-IN FACES (TY-02, 2026-09-28). Until then a late Archivo painted the
  * name first in plain `system-ui`, which is narrower, so three names re-wrapped when the font
  * arrived: "TIGER TAIL PROFLEX" one line -> two, "CORE ALIGN TIGHTS" one -> two, "CHEVRON V-NECK
@@ -3103,8 +3155,9 @@ summary.spec-item__row:focus-visible {
 
   /* Screen devices: buttons, bars, the window's download picture, contour lines and 3D notices,
      the colour dots (the chosen colour is in the label above the name), the two long sections,
-     and the footer's question, logos and links. (The menu bar's links: notch.css.) */
+     the trail, and the footer's question, logos and links. (The menu bar's links: notch.css.) */
   .action-bar,
+  .trail,
   .stage__plinth,
   .stage__more,
   .stage__hint,

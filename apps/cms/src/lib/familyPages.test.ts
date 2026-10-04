@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { CATEGORY_PAGE_PATHS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { FAMILY_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
@@ -64,6 +65,16 @@ describe('every buyer page is wired everywhere a public page must be', () => {
 
   it('a hidden site offers no buyer page to a crawler', () => {
     expect(sitemapFor('hidden', ORIGIN)).toEqual([])
+  })
+
+  it('the garment pages send each category to its page here, and to no other (polish S5)', () => {
+    // packages/shared repeats the addresses, because the garment pages cannot import this file.
+    const fromPages = Object.fromEntries(
+      FAMILY_PAGES.map((page) => [familyOf(page).name, page.path]),
+    )
+    expect(CATEGORY_PAGE_PATHS).toEqual(fromPages)
+    // NEGATIVE CONTROL: the comparison sees a page missing from either side.
+    expect({ ...CATEGORY_PAGE_PATHS, Outerwear: undefined }).not.toEqual(fromPages)
   })
 })
 

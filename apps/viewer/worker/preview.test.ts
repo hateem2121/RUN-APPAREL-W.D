@@ -501,11 +501,12 @@ describe('buildPreview — the readable page body for robots', () => {
     expect(html).toContain('<a href="https://wear-run.com/products/n001/lime">Lime</a>')
   })
 
-  it('links back to the catalogue, the family and the contact page, on the website only', () => {
+  it('links back to the catalogue, the category and the contact page, on the website only', () => {
     const html = onSite(full())
     expect(html).toContain('<a href="https://wear-run.com/products">All products</a>')
+    // The category's own page since polish S5 (2026-10-04), not the /products filter.
     expect(html).toContain(
-      '<a href="https://wear-run.com/products?family=sportswear">Sportswear</a>',
+      '<a href="https://wear-run.com/custom-activewear-manufacturer">Sportswear</a>',
     )
     expect(html).toContain('<a href="https://wear-run.com/contact">Contact RUN APPAREL</a>')
     // The old viewer host only forwards; it has no catalogue or contact page of its own.
@@ -744,7 +745,8 @@ describe('schema.org Product JSON-LD', () => {
 /**
  * The garment's place on the website, for search results (domain move, 2026-09-28). The
  * category is deliberately NOT in the address — it is an editable dropdown and the address
- * is printed on QR tags — so it lives here, as data, and as the /products family filter.
+ * is printed on QR tags — so it lives here, as data, pointing at the category's own page
+ * (polish S5, 2026-10-04; it was the /products family filter).
  */
 describe('buildPreview — breadcrumbs on the website', () => {
   const SITE = 'https://wear-run.com'
@@ -764,17 +766,18 @@ describe('buildPreview — breadcrumbs on the website', () => {
     ).toEqual([
       [1, 'Home', `${SITE}/`],
       [2, 'Products', `${SITE}/products`],
-      [3, 'Sportswear', `${SITE}/products?family=sportswear`],
+      [3, 'Sportswear', `${SITE}/custom-activewear-manufacturer`],
       [4, 'Velocity Performance Skinsuit', preview.url],
     ])
   })
 
-  it('makes the family filter address the way the site spells it', () => {
-    const data = JSON.parse(
-      onSite(payload({ product: { category: 'Teamwear & Uniforms' as never } })).breadcrumbJsonLd ??
-        'null',
-    )
-    expect(data.itemListElement[2].item).toBe(`${SITE}/products?family=teamwear-uniforms`)
+  it('sends each category to its own page, and one with no page to the family filter', () => {
+    const categoryStep = (category: string) =>
+      JSON.parse(
+        onSite(payload({ product: { category: category as never } })).breadcrumbJsonLd ?? 'null',
+      ).itemListElement[2].item
+    expect(categoryStep('Teamwear & Uniforms')).toBe(`${SITE}/custom-teamwear-manufacturer`)
+    expect(categoryStep('Sports Accessories')).toBe(`${SITE}/products?family=sports-accessories`)
   })
 
   it('skips the category step when a garment has none, rather than inventing one', () => {

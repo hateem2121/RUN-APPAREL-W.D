@@ -243,6 +243,7 @@ test.describe('one clean sheet per garment (polish F14)', () => {
       '.action-bar',
       '.colourways',
       '.stage__plinth',
+      '.trail',
       '.customise',
       '.contact',
       '.footer-cta',

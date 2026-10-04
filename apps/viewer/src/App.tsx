@@ -6,6 +6,7 @@ import { ConsentBanner } from './components/ConsentBanner'
 import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
+import { GarmentTrail } from './components/GarmentTrail'
 import { Header } from './components/Header'
 import { Preloader } from './components/Preloader'
 import { ProductIdentity } from './components/ProductIdentity'
@@ -566,6 +567,9 @@ export default function App() {
           </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
           <div className="content">
+            {/* Where the garment sits on the website (polish S5). Here, under the garment band,
+                not above it: the owner gave the garment the row a label once took (D8, M5). */}
+            <GarmentTrail product={data.product} />
             <ProductPanel
               data={data}
               selected={selected}
