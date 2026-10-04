@@ -1,45 +1,34 @@
 import { expect, type Page, test } from './offlineMedia'
 
 /**
- * VA-40 (visual audit, 2026-10-02), the website's half. The bar has a HAIRLINE: it is in the shared
- * stylesheet (packages/ui/src/notch.css), so the website's bar carries it as the garment pages' does
- * (apps/viewer/e2e/barAutoHide.spec.ts asks them). And the bar LEAVING on a scroll is the garment
- * pages' alone: the website never asks for it, so its fixed bar stays where it always was.
+ * VA-40 (visual audit, 2026-10-02), the website's half. The bar's EDGE is in the shared stylesheet
+ * (packages/ui/src/notch.css), so the website's bar matches the garment pages'
+ * (apps/viewer/e2e/barAutoHide.spec.ts asks them): since polish D12 (2026-10-04, the owner's choice)
+ * that edge is the soft shadow alone, and VA-40's 1px hairline is gone. And the bar LEAVING on a
+ * scroll is the garment pages' alone: the website never asks for it, so its fixed bar stays where it
+ * always was.
  *
- * What would have to break for these to fail: the ring missing or heavier than agreed on either host,
- * or the opt-in being turned into the default, which would move the website's bar on every phone.
+ * What would have to break for these to fail: a ring coming back or the soft shadow going on either
+ * host, or the opt-in being turned into the default, which would move the website's bar on every phone.
  */
 
 const BAR = 'header.notch-shell .notch'
-
-const alphaOf = (colour: string) => {
-  const slash = colour.match(/\/\s*([\d.]+)\s*\)/)
-  if (slash?.[1]) return Number(slash[1])
-  const numbers = colour.match(/[\d.]+/g) ?? []
-  return numbers.length > 3 ? Number(numbers[3]) : 1
-}
 
 async function openHome(page: Page) {
   await page.goto('/')
   await expect(page.locator(BAR)).toBeVisible()
 }
 
-test.describe('the bar has a hairline (VA-40) — the site', () => {
-  for (const [scheme, alpha] of [
-    ['light', 0.22],
-    ['dark', 0.12],
-  ] as const) {
-    test(`${scheme}: a 1px ring over the soft shadow, paper at ${alpha * 100}%`, async ({
-      page,
-    }) => {
+test.describe('the bar’s edge is its soft shadow alone (polish D12) — the site', () => {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: one soft shadow, and no ring`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
       await openHome(page)
       const shadow = await page.locator(BAR).evaluate((bar) => getComputedStyle(bar).boxShadow)
       const layers = shadow.split(/,(?![^(]*\))/).map((layer) => layer.trim())
-      expect(layers, `the bar's shadow is not two layers: ${shadow}`).toHaveLength(2)
-      expect(layers[0], 'the first layer is not a 1px ring').toMatch(/0px 0px 0px 1px/)
-      expect(layers[1], 'the soft shadow is gone').toMatch(/0px 8px 24px/)
-      expect(alphaOf(layers[0] ?? '')).toBeCloseTo(alpha, 2)
+      expect(layers, `the bar's shadow is not one layer: ${shadow}`).toHaveLength(1)
+      expect(layers[0], 'the soft shadow is gone').toMatch(/0px 8px 24px/)
+      expect(layers[0], 'a 1px ring is back').not.toMatch(/0px 0px 0px 1px/)
     })
   }
 })
