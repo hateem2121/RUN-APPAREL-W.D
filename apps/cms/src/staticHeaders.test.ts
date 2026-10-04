@@ -15,7 +15,7 @@ const PUBLIC = join(__dirname, '..', 'public')
 const FILE = join(PUBLIC, '_headers')
 
 /** `_headers` as `{ path, headers }` rules: a path line, then indented `Name: value` lines. */
-export function parseHeadersFile(text: string): { path: string; headers: Record<string, string> }[] {
+function parseHeadersFile(text: string): { path: string; headers: Record<string, string> }[] {
   const rules: { path: string; headers: Record<string, string> }[] = []
   for (const raw of text.split('\n')) {
     if (raw.trim() === '' || raw.trimStart().startsWith('#')) continue
