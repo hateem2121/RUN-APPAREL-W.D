@@ -1,6 +1,6 @@
 import { ABOUT, type AboutPoint } from '../../lib/aboutCopy'
 import { FACTORY_PHOTOS, factoryPhotoSrc } from '../../lib/factoryPhotos'
-import { FactoryFigure } from './FactoryFigure'
+import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 
 /**
  * №01 "Who we are" — credibility before capability (decision D23, 2026-09-29). Copy from
@@ -53,7 +53,7 @@ export function AboutSection() {
               photo={photo}
               src={factoryPhotoSrc(photo, 640)}
               srcSet={`${factoryPhotoSrc(photo, 640)} 640w, ${factoryPhotoSrc(photo, 1200)} 1200w`}
-              sizes="(min-width: 900px) 540px, 100vw"
+              sizes={HALF_COLUMN_SIZES}
               width={640}
               height={400}
             />

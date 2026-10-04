@@ -63,11 +63,18 @@ export function OrderTimeline() {
   return (
     <section className="site-section" data-site-reveal>
       <div className="site-container">
-        <p className="section-number">№04 — How an order works</p>
-        <h2 className="display display--section">
-          From a sketch <span className="serif-accent">to your&nbsp;door.</span>
-        </h2>
-        <p className="site-lede">Four stages, eight steps, and you always know whose move it is.</p>
+        {/* The heading beside its words from 900px (`.section-head`, polish D1). */}
+        <div className="section-head">
+          <div className="section-head__title">
+            <p className="section-number">№04 — How an order works</p>
+            <h2 className="display display--section">
+              From a sketch <span className="serif-accent">to your&nbsp;door.</span>
+            </h2>
+          </div>
+          <p className="site-lede">
+            Four stages, eight steps, and you always know whose move it is.
+          </p>
+        </div>
         <div className="timeline">
           <span className="timeline__line" aria-hidden="true" />
           <ol className="timeline__phases">

@@ -5,7 +5,7 @@ import { FACTORY_PHOTOS, factoryPhotoSrc } from '../../lib/factoryPhotos'
 import { FAMILIES, familyPictures } from '../../lib/families'
 import { FAMILY_PAGE_ACTION, type FamilyPage, familyHref, familyOf } from '../../lib/familyPages'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
-import { FactoryFigure } from './FactoryFigure'
+import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { FactsBento } from './FactsBento'
 import { SeeAllInGallery } from './FamilyCrossLinks'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
@@ -115,30 +115,35 @@ export function FamilyLanding({
         </div>
       </section>
 
+      {/* The heading on the left and its list on the right from 900px (`.spread`, polish D1). */}
       <section className="site-section" data-site-reveal>
-        <div className="site-container prose">
+        <div className="site-container prose spread">
           <h2 className="display display--section">{page.makesHeading}</h2>
-          {page.makes.map((entry) => (
-            <div key={entry.group}>
-              <h3 className="product-card__name prose__heading">{entry.group}</h3>
-              <p>{entry.garments}</p>
-            </div>
-          ))}
-          <SeeAllInGallery family={family} />
+          <div className="spread__body">
+            {page.makes.map((entry) => (
+              <div key={entry.group}>
+                <h3 className="product-card__name prose__heading">{entry.group}</h3>
+                <p>{entry.garments}</p>
+              </div>
+            ))}
+            <SeeAllInGallery family={family} />
+          </div>
         </div>
       </section>
 
       {garments.length > 0 ? (
         <section className="site-section" id="garments" data-site-reveal>
           <div className="site-container">
-            <h2 className="display display--section">
-              See it before a sample <span className="serif-accent">is&nbsp;cut.</span>
-            </h2>
-            <p className="site-lede">
-              Every garment below has its own 3D page. Turn it, zoom in and check the print, the
-              fabric composition, the weight and the fit. Share the link with your team before
-              anyone pays for a sample.
-            </p>
+            <div className="section-head">
+              <h2 className="display display--section">
+                See it before a sample <span className="serif-accent">is&nbsp;cut.</span>
+              </h2>
+              <p className="site-lede">
+                Every garment below has its own 3D page. Turn it, zoom in and check the print, the
+                fabric composition, the weight and the fit. Share the link with your team before
+                anyone pays for a sample.
+              </p>
+            </div>
             <ul className="product-grid">
               {garments.map((product, index) => (
                 // `index + 1`: these cards start below the first screen, so none loads eagerly.
@@ -155,16 +160,18 @@ export function FamilyLanding({
       ) : null}
 
       <section className="site-section" data-site-reveal>
-        <div className="site-container prose">
+        <div className="site-container prose spread">
           <h2 className="display display--section">{page.stepsHeading}</h2>
-          {page.steps.map((step, index) => (
-            <div key={step.title}>
-              <h3 className="product-card__name prose__heading">
-                {index + 1}. {step.title}
-              </h3>
-              <p>{step.body}</p>
-            </div>
-          ))}
+          <div className="spread__body">
+            {page.steps.map((step, index) => (
+              <div key={step.title}>
+                <h3 className="product-card__name prose__heading">
+                  {index + 1}. {step.title}
+                </h3>
+                <p>{step.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -196,7 +203,7 @@ export function FamilyLanding({
                 photo={photo}
                 src={factoryPhotoSrc(photo, 640)}
                 srcSet={`${factoryPhotoSrc(photo, 640)} 640w, ${factoryPhotoSrc(photo, 1200)} 1200w`}
-                sizes="(min-width: 900px) 540px, 100vw"
+                sizes={HALF_COLUMN_SIZES}
                 width={640}
                 height={400}
               />
@@ -206,38 +213,44 @@ export function FamilyLanding({
       </section>
 
       <section className="site-section" data-site-reveal>
-        <div className="site-container prose">
+        <div className="site-container prose spread">
           <h2 className="display display--section">Questions buyers ask</h2>
-          {page.questions.map((entry) => (
-            <div key={entry.question}>
-              <h3 className="product-card__name prose__heading">{entry.question}</h3>
-              <p>{entry.answer}</p>
-            </div>
-          ))}
+          <div className="spread__body">
+            {page.questions.map((entry) => (
+              <div key={entry.question}>
+                <h3 className="product-card__name prose__heading">{entry.question}</h3>
+                <p>{entry.answer}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <h2 className="display display--section">{page.closingHeading}</h2>
-          <p className="site-lede">
-            Send the styles, quantities and specs you have. A sketch is enough to start. We reply
-            within 24 hours, and the quote is free and commits you to nothing.
-          </p>
-          <div className="site-actions">
-            <Link className="btn btn--primary" href="/contact#inquiry">
-              {FAMILY_PAGE_ACTION}
-            </Link>
-            <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
-              Email {settings.email}
-            </a>
-            <a
-              className="btn btn--ghost"
-              href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
-              rel="noopener"
-            >
-              WhatsApp
-            </a>
+          <div className="section-head">
+            <h2 className="display display--section">{page.closingHeading}</h2>
+            <div className="section-head__words">
+              <p className="site-lede">
+                Send the styles, quantities and specs you have. A sketch is enough to start. We
+                reply within 24 hours, and the quote is free and commits you to nothing.
+              </p>
+              <div className="site-actions">
+                <Link className="btn btn--primary" href="/contact#inquiry">
+                  {FAMILY_PAGE_ACTION}
+                </Link>
+                <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
+                  Email {settings.email}
+                </a>
+                <a
+                  className="btn btn--ghost"
+                  href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
+                  rel="noopener"
+                >
+                  WhatsApp
+                </a>
+              </div>
+            </div>
           </div>
           {/* A "see also" group of its own, titled and set apart from the buttons above (polish M4). */}
           <nav className="see-also" aria-labelledby="other-ranges">

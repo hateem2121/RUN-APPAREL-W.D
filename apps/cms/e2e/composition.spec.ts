@@ -1049,7 +1049,13 @@ test.describe('TY-12 — no heading splits a word across two lines', () => {
     expect(splits.filter((line) => line.startsWith('whole-control'))).toEqual([])
   })
 
-  for (const width of [320, 340, 390]) {
+  /*
+   * 900 and 1024px since polish D1 (2026-10-04): from 900px a section's heading shares the row with
+   * its words (`.section-head`, `.spread`), so its column is narrowest there, and in half the row
+   * "YOU'RE MAKING." (its two words joined by a no-break space) put its full stop on a line of its
+   * own at both widths in all three engines. The phone widths alone could not see it.
+   */
+  for (const width of [320, 340, 390, 900, 1024]) {
     test(`no heading on the site splits a word at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 })
       for (const path of [
@@ -1266,11 +1272,12 @@ test.describe('every rendered image carries its own dimensions (SZ-10)', () => {
 /*
  * ══ the content column stays capped at ultrawide, and the hero is not (SZ-15) ══
  *
- * `site.css:358,371-382`: `--site-max` is 1180px below 1600px viewport width and 1440px
- * above it. `.site-hero` is the full-bleed section `.site-container` centres inside.
+ * `--site-max` is 1180px below a 1280px viewport (packages/ui/src/tokens.css), 1440px from 1280px
+ * and 1600px from 1920px (site.css, polish D1, 2026-10-04; it was 1440px only from 1600px).
+ * `.site-hero` is the full-bleed section `.site-container` centres inside.
  */
 test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
-  test('the hero is full-bleed and .site-container stays at or under 1440px at 2560px', async ({
+  test('the hero is full-bleed and .site-container stays at or under 1600px at 2560px', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 2560, height: 1200 })
@@ -1293,9 +1300,48 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
     ).toBeGreaterThanOrEqual(measured.viewportWidth - 1)
     expect(
       measured.containerWidth,
-      `.site-container is ${measured.containerWidth}px wide at 2560px — it should stay at or under 1440px`,
-    ).toBeLessThanOrEqual(1440)
+      `.site-container is ${measured.containerWidth}px wide at 2560px — it should stay at or under 1600px`,
+    ).toBeLessThanOrEqual(1600)
   })
+})
+
+/*
+ * ══ the page uses the width: 1440px from a 1280px screen, 1600px from 1920px (polish D1) ══
+ *
+ * Measured live on 3 October at 1440 wide: a 1180px page, 194px of empty margin each side. The cap
+ * test above would pass for that page too, so this asks the width the owner chose at each step,
+ * either side of each change: below 1280 the page keeps its old 1180px, from 1280 it is the screen
+ * until 1440, and from 1920 it is 1600. What would have to break for this to fail: the token losing
+ * a step, a step moving, or a page overriding `--site-max` with a narrower column.
+ */
+test.describe('the page uses the width (D1)', () => {
+  const WIDTHS = [
+    { screen: 1279, page: 1180 },
+    { screen: 1280, page: 1280 },
+    { screen: 1440, page: 1440 },
+    { screen: 1919, page: 1440 },
+    { screen: 1920, page: 1600 },
+  ] as const
+
+  for (const path of ['/', '/products', '/custom-teamwear-manufacturer', '/guides']) {
+    test(`${path}: the column is the chosen width at each step`, async ({ page }) => {
+      await page.goto(path)
+      await settle(page)
+      const seen: string[] = []
+      for (const { screen, page: want } of WIDTHS) {
+        await page.setViewportSize({ width: screen, height: 900 })
+        const width = await page.evaluate(
+          () =>
+            document.querySelector('main .site-section .site-container')?.getBoundingClientRect()
+              .width ?? 0,
+        )
+        // A classic scrollbar (Firefox, 15px) takes its track out of the screen before 100% applies.
+        const room = await page.evaluate(() => document.documentElement.clientWidth)
+        if (Math.abs(width - Math.min(want, room)) > 1) seen.push(`${screen}px: ${width}`)
+      }
+      expect(seen, `${path}: the page column is not the chosen width`).toEqual([])
+    })
+  }
 })
 
 /*
@@ -1643,16 +1689,17 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
  * ⚠️ A PHONE HAS TWO COLUMNS SINCE 2026-10-02 (visual audit VA-42, the owner's choice): this
  * asserted ONE column at 375px, from the `auto-fill, minmax(260px, 1fr)` the grid used until
  * then, and one card a row was why the page ran to 36 phone screens. The counts are written
- * out in `site.css` now (two below 900px, three from 900px, four from 1600px), because the rule
- * that keeps a card from standing alone on the last row has to know them.
- * `e2e/productsGrid.spec.ts` holds the phone layout and that rule.
+ * out in `site.css` now (two below 900px, three from 900px, four from 1440px, five from 1920px
+ * since polish D1), because the rule that keeps a card from standing alone on the last row has to
+ * know them. `e2e/productsGrid.spec.ts` holds the phone layout and that rule.
  */
-test.describe('LA-12 — the gallery genuinely reaches 2, 3 and 4 columns', () => {
+test.describe('LA-12 — the gallery genuinely reaches 2, 3, 4 and 5 columns', () => {
   const CASES = [
     { width: 375, columns: 2 },
     { width: 700, columns: 2 },
     { width: 1280, columns: 3 },
-    { width: 1920, columns: 4 },
+    { width: 1440, columns: 4 },
+    { width: 1920, columns: 5 },
   ] as const
 
   for (const { width, columns } of CASES) {

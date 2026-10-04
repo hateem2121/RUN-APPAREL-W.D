@@ -31,10 +31,10 @@ import { expect, type Page, test } from './offlineMedia'
 const FONT_FILES = /\.(woff2?|ttf|otf)(\?.*)?$/
 const PAGES = ['/', '/products', '/contact'] as const
 /**
- * 390: a phone. 1280: a common laptop, where the column is already at its 1052px cap but the
- * headline's type is still scaling with the window. 1350: Lighthouse's desktop profile, where
- * /products measured CLS 0.404. 1680: past the 1600px breakpoint where the page widens to a
- * 1312px column (FA-E-04).
+ * 390: a phone. 1280: a common laptop, where the headline's type is still scaling with the window
+ * (and, since polish D1, the page is the screen's width: a 1152px column). 1350: Lighthouse's
+ * desktop profile, where /products measured CLS 0.404. 1680: a 1312px column (1440px wide from 1280px
+ * since D1; from 1600px under FA-E-04 before it).
  */
 const WIDTHS = [390, 1280, 1350, 1680] as const
 /**
@@ -341,12 +341,18 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
    * Polish X19 (2026-10-04): at 1920px the not-found headline set two lines in the stand-in and one
    * in Archivo, so the page jumped up 66px a moment after loading, every time (0.24 live). It keeps
    * one font from first paint now (`.hero-notfound`). The control puts the swapping face back.
+   *
+   * ⚠️ THE CONTROL IS AT 1439px SINCE POLISH D1 (2026-10-04). The jump needs a 1311-1312px column
+   * under the 72px headline: the stand-in's line is wider than that and Archivo's is not. D1 widened
+   * the 1920px column to 1472px, where both fonts fit one line and the old face no longer jumps
+   * (the control failed to reproduce it), so the column the jump was measured in is now 1439px's.
    */
   for (const [width, swapping] of [
     [1920, false],
+    [1439, false],
     [1350, false],
     [390, false],
-    [1920, true],
+    [1439, true],
   ] as const) {
     test(`the not-found page at ${width}px ${swapping ? 'WITH THE OLD SWAPPING FACE (negative control) shifts' : 'stays at or under 0.02'} while the fonts arrive late`, async ({
       page,

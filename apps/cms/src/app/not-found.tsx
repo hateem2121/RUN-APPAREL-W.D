@@ -5,6 +5,7 @@ import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
 import '@run-apparel/ui/notch.css'
 import '@run-apparel/ui/footer.css'
+import '@run-apparel/ui/footer-prompt.css'
 import './(frontend)/site.css'
 
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'

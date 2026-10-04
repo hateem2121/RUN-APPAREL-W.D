@@ -177,6 +177,39 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     ).toBeLessThan(1)
   })
 
+  /*
+   * Polish D1 (2026-10-04): the website's column is 1440px from a 1280px screen, and the footer
+   * centres its words in the column `--site-max` and `--site-gutter` name. A garment page keeps its
+   * own 1200px column, so `.page` sets both to it and `.content` is drawn from them (page.css).
+   * Nothing compared the two before, and they had missed each other by 26px at 1440 since the
+   * footer came to these pages (VA-31). What would have to break for this to fail: the override
+   * gone (planted 2026-10-04: off by 4px at 390, 14px at 1280, 104px from 1440), or `.content`
+   * given a width or padding of its own again.
+   */
+  test("the footer's words line up with the garment page's own column", async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const misses: string[] = []
+    for (const width of [390, 768, 1280, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      const edges = await page.evaluate(() => {
+        const column = document.querySelector('.content') as HTMLElement
+        const inner = document.querySelector('.site-footer__inner') as HTMLElement
+        const box = column.getBoundingClientRect()
+        const style = getComputedStyle(column)
+        const words = inner.getBoundingClientRect()
+        return {
+          left: words.left - (box.left + Number.parseFloat(style.paddingLeft)),
+          right: words.right - (box.right - Number.parseFloat(style.paddingRight)),
+        }
+      })
+      if (Math.abs(edges.left) > 1 || Math.abs(edges.right) > 1) {
+        misses.push(`${width}px: left ${edges.left.toFixed(1)}, right ${edges.right.toFixed(1)}`)
+      }
+    }
+    expect(misses, "the footer's words miss the page's column").toEqual([])
+  })
+
   for (const width of [320, 390, 1440]) {
     test(`fits its wordmark to the slab and scrolls nothing sideways at ${width}px`, async ({
       page,

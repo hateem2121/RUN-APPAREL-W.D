@@ -1,0 +1,414 @@
+/*
+ * The footer's prompt — the tab on the slab's edge, the question, the clock and the open/closed
+ * status — for the WEBSITE only (polish D1, 2026-10-04).
+ *
+ * These rules sat in packages/ui/src/footer.css, which both hosts load, until the garment pages
+ * stopped drawing the prompt (polish Q42: a garment page ends on "Ask about this garment",
+ * `.site-footer--no-prompt`). From then they were bytes in the garment pages' render-blocking
+ * stylesheet that styled nothing there, and that stylesheet decides a first paint held to 2,400ms
+ * on slow 3G (apps/viewer/e2e/firstPaint.spec.ts): 37 more compressed bytes for D1 cost a whole
+ * 150ms step there (measured 2026-10-04). Moved here word for word; only the website imports this
+ * file, after footer.css (apps/cms/src/app/(frontend)/layout.tsx), so the cascade is unchanged.
+ *
+ * ⚠️ THE PRINT BLOCK STAYS AT THE END OF THIS FILE, for footer.css's reason: a print rule above
+ * the screen rule it overrides is silently dead.
+ */
+
+/* ── the flipped notch ─────────────────────────────────────────────────────
+ *   header (.notch)              footer tab
+ *   border-end-*-radius          border-start-*-radius
+ *   fillet inset-block-start: 0  fillet inset-block-end: 0
+ *   mask circle at *,100%        mask circle at *,0
+ * The fillets live OUTSIDE the tab's box, one --notch-r each; the max-width reserves
+ * exactly that (see .notch-shell for why "exactly"). */
+.site-footer__tab {
+  --arrow-w: 14px;
+  --arrow-gap: 10px;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  z-index: var(--z-footer-tab);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  max-width: calc(100% - var(--notch-r) * 2);
+  padding-inline: 24px;
+  background: var(--volt);
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-instrument);
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-start-start-radius: var(--notch-r);
+  border-start-end-radius: var(--notch-r);
+  /* Ungated, unlike the hover transition further down — a press happens on both
+     pointer types and this tab is the footer's only call to action. */
+  transition: background-color var(--instant) var(--ease);
+}
+
+/*
+ * ⚠️ THE TAB PRESSES WITH COLOUR, NOT WITH `scale` LIKE EVERY OTHER CONTROL HERE.
+ *
+ * Its two concave fillets are `::before`/`::after` drawn OUTSIDE its own box, seating it
+ * into the slab's top edge (see the geometry note above). A transform on the tab scales
+ * its pseudo-elements with it, so `scale: 0.97` would lift the tab off the edge and open
+ * a hairline gap where the fillets were — the exact property the audit scored 9 for
+ * keeping still (FA-R-09: "its width, and therefore its two carved corner fillets, never
+ * change"). Colour costs a paint and moves no geometry.
+ *
+ * 88% volt / 12% ink measures 10.4:1 against the ink label — the hover mix goes the
+ * other way, toward white, so press and hover never look like the same state.
+ */
+.site-footer__tab:active {
+  background: color-mix(in srgb, var(--volt) 88%, var(--ink));
+}
+
+.site-footer__tab::before,
+.site-footer__tab::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 0;
+  width: var(--notch-r);
+  height: var(--notch-r);
+  background: var(--volt);
+  pointer-events: none;
+}
+
+.site-footer__tab::before {
+  inset-inline-end: 100%;
+  mask: radial-gradient(circle at 0 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
+}
+
+.site-footer__tab::after {
+  inset-inline-start: 100%;
+  mask: radial-gradient(circle at 100% 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
+}
+
+/* The label rests centred; on hover it slides left and the arrow arrives. The tab's
+   WIDTH NEVER CHANGES — the arrow's slot is always reserved and the label is nudged
+   right by half of it at rest — so the fillets never move. Touch has no hover, so
+   there the arrow is simply always shown. */
+.site-footer__tab-arrow {
+  font-family: var(--font-display);
+  width: var(--arrow-w);
+  margin-inline-start: var(--arrow-gap);
+  text-align: end;
+}
+
+.site-footer__tab:focus-visible {
+  outline: 2px solid var(--footer-text);
+  outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .site-footer__tab {
+    transition: background-color var(--fast) var(--ease);
+  }
+
+  .site-footer__tab:hover {
+    background: color-mix(in srgb, var(--volt) 88%, white);
+  }
+
+  .site-footer__tab-label {
+    transform: translateX(calc((var(--arrow-w) + var(--arrow-gap)) / 2));
+    transition: transform var(--ui) var(--ease);
+  }
+
+  .site-footer__tab-arrow {
+    opacity: 0;
+    transform: translateX(-6px);
+    transition:
+      opacity var(--fast) var(--ease),
+      transform var(--ui) var(--ease);
+  }
+
+  .site-footer__tab:hover .site-footer__tab-label,
+  .site-footer__tab:focus-visible .site-footer__tab-label {
+    transform: translateX(0);
+  }
+
+  .site-footer__tab:hover .site-footer__tab-arrow,
+  .site-footer__tab:focus-visible .site-footer__tab-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── the question ──────────────────────────────────────────────────────── */
+.footer-cta {
+  position: relative;
+  padding-block-start: clamp(44px, 6vw, 84px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: start;
+}
+
+/* On the 2px scale where the browser can round, AFTER the rule it refines (visual audit VA-17;
+   why, and why behind `@supports`: the note above `--site-gutter`'s rounding in tokens.css). */
+@supports (width: round(1px, 2px)) {
+  .footer-cta {
+    padding-block-start: round(clamp(44px, 6vw, 84px), 2px);
+  }
+}
+
+.footer-side {
+  display: grid;
+  gap: 14px;
+  justify-items: end;
+}
+
+@media (max-width: 720px) {
+  .footer-cta {
+    /*
+     * `minmax(0, 1fr)`, NOT `1fr` (audit TY-11). A bare `1fr` keeps an AUTOMATIC minimum, so
+     * the nowrap promise line below could stretch the whole column past the slab — and the
+     * slab is `overflow: hidden`, so at 200% browser text every paragraph in the column was
+     * clipped mid-word instead of wrapping. The two-column rule above already had this right.
+     */
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer-side {
+    justify-items: start;
+  }
+}
+
+.footer-eyebrow {
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--footer-muted);
+}
+
+.footer-q {
+  margin: 0;
+  max-width: 22ch;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 122%;
+  font-size: clamp(27px, 4.3vw, 52px);
+  line-height: 1;
+  letter-spacing: var(--tracking-display-sm);
+  text-wrap: balance;
+}
+
+.footer-q em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-stretch: 100%;
+  color: var(--volt);
+}
+
+.footer-derisk {
+  margin: 16px 0 0;
+  max-width: 44ch;
+  font-size: var(--text-sm);
+  color: var(--footer-muted);
+}
+
+/* the dimension line: end ticks on the ends of the text, so it is fit-content and
+   nowrap — a wrapped one measured half of what it labelled. */
+.footer-dim {
+  position: relative;
+  width: fit-content;
+  margin: 24px 0 0;
+  padding-block-start: 8px;
+  border-top: 1px solid currentColor;
+  color: var(--volt);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-instrument);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.footer-dim::before,
+.footer-dim::after {
+  content: "";
+  position: absolute;
+  inset-block-start: -4px;
+  width: 1px;
+  height: 8px;
+  background: currentColor;
+}
+
+.footer-dim::before {
+  inset-inline-start: 0;
+}
+
+.footer-dim::after {
+  inset-inline-end: 0;
+}
+
+/*
+ * One column below 720px, so the promise may wrap when it genuinely cannot fit — at 200% text on a
+ * phone (audit TY-11). At normal sizes it still fits on one row, so its ticks stay on the ends of
+ * its own text (footer.spec.ts). After the rules above rather than inside the 720px block with the
+ * rest of the CTA's narrow layout, so a more specific selector never precedes a less specific one
+ * (Biome's noDescendingSpecificity); `.footer-cta` keeps it to the promise line.
+ */
+@media (max-width: 720px) {
+  .footer-cta .footer-dim {
+    white-space: normal;
+  }
+}
+
+/* ── the clock, corner-bracketed ───────────────────────────────────────── */
+/*
+ * ⚠️ `max-width: 100%` AND A CAPTION THAT MAY WRAP (LA-06 sweep, 2026-09-25). With the whole
+ * clock on `nowrap`, a reader at 200% text on a 320px phone lost the last 40.8px of
+ * "SIALKOT · HQ & WORKS" off the right edge (0.8px at 360), and WebKit let the page slide
+ * sideways by 3px. The time stays on one line; only the caption breaks, between words.
+ * Measured with the browser's own text size (`Page.setFontSizes`), not an injected
+ * `html { font-size }` — e2e/textSize.spec.ts explains why only the first is real.
+ */
+.footer-clock {
+  position: relative;
+  display: inline-grid;
+  gap: 4px;
+  max-width: 100%;
+  padding: 10px 14px 8px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.footer-clock i {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.footer-clock::before,
+.footer-clock::after,
+.footer-clock i::before,
+.footer-clock i::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--footer-muted);
+  pointer-events: none;
+}
+
+.footer-clock::before {
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  border-width: 1px 0 0 1px;
+}
+
+.footer-clock::after {
+  inset-block-end: 0;
+  inset-inline-end: 0;
+  border-width: 0 1px 1px 0;
+}
+
+.footer-clock i::before {
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  border-width: 1px 1px 0 0;
+}
+
+.footer-clock i::after {
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  border-width: 0 0 1px 1px;
+}
+
+.footer-clock__city {
+  white-space: normal;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-clock-caption);
+  color: var(--footer-muted);
+}
+
+.footer-clock__time {
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-caps-compact);
+  font-weight: 500;
+}
+
+.footer-clock__time small {
+  margin-inline-start: 6px;
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-wide);
+  color: var(--footer-muted);
+}
+
+.footer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-spaced);
+  text-transform: uppercase;
+  color: var(--footer-muted);
+}
+
+.footer-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--footer-muted);
+}
+
+.footer-status[data-state="open"] {
+  color: var(--footer-text);
+}
+
+.footer-status[data-state="open"]::before {
+  background: var(--volt);
+  box-shadow: var(--shadow-raised);
+}
+
+/* Windows High Contrast: the tab's fillets are decoration and may go; the tab keeps a border. */
+@media (forced-colors: active) {
+  .site-footer__tab {
+    border: 1px solid CanvasText;
+  }
+
+  .site-footer__tab::before,
+  .site-footer__tab::after {
+    display: none;
+  }
+}
+
+/*
+ * Every focusable element already had a visible ring; the finding was that there were
+ * three variants on one page (audit FA-R-08). The page/footer split is justified — the
+ * volt ring is what carries contrast against the dark slab — but the tab's 4px offset
+ * made it the only ring on the site that does not sit 2px from its control, for no
+ * reason the design gives.
+ */
+.site-footer__tab:focus-visible {
+  outline-offset: 2px;
+  /*
+   * ⚠️ TWO TONES, BECAUSE THE TAB STRADDLES TWO GROUNDS (visual audit, 2026-10-01). It sits on the
+   * slab's top edge, half over the paper page and half over the dark slab, and its ring is
+   * `--footer-text` (paper). Photographed focused at 1440x900: the ring showed only along the
+   * slab and vanished on the paper half. An ink band behind it (the shadow, under the outline)
+   * shows on paper; the outline shows on the slab. Forced-colours mode drops the shadow and keeps
+   * the outline, which the system colours then make visible on both.
+   */
+  box-shadow: 0 0 0 6px var(--ink);
+}
+
+@media print {
+  /* Interaction and things that only mean something on a screen (footer.css's print block hides
+     the rest of the footer's). */
+  .site-footer__tab,
+  .footer-status {
+    display: none !important;
+  }
+}

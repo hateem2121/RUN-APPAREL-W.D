@@ -94,7 +94,9 @@ main narrowed `Media.read` — the catch-all test expects that, not 200.
 Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
 
 🟡 **The garment pages draw this footer too since 2026-10-02 (visual audit VA-31).** Its rules
-are `packages/ui/src/footer.css` (not site.css), its words, links and rules are
+are `packages/ui/src/footer.css` (not site.css), and the tab, question and clock that only the
+website draws are in `packages/ui/src/footer-prompt.css`, which only the website imports (polish
+D1: the garment pages' first paint pays for every byte they load); its words, links and rules are
 `packages/shared/src/siteFooter.ts`, and both browser suites hold it to `siteFooterAriaSnapshot`
 — so a block added or moved in `SiteFooter.tsx` must move in `apps/viewer/src/components/Footer.tsx`
 in the same change, or both suites fail. One deliberate difference since polish Q42 (owner,

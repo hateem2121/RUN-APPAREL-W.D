@@ -674,8 +674,9 @@ describe('raw values in component stylesheets', () => {
       selector: '.site-hero .display--hero',
       value: 'clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem)',
     },
-    // The footer's rules moved from site.css to the shared footer.css on 2026-10-02 (VA-31).
-    { file: 'footer.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
+    // The footer's rules moved from site.css to the shared footer.css on 2026-10-02 (VA-31); the
+    // question's, with the rest of the website-only prompt, to footer-prompt.css (polish D1).
+    { file: 'footer-prompt.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
     // VA-12 (2026-10-02): from 1920px the hero and the section headline keep growing, each in a
     // `@media (min-width: 1920px)` rule that starts at its old ceiling (72px, 46px) and stops at
     // 144px and 92px at 3840px. The five above are untouched; these three are added, and
@@ -1001,6 +1002,7 @@ describe('text on the --wash surface', () => {
       'base.css',
       'notch.css',
       'footer.css',
+      'footer-prompt.css',
       'page.css',
       'site.css',
     ].flatMap((file) => washTextFailures(readFileSync(cssPath(file), 'utf8'), tokensSource, file))

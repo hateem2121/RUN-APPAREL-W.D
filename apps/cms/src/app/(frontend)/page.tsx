@@ -133,24 +133,30 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№02 — What we make</p>
-          <h2 className="display display--section">Five families, one&nbsp;standard.</h2>
-          <p className="site-lede">
-            One standard means one factory, one set of hands and one set of tolerances — every
-            family below is cut, stitched and finished on the same floor, to the same specification,
-            whether it is a hundred pieces or a hundred thousand.
-          </p>
+          {/* The heading beside its words from 900px (`.section-head`, polish D1). */}
+          <div className="section-head">
+            <div className="section-head__title">
+              <p className="section-number">№02 — What we make</p>
+              <h2 className="display display--section">Five families, one&nbsp;standard.</h2>
+            </div>
+            <p className="site-lede">
+              One standard means one factory, one set of hands and one set of tolerances — every
+              family below is cut, stitched and finished on the same floor, to the same
+              specification, whether it is a hundred pieces or a hundred thousand.
+            </p>
+          </div>
           {/*
             ⚠️ ITS OWN GRID, NOT THE PRODUCT ONE (FA-E-01): five items in a generic `auto-fill`
             grid never resolve into a shape. The count mirrors the `category` options on
             Products, so the grid treats it as a composition rather than an unknown list.
           */}
           <ul className="family-grid">
-            {FAMILIES.map((family) => (
+            {FAMILIES.map((family, index) => (
               <FamilyCard
                 key={family.slug}
                 family={family}
                 picture={pictures[family.slug] ?? null}
+                last={index === FAMILIES.length - 1}
               />
             ))}
           </ul>
@@ -187,40 +193,48 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№05 — The works</p>
-          <h2 className="display display--section">
-            Numbers you can <span className="serif-accent">hold us&nbsp;to.</span>
-          </h2>
-          <p className="site-lede">
-            Confirmed capacity, not marketing. If any of these matters to your program, ask and we
-            will put it in writing.
-          </p>
+          <div className="section-head">
+            <div className="section-head__title">
+              <p className="section-number">№05 — The works</p>
+              <h2 className="display display--section">
+                Numbers you can <span className="serif-accent">hold us&nbsp;to.</span>
+              </h2>
+            </div>
+            <p className="site-lede">
+              Confirmed capacity, not marketing. If any of these matters to your program, ask and we
+              will put it in writing.
+            </p>
+          </div>
           <FactsBento />
         </div>
       </section>
 
       <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <p className="section-number">№06 — Talk to us</p>
-          <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-          <p className="site-lede">
-            Send the styles, quantities and specs you have — a sketch is enough to start. We reply
-            within 24 hours.
-          </p>
-          <div className="site-actions">
-            <Link className="btn btn--primary" href="/contact#inquiry">
-              Start a conversation
-            </Link>
-            <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
-              Email {settings.email}
-            </a>
-            <a
-              className="btn btn--ghost"
-              href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
-              rel="noopener"
-            >
-              WhatsApp
-            </a>
+        <div className="site-container section-head">
+          <div className="section-head__title">
+            <p className="section-number">№06 — Talk to us</p>
+            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
+          </div>
+          <div className="section-head__words">
+            <p className="site-lede">
+              Send the styles, quantities and specs you have — a sketch is enough to start. We reply
+              within 24 hours.
+            </p>
+            <div className="site-actions">
+              <Link className="btn btn--primary" href="/contact#inquiry">
+                Start a conversation
+              </Link>
+              <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
+                Email {settings.email}
+              </a>
+              <a
+                className="btn btn--ghost"
+                href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
+                rel="noopener"
+              >
+                WhatsApp
+              </a>
+            </div>
           </div>
         </div>
       </section>

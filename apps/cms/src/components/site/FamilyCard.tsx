@@ -1,20 +1,10 @@
 import Link from 'next/link'
-import { cardImage } from '../../lib/cardImage'
+import { cardImage, FAMILY_LAST_SIZES, FAMILY_SIZES } from '../../lib/cardImage'
 import type { Family, FamilyPicture } from '../../lib/families'
 import { familyHref } from '../../lib/familyPages'
 
-/**
- * How wide a family card draws, from `.family-grid` in site.css: one column below 560 px, two
- * up to 1,179 (each `(100vw - 42 px of gutters - a 24 px gap) / 2`), five across above that at
- * about 191 px. Only a hint: the picture it picks is one of `cardImage`'s three card sizes, the
- * only ones the wear-run.com firewall rule lets through.
- *
- * The fifth card spans both columns between 560 and 1,179 px, so it draws wider than this says.
- * Today that is Sports Accessories, which has no picture; if it gets one there, the browser
- * picks a smaller copy and the picture is softer there, never broken.
- */
-export const FAMILY_SIZES =
-  '(max-width: 559px) calc(100vw - 42px), (max-width: 1179px) calc(50vw - 33px), 200px'
+// How wide a family card draws: `lib/cardImage.ts`, beside the gallery card's, since polish D1.
+export { FAMILY_LAST_SIZES, FAMILY_SIZES }
 
 /**
  * One of the five family cards on the home page.
@@ -32,8 +22,19 @@ export const FAMILY_SIZES =
  * ⚠️ A CARD-SIZED COPY, NOT THE STUDIO RENDER (2026-09-30). The renders are the ones /products
  * showed before PR #93, 365–791 KB each for a box at most 369 px wide. The same Cloudflare resize
  * serves them here (`cardImage`), and a picture from any other address is left as it is.
+ *
+ * `last`: the fifth card, which spans both columns from 560 to 1,179 px and so draws wider than
+ * the others there (`FAMILY_LAST_SIZES`).
  */
-export function FamilyCard({ family, picture }: { family: Family; picture: FamilyPicture | null }) {
+export function FamilyCard({
+  family,
+  picture,
+  last = false,
+}: {
+  family: Family
+  picture: FamilyPicture | null
+  last?: boolean
+}) {
   // The site's own photos bring their widths; a product picture gets the resized card sizes.
   const image = picture
     ? picture.srcSet
@@ -50,7 +51,7 @@ export function FamilyCard({ family, picture }: { family: Family; picture: Famil
               className="family-card__img"
               src={image?.src}
               srcSet={image?.srcSet}
-              sizes={image?.srcSet ? FAMILY_SIZES : undefined}
+              sizes={image?.srcSet ? (last ? FAMILY_LAST_SIZES : FAMILY_SIZES) : undefined}
               alt={picture.alt}
               width={1200}
               height={1500}

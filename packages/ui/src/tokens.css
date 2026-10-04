@@ -360,36 +360,27 @@
    * and the page is centred (audit FA-D-01). Five pixels is the worst available value: too
    * small to read as contrast, large enough to read as a mistake.
    *
-   * Naming them also makes the width a single dial. `--site-max` is the ONLY thing the
-   * 1600px query below changes, and the gallery's fourth column, the wider hero and the
-   * footer's edge all follow from it — they cannot drift apart, because there is one
-   * number.
+   * Naming them also makes the width a single dial. `--site-max` is the ONLY thing the website's
+   * width steps change (site.css, 1280px and 1920px since polish D1), and the gallery's columns,
+   * the wider hero and the footer's edge all follow from it — they cannot drift apart, because
+   * there is one number. The footer's column is worked out from these two where it is used
+   * (footer.css); a third token for it is not kept, because a custom property's `var()`s are
+   * resolved where it is DECLARED, so a page that sets these two would have had to declare it again.
+   *
+   * In this file since 2026-10-02 (visual audit VA-31), because the shared footer reads them on
+   * both hosts. ⚠️ THE GARMENT PAGES SET THEIR OWN (polish D1, apps/viewer/src/styles/page.css,
+   * `.page`): their 1200px column, which their stage was measured against, and the website's width
+   * steps live in site.css, not here, so a garment page does not download them (its first paint on
+   * slow 3G is held to 2,400ms and was 16ms over with them, e2e/firstPaint.spec.ts).
    */
-  /* In this file since 2026-10-02 (visual audit VA-31): the footer lines up with this column on
-     the garment pages too, so the page's width is one source for both hosts. */
   --site-max: 1180px;
   --site-gutter: clamp(20px, 5vw, 64px);
-  /* what a `.site-container` child actually gets, at the cap */
-  --site-content: calc(var(--site-max) - var(--site-gutter) * 2);
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
   --font-mono:
     ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-}
-
-/*
- * Owner decision 2026-09-07 (audit FA-E-04): below 1600px nothing changes at all; above
- * it the page widens so a fourth gallery column fills space that was empty margin.
- * 1440 − 128 = 1312px of content takes four 260px minimum tracks with 24px gaps
- * (4 × 260 + 3 × 24 = 1112), where 1052px took three. Prose is unaffected — `p, li` are
- * capped at 60ch and `.site-lede` at 62ch, so nothing gets a longer line to read.
- */
-@media (min-width: 1600px) {
-  :root {
-    --site-max: 1440px;
-  }
 }
 
 /*

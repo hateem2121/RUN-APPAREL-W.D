@@ -94,37 +94,45 @@ export function GuidePage({ guide }: { guide: Guide }) {
         </div>
       </section>
 
+      {/* Each section's heading on the left and its words on the right from 900px (`.spread`,
+          polish D1): the words keep their 50ch measure, and the heading fills the half beside them. */}
       {guide.sections.map((section) => (
         <section className="site-section" data-site-reveal key={section.heading}>
-          <div className="site-container prose prose--guide">
+          <div className="site-container prose prose--guide spread">
             <h2 className="display display--section">{section.heading}</h2>
-            {section.blocks.map((block) => (
-              <Block
-                key={
-                  block.kind === 'list'
-                    ? block.items[0]
-                    : 'title' in block
-                      ? block.title
-                      : block.text
-                }
-                block={block}
-              />
-            ))}
+            <div className="spread__body">
+              {section.blocks.map((block) => (
+                <Block
+                  key={
+                    block.kind === 'list'
+                      ? block.items[0]
+                      : 'title' in block
+                        ? block.title
+                        : block.text
+                  }
+                  block={block}
+                />
+              ))}
+            </div>
           </div>
         </section>
       ))}
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-          <p className="site-lede">
-            Send the styles, quantities and specs you have — a sketch is enough to start. We reply
-            within 24 hours.
-          </p>
-          <div className="site-actions">
-            <Link className="btn btn--primary" href="/contact#inquiry">
-              {FAMILY_PAGE_ACTION}
-            </Link>
+          <div className="section-head">
+            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
+            <div className="section-head__words">
+              <p className="site-lede">
+                Send the styles, quantities and specs you have — a sketch is enough to start. We
+                reply within 24 hours.
+              </p>
+              <div className="site-actions">
+                <Link className="btn btn--primary" href="/contact#inquiry">
+                  {FAMILY_PAGE_ACTION}
+                </Link>
+              </div>
+            </div>
           </div>
           <GuideLinks current={guide.path} />
         </div>

@@ -98,6 +98,29 @@
 }
 
 /*
+ * ⚠️ THIS PAGE'S COLUMN IS TWO TOKENS, AND THE FOOTER READS THE SAME TWO (polish D1, 2026-10-04).
+ * The shared footer (packages/ui/src/footer.css) centres its words in `--site-max` less two
+ * `--site-gutter`s, which are the website's column unless a page says otherwise, and from D1 the
+ * website is 1440px from a 1280px screen and 1600px from 1920px. A garment page keeps its own
+ * 1200px column, which its stage was measured against, so it sets both here and `.content` (below)
+ * is drawn from them too: the column and the footer cannot drift apart. Until D1 they were two
+ * numbers and missed by 26px at 1440 (1180px against 1200px, 64px gutters against 48px); with the
+ * website's new widths they would have missed by 104px from 1440, 14px at 1280 and 4px on a phone
+ * (measured 2026-10-04, `e2e/siteFooter.spec.ts`). Now the footer's first word sits under the
+ * trail's, at every width.
+ */
+.page {
+  --site-max: 1200px;
+  --site-gutter: clamp(16px, 4vw, 48px);
+}
+
+@supports (width: round(1px, 2px)) {
+  .page {
+    --site-gutter: round(clamp(16px, 4vw, 48px), 2px);
+  }
+}
+
+/*
  * The page wrapper takes focus when the preloader leaves (`App.tsx`, audit
  * FA-H-26), so that the next Tab starts at the top of the document — at the skip
  * link — instead of inside <main>, past the header.
@@ -1774,11 +1797,13 @@ model-viewer.stage__model {
 }
 
 /* ── Main content grid ─────────────────────────────────────────────── */
+/* The page's column, 1200px with `clamp(16px, 4vw, 48px)` either side, is `.page`'s two tokens
+   (top of this file), which the footer reads too (polish D1); their rounded twin is there as well. */
 .content {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--site-max);
   margin: 0 auto;
-  padding: clamp(24px, 4vw, 56px) clamp(16px, 4vw, 48px);
+  padding: clamp(24px, 4vw, 56px) var(--site-gutter);
   display: grid;
   gap: clamp(32px, 5vw, 64px);
 }
@@ -1786,7 +1811,6 @@ model-viewer.stage__model {
 @supports (width: round(1px, 2px)) {
   .content {
     padding-block: round(clamp(24px, 4vw, 56px), 2px);
-    padding-inline: round(clamp(16px, 4vw, 48px), 2px);
     gap: round(clamp(32px, 5vw, 64px), 2px);
   }
 }

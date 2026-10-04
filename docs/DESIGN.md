@@ -312,8 +312,9 @@ the garment looked drawn for a laptop. From 1920px, and only from there, they ke
   rules gated by `@media (min-width: 1920px)` in `base.css` and `site.css`. The two `clamp()` rules
   above are untouched (TY-03 pins them), and the new ones start at exactly the old ceilings, so
   nothing moves at 1920px; the rem floor keeps a reader's larger text size.
-- The 144px ceiling is worked out: the page's column is 1312px of text at most and "PRODUCTION." is
-  8.9em wide, so it stops fitting at 147px; 144px leaves 2%.
+- The 144px ceiling is worked out: the page's column was 1312px of text at most and "PRODUCTION." is
+  8.9em wide, so it stopped fitting at 147px; 144px left 2%. Since polish D1 (2026-10-04) the column
+  is 1472px from 1920px wide, so the word fits up to 165px and 144px leaves 12%.
 - Tracking scales with the type: `--tracking-display-large` is `-0.03em`, which is what the two px
   tokens give at the 1920px sizes, and it keeps large type as tight as §3 asks.
 - The stage (`page.css`): measure `max(1200px, min(62.5vw, calc(100svh * 1200 / 1080), 2400px))` and
@@ -321,8 +322,9 @@ the garment looked drawn for a laptop. From 1920px, and only from there, they ke
   and height — so a window that is wide and only 1080px tall does not grow, because its garment is
   limited by height. The measure and the cap move together: raised alone, the garment turns
   width-limited and gains nothing.
-- Not moved: the page columns (`--site-max`, the garment pages' 1200px content), the aside's width,
-  and the product's name in it (`.product-info--aside`, sized to its own column).
+- Not moved by VA-12: the page columns (`--site-max`, the garment pages' 1200px content), the aside's
+  width, and the product's name in it (`.product-info--aside`, sized to its own column). The website's
+  column moved later, with polish D1 (Page widths, below).
 - The canvas widths are arithmetic. Its height is what the window leaves it, roughly 1200px at
   2560x1440 (about 38% of that screen); that was not measured here.
   `apps/viewer/src/styles/largeScreens.test.ts` computes the rules at the pinned widths, and both
@@ -546,8 +548,20 @@ Two measures, on purpose (owner, 2026-10-01: document, do not merge):
 
 | Surface | Content width | Why |
 |---|---|---|
-| The website | `--site-max` **1180px**, **1440px** from 1600px wide | a fourth gallery column above 1600px (D4, FA-E-04); prose stays capped at 60–62ch. In `tokens.css` since 2026-10-02: the footer lines up with this column on the garment pages too (VA-31) |
-| A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that |
+| The website | `--site-max` **1180px**, **1440px** from a 1280px screen, **1600px** from 1920px | polish D1 (2026-10-04): at 1440 wide the 1180px page left 194px empty each side, and its words used the left half of what was left. The room goes to the heading beside its words and to the card grids; prose stays at `--site-measure` (55ch). In `tokens.css` since 2026-10-02 (VA-31) |
+| A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that. `.page` sets `--site-max` and `--site-gutter` to this column and `.content` is drawn from them, so the shared footer, which reads the same two, lines up with it (D1; it had missed by 26px at 1440). The website's width steps live in `site.css`, so a garment page never downloads them |
+
+### A section's head: the heading beside its words
+
+From 900px (polish D1), a section's label and heading take the left three fifths of the column and
+its paragraph, with any buttons, the right two (`.section-head`, site.css): a paragraph alone sits
+on the heading's last line, and words with buttons start level with the heading so the buttons run
+on below it. Three fifths, not half, because a heading's last two words are joined
+by a no-break space (TY-12) and in half a column at 1024px "YOU'RE MAKING." no longer fit. A list
+under a heading takes halves, the heading at the top of the left one and the entries in the right,
+where running text needs the room (`.spread`: the category pages' lists and the guides' sections).
+The markup keeps its order (label, heading, words, buttons), so a screen reader and the Tab key
+meet them as before; below 900px they stack as they always did.
 
 ### Breakpoints
 
@@ -562,17 +576,17 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
 | `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
 | `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' filter is one row that scrolls sideways (VA-42) |
-| `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
+| `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
-| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
+| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
 | `700px` and `orientation: portrait` | `page.css` | an upright tablet keeps the phone's one column, its garment window half the screen tall so the name under it is on the first screen (polish F11) |
 | `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one). The garment's facts follow the same query into the 3D window's four corners, unless the 3D cannot run (polish D10; `specsInCorners` in `App.tsx` decides, so they are drawn once) |
 | `1024px` and `min-height: 656px`, sideways, and container `colourrail` `350px` | `page.css` | beside the garment, each colour's name under its dot, three to a row (polish D8) |
 | `1180px` | `site.css` | the product families go to five columns |
-| `max-width: 899px`, `900px`, `1440px` | `site.css` | the product grid is two columns, three from 900px and four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px), each with its own rule against a lone last card (VA-42) |
-| `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
-| `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12) |
+| `1280px` | `site.css` | the website's column widens to 1440px (polish D1; it was 1180px until 1600px) |
+| `max-width: 899px`, `900px`, `1440px`, `1920px` | `site.css` | the product grid is two columns, three from 900px, four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px) and five from 1920px (polish D1), each with its own rule against a lone last card (VA-42) |
+| `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12); the website's column is 1600px (polish D1) |
 | container `colourrail`: `252px`, `350px` | `page.css` | below 252px the dots go three to a row (3 + 2, VA-32); from 350px, beside the garment, each dot has its name under it (polish D8) |
 
 ### Pictures in rows: the order timeline
@@ -611,16 +625,18 @@ Accessories, which has no buyer page, has neither link. The gallery's canonical 
 first one, and at 1440px the 40 cards leaving one alone on the last row. Decision D1 stands: one
 long page, every garment in the document. Since the owner's call of 2026-10-02 the fourth column
 starts at 1440px, so the catalogue's 40 garments fill ten rows of four there; 1280px keeps three.
+From 1920px, where the page is 1600px wide since polish D1, there are five: eight full rows.
 
 | Width | Columns | Picture | The filter on `/products` |
 |---|---|---|---|
 | under 560px | 2 | square | one row that scrolls sideways |
 | 560 to 899px | 2 | 4:5 | wraps |
 | 900 to 1439px | 3 | 4:5 | wraps |
-| 1440px and up | 4 | 4:5 | wraps |
+| 1440 to 1919px | 4 | 4:5 | wraps |
+| 1920px and up | 5 | 4:5 | wraps |
 
 The counts are written out rather than left to `auto-fill`, because the rule against a lone last
-card has to know them. With three or four columns and one card over, the second-to-last card
+card has to know them. With three, four or five columns and one card over, the second-to-last card
 starts the last row, so it holds two. With two columns and an odd count the last card spans both
 and lies down, its picture on the left and its words on the right. A single card on a page is
 left alone. `apps/cms/src/productGridOrphans.test.ts` runs the real selectors over every count
@@ -813,7 +829,10 @@ in `notch.css`, and the website never sets the attribute.
 One footer on the public site and the 3D garment pages since 2026-10-02 (visual audit VA-31,
 owner-approved 2026-10-01: the garment pages had ended in a pale footer of their own, which no
 decision chose). The bar's arrangement: its stylesheet is
-[`packages/ui/src/footer.css`](../packages/ui/src/footer.css); its words, links and rules are
+[`packages/ui/src/footer.css`](../packages/ui/src/footer.css), with the tab, question and clock
+that only the website draws (polish Q42) in
+[`packages/ui/src/footer-prompt.css`](../packages/ui/src/footer-prompt.css), which only the website
+imports (polish D1); its words, links and rules are
 [`packages/shared/src/siteFooter.ts`](../packages/shared/src/siteFooter.ts); each app writes the
 same markup in its own framework (`apps/cms/src/components/site/SiteFooter.tsx`,
 `apps/viewer/src/components/Footer.tsx`), and both browser suites hold the result to one

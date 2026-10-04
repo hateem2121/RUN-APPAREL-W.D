@@ -1,5 +1,7 @@
+import { FAMILY_SIZES } from '../src/lib/cardImage'
 import { ORDER_PHASES } from '../src/lib/orderProcess'
 import { expect, type Page, test } from './offlineMedia'
+import { hintedWidth } from './sizesHint'
 
 /**
  * IM-12 — the home page's pictures are real garments and the owner's factory, and nothing
@@ -139,4 +141,59 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
     // 2026-09-28; it was the viewer's own host until then).
     await expect(link).toHaveAttribute('href', /^https:\/\/[^/]+\/products\/[^/]+\/[^/]+$/)
   })
+})
+
+test.describe('no picture asks for less than it draws (polish D1)', () => {
+  /*
+   * The page widened to 1440px from a 1280px screen and 1600px from 1920px, so every picture laid
+   * out in its column drew wider than the `sizes` written for the 1180px page: the factory photos
+   * beside "Who we are" 704px against a 540px hint, the family cards 275px against 200px. A browser
+   * picks the file from the hint before layout, so a sharp screen got a file to stretch.
+   * Each picture's own `sizes` is measured where the page carries one, and FAMILY_SIZES against
+   * the first family card's picture box as well, in case a seed has no media-host picture for it.
+   * What would have to break: a layout change at any of these widths that a hint did not follow.
+   * It found one the wider page did not cause: the fifth family card spans both columns from 560 to
+   * 1179px and asked for 417px at 900px while drawing 555 in Chromium and 582 in Firefox
+   * (`FAMILY_LAST_SIZES`).
+   *
+   * ⚠️ WITH REDUCED MOTION, as every layout suite here. Otherwise the factory photos' drift scales
+   * each one 1.12 times while it scrolls (`.photo-parallax`, Chromium and WebKit), and the box
+   * measured is the enlarged one, not the layout box a `sizes` hint describes.
+   */
+  for (const width of [390, 899, 900, 1179, 1279, 1280, 1439, 1440, 1919, 1920, 2560]) {
+    test(`at ${width}px`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      const short = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLImageElement>('main img[sizes]')]
+          .map((img) => ({
+            what: img.alt || img.currentSrc.split('/').pop() || '(no alt)',
+            sizes: img.sizes,
+            drawn: img.getBoundingClientRect().width,
+          }))
+          .filter((picture) => picture.drawn > 0),
+      )
+      expect(short.length, 'no picture with a sizes hint on the home page').toBeGreaterThan(0)
+      const misses: string[] = []
+      for (const picture of short) {
+        const hinted = await hintedWidth(page, picture.sizes)
+        if (!(hinted >= picture.drawn - 0.5)) {
+          misses.push(
+            `${picture.what}: asks ${hinted.toFixed(1)}, draws ${picture.drawn.toFixed(1)}`,
+          )
+        }
+      }
+      expect(misses, `${width}px: a picture asks for less than it draws`).toEqual([])
+
+      const box = await page
+        .locator('.family-grid .family-card__media')
+        .first()
+        .evaluate((media) => media.getBoundingClientRect().width)
+      const hinted = await hintedWidth(page, FAMILY_SIZES)
+      const said = `${width}px: a family card asks ${hinted}px and draws ${box}px`
+      expect(hinted, said).toBeGreaterThanOrEqual(box - 0.5)
+      expect(hinted, said).toBeLessThanOrEqual(box * 1.4)
+    })
+  }
 })

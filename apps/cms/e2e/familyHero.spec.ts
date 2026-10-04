@@ -187,7 +187,8 @@ test.describe('where the picture sits', () => {
       'the picture and the lede start at different heights',
     ).toBeLessThanOrEqual(24)
     expect(boxes.frame.width, 'the picture is not the 420px column').toBeLessThanOrEqual(420.5)
-    // The headline keeps the whole 1052px column: it is not squeezed in beside the picture.
+    // The headline keeps the whole column (1312px at 1440 since polish D1): it is not squeezed in
+    // beside the picture.
     expect(boxes.h1.width, 'the headline was squeezed into half a column').toBeGreaterThan(900)
   })
 

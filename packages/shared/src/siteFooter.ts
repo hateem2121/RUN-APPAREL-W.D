@@ -19,7 +19,8 @@ import { marksFor } from './standardsLogos'
  * ⚠️ WHY THE MARKUP IS NOT HERE — the bar's reason (siteBar.ts). The site's footer is a Next
  * server component with client islands; the garment pages' is a client component in a Vite SPA
  * whose links go to the site. So each app writes its own JSX, and what a visitor could see drift
- * is shared instead: the stylesheet is packages/ui/src/footer.css, the words, links and rules are
+ * is shared instead: the stylesheet is packages/ui/src/footer.css (the website-only prompt in
+ * packages/ui/src/footer-prompt.css, polish D1), the words, links and rules are
  * here, and `siteFooterAriaSnapshot` is the one template both apps' browser suites hold their
  * rendered footer to.
  */

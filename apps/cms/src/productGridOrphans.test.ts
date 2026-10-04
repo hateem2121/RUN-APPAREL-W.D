@@ -212,7 +212,9 @@ const WIDTHS = [
   { width: 1280, columns: 3 },
   // Four from 1440px since 2026-10-02 (the owner's call; it was 1600px, decision D4).
   { width: 1440, columns: 4 },
-  { width: 1920, columns: 4 },
+  { width: 1919, columns: 4 },
+  // Five from 1920px since polish D1 (2026-10-04), where the page is 1600px wide.
+  { width: 1920, columns: 5 },
 ] as const
 
 describe('the grid has the column counts the rules assume', () => {
@@ -222,10 +224,11 @@ describe('the grid has the column counts the rules assume', () => {
     })
   }
 
-  it('is two below 900px, three from 900px, four from 1440px, and never auto-fill', () => {
+  it('is two below 900px, three from 900px, four from 1440px, five from 1920px, never auto-fill', () => {
     expect([320, 559, 560, 899].map((width) => columnsAt(width, RULES))).toEqual([2, 2, 2, 2])
     expect([900, 1280, 1439].map((width) => columnsAt(width, RULES))).toEqual([3, 3, 3])
-    expect([1440, 1600, 2560].map((width) => columnsAt(width, RULES))).toEqual([4, 4, 4])
+    expect([1440, 1600, 1919].map((width) => columnsAt(width, RULES))).toEqual([4, 4, 4])
+    expect([1920, 2560, 3840].map((width) => columnsAt(width, RULES))).toEqual([5, 5, 5])
     expect(SITE_CSS).not.toMatch(/\.product-grid\s*\{[^}]*auto-fill/)
   })
 })

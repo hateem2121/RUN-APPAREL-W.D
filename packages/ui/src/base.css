@@ -294,11 +294,13 @@ li {
  * `3.75vw` and `2.3958vw` are 72px and 46px divided by 1920, so the size is continuous at 1920. The
  * `max()` keeps the rem ceiling underneath, so a visitor who raised the browser's text size never gets
  * less than before (4.5rem is 90px at a 20px root). The `min()` is a ceiling at 3840px, and it is
- * worked out, not a taste: the page's column stops at `--site-max` (1440px: 1312px of text), and the
- * word that fixed the hero's floor on 2026-09-11, "PRODUCTION.", is 8.9em wide (302.8px at 34px,
- * docs/DESIGN.md §3), so it stops fitting that column at 147px. 144px keeps 2% of room, where the
- * engines differ on that word by under 1% (278.6px against 280.38px at 31.36px), so a word is not
- * split — the owner's rule of that day. The stage stops growing at the same 3840px (page.css).
+ * worked out, not a taste: the page's column stopped at `--site-max` (1440px then: 1312px of text),
+ * and the word that fixed the hero's floor on 2026-09-11, "PRODUCTION.", is 8.9em wide (302.8px at
+ * 34px, docs/DESIGN.md §3), so it stopped fitting that column at 147px. 144px kept 2% of room, where
+ * the engines differ on that word by under 1% (278.6px against 280.38px at 31.36px), so a word is
+ * not split — the owner's rule of that day. Since polish D1 (2026-10-04) the column is 1600px from
+ * 1920px (1472px of text, so the word fits up to 165px) and 144px keeps 12% of room. The stage
+ * stops growing at the same 3840px (page.css).
  *
  * Tracking goes with it (`--tracking-display-large`, tokens.css), because a px tracking would loosen
  * the type as it grows; `.serif-accent` inherits it.

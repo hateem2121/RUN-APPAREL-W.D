@@ -110,6 +110,11 @@ the 40 garments fill ten rows of four on a 1440px screen instead of leaving one 
 three, so the guard above still holds; `apps/cms/src/productGridOrphans.test.ts` and
 `apps/cms/e2e/productsGrid.spec.ts` check 1440px too.
 
+**Amended 2026-10-04 (owner's polish plan, D1):** the page itself is wider, 1440px from a 1280px
+screen and 1600px from 1920px (it was 1180px until 1600px), and a fifth column starts at **1920px**,
+where five cards are about the width four have at 1440px. 1280px still has three, now wider; the
+guard reads three at 1280px, four at 1440px and five at 1920px.
+
 ### D5 · The viewer wordmark becomes a link home — `FA-W-02`
 
 **Decision: the company name in the viewer header links to `wear-run.help`.**

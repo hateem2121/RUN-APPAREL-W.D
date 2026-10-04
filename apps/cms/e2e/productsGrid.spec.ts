@@ -1,5 +1,7 @@
+import { CARD_SIZES } from '../src/lib/cardImage'
 import { nameSegments } from '../src/lib/cardName'
 import { expect, type Page, test } from './offlineMedia'
+import { hintedWidth } from './sizesHint'
 
 /**
  * VA-42 (visual audit, owner's choice 2026-10-02): /products on a phone ran to 36 screens because
@@ -384,15 +386,17 @@ test.describe('VA-42 — no card is left alone on the last row, at any width', (
   /*
    * 40 is the audit's own count (3 x 13 + 1 at 1440px, which had three columns then; four since the
    * owner's call of 2026-10-02, so three are checked at 1280px); 37 and 41 are one-over a row at
-   * three and four columns, 38 and 39 are the counts either side. The phone is held to the weaker
-   * promise two columns can keep: two cards, or one card that fills the row.
+   * three and four columns, and 41 at five too (from 1920px since polish D1); 38 and 39 are the
+   * counts either side. The phone is held to the weaker promise two columns can keep: two cards, or
+   * one card that fills the row.
    */
   const COUNTS = [37, 38, 39, 40, 41]
 
   for (const { width, columns } of [
     { width: 1280, columns: 3 },
     { width: 1440, columns: 4 },
-    { width: 1920, columns: 4 },
+    { width: 1919, columns: 4 },
+    { width: 1920, columns: 5 },
   ]) {
     test(`at ${width}px (${columns} columns): the last row holds two cards or more, for ${COUNTS.join(', ')} cards`, async ({
       page,
@@ -483,4 +487,32 @@ test.describe('VA-42 — no card is left alone on the last row, at any width', (
       grid.width * 0.6,
     )
   })
+})
+
+test.describe('a card never asks for a smaller picture than it draws (polish D1)', () => {
+  /*
+   * The page widened (1440px from a 1280px screen, 1600px from 1920px) and a fifth column came in,
+   * so the card's width changed at every computer size while `sizes` still said 340px: between 1280
+   * and 1439px a card draws 368-421px, and a sharp screen would have been handed the 720px file for
+   * a card needing 842. The browser chooses a file from this hint alone, so the hint has to follow
+   * the card. CI's seed stores its pictures locally, so its cards carry no `sizes` at all
+   * (`cardImage` resizes only the media host's pictures); the hint is therefore checked against
+   * real cards here, not read off them.
+   * What would have to break for this to fail: a column count or the page's width changing without
+   * `CARD_SIZES` (src/lib/cardImage.ts) following, in either direction (past 40% too large).
+   */
+  for (const width of [390, 899, 900, 1179, 1279, 1280, 1439, 1440, 1919, 1920, 2560]) {
+    test(`at ${width}px`, async ({ page }) => {
+      await open(page, width, 900)
+      await fill(page, 6)
+      const drawn = await page
+        .locator('.product-grid .product-card__figure')
+        .first()
+        .evaluate((figure) => figure.getBoundingClientRect().width)
+      const hinted = await hintedWidth(page, CARD_SIZES)
+      const said = `${width}px: asks for ${hinted}px, the card draws ${drawn}px`
+      expect(hinted, said).toBeGreaterThanOrEqual(drawn - 0.5)
+      expect(hinted, said).toBeLessThanOrEqual(drawn * 1.4)
+    })
+  }
 })

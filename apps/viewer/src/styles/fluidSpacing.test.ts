@@ -21,6 +21,7 @@ const SHEETS = [
   'packages/ui/src/base.css',
   'packages/ui/src/notch.css',
   'packages/ui/src/footer.css',
+  'packages/ui/src/footer-prompt.css',
   'apps/cms/src/app/(frontend)/site.css',
   'apps/viewer/src/styles/page.css',
 ]
