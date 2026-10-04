@@ -36,5 +36,25 @@ export function familySlug(category: string): string {
 /** A category's page on the website, root-relative: its own page, or the family filter. */
 export function categoryPath(category: string): string {
   const name = category.trim()
-  return CATEGORY_PAGE_PATHS[name as ProductCategory] ?? `/products?family=${familySlug(name)}`
+  return CATEGORY_PAGE_PATHS[name as ProductCategory] ?? categoryGalleryPath(name)
+}
+
+/**
+ * A category's gallery on the website, root-relative: every garment in it, with the other
+ * families' chips beside them (the website's `familyGalleryHref`). It is where "See all … in 3D"
+ * leads, on a buyer page and on a garment page alike (polish S6), so the same words always open
+ * the same page; the trail's category step opens the buyer page (`categoryPath`).
+ */
+export function categoryGalleryPath(category: string): string {
+  return `/products?family=${familySlug(category.trim())}`
+}
+
+/**
+ * "See all outerwear in 3D": the words the owner approved on 2026-10-02 for a link to a category's
+ * gallery (visual audit VA-33). Built from the category's own name, lower-cased, so the words
+ * cannot drift from the category they name. The website's `seeAllLabel` (familyPages.ts) is this
+ * function, and its `familyCrossLinks.test.ts` pins the four approved phrasings.
+ */
+export function seeAllInCategoryLabel(category: string): string {
+  return `See all ${category.trim().toLowerCase()} in 3D`
 }

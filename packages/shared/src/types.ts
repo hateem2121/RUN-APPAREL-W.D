@@ -166,6 +166,28 @@ export interface ViewerApiSuccess {
   /** Display-safe notice shown when requestedColourwayUnavailable is true. */
   fallbackMessage: string | null
   siteSettings: ViewerSiteSettings
+  /**
+   * Up to four other garments from the same category, for "More from <category>" at the end of
+   * the page (polish S6, 2026-10-04): the ones that follow this garment in the website's order,
+   * wrapping round. Optional, because an answer cached before then has none, and the section is
+   * then simply not drawn.
+   */
+  related?: ViewerRelatedGarment[]
+}
+
+/** Another garment of the same category, as a card: its name, code, picture and page. */
+export interface ViewerRelatedGarment {
+  slug: string
+  /** The colour the card opens: the garment's default, as the website's cards open it. */
+  colourSlug: string
+  productName: string
+  productCode: string
+  /**
+   * The card's picture, chosen as the website's cards choose it: the default colour's studio
+   * render where it has one, else its 3D poster. `null` draws no picture. No description: the
+   * picture sits inside a link that the garment's name already names.
+   */
+  imageUrl: string | null
 }
 
 export interface ViewerApiError {

@@ -1,9 +1,11 @@
 import {
   buildViewerPath,
+  categoryGalleryPath,
   categoryPath,
   GARMENT_PATH_PREFIX,
   garmentPageTitle,
   PAGE_TITLE_BRAND,
+  seeAllInCategoryLabel,
   type ViewerApiSuccess,
 } from '@run-apparel/shared'
 import type { OgCard } from './og-cards'
@@ -341,11 +343,27 @@ function buildCrawlerBody(
     )
   if (colours.length > 1) parts.push(`<h2>Colorways</h2><ul>${colours.join('')}</ul>`)
 
+  // "More from this category" (polish S6), in the page's own words (RelatedGarments.tsx): each
+  // garment the CMS sent, linked to its page, then the category's gallery. These links are how a
+  // robot that does not run JavaScript walks from a garment to its neighbours. On the website
+  // only, with the other links to its pages below.
+  const category = p.category.trim()
+  const related = (payload.related ?? []).filter(
+    (garment) => garment.slug && garment.colourSlug && garment.productName.trim(),
+  )
+  if (onSite && category && related.length > 0) {
+    const cards = related.map(
+      (garment) =>
+        `<li><a href="${esc(`${origin}${buildViewerPath(garment.slug, garment.colourSlug, GARMENT_PATH_PREFIX)}`)}">${esc(garment.productName.trim())}</a></li>`,
+    )
+    const all = `<a href="${esc(`${origin}${categoryGalleryPath(category)}`)}">${esc(seeAllInCategoryLabel(category))}</a>`
+    parts.push(`<h2>${esc(`More ${category} in 3D.`)}</h2><ul>${cards.join('')}</ul><p>${all}</p>`)
+  }
+
   // The website's own pages, only where they exist: the old viewer host just forwards.
   if (onSite) {
     const products = `${origin}${GARMENT_PATH_PREFIX}`
     const links = [`<a href="${esc(products)}">All products</a>`]
-    const category = p.category.trim()
     if (category) {
       links.push(`<a href="${esc(`${origin}${categoryPath(category)}`)}">${esc(category)}</a>`)
     }

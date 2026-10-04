@@ -3859,8 +3859,10 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
    *
    * THREE SINCE 2026-10-02: the footer was the fourth, and its reveal went with it when these
    * pages took the website's footer (visual audit VA-31), which has never revealed on the site.
+   * FOUR AGAIN SINCE 2026-10-04: "More from this category" (polish S6) sits between customise
+   * and contact, the two sections that already reveal, and moves as they do.
    */
-  test('three blocks reveal, each by fading and rising', async ({ page }) => {
+  test('four blocks reveal, each by fading and rising', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -3872,7 +3874,12 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
           .map((p) => p.trim()),
       })),
     )
-    expect(inventory.map((r) => r.block).sort()).toEqual(['colourways', 'contact', 'customise'])
+    expect(inventory.map((r) => r.block).sort()).toEqual([
+      'colourways',
+      'contact',
+      'customise',
+      'related',
+    ])
     for (const r of inventory) {
       expect(r.properties, `${r.block} does not fade`).toContain('opacity')
       expect(r.properties, `${r.block} does not rise`).toContain('transform')

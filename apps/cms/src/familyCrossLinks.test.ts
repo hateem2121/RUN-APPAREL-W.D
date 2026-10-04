@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { categoryGalleryPath, seeAllInCategoryLabel } from '@run-apparel/shared'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
@@ -91,6 +92,15 @@ describe('the addresses', () => {
       expect(familyPageFor(family(slug))?.path).toBe(page)
     })
   }
+
+  // A garment page's "See all … in 3D" (polish S6) is built in packages/shared, which cannot read
+  // `families.ts`: the two must open the same gallery, family by family.
+  it('a garment page’s "See all" opens the same gallery as the buyer page’s', () => {
+    for (const entry of FAMILIES) {
+      expect(categoryGalleryPath(entry.name), entry.name).toBe(familyGalleryHref(entry))
+      expect(seeAllInCategoryLabel(entry.name), entry.name).toBe(seeAllLabel(entry))
+    }
+  })
 
   // The trap: `familyHref` is "the buyer page when it has one", so using it for the gallery
   // link would send the buyer page back to itself and look fine in the source.

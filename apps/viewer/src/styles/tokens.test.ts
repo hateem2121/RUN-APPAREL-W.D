@@ -700,6 +700,14 @@ describe('raw values in component stylesheets', () => {
       selector: '.product-card__body .product-card__name',
       value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
     },
+    // The same rule on a garment page's "More from this category" cards (polish S6, 2026-10-04),
+    // two to a row on a phone like the website's: `e2e/related.spec.ts` sets the catalogue's long
+    // words in them at five phone widths, with a negative control at a fixed 18px.
+    {
+      file: 'related-cards.css',
+      selector: '.related__body .related__name',
+      value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
+    },
   ] as const
   const RATIOS = [{ file: 'base.css', selector: '.serif-accent', value: '1.07em' }] as const
 

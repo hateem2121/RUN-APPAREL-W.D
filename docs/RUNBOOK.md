@@ -1648,8 +1648,10 @@ now fetches every colourway's poster after a deploy and fails on one that is not
 
 Since 2026-09-29 the /products cards show card-sized copies of each picture, resized by
 Cloudflare on the page's own address (`/cdn-cgi/image/…`, built by
-`apps/cms/src/lib/cardImage.ts`, quality 90 by the owner's choice). The full studio renders
-(365–791 KB) had taken the phone score to 0.67; measured with the copies, 0.86.
+`packages/shared/src/cardImage.ts`, quality 90 by the owner's choice). The full studio renders
+(365–791 KB) had taken the phone score to 0.67; measured with the copies, 0.86. Since polish S6
+(2026-10-04) the garment pages' "More from <category>" cards ask for the same copies, from the
+same builder.
 
 It depends on two things no code can see:
 
@@ -1664,7 +1666,7 @@ It depends on two things no code can see:
 - **The firewall rule.** "Only the card picture sizes may be resized" on `wear-run.com`
   (Security → WAF → Custom rules, added 2026-09-29) blocks every `/cdn-cgi/image/` request
   except the three card sizes at quality 90 from media.wear-run.com, so nobody can spend the
-  quota on odd sizes. 🟡 **Change the sizes or the quality in `apps/cms/src/lib/cardImage.ts`
+  quota on odd sizes. 🟡 **Change the sizes or the quality in `packages/shared/src/cardImage.ts`
   and you must change this rule in the same breath**: a blocked picture is a 403, which the
   fallback below does NOT catch, so every card would lose its picture. The test
   `cardImage.test.ts` → "asks only for the three sizes the firewall rule allows" fails first.

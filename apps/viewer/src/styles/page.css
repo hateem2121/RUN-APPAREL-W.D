@@ -2546,6 +2546,21 @@ summary.spec-item__row:focus-visible {
   color: var(--muted);
 }
 
+/*
+ * ── More from this category (polish S6, RelatedGarments.tsx) ─────────
+ *
+ * The section only. The cards' rules are in related-cards.css, which loads with the cards after
+ * the page has drawn: in this file they delayed every first paint (that file says how much).
+ */
+.related {
+  display: grid;
+  gap: 18px;
+}
+
+.related__all {
+  justify-self: start;
+}
+
 /* ── Contact ───────────────────────────────────────────────────────── */
 .contact {
   display: grid;
@@ -3170,6 +3185,7 @@ summary.spec-item__row:focus-visible {
   .stage__contact,
   .product-info__more,
   .customise,
+  .related,
   .contact,
   .site-footer__tab,
   .footer-cta,

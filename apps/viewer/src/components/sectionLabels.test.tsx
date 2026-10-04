@@ -72,7 +72,11 @@ describe('the garment pages’ section labels (VA-39)', () => {
 
   it('finds the labels it is meant to guard (a scan that finds none passes vacuously)', () => {
     const files = LABELS.map((entry) => entry.file).sort()
-    expect(files).toEqual(['components/Contact.tsx', 'components/CustomisationSection.tsx'])
+    expect(files).toEqual([
+      'components/Contact.tsx',
+      'components/CustomisationSection.tsx',
+      'components/RelatedGarments.tsx',
+    ])
   })
 
   for (const { file, label } of LABELS) {

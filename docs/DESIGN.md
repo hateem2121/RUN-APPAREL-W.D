@@ -239,7 +239,9 @@ takes a range in `cqi`, the card's body being the container: 13.3px at 320px, 16
 (VA-42) leave a name 108px at 320px, and the catalogue's widest word, PERFORMANCE, is 140.1px
 at 18px, so at a fixed 18px eight live words broke mid-word at 320px. A hyphenated word
 (V-NECK) is held whole. `apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words in
-a phone card at seven widths.
+a phone card at seven widths. A garment page's "More from this category" cards (polish S6,
+2026-10-04) are the same card two to a row, and `.related__body .related__name` takes the same
+range: its words have 112px at 320px, and `apps/viewer/e2e/related.spec.ts` checks five widths.
 
 **Tracking follows the optical size — changed 2026-08-15 by owner decision.**
 

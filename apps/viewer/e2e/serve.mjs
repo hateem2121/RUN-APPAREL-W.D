@@ -355,6 +355,45 @@ const PRODUCTS = {
   },
 }
 
+// "More from this category" (polish S6): what the CMS sends with n001's answer, the four garments
+// after it in its category (apps/cms/src/endpoints/relatedGarments.ts). n001 only, so every other
+// product answers WITHOUT the field, as an answer cached before it existed does, and draws no
+// section. The names are the catalogue's worst (garmentCopy.ts: one longer than any live name, the
+// widest word, and the hyphenated words a two-up phone card must keep whole). The pictures are on
+// the media host, so the page asks this server's stand-in for Cloudflare's copies (below).
+const RELATED = [
+  ['zrel-jacket', 'black', 'THE VELOCITY MATRIX JACKET', 'ZREL-01'],
+  ['zrel-vneck', 'wine', 'PERFORMANCE V-NECK TEE', 'ZREL-02'],
+  ['zrel-hoodie', 'navy', 'METRO-SHIELD ZIP-UP HOODIE', 'ZREL-03'],
+  ['zrel-short', 'black', 'TRAINING SHORT', 'ZREL-04'],
+].map(([slug, colourSlug, productName, productCode]) => ({
+  slug,
+  colourSlug,
+  productName,
+  productCode,
+  imageUrl: `https://media.wear-run.com/fixtures/related/${slug}.webp`,
+}))
+
+/*
+ * Cloudflare's card copies, `/cdn-cgi/image/<options>/<source>`, on the page's own address
+ * (packages/shared/src/cardImage.ts). Only the options a firewall rule allows in production are
+ * answered; anything else is the 403 that rule sends, which `onerror=redirect` does not catch,
+ * so a change to a width or the quality empties the cards here as it would live.
+ *
+ * The answer is a picture exactly the requested size, and that is what lets a test measure the
+ * page's `sizes`: a browser that chose the `w`-wide copy draws it at `w / density`, and its
+ * density-corrected `naturalWidth` is then the width `sizes` promised (e2e/related.spec.ts).
+ */
+const CARD_COPY =
+  /^\/cdn-cgi\/image\/fit=scale-down,width=(400|720|1080),height=(\d+),quality=90,format=auto,onerror=redirect\/https:\/\/media\.wear-run\.com\/.+$/
+
+function cardCopy(pathname) {
+  const match = pathname.match(CARD_COPY)
+  if (!match || Number(match[2]) !== Number(match[1]) * 1.25) return null
+  const [width, height] = [match[1], match[2]]
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="${width}" height="${height}" fill="#8a8578"/></svg>`
+}
+
 // Per-key request counts for the stall route below. Keyed so tests running in parallel never share a counter.
 const STALL_COUNTS = new Map()
 
@@ -462,6 +501,7 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
     requestedColourwayUnavailable: unavailable,
     fallbackMessage: unavailable ? retiredMessage : null,
     siteSettings,
+    related: productSlug === 'n001' ? RELATED : undefined,
   }
 }
 
@@ -492,6 +532,18 @@ const server = http.createServer((req, res) => {
       return
     }
     res.end(JSON.stringify(viewerPayload(origin, apiMatch[2] ?? null, apiMatch[1])))
+    return
+  }
+
+  if (url.pathname.startsWith('/cdn-cgi/image/')) {
+    const svg = cardCopy(url.pathname)
+    if (!svg) {
+      res.statusCode = 403
+      res.end('Forbidden')
+      return
+    }
+    res.setHeader('content-type', 'image/svg+xml')
+    res.end(svg)
     return
   }
 

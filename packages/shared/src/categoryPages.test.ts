@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { CATEGORY_PAGE_PATHS, categoryPath, familySlug } from './categoryPages'
+import {
+  CATEGORY_PAGE_PATHS,
+  categoryGalleryPath,
+  categoryPath,
+  familySlug,
+  seeAllInCategoryLabel,
+} from './categoryPages'
 import { GARMENT_PATH_PREFIX } from './slugs'
 
 describe('categoryPath', () => {
@@ -24,6 +30,18 @@ describe('categoryPath', () => {
       expect(path.startsWith(`${GARMENT_PATH_PREFIX}/`), path).toBe(false)
       expect(path.startsWith('/'), path).toBe(true)
     }
+  })
+})
+
+describe('categoryGalleryPath and seeAllInCategoryLabel (polish S6)', () => {
+  it('opens the family filter, for a category with a buyer page too', () => {
+    expect(categoryGalleryPath('Teamwear & Uniforms')).toBe('/products?family=teamwear-uniforms')
+    expect(categoryGalleryPath(' Outerwear ')).toBe('/products?family=outerwear')
+  })
+
+  it('names the link in the owner’s approved words, lower-cased from the category', () => {
+    expect(seeAllInCategoryLabel('Teamwear & Uniforms')).toBe('See all teamwear & uniforms in 3D')
+    expect(seeAllInCategoryLabel(' Casual Wear ')).toBe('See all casual wear in 3D')
   })
 })
 

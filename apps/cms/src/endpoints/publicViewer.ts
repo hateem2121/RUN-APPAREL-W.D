@@ -3,6 +3,7 @@ import { normalizeSlug } from '@run-apparel/shared'
 import { convertLexicalToHTML } from '@payloadcms/richtext-lexical/html'
 import type { Endpoint, PayloadRequest } from 'payload'
 import { buildViewerResponse } from './projectViewer'
+import { pickRelated, publishedCards } from './relatedGarments'
 import { readViewerCache, viewerCacheKey, writeViewerCache } from './viewerCache'
 
 /**
@@ -177,7 +178,12 @@ const buildHandler =
     // buildViewerResponse for why a shared copy that silently overrode eleven
     // garments' bespoke text had to go. Dropping it also removes a D1 round trip
     // from the hottest endpoint in the product.
-    const settings = await req.payload.findGlobal({ slug: 'site-settings', depth: 0, req })
+    // The other garments for "More from <category>" (polish S6) are read AT THE SAME TIME,
+    // never after: relatedGarments.ts says why, and keeps them a minute per isolate.
+    const [settings, cards] = await Promise.all([
+      req.payload.findGlobal({ slug: 'site-settings', depth: 0, req }),
+      publishedCards(req.payload),
+    ])
 
     // The public projection (only whitelisted fields cross this boundary) lives
     // in a pure, unit-tested function. Null → no usable colourway → 404.
@@ -192,6 +198,7 @@ const buildHandler =
     if (!body) {
       return notFound('This product reference is not currently available.')
     }
+    body.related = pickRelated(cards, body.product.slug, body.product.category)
 
     // Only a successful projection is stored. A 404 or a D1 wobble stays a bad request
     // rather than becoming a bad minute — the same rule src/lib/content.ts follows.

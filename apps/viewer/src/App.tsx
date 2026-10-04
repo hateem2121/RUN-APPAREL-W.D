@@ -11,6 +11,7 @@ import { Header } from './components/Header'
 import { Preloader } from './components/Preloader'
 import { ProductIdentity } from './components/ProductIdentity'
 import { ProductPanel } from './components/ProductPanel'
+import { RelatedGarments } from './components/RelatedGarments'
 import { Stage } from './components/Stage'
 import { RetiredNotice, UnavailableState, UnreachableState } from './components/States'
 import { startActionBarHeight } from './lib/actionBarHeight'
@@ -578,6 +579,8 @@ export default function App() {
               showSpecs={!specsInCorners}
             />
             <CustomisationSection data={data} />
+            {/* Before the contact section, so the page still ends on its one prompt (S6, Q42). */}
+            <RelatedGarments data={data} />
             <ContactSection settings={data.siteSettings} enquiry={enquiry} />
           </div>
         </main>

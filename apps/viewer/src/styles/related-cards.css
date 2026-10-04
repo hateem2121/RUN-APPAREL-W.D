@@ -1,0 +1,126 @@
+/*
+ * The cards of "More from this category" (polish S6, 2026-10-04) — loaded WITH the cards, never
+ * with the page.
+ *
+ * ⚠️ WHY A FILE OF ITS OWN. `RelatedCards.tsx` imports it, and that component is a dynamic import,
+ * so Vite emits these rules beside the cards' chunk and the page draws without waiting for them.
+ * In page.css their 242 compressed bytes delayed every garment page's first paint by about 150 ms
+ * on slow 3G (RO-08, measured 2026-10-04: `RelatedGarments.tsx` has the numbers). The section's
+ * own two rules stay in page.css, because the section is drawn with the page.
+ *
+ * The website's garment card, drawn with the same measures (apps/cms/src/app/(frontend)/site.css,
+ * `.product-card`), so a buyer who arrives from a card meets the same card here: a paper frame
+ * with the picture inset 7% (VA-55), 4:5 and square below 560px (VA-42), the name in the card's
+ * own size and tracking, the code in mono under it. Two to a row on a phone and four from 900px,
+ * the seam `.customise` already opens at. ⚠️ A CHANGE TO THE COLUMNS OR GAPS MOVES
+ * `RELATED_CARD_SIZES` (RelatedCards.tsx), which `e2e/related.spec.ts` measures.
+ */
+
+.related__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 900px) {
+  .related__list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* One link per card, its full height, so cards in a row line up at the bottom. */
+.related__card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  transition:
+    border-color var(--ui) var(--ease),
+    transform var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .related__card:hover {
+    border-color: var(--dimension);
+    transform: translateY(-4px);
+  }
+}
+
+/* The frame keeps the picture's room before it arrives, and with none at all: nothing shifts. */
+.related__frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 559px) {
+  .related__frame {
+    aspect-ratio: 1 / 1;
+  }
+}
+
+/* Padding on a replaced element insets the box `object-fit` draws into: the website's 7% margin,
+   1.25 times that above and below (both are percentages of the frame's width). */
+.related__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 8.75% 7%;
+  object-fit: contain;
+}
+
+.related__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.related__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+  color: var(--headline);
+  margin: 0;
+  /* A long unbroken word in a phone's 110px column breaks rather than being clipped (VA-42). */
+  overflow-wrap: anywhere;
+}
+
+/* A hyphenated word (V-NECK, ZIP-UP) moves to the next line whole (packages/shared/src/cardName.ts). */
+.related__word {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.related__code {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  color: var(--muted);
+}
+
+/* On a phone the name shrinks rather than split a word, by the website's measure (site.css says
+   why 12.3% of the card's own width fits its widest word, PERFORMANCE). */
+@media (max-width: 559px) {
+  .related__body {
+    container-type: inline-size;
+    gap: 6px;
+    padding: 12px;
+  }
+
+  .related__body .related__name {
+    font-size: clamp(var(--text-xs), 12.3cqi, var(--text-card-title));
+  }
+}

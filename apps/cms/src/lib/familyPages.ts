@@ -1,3 +1,4 @@
+import { seeAllInCategoryLabel } from '@run-apparel/shared'
 import { FACTS } from './companyFacts'
 import { FAMILIES, type Family } from './families'
 
@@ -281,6 +282,9 @@ export function familyHref(family: Family): string {
  * they name: a rename in `families.ts` renames both links, and `familyCrossLinks.test.ts` pins
  * the four approved pairs. Sports Accessories has no buyer page and no garments, so it has no
  * link either way (`AboutFamily` draws nothing for a family without a page).
+ *
+ * "See all" is built in packages/shared since polish S6 (2026-10-04): a garment page's "More from
+ * this category" ends with the same link, to the same gallery, in the same words.
  */
-export const seeAllLabel = (family: Family): string => `See all ${family.name.toLowerCase()} in 3D`
+export const seeAllLabel = (family: Family): string => seeAllInCategoryLabel(family.name)
 export const aboutLabel = (family: Family): string => `About our ${family.name.toLowerCase()}`

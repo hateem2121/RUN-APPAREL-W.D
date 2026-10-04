@@ -77,6 +77,7 @@ function payload(overrides: {
   product?: Partial<ViewerApiSuccess['product']>
   colourways?: ViewerColourway[]
   selectedColourway?: ViewerColourway
+  related?: ViewerApiSuccess['related']
 }): ViewerApiSuccess {
   const colourways = overrides.colourways ?? [
     colourway(),
@@ -125,6 +126,7 @@ function payload(overrides: {
       footerLine: '',
       legalLine: '',
     },
+    related: overrides.related,
   }
 }
 
@@ -513,6 +515,49 @@ describe('buildPreview — the readable page body for robots', () => {
     const old = build(full()).bodyHtml
     expect(old).not.toContain('All products')
     expect(old).not.toContain('/contact')
+  })
+
+  // "More from this category" (polish S6), as the page draws it.
+  const related = [
+    {
+      slug: 'r-xmp',
+      colourSlug: 'black',
+      productName: 'X-Max Pro',
+      productCode: 'R-XMP',
+      imageUrl: null,
+    },
+    {
+      slug: 'r-cch',
+      colourSlug: 'wine',
+      productName: 'Coach <b>Jacket',
+      productCode: 'R-CCH',
+      imageUrl: null,
+    },
+  ]
+
+  it('links the garments "More from this category" shows, and the category’s gallery, on the website only', () => {
+    const html = onSite(payload({ related }))
+    expect(html).toContain(
+      '<h2>More Sportswear in 3D.</h2><ul><li><a href="https://wear-run.com/products/r-xmp/black">X-Max Pro</a></li>',
+    )
+    // CMS text, escaped like every other line here.
+    expect(html).toContain(
+      '<li><a href="https://wear-run.com/products/r-cch/wine">Coach &lt;b&gt;Jacket</a></li>',
+    )
+    expect(html).toContain(
+      '<p><a href="https://wear-run.com/products?family=sportswear">See all sportswear in 3D</a></p>',
+    )
+    // Before the links to the website's other pages, as the section sits before the contact one.
+    expect(html.indexOf('More Sportswear in 3D.')).toBeLessThan(html.indexOf('All products'))
+    expect(build(payload({ related })).bodyHtml).not.toContain('More Sportswear')
+  })
+
+  it('says nothing of other garments when the answer carries none', () => {
+    for (const none of [undefined, []]) {
+      const html = onSite(payload({ related: none }))
+      expect(html).not.toContain('More Sportswear')
+      expect(html).not.toContain('See all')
+    }
   })
 
   it('escapes CMS text, so a description cannot inject markup', () => {
