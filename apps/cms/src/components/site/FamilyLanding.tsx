@@ -182,7 +182,7 @@ export function FamilyLanding({
             Confirmed capacity. If any of these matters to your program, ask and we will put it in
             writing.
           </p>
-          <FactsBento />
+          <FactsBento worksCoordinates={settings.footer.worksCoordinates} />
         </div>
       </section>
 

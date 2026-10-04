@@ -1899,7 +1899,7 @@ a.contact-block__value:active {
    bracketed labels on /contact keep its 10px, as every bracket label does. */
 .subhead,
 .result-count,
-.facts-notes .field-label {
+.works-slab .field-label {
   font-size: var(--text-mono-lg);
 }
 
@@ -2122,36 +2122,172 @@ a.contact-block__value:active {
   margin-block-start: 8px;
 }
 
-.facts-notes {
+/*
+ * ⚠️ №05's SLAB: WHERE WE SHIP | CERTIFICATION (polish X7, 2026-10-05). The two notes under the
+ * numbers were one line beside a seven-line paragraph (audit of 3 October). Now one slab, two
+ * halves split by a hairline: the world, dotted, with the works pinned, and the footer's marks,
+ * each group beside its one line (FactsBento.tsx).
+ *
+ * ⚠️ DARK IN BOTH THEMES, IN THE FOOTER'S COLOURS, because the marks are the bodies' reversed
+ * artwork: off-white, drawn for a dark ground. The slab's colours are declared HERE, on an element
+ * with no `color-scheme` of its own, so each `light-dark()` takes the PAGE's theme (ink in light,
+ * raised in dark), exactly as `--footer-bg` does on `.site-footer` (footer.css); declared on an
+ * element that also set `color-scheme: dark`, they would take the dark half in both themes. The
+ * values are the footer's, so the two dark surfaces match.
+ *
+ * ⚠️ THE MEASURE CAP STILL HOLDS EVERY LINE: the certification paragraph once took 82 characters a
+ * line on a CI runner (audit FA-C-52, 2026-09-07), so the lines keep `--site-measure`.
+ */
+.works-slab {
+  --slab-bg: light-dark(var(--ink), var(--raised));
+  --slab-text: light-dark(var(--paper), var(--text));
+  --slab-muted: light-dark(rgba(241, 239, 234, 0.6), rgba(236, 235, 228, 0.68));
+  --slab-line: light-dark(rgba(241, 239, 234, 0.16), rgba(236, 235, 228, 0.16));
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
   margin-block-start: 24px;
+  border-radius: var(--radius-panel);
+  background: var(--slab-bg);
+  color: var(--slab-text);
+}
+
+.works-slab__half {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 24px;
+}
+
+.works-slab__half + .works-slab__half {
+  border-block-start: 1px solid var(--slab-line);
 }
 
 @media (min-width: 900px) {
-  .facts-notes {
+  .works-slab {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .works-slab__half + .works-slab__half {
+    border-block-start: 0;
+    border-inline-start: 1px solid var(--slab-line);
   }
 }
 
-/*
- * ⚠️ THE MEASURE CAP REACHES THIS TOO, AND ITS ABSENCE WAS INVISIBLE ON A DEVELOPER'S
- * MACHINE. `--site-measure` was applied to `.site-lede` and `.prose p` and this was
- * missed — the certification paragraph is the longest prose on the home page and had no
- * cap at all. Locally it fitted inside 75 characters and passed; on a CI runner the
- * web font is not what rendered, the fallback packs tighter, and the same 540px column
- * took **82 characters** (audit FA-C-52's guard, caught 2026-09-07).
- *
- * The cap scales with this note's own text size, so it holds the same characters a line at
- * `--text-sm` as the lede does at body size. ⚠️ This said `ch` made it font-independent; it does
- * not (a `ch` is the zero of whichever face draws), which is why `--site-measure` is in em since
- * polish D11.
- */
-.fact__note {
+.works-slab .field-label {
+  color: var(--slab-muted);
+}
+
+/* `.field-label + *`'s 8px is the flex gap here. */
+.works-slab .field-label + * {
+  margin-block-start: 0;
+}
+
+.works-slab__line {
   font-size: var(--text-sm);
-  color: var(--muted);
   max-width: var(--site-measure);
+}
+
+.works-slab__note {
+  font-size: var(--text-xs);
+  color: var(--slab-muted);
+  max-width: var(--site-measure);
+}
+
+/*
+ * The world, dotted (scripts/gen-world-map.mjs), and the works on it. Beside the taller
+ * certification half the map takes the middle of its own half, and the shipping line closes it
+ * level with the certification half's last line: the spare room falls evenly above and below the
+ * map instead of as one band under it (a 120px band at 1280px, first draft). On a phone there is
+ * no spare room to share. Two classes, so the auto top margin is not the zero that
+ * `.works-slab .field-label + *` gives whatever follows the label (measured: it was).
+ */
+.ship-map {
+  position: relative;
+}
+
+.works-slab__half .ship-map {
+  margin-block: auto;
+}
+
+.ship-map__land {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* A dot in a ring, where `--pin-x` and `--pin-y` (FactsBento.tsx, from src/lib/worldMap.ts) put it. */
+.ship-map__pin {
+  position: absolute;
+  left: var(--pin-x, 0%);
+  top: var(--pin-y, 0%);
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--volt);
+  outline: 1px solid var(--volt);
+  outline-offset: 3px;
+}
+
+.ship-map__name {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  translate: 0 -50%;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--slab-text);
+}
+
+.cert-list {
+  display: grid;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cert {
+  display: grid;
+  gap: 10px;
+}
+
+.cert__marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.cert__mark {
+  display: block;
+}
+
+/* On paper there is no dark ground (browsers drop backgrounds), so the page's own colours; the map
+   and the marks, drawn for a dark ground, give way to the lines, which carry every claim. */
+@media print {
+  .works-slab {
+    --slab-bg: transparent;
+    --slab-text: var(--text);
+    --slab-muted: var(--muted);
+    --slab-line: var(--line);
+  }
+
+  .ship-map,
+  .cert__marks {
+    display: none;
+  }
+}
+
+/* Windows High Contrast replaces the dark ground the dots are drawn for; they are decoration. */
+@media (forced-colors: active) {
+  .ship-map {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------ gallery filter (FA-I-08) */

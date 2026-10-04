@@ -72,6 +72,24 @@ export const CERTIFICATION =
   'required for your needs.'
 
 /**
+ * ⚠️ THE SAME CLAIMS, AS THE HOME PAGE SHOWS THEM SINCE POLISH X7 (2026-10-05): one line per
+ * holder, each beside the marks it names (`logosFor`, the footer's logos), because the paragraph
+ * above sat seven lines deep beside a one-line "Where we ship" (audit of 3 October). The owner's
+ * paragraph stays whole in /llms.txt. The lines keep every holder named and SMETA an audit; the
+ * SECP and the closing promise are the owner's own sentences, word for word. New wording, so it
+ * goes to the owner with the end approvals. `companyFacts.test.ts` holds every line to the
+ * paragraph: a mark or a holder the paragraph does not name fails it.
+ */
+export const CERTIFICATION_LINES = [
+  'Our parent company, DURUS INDUSTRIES, in the same facility: SEDEX-registered and SMETA-audited.',
+  'Our fabric and trim suppliers: ISO 9001, OEKO-TEX, GOTS and GRS certifications, and amfori BSCI audits.',
+  'Both companies are registered with the Securities and Exchange Commission of Pakistan (SECP).',
+] as const
+
+export const CERTIFICATION_PROMISE =
+  'We are fully prepared to pursue any program-specific certifications required for your needs.'
+
+/**
  * ⚠️ 1889 IS A FAMILY TRADE, NOT A COMPANY FOUNDING DATE — which is why no `foundingDate`
  * appears in the structured data either. The page said "EST. LINEAGE 1889", which a buyer
  * could read either way and which understated the actual claim (FA-I-12). The owner's

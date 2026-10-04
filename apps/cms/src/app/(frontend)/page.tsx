@@ -205,7 +205,7 @@ export default async function HomePage() {
               will put it in writing.
             </p>
           </div>
-          <FactsBento />
+          <FactsBento worksCoordinates={settings.footer.worksCoordinates} />
         </div>
       </section>
 

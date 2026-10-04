@@ -786,6 +786,24 @@ interactive sits inside it, and the card hovers as the family cards do: a 4px li
 edge on a mouse and on keyboard focus, the press on touch. The foot of the page keeps only the
 buyer-page chips; each guide page still lists its sibling guides.
 
+### The works slab: where we ship, and the marks (polish X7)
+
+№05's numbers end in one slab of two halves split by a hairline (`site.css`, `.works-slab`;
+`FactsBento.tsx`, on the home page and the four buyer pages). "Where we ship" draws the world in dots,
+from the land mask of the contact globe's library (`apps/cms/scripts/gen-world-map.mjs` writes
+`public/world-map.svg`), with the works pinned in volt where the CMS's `worksCoordinates` put them
+(no coordinates, no pin: the contact globe's rule, `lib/globe.ts`); the line under it is `SHIPS_TO`.
+"Certification" is the footer's marks, at a 44px square's area (the footer's are 36), each group
+beside its one line (`CERTIFICATION_LINES`, held to the owner's paragraph by
+`companyFacts.test.ts`); the paragraph itself stays whole in `/llms.txt`. Until 2026-10-05 the two
+were a line beside seven (audit of 3 October).
+
+**The slab is dark in both themes, in the footer's colours** (ink in light mode, `--raised` in dark),
+because the marks are the bodies' reversed artwork, off-white for a dark ground. Its colours are
+declared on the slab, which sets no `color-scheme`, so each `light-dark()` takes the page's theme. On
+paper it takes the page's colours and drops the map and the marks; in forced colours the map goes.
+`apps/cms/e2e/worksSlab.spec.ts` measures the balance, the ground and the pin.
+
 ### Motifs
 
 - `.blueprint` — two 1px `--grid` gradients at `26px 26px`, i.e. graph paper.

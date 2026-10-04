@@ -141,13 +141,20 @@ export function logosFor(entry: string): StandardLogo[] {
  */
 export const MARK_AREA = 36 * 36
 
-/** The size a mark is drawn at: its own proportions, at `MARK_AREA`, in whole pixels. */
-export function markBox({ width, height }: { width: number; height: number }): {
+/**
+ * The size a mark is drawn at: its own proportions, at `area` (the footer's `MARK_AREA` unless
+ * told otherwise; the home page's certification panel draws them larger, polish X7), in whole
+ * pixels.
+ */
+export function markBox(
+  { width, height }: { width: number; height: number },
+  area: number = MARK_AREA,
+): {
   width: number
   height: number
 } {
   const ratio = width / height
-  const drawn = Math.sqrt(MARK_AREA / ratio)
+  const drawn = Math.sqrt(area / ratio)
   return { width: Math.round(drawn * ratio), height: Math.round(drawn) }
 }
 

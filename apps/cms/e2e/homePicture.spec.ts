@@ -81,6 +81,12 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
    * every one is the owner's factory (`/factory/`) or a real garment from the media host, and
    * nothing arrives as a CSS background. Since 2026-09-30 a family card with no garment yet may
    * show the owner's own product photo instead (`public/families/`, `FAMILY_PHOTOS`).
+   *
+   * ⚠️ AND, SINCE POLISH X7 (2026-10-05), TWO KINDS OF DRAWING IN №05's SLAB, by the owner's
+   * choice: the dotted world map (`/world-map.svg`) and the standards bodies' marks
+   * (`/standards/`, the files the footer shows). Neither is a photograph, so neither is a stock
+   * picture; they are allowed in the slab and nowhere else, and the slab holds those and nothing
+   * more.
    */
   test('every picture is the factory or a real garment, and none is a background', async ({
     page,
@@ -97,15 +103,23 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
         // A garment picture sits in a family card or the 3D section; its host is whatever
         // the environment serves media from (production: the media host; the suite: itself).
         garmentSlot: Boolean(img.closest('.family-card, .proof__figure')),
+        slab: Boolean(img.closest('.works-slab')),
       })),
     )
     expect(images.length, 'the home page shows no pictures at all').toBeGreaterThan(10)
     expect(
       images
-        .filter((image) => !image.src.startsWith('/factory/') && !image.garmentSlot)
+        .filter((image) => !image.src.startsWith('/factory/') && !image.garmentSlot && !image.slab)
         .map((image) => image.src),
       'a picture that is neither the factory nor a garment from the CMS (IM-12)',
     ).toEqual([])
+    // №05's slab: the map and the marks, and nothing else (polish X7).
+    expect(
+      images
+        .filter((image) => image.slab)
+        .map((image) => (image.src.startsWith('/standards/') ? '/standards/' : image.src)),
+      'the slab shows something besides the map and the marks (IM-12, X7)',
+    ).toEqual(['/world-map.svg', ...Array(6).fill('/standards/')])
 
     const timeline = await page
       .locator('.timeline img')
