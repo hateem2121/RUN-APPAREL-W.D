@@ -179,9 +179,11 @@ describe('useIdentityInAside', () => {
 describe('the CSS and the hook agree on where the aside exists', () => {
   const css = () => stripComments(readFileSync(PAGE_CSS, 'utf8'))
 
+  // Whitespace-blind: Biome wraps a media query this long over two lines (since polish F11), and a
+  // line break inside a query list means nothing to CSS.
   it('page.css declares the two-column query verbatim', () => {
     expect(
-      css().includes(`@media ${TWO_COLUMN_QUERY}`),
+      css().replace(/\s+/g, ' ').includes(`@media ${TWO_COLUMN_QUERY}`),
       `page.css must contain "@media ${TWO_COLUMN_QUERY}" verbatim. That block is ` +
         'what creates `.stage__aside` as a column AND what styles ' +
         '`.product-info--aside`; if the breakpoint moved, move TWO_COLUMN_QUERY with it.',
@@ -216,29 +218,42 @@ describe('the CSS and the hook agree on where the aside exists', () => {
    * 1280px. A comma is safe exactly when EVERY step carries the width floor, which is
    * what is checked now; a step without one could match a landscape phone however
    * high the other step's floor is, and the control below proves that is caught.
+   *
+   * ⚠️ THE COMPUTER CLAUSE IS `(min-width: 900px) and (orientation: landscape)` SINCE
+   * POLISH F11 (2026-10-04): an upright tablet is one column. So a step is a subset of it
+   * only if it is floored at 900px or more AND held to landscape too; the third control
+   * below is the step that forgot the orientation, which an upright iPad Pro (1024x1366)
+   * would match while the page drew one column.
    */
   const steps = (query: string) => query.split(',').map((step) => step.trim())
   const minWidth = (query: string) => {
     const match = /\(min-width: (\d+)px\)/.exec(query)
     return match ? Number(match[1]) : null
   }
-  // The floor of TWO_COLUMN_QUERY's one unconditional clause, `(min-width: 900px)`: every
-  // viewport at least that wide is two columns. Its other clause (700px) holds only for a
-  // landscape shape, so a step floored at 700 could still match a 700x900 portrait window
-  // outside the block. Until VA-60 this took the SMALLEST floor of the list (700), which
-  // let exactly that pass; the control below now proves it is refused.
-  const widestTwoColumnFloor = minWidth(
-    steps(TWO_COLUMN_QUERY).find((clause) => !clause.includes(' and ')) ?? '',
-  ) as number
+  // TWO_COLUMN_QUERY's computer clause (the one with no aspect ratio): every viewport that wide
+  // AND landscape is two columns. Its other clause (700px) holds only for a 3:2 shape, so a step
+  // floored at 700 could still match a 700x900 portrait window outside the block. Until VA-60
+  // this took the SMALLEST floor of the list (700), which let exactly that pass; the control
+  // below proves it is refused.
+  const computerClause = steps(TWO_COLUMN_QUERY).find((c) => !c.includes('aspect-ratio')) ?? ''
+  const widestTwoColumnFloor = minWidth(computerClause) as number
+  const landscapeOnly = computerClause.includes('(orientation: landscape)')
   /** What makes a step unsafe; empty when every step is narrower than the two-column query. */
   const wideSteps = (query: string) =>
     steps(query).flatMap((step) => {
       const floor = minWidth(step)
       if (floor === null) return [`"${step}" has no width floor`]
       if (floor < widestTwoColumnFloor) return [`"${step}" floors width at ${floor}px`]
+      if (landscapeOnly && !step.includes('(orientation: landscape)'))
+        return [`"${step}" is not held to landscape`]
       if (/\bor\b|\bnot\b/.test(step)) return [`"${step}" is not a plain conjunction`]
       return []
     })
+
+  it('reads the computer clause it compares against', () => {
+    expect(widestTwoColumnFloor).toBe(900)
+    expect(landscapeOnly).toBe(true)
+  })
 
   it('the identity query is strictly narrower than the two-column query, step by step', () => {
     expect(
@@ -252,11 +267,21 @@ describe('the CSS and the hook agree on where the aside exists', () => {
 
   /** The control for the check above: a step without the width floor must be reported. */
   it('would report a step that a landscape phone could match', () => {
-    expect(wideSteps('(min-width: 1280px) and (min-height: 800px), (min-height: 880px)')).toEqual([
-      '"(min-height: 880px)" has no width floor',
+    expect(
+      wideSteps(
+        '(min-width: 1280px) and (min-height: 800px) and (orientation: landscape), (min-height: 880px)',
+      ),
+    ).toEqual(['"(min-height: 880px)" has no width floor'])
+    expect(
+      wideSteps('(min-width: 700px) and (min-height: 880px) and (orientation: landscape)'),
+    ).toEqual([
+      '"(min-width: 700px) and (min-height: 880px) and (orientation: landscape)" floors width at 700px',
     ])
-    expect(wideSteps('(min-width: 700px) and (min-height: 880px)')).toEqual([
-      '"(min-width: 700px) and (min-height: 880px)" floors width at 700px',
+  })
+
+  it('would report a step that an upright tablet could match (F11)', () => {
+    expect(wideSteps('(min-width: 1024px) and (min-height: 501px)')).toEqual([
+      '"(min-width: 1024px) and (min-height: 501px)" is not held to landscape',
     ])
   })
 

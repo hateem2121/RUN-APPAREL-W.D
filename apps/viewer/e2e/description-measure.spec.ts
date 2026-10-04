@@ -17,11 +17,13 @@ import { expect, type Page, test } from '@playwright/test'
  * lines to measure and one short last line to leave out. Invented, so a test does not carry a
  * product's words.
  *
- * ⚠️ WHERE IT RUNS LONG. In the side column (the identity beside the garment, from 1100x880 and
- * 1280x800 up) the column is at most 400px, narrower than the cap, so the cap is not what limits
- * it there and must not start to: the last test asserts the paragraph is still as wide as that
- * column, because a cap that narrowed it would make the paragraph taller and could put Email and
- * WhatsApp back below the screen (VA-60; the floors are in `useIdentityInAside.ts`).
+ * ⚠️ WHERE IT RUNS LONG. In the side column (the identity beside the garment, from 1024px wide and
+ * 620px tall, sideways: polish D8) the column is at most 400px, narrower than the cap, so the cap
+ * is not what limits it there and must not start to: the last test asserts the paragraph is still
+ * as wide as that column, because a cap that narrowed it would make its three lines hold less and
+ * the column taller (the floors are in `useIdentityInAside.ts`). Since D8 the laptop windows this
+ * file once walked (1024x768, 1100x720) have the description beside the garment, so the cases
+ * below are the windows where it is still under it: 900-1023px wide, and under the 620px floor.
  */
 
 const DESCRIPTION =
@@ -68,8 +70,13 @@ const WHERE_IT_RUNS_LONG = [
   { name: 'a phone held sideways (iPhone 14 Pro Max)', width: 844, height: 390 },
   { name: 'a phone held sideways (iPhone 16 Pro Max)', width: 932, height: 430 },
   { name: 'a tablet held upright', width: 768, height: 1024 },
-  { name: 'a small laptop window, identity still under the garment', width: 1024, height: 768 },
-  { name: 'a short laptop window, identity still under the garment', width: 1100, height: 720 },
+  { name: 'a large tablet held upright, one column since F11', width: 1024, height: 1366 },
+  { name: 'a window 900-1023px wide, identity still under the garment', width: 960, height: 700 },
+  {
+    name: 'a laptop window under the 620px floor, identity under the garment',
+    width: 1280,
+    height: 600,
+  },
 ] as const
 
 test.describe('the garment description keeps a comfortable line length (VA-18)', () => {
@@ -103,7 +110,7 @@ test.describe('the garment description keeps a comfortable line length (VA-18)',
     })
   }
 
-  test('the cap leaves the side column alone, so the buttons stay on screen (VA-60)', async ({
+  test('the cap leaves the side column alone, so the buttons stay on screen (VA-60, D8)', async ({
     page,
   }) => {
     await serveDescription(page, DESCRIPTION)

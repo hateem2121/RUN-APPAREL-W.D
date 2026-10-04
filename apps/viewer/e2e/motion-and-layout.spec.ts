@@ -164,7 +164,8 @@ const LONGEST_COPY = {
 
 /**
  * RUNS IN THE PAGE. Whether an email AND a WhatsApp control are wholly on screen, unscrolled —
- * LA-11's own measure — and whether the colours are drawn as the list (a row shows its name).
+ * LA-11's own measure — and whether each colour's own name is drawn (`listed`: VA-32's list
+ * until polish D8, the names under the dots since).
  */
 function contactOnScreen() {
   const inView = (el: Element) => {
@@ -680,37 +681,32 @@ test.describe('the bar survives a phone', () => {
   })
 })
 
-test.describe('the label row (owner decision 2026-09-17)', () => {
+/**
+ * NOTHING BETWEEN THE BAR AND THE GARMENT (polish D8 and M5, owner-approved 2026-10-04). From
+ * 2026-09-17 "[ 3D PRODUCT REFERENCE ]" had a line of its own here, and on a phone the garment's
+ * code and name a second one; both said again what the page says under or beside the garment.
+ * The stage band now starts where the bar ends: "the header token matches where the stage band
+ * starts" below holds the number, and this holds that nothing is drawn in between.
+ */
+test.describe('no label row and no name line over the garment (D8, M5)', () => {
   for (const [width, height] of [
     [320, 640],
     [390, 844],
     [768, 1024],
     [1440, 900],
   ] as const) {
-    test(`[ 3D PRODUCT REFERENCE ] on its own line under the bar at ${width}px`, async ({
-      page,
-    }) => {
+    test(`the garment's band starts at the bar at ${width}x${height}`, async ({ page }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      const tag = page.locator('main .viewer-tag .label')
-      await expect(tag).toHaveText('[ 3D PRODUCT REFERENCE ]')
-      await expect(tag).toBeVisible()
-      const m = await page.evaluate(() => {
+      await expect(page.locator('main .viewer-tag, .stage-block__name')).toHaveCount(0)
+      await expect(page.locator('main').getByText('3D PRODUCT REFERENCE')).toHaveCount(0)
+      const gap = await page.evaluate(() => {
         const bar = document.querySelector('.notch')?.getBoundingClientRect()
-        const label = document.querySelector('main .viewer-tag .label')?.getBoundingClientRect()
-        return bar && label
-          ? {
-              below: label.top - bar.bottom,
-              centre: label.left + label.width / 2 - document.documentElement.clientWidth / 2,
-              oneLine: label.height < 30,
-            }
-          : null
+        const band = document.querySelector('.stage-block')?.getBoundingClientRect()
+        return bar && band ? Math.round(band.top - bar.bottom) : null
       })
-      if (!m) throw new Error('no bar or no label to measure')
-      expect(m.below, 'the label is not under the bar').toBeGreaterThanOrEqual(0)
-      expect(Math.abs(m.centre), 'the label is not centred on the page').toBeLessThanOrEqual(1)
-      expect(m.oneLine, 'the label wrapped').toBe(true)
+      expect(gap, 'something sits between the bar and the garment').toBe(0)
     })
   }
 })
@@ -2190,99 +2186,98 @@ test.describe('bundle weight on a phone', () => {
   })
 })
 
-test.describe('the garment is named on the first screen', () => {
-  /**
-   * Measured 2026-09-04 in two browsers on all eleven live products: `.product-info`
-   * starts at 836px on an 812px screen, missing the fold by 24px. A visitor who has
-   * just scanned a QR tag saw the garment, the colourways and both enquiry buttons —
-   * and no name, code, category or spec until they scrolled.
-   *
-   * The fix is a compact `aria-hidden` line above the canvas, portrait phones only.
-   * `aria-hidden` because `<h1 id="product-heading">` must exist exactly once and a
-   * screen reader has no fold to be above; see "the product heading moves between
-   * columns and never doubles" in this file.
-   */
-  /**
-   * ⚠️ THE TABLET ROWS WERE ADDED 2026-09-05, AND THEY ARE THE POINT OF THIS BLOCK
-   * NOW. The rule was `max-width: 699px`, so three real devices took the hidden
-   * branch and showed no name at all — measured with reveals forced:
-   *
-   *     768x1024   iPad portrait       h1 top 1094 — 70px below the fold
-   *     834x1194   iPad Pro portrait   h1 top 1267 — 73px below
-   *     1024x1366  iPad Pro 12.9       h1 top 1446 — 80px below
-   *
-   * The last one is two-column, so no width ceiling on this element could have
-   * expressed the condition. The element is gated on `!identityInAside` instead —
-   * the query that actually decides whether the `<h1>` is on the first screen.
-   */
-  for (const { width, height, name } of [
-    { width: 320, height: 640, name: 'small mobile' },
-    { width: 375, height: 812, name: 'mobile' },
-    { width: 414, height: 896, name: 'large mobile' },
-    { width: 768, height: 1024, name: 'tablet portrait' },
-    { width: 834, height: 1194, name: 'tablet pro portrait' },
-    { width: 1024, height: 1366, name: 'tablet pro 12.9 portrait' },
-  ]) {
-    test(`the product code and name are above the fold at ${name} (${width}x${height})`, async ({
+/**
+ * WHERE THE GARMENT'S NAME IS ON THE FIRST SCREEN (polish D8, F11 and M5, owner-approved
+ * 2026-10-04). From 2026-09-04 an `aria-hidden` line put the code and name over the garment
+ * wherever the <h1> was not on the first screen; tablets were added the next day, when iPads
+ * measured their <h1> 70-80px below the fold. The owner's decisions replaced it:
+ *
+ *   computers  the <h1> beside the garment, from 1024px wide and 620px tall (D8, held by the
+ *              tests further down that walk the floor with the longest copy)
+ *   tablets    upright, a garment window half the screen tall, so the <h1> under it is on the
+ *              first screen (F11, Q23); sideways they are computers
+ *   phones     nothing over the garment, which takes the room, and the name follows it (M5)
+ *
+ * Measured 2026-10-04 in Chromium with the longest copy: the <h1>'s top on the five upright
+ * tablets below was 815 / 868 / 895 / 904 / 1012px, against the action bar's top at 950 / 1059 /
+ * 1106 / 1120 / 1292. On phones the garment window measured 61-66% of the screen (about 55% with
+ * the two lines over it).
+ */
+test.describe("the garment's name on the first screen (D8, F11, M5)", () => {
+  for (const [width, height] of [
+    [768, 1024],
+    [744, 1133],
+    [820, 1180],
+    [834, 1194],
+    [1024, 1366],
+  ] as const) {
+    test(`an upright tablet shows the heading above the action bar at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await serveGarment(page, LONGEST_COPY)
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const m = await page.evaluate(() => {
+        const heading = document.querySelector('h1') as HTMLElement
+        const box = heading.getBoundingClientRect()
+        const firstLine = Number.parseFloat(getComputedStyle(heading).fontSize) * 1.2
+        const bar = document.querySelector('.action-bar')
+        const barShown = bar !== null && getComputedStyle(bar).display !== 'none'
+        return {
+          firstLineBottom: Math.round(box.top + firstLine),
+          barTop: Math.round(barShown ? (bar as Element).getBoundingClientRect().top : innerHeight),
+          barShown,
+          oneColumn: getComputedStyle(document.querySelector('.stage-block') as Element)
+            .flexDirection,
+        }
+      })
+      expect(m.oneColumn, 'an upright tablet is the one-column layout (F11)').toBe('column')
+      expect(
+        m.barShown,
+        'one column with no aside needs the action bar for Email and WhatsApp',
+      ).toBe(true)
+      expect(
+        m.firstLineBottom,
+        `the heading's first line ends at ${m.firstLineBottom}px, under the action bar at ${m.barTop}px`,
+      ).toBeLessThanOrEqual(m.barTop)
+    })
+  }
+
+  for (const [width, height] of [
+    [375, 812],
+    [390, 844],
+    [430, 932],
+  ] as const) {
+    test(`a phone gives the garment the room and names it after at ${width}x${height}`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-      const line = page.locator('.stage-block__name')
-      await expect(line).toBeVisible()
-      const box = await line.boundingBox()
-      expect(box, 'the compact name line has no box').not.toBeNull()
-      expect(
-        (box as { y: number; height: number }).y + (box as { height: number }).height,
-        `the garment's name is below the fold at ${width}x${height} — the case this ` +
-          `element exists for`,
-      ).toBeLessThan(height)
-
-      // It must carry the code AND the name: the code is what is printed on the tag
-      // the visitor just scanned, and the name is what they will quote back.
-      const text = (await line.textContent()) ?? ''
-      expect(text).toContain('N001')
-      expect(text.length, 'the line rendered empty').toBeGreaterThan(6)
+      const m = await page.evaluate(() => {
+        const canvas = (document.querySelector('.stage__canvas') as Element).getBoundingClientRect()
+        const band = (document.querySelector('.stage-block') as Element).getBoundingClientRect()
+        const heading = (document.querySelector('h1') as Element).getBoundingClientRect()
+        return {
+          share: canvas.height / innerHeight,
+          headingAfterBand: heading.top >= band.bottom,
+        }
+      })
+      // 58%, not the 61-66% measured: a line put back over the garment costs it about 32px, 4%.
+      expect(m.share, 'the garment window lost its room').toBeGreaterThanOrEqual(0.58)
+      expect(m.headingAfterBand, 'the name is no longer after the garment').toBe(true)
     })
   }
 
-  test('a wide desktop uses the real heading instead, so the line is not rendered at all', async ({
+  test('a phone held sideways keeps its band to one screen and draws no name line', async ({
     page,
   }) => {
-    /**
-     * NEGATIVE CONTROL for the block above. Without it, a change that rendered the
-     * compact line unconditionally would pass all six sizes and quietly put a second
-     * name on every desktop page, above a heading that already says it.
-     *
-     * 1440x900 puts the identity in the aside (from 1280px wide it needs 800px of
-     * height, VA-60), so `identityInAside` is true and the element is absent
-     * from the DOM entirely — not merely hidden.
-     */
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/n001/wine')
-    const h1 = page.getByRole('heading', { level: 1 })
-    await expect(h1).toBeVisible()
-    const box = await h1.boundingBox()
-    expect(
-      (box as { y: number }).y,
-      'the real heading is below the fold on a desktop, so hiding the compact line ' +
-        'leaves the garment unnamed there too',
-    ).toBeLessThan(900)
-    await expect(page.locator('.stage-block__name')).toHaveCount(0)
-  })
-
-  test('it stays hidden in the two-column landscape band, which has no row to spare', async ({
-    page,
-  }) => {
-    // 844x390 is asserted elsewhere in this file at <=390px of band. Adding a row
-    // there would break that, so the element is deliberately portrait-only — and
-    // this pins the deliberateness so nobody "fixes" the inconsistency later.
     await page.setViewportSize({ width: 844, height: 390 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(page.locator('.stage-block__name')).toBeHidden()
+    await expect(page.locator('.stage-block__name')).toHaveCount(0)
+    await expect(page.getByTestId('product-identity-aside')).toHaveCount(0)
   })
 })
 
@@ -2880,8 +2875,9 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
           range.selectNodeContents(el)
           return Math.round(range.getBoundingClientRect().left)
         }
-        const tag = box('.viewer-tag .label')
-        const name = box('.stage-block__name')
+        // Since polish D8 and M5 (2026-10-04) the garment is the first thing under the bar: the
+        // label and the product line that stood between them are gone.
+        const bar = box('.notch')
         const canvas = box('.stage__canvas')
         const controls = box('.stage__plinth')
         const colour = box('.colourways__name')
@@ -2889,29 +2885,23 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
         const gap = (a?: DOMRect, b?: DOMRect) => (a && b ? Math.round(b.top - a.bottom) : null)
         return {
           gaps: {
-            'label > product line': gap(tag, name),
-            'product line > garment': gap(name, canvas),
+            'bar > garment': gap(bar, canvas),
             'garment > controls': gap(canvas, controls),
             'controls > colour name': gap(controls, colour),
             'colour name > colours': gap(colour, dot),
           },
-          words: [
-            textLeft('.stage-block__name'),
-            textLeft('.colourways__name'),
-            dot && Math.round(dot.left),
-          ],
+          words: [textLeft('.colourways__name'), dot && Math.round(dot.left)],
           card: canvas ? Math.round(canvas.left) : null,
         }
       })
       expect(m.gaps).toEqual({
-        'label > product line': 8,
-        'product line > garment': 16,
+        'bar > garment': 8,
         'garment > controls': 16,
         'controls > colour name': 16,
         'colour name > colours': 8,
       })
       expect(m.words, "the words and the colours start at the website's 20px margin").toEqual([
-        20, 20, 20,
+        20, 20,
       ])
       expect(
         m.card,
@@ -2934,9 +2924,14 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
   /**
    * VA-32 (owner, 2026-10-01 and 2026-10-02): colour names break only after a "/", never inside a
    * word, reopening SZ-06's soft hyphens, which the owner found cramped. The colours are dots with
-   * the chosen name written above them, on phones and tablets alike, and a list with each name on
-   * a row of its own in a tall side column. The spill check here also covers FA-E-08 ("TERRACOTTA"
-   * 0.3px past its tab at 1440x900), whose own test measured the five-across tabs this replaced.
+   * the chosen name written above them, on phones and tablets alike. The spill check here also
+   * covers FA-E-08 ("TERRACOTTA" 0.3px past its tab at 1440x900), whose own test measured the
+   * five-across tabs this replaced.
+   *
+   * POLISH D8 (owner-approved 2026-10-04) put each name under its dot beside the garment on a
+   * laptop, where the column is at least 350px and the window 656px tall (page.css has the
+   * measurements); it replaced VA-32's list, which needed a 1080px window. A sideways iPad's
+   * column is narrower (289-337px) and keeps the dots.
    */
   const LONG_NAMES = [
     ['Terracotta / Blush', 'Bottle Green / Mint', 'Tangerine', 'Turquoise', 'Magenta / Burgundy'],
@@ -2954,10 +2949,14 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
     [390, 844, 'dots'],
     [768, 1024, 'dots'],
     [834, 1194, 'dots'],
-    [1280, 720, 'dots'],
-    [1440, 1100, 'list'],
-    // The narrowest list: a 190px column, where a long name takes a second line after its "/".
-    [900, 1100, 'narrow list'],
+    // Beside the garment on a sideways iPad: a column under 350px keeps the dots (D8).
+    [1024, 768, 'dots'],
+    [1180, 820, 'dots'],
+    // A laptop's 360px column, and the 400px one of a 2560px window: a name under each dot (D8).
+    [1280, 720, 'names'],
+    [1366, 657, 'names'],
+    [1440, 900, 'names'],
+    [2560, 1440, 'names'],
   ] as const) {
     for (const [set, names] of LONG_NAMES.entries()) {
       test(`colour names never break inside a word at ${width}x${height}, ${layout} (set ${set + 1}, VA-32)`, async ({
@@ -2977,12 +2976,13 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
           expect(report.shown).toEqual([names[0]])
           expect(report.lines, 'the name above the dots took more than one line').toEqual([1])
         } else {
+          // under each dot its own name, on a line per "/" part at most: a name breaks only
+          // after its "/" (D8), and one that fits stays on one line
           expect(report.shown).toEqual([...names])
-        }
-        if (layout === 'list') {
-          expect(report.lines, 'a name in the list took more than one line').toEqual(
-            names.map(() => 1),
+          const tooTall = names.filter(
+            (name, index) => (report.lines[index] ?? 0) > name.split('/').length,
           )
+          expect(tooTall, 'a name took more lines than it has "/" parts').toEqual([])
         }
 
         const tabs = page.getByRole('tab')
@@ -3052,63 +3052,167 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
     })
   }
 
+  test('beside the garment on a laptop, the colours are three to a row, names under, the chosen one ringed (D8)', async ({
+    page,
+  }) => {
+    await serveGarment(page, { names: LONG_NAMES[1] })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // The ring fades in (`transition: box-shadow`), and Firefox applies the grid's container query
+    // a frame after the others, so it was read mid-fade there: measure the settled state.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const swatch = document.querySelector(
+              '.stage__aside .colourway-tab[aria-selected="true"] .colourway-tab__swatch',
+            )
+            return swatch
+              ? swatch.getAnimations().length === 0 &&
+                  /0px 0px 0px 4px/.test(getComputedStyle(swatch).boxShadow)
+              : false
+          }),
+        { message: 'the chosen dot never settled with its ring' },
+      )
+      .toBe(true)
+    const m = await page.evaluate(() => {
+      const tabs = [...document.querySelectorAll<HTMLElement>('.stage__aside .colourway-tab')]
+      return tabs.map((tab) => {
+        const box = tab.getBoundingClientRect()
+        const swatch = tab.querySelector('.colourway-tab__swatch') as HTMLElement
+        return {
+          top: Math.round(box.top),
+          height: Math.round(box.height),
+          selected: tab.getAttribute('aria-selected') === 'true',
+          // The ring is the shadow with a 4px spread. Engines write its colour first (Chromium) or
+          // last (Firefox), so the offsets and spread are what is matched.
+          ring: /0px 0px 0px 4px/.test(getComputedStyle(swatch).boxShadow),
+          named: (tab.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
+        }
+      })
+    })
+    const rows = [...new Set(m.map((tab) => tab.top))]
+    expect(
+      rows.map((top) => m.filter((tab) => tab.top === top).length),
+      'five colours are not 3 + 2',
+    ).toEqual([3, 2])
+    for (const tab of m) {
+      expect(tab.height, 'a cell under 44px').toBeGreaterThanOrEqual(44)
+      expect(tab.named, 'a dot without its name').toBe(true)
+      expect(
+        tab.ring,
+        `${tab.selected ? 'the chosen dot has no' : 'an unchosen dot has a'} ring`,
+      ).toBe(tab.selected)
+    }
+  })
+
+  test('four colours beside the garment are two rows of two, so none sits alone (D8)', async ({
+    page,
+  }) => {
+    await page.route('**/api/public/viewer/**', async (route) => {
+      const response = await route.fetch()
+      const body = (await response.json()) as { colourways?: unknown[] }
+      body.colourways = body.colourways?.slice(0, 4)
+      await route.fulfill({ response, json: body })
+    })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const perRow = await page.evaluate(() => {
+      const tops = [...document.querySelectorAll('.stage__aside .colourway-tab')].map((tab) =>
+        Math.round(tab.getBoundingClientRect().top),
+      )
+      return [...new Set(tops)].map((top) => tops.filter((t) => t === top).length)
+    })
+    expect(perRow).toEqual([2, 2])
+  })
+
   /**
-   * VA-32's list is ~180px taller than the dots, and from 1100px the side column also holds the
-   * product's name and description. Measured 2026-10-02 against the live catalogue, the list at
-   * 1280x800 and 1440x900 pushed Email and WhatsApp off the screen, so it shows only from 1080px
-   * of height (page.css). This walks the widths at exactly that height with copy LONGER than any
-   * live garment's: the 454-character description was the longest, and "THE KINETIC MATRIX
-   * JACKET" the longest name (25). The fixture's own copy is 145 characters and fits anywhere —
-   * against it this test could not fail.
+   * D8's names add a row of words under each row of dots, and the side column also holds the
+   * name, three lines of description and both buttons. Measured 2026-10-04 with the longest copy
+   * and these names, the column needs 614-625px of window in Chromium and Firefox and 617-638px in
+   * WebKit with the names, 549-602px without, so the names show from 656px of height (page.css).
+   * This walks the widths at exactly that height and one pixel under, with copy LONGER than any
+   * live garment's: against the fixture's own 145-character description it could not fail.
    */
-  test('the colour list leaves both contact buttons on screen at its shortest height (VA-32)', async ({
+  test('the names under the dots leave both contact buttons on screen at their shortest height (D8)', async ({
     page,
   }) => {
     test.setTimeout(180_000)
-    await serveGarment(page, LONGEST_COPY)
+    await serveGarment(page, { ...LONGEST_COPY, names: LONG_NAMES[0] })
     const gaps: string[] = []
-    for (const width of [900, 1000, 1099, 1100, 1150, 1200, 1279, 1280, 1366, 1440, 1920]) {
-      await page.setViewportSize({ width, height: 1080 })
+    for (const [width, height, named] of [
+      [1280, 656, true],
+      [1366, 656, true],
+      [1440, 656, true],
+      [1536, 656, true],
+      [1920, 656, true],
+      [2560, 656, true],
+      [1280, 655, false],
+      [1920, 655, false],
+      // A column under 350px keeps the dots, however tall the window.
+      [1024, 768, false],
+      [1180, 820, false],
+    ] as const) {
+      await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       const seen = await page.evaluate(contactOnScreen)
-      if (!seen.listed) gaps.push(`${width}px: the colours are not a list here`)
-      if (!seen.email) gaps.push(`${width}px: no email control on screen`)
-      if (!seen.whatsapp) gaps.push(`${width}px: no WhatsApp control on screen`)
+      const at = `${width}x${height}`
+      if (seen.listed !== named) {
+        gaps.push(`${at}: the names are ${seen.listed ? '' : 'not '}under the dots`)
+      }
+      if (!seen.email) gaps.push(`${at}: no email control on screen`)
+      if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen`)
     }
     expect(gaps).toEqual([])
   })
 })
 
 /**
- * VA-60 (visual audit, owner decision 2026-10-02): live descriptions run to 454 characters, and
- * the side column's old floor (1100 x 720) had been measured with the fixture's 145. From 1100
- * to 1280px wide and 720 to 800px tall those garments put Email and WhatsApp below the screen —
- * at 1100x799 by 8px. The description now goes beside the garment only where copy longer than
- * any live garment's still leaves both on screen (useIdentityInAside.ts has the per-engine
- * table), and under it otherwise. This walks each step of that floor and the pixel below it.
+ * POLISH D8 (owner-approved 2026-10-04): the name and description beside the garment on every
+ * computer, the description at three lines with "Read more". From 2 Oct (VA-60) they went beside
+ * it only in a window 800-880px tall, because live descriptions run to 454 characters and pushed
+ * Email and WhatsApp below a shorter screen; the three lines bound the column instead. Measured
+ * with the longest copy and names (useIdentityInAside.ts has the per-engine table), the column
+ * needs 549-602px of window, so the floor is 620px. This walks every width at the floor and one
+ * pixel under it, the two commonest laptop windows by name, and the layouts either side.
  */
-test.describe('the longest description never pushes the contact buttons off screen (VA-60)', () => {
-  test('at each step of the side-column floor, and one pixel below it', async ({ page }) => {
+test.describe('the longest copy never pushes the contact buttons off screen (D8)', () => {
+  test('beside the garment from 1024px wide and 620px tall, and under it one pixel shorter', async ({
+    page,
+  }) => {
     test.setTimeout(180_000)
-    await serveGarment(page, LONGEST_COPY)
+    await serveGarment(page, {
+      ...LONGEST_COPY,
+      names: [
+        'Terracotta / Blush',
+        'Bottle Green / Mint',
+        'Tangerine',
+        'Turquoise',
+        'Magenta / Burgundy',
+      ],
+    })
     const gaps: string[] = []
     for (const [width, height, beside] of [
-      [1100, 880, true],
-      [1150, 880, true],
-      [1200, 880, true],
-      [1279, 880, true],
-      [1100, 879, false],
-      [1279, 879, false],
-      [1280, 800, true],
-      [1366, 800, true],
-      [1440, 800, true],
-      [1920, 800, true],
-      [1280, 799, false],
-      [1920, 799, false],
-      // Where the old 1100 x 720 floor put it beside the garment and the buttons went under.
-      [1100, 800, false],
-      [1280, 760, false],
+      [1024, 620, true],
+      [1100, 620, true],
+      [1180, 620, true],
+      [1280, 620, true],
+      [1366, 620, true],
+      [1440, 620, true],
+      [1920, 620, true],
+      [2560, 620, true],
+      [1024, 619, false],
+      [1280, 619, false],
+      [1920, 619, false],
+      // 1366x768 and 1280x720 laptop screens, less the browser's own bars.
+      [1366, 657, true],
+      [1280, 633, true],
+      // Upright, never beside (F11); and from 900 to 1023px wide the name stays under it.
+      [1024, 1366, false],
+      [960, 700, false],
     ] as const) {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
@@ -3123,6 +3227,69 @@ test.describe('the longest description never pushes the contact buttons off scre
       if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen`)
     }
     expect(gaps).toEqual([])
+  })
+})
+
+/**
+ * "READ MORE" (polish D8, owner-approved 2026-10-04): beside the garment the description stops at
+ * three lines (ProductIdentity.tsx), which is what bounds the column above. The button shows only
+ * when there is more to read, the whole text stays in the page for a screen reader while closed,
+ * and under the garment, where nothing needs bounding, the description is whole.
+ */
+test.describe('the description beside the garment opens with Read more (D8)', () => {
+  const lines = (statement: import('@playwright/test').Locator) =>
+    statement.evaluate((el) =>
+      Math.round(
+        el.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(el).lineHeight),
+      ),
+    )
+
+  test('a long description shows three lines, and opens and closes in full', async ({ page }) => {
+    await serveGarment(page, LONGEST_COPY)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const statement = page.locator('.product-info--aside .product-info__statement')
+    const more = page.getByRole('button', { name: 'Read more' })
+    await expect(more).toHaveAttribute('aria-expanded', 'false')
+    expect(await lines(statement)).toBe(3)
+    // The clipped lines are still text in the page, for a screen reader and for search.
+    await expect(statement).toContainText('rain, grit and cold.')
+    const box = await more.boundingBox()
+    expect(
+      box?.height ?? 0,
+      'Read more is under the 24px WCAG 2.5.8 target',
+    ).toBeGreaterThanOrEqual(24)
+
+    await more.click()
+    const less = page.getByRole('button', { name: 'Read less' })
+    await expect(less).toHaveAttribute('aria-expanded', 'true')
+    expect(await lines(statement)).toBeGreaterThan(3)
+
+    await less.click()
+    await expect(page.getByRole('button', { name: 'Read more' })).toBeVisible()
+    expect(await lines(statement)).toBe(3)
+  })
+
+  test('a description that fits in three lines has no Read more (the control)', async ({
+    page,
+  }) => {
+    await serveGarment(page, { shortDescription: 'A short description that fits on one line.' })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.getByTestId('product-identity-aside')).toHaveCount(1)
+    await expect(page.locator('.product-info__more')).toHaveCount(0)
+  })
+
+  test('under the garment the description is whole, with no Read more', async ({ page }) => {
+    await serveGarment(page, LONGEST_COPY)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.product-info__more')).toHaveCount(0)
+    await expect(page.locator('.product-info__statement[data-clamped]')).toHaveCount(0)
+    expect(await lines(page.locator('.product-info__statement'))).toBeGreaterThan(3)
   })
 })
 

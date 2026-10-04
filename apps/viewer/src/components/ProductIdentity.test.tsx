@@ -1,7 +1,7 @@
 import type { ViewerApiSuccess, ViewerColourway, ViewerProduct } from '@run-apparel/shared'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProductIdentity } from './ProductIdentity'
 import { ProductPanel } from './ProductPanel'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -202,5 +202,91 @@ describe('the colour note re-announces itself on every switch', () => {
     )
 
     expect(host.querySelector('.product-info__colour')).toBe(first)
+  })
+})
+
+/**
+ * Polish D8 (2026-10-04): beside the garment the description stops at three lines with "Read
+ * more". jsdom lays nothing out, so the paragraph's overflow is stated here (its scrollHeight
+ * against its clientHeight); e2e/motion-and-layout.spec.ts measures it in real browsers.
+ */
+describe('Read more beside the garment (D8)', () => {
+  function overflowing(scroll: number, client: number): () => void {
+    const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(scroll)
+    const clientSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(client)
+    return () => {
+      scrollSpy.mockRestore()
+      clientSpy.mockRestore()
+    }
+  }
+
+  it('offers it when the text runs past three lines, and opens and closes', () => {
+    const restore = overflowing(200, 72)
+    try {
+      act(() =>
+        root.render(
+          <ProductIdentity
+            product={PRODUCT}
+            selected={SELECTED}
+            selectedIndex={0}
+            clampDescription
+          />,
+        ),
+      )
+      const paragraph = host.querySelector('.product-info__statement') as HTMLElement
+      const button = host.querySelector('.product-info__more') as HTMLButtonElement
+      expect(paragraph.hasAttribute('data-clamped')).toBe(true)
+      expect(button.textContent).toBe('Read more')
+      expect(button.getAttribute('aria-expanded')).toBe('false')
+      expect(button.getAttribute('aria-controls')).toBe(paragraph.id)
+
+      act(() => button.click())
+      expect(paragraph.hasAttribute('data-clamped')).toBe(false)
+      expect(button.textContent).toBe('Read less')
+      expect(button.getAttribute('aria-expanded')).toBe('true')
+
+      act(() => button.click())
+      expect(paragraph.hasAttribute('data-clamped')).toBe(true)
+      expect(button.textContent).toBe('Read more')
+    } finally {
+      restore()
+    }
+  })
+
+  it('offers nothing when the text fits in three lines (the control)', () => {
+    const restore = overflowing(72, 72)
+    try {
+      act(() =>
+        root.render(
+          <ProductIdentity
+            product={PRODUCT}
+            selected={SELECTED}
+            selectedIndex={0}
+            clampDescription
+          />,
+        ),
+      )
+      expect(host.querySelector('.product-info__statement')?.hasAttribute('data-clamped')).toBe(
+        true,
+      )
+      expect(host.querySelector('.product-info__more')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('never clamps the description under the garment', () => {
+    const restore = overflowing(200, 72)
+    try {
+      act(() =>
+        root.render(
+          <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity />,
+        ),
+      )
+      expect(host.querySelector('[data-clamped]')).toBeNull()
+      expect(host.querySelector('.product-info__more')).toBeNull()
+    } finally {
+      restore()
+    }
   })
 })

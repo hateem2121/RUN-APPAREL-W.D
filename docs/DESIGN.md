@@ -446,7 +446,7 @@ and it shipped as 21 literals until 2026-09-05.
 | Token | Value | Use |
 |---|---|---|
 | `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.callout`, `.preloader__status` |
-| `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.stage-block__name` |
+| `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.product-info__more` |
 | `--tracking-caps-wide` | 0.14em | `.section-number`; the footer's `.footer-clock__time small` |
 | `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
@@ -554,22 +554,24 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 
 | Query | Where | What changes |
 |---|---|---|
-| `max-height: 500px` | `base.css`, `notch.css`, `page.css` | sideways phones: the cookie card goes to one row, the bar rests at its condensed 52px; on a garment page the product line above the stage and the phone action bar are hidden |
+| `max-height: 500px` | `base.css`, `notch.css`, `page.css` | sideways phones: the cookie card goes to one row, the bar rests at its condensed 52px; on a garment page the phone action bar is hidden |
 | `max-width: 359.98px` | `page.css` | narrower padding on the phone action bar's two buttons |
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
 | `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
 | `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' filter is one row that scrolls sideways (VA-42) |
 | `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
-| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline); facts go to three columns; the garment page's two-column stage, and the phone action bar is hidden |
+| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
+| `700px` and `orientation: portrait` | `page.css` | an upright tablet keeps the phone's one column, its garment window half the screen tall so the name under it is on the first screen (polish F11) |
 | `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
-| `1100px` and `min-height: 880px`, or `1280px` and `min-height: 800px` | `useIdentityInAside.ts` | the product's name and description move beside the garment, only where the longest live description leaves the contact buttons on screen (VA-60; a script query, kept a strict subset of the CSS one) |
+| `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one) |
+| `1024px` and `min-height: 656px`, sideways, and container `colourrail` `350px` | `page.css` | beside the garment, each colour's name under its dot, three to a row (polish D8) |
 | `1180px` | `site.css` | the product families go to five columns |
 | `max-width: 899px`, `900px`, `1440px` | `site.css` | the product grid is two columns, three from 900px and four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px), each with its own rule against a lone last card (VA-42) |
 | `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
 | `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12) |
-| container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |
+| container `colourrail`: `252px`, `350px` | `page.css` | below 252px the dots go three to a row (3 + 2, VA-32); from 350px, beside the garment, each dot has its name under it (polish D8) |
 
 ### Pictures in rows: the order timeline
 

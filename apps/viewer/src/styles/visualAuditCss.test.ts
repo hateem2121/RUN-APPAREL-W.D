@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { TWO_COLUMN_QUERY } from '../lib/useIdentityInAside'
 import { declared, readRules } from './cssRules'
 
 /**
@@ -119,12 +120,19 @@ describe('VA-54: the phone bar steps aside for the page’s own Email and WhatsA
     )
   })
 
-  it('leaves the cookie card’s own step-aside instant, and the bar’s breakpoints where they were', () => {
+  it('leaves the cookie card’s own step-aside instant, and the bar hands over where the aside’s buttons appear', () => {
     // A `visibility` in the base transition would have delayed this one by the fade.
     expect(declared(rules, ':root:has(.consent) .action-bar', 'visibility')).toBe('hidden')
     expect(declared(rules, ':root:has(.consent) .action-bar', 'transition')).toBeUndefined()
-    // viewer-layout.md: `.contact-rail` and `.action-bar` breakpoints must stay equal.
-    expect(declared(rules, '.action-bar', 'display', ['@media (min-width: 900px)'])).toBe('none')
+    // viewer-layout.md: `.contact-rail` and `.action-bar` breakpoints must stay equal. Since polish
+    // F11 (2026-10-04) the hand-over is the two-column query itself, imported rather than copied,
+    // so the bar and the aside's `.stage__contact` cannot drift apart: an upright tablet of 900px
+    // and up is one column, and the old `min-width: 900px` would have left it with neither.
+    expect(declared(rules, '.action-bar', 'display', [`@media ${TWO_COLUMN_QUERY}`])).toBe('none')
+    expect(declared(rules, '.stage__contact', 'display', [`@media ${TWO_COLUMN_QUERY}`])).toBe(
+      'flex',
+    )
+    expect(declared(rules, '.action-bar', 'display', ['@media (min-width: 900px)'])).toBeUndefined()
     expect(declared(rules, '.action-bar', 'display', ['@media (max-height: 500px)'])).toBe('none')
   })
 })

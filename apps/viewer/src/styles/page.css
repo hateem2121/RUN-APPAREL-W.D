@@ -113,7 +113,11 @@
   outline: none;
 }
 
-@media (min-width: 900px) {
+/* No action bar in two columns (the aside carries Email and WhatsApp), so no reserve for it. The
+   two-column query, not `min-width: 900px`, since polish F11 (2026-10-04): an upright tablet of
+   900px and up is one column and keeps the bar. */
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .page {
     padding-bottom: 0;
     background-image: none;
@@ -146,19 +150,8 @@
   inset-block-start: 0;
 }
 
-/*
- * `[ 3D PRODUCT REFERENCE ]` on its own line under the bar, at EVERY width — owner decision
- * 2026-09-17, phones included (it was hidden under 700px). The first line of <main>, so
- * it scrolls away. Measured on the live viewer with the new bar injected, 2026-09-23, at eight
- * viewports from 320x640 to 1440x900: the band starts 23px lower than under the old 69px
- * header, the canvas gives up exactly those 23px, and the rail keeps its 17px over the action
- * bar (a best case — a desktop browser at a phone's width has no URL bar).
- */
-.viewer-tag {
-  display: flex;
-  justify-content: center;
-  padding-block: 8px 0;
-}
+/* `.viewer-tag` ("[ 3D PRODUCT REFERENCE ]" on its own line under the bar) was deleted on
+   2026-10-04: polish D8 and M5, owner-approved. The stage band starts under the bar. */
 
 /* ── 3D stage ──────────────────────────────────────────────────────── */
 
@@ -256,8 +249,9 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* No action bar above 900px — same seam and same shape as `.page`'s rule. */
-@media (min-width: 900px) {
+/* No action bar in two columns — same seam and same shape as `.page`'s rule. */
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage-block {
     padding-bottom: 0;
   }
@@ -476,6 +470,37 @@
 }
 
 /*
+ * ⚠️ AN UPRIGHT TABLET: THE PHONE'S ONE COLUMN, WITH A SHORTER GARMENT, SO ITS NAME IS ON THE
+ * FIRST SCREEN (polish F11, owner's answer Q23, 2026-10-04).
+ *
+ * The band is one screen on a phone, so the garment fills the first screen and the name follows
+ * it. Upright, a tablet's band was a whole screen too and its garment almost all of it: the name
+ * started 1,251px down on an 820x1180 iPad (the second check, 4 Oct). Here the band ends early:
+ * the garment window is about half the screen and the band takes no `min-height`, so the colours
+ * and the name follow on the first screen. Its reserve for the action bar goes too, because that
+ * reserve exists for a band that ends AT the bar, which this one no longer does (the page keeps
+ * its own, `.page`, for the end of the document).
+ *
+ * Wide enough is height-limited here (a 768px canvas half a screen tall is wider than the
+ * garment's 0.82), so the garment fills 86.3% of this height and shrinks with it.
+ * The number is measured, not chosen: e2e/motion-and-layout.spec.ts -> "an upright tablet shows
+ * the garment's name on the first screen".
+ */
+@media (min-width: 700px) and (orientation: portrait) {
+  .stage-block {
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .stage__canvas {
+    flex: 0 0 auto;
+    height: 50svh;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+/*
  * ⚠️ THIS BLOCK USED TO CARRY THE PHONE'S HEIGHT BUDGET, and its comment argued
  * at length for a subtrahend of 364 — 81 header + 8 + 8 stage padding + 12 gap +
  * 52 rail + 12 gap + 25 caption + 12 band padding + 72 bar. All of that is gone
@@ -510,10 +535,10 @@
  * controls, the colours), 8px within one (visual audit VA-35, owner-approved 2026-10-02).
  * Measured that day, the garment on an upright phone is limited by its card's WIDTH, so
  * this height costs it nothing (313x228 drawn at 390x844 either way); only the shortest
- * phones pay (320x640). 8px on top makes the product line's gap exactly 16 with the line's
- * own 8px margin, where the fluid `2vw` above gave 16.6px at 430px and 23.4px at 768px.
- * Upright only: below 501px of height the line is refused (`.stage-block__name`) and a
- * landscape phone keeps its own top. The gap above the controls is `.stage__plinth`'s.
+ * phones pay (320x640). 8px on top, under the bar, where the fluid `2vw` above gave 16.6px at
+ * 430px and 23.4px at 768px (the product line it once spaced was removed by polish M5).
+ * Upright only: a landscape phone keeps its own top. The gap above the controls is
+ * `.stage__plinth`'s.
  */
 @media (max-width: 899px) and (min-height: 501px) {
   .stage__inner {
@@ -564,89 +589,8 @@
    header's height — the number the band subtracts. It read 92px on every stage-band
    viewport (measured 2026-09-24); see tokens.css. */
 
-/*
- * The compact garment name, portrait phones only.
- *
- * Hidden everywhere else because everywhere else already shows the real thing: the
- * `<h1>` is in the aside from 1100x880 and 1280x800 up (VA-60), and in `.content` above the fold on any
- * screen tall enough. This exists for exactly the case where neither is true.
- *
- * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a
- * side effect. `.stage__canvas` is `flex: 1 1 auto` inside a band whose job is
- * dividing a fixed `100svh - var(--header-h)`, so every pixel here is a pixel off
- * the garment. MEASURED by rendering it and then hiding it at 375x812:
- * canvas 495px without, 475px with — a cost of exactly 20px, which is the 14px
- * line-box plus the 6px margin and nothing else. A named garment 20px shorter beats
- * an anonymous one, on a page a visitor reaches by scanning a tag and asking "what
- * is this?". The colourway rail's clearance above the action bar is unchanged at
- * 29px, measured at 320, 375 and 414.
- *
- * 699px, not the two-column query: at 844x390 the band is already asserted at
- * <=390px tall and has no row to spare.
- */
-.stage-block__name {
-  display: none;
-}
-
-/*
- * ⚠️ THE VISIBILITY DECISION MOVED TO JSX ON 2026-09-05, and the reason is in
- * App.tsx: this line is needed exactly when the `<h1>` is not on the first screen,
- * which is `!identityInAside` — a query no width ceiling here could express. A
- * `max-width: 699px` rule left iPad portrait (768x1024, 834x1194) and iPad Pro
- * 12.9 (1024x1366) showing a garment with no name at all.
- *
- * What CSS still owns is the HEIGHT refusal below, because that is a layout
- * question rather than a content one.
- *
- * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a
- * side effect. `.stage__canvas` is `flex: 1 1 auto` inside a band whose job is
- * dividing a fixed `100svh - var(--header-h)`, so every pixel here is a pixel off
- * the garment. MEASURED by rendering it and then hiding it at 375x812:
- * canvas 495px without, 475px with — a cost of exactly 20px, which is the 14px
- * line-box plus the 6px margin and nothing else. A named garment 20px shorter beats
- * an anonymous one, on a page a visitor reaches by scanning a tag and asking "what
- * is this?".
- */
-.stage-block__name {
-  display: block;
-  margin: 0 0 6px;
-  padding: 0 var(--stage-gutter);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps);
-  line-height: 1.4;
-  text-transform: uppercase;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/*
- * The one place the 20px is NOT affordable: a landscape phone. At 844x390 the
- * two-column band is already asserted at <=390px tall and has no row to spare, so
- * the name is refused rather than taken out of the garment.
- *
- * Same 500px threshold the action bar uses, and for the same reason — it is the
- * height below which this band stops having spare rows. That leaves landscape
- * without a visible name, which is a real gap and the smaller one: the dominant
- * journey is a phone held upright at a garment rail.
- */
-@media (max-height: 500px) {
-  .stage-block__name {
-    display: none;
-  }
-}
-
-/* On an upright phone or tablet the line takes the stack's rhythm (VA-35): 8px under the label,
-   which it touched, and 8px over the garment's 8px top (see `.stage__inner`), 16px in all.
-   After the rule above on purpose — equal specificity, so source order decides. A short
-   desktop window that also shows the line keeps 0 / 6px: its garment is limited by height. */
-@media (max-width: 899px) and (min-height: 501px) {
-  .stage-block__name {
-    margin: 8px 0;
-  }
-}
+/* `.stage-block__name`, the garment's name over a phone's garment, was deleted on 2026-10-04:
+   polish M5, F11 and X1, owner-approved (App.tsx says where the name is now). */
 
 /* ── Two columns when the screen has width to spare ────────────────── */
 
@@ -683,7 +627,13 @@
  * appears and `.action-bar` disappears, and apps/viewer/CLAUDE.md records what
  * happened when those two numbers were allowed to differ: 900-1099px carried no
  * persistent contact control at all. A fourth breakpoint here would be a fourth
- * thing to keep in step.
+ * thing to keep in step. Since polish F11 (2026-10-04) the bar's rules use THIS
+ * query, not the width alone, so the hand-over stays exact now that it has a shape.
+ *
+ * ⚠️ `orientation: landscape` ON THE WIDTH CLAUSE SINCE 2026-10-04 (polish F11, owner's
+ * answer Q23): an upright tablet is one column, the phone's layout with a shorter garment,
+ * so the name under it is on the first screen. 1024x1366 (iPad Pro 12.9 upright) matched
+ * on width alone until then.
  *
  * Verified against the audit matrix: 1440x900 (1.60) and 2560x1440 (1.78) match
  * on width; 844x390 (2.16) matches on shape; 768x1024 (0.75), 402x714 (0.56) and
@@ -701,7 +651,8 @@
  *   documented further down this file and is the reason `.spec-list` exists as a
  *   separate phone rendering. Moving them here would delete it.
  */
-@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage-block {
     flex-direction: row;
     align-items: stretch;
@@ -835,6 +786,18 @@
 
   .stage__contact .btn {
     flex: 1 1 auto;
+  }
+}
+
+/* Beside the garment the column holds the name, three lines of description, the colours and both
+   contact buttons (polish D8), so its groups sit 16px apart there, not 24, inside 12px: the
+   column's height decides whether Email and WhatsApp are on a laptop's screen, and these are the
+   values useIdentityInAside.ts's table was measured with. Same query as IDENTITY_IN_ASIDE_QUERY;
+   after the two-column block, which it must beat by order. */
+@media (min-width: 1024px) and (min-height: 620px) and (orientation: landscape) {
+  .stage__aside {
+    gap: 16px;
+    padding-block: 12px;
   }
 }
 
@@ -1041,7 +1004,16 @@
  * **5.10:1 light, 6.69:1 dark**.
  */
 
-@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage__more {
+    display: none;
+  }
+}
+
+/* An upright tablet's band ends above the fold with the name after it (F11), so it has nothing
+   to signal past, and no reserve under the rail for this to sit in. */
+@media (min-width: 700px) and (orientation: portrait) {
   .stage__more {
     display: none;
   }
@@ -1922,6 +1894,38 @@ model-viewer.stage__model {
   max-inline-size: 50ch;
 }
 
+/* Three lines beside the garment, then "Read more" (polish D8; ProductIdentity.tsx says why). The
+   three properties belong together: MDN "line-clamp" (modified 2026-09-14) gives the unprefixed
+   property as not Baseline, and this form as supported everywhere and staying so. */
+.product-info__statement[data-clamped] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* "Read more" / "Read less": the house tracked caps as a text button, close under the paragraph
+   it opens (the section's gap is between groups), and 24px tall at least (WCAG 2.5.8). */
+.product-info__more {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: -8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  /* 12px: the floor for words that are read (VA-11, e2e/readText.spec.ts). */
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 /*
  * The colourway qualifier, moved out of the swatch rail on 2026-08-20.
  *
@@ -2097,7 +2101,8 @@ model-viewer.stage__model {
  * In the column the rail needs no measure and no gutter — the aside supplies
  * both.
  */
-@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage-block .colourways {
     max-width: none;
     margin: 0;
@@ -2194,10 +2199,11 @@ model-viewer.stage__model {
    88 in dark: a pale swatch vanished into the light page and a dark one into the dark
    page — the opposite of what the paragraph above asks of it. --line-control flips with
    the theme: 0 of 320 under 3:1, worst 3.39:1 light and 4.94:1 dark (all 80 live pages,
-   scripts/contrast-rules.mjs). The list's chosen row overrides it, on its inverted fill (the
-   last rule in this file). Guarded by apps/viewer/e2e/audit-guards.spec.ts → CO-12.
+   scripts/contrast-rules.mjs). Beside the garment the chosen dot also wears an outer ring in the
+   text colour (polish D8; VA-32's list, which inverted the chosen row, went with it). Guarded by
+   apps/viewer/e2e/audit-guards.spec.ts → CO-12 and AC-16.
 
-   28px in a 44px dot (VA-32); 14px beside a name in the list. */
+   28px in a 44px dot (VA-32); 24px over its name beside the garment (D8). */
 .colourway-tab__swatch {
   flex: 0 0 auto;
   width: 28px;
@@ -2486,7 +2492,12 @@ model-viewer.stage__model {
   }
 }
 
-@media (min-width: 900px) {
+/* Two columns carry Email and WhatsApp in the aside (`.stage__contact`), so the bar hands over at
+   exactly that query: the two must never leave a width with neither (see `.contact-rail` above).
+   The two-column query, not `min-width: 900px`, since polish F11 (2026-10-04): an upright tablet
+   of 900px and up is one column, has no aside, and keeps the bar. */
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .action-bar {
     display: none;
   }
@@ -2833,70 +2844,106 @@ model-viewer.stage__model {
     transform: none;
   }
 }
+
 /*
- * ⚠️ IN A TALL SIDE COLUMN THE COLOURS ARE A LIST, each name on a row of its own (VA-32; owner
- * decision 2026-10-02: the list only where it fits).
+ * ⚠️ BESIDE THE GARMENT ON A COMPUTER, EACH COLOUR'S NAME IS UNDER ITS DOT, IN A GRID, WHERE IT
+ * FITS (polish D8, owner-approved 2026-10-04). From 2 Oct (VA-32) the names showed there only as a
+ * list, and only in a window 1080px tall, so most laptops got bare dots with one name above them.
  *
- * The list is ~180px taller than the dots, and from 1100px the column also holds the product's
- * name and description (useIdentityInAside.ts). Measured 2026-10-02 with the longest live
- * descriptions served (454 characters; and 447 under the 25-character "THE KINETIC MATRIX
- * JACKET"), the Email and WhatsApp buttons stayed on screen in Chromium only from 990px of height
- * at 1100px wide and from 920px at 1280px and up; at 1280x800 and 1440x900 the list pushed them
- * off it. Firefox needs more: it sets the test's 26-character name on three lines, not two, and
- * needed 1041px at 1100 wide. 1080 keeps 39px over that, in all three engines. Shorter windows
- * keep the dots. Guarded by motion-and-layout.spec.ts -> "the colour list leaves both contact
- * buttons on screen at its shortest height".
+ * A name breaks only at the space after its "/": its parts are inline and unbreakable
+ * (`.colourway-tab__part`), so it is one line when it fits and "BOTTLE GREEN /" over "MINT" when
+ * not. Three to a row (3 + 2 for five colours, 2 + 2 for four, so no colour sits alone). The
+ * chosen colour: a ring round its dot, its name in the text colour where the others' are muted
+ * (colour only: a bolder weight would re-wrap the name). Each cell is one tab, at least 44px tall.
+ *
+ * WHERE IT FITS, MEASURED 2026-10-04 with the catalogue's longest copy (motion-and-layout.spec.ts):
+ *   width   at 12px, the floor for read words (VA-11), with the compact tracking, "BOTTLE GREEN /"
+ *           is 111px in Chromium and Firefox and 114px in WebKit. Three cells and two 4px gaps
+ *           need a 350px column; it is 360px from a 1280px window (cells of 117px, 3px clear of
+ *           WebKit) and 289-337px from 1024 to 1194, so a sideways iPad keeps the dots with the
+ *           chosen name above.
+ *   height  the names add a row of words under each row of dots: the column then needs 618-629px
+ *           of window in Chromium and Firefox, 618-640px in WebKit, against 549-602px with the
+ *           dots. 656px is 16px clear of WebKit's worst and takes in a 1366x768 laptop's window
+ *           (about 1366x657); shorter windows keep the dots (useIdentityInAside.ts has the table).
+ * The names change twice more in this build (the code font, X5, and every colour's name, N1), so
+ * both are re-measured after each.
  *
  * After the dots on purpose: equal-specificity rules here must win by source order.
  */
-@media (min-width: 900px) and (min-height: 1080px) {
-  .stage__aside .colourways__name {
-    display: none;
-  }
-
-  .stage__aside .colourways__list {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .stage__aside .colourway-tab {
-    justify-content: flex-start;
-    width: auto;
-    height: auto;
-    min-height: var(--target-min);
-    padding: 10px 16px;
-    border: 1.4px solid var(--line);
-    border-radius: var(--radius-button);
-    text-align: start;
-  }
-
-  .stage__aside .colourway-tab__swatch {
-    width: 14px;
-    height: 14px;
-  }
-
-  .stage__aside .colourway-tab__label {
-    display: inline;
-  }
-
-  /* The base hover rule comes before the border above, so the list repeats it. */
-  @media (hover: hover) and (pointer: fine) {
-    .stage__aside .colourway-tab:hover {
-      border-color: var(--dimension);
+@media (min-width: 1024px) and (min-height: 656px) and (orientation: landscape) {
+  @container colourrail (width >= 350px) {
+    /* The names are under the dots, so the line above them would say the chosen one twice. */
+    .stage__aside .colourways__name {
+      display: none;
     }
-  }
 
-  .stage__aside .colourway-tab[aria-selected="true"] {
-    border-color: var(--btn-primary-bg);
-    background: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
-  }
+    /* `align-items: start`: each cell is as tall as its own name, so the dots of a row line up
+       and every cell's content sits in its middle (FA-E-09, e2e/audit-guards.spec.ts). */
+    .stage__aside .colourways__list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+      gap: 8px 4px;
+    }
 
-  /* The chosen row's swatch ring is the row's own text colour (CO-12). --line-control is drawn
-     for the page ground; on the inverted fill it failed every selected ring in dark, while the
-     row's text colour stands 13–14:1 off that fill. */
-  .stage__aside .colourway-tab[aria-selected="true"] .colourway-tab__swatch {
-    border-color: currentColor;
+    .stage__aside .colourways__list:has(> :nth-child(4):last-child) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stage__aside .colourway-tab {
+      flex-direction: column;
+      justify-content: center;
+      width: auto;
+      height: auto;
+      min-height: var(--target-min);
+      gap: 4px;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius-button);
+      /* 12px, the floor for words that are read (VA-11, e2e/readText.spec.ts), with the compact
+         caps tracking so the widest part still fits its cell. */
+      font-size: var(--text-mono-lg);
+      letter-spacing: var(--tracking-caps-compact);
+      line-height: 1.2;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .stage__aside .colourway-tab__swatch {
+      width: 24px;
+      height: 24px;
+      transition: box-shadow var(--ui) var(--ease);
+    }
+
+    .stage__aside .colourway-tab__label {
+      display: block;
+      max-width: 100%;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .stage__aside .colourway-tab:hover {
+        color: var(--text);
+      }
+
+      .stage__aside .colourway-tab:hover .colourway-tab__swatch {
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent),
+          0 0 0 2px var(--bg),
+          0 0 0 3.5px var(--dimension);
+      }
+    }
+
+    .stage__aside .colourway-tab[aria-selected="true"] {
+      color: var(--text);
+    }
+
+    .stage__aside .colourway-tab[aria-selected="true"] .colourway-tab__swatch {
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent),
+        0 0 0 2px var(--bg),
+        0 0 0 4px currentColor;
+    }
   }
 }
 

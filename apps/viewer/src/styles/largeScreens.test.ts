@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { TWO_COLUMN_QUERY } from '../lib/useIdentityInAside'
 
 /**
  * VA-12 (visual audit, 2026-10-02): from 1920px the display headlines and the garment pages' stage
@@ -84,6 +85,13 @@ function mediaHolds(prelude: string, window: Window): boolean {
         if (below) return window.width < Number(below[1])
         const aspect = feature.match(/^\(\s*min-aspect-ratio:\s*(\d+)\s*\/\s*(\d+)\s*\)$/)
         if (aspect) return window.width / window.height >= Number(aspect[1]) / Number(aspect[2])
+        // Media Queries 4: landscape is wider than tall; a square window is portrait (polish F11
+        // put the feature on the two-column query).
+        const orientation = feature.match(/^\(\s*orientation:\s*(landscape|portrait)\s*\)$/)
+        if (orientation) {
+          const landscape = window.width > window.height
+          return orientation[1] === 'landscape' ? landscape : !landscape
+        }
         throw new Error(`a media feature this test does not know: ${feature}`)
       }),
   )
@@ -431,7 +439,8 @@ describe('what the change touches and what it leaves', () => {
         (rule) =>
           rule.selector === selector && new RegExp(`(?:^|[;\\s])${property}:`).test(rule.body),
       )
-      .map((rule) => rule.at.join(' / ') || 'always')
+      // Whitespace collapsed: Biome wraps a long media query over two lines (polish F11).
+      .map((rule) => rule.at.map((at) => at.replace(/\s+/g, ' ')).join(' / ') || 'always')
 
   it('every new rule is behind min-width 1920px, beside the untouched old one', () => {
     expect(gates(STYLESHEETS.base, '.display--hero', 'font-size')).toEqual([
@@ -446,12 +455,15 @@ describe('what the change touches and what it leaves', () => {
       'always',
       '@media (min-width: 1920px)',
     ])
+    // The portrait gate is polish F11 (2026-10-04), not this change: an upright tablet's garment
+    // window is a fixed share of its screen, so its cap is released there.
     expect(gates(STYLESHEETS.page, '.stage__canvas', 'max-height')).toEqual([
       '@media (min-width: 900px)',
+      '@media (min-width: 700px) and (orientation: portrait)',
       '@media (min-width: 1920px)',
     ])
     expect(gates(STYLESHEETS.page, '.stage-block', 'padding-inline')).toEqual([
-      '@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2)',
+      `@media ${TWO_COLUMN_QUERY}`,
       '@media (min-width: 1920px)',
     ])
   })
