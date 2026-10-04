@@ -183,7 +183,8 @@ li {
   text-transform: uppercase;
   /* Tracking is set per size below, not here — see .display--hero. */
   line-height: 0.92;
-  color: var(--headline);
+  /* `--heading`; the big title takes `--headline` in `.display--hero` below (polish X25). */
+  color: var(--heading);
   /*
    * The display face must be allowed to break, or the page scrolls sideways.
    *
@@ -237,6 +238,16 @@ li {
 .display--hero {
   font-size: clamp(2.125rem, 5.4vw, 4.5rem);
   letter-spacing: var(--tracking-display-lg);
+  /*
+   * ⚠️ ONLY THE BIG TITLE IS LIME IN DARK MODE (polish X25, owner's answer Q12, 2026-10-03). Every
+   * heading used to take `--headline`, so a dark guide page showed its title, each section
+   * headline and every small heading ("Air courier", "Sea freight") in lime, and on a long page the
+   * lime stopped pointing at anything. The h1 keeps it; the others are `--heading`, the off-white
+   * of the page's text. Light mode is unchanged: both are ink. The serif accent word keeps its own
+   * colour (`--serif-accent`), as it is olive in light mode, and so does the home page's featured
+   * figure (`--dimension`, site.css).
+   */
+  color: var(--headline);
 }
 
 .display--section {

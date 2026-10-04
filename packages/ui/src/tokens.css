@@ -56,8 +56,11 @@
   /* Primary button: light = ink fill + volt text · dark = volt fill + ink text */
   --btn-primary-bg: light-dark(var(--ink), var(--volt));
   --btn-primary-text: light-dark(var(--volt), var(--ink));
-  /* Display headlines: light = ink · dark = volt */
+  /* The page's big title (`.display--hero`, its h1): light = ink · dark = volt */
   --headline: light-dark(var(--ink), var(--volt));
+  /* Every other heading: light = ink · dark = the off-white of `--text` (polish X25: in dark
+     mode lime is kept for the big title and the buttons, so it points at what matters) */
+  --heading: light-dark(var(--ink), #ecebe4);
   /* Serif accents & dimension lines: light = volt-deep · dark = volt */
   --serif-accent: light-dark(var(--volt-deep), var(--volt));
   --dimension: light-dark(var(--volt-deep), var(--volt));

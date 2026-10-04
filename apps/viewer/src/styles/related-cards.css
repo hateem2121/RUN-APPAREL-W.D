@@ -92,7 +92,8 @@
   font-weight: 700;
   font-size: var(--text-card-title);
   letter-spacing: var(--tracking-card-title);
-  color: var(--headline);
+  /* Off-white in dark mode, not lime: only the garment's name is (polish X25, base.css). */
+  color: var(--heading);
   margin: 0;
   /* A long unbroken word in a phone's 110px column breaks rather than being clipped (VA-42). */
   overflow-wrap: anywhere;

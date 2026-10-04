@@ -35,7 +35,7 @@ loud colour; everything else in the system is quiet so that it reads.
 
 | Token | Value | Role |
 |---|---|---|
-| `--volt` | `#cdf345` | The signal. Highlights, dark-mode headlines, dark-mode primary fill. |
+| `--volt` | `#cdf345` | The signal. Highlights, the dark-mode page title, dark-mode primary fill. |
 | `--volt-deep` | `#5f7414` | Light-mode serif accents and dimension lines — volt is illegible on paper-white. |
 | `--ink` | `#1d1f1a` | Near-black with an olive cast. Never `#000`. |
 
@@ -65,8 +65,19 @@ usually means darkening — here it means swapping.
 |---|---|---|
 | Tag `[ LABEL ]` | volt block, ink text | transparent, volt text |
 | Primary button | ink fill, volt text | volt fill, ink text |
-| Display headline | ink | volt |
+| Page title (`.display--hero`, the h1): `--headline` | ink | volt |
+| Every other heading (section headlines, card names, part headings): `--heading` | ink | off-white `#ecebe4` |
 | Serif accent / dimension line | volt-deep | volt |
+
+**In dark mode lime is kept for the big title and the buttons** (polish X25, the owner's answer
+Q12, 2026-10-03). Until then every heading took volt, so a dark guide page showed its title, each
+section headline and every small heading ("Air courier", "Sea freight") in lime, and on a long page
+the lime stopped pointing at anything. Every other heading now takes the off-white of the page's
+text; light mode is unchanged. The serif accent word keeps volt, the dark twin of its olive in
+light mode, and so does the home page's featured figure ("100,000", `--dimension`), which is a
+number, not a heading. The photo heroes, dark in both themes, re-declare `--heading` with the others
+(`site.css`). `apps/cms/e2e/darkHeadings.spec.ts` and `apps/viewer/e2e/darkHeadings.spec.ts`
+measure it.
 
 ### Motif inks
 
@@ -226,8 +237,8 @@ do — swapping the import silently flattens every headline back to normal width
 
 ```
 .display          Archivo · weight 860 · font-stretch 122% · UPPERCASE
-                  line-height 0.92 · colour --headline · text-wrap balance
-.display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg
+                  line-height 0.92 · colour --heading · text-wrap balance
+.display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg · colour --headline
 .display--section clamp(26px, 4vw, 46px)  · --tracking-display-sm
 .footer-q         clamp(27px, 4.3vw, 52px) · --tracking-display-sm · the site footer's question
 ```

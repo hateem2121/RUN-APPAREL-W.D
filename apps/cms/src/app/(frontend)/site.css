@@ -1486,7 +1486,8 @@ html {
   /* Its own token, not the wordmark's and not the fluid display one — see
      `--tracking-card-title` in tokens.css, and FA-C-51. */
   letter-spacing: var(--tracking-card-title);
-  color: var(--headline);
+  /* Off-white in dark mode, not lime: only the page's big title is (polish X25, base.css). */
+  color: var(--heading);
   margin: 0;
   /* A long unbroken word (a garment called "Compression-Tights-Pro") in a 110px column would be
      clipped by the card's `overflow: hidden`; let it break instead (VA-42). */
@@ -2933,6 +2934,7 @@ a.contact-block__value:active {
   --btn-primary-bg: var(--volt);
   --btn-primary-text: var(--ink);
   --headline: var(--volt);
+  --heading: #ecebe4;
   --serif-accent: var(--volt);
   --dimension: var(--volt);
   --focus-ring: var(--volt);
@@ -3002,6 +3004,7 @@ a.contact-block__value:active {
     --btn-primary-bg: inherit;
     --btn-primary-text: inherit;
     --headline: inherit;
+    --heading: inherit;
     --serif-accent: inherit;
     --dimension: inherit;
     --focus-ring: inherit;
