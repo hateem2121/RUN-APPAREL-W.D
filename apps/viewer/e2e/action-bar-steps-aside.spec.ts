@@ -310,11 +310,20 @@ test.describe('at the end of the page the bar steps aside and the footer runs to
           { message: 'the planted room did not land', timeout: 3_000 },
         )
         .toBeGreaterThanOrEqual(73)
-      const plain = await footOfScreen(page, 48)
-      expect(
-        distance(plain, paper),
-        `with a room under the footer, the foot is ${JSON.stringify(plain)}`,
-      ).toBeLessThan(8)
+      // ⚠️ POLLED TOO: under a full run's load Firefox took the screen before the scroll to the end
+      // had settled, and read the footer where the room was (2026-10-05, 1 run in 1; 5 of 5 alone).
+      await expect
+        .poll(
+          async () => {
+            await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+            return distance(await footOfScreen(page, 48), paper)
+          },
+          {
+            message: 'with a room under the footer, the foot of the screen is not paper',
+            timeout: 5_000,
+          },
+        )
+        .toBeLessThan(8)
 
       // And the bar is back, usable, once the footer has scrolled off.
       await scrollToTop(page)
