@@ -36,6 +36,11 @@ import {
  * is visible, and the arcs start drawing the first time it is on screen — not at page load,
  * when nobody is looking.
  *
+ * ⚠️ IT TURNS ONLY UNTIL TOUCHED (polish F7, the owner's answer Q20, 2026-10-04). The first press
+ * stops the spin for the rest of the visit, and once the arcs have drawn in the frame loop stops
+ * with it; a drag then repaints on its own. WCAG 2.2.2 asks that motion lasting more than five
+ * seconds can be stopped: touching it is the stop the owner chose, as on the home garment.
+ *
  * cobe 2.0.1 (pinned) draws its own dots: no map tiles, fonts, cookies or storage, so the
  * privacy notice and the CSP are untouched. It has NO frame loop or `onRender` in this version:
  * `update()` draws synchronously, so this component owns the loop. It has native arcs, so
@@ -120,6 +125,9 @@ function startGlobe(
   let last = 0
   let dragging = false
   let dragX = 0
+  // The visitor has taken hold of it once: it never turns by itself again (F7).
+  let touched = false
+  const settled = () => touched && shown === arcs.length
 
   const globe: Globe = createGlobe(element, {
     width: size,
@@ -147,7 +155,7 @@ function startGlobe(
     if (started === null) started = now
     const dt = last ? Math.min(now - last, 64) : 16
     last = now
-    if (!dragging) phi += SPIN_PER_FRAME * (dt / 16)
+    if (!dragging && !touched) phi += SPIN_PER_FRAME * (dt / 16)
     const count = arcsVisibleAt(arcs.length, now - started, drawIn)
     const extra: Partial<COBEOptions> = {}
     if (count !== shown) {
@@ -155,10 +163,12 @@ function startGlobe(
       extra.arcs = arcs.slice(0, shown)
     }
     paint(extra)
+    // Nothing moves by itself any more: let the loop end, and a drag paints for itself (`move`).
+    if (settled()) return
     raf = requestAnimationFrame(frame)
   }
   const kick = () => {
-    if (still || raf || !visible || document.hidden) return
+    if (still || raf || !visible || document.hidden || settled()) return
     last = 0
     raf = requestAnimationFrame(frame)
   }
@@ -195,6 +205,7 @@ function startGlobe(
   resize.observe(holder)
 
   const down = (event: PointerEvent) => {
+    touched = true
     dragging = true
     dragX = event.clientX
     element.setPointerCapture?.(event.pointerId)

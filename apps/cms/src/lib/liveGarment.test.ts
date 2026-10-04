@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { autoLoadAllowed } from './liveGarment'
+import { autoLoadAllowed, garmentTouchAction } from './liveGarment'
 
 /**
  * The home page's 3D garment loads by itself only where that is kind to the visitor (owner,
@@ -23,5 +23,37 @@ describe('autoLoadAllowed', () => {
   it('loads on 3G and faster', () => {
     expect(autoLoadAllowed({ effectiveType: '3g' })).toBe(true)
     expect(autoLoadAllowed({ effectiveType: '4g', saveData: false })).toBe(true)
+  })
+})
+
+// Polish M3: the frame sizes measured on the live home page, 2026-10-04 (frame height, screen).
+describe('garmentTouchAction', () => {
+  it.each([
+    [348, 568, '320x568'],
+    [398, 640, '360x640'],
+    [435, 844, '390x844'],
+    [480, 932, '430x932'],
+  ])(
+    'an upright phone: the garment wins the swipe (%ipx frame, %ipx screen, %s)',
+    (frame, screen) => {
+      expect(garmentTouchAction(frame, screen)).toBe('none')
+    },
+  )
+
+  it.each([
+    [638, 320, '568x320 sideways'],
+    [948, 390, '844x390 sideways'],
+    [863, 1024, '768x1024 tablet'],
+  ])(
+    'a frame filling the screen keeps up-and-down for scrolling (%ipx frame, %ipx screen, %s)',
+    (frame, screen) => {
+      expect(garmentTouchAction(frame, screen)).toBe('pan-y')
+    },
+  )
+
+  it('keeps scrolling when it cannot measure (no layout yet)', () => {
+    expect(garmentTouchAction(0, 844)).toBe('pan-y')
+    expect(garmentTouchAction(435, 0)).toBe('pan-y')
+    expect(garmentTouchAction(Number.NaN, 844)).toBe('pan-y')
   })
 })

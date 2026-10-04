@@ -3296,6 +3296,50 @@ a.contact-block__value:active {
   pointer-events: auto;
 }
 
+/*
+ * "Drag to turn" (polish M3, 2026-10-04): the garment pages' hint (`.stage__hint` in apps/viewer's
+ * page.css) in this page's words, shown while the model is up and gone at the first touch
+ * (LiveGarment.tsx). Opaque like that one, because a garment of any colour sits behind it, and
+ * `max-content` so the words, not the room beside the centre, decide its width. Under reduced
+ * motion base.css makes the rise instant: it simply arrives.
+ */
+.live-garment__hint {
+  position: absolute;
+  inset-block-end: 12px;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: live-garment-hint-in var(--settle) var(--ease) both;
+}
+
+.live-garment__hint svg {
+  inline-size: 14px;
+  block-size: 14px;
+  flex: 0 0 auto;
+}
+
+@keyframes live-garment-hint-in {
+  from {
+    opacity: 0;
+    translate: -50% 6px;
+  }
+}
+
 /* ------------------------------------------------ the contact page, single step (2026-10-01) */
 
 /*

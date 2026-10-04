@@ -370,6 +370,29 @@ test.describe('the globe, on a page of its own', () => {
       expect(first.equals(second), 'the globe turned under navigator.webdriver').toBe(true)
     })
 
+    // Polish F7 (the owner's answer Q20): it turns until a visitor takes hold of it, then stays.
+    test('a press stops it turning by itself, for good', async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+      await openHarness(page, { lift: true })
+      await canvasOf(page).scrollIntoViewIfNeeded()
+      const turning = await twoFrames(page)
+      expect(turning.first.equals(turning.second), 'not turning before the press').toBe(false)
+
+      const box = await canvasOf(page).boundingBox()
+      if (!box) throw new Error('no canvas box')
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.up()
+      // Past the arcs' drawing-in (`--showpiece`), so only a spin could still change the frame.
+      await page.waitForTimeout(3000)
+      const still = await twoFrames(page)
+      expect(
+        (await inspect(page, still.first)).ink,
+        'a blank frame proves nothing',
+      ).toBeGreaterThan(0)
+      expect(still.first.equals(still.second), 'it turned by itself after being touched').toBe(true)
+    })
+
     test('it stops drawing while it is off screen, and starts again when seen', async ({
       page,
     }) => {

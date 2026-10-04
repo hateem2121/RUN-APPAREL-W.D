@@ -144,6 +144,58 @@ test.describe('№03 — the live 3D garment', () => {
     // NEGATIVE CONTROL lives in the real-model test above: without reduced motion it turns.
   })
 
+  // Polish F7 (the owner's answer Q20): it turns until touched, then stays still for the visit,
+  // and the "Drag to turn" hint (M3) goes at the same moment.
+  test('a press stops the turning for good, and the hint goes with it', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const model = page.locator('.live-garment model-viewer')
+    const yaw = () =>
+      model.evaluate(
+        (element) => (element as unknown as { turntableRotation: number }).turntableRotation,
+      )
+    // The control: before any touch it really turns by itself, and the hint is up.
+    const before = await yaw()
+    await expect.poll(yaw, { timeout: 3000 }).not.toBe(before)
+    await expect(page.locator('.live-garment__hint')).toHaveText(/drag to turn/i)
+
+    const box = await model.boundingBox()
+    if (!box) throw new Error('the model has no box')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 })
+    await page.mouse.up()
+
+    await expect(model).not.toHaveAttribute('auto-rotate')
+    await expect(page.locator('.live-garment__hint')).toHaveCount(0)
+    const after = await yaw()
+    await page.waitForTimeout(1500)
+    expect(await yaw(), 'it started turning again after the visitor let go').toBe(after)
+  })
+
+  // Polish M3: on an upright phone a swipe on the garment turns it; held sideways the frame is
+  // taller than the screen, so up-and-down stays the page's (lib/liveGarment.ts, measured).
+  test('the garment wins a swipe upright, and gives it back when the phone turns sideways', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const model = page.locator('.live-garment model-viewer')
+    await expect(model).toHaveAttribute('touch-action', 'none')
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect(model).toHaveAttribute('touch-action', 'pan-y')
+  })
+
   test('a model that fails to load leaves the picture exactly as it was', async ({ page }) => {
     await serveModel(page, false)
     await openWithGarment(page)
