@@ -1078,6 +1078,33 @@ model-viewer.stage__model {
 }
 
 /*
+ * MO2 (polish, 2026-10-04): the old colour's frame over the garment while the new colour is
+ * applied, then faded over --fast, the audit's "quick 200ms cross-fade" (lib/colourCrossFade.ts).
+ * The garment's exact box, so the copy lies on the frame it copied. Hidden at rest; `visibility`
+ * gets the fade's duration, so it hides just as the fade ends (the action bar's rule says why).
+ */
+.stage__crossfade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.stage__crossfade[data-state="held"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.stage__crossfade[data-state="fading"] {
+  transition:
+    opacity var(--fast) var(--ease),
+    visibility var(--fast) linear;
+}
+
+/*
  * The largest control on the page was the only one without the brand focus ring.
  *
  * `:focus-visible` in base.css cannot reach it: model-viewer takes focus on its
@@ -3178,6 +3205,7 @@ summary.spec-item__row:focus-visible {
   .stage__hint,
   .stage__loading,
   .stage__placeholder,
+  .stage__crossfade,
   .stage__contours,
   .stage__error,
   .stage__retry,

@@ -5,6 +5,7 @@ import { boundingRadius, installAdaptiveNearPlane, internalCamera } from '../lib
 import { applyDecalDepthBias, correlatedThreeMaterials } from '../lib/decal-depth-bias'
 import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion, savesData } from '../lib/capabilities'
+import { fadeWhenApplied, holdFrame } from '../lib/colourCrossFade'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import {
@@ -95,6 +96,9 @@ export function Stage({
   const displayed = displayedColourway(separateMode, preview, selected)
 
   const mvRef = useRef<ModelViewerEl | null>(null)
+  /** MO2: the canvas a colour change fades out from, and the colour last applied to the model. */
+  const crossFadeRef = useRef<HTMLCanvasElement | null>(null)
+  const appliedVariantRef = useRef<string | null>(null)
   // Where keyboard focus goes when TRY 3D AGAIN unmounts itself on press (issue #41).
   const canvasRef = useRef<HTMLDivElement | null>(null)
   /** Last `panSensitivity` written. See PAN_SENS_STEP — one gesture fires ~165 events. */
@@ -627,7 +631,26 @@ export function Stage({
     if (!mv || !modelLoaded) return
     if (separateMode) return // handled via src/poster attributes below
     const available = mv.availableVariants ?? []
+    let stopFade: (() => void) | undefined
     if (available.includes(displayed.variantId)) {
+      /*
+       * MO2 (polish, 2026-10-04): the old colour's frame is held over the garment while the new
+       * one is applied, then fades over --fast (lib/colourCrossFade.ts). Not the first colour a
+       * page applies (nothing was showing to fade from), not under reduced motion (the change is
+       * instant, as it was), and not while the HD picture covers the model (`data-hd`).
+       */
+      const overlay = crossFadeRef.current
+      if (
+        overlay &&
+        appliedVariantRef.current !== null &&
+        mv.variantName !== displayed.variantId &&
+        !reduceMotion &&
+        !canvasRef.current?.hasAttribute('data-hd') &&
+        holdFrame(mv, overlay)
+      ) {
+        stopFade = fadeWhenApplied(mv, overlay)
+      }
+      appliedVariantRef.current = displayed.variantId
       mv.variantName = displayed.variantId
       setNotice(null)
     } else {
@@ -645,6 +668,8 @@ export function Stage({
         })
       }
     }
+    // A stage that changes before the colour lands lets the held frame go at once, never leaves it.
+    return () => stopFade?.()
   }, [
     modelLoaded,
     displayed.variantId,
@@ -652,6 +677,7 @@ export function Stage({
     selected.slug,
     separateMode,
     product.productCode,
+    reduceMotion,
   ])
 
   // Tell the parent when a variant swap would actually be visible, so the tabs
@@ -1023,7 +1049,10 @@ export function Stage({
   const onHdShownChange = useCallback((next: boolean) => {
     const swap = () => flushSync(() => setHdShown(next))
     if (typeof document.startViewTransition === 'function' && !prefersReducedMotion()) {
-      document.startViewTransition(swap)
+      // A skipped transition (two quick presses, a tab sent to the back) rejects `ready`, which
+      // reached Sentry as an uncaught error from the theme switch (VIEWER-9, lib/theme.ts says
+      // more); the swap itself has already happened, so it is not one.
+      void document.startViewTransition(swap).ready.catch(() => {})
     } else {
       swap()
     }
@@ -1170,6 +1199,14 @@ export function Stage({
                 </svg>
               </button>
             </model-viewer>
+          )}
+
+          {/* MO2: the old colour's frame while the new one is applied (lib/colourCrossFade.ts).
+              A copy of what is already on screen, so hidden from screen readers; it never takes
+              a pointer, so a drag during the fade turns the garment. */}
+          {libReady && resolvedSrc && !fallback && (
+            // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (the website's globe canvas carries the same note).
+            <canvas ref={crossFadeRef} className="stage__crossfade" aria-hidden="true" />
           )}
 
           {/* D9: the colour's studio render in the window, the screen-sized copy (F16). A real
