@@ -336,4 +336,45 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
       })
     }
   }
+
+  /*
+   * Polish X19 (2026-10-04): at 1920px the not-found headline set two lines in the stand-in and one
+   * in Archivo, so the page jumped up 66px a moment after loading, every time (0.24 live). It keeps
+   * one font from first paint now (`.hero-notfound`). The control puts the swapping face back.
+   */
+  for (const [width, swapping] of [
+    [1920, false],
+    [1350, false],
+    [390, false],
+    [1920, true],
+  ] as const) {
+    test(`the not-found page at ${width}px ${swapping ? 'WITH THE OLD SWAPPING FACE (negative control) shifts' : 'stays at or under 0.02'} while the fonts arrive late`, async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
+      await installObserver(page)
+      if (swapping) {
+        await page.addInitScript(() => {
+          document.addEventListener('DOMContentLoaded', () => {
+            const style = document.createElement('style')
+            style.textContent =
+              '.hero-notfound{--font-display:"Archivo Variable","Archivo","Archivo Display Fallback",system-ui,sans-serif;--font-serif:"Instrument Serif","Instrument Serif Fallback",Georgia,serif}'
+            document.head.append(style)
+          })
+        })
+      }
+      await page.route(FONT_FILES, async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        await route.continue()
+      })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/definitely-not-a-page')
+      await page.evaluate(() => document.fonts.ready.then(() => true))
+      await page.waitForTimeout(300)
+      const shift = await readCls(page)
+      if (swapping) expect(shift, 'the control did not reproduce the jump').toBeGreaterThan(0.02)
+      else expect(shift, `moved: ${(await readMoved(page)).join(', ')}`).toBeLessThanOrEqual(0.02)
+    })
+  }
 })

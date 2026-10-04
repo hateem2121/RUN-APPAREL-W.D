@@ -336,10 +336,14 @@
    0.0384 at 390px in CI. The sweep and the font order that causes it: e2e/fontSwap.spec.ts.
    The four family pages joined the same day (`.hero-family`, FamilyLanding.tsx): teamwear moved
    a word at every width from 768 to 1440px (CLS 0.063 at 1280px) and casual-wear lost a line at
-   368px. The home headline keeps its swap, by the owner's choice: it is the first impression. */
+   368px. The home headline keeps its swap, by the owner's choice: it is the first impression.
+   The not-found headline joined on 2026-10-04 (`.hero-notfound`, polish X19): at 1920px it set
+   two lines in the stand-in and one in Archivo, so the whole page jumped up 66px a moment after
+   loading, every time (layout shift 0.24). */
 .hero-guide,
 .hero-legal,
-.hero-family {
+.hero-family,
+.hero-notfound {
   --font-display: "Archivo Optional", "Archivo Display Fallback", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif Optional", "Instrument Serif Fallback",
@@ -1621,6 +1625,25 @@ a.contact-block__value:active {
 }
 
 /*
+ * ⚠️ ON A PAPER HERO THE HEADLINE NEEDS MORE THAN 10px UNDER ITS LABEL (polish X30, 2026-10-04).
+ * Measured as ink, the pixels a reader sees, with each face forced in turn. In the stand-in face the
+ * capitals rise 0.17–0.20em above their line box (Arial Bold's 0.716em capitals at a 128.24%
+ * size-adjust, against the 68.47% ascent of "Archivo Display Fallback" above), and at 1440 they ran
+ * into the label's chip on the buyer, guide, legal and guides pages; 2px at 768. Those pages draw
+ * their headline in "Archivo Optional", which keeps the stand-in for the whole visit when the font
+ * misses the first paint. In Archivo itself they read 11–16px, where the photo heroes (home,
+ * products, contact) read 19–24px. The extra `0.2em` IS that overhang, so it grows with the
+ * headline as the overhang does (to 144px from 1920px wide): the stand-in keeps the same 10px every
+ * other label has, and Archivo reads about 20–30px. A smaller share loses to the overhang as the
+ * type grows. The photo heroes swap to Archivo within a moment and are left as they were.
+ * `src/heroLabelGap.test.ts` holds the stand-in arithmetic; `e2e/composition.spec.ts` measures
+ * the ink in Archivo.
+ */
+.site-hero:not(.site-hero--photo) .label + .display {
+  margin-block-start: calc(10px + 0.2em);
+}
+
+/*
  * ------------------------------- the mono micro-label, by meaning (audit FA-I-14)
  *
  * ⚠️ `.section-number` WAS DOING FIVE JOBS ON THIS SITE. Counted 2026-09-07 across the
@@ -1949,6 +1972,18 @@ a.contact-block__value:active {
   flex-wrap: wrap;
   gap: 8px;
   margin-block-end: 24px;
+}
+
+/*
+ * A "see also" group after a page's own buttons (polish M4 and X2, 2026-10-04): the other ranges
+ * at the end of a buyer page, the other guides at the end of a guide. Measured 0px between
+ * WhatsApp and the first range, and between "Get a free quote" and the first guide, and the chips
+ * looked enough like the buttons that the two rows read as one jumble. Its own `.subhead` title
+ * and 40px above it make it a separate group. Only when it FOLLOWS something: on the guides index
+ * it opens a section, where the section's own padding is the space.
+ */
+* + .see-also {
+  margin-block-start: 40px;
 }
 
 .filter-chip {

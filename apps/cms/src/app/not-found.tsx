@@ -10,8 +10,10 @@ import './(frontend)/site.css'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
+import { Cursor } from '../components/site/Cursor'
 import { SiteFooter } from '../components/site/SiteFooter'
 import { SiteHeader } from '../components/site/SiteHeader'
+import { SmoothScroll } from '../components/site/SmoothScroll'
 import { ThemeBoot } from '../components/site/ThemeBoot'
 import { FALLBACK_SITE_SETTINGS } from '../lib/projectPublic'
 import { THEME_COLOR } from '../lib/themeColor'
@@ -74,9 +76,15 @@ import { THEME_COLOR } from '../lib/themeColor'
  * mistypes a garment slug from a printed QR tag has a real intention, and the routes below
  * are the whole site. No search box — there is nothing to search across five pages, and it
  * would be a control that always disappoints.
+ *
+ * ⚠️ IT IS THE SAME SITE, SO IT BEHAVES LIKE IT (polish F6, 2026-10-04). Outside every layout it
+ * missed three things each other page has: the dot-and-ring pointer, the smooth scroll and
+ * "— RUN APPAREL" in the tab title (the layout's `%s — RUN APPAREL` template never reaches it).
+ * All three are added here as the layout adds them; none needs the database or JavaScript to
+ * show the page. Its headline keeps one font from first paint (`.hero-notfound`, polish X19).
  */
 export const metadata: Metadata = {
-  title: 'Page not found',
+  title: 'Page not found — RUN APPAREL',
   robots: { index: false, follow: true },
 }
 
@@ -103,7 +111,8 @@ export default function NotFound() {
             <div className="blueprint site-hero__grid" aria-hidden="true" />
             <div className="site-container">
               <p className="label">[ 404 · Page not found ]</p>
-              <h1 className="display display--hero">
+              {/* `hero-notfound`: this headline never swaps fonts mid-visit (site.css, polish X19). */}
+              <h1 className="display display--hero hero-notfound">
                 That page isn&rsquo;t here. <span className="serif-accent">The rest&nbsp;is.</span>
               </h1>
               <p className="site-lede">
@@ -141,6 +150,9 @@ export default function NotFound() {
           this page keeps its rule of reading no database.
         */}
         <SiteFooter settings={FALLBACK_SITE_SETTINGS} />
+        {/* As the site layout has them (polish F6): fine pointers only; trusted wheels only. */}
+        <Cursor />
+        <SmoothScroll />
       </body>
     </html>
   )

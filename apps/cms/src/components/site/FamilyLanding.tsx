@@ -239,15 +239,21 @@ export function FamilyLanding({
               WhatsApp
             </a>
           </div>
-          <nav className="filter-bar" aria-label="Other product families">
-            {others.map((entry) => (
-              <Link key={entry.slug} className="filter-chip" href={familyHref(entry)}>
-                {entry.name}
+          {/* A "see also" group of its own, titled and set apart from the buttons above (polish M4). */}
+          <nav className="see-also" aria-labelledby="other-ranges">
+            <p className="subhead" id="other-ranges">
+              Other ranges
+            </p>
+            <div className="filter-bar">
+              {others.map((entry) => (
+                <Link key={entry.slug} className="filter-chip" href={familyHref(entry)}>
+                  {entry.name}
+                </Link>
+              ))}
+              <Link className="filter-chip" href="/products">
+                All products in 3D
               </Link>
-            ))}
-            <Link className="filter-chip" href="/products">
-              All products in 3D
-            </Link>
+            </div>
           </nav>
         </div>
       </section>

@@ -132,6 +132,23 @@ test.describe('the branded 404', () => {
     await expect(page).toHaveURL(/\/products$/)
     await expect(page.locator('h1')).toContainText(/Every garment/i)
   })
+
+  // Polish F6 (2026-10-04): built outside every layout, it missed the site's tab title, its pointer
+  // and its smooth scroll. Both of those stay off under automation, so the flag is lifted here.
+  test('is the same site: the site name in its title, the dot pointer and the smooth scroll', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    })
+    await page.goto('/definitely-not-a-page')
+    await expect(page).toHaveTitle('Page not found — RUN APPAREL')
+    await expect(page.locator('html')).toHaveClass(/\blenis\b/)
+    await page.mouse.move(200, 200)
+    await page.mouse.move(240, 260)
+    await expect(page.locator('html')).toHaveClass(/\bhas-custom-cursor\b/)
+  })
 })
 
 test.describe('the 404 shadows nothing', () => {

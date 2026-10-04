@@ -41,28 +41,37 @@ function Block({ block }: { block: GuideBlock }) {
  *
  * `guides={false}` leaves the guides out: the index shows every guide as a card already, so the
  * same seven as chips was the repetition VA-47 removed (2026-10-02). Every guide page keeps them.
+ *
+ * ⚠️ A GROUP OF ITS OWN, WITH A TITLE (polish X2, 2026-10-04). Measured 0px between "Get a free
+ * quote" and the first chip, on a phone and a computer, and the two rows read as one. The visible
+ * title is also the navigation's name, so `e2e/pages.spec.ts` still finds it as "More to read".
  */
 export function GuideLinks({ current, guides = true }: { current: string; guides?: boolean }) {
   const buyerPages = FAMILIES.map((family) => ({ family, page: familyPageFor(family) }))
   return (
-    <nav className="filter-bar filter-bar--titles" aria-label="More to read">
-      {(guides ? GUIDES.filter((guide) => guide.path !== current) : []).map((guide) => (
-        <Link key={guide.path} className="filter-chip" href={guide.path}>
-          {guide.title}
-        </Link>
-      ))}
-      {current === GUIDES_INDEX.path ? null : (
-        <Link className="filter-chip" href={GUIDES_INDEX.path}>
-          All guides
-        </Link>
-      )}
-      {buyerPages.map(({ family, page }) =>
-        page ? (
-          <Link key={page.path} className="filter-chip" href={page.path}>
-            {family.name}
+    <nav className="see-also" aria-labelledby="more-to-read">
+      <p className="subhead" id="more-to-read">
+        More to read
+      </p>
+      <div className="filter-bar filter-bar--titles">
+        {(guides ? GUIDES.filter((guide) => guide.path !== current) : []).map((guide) => (
+          <Link key={guide.path} className="filter-chip" href={guide.path}>
+            {guide.title}
           </Link>
-        ) : null,
-      )}
+        ))}
+        {current === GUIDES_INDEX.path ? null : (
+          <Link className="filter-chip" href={GUIDES_INDEX.path}>
+            All guides
+          </Link>
+        )}
+        {buyerPages.map(({ family, page }) =>
+          page ? (
+            <Link key={page.path} className="filter-chip" href={page.path}>
+              {family.name}
+            </Link>
+          ) : null,
+        )}
+      </div>
     </nav>
   )
 }

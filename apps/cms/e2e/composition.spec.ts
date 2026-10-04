@@ -803,6 +803,187 @@ test.describe('VA-43 — a hero label never leaves its last words alone', () => 
   })
 })
 
+/*
+ * Polish X30 (2026-10-04): on the paper heroes the headline's capitals met the label's chip. A box
+ * gap says nothing here: it was 10px on every page while the ink touched. So this measures INK,
+ * the pixels, with the headline forced to Archivo (bundled, so CI's image draws it too): 11-16px on
+ * these pages before the fix, against 19-24px on the photo heroes. The stand-in face, which CI's
+ * image cannot draw, is held by arithmetic in src/heroLabelGap.test.ts.
+ */
+test.describe('X30 — a paper hero’s label and headline keep apart', () => {
+  test.skip(({ browserName }) => browserName !== 'chromium', 'pixels, measured in one engine')
+  const PAPER = [
+    '/custom-teamwear-manufacturer',
+    '/guides/garment-printing-methods',
+    '/privacy',
+    '/guides',
+  ]
+
+  /** Rows of ink between the label's last inked row and the headline's first, in Archivo. */
+  async function inkGapUnderLabel(
+    page: import('@playwright/test').Page,
+    path: string,
+    extraCss = '',
+  ): Promise<number> {
+    await page.goto(path)
+    await page.addStyleTag({
+      content: `.site-hero__grid,.site-hero__photo,.blueprint{display:none!important}
+        .site-hero{background:#fff!important;color:#000!important}
+        .site-hero .label{color:#000!important}
+        .site-hero h1{font-family:"Archivo Variable",sans-serif!important}
+        .site-hero h1 .serif-accent{font-family:"Instrument Serif",serif!important}
+        ${extraCss}`,
+    })
+    await page.evaluate(async () => {
+      await document.fonts.load('900 72px "Archivo Variable"')
+      await document.fonts.load('italic 400 72px "Instrument Serif"')
+      await document.fonts.ready
+    })
+    await settle(page)
+    const box = await page.evaluate(() => {
+      const label = document.querySelector('.site-hero .label')
+      const h1 = label?.nextElementSibling
+      if (!label || !h1) return null
+      const a = label.getBoundingClientRect()
+      const b = h1.getBoundingClientRect()
+      const x = Math.floor(Math.min(a.left, b.left))
+      const y = Math.floor(a.top)
+      return {
+        clip: {
+          x,
+          y,
+          width: Math.ceil(Math.max(a.right, b.right) - x),
+          height: Math.ceil(b.top - y + 90),
+        },
+        labelHeight: a.bottom - y,
+      }
+    })
+    if (!box) throw new Error(`${path}: no hero label followed by a headline`)
+    const png = (await page.screenshot({ clip: box.clip })).toString('base64')
+    const rows = await page.evaluate(async (data) => {
+      const image = new Image()
+      image.src = `data:image/png;base64,${data}`
+      await image.decode()
+      const canvas = document.createElement('canvas')
+      canvas.width = image.width
+      canvas.height = image.height
+      const context = canvas.getContext('2d') as CanvasRenderingContext2D
+      context.drawImage(image, 0, 0)
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+      const inked: boolean[] = []
+      for (let y = 0; y < canvas.height; y++) {
+        let any = false
+        for (let x = 0; x < canvas.width && !any; x++) {
+          const i = (y * canvas.width + x) * 4
+          any = (pixels[i] ?? 255) + (pixels[i + 1] ?? 255) + (pixels[i + 2] ?? 255) < 600
+        }
+        inked.push(any)
+      }
+      return inked
+    }, png)
+    // The label may wrap to two lines: its LAST inked row inside its own box, then the headline's first.
+    let bottom = Math.min(Math.floor(box.labelHeight), rows.length - 1)
+    while (bottom > 0 && !rows[bottom]) bottom--
+    let y = bottom + 1
+    while (y < rows.length && !rows[y]) y++
+    return y - bottom - 1
+  }
+
+  for (const width of [390, 768, 1440]) {
+    test(`at ${width}px the ink between them is at least 16px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      for (const path of PAPER) {
+        expect(await inkGapUnderLabel(page, path), path).toBeGreaterThanOrEqual(16)
+      }
+    })
+  }
+
+  test('NEGATIVE CONTROL: with the old 10px the same reading falls short', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 900 })
+    const old =
+      '.site-hero:not(.site-hero--photo) .label + .display{margin-block-start:10px!important}'
+    expect(await inkGapUnderLabel(page, '/custom-teamwear-manufacturer', old)).toBeLessThan(16)
+  })
+})
+
+/*
+ * Polish M4 and X2 (2026-10-04): the chips after a page's own buttons sat 0px under them (WhatsApp
+ * on the buyer pages, "Get a free quote" on the guides), and the two rows read as one jumble.
+ */
+test.describe('M4 / X2 — a "see also" group stands apart from the buttons above it', () => {
+  const gapAbove = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const group = document.querySelector('.see-also')
+      const above = group?.previousElementSibling
+      if (!group || !above) return null
+      return {
+        gap: group.getBoundingClientRect().top - above.getBoundingClientRect().bottom,
+        title: group.querySelector('.subhead')?.textContent?.trim() ?? '',
+      }
+    })
+
+  for (const [path, title] of [
+    ['/custom-teamwear-manufacturer', 'Other ranges'],
+    ['/guides/garment-printing-methods', 'More to read'],
+  ] as const) {
+    for (const width of [390, 1440]) {
+      test(`${path} at ${width}px: 40px of air and its own title`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 })
+        await page.goto(path)
+        await settle(page)
+        const m = await gapAbove(page)
+        expect(m?.title).toBe(title)
+        // 0.5px: the boxes are fractional under clamp() type (see the file's header).
+        expect(m?.gap ?? 0).toBeGreaterThanOrEqual(39.5)
+      })
+    }
+  }
+
+  test('NEGATIVE CONTROL: without the rule the group sits on the buttons again', async ({
+    page,
+  }) => {
+    await page.goto('/custom-teamwear-manufacturer')
+    await page.addStyleTag({ content: '* + .see-also{margin-block-start:0!important}' })
+    await settle(page)
+    expect((await gapAbove(page))?.gap ?? 99).toBeLessThan(1)
+  })
+})
+
+/*
+ * Polish X3 (2026-10-04): the 10px labels (`--text-mono-sm`, packages/ui/src/tokens.css) grow on a
+ * computer: 12px from 1280px wide, 13px from 1920px. Phones and tablets keep the 10px their layouts
+ * were measured with. The garment pages read the same token file, so this one page pins both.
+ */
+test.describe('X3 — the small labels grow on a computer', () => {
+  const labelSize = (page: import('@playwright/test').Page) =>
+    page
+      .locator('.section-number')
+      .first()
+      .evaluate((label) => getComputedStyle(label).fontSize)
+
+  for (const [width, size] of [
+    [390, '10px'],
+    [768, '10px'],
+    [1280, '12px'],
+    [1920, '13px'],
+  ] as const) {
+    test(`${width}px: a section number is ${size}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      expect(await labelSize(page)).toBe(size)
+    })
+  }
+
+  test('NEGATIVE CONTROL: without the two width rules a computer gets 10px again', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1920, height: 900 })
+    await page.goto('/')
+    await page.addStyleTag({ content: ':root{--text-mono-sm:0.625rem!important}' })
+    expect(await labelSize(page)).toBe('10px')
+  })
+})
+
 test.describe('TY-12 — no heading splits a word across two lines', () => {
   /**
    * `.display` carries `overflow-wrap: anywhere`, so a word wider than its column breaks instead

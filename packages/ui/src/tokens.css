@@ -387,6 +387,27 @@
 }
 
 /*
+ * ⚠️ THE 10px LABELS GROW ON A COMPUTER (polish X3, 2026-10-04). `--text-mono-sm` sets the section
+ * numbers ("№02 — WHAT WE MAKE"), the bracket chips and the small form and count labels: 10px at
+ * every width, so on a 1920px screen they were the hardest words on the page to read. From 1280px
+ * they take the next step of the scale (12px, `--text-mono-lg`) and from 1920px the one above
+ * (13px, `--text-xs`), so no new size joins the scale. Phones and tablets keep 10px, the size every
+ * one of their layouts was measured with. Both apps read this file, so the website and the garment
+ * pages grow together; the shared footer does not use this size.
+ */
+@media (min-width: 1280px) {
+  :root {
+    --text-mono-sm: var(--text-mono-lg);
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --text-mono-sm: var(--text-xs);
+  }
+}
+
+/*
  * ⚠️ FLUID SPACING KEEPS TO THE 2px SCALE (visual audit VA-17, 2026-10-02). A `clamp()` that
  * grows with the window lands between the scale's steps everywhere but its two ends: the audit
  * counted 152 sizes such as 38.4 or 91.74px from the site's fluid paddings and gaps, while the
