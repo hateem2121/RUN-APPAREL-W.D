@@ -2660,8 +2660,8 @@ a.contact-block__value:active {
  * made /products one). The block above re-declares the hero's tokens with the dark theme's own
  * values, so the paper rule in tokens.css (`color-scheme: light`) cannot reach them: printed from
  * either theme, the home, contact and products headlines came out volt on white, 1.27:1, over a
- * photograph the browser still printed while dropping its wash. So on paper the photo, the film and
- * the pause button go, and every re-declared token takes the page's value again (`inherit`: the
+ * photograph the browser still printed while dropping its wash. So on paper the photo and the film
+ * go, and every re-declared token takes the page's value again (`inherit`: the
  * parent's, which the paper rule has already made light). e2e/print.spec.ts prints all three.
  */
 @media print {
@@ -2683,8 +2683,7 @@ a.contact-block__value:active {
     --focus-ring: inherit;
   }
 
-  .site-hero__photo,
-  .film-toggle {
+  .site-hero__photo {
     display: none;
   }
 }
@@ -2694,7 +2693,8 @@ a.contact-block__value:active {
  *
  * The hoodie film behind the /products hero's words (owner, 2026-10-01), under the photo hero's own
  * dark wash above, so the words read exactly as they do on the home page. `ProductsFilm.tsx` has the
- * behaviour; this places the still and the film on top of each other, and the pause button.
+ * behaviour; this places the still and the film on top of each other. There is no pause button, by
+ * the owner's choice (polish D5, 2026-10-04; the component explains).
  *
  * ⚠️ THE HERO'S HEIGHT IS STILL ITS WORDS. The still and the film are absolutely placed inside
  * `.site-hero__photo`, like the home photo, so they fill the hero without sizing it: measured before
@@ -2709,48 +2709,6 @@ a.contact-block__value:active {
   position: absolute;
   inset: 0;
   object-position: 50% 42%;
-}
-
-/*
- * The pause button: bottom right, in the hero's bottom padding (64px on a phone, so 44px fits with
- * room on both sides), on the words' column edge. Nothing else ever sits in that padding, so the
- * button can cover no word at any width.
- */
-.film-toggle {
-  position: absolute;
-  inset-block-end: 16px;
-  inset-inline-end: max(
-    var(--site-gutter),
-    calc((100% - var(--site-max)) / 2 + var(--site-gutter))
-  );
-  display: grid;
-  place-items: center;
-  inline-size: var(--target-min);
-  block-size: var(--target-min);
-  padding: 0;
-  border: 1px solid var(--line-control);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--bg) 64%, transparent);
-  color: var(--text);
-  cursor: pointer;
-  transition:
-    border-color var(--ui) var(--ease),
-    scale var(--instant) var(--ease);
-}
-
-.film-toggle svg {
-  inline-size: 16px;
-  block-size: 16px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .film-toggle:hover {
-    border-color: var(--dimension);
-  }
-}
-
-.film-toggle:active {
-  scale: 0.94;
 }
 
 /* ------------------------------------------------ №01 who we are */

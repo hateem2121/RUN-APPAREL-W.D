@@ -771,19 +771,17 @@ animate `width`, which is layout on every frame; `scripts/served-css-motion-prob
 carries an exception for them. The customisation panel's grid rows are the other animation that
 moves layout; that one is deliberate and stays (`page.css`).
 
-### The bar's hairline, and the bar that leaves (VA-40)
+### The bar's edge, and the bar that leaves (VA-40)
 
 Visual audit VA-40, owner-approved 2026-10-01, built 2026-10-02. The bar and the label row under it took
 92px of an 874px phone at all times, and over a dark photograph the bar's shadow and curved edges
 vanished (the website's dark "Browse the references" button scrolling under it read as one shape).
 
-**The hairline** is in the shared stylesheet, so both hosts have it: a 1px ring in the paper colour,
-the first layer of the bar's shadow, `--notch-edge` in `packages/ui/src/notch.css` — paper at 22% in
-the light theme and 12% in the dark. Computed with `scripts/contrast-rules.mjs` and held by
-`apps/viewer/src/styles/barEdge.test.ts`: over a dark photograph (#202420) it reads 1.95:1 in the
-light theme and 1.41:1 in the dark; over the light page it is paper on paper, 1.00:1, so it cannot
-look heavier there. It outlines the bar and not the two flares at its top corners (masks, painted over
-the bar's own shadow). It is transparent on paper and not drawn in forced-colours mode.
+**The edge is the soft shadow alone** (`--shadow-raised`), by the owner's choice in polish D12
+(2026-10-04). VA-40 had added a 1px ring in the paper colour as the bar's first shadow layer. It
+stopped where the two curved top corners begin (masks painted over the bar's own shadow), and the
+owner read that as unfinished. Over dark photographs the bar now separates by its shadow and its lime
+menu button. `apps/viewer/src/styles/barEdge.test.ts` holds the bar to that one shadow.
 
 **The bar that leaves** is the garment pages' alone, on a phone (`screen`, under 720px,
 `hover: none` — the phone the status-area strip defines): while the visitor scrolls down it slides off

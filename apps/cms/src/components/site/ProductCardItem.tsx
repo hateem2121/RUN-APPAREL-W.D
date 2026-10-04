@@ -35,8 +35,6 @@ export function ProductCardItem({
   index: number
   heading?: 'h2' | 'h3'
 }) {
-  const colours = product.colourNames.length
-
   return (
     <li className="product-card">
       <CardGallery
@@ -58,12 +56,11 @@ export function ProductCardItem({
               ),
             )}
           </Heading>
+          {/* No "· 5 colors": the dots already show how many (polish D6, 2026-10-04), and their
+              group names every colour to a screen reader (CardGallery.tsx). */}
           <p className="product-card__meta">
             <span>{product.productCode}</span>
             {product.category ? <span>· {product.category}</span> : null}
-            <span>
-              · {colours} color{colours === 1 ? '' : 's'}
-            </span>
           </p>
           <ViewerCue />
           {product.shortDescription ? (
