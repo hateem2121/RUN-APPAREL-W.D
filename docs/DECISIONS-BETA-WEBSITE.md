@@ -651,14 +651,17 @@ was the family's page. The buyer pages keep their addresses, which Google alread
   chips became a jump bar: plain links to the groups on the same page (Q28).
 - **D17 now reads:** a family with no garments keeps its chip, dashed, with its count of 0, and its
   group on the page says so in its own words. Sports Accessories, which has no page, shows
-  "[ soon ]" and "Ask what we make →" to Contact (Q21).
+  "[ soon ]" and "Ask what we make →" to Contact (Q21), and so does its home-page card, which
+  opens Contact (polish F8, 2026-10-05). Both say it only while the family has neither a page nor
+  a garment.
 - **The old addresses forward** with Next's permanent redirect (308, which Google treats as a 301,
   "Redirects and Google Search", updated 14 April 2026): a family with a page to the page, Sports
   Accessories to its group, anything else to `/products`.
 - **The buyer pages copy nothing:** no numbers, no factory photos, and none of their own five order
   steps (the third telling of the order process, audit X21). They link the order guide instead.
-- **Everything that linked a family links its one list:** the home page's family cards, the
-  footer's "What we make", the garment pages' trail and their "See all … in 3D", and `/llms.txt`.
+- **Everything that linked a family links its one list:** the home page's family cards (but the
+  "[ soon ]" one, above), the footer's "What we make", the garment pages' trail and their "See all
+  … in 3D", and `/llms.txt`.
 
 **Guard:** `apps/cms/src/oneListPerFamily.test.ts` (every family link and forward, no `?family=`
 link anywhere in the site's source with a planted-link control, no copied section on a buyer page)

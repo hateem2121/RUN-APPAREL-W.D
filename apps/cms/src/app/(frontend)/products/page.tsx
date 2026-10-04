@@ -6,7 +6,12 @@ import { ProductCardItem } from '../../../components/site/ProductCardItem'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES } from '../../../lib/families'
-import { familyFilterForward, familyPageFor } from '../../../lib/familyPages'
+import {
+  FAMILY_SOON,
+  familyFilterForward,
+  familyIsSoon,
+  familyPageFor,
+} from '../../../lib/familyPages'
 import { PRODUCTS_DESCRIPTION } from '../../../lib/pageDescriptions'
 import { buildMetadata } from '../../../lib/seo'
 import { preconnectHost } from '../../../lib/posterHost'
@@ -116,7 +121,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     const products = all.filter((product) => product.category === entry.name)
     const start = first
     first += products.length
-    return { family: entry, page: familyPageFor(entry), products, start }
+    const soon = familyIsSoon(entry, products.length)
+    return { family: entry, page: familyPageFor(entry), products, soon, start }
   })
   // A garment whose category names no family still stands on the page (D1): after the groups.
   const named = new Set(FAMILIES.map((entry) => entry.name))
@@ -175,7 +181,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                 ))}
               </nav>
 
-              {groups.map(({ family: entry, page, products, start }) => (
+              {groups.map(({ family: entry, page, products, soon, start }) => (
                 <section
                   key={entry.slug}
                   id={entry.slug}
@@ -198,18 +204,18 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                         entry.name
                       )}
                     </h2>
-                    {page ? (
-                      <p className="result-count">
-                        {products.length} reference{products.length === 1 ? '' : 's'}
-                      </p>
-                    ) : (
+                    {soon ? (
                       // No page and no garments yet: the owner's words for this family (Q21).
                       <p className="gallery-group__soon">
-                        <span className="label">[ soon ]</span>
-                        <Link className="gallery-group__ask" href="/contact">
-                          Ask what we make
+                        <span className="label">{FAMILY_SOON.label}</span>
+                        <Link className="gallery-group__ask" href={FAMILY_SOON.href}>
+                          {FAMILY_SOON.ask}
                           <span aria-hidden="true">&rarr;</span>
                         </Link>
+                      </p>
+                    ) : (
+                      <p className="result-count">
+                        {products.length} reference{products.length === 1 ? '' : 's'}
                       </p>
                     )}
                   </div>

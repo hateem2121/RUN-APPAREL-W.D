@@ -3,7 +3,13 @@ import { join } from 'node:path'
 import { categoryPath } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { FAMILIES } from './lib/families'
-import { FAMILY_PAGES, familyFilterForward, familyHref, familyPageFor } from './lib/familyPages'
+import {
+  FAMILY_PAGES,
+  familyFilterForward,
+  familyHref,
+  familyIsSoon,
+  familyPageFor,
+} from './lib/familyPages'
 
 /**
  * Polish S1–S4 (the owner's answers Q24–Q26, 2026-10-04): one page per job. A family's garments
@@ -65,6 +71,33 @@ describe('a family’s one list', () => {
     expect(LISTS.map(([slug]) => slug).sort()).toEqual(
       FAMILY_PAGES.map((page) => page.familySlug).sort(),
     )
+  })
+})
+
+// Polish F8 (Q21): "[ soon ]" and "Ask what we make →", on the products page and the home page alike.
+describe('a family says "[ soon ]" only with no page and no garment', () => {
+  it('Sports Accessories, today: no page, no garment', () => {
+    expect(familyIsSoon(family('sports-accessories'), 0)).toBe(true)
+  })
+
+  it('not once a garment of it is published', () => {
+    expect(familyIsSoon(family('sports-accessories'), 1)).toBe(false)
+  })
+
+  it('never for a family with a page, even with no garment', () => {
+    for (const [slug] of LISTS) expect(familyIsSoon(family(slug), 0), slug).toBe(false)
+  })
+
+  it('both pages decide it the same way, and read the same words', () => {
+    for (const file of ['app/(frontend)/page.tsx', 'app/(frontend)/products/page.tsx']) {
+      expect(code(file), file).toMatch(/familyIsSoon\(/)
+    }
+    const words = [code('app/(frontend)/products/page.tsx'), code('components/site/FamilyCard.tsx')]
+    for (const source of words) {
+      expect(source).toContain('{FAMILY_SOON.label}')
+      expect(source).toContain('{FAMILY_SOON.ask}')
+      expect(source).not.toMatch(/\[ soon \]|Ask what we make/)
+    }
   })
 })
 

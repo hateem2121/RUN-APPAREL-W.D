@@ -13,6 +13,7 @@ import { ViewerCue } from '../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
 import { FAMILIES, familyPictures } from '../../lib/families'
+import { familyIsSoon } from '../../lib/familyPages'
 import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
 import { buildMetadata, GARMENT_PAGES } from '../../lib/seo'
 import { websiteJsonLd } from '../../lib/structuredData'
@@ -157,6 +158,10 @@ export default async function HomePage() {
                 family={family}
                 picture={pictures[family.slug] ?? null}
                 last={index === FAMILIES.length - 1}
+                soon={familyIsSoon(
+                  family,
+                  products.filter((product) => product.category === family.name).length,
+                )}
               />
             ))}
           </ul>

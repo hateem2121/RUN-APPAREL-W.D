@@ -3312,6 +3312,7 @@ a.contact-block__value:active {
 }
 
 .family-card__media {
+  position: relative;
   display: block;
   aspect-ratio: 4 / 5;
   overflow: hidden;
@@ -3325,6 +3326,21 @@ a.contact-block__value:active {
   height: 100%;
   object-fit: contain;
   transition: scale var(--settle) var(--ease);
+}
+
+/*
+ * A family with nothing to show wears "[ soon ]" on its picture (polish F8): the products page's
+ * label, over the picture so the card's words keep their height. 8px inside the picture's corner:
+ * the corner is `--picture-inset` in from each side, because a top offset in % is read against the
+ * box's height, and the picture's top margin is 1.25 x 7% of a 4:5 box's width, which is 7% of its
+ * height. In the dark theme a label is volt words on nothing, which a light picture would swallow,
+ * so here it stands on the card's own ground in both themes.
+ */
+.family-card__soon {
+  position: absolute;
+  inset-block-start: calc(var(--picture-inset) + 8px);
+  inset-inline-start: calc(var(--picture-inset) + 8px);
+  --label-bg: light-dark(var(--volt), var(--bg));
 }
 
 .family-card__body {

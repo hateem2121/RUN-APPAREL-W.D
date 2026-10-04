@@ -1,6 +1,8 @@
 import { type ComponentProps, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import { FAMILIES } from '../../lib/families'
+import { familyIsSoon, familyPageFor } from '../../lib/familyPages'
 import { FamilyCard, FAMILY_SIZES } from './FamilyCard'
 
 vi.mock('next/link', () => ({
@@ -40,5 +42,57 @@ describe('FamilyCard draws a card-sized picture', () => {
     const img = imgOf('/factory/accessories-800.webp')
     expect(img).toContain('src="/factory/accessories-800.webp"')
     expect(img).not.toMatch(/srcset|sizes=/i)
+  })
+})
+
+/** A family's card as the home page draws it, with `familyIsSoon` worked out from a garment count. */
+const cardOf = (slug: string, garments: number) => {
+  const family = FAMILIES.find((entry) => entry.slug === slug)
+  if (!family) throw new Error(`no family ${slug}`)
+  const soon = familyIsSoon(family, garments)
+  return renderToStaticMarkup(createElement(FamilyCard, { family, picture: null, soon }))
+}
+
+const hrefOf = (html: string) => html.match(/<a [^>]*href="([^"]*)"/)?.[1]
+
+/** The card's last line, with the words a screen reader is given (an `aria-hidden` part is not). */
+const cueOf = (html: string) => html.match(/<span class="family-card__cue"[^>]*>.*?<\/span>/)?.[0]
+
+/*
+ * Polish F8, the owner's answer Q21 (2026-10-04): Sports Accessories has no garments and no page,
+ * and its card opened an empty list. It keeps its card, says "[ soon ]" and goes to Contact as
+ * "Ask what we make →".
+ */
+describe('a family with nothing to show: its card says "[ soon ]" and goes to Contact (polish F8)', () => {
+  it('Sports Accessories opens Contact, shows the label, and its link names where it goes', () => {
+    const html = cardOf('sports-accessories', 0)
+    expect(hrefOf(html)).toBe('/contact')
+    expect(html).toContain('>[ soon ]<')
+    // The whole card is the link, so its words are the link's name. A hidden cue would leave a
+    // screen reader hearing "Sports Accessories" and landing on Contact (WCAG 2.4.4).
+    const cue = cueOf(html) ?? ''
+    expect(cue).toContain('Ask what we make')
+    expect(cue).not.toMatch(/^<span class="family-card__cue" aria-hidden/)
+  })
+
+  // NEGATIVE CONTROL: a family with a page opens it, says nothing of "soon", and keeps its quiet cue,
+  // even with no garment (CI's database holds one).
+  it('a family with a page opens that page, with no label', () => {
+    const withPage = FAMILIES.filter((family) => familyPageFor(family))
+    expect(withPage).toHaveLength(4)
+    for (const family of withPage) {
+      const html = cardOf(family.slug, 0)
+      expect(hrefOf(html), family.slug).toBe(familyPageFor(family)?.path)
+      expect(html, family.slug).not.toContain('[ soon ]')
+      expect(cueOf(html), family.slug).toMatch(/aria-hidden="true">View the range/)
+    }
+  })
+
+  // Once a garment of it is published, "soon" would sit over a garment on show.
+  it('Sports Accessories with a garment opens its group, with no label', () => {
+    const html = cardOf('sports-accessories', 1)
+    expect(hrefOf(html)).toBe('/products#sports-accessories')
+    expect(html).not.toContain('[ soon ]')
+    expect(cueOf(html)).toMatch(/aria-hidden="true">View the range/)
   })
 })

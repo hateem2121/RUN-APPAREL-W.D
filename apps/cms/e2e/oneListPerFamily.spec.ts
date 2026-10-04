@@ -97,6 +97,28 @@ test.describe('the products page shows every family under a heading that opens i
     await expect(ask).toHaveAttribute('href', '/contact')
   })
 
+  // Polish F8: the home page's card said "View the range" and opened an empty group.
+  test('the home page’s Sports Accessories card says the same, and goes to Contact (F8)', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    const cardOf = (name: string) =>
+      page.locator('.family-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
+    const accessories = cardOf('Sports Accessories')
+    await expect(accessories.locator('.label')).toHaveText('[ soon ]')
+    // The whole card is the link, so its name must say where it goes (WCAG 2.4.4): the words
+    // are spoken, not hidden like the other cards' "View the range".
+    const link = page.getByRole('link', { name: /Sports Accessories.*Ask what we make/ })
+    await expect(link).toHaveAttribute('href', '/contact')
+    await expect(accessories.locator('.family-card__cue')).toBeVisible()
+    // CONTROL: every family with a page still opens it, and shows no label.
+    for (const { family, page: buyerPage } of WITH_A_PAGE) {
+      const card = cardOf(family.name)
+      await expect(card.locator('a.family-card__link')).toHaveAttribute('href', buyerPage.path)
+      await expect(card.locator('.label')).toHaveCount(0)
+    }
+  })
+
   test.describe('with scripting off', () => {
     test.use({ javaScriptEnabled: false })
 

@@ -667,7 +667,9 @@ chose one page per job (Q24–Q26, 2026-10-04, decision D27). So:
 
 - `/products` shows every garment (D1) under its family's heading. The heading opens the family's
   page (`.gallery-group`, site.css); Sports Accessories, with no page and no garments yet, shows
-  "[ soon ]" and "Ask what we make →" to Contact (Q21). A chip row at the top jumps to each group,
+  "[ soon ]" and "Ask what we make →" to Contact (Q21). Its home-page card says the same, with the
+  label on the picture's corner, and opens Contact (polish F8); a family says it only while it has
+  neither a page nor a garment (`familyIsSoon`). A chip row at the top jumps to each group,
   its counts beside the names; on a phone it is one sideways row (VA-42).
 - `/products?family=…` forwards permanently to the family's page (Next's 308, which Google treats as
   a 301), a family with no page to its group, anything else to `/products`

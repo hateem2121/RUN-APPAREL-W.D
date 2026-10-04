@@ -13,8 +13,10 @@ import { FAMILIES, type Family, familyBySlug } from './families'
  *
  * ⚠️ THE OWNER APPROVES EVERY PAGE'S WORDS BEFORE IT IS BUILT. Teamwear, Sportswear,
  * Outerwear and Casual Wear were approved on 2026-09-30. Sports Accessories has no garments,
- * so it has no page. A family with no entry here simply has no page yet: its home-page card opens
- * its group on the products page (`familyHref`). Do not add an entry from a draft.
+ * so it has no page. A family with no entry here simply has no page yet: while it has no garments
+ * either, its home-page card and its group on the products page say "[ soon ]" and lead to Contact
+ * (`familyIsSoon`), and its links elsewhere open that group (`familyHref`). Do not add an entry
+ * from a draft.
  *
  * ⚠️ EVERY CLAIM BELOW IS ALREADY ON THE SITE. Nothing here may state a fact the home page
  * does not: no printing method beyond what is pictured, no customer names, no lead time
@@ -237,6 +239,27 @@ export function familyOf(page: FamilyPage): Family {
  */
 export function familyHref(family: Family): string {
   return familyPageFor(family)?.path ?? `/products#${family.slug}`
+}
+
+/**
+ * What a family with nothing to show says, in the owner's words (Q21, 2026-10-04): it is coming,
+ * and a buyer can ask about it now. Its group on the products page and its card on the home page
+ * both read these (polish F8), so the two cannot drift apart. The card goes straight to Contact:
+ * its group holds no garments, and a buyer who clicked a picture of backpacks met an empty list.
+ */
+export const FAMILY_SOON = {
+  label: '[ soon ]',
+  ask: 'Ask what we make',
+  href: '/contact',
+} as const
+
+/**
+ * Whether a family says "[ soon ]": no page AND no garment yet (today, Sports Accessories). Once a
+ * garment of it is published, its group lists it and its card opens that group, page or not; a
+ * "soon" over a garment on show would be wrong.
+ */
+export function familyIsSoon(family: Family, garments: number): boolean {
+  return garments === 0 && !familyPageFor(family)
 }
 
 /**
