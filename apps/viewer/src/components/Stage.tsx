@@ -22,6 +22,7 @@ import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { HdImageButton } from './HdImageButton'
+import { SpecGroups } from './SpecGroups'
 import { type CameraView, StageControls } from './StageControls'
 import {
   applyAdaptivePan,
@@ -59,6 +60,17 @@ interface StageProps {
    * closing the dialog lands on the colour the visitor was last looking at.
    */
   onSelectColourway?: (colourway: ViewerColourway) => void
+  /**
+   * Draw the garment's facts in the window's four corners (polish D10). App.tsx decides, from
+   * the layout and from `onFallbackChange` below; the stage still draws nothing over a failure
+   * state whatever it is told, because there the window holds the picture and the notice (LA-16).
+   */
+  cornerSpecs?: boolean
+  /**
+   * Fires when the stage enters or leaves a failure state (no 3D: Save-Data, no WebGL, a failed
+   * or stalled download). App.tsx moves the facts out of the corners while it holds.
+   */
+  onFallbackChange?: (fallback: boolean) => void
 }
 
 export function Stage({
@@ -67,6 +79,8 @@ export function Stage({
   preview = null,
   onModelReadyChange,
   onSelectColourway,
+  cornerSpecs = false,
+  onFallbackChange,
 }: StageProps) {
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
@@ -97,6 +111,10 @@ export function Stage({
   const modelLoaded = isLive(phase)
   const swapping = isSwapping(phase)
   const stalled = phase.kind === 'poster' && phase.reason === 'stalled'
+  // App.tsx keeps the garment's facts out of the corners while there is no garment (polish D10).
+  useEffect(() => {
+    onFallbackChange?.(fallback)
+  }, [fallback, onFallbackChange])
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
   /**
@@ -926,12 +944,6 @@ export function Stage({
    * picture keeps the notice alone.
    */
   const fallbackPicture = fallback ? placeholder : null
-  // NOT `performance`: that name shadows the global for the whole component, and
-  // the byte-counting effect above calls `performance.now()`. As a shadowed
-  // string it would throw "performance.now is not a function" at runtime, with
-  // every unit test still green — the pure helpers never touch the clock.
-  // Caught by the linter's exhaustive-deps rule, of all things.
-  const performanceSummary = product.performanceFeatures.join(' / ')
 
   /**
    * Coarse progress for assistive technology, at 25% steps.
@@ -1127,62 +1139,14 @@ export function Stage({
            */}
 
           {/*
-            Only around a garment (LA-16). In a fallback the stage holds the notice, and
-            the callouts were drawn over the same box: measured 2026-09-25 with Save-Data,
-            4 callouts drawn and 1-2 of them over the notice at every width from 1000 to
-            1920px. The same facts stay on the page in `.spec-list`.
+            The garment's facts in the four corners (polish D10): on a computer they are the
+            ONLY copy, so they are real content, not the `aria-hidden` decoration the four
+            `.callout`s were. Only around a garment (LA-16): in a failure state the window holds
+            the picture and the notice, and App.tsx draws the facts under the stage instead;
+            measured 2026-09-25 with Save-Data, the old callouts sat over that notice at every
+            width from 1000 to 1920px.
           */}
-          {!fallback && (
-            <div className="stage__callouts" aria-hidden="true">
-              {product.fabricComposition && (
-                <div className="callout" style={{ top: '14%', left: '3%' }}>
-                  <span className="label">[ FABRIC ]</span>
-                  <div className="callout__value">{product.fabricComposition}</div>
-                </div>
-              )}
-              {product.gsm && (
-                <div className="callout callout--right" style={{ top: '14%', right: '3%' }}>
-                  <span className="label">[ WEIGHT ]</span>
-                  <div className="callout__value">{product.gsm}</div>
-                </div>
-              )}
-              {/*
-              ⚠️ THE BOTTOM PAIR IS ONE ROW, NOT TWO ABSOLUTE BOXES — 2026-09-07,
-              audit FA-D-07. They were `bottom: 18%` each, which pins their BOTTOM
-              edges and lets their chips float apart by however many lines of text
-              the CMS put in each: measured at 1440x900, [ FIT ] top 636.7 against
-              [ PERFORMANCE ] top 621.2 on the fixture, and 15.5 / 31.0 / 46.5 /
-              62.0 across six live products — always a whole multiple of 15.5px, one
-              line of the value text. Three corners of a technical-drawing layout
-              lined up and the fourth floated, by an amount the CMS decided.
-
-              `align-items: flex-start` inside a bottom-anchored row gives both
-              chips one baseline while keeping the row's bottom edge exactly where
-              it was, so nothing moves toward the plinth. The taller block sets the
-              line and the shorter one rises to meet it.
-
-              The pair is deliberately still rendered by the same two conditions:
-              either half can be absent, and `.callout--right`'s `margin-left: auto`
-              keeps a lone right-hand block on the right.
-            */}
-              {(product.garmentFit || performanceSummary) && (
-                <div className="stage__callouts-bottom">
-                  {product.garmentFit && (
-                    <div className="callout">
-                      <span className="label">[ FIT ]</span>
-                      <div className="callout__value">{product.garmentFit}</div>
-                    </div>
-                  )}
-                  {performanceSummary && (
-                    <div className="callout callout--right">
-                      <span className="label">[ PERFORMANCE ]</span>
-                      <div className="callout__value">{performanceSummary}</div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {cornerSpecs && !fallback && <SpecGroups product={product} placement="corners" />}
 
           {/* Only once there is something to drag. It used to show throughout the
               download, inviting the visitor to rotate a garment that had not

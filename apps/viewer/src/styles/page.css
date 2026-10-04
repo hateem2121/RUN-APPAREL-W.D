@@ -224,7 +224,7 @@
   /* The containing block for `.stage__more`, which is taken out of flow so it
      can sit in this band's own reserved bottom padding without costing the
      garment any height. Safe to add: every other absolutely positioned thing in
-     the band (`.stage__contours`, `.stage__callouts`, `.stage__loading`) is
+     the band (`.stage__contours`, `.spec-groups--corners`, `.stage__loading`) is
      inside `.stage__canvas`, which is `position: relative` itself and therefore
      a nearer containing block. */
   position: relative;
@@ -645,11 +645,9 @@
  *   under it. Putting a garment's own controls in a different column than the
  *   garment is the kind of tidiness that reads as a filing decision.
  *
- *   `.stage__callouts` — the spec facts are absolutely positioned over the
- *   canvas at left/right 3% ON PURPOSE, so a desktop visitor reads the product
- *   as a technical drawing rather than as a paragraph. That treatment is
- *   documented further down this file and is the reason `.spec-list` exists as a
- *   separate phone rendering. Moving them here would delete it.
+ *   The spec facts — on a computer they sit in the corners of the canvas ON PURPOSE
+ *   (`.spec-groups--corners`, polish D10), so a desktop visitor reads the product as a
+ *   technical drawing rather than as a paragraph. Moving them here would delete it.
  */
 @media (min-width: 900px) and (orientation: landscape),
   (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
@@ -923,9 +921,9 @@
  *
  * The top-right is genuinely empty on a phone: the garment is centred and portrait
  * (widest live shape 0.60m against 0.24m depth), the hint and the loading readout
- * both anchor to the bottom, and `.callout` — which does use the corners — renders
- * only at >=1000px, where AR never appears because `canActivateAR` is false on
- * desktop. The two cannot co-occur.
+ * both anchor to the bottom. The garment's facts DO use the corners on a computer, and
+ * an iPad turned sideways is one, with AR (`IS_IOS` in model-viewer counts iPads): so
+ * `.spec-groups--corners` starts its top pair below this cube (polish D10).
  *
  * `--dimension` rather than `--muted`: this is a call to action a thumb has to find
  * against a rendered garment of unknown colour, and it is the token that already
@@ -1109,11 +1107,13 @@ model-viewer.stage__model {
  * host (radius 0) could not do even unclipped.
  *
  * `.stage__canvas` holds the model-viewer and, since then, two buttons of its own:
- * the AR button and TRY 3D AGAIN (issue #41). The camera buttons live in
- * `.stage__plinth`, outside it. A focused retry button already draws its own ring,
- * so the canvas does not draw a second one around it.
+ * the AR button and TRY 3D AGAIN (issue #41), and on a computer the garment's facts
+ * (polish D10). The camera buttons live in `.stage__plinth`, outside it. A focused
+ * retry button or fact bullet draws its own ring, so the canvas does not draw a
+ * second one around it: a click on a bullet outlined the whole window (seen
+ * 2026-10-04 in the D10 screenshots; a summary takes focus on a mouse press).
  */
-.stage__canvas:focus-within:not(:has(.stage__retry:focus)) {
+.stage__canvas:focus-within:not(:has(.stage__retry:focus, .spec-groups summary:focus)) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -1186,107 +1186,6 @@ model-viewer.stage__model {
  *     }
  *   }
  */
-
-/* Technical callouts around the garment */
-.stage__callouts {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  display: none;
-}
-
-@media (min-width: 1000px) {
-  .stage__callouts {
-    display: block;
-  }
-}
-
-.callout {
-  position: absolute;
-  /*
-   * ⚠️ A THIRD OF THE STAGE AT MOST, NOT A FLAT 240px (2026-10-01, visual audit). The notes show
-   * from 1000px, where the stage is only 439-452px wide, so two 240px notes spanned all of it:
-   * with the X-MILO PRO BIB's six features, [ PERFORMANCE ] ran from 42% to 97% of the stage
-   * and [ FABRIC ] from 3% to 49%, both over the garment. From 1280px the stage is 800px and 30%
-   * IS 240px, so nothing moves there; below it a long note wraps onto more lines in its corner.
-   */
-  max-width: min(240px, 30%);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps-tight);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.callout::before {
-  content: "";
-  display: block;
-  width: 56px;
-  border-top: 1px dashed var(--dimension);
-  margin-bottom: 6px;
-}
-
-.callout--right::before {
-  margin-left: auto;
-}
-
-.callout--right {
-  text-align: right;
-}
-
-/*
- * The bottom pair shares one baseline — audit FA-D-07, and the account of what it
- * fixes is on the markup in `Stage.tsx`.
- *
- * `bottom: 18%` is the SAME anchor the two boxes carried individually, so the row's
- * bottom edge lands where theirs did (measured 686.7 at 1440x900, before and
- * after); `align-items: flex-start` is the whole fix. `left`/`right: 3%` reproduce
- * the two inline offsets exactly — measured x 144.0 and right edge 896.0 in an
- * 800px canvas at x 120, both unchanged.
- *
- * `margin-left: auto` rather than `justify-content: space-between`, because either
- * half can be absent: a lone [ PERFORMANCE ] must stay on the right, and
- * space-between would put it on the left.
- */
-.stage__callouts-bottom {
-  position: absolute;
-  left: 3%;
-  right: 3%;
-  bottom: 18%;
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.stage__callouts-bottom .callout {
-  position: static;
-}
-
-.stage__callouts-bottom .callout--right {
-  margin-left: auto;
-}
-
-.callout .label {
-  margin-bottom: 4px;
-}
-
-.callout__value {
-  color: var(--text);
-}
-
-/* Narrow stages (1000-1279px, before the stage reaches 800px): a long note keeps to four lines,
-   because capped at 30% the X-MILO's six features ran to eleven lines of 10px capitals down the
-   side of the garment (measured 2026-10-01). The notes are aria-hidden decoration; the full list
-   is in the product panel under the stage. */
-@media (max-width: 1279px) {
-  .callout__value {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    overflow: hidden;
-  }
-}
 
 /*
  * The plinth row — the garment's label and its camera controls, on ONE line.
@@ -1943,82 +1842,288 @@ model-viewer.stage__model {
   max-width: 60ch;
 }
 
-.spec-list {
+/*
+ * ── The garment's facts as four matching groups (polish D10) ─────────────────────────────
+ *
+ * One component, `SpecGroups.tsx`, in one of two places: the window's corners on a computer
+ * (`.spec-groups--corners`, near the stage rules above) or here, under the description, in two
+ * columns that mirror the corners: Fabric and Fit on the left, Weight and Performance on the
+ * right (the owner's layout). Named areas, not auto-placement, so a garment with no fit (R-PRS)
+ * keeps Performance bottom-right instead of sliding it into Fit's place.
+ *
+ * Every group is a list, even with one item, and every bullet is the same lime ring with a thin
+ * ink edge and an ink dot (Q5): Fabric, Weight and Fit look exactly like Performance.
+ */
+.spec-groups {
+  /* A bullet's width with its ring (`.spec-item__bullet`): a note's indent is measured from it. */
+  --spec-bullet-slot: 21px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px 24px;
-  margin: 8px 0 0;
-  padding: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "fabric weight"
+    "fit performance";
+  gap: 18px 16px;
+  margin: 0;
+}
+
+.spec-groups--list {
+  max-width: 48rem;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 /*
- * The four facts render ONCE at every width, and 1000px is not a number chosen
- * here — it is `.stage__callouts`'s.
- *
- * Above 1000px the callouts draw [ FABRIC ] [ WEIGHT ] [ FIT ] [ PERFORMANCE ]
- * over the canvas from the same fields this list reads, so both were on screen
- * together, word for word, until 2026-08-21. Below 1000px the callouts are off —
- * the canvas column is only ~559px at 900px wide and two 240px callouts would sit
- * on the garment — so between 900 and 1000px this list is the ONLY rendering of
- * those facts and must stay. That band is why the rule is `min-width: 1000px` and
- * not the two-column query.
- *
- * ⚠️ THE TWO BREAKPOINTS MUST MOVE TOGETHER. Lowering the callouts' without
- * lowering this one prints the facts twice again; raising this one without the
- * callouts' deletes them from the page entirely between the two values. Pinned by
- * `specDuplication.test.ts`, which reads both rules out of this file and fails if
- * the numbers differ.
+ * TWO COLUMNS WHILE A WORD FITS BESIDE ITS BULLET, ONE WHEN IT CANNOT. Each column gives 33px to
+ * the bullet and its gap, so with the browser's text at "Very large" (a 24px root) a 320px phone
+ * left about 100px for 22.5px words, and "management" pushed the page 13px wider than the screen
+ * (`motion-and-layout.spec.ts`, "no overflow … at 24px root", 2026-10-04). A container query in
+ * rem follows the text size; a media query's em would not follow `html { font-size }`.
+ * 17rem is 272px at the default 16px, so every phone from 320px keeps the approved two columns
+ * there (its list is 280px wide), and the list stacks at 408px from a 24px root, 340px from 20px.
  */
-@media (min-width: 1000px) {
-  .spec-list {
-    display: none;
-  }
+.spec-groups-frame {
+  container: spec-groups / inline-size;
+}
 
-  /*
-   * …EXCEPT WITHOUT 3D (LA-16). The callouts are drawn only around a garment, so while the
-   * no-3D notice shows they are gone, and this list is the only copy left. Keyed on the
-   * notice itself, `.stage__error:not([hidden])`, the same marker every fallback test here
-   * uses (the element is always mounted; `hidden` is what changes). Without this rule a wide
-   * screen with no 3D showed the fabric, weight, fit and performance facts nowhere at all
-   * (caught by "the spec facts render once at every width", 2026-09-25).
-   */
-  body:has(.stage__error:not([hidden])) .spec-list {
-    display: grid;
+@container spec-groups (width < 17rem) {
+  .spec-groups--list {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "fabric"
+      "weight"
+      "fit"
+      "performance";
   }
 }
 
-.spec-list div {
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
+.spec-group--fabric {
+  grid-area: fabric;
 }
 
-/* --text-mono (11px), not --text-mono-sm (10px). These <dt>s name the garment's
-   real facts — fabric, weight, fit, performance — so they are CONTENT labels,
-   not chips. At the chip size they read one step quieter than the decorative
-   section numbering above them, which inverts the page's own hierarchy. See
-   docs/DESIGN.md §3: .mono is for content, .label is for chips. */
-.spec-list dt {
+.spec-group--weight {
+  grid-area: weight;
+}
+
+.spec-group--fit {
+  grid-area: fit;
+}
+
+.spec-group--performance {
+  grid-area: performance;
+}
+
+.spec-group {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 12px, not the old `<dt>`s' 11px: they are read text, and VA-11 holds read text to 12px. */
+.spec-group__heading {
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 4px;
 }
 
-.spec-list dd {
+.spec-group__body {
   margin: 0;
-  font-size: var(--text-sm);
 }
 
-/* The Performance features, one to a line (visual audit VA-59, 2026-10-02). Plain on purpose: no
-   bullets and no indent, so the list reads as the `dd`'s own text broken where each feature ends,
-   in the same size and colour. `list-style: none` is why `ProductPanel.tsx` writes `role="list"`
-   out: Safari drops a bullet-less list's semantics without it. */
-.spec-list__features {
+/* `list-style: none` is why `SpecGroups.tsx` writes `role="list"` out (VA-59). */
+.spec-group__items {
+  display: grid;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.spec-group__items > li {
+  transition: opacity var(--ui) var(--ease);
+}
+
+/* While one note is open the other bullets step back, so the eye lands on it (the mockup's). */
+.spec-groups:has(.spec-item[open]) .spec-group__items > li:not(:has(.spec-item[open])) {
+  opacity: 0.45;
+}
+
+.spec-item__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 24px;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--text);
+  /* The last resort for a word wider than any line its column can give (R-SNP's
+     "Polychloroprene" on the narrowest phones): it breaks rather than leave its column. */
+  overflow-wrap: break-word;
+}
+
+summary.spec-item__row {
+  cursor: pointer;
+  list-style: none;
+}
+
+/* Safari draws its own disclosure triangle unless this marker is hidden too. */
+summary.spec-item__row::-webkit-details-marker {
+  display: none;
+}
+
+summary.spec-item__row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-chip);
+}
+
+/*
+ * The ring is drawn with two shadows, so the 13px box looks 21px wide (`--spec-bullet-slot`, the
+ * box and its 4px margins, which hold the ring): the row's 12px gap is the air before the words.
+ * `--paper` inside, in both themes: the ink dot has to show on a dark page too, where a
+ * see-through middle would hide it.
+ */
+.spec-item__bullet {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  margin: calc((1.35em - 13px) / 2) 4px 0;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow:
+    0 0 0 3px var(--volt),
+    0 0 0 4px var(--ink);
+  transition: scale var(--ui) var(--ease);
+}
+
+.spec-item__bullet::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: scale var(--ui) var(--ease);
+}
+
+.spec-item[open] .spec-item__bullet::after {
+  scale: 1.75;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  summary.spec-item__row:hover .spec-item__bullet {
+    scale: 1.15;
+  }
+}
+
+/* Under the bullet's words: past the bullet's slot and the row's 12px gap. */
+.spec-item__note {
+  max-width: 40ch;
+  margin: 4px 0 0 calc(var(--spec-bullet-slot) + 12px);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--muted);
+  /* No last line of one word ("…every way you / do."), where the browser can avoid it. */
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .spec-item[open] .spec-item__note {
+    animation: spec-note-in var(--ui) var(--ease);
+  }
+}
+
+@keyframes spec-note-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+/*
+ * ── The same groups in the 3D window's corners, on every computer ────────────────────────
+ *
+ * Fabric top-left, Weight top-right, Fit bottom-left, Performance bottom-right (`specsInCorners`,
+ * App.tsx). They replace four `.callout`s that were `aria-hidden` decoration over a `.spec-list`
+ * holding the same words; these are the only copy, so they are real content. After the rules
+ * above on purpose: they refine them, and a refinement written first would lose to them.
+ *
+ * NO BOX BEHIND THEM (the owner's note on the mockup): the window's grid shows through, and a
+ * soft glow in the page's own colour keeps the letters readable if the garment turns under them.
+ *
+ * ⚠️ THE TOP PAIR STARTS BELOW THE AR BUTTON, NOT AT THE MOCKUP'S 6%. `.stage__ar` is a 44px cube
+ * 12px from the top-right on every iPhone AND iPad (model-viewer shows its slot wherever AR can
+ * run), and a sideways iPad is a computer here: from 1024px wide it has the corners too. 64px is
+ * its 12 + 44 and 8 more. The `.callout`s' old comment said the two "cannot co-occur" because AR
+ * is off on desktop; an iPad is not a desktop.
+ *
+ * Each column is at most 30% of the window: `.stage__hint`'s note measured the garment across the
+ * middle 39% at 1440x900, so the facts sit beside it, and where a wider garment reaches under a
+ * corner the glow keeps both readable.
+ *
+ * ⚠️ NO `align-self: end` ON THE BOTTOM PAIR (audit FA-D-07, 2026-09-07). Anchoring each bottom
+ * group to the bottom edge lets their headings float apart by however many features the CMS
+ * lists: the old callouts did exactly that, [ FIT ] 15.5 / 31 / 46.5 / 62px off [ PERFORMANCE ]
+ * across six live garments. Here the bottom ROW sits on the bottom edge (the middle row takes the
+ * slack) and both groups start at its top, so FIT and PERFORMANCE share one line, set by the
+ * taller group.
+ */
+.spec-groups--corners {
+  position: absolute;
+  inset: max(6%, 64px) 3% 6%;
+  grid-template-columns: minmax(0, 30%) 1fr minmax(0, 30%);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "fabric . weight"
+    ". . ."
+    "fit . performance";
+  gap: 0;
+  /* The window under the facts stays the garment's: only a bullet or an open note takes a press. */
+  pointer-events: none;
+  text-shadow:
+    0 0 6px var(--bg),
+    0 0 3px var(--bg),
+    0 0 1px var(--bg);
+}
+
+.spec-groups--corners summary,
+.spec-groups--corners .spec-item__note {
+  pointer-events: auto;
+}
+
+/* The bullets' words in the window: the tracked capitals of the window's other labels. */
+.spec-groups--corners .spec-item__row {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-compact);
+  text-transform: uppercase;
+}
+
+/* A note over the window may cross the garment: the full text colour, so the glow has a dark
+   letter to frame (muted grey on a dark sleeve read as a smudge at 1024x640, 2026-10-04). */
+.spec-groups--corners .spec-item__note {
+  color: var(--text);
+}
+
+/* The right-hand pair reads from the window's right edge: words, then bullet, then the edge. */
+.spec-groups--corners .spec-group--weight,
+.spec-groups--corners .spec-group--performance {
+  justify-items: end;
+  text-align: right;
+}
+
+.spec-groups--corners .spec-group--weight .spec-item__row,
+.spec-groups--corners .spec-group--performance .spec-item__row {
+  flex-direction: row-reverse;
+}
+
+.spec-groups--corners .spec-group--weight .spec-item__note,
+.spec-groups--corners .spec-group--performance .spec-item__note {
+  margin-inline: auto calc(var(--spec-bullet-slot) + 12px);
 }
 
 /* ── Colourway tabs ────────────────────────────────────────────────── */
@@ -2944,40 +3049,5 @@ model-viewer.stage__model {
         0 0 0 2px var(--bg),
         0 0 0 4px currentColor;
     }
-  }
-}
-
-/*
- * The spec facts as ANNOTATIONS on a phone, not a list.
- *
- * `.stage__callouts` is switched off below 1000px, and correctly so: those are
- * absolutely positioned at left/right 3% and would sit on top of the garment on
- * a narrow screen. But the four facts they show are real content that still
- * exists here in `.spec-list` — and styled as a stacked list with a solid rule,
- * a phone visitor read the product as a paragraph while a desktop visitor read
- * it as a technical drawing.
- *
- * These rules give the phone the callout's own language: paired columns and the
- * dashed dimension rule from `.callout::before`, at the exact breakpoint where
- * the floating version switches off, so one treatment always applies and never
- * both. The markup is untouched — it is still one <dl>, announced once.
- */
-@media (max-width: 999px) {
-  .spec-list {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px 16px;
-  }
-
-  .spec-list div {
-    border-top: 0;
-    padding-top: 0;
-  }
-
-  .spec-list div::before {
-    content: "";
-    display: block;
-    width: 40px;
-    border-top: 1px dashed var(--dimension);
-    margin-bottom: 8px;
   }
 }

@@ -1,5 +1,7 @@
 import {
   DEFAULT_SITE_SETTINGS,
+  specGroups,
+  specNote,
   type ViewerApiSuccess,
   type ViewerColourway,
   type ViewerMediaAsset,
@@ -173,6 +175,17 @@ export function buildViewerResponse(
   const selectedColourway = requested ?? colourways[0]!
   const requestedColourwayUnavailable = colourSlug !== null && requested === null
 
+  const specFields = {
+    fabricComposition: String(product.fabricComposition ?? ''),
+    gsm: String(product.gsm ?? ''),
+    performanceFeatures: Array.isArray(product.performanceFeatures)
+      ? product.performanceFeatures
+          .map((item) => String((item as { feature?: unknown }).feature ?? ''))
+          .filter(Boolean)
+      : [],
+    garmentFit: String(product.garmentFit ?? ''),
+  }
+
   return {
     product: {
       productCode: String(product.productCode),
@@ -183,14 +196,10 @@ export function buildViewerResponse(
       glbUrl: separateMode ? null : (toMediaAsset(product.glbAsset, origin)?.url ?? null),
       glbBytes: separateMode ? null : mediaBytes(product.glbAsset),
       posterFallback: toMediaAsset(product.posterFallback, origin),
-      fabricComposition: String(product.fabricComposition ?? ''),
-      gsm: String(product.gsm ?? ''),
-      performanceFeatures: Array.isArray(product.performanceFeatures)
-        ? product.performanceFeatures
-            .map((item) => String((item as { feature?: unknown }).feature ?? ''))
-            .filter(Boolean)
-        : [],
-      garmentFit: String(product.garmentFit ?? ''),
+      ...specFields,
+      // The page's four fact groups with the glossary's notes (polish D10). Built here, not in
+      // the page, so a corrected note goes live with a CMS deploy and the page stays small.
+      specs: specGroups(specFields, specNote),
       shortDescription: String(product.shortDescription ?? ''),
       garmentType: String(product.garmentType ?? '').trim(),
       customisationIntroHtml: deps.richTextToHtml(product.customisationIntro),

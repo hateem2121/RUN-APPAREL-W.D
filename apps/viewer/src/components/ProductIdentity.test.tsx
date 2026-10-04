@@ -96,14 +96,20 @@ describe('the product identity has exactly one home', () => {
   it('renders the same fields in .content when the layout is one column', () => {
     act(() =>
       root.render(
-        <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity={true} />,
+        <ProductPanel
+          data={DATA}
+          selected={SELECTED}
+          selectedIndex={0}
+          showIdentity={true}
+          showSpecs={true}
+        />,
       ),
     )
     expect(host.querySelector('h1')?.id).toBe('product-heading')
-    expect(host.querySelector('.spec-list')).not.toBeNull()
+    expect(host.querySelector('.spec-groups')).not.toBeNull()
     // The single-column shape: identity and facts inside ONE section, sharing its
     // 16px gap rather than `.content`'s 32-64px grid gap.
-    expect(host.querySelector('.product-info .spec-list')).not.toBeNull()
+    expect(host.querySelector('.product-info .spec-groups')).not.toBeNull()
   })
 
   /**
@@ -114,16 +120,21 @@ describe('the product identity has exactly one home', () => {
   it('renders no heading in .content when the identity has moved to the aside', () => {
     act(() =>
       root.render(
-        <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity={false} />,
+        <ProductPanel
+          data={DATA}
+          selected={SELECTED}
+          selectedIndex={0}
+          showIdentity={false}
+          showSpecs={true}
+        />,
       ),
     )
     expect(host.querySelector('h1')).toBeNull()
     expect(host.querySelector('#product-heading')).toBeNull()
-    // No named-but-empty landmark either: above 1000px `.spec-list` is display:none,
-    // so a `.product-info` wrapper here would be a region announcing the product
-    // name and containing nothing at all.
+    // No named landmark either: a `.product-info` wrapper here would be a region announcing
+    // the product's name and holding only the facts (or, with them in the corners, nothing).
     expect(host.querySelector('.product-info')).toBeNull()
-    expect(host.querySelector('.spec-list')).not.toBeNull()
+    expect(host.querySelector('.spec-groups')).not.toBeNull()
   })
 
   it('falls back to the development-reference wording when there is no description', () => {
@@ -280,7 +291,7 @@ describe('Read more beside the garment (D8)', () => {
     try {
       act(() =>
         root.render(
-          <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity />,
+          <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity showSpecs />,
         ),
       )
       expect(host.querySelector('[data-clamped]')).toBeNull()

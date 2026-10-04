@@ -1,4 +1,10 @@
-import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
+import {
+  DEFAULT_SITE_SETTINGS,
+  FEATURE_NOTES,
+  FIT_NOTES,
+  specNote,
+  weightNote,
+} from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { absolutize, buildViewerResponse, toMediaAsset } from './projectViewer'
 
@@ -215,6 +221,68 @@ describe('the product’s garment type', () => {
   })
 })
 
+describe('the product’s fact groups (polish D10)', () => {
+  it('groups the four fields with the glossary’s notes, null where it has none', () => {
+    const body = buildViewerResponse(
+      product({
+        fabricComposition: '85% Recycled Polyester / 15% Spandex',
+        gsm: '180–220 GSM',
+        garmentFit: 'Athletic fit',
+        performanceFeatures: [
+          { feature: 'Odor-resistant moisture wicking' },
+          { feature: 'Glow piping' },
+        ],
+      }),
+      [colourway()],
+      {},
+      origin,
+      'navy',
+      deps,
+    )!
+    expect(body.product.specs).toEqual([
+      {
+        key: 'fabric',
+        heading: 'Fabric',
+        items: [
+          { text: '85% Recycled Polyester', note: specNote('fabric', '85% Recycled Polyester') },
+          { text: '15% Spandex', note: specNote('fabric', '15% Spandex') },
+        ],
+      },
+      {
+        key: 'weight',
+        heading: 'Weight',
+        items: [{ text: '180–220 GSM', note: weightNote('180–220 GSM') }],
+      },
+      {
+        key: 'fit',
+        heading: 'Fit',
+        items: [{ text: 'Athletic fit', note: FIT_NOTES['athletic fit'] }],
+      },
+      {
+        key: 'performance',
+        heading: 'Performance',
+        items: [
+          {
+            text: 'Odor-resistant moisture wicking',
+            note: FEATURE_NOTES['odor-resistant moisture wicking'],
+          },
+          { text: 'Glow piping', note: null },
+        ],
+      },
+    ])
+    // Every note above is a real line, so the test cannot pass on nulls.
+    expect(
+      body.product.specs!.flatMap((group) => group.items).filter((item) => item.note).length,
+    ).toBe(5)
+  })
+
+  it('carries the same words as the plain fields, so the two can never disagree', () => {
+    const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)!
+    const words = body.product.specs!.map((group) => group.items.map((item) => item.text))
+    expect(words).toEqual([['Poly'], ['160'], ['Regular'], ['Stretch']])
+  })
+})
+
 describe('buildViewerResponse', () => {
   it('exposes only whitelisted product keys — no internal fields leak', () => {
     const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)
@@ -234,6 +302,8 @@ describe('buildViewerResponse', () => {
         'gsm',
         'performanceFeatures',
         'garmentFit',
+        // The same four fields grouped, with the glossary's public notes (polish D10).
+        'specs',
         'customisationIntroHtml',
         'customisationSteps',
         'camera',

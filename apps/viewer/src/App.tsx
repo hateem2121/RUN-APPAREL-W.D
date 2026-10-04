@@ -92,6 +92,15 @@ export default function App() {
    * 726px-band measurement that put the height clause in that query.
    */
   const identityInAside = useIdentityInAside()
+  /**
+   * Where the garment's facts go (polish D10, owner-approved 2026-10-03): the four corners of
+   * the 3D window on every computer, which is exactly where the name and description sit beside
+   * the garment, and under the description everywhere else. Not while the stage has no garment
+   * (LA-16): then the window holds the picture and the notice, and the facts go under the stage.
+   * ONE value, handed to both places, so the facts are drawn exactly once at every width.
+   */
+  const [stageFallback, setStageFallback] = useState(false)
+  const specsInCorners = identityInAside && !stageFallback
 
   const load = useCallback(async () => {
     const route = currentRoute()
@@ -473,6 +482,8 @@ export default function App() {
                 selected={selected}
                 preview={previewedColourway}
                 onSelectColourway={onSelectColourway}
+                cornerSpecs={specsInCorners}
+                onFallbackChange={setStageFallback}
               />
             </div>
             {/*
@@ -555,6 +566,7 @@ export default function App() {
               selected={selected}
               selectedIndex={Math.max(selectedIndex, 0)}
               showIdentity={!identityInAside}
+              showSpecs={!specsInCorners}
             />
             <CustomisationSection data={data} />
             <ContactSection settings={data.siteSettings} enquiry={enquiry} />

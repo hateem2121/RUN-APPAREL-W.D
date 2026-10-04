@@ -420,9 +420,10 @@ with nothing to stop a tenth.
 The two mono sizes are not interchangeable and the distinction is load-bearing:
 `--text-mono` (11px) is for **content labels** — the `.mono` register, a spec's
 name. `--text-mono-sm` (10px) is for **chips** — `.label`, `.section-number`. An
-audit finding (VIS-10) is that the spec list's `<dt>` uses the chip size for
-content, which is why the garment's own facts read one step quieter than the
-decorative section numbering above them.
+audit finding (VIS-10) was that the spec list's `<dt>` used the chip size for
+content, so the garment's own facts read one step quieter than the decorative
+section numbering above them. Since polish D10 (2026-10-04) the facts' group
+headings (`.spec-group__heading`) are read text at `--text-mono-lg`.
 
 Display sizes stay as `clamp()` expressions rather than tokens, because they are
 ranges rather than values; see `.display--hero` and `.display--section` above.
@@ -445,10 +446,10 @@ and it shipped as 21 literals until 2026-09-05.
 
 | Token | Value | Use |
 |---|---|---|
-| `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.callout`, `.preloader__status` |
-| `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.product-info__more` |
+| `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.preloader__status` |
+| `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-group__heading`, `.stage__ar`, `.stage__loading`, `.product-info__more` |
 | `--tracking-caps-wide` | 0.14em | `.section-number`; the footer's `.footer-clock__time small` |
-| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
+| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the garment's facts in the 3D window's corners (`.spec-groups--corners .spec-item__row`); the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
 | `--tracking-wordmark` | -0.02em | the bar's `.notch__wordmark`, and the aside heading that borrows it |
 | `--tracking-card-title` | -0.02em | the site's `.product-card__name` |
@@ -531,10 +532,10 @@ footer's headings, links, address, tab and small print; photo captions; the /pro
 chips and their counts; card cues ("View the range →", "Read this guide", "Opens the 3D
 viewer"), colour names on cards and the gallery's count; fact labels, timeline step names and
 the "We"/"You" tags; subheads and the facts' labels; and on a garment page the camera buttons,
-the HD IMAGE button, the spec notes on the stage, the product line above it on a phone, the
-retry button, the touch hint and the download count. They take `--text-mono-lg`. Only the
-decorative register keeps 10–11px: bracket labels (`.label`, the bracketed `.field-label`s on
-/contact, the spec list's `[ Fabric ]`), section numbers, the timeline's step numbers,
+the HD IMAGE button, the garment's facts (their group headings everywhere, and their bullets in
+the 3D window's corners), the retry button, the touch hint and the download count. They take
+`--text-mono-lg`. Only the decorative register keeps 10–11px: bracket labels (`.label`, the
+bracketed `.field-label`s on /contact), section numbers, the timeline's step numbers,
 "[ Photo to come ]" and the arrow signs.
 
 ### Page widths
@@ -564,8 +565,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
 | `700px` and `orientation: portrait` | `page.css` | an upright tablet keeps the phone's one column, its garment window half the screen tall so the name under it is on the first screen (polish F11) |
-| `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
-| `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one) |
+| `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one). The garment's facts follow the same query into the 3D window's four corners, unless the 3D cannot run (polish D10; `specsInCorners` in `App.tsx` decides, so they are drawn once) |
 | `1024px` and `min-height: 656px`, sideways, and container `colourrail` `350px` | `page.css` | beside the garment, each colour's name under its dot, three to a row (polish D8) |
 | `1180px` | `site.css` | the product families go to five columns |
 | `max-width: 899px`, `900px`, `1440px` | `site.css` | the product grid is two columns, three from 900px and four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px), each with its own rule against a lone last card (VA-42) |

@@ -345,6 +345,38 @@ if (!modelUrl) {
   }
 }
 
+// --- 2c. every fact has its explanation line ----------------------------------
+// The garment page's facts carry one line each from the glossary (polish D10, 2026-10-04:
+// packages/shared/src/specNotes.ts), attached by the CMS as `product.specs`. A term typed in
+// the CMS that the glossary lacks draws as a plain bullet with nothing to open: the page still
+// works, so it is SAID, not failed, and the line belongs in specNotes.ts (the owner approves
+// each new one). An answer cached before the field existed has no `specs`: said, not failed.
+// smoke-live-products.mjs runs this for every live garment, so a new term shows here first.
+{
+  const groups = Array.isArray(product.specs) ? product.specs : null
+  if (!groups) {
+    console.log(
+      '  notes     WARN: the payload carries no fact groups (an answer cached before polish D10?), so the page shows no explanation lines',
+    )
+  } else {
+    const items = groups.flatMap((group) =>
+      (Array.isArray(group.items) ? group.items : []).map((item) => ({
+        ...item,
+        group: group.key,
+      })),
+    )
+    const missing = items.filter((item) => !item.note)
+    if (missing.length === 0) {
+      console.log(`  notes     all ${items.length} facts have their explanation line`)
+    } else {
+      console.log(
+        `  notes     WARN: ${missing.length} of ${items.length} facts have no explanation line: ` +
+          `${missing.map((item) => `${item.group} "${item.text}"`).join(', ')} — add them to packages/shared/src/specNotes.ts`,
+      )
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error('')
   for (const f of failures) console.error(`FAIL  ${f}`)

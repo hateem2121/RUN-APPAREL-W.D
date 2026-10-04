@@ -377,6 +377,49 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       gsm: '160 GSM',
       performanceFeatures: ['Moisture management', 'Four-way stretch'],
       garmentFit: 'Athletic regular',
+      // The four fields grouped, each bullet with its glossary note, as the CMS builds them since
+      // polish D10 (projectViewer.ts: `specGroups(fields, specNote)`). Written out because this
+      // server is plain Node and cannot import the TypeScript glossary; `spec-features.spec.ts`
+      // asks the shared package for the same answer and fails if the two differ. Two bullets have
+      // no note ("elastane", "Athletic regular"), as a term the glossary lacks would in production.
+      specs: [
+        {
+          key: 'fabric',
+          heading: 'Fabric',
+          items: [
+            {
+              text: 'Recycled polyester',
+              note: 'Polyester made from recycled plastic, such as used bottles, rather than new material.',
+            },
+            { text: 'elastane', note: null },
+          ],
+        },
+        {
+          key: 'weight',
+          heading: 'Weight',
+          items: [
+            {
+              text: '160 GSM',
+              note: 'How heavy the fabric is, in grams per square meter: light, an easy layer.',
+            },
+          ],
+        },
+        { key: 'fit', heading: 'Fit', items: [{ text: 'Athletic regular', note: null }] },
+        {
+          key: 'performance',
+          heading: 'Performance',
+          items: [
+            {
+              text: 'Moisture management',
+              note: 'Moves sweat away from the skin, to keep you dry.',
+            },
+            {
+              text: 'Four-way stretch',
+              note: 'Stretches across and along the fabric, so it moves every way you do.',
+            },
+          ],
+        },
+      ],
       customisationIntroHtml:
         '<p>Send us a finished design, a tech pack, artwork, a reference image — or simply an idea.</p>',
       customisationSteps: [

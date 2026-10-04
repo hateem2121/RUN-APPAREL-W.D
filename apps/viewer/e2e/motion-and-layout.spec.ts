@@ -1725,22 +1725,21 @@ test.describe('layout invariants', () => {
   /**
    * The four spec facts are on screen exactly once, at every width.
    *
-   * `specDuplication.test.ts` proves the two breakpoints are the same NUMBER by
-   * reading the stylesheet. This proves the number is the right one by counting
-   * what a visitor can actually see — the two checks fail for different reasons
-   * and neither replaces the other.
+   * Since polish D10 (2026-10-04) they are ONE component, `SpecGroups`, drawn in the 3D window's
+   * corners on a computer or under the description everywhere else, and App.tsx's
+   * `specsInCorners` picks one. Until then two CSS breakpoints decided it (the callouts over the
+   * canvas from 1000px, the list hidden from 1000px) and a unit test held them equal; the
+   * facts were printed twice above 1000px until 2026-08-21. This counts what a visitor gets.
    *
-   * 1024px and 960px straddle the 1000px seam deliberately: between 900 and 1000
-   * the two-column layout is on but the callouts are NOT, so `.spec-list` is the
-   * only rendering there and must stay visible. That band is the easiest thing to
-   * delete by accident while "tidying up the duplication".
+   * 1024 and 1023 straddle the corners' seam (`IDENTITY_IN_ASIDE_QUERY`), and 960 is in the
+   * two-column band where the name is still under the garment, so the list must carry the facts
+   * there. That band is the easiest one to lose while "tidying up".
    */
   /*
-   * Both branches, on every engine. With 3D the callouts carry the facts above 1000px and the
-   * list below it. Without 3D (LA-16) no callout is drawn, so the list must carry them at
-   * EVERY width: the first version of LA-16 left a wide screen with no 3D showing the facts
-   * nowhere, and only CI's Firefox (no WebGL on a runner) took that branch. Save-Data forces
-   * it everywhere: `canRender3D()` refuses 3D on it.
+   * Both branches, on every engine. Without 3D (LA-16) nothing is drawn over the window, so the
+   * list must carry the facts at EVERY width: the first version of LA-16 left a wide screen
+   * with no 3D showing them nowhere, and only CI's Firefox (no WebGL on a runner) took that
+   * branch. Save-Data forces it everywhere: `canRender3D()` refuses 3D on it.
    */
   for (const mode of ['as it loads', 'without 3D (Save-Data)'] as const) {
     test(`the spec facts render once at every width, ${mode}`, async ({ page }) => {
@@ -1769,36 +1768,37 @@ test.describe('layout invariants', () => {
         expect(noThreeD, 'Save-Data did not put the stage in its no-3D state').toBe(true)
       }
 
-      const shown = async () => {
-        const callouts = await page.locator('.stage__callouts .callout').count()
-        const listVisible = await page.locator('.spec-list').isVisible()
-        const calloutsVisible = await page.locator('.stage__callouts').isVisible()
-        return { callouts, listVisible, calloutsVisible }
-      }
-
-      await page.setViewportSize({ width: 1280, height: 800 })
-      expect(
-        await shown(),
-        noThreeD
-          ? 'above 1000px without 3D no callout is drawn, so the list must carry the facts'
-          : 'above 1000px the callouts say it and the list must not',
-      ).toMatchObject(
-        noThreeD
-          ? { callouts: 0, listVisible: true }
-          : { calloutsVisible: true, listVisible: false },
-      )
-
-      await page.setViewportSize({ width: 960, height: 800 })
-      expect(
-        await shown(),
-        'between 900 and 1000 the callouts are off, so the list is the ONLY copy',
-      ).toMatchObject({ calloutsVisible: false, listVisible: true })
-
-      await page.setViewportSize({ width: 375, height: 812 })
-      expect(await shown(), 'on a phone the list is the only copy').toMatchObject({
-        calloutsVisible: false,
-        listVisible: true,
+      // Every copy of the facts on the page, and each one's place; `visible` because a copy
+      // drawn and hidden would still be a copy a screen reader could reach.
+      const shown = async () => ({
+        corners: await page.locator('.spec-groups--corners').count(),
+        list: await page.locator('.spec-groups--list').count(),
+        visible: await page
+          .locator('.spec-groups')
+          .evaluateAll(
+            (all) => all.filter((el) => (el as HTMLElement).offsetParent !== null).length,
+          ),
       })
+      const once = (place: 'corners' | 'list') =>
+        place === 'corners'
+          ? { corners: 1, list: 0, visible: 1 }
+          : { corners: 0, list: 1, visible: 1 }
+
+      for (const [width, height, withThreeD] of [
+        [1280, 800, 'corners'],
+        [1024, 768, 'corners'],
+        [1023, 768, 'list'],
+        [960, 800, 'list'],
+        [375, 812, 'list'],
+      ] as const) {
+        await page.setViewportSize({ width, height })
+        const place = noThreeD ? 'list' : withThreeD
+        await expect
+          .poll(shown, {
+            message: `${width}x${height}${noThreeD ? ' without 3D' : ''}: the facts once, in the ${place}`,
+          })
+          .toEqual(once(place))
+      }
     })
   }
 
@@ -2773,77 +2773,80 @@ test.describe('the page composes on one grid', () => {
     })
   }
 
-  test('the four stage callouts share two baselines, not three', async ({ page }) => {
-    // 1440x900 because `.stage__callouts` is `display: none` below 1000px — measured
-    // 0x0 boxes at 834, 768 and 390 — so this is a desktop-only composition.
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    test.skip(
-      await stageFallsBack(page),
-      'no 3D here (CI Firefox has no WebGL): the callouts are not drawn at all by design ' +
-        '(LA-16), so there are no baselines to compare',
-    )
+  /*
+   * The garment's facts in the window's corners are a technical drawing (polish D10): the top
+   * pair hangs from one line, the bottom pair shares one line (FA-D-07: the old callouts'
+   * fourth corner floated by one line of text per feature the CMS listed), the left pair shares
+   * a left edge and the right pair a right edge. The PERFORMANCE list is the fixture's two
+   * features against FIT's one, so a floating bottom pair shows here as a whole line.
+   */
+  for (const [width, height] of [
+    [1440, 900],
+    [1024, 640],
+  ] as const) {
+    test(`the four corner groups make one drawing at ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      test.skip(
+        await stageFallsBack(page),
+        'no 3D here (CI Firefox has no WebGL): the facts are under the stage by design (LA-16)',
+      )
+      await expect(page.locator('.spec-groups--corners')).toBeVisible()
 
-    const tops = await page.evaluate(() =>
-      [...document.querySelectorAll('.callout')].map((c) => ({
-        label: c.querySelector('.label')?.textContent?.trim() ?? '',
-        top: Math.round(c.getBoundingClientRect().top * 10) / 10,
-        bottom: Math.round(c.getBoundingClientRect().bottom * 10) / 10,
-      })),
-    )
+      const m = await page.evaluate(() => {
+        const box = (selector: string) => {
+          const r = document.querySelector(selector)?.getBoundingClientRect()
+          return r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null
+        }
+        const heading = (key: string) => box(`.spec-group--${key} .spec-group__heading`)
+        const lastRow = (key: string) => box(`.spec-group--${key} li:last-child .spec-item__row`)
+        return {
+          canvas: box('.stage__canvas'),
+          plinth: box('.stage__plinth'),
+          fabric: heading('fabric'),
+          weight: heading('weight'),
+          fit: heading('fit'),
+          performance: heading('performance'),
+          fabricRow: box('.spec-group--fabric .spec-item__row'),
+          fitRow: box('.spec-group--fit .spec-item__row'),
+          weightRow: box('.spec-group--weight .spec-item__row'),
+          performanceRow: box('.spec-group--performance .spec-item__row'),
+          performanceEnd: lastRow('performance'),
+        }
+      })
+      const near = (a: number | undefined, b: number | undefined) =>
+        Math.abs((a ?? Number.NaN) - (b ?? Number.NaN)) <= 1
 
-    expect(tops).toHaveLength(4)
-    const at = (label: string) => tops.find((t) => t.label.includes(label))
+      expect(near(m.fabric?.top, m.weight?.top), 'the top pair does not share a line').toBe(true)
+      expect(
+        near(m.fit?.top, m.performance?.top),
+        `FIT sits at ${m.fit?.top} and PERFORMANCE at ${m.performance?.top}: the bottom pair ` +
+          'is meant to share one line, set by the taller group (FA-D-07)',
+      ).toBe(true)
+      expect(near(m.fabricRow?.left, m.fitRow?.left), 'the left pair does not share an edge').toBe(
+        true,
+      )
+      expect(
+        near(m.weightRow?.right, m.performanceRow?.right),
+        'the right pair does not share an edge',
+      ).toBe(true)
 
-    // The top pair was always pinned and always agreed; asserting it is what makes
-    // the bottom assertion meaningful rather than a coincidence of one layout.
-    expect(at('FABRIC')?.top).toBe(at('WEIGHT')?.top)
-
-    // ⚠️ THE ONE THAT USED TO FAIL. Measured before the fix, this fixture: [ FIT ]
-    // 636.7 against [ PERFORMANCE ] 621.2, and 15.5 / 31.0 / 46.5 / 62.0 across six
-    // live products — always a whole multiple of 15.5px, one line of value text,
-    // because each block was bottom-anchored and grew upward by however many lines
-    // the CMS gave it.
-    expect(
-      at('FIT')?.top,
-      `[ FIT ] sits at ${at('FIT')?.top} and [ PERFORMANCE ] at ${at('PERFORMANCE')?.top} — ` +
-        `the bottom pair is meant to share one baseline, set by the taller block.`,
-    ).toBe(at('PERFORMANCE')?.top)
-
-    /*
-     * …and the row is still anchored where it was: the taller block's bottom edge has not
-     * moved toward the plinth.
-     *
-     * ⚠️ THIS WAS `toBe(686.7)`, AND THAT NUMBER SILENTLY ENCODED "THE STAGE HAS WebGL".
-     * CI's Firefox measured 688.3 and failed twice on a layout that is correct.
-     *
-     * The first guess was platform font metrics, and it was wrong — REPRODUCED locally by
-     * launching Firefox with `webgl.disabled: true`, which gives **688.3 exactly**. The
-     * 1.6px is the poster-fallback branch composing the stage slightly differently, not a
-     * different font stack. A constant read off a WebGL-capable machine is therefore not a
-     * property of this layout at all; it is a property of the runner.
-     *
-     * The sentence above describes a RELATIONSHIP — "has not moved toward the plinth" —
-     * and it was written as an absolute, which is the arithmetic-instead-of-measurement
-     * mistake this repo's stage-height budget has already made three times. The
-     * relationship holds in both branches.
-     *
-     * So the relationship is what is asserted. The plinth is the thing it must not
-     * approach, and its position is read from the same page rather than assumed.
-     */
-    const plinthTop = await page.evaluate(
-      () => document.querySelector('.stage__plinth')?.getBoundingClientRect().top ?? null,
-    )
-    expect(plinthTop, 'no .stage__plinth to measure against').not.toBeNull()
-
-    const bottom = at('PERFORMANCE')?.bottom ?? 0
-    expect(
-      plinthTop === null ? 0 : plinthTop - bottom,
-      `[ PERFORMANCE ] ends at ${bottom} and the plinth starts at ${plinthTop} — the ` +
-        'callout row has drifted down into the controls.',
-    ).toBeGreaterThan(0)
-  })
+      // Inside the window, the top pair clear of the AR cube's 12 + 44px (iPads have it), and
+      // the bottom pair clear of the controls under the window.
+      const canvas = m.canvas!
+      expect(m.fabric!.top - canvas.top, 'the top pair is up under the AR button').toBeGreaterThan(
+        56,
+      )
+      expect(m.fabricRow!.left).toBeGreaterThan(canvas.left)
+      expect(m.weightRow!.right).toBeLessThan(canvas.right)
+      expect(
+        m.performanceEnd!.bottom,
+        'the bottom pair runs out of the window',
+      ).toBeLessThanOrEqual(canvas.bottom)
+      expect(m.performanceEnd!.bottom).toBeLessThan(m.plinth?.top ?? Number.POSITIVE_INFINITY)
+    })
+  }
 })
 
 /**
@@ -3584,23 +3587,23 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
 })
 
 /**
- * LA-16 — the four spec callouts are decoration around a GARMENT. When 3D cannot run
- * (Save-Data, no WebGL, a stalled download), the stage holds the notice instead, and the
+ * LA-16 — the facts in the window's corners frame a GARMENT. When 3D cannot run (Save-Data, no
+ * WebGL, a stalled download), the stage holds the picture and the notice instead, and the old
  * callouts were still drawn over the same box: measured 2026-09-25 before the fix, at five
- * widths from 1000px, see the PR. `Stage.tsx` now renders them only when `!fallback`, the
- * guard the cue and the camera controls already use. The same facts stay on the page in
- * `.spec-list`, so nothing is lost.
+ * widths from 1000px. Since polish D10 the corners are the facts' only copy on a computer, so
+ * App.tsx moves them under the stage while the stage has no garment ("the spec facts render
+ * once at every width" counts that), and `Stage.tsx` draws none over a failure state either way.
  */
-test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () => {
+test.describe('the corner facts never sit over the no-3D notice (LA-16)', () => {
   const WIDTHS = [1000, 1100, 1280, 1440, 1920] as const
   const measure = (page: Page) =>
     page.evaluate(() => {
       const failure = document.querySelector('.stage__failure')?.getBoundingClientRect()
-      const callouts = [...document.querySelectorAll('.stage__callouts .callout')]
+      const groups = [...document.querySelectorAll('.spec-groups--corners .spec-group')]
         .map((el) => el.getBoundingClientRect())
         .filter((r) => r.width > 0 && r.height > 0)
       const overlaps = failure
-        ? callouts.filter(
+        ? groups.filter(
             (r) =>
               r.left < failure.right &&
               failure.left < r.right &&
@@ -3608,7 +3611,7 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
               failure.top < r.bottom,
           ).length
         : 0
-      return { shown: callouts.length, overlaps }
+      return { shown: groups.length, overlaps }
     })
 
   for (const width of WIDTHS) {
@@ -3626,15 +3629,17 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
       await expect(page.locator('.stage__error:not([hidden])')).toBeVisible()
       const m = await measure(page)
       console.log(
-        `LA-16 fallback ${width}px: ${m.shown} callouts drawn, ${m.overlaps} over the notice`,
+        `LA-16 fallback ${width}px: ${m.shown} corner groups drawn, ${m.overlaps} over the notice`,
       )
-      expect(m.overlaps, `${m.overlaps} callouts sit over the no-3D notice`).toBe(0)
-      expect(m.shown, 'callouts are decoration around a garment that is not here').toBe(0)
+      expect(m.overlaps, `${m.overlaps} corner groups sit over the no-3D notice`).toBe(0)
+      expect(m.shown, 'the corners frame a garment that is not here').toBe(0)
     })
   }
 
-  test('with 3D available they still render at every width', async ({ page, browserName }) => {
-    for (const width of WIDTHS) {
+  // From 1024px: the corners follow the name and description beside the garment, which starts
+  // there (`IDENTITY_IN_ASIDE_QUERY`); at 1000px the facts are under the description.
+  test('with 3D available they render at every computer width', async ({ page, browserName }) => {
+    for (const width of [1024, ...WIDTHS.slice(1)]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -3646,7 +3651,7 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
        * out waiting for models to load. The cause is NOT established — no snapshot was kept,
        * this Mac cannot reproduce it (also tried inside CI's image, with the 3D library's
        * download delayed 3s), and in the code a fallback always shows the notice. So this
-       * waits up to 20s for callouts or the notice; a stage that shows neither now fails
+       * waits up to 20s for the corners or the notice; a stage that shows neither now fails
        * with "the stage never settled", which names the real question.
        */
       await expect
@@ -3654,10 +3659,10 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
           () =>
             page.evaluate(() => {
               if (document.querySelector('.stage__error:not([hidden])')) return 'fallback'
-              const drawn = [...document.querySelectorAll('.stage__callouts .callout')].filter(
-                (el) => el.getBoundingClientRect().width > 0,
-              ).length
-              return drawn > 0 ? 'callouts' : 'pending'
+              const drawn = [
+                ...document.querySelectorAll('.spec-groups--corners .spec-group'),
+              ].filter((el) => el.getBoundingClientRect().width > 0).length
+              return drawn > 0 ? 'corners' : 'pending'
             }),
           { message: `the stage never settled at ${width}px`, timeout: 20_000 },
         )
@@ -3665,7 +3670,7 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
       const fallback = await page.locator('.stage__error:not([hidden])').count()
       test.skip(fallback > 0, `${browserName}: no WebGL here, so there is no garment to frame`)
       const m = await measure(page)
-      expect(m.shown, `no callouts at ${width}px with 3D available`).toBe(4)
+      expect(m.shown, `not four corner groups at ${width}px with 3D available`).toBe(4)
     }
   })
 })

@@ -152,11 +152,11 @@ describe('VA-56: with scripting off the loading screen is not drawn over the pag
   })
 })
 
-describe('VA-59: the Performance features are a plain list', () => {
+describe('VA-59 and D10: each group of facts is a list drawn by its own bullets', () => {
   // e2e/spec-features.spec.ts measures one feature to a line in a real browser.
-  it('has no bullets and no indent, so it reads as the same text broken by line', () => {
-    expect(declared(rules, '.spec-list__features', 'list-style')).toBe('none')
-    expect(declared(rules, '.spec-list__features', 'margin')).toBe('0')
-    expect(declared(rules, '.spec-list__features', 'padding')).toBe('0')
+  it('has no browser bullets and no indent: the lime ring is the bullet', () => {
+    expect(declared(rules, '.spec-group__items', 'list-style')).toBe('none')
+    expect(declared(rules, '.spec-group__items', 'margin')).toBe('0')
+    expect(declared(rules, '.spec-group__items', 'padding')).toBe('0')
   })
 })

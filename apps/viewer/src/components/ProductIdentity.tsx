@@ -91,8 +91,8 @@ function Statement({ text, clamp }: { text: string; clamp: boolean }) {
  * places and the spec list does not. See `lib/useTwoColumnLayout.ts` for the
  * query, and <ProductIdentitySection> below for the wrapper.
  *
- * A FRAGMENT, deliberately. In the single-column layout these fields and
- * `.spec-list` share one `.product-info` section and its 16px gap, exactly as
+ * A FRAGMENT, deliberately. In the single-column layout these fields and the
+ * fact groups (`SpecGroups`) share one `.product-info` section and its 16px gap, exactly as
  * they did before the split — giving this its own wrapper there would put
  * `.content`'s 32-64px grid gap between a description and the facts that belong
  * to it.

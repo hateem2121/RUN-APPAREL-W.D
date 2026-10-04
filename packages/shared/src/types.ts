@@ -1,4 +1,5 @@
 import type { FooterSettings } from './siteFooter'
+import type { SpecGroup } from './specs'
 
 /**
  * Public viewer API contract shared between apps/cms (producer) and
@@ -95,6 +96,14 @@ export interface ViewerProduct {
   gsm: string
   performanceFeatures: string[]
   garmentFit: string
+  /**
+   * The four fields above as the page draws them: Fabric, Weight, Fit and Performance, each
+   * bullet with its one-line note from the glossary (polish D10, 2026-10-04: `specs.ts`,
+   * `specNotes.ts`). Built by the CMS, so a note changes with a deploy of the CMS alone.
+   * OPTIONAL: an answer cached before the field existed has none, and the garment page then
+   * builds the groups from the four fields itself, with no notes.
+   */
+  specs?: SpecGroup[]
   /**
    * A few sentences about this garment, shown under its name. Empty string when
    * the owner has not written one — every product created before 2026-08-17 is

@@ -12,16 +12,15 @@ import { expect, test } from '@playwright/test'
  * for text people read put back on `--text-mono` (11px) or `--text-mono-sm` (10px), or a new
  * component written at those sizes. apps/cms/e2e/readText.spec.ts asks the website's pages.
  *
- * DECORATIVE, by the owner's list: bracket labels (`.label`, and the spec list's `[ Fabric ]`
- * terms) and section numbers. Text nobody sees is not asked about. The walk starts as soon as the
- * headline shows, so the download count, which is on screen only while the model arrives, is read
- * whenever it is still there.
+ * DECORATIVE, by the owner's list: bracket labels (`.label`) and section numbers. The spec list's
+ * `[ Fabric ]` terms were too, until polish D10 (2026-10-04) made the garment's facts four groups
+ * whose headings are read at 12px, so they are asked about like any other text. Text nobody sees
+ * is not asked about. The walk starts as soon as the headline shows, so the download count, which
+ * is on screen only while the model arrives, is read whenever it is still there.
  */
 // `.label > [translate="no"]`: the garment code inside "[ ATHLETIC / N001 ]", in a span of its
 // own since polish X27 (2026-10-04) so a browser's Translate leaves it alone. Part of the label.
-const DECORATIVE = ['.label', '.label > [translate="no"]', '.section-number', '.spec-list dt'].join(
-  ', ',
-)
+const DECORATIVE = ['.label', '.label > [translate="no"]', '.section-number'].join(', ')
 
 for (const viewport of [
   { width: 390, height: 844 },
