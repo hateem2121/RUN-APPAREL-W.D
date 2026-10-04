@@ -2393,8 +2393,29 @@ a.contact-block__value:active {
  * its heading where there is room and under it where there is not; Sports Accessories, with no
  * page and no garments yet, shows "[ soon ]" and the way to ask instead (Q21).
  */
+/*
+ * ⚠️ EVERY GROUP AFTER THE FIRST IS DRAWN ONLY AS IT NEARS THE SCREEN (polish S9, Q28; web-guidance
+ * "defer-rendering-heavy-content", index of 4 September 2026). The page holds every garment (D1),
+ * 40 cards with their pictures and dots, and a browser laid all of them out before the first
+ * screen showed. `content-visibility: auto` skips a group's layout and paint until it is near;
+ * its words and links stay in the page, for find-in-page, a screen reader and a crawler alike.
+ * Not on the first group: it is on the first screen, where skipping only delays it. The size
+ * stands in for a group not yet drawn, so the scrollbar does not jump, and `auto` keeps a group's
+ * real size once it has been drawn. Baseline since 15 September 2025 (Safari 26); an older browser
+ * draws every group, as before. `e2e/oneListPerFamily.spec.ts` holds a Tab moving into a group
+ * that has not been drawn.
+ */
 .gallery-group + .gallery-group {
   margin-block-start: 64px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 1200px;
+}
+
+/* Paper has no screen to near: every group prints. */
+@media print {
+  .gallery-group + .gallery-group {
+    content-visibility: visible;
+  }
 }
 
 .gallery-group__head {

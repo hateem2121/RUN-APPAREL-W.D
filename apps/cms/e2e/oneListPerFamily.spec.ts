@@ -155,6 +155,40 @@ test.describe('the chips jump to their group (polish S8)', () => {
   })
 })
 
+test.describe('the groups after the first are drawn as they near the screen (polish S9)', () => {
+  test('the first group at once, the others deferred, and a Tab still walks into them', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 600 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/products')
+    const groups = await page.evaluate(() =>
+      [...document.querySelectorAll('section.gallery-group')].map((group) => ({
+        id: group.id,
+        visibility: getComputedStyle(group).contentVisibility,
+        // `contentVisibilityAuto`: false while the group is skipped, which proves it is deferred.
+        drawn: (group.querySelector('h2') as HTMLElement).checkVisibility({
+          contentVisibilityAuto: true,
+        }),
+      })),
+    )
+    expect(groups.map((group) => group.visibility)).toEqual([
+      'visible',
+      ...FAMILIES.slice(1).map(() => 'auto'),
+    ])
+    expect(groups[0]?.drawn, 'the first group is not drawn on the first screen').toBe(true)
+    expect(groups.at(-1)?.drawn, 'the last group was drawn before it neared the screen').toBe(false)
+
+    // The guide's check: sequential keyboard reach across the boundary into a deferred group.
+    // From the first group's last stop, link or colour dot.
+    await page.locator('section.gallery-group').first().locator('a[href], button').last().focus()
+    await page.keyboard.press('Tab')
+    expect(
+      await page.evaluate(() => document.activeElement?.closest('section.gallery-group')?.id),
+    ).toBe(FAMILIES[1]?.slug)
+  })
+})
+
 test.describe('a buyer page is its family’s list, and copies nothing (polish S1, S4)', () => {
   for (const { page } of WITH_A_PAGE) {
     test(`${page.path}: no numbers, no factory photos, no steps; the order guide instead`, async ({
