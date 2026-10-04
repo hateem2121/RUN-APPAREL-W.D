@@ -1660,7 +1660,7 @@ address.contact-block__value {
  */
 .contact-globe__address {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   font-style: normal;
   font-size: var(--text-card-title);
   line-height: 1.35;
