@@ -91,14 +91,17 @@ describe('arcsVisibleAt', () => {
 })
 
 describe('directionsUrl', () => {
-  it('uses the coordinates when they parse', () => {
-    expect(directionsUrl([32.41, 74.46], '13 Km Daska Road')).toBe(
-      'https://www.google.com/maps/search/?api=1&query=32.41,74.46',
+  it('asks Google for directions to the listing, by its name and address (polish X24)', () => {
+    // Exactly the text checked against Google on 2026-10-05: it resolves to the listing.
+    expect(
+      directionsUrl('RUN APPAREL (PVT) LTD', '13 Km Daska Road, Sialkot, 51040, Pakistan'),
+    ).toBe(
+      'https://www.google.com/maps/dir/?api=1&destination=RUN%20APPAREL%20(PVT)%20LTD%2C%2013%20Km%20Daska%20Road%2C%20Sialkot%2C%2051040%2C%20Pakistan',
     )
   })
-  it('falls back to the address, encoded', () => {
-    expect(directionsUrl(null, '13 Km Daska Road, Sialkot, 51040, Pakistan')).toBe(
-      'https://www.google.com/maps/search/?api=1&query=13%20Km%20Daska%20Road%2C%20Sialkot%2C%2051040%2C%20Pakistan',
+  it('falls back to the address alone when there is no name', () => {
+    expect(directionsUrl('', '13 Km Daska Road, Sialkot, 51040, Pakistan')).toBe(
+      'https://www.google.com/maps/dir/?api=1&destination=13%20Km%20Daska%20Road%2C%20Sialkot%2C%2051040%2C%20Pakistan',
     )
   })
 })

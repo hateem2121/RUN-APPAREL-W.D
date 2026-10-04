@@ -1651,48 +1651,38 @@ address.contact-block__value {
   margin-top: 24px;
 }
 
+/*
+ * ⚠️ THE COPY READS AS AN ADDRESS, AND THE LINK AS AN ACTION (polish X24, 2026-10-05). The audit of
+ * 3 October found the section half-built: one line of address in body text, the coordinates, an
+ * underlined link and, beside them, a globe with no land (ContactGlobe.tsx says why). Now the
+ * street sits on its own line in the card title's type, the town and country under it, and
+ * "Get directions" is the site's outline button, to the company's Google listing (`lib/globe.ts`).
+ */
 .contact-globe__address {
+  display: grid;
+  gap: 2px;
   font-style: normal;
-  font-size: var(--text-body);
+  font-size: var(--text-card-title);
+  line-height: 1.35;
   color: var(--text);
 }
 
+.contact-globe__street {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: var(--tracking-card-title);
+}
+
 .contact-globe__coords {
-  margin-top: 8px;
+  margin-top: 12px;
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
   color: var(--muted);
 }
 
-/* A real 44px row, not padding tricks: navbar.spec.ts measures every link on the page. */
+/* The outline button (`.btn--ghost`, base.css), at its own width, under the address. */
 .contact-globe__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--target-min);
-  margin-top: 8px;
-  color: var(--text);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
-  text-underline-offset: 5px;
-  transition:
-    text-decoration-color var(--ui) var(--ease),
-    scale var(--instant) var(--ease);
-}
-
-.contact-globe__link:focus-visible {
-  text-decoration-color: currentColor;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .contact-globe__link:hover {
-    text-decoration-color: currentColor;
-  }
-}
-
-.contact-globe__link:active {
-  scale: 0.97;
+  margin-top: 24px;
 }
 
 /*

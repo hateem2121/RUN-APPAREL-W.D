@@ -27,7 +27,11 @@ import { expect, type Page, test } from './offlineMedia'
 // A test value, not a claim about the works: the harness passes it in.
 const COORDINATES = '32.49° N · 74.52° E'
 const ADDRESS = '13 Km Daska Road, Sialkot, 51040, Pakistan'
-const MAPS = 'https://www.google.com/maps/search/?api=1&query='
+// The company's name, as the seed and the Google listing carry it.
+const NAME = 'RUN APPAREL (PVT) LTD'
+// Directions to the Google listing, by name and address (polish X24, `lib/globe.ts`).
+const MAPS = 'https://www.google.com/maps/dir/?api=1&destination='
+const TO_THE_LISTING = `${MAPS}${encodeURIComponent(`${NAME}, ${ADDRESS}`)}`
 
 test.describe('/contact, as the CMS is seeded here (no coordinates)', () => {
   test('the address and a directions link are there, and no canvas', async ({ page }) => {
@@ -36,6 +40,8 @@ test.describe('/contact, as the CMS is seeded here (no coordinates)', () => {
     await expect(globe.locator('address')).toContainText('Sialkot')
     const link = globe.getByRole('link', { name: /Get directions/ })
     await expect(link).toHaveAttribute('href', new RegExp(`^${escapeRegExp(MAPS)}`))
+    // To the listing, never to the rounded coordinates (polish X24).
+    await expect(link).toHaveAttribute('href', TO_THE_LISTING)
     await expect(link).toHaveAttribute('rel', 'noopener')
     // The blank claim means no picture, and never a hard-coded one. If a future database
     // holds coordinates the canvas is expected instead.
@@ -101,7 +107,7 @@ async function openHarness(page: Page, options: Options = {}) {
       }
     },
     {
-      props: { coordinates: options.coordinates ?? COORDINATES, address: ADDRESS },
+      props: { coordinates: options.coordinates ?? COORDINATES, address: ADDRESS, name: NAME },
       lift: options.lift ?? false,
     },
   )
@@ -171,6 +177,14 @@ test('the globe is not built until it is near the screen', async ({ page }) => {
 })
 const frame = (page: Page) => canvasOf(page).screenshot()
 
+/**
+ * Shares of the canvas that are land dots (polish X24). Measured 2026-10-05 in Chromium, Firefox and
+ * WebKit alike: 1.20% on the light globe, 0.33% on the dark one (its lighter dots blend more at the
+ * edge), and 0 with no land loaded (the control). The floor sits at a third of the dark globe's.
+ */
+const LAND = 0.001
+const LAND_NONE = 0.0001
+
 /** What a frame contains, read in the page: how much is not paper, and where the accent is. */
 async function inspect(page: Page, png: Buffer) {
   return page.evaluate(async (base64) => {
@@ -198,13 +212,23 @@ async function inspect(page: Page, png: Buffer) {
         Math.abs((data[i + 2] ?? 0) - (target[2] ?? 0)) <
       tolerance
     const { width, height } = canvas
+    // The page behind the canvas says the theme: paper is light, the dark ground is not.
+    const dark = ((corner[0] ?? 0) + (corner[1] ?? 0) + (corner[2] ?? 0)) / 3 < 100
     let ink = 0
+    // A land dot is grey: dark on the light globe's pale sphere, light on the dark one's black.
+    // The arcs and the pin are the accent, olive or volt, never grey, so they are not counted.
+    let land = 0
     const accentMask = new Uint8Array(width * height)
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4
         if (!near(i, corner, 24)) ink++
         if (near(i, accent, 60)) accentMask[y * width + x] = 1
+        const r = data[i] ?? 0
+        const g = data[i + 1] ?? 0
+        const b = data[i + 2] ?? 0
+        const grey = Math.max(r, g, b) - Math.min(r, g, b) < 30
+        if (grey && (dark ? Math.min(r, g, b) > 120 : Math.max(r, g, b) < 130)) land++
       }
     }
     // The pin is a filled disc; an arc is a line a couple of pixels wide. A pixel counts as pin
@@ -232,7 +256,9 @@ async function inspect(page: Page, png: Buffer) {
     return {
       width,
       height,
+      dark,
       ink,
+      land,
       pinPixels,
       pinX: pinPixels ? sumX / pinPixels / width : null,
       pinY: pinPixels ? sumY / pinPixels / height : null,
@@ -260,7 +286,7 @@ test.describe('the globe, on a page of its own', () => {
     await expect(page.locator('.contact-globe__coords')).toHaveText(COORDINATES)
     await expect(page.getByRole('link', { name: /Get directions/ })).toHaveAttribute(
       'href',
-      `${MAPS}32.49,74.52`,
+      TO_THE_LISTING,
     )
   })
 
@@ -285,6 +311,54 @@ test.describe('the globe, on a page of its own', () => {
     const seen = await inspect(page, await frame(page))
     // A globe of dots and arcs covers well over one pixel in fifty of its square.
     expect(seen.ink, 'the canvas is blank').toBeGreaterThan(seen.width * seen.height * 0.02)
+  })
+
+  /*
+   * ⚠️ POLISH X24 (2026-10-05): A STILL GLOBE HAD NO LAND. cobe draws its first frame on a 1x1
+   * placeholder and swaps the land in when its image loads, without drawing again. This harness's
+   * globe is still (automation), so every frame here was an empty sphere with arcs, and so was the
+   * page of every visitor who asks for less motion: the "pale globe" of the audit of 3 October.
+   * The globe now paints the land in once it has loaded, before it is marked ready
+   * (ContactGlobe.tsx, `createWithLand`).
+   */
+  test('a still globe draws its land, in both themes', async ({ page }) => {
+    await openHarness(page)
+    const light = await inspect(page, await frame(page))
+    expect(light.dark).toBe(false)
+    expect(light.land, `no land on the light globe (${light.land} grey pixels)`).toBeGreaterThan(
+      light.width * light.height * LAND,
+    )
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+    await expect.poll(async () => (await inspect(page, await frame(page))).dark).toBe(true)
+    const dark = await inspect(page, await frame(page))
+    expect(dark.land, `no land on the dark globe (${dark.land} grey pixels)`).toBeGreaterThan(
+      dark.width * dark.height * LAND,
+    )
+  })
+
+  test('CONTROL: with no land to load, the same reading finds none', async ({ page }) => {
+    // cobe's land is a 1,091-byte PNG data URI: give it one black pixel instead, which is what its
+    // placeholder draws. The frames this suite reads are far longer, and load as they are.
+    await page.addInitScript(() => {
+      const source = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')
+      const pixel =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg=='
+      Object.defineProperty(HTMLImageElement.prototype, 'src', {
+        ...source,
+        set(value: string) {
+          const land = value.startsWith('data:image/png') && value.length < 4000
+          source?.set?.call(this, land ? pixel : value)
+        },
+      })
+    })
+    await openHarness(page)
+    const seen = await inspect(page, await frame(page))
+    expect(seen.ink, 'the control drew nothing at all').toBeGreaterThan(
+      seen.width * seen.height * 0.02,
+    )
+    expect(seen.land, `land was found where none was loaded (${seen.land})`).toBeLessThan(
+      seen.width * seen.height * LAND_NONE,
+    )
   })
 
   test('the works pin faces the viewer, and a drag turns it away', async ({ page }) => {

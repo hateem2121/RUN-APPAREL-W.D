@@ -95,6 +95,44 @@ function readTheme(probe: HTMLElement): Theme {
   }
 }
 
+/**
+ * ⚠️ cobe DRAWS ITS FIRST FRAME WITHOUT THE LAND (polish X24, 2026-10-05). `createGlobe` uploads a
+ * 1x1 black placeholder, starts loading the land as an image, and swaps it in when the image has
+ * loaded, without drawing again (cobe 2.0.1, `j.onload` in `dist/index.esm.js`). A turning globe
+ * repaints every frame and shows the land a moment later; a still one, under reduced motion or
+ * automation, painted once and kept an empty sphere for good: the "pale globe" of the audit of
+ * 3 October, and what every visitor who asks for less motion saw. cobe tells nobody when its land
+ * has arrived, so the image it makes is caught as it is made, and `land` settles a task after it
+ * loads (or fails), when cobe's own `onload` has uploaded it.
+ */
+function createWithLand(create: () => Globe): { globe: Globe; land: Promise<void> } {
+  const Native = window.Image
+  let settle: () => void = () => {}
+  const land = new Promise<void>((resolve) => {
+    settle = resolve
+  })
+  /*
+   * ⚠️ A FUNCTION DECLARATION, NOT AN ARROW. cobe calls `new Image`, and an arrow function cannot
+   * be called with `new`: Biome's `useArrowFunction` fix turned the first draft's function
+   * EXPRESSION into an arrow and every globe stopped drawing (all 42 harness tests, 2026-10-05).
+   * The rule leaves declarations alone. Not a subclass either: `Image` is a legacy factory, and
+   * `new` on a plain function returns the object it builds.
+   */
+  function CaughtImage(width?: number, height?: number) {
+    const image = new Native(width, height)
+    const done = () => setTimeout(settle, 0)
+    image.addEventListener('load', done, { once: true })
+    image.addEventListener('error', done, { once: true })
+    return image
+  }
+  window.Image = CaughtImage as unknown as typeof Image
+  try {
+    return { globe: create(), land }
+  } finally {
+    window.Image = Native
+  }
+}
+
 /** Draws the globe on `element` until the returned function is called. */
 function startGlobe(
   createGlobe: typeof import('cobe').default,
@@ -129,23 +167,26 @@ function startGlobe(
   let touched = false
   const settled = () => touched && shown === arcs.length
 
-  const globe: Globe = createGlobe(element, {
-    width: size,
-    height: size,
-    devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-    phi,
-    theta: TILT,
-    dark: theme.dark ? 1 : 0,
-    diffuse: 1.2,
-    mapSamples: 16000,
-    mapBrightness: theme.dark ? 6 : 1.4,
-    ...theme.colours,
-    markers: [{ location: works, size: 0.07 }],
-    markerElevation: 0.01,
-    arcs: arcs.slice(0, shown),
-    arcWidth: 0.6,
-    arcHeight: 0.28,
-  })
+  const { globe, land } = createWithLand(() =>
+    createGlobe(element, {
+      width: size,
+      height: size,
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      phi,
+      theta: TILT,
+      dark: theme.dark ? 1 : 0,
+      diffuse: 1.2,
+      mapSamples: 16000,
+      mapBrightness: theme.dark ? 6 : 1.4,
+      ...theme.colours,
+      markers: [{ location: works, size: 0.07 }],
+      markerElevation: 0.01,
+      arcs: arcs.slice(0, shown),
+      arcWidth: 0.6,
+      arcHeight: 0.28,
+    }),
+  )
+  let gone = false
 
   const paint = (extra: Partial<COBEOptions> = {}) => globe.update({ phi, theta: TILT, ...extra })
 
@@ -234,12 +275,24 @@ function startGlobe(
   }
   element.addEventListener('webglcontextlost', lost)
 
-  if (still) paint({ arcs })
-  // The first frame is on the canvas. `e2e/globe.spec.ts` waits for this before it compares
-  // frames: two blank canvases are identical, and that once looked like a still globe.
-  holder.dataset.globe = 'ready'
+  if (still) {
+    paint({ arcs })
+    // The land arrives a moment after the first frame (`createWithLand`): paint it in, and only
+    // then call the picture ready, so a test never compares two frames from before it.
+    land.then(() => {
+      if (gone) return
+      paint({ arcs })
+      holder.dataset.globe = 'ready'
+    })
+  } else {
+    // The first frame is on the canvas, and the frame loop paints the land in when it arrives.
+    // `e2e/globe.spec.ts` waits for this before it compares frames: two blank canvases are
+    // identical, and that once looked like a still globe.
+    holder.dataset.globe = 'ready'
+  }
 
   return () => {
+    gone = true
     if (raf) cancelAnimationFrame(raf)
     observer.disconnect()
     themeWatch.disconnect()
@@ -257,8 +310,19 @@ function startGlobe(
   }
 }
 
-export function ContactGlobe({ coordinates, address }: { coordinates: string; address: string }) {
+export function ContactGlobe({
+  coordinates,
+  address,
+  name = '',
+}: {
+  coordinates: string
+  address: string
+  /** The company's name as its Google listing carries it: the directions' destination. */
+  name?: string
+}) {
   const works = useMemo<LatLon | null>(() => parseCoordinates(coordinates), [coordinates])
+  // The street on a line of its own, the town and country under it, as a letter is addressed.
+  const [street, ...town] = address.split(', ')
   const [live, setLive] = useState(false)
   const [near, setNear] = useState(false)
   const root = useRef<HTMLDivElement>(null)
@@ -315,9 +379,17 @@ export function ContactGlobe({ coordinates, address }: { coordinates: string; ad
   return (
     <div className="contact-globe" ref={root}>
       <div className="contact-globe__copy">
-        <address className="contact-globe__address">{address}</address>
+        <address className="contact-globe__address">
+          <span className="contact-globe__street">{street}</span>
+          {/* A space between the lines, so a copy or a screen reader does not run them together. */}{' '}
+          {town.length > 0 ? <span>{town.join(', ')}</span> : null}
+        </address>
         {works ? <p className="contact-globe__coords">{coordinates}</p> : null}
-        <a className="contact-globe__link" href={directionsUrl(works, address)} rel="noopener">
+        <a
+          className="btn btn--ghost contact-globe__link"
+          href={directionsUrl(name, address)}
+          rel="noopener"
+        >
           Get directions <span aria-hidden="true">↗</span>
         </a>
       </div>

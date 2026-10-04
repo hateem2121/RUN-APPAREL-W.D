@@ -374,7 +374,11 @@ export default async function ContactPage({
           <h2 className="display display--section">
             From Sialkot, <span className="serif-accent">to wherever you&nbsp;are.</span>
           </h2>
-          <ContactGlobe coordinates={settings.footer.worksCoordinates} address={ADDRESS} />
+          <ContactGlobe
+            coordinates={settings.footer.worksCoordinates}
+            address={ADDRESS}
+            name={settings.companyName}
+          />
         </div>
       </section>
     </>

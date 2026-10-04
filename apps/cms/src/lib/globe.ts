@@ -66,10 +66,20 @@ export function arcsVisibleAt(total: number, elapsedMs: number, durationMs: numb
   return Math.min(total, done)
 }
 
-/** The link beneath the globe: the pin when the coordinates parse, else the address. */
-export function directionsUrl(coordinates: LatLon | null, address: string): string {
-  const query = coordinates ? `${coordinates[0]},${coordinates[1]}` : encodeURIComponent(address)
-  return `https://www.google.com/maps/search/?api=1&query=${query}`
+/**
+ * "Get directions": to the company's own Google listing, by name and address.
+ *
+ * ⚠️ NOT TO THE COORDINATES (polish X24, the owner's answer Q49, 2026-10-03). The link went to the
+ * CMS's `worksCoordinates`, "32.41° N · 74.46° E", rounded to two places: about half a kilometre
+ * from the pin of the company's Google listing, "RUN APPAREL (PVT) LTD" at 32.4140092, 74.4567305
+ * (read 2026-10-05). Google's directions link (Maps URLs: `dir`, `api=1`, a `destination` that is
+ * a place's name or address; documentation of 28 September 2026) resolves the listing's name and
+ * address to the listing itself, checked on 2026-10-05 with exactly this text: "Your location to
+ * RUN APPAREL (PVT) LTD". With no name, the address alone.
+ */
+export function directionsUrl(name: string, address: string): string {
+  const destination = name ? `${name}, ${address}` : address
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
 }
 
 /**
