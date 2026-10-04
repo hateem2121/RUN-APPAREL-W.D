@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { llmsTxtProblems } from '../../../../scripts/copy-rules.mjs'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
+import { familyHref } from './familyPages'
 import { buildLlmsTxt } from './llmsTxt'
 
 /**
@@ -59,13 +60,17 @@ describe('every confirmed fact reaches the file', () => {
   })
 })
 
-describe('every family is listed, with a working filter link', () => {
+describe('every family is listed, with a link to its one list (polish S1)', () => {
   for (const family of FAMILIES) {
     it(`lists ${family.name}`, () => {
       expect(text).toContain(family.name)
-      expect(text).toContain(`${SITE}/products?family=${family.slug}`)
+      expect(text).toContain(`${SITE}${familyHref(family)}`)
     })
   }
+
+  it('names no filter address, which only forwards now', () => {
+    expect(text).not.toContain('?family=')
+  })
 })
 
 describe('the origins come from configuration, not from typing', () => {
@@ -154,7 +159,7 @@ describe('it passes Lighthouse 13.5.0’s llms-txt audit (FI-08)', () => {
     }
     expect(text).toContain(`](${SITE}/sitemap.xml)`)
     for (const family of FAMILIES) {
-      expect(text).toContain(`[${family.name}](${SITE}/products?family=${family.slug})`)
+      expect(text).toContain(`[${family.name}](${SITE}${familyHref(family)})`)
     }
   })
 })

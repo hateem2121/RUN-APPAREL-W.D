@@ -63,11 +63,11 @@ describe('GarmentTrail', () => {
     for (const separator of separators) expect(separator.getAttribute('aria-hidden')).toBe('true')
   })
 
-  it('sends a category with no page of its own to its family filter', () => {
+  it('sends a category with no page of its own to its group on the products page (polish S1)', () => {
     draw('Sports Accessories')
     expect(steps()[2]).toEqual([
       'Sports Accessories',
-      'https://wear-run.com/products?family=sports-accessories',
+      'https://wear-run.com/products#sports-accessories',
     ])
   })
 

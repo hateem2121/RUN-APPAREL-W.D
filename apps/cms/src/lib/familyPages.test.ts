@@ -6,7 +6,6 @@ import { FAMILY_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHead
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import { FACTS } from './companyFacts'
-import { FACTORY_PHOTOS } from './factoryPhotos'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf, familyPageFor } from './familyPages'
 import { buildLlmsTxt } from './llmsTxt'
@@ -37,7 +36,6 @@ const everyWord = (page: (typeof FAMILY_PAGES)[number]): string =>
     ...page.makes.flatMap((entry) => [entry.group, entry.garments]),
     page.stepsHeading,
     page.closingHeading,
-    ...page.steps.flatMap((step) => [step.title, step.body]),
     ...page.questions.flatMap((entry) => [entry.question, entry.answer]),
   ].join('\n')
 
@@ -141,12 +139,9 @@ describe('the words state only what the site already states', () => {
       expect(words).not.toMatch(/limited time|only \d+ (?:slots|left)|hurry|act now/i)
     })
 
-    it(`${page.path}: it shows a real family and real, wide factory pictures`, () => {
+    // It shows no factory pictures since polish S4: the home page has them, once.
+    it(`${page.path}: it shows a real family`, () => {
       expect(FAMILIES).toContain(familyOf(page))
-      expect(page.photos.length).toBeGreaterThan(0)
-      for (const slug of page.photos) {
-        expect(FACTORY_PHOTOS.find((photo) => photo.slug === slug)?.shape, slug).toBe('wide')
-      }
     })
   }
 
@@ -158,16 +153,16 @@ describe('the words state only what the site already states', () => {
 })
 
 describe('where a family card leads', () => {
-  it('to its buyer page when it has one, else to the filtered gallery', () => {
+  it('to its buyer page when it has one, else to its group on the products page (polish S1)', () => {
     for (const family of FAMILIES) {
       const page = familyPageFor(family)
-      expect(familyHref(family)).toBe(page ? page.path : `/products?family=${family.slug}`)
+      expect(familyHref(family)).toBe(page ? page.path : `/products#${family.slug}`)
     }
     const teamwear = FAMILIES.find((family) => family.slug === 'teamwear-uniforms')
     expect(teamwear && familyHref(teamwear)).toBe('/custom-teamwear-manufacturer')
     // Sports Accessories has no garments, so no page (owner, 2026-09-30).
     const accessories = FAMILIES.find((family) => family.slug === 'sports-accessories')
-    expect(accessories && familyHref(accessories)).toBe('/products?family=sports-accessories')
+    expect(accessories && familyHref(accessories)).toBe('/products#sports-accessories')
   })
 
   it('a page naming a family that does not exist throws rather than rendering empty', () => {

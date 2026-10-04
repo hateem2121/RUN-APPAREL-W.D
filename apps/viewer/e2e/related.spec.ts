@@ -86,7 +86,8 @@ test.describe('More from this category (polish S6)', () => {
     ])
     await expect(cards.first()).toHaveAccessibleName(/^THE VELOCITY MATRIX JACKET\s*ZREL-01$/)
     const all = section.getByRole('link', { name: 'See all sportswear in 3D' })
-    await expect(all).toHaveAttribute('href', 'https://wear-run.com/products?family=sportswear')
+    // The category's own page, its only list since polish S1.
+    await expect(all).toHaveAttribute('href', 'https://wear-run.com/custom-activewear-manufacturer')
   })
 
   test('every card picture names its size, as every picture on the page does (SZ-10)', async ({

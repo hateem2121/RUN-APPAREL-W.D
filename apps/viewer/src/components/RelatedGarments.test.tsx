@@ -83,11 +83,12 @@ describe('RelatedGarments', () => {
     expect(section?.lastElementChild?.classList.contains('related__all')).toBe(true)
   })
 
-  it('ends with "See all … in 3D", the website’s words, to the category’s gallery', () => {
+  it('ends with "See all … in 3D", the website’s words, to the category’s own page (polish S1)', () => {
     draw([garment('r1')])
     const all = host.querySelector<HTMLAnchorElement>('.related__all')
     expect(all?.textContent).toBe('See all teamwear & uniforms in 3D')
-    expect(all?.href).toBe('https://wear-run.com/products?family=teamwear-uniforms')
+    // The page is the only list of the category's garments; the old filter address forwards.
+    expect(all?.href).toBe('https://wear-run.com/custom-teamwear-manufacturer')
   })
 
   it('keeps the cards’ rules out of the page’s stylesheet, which every first paint waits for', () => {

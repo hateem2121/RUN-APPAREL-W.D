@@ -4,9 +4,10 @@ import { familySlug } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 
 /**
- * The garment pages' trail and breadcrumbs link a category with no page of its own to the
- * website's family filter, `/products?family=<slug>` (domain move, 2026-09-28; categories WITH
- * a page link it since polish S5, packages/shared/src/categoryPages.ts). The website keeps each
+ * The garment pages' trail and breadcrumbs link a category with no page of its own to its group on
+ * the website's products page, `/products#<slug>` (polish S1, 2026-10-05; until then the family
+ * filter, `/products?family=<slug>`, which now forwards; categories WITH a page link it since
+ * polish S5, packages/shared/src/categoryPages.ts). The website keeps each
  * family's slug next to its name in apps/cms/src/lib/families.ts, and the garment pages DERIVE
  * the slug from the name — two spellings no build step compares, the rename-breaks-a-gate
  * class `src/siteLinks.test.ts` describes.

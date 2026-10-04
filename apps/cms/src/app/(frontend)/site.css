@@ -1893,29 +1893,6 @@ a.contact-block__value:active {
   font-size: var(--text-mono-lg);
 }
 
-/*
- * The count, and on a family's filtered gallery the way back to its buyer page (visual audit
- * VA-33): the count on the left, the button on the right where there is room and under it where
- * there is not. The count used to be a bare paragraph and the grid took its 8px from the
- * `.result-count + *` rule above; with a bar around it the grid is the BAR's sibling, so the
- * same 8px is given here, and the button beside the count is kept out of the count's own rule.
- */
-.result-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 24px;
-}
-
-.result-bar + * {
-  margin-block-start: 8px;
-}
-
-.result-bar > .btn {
-  margin-block-start: 0;
-}
-
 /* ------------------------------------------------ the family grid (FA-E-01) */
 
 /*
@@ -2280,18 +2257,14 @@ a.contact-block__value:active {
   }
 }
 
-/* ------------------------------------------------ gallery filter (FA-I-08) */
+/* ------------------------------------------------ chip rows: the products page's jump bar (S8) */
 
 /*
- * Owner decision 2026-09-07: filters, not pagination — see the note on ProductsPage. Every
- * chip is a real link to a real URL, so this needs no JavaScript, no state and no
- * hydration; `aria-current="page"` marks the active one, the same mechanism the header nav
- * uses.
- *
- * ⚠️ THE ACTIVE CHIP IS NOT MARKED BY COLOUR ALONE. `.nav-link[aria-current]` learned this
- * the hard way here: its first version distinguished current from non-current by alpha 0.7
- * against 1.0 on the SAME hue, which is a WCAG 1.4.1 failure and was barely perceptible to
- * anyone. The filled background is the cue; the colour is the reinforcement.
+ * A row of chips: the products page's jump bar (polish S8, 2026-10-05), and the "see also" rows
+ * at the end of a buyer page and a guide. Every chip is a plain link, so the row needs no
+ * JavaScript, no state and no hydration. The products page's chips filtered the grid until
+ * polish S3, each the current one filled in volt (`aria-current`); they jump to their family's
+ * group on the same page now, so no chip is ever the current page and that style went with them.
  */
 .filter-bar {
   display: flex;
@@ -2346,7 +2319,7 @@ a.contact-block__value:active {
 
 /*
  * A family with no references yet is still part of what the company makes, so the chip
- * stays and stays clickable — the empty state behind it explains, and says so honestly.
+ * stays and stays clickable — its group explains, and says so honestly (D17).
  *
  * ⚠️ A DASHED BORDER, NOT `opacity: 0.55`. The first version dimmed it, and axe caught the
  * result on its first run: `--muted` at 55% over the page ground is #a3a49b on #f1efea,
@@ -2362,21 +2335,10 @@ a.contact-block__value:active {
   border-style: dashed;
 }
 
-.filter-chip[aria-current="page"] {
-  background: var(--volt);
-  border-color: var(--volt);
-  color: var(--ink);
-  opacity: 1;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .filter-chip:hover {
     color: var(--text);
     border-color: var(--dimension);
-  }
-
-  .filter-chip[aria-current="page"]:hover {
-    color: var(--ink);
   }
 }
 
@@ -2398,9 +2360,9 @@ a.contact-block__value:active {
  * scroll sideways: the row is its own scroller and ends at the viewport's edges, and
  * `overscroll-behavior-x: contain` stops a swipe past the last chip turning into the browser's Back.
  * 4px of padding above and below keeps the 2px focus ring + 2px offset from being clipped by the
- * scroller. From 560px the chips wrap, as they always did. Only /products' own filter carries
- * `filter-bar--scroll`: a buyer page's "Other product families" list shares `.filter-bar` and was not
- * part of the finding.
+ * scroller. From 560px the chips wrap, as they always did. Only /products' own row (its jump bar
+ * since polish S8) carries `filter-bar--scroll`: a buyer page's "Other ranges" list shares
+ * `.filter-bar` and was not part of the finding.
  */
 @media (max-width: 559px) {
   .filter-bar--scroll {
@@ -2421,6 +2383,66 @@ a.contact-block__value:active {
   .filter-bar--scroll .filter-chip {
     flex: 0 0 auto;
   }
+}
+
+/*
+ * ⚠️ THE PRODUCTS PAGE, ONE FAMILY AFTER ANOTHER (polish S2, the owner's answer Q25, 2026-10-04).
+ * Every garment stays on the page (D1), under its family's heading, which opens the family's own
+ * page, the only list of its garments (Q24). The jump bar above leads to each group, and a jump
+ * lands its heading below the bar (`html { scroll-padding-top }`). A family's count sits beside
+ * its heading where there is room and under it where there is not; Sports Accessories, with no
+ * page and no garments yet, shows "[ soon ]" and the way to ask instead (Q21).
+ */
+.gallery-group + .gallery-group {
+  margin-block-start: 64px;
+}
+
+.gallery-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+
+.gallery-group__head .result-count + * {
+  margin-block-start: 0;
+}
+
+/* A real 44px box (navbar.spec.ts measures every link on the page): a plain link inside the
+   heading is its letters' height, about 31px at a phone's 26px. A block, not a flex row, so a
+   name that wraps keeps the arrow beside its last word (a no-break space joins them; in a flex
+   row the arrow was a box of its own and fell alone to a third line at 390px). */
+.gallery-group__link {
+  display: inline-block;
+  min-height: var(--target-min);
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gallery-group__link:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+  }
+}
+
+.gallery-group__soon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+/* A real 44px row: navbar.spec.ts measures every link on the page. */
+.gallery-group__ask {
+  display: inline-flex;
+  align-items: center;
+  column-gap: 0.3em;
+  min-height: var(--target-min);
+  font-size: var(--text-sm);
+  color: var(--text);
 }
 
 /* The whole family card is the link, so the anchor has to fill it. */

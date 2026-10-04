@@ -1,8 +1,4 @@
-import {
-  categoryGalleryPath,
-  seeAllInCategoryLabel,
-  type ViewerApiSuccess,
-} from '@run-apparel/shared'
+import { categoryPath, seeAllInCategoryLabel, type ViewerApiSuccess } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
 import { diagnostic } from '../lib/diagnostic'
 import { SITE_ORIGIN } from '../lib/siteLinks'
@@ -91,10 +87,8 @@ export function RelatedGarments({ data }: { data: ViewerApiSuccess }) {
         More <span className="serif-accent">{category}</span> in 3D.
       </h2>
       {Cards ? <Cards related={related} /> : null}
-      <a
-        className="btn btn--ghost related__all"
-        href={`${SITE_ORIGIN}${categoryGalleryPath(category)}`}
-      >
+      {/* The category's own page, its only list since polish S1 (`categoryPath`). */}
+      <a className="btn btn--ghost related__all" href={`${SITE_ORIGIN}${categoryPath(category)}`}>
         {seeAllInCategoryLabel(category)}
       </a>
     </section>

@@ -572,7 +572,7 @@ field labels and legend, and the colour names on a garment's colourway tabs — 
 reads to act, not glances at. The chips and section numbers still keep 10–11px.
 
 **Every text that is read is 12px since 2026-10-02 (owner's choice, visual audit VA-11).** The
-footer's headings, links, address, tab and small print; photo captions; the /products filter
+footer's headings, links, address, tab and small print; photo captions; the /products jump-bar
 chips and their counts; card cues ("View the range →", "Read this guide", "Opens the 3D
 viewer"), colour names on cards and the gallery's count; fact labels, timeline step names and
 the "We"/"You" tags; subheads and the facts' labels; and on a garment page the camera buttons,
@@ -626,7 +626,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 359.98px` | `page.css` | narrower padding on the phone action bar's two buttons |
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
 | `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
-| `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' filter is one row that scrolls sideways (VA-42) |
+| `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' jump bar is one row that scrolls sideways (VA-42) |
 | `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
 | `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
@@ -658,16 +658,25 @@ screen reader hears a step's title before its picture; nothing in a row takes fo
 orders cannot disagree for a keyboard. The pictures are lazy and carry their width and height, and
 the wipe and drift that run as they scroll in stop under `prefers-reduced-motion`.
 
-### A family's two pages name each other
+### A family has one list (polish S1–S4, S8)
 
-A product family can have two pages: its buyer page (for example `/custom-outerwear-manufacturer`)
-and its filtered gallery (`/products?family=outerwear`). Since visual audit VA-33 (owner-approved
-2026-10-01, words 2026-10-02) each links to the other with the existing ghost button, never the
-primary one: the buyer page ends "What we make" with "See all outerwear in 3D", and the gallery
-puts "About our outerwear" beside its result count. The words are built from the family's own name,
-lower-cased (`seeAllLabel` and `aboutLabel` in `apps/cms/src/lib/familyPages.ts`), and Sports
-Accessories, which has no buyer page, has neither link. The gallery's canonical address stays
-`/products`: the link is a way across, not a second page to index.
+Each product family's garments are listed on ONE page: its buyer page (for example
+`/custom-outerwear-manufacturer`). Until 2026-10-05 a family also had a filtered gallery
+(`/products?family=outerwear`), and the two linked to each other (visual audit VA-33); the owner
+chose one page per job (Q24–Q26, 2026-10-04, decision D27). So:
+
+- `/products` shows every garment (D1) under its family's heading. The heading opens the family's
+  page (`.gallery-group`, site.css); Sports Accessories, with no page and no garments yet, shows
+  "[ soon ]" and "Ask what we make →" to Contact (Q21). A chip row at the top jumps to each group,
+  its counts beside the names; on a phone it is one sideways row (VA-42).
+- `/products?family=…` forwards permanently to the family's page (Next's 308, which Google treats as
+  a 301), a family with no page to its group, anything else to `/products`
+  (`familyFilterForward` in `apps/cms/src/lib/familyPages.ts`).
+- A buyer page copies nothing from the home page: no numbers, no factory photos, and no steps of
+  its own. Under its "How an order works" heading it gives the order guide's own description and a
+  link to it.
+- The garment pages' trail and "See all … in 3D" open the family's page too (`categoryPath` in
+  `packages/shared/src/categoryPages.ts`).
 
 ### The product grid: two on a phone, and never one alone
 
@@ -678,7 +687,7 @@ long page, every garment in the document. Since the owner's call of 2026-10-02 t
 starts at 1440px, so the catalogue's 40 garments fill ten rows of four there; 1280px keeps three.
 From 1920px, where the page is 1600px wide since polish D1, there are five: eight full rows.
 
-| Width | Columns | Picture | The filter on `/products` |
+| Width | Columns | Picture | The jump bar on `/products` |
 |---|---|---|---|
 | under 560px | 2 | square | one row that scrolls sideways |
 | 560 to 899px | 2 | 4:5 | wraps |
@@ -697,7 +706,7 @@ On a phone the colour dots are 24 to 40px wide and still 44px tall: WCAG 2.2 SC 
 and the site holds every button to 44px tall, but five 44px-wide dots do not fit a 134px card.
 That is narrower than the 44px width §4 states for touch targets, which is the cost of the fix;
 the owner accepted it on 2026-10-02.
-The card's text has 12px of padding and a long name wraps inside it. The filter row is a scroller
+The card's text has 12px of padding and a long name wraps inside it. The jump bar is a scroller
 of links, so Tab walks every chip and the browser scrolls each into view; it ends at the screen's
 edges and cannot make the page scroll sideways.
 

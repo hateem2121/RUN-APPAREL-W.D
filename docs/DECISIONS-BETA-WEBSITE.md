@@ -43,6 +43,11 @@ throttled connection (`FA-L-61`).
 on `/products` regardless of the active filter, and that the page renders its
 full list with JavaScript disabled.
 
+**Amended by D27 (2026-10-04):** the filters are gone; their addresses forward to the families'
+own pages, and `/products` groups every garment under its family's heading. The reason above —
+every garment in one document — still holds, and `apps/cms/e2e/oneListPerFamily.spec.ts` checks it
+with scripting off.
+
 ### D2 · The 3D viewer stays the product detail page — `FA-I-07`
 
 **Decision: no per-product page on the marketing site. Keep linking out to
@@ -335,6 +340,9 @@ at 2.19:1), and clicking one gives a designed message offering to send what exis
 
 It resolves itself as references are built; nothing needs doing again.
 
+**Amended by D27 (2026-10-04):** the chips jump to groups on the page instead of filtering it; an
+empty family keeps its dashed chip and its 0, and its group carries the message.
+
 ---
 
 ### D18 · Camera momentum stays declined — `FA-H-22`, `FA-H-51`
@@ -623,6 +631,40 @@ the server sends), and none animates text opacity.
 **Guard:** `apps/viewer/src/styles/tokens.test.ts` (the token is documented in `docs/DESIGN.md`)
 and `apps/cms/e2e/motion.spec.ts` (reduced motion shows the final state at once, with a
 negative control).
+
+## 2026-10-04 — the polish audit: one page per job
+
+### D27 · A family has one list: its own page — amends D1 and D17
+
+**Decision: the four buyer pages are the ONLY lists of their families' garments. `/products` shows
+every garment under its family's heading, which opens that page; the old filter addresses
+(`/products?family=…`) forward to it permanently; and the buyer pages stop copying the home page.
+Owner, 2026-10-04 (Q24, Q25, Q26, Q28); built 2026-10-05.**
+
+A family's garments were listed twice — on its buyer page and on its filtered gallery — and the two
+pages linked to each other (visual audit VA-33). Two addresses for one list compete with each other
+in search (Google, "Consolidate duplicate URLs", 10 July 2026), and a buyer could not tell which
+was the family's page. The buyer pages keep their addresses, which Google already shows.
+
+- **D1's reason holds.** Every garment is still in `/products`' HTML, grouped by family, so a
+  crawler sees the whole catalogue at one URL and the page works with scripting off. The filter
+  chips became a jump bar: plain links to the groups on the same page (Q28).
+- **D17 now reads:** a family with no garments keeps its chip, dashed, with its count of 0, and its
+  group on the page says so in its own words. Sports Accessories, which has no page, shows
+  "[ soon ]" and "Ask what we make →" to Contact (Q21).
+- **The old addresses forward** with Next's permanent redirect (308, which Google treats as a 301,
+  "Redirects and Google Search", updated 14 April 2026): a family with a page to the page, Sports
+  Accessories to its group, anything else to `/products`.
+- **The buyer pages copy nothing:** no numbers, no factory photos, and none of their own five order
+  steps (the third telling of the order process, audit X21). They link the order guide instead.
+- **Everything that linked a family links its one list:** the home page's family cards, the
+  footer's "What we make", the garment pages' trail and their "See all … in 3D", and `/llms.txt`.
+
+**Guard:** `apps/cms/src/oneListPerFamily.test.ts` (every family link and forward, no `?family=`
+link anywhere in the site's source with a planted-link control, no copied section on a buyer page)
+and `apps/cms/e2e/oneListPerFamily.spec.ts` (each old address answers 308 to the right place, each
+heading opens its family's page, every garment is in the page with scripting off, a chip lands its
+group below the bar).
 
 ## Closed since
 

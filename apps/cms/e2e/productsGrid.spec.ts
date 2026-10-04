@@ -1,5 +1,6 @@
 import { CARD_SIZES } from '../src/lib/cardImage'
 import { nameSegments } from '../src/lib/cardName'
+import { FAMILIES } from '../src/lib/families'
 import { expect, type Page, test } from './offlineMedia'
 import { hintedWidth } from './sizesHint'
 
@@ -305,7 +306,8 @@ test.describe('VA-42 — on a phone a garment name shrinks rather than split a w
   })
 })
 
-test.describe('VA-42 — the filters are one row that scrolls sideways on a phone', () => {
+// The family chips filtered the grid until polish S8 (2026-10-05); they jump to its groups now.
+test.describe('VA-42 — the family chips are one row that scrolls sideways on a phone', () => {
   for (const width of PHONES) {
     test(`at ${width}px: one row, a sideways scroller, 44px chips, and the page itself does not scroll sideways`, async ({
       page,
@@ -328,7 +330,8 @@ test.describe('VA-42 — the filters are one row that scrolls sideways on a phon
       })
       expect(measured.wrap, 'the chips wrap into rows').toBe('nowrap')
       expect(measured.overflowX).toBe('auto')
-      expect(measured.chips.length, 'the family chips are missing').toBeGreaterThanOrEqual(6)
+      // One chip per family, "All" gone with the filters (polish S8).
+      expect(measured.chips.length, 'the family chips are missing').toBe(FAMILIES.length)
       const tops = measured.chips.map((chip) => chip.top)
       expect(
         Math.max(...tops) - Math.min(...tops),

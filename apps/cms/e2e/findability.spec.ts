@@ -95,17 +95,17 @@ test.describe('FA-N-04 — every page names itself', () => {
     })
   }
 
-  test('a family-filtered products view still fits a search result', async ({ request }) => {
-    const response = await request.get('/products?family=teamwear-uniforms')
-    expect(response.status()).toBe(200)
-    const head = headOf(await response.text())
-    const description =
-      head.match(/<meta name="description" content="([^"]*)"/)?.[1] ??
-      head.match(/<meta content="([^"]*)" name="description"/)?.[1] ??
-      ''
-    const shown = description.replace(/&amp;/g, '&')
-    expect(shown).toContain('Teamwear & Uniforms from RUN APPAREL.')
-    expect(shown.length).toBeLessThanOrEqual(160)
+  // The family-filtered views had their own titles and descriptions until polish S3 (2026-10-05):
+  // their addresses forward to the families' own pages now (e2e/oneListPerFamily.spec.ts), so a
+  // search engine consolidates each onto the page that lists the family.
+  test('a family-filter address is no page of its own: it forwards, permanently', async ({
+    request,
+  }) => {
+    const response = await request.get('/products?family=teamwear-uniforms', { maxRedirects: 0 })
+    expect(response.status()).toBe(308)
+    expect(new URL(response.headers().location ?? '', 'http://localhost').pathname).toBe(
+      '/custom-teamwear-manufacturer',
+    )
   })
 })
 
@@ -433,7 +433,9 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
   test('llms.txt names the garment pages and states the real capacity', async ({ request }) => {
     const body = await (await request.get('/llms.txt')).text()
     expect(body).toContain('100,000')
-    expect(body).toContain('/products?family=outerwear')
+    // Each family by its one list since polish S1, never the filter address that now forwards.
+    expect(body).toContain('/custom-outerwear-manufacturer')
+    expect(body).not.toContain('?family=')
     // One host since the domain move (2026-09-28): the garment pages are this site's own.
     expect(body).toContain('/products/<product-code>/<colorway>')
     expect(body).not.toContain('viewer.wear-run.help')

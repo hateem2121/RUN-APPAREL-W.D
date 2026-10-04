@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   CATEGORY_PAGE_PATHS,
-  categoryGalleryPath,
   categoryPath,
   familySlug,
   seeAllInCategoryLabel,
@@ -16,8 +15,14 @@ describe('categoryPath', () => {
     expect(categoryPath('Casual Wear')).toBe('/private-label-casual-wear-manufacturer')
   })
 
-  it('sends a category with no page to its family filter', () => {
-    expect(categoryPath('Sports Accessories')).toBe('/products?family=sports-accessories')
+  it('sends a category with no page to its group on the products page (polish S1)', () => {
+    expect(categoryPath('Sports Accessories')).toBe('/products#sports-accessories')
+  })
+
+  it('never sends anyone to the old family filter, which now forwards (polish S3)', () => {
+    for (const category of [...Object.keys(CATEGORY_PAGE_PATHS), 'Sports Accessories']) {
+      expect(categoryPath(category), category).not.toContain('?family=')
+    }
   })
 
   it('reads the category the way the CMS may send it, with stray spaces', () => {
@@ -33,12 +38,7 @@ describe('categoryPath', () => {
   })
 })
 
-describe('categoryGalleryPath and seeAllInCategoryLabel (polish S6)', () => {
-  it('opens the family filter, for a category with a buyer page too', () => {
-    expect(categoryGalleryPath('Teamwear & Uniforms')).toBe('/products?family=teamwear-uniforms')
-    expect(categoryGalleryPath(' Outerwear ')).toBe('/products?family=outerwear')
-  })
-
+describe('seeAllInCategoryLabel (polish S6)', () => {
   it('names the link in the owner’s approved words, lower-cased from the category', () => {
     expect(seeAllInCategoryLabel('Teamwear & Uniforms')).toBe('See all teamwear & uniforms in 3D')
     expect(seeAllInCategoryLabel(' Casual Wear ')).toBe('See all casual wear in 3D')

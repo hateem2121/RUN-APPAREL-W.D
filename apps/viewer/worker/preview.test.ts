@@ -545,7 +545,7 @@ describe('buildPreview — the readable page body for robots', () => {
       '<li><a href="https://wear-run.com/products/r-cch/wine">Coach &lt;b&gt;Jacket</a></li>',
     )
     expect(html).toContain(
-      '<p><a href="https://wear-run.com/products?family=sportswear">See all sportswear in 3D</a></p>',
+      '<p><a href="https://wear-run.com/custom-activewear-manufacturer">See all sportswear in 3D</a></p>',
     )
     // Before the links to the website's other pages, as the section sits before the contact one.
     expect(html.indexOf('More Sportswear in 3D.')).toBeLessThan(html.indexOf('All products'))
@@ -822,7 +822,7 @@ describe('buildPreview — breadcrumbs on the website', () => {
         onSite(payload({ product: { category: category as never } })).breadcrumbJsonLd ?? 'null',
       ).itemListElement[2].item
     expect(categoryStep('Teamwear & Uniforms')).toBe(`${SITE}/custom-teamwear-manufacturer`)
-    expect(categoryStep('Sports Accessories')).toBe(`${SITE}/products?family=sports-accessories`)
+    expect(categoryStep('Sports Accessories')).toBe(`${SITE}/products#sports-accessories`)
   })
 
   it('skips the category step when a garment has none, rather than inventing one', () => {

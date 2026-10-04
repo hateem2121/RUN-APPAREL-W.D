@@ -1,16 +1,16 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import Link from 'next/link'
 import type { ProductCard, PublicSiteSettings } from '../../lib/content'
-import { FACTORY_PHOTOS, factoryPhotoSrc } from '../../lib/factoryPhotos'
 import { FAMILIES, familyPictures } from '../../lib/families'
 import { FAMILY_PAGE_ACTION, type FamilyPage, familyHref, familyOf } from '../../lib/familyPages'
+import { guideAt } from '../../lib/guides'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
-import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
-import { FactsBento } from './FactsBento'
-import { SeeAllInGallery } from './FamilyCrossLinks'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
 import { JsonLd } from './JsonLd'
 import { ProductCardItem } from './ProductCardItem'
+
+/** The guide that tells how an order works, once, for every buyer page (polish S4). */
+const ORDER_GUIDE = guideAt('/guides/how-a-private-label-order-works')
 
 /**
  * A buyer page: one product family, written for the words a buyer searches (2026-09-30).
@@ -21,9 +21,14 @@ import { ProductCardItem } from './ProductCardItem'
  *
  * ⚠️ THE ORDER IS THE ARGUMENT, top to bottom: who we are and the minimum (so a buyer can
  * leave at once if it does not fit), what is made, the garments themselves, how an order
- * works, the numbers, where it is made, the questions, the way in. A search engine and a
- * skimming buyer both read the top and sample the rest, so the first paragraph has to be
- * complete on its own.
+ * works, the questions, the way in. A search engine and a skimming buyer both read the top and
+ * sample the rest, so the first paragraph has to be complete on its own.
+ *
+ * ⚠️ THE ONLY LIST OF ITS FAMILY, AND NOTHING COPIED (polish S1 and S4, the owner's answers Q24 and
+ * Q26, 2026-10-04). The garments below are the family's one list: the products page shows every
+ * family under a heading that opens this page, and its old filter address forwards here. The page
+ * no longer repeats the home page's numbers and factory photos, nor its own five order steps: "how
+ * an order works" is one sentence and a link to the order guide, which tells it once for every page.
  *
  * ⚠️ ONE PRIMARY BUTTON PER SCREEN, and the same words both times (`e2e/copy.spec.ts`,
  * CT-08). The second way in is a quiet link.
@@ -41,12 +46,6 @@ import { ProductCardItem } from './ProductCardItem'
  * in both themes. A family with no picture at all (no garment yet, no photo of its own) keeps the
  * hero exactly as it was: the same words, in the same order, with nothing drawn.
  *
- * ⚠️ THE LINK TO THE FAMILY'S GALLERY ENDS "WHAT WE MAKE", NOT THE GARMENT GRID (visual audit
- * VA-33, owner-approved 2026-10-01). It is the buyer's way across to `/products?family=…`, and it
- * has to be on the page whether or not the database holds garments for the family: the grid below
- * only exists when it does (the CI seed holds one Sportswear garment), while the gallery answers
- * an empty family with a designed message. `FamilyCrossLinks.tsx` has the words and the style.
- *
  * Renders the page without a garment grid when the family has no card to show (a database
  * wobble returns none): the words still stand, and no empty box is drawn.
  */
@@ -62,9 +61,6 @@ export function FamilyLanding({
   const family = familyOf(page)
   const garments = products.filter((product) => product.category === family.name)
   const picture = familyPictures(products)[family.slug] ?? null
-  const photos = page.photos
-    .map((slug) => FACTORY_PHOTOS.find((photo) => photo.slug === slug))
-    .filter((photo) => photo !== undefined)
   const others = FAMILIES.filter(
     (entry) =>
       entry.slug !== family.slug && products.some((product) => product.category === entry.name),
@@ -126,7 +122,6 @@ export function FamilyLanding({
                 <p>{entry.garments}</p>
               </div>
             ))}
-            <SeeAllInGallery family={family} />
           </div>
         </div>
       </section>
@@ -159,55 +154,17 @@ export function FamilyLanding({
         </section>
       ) : null}
 
+      {/* How an order works: the order guide's own description, and the way to it (polish S4). */}
       <section className="site-section" data-site-reveal>
         <div className="site-container prose spread">
           <h2 className="display display--section">{page.stepsHeading}</h2>
           <div className="spread__body">
-            {page.steps.map((step, index) => (
-              <div key={step.title}>
-                <h3 className="product-card__name prose__heading">
-                  {index + 1}. {step.title}
-                </h3>
-                <p>{step.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <h2 className="display display--section">The numbers</h2>
-          <p className="site-lede">
-            Confirmed capacity. If any of these matters to your program, ask and we will put it in
-            writing.
-          </p>
-          <FactsBento worksCoordinates={settings.footer.worksCoordinates} />
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container about">
-          <div className="about__copy">
-            <h2 className="display display--section">One building, one team answerable</h2>
-            <p className="site-lede">
-              Your order is cut, printed, stitched, checked and packed inside the DURUS INDUSTRIES
-              building in Sialkot, our parent company&rsquo;s. One team answers for it, from the
-              first stitch to the sealed bag.
-            </p>
-          </div>
-          <div className="about__photos">
-            {photos.map((photo) => (
-              <FactoryFigure
-                key={photo.slug}
-                photo={photo}
-                src={factoryPhotoSrc(photo, 640)}
-                srcSet={`${factoryPhotoSrc(photo, 640)} 640w, ${factoryPhotoSrc(photo, 1200)} 1200w`}
-                sizes={HALF_COLUMN_SIZES}
-                width={640}
-                height={400}
-              />
-            ))}
+            <p>{ORDER_GUIDE.description}</p>
+            <div className="site-actions">
+              <Link className="btn btn--ghost" href={ORDER_GUIDE.path}>
+                {ORDER_GUIDE.title}
+              </Link>
+            </div>
           </div>
         </div>
       </section>

@@ -1,6 +1,5 @@
-import { seeAllInCategoryLabel } from '@run-apparel/shared'
 import { FACTS } from './companyFacts'
-import { FAMILIES, type Family } from './families'
+import { FAMILIES, type Family, familyBySlug } from './families'
 
 /**
  * The buyer pages, one per product family: a real page with its own address, written for
@@ -14,8 +13,8 @@ import { FAMILIES, type Family } from './families'
  *
  * ⚠️ THE OWNER APPROVES EVERY PAGE'S WORDS BEFORE IT IS BUILT. Teamwear, Sportswear,
  * Outerwear and Casual Wear were approved on 2026-09-30. Sports Accessories has no garments,
- * so it has no page. A family with no entry here simply has no page yet: its home-page card keeps
- * opening the filtered gallery. Do not add an entry from a draft.
+ * so it has no page. A family with no entry here simply has no page yet: its home-page card opens
+ * its group on the products page (`familyHref`). Do not add an entry from a draft.
  *
  * ⚠️ EVERY CLAIM BELOW IS ALREADY ON THE SITE. Nothing here may state a fact the home page
  * does not: no printing method beyond what is pictured, no customer names, no lead time
@@ -31,7 +30,6 @@ import { FAMILIES, type Family } from './families'
  * `familyPages.test.ts` fails when the two lists differ.
  */
 
-export type FamilyPageStep = { title: string; body: string }
 export type FamilyPageQuestion = { question: string; answer: string }
 
 export type FamilyPage = {
@@ -52,14 +50,14 @@ export type FamilyPage = {
   readonly makesHeading: string
   /** What is made, in the groups a buyer asks by. */
   readonly makes: ReadonlyArray<{ group: string; garments: string }>
-  /** The heading over `steps`. */
+  /**
+   * The heading over the link to the order guide. The page listed its own five steps under it until
+   * polish S4 (2026-10-05); the guide tells how an order works, once, for every page.
+   */
   readonly stepsHeading: string
-  readonly steps: readonly FamilyPageStep[]
   readonly questions: readonly FamilyPageQuestion[]
   /** The heading over the last call to action. */
   readonly closingHeading: string
-  /** Slugs in `FACTORY_PHOTOS`, `wide` ones: they stack in one column beside the copy. */
-  readonly photos: readonly string[]
 }
 
 const fact = (prefix: string): string =>
@@ -71,33 +69,14 @@ const SAMPLE_DAYS = fact('Working days')
 /** The one action every buyer page asks for. `e2e/copy.spec.ts` knows it as a primary label. */
 export const FAMILY_PAGE_ACTION = 'Get a free quote'
 
-/**
- * How an order works, the same on every buyer page because it IS the same for every order
- * (`orderProcess.ts` holds what the owner confirmed). Five steps here against the home
- * page's eight: a buyer page is read quickly, and the two pairs it folds say the same thing.
+/*
+ * ⚠️ NO STEPS OF THEIR OWN, NO NUMBERS, NO FACTORY PHOTOS (polish S4, the owner's answer Q26,
+ * 2026-10-04). Each page carried five steps of its own, the home page's numbers and two factory
+ * photos: the order process told a third way (the home page has eight steps, the order guide
+ * eight with other names; audit X21) and the home page copied four times. A buyer page is the list
+ * of its family's garments now, with what is made and the questions; how an order works is the
+ * order guide's job, and the page links to it (`FamilyLanding.tsx`).
  */
-const STEPS: readonly FamilyPageStep[] = [
-  {
-    title: 'Send what you have',
-    body: 'A sketch, a reference garment or a full tech pack. We reply within 24 hours.',
-  },
-  {
-    title: 'Your quote',
-    body: 'Fabric, trims, sizes and price. It is free and commits you to nothing.',
-  },
-  {
-    title: 'Your sample',
-    body: `Made in ${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
-  },
-  {
-    title: 'You approve',
-    body: 'Nothing goes into bulk until you sign off the sample.',
-  },
-  {
-    title: 'Made, checked, shipped',
-    body: 'Cut, printed, stitched, tested and packed in one building, then sent to you.',
-  },
-]
 
 /** The questions every buyer asks, after the one about the minimum, which names the family. */
 const questionsFor = (minimumFor: string, ownBrand: string): readonly FamilyPageQuestion[] => [
@@ -126,8 +105,6 @@ const questionsFor = (minimumFor: string, ownBrand: string): readonly FamilyPage
   { question: 'Where do you ship?', answer: 'Worldwide.' },
 ]
 
-const PHOTOS = ['stitching', 'lab'] as const
-
 export const FAMILY_PAGES: readonly FamilyPage[] = [
   {
     path: '/custom-teamwear-manufacturer',
@@ -154,10 +131,8 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       { group: 'Water sports', garments: 'Neoprene wetsuits.' },
     ],
     stepsHeading: 'How a team order works',
-    steps: STEPS,
     questions: questionsFor('custom teamwear', 'Can the kit carry our own brand?'),
     closingHeading: 'Have a team that needs kit?',
-    photos: PHOTOS,
   },
   /*
    * ⚠️ "ACTIVEWEAR" LEADS, NOT "SPORTSWEAR", AND THE ADDRESS SAYS SO (owner, 2026-09-30).
@@ -190,10 +165,8 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       },
     ],
     stepsHeading: 'How an order works',
-    steps: STEPS,
     questions: questionsFor('custom activewear', 'Can the garments carry our own brand?'),
     closingHeading: 'Have a range that needs making?',
-    photos: PHOTOS,
   },
   {
     path: '/custom-outerwear-manufacturer',
@@ -215,10 +188,8 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       { group: 'Leather', garments: 'Utility jackets.' },
     ],
     stepsHeading: 'How an order works',
-    steps: STEPS,
     questions: questionsFor('custom jackets', 'Can the jackets carry our own brand?'),
     closingHeading: 'Have a jacket that needs making?',
-    photos: PHOTOS,
   },
   {
     path: '/private-label-casual-wear-manufacturer',
@@ -237,10 +208,8 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       { group: 'Fleece', garments: 'Half-zip fleece pullovers.' },
     ],
     stepsHeading: 'How an order works',
-    steps: STEPS,
     questions: questionsFor('private label casual wear', 'Can the garments carry our own brand?'),
     closingHeading: 'Have a range that needs making?',
-    photos: PHOTOS,
   },
 ]
 
@@ -257,34 +226,26 @@ export function familyOf(page: FamilyPage): Family {
 }
 
 /**
- * A family's filtered gallery, `/products?family=<slug>`: the same garments as the buyer page,
- * with the other families' chips beside them. Never the buyer page, which `familyHref` prefers.
- * Its canonical stays `/products` (`products/page.tsx`).
+ * Where a family's card or link should lead: its buyer page, else its group on the products page.
+ *
+ * ⚠️ ONE PAGE PER JOB (polish S1, the owner's answer Q24, 2026-10-04). A family's garments were
+ * listed twice, on its buyer page and on its filtered gallery (`/products?family=<slug>`), and the
+ * two linked to each other (visual audit VA-33). The buyer page is the ONLY list of its family now;
+ * the products page shows every family under its own heading, which links here; and the filter's
+ * addresses forward (`familyFilterForward`). Sports Accessories has no page, so its link is its
+ * group on the products page, where "[ soon ]" leads to Contact (Q21).
  */
-export function familyGalleryHref(family: Family): string {
-  return `/products?family=${family.slug}`
-}
-
-/** Where a family's card or link should lead: its buyer page when it has one, else the filter. */
 export function familyHref(family: Family): string {
-  return familyPageFor(family)?.path ?? familyGalleryHref(family)
+  return familyPageFor(family)?.path ?? `/products#${family.slug}`
 }
 
-/*
- * ⚠️ THE TWO WORDS THAT JOIN A BUYER PAGE AND ITS GALLERY (visual audit VA-33). From the home
- * page "Outerwear" opened the buyer page and on /products the same word filtered the grid, so
- * a buyer who knew one never found the other. The owner chose to link the two to each other
- * (2026-10-01) and approved the words on 2026-10-02: "See all outerwear in 3D" on the buyer
- * page, "About our outerwear" on the filtered gallery, and the same for sportswear, teamwear &
- * uniforms and casual wear.
- *
- * Built from the family's own `name`, lower-cased, so the words cannot drift from the family
- * they name: a rename in `families.ts` renames both links, and `familyCrossLinks.test.ts` pins
- * the four approved pairs. Sports Accessories has no buyer page and no garments, so it has no
- * link either way (`AboutFamily` draws nothing for a family without a page).
- *
- * "See all" is built in packages/shared since polish S6 (2026-10-04): a garment page's "More from
- * this category" ends with the same link, to the same gallery, in the same words.
+/**
+ * Where an old family-filter address forwards (polish S3): `/products?family=outerwear` to the
+ * outerwear page, a family with no page to its group, and an empty or unknown value to the whole
+ * products page. Sent links and anything a search engine had kept keep working, and land where the
+ * family is listed now (Google, "Consolidate duplicate URLs", 10 July 2026).
  */
-export const seeAllLabel = (family: Family): string => seeAllInCategoryLabel(family.name)
-export const aboutLabel = (family: Family): string => `About our ${family.name.toLowerCase()}`
+export function familyFilterForward(slug: string | undefined): string {
+  const family = familyBySlug(slug)
+  return family ? familyHref(family) : '/products'
+}

@@ -1,6 +1,5 @@
 import {
   buildViewerPath,
-  categoryGalleryPath,
   categoryPath,
   GARMENT_PATH_PREFIX,
   garmentPageTitle,
@@ -356,7 +355,7 @@ function buildCrawlerBody(
       (garment) =>
         `<li><a href="${esc(`${origin}${buildViewerPath(garment.slug, garment.colourSlug, GARMENT_PATH_PREFIX)}`)}">${esc(garment.productName.trim())}</a></li>`,
     )
-    const all = `<a href="${esc(`${origin}${categoryGalleryPath(category)}`)}">${esc(seeAllInCategoryLabel(category))}</a>`
+    const all = `<a href="${esc(`${origin}${categoryPath(category)}`)}">${esc(seeAllInCategoryLabel(category))}</a>`
     parts.push(`<h2>${esc(`More ${category} in 3D.`)}</h2><ul>${cards.join('')}</ul><p>${all}</p>`)
   }
 
