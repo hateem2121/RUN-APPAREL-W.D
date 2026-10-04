@@ -1,6 +1,12 @@
 'use client'
 
-import { markMenuClosing, SITE_MENU_ID, SITE_MENU_LINKS, SITE_NAV_LINKS } from '@run-apparel/shared'
+import {
+  holdPageWhileOpen,
+  markMenuClosing,
+  SITE_MENU_ID,
+  SITE_MENU_LINKS,
+  SITE_NAV_LINKS,
+} from '@run-apparel/shared'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
@@ -67,6 +73,12 @@ export function NavLinks() {
   useEffect(() => {
     const menu = document.getElementById(SITE_MENU_ID)
     return menu ? markMenuClosing(menu) : undefined
+  }, [])
+
+  // The page holds still while the menu is open (polish F3; packages/shared/src/siteBar.ts).
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    return menu ? holdPageWhileOpen(menu, document) : undefined
   }, [])
 
   return (

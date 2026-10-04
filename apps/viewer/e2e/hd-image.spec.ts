@@ -239,3 +239,54 @@ for (const width of [320, 375] as const) {
     expect(measured.right, 'a pill hangs out of the plinth on the right').toBeGreaterThanOrEqual(0)
   })
 }
+
+/*
+ * Polish F2 (2026-10-04): with smooth scroll on, a wheel over the open picture slid the page from
+ * 0 to 1,200px behind it, so the visitor closed the picture somewhere else. base-ui holds the page
+ * with `overflow: hidden`, which stops a person but not Lenis's `scrollTo`; Lenis now hands the
+ * wheel back to the browser while the page is held (packages/shared/src/pageHold.ts). Run AS A
+ * HUMAN, because under automation smooth scroll is off and the page would hold still regardless.
+ */
+test('a wheel over the open picture leaves the page behind it where it was', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'a phone has no wheel')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.addInitScript(`Object.defineProperty(Navigator.prototype, 'webdriver', {
+    get: () => false,
+    configurable: true,
+  })`)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/n001/wine')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
+      message: 'Lenis never started, so this would pass with the fix deleted',
+      timeout: 10_000,
+    })
+    .toBe(true)
+  // base-ui's lock can move the page's position from <html> onto <body>, so read both.
+  const scrollY = () => page.evaluate(() => Math.round(window.scrollY + document.body.scrollTop))
+
+  await hdButton(page).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          [document.documentElement.style.overflowY, document.body.style.overflowY].some((v) =>
+            /^(?:hidden|clip)$/.test(v),
+          ),
+        ),
+      { message: 'base-ui never held the page, so there is nothing for Lenis to honour' },
+    )
+    .toBe(true)
+  // Measured with the picture open: the click first scrolled the button into view.
+  const start = await scrollY()
+  await page.mouse.move(640, 450)
+  await page.mouse.wheel(0, 1200)
+  // Longer than the 1.1 s glide, so a slow one cannot hide inside the wait.
+  await page.waitForTimeout(1500)
+  expect(await scrollY(), 'the page slid behind the open picture').toBe(start)
+})

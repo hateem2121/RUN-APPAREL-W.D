@@ -760,6 +760,40 @@
     }
 
     /*
+     * ⚠️ THE PAGE BEHIND THE OPEN MENU DIMS, AND THE BAR DOES NOT (polish X26, 2026-10-04). The
+     * dim says the page is waiting and the menu is the thing to use; the page under it also holds
+     * still (F3: holdPageWhileOpen, packages/shared/src/siteBar.ts). It is the shell's own layer,
+     * BELOW the bar: a popover's `::backdrop` covers everything outside the top layer, the bar
+     * included, and would split the bar from the panel it widens into (above). Fixed to the
+     * screen, because the shell has no transform (the hiding bar moves `.notch`, not the shell).
+     * It takes the tap that closes the menu, so a tap beside the menu never also follows a link
+     * underneath. `visibility` keeps it drawn for the whole fade-out, then lets taps through; on
+     * the way in it switches at once, because a transition starts from the old value and a tap in
+     * that first frame went through to a card's link (siteBar.spec.ts, 2026-10-04).
+     * A dim and no blur: the plan's "soft dim", and the one `backdrop-filter` the site allows is
+     * `.stage__ar` (scripts/vibecoded-rules.mjs, VC-08 — a second needs the owner's decision).
+     */
+    .notch-shell::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-menu-dim);
+      background: color-mix(in srgb, var(--ink) 40%, transparent);
+      opacity: 0;
+      visibility: hidden;
+      transition:
+        opacity var(--instant) var(--ease),
+        visibility var(--instant);
+    }
+
+    .notch-shell:has(.notch__menu:popover-open)::before {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity var(--ui) var(--ease);
+    }
+
+    /*
      * ⚠️ BUG 1, DESIGNED OUT: only the open rule below gives the list a `display` on a phone.
      * An author `display` on a [popover] beats the browser's
      * `[popover]:not(:popover-open) { display: none }` whatever the specificity, so the old
@@ -994,6 +1028,11 @@
 @media (forced-colors: active) {
   .notch__menu:popover-open {
     border: 1px solid CanvasText;
+  }
+
+  /* The dim behind the open menu (X26) is decoration; the menu's own border does its work here. */
+  .notch-shell::before {
+    display: none;
   }
 }
 

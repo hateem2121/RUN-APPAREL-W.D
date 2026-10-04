@@ -342,6 +342,9 @@
   --z-footer-glow: 6; /* .footer-glow — the light, blended over the slab's content */
   /* A fourth, 2026-10-02 (visual audit VA-30): above the card's picture strip, under the header. */
   --z-card-control: 1; /* .card-gallery__arrow — previous / next over a gallery card's picture */
+  /* Both hosts, 2026-10-04 (polish X26): -1 INSIDE the bar's own layer (--z-header), so the dim
+     covers the page and stays under the bar it belongs to (notch.css). */
+  --z-menu-dim: -1; /* .notch-shell::before — the dim behind the open phone menu */
 
   /*
    * ⚠️ THE PAGE'S WIDTH AND GUTTER ARE ONE SOURCE, BECAUSE THREE THINGS HAD TO AGREE AND

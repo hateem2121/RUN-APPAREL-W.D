@@ -9,6 +9,13 @@
         "files": ["apps/cms/e2e/composition.spec.ts"],
         "createdAt": "2026-10-04T05:37:41.007Z",
         "reason": "Claude, 2026-10-04: test code, not UI; the matches are a regex, a comment and test messages that mention <img>, and nothing in this Playwright spec renders an image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/e2e/perfBudgets.spec.ts"],
+        "createdAt": "2026-10-04T06:51:01.029Z",
+        "reason": "Claude, 2026-10-04: test code, not UI; the match is a regex that finds a product card's <img> in the served HTML, and this Playwright spec renders no image"
       }
     ]
   }

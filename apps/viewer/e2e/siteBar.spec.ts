@@ -350,3 +350,33 @@ test.describe('the phone status area takes the bar colour (VA-50) — the viewer
     })
   })
 })
+
+/*
+ * Polish F3 and X26 (2026-10-04): the open phone menu holds the page still and dims it on this
+ * host too. The wheel itself is proven on the site (apps/cms/e2e/siteBar.spec.ts), from the same
+ * shared code; this holds the viewer's header to wiring it (Header.tsx, holdPageWhileOpen).
+ */
+test.describe('the open phone menu holds the page and dims it (polish F3, X26) — the viewer', () => {
+  test('held and dimmed while open, let go when it closes', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // Held on whichever of <html> and <body> the page scrolls by (pageHold.ts).
+    const state = () =>
+      page.evaluate(() => ({
+        held: document.documentElement.style.overflowY || document.body.style.overflowY,
+        dim: getComputedStyle(document.querySelector('.notch-shell') as Element, '::before')
+          .opacity,
+      }))
+    expect(await state()).toEqual({ held: '', dim: '0' })
+
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+    await expect(page.locator(`#${SITE_MENU_ID}:popover-open`)).toHaveCount(1)
+    await expect.poll(state).toEqual({ held: 'hidden', dim: '1' })
+
+    await page.keyboard.press('Escape')
+    await expect(page.locator(`#${SITE_MENU_ID}:popover-open`)).toHaveCount(0)
+    await expect.poll(state).toEqual({ held: '', dim: '0' })
+  })
+})

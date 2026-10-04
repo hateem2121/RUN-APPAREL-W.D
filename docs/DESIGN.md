@@ -892,6 +892,7 @@ nothing moved — with one stated exception below.
 | Token | Value | Layer |
 |---|---|---|
 | `--z-hero-grid` | -1 | the site's `.site-hero__grid` — the blueprint grid behind the hero copy |
+| `--z-menu-dim` | -1 | `.notch-shell::before`, both hosts — the dim behind the open phone menu (polish X26, 2026-10-04); -1 inside the bar's own layer, so it covers the page and stays under the bar |
 | `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
 | `--z-card-control` | 1 | the site's `.card-gallery__arrow` — previous / next over a gallery card's picture (VA-30) |
 | `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
@@ -912,7 +913,10 @@ sees is unchanged — measured by grep of `site.css` and `base.css`, not assumed
 
 **The open phone menu is in the browser's TOP LAYER, above every z-index here — the skip link
 and the cursor included.** It opens under the bar, so it never covers the skip link, which
-appears at the top-left; the cursor ring (fine pointers only) passes under it.
+appears at the top-left; the cursor ring (fine pointers only) passes under it. While it is open
+the page behind it is dimmed and holds still (polish X26 and F3, 2026-10-04); the dim is the
+bar's own layer rather than the popover's `::backdrop`, which would cover the bar as well and
+split it from the menu it widens into.
 
 **A z-index only means something against the others**, and until this table existed
 the only way to learn the stack was to grep two stylesheets and sort the results.

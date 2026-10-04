@@ -1,4 +1,5 @@
 import {
+  holdPageWhileOpen,
   markMenuClosing,
   SITE_MENU_ID,
   SITE_MENU_LINKS,
@@ -66,6 +67,12 @@ export function Header({ wordmark }: HeaderProps) {
   useEffect(() => {
     const menu = document.getElementById(SITE_MENU_ID)
     return menu ? markMenuClosing(menu) : undefined
+  }, [])
+
+  // The page holds still while the menu is open (polish F3; packages/shared/src/siteBar.ts).
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    return menu ? holdPageWhileOpen(menu, document) : undefined
   }, [])
 
   // On a phone the bar leaves while the visitor scrolls down and returns as they scroll up
