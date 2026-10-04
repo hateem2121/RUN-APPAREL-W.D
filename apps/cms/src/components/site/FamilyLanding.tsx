@@ -6,8 +6,8 @@ import { FAMILY_PAGE_ACTION, type FamilyPage, familyHref, familyOf } from '../..
 import { guideAt } from '../../lib/guides'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
+import { GarmentGrid } from './GarmentGrid'
 import { JsonLd } from './JsonLd'
-import { ProductCardItem } from './ProductCardItem'
 
 /** The guide that tells how an order works, once, for every buyer page (polish S4). */
 const ORDER_GUIDE = guideAt('/guides/how-a-private-label-order-works')
@@ -139,17 +139,8 @@ export function FamilyLanding({
                 anyone pays for a sample.
               </p>
             </div>
-            <ul className="product-grid">
-              {garments.map((product, index) => (
-                // `index + 1`: these cards start below the first screen, so none loads eagerly.
-                <ProductCardItem
-                  key={product.slug}
-                  product={product}
-                  index={index + 1}
-                  heading="h3"
-                />
-              ))}
-            </ul>
+            {/* On the Teamwear page, a button for each sport above the cards (polish S7). */}
+            <GarmentGrid family={family} garments={garments} />
           </div>
         </section>
       ) : null}

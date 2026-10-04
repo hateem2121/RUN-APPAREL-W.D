@@ -677,6 +677,12 @@ chose one page per job (Q24–Q26, 2026-10-04, decision D27). So:
 - A buyer page copies nothing from the home page: no numbers, no factory photos, and no steps of
   its own. Under its "How an order works" heading it gives the order guide's own description and a
   link to it.
+- The Teamwear page has a button per sport over its garments (polish S7; the owner's six groups,
+  Q44): All, Soccer, American football, Cycling, Tennis & pickleball, Training, Water sports, each
+  with its count, filtering in place with no new address (Q27). They are radios in a fieldset and
+  CSS does the showing (`.sport-scope`, site.css), so they work with scripting off. A garment's
+  sport is read from its garment type (`lib/sports.ts`); while one sport is shown, each card's
+  `data-cut` / `data-lie` stand in for the grid's last-row rules, so no card is left alone (VA-42).
 - The garment pages' trail and "See all … in 3D" open the family's page too (`categoryPath` in
   `packages/shared/src/categoryPages.ts`).
 

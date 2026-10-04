@@ -44,6 +44,7 @@ const card = (over: Partial<ProductCard>): ProductCard => ({
   productName: 'P',
   productCode: 'R-P',
   category: 'Sportswear',
+  garmentType: '',
   shortDescription: '',
   posterUrl: 'https://media.wear-run.com/poster.webp',
   posterAlt: 'poster alt',

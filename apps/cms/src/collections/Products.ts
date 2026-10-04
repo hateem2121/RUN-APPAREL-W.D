@@ -341,6 +341,10 @@ export const Products: CollectionConfig = {
                * It is NOT shown on the page and NOT in a URL, so changing it is safe at any
                * time: nothing printed on a QR tag depends on it.
                *
+               * ON TEAMWEAR IT ALSO PICKS THE SPORT BUTTON (polish S7, the owner's groups Q44):
+               * `lib/sports.ts` lists "Men's Cycling Bib Shorts" under Cycling. A Teamwear
+               * garment whose type names no sport is listed under "All" only.
+               *
                * 60 characters is the most a search result shows of a whole title; a type
                * longer than that could never appear. Validation only: the column is plain
                * `text` (migration 20260930_160000_product_garment_type).
@@ -349,7 +353,7 @@ export const Products: CollectionConfig = {
               label: 'Garment type (for Google)',
               admin: {
                 description:
-                  "What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. Leave blank if unsure.",
+                  "What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. On Teamwear it also picks the sport button the garment is listed under (Soccer, Cycling, Tennis…). Leave blank if unsure.",
               },
             },
             {

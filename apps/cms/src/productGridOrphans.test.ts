@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { type SportPlace, sportPlaces, TEAMWEAR_SPORTS } from './lib/sports'
 
 /**
  * VA-42 (visual audit, owner's choice 2026-10-02): "a layout that never leaves one card alone on
@@ -168,7 +169,11 @@ function layOut(
     }
     items.push(item)
   }
+  return { columns, placed: placeItems(items, columns) }
+}
 
+/** Sparse grid placement: the cursor only moves forward, and a column behind it starts the next row. */
+function placeItems(items: Array<{ start?: number; span: number }>, columns: number): Placed[] {
   const taken = new Set<string>()
   const free = (row: number, col: number, span: number) =>
     Array.from({ length: span }, (_, step) => !taken.has(`${row}:${col + step}`)).every(Boolean)
@@ -192,7 +197,45 @@ function layOut(
     for (let step = 0; step < item.span; step++) taken.add(`${row}:${col + step}`)
     placed.push({ row, col, span: item.span })
   }
-  return { columns, placed }
+  return placed
+}
+
+/**
+ * Polish S7: while one sport is shown, the rules above stand down and a card's own marks
+ * (`sportPlaces`: `data-cut`, `data-lie`) take their place, through rules scoped to a chosen sport.
+ * This reads THOSE rules out of site.css, as `layOut` reads the full list's.
+ */
+const SHOWN =
+  '.sport-scope:has(.sport-filter__input:checked:not([value="all"])) .product-grid > .product-card'
+const SHOWN_RULE = new RegExp(
+  `^${SHOWN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}((?:\\[data-cut~="\\d"\\]|\\[data-lie\\])?)$`,
+)
+
+function layOutShown(
+  places: readonly SportPlace[],
+  width: number,
+  rules: Rule[],
+): { columns: number; placed: Placed[] } {
+  const columns = columnsAt(width, rules)
+  const items = places.map((place) => {
+    let item: { start?: number; span: number } = { span: 1 }
+    for (const rule of rules) {
+      const match = rule.selector.match(SHOWN_RULE)
+      if (!match || !mediaMatches(rule.media, width)) continue
+      const mark = match[1] ?? ''
+      const cut = mark.match(/data-cut~="(\d)"/)
+      if (cut && !place.cut.includes(Number(cut[1]))) continue
+      if (mark === '[data-lie]' && !place.lie) continue
+      const own = declarations(rule.body)
+      const shorthand = own.get('grid-column')
+      if (shorthand === '1 / -1') item = { start: 1, span: columns }
+      if (shorthand === 'auto') item = { span: 1 }
+      const start = own.get('grid-column-start')
+      if (start) item = { start: Number(start), span: 1 }
+    }
+    return item
+  })
+  return { columns, placed: placeItems(items, columns) }
 }
 
 /** The cards on each row, top to bottom, as the width each one takes. */
@@ -303,6 +346,64 @@ describe('no card is left alone on the last row, whatever the count (VA-42)', ()
     for (const { width } of WIDTHS) {
       expect(rowsOf(layOut(1, width, RULES).placed)).toEqual([[1]])
     }
+  })
+})
+
+describe('one sport shown alone ends its rows as a list of its own would (polish S7)', () => {
+  const ofOneSport = (count: number) =>
+    sportPlaces(
+      Array.from({ length: count }, () => ({ garmentType: 'Soccer Jersey' })),
+      TEAMWEAR_SPORTS,
+    )
+
+  it('the full list’s rules stand down while a sport is chosen', () => {
+    const reset = RULES.find((rule) => rule.media === null && rule.selector === SHOWN)
+    expect(declarations(reset?.body ?? '').get('grid-column')).toBe('auto')
+    expect(declarations(reset?.body ?? '').get('display')).toBe('flex')
+  })
+
+  it('every count from 1 to 60, at every width, lays out as the same count of a whole list', () => {
+    const failures: string[] = []
+    for (let count = 1; count <= 60; count++) {
+      for (const { width } of WIDTHS) {
+        const shown = rowsOf(layOutShown(ofOneSport(count), width, RULES).placed)
+        const whole = rowsOf(layOut(count, width, RULES).placed)
+        if (JSON.stringify(shown) !== JSON.stringify(whole))
+          failures.push(
+            `${count} at ${width}px: ${JSON.stringify(shown)} not ${JSON.stringify(whole)}`,
+          )
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  // The marks sit among other sports' cards in the HTML; only the chosen sport's are laid out.
+  it('a sport’s cards among others keep their own marks', () => {
+    const mixed = sportPlaces(
+      [
+        'Soccer Jersey',
+        'Tennis Dress',
+        'Soccer Jersey',
+        'Soccer Jersey',
+        'Tennis Dress',
+        'Soccer Jersey',
+      ].map((garmentType) => ({ garmentType })),
+      TEAMWEAR_SPORTS,
+    )
+    const soccer = mixed.filter((place) => place.sport === 'soccer')
+    expect(rowsOf(layOutShown(soccer, 1280, RULES).placed)).toEqual([
+      [1, 1],
+      [1, 1],
+    ])
+  })
+
+  // NEGATIVE CONTROL: without the scoped rules that read the marks, a sport of four at three
+  // columns ends on one card alone, and a sport of three on a phone leaves a hole.
+  it('sees the lone card when the rules that read the marks are removed', () => {
+    const without = RULES.filter((rule) => !/data-cut|data-lie/.test(rule.selector))
+    expect(rowsOf(layOutShown(ofOneSport(4), 1280, without).placed).at(-1)).toEqual([1])
+    expect(rowsOf(layOutShown(ofOneSport(3), 390, without).placed).at(-1)).toEqual([1])
+    expect(rowsOf(layOutShown(ofOneSport(4), 1280, RULES).placed).at(-1)).toEqual([1, 1])
   })
 })
 

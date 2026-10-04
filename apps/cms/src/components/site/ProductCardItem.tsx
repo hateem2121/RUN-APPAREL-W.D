@@ -1,6 +1,7 @@
 import { nameSegments } from '../../lib/cardName'
 import type { ProductCard } from '../../lib/content'
 import { GARMENT_PAGES } from '../../lib/seo'
+import type { SportPlace } from '../../lib/sports'
 import { CardGallery } from './CardGallery'
 import { ViewerCue } from './ViewerCue'
 
@@ -25,18 +26,28 @@ import { ViewerCue } from './ViewerCue'
  * The name's hyphenated words (V-NECK, ZIP-UP) are each held in one piece, so a two-up phone card
  * never ends a line on "V-" (`lib/cardName.ts`, owner's call 2026-10-02). The words read exactly as
  * before: the spans add no characters, and the heading's text is the name.
+ *
+ * `place`: on a page with sport buttons (polish S7), the card's sport and its place among that
+ * sport's cards, which site.css reads while one sport is shown (`lib/sports.ts`).
  */
 export function ProductCardItem({
   product,
   index,
   heading: Heading = 'h2',
+  place,
 }: {
   product: ProductCard
   index: number
   heading?: 'h2' | 'h3'
+  place?: SportPlace
 }) {
   return (
-    <li className="product-card">
+    <li
+      className="product-card"
+      data-sport={place?.sport ?? undefined}
+      data-cut={place?.cut.length ? place.cut.join(' ') : undefined}
+      data-lie={place?.lie ? '' : undefined}
+    >
       <CardGallery
         productSlug={product.slug}
         productName={product.productName}

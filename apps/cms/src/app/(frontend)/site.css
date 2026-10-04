@@ -1568,6 +1568,126 @@ html {
   margin-block-start: 4px;
 }
 
+/*
+ * ⚠️ ONE SPORT AT A TIME ON THE TEAMWEAR PAGE (polish S7; the six groups are the owner's, Q44,
+ * 2026-10-04). The buttons are radios (`GarmentGrid.tsx`) and these rules do the rest, with no
+ * script, so a browser that runs none filters the same: "filter on the same page", no new
+ * addresses (the owner's answer Q27). `:has()` lets the list answer the radio checked above it;
+ * Baseline, widely available since 19 December 2023 (web-guidance "child-state-based-styling",
+ * index of 4 September 2026).
+ *
+ * While a sport is chosen the last-row rules above stand down. They find "the card before the last"
+ * by its place in the HTML, which counts the cards not on show, so they would move a card of another
+ * sport or one in the middle, and leave a card alone. Each card carries its place among its own
+ * sport instead (`lib/sports.ts`): `data-cut`, the column counts at which it starts the last row,
+ * and `data-lie`, that it lies across a phone's two columns. `src/productGridOrphans.test.ts` holds
+ * these to the rules above for every count from 1 to 60; `e2e/sportFilter.spec.ts` presses every
+ * button in a browser.
+ */
+.sport-scope:has(.sport-filter__input:checked:not([value="all"])) .product-grid > .product-card {
+  grid-column: auto;
+  display: flex;
+}
+
+.sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+  .product-grid
+  > .product-card
+  > .card-gallery__dots {
+  align-self: auto;
+}
+
+.sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+  .product-grid
+  > .product-card
+  > .product-card__link {
+  border-inline-start: 0;
+}
+
+@media (min-width: 900px) and (max-width: 1439px) {
+  .sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+    .product-grid
+    > .product-card[data-cut~="3"] {
+    grid-column-start: 1;
+  }
+}
+
+@media (min-width: 1440px) and (max-width: 1919px) {
+  .sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+    .product-grid
+    > .product-card[data-cut~="4"] {
+    grid-column-start: 1;
+  }
+}
+
+@media (min-width: 1920px) {
+  .sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+    .product-grid
+    > .product-card[data-cut~="5"] {
+    grid-column-start: 1;
+  }
+}
+
+@media (max-width: 899px) {
+  .sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+    .product-grid
+    > .product-card[data-lie] {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
+  }
+
+  .sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+    .product-grid
+    > .product-card[data-lie]
+    > .product-card__figure {
+    grid-area: 1 / 1;
+  }
+
+  .sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+    .product-grid
+    > .product-card[data-lie]
+    > .card-gallery__dots {
+    grid-area: 2 / 1;
+    align-self: start;
+  }
+
+  .sport-scope:has(.sport-filter__input:checked:not([value="all"]))
+    .product-grid
+    > .product-card[data-lie]
+    > .product-card__link {
+    grid-area: 1 / 2 / 3 / 3;
+    border-inline-start: 1px solid var(--line);
+  }
+}
+
+/*
+ * The other sports' cards go. One selector per sport, because CSS cannot compare a radio's value
+ * with a card's (`lib/sports.test.ts` fails on a sport with none). LAST, on purpose: it weighs the
+ * same as the `data-lie` rule above, and a card of another sport must stay hidden even where that
+ * rule would draw it.
+ */
+.sport-scope:has(.sport-filter__input[value="soccer"]:checked)
+  .product-grid
+  > .product-card:not([data-sport="soccer"]),
+.sport-scope:has(.sport-filter__input[value="american-football"]:checked)
+  .product-grid
+  > .product-card:not([data-sport="american-football"]),
+.sport-scope:has(.sport-filter__input[value="cycling"]:checked)
+  .product-grid
+  > .product-card:not([data-sport="cycling"]),
+.sport-scope:has(.sport-filter__input[value="tennis-pickleball"]:checked)
+  .product-grid
+  > .product-card:not([data-sport="tennis-pickleball"]),
+.sport-scope:has(.sport-filter__input[value="training"]:checked)
+  .product-grid
+  > .product-card:not([data-sport="training"]),
+.sport-scope:has(.sport-filter__input[value="water-sports"]:checked)
+  .product-grid
+  > .product-card:not([data-sport="water-sports"]) {
+  display: none;
+}
+
 /* ------------------------------------------------------------ contact */
 
 .contact-grid {
@@ -2382,6 +2502,54 @@ a.contact-block__value:active {
 
   .filter-bar--scroll .filter-chip {
     flex: 0 0 auto;
+  }
+}
+
+/*
+ * The sport buttons on the Teamwear page (polish S7) are radios dressed as the chips above: one Tab
+ * stop, the arrow keys move the choice, and a chip's words are its name. The group is a fieldset
+ * with a legend (W3C WAI, "Grouping Controls", updated 27 March 2026). The radio is hidden from
+ * sight, kept for the keyboard and a screen reader (`.visually-hidden`, inside its chip so a focused
+ * one scrolls its chip into view), and its chip shows the focus ring and the choice. The choice is
+ * filled, as the products page's chosen filter was: never by colour alone (WCAG 1.4.1). WebKit
+ * stops matching `:focus-visible` on a radio the arrow keys reach (measured 2026-10-05), so there
+ * the ring goes after the first arrow; the fill moves with the focus, which in a radio group always
+ * sits on the chosen chip.
+ */
+.sport-filter {
+  /* A fieldset is as wide as its content unless told otherwise, and would stop the row scrolling. */
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sport-filter__chip {
+  position: relative;
+  cursor: pointer;
+}
+
+.sport-filter__chip:has(.sport-filter__input:checked) {
+  background: var(--volt);
+  border-color: var(--volt);
+  color: var(--ink);
+}
+
+.sport-filter__chip:has(.sport-filter__input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/*
+ * With the system's colours forced, the fill is repainted away (CSS Color Adjustment 1 §3.1), so
+ * the chosen chip is marked by SHAPE, as the gallery's chosen dot is (VA-08): a ring in `Highlight`,
+ * the system's own colour for what is selected. Not `forced-color-adjust: none`, which would put the
+ * brand's colours over the user's (`tokens.test.ts` allows it on the garment page's swatch alone).
+ */
+@media (forced-colors: active) {
+  .sport-filter__chip:has(.sport-filter__input:checked) {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
   }
 }
 

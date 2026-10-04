@@ -108,6 +108,11 @@ export interface ProductCard {
   productName: string
   productCode: string
   category: string
+  /**
+   * The plain type ("Men's Cycling Bib Shorts"), `''` when none is typed. Not drawn on the card: it
+   * lists a Teamwear garment under its sport (`lib/sports.ts`, polish S7).
+   */
+  garmentType: string
   shortDescription: string
   /** Poster for the card. `null` renders the drawn placeholder, never a broken image. */
   posterUrl: string | null
@@ -229,6 +234,7 @@ export function toProductCard(
     productName,
     productCode: text(product.productCode),
     category: text(product.category),
+    garmentType: text(product.garmentType),
     shortDescription: text(product.shortDescription),
     posterUrl: poster.url,
     posterAlt: poster.alt || `${productName} — 3D product reference`,

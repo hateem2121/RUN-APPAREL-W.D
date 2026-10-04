@@ -36,6 +36,13 @@
         "files": ["apps/cms/src/components/site/FamilyCard.test.ts"],
         "createdAt": "2026-10-04T22:10:12.211Z",
         "reason": "Claude, 2026-10-05: test code, not UI; the match is a regex that finds the card's <img> in server-rendered markup, and this Vitest file renders no image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/src/familyHeroPicture.test.ts"],
+        "createdAt": "2026-10-04T22:49:28.168Z",
+        "reason": "Claude, 2026-10-05: test code, not UI; the match is a regex that finds the hero's <img> in server-rendered markup, and this Vitest file renders no image"
       }
     ]
   }

@@ -17,6 +17,7 @@ const card = (slug: string, code: string, name: string, colours: [string, string
     productName: name,
     productCode: code,
     category: 'Sportswear',
+    garmentType: '',
     shortDescription: '',
     posterUrl: null,
     posterAlt: '',

@@ -74,10 +74,13 @@ export default defineConfig({
      * sits under it, which is scroll and focus behaviour, exactly where engines differ, and a
      * first visit from a QR code is a Safari visit. Run once locally before it joined: two of
      * its tests needed Option-Tab, which WebKit uses for links (`tabKey` in the spec).
+     *
+     * `sportFilter` joined 2026-10-05 (polish S7): the Teamwear page's sport buttons are radios
+     * that CSS answers through `:has()`, and choosing a sport on a phone is a Safari visit too.
      */
     {
       name: 'webkit',
-      testMatch: /(navbar|themeSwitch|siteBar|globe|consent)\.spec\.ts/,
+      testMatch: /(navbar|themeSwitch|siteBar|globe|consent|sportFilter)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

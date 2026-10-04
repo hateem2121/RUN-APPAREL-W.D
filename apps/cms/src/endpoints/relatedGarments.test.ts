@@ -13,6 +13,7 @@ const card = (slug: string, category: string, picture: string | null = null): Pr
   productName: `Garment ${slug}`,
   productCode: slug.toUpperCase(),
   category,
+  garmentType: '',
   shortDescription: '',
   posterUrl: `https://media.wear-run.com/${slug}-poster.webp`,
   posterAlt: '',
