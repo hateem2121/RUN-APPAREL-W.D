@@ -30,11 +30,13 @@ export const dynamic = 'force-dynamic'
  * told a search engine nothing; measured that day, all ten pages ranking for "custom
  * sportswear manufacturer" lead their title with what they sell.
  *
- * ⚠️ 56 characters, and the layout adds " — RUN APPAREL" (70 in all). A result shows about
- * 60, so the brand at the end is usually cut. The owner was told and chose these words;
- * the part that is cut is the part already shown beside every result.
+ * ⚠️ SHORTENED TO FIT (polish F18, 2026-10-04): the owner's words were 56 characters, 71 with the
+ * " — RUN APPAREL" the layout adds, and Google cut them to "…RUN APPA…". These keep the owner's
+ * words and say "Sportswear", the word buyers search ("custom sportswear manufacturer", the
+ * 2026-09-30 study): 44 characters, 58 in all, inside the ~60 a result shows. On the owner's
+ * end-of-build list of new words; e2e/findability.spec.ts holds the length.
  */
-const PRODUCTS_TITLE = 'Private Label Sports Apparel & Casual Wear Products in 3D'
+const PRODUCTS_TITLE = 'Private Label Sportswear & Casual Wear in 3D'
 
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const family = familyBySlug((await searchParams).family)

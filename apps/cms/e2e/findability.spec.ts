@@ -21,6 +21,20 @@ const PAGES = [
 /** The head, as a crawler that does not run scripts sees it. */
 const headOf = (html: string) => html.slice(0, html.indexOf('</head>') + 1)
 
+/*
+ * Polish F18 (2026-10-04): at 71 characters Google cut the products title to "…RUN APPA…". It
+ * shows about 60 (Google's own guidance names no limit and truncates "to fit the device width",
+ * read 2026-10-04), so the brand the layout adds at the end must fit inside them.
+ */
+test('the products title fits a search result: 60 characters or fewer, brand included (F18)', async ({
+  request,
+}) => {
+  const head = headOf(await (await request.get('/products')).text())
+  const title = (head.match(/<title>([^<]*)<\/title>/)?.[1] ?? '').replace(/&amp;/g, '&')
+  expect(title, 'the brand fell off the end').toMatch(/— RUN APPAREL$/)
+  expect([...title].length, title).toBeLessThanOrEqual(60)
+})
+
 test.describe('FA-N-04 — every page names itself', () => {
   /**
    * MEASURED 2026-09-06: `/` carries 62 characters of title and 264 of description,
