@@ -27,9 +27,8 @@
       {
         "rule": "overused-font",
         "value": "instrument serif",
-        "files": ["apps/cms/e2e/composition.spec.ts"],
-        "createdAt": "2026-10-04T07:39:43.067Z",
-        "reason": "Claude, 2026-10-04: test code, not UI; it forces the site's own accent font (docs/DESIGN.md:136 --font-serif, :331) so a spacing measurement does not depend on which font arrives first"
+        "createdAt": "2026-10-04T18:31:58.693Z",
+        "reason": "Claude, 2026-10-04: the brand's accent face, not a default; docs/DESIGN.md §3 (The serif accent) and .claude/rules/cms-site.md name the one italic serif word per headline as the brand, which a generic-look rule must not remove"
       }
     ]
   }
