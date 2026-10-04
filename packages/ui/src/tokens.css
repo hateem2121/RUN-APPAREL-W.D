@@ -379,8 +379,52 @@
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
+  /* IBM Plex Mono, shipped with both apps (polish X5, the owner's Q39, 2026-10-04), then two local
+     stand-ins sized to it (below), then the system stack the labels used until then. */
   --font-mono:
-    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    "IBM Plex Mono", "IBM Plex Mono Fallback", "IBM Plex Mono Fallback Courier", ui-monospace,
+    "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/*
+ * ⚠️ THE CODE-STYLE LABELS ARE ONE FONT ON EVERY DEVICE, AND THE "№" IS DRAWN (polish X5, F17).
+ * Until 2026-10-04 they were each device's own monospace: SF Mono on Apple, Consolas on Windows,
+ * something else on Android, and in Chrome and Firefox on a Mac that font has no "№", so every
+ * section number started with a squashed stand-in. The owner chose IBM Plex Mono (Q39). Each app
+ * declares its files (apps/cms/src/app/(frontend)/site.css, apps/viewer/src/styles/page.css), at
+ * the weights it draws, and with `font-display: swap`.
+ *
+ * Swapping a monospace font can move nothing, because every character in one is the same width:
+ * a stand-in scaled to that width matches every line exactly, which no proportional stand-in can.
+ * Measured 2026-10-04 with canvas TextMetrics at 1000px in Chromium, WebKit and Firefox (all three
+ * agree to 0.001):
+ *
+ *   IBM Plex Mono   width 0.6em      ascent 1.025   descent 0.275   (the shipped woff2)
+ *   Menlo           width 0.60205em  ascent 0.928   descent 0.236   (every Mac)
+ *   Courier New     width 0.6001em   ascent 0.833   descent 0.300   (Windows and Mac)
+ *
+ * size-adjust is Plex's width over the stand-in's, and the overrides are Plex's ascent and descent
+ * divided by it (the formula site.css's stand-ins document), so the stand-in's lines are Plex's.
+ * Liberation Mono, CI's and Linux's, is drawn to Courier New's widths, so it is that face's second
+ * source; it was not measured here, the Mac has no copy. SF Mono cannot be named by a page (it
+ * measures as missing), so a Mac reaches Menlo. Both are `local()` only and download nothing.
+ */
+@font-face {
+  font-family: "IBM Plex Mono Fallback";
+  src: local("Menlo-Regular"), local("Menlo Regular"), local("Menlo");
+  size-adjust: 99.66%;
+  ascent-override: 102.85%;
+  descent-override: 27.59%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono Fallback Courier";
+  src: local("CourierNewPSMT"), local("Courier New"), local("Liberation Mono");
+  size-adjust: 99.98%;
+  ascent-override: 102.52%;
+  descent-override: 27.5%;
+  line-gap-override: 0%;
 }
 
 /*

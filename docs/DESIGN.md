@@ -127,14 +127,15 @@ rule — plus explicit `display: none` fallbacks for `[data-theme='light']`.
 
 ## 3. Type
 
-Two families plus a system mono stack. Loaded via `@fontsource`, self-hosted — no
-font CDN, which is also a CSP consideration.
+Three families: Archivo, Instrument Serif, and IBM Plex Mono for the code-style labels (since
+polish X5, 2026-10-04; until then the labels used each device's own monospace). Loaded via
+`@fontsource`, self-hosted — no font CDN, which is also a CSP consideration.
 
 | Token | Stack |
 |---|---|
 | `--font-display` / `--font-body` | `'Archivo Variable', 'Archivo', system-ui, sans-serif` |
 | `--font-serif` | `'Instrument Serif', Georgia, serif` |
-| `--font-mono` | `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, …` |
+| `--font-mono` | `'IBM Plex Mono'`, two local stand-ins sized to it, then `ui-monospace, 'SF Mono', Menlo, …` |
 
 ### The marketing site adds three metric-matched fallback faces
 
@@ -171,22 +172,34 @@ correct in them, and every other piece of display text uses them too.
 and fails on any hero headline that breaks differently; `apps/cms/src/fallbackMetrics.test.ts`
 fails when a headline is reworded without re-running the script.
 
-**Body text and the guide headlines never swap (owner decision 2026-10-01, after the visual
-audit).** Stand-ins match *average* widths, and real text varies about the average: measured on
-94 paragraphs the body stand-in ran 0.4–0.5% wide (it is 98.19% since, from 98.61%), with single
-paragraphs about ±1% either side, so somewhere a paragraph always re-wraps — `/privacy` scored CLS
-0.2136 at 768px live, and six of seven guide headlines broke differently at some width (the
-printing guide measured 0.233 at 412px). So the site declares the same font files a second time
-with `font-display: optional` — `Archivo Optional` and `Instrument Serif Optional` — and uses them
-for `--font-body` and, through `.hero-guide`, for the guide headlines. The `/privacy` and `/terms`
-headlines joined them the same day, through `.hero-legal`: they keep their line count in either
-font, but `text-wrap: balance` moved a word between lines (CLS 0.0384 at 390px in CI). The four
-family pages followed through `.hero-family` (teamwear 0.063 at 1280px, casual-wear 0.028 at
-368px); the home headline keeps `swap` by the owner's choice, as the first impression. CSS Fonts 4:
-an optional font not ready at first paint is not used on that page, and must never make it jump.
-The other headlines keep `swap` and the files they load are the same, so from the second page on everything
-is Archivo at first paint. The stack after an optional face must not name `Archivo Variable`, or a
-face that missed first paint falls through to the swapping one.
+**Four kinds of headline never swap (owner decisions 2026-10-01, and "never jump, as now" on
+2026-10-04).** Stand-ins match *average* widths, and real text varies about the average, so
+somewhere a line re-wraps: six of seven guide headlines broke differently at some width (the
+printing guide measured CLS 0.233 at 412px live). So the site declares the same font files a second
+time with `font-display: optional` — `Archivo Optional` and `Instrument Serif Optional` — and uses
+them, through `.hero-guide`, for the guide headlines. The `/privacy` and `/terms` headlines joined
+them through `.hero-legal`: they keep their line count in either font, but `text-wrap: balance`
+moved a word between lines (CLS 0.0384 at 390px in CI). The four family pages followed through
+`.hero-family` (teamwear 0.063 at 1280px, casual-wear 0.028 at 368px), and the not-found page
+through `.hero-notfound` (polish X19). The home headline keeps `swap` by the owner's choice, as the
+first impression. CSS Fonts 4: an optional font not ready at first paint is not used on that page,
+and must never make it jump. The other headlines keep `swap` and the files they load are the same,
+so from the second page on everything is Archivo at first paint. The stack after an optional face
+must not name `Archivo Variable`, or a face that missed first paint falls through to the swapping one.
+
+**Body text swaps to Archivo when it lands (polish D11, the owner's "always our font", 2026-10-03).**
+From 2026-10-01 it used `Archivo Optional` too, and since every font was re-checked on each page
+(fixed by polish X12) a visitor got the Arial stand-in on every page: 60 times in 60, measured live.
+With the stand-in at 98.19% and the fonts held 150ms, body text swapping scored 0.000–0.017 on ten
+pages at five widths, and the home page 0.022 at 768px, over `fontSwap.spec.ts`'s 0.02. Most of
+that was not the letters but the boxes: a `ch` is the width of a zero in whichever font draws (MDN,
+`<length>`), and the stand-in's zero is 4.6% narrower than Archivo's, so every width written in `ch`
+grew when Archivo arrived — the home page's lede lost a line at 768px and its fifth category card
+grew 34px taller. So the website writes its body-text widths in `em`, at the values its `ch` widths
+had in Archivo: `--site-measure` 31.5em (55ch), the guides and the order steps 28.635em (50ch), the
+form 35.508em (62ch), and `p, li` `max(60ch, 34.362em)`, which keeps a font with a wider zero (the
+mono labels, the headline face) at its own 60ch. The same sweep then scored 0.000–0.006 on eleven
+pages. `fontSwap.spec.ts` compares every capped body-text box in both fonts.
 
 **Card titles have a stand-in of their own.** `.product-card__name` is Archivo 700 at normal width,
 where the display stand-in (sized for 860 at 122%) is 28% too wide, so four guide-card titles
@@ -365,6 +378,19 @@ device stops reading as an accent and starts reading as a second typeface.
 | `.label` | 10px | 0.12em | Tag chips, 4/8px padding, 6px radius |
 | `.section-number` | 10px | 0.14em | Section numbering, `--muted` |
 
+**The face is IBM Plex Mono, the same on every device (polish X5 and F17, the owner's Q39).** Until
+2026-10-04 the labels were each device's own monospace, and in Chrome and Firefox on a Mac that font
+has no `№`, so every section number began with a squashed stand-in. Plex Mono has the sign and is
+close to the old labels' width. Each app declares only the weights it draws — the website 400 and
+500, the garment pages 400 and 700 — in latin, plus Plex Mono's cyrillic file for `№` alone (the
+website at both weights, the garment pages at 400, the weight of their section numbers), declared
+after the latin face so it is asked first (`unicode-range: U+2116`). The swap moves
+nothing: every character of a monospace font is one width, so the two `local()` stand-ins in
+`tokens.css` (Menlo on a Mac; Courier New, or Liberation Mono on Linux) are scaled to Plex's 0.6em
+advance with its ascent and descent, and match every line exactly. The garment pages do not preload
+it: their first paint on slow 3G is held to 2,400ms (`e2e/firstPaint.spec.ts`), and the labels are
+not what a visitor reads first.
+
 **Long runs of capitals are set in normal letters since 2026-10-02 (visual audit VA-44, the owner's
 choice).** Capitals read slowly past a few words, and the audit counted runs of 31 to 74 characters.
 So the bracket label above every page's headline, photo captions, the figures' descriptions, the
@@ -383,7 +409,9 @@ the dot between them dropped; from 40rem it is one line with its dot. The words 
 ### Body
 
 `17px / 1.55`. **Paragraphs and list items are capped at `60ch`** — a measure limit,
-enforced globally in `base.css`, not per-component.
+enforced globally in `base.css`, not per-component. The website restates it as
+`max(60ch, 34.362em)`, the same width in Archivo, because its body text swaps fonts (§3,
+"Body text swaps to Archivo when it lands").
 
 ### The size scale
 
@@ -548,7 +576,7 @@ Two measures, on purpose (owner, 2026-10-01: document, do not merge):
 
 | Surface | Content width | Why |
 |---|---|---|
-| The website | `--site-max` **1180px**, **1440px** from a 1280px screen, **1600px** from 1920px | polish D1 (2026-10-04): at 1440 wide the 1180px page left 194px empty each side, and its words used the left half of what was left. The room goes to the heading beside its words and to the card grids; prose stays at `--site-measure` (55ch). In `tokens.css` since 2026-10-02 (VA-31) |
+| The website | `--site-max` **1180px**, **1440px** from a 1280px screen, **1600px** from 1920px | polish D1 (2026-10-04): at 1440 wide the 1180px page left 194px empty each side, and its words used the left half of what was left. The room goes to the heading beside its words and to the card grids; prose stays at `--site-measure` (31.5em, 55ch of Archivo). In `tokens.css` since 2026-10-02 (VA-31) |
 | A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that. `.page` sets `--site-max` and `--site-gutter` to this column and `.content` is drawn from them, so the shared footer, which reads the same two, lines up with it (D1; it had missed by 26px at 1440). The website's width steps live in `site.css`, so a garment page never downloads them |
 
 ### A section's head: the heading beside its words

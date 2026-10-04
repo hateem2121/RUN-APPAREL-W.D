@@ -164,8 +164,11 @@ export default async function ContactPage({
         <div className="site-container inquiry-layout">
           <div className="inquiry-layout__intro">
             <p className="subhead">What helps us reply faster</p>
+            {/* "A&nbsp;sketch": Firefox balanced this as "…you have. a / sketch is enough", the "a"
+                alone at a line's end (polish F17, 2026-10-03). */}
             <h2 className="display display--section">
-              Send what you have. <span className="serif-accent">A sketch is&nbsp;enough.</span>
+              Send what you have.{' '}
+              <span className="serif-accent">A&nbsp;sketch is&nbsp;enough.</span>
             </h2>
             <p className="site-lede">
               Styles and quantities, your target fabric or a reference garment, any artwork, and the

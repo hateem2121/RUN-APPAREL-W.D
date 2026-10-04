@@ -209,7 +209,9 @@
 
 .footer-derisk {
   margin: 16px 0 0;
-  max-width: 44ch;
+  /* 44ch of Archivo. In em since the website's body text swaps fonts (polish D11): a `ch` is the
+     zero of whichever font draws, 4.6% narrower in the stand-in (apps/cms site.css `--site-measure`). */
+  max-width: 25.199em;
   font-size: var(--text-sm);
   color: var(--footer-muted);
 }

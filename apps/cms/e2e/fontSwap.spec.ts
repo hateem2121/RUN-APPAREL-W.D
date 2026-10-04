@@ -384,3 +384,134 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
     })
   }
 })
+
+/*
+ * ⚠️ POLISH D11 (2026-10-04): BODY TEXT SWAPS TO ARCHIVO WHEN IT LANDS, AND A WIDTH IN `ch` MOVED WITH
+ * IT. A `ch` is the zero of whichever font draws (MDN, <length>), and the stand-in's zero is 4.6%
+ * narrower than Archivo's: at 768px the home page's lede lost a line (layout shift 0.022) and its
+ * fifth category card grew 34px taller when Archivo arrived. The website's body-text widths are in
+ * `em` since (site.css, `--site-measure` and `p, li`). This compares every body-text box that its
+ * width cap holds (lifting the cap would widen it) with the fonts blocked, so the stand-in draws,
+ * and delivered, at pages and widths where those caps hold (swept on 11 pages at 390-1920px).
+ *
+ * ⚠️ READ ONCE THE PAGE HAS SETTLED, NOT AT `document.fonts.ready`. Under reduced motion Chromium
+ * gives a `ch` box Archivo's zero a frame or two after `ready` resolves (26ms, measured), so a reading
+ * taken at once compared the stand-in with itself and passed with a `ch` cap planted on the lede.
+ * Each state is read after two animation frames, again until two readings agree.
+ *
+ * 1px of slack: Firefox rounds a zero's advance to its pixel grid, so at 15px Archivo's 60ch is
+ * 516.00px there against 34.362em's 515.43px, and `max(60ch, 34.362em)` takes the wider. The jumps
+ * this guards against measured 19-27px.
+ */
+test.describe('D11 — a body-text box held at its width cap is the same width in either font', () => {
+  interface Boxes {
+    capped: string[]
+    widths: Record<string, number>
+  }
+
+  async function readBoxes(
+    page: Page,
+    path: string,
+    width: number,
+    fonts: 'blocked' | 'delivered',
+  ) {
+    await page.unroute(FONT_FILES).catch(() => undefined)
+    if (fonts === 'blocked') await page.route(FONT_FILES, (route) => route.abort())
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(path)
+    await Promise.race([
+      page.evaluate(async () => {
+        await document.fonts.load('400 17px "Archivo Variable"').catch(() => undefined)
+        await document.fonts.ready
+      }),
+      page.waitForTimeout(3000),
+    ])
+    const archivoLoaded = await page.evaluate(() =>
+      [...document.fonts].some(
+        (face) =>
+          face.family.replaceAll('"', '') === 'Archivo Variable' && face.status === 'loaded',
+      ),
+    )
+    expect(archivoLoaded, `Archivo loaded with the fonts ${fonts}`).toBe(fonts === 'delivered')
+    let previous = ''
+    let boxes: Boxes = { capped: [], widths: {} }
+    for (let reading = 0; reading < 10; reading++) {
+      await page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      )
+      boxes = await page.evaluate((): Boxes => {
+        const seen = new Map<string, number>()
+        const capped: string[] = []
+        const widths: Record<string, number> = {}
+        for (const el of document.querySelectorAll<HTMLElement>('body *')) {
+          const name = `${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join('')}`
+          const count = (seen.get(name) ?? 0) + 1
+          seen.set(name, count)
+          const style = getComputedStyle(el)
+          // Body text only: its stack is the one that names the body stand-in.
+          if (style.maxWidth === 'none' || !style.fontFamily.includes('Archivo Fallback')) continue
+          const box = el.getBoundingClientRect().width
+          if (box === 0) continue
+          const key = `${name} #${count}`
+          widths[key] = box
+          const inline = el.style.maxWidth
+          el.style.maxWidth = 'none'
+          const free = el.getBoundingClientRect().width
+          el.style.maxWidth = inline
+          if (free > box + 0.5) capped.push(key)
+        }
+        return { capped, widths }
+      })
+      const now = JSON.stringify(boxes.widths)
+      if (now === previous) return boxes
+      previous = now
+    }
+    throw new Error(`${path} at ${width}px with the fonts ${fonts} never settled`)
+  }
+
+  const moved = (delivered: Boxes, blocked: Boxes) =>
+    [...new Set([...delivered.capped, ...blocked.capped])]
+      .filter((key) => Math.abs((delivered.widths[key] ?? -1) - (blocked.widths[key] ?? -1)) > 1)
+      .map(
+        (key) =>
+          `${key}: ${blocked.widths[key]?.toFixed(1)}px in the stand-in, ${delivered.widths[key]?.toFixed(1)}px in Archivo`,
+      )
+
+  const held = (delivered: Boxes, blocked: Boxes) => [
+    ...new Set([...delivered.capped, ...blocked.capped].map((key) => key.replace(/ #\d+$/, ''))),
+  ]
+
+  for (const [path, width, mustHold] of [
+    ['/', 768, ['p.site-lede', 'li.panel.family-card', 'p.timeline__body', 'p.footer-derisk']],
+    ['/', 1024, ['li.panel.family-card', 'p.timeline__body']],
+    ['/contact', 1440, ['form.inquiry-form', 'p.contact-block__note']],
+    ['/guides/garment-printing-methods', 1280, ['p']],
+    ['/privacy', 1024, ['p']],
+  ] as const) {
+    test(`${path} at ${width}px`, async ({ page }) => {
+      const delivered = await readBoxes(page, path, width, 'delivered')
+      const blocked = await readBoxes(page, path, width, 'blocked')
+      // Not vacuous: the boxes this page is here for are held at their caps.
+      expect(held(delivered, blocked)).toEqual(expect.arrayContaining([...mustHold]))
+      expect(moved(delivered, blocked)).toEqual([])
+    })
+  }
+
+  test('the comparison sees a `ch` cap planted on the lede (negative control)', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style')
+        style.textContent = 'html body .site-lede{max-width:55ch}'
+        document.head.append(style)
+      })
+    })
+    const delivered = await readBoxes(page, '/', 768, 'delivered')
+    const blocked = await readBoxes(page, '/', 768, 'blocked')
+    expect(moved(delivered, blocked).join('\n'), 'the planted cap did not move').toContain(
+      'p.site-lede',
+    )
+  })
+})

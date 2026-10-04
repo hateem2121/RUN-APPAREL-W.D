@@ -155,21 +155,30 @@
 }
 
 /*
- * ⚠️ BODY TEXT NEVER SWAPS: "Archivo Optional" IS ARCHIVO WITH `font-display: optional` (owner
- * decision 2026-10-01, after the visual audit). The stand-in faces match AVERAGE widths, and real
- * paragraphs vary about it by ±1% — measured on 94 paragraphs (see "Archivo Fallback" above) — so
- * somewhere a paragraph always re-wraps when Archivo arrives late: /privacy at 768px lost a line
- * in four paragraphs, 106px of page, CLS 0.2136 on the live site. No `size-adjust` fixes a spread.
+ * ⚠️ BODY TEXT SWAPS TO ARCHIVO WHEN IT LANDS (polish D11, the owner's Q1 of 2026-10-03: "always our
+ * font"). From 2026-10-01 it never swapped: it used "Archivo Optional" (below), so a page that missed
+ * the ~100ms window kept the stand-in, and with every font re-checked on each page (fixed by polish
+ * X12) that was every page: measured live on 3 October, body text was the Arial stand-in 60 times
+ * in 60. The reason it stopped swapping was a re-wrap: real paragraphs vary about the stand-in's
+ * AVERAGE width by ±1%, and /privacy at 768px lost a line in four paragraphs (CLS 0.2136 live, with
+ * the 98.61% stand-in of the time). Re-measured 2026-10-04 with the 98.19% stand-in above and the
+ * fonts held 150ms as e2e/fontSwap.spec.ts holds them, body text swapping on ten pages at 390, 768,
+ * 1024, 1350 and 1440px scored 0.000-0.017, and the home page at 768px 0.022. Most of that was not
+ * the letters but the boxes: a width in `ch` grows when Archivo arrives (`--site-measure`, below).
+ * With the body-text widths in em, the same sweep on eleven pages scored 0.000-0.006 (/privacy at
+ * 768px the most). So the body stack names the same swapping "Archivo Variable" the headlines load:
+ * no extra file.
+ *
+ * "Archivo Optional" stays for the four headlines below that DO re-wrap when they swap, by the
+ * owner's choice of 2026-10-04 ("never jump, as now"): measured the same way, the Teamwear page's
+ * headline moved 0.036 at 768px and 0.071 at 1350px. On a slow FIRST page they keep the stand-in;
+ * from the next page on the file is in the browser and they are Archivo at first paint.
  *
  * `optional` removes the swap itself. CSS Fonts 4 (W3C, 13 September 2026): a font not ready for
  * the first paint is not used on that page, and "an optional font must never cause the layout of
- * the page to jump". The same spec reserves `swap` for "small pieces of text", which is why the
- * headlines keep it (owner: headlines stay Archivo). Because the headlines load THE SAME FILES with
- * `swap`, the browser always downloads them, so from the second page on the body has Archivo at
- * first paint. A fast first visit gets Archivo everywhere; a slow one gets the matched stand-in for
- * body text on that one page, which is the price of never moving.
+ * the page to jump".
  *
- * ⚠️ THE GUIDE HEADLINES USE IT TOO (owner decision 2026-10-01, `.hero-guide` below). Swept with
+ * ⚠️ THE GUIDE HEADLINES USE IT (owner decision 2026-10-01, `.hero-guide` below). Swept with
  * the webfonts blocked and delivered at 28 widths: six of the seven guide headlines broke onto a
  * different number of lines somewhere — 368-376, 400, 408, 424, 480, 1280 and 1440px — and
  * /guides/garment-printing-methods at 412px was the live CLS of 0.233. Their ideal stand-in sizes
@@ -247,13 +256,57 @@
 }
 
 /*
+ * IBM Plex Mono, the code-style labels' font (polish X5, the owner's Q39; why, and the stand-ins
+ * it swaps from: packages/ui/src/tokens.css at `--font-mono`). The website draws it at 400 and 500
+ * (measured 2026-10-04: 726 and 36 text runs on nine pages at 390 and 1440px), so only those two
+ * are declared, latin only. ⚠️ THE "№" IS IN PLEX MONO'S CYRILLIC FILE, NOT ITS LATIN ONE
+ * (fontsource's unicode ranges, 5.3.0), so each weight has a second face for that one character,
+ * declared AFTER the latin one: of faces that differ only in `unicode-range`, a browser asks the
+ * last one first, and a weight with no "№" face of its own would fall to the next FAMILY, the
+ * stand-in, whose font has none (polish F17). `→` and `↗` are in neither file; the stand-in draws
+ * them, as it did before.
+ */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-cyrillic-400-normal.woff2")
+    format("woff2");
+  unicode-range: U+2116;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-cyrillic-500-normal.woff2")
+    format("woff2");
+  unicode-range: U+2116;
+}
+
+/*
  * The three stacks, with each fallback inserted AFTER the real face and BEFORE the
- * generic one, so the webfont still wins the moment it arrives (headlines and the serif accent;
- * body text is "Archivo Optional" above and keeps the stand-in for the page if it misses first paint).
+ * generic one, so the webfont still wins the moment it arrives (since polish D11 body text too;
+ * only the four headlines below keep "Archivo Optional").
  */
 :root {
   --font-display: "Archivo Variable", "Archivo", "Archivo Display Fallback", system-ui, sans-serif;
-  --font-body: "Archivo Optional", "Archivo Fallback", system-ui, sans-serif;
+  --font-body: "Archivo Variable", "Archivo", "Archivo Fallback", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif", "Instrument Serif Fallback", "Instrument Serif Fallback Liberation",
     Georgia, serif;
@@ -378,6 +431,23 @@ li {
   text-wrap: pretty;
 }
 
+/*
+ * ⚠️ base.css's `p, li { max-width: 60ch }`, RESTATED SO IT HOLDS STILL WHEN BODY TEXT SWAPS FONTS
+ * (polish D11, 2026-10-04). A `ch` is the width of a zero in the font that is drawing (MDN, <length>,
+ * modified 8 July 2026), and the stand-in's zero is 0.5461em against Archivo's 0.5727em (measured in
+ * Chromium and WebKit; Firefox 0.5730), so a box held at 60ch was 4.6% narrower until Archivo landed.
+ * The home page's fifth category card is an `li` held at that cap from 768 to 1024px: it was 557px
+ * wide in the stand-in and 584px in Archivo, so its picture grew 34px taller when the font arrived.
+ * 34.362em is 60 of Archivo's zeros, so the settled page is unchanged, and `max()` keeps a font whose
+ * zero is wider (the code-style labels, 0.6em; the headline face) at its own 60ch, as before.
+ * Site-only, like FA-C-52's measure below: base.css is shared with the garment pages.
+ * `e2e/fontSwap.spec.ts` measures every capped body-text box in both fonts.
+ */
+p,
+li {
+  max-width: max(60ch, 34.362em);
+}
+
 /* ---------------------------------------------------------------- layout */
 
 /*
@@ -445,8 +515,17 @@ html {
    * ⚠️ NOT APPLIED TO `.site-empty` OR `.inquiry-form`, both of which are also 62ch.
    * Those two are BOX widths — a centred dashed panel and a form — not a line a reader
    * follows, and narrowing them would move a layout the audit passed (FA-D-03, FA-I-06).
+   *
+   * ⚠️ IN em SINCE BODY TEXT SWAPS FONTS (polish D11, 2026-10-04). A `ch` is measured in whatever
+   * font is drawing, and the stand-in's zero is 4.6% narrower than Archivo's: the home page's lede
+   * at 768px was 510.5px wide in the stand-in and 535.5px once Archivo arrived (a zero 9.28px
+   * against 9.74px at 17px), so the box itself widened, the paragraph lost a line and the page under
+   * it jumped 26px (layout shift 0.022). 31.5em is 55ch of Archivo (535.5px at 17px), so the line
+   * a reader gets in Archivo is the one it was, and the stand-in's paragraph has the same box. The
+   * site's other body-text widths follow the same rule: `p, li` above, the guides and the order
+   * steps at 28.635em (50ch), the form and the empty state at 35.508em (62ch).
    */
-  --site-measure: 55ch;
+  --site-measure: 31.5em;
   /* `--site-max` and `--site-gutter` moved to packages/ui/src/tokens.css on 2026-10-02 (VA-31): the
      footer that lines up with them is drawn on the garment pages too. The website's width steps
      sit just before `.site-container`, below (polish D1). */
@@ -1652,10 +1731,11 @@ address.contact-block__value {
  * CENTRE. From 768px up the dashed rectangle hugged the left edge with up to 468px of
  * empty column beside it while its own text was centred — a box centred inside and not
  * outside reads as a rendering fault, on the one page a buyer sees when the references
- * are down (FA-D-03).
+ * are down (FA-D-03). 35.508em is the 62ch of Archivo it was, in a unit that does not move when the
+ * body text swaps fonts (polish D11, `--site-measure`).
  */
 .site-empty {
-  max-width: 62ch;
+  max-width: 35.508em;
   margin-inline: auto;
   padding: 64px 20px;
   border: 1px dashed var(--line);
@@ -2062,9 +2142,10 @@ a.contact-block__value:active {
  * web font is not what rendered, the fallback packs tighter, and the same 540px column
  * took **82 characters** (audit FA-C-52's guard, caught 2026-09-07).
  *
- * `ch` is the unit that makes this font-independent: 56ch is fifty-six of THIS element's
- * characters whichever face draws them, which is the property the guard actually asserts.
- * A px cap would have passed on one machine and failed on the other exactly as before.
+ * The cap scales with this note's own text size, so it holds the same characters a line at
+ * `--text-sm` as the lede does at body size. ⚠️ This said `ch` made it font-independent; it does
+ * not (a `ch` is the zero of whichever face draws), which is why `--site-measure` is in em since
+ * polish D11.
  */
 .fact__note {
   font-size: var(--text-sm);
@@ -2274,14 +2355,15 @@ a.contact-block__value:active {
 }
 
 /*
- * The guides' running text, at 50ch rather than `--site-measure` (55ch). A line of narrow
- * letters ("Puff, silicone, high-density and reflective…") set 78 characters at 55ch in
+ * The guides' running text, at 50ch of Archivo rather than `--site-measure` (55ch). A line of
+ * narrow letters ("Puff, silicone, high-density and reflective…") set 78 characters at 55ch in
  * Firefox on 2026-09-30, past the 75 that `legibility.spec.ts` (FA-C-52) allows. The order
- * timeline uses 50ch for the same measured reason.
+ * timeline uses 50ch for the same measured reason. In em since polish D11, for the reason at
+ * `--site-measure`: 28.635em is 50 of Archivo's zeros, and it does not move when the font swaps.
  */
 .prose--guide p,
 .prose--guide li {
-  max-width: 50ch;
+  max-width: 28.635em;
 }
 
 /* A plain list inside running text (the buyer guides). The browser's own markers, indented. */
@@ -2406,7 +2488,8 @@ a.contact-block__value:active {
  */
 .inquiry-form {
   margin-block-start: 24px;
-  max-width: 62ch;
+  /* 62ch of Archivo, in em since polish D11 (why: `--site-measure`). */
+  max-width: 35.508em;
 }
 
 .inquiry-form__field {
@@ -3102,9 +3185,10 @@ a.contact-block__value:active {
 /*
  * ⚠️ A WIDTH IN `em`, NOT `ch`: HOW MANY CHARACTERS A LINE HOLDS DEPENDS ON THE FONT THAT DRAWS IT
  * (CI, 2026-10-02). The wide last card's descriptions were held to `--site-measure` (55ch) on a
- * COMPUTED 71 characters a line. CI drew them in a fallback font: body text is "Archivo Optional"
- * (`font-display: optional`, so a slow first load keeps the fallback), CI's image has no Arial, so
- * "Archivo Fallback" fell through to Liberation Sans at full size, and a 495px line held 79
+ * COMPUTED 71 characters a line. CI drew them in a fallback font: body text was "Archivo Optional"
+ * then (`font-display: optional`, so a slow first load kept the fallback; it swaps since polish
+ * D11, which moved the site's other body-text widths to em for this same reason), CI's image has
+ * no Arial, so "Archivo Fallback" fell through to Liberation Sans at full size, and a 495px line held 79
  * characters against the 75 FA-C-52 holds the site's prose to. `ch` is the width of a ZERO in the
  * element's font (MDN, <length>, read 2026-10-02), so a `ch` cap moves with the font while the
  * letters it is meant to count do not move with it. An Android phone has no Arial either.
@@ -3296,12 +3380,13 @@ a.contact-block__value:active {
  * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is what
  * the row leaves beside its 400 px picture and 64 px gap (322 px at 900, 564 px at 1440, worked
  * out from the layout rather than measured), so the cap bites in one column and again from
- * about 1,050 px.
+ * about 1,050 px. 28.635em is those 50ch of Archivo, in a unit that holds still when the body text
+ * swaps fonts (polish D11, `--site-measure`).
  */
 .timeline__body {
   font-size: var(--text-sm);
   color: var(--muted);
-  max-width: 50ch;
+  max-width: 28.635em;
 }
 
 /* ------------------------------------------------ №05 the numbers, as a bento */
