@@ -6,7 +6,13 @@ import {
   weightNote,
 } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { absolutize, buildViewerResponse, toMediaAsset } from './projectViewer'
+import {
+  absolutize,
+  buildViewerResponse,
+  screenCopyName,
+  toMediaAsset,
+  toScreenCopy,
+} from './projectViewer'
 
 const deps = { richTextToHtml: () => '<p>intro</p>' }
 const origin = 'https://cms.example'
@@ -221,6 +227,47 @@ describe('the product’s garment type', () => {
   })
 })
 
+describe('the HD render’s screen-sized copy (polish D9 / F16)', () => {
+  const render = { ...media('/media/r-gtd-ash-render.webp'), filename: 'r-gtd-ash-render.webp' }
+  const copy = {
+    ...media('/media/r-gtd-ash-render-screen.webp'),
+    filename: 'r-gtd-ash-render-screen.webp',
+    width: 881,
+    height: 1400,
+  }
+  const colourOf = (o: Record<string, unknown>) =>
+    buildViewerResponse(product(), [colourway(o)], {}, origin, 'navy', deps)!.colourways[0]!
+
+  it('is named after the render it was made from', () => {
+    expect(screenCopyName('r-gtd-ash-render.webp')).toBe('r-gtd-ash-render-screen.webp')
+    expect(screenCopyName('a.b.png')).toBe('a.b-screen.webp')
+  })
+
+  it('is sent while its name matches the colour’s render', () => {
+    const colour = colourOf({ renderImage: render, renderScreen: copy })
+    expect(colour.renderScreen).toEqual({
+      url: `${origin}/media/r-gtd-ash-render-screen.webp`,
+      alt: 'a',
+      width: 881,
+      height: 1400,
+      mimeType: 'image/webp',
+    })
+    expect(colour.render?.url).toBe(`${origin}/media/r-gtd-ash-render.webp`)
+  })
+
+  it('is NOT sent once the render is replaced, so the window never shows the old picture', () => {
+    const replaced = { ...render, filename: 'r-gtd-ash-render-v2.webp' }
+    expect(colourOf({ renderImage: replaced, renderScreen: copy }).renderScreen).toBeNull()
+    expect(toScreenCopy(replaced, copy, origin)).toBeNull()
+  })
+
+  it('is null with no copy, or with no render to match', () => {
+    expect(colourOf({ renderImage: render }).renderScreen).toBeNull()
+    expect(colourOf({ renderScreen: copy }).renderScreen).toBeNull()
+    expect(toScreenCopy(render, 42, origin)).toBeNull()
+  })
+})
+
 describe('the product’s fact groups (polish D10)', () => {
   it('groups the four fields with the glossary’s notes, null where it has none', () => {
     const body = buildViewerResponse(
@@ -330,6 +377,8 @@ describe('buildViewerResponse', () => {
         'poster',
         // The HD studio render (2026-09-27): a public product picture, like the poster.
         'render',
+        // Its screen-sized copy for the 3D window (polish D9 / F16), public in the same way.
+        'renderScreen',
         'glbUrl',
         'glbBytes',
         'isDefault',

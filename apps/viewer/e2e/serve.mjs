@@ -290,6 +290,17 @@ function colourwayPayload(origin, c) {
           mimeType: 'image/png',
         }
       : null,
+    // Its screen-sized copy (polish D9 / F16, 2026-10-04), at a path of its own, so a test can
+    // prove the 3D window asks for the copy and only FULL SCREEN asks for the full render.
+    renderScreen: c.hasRender
+      ? {
+          url: `${origin}/fixtures/renders/n001-${c.slug}-screen.png`,
+          alt: `Velocity Performance Tee in ${c.displayName}, studio render`,
+          width: 1200,
+          height: 1500,
+          mimeType: 'image/png',
+        }
+      : null,
     glbUrl: null,
     glbBytes: null,
     isDefault: c.isDefault,
@@ -511,7 +522,8 @@ const server = http.createServer((req, res) => {
   }
 
   // HD studio renders: the seeded poster PNGs, served under a path of their own.
-  const renderMatch = url.pathname.match(/^\/fixtures\/renders\/(n001-[a-z]+)\.png$/)
+  // `-screen`: the screen-sized copy (D9 / F16) is the same seeded file under its own name.
+  const renderMatch = url.pathname.match(/^\/fixtures\/renders\/(n001-[a-z]+)(?:-screen)?\.png$/)
   if (renderMatch) url.pathname = `/fixtures/placeholders/${renderMatch[1]}-poster.png`
 
   // Pipeline assets

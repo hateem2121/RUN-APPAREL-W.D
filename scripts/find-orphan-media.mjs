@@ -51,6 +51,8 @@ const REFERENCE_PATHS = [
   'colourways.glbAsset',
   // The HD studio render behind the "HD IMAGE" button (2026-09-27).
   'colourways.renderImage',
+  // Its screen-sized copy, shown inside the 3D window (polish D9 / F16, 2026-10-04).
+  'colourways.renderScreen',
 ]
 
 function parseArgs(argv) {

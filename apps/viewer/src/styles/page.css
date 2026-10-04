@@ -1698,6 +1698,27 @@ model-viewer.stage__model {
   user-select: none;
 }
 
+/*
+ * POLISH D9: the colour's HD studio render IN the 3D window, at the garment's own size. The
+ * camera frames the 3D garment across 86.3% of the window's height (StageControls.tsx), so the
+ * picture takes the same band and the switch reads as the garment becoming its photo, not as a
+ * new, bigger thing arriving.
+ */
+.stage__hd {
+  position: absolute;
+  inset: 7% 4%;
+  width: 92%;
+  height: 86%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* The model stays loaded under the picture, so "VIEW IN 3D" is instant; `visibility` takes it
+   out of sight AND out of the tab order, which `opacity` would not. */
+.stage__canvas[data-hd] .stage__model {
+  visibility: hidden;
+}
+
 /* ── Retired-colourway notice ──────────────────────────────────────── */
 .notice {
   display: flex;

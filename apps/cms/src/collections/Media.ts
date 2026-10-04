@@ -142,6 +142,7 @@ export const Media: CollectionConfig = {
                   { 'colourways.posterPreview': { equals: id } },
                   { 'colourways.glbAsset': { equals: id } },
                   { 'colourways.renderImage': { equals: id } },
+                  { 'colourways.renderScreen': { equals: id } },
                 ],
               },
             ],

@@ -65,6 +65,14 @@ export interface ViewerColourway {
    * picture that does not exist. Fetched only when a visitor asks for it.
    */
   render: ViewerMediaAsset | null
+  /**
+   * A 1400px-tall copy of `render`, which the garment page shows inside the 3D window (polish
+   * D9 / F16, 2026-10-04): about a tenth of the bytes, while zooming and the full-screen view
+   * keep `render`. Null when no copy matches the colour's current render. OPTIONAL in
+   * practice: an answer cached before the field existed has none, and the page then shows
+   * `render` itself.
+   */
+  renderScreen?: ViewerMediaAsset | null
   /** Dedicated GLB — populated only when the parent product uses "separate-glb-per-colour". */
   glbUrl: string | null
   /** That GLB's size in bytes (`ViewerProduct.glbBytes` says why), with the same rule. */

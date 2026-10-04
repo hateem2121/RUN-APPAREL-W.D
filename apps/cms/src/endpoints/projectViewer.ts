@@ -58,6 +58,29 @@ export const mediaBytes = (media: unknown): number | null => {
   return typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : null
 }
 
+/** The name a render's screen-sized copy is made under: `<render name>-screen.webp` (F16). */
+export const screenCopyName = (renderFilename: string): string =>
+  `${renderFilename.replace(/\.[^.]+$/, '')}-screen.webp`
+
+/**
+ * The colour's screen-sized render copy, or null (polish D9 / F16, 2026-10-04). Sent only while
+ * its file name is the one made from the render the colour holds NOW: a render replaced in the
+ * CMS keeps its old copy linked until a new copy is made, and that copy would show the old
+ * picture in the 3D window while the full-screen view showed the new one. Without a match the
+ * page shows the full render, which is always right, only heavier.
+ */
+export const toScreenCopy = (
+  render: unknown,
+  copy: unknown,
+  origin: string,
+): ViewerMediaAsset | null => {
+  if (!render || typeof render !== 'object' || !copy || typeof copy !== 'object') return null
+  const renderName = (render as { filename?: unknown }).filename
+  const copyName = (copy as { filename?: unknown }).filename
+  if (typeof renderName !== 'string' || copyName !== screenCopyName(renderName)) return null
+  return toMediaAsset(copy, origin)
+}
+
 type Doc = Record<string, unknown>
 
 export interface ProjectionDeps {
@@ -156,6 +179,8 @@ export function buildViewerResponse(
       poster: poster ?? null,
       // The HD studio render behind the "HD IMAGE" button; null hides the button.
       render: toMediaAsset(doc.renderImage, origin),
+      // Its screen-sized copy, for the 3D window (D9 / F16); null when none matches it.
+      renderScreen: toScreenCopy(doc.renderImage, doc.renderScreen, origin),
       glbUrl: separateMode ? (toMediaAsset(doc.glbAsset, origin)?.url ?? null) : null,
       glbBytes: separateMode ? mediaBytes(doc.glbAsset) : null,
       isDefault: colourways.length === 0,

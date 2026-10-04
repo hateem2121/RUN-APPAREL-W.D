@@ -200,6 +200,24 @@ export const colourwaysField: ArrayField = {
       },
     },
     {
+      // Polish F16 (2026-10-04): a 1400px-tall copy of the render above, which the product
+      // page shows INSIDE the 3D window (D9) instead of the full render: smaller to fetch, and
+      // with no ripple lines, which the browser's own shrinking drew on fine knits (seen on a
+      // 1803x2866 render). Named `<render name>-screen.webp` (docs/RUNBOOK.md, "The HD picture
+      // inside the 3D window"); the public API sends it only while that name still matches the
+      // render (projectViewer.ts), so a replaced render is shown full size until a new copy is
+      // made. Editable, so a new render's copy can be picked here by hand.
+      name: 'renderScreen',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'HD render, screen-sized copy (optional)',
+      filterOptions: { mimeType: { in: [...IMAGE_MIME_TYPES] } },
+      admin: {
+        description:
+          'A smaller copy of the HD render above, shown inside the 3D window. Its file name is the render’s with “-screen” added (e.g. r-gtd-ash-render-screen.webp). Leave empty and the page shows the HD render itself.',
+      },
+    },
+    {
       name: 'altText',
       type: 'text',
       label: 'Photo description',

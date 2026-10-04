@@ -1,9 +1,10 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { boundingRadius, installAdaptiveNearPlane, internalCamera } from '../lib/camera-near-plane'
 import { applyDecalDepthBias, correlatedThreeMaterials } from '../lib/decal-depth-bias'
 import { track } from '../lib/analytics'
-import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
+import { canRender3D, prefersReducedMotion, savesData } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import {
@@ -943,7 +944,46 @@ export function Stage({
    * fallback draws it, sharp and described, with the notice kept underneath; a product with no
    * picture keeps the notice alone.
    */
-  const fallbackPicture = fallback ? placeholder : null
+  /*
+   * ⚠️ THE SCREEN-SIZED HD COPY STANDS IN WHEN IT EXISTS (polish D9: "if the 3D can't load, the
+   * HD picture can stand in for it"), but NEVER under Save-Data: the colour's poster is ~34 KB
+   * and the copy a median 175 KB (113 copies measured 2026-10-04), and a visitor who asked the
+   * browser to save data gets the small one. The full render is never used here: a stalled
+   * download is a failing connection, and the full render is 0.5-1.2 MB.
+   */
+  const fallbackPicture = fallback ? (!savesData() && selected.renderScreen) || placeholder : null
+
+  /*
+   * POLISH D9 (owner-approved 2026-10-03): "HD IMAGE" shows the colour's studio render IN the
+   * 3D window, and the same button then reads "VIEW IN 3D". The model stays loaded underneath
+   * (`visibility: hidden`, page.css), so going back is instant; FRONT / BACK / SIDE step aside,
+   * because there is one picture, from the front; the colour dots switch the picture. The
+   * window shows the screen-sized copy (F16), and FULL SCREEN opens the zoomable full render.
+   * Not in a failure state: there the picture already IS the window (`fallbackPicture`).
+   */
+  const [hdShown, setHdShown] = useState(false)
+  const hdPicture = selected.renderScreen ?? selected.render ?? null
+  const showHd = hdShown && hdPicture !== null && !fallback
+  // A colour with no render has nothing to show: back to the 3D (the button leaves with it).
+  useEffect(() => {
+    if (!selected.render) setHdShown(false)
+  }, [selected.render])
+  /*
+   * A cross-fade between the garment and the picture, with the browser's own view transition
+   * (modern-web-guidance "same-document-transitions", read 2026-10-04: Baseline since
+   * 2025-10-14, Chrome 111, Safari 18, Firefox 144). Where it is missing, or the visitor
+   * asked for less motion, the switch is instant. `flushSync`, so React has drawn the new
+   * state before the browser takes its second snapshot. The switch button is the same element
+   * in both states, so keyboard focus stays on it (the guide's focus rule).
+   */
+  const onHdShownChange = useCallback((next: boolean) => {
+    const swap = () => flushSync(() => setHdShown(next))
+    if (typeof document.startViewTransition === 'function' && !prefersReducedMotion()) {
+      document.startViewTransition(swap)
+    } else {
+      swap()
+    }
+  }, [])
 
   /**
    * Coarse progress for assistive technology, at 25% steps.
@@ -967,10 +1007,22 @@ export function Stage({
     // which lost the identical clause in the identical way on the same day.
     <section
       className="stage"
-      aria-label={fallback ? 'Product reference' : 'Interactive 3D product reference'}
+      aria-label={
+        fallback
+          ? 'Product reference'
+          : showHd
+            ? 'Product picture'
+            : 'Interactive 3D product reference'
+      }
     >
       <div className="stage__inner">
-        <div className="stage__canvas" data-lenis-prevent ref={canvasRef}>
+        <div
+          className="stage__canvas"
+          data-lenis-prevent
+          ref={canvasRef}
+          // D9: the HD picture is showing; page.css hides the model under it, still loaded.
+          data-hd={showHd ? '' : undefined}
+        >
           <svg
             className="stage__contours"
             aria-hidden="true"
@@ -1076,7 +1128,24 @@ export function Stage({
             </model-viewer>
           )}
 
-          {showPlaceholder && placeholder && (
+          {/* D9: the colour's studio render in the window, the screen-sized copy (F16). A real
+              picture with a real description, unlike the decorative download placeholder. */}
+          {showHd && hdPicture && (
+            <img
+              className="stage__hd"
+              src={hdPicture.url}
+              alt={
+                hdPicture.alt || `${product.productName} in ${selected.displayName}, studio render`
+              }
+              decoding="async"
+              draggable={false}
+              {...(hdPicture.width && hdPicture.height
+                ? { width: hdPicture.width, height: hdPicture.height }
+                : {})}
+            />
+          )}
+
+          {showPlaceholder && placeholder && !showHd && (
             <img
               ref={placeholderRef}
               className={`stage__placeholder${
@@ -1166,7 +1235,7 @@ export function Stage({
               the exact behaviour the owner reported as a bug on 2026-08-17. See
               TOUCH_ACTION above: a one-finger drag now turns the garment, in any
               direction, and the page is scrolled from outside the canvas. */}
-          {!fallback && modelLoaded && !swapping && cueVisible && (
+          {!fallback && !showHd && modelLoaded && !swapping && cueVisible && (
             /*
              * ⚠️ STILL `aria-hidden`, AND DELIBERATELY SO. A `visually-hidden`
              * paragraph below already tells a screen reader how to rotate and
@@ -1211,7 +1280,7 @@ export function Stage({
             a second; the coarse live region at the end of the section is what
             assistive technology hears.
           */}
-          {loading && (
+          {loading && !showHd && (
             <div className="stage__loading" aria-hidden="true">
               <span className="stage__loading-title">
                 {/* "3D MODEL", not "REFERENCE". The live region below already
@@ -1371,7 +1440,8 @@ export function Stage({
             activeView={activeView}
             onSelect={applyView}
             disabled={!modelLoaded || swapping}
-            showCameras={!fallback}
+            // D9: no camera to point while the window shows the (front) picture.
+            showCameras={!fallback && !showHd}
             extra={
               selected.render ? (
                 <HdImageButton
@@ -1379,6 +1449,7 @@ export function Stage({
                   colourways={data.colourways}
                   selected={selected}
                   onSelectColourway={onSelectColourway}
+                  {...(fallback ? {} : { shown: showHd, onShownChange: onHdShownChange })}
                 />
               ) : null
             }
@@ -1389,17 +1460,20 @@ export function Stage({
             four times during a download, where the visible readout changes
             several times a second. */}
         <p className="visually-hidden" role="status">
-          {loading
-            ? load.phase === 'preparing'
-              ? 'Download complete. Preparing the interactive 3D model.'
-              : retryWaiting
-                ? `The download stopped. Trying again, ${downloadAttempt} of ${MAX_ATTEMPTS}.`
-                : announcedPercent === null
-                  ? 'Loading the interactive 3D model.'
-                  : `Loading the interactive 3D model, ${announcedPercent} percent.`
-            : modelLoaded
-              ? `Showing ${product.productName} in ${selected.displayName}.`
-              : ''}
+          {/* The picture first: while it shows, the 3D downloading behind it is not news. */}
+          {showHd
+            ? `Showing the studio picture of ${product.productName} in ${selected.displayName}.`
+            : loading
+              ? load.phase === 'preparing'
+                ? 'Download complete. Preparing the interactive 3D model.'
+                : retryWaiting
+                  ? `The download stopped. Trying again, ${downloadAttempt} of ${MAX_ATTEMPTS}.`
+                  : announcedPercent === null
+                    ? 'Loading the interactive 3D model.'
+                    : `Loading the interactive 3D model, ${announcedPercent} percent.`
+              : modelLoaded
+                ? `Showing ${product.productName} in ${selected.displayName}.`
+                : ''}
         </p>
         {/* ONE instruction, and it names the keyboard.
             Three overlapping strings described this object — this one, the

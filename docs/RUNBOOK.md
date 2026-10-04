@@ -1680,6 +1680,32 @@ node scripts/preconnect-probe.mjs   # exits 1 if the cards are not resized or fe
 If it fails with "fell back to the original": check the setting above first, then the
 month's count in the dashboard (Images → Transformations → Analytics).
 
+### The HD picture inside the 3D window — screen-sized copies
+
+Since polish D9 / F16 (2026-10-04) "HD IMAGE" on a garment page shows the colour's studio
+render inside the 3D window, and FULL SCREEN opens the full render with zoom. The window
+draws a smaller copy, not the render: each colour's **HD render, screen-sized copy** in the
+CMS (`renderScreen`, `apps/cms/src/fields/colourways.ts`). The 113 copies made on 2026-10-04
+took the window's pictures from 87.7 MB in all to 22.3 MB (median 175 KB). They do NOT
+remove the ripple lines seen on fine knits (F16): those are in CLO's render itself, at full
+size, and no resize removes them; the fix is in the render, in CLO.
+
+A copy is used only while its file name is the render's with `-screen` added
+(`r-gtd-ash-render.webp` → `r-gtd-ash-render-screen.webp`, `screenCopyName` in
+`apps/cms/src/endpoints/projectViewer.ts`), so after a render is replaced the page shows the
+new render at full size until a new copy is made. Nothing breaks without a copy; the window
+only downloads more. To make one for a new render, with Pillow (installed on the owner's Mac):
+
+```bash
+python3 -c "
+from PIL import Image; import sys
+im = Image.open(sys.argv[1]); h = 1400
+if im.height > h: im = im.resize((round(im.width * h / im.height), h), Image.Resampling.LANCZOS)
+im.save(sys.argv[2], 'WEBP', quality=82, method=6)" r-xyz-wine-render.webp r-xyz-wine-render-screen.webp
+```
+
+Upload it in Photos & 3D files, then pick it on the colour, under the HD render.
+
 ### Is a poster too heavy? — `scripts/poster-sizes.mjs`
 
 Since 2026-09-17 (audit L-11/IM-02) this reads every live product's poster and judges
