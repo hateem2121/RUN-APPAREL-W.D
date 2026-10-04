@@ -6,7 +6,7 @@ import { expect, type Page, test } from '@playwright/test'
  * The same question, words and stored answer as the website's
  * (`apps/cms/e2e/consent.spec.ts`), because both are one origin in production. This file
  * proves the garment pages' half: nothing runs before Accept, the HASH-LOCKED policy these
- * pages ship admits the two trackers' hosts, and the card does not sit on the garment.
+ * pages ship admits the trackers' hosts, and the card does not sit on the garment.
  *
  * ⚠️ THE GATE IS LIFTED, as `audit-guards.spec.ts` does for the cursor: under automation
  * the question is deliberately absent (`ConsentBanner.tsx`), so asserting anything about it
@@ -23,9 +23,12 @@ const TRACKER_HOSTS = [
   'aplo-evnt.com',
   'www.google-analytics.com',
   'region1.google-analytics.com',
+  'us-assets.i.posthog.com',
+  'us.i.posthog.com',
 ]
 const GA_SCRIPT = 'www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'assets.apollo.io/micro/website-tracker/tracker.iife.js'
+const POSTHOG_SCRIPT = 'us-assets.i.posthog.com/static/array.js'
 
 const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
   get: () => false,
@@ -62,14 +65,17 @@ async function openGarment(page: Page) {
 const banner = (page: Page) => page.getByRole('region', { name: 'Cookie choice' })
 
 /**
- * What a run looks like when the stand-ins are really in place: the two SCRIPTS are asked
- * for and nothing else is. A real Google script sends `/g/collect`; a real Apollo script
- * calls `aplo-evnt.com`. Either one in `seen` means a stand-in was bypassed and this run
- * has just appeared in the owner's reports.
+ * What a run looks like when the stand-ins are really in place: the SCRIPTS are asked for
+ * and nothing else is. A real Google script sends `/g/collect`; a real Apollo script calls
+ * `aplo-evnt.com`; a real PostHog sends to `us.i.posthog.com`. Any one in `seen` means a
+ * stand-in was bypassed and this run has just appeared in the owner's reports.
  */
 function assertNothingReal(seen: string[]) {
   const real = seen.filter(
-    (entry) => entry.includes('/g/collect') || entry.startsWith('aplo-evnt.com'),
+    (entry) =>
+      entry.includes('/g/collect') ||
+      entry.startsWith('aplo-evnt.com') ||
+      entry.startsWith('us.i.posthog.com'),
   )
   expect(real, 'a real tracker ran: the local stand-ins were bypassed').toEqual([])
 }
@@ -136,7 +142,7 @@ test.describe('the cookie choice on a garment page', () => {
     expect(seen, 'a tracker ran after Decline').toEqual([])
   })
 
-  test('ACCEPT: both trackers load, and a returning visitor is not asked again', async ({
+  test('ACCEPT: all three trackers load, and a returning visitor is not asked again', async ({
     page,
     context,
   }) => {
@@ -147,6 +153,7 @@ test.describe('the cookie choice on a garment page', () => {
     await expect(banner(page)).toHaveCount(0)
     await expect.poll(() => seen).toContain(GA_SCRIPT)
     await expect.poll(() => seen).toContain(APOLLO_SCRIPT)
+    await expect.poll(() => seen).toContain(POSTHOG_SCRIPT)
     expect((await keys(page)).local['run-consent']).toBe('accepted')
 
     seen.length = 0
@@ -155,6 +162,7 @@ test.describe('the cookie choice on a garment page', () => {
     await expect(banner(page)).toHaveCount(0)
     await expect.poll(() => seen).toContain(GA_SCRIPT)
     await expect.poll(() => seen).toContain(APOLLO_SCRIPT)
+    await expect.poll(() => seen).toContain(POSTHOG_SCRIPT)
     // Long enough for a real script to have phoned home, had one slipped through.
     await page.waitForLoadState('networkidle')
     assertNothingReal(seen)
@@ -163,12 +171,12 @@ test.describe('the cookie choice on a garment page', () => {
   /*
    * ⚠️ THE SHIPPED POLICY, NOT A COPY OF IT. `e2e/serve.mjs` sends the `_headers` file the
    * build wrote, so this is the hash-locked Content-Security-Policy a visitor receives.
-   * It must admit the two tracker scripts WITHOUT widening inline scripts, and it must
+   * It must admit the tracker scripts WITHOUT widening inline scripts, and it must
    * refuse `d-code.liadm.com`, which Apollo would use to identify a person. The second
-   * half is the control for the first: the listener that stays silent for Google and
-   * Apollo has to fire for LiveIntent, or its silence proves nothing.
+   * half is the control for the first: the listener that stays silent for the three
+   * trackers has to fire for LiveIntent, or its silence proves nothing.
    */
-  test('the shipped policy admits Google and Apollo, and refuses LiveIntent', async ({
+  test('the shipped policy admits Google, Apollo and PostHog, and refuses LiveIntent', async ({
     page,
     context,
   }) => {
@@ -189,7 +197,9 @@ test.describe('the cookie choice on a garment page', () => {
     await page.waitForLoadState('networkidle')
     const blockedBy = () =>
       page.evaluate(() => (window as unknown as { blockedByPolicy: string[] }).blockedByPolicy)
-    const trackerBlocks = (await blockedBy()).filter((uri) => /google|apollo|aplo-evnt/.test(uri))
+    const trackerBlocks = (await blockedBy()).filter((uri) =>
+      /google|apollo|aplo-evnt|posthog/.test(uri),
+    )
     expect(trackerBlocks, 'the policy blocked a tracker it should admit').toEqual([])
 
     await page.evaluate(() => {

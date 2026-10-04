@@ -139,15 +139,17 @@ export const PUBLIC_PAGE_SOURCES = [
  * (`TRACKER_CSP`); these are a pinned copy, because next.config.mjs loads this file under
  * plain Node, and `src/publicViewerHeaders.test.ts` fails if the copy drifts.
  * `d-code.liadm.com` (LiveIntent) is left out on purpose: that absence is what holds
- * Apollo to identifying companies, never people.
+ * Apollo to identifying companies, never people. PostHog joined on 2026-10-04 under the same
+ * Accept, as `*.posthog.com`, the form its own CSP guide asks for; its replay recorder's
+ * `blob:` worker is already admitted by `worker-src`.
  */
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io https://*.posthog.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://media.wear-run.com https://media.wear-run.help https://*.google-analytics.com https://*.googletagmanager.com",
   "font-src 'self'",
-  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com",
+  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com https://*.posthog.com",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

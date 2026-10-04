@@ -1,7 +1,12 @@
 /**
- * The cookie choice and the two trackers it gates: Google Analytics and Apollo's website
- * visitor tracker. Shared, because the website (apps/cms) and the garment pages
+ * The cookie choice and the three trackers it gates: Google Analytics, Apollo's website
+ * visitor tracker and PostHog. Shared, because the website (apps/cms) and the garment pages
  * (apps/viewer) are one origin, `wear-run.com`, so one stored choice must cover both.
+ *
+ * PostHog joined on 2026-10-04 (owner decision) for ONE job the other two cannot do: session
+ * replay and heatmaps, i.e. seeing HOW a buyer uses the 3D page, not just that they came. It
+ * had been evaluated and dropped on 2026-08-25 as a fourth layer of counting on a site with
+ * no cookies; the cookie question of 2026-09-30 removed the second half of that reason.
  *
  * ⚠️ THIS REVERSED A DECISION. Until 2026-09-30 the site set no cookies at all and said so
  * (owner decision 2026-09-07, Cloudflare Web Analytics only). The owner then asked for
@@ -26,8 +31,18 @@ export type ConsentChoice = 'accepted' | 'declined'
 export const GA_MEASUREMENT_ID = 'G-YBY5G3HQLD'
 export const APOLLO_APP_ID = '69ddf8fa0fd941000d64bc24'
 
+/**
+ * PostHog's project token: public by design, like the two above (it is the `phc_` key every
+ * PostHog page prints). The project is on PostHog's US cloud, read through its own API on
+ * 2026-10-04; the owner chose to keep it there.
+ */
+export const POSTHOG_PROJECT_TOKEN = 'phc_koNg9SmLSye49u8trEjUf9kd5cTYUveERNRDYKbW9p5y'
+export const POSTHOG_API_HOST = 'https://us.i.posthog.com'
+
 const GA_SCRIPT = 'https://www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'https://assets.apollo.io/micro/website-tracker/tracker.iife.js'
+// The file PostHog's own snippet loads: its `api_host` with `.i.` turned into `-assets.i.`.
+const POSTHOG_SCRIPT = 'https://us-assets.i.posthog.com/static/array.js'
 
 /**
  * The hosts each page's Content-Security-Policy must admit for the trackers to work. Both
@@ -43,14 +58,22 @@ const APOLLO_SCRIPT = 'https://assets.apollo.io/micro/website-tracker/tracker.ii
  * identifying a person, not a company. The owner chose company-level tracking only. With
  * the host absent the browser refuses that script whatever the server answers; Apollo's
  * code catches the failure and still reports the visit. `consent.test.ts` pins the absence.
+ *
+ * PostHog's is the one wildcard its own guide asks for, `*.posthog.com`, in both lists: it
+ * loads `array.js` and later its replay recorder from `us-assets.i.posthog.com` and sends to
+ * `us.i.posthog.com`, and says its sub-hosts "may change over time" (posthog.com/docs/
+ * advanced/content-security-policy, read 2026-10-04). Its recorder also starts a worker
+ * from a `blob:` address; both pages' `worker-src 'self' blob:` already allows that, for the
+ * 3D decoders.
  */
 export const TRACKER_CSP = {
-  script: ['https://www.googletagmanager.com', 'https://assets.apollo.io'],
+  script: ['https://www.googletagmanager.com', 'https://assets.apollo.io', 'https://*.posthog.com'],
   connect: [
     'https://*.google-analytics.com',
     'https://*.analytics.google.com',
     'https://*.googletagmanager.com',
     'https://aplo-evnt.com',
+    'https://*.posthog.com',
   ],
   img: ['https://*.google-analytics.com', 'https://*.googletagmanager.com'],
 } as const
@@ -63,11 +86,12 @@ export const CONSENT_OPEN_EVENT = 'run:consent-open'
  * different things. The privacy page (`apps/cms`, `/privacy`) explains the detail; this is
  * the short form a visitor reads before deciding.
  *
- * Approved by the owner on 2026-09-30. It must stay TRUE: it names both companies, says
- * what they learn, and says nothing is stored until the visitor chooses (`consent.test.ts`).
+ * Approved by the owner on 2026-09-30, and with PostHog named on 2026-10-04. It must stay
+ * TRUE: it names every company, says what they learn, and says nothing is stored until the
+ * visitor chooses (`consent.test.ts`).
  */
 export const CONSENT_COPY = {
-  text: 'May we count your visit? If you accept, Google Analytics and Apollo tell us which pages are read and which companies visit. Nothing is stored until you choose.',
+  text: 'May we count your visit? If you accept, Google Analytics, Apollo and PostHog tell us which pages are read, which companies visit, and how our 3D viewer is used. Nothing is stored until you choose.',
   accept: 'Accept',
   decline: 'Decline',
   more: 'Privacy notice',
@@ -150,6 +174,8 @@ interface TrackerScript {
 export interface TrackerWindow {
   dataLayer?: unknown[]
   trackingFunctions?: { onLoad(options: { appId: string }): void }
+  /** PostHog's queue until its script arrives; its script replaces it with the real thing. */
+  posthog?: unknown
   runTrackersStarted?: boolean
   document: {
     createElement(tag: 'script'): TrackerScript
@@ -171,7 +197,39 @@ function loadScript(win: TrackerWindow, src: string, onload: (() => void) | null
 }
 
 /**
- * Start both trackers. Call ONLY after the visitor has accepted.
+ * What PostHog is started with. Every privacy setting is written here rather than left to
+ * PostHog's project settings, so a click in its dashboard cannot widen what this site sends.
+ *
+ * - `defaults` is the settings snapshot PostHog's install guide names (read 2026-10-04).
+ * - `person_profiles: 'identified_only'`: this site never names a visitor, so no person
+ *   profile is ever made. Visits stay anonymous.
+ * - `capture_exceptions: false`: errors are Sentry's job. The project setting had exception
+ *   capture ON; an explicit `false` here wins over it (read in array.js 1.435.8: the
+ *   project's value is used only when this one is left out).
+ * - `disable_surveys: true`: no survey is planned, so its script is never fetched.
+ * - `maskAllInputs`: what a visitor types into the contact form is replaced with `*` in the
+ *   browser, before anything is sent. It is PostHog's default; stated so it cannot be lost.
+ *
+ * ⚠️ ONLY THE REAL SITE IS RECORDED, the rule `startTrackers` applies to Google below.
+ * Anywhere else PostHog still loads (so a browser test can see that Accept started it) but
+ * is opted out from the first moment and never records: nothing is sent from a developer's
+ * machine or a test run. An unknown host counts as "elsewhere".
+ */
+export function posthogConfig(hostname: string | undefined): Record<string, unknown> {
+  const config: Record<string, unknown> = {
+    api_host: POSTHOG_API_HOST,
+    defaults: '2026-05-30',
+    person_profiles: 'identified_only',
+    capture_exceptions: false,
+    disable_surveys: true,
+    session_recording: { maskAllInputs: true },
+  }
+  if (hostname === LIVE_HOSTNAME) return config
+  return { ...config, opt_out_capturing_by_default: true, disable_session_recording: true }
+}
+
+/**
+ * Start the three trackers. Call ONLY after the visitor has accepted.
  *
  * Both are added from bundled code rather than pasted as the vendors' inline snippets: an
  * inline script would need a hash in the garment pages' policy and a nonce on the website's,
@@ -217,6 +275,19 @@ export function startTrackers(win: TrackerWindow): void {
   loadScript(win, `${APOLLO_SCRIPT}?nocache=${nocache}`, () => {
     win.trackingFunctions?.onLoad({ appId: APOLLO_APP_ID })
   })
+
+  /*
+   * PostHog's snippet, minus everything this site does not use. Its script reads
+   * `window.posthog._i`, a list of `[token, config, name]`, and starts each one; the rest of
+   * the snippet only queues method calls made before the script arrives, and this site makes
+   * none (read in array.js 1.435.8, 2026-10-04: it needs `_i` to be an array and `init` NOT
+   * to be a function, or it takes the object for an already-running PostHog and stops).
+   */
+  win.posthog = Object.assign([], {
+    _i: [[POSTHOG_PROJECT_TOKEN, posthogConfig(win.location?.hostname), 'posthog']],
+    people: [],
+  })
+  loadScript(win, POSTHOG_SCRIPT)
 }
 
 /** How `forgetTrackers` reaches cookies, so it can be tested without a browser. */
@@ -226,20 +297,31 @@ export interface CookieJar {
   writeCookie(value: string): void
 }
 
+/** PostHog's names start with one of these, in storage and in cookies (array.js 1.435.8). */
+const POSTHOG_PREFIXES = ['ph_', '__ph_']
+const isPostHogName = (name: string) => POSTHOG_PREFIXES.some((prefix) => name.startsWith(prefix))
+
 /**
- * Remove what the two trackers stored, for a visitor who accepted and later declines.
+ * Remove what the three trackers stored, for a visitor who accepted and later declines.
  * Withdrawing must undo what accepting did, or "Decline" is only a word.
  *
  * Apollo keeps `apolloAnonId` and keys prefixed with its app id in localStorage (read out of
- * its script, 2026-09-30); Google keeps `_ga` and `_ga_<stream>` cookies. Nothing else is
- * touched: the theme choice and the consent choice itself stay.
+ * its script, 2026-09-30); Google keeps `_ga` and `_ga_<stream>` cookies. PostHog keeps
+ * `ph_<token>_posthog` as a cookie and in localStorage, and `__ph_opt_in_out_<token>` (read
+ * out of its script, 2026-10-04). Nothing else is touched: the theme choice and the consent
+ * choice itself stay.
  */
 export function forgetTrackers(storage: ConsentStorage, jar: CookieJar): void {
   try {
     const doomed: string[] = []
     for (let index = 0; index < storage.length; index += 1) {
       const key = storage.key(index)
-      if (key && (key === 'apolloAnonId' || key.startsWith(`${APOLLO_APP_ID}_`))) doomed.push(key)
+      if (
+        key &&
+        (key === 'apolloAnonId' || key.startsWith(`${APOLLO_APP_ID}_`) || isPostHogName(key))
+      ) {
+        doomed.push(key)
+      }
     }
     for (const key of doomed) storage.removeItem(key)
   } catch {
@@ -251,8 +333,9 @@ export function forgetTrackers(storage: ConsentStorage, jar: CookieJar): void {
       .readCookies()
       .split(';')
       .map((pair) => pair.split('=')[0]?.trim() ?? '')
-      .filter((name) => name === '_ga' || name.startsWith('_ga_'))
-    // Google sets these on the registrable domain; expire them there and on the host itself.
+      .filter((name) => name === '_ga' || name.startsWith('_ga_') || isPostHogName(name))
+    // Google and PostHog set these on the registrable domain; expire them there and on the
+    // host itself.
     const domains = [jar.hostname, `.${jar.hostname.split('.').slice(-2).join('.')}`]
     for (const name of names) {
       for (const domain of domains) {
@@ -265,7 +348,7 @@ export function forgetTrackers(storage: ConsentStorage, jar: CookieJar): void {
   }
 }
 
-/** The visitor pressed Accept: remember it, then start both trackers. */
+/** The visitor pressed Accept: remember it, then start the trackers. */
 export function acceptTrackers(win: TrackerWindow, storage: ConsentStorage): void {
   writeConsent(storage, 'accepted')
   startTrackers(win)

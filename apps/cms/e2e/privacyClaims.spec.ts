@@ -39,17 +39,17 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
       'Nothing is stored on your device, and no tracker runs, unless you choose it. We ask ' +
         'once, on this site and on our 3D reference pages alike.',
     )
-    expect(body).toContain('if you decline, or do not answer, neither ever loads.')
+    expect(body).toContain('if you decline, or do not answer, none of them ever loads.')
     // The sentence that was true until 2026-09-30 must not survive beside the new one.
     expect(body).not.toContain('No cookies and no tracking identifiers')
     expect(body).not.toContain('you are not being asked to accept anything')
   })
 
-  test('names both consent-only services, what each learns, and that people are not identified', async ({
+  test('names the three consent-only services, what each learns, and that people are not identified', async ({
     request,
   }) => {
     const body = await (await request.get('/privacy')).text()
-    expect(body).toContain('Two more services start, and only then.')
+    expect(body).toContain('Three more services start, and only then.')
     expect(body).toContain('Google Analytics, from Google, sets cookies named')
     expect(body).toContain('We have switched off its advertising features.')
     expect(body).toContain(
@@ -58,7 +58,14 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
     )
     // True only while the page policy refuses LiveIntent; see TRACKER_CSP's own test.
     expect(body).toContain('our pages block the part of it that identifies individuals')
-    expect(body).toContain('Declining after accepting removes what the two services stored')
+    expect(body).toContain(
+      'PostHog, a service based in the United States, stores an identifier in your browser and ' +
+        'records how you use our pages',
+    )
+    // True only while consent.ts masks every input and never names a visitor.
+    expect(body).toContain('Anything you type into a form is hidden in your browser')
+    expect(body).toContain('we never tell PostHog who you are')
+    expect(body).toContain('Declining after accepting removes what the three services stored')
   })
 
   test('SE-10: names what is collected on a plain visit, and by whom', async ({ request }) => {

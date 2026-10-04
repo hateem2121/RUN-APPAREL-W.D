@@ -8,6 +8,9 @@ import {
   forgetTrackers,
   GA_MEASUREMENT_ID,
   parseConsent,
+  POSTHOG_API_HOST,
+  POSTHOG_PROJECT_TOKEN,
+  posthogConfig,
   readConsent,
   safeStorage,
   startTrackers,
@@ -110,21 +113,23 @@ describe('reaching the browser storage', () => {
 })
 
 describe('the words on the choice', () => {
-  // The privacy page names both; the short form must not say less than is true.
-  it('names both companies and says nothing is stored before choosing', () => {
+  // The privacy page names all three; the short form must not say less than is true.
+  it('names every company and says nothing is stored before choosing', () => {
     expect(CONSENT_COPY.text).toContain('Google Analytics')
     expect(CONSENT_COPY.text).toContain('Apollo')
+    expect(CONSENT_COPY.text).toContain('PostHog')
     expect(CONSENT_COPY.text).toMatch(/nothing is stored until you choose/i)
   })
 })
 
 describe('starting the trackers', () => {
-  it('loads exactly two scripts: Google Analytics and Apollo', () => {
+  it('loads exactly three scripts: Google Analytics, Apollo and PostHog', () => {
     const { win, scripts } = fakeWindow()
     startTrackers(win)
     expect(scripts.map((s) => s.src.split('?')[0])).toEqual([
       'https://www.googletagmanager.com/gtag/js',
       'https://assets.apollo.io/micro/website-tracker/tracker.iife.js',
+      'https://us-assets.i.posthog.com/static/array.js',
     ])
     expect(scripts[0]?.src).toContain(`id=${GA_MEASUREMENT_ID}`)
     expect(scripts.every((s) => s.async)).toBe(true)
@@ -180,7 +185,72 @@ describe('starting the trackers', () => {
     const { win, scripts } = fakeWindow()
     startTrackers(win)
     startTrackers(win)
-    expect(scripts).toHaveLength(2)
+    expect(scripts).toHaveLength(3)
+  })
+})
+
+/*
+ * POSTHOG'S QUEUE IS THE ONLY THING ITS SCRIPT READS (array.js 1.435.8, 2026-10-04): an array
+ * whose `_i` holds `[token, config, name]`, and whose `init` is NOT a function. A real,
+ * already-running PostHog has an `init` function, and the script stops when it sees one; a
+ * queue shaped that way would load the script and start nothing, silently.
+ */
+describe('starting PostHog', () => {
+  const queueOf = (hostname?: string) => {
+    const { win } = fakeWindow()
+    if (hostname !== undefined) win.location = { hostname }
+    startTrackers(win)
+    return win.posthog as unknown[] & { _i: unknown[][]; people: unknown[]; init?: unknown }
+  }
+
+  it('leaves the queue its script reads: an array, `_i` = [[token, config, "posthog"]]', () => {
+    const queue = queueOf('wear-run.com')
+    expect(Array.isArray(queue)).toBe(true)
+    expect(queue._i).toEqual([[POSTHOG_PROJECT_TOKEN, posthogConfig('wear-run.com'), 'posthog']])
+    expect(queue.people).toEqual([])
+    expect(typeof queue.init).not.toBe('function')
+  })
+
+  it('sends to the US project the owner chose', () => {
+    expect(POSTHOG_API_HOST).toBe('https://us.i.posthog.com')
+    expect(POSTHOG_PROJECT_TOKEN).toMatch(/^phc_[A-Za-z0-9]+$/)
+  })
+
+  it('on wear-run.com it records, with typing hidden and no errors, surveys or profiles', () => {
+    expect(posthogConfig('wear-run.com')).toEqual({
+      api_host: 'https://us.i.posthog.com',
+      defaults: '2026-05-30',
+      person_profiles: 'identified_only',
+      capture_exceptions: false,
+      disable_surveys: true,
+      session_recording: { maskAllInputs: true },
+    })
+  })
+
+  // Same rule as Google's `traffic_type: internal`, and the same lesson of 2026-09-30.
+  it('anywhere else it is opted out from the start and never records', () => {
+    for (const host of [
+      'localhost',
+      '127.0.0.1',
+      'viewer.wear-run.help',
+      'www.wear-run.com',
+      'wear-run.com.evil.example',
+      undefined,
+    ]) {
+      const config = posthogConfig(host)
+      expect(config.opt_out_capturing_by_default, String(host)).toBe(true)
+      expect(config.disable_session_recording, String(host)).toBe(true)
+      // Everything else, the privacy settings included, is the same as on the real site.
+      expect(config.session_recording).toEqual({ maskAllInputs: true })
+      expect(config.capture_exceptions).toBe(false)
+    }
+    // The negative control: the real site is NOT opted out, or the check above proves nothing.
+    expect(posthogConfig('wear-run.com').opt_out_capturing_by_default).toBeUndefined()
+  })
+
+  it('the queue a page builds carries that page’s own host rule', () => {
+    expect(queueOf('localhost')._i[0]?.[1]).toEqual(posthogConfig('localhost'))
+    expect(queueOf()._i[0]?.[1]).toEqual(posthogConfig(undefined))
   })
 })
 
@@ -205,14 +275,40 @@ describe('forgetting the trackers', () => {
     expect(cookies.some((c) => c.startsWith('other='))).toBe(false)
     expect(cookies.every((c) => c.includes('Max-Age=0'))).toBe(true)
   })
+
+  it('removes what PostHog stored, in storage and in cookies, and nothing else', () => {
+    const persistence = `ph_${POSTHOG_PROJECT_TOKEN}_posthog`
+    const storage = fakeStorage({
+      [persistence]: '{"distinct_id":"x"}',
+      [`__ph_opt_in_out_${POSTHOG_PROJECT_TOKEN}`]: '1',
+      'run-theme': 'dark',
+      // A name that merely CONTAINS the prefix is someone else's and must stay.
+      graph_ph_note: 'keep',
+      [CONSENT_STORAGE_KEY]: 'declined',
+    })
+    const cookies: string[] = []
+    forgetTrackers(storage, {
+      hostname: 'wear-run.com',
+      readCookies: () => `${persistence}=%7B%7D; other=1`,
+      writeCookie: (value) => void cookies.push(value),
+    })
+    expect([...storage.data.keys()].sort()).toEqual(
+      [CONSENT_STORAGE_KEY, 'graph_ph_note', 'run-theme'].sort(),
+    )
+    // Expired on the registrable domain, where PostHog sets it, as well as on the host.
+    expect(cookies).toContain(`${persistence}=; Max-Age=0; Path=/; Domain=.wear-run.com`)
+    expect(cookies.some((c) => c.startsWith('other='))).toBe(false)
+  })
 })
 
 describe('the hosts the security policy must admit', () => {
-  it('names Google and Apollo, each host exactly', () => {
+  it('names Google, Apollo and PostHog, each host exactly', () => {
     expect(TRACKER_CSP.script).toEqual([
       'https://www.googletagmanager.com',
       'https://assets.apollo.io',
+      'https://*.posthog.com',
     ])
+    expect(TRACKER_CSP.connect).toContain('https://*.posthog.com')
     expect(TRACKER_CSP.connect).toContain('https://aplo-evnt.com')
   })
 
@@ -237,12 +333,12 @@ describe('the hosts the security policy must admit', () => {
 describe('the two buttons', () => {
   const jar = { hostname: 'wear-run.com', readCookies: () => '', writeCookie: () => {} }
 
-  it('Accept remembers the choice and starts both trackers', () => {
+  it('Accept remembers the choice and starts the three trackers', () => {
     const { win, scripts } = fakeWindow()
     const storage = fakeStorage()
     acceptTrackers(win, storage)
     expect(readConsent(storage)).toBe('accepted')
-    expect(scripts).toHaveLength(2)
+    expect(scripts).toHaveLength(3)
   })
 
   it('a first Decline remembers the choice, starts nothing and needs no reload', () => {

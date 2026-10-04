@@ -93,6 +93,11 @@ it was chosen over Google Analytics.
 asks every visitor a cookie question first. Cloudflare's counter still runs for everyone;
 the other two start only when a visitor presses Accept.
 
+**Changed 2026-10-04.** You added PostHog under the same question. It records how a buyer
+who pressed Accept uses a page (clicks, scrolling, the 3D viewer) so you can watch the visit
+back; what they type into the contact form is hidden. Watch them at
+[us.posthog.com](https://us.posthog.com) → **Session replay**.
+
 ---
 
 ## 4 · Replace the browser tab icon with your real logo

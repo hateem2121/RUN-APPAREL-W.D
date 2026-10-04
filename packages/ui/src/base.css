@@ -769,8 +769,15 @@ html.lenis body {
      text renders 2 percent wider or narrower. It is a cap, not a width: it only bites once the
      card is about 773px wide (a 790px window), so every phone and a 768px tablet are unchanged.
      The room the sentence gives up goes to the two buttons, which stay equal (about 22px wider
-     each at the card's full 880px). */
-  max-inline-size: 54ch;
+     each at the card's full 880px).
+     ⚠️ 57ch SINCE 2026-10-04, when the sentence grew from 155 to 199 characters to name PostHog
+     (owner-approved words). At 54ch it set "notice" alone on a fourth line: 92px tall from
+     1024px up, 79px on a 640x360 phone (over its 72px fifth). MEASURED in all four engines of
+     the viewer suite, after waiting for each resize to settle (an unsettled first pass read
+     79-92px for the same CSS): 56, 57 and 58ch all give three lines of 68-73 characters from
+     1024px up (74px tall) and 63px on the sideways phone; 60ch already runs 76-77 a line. 57 is
+     the middle of the band that works, so a character's drift either way still holds. */
+  max-inline-size: 57ch;
   margin: 0;
   /* The px figures above were computed at the old 13px. `ch` scales with the text, so at 12px
      the cap still holds the same characters a line, in a narrower column (VA-13). */
