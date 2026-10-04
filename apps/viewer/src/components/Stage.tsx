@@ -16,6 +16,7 @@ import { downloadWithRetries, MAX_ATTEMPTS } from '../lib/downloadWithRetries'
 import { DownloadStalledError } from '../lib/fetchWithProgress'
 import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
+import { pictureHeadStart } from '../lib/pictureFirst'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
@@ -133,6 +134,8 @@ export function Stage({
    * `model_loaded` reported only the product code.
    */
   const downloadStartedAtRef = useRef<number | null>(null)
+  /** The colour's picture shown during the download, which the download waits for (polish F13). */
+  const placeholderRef = useRef<HTMLImageElement | null>(null)
   /**
    * The download's total size, mirrored into a ref.
    *
@@ -688,75 +691,87 @@ export function Stage({
     let smoothed: number | null = null
     let lastAt = performance.now()
     let lastLoaded = 0
-    downloadStartedAtRef.current = lastAt
 
-    downloadWithRetries(glbUrl, {
-      signal: controller.signal,
-      expectedBytes: glbBytes,
-      onProgress: ({ loaded, total }) => {
-        if (cancelled) return
-        setBytesLoaded(loaded)
-        setBytesTotal(total)
-        downloadTotalRef.current = total
-        const now = performance.now()
-        const seconds = (now - lastAt) / 1000
-        // Sample no faster than ~10 Hz: below that the deltas are dominated by
-        // chunk boundaries rather than throughput.
-        if (seconds >= 0.1) {
-          smoothed = smoothRate(smoothed, (loaded - lastLoaded) / seconds)
-          setRate(smoothed)
-          lastAt = now
-          lastLoaded = loaded
-        }
-      },
-      onAttempt: (attempt) => {
-        if (cancelled) return
-        setDownloadAttempt(attempt)
-        if (attempt === 1) return
-        // A retry starts from byte 0, so the readout must too — otherwise it would
-        // hold the dead attempt's count, and the rate would be computed across the
-        // 12 s of silence and promise a countdown nobody could meet.
-        setBytesLoaded(0)
-        setBytesTotal(0)
-        setRate(null)
-        smoothed = null
-        lastAt = performance.now()
-        lastLoaded = 0
-      },
-      onStall: (attempt, bytes) => {
-        // Every stall, not only the last: a stall that a retry cured is the early
-        // warning, and on 2026-09-24 no signal of any kind reached us before a
-        // person noticed the garments were stuck.
-        // In `reason`, because telemetry.ts forwards only kind/product/variant and one
-        // message field — separate `attempt`/`bytes` keys were silently dropped, and
-        // "a retry cured it" could not be told apart from "gave up".
-        diagnostic('model-download-stalled', {
-          product: product.productCode,
-          reason: `attempt ${attempt} of ${MAX_ATTEMPTS}, ${bytes} bytes`,
+    // The download itself, started once the colour's picture is in (below). The clock starts
+    // with it, so `model_loaded` still times OUR fetch, as it always has.
+    const startDownload = () => {
+      lastAt = performance.now()
+      downloadStartedAtRef.current = lastAt
+      downloadWithRetries(glbUrl, {
+        signal: controller.signal,
+        expectedBytes: glbBytes,
+        onProgress: ({ loaded, total }) => {
+          if (cancelled) return
+          setBytesLoaded(loaded)
+          setBytesTotal(total)
+          downloadTotalRef.current = total
+          const now = performance.now()
+          const seconds = (now - lastAt) / 1000
+          // Sample no faster than ~10 Hz: below that the deltas are dominated by
+          // chunk boundaries rather than throughput.
+          if (seconds >= 0.1) {
+            smoothed = smoothRate(smoothed, (loaded - lastLoaded) / seconds)
+            setRate(smoothed)
+            lastAt = now
+            lastLoaded = loaded
+          }
+        },
+        onAttempt: (attempt) => {
+          if (cancelled) return
+          setDownloadAttempt(attempt)
+          if (attempt === 1) return
+          // A retry starts from byte 0, so the readout must too — otherwise it would
+          // hold the dead attempt's count, and the rate would be computed across the
+          // 12 s of silence and promise a countdown nobody could meet.
+          setBytesLoaded(0)
+          setBytesTotal(0)
+          setRate(null)
+          smoothed = null
+          lastAt = performance.now()
+          lastLoaded = 0
+        },
+        onStall: (attempt, bytes) => {
+          // Every stall, not only the last: a stall that a retry cured is the early
+          // warning, and on 2026-09-24 no signal of any kind reached us before a
+          // person noticed the garments were stuck.
+          // In `reason`, because telemetry.ts forwards only kind/product/variant and one
+          // message field — separate `attempt`/`bytes` keys were silently dropped, and
+          // "a retry cured it" could not be told apart from "gave up".
+          diagnostic('model-download-stalled', {
+            product: product.productCode,
+            reason: `attempt ${attempt} of ${MAX_ATTEMPTS}, ${bytes} bytes`,
+          })
+        },
+      })
+        .then((blob) => {
+          if (cancelled) return
+          objectUrl = URL.createObjectURL(blob)
+          setResolvedSrc(objectUrl)
         })
-      },
+        .catch((error: unknown) => {
+          if (cancelled) return
+          // ⚠️ NOT the plain-URL fallback below. <model-viewer> would fetch the same
+          // file over the same route and stall the same way, with no readout at all —
+          // the exact screen this replaces. The visitor gets STALL_NOTICE and
+          // TRY 3D AGAIN instead.
+          if (error instanceof DownloadStalledError) {
+            dispatchPhase({ type: 'load-failed', reason: 'stalled' })
+            return
+          }
+          diagnostic('model-prefetch-failed', {
+            product: product.productCode,
+            reason: 'falling back to direct model-viewer fetch',
+          })
+          setResolvedSrc(glbUrl)
+        })
+    }
+
+    // ⚠️ THE PICTURE FIRST (polish F13): the download waits until the colour's picture is in,
+    // at most PICTURE_HEAD_START_MAX_MS. Asked for together, the ~4 MB model held the picture
+    // back to about 12 s at 1.6 Mbit/s (lib/pictureFirst.ts has the measurements).
+    void pictureHeadStart(placeholderRef.current, controller.signal).then(() => {
+      if (!cancelled) startDownload()
     })
-      .then((blob) => {
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
-        setResolvedSrc(objectUrl)
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        // ⚠️ NOT the plain-URL fallback below. <model-viewer> would fetch the same
-        // file over the same route and stall the same way, with no readout at all —
-        // the exact screen this replaces. The visitor gets STALL_NOTICE and
-        // TRY 3D AGAIN instead.
-        if (error instanceof DownloadStalledError) {
-          dispatchPhase({ type: 'load-failed', reason: 'stalled' })
-          return
-        }
-        diagnostic('model-prefetch-failed', {
-          product: product.productCode,
-          reason: 'falling back to direct model-viewer fetch',
-        })
-        setResolvedSrc(glbUrl)
-      })
 
     return () => {
       cancelled = true
@@ -1051,6 +1066,7 @@ export function Stage({
 
           {showPlaceholder && placeholder && (
             <img
+              ref={placeholderRef}
               className={`stage__placeholder${
                 placeholderStage === 'leaving' ? ' stage__placeholder--leaving' : ''
               }`}
@@ -1058,6 +1074,9 @@ export function Stage({
               alt=""
               aria-hidden="true"
               decoding="async"
+              // The page's main picture while the model downloads, and the model waits for it
+              // (polish F13, lib/pictureFirst.ts): an image otherwise starts at "Low".
+              fetchPriority="high"
               draggable={false}
               /*
                * The payload has carried these since the CMS started storing them,
@@ -1307,6 +1326,8 @@ export function Stage({
                 src={fallbackPicture.url}
                 alt={fallbackPicture.alt || `${product.productName} in ${displayed.displayName}`}
                 decoding="async"
+                // With no 3D, this is the page's main picture (polish F13).
+                fetchPriority="high"
                 draggable={false}
                 {...(fallbackPicture.width && fallbackPicture.height
                   ? { width: fallbackPicture.width, height: fallbackPicture.height }
