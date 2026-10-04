@@ -161,7 +161,8 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
       const text = await page.evaluate(() => {
         const parts: string[] = []
         for (const el of document.querySelectorAll('main p, main li')) {
-          if (el.closest('.product-card, .filter-bar, .facts-grid')) continue
+          // "On this page" (polish X4) repeats the headings as links: navigation, not prose.
+          if (el.closest('.product-card, .filter-bar, .facts-grid, .legal__toc')) continue
           if (
             ['section-number', 'subhead', 'field-label', 'result-count', 'label'].some((name) =>
               el.classList.contains(name),

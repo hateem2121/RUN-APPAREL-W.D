@@ -2355,6 +2355,76 @@ a.contact-block__value:active {
 }
 
 /*
+ * ⚠️ PRIVACY AND TERMS, WITH THEIR PARTS NAMED (polish X4, 2026-10-04). Each part's title was a
+ * small code-style label (`.subhead`), smaller than the words under it, and on a computer the right
+ * half of the page was empty. Each is a real heading now, in the card title's type
+ * (`.prose__heading`), and the list of them, "On this page" (OnThisPage.tsx), stands beside the
+ * text from 900px, in the 3:2 split a section's heading and its words use (`.section-head`, polish
+ * D1), and stays in view as the page scrolls; a jump lands below the bar (`scroll-padding-top`,
+ * above). On a phone the list sits above the text, its links in a wrapping row.
+ */
+.legal {
+  display: grid;
+  gap: 24px;
+}
+
+.legal__body > :first-child {
+  margin-block-start: 0;
+}
+
+.legal__toc ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legal__toc a {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  font-size: var(--text-sm);
+  color: var(--text);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .legal__toc a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+@media (min-width: 900px) {
+  .legal {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 64px;
+    align-items: start;
+  }
+
+  .legal__toc {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: var(--notch-clearance);
+    padding-inline-start: 24px;
+    border-inline-start: 1px solid var(--line);
+  }
+
+  .legal__body {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .legal__toc ol {
+    display: grid;
+    gap: 0;
+  }
+}
+
+/*
  * The guides' running text, at 50ch of Archivo rather than `--site-measure` (55ch). A line of
  * narrow letters ("Puff, silicone, high-density and reflective…") set 78 characters at 55ch in
  * Firefox on 2026-09-30, past the 75 that `legibility.spec.ts` (FA-C-52) allows. The order

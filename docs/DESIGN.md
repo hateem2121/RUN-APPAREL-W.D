@@ -592,6 +592,17 @@ where running text needs the room (`.spread`: the category pages' lists and the 
 The markup keeps its order (label, heading, words, buttons), so a screen reader and the Tab key
 meet them as before; below 900px they stack as they always did.
 
+### Long pages name their parts: privacy and terms
+
+Since polish X4 (2026-10-04) each part of the privacy notice and the terms is a real `h2` in the
+card title's type (`.prose__heading`), not the small code-style label it was, smaller than the
+words under it. "On this page" (`OnThisPage.tsx`) lists them as plain links to each heading: from
+900px beside the text, in the same 3:2 split as a section's head, and sticky below the bar, so the
+right half of a computer's page is no longer empty; on a phone above the text, its links in a
+wrapping row. It works with no script and does not mark the part in view, which in October 2026
+still needs a script to tell a screen reader. `e2e/legalPages.spec.ts` holds the headings, the
+list and both layouts.
+
 ### Breakpoints
 
 Content-led, not a framework's set: each width is where a measured layout stopped fitting.
@@ -607,7 +618,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' filter is one row that scrolls sideways (VA-42) |
 | `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
-| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
+| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
 | `700px` and `orientation: portrait` | `page.css` | an upright tablet keeps the phone's one column, its garment window half the screen tall so the name under it is on the first screen (polish F11) |
 | `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one). The garment's facts follow the same query into the 3D window's four corners, unless the 3D cannot run (polish D10; `specsInCorners` in `App.tsx` decides, so they are drawn once) |

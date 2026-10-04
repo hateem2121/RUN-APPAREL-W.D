@@ -487,7 +487,9 @@ test.describe('D11 — a body-text box held at its width cap is the same width i
     ['/', 1024, ['li.panel.family-card', 'p.timeline__body']],
     ['/contact', 1440, ['form.inquiry-form', 'p.contact-block__note']],
     ['/guides/garment-printing-methods', 1280, ['p']],
-    ['/privacy', 1024, ['p']],
+    // 1440, not 1024, since polish X4: from 900px the text is three fifths of the page beside
+    // "On this page", and at 1024px that column (514px) is narrower than the cap (535px).
+    ['/privacy', 1440, ['p']],
   ] as const) {
     test(`${path} at ${width}px`, async ({ page }) => {
       const delivered = await readBoxes(page, path, width, 'delivered')
