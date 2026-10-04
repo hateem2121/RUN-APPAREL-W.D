@@ -45,7 +45,7 @@ export function ProductCardItem({
         index={index}
       >
         <div className="product-card__body">
-          <Heading className="product-card__name">
+          <Heading className="product-card__name" translate="no">
             {nameSegments(product.productName).map((part) =>
               part.whole ? (
                 <span key={part.at} className="product-card__word">
@@ -59,7 +59,7 @@ export function ProductCardItem({
           {/* No "· 5 colors": the dots already show how many (polish D6, 2026-10-04), and their
               group names every colour to a screen reader (CardGallery.tsx). */}
           <p className="product-card__meta">
-            <span>{product.productCode}</span>
+            <span translate="no">{product.productCode}</span>
             {product.category ? <span>· {product.category}</span> : null}
           </p>
           <ViewerCue />

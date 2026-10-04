@@ -25,7 +25,7 @@ export function ProductIdentityFields({ product, selected, selectedIndex }: Prod
     <>
       <div className="product-info__labels">
         <span className="label">
-          [ {product.category.toUpperCase()} / {product.productCode} ]
+          [ {product.category.toUpperCase()} / <span translate="no">{product.productCode}</span> ]
         </span>
         {/* Re-keyed so switching colourway cross-fades the label. */}
         <span className="label product-info__colour" key={selected.slug}>
@@ -33,7 +33,7 @@ export function ProductIdentityFields({ product, selected, selectedIndex }: Prod
           {selected.displayName.toUpperCase()} ]
         </span>
       </div>
-      <h1 id="product-heading" className="display display--hero">
+      <h1 id="product-heading" className="display display--hero" translate="no">
         {/* 'first', not the default 'last'. Every product in this catalogue ends
             in its garment type, so the accent landed on "skinsuit" every time —
             the least distinctive word on the page — while the model name sat in

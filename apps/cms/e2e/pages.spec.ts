@@ -704,3 +704,28 @@ test.describe('the teamwear buyer page, as a search engine receives it', () => {
     await expect(action).toHaveAttribute('href', '/contact#inquiry')
   })
 })
+
+/*
+ * Polish X27 (2026-10-04): buyers abroad read with the browser's Translate, which could turn
+ * "RUN APPAREL" into "LAUF BEKLEIDUNG" and rename a garment or its code. Those carry
+ * `translate="no"`; the words around them still translate.
+ */
+test.describe('X27 — the names are never machine-translated', () => {
+  test('the wordmark, the footer mark and legal line, and every card name and code', async ({
+    page,
+  }) => {
+    await page.goto('/products')
+    await expect(page.locator('.notch__wordmark')).toHaveAttribute('translate', 'no')
+    await expect(page.locator('.footer-mark')).toHaveAttribute('translate', 'no')
+    const cards = page.locator('.product-card')
+    if ((await cards.count()) === 0) {
+      if (process.env.CI) throw new Error('CI seeds a published garment, so /products shows a card')
+      test.skip(true, 'no published garment in this local database')
+    }
+    const card = cards.first()
+    await expect(card.locator('.product-card__name')).toHaveAttribute('translate', 'no')
+    await expect(card.locator('.product-card__meta [translate="no"]')).toHaveCount(1)
+    // The control: the paragraph about the garment is left to translate.
+    await expect(page.locator('.site-lede').first()).not.toHaveAttribute('translate', 'no')
+  })
+})

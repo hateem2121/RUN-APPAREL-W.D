@@ -75,7 +75,7 @@ export function FooterWordmark({ text }: { text: string }) {
   }, [])
 
   return (
-    <div className="footer-mark" ref={wrap} data-lit="false">
+    <div className="footer-mark" ref={wrap} data-lit="false" translate="no">
       <div className="footer-mark__layer" aria-hidden="true">
         {text}
       </div>

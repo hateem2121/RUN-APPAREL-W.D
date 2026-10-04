@@ -64,6 +64,19 @@ afterEach(() => {
   host.remove()
 })
 
+// Polish X27 (2026-10-04): a browser's Translate must not rename the garment or its code.
+describe('the garment name and code are never machine-translated', () => {
+  it('marks the heading and the code translate="no", and leaves the category word to translate', () => {
+    act(() =>
+      root.render(<ProductIdentity product={PRODUCT} selected={SELECTED} selectedIndex={0} />),
+    )
+    expect(host.querySelector('h1')?.getAttribute('translate')).toBe('no')
+    const marked = [...host.querySelectorAll('[translate="no"]')].map((el) => el.textContent)
+    expect(marked).toContain('N001')
+    expect(marked.some((text) => text?.includes('ATHLETIC'))).toBe(false)
+  })
+})
+
 describe('the product identity has exactly one home', () => {
   it('renders the chips, heading, description and colour note in the aside', () => {
     act(() =>

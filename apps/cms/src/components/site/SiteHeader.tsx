@@ -58,7 +58,10 @@ export function SiteHeader({ wordmark }: { wordmark: string }) {
           In the markup, not added by script: React removes a node it did not render. */}
       <div className="notch-strip" aria-hidden="true" />
       <div className="notch">
-        <Link className="notch__wordmark" href="/">
+        {/* `translate="no"` (polish X27, 2026-10-04): buyers abroad read with the browser's
+            Translate, which could turn the name into "LAUF BEKLEIDUNG". The garment names and
+            codes, the footer's mark and its legal line carry it too, on both apps. */}
+        <Link className="notch__wordmark" href="/" translate="no">
           {wordmark}
         </Link>
 

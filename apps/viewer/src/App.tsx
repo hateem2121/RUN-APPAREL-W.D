@@ -494,7 +494,7 @@ export default function App() {
               below when the band is too short for it — the landscape-phone case.
             */}
             {!identityInAside && (
-              <p className="stage-block__name" aria-hidden="true">
+              <p className="stage-block__name" aria-hidden="true" translate="no">
                 {data.product.productCode} · {data.product.productName}
               </p>
             )}

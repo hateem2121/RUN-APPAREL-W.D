@@ -164,7 +164,7 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
           </div>
 
           <div className="footer-legal">
-            <span>{settings.legalLine}</span>
+            <span translate="no">{settings.legalLine}</span>
             <span>{settings.footerLine}</span>
             {SITE_FOOTER_LINKS.map((link) =>
               link.consent ? (

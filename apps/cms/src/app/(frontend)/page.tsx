@@ -80,7 +80,7 @@ function ProofGarment({ product }: { product: ProductCard | null }) {
         <span className="proof__frame">
           <ProductPoster src={product.posterUrl} alt={product.posterAlt} />
         </span>
-        <figcaption className="proof__caption">
+        <figcaption className="proof__caption" translate="no">
           {product.productCode} {product.productName}
         </figcaption>
         <ViewerCue />

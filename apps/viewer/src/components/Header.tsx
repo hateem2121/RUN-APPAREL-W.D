@@ -87,8 +87,10 @@ export function Header({ wordmark }: HeaderProps) {
           then to the 54 MB catalogue PDF; then it was a <span> while the site had no pages.
           The destination is the site's ORIGIN: a wordmark is a home affordance, and every
           visitor here already has a garment in front of them. `viewer.spec.ts` guards it.
+          `translate="no"` (polish X27, 2026-10-04): a browser's Translate must not rename the
+          company; the garment's name and code carry it too (ProductIdentity.tsx).
         */}
-        <a className="notch__wordmark" href={SITE_ORIGIN}>
+        <a className="notch__wordmark" href={SITE_ORIGIN} translate="no">
           {wordmark}
         </a>
         <nav className="notch__nav" aria-label={SITE_NAV_LABEL}>

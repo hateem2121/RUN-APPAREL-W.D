@@ -214,7 +214,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
             Appending one to the other once rendered the name twice on every page.
           */}
           <div className="footer-legal">
-            <span>{settings.legalLine}</span>
+            <span translate="no">{settings.legalLine}</span>
             <span>{settings.footerLine}</span>
             {/*
               The bottom row, in SITE_FOOTER_LINKS's order (each entry says why it is here): the
