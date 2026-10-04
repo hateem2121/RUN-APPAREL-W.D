@@ -264,6 +264,22 @@ test.describe('the globe, on a page of its own', () => {
     )
   })
 
+  /*
+   * Polish F4 (owner Q19, 2026-10-04): with the dot and ring drawn, the globe shows no second
+   * pointer. Its own `cursor: grab` used to win over the page's `cursor: none` by coming later;
+   * base.css's rule is `!important` under `.has-custom-cursor` now. Without that class (a touch
+   * screen, reduced motion, where the dot and ring never draw) the grab hand is still the pointer.
+   */
+  test('one pointer: no grab hand beside the dot and ring, and the grab hand without them', async ({
+    page,
+  }) => {
+    await openHarness(page)
+    const pointer = () => canvasOf(page).evaluate((element) => getComputedStyle(element).cursor)
+    expect(await pointer(), 'without the dot and ring the globe lost its grab hand').toBe('grab')
+    await page.evaluate(() => document.documentElement.classList.add('has-custom-cursor'))
+    expect(await pointer(), 'a second pointer over the globe').toBe('none')
+  })
+
   test('the frame is a real picture, not a blank canvas', async ({ page }) => {
     await openHarness(page)
     const seen = await inspect(page, await frame(page))

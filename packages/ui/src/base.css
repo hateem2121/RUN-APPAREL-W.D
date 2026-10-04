@@ -634,13 +634,23 @@ html.lenis body {
   animation-duration: var(--settle);
 }
 
-/* Precision cursor — the component only mounts on fine pointers with motion. */
+/* Precision cursor — the component only mounts on fine pointers with motion.
+
+   ⚠️ ONE POINTER, EVERYWHERE BUT THE 3D WINDOW (polish F4, the owner's answer to Q19,
+   2026-10-04). This hid the browser's pointer on links, buttons and tabs only, so over a text
+   box (the I-beam), the country list, the file box, the globe (`grab`), the footer's wordmark
+   and a disabled camera button (`default`) the browser drew its pointer BESIDE the dot and ring.
+   Each of those is a rule with one class, which ties a universal rule on specificity and wins by
+   coming later, so a list can never keep up: `!important`, and only under `.has-custom-cursor`,
+   which is on the page only while the dot and ring are drawn. The 3D window is the one
+   exception: `<model-viewer>` draws its own grab hand inside (packages/shared/src/cursorRules.ts),
+   so its element falls back to the browser's pointer and the dot and ring step aside over it. */
 .has-custom-cursor,
-.has-custom-cursor a,
-.has-custom-cursor button,
-.has-custom-cursor [role="tab"],
-.has-custom-cursor .theme-toggle {
-  cursor: none;
+.has-custom-cursor * {
+  cursor: none !important;
+}
+.has-custom-cursor model-viewer {
+  cursor: auto !important;
 }
 /* `width`/`height` were transitioned here, which is layout + paint + composite on
    an element that follows the pointer — the worst possible property on the
@@ -660,12 +670,19 @@ html.lenis body {
    centre at (1224, 612). The ring flew off-target over every button and link for
    as long as that rule existed. The inflation now lives in the same transform
    string as the position, in Cursor.tsx — do not move it back here. */
+/* While the phone menu is open the dot and ring join the browser's top layer as popovers
+   (polish F5, keepAboveTopLayer in packages/shared/src/cursorRules.ts), and a popover comes
+   with the browser's own box: centred by `inset: 0` and `margin: auto`, with a border, padding
+   and a Canvas background. The four lines after the z-index undo it, so the two look the same
+   in the top layer as out of it. */
 .cursor-dot,
 .cursor-ring {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0 auto auto 0;
   z-index: var(--z-cursor);
+  margin: 0;
+  padding: 0;
+  overflow: visible;
   pointer-events: none;
   border-radius: 50%;
   translate: -50% -50%;
@@ -676,12 +693,14 @@ html.lenis body {
 .cursor-dot {
   width: 6px;
   height: 6px;
+  border: 0;
   background: var(--serif-accent);
 }
 .cursor-ring {
   width: 34px;
   height: 34px;
   border: 1px solid var(--serif-accent);
+  background: transparent;
 }
 /* Fill only. The 52/34 = 1.53 inflation this rule used to carry is owned by
    Cursor.tsx now — see the ⚠️ above and the long comment at the element. A paint

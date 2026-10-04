@@ -323,4 +323,55 @@ test.describe('the open phone menu holds the page still and dims it (polish F3, 
       },
     )
   }
+
+  /*
+   * Polish F5 (2026-10-04): the menu is drawn in the browser's top layer, above every z-index, so
+   * the dot and ring passed under it, and over its links, where the browser's pointer is hidden
+   * too, there was no pointer at all. Between top-layer elements the last one added is drawn on
+   * top (CSS Positioned Layout 4), so the ORDER they arrive in is what puts the pointer above the
+   * menu: recorded from the `toggle` events, which fire as each one arrives.
+   */
+  test('the dot and ring stay above the open menu, which still takes its taps (F5)', async ({
+    page,
+  }) => {
+    await openProducts(page)
+    await page.locator('.cursor-dot').waitFor({ state: 'attached' })
+    const point = await pointOnThePage(page)
+    await page.mouse.move(point.x, point.y)
+    await page.mouse.move(point.x + 6, point.y, { steps: 3 })
+    await page.evaluate(() => {
+      const order: string[] = []
+      ;(window as unknown as { __order: string[] }).__order = order
+      document.addEventListener(
+        'toggle',
+        (event) => {
+          if ((event as Event & { newState?: string }).newState !== 'open') return
+          order.push(String((event.target as Element).className).split(' ')[0] ?? '')
+        },
+        true,
+      )
+    })
+    await openMenu(page)
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __order: string[] }).__order))
+      .toEqual(['notch__menu', 'cursor-dot', 'cursor-ring'])
+
+    const ring = () =>
+      page.evaluate(() => {
+        const element = document.querySelector('.cursor-ring')
+        return {
+          lifted: element?.matches(':popover-open') ?? false,
+          hidden: element?.getAttribute('data-hidden'),
+          grows: element?.getAttribute('data-pointer'),
+        }
+      })
+    await page.locator(`#${SITE_MENU_ID} .nav-link`).first().hover()
+    await expect.poll(ring).toEqual({ lifted: true, hidden: 'false', grows: 'true' })
+
+    await page.locator(`#${SITE_MENU_ID}`).getByRole('link', { name: 'Contact' }).click()
+    await expect(page).toHaveURL(/\/contact$/)
+    await expect
+      .poll(ring, { message: 'the dot and ring stayed in the top layer after the menu closed' })
+      .toMatchObject({ lifted: false })
+  })
 })

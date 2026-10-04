@@ -1,3 +1,4 @@
+import { CURSOR_INTERACTIVE } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { FRAME_MS, INTERACTIVE, isInteractive, ringTransform, trail } from './cursorMath'
 
@@ -82,8 +83,8 @@ describe('cursorMath', () => {
     expect(ringTransform(800, 400, 1)).not.toContain('-50%')
   })
 
-  it('names the same interactive targets the viewer inflates over', () => {
-    expect(INTERACTIVE).toBe('a, button, [role="tab"], [data-cursor="pointer"]')
+  it('names the same interactive targets the viewer inflates over: the one shared list (F4)', () => {
+    expect(INTERACTIVE).toBe(CURSOR_INTERACTIVE)
     const a = { closest: (s: string) => (s === INTERACTIVE ? {} : null) } as unknown as Element
     expect(isInteractive(a)).toBe(true)
     expect(isInteractive(null)).toBe(false)

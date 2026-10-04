@@ -760,8 +760,13 @@ test.describe('the custom cursor mounts as documented (FA-Q-03)', () => {
         'the "no cursor at all" window this ordering exists to close',
     ).toBe(false)
 
-    await page.mouse.move(640, 450)
-    await page.mouse.move(660, 460, { steps: 4 })
+    // Over the heading, taken from the page: (640, 450) was the 3D model, where the dot and
+    // ring now step aside for the browser's grab hand (polish F4, the test after this one).
+    const heading = await page.getByRole('heading', { level: 1 }).boundingBox()
+    const hx = (heading?.x ?? 0) + Math.min(40, (heading?.width ?? 80) / 2)
+    const hy = (heading?.y ?? 0) + (heading?.height ?? 40) / 2
+    await page.mouse.move(hx, hy)
+    await page.mouse.move(hx + 6, hy + 2, { steps: 4 })
 
     await expect
       .poll(

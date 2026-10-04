@@ -913,7 +913,9 @@ sees is unchanged — measured by grep of `site.css` and `base.css`, not assumed
 
 **The open phone menu is in the browser's TOP LAYER, above every z-index here — the skip link
 and the cursor included.** It opens under the bar, so it never covers the skip link, which
-appears at the top-left; the cursor ring (fine pointers only) passes under it. While it is open
+appears at the top-left. The cursor's dot and ring (fine pointers only) passed under it until
+2026-10-04; since polish F5 they join the top layer after the menu while it is open, because the
+last element added there is drawn on top (packages/shared/src/cursorRules.ts). While it is open
 the page behind it is dimmed and holds still (polish X26 and F3, 2026-10-04); the dim is the
 bar's own layer rather than the popover's `::backdrop`, which would cover the bar as well and
 split it from the menu it widens into.

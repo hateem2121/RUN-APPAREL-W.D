@@ -1,6 +1,6 @@
 'use client'
 
-import { publishCursor } from '@run-apparel/shared'
+import { cursorOverThreeD, keepAboveTopLayer, publishCursor } from '@run-apparel/shared'
 import { useEffect } from 'react'
 import { FRAME_MS, isInteractive, ringTransform, trail } from '../../lib/cursorMath'
 
@@ -16,6 +16,10 @@ import { FRAME_MS, isInteractive, ringTransform, trail } from '../../lib/cursorM
  *
  * The ring's TRAILED point is published on the cursor bus once per painted frame, so
  * the footer's light rides with the ring rather than snapping to the raw pointer.
+ *
+ * One pointer (polish F4, owner Q19): over the 3D window the dot and ring step aside for the
+ * browser's grab hand, and while the phone menu is open they rise above it (F5). Both rules,
+ * and the viewer's copy of them, are in packages/shared/src/cursorRules.ts.
  */
 export function Cursor() {
   useEffect(() => {
@@ -36,6 +40,7 @@ export function Cursor() {
     // resolves to a string/Blob overload and the typecheck refuses an element.
     document.body.appendChild(dot)
     document.body.appendChild(ring)
+    const releaseTopLayer = keepAboveTopLayer([dot, ring], document)
 
     const root = document.documentElement
     let px = -100
@@ -93,9 +98,11 @@ export function Cursor() {
         ry = py
         last = 0
         root.classList.add('has-custom-cursor')
-        dot.dataset.hidden = 'false'
-        ring.dataset.hidden = 'false'
       }
+      // Over the 3D window the browser's grab hand is the pointer, so these step aside (F4).
+      const threeD = String(cursorOverThreeD(event.target as Element | null))
+      dot.dataset.hidden = threeD
+      ring.dataset.hidden = threeD
       target = isInteractive(event.target as Element | null) ? 1.53 : 1
       ring.dataset.pointer = String(target > 1)
       if (!frame) frame = requestAnimationFrame(paint)
@@ -121,6 +128,7 @@ export function Cursor() {
       document.removeEventListener('mouseleave', onLeave)
       if (frame) cancelAnimationFrame(frame)
       root.classList.remove('has-custom-cursor')
+      releaseTopLayer()
       dot.remove()
       ring.remove()
     }
