@@ -164,6 +164,33 @@ export function readCopyInPage() {
 }
 
 /**
+ * RUNS INSIDE THE PAGE. The `.btn--primary` buttons a visitor can see AND press at the current
+ * scroll position: on screen, not `visibility: hidden`, and not under anything else at their
+ * centre (`elementFromPoint`, clamped to the screen for a button cut by its edge). The garment
+ * pages' CT-08 check scrolls through the page and asks this at each stop (polish S10, 2026-10-04):
+ * their fixed contact bar steps aside while the page's own main button is in view
+ * (apps/viewer/src/lib/actionBarStepsAside.ts), which `primaryActionsInPage` below, measuring the
+ * whole page at once, counts on every screen.
+ */
+export function primaryActionsOnScreen() {
+  return [...document.querySelectorAll('.btn--primary')]
+    .filter((element) => {
+      const box = element.getBoundingClientRect()
+      if (box.width === 0 || box.height === 0) return false
+      if (getComputedStyle(element).visibility === 'hidden') return false
+      if (box.bottom <= 0 || box.top >= window.innerHeight) return false
+      const x = box.left + box.width / 2
+      const y = Math.min(Math.max(box.top + box.height / 2, 1), window.innerHeight - 1)
+      const hit = document.elementFromPoint(x, y)
+      return hit !== null && (hit === element || element.contains(hit))
+    })
+    .map((element) => ({
+      label: (element.textContent ?? '').replace(/\s+/g, ' ').trim(),
+      destination: element.getAttribute('href') ?? `button:${element.textContent ?? ''}`,
+    }))
+}
+
+/**
  * RUNS INSIDE THE PAGE. Every visible `.btn--primary`, and for each screen-high slice of the
  * document the set of DIFFERENT places those buttons lead. The same action repeated — the
  * viewer's email button in the page and again in the fixed bar — is one destination, and

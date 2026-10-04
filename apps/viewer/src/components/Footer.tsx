@@ -8,12 +8,11 @@ import {
   normalizeWhatsAppNumber,
   SITE_FOOTER_LINKS,
   SITE_FOOTER_WORDS,
-  splitLastWord,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { track } from '../lib/analytics'
 import { SITE_ORIGIN } from '../lib/siteLinks'
-import { FooterClock, FooterGlow, FooterWordmark } from './FooterLive'
+import { FooterGlow, FooterWordmark } from './FooterLive'
 
 /**
  * The website's footer, drawn on the garment pages too (visual audit VA-31, owner-approved
@@ -28,49 +27,30 @@ import { FooterClock, FooterGlow, FooterWordmark } from './FooterLive'
  *
  * The differences are the framework's, never the visitor's:
  * - every link is the site's full address, because another Worker draws this page;
- * - the tab always goes to the contact page, because a garment page is never /contact;
  * - email and WhatsApp clicks are counted, as they were in the footer this replaced.
+ *
+ * And one that is the visitor's, by the owner's choice (polish Q42, 2026-10-04): NO TAB, NO
+ * QUESTION. A garment page ends on its own one prompt, "Ask about this garment", in its contact
+ * section; the audit counted three prompts in a row there ("Develop this with us", the "Start an
+ * inquiry" tab, "Have a garment…?", X23). So the footer opens on the facts, without the tab, the
+ * question, its clock or the full screen of slab the question stood in (`.site-footer--no-prompt`,
+ * packages/ui/src/footer.css). Both suites still hold it to the website's template, without those
+ * lines (`siteFooterAriaSnapshot(…, { prompt: false })`).
  */
 export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   // An API answer cached before the footer joined it (2026-10) has none: the copy's defaults,
   // and no claim — a claim never has a default.
   const f = settings.footer ?? EMPTY_FOOTER
-  const q = splitLastWord(f.ctaQuestion)
   const capacity = capacityLines(f.capacity)
   const marks = marksFor(f.certifications)
   const words = SITE_FOOTER_WORDS
 
   return (
-    <footer className="site-footer">
-      <a className="site-footer__tab" href={`${SITE_ORIGIN}/contact`}>
-        <span className="site-footer__tab-label">{f.ctaLabel}</span>
-        <span className="site-footer__tab-arrow" aria-hidden="true">
-          →
-        </span>
-      </a>
-
+    <footer className="site-footer site-footer--no-prompt">
       <div className="site-footer__slab">
         <FooterGlow />
 
         <div className="site-footer__inner">
-          <div className="footer-cta">
-            <div>
-              <p className="footer-eyebrow">{words.eyebrow}</p>
-              <h2 className="footer-q">
-                {q.head}
-                <em>{q.last}</em>
-                {q.tail}
-              </h2>
-              <p className="footer-derisk">{f.ctaSubline}</p>
-              <p className="footer-dim">{f.ctaPromise}</p>
-            </div>
-            <div className="footer-side">
-              <FooterClock hours={f.capacity.hours} />
-            </div>
-          </div>
-
-          <div className="footer-grow" />
-
           <div className="footer-facts">
             {/*
               THE CONTACT DETAILS (audit FA-Q-09, 2026-09-07): this is the page someone lands on

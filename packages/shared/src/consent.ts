@@ -224,6 +224,22 @@ export function startTrackers(win: TrackerWindow): void {
   })
 }
 
+/**
+ * One named event for Google Analytics, such as the owner's key event `ask_about_garment` (Q37,
+ * polish S10). ⚠️ ONLY WHEN THE VISITOR ACCEPTED: before Accept, or after Decline on a page that
+ * has not reloaded, the tag is not running and nothing is queued, so no event can wait in the
+ * queue for a tag that a later Accept would start. Names follow Google's rules (GA4 "Event naming
+ * rules", read 2026-10-04): a letter first, then letters, digits and underscores, no reserved name.
+ */
+export function trackerEvent(
+  win: TrackerWindow,
+  name: string,
+  params: Record<string, string> = {},
+): void {
+  if (!win.runTrackersStarted) return
+  gtagOn(win)('event', name, params)
+}
+
 /** How `forgetTrackers` reaches cookies, so it can be tested without a browser. */
 export interface CookieJar {
   hostname: string

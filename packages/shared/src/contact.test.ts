@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  askAboutGarmentMessage,
+  askAboutGarmentPath,
+  askAboutGarmentSubject,
+  askedGarment,
   buildEnquiryBody,
   buildEnquirySubject,
   buildMailtoUrl,
@@ -91,5 +95,42 @@ describe('the enquiry template is written in American spelling — owner decisio
     expect(
       findBritishSpellings(`${buildEnquirySubject(context)}\n${buildEnquiryBody(context)}`),
     ).toEqual([])
+  })
+})
+
+describe('"Ask about this garment" (polish S10)', () => {
+  it('opens the contact page’s form with the garment and colour as slugs', () => {
+    expect(askAboutGarmentPath('r-xmp', 'wine')).toBe('/contact?garment=r-xmp&colour=wine#inquiry')
+  })
+
+  it('names the garment, its code and its colour as the inquiry’s subject', () => {
+    expect(askAboutGarmentSubject(ctx)).toBe('Velocity Performance Tee (N001) / Navy')
+  })
+
+  it('reads the two slugs back, and nothing else', () => {
+    expect(askedGarment({ garment: 'r-xmp', colour: 'wine' })).toEqual({
+      productSlug: 'r-xmp',
+      colourSlug: 'wine',
+    })
+    // A typed or pasted address is tidied the way a QR typo is (normalizeSlug).
+    expect(askedGarment({ garment: ' R-XMP ', colour: 'Wine' })).toEqual({
+      productSlug: 'r-xmp',
+      colourSlug: 'wine',
+    })
+  })
+
+  it('opens an empty form for a missing, repeated or empty value', () => {
+    expect(askedGarment({})).toBeNull()
+    expect(askedGarment({ garment: 'r-xmp' })).toBeNull()
+    expect(askedGarment({ garment: ['r-xmp', 'rxps'], colour: 'wine' })).toBeNull()
+    expect(askedGarment({ garment: '---', colour: 'wine' })).toBeNull()
+  })
+
+  it('starts the message with the enquiry template’s own sentence, then room to write', () => {
+    expect(askAboutGarmentMessage(ctx)).toBe(
+      'I am interested in Velocity Performance Tee (N001) in Navy.\n\n',
+    )
+    expect(buildEnquiryBody(ctx)).toContain(askAboutGarmentMessage(ctx).trim())
+    expect(findBritishSpellings(askAboutGarmentMessage(ctx))).toEqual([])
   })
 })

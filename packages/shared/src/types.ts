@@ -214,6 +214,9 @@ export const VIEWER_ANALYTICS_EVENTS = [
   'retired_colourway_fallback',
   // A visitor opened the "HD IMAGE" studio render (2026-09-27).
   'hd_image_opened',
+  // "Ask about this garment", the page's closing prompt (polish S10, 2026-10-04). The same name
+  // as the owner's Google Analytics key event (Q37), so the two counts can be laid side by side.
+  'ask_about_garment',
   /*
    * Core Web Vitals, one report per visit, sent when the page is hidden.
    *

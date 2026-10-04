@@ -1,6 +1,7 @@
-import { formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
+import { askedGarment, formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
-import { getSiteSettings } from '../../../lib/content'
+import { resolveAskedGarment } from '../../../lib/askAboutGarment'
+import { getProductCards, getSiteSettings } from '../../../lib/content'
 import { CONTACT_HERO_PHOTO, contactHeroSrc, HERO_PHOTO } from '../../../lib/factoryPhotos'
 import { HONEYPOT_FIELD, MAX_LENGTHS } from '../../../lib/inquiry'
 import { inquiryNotice, OPTIONAL_DIVIDER } from '../../../lib/inquiryForm'
@@ -66,11 +67,24 @@ const ADDRESS = formatAddress()
 export default async function ContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string; reason?: string }>
+  searchParams: Promise<{
+    sent?: string
+    error?: string
+    reason?: string
+    garment?: string | string[]
+    colour?: string | string[]
+  }>
 }) {
+  const params = await searchParams
   const settings = await getSiteSettings()
   const whatsapp = `https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`
-  const notice = inquiryNotice(await searchParams)
+  const notice = inquiryNotice(params)
+  /*
+   * "Ask about this garment" (polish S10): a garment page's one prompt opens this form with the
+   * garment and colour in it. Looked up among the published garments, and only when the address
+   * names both (`lib/askAboutGarment.ts` says why words are never echoed from it).
+   */
+  const asking = askedGarment(params) ? resolveAskedGarment(params, await getProductCards()) : null
   const [tall640, tall1080] = CONTACT_HERO_PHOTO.widths.heroTall
   const [wide1280, wide1920] = CONTACT_HERO_PHOTO.widths.heroWide
 
@@ -195,6 +209,24 @@ export default async function ContactPage({
             >
               <InquiryFormEnhancer />
 
+              {/*
+               * The garment a garment page asked about (polish S10), with the way back to it; the
+               * message below opens with the same sentence, and the hidden subject names it in the
+               * notification email. Its name and code are the garment's own words (`translate`).
+               */}
+              {asking ? (
+                <p className="inquiry-form__about">
+                  <span className="inquiry-form__label">Asking about</span>{' '}
+                  <a href={asking.href}>
+                    <span translate="no">
+                      {asking.productName} ({asking.productCode})
+                    </span>
+                    , {asking.colourName}
+                  </a>
+                  <input type="hidden" name="subject" value={asking.subject} />
+                </p>
+              ) : null}
+
               <div className="inquiry-form__field">
                 <label className="inquiry-form__label" htmlFor="inquiry-name">
                   Your name
@@ -241,6 +273,8 @@ export default async function ContactPage({
                   required
                   rows={6}
                   maxLength={MAX_LENGTHS.message}
+                  // The asked garment's sentence, then an empty line for the buyer (polish S10).
+                  defaultValue={asking?.message}
                   data-check
                   /*
                     ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly

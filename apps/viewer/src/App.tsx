@@ -581,7 +581,11 @@ export default function App() {
             <CustomisationSection data={data} />
             {/* Before the contact section, so the page still ends on its one prompt (S6, Q42). */}
             <RelatedGarments data={data} />
-            <ContactSection settings={data.siteSettings} enquiry={enquiry} />
+            <ContactSection
+              settings={data.siteSettings}
+              enquiry={enquiry}
+              garment={{ productSlug: data.product.slug, colourSlug: selected.slug }}
+            />
           </div>
         </main>
         <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />

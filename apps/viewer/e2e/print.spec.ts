@@ -245,11 +245,13 @@ test.describe('one clean sheet per garment (polish F14)', () => {
       '.stage__plinth',
       '.trail',
       '.customise',
+      '.related',
       '.contact',
-      '.footer-cta',
     ]) {
       await expect(page.locator(selector).first(), selector).toBeHidden()
     }
+    // The footer's question is not on a garment page at all since polish Q42 (2026-10-04).
+    await expect(page.locator('.footer-cta, .site-footer__tab')).toHaveCount(0)
     // The grid layer over the footer printed as an opaque white sheet (Chromium, A4 and Letter).
     const cover = await page
       .locator('.site-footer__slab')

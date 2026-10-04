@@ -15,6 +15,10 @@ import { parseCssColour, relativeLuminance } from '../../../scripts/contrast-rul
  * website's. apps/cms/e2e/footer.spec.ts holds the website's footer to the same template, so
  * a block that drifts on either host fails on THAT host. WCAG 2.2 SC 3.2.6 Consistent Help asks
  * for contact details in the same order on every page of a site.
+ *
+ * Without its tab, question and clock since polish Q42 (owner, 2026-10-04): a garment page ends
+ * on its own one prompt, "Ask about this garment" (`{ prompt: false }`). The contact details SC
+ * 3.2.6 speaks of stay, in the same order as on the website.
  */
 
 const API = '**/api/public/viewer/**'
@@ -71,7 +75,9 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
   }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(EMPTY_FOOTER)))
+    await expect(footer(page)).toMatchAriaSnapshot(
+      siteFooterAriaSnapshot(content(EMPTY_FOOTER), { prompt: false }),
+    )
   })
 
   // VA-44 (the owner's choice, 2026-10-02): the address is in normal letters. An accessibility
@@ -100,7 +106,9 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     await serveFooter(page, CLAIMS)
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(CLAIMS)))
+    await expect(footer(page)).toMatchAriaSnapshot(
+      siteFooterAriaSnapshot(content(CLAIMS), { prompt: false }),
+    )
     // Every mark arrived and decodes: the files are the website's, by the same path.
     const marks = footer(page).locator('.footer-marks img')
     await expect(marks).toHaveCount(4)
@@ -122,22 +130,32 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     }
   })
 
-  test("is the website's dark slab, one screen tall from tablet width up, its tab on the edge", async ({
+  /*
+   * Polish Q42 (owner, 2026-10-04): no tab and no question on a garment page, so no room kept
+   * above the slab for a tab, no full screen of slab for a question to stand in, and the first
+   * block starts where the question did. Until then this asked for a one-screen slab with its tab
+   * straddling the top edge, which the website's footer still is (apps/cms/e2e/footer.spec.ts).
+   */
+  test("is the website's dark slab, without the tab or the screen its question stood in", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const geometry = await page.evaluate(() => {
+      const footer = document.querySelector('footer.site-footer') as HTMLElement
       const slab = document.querySelector('.site-footer__slab') as HTMLElement
-      const tab = document.querySelector('.site-footer__tab') as HTMLElement
-      const s = slab.getBoundingClientRect()
-      const t = tab.getBoundingClientRect()
+      const inner = document.querySelector('.site-footer__inner') as HTMLElement
       return {
         background: getComputedStyle(slab).backgroundColor,
-        slabHeight: s.height,
-        tabStraddles: t.top < s.top && t.bottom >= s.top,
-        viewport: innerHeight,
+        tabs: document.querySelectorAll('.site-footer__tab').length,
+        roomAbove: slab.getBoundingClientRect().top - footer.getBoundingClientRect().top,
+        slabMinHeight: getComputedStyle(slab).minHeight,
+        firstBlockAt: Number.parseFloat(getComputedStyle(inner).paddingTop),
+        // Bottom-right answered the question at the top-left; with none, the facts start left.
+        factsFromLeft:
+          (document.querySelector('.footer-facts') as HTMLElement).getBoundingClientRect().left -
+          inner.getBoundingClientRect().left,
       }
     })
     // An unstyled footer (the shared stylesheet not loaded) is a transparent box on paper.
@@ -145,8 +163,18 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     const ground = parseCssColour(geometry.background)
     expect(ground.alpha, `slab background ${geometry.background}`).toBe(1)
     expect(relativeLuminance(ground.rgb)).toBeLessThan(0.05)
-    expect(geometry.slabHeight).toBeGreaterThanOrEqual(geometry.viewport - 1)
-    expect(geometry.tabStraddles, 'the tab must sit on the slab’s top edge').toBe(true)
+    expect(geometry.tabs).toBe(0)
+    expect(geometry.roomAbove, 'room kept above the slab for a tab that is not there').toBe(0)
+    expect(geometry.slabMinHeight, 'a full screen of slab for a question that is not there').toBe(
+      '0px',
+    )
+    // The question's own top spacing, clamp(44px, 6vw, 84px): 76.8px at 1280px, rounded to 76.
+    expect(geometry.firstBlockAt).toBeGreaterThanOrEqual(44)
+    expect(geometry.firstBlockAt).toBeLessThanOrEqual(84)
+    expect(
+      Math.abs(geometry.factsFromLeft),
+      'the facts sit right, under a question that is gone',
+    ).toBeLessThan(1)
   })
 
   for (const width of [320, 390, 1440]) {

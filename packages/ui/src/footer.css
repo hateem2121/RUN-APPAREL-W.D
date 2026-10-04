@@ -110,6 +110,32 @@
   }
 }
 
+/*
+ * A footer without its question and its tab: the garment pages' (polish Q42, owner 2026-10-04).
+ * A garment page ends on its own one prompt, "Ask about this garment", so the footer drops the
+ * tab, the question and the room each took: no space above the slab for a tab, no full screen of
+ * slab for a question to stand in, and its first block starts where the question did.
+ */
+.site-footer--no-prompt {
+  padding-block-start: 0;
+}
+
+.site-footer--no-prompt .site-footer__inner {
+  padding-block-start: clamp(44px, 6vw, 84px);
+}
+
+@supports (width: round(1px, 2px)) {
+  .site-footer--no-prompt .site-footer__inner {
+    padding-block-start: round(clamp(44px, 6vw, 84px), 2px);
+  }
+}
+
+@media (min-width: 768px) {
+  .site-footer--no-prompt .site-footer__slab {
+    min-height: 0;
+  }
+}
+
 /* ── the flipped notch ─────────────────────────────────────────────────────
  *   header (.notch)              footer tab
  *   border-end-*-radius          border-start-*-radius
@@ -525,6 +551,13 @@
     max-width: none;
     margin-inline-start: 0;
   }
+}
+
+/* The facts sit bottom-right to answer the question at the top-left. The garment pages' footer
+   has no question (`.site-footer--no-prompt`, polish Q42), and at 1280px the facts left the slab's
+   whole left half empty (screenshot, 2026-10-04): they start at the column's left edge there. */
+.site-footer--no-prompt .footer-facts {
+  margin-inline-start: 0;
 }
 
 .footer-block h3 {
@@ -946,6 +979,12 @@
 
   .footer-facts {
     padding-block: 12px;
+  }
+
+  /* The garment pages' footer starts where its question would have (Q42); on paper the facts
+     follow the sheet straight on, as they do on the website's printed page. */
+  .site-footer--no-prompt .site-footer__inner {
+    padding-block-start: 0;
   }
 
   .footer-legal {

@@ -20,7 +20,8 @@ const AT: Record<number, { selector: string; property: string }[]> = {
     { selector: '.content', property: 'padding-top' },
     { selector: '.content', property: 'padding-left' },
     { selector: '.content', property: 'row-gap' },
-    { selector: 'footer .footer-cta', property: 'padding-top' },
+    // The footer's first block, where its question stood until polish Q42 (2026-10-04).
+    { selector: 'footer.site-footer--no-prompt .site-footer__inner', property: 'padding-top' },
   ],
   557: [
     { selector: '.stage__inner', property: 'padding-top' },

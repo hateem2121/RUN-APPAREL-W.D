@@ -2309,6 +2309,24 @@ a.contact-block__value:active {
 }
 
 /*
+ * The garment a garment page asked about (polish S10, "Ask about this garment"): its label, then
+ * its name, code and colour as the way back to it, in a quiet box above the first field, so a
+ * buyer sees at once that the form already knows which garment they mean.
+ */
+.inquiry-form__about {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.inquiry-form__about a {
+  color: var(--text);
+  text-underline-offset: 3px;
+}
+
+/*
  * ⚠️ 16px MINIMUM FONT SIZE, AND IT IS NOT A TASTE DECISION. iOS Safari zooms the whole
  * page when a focused input's text is under 16px, and then leaves it zoomed — the page a
  * QR-scanning visitor lands on ends up horizontally scrollable through no action of

@@ -97,7 +97,10 @@ Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-
 are `packages/ui/src/footer.css` (not site.css), its words, links and rules are
 `packages/shared/src/siteFooter.ts`, and both browser suites hold it to `siteFooterAriaSnapshot`
 — so a block added or moved in `SiteFooter.tsx` must move in `apps/viewer/src/components/Footer.tsx`
-in the same change, or both suites fail.
+in the same change, or both suites fail. One deliberate difference since polish Q42 (owner,
+2026-10-04): the garment pages leave out the tab, the question and its clock, because they end on
+their own "Ask about this garment" (`siteFooterAriaSnapshot(…, { prompt: false })`,
+`.site-footer--no-prompt`).
 
 Four things that bit while building it:
 

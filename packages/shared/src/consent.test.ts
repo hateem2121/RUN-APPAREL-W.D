@@ -14,6 +14,7 @@ import {
   startTrackers,
   TRACKER_CSP,
   type TrackerWindow,
+  trackerEvent,
   writeConsent,
 } from './consent'
 
@@ -182,6 +183,28 @@ describe('starting the trackers', () => {
     startTrackers(win)
     startTrackers(win)
     expect(scripts).toHaveLength(2)
+  })
+})
+
+describe('a named event for Google (polish S10, the key event `ask_about_garment`)', () => {
+  const events = (win: TrackerWindow) =>
+    (win.dataLayer ?? [])
+      .map((entry) => Array.from(entry as ArrayLike<unknown>))
+      .filter((entry) => entry[0] === 'event')
+
+  it('is queued once the visitor accepted and the tag is running', () => {
+    const { win } = fakeWindow()
+    startTrackers(win)
+    trackerEvent(win, 'ask_about_garment', { garment_code: 'R-XMP', colour: 'Wine' })
+    expect(events(win)).toEqual([
+      ['event', 'ask_about_garment', { garment_code: 'R-XMP', colour: 'Wine' }],
+    ])
+  })
+
+  it('queues nothing before Accept, so no event waits for a tag a later Accept starts', () => {
+    const { win } = fakeWindow()
+    trackerEvent(win, 'ask_about_garment')
+    expect(win.dataLayer).toBeUndefined()
   })
 })
 

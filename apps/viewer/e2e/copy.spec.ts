@@ -6,6 +6,7 @@ import {
   findEmoji,
   GARMENT_TERMS,
   primaryActionsInPage,
+  primaryActionsOnScreen,
   readCopyInPage,
 } from '../../../scripts/copy-rules.mjs'
 
@@ -93,13 +94,48 @@ test.describe('copy rules on every screen a QR scan can land on', () => {
   })
 })
 
-const PRIMARY_LABELS = [/^Email Us$/, /^Try Again$/, /^Trying…$/]
+// "Ask about this garment" since polish S10 + Q42 (owner, 2026-10-04): the page's one closing
+// prompt, the main button of its contact section, where Email Us and WhatsApp Us are quieter.
+const PRIMARY_LABELS = [/^Email Us$/, /^Try Again$/, /^Trying…$/, /^Ask about this garment$/]
+
+/**
+ * Waits until the phone's contact bar has answered the last scroll: two frames for its observer,
+ * then its fade done (reduced motion makes that one frame), so it is hidden exactly when it has
+ * stepped aside. A bar with focus inside it stays by design, and none of these stops gives it any.
+ */
+async function barSettled(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const bar = document.querySelector('.action-bar')
+        if (!bar) return true
+        return bar.hasAttribute('data-tucked') === (getComputedStyle(bar).visibility === 'hidden')
+      }),
+    )
+    .toBe(true)
+}
 
 for (const viewport of [
   { width: 390, height: 844 },
   { width: 1440, height: 900 },
 ]) {
+  /*
+   * ⚠️ SCROLLED THROUGH, NOT MEASURED AT ONCE, SINCE POLISH S10 (2026-10-04). The page's closing
+   * section leads with "Ask about this garment" and the phone's fixed bar with Email Us: two
+   * places. The bar steps aside while that button is in view, which a whole-page measurement
+   * cannot see (it counts a fixed bar on every screen), so this stops every half screen, lets the
+   * bar answer, and counts the main buttons a visitor can see and press there
+   * (`primaryActionsOnScreen`). Measured at once, it failed in four engines on a screen where only
+   * one of the two could be seen.
+   */
   test(`one primary action per screen at ${viewport.width}px (CT-08)`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.setViewportSize(viewport)
     const screens: [string, () => Promise<void>][] = [
       [
@@ -115,7 +151,7 @@ for (const viewport of [
     for (const [path, ready] of screens) {
       await page.goto(path)
       await ready()
-      const { primaries, windows } = await page.evaluate(primaryActionsInPage)
+      const { primaries } = await page.evaluate(primaryActionsInPage)
       expect(
         primaries.length,
         `${path}: no primary action found, so this would pass vacuously`,
@@ -126,12 +162,41 @@ for (const viewport of [
           `"${label}" on ${path}`,
         ).toBe(true)
       }
-      for (const { top, destinations } of windows) {
+      const height = await page.evaluate(() => document.documentElement.scrollHeight)
+      const tops = new Set<number>()
+      for (let top = 0; top < height; top += Math.floor(viewport.height / 2)) tops.add(top)
+      // …and every 8px while each main button in the page rises past the foot of the screen,
+      // where the phone's bar sits: the moment two main buttons could show together lasts
+      // about 60px of scrolling, which half-screen stops step over (planted, 2026-10-04).
+      const rising = await page.evaluate(() =>
+        [...document.querySelectorAll('.btn--primary')]
+          .filter((element) => {
+            for (let node: Element | null = element; node; node = node.parentElement) {
+              if (getComputedStyle(node).position === 'fixed') return false
+            }
+            return element.getBoundingClientRect().height > 0
+          })
+          .map((element) =>
+            Math.round(element.getBoundingClientRect().bottom + window.scrollY - innerHeight),
+          ),
+      )
+      for (const start of rising) {
+        for (let top = Math.max(0, start - 16); top <= start + 240; top += 8) tops.add(top)
+      }
+      let stops = 0
+      for (const top of [...tops].sort((a, b) => a - b)) {
+        await page.evaluate((y) => window.scrollTo(0, y), top)
+        await barSettled(page)
+        const destinations = [
+          ...new Set((await page.evaluate(primaryActionsOnScreen)).map((p) => p.destination)),
+        ]
+        stops += 1
         expect(
           destinations.length,
-          `${path} at ${viewport.width}px: the screen starting at ${top}px leads to ${destinations.join(' + ')}`,
+          `${path} at ${viewport.width}px, scrolled to ${top}px: ${destinations.join(' + ')}`,
         ).toBeLessThanOrEqual(1)
       }
+      expect(stops, `${path}: the walk stopped nowhere`).toBeGreaterThan(1)
     }
   })
 }

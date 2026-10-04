@@ -117,24 +117,33 @@ export interface SiteFooterContent {
  * landmark child in order, `/children: equal`, so a block one host adds or drops fails both
  * suites. Built from the same content the page was given, because the blocks are conditional.
  * The clock's time is the one live value, so it is a pattern.
+ *
+ * `prompt: false` is the garment pages' footer (polish Q42, owner 2026-10-04): no tab, no
+ * question and no clock, because a garment page ends on its own one prompt, "Ask about this
+ * garment" (the audit counted three prompts in a row there, X23). The website keeps all of them.
  */
-export function siteFooterAriaSnapshot(content: SiteFooterContent): string {
+export function siteFooterAriaSnapshot(
+  content: SiteFooterContent,
+  { prompt = true }: { prompt?: boolean } = {},
+): string {
   const q = JSON.stringify
   const { footer } = content
   const words = SITE_FOOTER_WORDS
   const lines = ['- contentinfo:', '  - /children: equal']
   const add = (depth: number, line: string) => lines.push(`${'  '.repeat(depth)}- ${line}`)
 
-  add(1, `link ${q(footer.ctaLabel)}`)
-  add(1, `paragraph: ${q(words.eyebrow)}`)
-  add(1, `heading ${q(footer.ctaQuestion)} [level=2]`)
-  add(1, `paragraph: ${q(footer.ctaSubline)}`)
-  add(1, `paragraph: ${q(footer.ctaPromise)}`)
-  // The light appears only once the clock has mounted, so it is optional even with hours.
-  const status = footer.capacity.hours
-    ? `( ?(${words.openNow}|${opensAt(footer.capacity.hours.open)}))?`
-    : ''
-  add(1, `text: /^${words.clockCity} (--:--|\\d\\d:\\d\\d)${words.clockZone}${status}$/`)
+  if (prompt) {
+    add(1, `link ${q(footer.ctaLabel)}`)
+    add(1, `paragraph: ${q(words.eyebrow)}`)
+    add(1, `heading ${q(footer.ctaQuestion)} [level=2]`)
+    add(1, `paragraph: ${q(footer.ctaSubline)}`)
+    add(1, `paragraph: ${q(footer.ctaPromise)}`)
+    // The light appears only once the clock has mounted, so it is optional even with hours.
+    const status = footer.capacity.hours
+      ? `( ?(${words.openNow}|${opensAt(footer.capacity.hours.open)}))?`
+      : ''
+    add(1, `text: /^${words.clockCity} (--:--|\\d\\d:\\d\\d)${words.clockZone}${status}$/`)
+  }
 
   add(1, `heading ${q(words.contact)} [level=3]`)
   add(1, 'list:')

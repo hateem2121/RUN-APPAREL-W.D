@@ -518,3 +518,45 @@ test.describe('the inquiry form', () => {
     })
   })
 })
+
+/*
+ * "Ask about this garment" (polish S10; the owner's one prompt at the end of a garment page,
+ * Q42, 2026-10-04): the garment page links here with the garment and colour as slugs, and this
+ * page looks both up among the published garments (`lib/askAboutGarment.ts`). The seeded garment
+ * is n001, Velocity Performance Tee, in five colours (src/seed/seed.ts).
+ */
+test.describe('"Ask about this garment" opens the form already filled in', () => {
+  test('names the garment, its code and colour, links back, and starts the message', async ({
+    page,
+  }) => {
+    await page.goto('/contact?garment=n001&colour=black#inquiry')
+    const about = page.locator('.inquiry-form__about')
+    await expect(about).toBeVisible()
+    await expect(about).toHaveText(/^Asking about\s*Velocity Performance Tee \(N001\), Black$/)
+    await expect(about.getByRole('link')).toHaveAttribute('href', '/products/n001/black')
+    await expect(page.locator('.inquiry-form [name="message"]')).toHaveValue(
+      'I am interested in Velocity Performance Tee (N001) in Black.\n\n',
+    )
+    await expect(page.locator('.inquiry-form [name="subject"]')).toHaveValue(
+      'Velocity Performance Tee (N001) / Black',
+    )
+    // It lands on the form itself, as every "Start a conversation" link does.
+    await expect(page.locator('#inquiry')).toBeInViewport()
+  })
+
+  test('an address naming no published garment or colour opens the ordinary empty form', async ({
+    page,
+  }) => {
+    for (const address of [
+      '/contact?garment=not-a-garment&colour=black',
+      '/contact?garment=n001&colour=not-a-colour',
+      '/contact?garment=n001',
+    ]) {
+      await page.goto(address)
+      await expect(page.locator('.inquiry-form'), address).toBeVisible()
+      await expect(page.locator('.inquiry-form__about'), address).toHaveCount(0)
+      await expect(page.locator('.inquiry-form [name="subject"]'), address).toHaveCount(0)
+      await expect(page.locator('.inquiry-form [name="message"]'), address).toHaveValue('')
+    }
+  })
+})

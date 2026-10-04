@@ -63,7 +63,11 @@ const ENQUIRY: EnquiryContext = {
 const page = (
   <>
     <main>
-      <ContactSection settings={SETTINGS} enquiry={ENQUIRY} />
+      <ContactSection
+        settings={SETTINGS}
+        enquiry={ENQUIRY}
+        garment={{ productSlug: 'n001', colourSlug: 'wine' }}
+      />
     </main>
     <MobileActionBar settings={SETTINGS} enquiry={ENQUIRY} />
   </>

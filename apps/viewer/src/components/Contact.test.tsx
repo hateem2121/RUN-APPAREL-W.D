@@ -73,12 +73,17 @@ const ENQUIRY: EnquiryContext = {
   colourName: 'Wine',
 }
 
+const GARMENT = { productSlug: 'n001', colourSlug: 'wine' }
+
 const render = (node: React.ReactNode) => act(() => root.render(node))
 const anchors = () => [...host.querySelectorAll<HTMLAnchorElement>('a')]
 
 describe('contact buttons (shared by all three surfaces)', () => {
   it.each([
-    ['ContactSection', <ContactSection key="s" settings={SETTINGS} enquiry={ENQUIRY} />],
+    [
+      'ContactSection',
+      <ContactSection key="s" settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} />,
+    ],
     ['MobileActionBar', <MobileActionBar key="m" settings={SETTINGS} enquiry={ENQUIRY} />],
   ])('%s builds a mailto carrying the garment context', (_label, node) => {
     render(node)
@@ -94,7 +99,10 @@ describe('contact buttons (shared by all three surfaces)', () => {
   })
 
   it.each([
-    ['ContactSection', <ContactSection key="s" settings={SETTINGS} enquiry={ENQUIRY} />],
+    [
+      'ContactSection',
+      <ContactSection key="s" settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} />,
+    ],
     ['MobileActionBar', <MobileActionBar key="m" settings={SETTINGS} enquiry={ENQUIRY} />],
   ])('%s opens WhatsApp safely in a new tab', (_label, node) => {
     render(node)
@@ -129,14 +137,14 @@ describe('contact buttons (shared by all three surfaces)', () => {
     expect(host.textContent).toContain('Email Us')
     expect(host.textContent).toContain('WhatsApp Us')
 
-    render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} />)
+    render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} />)
     expect(host.textContent).toContain('Email Us')
   })
 })
 
 describe('ContactSection', () => {
   it('is a labelled landmark section', () => {
-    render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} />)
+    render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} />)
 
     const section = host.querySelector('section.contact')
     const labelledBy = section?.getAttribute('aria-labelledby')
@@ -144,6 +152,62 @@ describe('ContactSection', () => {
     // A dangling aria-labelledby is worse than none — the accessible name silently
     // becomes empty rather than falling back to the heading text.
     expect(host.querySelector(`#${labelledBy}`)).not.toBeNull()
+  })
+
+  // Polish S10 + Q42 (owner, 2026-10-04): the page's one prompt.
+  it('leads with "Ask about this garment", to the website’s form with the garment and colour', () => {
+    render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} />)
+    const buttons = [...host.querySelectorAll<HTMLAnchorElement>('.contact__buttons a')]
+    expect(buttons.map((a) => a.textContent)).toEqual([
+      'Ask about this garment',
+      'Email Us',
+      'WhatsApp Us',
+    ])
+    expect(buttons[0]?.getAttribute('href')).toBe(
+      'https://wear-run.com/contact?garment=n001&colour=wine#inquiry',
+    )
+    // One main button in the section: the other two are the quieter alternatives.
+    expect(buttons.map((a) => a.classList.contains('btn--primary'))).toEqual([true, false, false])
+  })
+
+  it('says what the buttons do before them, not after (X23)', () => {
+    render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} />)
+    const children = [...(host.querySelector('section.contact')?.children ?? [])]
+    const micro = children.findIndex((el) => el.classList.contains('contact__micro'))
+    const buttons = children.findIndex((el) => el.classList.contains('contact__buttons'))
+    expect(micro).toBeGreaterThan(-1)
+    expect(micro).toBeLessThan(buttons)
+  })
+
+  it('counts the ask in the event log, and in Google Analytics only once it was accepted', () => {
+    const win = window as unknown as { dataLayer?: unknown[]; runTrackersStarted?: boolean }
+    const events: { event: string; product?: string; variant?: string }[] = []
+    const listen = (event: Event) =>
+      events.push(
+        (event as CustomEvent<{ event: string; product?: string; variant?: string }>).detail,
+      )
+    document.addEventListener('run:analytics', listen)
+    const stay = (event: Event) => event.preventDefault()
+    document.addEventListener('click', stay)
+    try {
+      render(<ContactSection settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} />)
+      const ask = () => host.querySelector<HTMLAnchorElement>('.contact__buttons a')
+      ask()?.click()
+      expect(events).toEqual([{ event: 'ask_about_garment', product: 'N001', variant: 'wine' }])
+      expect(win.dataLayer).toBeUndefined()
+
+      win.runTrackersStarted = true
+      ask()?.click()
+      const queued = (win.dataLayer ?? []).map((entry) => Array.from(entry as ArrayLike<unknown>))
+      expect(queued).toEqual([
+        ['event', 'ask_about_garment', { garment_code: 'N001', colour: 'Wine' }],
+      ])
+    } finally {
+      document.removeEventListener('run:analytics', listen)
+      document.removeEventListener('click', stay)
+      delete win.dataLayer
+      delete win.runTrackersStarted
+    }
   })
 })
 
