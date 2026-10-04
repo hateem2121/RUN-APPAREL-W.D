@@ -482,16 +482,19 @@
 }
 
 /*
- * ⚠️ THE ROOM KEPT FOR THE COOKIE QUESTION IS THE FOOTER'S COLOUR (visual audit VA-25). While the
- * question is open, base.css adds 11rem of empty room at the page's foot so the last links can
- * scroll clear of the card. It took the page's paper colour, so on a phone a pale band a third
- * of a screen tall sat under the dark footer — reported by the owner from an iPhone. The footer
- * is the last thing on every page of both hosts (the garment pages draw it too since 2026-10-02,
- * VA-31, which is why this moved here from site.css), so the room now reads as more footer. The value
- * is `--footer-bg`'s, which is scoped to the footer and cannot be read from here.
+ * ⚠️ THE ROOM KEPT FOR THE COOKIE QUESTION SITS ABOVE THE WORDMARK, NOT UNDER IT (polish M2,
+ * 2026-10-04). While the question is open the page needs 11rem of room so the footer's last links
+ * can scroll clear of the card (base.css, `--consent-reserve`). It was an empty block after the
+ * footer: first a pale band under it (visual audit VA-25, the owner's iPhone), then, painted the
+ * footer's colour, still an empty band under the RUN APPAREL wordmark (polish M2, the owner's
+ * iPhone again). Here it is the wordmark's top margin, inside the slab and the slab's colour, so the
+ * wordmark is the last thing on every page of both hosts and the card covers the wordmark, which is
+ * decoration (both its layers are `aria-hidden`), instead of empty room. From a tablet up the slab is a screen tall
+ * and `.footer-grow` gives the room up, so the links lift and the page grows by nothing; on a
+ * phone the page is 11rem longer while the question is open, as before.
  */
-:root:has(.consent) body::after {
-  background: light-dark(var(--ink), var(--raised));
+:root:has(.consent) .footer-mark {
+  margin-block-start: var(--consent-reserve);
 }
 
 /*

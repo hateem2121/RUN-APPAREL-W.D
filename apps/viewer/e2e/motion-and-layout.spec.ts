@@ -2320,10 +2320,13 @@ test.describe('text follows the browser text-size setting', () => {
          * measuring the harness, which is the exact defect this block already
          * carries a scar from.
          */
+        /*
+         * Until polish M2 (2026-10-04) this also read `.page`'s padding, the room under the
+         * footer that the footer check below stood on. That room is gone (the bar steps aside
+         * at the footer), so the rem probe alone says whether the text size reached the layout.
+         */
         const applied = await page.evaluate(() => {
-          const page_ = document.querySelector('footer')?.closest('.page')
           const rootPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-          const padPx = page_ ? Number.parseFloat(getComputedStyle(page_).paddingBottom) : 0
           // A rem length on a throwaway element, measured through layout rather
           // than read back off a declaration. Nothing of ours can make it stale,
           // so it says whether `rem` means the injected root AT ALL.
@@ -2332,7 +2335,7 @@ test.describe('text follows the browser text-size setting', () => {
           document.body.appendChild(probe)
           const probePx = probe.getBoundingClientRect().height
           probe.remove()
-          return { rootPx, padPx, probePx }
+          return { rootPx, probePx }
         })
         /**
          * ⚠️ THE YARDSTICK IS THE ROOT WE INJECTED, NEVER THE ONE THE ENGINE REPORTS.
@@ -2357,12 +2360,11 @@ test.describe('text follows the browser text-size setting', () => {
          */
         const expectedFloor = 4.5 * root
         test.skip(
-          applied.probePx + 1 < expectedFloor || applied.padPx + 1 < expectedFloor,
+          applied.probePx + 1 < expectedFloor,
           `the engine did not re-resolve after the root font-size changed to ${root}px ` +
-            `(4.5rem probe measured ${applied.probePx}px, .page padding ${applied.padPx}px, ` +
-            `both against an expected ${expectedFloor}px; <html> reports ` +
-            `${applied.rootPx}px) — the text size never reached the layout, so there is ` +
-            `nothing here to measure`,
+            `(4.5rem probe measured ${applied.probePx}px against an expected ` +
+            `${expectedFloor}px; <html> reports ${applied.rootPx}px) — the text size never ` +
+            `reached the layout, so there is nothing here to measure`,
         )
 
         /**
@@ -2370,8 +2372,9 @@ test.describe('text follows the browser text-size setting', () => {
          * It asserted clearance at scroll 0, which failed on WebKit and mobile
          * Safari at 320px with 24px text — Chrome's largest setting on the smallest
          * phone. That failure was real but it was not the right question: the action
-         * bar is `position: fixed` and `.page` reserves its height at the document
-         * end, so a rail sitting under it at REST scrolls clear a moment later.
+         * bar is `position: fixed` and the page runs on far past the rail (it reserved
+         * the bar's height at the document end too, until polish M2), so a rail sitting
+         * under it at REST scrolls clear a moment later.
          *
          * What actually harms a visitor is a swatch they can never reach, not one
          * they must scroll to. So the invariant asserted is reachability, which is
@@ -2442,8 +2445,7 @@ test.describe('text follows the browser text-size setting', () => {
           return {
             scrollW: document.documentElement.scrollWidth,
             innerW: window.innerWidth,
-            // Document-space reachability. Positive clearance = clears the bar;
-            // positive footerHidden = permanently underneath it, no further to scroll.
+            // Document-space reachability. Positive clearance = clears the bar.
             clearance:
               bar && tabs.length
                 ? Math.round(
@@ -2452,15 +2454,21 @@ test.describe('text follows the browser text-size setting', () => {
                       (Math.max(...tabs.map((t) => t.bottom)) + window.scrollY),
                   )
                 : null,
-            footerHidden:
-              bar && footer
-                ? Math.round(
-                    footer.bottom +
-                      window.scrollY -
-                      (document.documentElement.scrollHeight - bar.height),
-                  )
-                : null,
+            // Document space too: how far the page runs on past the footer (0 since polish M2).
+            roomUnderFooter: footer
+              ? Math.round(document.documentElement.scrollHeight - (footer.bottom + window.scrollY))
+              : null,
             why: {
+              // What sticks out past the screen's right edge, the deepest first, so a sideways
+              // overflow names its element (found 2026-10-04 once this test stopped skipping).
+              overflowing: [...document.querySelectorAll('body *')]
+                .map((el) => ({ el, right: el.getBoundingClientRect().right }))
+                .filter(({ right }) => right > window.innerWidth + 0.5)
+                .slice(-4)
+                .map(
+                  ({ el, right }) =>
+                    `${el.tagName.toLowerCase()}.${[...el.classList].join('.')} ${Math.round(right)}`,
+                ),
               barH: bar ? Math.round(bar.height) : null,
               barDisplay: barEl ? getComputedStyle(barEl).display : null,
               token: getComputedStyle(document.documentElement)
@@ -2553,40 +2561,41 @@ test.describe('text follows the browser text-size setting', () => {
         }
 
         /**
-         * ⚠️ THE FOOTER IS THE ELEMENT THAT ACTUALLY CAUGHT THE BUG, and checking
-         * only the rail said the fix was unnecessary.
+         * ⚠️ THE FOOTER IS THE ELEMENT THAT CAUGHT THE BUG ONCE, and checking only the
+         * rail said the fix was unnecessary. Until polish M2 (2026-10-04) `.page`
+         * reserved the bar's height under the footer (`--action-bar-h`, written by
+         * lib/actionBarHeight.ts), and at 320x640 with a 24px root the footer sat 34px
+         * UNDER a 106px bar whenever that token still read 72px — permanently, with no
+         * further to scroll.
          *
-         * `--action-bar-h` is what `.page` reserves at the DOCUMENT END, so when it
-         * is wrong the last thing on the page is what disappears. Measured at
-         * 320x640 with a 24px root, scrolled fully down: with the runtime measure in
-         * lib/actionBarHeight.ts the footer clears the bar by 1px; without it the
-         * token reads 72px against a 106px bar and the footer sits 34px UNDER it,
-         * permanently — there is no further to scroll.
-         *
-         * Removing that module made every rail assertion above still pass, which is
-         * exactly the shape of a guard that measures the wrong element. This line is
-         * what makes the module load-bearing in the suite.
+         * Since M2 nothing is reserved there: the bar steps aside while any of the
+         * footer is above it, its height read off the bar itself
+         * (lib/actionBarStepsAside.ts), so at the largest text the page ends AT the
+         * footer and the bar has gone there. Both halves are asserted: the room in
+         * document space (one pixel of rounding: `scrollHeight` is an integer and the
+         * footer's edge is not), and the bar scrolled to the end, re-scrolled on each
+         * poll because this file records the document growing after a scroll in CI.
          */
-        if (m.footerHidden !== null) {
-          /**
-           * ⚠️ ONE PIXEL OF TOLERANCE BELOW, AND IT IS ROUNDING RATHER THAN SLACK.
-           * `documentElement.scrollHeight` is an INTEGER; `footer.bottom` and
-           * `bar.height` are fractional, and the reserve is `Math.ceil(height)`. So
-           * a correct page lands in [-1, 0] and this assertion sat exactly on its
-           * own boundary — measured flaky on Chromium at 375x812 with a 20px root,
-           * failing once and passing on a re-run with nothing changed.
-           *
-           * This does not weaken the gate. The defect it exists for measured +34px
-           * in CI, and forcing `--action-bar-h` to 20px against a 106px bar measures
-           * +86. One pixel is not a footer anyone cannot read; it is two coordinate
-           * systems disagreeing in the last digit.
-           */
-          expect(
-            m.footerHidden,
-            `the footer ends ${m.footerHidden}px past the last point the page can scroll ` +
-              `to at a ${root}px root — the bottom reserve (--action-bar-h) is smaller than ` +
-              `the bar, so the last content on the page can never clear it. ${why}`,
-          ).toBeLessThanOrEqual(1)
+        expect(
+          Math.abs(m.roomUnderFooter ?? 0),
+          `the page runs on ${m.roomUnderFooter}px past the footer at a ${root}px root. ${why}`,
+        ).toBeLessThanOrEqual(1)
+        if (m.why.barDisplay !== null && m.why.barDisplay !== 'none') {
+          await expect
+            .poll(
+              async () => {
+                await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+                return page.evaluate(
+                  () =>
+                    getComputedStyle(document.querySelector('.action-bar') as Element).visibility,
+                )
+              },
+              {
+                message: `the bar stayed over the footer at a ${root}px root. ${why}`,
+                timeout: 5_000,
+              },
+            )
+            .toBe('hidden')
         }
       })
     }
@@ -3514,11 +3523,14 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
 
   /**
    * LA-15: the pinned chrome never sits over content. The bar is sticky at the top and the
-   * action bar is fixed at the bottom below 900px; each can hide content only if the page
-   * forgets to reserve room for it. Top: at rest, <main> starts where the bar ends. Bottom:
-   * the footer's last pixel is reachable above the action bar, in DOCUMENT space
-   * (`bottom + scrollY <= documentHeight - barHeight`) with no scroll in the measurement,
-   * because a check that scrolls first measures the scroll (e2e-scroll-not-layout).
+   * action bar is fixed at the bottom below 900px. Top: at rest, <main> starts where the bar
+   * ends. Bottom: until polish M2 (2026-10-04) the page reserved the action bar's height under
+   * the footer, and this checked the footer's last pixel was reachable above the bar. Since M2
+   * the bar steps aside while any of the footer is above it (lib/actionBarStepsAside.ts) and the
+   * page ends AT the footer, so those two are asserted: the footer ends the document, in
+   * DOCUMENT space with no scroll in the measurement, because a check that scrolls first
+   * measures the scroll (e2e-scroll-not-layout); and scrolled to the end, the bar has gone,
+   * re-scrolled on each poll for the same reason.
    */
   for (const [width, height] of [
     [320, 640],
@@ -3531,11 +3543,9 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       // Measured 2026-09-25: read straight after the heading, the bar was still in the
-      // fallback font (74.25px) while the reserve sat on its 4.5rem floor, so the footer's
-      // bottom padding read 2.7px under it. Once the webfont swaps in, the bar is 73.6px and
-      // `--action-bar-h` (74px) follows it. A visitor never reaches the bottom inside that
-      // first instant, so measure the settled page: fonts in, then two frames for the
-      // ResizeObserver's write to land.
+      // fallback font (74.25px), against 73.6px once the webfont swapped in. A visitor never
+      // reaches the bottom inside that first instant, so measure the settled page: fonts in,
+      // then two frames for the ResizeObservers' writes to land.
       await page.evaluate(() =>
         document.fonts.ready.then(
           () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
@@ -3561,12 +3571,28 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
         m.mainTop,
         `<main> starts under the bar: bar ends at ${m.headerBottom}, main starts at ${m.mainTop}`,
       ).toBeGreaterThanOrEqual((m.headerBottom ?? Number.POSITIVE_INFINITY) - 0.5)
-      const ceiling = m.documentHeight - m.barHeight
+      // One pixel of rounding: `scrollHeight` is an integer and the footer's edge is not.
       expect(
-        m.footerBottom,
-        `the footer ends under the action bar: footer bottom ${m.footerBottom}, ` +
-          `reachable ceiling ${ceiling} (document ${m.documentHeight} − bar ${m.barHeight})`,
-      ).toBeLessThanOrEqual(ceiling + 1)
+        Math.abs(m.documentHeight - m.footerBottom),
+        `the page runs on past the footer: footer bottom ${m.footerBottom}, ` +
+          `document ${m.documentHeight}`,
+      ).toBeLessThanOrEqual(1)
+      if (m.barHeight > 0) {
+        await expect
+          .poll(
+            async () => {
+              await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+              return page.evaluate(
+                () => getComputedStyle(document.querySelector('.action-bar') as Element).visibility,
+              )
+            },
+            {
+              message: `the action bar stayed over the footer at ${width}x${height}`,
+              timeout: 5_000,
+            },
+          )
+          .toBe('hidden')
+      }
     })
   }
 })

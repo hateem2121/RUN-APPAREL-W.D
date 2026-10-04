@@ -586,11 +586,28 @@ test.describe('the cookie choice', () => {
 
 /*
  * VA-25 (owner, 2026-10-01, from an iPhone): a pale band sat under the dark footer. While the
- * question is open base.css keeps 11rem of room at the page's foot, and it took the paper colour;
- * an iPhone's bounce then showed more paper below it.
+ * question is open the page keeps 11rem of room so the footer's last links can scroll clear of the
+ * card, and it took the paper colour; an iPhone's bounce then showed more paper below it.
+ * Polish M2 (owner, 2026-10-04, from an iPhone again): painted the footer's colour, it was still an
+ * empty band under the RUN APPAREL wordmark. The room is the wordmark's top margin since
+ * (packages/ui/src/footer.css), so the wordmark is the last thing on the page, question or not.
  */
-test.describe('the room under the footer (VA-25)', () => {
-  test("with the question open, the room kept at the foot is the footer's colour", async ({
+/** The room above the wordmark, and how far the page runs on past the footer (0: none). */
+const readFoot = (page: Page) =>
+  page.evaluate(() => {
+    const slab = document.querySelector('.site-footer__slab') as HTMLElement
+    return {
+      aboveMark: getComputedStyle(document.querySelector('.footer-mark') as Element)
+        .marginBlockStart,
+      underFooter: Math.round(
+        document.documentElement.scrollHeight -
+          (slab.getBoundingClientRect().bottom + window.scrollY),
+      ),
+    }
+  })
+
+test.describe('the room kept for the cookie question (VA-25, polish M2)', () => {
+  test('with the question open the room is above the wordmark, and the page ends at the footer', async ({
     page,
     context,
   }) => {
@@ -598,17 +615,35 @@ test.describe('the room under the footer (VA-25)', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
     await expect(banner(page)).toBeVisible()
-    const look = await page.evaluate(() => {
-      const room = getComputedStyle(document.body, '::after')
-      const slab = document.querySelector('.site-footer__slab') as HTMLElement
-      return {
-        height: room.blockSize,
-        room: room.backgroundColor,
-        footer: getComputedStyle(slab).backgroundColor,
-      }
+    const open = await readFoot(page)
+    expect(open.aboveMark, 'the room is not the 11rem the card needs').toBe('176px')
+    // One pixel of rounding: `scrollHeight` is an integer and the slab's edge is not.
+    expect(Math.abs(open.underFooter), 'the page runs on under the footer').toBeLessThanOrEqual(1)
+
+    // Answered, the room goes and the footer still ends the page.
+    await banner(page).getByRole('button', { name: 'Decline' }).click()
+    await expect(banner(page)).toBeHidden()
+    const answered = await readFoot(page)
+    expect(answered.aboveMark, 'the room outlived the question').toBe('0px')
+    expect(Math.abs(answered.underFooter)).toBeLessThanOrEqual(1)
+  })
+
+  test('the check sees a room under the footer (negative control: the room at the foot, as before M2)', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await expect(banner(page)).toBeVisible()
+    await page.addStyleTag({
+      content:
+        ':root:has(.consent) body::after { content: ""; display: block; block-size: var(--consent-reserve); }',
     })
-    expect(look.height, 'the room is not the 11rem the card needs').toBe('176px')
-    expect(look.room, 'the room under the footer is not the footer colour').toBe(look.footer)
+    expect(
+      (await readFoot(page)).underFooter,
+      'the planted room did not land',
+    ).toBeGreaterThanOrEqual(175)
   })
 
   test.describe('on a touch phone', () => {

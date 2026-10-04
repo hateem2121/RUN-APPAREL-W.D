@@ -188,10 +188,12 @@ test.describe('the fixed bar steps aside while the same buttons are in the page 
 /*
  * The footer too (2026-10-03, the owner's iPhone screenshot). Over the dark footer the paper bar,
  * which iPhone Safari extends into the strip behind its own toolbar, was a white block a fifth of
- * the screen tall. Now the bar steps aside while any of the footer is above it, and the room kept
- * for the bar under the footer (`.page`'s padding) is the footer's colour, so the page ends in the
- * footer's colour. Asserted on the PIXELS at the foot of the screen: a computed style can name the
- * right colour while something else is painted there.
+ * the screen tall. Now the bar steps aside while any of the footer is above it. And since polish M2
+ * (2026-10-04, the owner's iPhone again) the page ENDS at the footer: the room `.page` kept for the
+ * bar under it, painted the footer's colour the day before, was an empty band under the RUN APPAREL
+ * wordmark with the bar always gone there, and is gone. Asserted on where the footer ends and on
+ * the PIXELS at the foot of the screen: a computed style can name the right colour while something
+ * else is painted there.
  */
 type Rgb = { r: number; g: number; b: number }
 
@@ -235,9 +237,19 @@ async function footOfScreen(page: Page, rows: number): Promise<Rgb> {
   }, shot)
 }
 
+/** How far the document runs on past the bottom of the footer's slab (0: the slab is the end). */
+const roomUnderFooter = (page: Page) =>
+  page.evaluate(() => {
+    const slab = document.querySelector('.site-footer__slab') as HTMLElement
+    return Math.round(
+      document.documentElement.scrollHeight -
+        (slab.getBoundingClientRect().bottom + window.scrollY),
+    )
+  })
+
 test.describe('at the end of the page the bar steps aside and the footer runs to the bottom edge', () => {
   for (const phone of PHONES) {
-    test(`at ${phone.name} the foot of the screen is the footer's colour, not paper`, async ({
+    test(`at ${phone.name} the page ends at the footer, and the foot of the screen is its colour`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: phone.width, height: phone.height })
@@ -267,20 +279,41 @@ test.describe('at the end of the page the bar steps aside and the footer runs to
           timeout: 3_000,
         })
         .toBe('hidden')
-      // The bottom 48px are inside the room kept for the bar (74px here), under the footer.
+      // Nothing under the footer (M2): its slab ends where the page does, to the rounding of
+      // scrollHeight, an integer, against a fractional edge.
+      expect(
+        Math.abs(await roomUnderFooter(page)),
+        'the page runs on under the footer',
+      ).toBeLessThanOrEqual(1)
+      // So the bottom 48px of the screen are the footer's own slab, at the wordmark: not flat, as
+      // the room was, but the slab's blueprint grid and the wordmark's outline, which lift the
+      // mean by up to 8.5 (WebKit, 375x667, 2026-10-04) where paper is over 100 away (above).
       const foot = await footOfScreen(page, 48)
       expect(
         distance(foot, footer),
         `the foot of the screen is ${JSON.stringify(foot)}`,
-      ).toBeLessThan(8)
+      ).toBeLessThan(24)
 
-      // NEGATIVE CONTROL: with the room left unpainted, the same pixels are the page's paper — the
-      // check sees the white band the owner reported.
-      await page.addStyleTag({ content: '.page { background-image: none !important; }' })
+      // NEGATIVE CONTROL: the room put back under the footer, unpainted, as it was before VA-25 and
+      // M2. Both checks see it: the page runs on past the slab, and the same pixels are paper, the
+      // white band the owner reported.
+      // ⚠️ POLLED, NOT READ AT ONCE: under reduced motion base.css gives every element a 0.01ms
+      // transition on every property, so the planted padding reads as its old 0px until the next
+      // frame (a new element read 74px at once, the page's own wrapper 0px, 2026-10-04).
+      await page.addStyleTag({ content: '.page { padding-bottom: 74px !important; }' })
+      await expect
+        .poll(
+          async () => {
+            await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+            return roomUnderFooter(page)
+          },
+          { message: 'the planted room did not land', timeout: 3_000 },
+        )
+        .toBeGreaterThanOrEqual(73)
       const plain = await footOfScreen(page, 48)
       expect(
         distance(plain, paper),
-        `unpainted, the foot is ${JSON.stringify(plain)}`,
+        `with a room under the footer, the foot is ${JSON.stringify(plain)}`,
       ).toBeLessThan(8)
 
       // And the bar is back, usable, once the footer has scrolled off.

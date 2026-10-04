@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { DEFAULT_SITE_SETTINGS } from '../../../packages/shared/src/defaults'
 import {
   EMPTY_FOOTER,
@@ -239,38 +239,84 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
 /*
  * VA-25 on the garment pages: with the website's dark footer last on the page, the room kept for
  * the cookie question and an iPhone's bounce would show a pale band under it, as they did on the
- * website before 2026-10-01. The two rules moved into the shared footer.css with the footer;
- * apps/cms/e2e/consent.spec.ts holds the website to the same two checks.
+ * website before 2026-10-01. The rules moved into the shared footer.css with the footer.
+ * Polish M2 (2026-10-04, the owner's iPhone): painted the footer's colour, the room was still an
+ * empty band under the RUN APPAREL wordmark, so it is the wordmark's top margin since, and the
+ * wordmark is the last thing on the page, question or not. apps/cms/e2e/consent.spec.ts holds the
+ * website to the same checks.
  */
-test.describe('the room under the footer on the garment pages (VA-25, VA-31)', () => {
-  test("with the question open, the room kept at the foot is the footer's colour", async ({
+/** The room above the wordmark, and how far the page runs on past the footer (0: none). */
+const readFoot = (page: Page) =>
+  page.evaluate(() => {
+    const slab = document.querySelector('.site-footer__slab') as HTMLElement
+    return {
+      aboveMark: getComputedStyle(document.querySelector('.footer-mark') as Element)
+        .marginBlockStart,
+      underFooter: Math.round(
+        document.documentElement.scrollHeight -
+          (slab.getBoundingClientRect().bottom + window.scrollY),
+      ),
+    }
+  })
+
+/** The cookie question honours navigator.webdriver; lift it, as consent.spec.ts does. */
+const showTheQuestion = (context: BrowserContext) =>
+  context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false })
+  })
+
+test.describe('the room kept for the cookie question on the garment pages (VA-25, VA-31, M2)', () => {
+  /*
+   * ⚠️ POLLED: under reduced motion base.css gives every element a 0.01ms transition on every
+   * property, so the margin the open question adds reads as its old value until the next frame.
+   */
+  test('with the question open the room is above the wordmark, and the page ends at the footer', async ({
     page,
     context,
   }) => {
-    // The cookie question honours navigator.webdriver; lift it, as consent.spec.ts does.
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false })
-    })
+    await showTheQuestion(context)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/n001/wine')
     await expect(page.locator('.consent')).toBeVisible()
-    const look = await page.evaluate(() => {
-      const room = getComputedStyle(document.body, '::after')
-      const slab = document.querySelector('.site-footer__slab') as HTMLElement
-      return {
-        height: room.blockSize,
-        room: room.backgroundColor,
-        footer: getComputedStyle(slab).backgroundColor,
-      }
-    })
-    expect(look.height, 'the room is not the 11rem the card needs').toBe('176px')
-    // Polled: WebKit runs the theme's colour transition once as the page loads (the website's
-    // copy of this test records it), and one run in six read the room mid-way on 2026-10-02.
     await expect
-      .poll(() => page.evaluate(() => getComputedStyle(document.body, '::after').backgroundColor), {
-        message: 'the room under the footer is not the footer colour',
+      .poll(async () => (await readFoot(page)).aboveMark, {
+        message: 'the room is not the 11rem the card needs',
       })
-      .toBe(look.footer)
+      .toBe('176px')
+    // One pixel of rounding: `scrollHeight` is an integer and the slab's edge is not.
+    expect(
+      Math.abs((await readFoot(page)).underFooter),
+      'the page runs on under the footer',
+    ).toBeLessThanOrEqual(1)
+
+    // Answered, the room goes and the footer still ends the page.
+    await page.locator('.consent').getByRole('button', { name: 'Decline' }).click()
+    await expect(page.locator('.consent')).toBeHidden()
+    await expect
+      .poll(async () => (await readFoot(page)).aboveMark, {
+        message: 'the room outlived the question',
+      })
+      .toBe('0px')
+    expect(Math.abs((await readFoot(page)).underFooter)).toBeLessThanOrEqual(1)
+  })
+
+  test('the check sees a room under the footer (negative control: the room at the foot, as before M2)', async ({
+    page,
+    context,
+  }) => {
+    await showTheQuestion(context)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.locator('.consent')).toBeVisible()
+    await page.addStyleTag({
+      content:
+        ':root:has(.consent) body::after { content: ""; display: block; block-size: var(--consent-reserve); }',
+    })
+    await expect
+      .poll(async () => (await readFoot(page)).underFooter, {
+        message: 'the planted room did not land',
+      })
+      .toBeGreaterThanOrEqual(175)
   })
 
   test.describe('on a touch phone', () => {

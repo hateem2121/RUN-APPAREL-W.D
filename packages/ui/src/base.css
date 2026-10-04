@@ -832,14 +832,16 @@ html.lenis body {
    ⚠️ PADDING ALONE LEAVES THE LAST ROW OF THE PAGE UNDER THE CARD. Measured in that test:
    with only the scroll padding, the footer's legal links (Products … Terms) stayed under it,
    because the page cannot scroll past its own end. So while the question is open the page
-   gains the same height of empty room at its foot, behind the card. A pseudo-element's
+   gains the same height of empty room, behind the card. Since polish M2 (2026-10-04) that room
+   sits INSIDE the footer, above its RUN APPAREL wordmark (footer.css), so the wordmark stays the
+   last thing on the page; a page with no footer keeps it at its foot, below. A pseudo-element's
    block-size, not padding: the spacing allowlist in tokens.test.ts is for layout spacing,
    and this is neither layout nor permanent; it goes when the question is answered. */
 :root:has(.consent) {
   --consent-reserve: 11rem;
   scroll-padding-block-end: var(--consent-reserve);
 }
-:root:has(.consent) body::after {
+:root:has(.consent):not(:has(.site-footer)) body::after {
   content: "";
   display: block;
   block-size: var(--consent-reserve);

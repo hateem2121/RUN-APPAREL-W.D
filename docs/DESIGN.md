@@ -717,7 +717,9 @@ page's 3D section picture has none, because the live model lies exactly over its
 The choice is a fixed card at the foot of the screen (`base.css` `.consent`), with Decline and
 Accept the same size and style. Since 2026-10-01: it is the first stop after the skip link; while
 it is open the page keeps a strip clear of it (`scroll-padding-block-end` plus the same height of
-room at the foot) so no focused item sits under it (WCAG 2.2 SC 2.4.11); on a short screen it is
+room, which since polish M2 sits inside the footer above the RUN APPAREL wordmark, so the wordmark
+stays the last thing on the page; a page with no footer keeps it at its foot) so no focused item
+sits under it (WCAG 2.2 SC 2.4.11); on a short screen it is
 one row; and on a garment page the phone action bar steps aside until it is answered. Safari
 does not scroll a field it already counts as on screen, so `ConsentBanner.tsx` lifts a focused
 field clear itself, and only one shorter than the room above the card: its first version also
@@ -737,14 +739,16 @@ us" are what a screen reader meets reading down. Both stay (`Contact.tsx` record
 it, because at 402x874 and 375x667 the same two buttons were shown twice at the same moment, and
 it returns when that pair scrolls off. Since 2026-10-03 it also fades while any of the footer is
 above it (owner's choice): over the dark footer the paper bar was a white block on an iPhone, and
-the footer carries the email, WhatsApp and "Start an inquiry" itself; the room kept for the bar
-under the footer is painted the footer's colour. `lib/actionBarStepsAside.ts` sets `data-tucked` on the bar
+the footer carries the email, WhatsApp and "Start an inquiry" itself. So since polish M2
+(2026-10-04) no room is kept for the bar under the footer: with the bar always gone there, it was an
+empty band under the wordmark, and a garment page now ends at its footer as the website does.
+`lib/actionBarStepsAside.ts` sets `data-tucked` on the bar
 from an `IntersectionObserver` whose bottom edge is pulled up by the bar's own height; the fade,
 and leaving the Tab order and the accessibility tree, are CSS: `opacity` over `--fast`, and
 `visibility`, which hides the bar once the fade ends and shows it again at once. A bar with
 keyboard focus inside it stays until focus leaves, and under reduced motion the change is
 instant. The cookie card hides the bar separately, with no fade. The bar keeps its place in the
-layout throughout, so the room the page reserves for it is unchanged, and it is still not shown
+layout throughout, so the room the stage reserves for it is unchanged, and it is still not shown
 from 900px wide or on a screen 500px tall or less (see Breakpoints).
 
 ### Panels

@@ -39,8 +39,9 @@ const ON_SCREEN = 0.95
  * toolbar, so the dark footer ended in a block of paper a fifth of the screen tall. The footer
  * carries the email and the WhatsApp number itself (and carried "Start an inquiry" until polish Q42
  * made the page's own section its one prompt), so the bar goes while ANY of the footer is above it
- * (owner's choice that day), and the page ends in the footer's colour:
- * `.page`'s room for the bar is painted that colour in `page.css`. The footer's own watcher is
+ * (owner's choice that day), and the page ends in the footer's colour. Since polish M2 (2026-10-04)
+ * it ends AT the footer: with the bar always gone there, the room `.page` kept for it under the
+ * footer was an empty band, and is gone (`page.css`). The footer's own watcher is
  * separate from the pair's, because "any of it" and "nearly all of it" are different thresholds.
  *
  * It only sets an attribute. The fade, and keeping a hidden bar out of the Tab order and the

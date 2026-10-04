@@ -14,87 +14,18 @@
   display: flex;
   flex-direction: column;
   /*
-   * Room for the mobile bottom action bar — THE TOKEN, not a raw number.
-   *
-   * ⚠️ THIS WAS A RAW `76px` AGAINST A BAR THAT MEASURES 72. `tokens.css` says
-   * that height "was re-derived by hand in three places that disagreed", which is
-   * precisely why `--action-bar-h` exists; this was a fourth place, still
-   * disagreeing, inside the fix. Owner decision 2026-08-20: make them match.
-   * Nothing on screen moves — the 4px was never doing a job anyone recorded.
-   *
-   * ⚠️ NO `env(safe-area-inset-bottom)` HERE, AND REMOVING IT FIXED TWO BUGS.
-   * It read `calc(var(--action-bar-h) + env(safe-area-inset-bottom, 0px))` until
-   * 2026-09-04.
-   *
-   * 1. DOUBLE-COUNTED THE INSET. `.action-bar` sets
-   *    `padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px))`, so the
-   *    height `lib/actionBarHeight.ts` measures ALREADY contains the inset.
-   *    Adding it again reserved the notch twice — ~34px of dead space at the
-   *    bottom of every page on a notched iPhone, which is the one device class
-   *    this viewer is built for.
-   *
-   * 2. THE RUNTIME MEASUREMENT NEVER REACHED THIS RULE ON SOME WEBKIT BUILDS.
-   *    Measured in CI (Linux WebKit + mobile-safari, 2026-09-04), across four
-   *    failing viewports at two root font sizes:
-   *
-   *        token 77px  -> .page padding-bottom 73px
-   *        token 81px  -> .page padding-bottom 73px
-   *        token 107px -> .page padding-bottom 73px
-   *
-   *    73px is 72px — the `:root` default in tokens.css — plus a 1px inset. The
-   *    inline custom property on <html> updated correctly every time and this
-   *    declaration never re-resolved, so the whole ResizeObserver was inert HERE
-   *    while appearing to work everywhere it was inspected. macOS WebKit does
-   *    re-resolve it, which is why four engines passed locally.
-   *
-   *    `calc(var() + env())` is the construct that does not re-resolve; a bare
-   *    `var()` does. Do NOT reintroduce the `env()` — the bar's height carries it.
+   * ⚠️ NO ROOM FOR THE CONTACT BAR UNDER THE FOOTER (polish M2, 2026-10-04, the owner's iPhone).
+   * Until then the page kept `max(var(--action-bar-h), 4.5rem)` (72px; 108px at the largest text
+   * size) under the footer, so the last content could scroll clear of the fixed Email / WhatsApp
+   * bar on a phone, and from 2026-10-03 painted it the footer's colour. Since that same day the bar
+   * steps aside while any of the footer is above it (`lib/actionBarStepsAside.ts`), so at the end of
+   * the page the bar is gone and the room was empty: a dark band under the RUN APPAREL wordmark on
+   * every garment page. The footer now runs to the bottom edge, as on the website;
+   * `e2e/action-bar-steps-aside.spec.ts` checks that the page ends at the footer and that the bar
+   * has gone there, with the text at its largest too (`e2e/motion-and-layout.spec.ts`). The
+   * reserve's history (a WebKit build that never re-resolved it, the rem floor) is in git:
+   * `git log -S"4.5rem" -- apps/viewer/src/styles/page.css`.
    */
-  /*
-   * ⚠️ `max()` WITH A rem FLOOR, BECAUSE THE RUNTIME MEASUREMENT CANNOT BE RELIED
-   * ON. `lib/actionBarHeight.ts` measures the bar and writes `--action-bar-h`, and
-   * on CI's WebKit that value reaches this element ONE UPDATE LATE — proven with
-   * the strongest write available, an important inline style:
-   *
-   *     attr "padding-bottom: 107px !important;"  prio "important"  pad "73px"
-   *
-   * Six mechanisms were tried and all six failed identically (custom property,
-   * bare var(), inline style, forced reflow, `!important`, and deferring the write
-   * out of the ResizeObserver into a rAF), so no write can fix it.
-   *
-   * The floor does, and for a reason rather than by luck: the bar grows because
-   * its own text is rem-based, so a rem floor grows with exactly the thing that
-   * makes the bar taller. Measured, 375x812 in WebKit:
-   *
-   *     root 16px   bar  72px   4.5rem  72px   ok
-   *     root 20px   bar  76px   4.5rem  90px   ok
-   *     root 24px   bar 107px   4.5rem 108px   ok
-   *
-   * 4.5rem is the smallest step that clears every measured height, and it is a
-   * FLOOR — where the variable does arrive it still wins whenever it is larger,
-   * so nothing loses precision. The cost is a few pixels of slack at enlarged text
-   * sizes, which is the correct direction to be wrong in: too much room below the
-   * last content is invisible, too little makes it unreachable.
-   */
-  padding-bottom: max(var(--action-bar-h), 4.5rem);
-}
-
-/*
- * ⚠️ THE ROOM KEPT FOR THE BAR IS THE FOOTER'S COLOUR (2026-10-03, owner's iPhone screenshot). The
- * footer is the last thing in `.page`, so this room sits UNDER it, and the bar no longer covers it:
- * it steps aside while the footer is on screen (`lib/actionBarStepsAside.ts`). In the page's paper
- * the room read as the same white band the owner reported on every page, so it is painted the
- * footer's colour, exactly the padding's height and nowhere else. The value is `--footer-bg`'s,
- * which is scoped to the footer and cannot be read from here (footer.css says the same).
- */
-.page {
-  background-image: linear-gradient(
-    light-dark(var(--ink), var(--raised)),
-    light-dark(var(--ink), var(--raised))
-  );
-  background-repeat: no-repeat;
-  background-position: bottom;
-  background-size: 100% max(var(--action-bar-h), 4.5rem);
 }
 
 /*
@@ -134,17 +65,6 @@
  */
 .page:focus {
   outline: none;
-}
-
-/* No action bar in two columns (the aside carries Email and WhatsApp), so no reserve for it. The
-   two-column query, not `min-width: 900px`, since polish F11 (2026-10-04): an upright tablet of
-   900px and up is one column and keeps the bar. */
-@media (min-width: 900px) and (orientation: landscape),
-  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
-  .page {
-    padding-bottom: 0;
-    background-image: none;
-  }
 }
 
 /* ── Header: the website's bar, in this page's flow (since 2026-09-24) ──── */
@@ -2101,9 +2021,17 @@ model-viewer.stage__model {
   margin: 0;
 }
 
-/* `list-style: none` is why `SpecGroups.tsx` writes `role="list"` out (VA-59). */
+/*
+ * `list-style: none` is why `SpecGroups.tsx` writes `role="list"` out (VA-59).
+ * ⚠️ `minmax(0, 1fr)`, NOT THE IMPLICIT `auto` COLUMN, AND `min-width: 0` ON THE WORDS (below).
+ * An auto column grows to its longest word and a flex item will not shrink below it, so when a
+ * word was wider than its column the list ran 29px past its column and 13px past the screen instead
+ * of breaking it as `.spec-item__row` asks: Firefox, a 320px phone, text size changed to 24px while the page was
+ * open, 4 runs in 10 (2026-10-04), when Firefox had not yet re-checked the container query below.
+ */
 .spec-group__items {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   margin: 0;
   padding: 0;
@@ -2135,6 +2063,10 @@ model-viewer.stage__model {
 summary.spec-item__row {
   cursor: pointer;
   list-style: none;
+}
+
+.spec-item__text {
+  min-width: 0;
 }
 
 /* Safari draws its own disclosure triangle unless this marker is hidden too. */
@@ -2197,6 +2129,7 @@ summary.spec-item__row:focus-visible {
   color: var(--muted);
   /* No last line of one word ("…every way you / do."), where the browser can avoid it. */
   text-wrap: pretty;
+  overflow-wrap: break-word;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2809,11 +2742,6 @@ summary.spec-item__row:focus-visible {
   .action-bar {
     display: none;
   }
-
-  .page {
-    padding-bottom: 0;
-    background-image: none;
-  }
 }
 
 /*
@@ -3283,13 +3211,6 @@ summary.spec-item__row:focus-visible {
   /* The bar prints once, at the top of the sheet, not over every sheet. */
   .notch-shell {
     position: static;
-  }
-
-  /* No room kept for a phone's bar, and no footer-coloured band in it (the iPhone note at the
-     top of this file): on paper it is only blank space at the foot of the sheet. */
-  .page {
-    padding-bottom: 0;
-    background-image: none;
   }
 
   /*
