@@ -2373,6 +2373,12 @@ a.contact-block__value:active {
   margin-block-start: 0;
 }
 
+/* "On this page" is read, so 12px, not `.mono`'s 11px (VA-11; e2e/readText.spec.ts found it).
+   Two classes, so it beats base.css's `.mono` in whichever order the stylesheets arrive. */
+.legal__toc .legal__toc-label {
+  font-size: var(--text-mono-lg);
+}
+
 .legal__toc ol {
   display: flex;
   flex-wrap: wrap;
