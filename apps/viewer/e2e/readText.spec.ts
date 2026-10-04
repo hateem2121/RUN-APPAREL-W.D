@@ -17,7 +17,11 @@ import { expect, test } from '@playwright/test'
  * headline shows, so the download count, which is on screen only while the model arrives, is read
  * whenever it is still there.
  */
-const DECORATIVE = ['.label', '.section-number', '.spec-list dt'].join(', ')
+// `.label > [translate="no"]`: the garment code inside "[ ATHLETIC / N001 ]", in a span of its
+// own since polish X27 (2026-10-04) so a browser's Translate leaves it alone. Part of the label.
+const DECORATIVE = ['.label', '.label > [translate="no"]', '.section-number', '.spec-list dt'].join(
+  ', ',
+)
 
 for (const viewport of [
   { width: 390, height: 844 },
