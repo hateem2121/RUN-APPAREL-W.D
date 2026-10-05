@@ -5013,6 +5013,64 @@ a.contact-block__value:active {
   }
 }
 
+/*
+ * The ticket cards rise into place as they scroll in (polish MO4, 2026-10-05: "give the new cards
+ * and steps the same scroll-linked feel"). The order steps already move with the scroll (their
+ * sink, "the order steps" above); a rise on a card the stack holds in place would move a card whose
+ * position that arithmetic sets exactly, so the steps take nothing more.
+ *
+ * The same contract as `site-reveal`: scroll-driven CSS and no script, so a browser without scroll
+ * timelines (Firefox, 5 Oct 2026) and a page without JavaScript show every card in place; no
+ * `opacity` (the axe contrast trap above); only when motion is welcome. `animation-range` is in the
+ * support query too (web.dev, "scroll-entry-exit-effects"): an engine with timelines but no ranges
+ * would run the rise across the whole page.
+ *
+ * ⚠️ `translate`, NOT `transform`. The section a card sits in rises by `transform` (`site-reveal`)
+ * and the card presses by `scale` (MO6): three separate properties, which compose, so none of
+ * them overrides another. While its section is still rising a card rises a little further, which
+ * reads as the cards following their heading in.
+ */
+@keyframes card-rise {
+  from {
+    translate: 0 var(--reveal-y);
+  }
+  to {
+    translate: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .product-card,
+    .family-card {
+      animation: card-rise var(--settle) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+}
+
+@media print {
+  .product-card,
+  .family-card {
+    animation: none;
+  }
+}
+
+/*
+ * A product card's picture grows into the garment page (polish MO3, 2026-10-05, the owner's "grow
+ * into the loading screen"). A cross-document view transition, so this page and the garment page
+ * (apps/viewer page.css) both opt in. The opt-in covers every navigation from every website page,
+ * so `CardOpening.tsx` names only the tapped card's picture and cancels every other transition:
+ * a plain link still just loads the next page. Never a name here: every card would carry it at
+ * once, and two elements with one name cancel the whole transition (`cardOpening.test.ts`).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+
 /* ------------------------------------------------ №03 the live garment (D24) */
 
 /*

@@ -805,6 +805,199 @@ test.describe('scroll motion — the photos open and drift', () => {
 })
 
 /**
+ * MO4 (polish, 2026-10-05): the ticket cards rise into place as they scroll in, as the sections do.
+ * What would have to break: motion for someone who asked for none, or a card left part-way up once
+ * it is on screen, which is how a scroll animation turns into a card out of line with its row.
+ * The card measured is the first one below the first screen, so it can be seen entering.
+ */
+test.describe('MO4 — the ticket cards rise into place as they scroll in', () => {
+  for (const [path, selector] of [
+    ['/products', '.product-card'],
+    ['/', '.family-card'],
+  ] as const) {
+    test(`${path}: a card is lowered while it enters and in place once on screen`, async ({
+      page,
+      browserName,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+      // 700 tall (a laptop with its bars): the seed has ONE garment, whose card starts 778px down,
+      // inside a 900px screen, so only a shorter one shows it arriving.
+      await page.setViewportSize({ width: 1440, height: 700 })
+      await page.goto(path)
+      const supported = await page.evaluate(() =>
+        CSS.supports('(animation-timeline: view()) and (animation-range: entry)'),
+      )
+      test.skip(
+        !supported,
+        `${browserName} has no scroll-driven animations: every card is in place`,
+      )
+
+      const below = await page.evaluate(
+        (sel) =>
+          [...document.querySelectorAll(sel)].findIndex(
+            (card) => card.getBoundingClientRect().top > window.innerHeight,
+          ),
+        selector,
+      )
+      expect(
+        below,
+        'every card is on the first screen, so none can be seen entering',
+      ).toBeGreaterThan(-1)
+      const card = page.locator(selector).nth(below)
+      const style = () =>
+        card.evaluate((el) => ({
+          name: getComputedStyle(el).animationName,
+          lowered: Number.parseFloat(getComputedStyle(el).translate.split(' ')[1] ?? '0'),
+        }))
+      expect((await style()).name).toBe('card-rise')
+
+      // Its top a little inside the foot of the screen: entering, so still lowered.
+      await card.evaluate((el) =>
+        window.scrollBy(0, el.getBoundingClientRect().top - window.innerHeight + 40),
+      )
+      await expect.poll(async () => (await style()).lowered).toBeGreaterThan(0)
+      // In the middle of the screen: wholly in place.
+      await card.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+      await expect
+        .poll(() => card.evaluate((el) => getComputedStyle(el).translate))
+        .toMatch(/^(none|0px( 0px)?)$/)
+    })
+  }
+
+  test('under reduced motion no card moves', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/products')
+    await expect(page.locator('.product-card').first()).toBeVisible()
+    const names = await page.evaluate(() => [
+      ...new Set(
+        [...document.querySelectorAll('.product-card')].map(
+          (card) => getComputedStyle(card).animationName,
+        ),
+      ),
+    ])
+    expect(names).toEqual(['none'])
+  })
+})
+
+/**
+ * MO3 (owner, 5 Oct: "grow into the loading screen"): a product card's picture grows into the
+ * garment page, and every other link on the site loads the next page exactly as before.
+ *
+ * In this suite the garment pages live on the viewer's own server, another origin, where no
+ * transition can run, so the card's link is pointed at a website page for the test. What is
+ * measured is THIS page's half (`CardOpening.tsx`), on the page being LEFT: whether the browser
+ * offered a transition (`pageswap`) and whether the script cancelled it. Whether the next page
+ * then takes it is that page's business: the garment page's half, inline opt-in included, is
+ * apps/viewer's `e2e/page-transition.spec.ts`.
+ */
+test.describe('MO3 — only a card tap carries its picture into the next page', () => {
+  const NAME = 'garment-opening'
+
+  /** Open /products with a recorder on every page, the first card aimed at /contact, and taps held. */
+  async function ready(page: Page, motion: 'no-preference' | 'reduce') {
+    await page.addInitScript(() => {
+      // Registered before the page's own scripts, so it runs before CardOpening's listener: it
+      // notes what the browser offered, and the wrapped skip notes whether the script cancelled it.
+      const proto = (
+        window as Window & { ViewTransition?: { prototype: { skipTransition(): void } } }
+      ).ViewTransition?.prototype
+      if (proto) {
+        const skip = proto.skipTransition
+        proto.skipTransition = function (this: unknown) {
+          sessionStorage.setItem('mo3-skipped', 'yes')
+          return skip.call(this)
+        }
+      }
+      window.addEventListener('pageswap', (event) => {
+        const offered = (event as Event & { viewTransition?: unknown }).viewTransition
+        sessionStorage.setItem('mo3-offered', offered ? 'yes' : 'no')
+        sessionStorage.removeItem('mo3-skipped')
+      })
+    })
+    await page.emulateMedia({ reducedMotion: motion })
+    await page.goto('/products')
+    const supported = await page.evaluate(() => 'onpageswap' in window)
+    test.skip(!supported, 'this engine has no cross-document view transitions: it simply loads')
+    const slide = page.locator('.product-card .card-gallery__slide[tabindex="0"]').first()
+    await slide.evaluate((el) => {
+      el.setAttribute('href', '/contact')
+      // A held tap does everything a tap does but leave the page, so the script can be watched.
+      document.addEventListener(
+        'click',
+        (event) => {
+          if ((window as Window & { hold?: boolean }).hold) event.preventDefault()
+        },
+        { capture: true },
+      )
+      ;(window as Window & { hold?: boolean }).hold = true
+    })
+    // The script is there once a held tap names the picture (the page may still be hydrating).
+    await expect
+      .poll(async () => {
+        await slide.click()
+        return slide.evaluate((el) => el.style.getPropertyValue('view-transition-name'))
+      })
+      .toBe(NAME)
+    return slide
+  }
+
+  const named = (page: Page) =>
+    page.evaluate(
+      (name) =>
+        [...document.querySelectorAll<HTMLElement>('*')].filter(
+          (el) => el.style.getPropertyValue('view-transition-name') === name,
+        ).length,
+      NAME,
+    )
+  const release = (page: Page) =>
+    page.evaluate(() => {
+      ;(window as Window & { hold?: boolean }).hold = false
+    })
+  /** What the page that was left decided: offered by the browser, and cancelled by the script? */
+  const decision = (page: Page) =>
+    page.evaluate(() => ({
+      offered: sessionStorage.getItem('mo3-offered'),
+      cancelled: sessionStorage.getItem('mo3-skipped') === 'yes',
+    }))
+
+  test('a card tap names that one picture and lets the transition go', async ({ page }) => {
+    const slide = await ready(page, 'no-preference')
+    expect(await named(page), 'two names cancel the whole transition').toBe(1)
+    await release(page)
+    await slide.click()
+    await page.waitForURL('**/contact')
+    expect(await decision(page)).toEqual({ offered: 'yes', cancelled: false })
+  })
+
+  test('any other link clears the name and cancels the transition', async ({ page }) => {
+    await ready(page, 'no-preference')
+    await page.evaluate(() => {
+      const plain = document.createElement('a')
+      plain.id = 'mo3-plain'
+      plain.href = '/contact'
+      plain.textContent = 'Contact'
+      // Over everything, so no sticky bar can sit on the link the test presses.
+      plain.style.cssText =
+        'position: fixed; top: 50%; left: 50%; z-index: 2147483647; padding: 12px'
+      document.body.append(plain)
+    })
+    await release(page)
+    await page.locator('#mo3-plain').click()
+    await page.waitForURL('**/contact')
+    expect(await decision(page)).toEqual({ offered: 'yes', cancelled: true })
+  })
+
+  test('under reduced motion even a card tap simply loads', async ({ page }) => {
+    const slide = await ready(page, 'reduce')
+    await release(page)
+    await slide.click()
+    await page.waitForURL('**/contact')
+    // No opt-in under reduced motion, so the browser offers nothing to cancel.
+    expect(await decision(page)).toEqual({ offered: 'no', cancelled: false })
+  })
+})
+
+/**
  * MO1 (owner, 3 Oct: "each card type its own hover"): a guide card no longer lifts 4px like every
  * card did; it slides its arrow 4px, as the family cards' "View the range" does, and takes the
  * accent edge. Read off the real hover: the card stays where it is, the arrow moves.
