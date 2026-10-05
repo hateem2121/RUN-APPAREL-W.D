@@ -64,7 +64,14 @@ async function drawnMargins(
           img.removeAttribute('sizes')
           img.src = source
         }
-        await img.decode()
+        // A picture that never loaded draws nothing to measure: a resized copy (`/cdn-cgi/image/`)
+        // that a local server cannot make, for a database whose garments name the live media host.
+        // Skipped, not counted as a margin of NaN; `expectInset` still fails on finding none.
+        const loaded = await img.decode().then(
+          () => img.naturalWidth > 0,
+          () => false,
+        )
+        if (!loaded) continue
         const box = img.closest<HTMLElement>(frame)
         if (!box) throw new Error(`${image} is not inside ${frame}`)
         const outer = box.getBoundingClientRect()
@@ -181,9 +188,14 @@ async function openProducts(page: Page, width: number) {
   }
 }
 
-test.describe('the home family cards keep a margin around the garment (VA-55)', () => {
-  for (const width of [390, 1440]) {
-    test(`at ${width}px the pictures as served sit 6% or more from every edge of their 4:5 box`, async ({
+/*
+ * Since polish D3 a family card is a ticket and its picture box is the ticket's picture half, whatever
+ * shape that is: square-ish sideways on a phone (390px), wide for the fifth ticket across a tablet
+ * (900px), and in the row of five (1440px) the top of a closed ticket, or, opened, the tall left of it.
+ */
+test.describe('the home family tickets keep a margin around the garment (VA-55, D3)', () => {
+  for (const width of [390, 900, 1440]) {
+    test(`at ${width}px the pictures as served sit 6% or more from every edge of their box`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 })
@@ -206,18 +218,44 @@ test.describe('the home family cards keep a margin around the garment (VA-55)', 
     }
   }
 
-  test('the boxes are still 4:5, the Sports Accessories card included', async ({ page }) => {
+  // The tallest box there is: an opened ticket's picture at 1180px, the narrowest row (179 x 380).
+  for (const shape of SHAPES) {
+    test(`an opened ticket at 1180px: ${shape.name} sits 6% or more from every edge`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1180, height: 900 })
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.goto('/')
+      // The first: CI's one garment is a Sportswear one, so this ticket has a picture everywhere.
+      const first = page.locator('.family-grid > .family-card').first()
+      await first.hover()
+      // Open: its picture is the full height of the ticket.
+      await expect
+        .poll(() =>
+          first.evaluate((card) => {
+            const media = card.querySelector('.family-card__media')?.getBoundingClientRect()
+            return media ? Math.round(media.height) : 0
+          }),
+        )
+        .toBeGreaterThan(360)
+      expectInset(
+        await drawnMargins(
+          page,
+          '.family-card:hover .family-card__img',
+          '.family-card__media',
+          shape,
+        ),
+        `an opened ticket, ${shape.name}`,
+      )
+    })
+  }
+
+  test('five family pictures, the Sports Accessories photo with the same margin', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/')
-    const ratios = await page.locator('.family-card__media').evaluateAll((all) =>
-      all.map((box) => {
-        const { width, height } = box.getBoundingClientRect()
-        return width / height
-      }),
-    )
-    expect(ratios).toHaveLength(5)
-    for (const ratio of ratios)
-      expect(Math.abs(ratio - 0.8), `a family box is ${ratio}`).toBeLessThan(0.01)
+    await expect(page.locator('.family-card__media')).toHaveCount(5)
     // The owner kept the accessories photo and gave it the same margin as the others. (Once a
     // garment of its own is published its card shows that instead, and there is no photo to check.)
     if ((await page.locator('.family-card__img[src*="sports-accessories"]').count()) === 0) {

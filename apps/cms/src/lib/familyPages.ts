@@ -65,7 +65,8 @@ export type FamilyPage = {
 const fact = (prefix: string): string =>
   FACTS.find((entry) => entry.label.startsWith(prefix))?.value ?? ''
 
-const MINIMUM = fact('Minimum')
+/** The minimum order per style, as the home page's numbers state it (`FACTS`). */
+export const MINIMUM = fact('Minimum')
 const SAMPLE_DAYS = fact('Working days')
 
 /** The one action every buyer page asks for. `e2e/copy.spec.ts` knows it as a primary label. */
@@ -252,6 +253,16 @@ export const FAMILY_SOON = {
   ask: 'Ask what we make',
   href: '/contact',
 } as const
+
+/**
+ * The kinds of garment a family's home-page card lists when it opens (polish D3): the first four
+ * groups of its buyer page's "what we make", in the owner's approved words. A family with no page
+ * lists none: nothing the site has not already said is claimed for it (the demo's "Backpacks / Bags
+ * / Caps" for Sports Accessories was never confirmed).
+ */
+export function familyTypes(family: Family): readonly string[] {
+  return (familyPageFor(family)?.makes ?? []).slice(0, 4).map((entry) => entry.group)
+}
 
 /**
  * Whether a family says "[ soon ]": no page AND no garment yet (today, Sports Accessories). Once a

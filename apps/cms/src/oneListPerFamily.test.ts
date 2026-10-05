@@ -94,8 +94,8 @@ describe('a family says "[ soon ]" only with no page and no garment', () => {
     }
     const words = [code('app/(frontend)/products/page.tsx'), code('components/site/FamilyCard.tsx')]
     for (const source of words) {
-      expect(source).toContain('{FAMILY_SOON.label}')
-      expect(source).toContain('{FAMILY_SOON.ask}')
+      expect(source).toMatch(/\bFAMILY_SOON\.label\b/)
+      expect(source).toMatch(/\bFAMILY_SOON\.ask\b/)
       expect(source).not.toMatch(/\[ soon \]|Ask what we make/)
     }
   })

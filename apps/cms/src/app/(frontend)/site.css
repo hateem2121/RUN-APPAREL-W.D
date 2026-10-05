@@ -1183,10 +1183,9 @@ html {
  * at the top of this file). Padding on a replaced element insets the box `object-fit` fits the
  * picture into, so `contain` draws the garment inside the margin and the frame behind it, the
  * 4:5 box the card keeps (MDN, `object-fit`: it applies to the content box; read 2026-10-02), is
- * the same size it was. On exactly three pictures: the home family cards, the swipe gallery's
- * slides on the product cards (so /products and the buyer pages), and the buyer page's hero.
- * Sports Accessories has the same margin as the others: the owner kept its photo (on black, the
- * only one) and chose to give it the margin too.
+ * the same size it was. On exactly two pictures: the swipe gallery's slides on the product cards
+ * (so /products and the buyer pages), and the buyer page's hero. The home family tickets keep the
+ * same 7% another way, since polish D3: their picture boxes are not 4:5 (`.family-card__img`).
  *
  * ⚠️ NOT ON `.product-card__img` ITSELF. That rule is also the home page's 3D section picture, and
  * the live model lies exactly over its frame (`.live-garment`, D24): an inset still under a model
@@ -1195,7 +1194,6 @@ html {
  * `lib/cardGallery.ts`), and the padding sits inside the picture, not on the slide. A broken
  * picture's alt text is inset by the same margin, which is a fine place for it.
  */
-.family-card__img,
 .card-gallery__slide .product-card__img,
 .family-hero__frame .product-card__img {
   padding: calc(var(--picture-inset) * 1.25) var(--picture-inset);
@@ -2024,35 +2022,44 @@ a.contact-block__value:active {
  *
  * The count is fixed and known — it mirrors the `category` options on Products — so it
  * is treated as a composition rather than as an unknown list. Every state is complete:
- * one column below 560, two columns with the fifth spanning both up to 1179, and all
- * five in a row at 1180 and above, where 1052px of content gives each card 191px.
+ * one column of sideways tickets below 560, two columns with the fifth spanning both above,
+ * and, where a pointer can hover from 1180px, all five in a row that opens one at a time
+ * (polish D3; "The family tickets" below has the cards themselves).
  */
 .family-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   margin: 24px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.family-grid > li:last-child {
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 559px) {
+@media (min-width: 560px) {
   .family-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (min-width: 1180px) {
-  .family-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
   }
 
+  /* The fifth spans both columns, its picture as wide as the others' (a column less half the gap,
+     40% of it), so the pictures line up and one `sizes` hint fits all five (FAMILY_SIZES). */
   .family-grid > li:last-child {
-    grid-column: auto;
+    --ticket-seam: calc((100% - 24px) * 0.2);
+    grid-column: 1 / -1;
+  }
+}
+
+/*
+ * The row of five, only where a pointer can hover: a touch screen this wide (a tablet on its
+ * side) keeps the sideways tickets above, which say everything without being opened. 380px tall:
+ * at 1180px each closed card is 203px wide and its picture 243px tall, and an opened card's words
+ * fit in 380px with the longest types line on four lines (measured in e2e/familyTickets.spec.ts).
+ */
+@media (min-width: 1180px) and (hover: hover) and (pointer: fine) {
+  .family-grid {
+    display: flex;
+    gap: 12px;
+    block-size: 380px;
   }
 }
 
@@ -2632,18 +2639,6 @@ a.contact-block__value:active {
   min-height: var(--target-min);
   font-size: var(--text-sm);
   color: var(--text);
-}
-
-/* The whole family card is the link, so the anchor has to fill it. */
-.family-card {
-  padding: 0;
-}
-
-.family-card__link {
-  display: block;
-  padding: 20px;
-  text-decoration: none;
-  color: inherit;
 }
 
 /* ------------------------------------------------ prose pages (privacy, terms) */
@@ -3458,69 +3453,253 @@ a.contact-block__value:active {
   color: var(--muted);
 }
 
-/* ------------------------------------------------ №02 family cards, now with pictures */
+/* ------------------------------------------------ №02 the family tickets (polish D3, M1, F1) */
 
 /*
- * The owner, 2026-09-29: "the active block should change color or animate to indicate that
- * these are clickable". Lift, accent edge, the picture easing closer and the arrow moving —
- * on a pointer that can hover, and the same on keyboard focus; a touch gets the press.
+ * ⚠️ EACH FAMILY IS A TICKET (polish D3, the owner's version 2 of 3 October 2026; M1, the owner's
+ * answer Q3). Two halves and a tear line between them, with a notch where the tear line meets each
+ * edge. `FamilyCard.tsx` has the markup and why the title is the card's one link.
+ *
+ * SIDEWAYS EVERYWHERE BUT THE ROW: picture on the left, the words on the right, the notches on the
+ * top and bottom edge (M1). A phone, a tablet and a touch screen of any width see this, and it says
+ * everything without being opened. The card's own width decides how much (container queries,
+ * Baseline since 14 February 2023; web-guidance "size-aware-styling", index of 4 September 2026):
+ * the description joins once there is room for it.
+ *
+ * THE ROW (1180px and wider, a pointer that can hover; below): closed, the picture sits over a stub
+ * with the name and the count, and the notches are on the sides at the fold. A card opens when the
+ * pointer rests on it for `--instant` (so a pointer crossing the row opens nothing), or at once when
+ * the keyboard reaches it: it widens, the picture moves left, the words arrive `--stagger` apart,
+ * the notches move to the new seam, and its neighbours' pictures fade back. It closes the moment the
+ * pointer leaves, and on Escape (`TicketDismiss.tsx`). Its grid's tracks move rather than anything
+ * being positioned on top, so the title's stretched link covers the whole card in every state.
+ *
+ * ⚠️ THE KEYBOARD RING IS DRAWN INSIDE THE CARD (F1). The card clips what lies outside it (its
+ * rounded corners, its notches), and a ring drawn 2px outside, as everywhere else, lost 3 or 4 of
+ * its 4px; on a product card's picture none of it showed (W3C "Understanding 2.4.7 Focus Visible",
+ * updated 6 September 2026, failure F78). Here the whole card wears it, 4px inside its edge.
+ *
+ * The notches are a mask (Baseline since 7 December 2023). Their sizes are registered properties so
+ * they glide (Baseline since 9 July 2024; web-guidance "interactive-content-reveal"); a browser
+ * without `@property` moves them at once. `overflow: clip`, not `hidden`: a focused link in a part
+ * not yet open would otherwise scroll the card's insides.
  */
-.family-card {
-  overflow: hidden;
-  transition:
-    translate var(--ui) var(--ease),
-    border-color var(--ui) var(--ease);
+@property --ticket-end-notch {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0.01px;
 }
 
-.family-card__link {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+@property --ticket-side-notch {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0.01px;
+}
+
+.family-card {
+  /* Where the picture meets the words, across the card; and, in the row, where the stub begins. */
+  --ticket-seam: 40%;
+  --ticket-fold: 64%;
+  --ticket-end-notch: 10px;
+  --ticket-side-notch: 0.01px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--ticket-seam) minmax(0, 1fr);
+  min-block-size: 152px;
+  /* A list item, so base.css capped it at 60 characters: a spanning or opened ticket is wider. */
+  max-inline-size: none;
   padding: 0;
+  overflow: clip;
+  container-type: inline-size;
+  mask:
+    radial-gradient(
+      circle var(--ticket-end-notch) at var(--ticket-seam) 0,
+      transparent 98%,
+      var(--ink)
+    ),
+    radial-gradient(
+      circle var(--ticket-end-notch) at var(--ticket-seam) 100%,
+      transparent 98%,
+      var(--ink)
+    ),
+    radial-gradient(
+      circle var(--ticket-side-notch) at 0 var(--ticket-fold),
+      transparent 98%,
+      var(--ink)
+    ),
+    radial-gradient(
+      circle var(--ticket-side-notch) at 100% var(--ticket-fold),
+      transparent 98%,
+      var(--ink)
+    );
+  mask-composite: intersect;
+  transition: scale var(--instant) var(--ease);
+}
+
+/* The tear line between picture and words, top to bottom. */
+.family-card::before {
+  content: "";
+  position: absolute;
+  inset-block: 16px;
+  inset-inline-start: var(--ticket-seam);
+  border-inline-start: 1px dashed var(--line);
+  pointer-events: none;
 }
 
 .family-card__media {
   position: relative;
   display: block;
-  aspect-ratio: 4 / 5;
-  overflow: hidden;
+  grid-area: 1 / 1;
+  min-block-size: 0;
+  overflow: clip;
   background: var(--bg);
-  border-block-end: 1px solid var(--line);
-}
-
-.family-card__img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transition: scale var(--settle) var(--ease);
 }
 
 /*
- * A family with nothing to show wears "[ soon ]" on its picture (polish F8): the products page's
- * label, over the picture so the card's words keep their height. 8px inside the picture's corner:
- * the corner is `--picture-inset` in from each side, because a top offset in % is read against the
- * box's height, and the picture's top margin is 1.25 x 7% of a 4:5 box's width, which is 7% of its
- * height. In the dark theme a label is volt words on nothing, which a light picture would swallow,
- * so here it stands on the card's own ground in both themes.
+ * ⚠️ THE MARGIN BY POSITION, NOT PADDING (VA-55's 7%, polish D3). Percentage padding is measured
+ * against the box's WIDTH on every side, so the shared rule's `x 1.25` gives an even margin only in a
+ * 4:5 box, and a ticket's picture box is any shape: a sideways ticket with three lines of kinds is
+ * 139 x 204 px, where a 2:3 render came 5.97% from the top. A position's top and bottom are measured
+ * against the HEIGHT, so `inset: 7%` keeps every edge at 7% whatever the box. Nothing moves or grows
+ * the picture when the card opens: the demo's 5% step forward took the margin to 4.5%
+ * (`e2e/pictureInset.spec.ts` measured both).
  */
-.family-card__soon {
+.family-card__img {
   position: absolute;
-  inset-block-start: calc(var(--picture-inset) + 8px);
-  inset-inline-start: calc(var(--picture-inset) + 8px);
-  --label-bg: light-dark(var(--volt), var(--bg));
+  inset: var(--picture-inset);
+  display: block;
+  inline-size: calc(100% - 2 * var(--picture-inset));
+  block-size: calc(100% - 2 * var(--picture-inset));
+  object-fit: contain;
 }
 
-.family-card__body {
+/* The closed stub of the row; sideways, the words beside the picture say the same. */
+.family-card__stub {
+  display: none;
+}
+
+.family-card__more {
+  grid-area: 1 / 2;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 20px;
+  gap: 6px;
+  min-inline-size: 0;
+  padding: 14px 16px;
 }
 
-.family-card__body .product-card__name,
-.family-card__body .product-card__desc {
+.family-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 8px;
   margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.family-card__title {
+  margin: 0;
+  /* The card title's face and stand-in (`.product-card__name`), in capitals, as the version 2 demo. */
+  font-family: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+  text-transform: uppercase;
+  color: var(--heading);
+  overflow-wrap: anywhere;
+}
+
+/* A real 44px row (navbar.spec.ts measures every link), stretched over the whole card. */
+.family-card__link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * ⚠️ NOTHING BETWEEN THE LINK AND THE CARD MAY BE POSITIONED OR MOVED: the stretched `::after` covers
+ * its containing block, and a `translate` on the title made the title that block (the row's lines
+ * slid in by it), so a click on the picture went nowhere (e2e/familyTickets.spec.ts found it).
+ */
+.family-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--radius-panel) - 1px);
+}
+
+/*
+ * F1: the ring, 4px inside the card's edge, drawn by the stretched `::after`: it covers the whole
+ * card and is painted last. Drawn on the card itself, the picture half (positioned, for its
+ * placeholder) painted over it, and the ring showed round the words only (measured in pixels).
+ * The title's own ring would be a second one.
+ */
+.family-card__link:focus-visible {
+  outline: none;
+}
+
+.family-card__link:focus-visible::after {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
+}
+
+/* Positioned for its dot, so it would sit over the title's stretched link: clicks pass through. */
+.family-card__line {
+  position: relative;
+  display: none;
+  block-size: 1px;
+  margin-block: 4px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+/* The dot that slides along the line as the card opens (the owner's example, 27 July 2026). */
+.family-card__line i {
+  position: absolute;
+  inset-block-start: -3px;
+  inset-inline-start: 4%;
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: inset-inline-start var(--slow) var(--ease);
+}
+
+.family-card__desc {
+  margin: 0;
+  font-size: var(--text-note);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.family-card__types {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  line-height: 1.4;
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* The stub's count, long where the card has room for it and short where it would wrap. */
+.family-card__count-short {
+  display: none;
+}
+
+@container (max-width: 199px) {
+  .family-card__count-long {
+    display: none;
+  }
+
+  .family-card__count-short {
+    display: inline;
+  }
 }
 
 .family-card__cue {
@@ -3530,31 +3709,254 @@ a.contact-block__value:active {
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--dimension);
+}
+
+.family-card__cue b {
+  display: inline-block;
+  font-weight: inherit;
   transition: translate var(--ui) var(--ease);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .family-card:hover {
-    translate: 0 -4px;
-    border-color: var(--dimension);
-  }
-
-  .family-card:hover .family-card__img {
-    scale: 1.04;
-  }
-
-  .family-card:hover .family-card__cue {
-    translate: 4px 0;
-  }
+/*
+ * Sideways, the count and the description are hidden from sight but not from a screen reader,
+ * which reads the card's words whether or not they are on show (`.visually-hidden`'s technique).
+ */
+.family-card__meta,
+.family-card__desc {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-.family-card:has(.family-card__link:focus-visible) {
-  translate: 0 -4px;
-  border-color: var(--dimension);
+/* A wide sideways card (the fifth, spanning a tablet's two columns) has room for its description. */
+@container (min-width: 520px) {
+  .family-card__desc {
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
 }
 
 .family-card:has(.family-card__link:active) {
   scale: 0.98;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .family-card:hover .family-card__cue b {
+    translate: 4px 0;
+  }
+}
+
+/*
+ * ⚠️ THE ROW. Closed: the picture over the stub (tracks `100% 0%` across, the fold down), notches
+ * on the sides at the fold, a tear line across. Open: the tracks become the seam (`44% 56%`) and the
+ * full height, the notches move to the top and bottom at the seam. `--ticket-wait` is the pause
+ * before opening, nothing before closing (the asymmetry the version 2 demo set); a keyboard opens
+ * at once. Reduced motion collapses every duration and delay (base.css), so the card simply opens.
+ */
+@media (min-width: 1180px) and (hover: hover) and (pointer: fine) {
+  .family-card {
+    --ticket-seam: 44%;
+    --ticket-end-notch: 0.01px;
+    --ticket-side-notch: 11px;
+    --ticket-wait: 0s;
+    flex: 1 1 0;
+    min-inline-size: 0;
+    min-block-size: 0;
+    /* Percentages at both ends, so the tracks glide (`fr` and `%` do not interpolate). */
+    grid-template-columns: 100% 0%;
+    grid-template-rows: var(--ticket-fold) calc(100% - var(--ticket-fold));
+    transition:
+      flex-grow var(--settle) var(--ease) var(--ticket-wait),
+      grid-template-columns var(--settle) var(--ease) var(--ticket-wait),
+      grid-template-rows var(--settle) var(--ease) var(--ticket-wait),
+      --ticket-side-notch var(--fast) var(--ease) var(--ticket-wait),
+      --ticket-end-notch var(--ui) var(--ease) calc(var(--ticket-wait) + var(--fast)),
+      scale var(--instant) var(--ease);
+  }
+
+  /* In the row the fifth is one of five: the seam the two-column layout gave it is taken back. */
+  .family-grid > li:last-child {
+    --ticket-seam: 44%;
+  }
+
+  /* The tear line across, at the fold; the one top to bottom waits for the card to open. */
+  .family-card::before {
+    opacity: 0;
+    transition: opacity var(--fast) var(--ease);
+  }
+
+  .family-card::after {
+    content: "";
+    position: absolute;
+    inset-inline: 16px;
+    inset-block-start: var(--ticket-fold);
+    border-block-start: 1px dashed var(--line);
+    pointer-events: none;
+    transition: opacity var(--fast) var(--ease) var(--ticket-wait);
+  }
+
+  .family-card__media {
+    transition:
+      opacity var(--ui) var(--ease),
+      filter var(--ui) var(--ease);
+  }
+
+  .family-card__stub {
+    grid-area: 2 / 1;
+    display: grid;
+    align-content: space-between;
+    gap: 6px;
+    min-block-size: 0;
+    padding: 16px;
+    overflow: clip;
+    transition: opacity var(--fast) var(--ease) var(--ticket-wait);
+  }
+
+  .family-card__stub-name {
+    font-family: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-card-title);
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--heading);
+    overflow-wrap: anywhere;
+  }
+
+  .family-card__count {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-lg);
+    letter-spacing: var(--tracking-caps-snug);
+    color: var(--muted);
+  }
+
+  /*
+   * Closed, the words wait unseen inside the ticket, over the picture: in the empty second track
+   * they would lie past the ticket's edge, and the fifth's past the screen's at 24px text
+   * (composition.spec.ts). Opened, they take the second track, while still unseen.
+   */
+  .family-card__more {
+    grid-area: 1 / 1 / 3 / 2;
+    gap: 10px;
+    padding: 20px 18px 18px 22px;
+    overflow: clip;
+  }
+
+  /* In the row every line is drawn, and arrives as the card opens. */
+  .family-card__meta,
+  .family-card__desc {
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .family-card__line {
+    display: block;
+  }
+
+  .family-card__more > * {
+    opacity: 0;
+    transition:
+      opacity var(--fast) var(--ease),
+      translate var(--settle) var(--ease);
+  }
+
+  /* Every line rises as it arrives but the title, which only fades: see `.family-card__link::after`. */
+  .family-card__more > :not(.family-card__title) {
+    translate: 0 8px;
+  }
+
+  .family-card__more > :nth-child(2) {
+    --i: 1;
+  }
+
+  .family-card__more > :nth-child(3) {
+    --i: 2;
+  }
+
+  .family-card__more > :nth-child(4) {
+    --i: 3;
+  }
+
+  .family-card__more > :nth-child(5) {
+    --i: 4;
+  }
+
+  .family-card__more > :nth-child(6) {
+    --i: 5;
+  }
+
+  /* Open: on a resting pointer, or at once for the keyboard; never once Escape has closed it. */
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed]) {
+    --ticket-wait: var(--instant);
+    --ticket-end-notch: 11px;
+    --ticket-side-notch: 0.01px;
+    flex-grow: 2.7;
+    grid-template-columns: var(--ticket-seam) calc(100% - var(--ticket-seam));
+    grid-template-rows: 100% 0%;
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__more {
+    grid-area: 1 / 2 / 3 / 3;
+  }
+
+  .family-card:has(.family-card__link:focus-visible):not([data-dismissed]) {
+    --ticket-wait: 0s;
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::before {
+    opacity: 1;
+    transition-delay: calc(var(--ticket-wait) + var(--fast));
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::after,
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__stub {
+    opacity: 0;
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__more
+    > * {
+    opacity: 1;
+    /* `none`, not `0 0`: any other value is still a transform, and the title must carry none. */
+    translate: none;
+    transition-delay: calc(var(--ticket-wait) + var(--instant) + var(--i, 0) * var(--stagger));
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__line
+    i {
+    inset-inline-start: 62%;
+    transition-delay: calc(var(--ticket-wait) + var(--fast));
+  }
+
+  /*
+   * The neighbours step back: their PICTURES fade, their words keep full contrast (the version 2
+   * demo faded whole cards, which took their names under 4.5:1 while one was open).
+   */
+  /* (One `:has()` may not hold another, so the focused card is found through its link.) */
+  .family-grid:has(
+      .family-card:hover:not([data-dismissed]),
+      .family-card:not([data-dismissed]) .family-card__link:focus-visible
+    )
+    .family-card:not(:hover):not(:has(.family-card__link:focus-visible))
+    .family-card__media {
+    opacity: 0.62;
+    filter: saturate(0.55);
+    transition-delay: var(--instant);
+  }
 }
 
 /* ------------------------------------------------ the guides index (VA-47) */

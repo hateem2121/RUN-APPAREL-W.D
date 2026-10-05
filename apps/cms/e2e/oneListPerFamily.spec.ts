@@ -102,20 +102,26 @@ test.describe('the products page shows every family under a heading that opens i
     page,
   }) => {
     await page.goto('/')
-    const cardOf = (name: string) =>
-      page.locator('.family-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
-    const accessories = cardOf('Sports Accessories')
-    await expect(accessories.locator('.label')).toHaveText('[ soon ]')
-    // The whole card is the link, so its name must say where it goes (WCAG 2.4.4): the words
-    // are spoken, not hidden like the other cards' "View the range".
-    const link = page.getByRole('link', { name: /Sports Accessories.*Ask what we make/ })
+    // A card is found by where its one link goes (the ticket's title, polish D3).
+    const cardOf = (href: string) =>
+      page
+        .locator('.family-card')
+        .filter({ has: page.locator(`a.family-card__link[href="${href}"]`) })
+    const accessories = cardOf('/contact')
+    await expect(accessories).toHaveCount(1)
+    await expect(accessories.locator('.family-card__meta')).toContainText('[ soon ]')
+    await expect(accessories.locator('.family-card__cue')).toContainText('Ask what we make')
+    // The link's name must say where it goes (WCAG 2.4.4): "Ask what we make" is in it, out of
+    // sight, while the other cards' "View the range" only repeats where their names lead.
+    // A pattern, not the exact words: engines join a link's words and its hidden span with
+    // different spacing ("Accessories. Ask" or "Accessories . Ask").
+    const link = page.getByRole('link', { name: /^Sports Accessories\W+Ask what we make$/ })
     await expect(link).toHaveAttribute('href', '/contact')
-    await expect(accessories.locator('.family-card__cue')).toBeVisible()
-    // CONTROL: every family with a page still opens it, and shows no label.
-    for (const { family, page: buyerPage } of WITH_A_PAGE) {
-      const card = cardOf(family.name)
-      await expect(card.locator('a.family-card__link')).toHaveAttribute('href', buyerPage.path)
-      await expect(card.locator('.label')).toHaveCount(0)
+    // CONTROL: every family with a page still opens it, and says nothing of "soon".
+    for (const { page: buyerPage } of WITH_A_PAGE) {
+      const card = cardOf(buyerPage.path)
+      await expect(card).toHaveCount(1)
+      await expect(card).not.toContainText('[ soon ]')
     }
   })
 

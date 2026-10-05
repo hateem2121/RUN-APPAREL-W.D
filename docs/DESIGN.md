@@ -686,6 +686,30 @@ chose one page per job (Q24–Q26, 2026-10-04, decision D27). So:
 - The garment pages' trail and "See all … in 3D" open the family's page too (`categoryPath` in
   `packages/shared/src/categoryPages.ts`).
 
+### The family tickets (polish D3, M1, F1)
+
+The home page's five families are tickets: two halves and a dashed tear line between them, with a
+notch where the tear line meets each edge (the owner's version 2 of 3 October 2026; `FamilyCard.tsx`,
+`site.css` "The family tickets"). The notches are a CSS mask whose sizes are registered properties,
+so they glide as a card opens.
+
+- **The row of five**, only from 1180px and only where a pointer can hover: closed, the picture sits
+  over a stub with the name and the count ("[ 19 references ]", "[ 19 refs ]" where the card is too
+  narrow for it). A card opens when the pointer rests on it for `--instant`, or at once for the
+  keyboard: it widens (2.7 shares to 1), the picture moves left, the opened half's lines arrive
+  `--stagger` apart (the count and minimum, the name, the description, the first four groups of the
+  family's buyer page, the way in), and the neighbours' pictures fade back while their words keep
+  full contrast. It closes when the pointer leaves, and on Escape (`TicketDismiss.tsx`, the one
+  script). Reduced motion opens it without moving anything.
+- **Sideways everywhere else** (M1, the owner's answer Q3): picture left, words right, notches top
+  and bottom. A phone shows one a row; a tablet, or a touch screen of any width, two, the fifth across
+  both with its picture as wide as the others'. The card's own width decides whether the description
+  shows (a container query); out of sight, it is still read to a screen reader.
+- **One link per card**, the title's, stretched over the card (as the guide cards). Nothing between
+  the link and the card may be positioned or moved, or the stretch covers less than the card.
+- **The keyboard ring is drawn inside the card (F1)**, 4px in, by the link's stretched `::after`,
+  which is painted last: on the card itself the picture half covered it.
+
 ### The product grid: two on a phone, and never one alone
 
 `/products` and the buyer pages share `.product-grid`. Visual audit VA-42 (owner's choice
@@ -745,7 +769,9 @@ The property is declared in `apps/cms/src/app/(frontend)/site.css`, not `tokens.
 website's cards read it.
 
 `object-fit: contain` fits the picture into what the padding leaves, so the 4:5 boxes are the size they
-were and a 4:5 render lands 7% from every edge. Percentage padding is measured against the width, so the
+were and a 4:5 render lands 7% from every edge. (The home family tickets' pictures are their half of the
+ticket since polish D3, tall when one opens and wide for the fifth on a tablet; the margin holds at both
+extremes, `src/pictureInset.test.ts` and `e2e/pictureInset.spec.ts`.) Percentage padding is measured against the width, so the
 block value is 1.25 times the inline one to reach the same fraction of the height. A render taller than
 4:5 is bound by the height and keeps its 7% of height; a wider one keeps its 7% of width. The browser
 test holds a floor of 6%, the bottom of the owner's "about 6-8%". Sports Accessories, whose photo is the
@@ -799,8 +825,9 @@ from 900px wide or on a screen 500px tall or less (see Breakpoints).
 list each guide twice, as a card with its own button and as a chip at the foot of the page. Now the
 card's heading is the only link, named by the guide's title, and its `::after` is stretched over the
 card (`site.css`, `.guide-card__link`), so a click or tap anywhere on it opens the guide. Nothing
-interactive sits inside it, and the card hovers as the family cards do: a 4px lift and an accent
-edge on a mouse and on keyboard focus, the press on touch. The foot of the page keeps only the
+interactive sits inside it, and the card hovers with a 4px lift and an accent edge on a mouse and on
+keyboard focus, the press on touch. (The family cards used to do the same; since polish D3 they open
+instead, below.) The foot of the page keeps only the
 buyer-page chips; each guide page still lists its sibling guides.
 
 ### The works slab: where we ship, and the marks (polish X7)

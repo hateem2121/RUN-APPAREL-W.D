@@ -77,10 +77,12 @@ export default defineConfig({
      *
      * `sportFilter` joined 2026-10-05 (polish S7): the Teamwear page's sport buttons are radios
      * that CSS answers through `:has()`, and choosing a sport on a phone is a Safari visit too.
+     * `familyTickets` the same day (polish D3): masks, `@property`, container queries and grid
+     * tracks that glide, each newer in Safari than elsewhere, on a Mac's pointer and an iPhone.
      */
     {
       name: 'webkit',
-      testMatch: /(navbar|themeSwitch|siteBar|globe|consent|sportFilter)\.spec\.ts/,
+      testMatch: /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

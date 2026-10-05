@@ -39,31 +39,21 @@ export const CARD_SIZES =
   '(max-width: 1439px) calc(33.34vw - 58px), (max-width: 1919px) 310px, 276px'
 
 /**
- * How wide a family card on the home page draws, from `.family-grid` in site.css: one column below
- * 560 px, two up to 1,179 (each `(100vw - 42 px of gutters - a 24 px gap) / 2`), five across above
- * that, in the page widths of polish D1 (2026-10-04): about 193 px to 1,279 (asked as 200), then
- * `(100vw - 128 px of gutters - four 24 px gaps) / 5` to 1,439, 243.2 px in the 1,312 px column to
- * 1,919 and 275.2 px in the 1,472 px one from 1,920. Only a hint: the picture it picks is one of the
- * three card sizes above, the only ones the wear-run.com firewall rule lets through. Here, not in
+ * How wide a family ticket's picture on the home page draws (polish D3; `.family-card` in site.css),
+ * in the page widths of polish D1. Sideways, it is 40% of the card: one card a row below 560 px
+ * (`0.4 x (100vw - two gutters)`, asked as `40vw - 16px`), two from 560 px (`0.2 x (the column -
+ * a 24 px gap)`: `18vw - 4px` while the gutters are 5vw, to 1,279; `20vw - 30px` in the screen less
+ * 128 px of gutters, to 1,439; 257.6 in the 1,312 px column; 289.6 in the 1,472 px one). The fifth,
+ * which spans both columns, keeps the others' picture width, so this is its hint too. In the row of
+ * five (a pointer that can hover, from 1,180 px) a closed card's picture is the whole card, `(the
+ * column - four 12 px gaps) / 5`, which those same numbers cover within a few pixels (and an opened
+ * card's is smaller, 44% of a wider card). Only a hint: the picture it picks is one of the three
+ * card sizes above, the only ones the wear-run.com firewall rule lets through. Here, not in
  * `FamilyCard.tsx`, so a browser test can import it without the component's Next imports.
  */
 export const FAMILY_SIZES =
-  '(max-width: 559px) calc(100vw - 42px), (max-width: 1179px) calc(50vw - 33px), ' +
-  '(max-width: 1279px) 200px, (max-width: 1439px) calc(20vw - 44px), (max-width: 1919px) 244px, 276px'
-
-/**
- * The fifth family card's: from 560 to 1,179 px it spans both columns, and its `<li>` keeps
- * base.css's `p, li { max-width: 60ch }`, so it is the column's width on a narrow tablet and then
- * stops at 60 characters, which is a width in the FONT: 557 px in Chromium and 584 px in Firefox
- * (measured 2026-10-04 at 900 px). No pixel number is right in both, so from 560 px the hint is
- * the column itself, `90vw` (the page less two 5vw gutters), which the card can never exceed: a
- * larger copy than a capped card needs, never a smaller one. With the shared hint it asked for
- * 417 px at 900 px while drawing 555, a softer copy of Sports Accessories' picture
- * (`e2e/homePicture.spec.ts` found it, polish D1).
- */
-export const FAMILY_LAST_SIZES =
-  '(max-width: 559px) calc(100vw - 42px), (max-width: 1179px) 90vw, (max-width: 1279px) 200px, ' +
-  '(max-width: 1439px) calc(20vw - 44px), (max-width: 1919px) 244px, 276px'
+  '(max-width: 559px) calc(40vw - 16px), (max-width: 1279px) calc(18vw - 4px), ' +
+  '(max-width: 1439px) calc(20vw - 30px), (max-width: 1919px) 258px, 290px'
 
 export function cardImage(url: string): { src: string; srcSet?: string; sizes?: string } {
   return resizedCardImage(url, CARD_SIZES)

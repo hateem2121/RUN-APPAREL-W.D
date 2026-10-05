@@ -9,6 +9,7 @@ import { JsonLd } from '../../components/site/JsonLd'
 import { LiveGarment } from '../../components/site/LiveGarment'
 import { OrderTimeline } from '../../components/site/OrderTimeline'
 import { ProductPoster } from '../../components/site/ProductPoster'
+import { TicketDismiss } from '../../components/site/TicketDismiss'
 import { ViewerCue } from '../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
@@ -152,19 +153,21 @@ export default async function HomePage() {
             Products, so the grid treats it as a composition rather than an unknown list.
           */}
           <ul className="family-grid">
-            {FAMILIES.map((family, index) => (
-              <FamilyCard
-                key={family.slug}
-                family={family}
-                picture={pictures[family.slug] ?? null}
-                last={index === FAMILIES.length - 1}
-                soon={familyIsSoon(
-                  family,
-                  products.filter((product) => product.category === family.name).length,
-                )}
-              />
-            ))}
+            {FAMILIES.map((family) => {
+              const count = products.filter((product) => product.category === family.name).length
+              return (
+                <FamilyCard
+                  key={family.slug}
+                  family={family}
+                  picture={pictures[family.slug] ?? null}
+                  soon={familyIsSoon(family, count)}
+                  count={count}
+                />
+              )
+            })}
           </ul>
+          {/* Escape closes an open card; everything else about the cards is CSS (polish D3). */}
+          <TicketDismiss />
         </div>
       </section>
 
