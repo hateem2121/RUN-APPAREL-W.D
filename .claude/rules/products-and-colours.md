@@ -52,7 +52,7 @@ Sportswear, nature words for Outerwear, easy fashion words for Casual Wear), fro
 garment. `buildImportedRow` takes the category; the robot, the "Add the ticked colours"
 button and `scripts/process-local.mjs` all pass it. The **slug stays the namer's measured
 word** (`forest-green`): it is printed on QR tags, and a style name may change again.
-Sports Accessories has no style yet, so it keeps the namer's words.
+Sports Accessories takes the sport words, as Teamwear does (the owner's sign-off, 2026-10-05; `colourNames.ts`).
 🟡 **Add a colour to `colour-name.ts` → give it a name in all four styles.**
 `colour-name.test.ts` fails until you do; the container cannot import the shared table,
 so that test is the only tie between the two lists. A name is at most 12 characters (the
