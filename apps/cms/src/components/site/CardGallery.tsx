@@ -219,6 +219,11 @@ export function CardGallery({
           </>
         ) : null}
       </figure>
+      {/* The name before the dots (polish D3b): the ticket's stub reads name, then colours, on a
+          phone's sideways card as on a computer's, and the Tab key meets them in that order. */}
+      <a className="product-card__link" href={href}>
+        {children}
+      </a>
       {colours.length > 1 ? (
         <div
           className="card-gallery__dots"
@@ -248,9 +253,6 @@ export function CardGallery({
           </span>
         </div>
       ) : null}
-      <a className="product-card__link" href={href}>
-        {children}
-      </a>
     </>
   )
 }

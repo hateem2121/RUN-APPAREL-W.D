@@ -13,12 +13,14 @@ import { CARD_WIDTHS, resizedCardImage } from '@run-apparel/shared'
 export { CARD_WIDTHS }
 
 /**
- * How wide a card draws, from `.product-grid` in site.css (visual audit VA-42, 2026-10-02; the page
- * widths of polish D1, 2026-10-04): two columns below 900 px, three from 900, four from 1,440 and
- * five from 1,920. Below 900 a card is `(100vw − two gutters − a 12 px gap) / 2`. `45vw − 6px` is
- * exact above 400 px, where the gutter is 5vw, and 4 px too wide at 320 px (138 px asked for, 134 px
- * drawn): close enough, since the browser only uses it to choose between three files. Then:
+ * How wide a card's picture draws, from `.product-grid` in site.css (visual audit VA-42, 2026-10-02;
+ * the page widths of polish D1, 2026-10-04; the tickets of D3b and M1, 2026-10-05): one sideways ticket
+ * a row below 560 px, two columns to 900, three from 900, four from 1,440 and five from 1,920.
  *
+ *   below 560     the ticket's left 44%: `0.44 × (100vw − two gutters − its 2 px of border)`, 122 px
+ *                 at 320, 153 at 390 and 220 at 559, asked as `40vw − 1px` (127, 155, 222.6)
+ *   560–899       `(100vw − two gutters − a 12 px gap) / 2`: `45vw − 6px` is exact, the gutter
+ *                 being 5vw there (246 px at 560)
  *   900–1,279     three in a page of up to 1,180: 254–338 px, asked as 340
  *   1,280–1,439   three in the screen less two 64 px gutters: (100vw − 128 − 48) / 3, 368–421 px
  *   1,440–1,919   four in 1,312: 310 px
@@ -31,12 +33,12 @@ export { CARD_WIDTHS }
  * The `w` numbers describe the 4:5 BOX, not the picture inside it. A render taller than 4:5 comes
  * back narrower than the box, but it is height-bound in the card too (`object-fit: contain`), so
  * the height it needs is what the box gives: a 3x phone's 434 px-tall card needs 1,302 px, and
- * the 1,080 box is 1,350 px tall. Below 560 px the box is square (169 px tall at 390 px), which
- * only means the file is a little larger than the picture needs.
+ * the 1,080 box is 1,350 px tall. Below 560 px the box is at least square (153 px tall at 390 px),
+ * which only means the file is a little larger than the picture needs.
  */
 export const CARD_SIZES =
-  '(max-width: 899px) calc(45vw - 6px), (max-width: 1279px) 340px, ' +
-  '(max-width: 1439px) calc(33.34vw - 58px), (max-width: 1919px) 310px, 276px'
+  '(max-width: 559px) calc(40vw - 1px), (max-width: 899px) calc(45vw - 6px), ' +
+  '(max-width: 1279px) 340px, (max-width: 1439px) calc(33.34vw - 58px), (max-width: 1919px) 310px, 276px'
 
 /**
  * How wide a family ticket's picture on the home page draws (polish D3; `.family-card` in site.css),

@@ -71,6 +71,12 @@ themes, the caption's contrast included. Until 2026-09-17 only the host was test
 the "marked as leaving the site" half of this guard existed here and nowhere else
 (audit XS-09).
 
+**Since polish D3b (2026-10-05) a product card's own caption shows when its ticket opens**
+(the owner's X9: "the rest appears when the card opens"), and on a phone, whose sideways
+ticket never opens, not at all (M1). Every link still carries the words in its accessible
+name, so a screen reader hears them on every card either way, and `viewerCue.spec.ts`
+measures each ticket's caption with the ticket open (closed, it is transparent).
+
 ### D3 · The contact page gets a form — `FA-I-06`
 
 **Decision: add a form. Every submission is stored in the CMS first, then

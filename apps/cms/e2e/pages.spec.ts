@@ -154,7 +154,8 @@ test.describe('the product gallery', () => {
    * ⚠️ A LONG COLOUR NAME MUST NOT STRAND ONE DOT ON A LINE OF ITS OWN (2026-09-28). Live at
    * 1280px, "WINE / BLACK" on the X-Milo Pro Bib pushed the fifth dot onto a second row while
    * the other four stayed beside the name. The CI seed's colour names are short, so the
-   * test writes a long one into the card itself before measuring.
+   * test writes a long one into the card itself before measuring. Since polish D3b the name has
+   * left the dots' row (it shows above it on an opened ticket), so this holds that it stays out.
    */
   test('keeps a card’s colour dots on one row, whatever the colour is called', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })

@@ -76,9 +76,16 @@ function margins(inset: number, factor: number, boxRatio: number, ratio: number)
   }
 }
 
+/*
+ * An opened product ticket (polish D3b) gives up 116px at the foot of its 4:5 box, so the box is wider
+ * than 4:5: from 1.03 (a 420px card, at 899px) to 1.29 (a 246px card, at 560px), worked out from the
+ * stylesheet's rise. `e2e/pictureInset.spec.ts` measures one in a browser.
+ */
 const BOXES = [
   { name: '4:5 (a card above a phone, the hero)', ratio: 4 / 5 },
   { name: '1:1 (a product card on a phone, VA-42)', ratio: 1 },
+  { name: '1.03 (an opened ticket on the widest card, D3b)', ratio: 1.03 },
+  { name: '1.29 (an opened ticket on the narrowest card, D3b)', ratio: 1.29 },
 ]
 const PICTURES = [
   { name: 'a 4:5 render', ratio: 4 / 5 },

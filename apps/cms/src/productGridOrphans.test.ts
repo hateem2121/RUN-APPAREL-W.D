@@ -25,6 +25,23 @@ const SITE_CSS = readFileSync(join(import.meta.dirname, 'app', '(frontend)', 'si
 
 type Rule = { media: string | null; selector: string; body: string }
 
+/** A selector list split at its top-level commas, so each selector is matched on its own. */
+function splitList(list: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let start = 0
+  for (let at = 0; at < list.length; at++) {
+    if (list[at] === '(') depth++
+    else if (list[at] === ')') depth--
+    else if (list[at] === ',' && depth === 0) {
+      parts.push(list.slice(start, at).trim())
+      start = at + 1
+    }
+  }
+  parts.push(list.slice(start).trim())
+  return parts
+}
+
 /** Style rules, with the `@media` they sit in; other at-rules (fonts, keyframes, supports) are skipped. */
 function parseRules(source: string, media: string | null = null): Rule[] {
   const rules: Rule[] = []
@@ -49,7 +66,9 @@ function parseRules(source: string, media: string | null = null): Rule[] {
     if (prelude.startsWith('@media')) {
       rules.push(...parseRules(inner, prelude.slice('@media'.length).trim()))
     } else if (!prelude.startsWith('@')) {
-      rules.push({ media, selector: prelude.replace(/\s+/g, ' '), body: inner })
+      // Space just inside a bracket means nothing to CSS; Biome wraps a long `:not(…)` that way.
+      const flat = prelude.replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')')
+      for (const selector of splitList(flat)) rules.push({ media, selector, body: inner })
     }
     at = end
   }
@@ -91,6 +110,13 @@ function nth(formula: string, position: number): boolean {
   return a === 0 ? position === b : (position - b) / a >= 0 && Number.isInteger((position - b) / a)
 }
 
+/**
+ * A Teamwear page with one sport chosen (polish S7). Since D3b the odd last card's rule says
+ * `:not(<this> *)`: it lies down only while the whole list shows. The full list is what `layOut`
+ * models, so there that guard always holds.
+ */
+const FILTERED_SCOPE = '.sport-scope:has(.sport-filter__input:checked:not([value="all"]))'
+
 /** A pseudo-class list such as `:last-child:nth-child(odd):not(:only-child)`, against card `index` of `count`. */
 function matchesPseudos(pseudos: string, index: number, count: number): boolean {
   let rest = pseudos
@@ -120,7 +146,7 @@ function matchesPseudos(pseudos: string, index: number, count: number): boolean 
             : name[1] === 'nth-last-child'
               ? nth(argument, count - index + 1)
               : name[1] === 'not'
-                ? !matchesPseudos(argument, index, count)
+                ? argument.startsWith(FILTERED_SCOPE) || !matchesPseudos(argument, index, count)
                 : null
     if (ok === null) throw new Error(`unsupported pseudo-class :${name[1]}`)
     if (!ok) return false
@@ -128,15 +154,37 @@ function matchesPseudos(pseudos: string, index: number, count: number): boolean 
   return true
 }
 
-const CARD_RULE = /^\.product-grid > \.product-card((?::[a-z-]+(?:\((?:[^()]|\([^()]*\))*\))?)*)$/
+const CARD = '.product-grid > .product-card'
 
-/** How many columns the grid has at this viewport width: the last `repeat(N, …)` that applies. */
+/**
+ * The pseudo-classes a rule adds to `.product-grid > .product-card`, or null when the rule is not a
+ * card rule: another selector, or one that styles a PART of the card (a combinator outside brackets,
+ * or a pseudo-element such as the tear line's `::after`).
+ */
+function cardPseudos(selector: string): string | null {
+  if (!selector.startsWith(CARD)) return null
+  const rest = selector.slice(CARD.length)
+  if (rest !== '' && !rest.startsWith(':')) return null
+  let depth = 0
+  for (let at = 0; at < rest.length; at++) {
+    const char = rest[at] as string
+    if (char === '(') depth++
+    else if (char === ')') depth--
+    else if (depth === 0 && (/[\s>+~]/.test(char) || rest.startsWith('::', at))) return null
+  }
+  return rest
+}
+
+/**
+ * How many columns the grid has at this viewport width: the last `--grid-columns` that applies.
+ * One number since polish D3b (2026-10-05), which the tracks and each card's width both read.
+ */
 function columnsAt(width: number, rules: Rule[]): number {
   let columns = Number.NaN
   for (const rule of rules) {
     if (rule.selector !== '.product-grid' || !mediaMatches(rule.media, width)) continue
-    const value = declarations(rule.body).get('grid-template-columns')
-    if (value) columns = Number(value.match(/^repeat\((\d+),/)?.[1] ?? Number.NaN)
+    const value = declarations(rule.body).get('--grid-columns')
+    if (value) columns = Number(value)
   }
   return columns
 }
@@ -158,9 +206,9 @@ function layOut(
   for (let index = 1; index <= count; index++) {
     let item: { start?: number; span: number } = { span: 1 }
     for (const rule of rules) {
-      const match = rule.selector.match(CARD_RULE)
-      if (!match || !mediaMatches(rule.media, width)) continue
-      if (!matchesPseudos(match[1] ?? '', index, count)) continue
+      const pseudos = cardPseudos(rule.selector)
+      if (pseudos === null || !mediaMatches(rule.media, width)) continue
+      if (!matchesPseudos(pseudos, index, count)) continue
       const own = declarations(rule.body)
       const shorthand = own.get('grid-column')
       if (shorthand === '1 / -1') item = { start: 1, span: columns }
@@ -205,8 +253,7 @@ function placeItems(items: Array<{ start?: number; span: number }>, columns: num
  * (`sportPlaces`: `data-cut`, `data-lie`) take their place, through rules scoped to a chosen sport.
  * This reads THOSE rules out of site.css, as `layOut` reads the full list's.
  */
-const SHOWN =
-  '.sport-scope:has(.sport-filter__input:checked:not([value="all"])) .product-grid > .product-card'
+const SHOWN = `${FILTERED_SCOPE} ${CARD}`
 const SHOWN_RULE = new RegExp(
   `^${SHOWN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}((?:\\[data-cut~="\\d"\\]|\\[data-lie\\])?)$`,
 )
@@ -251,7 +298,9 @@ function rowsOf(placed: Placed[]): number[][] {
 
 const RULES = parseRules(SITE_CSS)
 const WIDTHS = [
-  { width: 390, columns: 2 },
+  // One ticket a row on a phone since polish M1 (2026-10-05; two from VA-42 until then).
+  { width: 390, columns: 1 },
+  { width: 700, columns: 2 },
   { width: 1280, columns: 3 },
   // Four from 1440px since 2026-10-02 (the owner's call; it was 1600px, decision D4).
   { width: 1440, columns: 4 },
@@ -267,12 +316,23 @@ describe('the grid has the column counts the rules assume', () => {
     })
   }
 
-  it('is two below 900px, three from 900px, four from 1440px, five from 1920px, never auto-fill', () => {
-    expect([320, 559, 560, 899].map((width) => columnsAt(width, RULES))).toEqual([2, 2, 2, 2])
+  it('is one below 560px, two from 560px, three from 900px, four from 1440px, five from 1920px, never auto-fill', () => {
+    expect([320, 390, 559].map((width) => columnsAt(width, RULES))).toEqual([1, 1, 1])
+    expect([560, 700, 899].map((width) => columnsAt(width, RULES))).toEqual([2, 2, 2])
     expect([900, 1280, 1439].map((width) => columnsAt(width, RULES))).toEqual([3, 3, 3])
     expect([1440, 1600, 1919].map((width) => columnsAt(width, RULES))).toEqual([4, 4, 4])
     expect([1920, 2560, 3840].map((width) => columnsAt(width, RULES))).toEqual([5, 5, 5])
     expect(SITE_CSS).not.toMatch(/\.product-grid\s*\{[^}]*auto-fill/)
+  })
+
+  // The tracks and each card's own width (`--card-w`, D3b) read the same number, so they cannot part.
+  it('draws equal tracks from that one number, and measures its own width for the cards', () => {
+    const base = declarations(
+      RULES.find((rule) => rule.media === null && rule.selector === '.product-grid')?.body ?? '',
+    )
+    expect(base.get('grid-template-columns')).toBe('repeat(var(--grid-columns), minmax(0, 1fr))')
+    expect(base.get('gap')).toBe('var(--grid-gap)')
+    expect(base.get('container-type')).toBe('inline-size')
   })
 })
 
@@ -326,17 +386,18 @@ describe('no card is left alone on the last row, whatever the count (VA-42)', ()
 
   // NEGATIVE CONTROL, run both ways: with the rules that move cards taken out, the model shows the
   // lone card at 1280px (40 = 3 x 13 + 1, three columns), at 1440px and 1920px (41 = 4 x 10 + 1,
-  // four columns) and a hole beside the last card on a phone (41 is odd), so the tests above are
-  // able to fail.
+  // four columns) and a hole beside the last card on a tablet's two columns (41 is odd), so the
+  // tests above are able to fail.
   it('sees the lone card when the rules are removed', () => {
     const without = RULES.filter(
-      (rule) => !/nth-last-child|last-child/.test(rule.selector) || !CARD_RULE.test(rule.selector),
+      (rule) =>
+        !/nth-last-child|last-child/.test(rule.selector) || cardPseudos(rule.selector) === null,
     )
     const rows = (count: number, width: number) => rowsOf(layOut(count, width, without).placed)
     expect(rows(40, 1280).at(-1)).toEqual([1])
     expect(rows(41, 1440).at(-1)).toEqual([1])
     expect(rows(41, 1920).at(-1)).toEqual([1])
-    expect(rows(41, 390).at(-1)).toEqual([1])
+    expect(rows(41, 700).at(-1)).toEqual([1])
     // …and the same counts are fixed with the rules in place.
     expect(rows(40, 1280)).not.toEqual(rowsOf(layOut(40, 1280, RULES).placed))
     expect(rowsOf(layOut(40, 1280, RULES).placed).at(-1)).toEqual([1, 1])
@@ -359,7 +420,13 @@ describe('one sport shown alone ends its rows as a list of its own would (polish
   it('the full list’s rules stand down while a sport is chosen', () => {
     const reset = RULES.find((rule) => rule.media === null && rule.selector === SHOWN)
     expect(declarations(reset?.body ?? '').get('grid-column')).toBe('auto')
-    expect(declarations(reset?.body ?? '').get('display')).toBe('flex')
+    // The odd last card's own rules, the card's and its parts', lie it down only while the whole
+    // list shows (D3b): a lying ticket styles too many parts to undo one by one, as the reset did.
+    const lying = RULES.filter(
+      (rule) => rule.selector.startsWith(CARD) && rule.selector.includes(':nth-child(odd)'),
+    )
+    expect(lying.length, 'no rule lies the odd last card down').toBeGreaterThan(0)
+    for (const rule of lying) expect(rule.selector).toContain(`:not(${FILTERED_SCOPE} *)`)
   })
 
   it('every count from 1 to 60, at every width, lays out as the same count of a whole list', () => {
@@ -398,11 +465,11 @@ describe('one sport shown alone ends its rows as a list of its own would (polish
   })
 
   // NEGATIVE CONTROL: without the scoped rules that read the marks, a sport of four at three
-  // columns ends on one card alone, and a sport of three on a phone leaves a hole.
+  // columns ends on one card alone, and a sport of three on a tablet's two columns leaves a hole.
   it('sees the lone card when the rules that read the marks are removed', () => {
     const without = RULES.filter((rule) => !/data-cut|data-lie/.test(rule.selector))
     expect(rowsOf(layOutShown(ofOneSport(4), 1280, without).placed).at(-1)).toEqual([1])
-    expect(rowsOf(layOutShown(ofOneSport(3), 390, without).placed).at(-1)).toEqual([1])
+    expect(rowsOf(layOutShown(ofOneSport(3), 700, without).placed).at(-1)).toEqual([1])
     expect(rowsOf(layOutShown(ofOneSport(4), 1280, RULES).placed).at(-1)).toEqual([1, 1])
   })
 })

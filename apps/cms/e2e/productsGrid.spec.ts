@@ -8,8 +8,9 @@ import { hintedWidth } from './sizesHint'
  * VA-42 (visual audit, owner's choice 2026-10-02): /products on a phone ran to 36 screens because
  * each card was a screen tall, no garment was in sight on the first screen (the heading, the intro
  * and three rows of filters filled it), and at 1440px the 40 cards left one card alone on the last
- * row. Now: two cards a row on a phone with a square picture, the filters in one row that scrolls
- * sideways, and no card alone on the last row at any width. Decision D1 stands: one long page.
+ * row. Then: two cards a row on a phone with a square picture; since polish M1 (2026-10-05) one
+ * sideways ticket a row, about a square picture tall. The filters are one row that scrolls sideways,
+ * and no card is alone on the last row at any width. Decision D1 stands: one long page.
  * `src/productGridOrphans.test.ts` runs the last-row rule over every count from 2 to 60; this does
  * it with real cards, in a real engine.
  *
@@ -19,10 +20,10 @@ import { hintedWidth } from './sizesHint'
  * first card to reach any count tests the stylesheet against 2, 6, 37 or 41 cards on every
  * machine; the copies are only measured, never clicked.
  *
- * What would have to break for these to fail: one card to a row again on a phone, the filter row
- * wrapping back into rows (or, worse, making the PAGE scroll sideways), a colour dot pushed off a
- * 134px card where it cannot be tapped, a long name clipped by its card or broken mid-word, or a
- * card alone with a hole beside it when the count is one more than a row.
+ * What would have to break for these to fail: anything but one ticket a row on a phone, the filter
+ * row wrapping back into rows (or, worse, making the PAGE scroll sideways), a colour dot pushed off
+ * a phone ticket's 156px half where it cannot be tapped, a long name clipped by its card or broken
+ * mid-word, or a card alone with a hole beside it when the count is one more than a row.
  */
 
 const PHONES = [320, 390, 430] as const
@@ -80,9 +81,14 @@ const rowsOf = (cards: Box[]): Box[][] => {
 const noSidewaysScroll = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 
-test.describe('VA-42 — two cards a row on a phone, with a square picture', () => {
+/*
+ * ⚠️ ONE SIDEWAYS TICKET A ROW ON A PHONE SINCE POLISH M1 (2026-10-05; the owner's Q3), not VA-42's two
+ * cards a row: the picture on the left, square (VA-42's shorter picture), the name and the dots on the
+ * right. `e2e/productTickets.spec.ts` holds the ticket itself; this holds the grid and the page.
+ */
+test.describe('M1 — one sideways ticket a row on a phone, with a square picture', () => {
   for (const width of PHONES) {
-    test(`at ${width}px: two columns, two cards on each row, each picture square, no sideways page scroll`, async ({
+    test(`at ${width}px: one column, a ticket a row, each picture square on its left, no sideways page scroll`, async ({
       page,
     }) => {
       await open(page, width)
@@ -90,34 +96,40 @@ test.describe('VA-42 — two cards a row on a phone, with a square picture', () 
       const columns = await page
         .locator('.product-grid')
         .evaluate((grid) => getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length)
-      expect(columns, `${width}px: the grid has ${columns} columns`).toBe(2)
+      expect(columns, `${width}px: the grid has ${columns} columns`).toBe(1)
 
       const { grid, cards } = await cardBoxes(page)
       const rows = rowsOf(cards)
       expect(
         rows.map((row) => row.length),
         `${width}px: cards on each row`,
-      ).toEqual([2, 2, 2])
-      for (const row of rows) {
-        const [left, right] = row as [Box, Box]
-        expect(
-          Math.abs(left.right - left.left - (right.right - right.left)),
-          'the two cards differ in width',
-        ).toBeLessThanOrEqual(1)
-        expect(left.left, 'the first card is off the column').toBeGreaterThanOrEqual(grid.left - 1)
-        expect(right.right, 'the second card is off the column').toBeLessThanOrEqual(grid.right + 1)
+      ).toEqual([1, 1, 1, 1, 1, 1])
+      for (const [card] of rows as [Box][]) {
+        expect(card.left, 'a ticket is off the column').toBeGreaterThanOrEqual(grid.left - 1)
+        expect(card.right, 'a ticket is off the column').toBeLessThanOrEqual(grid.right + 1)
       }
 
-      const pictures = await page.locator('.product-card__figure').evaluateAll((all) =>
-        all.map((figure) => {
-          const { width: w, height: h } = figure.getBoundingClientRect()
-          return { w, h }
+      const pictures = await page.locator('.product-card').evaluateAll((all) =>
+        all.map((card) => {
+          const figure = card.querySelector('.product-card__figure') as HTMLElement
+          const box = card.getBoundingClientRect()
+          const { width: w, height: h, left } = figure.getBoundingClientRect()
+          return { w, h, share: w / box.width, left: left - box.left }
         }),
       )
       for (const [index, picture] of pictures.entries()) {
+        // Square, unless a name long enough to need more room makes the ticket taller.
         expect(
-          Math.abs(picture.w - picture.h),
+          picture.h,
           `card ${index + 1}: picture ${picture.w} x ${picture.h}`,
+        ).toBeGreaterThanOrEqual(picture.w - 1)
+        expect(picture.share, `card ${index + 1}: the picture is not the left 44%`).toBeCloseTo(
+          0.44,
+          1,
+        )
+        expect(
+          picture.left,
+          `card ${index + 1}: the picture is not on the left`,
         ).toBeLessThanOrEqual(1)
       }
       expect(
@@ -197,7 +209,11 @@ test.describe('VA-42 — two cards a row on a phone, with a square picture', () 
     await expect(second).toHaveAttribute('aria-pressed', 'true')
   })
 
-  test('at 320px a long name wraps inside its card, a long colour wraps, and nothing makes the page scroll sideways', async ({
+  /*
+   * The colour's name is out of sight on a phone since polish M1 (a screen reader still has it), so
+   * only the name is measured here; `e2e/productTickets.spec.ts` holds the hidden words.
+   */
+  test('at 320px a long name wraps inside its ticket, and nothing makes the page scroll sideways', async ({
     page,
   }) => {
     await open(page, 320)
@@ -205,22 +221,18 @@ test.describe('VA-42 — two cards a row on a phone, with a square picture', () 
     await page.evaluate(() => {
       const name = document.querySelector('.product-card__name')
       if (name) name.textContent = 'Compression-Tights-Performance-Pro'
-      const colour = document.querySelector('.card-gallery__colour')
-      if (colour) colour.textContent = 'LAVENDER / INDIGO'
     })
     const overflow = await page.evaluate(() => {
-      const wide = (element: Element) => element.scrollWidth - element.clientWidth
-      const name = document.querySelector('.product-card__name')
-      const colour = document.querySelector('.card-gallery__colour')
+      const name = document.querySelector('.product-card__name') as HTMLElement
+      const body = document.querySelector('.product-card__body') as HTMLElement
       return {
-        name: name ? wide(name) : 0,
-        colour: colour ? wide(colour) : 0,
-        cards: [...document.querySelectorAll('.product-card')].map(wide),
+        name: name.scrollWidth - name.clientWidth,
+        // Inside the name band's padding, which is inside the ticket's right half.
+        right: body.getBoundingClientRect().right - name.getBoundingClientRect().right,
       }
     })
     expect(overflow.name, 'the name runs past its box').toBeLessThanOrEqual(1)
-    expect(overflow.colour, 'the colour name runs past its box').toBeLessThanOrEqual(1)
-    expect(Math.max(...overflow.cards), 'a card clips something sideways').toBeLessThanOrEqual(1)
+    expect(overflow.right, 'the name runs past its half of the ticket').toBeGreaterThanOrEqual(0)
     expect(await noSidewaysScroll(page)).toBeLessThanOrEqual(0)
   })
 })
@@ -390,8 +402,8 @@ test.describe('VA-42 — no card is left alone on the last row, at any width', (
    * 40 is the audit's own count (3 x 13 + 1 at 1440px, which had three columns then; four since the
    * owner's call of 2026-10-02, so three are checked at 1280px); 37 and 41 are one-over a row at
    * three and four columns, and 41 at five too (from 1920px since polish D1); 38 and 39 are the
-   * counts either side. The phone is held to the weaker promise two columns can keep: two cards, or
-   * one card that fills the row.
+   * counts either side. A tablet's two columns (560-899px; a phone has one since polish M1) are held
+   * to the weaker promise two columns can keep: two cards, or one card that fills the row.
    */
   const COUNTS = [37, 38, 39, 40, 41]
 
@@ -422,10 +434,10 @@ test.describe('VA-42 — no card is left alone on the last row, at any width', (
     })
   }
 
-  test('at 390px (two columns): the last row holds two cards, or one card that lies down across the row', async ({
+  test('at 700px (two columns): the last row holds two cards, or one card that lies down across the row', async ({
     page,
   }) => {
-    await open(page, 390)
+    await open(page, 700)
     for (const count of COUNTS) {
       await fill(page, count)
       const { grid, cards } = await cardBoxes(page)
@@ -443,10 +455,11 @@ test.describe('VA-42 — no card is left alone on the last row, at any width', (
     }
   })
 
-  test('at 390px the odd last card lies down: its picture on the left and its words on the right, the picture no wider than half', async ({
+  // A sideways ticket across both columns since polish D3b, its words laid open beside the picture.
+  test('at 700px the odd last card lies down: its picture on the left and its words on the right, the picture no wider than half', async ({
     page,
   }) => {
-    await open(page, 390)
+    await open(page, 700)
     await fill(page, 5)
     const parts = await page.evaluate(() => {
       const last = document.querySelector('.product-grid > .product-card:last-child') as HTMLElement
@@ -481,7 +494,7 @@ test.describe('VA-42 — no card is left alone on the last row, at any width', (
   test('a single card on a page is left as it is, half the row, not stretched', async ({
     page,
   }) => {
-    await open(page, 390)
+    await open(page, 700)
     await fill(page, 1)
     const { grid, cards } = await cardBoxes(page)
     expect(cards).toHaveLength(1)
@@ -504,7 +517,8 @@ test.describe('a card never asks for a smaller picture than it draws (polish D1)
    * What would have to break for this to fail: a column count or the page's width changing without
    * `CARD_SIZES` (src/lib/cardImage.ts) following, in either direction (past 40% too large).
    */
-  for (const width of [390, 899, 900, 1179, 1279, 1280, 1439, 1440, 1919, 1920, 2560]) {
+  // 559 and 560 since polish M1: either side of the phone's sideways ticket.
+  for (const width of [390, 559, 560, 899, 900, 1179, 1279, 1280, 1439, 1440, 1919, 1920, 2560]) {
     test(`at ${width}px`, async ({ page }) => {
       await open(page, width, 900)
       await fill(page, 6)

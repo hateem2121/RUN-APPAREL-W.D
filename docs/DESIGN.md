@@ -258,12 +258,13 @@ split there.) At the 34px floor "PRODUCTION." is
 
 **On a phone a garment card's name shrinks with its card rather than split a word (owner
 decision 2026-10-02, the same rule).** Below 560px `.product-card__body .product-card__name`
-takes a range in `cqi`, the card's body being the container: 13.3px at 320px, 16.7px at 375,
-17.6px at 390 and the full 18px from about 415px (measured in Chromium). Two cards a row
-(VA-42) leave a name 108px at 320px, and the catalogue's widest word, PERFORMANCE, is 140.1px
-at 18px, so at a fixed 18px eight live words broke mid-word at 320px. A hyphenated word
-(V-NECK) is held whole. `apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words in
-a phone card at seven widths. A garment page's "More from this category" cards (polish S6,
+takes a range in `cqi`, the card's body being the container. Two cards a row (VA-42) left a name
+108px at 320px, and the catalogue's widest word, PERFORMANCE, is 140.1px at 18px, so at a fixed
+18px eight live words broke mid-word at 320px. Since polish M1 (2026-10-05) a phone's sideways
+ticket gives the name its right half, 132px at 320px: 16.2px there, 17.6px at 340 and the full
+18px from 360px (measured in Chromium). A hyphenated word (V-NECK) is held whole.
+`apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words in a phone card at seven
+widths. A garment page's "More from this category" cards (polish S6,
 2026-10-04) are the same card two to a row, and `.related__body .related__name` takes the same
 range: its words have 112px at 320px, and `apps/viewer/e2e/related.spec.ts` checks five widths.
 
@@ -625,8 +626,8 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-height: 500px` | `base.css`, `notch.css`, `page.css` | sideways phones: the cookie card goes to one row, the bar rests at its condensed 52px; on a garment page the phone action bar is hidden |
 | `max-width: 359.98px` | `page.css` | narrower padding on the phone action bar's two buttons |
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
-| `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
-| `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' jump bar is one row that scrolls sideways (VA-42) |
+| `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column; from it the product grid has two columns and each card is an upright ticket that opens (polish D3b) |
+| `max-width: 559px` | `site.css` | on a phone each product card is a sideways ticket, one a row: a square picture on its left, 12px of text padding and narrower colour dots (polish M1), and `/products`' jump bar is one row that scrolls sideways (VA-42) |
 | `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
 | `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
@@ -636,7 +637,7 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `1024px` and `min-height: 656px`, sideways, and container `colourrail` `350px` | `page.css` | beside the garment, each colour's name under its dot, three to a row (polish D8) |
 | `1180px` | `site.css` | the product families go to five columns |
 | `1280px` | `site.css`, `footer.css` | the website's column widens to 1440px (polish D1; it was 1180px until 1600px); the footer's facts go to five columns (polish X23) |
-| `max-width: 899px`, `900px`, `1440px`, `1920px` | `site.css` | the product grid is two columns, three from 900px, four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px) and five from 1920px (polish D1), each with its own rule against a lone last card (VA-42) |
+| `560px` to `899px`, `900px`, `1440px`, `1920px` | `site.css` | the product grid is one column on a phone, two from 560px (a tablet's odd last card lies across both), three from 900px, four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px) and five from 1920px (polish D1), each with its own rule against a lone last card (VA-42) |
 | `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12); the website's column is 1600px (polish D1) |
 | container `colourrail`: `252px`, `350px` | `page.css` | below 252px the dots go three to a row (3 + 2, VA-32); from 350px, beside the garment, each dot has its name under it (polish D8) |
 
@@ -710,7 +711,38 @@ so they glide as a card opens.
 - **The keyboard ring is drawn inside the card (F1)**, 4px in, by the link's stretched `::after`,
   which is painted last: on the card itself the picture half covered it.
 
-### The product grid: two on a phone, and never one alone
+### The product tickets (polish D3b, X9, M1, F1)
+
+Every garment card on `/products` and the buyer pages is a ticket in the family tickets' language
+(the owner's words, 5 October 2026: "the same shape for every product card on computers. Phones get
+the sideways version all the time"; X9: "the front shows picture + name + dots, and the rest appears
+when the card opens"). `ProductCardItem.tsx` holds the markup, `site.css` "The product tickets" the
+geometry.
+
+- **On a phone, sideways** (M1): one a row, the picture the left 44% and at least square, the name at
+  the top right and the colour dots at the bottom right, notches top and bottom where the halves
+  meet. The code, the description, "Opens the 3D viewer" and the colour's name are out of sight
+  (the visually-hidden technique), still read to a screen reader. A phone's ticket never opens.
+- **From 560px, upright**: the picture (4:5), a dashed tear line with a notch on each side, the name,
+  the dots. It opens when a pointer that can hover rests on it for `--instant`, or at once when the
+  keyboard reaches any of its controls, and closes when the pointer leaves, focus moves on, or on
+  Escape (`TicketDismiss.tsx`). A touch screen of any width keeps it closed.
+- **Opening is one length, `--ticket-rise` (116px, measured)**: the picture's strip gives it up at its
+  foot and the pictures re-fit the shorter box, so the garment stays whole; the name band rises by it
+  over the picture's foot; the code, two lines of description and the way in arrive `--stagger` apart
+  in the room it leaves, with the colour's name over the dots. The card never changes height, so
+  nothing around it moves. The notches and the tear line ride up with the band.
+- **A tablet's odd last card** lies across both columns as a sideways ticket, its picture one column
+  wide, its words laid open beside it, as the family row's fifth is.
+- **The keyboard rings are drawn inside the ticket (F1)**: the picture's 2-4px inside the picture; the
+  name's by the name band's `::after`, round the band and the opened part; the dots keep 6px under
+  them for theirs.
+- **No neighbour fade** on product grids: forty cards fading as a pointer crossed them would flicker.
+
+`apps/cms/e2e/productTickets.spec.ts` holds all of it in a browser, the rings and the notches in
+pixels.
+
+### The product grid: one ticket a row on a phone, and never one alone
 
 `/products` and the buyer pages share `.product-grid`. Visual audit VA-42 (owner's choice
 2026-10-02) found `/products` 30,363px long on a 390px phone, 36 screens with no garment on the
@@ -721,13 +753,16 @@ From 1920px, where the page is 1600px wide since polish D1, there are five: eigh
 
 | Width | Columns | Picture | The jump bar on `/products` |
 |---|---|---|---|
-| under 560px | 2 | square | one row that scrolls sideways |
+| under 560px | 1, sideways tickets (polish M1) | square, the ticket's left 44% | one row that scrolls sideways |
 | 560 to 899px | 2 | 4:5 | wraps |
 | 900 to 1439px | 3 | 4:5 | wraps |
 | 1440 to 1919px | 4 | 4:5 | wraps |
 | 1920px and up | 5 | 4:5 | wraps |
 
-The counts are written out rather than left to `auto-fill`, because the rule against a lone last
+VA-42 gave a phone two cards a row; since polish M1 (the owner's answer Q3) it is one sideways
+ticket a row, about a square picture tall. The count is one number, `--grid-columns`, which the
+tracks and each card's own width (`--card-w`, which places a ticket's tear line) both read. The
+counts are written out rather than left to `auto-fill`, because the rule against a lone last
 card has to know them. With three, four or five columns and one card over, the second-to-last card
 starts the last row, so it holds two. With two columns and an odd count the last card spans both
 and lies down, its picture on the left and its words on the right. A single card on a page is
@@ -735,9 +770,9 @@ left alone. `apps/cms/src/productGridOrphans.test.ts` runs the real selectors ov
 from 2 to 60, and `apps/cms/e2e/productsGrid.spec.ts` does it with real cards.
 
 On a phone the colour dots are 24 to 40px wide and still 44px tall: WCAG 2.2 SC 2.5.8 asks for 24px
-and the site holds every button to 44px tall, but five 44px-wide dots do not fit a 134px card.
-That is narrower than the 44px width §4 states for touch targets, which is the cost of the fix;
-the owner accepted it on 2026-10-02.
+and the site holds every button to 44px tall, but five 44px-wide dots do not fit a phone ticket's
+156px half. That is narrower than the 44px width §4 states for touch targets, which is the cost of
+the fix; the owner accepted it on 2026-10-02.
 The card's text has 12px of padding and a long name wraps inside it. The jump bar is a scroller
 of links, so Tab walks every chip and the browser scrolls each into view; it ends at the screen's
 edges and cannot make the page scroll sideways.
@@ -771,7 +806,9 @@ website's cards read it.
 `object-fit: contain` fits the picture into what the padding leaves, so the 4:5 boxes are the size they
 were and a 4:5 render lands 7% from every edge. (The home family tickets' pictures are their half of the
 ticket since polish D3, tall when one opens and wide for the fifth on a tablet; the margin holds at both
-extremes, `src/pictureInset.test.ts` and `e2e/pictureInset.spec.ts`.) Percentage padding is measured against the width, so the
+extremes, `src/pictureInset.test.ts` and `e2e/pictureInset.spec.ts`. An opened product ticket's strip,
+since polish D3b, is wider than 4:5, from 1.03 to 1.29, and the padding keeps the margin there too.)
+Percentage padding is measured against the width, so the
 block value is 1.25 times the inline one to reach the same fraction of the height. A render taller than
 4:5 is bound by the height and keeps its 7% of height; a wider one keeps its 7% of width. The browser
 test holds a floor of 6%, the bottom of the owner's "about 6-8%". Sports Accessories, whose photo is the

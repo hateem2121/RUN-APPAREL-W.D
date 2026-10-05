@@ -74,15 +74,16 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
     expect(cardImage(onHost)).toEqual({ src: onHost })
   })
 
-  // The grid is two cards wide below 900 px since 2026-10-02 (visual audit VA-42): a phone card is
-  // 134-169 px, so a full-width `sizes` would have a phone fetch the 1,080 file for a 169 px card.
-  // 45vw - 6px is (100vw - two gutters - a 12 px gap) / 2 once the gutter is 5vw. From 900 px the
-  // page's widths (polish D1) give three, four and five columns; `e2e/productsGrid.spec.ts` measures
-  // each step against a real card, which this string cannot.
-  it('follows the grid: two columns below 900 px, then three, four and five', () => {
+  // A phone's sideways ticket draws its picture as its left 44% since polish M1 (2026-10-05): 122-220
+  // px, asked as 40vw - 1px, so a full-width `sizes` would have a phone fetch the 1,080 file for a
+  // 153 px picture. From 560 px the grid is two cards wide (visual audit VA-42): 45vw - 6px is (100vw
+  // - two gutters - a 12 px gap) / 2 once the gutter is 5vw. From 900 px the page's widths (polish D1)
+  // give three, four and five columns; `e2e/productsGrid.spec.ts` measures each step against a real
+  // card, which this string cannot.
+  it('follows the grid: a sideways ticket below 560 px, two columns below 900, then three, four and five', () => {
     expect(cardImage(RENDER).sizes).toBe(
-      '(max-width: 899px) calc(45vw - 6px), (max-width: 1279px) 340px, ' +
-        '(max-width: 1439px) calc(33.34vw - 58px), (max-width: 1919px) 310px, 276px',
+      '(max-width: 559px) calc(40vw - 1px), (max-width: 899px) calc(45vw - 6px), ' +
+        '(max-width: 1279px) 340px, (max-width: 1439px) calc(33.34vw - 58px), (max-width: 1919px) 310px, 276px',
     )
   })
 })

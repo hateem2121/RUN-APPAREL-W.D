@@ -4,6 +4,7 @@ import { permanentRedirect } from 'next/navigation'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
+import { TicketDismiss } from '../../../components/site/TicketDismiss'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES } from '../../../lib/families'
 import {
@@ -251,6 +252,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                   ))}
                 </ul>
               ) : null}
+              {/* Escape closes an open product ticket (polish D3b); once for every grid above. */}
+              <TicketDismiss />
             </>
           )}
         </div>

@@ -57,8 +57,8 @@ export function sportOf(garmentType: string, sports: readonly Sport[]): Sport | 
 
 /**
  * The column counts at which the grid's last-row rule starts the last row early (site.css, VA-42):
- * three columns from 900px, four from 1440px, five from 1920px. On a phone's two columns the last
- * card lies across both instead (`lie`).
+ * three columns from 900px, four from 1440px, five from 1920px. On a tablet's two columns (560-899px;
+ * a phone has one since polish M1) the last card lies across both instead (`lie`).
  */
 const ROW_COLUMNS = [3, 4, 5] as const
 
@@ -71,7 +71,7 @@ export type SportPlace = {
   readonly sport: string | null
   /** The column counts at which this card starts the last row (`data-cut`). */
   readonly cut: readonly number[]
-  /** The last of an odd number of cards, more than one: on a phone it lies across both columns. */
+  /** The last of an odd number of cards, more than one: on a tablet it lies across both columns. */
   readonly lie: boolean
 }
 

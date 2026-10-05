@@ -265,12 +265,30 @@ test.describe('FA-D-06 / FA-E-05 — nothing scrolls sideways, in 30 conditions'
             }
             return false
           }
+          /*
+           * ⚠️ WORDS KEPT FOR A SCREEN READER ARE NOT OUTSIDE THE VIEWPORT (2026-10-05). The
+           * visually-hidden technique (base.css `.visually-hidden`; a phone's product ticket hides
+           * its code and caption so, polish M1) clips a 1px box with no wrapping, so a `<span>`
+           * inside it is laid out past the screen's edge at 24px text while nothing can be seen or
+           * scrolled there. Only that box is excused: a clip any bigger still counts, as above.
+           */
+          const hiddenForScreenReaders = (el: HTMLElement) => {
+            for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) {
+              const style = getComputedStyle(up)
+              if (style.overflowX !== 'hidden' && style.overflowX !== 'clip') continue
+              const box = up.getBoundingClientRect()
+              if (box.width <= 1 && box.height <= 1) return true
+            }
+            return false
+          }
           const overflowing = [...document.querySelectorAll<HTMLElement>('body *')]
             .filter((el) => {
               const box = el.getBoundingClientRect()
               if (box.width === 0 || box.height === 0) return false
               if (!(box.right > doc.clientWidth + 1 || box.left < -1)) return false
-              return !insideOnScreenScroller(el) && !croppedByFrame(el)
+              return (
+                !insideOnScreenScroller(el) && !croppedByFrame(el) && !hiddenForScreenReaders(el)
+              )
             })
             .map((el) => `${el.tagName}.${String(el.className).slice(0, 30)}`)
           const bar = document.querySelector('.notch')?.getBoundingClientRect()
@@ -1692,16 +1710,17 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
  * Reads the ACTUAL rendered column count off `getComputedStyle`, never assumed from a viewport
  * width formula, per this batch's "measured never computed" rule.
  *
- * ⚠️ A PHONE HAS TWO COLUMNS SINCE 2026-10-02 (visual audit VA-42, the owner's choice): this
- * asserted ONE column at 375px, from the `auto-fill, minmax(260px, 1fr)` the grid used until
- * then, and one card a row was why the page ran to 36 phone screens. The counts are written
- * out in `site.css` now (two below 900px, three from 900px, four from 1440px, five from 1920px
- * since polish D1), because the rule that keeps a card from standing alone on the last row has to
- * know them. `e2e/productsGrid.spec.ts` holds the phone layout and that rule.
+ * ⚠️ A PHONE HAS ONE COLUMN AGAIN SINCE POLISH M1 (2026-10-05), BUT OF SIDEWAYS TICKETS. Until
+ * 2026-10-02 the `auto-fill, minmax(260px, 1fr)` grid gave one upright card a row, a screen tall,
+ * which is why the page ran to 36 phone screens; VA-42 (the owner's choice) gave two a row; the
+ * owner's Q3 asked for one sideways ticket a row, about a square picture tall. The counts are
+ * written out in `site.css` (`--grid-columns`: one below 560px, two from 560px, three from 900px,
+ * four from 1440px, five from 1920px), because the rule that keeps a card from standing alone on
+ * the last row has to know them. `e2e/productsGrid.spec.ts` holds the phone layout and that rule.
  */
-test.describe('LA-12 — the gallery genuinely reaches 2, 3, 4 and 5 columns', () => {
+test.describe('LA-12 — the gallery genuinely reaches 1, 2, 3, 4 and 5 columns', () => {
   const CASES = [
-    { width: 375, columns: 2 },
+    { width: 375, columns: 1 },
     { width: 700, columns: 2 },
     { width: 1280, columns: 3 },
     { width: 1440, columns: 4 },

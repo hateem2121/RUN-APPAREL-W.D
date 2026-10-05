@@ -2,6 +2,7 @@ import type { ProductCard } from '../../lib/content'
 import type { Family } from '../../lib/families'
 import { type Sport, sportCounts, sportPlaces, sportsFor } from '../../lib/sports'
 import { ProductCardItem } from './ProductCardItem'
+import { TicketDismiss } from './TicketDismiss'
 
 /**
  * A family's garments on its buyer page; on the Teamwear page, a button for each sport above them
@@ -40,11 +41,19 @@ export function GarmentGrid({
       ))}
     </ul>
   )
-  if (!divided) return grid
+  // Escape closes an open product ticket (polish D3b); this is a buyer page's one list.
+  if (!divided)
+    return (
+      <>
+        {grid}
+        <TicketDismiss />
+      </>
+    )
   return (
     <div className="sport-scope">
       <SportFilter counts={counts} total={garments.length} />
       {grid}
+      <TicketDismiss />
     </div>
   )
 }

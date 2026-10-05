@@ -76,7 +76,8 @@ test.describe('the sport buttons (polish S7)', () => {
     expect(await shownNames(page)).toEqual(LIVE_TEAMWEAR.map(([name]) => name))
   })
 
-  for (const width of [390, 1280, 1440, 1920]) {
+  // 700px since polish M1: a phone has one column now, a tablet the two that lie a last card down.
+  for (const width of [390, 700, 1280, 1440, 1920]) {
     test(`at ${width}px no sport leaves a card alone on its last row, or a hole above it (VA-42)`, async ({
       page,
     }) => {

@@ -309,6 +309,49 @@ test.describe('the product cards’ swipe gallery keeps a margin around the garm
     }
   }
 
+  /*
+   * Polish D3b: an opened ticket's strip gives up its foot to the rising name band, so its pictures
+   * re-fit a box wider than 4:5 (1.29 on the narrowest card, at 560px). The STRIP is then the frame a
+   * garment keeps its margin in; the figure behind it keeps its 4:5 size.
+   */
+  for (const width of [560, 1280]) {
+    for (const shape of SHAPES) {
+      test(`at ${width}px an opened ticket: ${shape.name} sits 6% or more from every edge`, async ({
+        page,
+      }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        await openProducts(page, width)
+        const first = page.locator('.product-grid > .product-card').first()
+        await first.hover()
+        await expect
+          .poll(() =>
+            first.evaluate((card) => {
+              // Risen, and settled: under reduced motion each part runs its own short transition of
+              // the rise (productTickets.spec.ts, `isOpen`), the strip's foot included.
+              const style = getComputedStyle(card)
+              return (
+                style.getPropertyValue('--ticket-rise') ===
+                  style.getPropertyValue('--ticket-rise-to') &&
+                card.getAnimations({ subtree: true }).length === 0
+              )
+            }),
+          )
+          .toBe(true)
+        expectInset(
+          await drawnMargins(
+            page,
+            // The showing colour's slide (its roving tabindex): the neighbours an opened card has loaded
+            // lie beside the strip, in its scroll row, not inside it.
+            '.product-card:hover .card-gallery__slide[tabindex="0"] .product-card__img',
+            '.card-gallery',
+            shape,
+          ),
+          `opened ticket, ${shape.name}`,
+        )
+      })
+    }
+  }
+
   test('the box keeps its shape (4:5, square on a phone) and a slide is still the strip’s whole width', async ({
     page,
   }) => {
