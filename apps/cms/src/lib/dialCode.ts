@@ -17,7 +17,17 @@ export function countryByCode(code: string): Country | undefined {
   return BY_CODE.get(code.trim().toUpperCase())
 }
 
-/** The country select changed. An unknown or empty country leaves nothing to fill in. */
+const BY_NAME = new Map(COUNTRIES.map((country) => [country.name.toLowerCase(), country]))
+
+/**
+ * The country as the buyer typed it (polish D7: a box that suggests as you type, where a list
+ * was). Only a whole name counts, in any case: a half-typed "Paki" must not fill a code.
+ */
+export function countryByName(name: string): Country | undefined {
+  return BY_NAME.get(name.trim().toLowerCase())
+}
+
+/** The country changed. An unknown or empty country leaves nothing to fill in. */
 export function nextDialCode(previous: DialState, countryCode: string): DialState {
   if (previous.edited) return previous
   return { dial: countryByCode(countryCode)?.dial ?? '', edited: false }

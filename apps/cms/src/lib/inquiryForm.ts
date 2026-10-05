@@ -14,14 +14,34 @@ import { checkFiles, formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFi
 /** "25 MB", as the page and the note under the picker say it (formatBytes would give "25.0 MB"). */
 const LIMIT = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
 
-/** W1, above the optional fields. */
-export const OPTIONAL_DIVIDER = 'Optional details'
+/**
+ * The line at the top of the form that says what the red * means (polish D7, the owner's answer
+ * Q17, 2026-10-03): only Name, Email and Message must be filled, and the word "optional" appears
+ * nowhere. This reverses the site's earlier rule of marking the optional boxes (W1, "Optional
+ * details", 2026-10-01): the owner chose it, seeing three boxes to mark against six.
+ */
+export const REQUIRED_KEY = 'Fields marked * are needed. Everything else helps us reply faster.'
+/**
+ * The subjects a buyer taps (D7: the owner's answers Q15 and Q43), one at a time, then the one
+ * that opens a box for their own words. The chosen answer's words are what the route stores.
+ */
+export const SUBJECTS = [
+  'Request a quote',
+  'Develop a new product',
+  'Samples',
+  'Private label & branding',
+  'Repeat or bulk order',
+] as const
+export const SUBJECT_OTHER_LABEL = 'Something else…'
 /** W6, the heading of the list of mistakes shown on Send. */
 export const SUMMARY_HEADING = 'Check these before sending:'
 /** W7, the Send button while the inquiry is on its way. */
 export const SENDING_LABEL = 'Sending…'
-/** W8, the heading of the confirmation that replaces the form. */
-export const RECEIVED_HEADING = 'Inquiry received.'
+/**
+ * W8, the heading of the confirmation that replaces the form: "Got it." with a tick that draws
+ * itself, as the owner tried it in the report's D7 v2 (3 Oct; it was "Inquiry received.").
+ */
+export const RECEIVED_HEADING = 'Got it.'
 /** W9, the link under the confirmation that shows an empty form again. */
 export const SEND_ANOTHER = 'Send another inquiry'
 /** W10's opening words; the email address and WhatsApp number follow it. */

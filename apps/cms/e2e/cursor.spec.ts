@@ -48,8 +48,12 @@ const pointerOver = (page: Page, selector: string) =>
 const HIDDEN_THERE = [
   'input[name="name"]',
   'textarea',
-  'select[name="country"]',
+  // The country is a box that suggests as you type since polish D7, where a list was.
+  'input[name="country"]',
   'input[type="file"]',
+  // D7's subject pills and the place to drop files: labels, which the ring treats as controls.
+  '.inquiry-form__answer',
+  '.inquiry-form__drop',
   // The globe draws only with coordinates, which this suite's database has none of: its pointer
   // is tested on the globe's own page (globe.spec.ts).
   '.footer-mark',
@@ -86,7 +90,13 @@ test.describe('one pointer (polish F4)', () => {
     if (await decline.isVisible()) await decline.click()
     const grows = () =>
       page.evaluate(() => document.querySelector('.cursor-ring')?.getAttribute('data-pointer'))
-    for (const selector of ['input[name="name"]', 'textarea', 'select[name="country"]']) {
+    for (const selector of [
+      'input[name="name"]',
+      'textarea',
+      'input[name="country"]',
+      '.inquiry-form__answer',
+      '.inquiry-form__drop',
+    ]) {
       await page.locator(selector).first().hover()
       await expect.poll(grows, { message: `the ring did not grow over ${selector}` }).toBe('true')
     }

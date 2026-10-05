@@ -36,6 +36,12 @@ export const MAX_LENGTHS = {
   subject: 160,
 } as const
 
+/**
+ * The value of the subject answer "Something else…" (polish D7): its words come from the box it
+ * opens, `subjectOther`, and nothing typed there means no subject at all.
+ */
+export const SUBJECT_OTHER = 'other'
+
 /** The hidden field a bot fills and a person never sees. */
 export const HONEYPOT_FIELD = 'website'
 
@@ -97,7 +103,10 @@ export function validateInquiry(raw: Record<string, unknown>): InquiryResult {
     jobTitle: clean(raw.jobTitle, MAX_LENGTHS.jobTitle),
     country: clean(raw.country, MAX_LENGTHS.country),
     phone: joinPhone(raw.phoneCode, raw.phone),
-    subject: clean(raw.subject, MAX_LENGTHS.subject),
+    subject: clean(
+      raw.subject === SUBJECT_OTHER ? raw.subjectOther : raw.subject,
+      MAX_LENGTHS.subject,
+    ),
   }
 
   const errors: Partial<Record<RequiredField, string>> = {}

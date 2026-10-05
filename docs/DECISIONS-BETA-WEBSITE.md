@@ -106,6 +106,20 @@ Subject left the form. After Send the form gives way to a confirmation that a re
 (VA-27). The rules above stand: store-then-notify, works with scripting off, email and
 WhatsApp links kept. Guard: `apps/cms/e2e/inquiry.spec.ts`.
 
+**Amended 2026-10-05 (owner, polish D7 with F10, X6 and MO5; answers Q15–Q17, Q43): the
+owner's own layout.** Name + Job title, Company + Country, Email + Phone in pairs (side by
+side wherever the form is 28rem wide, stacked on a phone), then Subject as six answers to tap
+(the last, "Something else…", opens a box for the buyer's own words), Message, Files and Send.
+Only Name, Email and Message must be filled, each with a red * that one line explains; the
+word "optional" appears nowhere, which reverses W1's "Optional details" (the owner's choice:
+three boxes to mark against six). One height for every box and button (48px). The country is
+a box that suggests as you type and fills the phone's code; the files have a drop area, a
+list with sizes and a × each, and the grey browser controls show only without scripting. The
+box in use glows, a needed box rightly filled shows a tick, an early Send shakes the button
+once, and the confirmation reads "Got it." under a tick that draws itself. Job title and
+Subject are back on the page; the route never stopped accepting them (no migration). Guards:
+`apps/cms/e2e/inquiry.spec.ts` and `apps/cms/e2e/inquiryLayout.spec.ts` (all three engines).
+
 ### D4 · The gallery grows to four columns above 1600px — `FA-E-04`
 
 **Decision: a fourth column on wide screens. Nothing changes below 1600px.**

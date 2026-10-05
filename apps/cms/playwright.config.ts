@@ -86,7 +86,7 @@ export default defineConfig({
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

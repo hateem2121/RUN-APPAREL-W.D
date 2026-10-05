@@ -85,6 +85,15 @@ export function InquiryReceived({
       aria-labelledby="inquiry-done-title"
       role="region"
     >
+      {/*
+       * The tick that draws itself (polish MO5, as the owner tried it in the report's D7 v2):
+       * `pathLength="1"` lets one dash the length of the stroke run from hidden to drawn
+       * (site.css), whatever the path's real length. Decoration: the heading says it in words.
+       */}
+      <svg className="inquiry-done__tick" viewBox="0 0 54 54" aria-hidden="true" focusable="false">
+        <circle cx="27" cy="27" r="25" />
+        <path d="M15 28l8 8 16-17" pathLength={1} />
+      </svg>
       <h3 className="inquiry-done__title" id="inquiry-done-title">
         {RECEIVED_HEADING}
       </h3>

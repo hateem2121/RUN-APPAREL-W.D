@@ -3241,6 +3241,13 @@ a.contact-block__value:active {
  * route handler, with `required` / `type="email"` / `maxlength` enforced by the browser.
  */
 .inquiry-form {
+  /* The pairs below ask how wide the FORM is, not the window: beside the intro from 1000px it is
+     a 7/12 column, under it on a tablet the whole width (polish D7). */
+  container: inquiry-form / inline-size;
+  /* F10: ONE HEIGHT for every box and button. They measured 45, 47 and 51px and the buttons 49px
+     (second check, 3 Oct); side by side in pairs (D7) the difference shows. 48px clears the 44px
+     touch floor with the 17px text of a box centred in it. */
+  --field-block: 48px;
   margin-block-start: 24px;
   /* 62ch of Archivo, in em since polish D11 (why: `--site-measure`). */
   max-width: 35.508em;
@@ -3294,8 +3301,8 @@ a.contact-block__value:active {
 .inquiry-form__input {
   display: block;
   width: 100%;
-  min-height: var(--target-min);
-  padding: 12px 14px;
+  block-size: var(--field-block);
+  padding: 0 14px;
   font-family: inherit;
   font-size: var(--text-body);
   color: var(--text);
@@ -3310,6 +3317,9 @@ a.contact-block__value:active {
 }
 
 .inquiry-form__textarea {
+  block-size: auto;
+  min-block-size: 10em;
+  padding-block: 12px;
   resize: vertical;
   line-height: 1.5;
 }
@@ -3322,6 +3332,24 @@ a.contact-block__value:active {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-color: var(--dimension);
+}
+
+/*
+ * MO5, "THE FORM FEELS ALIVE" (owner, 3 Oct): the box being typed in glows softly in the accent,
+ * around the focus ring rather than instead of it, and a box under a mouse darkens its edge
+ * (second check: the boxes did not react to a pointer at all). A colour-mix of a token, so the
+ * glow is the accent's own in both themes (tokens.test.ts allows a ring drawn this way).
+ */
+.inquiry-form__input:focus,
+.inquiry-form__phone:focus-within {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--dimension) 24%, transparent);
+}
+
+@media (hover: hover) {
+  .inquiry-form__input:hover:not(:focus),
+  .inquiry-form__phone:hover:not(:focus-within) {
+    border-color: var(--text);
+  }
 }
 
 /*
@@ -5059,36 +5087,6 @@ a.contact-block__value:active {
 }
 
 /*
- * "Optional details" (W1): a fieldset, so a screen reader names the group once, drawn as a
- * divider with a hairline to its right. A legend can be a flex container in all three engines.
- */
-.inquiry-form__group {
-  min-width: 0;
-  margin: 24px 0 0;
-  padding: 0;
-  border: 0;
-}
-
-.inquiry-form__divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps-snug);
-  color: var(--muted);
-}
-
-.inquiry-form__divider::after {
-  content: "";
-  flex: 1;
-  border-block-start: 1px solid var(--line);
-}
-
-/*
  * The sentence under a wrongly filled field (W2–W5). It arrives with a fade and a 4px rise on
  * transform and opacity only (VA-02's motion table); reduced motion collapses it with every
  * other animation (base.css). `[hidden]` is restated because a class can outrank it.
@@ -5194,22 +5192,77 @@ a.contact-block__value:active {
   }
 }
 
-/* Country code beside the number: a code is at most "+1684", so its field stays narrow. */
+/*
+ * ONE PHONE BOX (polish D7): the code and the number inside one frame, the code narrow (at most
+ * "+1684") with a hairline between them. The frame carries the focus ring and the glow for
+ * whichever of the two is in use, and the one in use takes a faint tint of the accent so the
+ * ring still says which. Each input keeps its own label (the code's is for a screen reader).
+ */
 .inquiry-form__phone {
-  display: grid;
-  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
-  /* "Country code (optional)" wraps to two lines in its 9rem column; the boxes line up anyway. */
-  align-items: end;
-  gap: 16px;
-  margin-block-start: 16px;
+  display: flex;
+  block-size: var(--field-block);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-button);
+  transition:
+    border-color var(--ui) var(--ease),
+    box-shadow var(--ui) var(--ease);
 }
 
-.inquiry-form__phone .inquiry-form__field {
-  margin-block-start: 0;
+.inquiry-form__phone:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: var(--dimension);
+}
+
+.inquiry-form__code,
+.inquiry-form__number {
+  min-width: 0;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: var(--text-body);
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-button);
+  outline: none;
+}
+
+.inquiry-form__code {
+  flex: 0 0 5.5em;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  border-inline-end: 1px solid var(--line);
+}
+
+.inquiry-form__number {
+  flex: 1;
+}
+
+.inquiry-form__code:focus-visible,
+.inquiry-form__number:focus-visible {
+  background: color-mix(in srgb, var(--dimension) 6%, transparent);
 }
 
 .inquiry-form__file {
   padding-block: 8px;
+}
+
+/*
+ * X6: ONCE THE FORM'S SCRIPT RUNS, THE GREY FILE BUTTON GOES OUT OF SIGHT and the drop area,
+ * its own <label>, is what shows (FilePicker.tsx). Visually hidden, never `display: none`: the
+ * input stays focusable and named, and the area shows its focus ring for it. Without scripting
+ * nothing sets `data-enhanced`, so the plain control shows and still works.
+ */
+.inquiry-form[data-enhanced] .inquiry-form__file {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .inquiry-form__file::file-selector-button {
@@ -5254,6 +5307,284 @@ a.contact-block__value:active {
   flex-shrink: 0;
   font-family: var(--font-mono);
   color: var(--muted);
+}
+
+/* ------------------------------------------------ the contact form in the owner's layout (polish D7, 2026-10-05) */
+
+/* The line that says what the red * means (Q17); the only place the * is read aloud. */
+.inquiry-form__key {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.inquiry-form__req {
+  font-weight: 700;
+  color: var(--danger);
+}
+
+/*
+ * THE PAIRS (Q16): side by side wherever the form is at least 28rem wide, a tablet or a computer
+ * (448px; each box then 216px or more, room for an email address), stacked below that, on a
+ * phone. Both halves keep their own top margin, so the two boxes of a pair start level.
+ */
+@container inquiry-form (inline-size >= 28rem) {
+  .inquiry-form__pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+    align-items: start;
+  }
+}
+
+/*
+ * The tick inside a needed box once it is rightly filled (MO5). `:user-valid` waits until the
+ * buyer has been in the box, as `:user-invalid` does for the red edge, so nobody is greeted by
+ * ticks or complaints. Hidden with `visibility` as well as opacity, so it is out of the page
+ * until it means something. The box makes room for it on its right.
+ */
+.inquiry-form__control {
+  position: relative;
+}
+
+.inquiry-form__control > .inquiry-form__input {
+  padding-inline-end: calc(var(--field-block) - 6px);
+}
+
+.inquiry-form__tick {
+  position: absolute;
+  inset-block-start: calc(var(--field-block) / 2 - 10px);
+  inset-inline-end: 14px;
+  inline-size: 20px;
+  block-size: 20px;
+  fill: none;
+  stroke: var(--dimension);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  scale: 0.6;
+  transition:
+    opacity var(--ui) var(--ease),
+    scale var(--ui) var(--ease),
+    visibility var(--ui);
+}
+
+.inquiry-form__input:user-valid ~ .inquiry-form__tick {
+  visibility: visible;
+  opacity: 1;
+  scale: 1;
+}
+
+/*
+ * SUBJECT (Q15, Q43): six answers to tap, each a radio inside its own pill, the radio laid over
+ * the whole pill (transparent) so the pill is what a finger, a mouse and Playwright press. The
+ * chosen one is filled with ink. "Something else…" opens the box below it by CSS alone.
+ */
+.inquiry-form__subject {
+  min-width: 0;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.inquiry-form__subject > legend {
+  padding: 0;
+}
+
+.inquiry-form__answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inquiry-form__answer {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  block-size: var(--field-block);
+  padding: 0 16px;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    color var(--ui) var(--ease),
+    background-color var(--ui) var(--ease),
+    border-color var(--ui) var(--ease);
+}
+
+.inquiry-form__answer > input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.inquiry-form__answer:has(input:checked) {
+  color: var(--bg);
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.inquiry-form__answer:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .inquiry-form__answer:hover:not(:has(input:checked)) {
+    border-color: var(--text);
+  }
+}
+
+.inquiry-form__own {
+  display: none;
+  margin-block-start: 16px;
+}
+
+.inquiry-form__subject:has(input[value="other"]:checked) .inquiry-form__own {
+  display: block;
+}
+
+/*
+ * THE PLACE TO DROP FILES (D7, X6): the file input's own label, a dashed area that takes the
+ * accent's edge while a file is held over it (`data-over`, FilePicker.tsx) or under a mouse.
+ */
+.inquiry-form__drop {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 24px 16px;
+  font-size: var(--text-sm);
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px dashed var(--line-control);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition:
+    border-color var(--ui) var(--ease),
+    background-color var(--ui) var(--ease);
+}
+
+.inquiry-form__drop[data-over] {
+  border-color: var(--dimension);
+  background: color-mix(in srgb, var(--dimension) 8%, var(--surface));
+}
+
+@media (hover: hover) {
+  .inquiry-form__drop:hover {
+    border-color: var(--dimension);
+  }
+}
+
+.inquiry-form__file:focus-visible + .inquiry-form__drop {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.inquiry-form__drop-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inquiry-files__name {
+  flex: 1;
+}
+
+.inquiry-files__item {
+  align-items: center;
+}
+
+/* Takes one file off the list again: a 44px target, as every control on the site. */
+.inquiry-files__remove {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0;
+  font-size: var(--text-body);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .inquiry-files__remove:hover {
+    color: var(--danger);
+  }
+}
+
+.inquiry-files__remove:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* F10: the form's buttons take the boxes' height too. */
+.inquiry-form .site-actions .btn {
+  block-size: var(--field-block);
+  min-height: 0;
+  padding-block: 0;
+}
+
+/*
+ * One small shake of Send pressed with something still to fill (MO5), set by the form's script
+ * and played only when the visitor has not asked for less motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .inquiry-form .btn.is-refused {
+    animation: inquiry-shake var(--settle) var(--ease);
+  }
+}
+
+@keyframes inquiry-shake {
+  20% {
+    translate: -6px 0;
+  }
+  40% {
+    translate: 5px 0;
+  }
+  60% {
+    translate: -4px 0;
+  }
+  80% {
+    translate: 2px 0;
+  }
+}
+
+/* The tick on "Got it." that draws itself once (MO5): one dash the stroke's length, run in. */
+.inquiry-done__tick {
+  inline-size: 54px;
+  block-size: 54px;
+}
+
+.inquiry-done__tick circle {
+  fill: var(--dimension);
+}
+
+.inquiry-done__tick path {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  animation: inquiry-tick-draw var(--slow) var(--ease) var(--fast) both;
+}
+
+@keyframes inquiry-tick-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
 }
 
 /*
