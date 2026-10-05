@@ -17,28 +17,41 @@ export { CARD_WIDTHS }
  * the page widths of polish D1, 2026-10-04; the tickets of D3b and M1, 2026-10-05): one sideways ticket
  * a row below 560 px, two columns to 900, three from 900, four from 1,440 and five from 1,920.
  *
- *   below 560     the ticket's left 44%: `0.44 × (100vw − two gutters − its 2 px of border)`, 122 px
- *                 at 320, 153 at 390 and 220 at 559, asked as `40vw − 1px` (127, 155, 222.6)
- *   560–899       `(100vw − two gutters − a 12 px gap) / 2`: `45vw − 6px` is exact, the gutter
- *                 being 5vw there (246 px at 560)
- *   900–1,279     three in a page of up to 1,180: 254–338 px, asked as 340
- *   1,280–1,439   three in the screen less two 64 px gutters: (100vw − 128 − 48) / 3, 368–421 px
- *   1,440–1,919   four in 1,312: 310 px
- *   1,920 and up  five in 1,472: 275.2 px, asked as 276
+ * ⚠️ ASKED FOR THE BOX INSIDE VA-55's MARGIN, 86% OF THE PICTURE'S BOX (polish X15, 2026-10-05).
+ * Each slide picture is padded 7% of its width a side (`--picture-inset`, site.css), and `contain`
+ * fits the render inside that, so no render is drawn wider than 0.86 of the box. Asking for the
+ * whole box handed a 3x phone at 375-393 px the 720 file (38-60 KB, measured live) where the 400
+ * file (16-26 KB) already covers the picture, and a 2x tablet at 820-834 px or a 2x laptop at
+ * 1,280-1,439 px the 1,080 file where 720 covers it. The box, and 0.86 of it:
  *
- * Never less than the card draws (`e2e/productsGrid.spec.ts` measures it), so a sharp screen is
- * never handed the smaller file for a card it would have to stretch. Until VA-42 this said one
- * column below 586 px (348 px at 390) and a phone fetched the 1,080 file for a 169 px card.
+ *   below 400     the ticket's left 44%: `0.44 × (100vw − two 20 px gutters − its 2 px of border)`,
+ *                 122 px at 320 and 153 at 390; inside the margin `37.84vw − 15.9px`, asked as
+ *                 `37.84vw − 15.6px`, which keeps a 393 px phone's 3x ask (399.3) under the 400 file
+ *   400–559       the same with gutters of 5vw rounded to 2 px, 220 px at 559; inside the margin at
+ *                 most `34.06vw`, asked as 34.1vw
+ *   560–899       `(100vw − two gutters − a 12 px gap) / 2`, `45vw − 6px` within the gutters'
+ *                 rounding (246 px at 560); inside the margin at most `38.7vw − 4.3px`
+ *   900–1,279     three in a page of up to 1,180: 254–338 px; inside the margin up to 291
+ *   1,280–1,439   three in the screen less two 64 px gutters: (100vw − 128 − 48) / 3, 368–421 px;
+ *                 inside the margin `28.67vw − 50.4px`
+ *   1,440–1,919   four in 1,312: 310 px; 266.6 inside the margin
+ *   1,920 and up  five in 1,472: 275.2 px; 236.7 inside the margin
  *
- * The `w` numbers describe the 4:5 BOX, not the picture inside it. A render taller than 4:5 comes
- * back narrower than the box, but it is height-bound in the card too (`object-fit: contain`), so
- * the height it needs is what the box gives: a 3x phone's 434 px-tall card needs 1,302 px, and
- * the 1,080 box is 1,350 px tall. Below 560 px the box is at least square (153 px tall at 390 px),
- * which only means the file is a little larger than the picture needs.
+ * Never less than the margin's box (`e2e/productsGrid.spec.ts` measures it), so a sharp screen is
+ * never handed a file it would have to stretch. Until VA-42 this said one column below 586 px (348
+ * px at 390) and a phone fetched the 1,080 file for a 169 px card.
+ *
+ * The `w` numbers describe the 4:5 BOX the file is fitted into, not the picture. In a 4:5 card the
+ * margin's box is 4:5 too, so a file as wide as it is as tall as it as well. Below 560 px the card's
+ * box is square, or taller only when a long name needs the room: the margin's box there is 0.86 of
+ * the width by 0.825 of it (1.25 x 7% above and below), and the file's box, 1.25 times as tall as
+ * it is wide, is taller than that. A ticket stretched past 1.25 times its width by a long name is
+ * the one case a tall render could come out a little soft.
  */
 export const CARD_SIZES =
-  '(max-width: 559px) calc(40vw - 1px), (max-width: 899px) calc(45vw - 6px), ' +
-  '(max-width: 1279px) 340px, (max-width: 1439px) calc(33.34vw - 58px), (max-width: 1919px) 310px, 276px'
+  '(max-width: 399px) calc(37.84vw - 15.6px), (max-width: 559px) 34.1vw, ' +
+  '(max-width: 899px) calc(38.7vw - 4px), (max-width: 1279px) 291px, ' +
+  '(max-width: 1439px) calc(28.67vw - 50px), (max-width: 1919px) 267px, 237px'
 
 /**
  * How wide a family ticket's picture on the home page draws (polish D3; `.family-card` in site.css),

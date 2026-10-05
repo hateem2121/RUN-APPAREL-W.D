@@ -516,18 +516,36 @@ test.describe('a card never asks for a smaller picture than it draws (polish D1)
    * real cards here, not read off them.
    * What would have to break for this to fail: a column count or the page's width changing without
    * `CARD_SIZES` (src/lib/cardImage.ts) following, in either direction (past 40% too large).
+   *
+   * ⚠️ SINCE POLISH X15 (2026-10-05) THE HINT IS THE BOX INSIDE VA-55's MARGIN: the picture's width
+   * less its padding (7% of it a side), which is the widest `contain` can draw any render, wide or
+   * tall. So that is what is measured, and the margin itself is checked to be there: without it the
+   * picture fills its box and this hint, 86% of the box, falls short (the failure this must show).
    */
-  // 559 and 560 since polish M1: either side of the phone's sideways ticket.
-  for (const width of [390, 559, 560, 899, 900, 1179, 1279, 1280, 1439, 1440, 1919, 1920, 2560]) {
+  // 559 and 560 since polish M1: either side of the phone's sideways ticket. 375 and 393 since X15:
+  // either side of 390, where a 3x phone's hint now sits just under the 400 file (133.3 px).
+  for (const width of [
+    375, 390, 393, 559, 560, 899, 900, 1179, 1279, 1280, 1439, 1440, 1919, 1920, 2560,
+  ]) {
     test(`at ${width}px`, async ({ page }) => {
       await open(page, width, 900)
       await fill(page, 6)
-      const drawn = await page
-        .locator('.product-grid .product-card__figure')
+      const { box, drawn } = await page
+        .locator('.product-grid .card-gallery__slide .product-card__img')
         .first()
-        .evaluate((figure) => figure.getBoundingClientRect().width)
+        .evaluate((img) => {
+          const style = getComputedStyle(img)
+          const box = img.getBoundingClientRect().width
+          return {
+            box,
+            drawn:
+              box - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+          }
+        })
+      // The control that the margin is there, so the box measured is the one the hint describes.
+      expect(drawn, `${width}px: the picture has no margin inside its box`).toBeLessThan(box * 0.9)
       const hinted = await hintedWidth(page, CARD_SIZES)
-      const said = `${width}px: asks for ${hinted}px, the card draws ${drawn}px`
+      const said = `${width}px: asks for ${hinted}px, the picture is fitted into ${drawn}px`
       expect(hinted, said).toBeGreaterThanOrEqual(drawn - 0.5)
       expect(hinted, said).toBeLessThanOrEqual(drawn * 1.4)
     })

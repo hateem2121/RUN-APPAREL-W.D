@@ -18,6 +18,7 @@ import {
   HERO_SHAPES,
   heroPhotoSrc,
 } from './lib/factoryPhotos'
+import { hintAt, pickedWidth } from './sizesAt'
 
 /**
  * OI-3 — the home page's factory photos. What would have to break for these to fail: a file
@@ -299,40 +300,15 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
   /** The photo files narrower than their shape asks, because the original is: slug → its widest. */
   const ORIGINAL_LIMITS = { tagging: 1200, packing: 1200 }
 
-  /** A `sizes` length at a window `width` px wide, in the forms the site writes; anything else throws. */
-  function lengthAt(length: string, width: number): number {
-    const px = length.match(/^(\d+(?:\.\d+)?)px$/)
-    if (px) return Number(px[1])
-    const vw = length.match(/^(\d+(?:\.\d+)?)vw$/)
-    if (vw) return (Number(vw[1]) * width) / 100
-    const sum = length.match(/^calc\((\d+(?:\.\d+)?)vw ([+-]) (\d+(?:\.\d+)?)px\)$/)
-    if (sum) return (Number(sum[1]) * width) / 100 + (sum[2] === '+' ? 1 : -1) * Number(sum[3])
-    throw new Error(`a sizes length this check cannot read: "${length}"`)
-  }
-
-  /** The width a `sizes` value names at a window `width` px wide: its first entry that applies. */
-  function hintAt(sizes: string, width: number): number {
-    for (const entry of sizes.split(/,\s*/)) {
-      const [, max, length] = entry.trim().match(/^(?:\(max-width: (\d+)px\)\s+)?(.+)$/) ?? []
-      if (max !== undefined && width > Number(max)) continue
-      if (length !== undefined) return lengthAt(length, width)
-    }
-    throw new Error(`no entry of "${sizes}" applies at ${width}px`)
-  }
-
   type Picture = { slug: string; srcset: string; sizes: string }
 
   /** Every picture a screen is handed fewer pixels than its hint asks for. */
   function shortfalls(pictures: readonly Picture[]) {
     const misses: { slug: string; screen: string; asks: number; gets: number }[] = []
     for (const picture of pictures) {
-      const widths = picture.srcset
-        .split(', ')
-        .map((candidate) => Number(candidate.match(/ (\d+)w$/)?.[1]))
-        .sort((a, b) => a - b)
       for (const [width, density] of SCREENS) {
         const hint = hintAt(picture.sizes, width)
-        const gets = widths.find((each) => each / hint >= density) ?? widths.at(-1) ?? 0
+        const gets = pickedWidth(picture.srcset, hint, density)
         const asks = hint * density
         if (gets < asks - 0.5) {
           misses.push({ slug: picture.slug, screen: `${width}@${density}x`, asks, gets })
