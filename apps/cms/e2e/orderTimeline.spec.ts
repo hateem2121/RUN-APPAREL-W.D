@@ -627,6 +627,10 @@ test.describe('D4 — every card holds its words, and they read over the photos'
     test(`at ${width}px every line over every photo keeps its contrast, measured from the pixels behind it`, async ({
       page,
     }) => {
+      // Eight cards, each line's pixels read from a screenshot: measured alone in CI's image
+      // (2026-10-05) 6-7 s in Chromium and Firefox but 10.8 s (390px) and 14.6 s (1440px) in WebKit,
+      // which ran out of the 30 s default in CI's parallel run on PR #128, twice. Its own limit.
+      test.setTimeout(90_000)
       await open(page, width, height)
       const { found } = await worstLine(page, [0, 1, 2, 3, 4, 5, 6, 7])
       expect(found).toEqual([])

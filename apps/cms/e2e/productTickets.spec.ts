@@ -87,6 +87,13 @@ const rise = (card: Locator) =>
  */
 const isOpen = (card: Locator) =>
   card.evaluate((element) => {
+    // Settled means no animation that runs in TIME. Since MO4 (2026-10-05) each card also carries
+    // a scroll-linked rise (`animation-timeline: view()`), which follows the scroll and never ends,
+    // so with motion allowed a bare count never reached 0 (CI on PR #128, and the Mac).
+    const timedAnimations = (root: Element) =>
+      root
+        .getAnimations({ subtree: true })
+        .filter((animation) => animation.timeline === document.timeline).length
     const to = Number.parseFloat(getComputedStyle(element).getPropertyValue('--ticket-rise-to'))
     const now = Number.parseFloat(getComputedStyle(element).getPropertyValue('--ticket-rise'))
     const lines = [...element.querySelectorAll('.product-card__more > *')]
@@ -94,13 +101,17 @@ const isOpen = (card: Locator) =>
       to > 0 &&
       Math.abs(now - to) < 0.5 &&
       lines.every((line) => getComputedStyle(line).opacity === '1') &&
-      element.getAnimations({ subtree: true }).length === 0
+      timedAnimations(element) === 0
     )
   })
 
 /** Nothing moving anywhere in the ticket (`isOpen` says why): for reads after a close or a focus. */
 const settled = (card: Locator) =>
-  card.evaluate((element) => element.getAnimations({ subtree: true }).length === 0)
+  card.evaluate((element) =>
+    element
+      .getAnimations({ subtree: true })
+      .every((animation) => animation.timeline !== document.timeline),
+  )
 
 type Box = {
   left: number

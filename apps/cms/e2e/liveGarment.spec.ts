@@ -190,9 +190,20 @@ test.describe('№03 — the live 3D garment', () => {
       model.evaluate(
         (element) => (element as unknown as { turntableRotation: number }).turntableRotation,
       )
-    // The control: before any touch it really turns by itself, and the hint is up.
-    const before = await yaw()
-    await expect.poll(yaw, { timeout: 3000 }).not.toBe(before)
+    // The control: before any touch it really turns by itself, and the hint is up. CI's Firefox has
+    // no WebGL (e2e/stage.ts in the viewer): the model is shown but never draws a frame, so its angle
+    // cannot move, and this failed there on PR #128. Without WebGL the turning is read from the switch
+    // that starts it, as the real-model test above reads it.
+    const draws = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
+    })
+    if (draws) {
+      const before = await yaw()
+      await expect.poll(yaw, { timeout: 3000 }).not.toBe(before)
+    } else {
+      await expect(model).toHaveAttribute('auto-rotate', '')
+    }
     await expect(page.locator('.live-garment__hint')).toHaveText(/drag to turn/i)
 
     const box = await model.boundingBox()

@@ -1,4 +1,5 @@
 import { CARD_SIZES } from '../src/lib/cardImage'
+import { answerCardPictures } from './cardPictures'
 import { nameSegments } from '../src/lib/cardName'
 import { FAMILIES } from '../src/lib/families'
 import { expect, type Page, test } from './offlineMedia'
@@ -528,6 +529,8 @@ test.describe('a card never asks for a smaller picture than it draws (polish D1)
     375, 390, 393, 559, 560, 899, 900, 1179, 1279, 1280, 1439, 1440, 1919, 1920, 2560,
   ]) {
     test(`at ${width}px`, async ({ page }) => {
+      // A picture the card can draw at every width (cardPictures.ts says why).
+      await answerCardPictures(page)
       await open(page, width, 900)
       await fill(page, 6)
       const { box, drawn } = await page
