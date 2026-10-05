@@ -4,7 +4,9 @@ import { useEffect } from 'react'
 import { CARD_OPENING_NAME } from '../../lib/cardOpening'
 
 /** The part of the browser's `pageswap` event this reads; typed here, not from a DOM library. */
-type PageSwap = Event & { viewTransition?: { skipTransition(): void } | null }
+type PageSwap = Event & {
+  viewTransition?: { skipTransition(): void; ready?: Promise<unknown> } | null
+}
 
 /**
  * A product card's picture grows into the garment page (polish MO3; the owner's choice of
@@ -55,7 +57,12 @@ export function CardOpening() {
     }
     const onSwap = (event: Event) => {
       const transition = (event as PageSwap).viewTransition
-      if (transition && !picked) transition.skipTransition()
+      if (transition && !picked) {
+        transition.skipTransition()
+        // Skipping rejects `ready`, which nobody else holds: caught, or it reaches the browser as an
+        // unhandled rejection (the garment page's twin reported one to Sentry, VIEWER-E).
+        transition.ready?.catch(() => {})
+      }
     }
     const onShow = (event: PageTransitionEvent) => {
       if (event.persisted) forget()

@@ -27,6 +27,27 @@ describe('leaving a garment page stays instant (polish MO3)', () => {
     }
   })
 
+  // VIEWER-E (5 Oct 2026): skipping rejects `ready` with "Transition was skipped"; left unhandled,
+  // Sentry's global handler reported it as an error on every link out of a garment page.
+  it('handles the rejection skipping causes, so it never reaches Sentry', async () => {
+    const page = aPage()
+    keepLeavingInstant(page)
+    const unhandled = vi.fn()
+    process.on('unhandledRejection', unhandled)
+    try {
+      const ready = Promise.reject(new DOMException('Transition was skipped', 'AbortError'))
+      const skipTransition = vi.fn()
+      page.dispatchEvent(
+        Object.assign(new Event('pageswap'), { viewTransition: { skipTransition, ready } }),
+      )
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(skipTransition).toHaveBeenCalledTimes(1)
+      expect(unhandled).not.toHaveBeenCalled()
+    } finally {
+      process.off('unhandledRejection', unhandled)
+    }
+  })
+
   // NEGATIVE CONTROL: the same event on a page that never called it is left to run.
   it('sees the fault: without it the transition is not skipped', () => {
     expect(swap(aPage())).not.toHaveBeenCalled()

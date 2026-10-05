@@ -3690,8 +3690,8 @@ a.contact-block__value:active {
  * The colour dots, the gallery cards' own (`.card-gallery__dot`), with the colour's name on its own
  * line above them, as on an opened product ticket and a phone's garment page. Until polish N1 the
  * name shared the dots' row, and a longer name pushed the dots sideways as it was chosen (the
- * renamed skinsuit's run Puck to Golden Goal); the line above holds up to "Silver Medal / Clean
- * Sheet", 26 characters, at 390px (e2e/proofShowcase.spec.ts).
+ * renamed skinsuit's run Puck to Golden Goal); the line above holds up to "Podium Lilac / Night
+ * Indigo", the longest name, 27 characters, at 390px (e2e/proofShowcase.spec.ts).
  */
 .proof__colours {
   display: flex;

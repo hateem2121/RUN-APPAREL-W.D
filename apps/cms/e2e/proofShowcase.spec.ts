@@ -145,9 +145,9 @@ test.describe('№03 — the colour dots (D2)', () => {
   })
 
   /*
-   * Polish N1 renames every colour (names awaiting the owner's approval, 2026-10-05), up to 26
-   * characters ("Silver Medal / Clean Sheet") where the seed's are one short word. The live
-   * skinsuit's would run Puck, Golden Goal, Tennis Ball…: while the name shared the dots' row,
+   * Polish N1 renames every colour (2026-10-05, the owner's second list that evening), up to 27
+   * characters ("Podium Lilac / Night Indigo") where the seed's are one short word. The live
+   * skinsuit's run Claret Red, Rosette Pink, Lemon Squash…: while the name shared the dots' row,
    * choosing one pushed the dots sideways, out from under the pointer that chose it. The name
    * now sits on its own line above them, as on an opened product ticket and a phone's garment
    * page; here the name is written in by the test, so the seed's short words cannot hide this.
@@ -178,8 +178,8 @@ test.describe('№03 — the colour dots (D2)', () => {
             lines: Math.round(label.getBoundingClientRect().height / lineHeight),
           }
         }, name)
-      const short = await readWith('Puck')
-      const long = await readWith('Silver Medal / Clean Sheet')
+      const short = await readWith('Ivy')
+      const long = await readWith('Podium Lilac / Night Indigo')
       expect(short.dots.length, 'no dots to measure').toBeGreaterThan(1)
       expect(long.dots, 'the dots moved when the name grew').toEqual(short.dots)
       expect(long.lines, 'the longest name took more than one line').toBe(1)
