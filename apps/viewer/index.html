@@ -144,29 +144,8 @@
     -->
     <link rel="preconnect" href="https://cms.wear-run.help" crossorigin />
     <link rel="preconnect" href="https://media.wear-run.com" crossorigin />
-    <!--
-      Polish MO3 (2026-10-05): a website card's picture grows into the loading screen below,
-      which carries its name (page.css). Two lines make that possible here.
-
-      ⚠️ THE OPT-IN IS INLINE, NOT IN page.css, AND THAT IS MEASURED. In page.css the browser
-      turned the transition down on every arrival (Chromium, 3 runs of 3), although the
-      stylesheet was applied by the first paint: it settles whether this page opts in before an
-      external stylesheet has arrived. The same rule inline was accepted 3 of 3, the card's picture
-      paired with this loading screen. Styles may be inline here (`style-src 'unsafe-inline'`,
-      scripts/csp.mjs); scripts may not, which is why this is a style.
-
-      The `expect` link: the browser must not start before the loading screen is in the page, or
-      the picture has nothing to grow into (web.dev, "consistent cross-document transitions",
-      read 2026-10-05). #root closes right after the screen, so it waits for nothing more.
-      Browsers without either simply load the page.
-    -->
-    <style>
-      @media (prefers-reduced-motion: no-preference) {
-        @view-transition {
-          navigation: auto;
-        }
-      }
-    </style>
+    <!-- Polish MO3: inline on purpose, and this note short on purpose (page.css, `.preloader`). -->
+    <style>@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }</style>
     <link rel="expect" href="#root" blocking="render" />
     <!--
       The meshopt decoder and the lighting map are preloaded by the APP, not here, since

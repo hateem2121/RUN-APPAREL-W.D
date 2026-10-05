@@ -2923,10 +2923,21 @@ summary.spec-item__row:focus-visible {
    picture from the card to the whole screen while the screen fades in over it. It is the only
    possible target: a visitor's page holds nothing else at its first paint (index.html, RO-08; the
    words under it are served to robots only, worker/index.ts), so nothing unstyled shows while it
-   is lifted out. This page's opt-in is INLINE in index.html, not here: from this file the browser
-   turned every arrival down (measured; index.html has the numbers). Leaving a garment page stays
-   instant (lib/pageTransition.ts). Reduced motion: no transition at all. Firefox has none yet
-   (5 Oct 2026) and simply loads the page. */
+   is lifted out. Leaving a garment page stays instant (lib/pageTransition.ts). Reduced motion: no
+   transition at all. Firefox has none yet (5 Oct 2026) and simply loads the page.
+
+   ⚠️ THIS PAGE'S OPT-IN IS INLINE IN index.html, NOT HERE, MEASURED
+   2026-10-05: from this file Chromium turned every arrival down (0 of 3), although the sheet was
+   applied by the first paint — it settles whether a page opts in before an external stylesheet
+   has arrived; inline, 3 of 3, the card's picture paired with this screen. Styles may be inline
+   there (`style-src 'unsafe-inline'`, scripts/csp.mjs); scripts may not.
+   ⚠️ AND ITS NOTE THERE STAYS ONE LINE. index.html's comments ship (the build keeps them) and sit
+   in front of the slow-3G first paint: the first, 1,066-byte version of this note took
+   e2e/firstPaint.spec.ts from 2,280 to 2,420 ms (median of 5) against its 2,400 ms ceiling, while
+   the opt-in itself cost nothing. Comments in this file are removed when it is minified.
+   The `expect` link beside it holds the browser until the loading screen is in the page, or the
+   picture has nothing to grow into (web.dev, "consistent cross-document transitions", read
+   2026-10-05). */
 .preloader {
   view-transition-name: garment-opening;
 }
