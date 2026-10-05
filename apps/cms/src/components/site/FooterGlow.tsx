@@ -65,6 +65,7 @@ export function FooterGlow() {
       if (!on) {
         // Off the slab is not "just left content": coming back onto empty ground must not linger.
         wasOver = false
+        leftAt = Number.NEGATIVE_INFINITY
         if (mark?.dataset.lit === 'true') mark.dataset.lit = 'false'
         return
       }
