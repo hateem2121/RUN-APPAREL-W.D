@@ -110,6 +110,25 @@ describe('planColourImport', () => {
     expect(slugs).toEqual(['forest-green', 'forest-green-2'])
   })
 
+  it("names the colours in the product category's style, keeping the measured slugs (polish N2)", () => {
+    // The same rule the "Add the ticked colours" button uses (buildImportedRow): a new outerwear
+    // garment's Forest Green and Navy arrive as Pine and Midnight, like the 200 the owner
+    // approved, while their printed QR addresses stay the measured words.
+    const plan = planColourImport(draft({ category: 'Outerwear' }), [
+      colour(),
+      colour({ variantId: 'Colorway 6', slug: 'navy', name: 'Navy' }),
+    ])
+    expect((plan.rows ?? []).map((row) => [row.displayName, row.slug])).toEqual([
+      ['Pine', 'forest-green'],
+      ['Midnight', 'navy'],
+    ])
+  })
+
+  it('keeps the measured words when the category could not be read', () => {
+    const plan = planColourImport(draft({ category: null }), [colour()])
+    expect(plan.rows?.[0]?.displayName).toBe('Forest Green')
+  })
+
   it('every refusal that says anything points at the fallback button', () => {
     const refusals = [
       planColourImport(draft({ status: 'published' }), [colour()]),

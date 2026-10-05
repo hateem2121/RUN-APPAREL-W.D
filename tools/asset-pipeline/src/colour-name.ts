@@ -173,6 +173,20 @@ const PALETTE: { name: string; hex: string }[] = [
   { name: 'Denim', hex: '#3D5A80' },
 ]
 
+/**
+ * Every word `nameColour` can answer with.
+ *
+ * ⚠️ ADD A COLOUR ABOVE → NAME IT IN EACH CATEGORY'S STYLE TOO (polish N2, 2026-10-05). The website
+ * imports a garment's colours with these words renamed in its category's style, "Forest Green"
+ * becoming "Pine" on an outerwear garment (packages/shared/src/colourNames.ts; the owner's answer
+ * Q38: sport, performance, nature and easy fashion words). This package cannot import that table
+ * (see the header: the container installs it with plain npm), so colour-name.test.ts holds the two
+ * lists together and fails on a word one of them lacks.
+ */
+export const COLOUR_FAMILY_NAMES: readonly string[] = [...GREY_RAMP, ...PALETTE].map(
+  (entry) => entry.name,
+)
+
 /** sRGB electro-optical transfer function, channel in 0..1. */
 export function srgbToLinear(channel: number): number {
   return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4

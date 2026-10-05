@@ -714,7 +714,8 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
 
 /**
  * Read the target product's code, status, whether it already has a model, how
- * many colour rows it already has, and the RAW colour rows themselves.
+ * many colour rows it already has, the RAW colour rows themselves, and its
+ * category (the colour import names a new garment's colours in its style).
  *
  * ⚠️ IT ALSO READ `frontCameraOrbit` AND `defaultFieldOfView` UNTIL 2026-08-17,
  * with their own schema-default constants. Those existed solely to aim the
@@ -734,6 +735,7 @@ async function readProductState(
   | (ProductState & {
       colourwayCount: number
       colourways: Record<string, unknown>[]
+      category: string | null
     })
   | null
 > {
@@ -747,6 +749,7 @@ async function readProductState(
     status?: unknown
     glbAsset?: unknown
     colourways?: unknown
+    category?: unknown
   } | null
   if (!doc) return null
   // depth has no bearing on an array field's own rows, only on relationships
@@ -763,6 +766,8 @@ async function readProductState(
     hasGlbAsset: doc.glbAsset != null && doc.glbAsset !== '',
     colourwayCount: colourways.length,
     colourways,
+    // The colour import names a new garment's colours in this category's style (polish N2).
+    category: typeof doc.category === 'string' ? doc.category : null,
   }
 }
 

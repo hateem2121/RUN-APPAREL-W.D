@@ -91,10 +91,31 @@ describe('buildImportedRow', () => {
     expect(row.slug).toBe('forest-green-4')
   })
 
+  it("names a colour in its category's style, keeping the measured word as its address (N2)", () => {
+    // Forest Green in Outerwear is "Pine" (colourNames.ts). The slug stays the namer's own word:
+    // it becomes a printed QR address, and a style name may change again; an address never can.
+    expect(buildImportedRow(colour(), [], 'Outerwear')).toMatchObject({
+      displayName: 'Pine',
+      slug: 'forest-green',
+    })
+    expect(
+      buildImportedRow(colour(), [{ slug: 'forest-green' }], 'Teamwear & Uniforms'),
+    ).toMatchObject({ displayName: 'Baize', slug: 'forest-green-2' })
+  })
+
+  it('keeps the namer word where no style was given', () => {
+    expect(buildImportedRow(colour(), [], 'Sports Accessories').displayName).toBe('Forest Green')
+    expect(buildImportedRow(colour(), [], undefined).displayName).toBe('Forest Green')
+  })
+
   it('leaves the name blank rather than guessing when the match was poor', () => {
     // A confident wrong name is how "Navy" ended up on a maroon garment. An
     // empty box the owner must fill is the safer failure.
-    const row = buildImportedRow(colour({ confidence: 'low', name: 'Lime', slug: 'lime' }), [])
+    const row = buildImportedRow(
+      colour({ confidence: 'low', name: 'Lime', slug: 'lime' }),
+      [],
+      'Teamwear & Uniforms',
+    )
     expect(row.displayName).toBe('')
     expect(row.slug).toBe('')
     // The swatch still comes through — it is measured, not guessed.

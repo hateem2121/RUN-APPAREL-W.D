@@ -3,6 +3,7 @@ import {
   type ExistingRow,
   type FileColour,
   type ImportedRow,
+  themedColourName,
   toFileColours,
   unmappedFileColours,
 } from '@run-apparel/shared'
@@ -28,14 +29,39 @@ export function missingFileColours(fields: FormFields): FileColour[] {
 }
 
 /**
+ * The product's category as the form holds it now, so a category chosen but not yet saved
+ * already names the colours (polish N2: packages/shared/src/colourNames.ts).
+ */
+export function formCategory(fields: FormFields): string | undefined {
+  const value = fields?.category?.value
+  return typeof value === 'string' && value !== '' ? value : undefined
+}
+
+/**
+ * What the panel calls a file colour: the very name the row will be given, in the category's
+ * style. A low-confidence match shows its swatch and says so, rather than offering a name:
+ * suggesting one confidently is exactly how a maroon garment came to be called Navy.
+ */
+export function fileColourLabel(colour: FileColour, category: string | undefined): string {
+  return colour.confidence === 'high'
+    ? themedColourName(colour.name, category)
+    : 'Colour needs a name'
+}
+
+/**
  * One new row per ticked colour, each checked against the rows already there AND the ones
  * given out just before it, so two imports can never share a slug (slugs are printed on QR
- * tags). Every row arrives switched off: buildImportedRow sets `active: false`.
+ * tags). Every row arrives switched off: buildImportedRow sets `active: false`. The name is in
+ * the product category's style; the slug stays the namer's measured word (buildImportedRow).
  */
-export function rowsToAdd(chosen: FileColour[], existing: ExistingRow[]): ImportedRow[] {
+export function rowsToAdd(
+  chosen: FileColour[],
+  existing: ExistingRow[],
+  category?: string,
+): ImportedRow[] {
   const taken: ExistingRow[] = [...existing]
   return chosen.map((colour) => {
-    const row = buildImportedRow(colour, taken)
+    const row = buildImportedRow(colour, taken, category)
     taken.push(row)
     return row
   })
