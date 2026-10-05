@@ -2134,6 +2134,27 @@ convincing detail — while the same URL checked by hand minutes later passed ev
 one. Six attempts, ten seconds apart. If you add another post-deploy check
 against the viewer, give it the same treatment.
 
+### The website pages' own pictures (polish X14, 2026-10-05)
+
+A website page (not a garment page) shares its page type's own 1200x630 JPEG from
+`apps/cms/public/share/`: the home page, /products (four garments, one per family), /contact (the
+showroom), each category page (four of its garments), the guides index and each guide (its title).
+Privacy and terms share the home page's. Until then all 17 shared `og-default.png`, made before the
+domain move and still showing `wear-run.help`; it stays in `public/`, unchanged, for links already
+shared.
+
+The words and pictures are listed in `apps/cms/src/lib/shareImages.ts`, which takes them from the
+pages. After a page's label or headline changes, remake the files and look at every one before
+committing:
+
+```bash
+tools/asset-pipeline/node_modules/.bin/tsx apps/cms/scripts/gen-share-images.mjs --force
+```
+
+`apps/cms/src/lib/shareImages.test.ts` fails when a file is missing, is not 1200x630, is over
+300 KB, or no longer carries its page's words. A platform keeps a card it has already fetched for a
+while, so a remade picture can take days to show on a link shared before.
+
 ### What a search robot reads on a garment page (since 2026-09-30)
 
 A robot's copy of a garment page also carries the garment's own words in its body, not

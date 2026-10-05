@@ -1,6 +1,7 @@
 import { normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_ORIGIN, GARMENT_PAGES } from './seo'
+import { shareCardFor, shareImageUrl } from './shareImages'
 
 /**
  * JSON-LD builders for the public marketing site.
@@ -59,7 +60,8 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
     // The logo field is the owner's upload when set, and the shipped mark otherwise —
     // the same precedence the browser tab icon uses.
     logo: settings.logoUrl ? `${SITE_ORIGIN}${settings.logoUrl}` : `${SITE_ORIGIN}/icon.svg`,
-    image: `${SITE_ORIGIN}/og-default.png`,
+    // The home page's share picture (polish X14): `og-default.png` showed the old address.
+    image: shareImageUrl(shareCardFor('/'), SITE_ORIGIN),
     email: settings.email,
     address: {
       '@type': 'PostalAddress',

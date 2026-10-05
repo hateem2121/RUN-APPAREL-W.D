@@ -167,6 +167,8 @@ test.describe('the 404 shadows nothing', () => {
     { path: '/robots.txt', label: 'robots.txt', status: 200 },
     { path: '/sitemap.xml', label: 'sitemap.xml', status: 200 },
     { path: '/og-default.png', label: 'the social card', status: 200 },
+    // Each page type's own card since polish X14; the old one above stays for links already shared.
+    { path: '/share/home.jpg', label: 'the home page’s share picture', status: 200 },
     { path: '/icon.svg', label: 'the fallback tab icon', status: 200 },
     /*
      * ⚠️ MEASURED 404 ON THE LIVE SITE, 2026-09-16, both of them:

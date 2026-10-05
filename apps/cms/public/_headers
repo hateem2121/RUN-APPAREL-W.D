@@ -28,3 +28,8 @@
 
 /film/*
   Cache-Control: public, max-age=604800
+
+# Each page type's share picture (polish X14). Fixed names, like the photos: a remade card reaches a
+# returning visitor within the week, and `scripts/gen-share-images.mjs` remakes them only on purpose.
+/share/*
+  Cache-Control: public, max-age=604800

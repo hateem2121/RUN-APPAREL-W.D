@@ -1,4 +1,5 @@
 import { canonicalHrefs } from '../../../scripts/canonical-tags.mjs'
+import { PUBLIC_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { THEME_COLOR } from '../src/lib/themeColor'
 import { expect, test } from './offlineMedia'
 
@@ -169,39 +170,65 @@ test.describe('FA-N-07 — the social card resolves and is the right size', () =
    * either one can move alone. A card whose declared dimensions do not match the file is
    * cropped or letterboxed by every platform, and the person who replaces the artwork is
    * not the person who wrote the meta tags.
+   *
+   * Since polish X14 (2026-10-05) every page type shares its own JPEG under `/share/`, so this
+   * asks every public page, and the declared type is held to the file's too.
    */
-  test('the file is there, is a PNG, and is 1200 x 630 as declared', async ({ page, request }) => {
-    await page.goto('/')
-    const declared = await page.evaluate(() => ({
-      url: document.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? '',
-      width: document.querySelector('meta[property="og:image:width"]')?.getAttribute('content'),
-      height: document.querySelector('meta[property="og:image:height"]')?.getAttribute('content'),
-      alt: document.querySelector('meta[property="og:image:alt"]')?.getAttribute('content'),
-    }))
-    expect(declared.url, 'no og:image at all').toMatch(/^https?:\/\//)
-    expect(declared.alt, 'the card has no alt text').toBeTruthy()
+  for (const path of PUBLIC_PAGE_SOURCES) {
+    test(`${path}: its card is there, a JPEG, and 1200 x 630 as declared`, async ({
+      page,
+      request,
+    }) => {
+      await page.goto(path)
+      const declared = await page.evaluate(() => {
+        const meta = (key: string) =>
+          document
+            .querySelector(`meta[property="${key}"], meta[name="${key}"]`)
+            ?.getAttribute('content') ?? ''
+        return {
+          url: meta('og:image'),
+          width: meta('og:image:width'),
+          height: meta('og:image:height'),
+          type: meta('og:image:type'),
+          alt: meta('og:image:alt'),
+          twitter: meta('twitter:image'),
+          twitterAlt: meta('twitter:image:alt'),
+        }
+      })
+      expect(declared.url, 'no og:image at all').toMatch(
+        /^https?:\/\/[^/]+\/share\/[a-z0-9-]+\.jpg$/,
+      )
+      expect(declared.alt, 'the card has no alt text').toBeTruthy()
+      expect(declared.twitter, 'X is shown another picture').toBe(declared.url)
+      expect(declared.twitterAlt, 'X is told another alt text').toBe(declared.alt)
 
-    /*
-     * ⚠️ THE PATH IS FETCHED FROM THIS SERVER, NOT THE DECLARED ABSOLUTE URL. The tag
-     * correctly names the production origin, which this fixture is not; fetching it would
-     * make the gate depend on the live site being up, and CI has already learned that a
-     * `wear-run.help` fetch from a runner can 403 for reasons that are not a defect.
-     */
-    const response = await request.get(new URL(declared.url).pathname)
-    expect(response.status(), `${declared.url} does not resolve on this origin`).toBe(200)
-    expect(response.headers()['content-type']).toContain('image/png')
+      /*
+       * ⚠️ THE PATH IS FETCHED FROM THIS SERVER, NOT THE DECLARED ABSOLUTE URL. The tag
+       * correctly names the production origin, which this fixture is not; fetching it would
+       * make the gate depend on the live site being up, and CI has already learned that a
+       * `wear-run.help` fetch from a runner can 403 for reasons that are not a defect.
+       */
+      const response = await request.get(new URL(declared.url).pathname)
+      expect(response.status(), `${declared.url} does not resolve on this origin`).toBe(200)
+      expect(response.headers()['content-type']).toContain('image/jpeg')
+      expect(declared.type, 'og:image:type disagrees with the file').toBe('image/jpeg')
 
-    // PNG IHDR: width and height are big-endian uint32 at byte offsets 16 and 20.
-    const bytes = await response.body()
-    const width = bytes.readUInt32BE(16)
-    const height = bytes.readUInt32BE(20)
-    expect({ width, height }, 'the social card is no longer 1200 x 630').toEqual({
-      width: 1200,
-      height: 630,
+      // JPEG frame header (SOF0-SOF15, less DHT, JPG and DAC): height then width, big-endian.
+      const bytes = await response.body()
+      let size: { width: number; height: number } | null = null
+      for (let at = 2; at + 9 < bytes.length && bytes[at] === 0xff; ) {
+        const marker = bytes[at + 1] ?? 0
+        if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+          size = { height: bytes.readUInt16BE(at + 5), width: bytes.readUInt16BE(at + 7) }
+          break
+        }
+        at += 2 + bytes.readUInt16BE(at + 2)
+      }
+      expect(size, 'the social card is no longer 1200 x 630').toEqual({ width: 1200, height: 630 })
+      expect(Number(declared.width), 'og:image:width disagrees with the file').toBe(size?.width)
+      expect(Number(declared.height), 'og:image:height disagrees with the file').toBe(size?.height)
     })
-    expect(Number(declared.width), 'og:image:width disagrees with the file').toBe(width)
-    expect(Number(declared.height), 'og:image:height disagrees with the file').toBe(height)
-  })
+  }
 })
 
 test.describe('FA-N-08 — the structured data parses and says what it should', () => {

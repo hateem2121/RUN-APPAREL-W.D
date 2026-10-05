@@ -1,6 +1,12 @@
 /**
  * Generate the site's default social preview card — `public/og-default.png`.
  *
+ * ⚠️ SUPERSEDED BY `gen-share-images.mjs` (polish X14, 2026-10-05): every page now shares its
+ * page type's own card from `public/share/`. Do not run this one. `og-default.png` stays exactly
+ * as it is, because links already shared and the platforms' caches point at it, and
+ * `src/lib/shareImages.test.ts` fails if a byte of it changes. It is kept as the record of how
+ * that file was made.
+ *
  * WHY A COMMITTED PNG AND NOT RUNTIME GENERATION. `next/og` renders images on the fly,
  * which is the modern answer and the wrong one here: it pulls satori and resvg-wasm,
  * neither of which this repo has, into the Worker that also serves the admin. This card
