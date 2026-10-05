@@ -164,14 +164,14 @@ rewind to the minute *before* the migration ran instead of losing up to a day.
 ```bash
 cd apps/cms
 # What can I rewind to, and how far back does the window go?
-npx wrangler@4.141.0 d1 time-travel info run-apparel-viewer-db
+npx wrangler@4.143.0 d1 time-travel info run-apparel-viewer-db
 
 # Look at a moment before the damage WITHOUT changing anything yet.
-npx wrangler@4.141.0 d1 time-travel info run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
+npx wrangler@4.143.0 d1 time-travel info run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
 
 # Restore to it. This changes production — take a dump first (above) so you can
 # get back to the current state if the rewind turns out to be the wrong call.
-npx wrangler@4.141.0 d1 time-travel restore run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
+npx wrangler@4.143.0 d1 time-travel restore run-apparel-viewer-db --timestamp 2026-07-29T09:00:00Z
 ```
 
 Then verify with the row-count query in step 3 below, and re-capture
@@ -204,22 +204,22 @@ is gone.
 ```bash
 cd apps/cms
 # 1. create a scratch DB
-npx wrangler@4.141.0 d1 create run-apparel-viewer-db-restore-test
+npx wrangler@4.143.0 d1 create run-apparel-viewer-db-restore-test
 # 2. load the backup into it
-npx wrangler@4.141.0 d1 execute run-apparel-viewer-db-restore-test --remote \
+npx wrangler@4.143.0 d1 execute run-apparel-viewer-db-restore-test --remote \
   --file ../../backups/d1/run-apparel-viewer-db-<timestamp>.sql
 # 3. sanity-check row counts
-npx wrangler@4.141.0 d1 execute run-apparel-viewer-db-restore-test --remote \
+npx wrangler@4.143.0 d1 execute run-apparel-viewer-db-restore-test --remote \
   --command "SELECT (SELECT count(*) FROM products) AS products, (SELECT count(*) FROM products_colourways) AS colourways, (SELECT count(*) FROM media) AS media, (SELECT count(*) FROM raw_uploads) AS raw_uploads;"
 # 4. tear the scratch DB down
-npx wrangler@4.141.0 d1 delete run-apparel-viewer-db-restore-test
+npx wrangler@4.143.0 d1 delete run-apparel-viewer-db-restore-test
 ```
 
 **Real recovery** (production data lost/corrupted): restore into the live DB. Because the export includes `CREATE TABLE`, the target must be empty first — drop tables (or recreate the D1 database and update `database_id` in `wrangler.jsonc`), then:
 
 ```bash
 cd apps/cms
-npx wrangler@4.141.0 d1 execute run-apparel-viewer-db --remote \
+npx wrangler@4.143.0 d1 execute run-apparel-viewer-db --remote \
   --file ../../backups/d1/run-apparel-viewer-db-<timestamp>.sql
 curl -f https://cms.wear-run.help/api/health     # confirm the CMS is back
 ```
@@ -255,7 +255,7 @@ find "$BASE/inquiry-files" -type f | wc -l  # expect the inquiry_files row count
 #    contain slashes, and basename would flatten it to a different key.
 find "$BASE/media" -type f | while read -r f; do
   key="${f#"$BASE/media/"}"
-  npx wrangler@4.141.0 r2 object put "run-apparel-viewer-media/$key" --file "$f" --remote
+  npx wrangler@4.143.0 r2 object put "run-apparel-viewer-media/$key" --file "$f" --remote
 done
 ```
 
@@ -265,7 +265,7 @@ done
 #    Their keys contain spaces, so keep every expansion quoted.
 find "$BASE/apex" -type f | while read -r f; do
   key="${f#"$BASE/apex/"}"
-  npx wrangler@4.141.0 r2 object put "run-assets/$key" --file "$f" --remote
+  npx wrangler@4.143.0 r2 object put "run-assets/$key" --file "$f" --remote
 done
 ```
 
@@ -275,7 +275,7 @@ done
 #    objects are public on media.wear-run.com.
 find "$BASE/inquiry-files" -type f | while read -r f; do
   key="${f#"$BASE/inquiry-files/"}"
-  npx wrangler@4.141.0 r2 object put "run-apparel-inquiry-files/$key" --file "$f" --remote
+  npx wrangler@4.143.0 r2 object put "run-apparel-inquiry-files/$key" --file "$f" --remote
 done
 ```
 
@@ -299,11 +299,11 @@ it exercises the exact command path without overwriting anything real:
 
 ```bash
 echo "restore drill $(date -u +%FT%TZ)" > /tmp/_restore-drill.txt
-npx wrangler@4.141.0 r2 object put "run-apparel-viewer-media/_restore-drill.txt" \
+npx wrangler@4.143.0 r2 object put "run-apparel-viewer-media/_restore-drill.txt" \
   --file /tmp/_restore-drill.txt --remote
-npx wrangler@4.141.0 r2 object get "run-apparel-viewer-media/_restore-drill.txt" \
+npx wrangler@4.143.0 r2 object get "run-apparel-viewer-media/_restore-drill.txt" \
   --file /tmp/_restore-drill.out --remote && cat /tmp/_restore-drill.out
-npx wrangler@4.141.0 r2 object delete "run-apparel-viewer-media/_restore-drill.txt" --remote
+npx wrangler@4.143.0 r2 object delete "run-apparel-viewer-media/_restore-drill.txt" --remote
 ```
 
 ## The master files — the archive bucket is retired
