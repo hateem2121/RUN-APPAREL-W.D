@@ -1538,6 +1538,20 @@ test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      // The ring fades in (`transition: box-shadow`, polish D8), and Firefox read the shadow before
+      // the fade's first frame: no ring at all, 1 run in 5 (measured 2026-10-05). The D8 test in
+      // motion-and-layout.spec.ts met the same race; as there, read the settled dots.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() =>
+              [...document.querySelectorAll('.colourway-tab')].every(
+                (tab) => tab.getAnimations({ subtree: true }).length === 0,
+              ),
+            ),
+          { message: 'the colourway dots never settled' },
+        )
+        .toBe(true)
 
       const { ground, tabs } = await page.evaluate(() => ({
         ground: getComputedStyle(document.body).backgroundColor,
