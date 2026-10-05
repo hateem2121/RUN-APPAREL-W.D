@@ -708,28 +708,44 @@ test.describe('MO-08 — the footer light lingers on content for ~180ms after le
     await page.mouse.move(contactBox.x + 12, contactBox.y + 12)
     await expect(slab).toHaveAttribute('data-over', 'true')
 
-    // One move to empty ground, then STOP — the linger timer, not further movement, has
-    // to carry this to release. The window this test grades is the FULL round trip
-    // (`releasedAfterMs` below) rather than an intermediate "still true" snapshot: under
-    // parallel test load a fixed short poll for "still true" can lose the race against
-    // the timer itself, which is a scheduler artefact, not evidence the linger is
-    // broken — the release-time window is both the more robust and the more direct
-    // measurement of LINGER_MS.
-    const leftAt = Date.now()
-    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2)
+    // ⚠️ TIMED INSIDE THE PAGE: from the leave move's own event to the moment `data-over`
+    // flips. Timed from the test runner, the window also counted the mouse-move round trip
+    // and expect.poll's back-off (checks at 0, +100, +250, +500ms), so a release at ~190ms
+    // was first SEEN at the third check: 370-382ms on an idle Mac (8 runs, 2026-10-05), and
+    // 516ms then 622ms on a loaded CI runner (PR #128), over the ceiling, with FooterGlow.tsx
+    // unchanged from main. Measured in the page in the same runs: 182-199ms after the move,
+    // 180-183ms after the trailed ring left the block, which is LINGER_MS itself.
+    await page.evaluate((selector) => {
+      const watched = document.querySelector(selector) as HTMLElement
+      const clock = window as unknown as { leaveAt?: number; releasedAt?: number }
+      document.addEventListener('pointermove', (event) => {
+        clock.leaveAt = event.timeStamp
+      })
+      new MutationObserver(() => {
+        if (watched.dataset.over === 'false') clock.releasedAt ??= performance.now()
+      }).observe(watched, { attributes: true, attributeFilter: ['data-over'] })
+    }, SLAB)
 
-    // Released within a window around 180ms — generous on both sides (real timer +
-    // rAF/setTimeout jitter, and CI scheduler slack), never snapping instantly and
-    // never lingering indefinitely.
+    // One move to empty ground, then STOP — the linger timer, not further movement, has
+    // to carry this to release.
+    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2)
     await expect
       .poll(() => slab.getAttribute('data-over'), {
         message: 'data-over never released after leaving content',
         timeout: 1000,
       })
       .toBe('false')
-    const releasedAfterMs = Date.now() - leftAt
+    const releasedAfterMs = await page.evaluate(() => {
+      const clock = window as unknown as { leaveAt?: number; releasedAt?: number }
+      return Math.round((clock.releasedAt ?? Number.NaN) - (clock.leaveAt ?? Number.NaN))
+    })
+
+    // Released within a window around 180ms: never before the linger (the ring is still on
+    // the block in the frame after the move, so the release cannot come sooner than
+    // LINGER_MS), and never lingering on (the upper bound leaves room for timer jitter on a
+    // loaded runner).
     expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeGreaterThan(
-      50,
+      150,
     )
     expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeLessThan(
       500,
