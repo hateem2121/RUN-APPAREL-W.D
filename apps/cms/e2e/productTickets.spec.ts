@@ -383,6 +383,12 @@ test.describe('from 560px: the upright ticket that opens (D3b, X9)', () => {
           'ticket is measured with the most words it could ever be given, which it must stop at two lines.'
       })
       const first = cards(page).first()
+      // And the longest colour name in the owner's approval list (polish N1, 2026-10-05; the seed's
+      // are one short word): it must sit under the lines on the narrowest card too.
+      await first.evaluate((element) => {
+        const colour = element.querySelector('.card-gallery__colour')
+        if (colour) colour.textContent = 'Silver Medal / Clean Sheet'
+      })
       await first.locator('.product-card__figure').hover({ position: { x: 30, y: 30 } })
       await expect.poll(() => isOpen(first)).toBe(true)
       const fit = await first.evaluate((element) => {

@@ -2929,6 +2929,12 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
    * laptop, where the column is at least 350px and the window 656px tall (page.css has the
    * measurements); it replaced VA-32's list, which needed a 1080px window. A sideways iPad's
    * column is narrower (289-337px) and keeps the dots.
+   *
+   * POLISH N1 (names awaiting the owner's approval, 2026-10-05) renames every colour in its
+   * category's style (packages/shared/src/colourNames.ts, at most 12 characters a name). The third
+   * set is that list's worst garment-for-garment: 12-character names before a " /" (14 characters,
+   * as wide as "Bottle Green /"), and the longest whole name, 26 characters, first, so the dots'
+   * one line above carries it. Kept beside the old sets: the live names change only at the end.
    */
   const LONG_NAMES = [
     ['Terracotta / Blush', 'Bottle Green / Mint', 'Tangerine', 'Turquoise', 'Magenta / Burgundy'],
@@ -2938,6 +2944,13 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
       'Blush / Fuchsia',
       'Burgundy',
       'Tangerine / Rust',
+    ],
+    [
+      'Silver Medal / Clean Sheet',
+      'Bluebird Day / Ice Rink',
+      'Black Cherry / Cranberry',
+      'Ice Rink / Bluebird Day',
+      'Victory Lap / Night Game',
     ],
   ] as const
 

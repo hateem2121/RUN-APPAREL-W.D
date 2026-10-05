@@ -144,6 +144,48 @@ test.describe('№03 — the colour dots (D2)', () => {
     expect(before.name).not.toBe(label.replace(/^Show /, ''))
   })
 
+  /*
+   * Polish N1 renames every colour (names awaiting the owner's approval, 2026-10-05), up to 26
+   * characters ("Silver Medal / Clean Sheet") where the seed's are one short word. The live
+   * skinsuit's would run Puck, Golden Goal, Tennis Ball…: while the name shared the dots' row,
+   * choosing one pushed the dots sideways, out from under the pointer that chose it. The name
+   * now sits on its own line above them, as on an opened product ticket and a phone's garment
+   * page; here the name is written in by the test, so the seed's short words cannot hide this.
+   */
+  for (const [width, height] of [
+    [390, 844],
+    [1440, 900],
+  ] as const) {
+    test(`at ${width}px the dots stay put whatever the chosen colour is called (N1)`, async ({
+      page,
+    }) => {
+      await openHome(page, width, height)
+      if ((await page.locator('.proof__colours-name').count()) === 0)
+        test.skip(true, 'the garment here has one colour')
+      const readWith = (name: string) =>
+        page.evaluate((text) => {
+          const label = document.querySelector('.proof__colours-name') as HTMLElement | null
+          if (!label) throw new Error('no colour name')
+          label.textContent = text
+          const lineHeight = Number.parseFloat(getComputedStyle(label).lineHeight)
+          return {
+            dots: [...document.querySelectorAll('.proof__colours .card-gallery__dot')].map(
+              (dot) => {
+                const { left, top } = dot.getBoundingClientRect()
+                return [Math.round(left), Math.round(top)]
+              },
+            ),
+            lines: Math.round(label.getBoundingClientRect().height / lineHeight),
+          }
+        }, name)
+      const short = await readWith('Puck')
+      const long = await readWith('Silver Medal / Clean Sheet')
+      expect(short.dots.length, 'no dots to measure').toBeGreaterThan(1)
+      expect(long.dots, 'the dots moved when the name grew').toEqual(short.dots)
+      expect(long.lines, 'the longest name took more than one line').toBe(1)
+    })
+  }
+
   for (const scheme of ['light', 'dark'] as const) {
     test(`${scheme}: axe finds no contrast or naming fault in №03`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
