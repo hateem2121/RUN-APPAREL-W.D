@@ -240,6 +240,16 @@ test.describe('TY-11 — the footer keeps every word at 200% text on a phone', (
   }) => {
     await at200(page, context, browserName)
     await page.goto('/contact')
+    /*
+     * ⚠️ PLANT ONLY ONCE REACT OWNS THE FOOTER (2026-10-05). A line added before hydration makes
+     * the page differ from what React expects, so it re-draws the whole body and the planted line
+     * is gone: 6 of 6 in CI's image when planted at `load`, 0 of 6 after this wait. It failed in two
+     * loaded suite runs in CI's image, and passed whenever hydration won the race.
+     */
+    await page.waitForFunction(() => {
+      const inner = document.querySelector('.site-footer__inner')
+      return !!inner && Object.keys(inner).some((key) => key.startsWith('__reactFiber'))
+    })
     await page.evaluate(() => {
       const line = document.createElement('p')
       line.textContent = 'PLANTED '.repeat(40)

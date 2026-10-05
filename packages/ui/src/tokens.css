@@ -381,6 +381,8 @@
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
+  /* The bar's wordmark (notch.css): the display face, which the website gives its own stand-in. */
+  --font-wordmark: var(--font-display);
   --font-serif: "Instrument Serif", Georgia, serif;
   /* IBM Plex Mono, shipped with both apps (polish X5, the owner's Q39, 2026-10-04), then two local
      stand-ins sized to it (below), then the system stack the labels used until then. */

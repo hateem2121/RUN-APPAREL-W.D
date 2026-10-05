@@ -33,7 +33,23 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    /*
+     * ⚠️ HINTING OFF, SO CHROMIUM SETS TEXT AS A VISITOR'S BROWSER DOES (2026-10-05). Headless
+     * Chromium's `--font-render-hinting` "affects Skia rendering and whether glyph subpixel
+     * positioning is enabled", default `full` (headless/public/switches.h): in CI's image every
+     * letter was snapped to whole pixels, so Archivo's 60 zeros at 17px were 600.0px against the
+     * Mac's 584.1, and five font checks failed on Linux only and were skipped on PR #128. Measured
+     * in CI's image: `none` and `slight` give 584.5px, `full` and the default 600.0. Macs, iPhones,
+     * Windows and Android place letters between pixels, so `full` measured a browser no visitor
+     * has. The site's body-text caps no longer depend on it either (site.css, `p, li`).
+     */
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: { args: ['--font-render-hinting=none'] },
+      },
+    },
     /*
      * Firefox earns its place here rather than doubling the runtime for symmetry: it is
      * the one engine that does NOT support the scroll-driven animation the bar uses, and

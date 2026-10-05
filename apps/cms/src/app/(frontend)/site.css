@@ -109,6 +109,15 @@
   line-gap-override: 0%;
 }
 
+/*
+ * ⚠️ THE BAR'S WORDMARK STANDS IN WITH THE CARD TITLES' FACE, NOT THE HEADLINES' (2026-10-05). It
+ * is Archivo 800 at NORMAL width (packages/ui/src/notch.css), so the display face above, sized for
+ * 860 at 122%, drew "RUN APPAREL" 144.5px wide against Archivo's 115.5px at 16px, and the whole bar
+ * narrowed 29px when Archivo landed: on every machine, since Liberation Sans Bold and Arial Bold have
+ * the same advances (below). This face draws it 113.5px. Measured in CI's image on /terms at 390px.
+ * Named through `--font-wordmark` (set with the site's other font tokens, below), because the bar is
+ * styled in packages/ui alone (`auditGuards.test.ts`, XS-02); the garment pages leave it unset.
+ */
 @font-face {
   font-family: "Instrument Serif Fallback";
   src: local("Georgia Italic"), local("Georgia");
@@ -307,6 +316,7 @@
 :root {
   --font-display: "Archivo Variable", "Archivo", "Archivo Display Fallback", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", "Archivo Fallback", system-ui, sans-serif;
+  --font-wordmark: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif", "Instrument Serif Fallback", "Instrument Serif Fallback Liberation",
     Georgia, serif;
@@ -438,14 +448,44 @@ li {
  * Chromium and WebKit; Firefox 0.5730), so a box held at 60ch was 4.6% narrower until Archivo landed.
  * The home page's fifth category card is an `li` held at that cap from 768 to 1024px: it was 557px
  * wide in the stand-in and 584px in Archivo, so its picture grew 34px taller when the font arrived.
- * 34.362em is 60 of Archivo's zeros, so the settled page is unchanged, and `max()` keeps a font whose
- * zero is wider (the code-style labels, 0.6em; the headline face) at its own 60ch, as before.
+ * 34.362em is 60 of Archivo's zeros, so the settled page is unchanged.
  * Site-only, like FA-C-52's measure below: base.css is shared with the garment pages.
  * `e2e/fontSwap.spec.ts` measures every capped body-text box in both fonts.
+ *
+ * ⚠️ NO `ch` IN EITHER CAP (2026-10-05). It was `max(60ch, 34.362em)`, so a face with a wider zero
+ * kept its own 60ch; but CI's Linux Chromium rounds each letter to whole pixels, and at 17px
+ * Archivo's zero (9.74px) became 10px: 60ch was 600px against 34.362em's 584.1px, so on that machine
+ * the box still grew 16px when Archivo landed (15px text: 540 against 515.4). So each face gets its
+ * 60 zeros in em, measured in CI's image at 1000px, where rounding cannot matter: Archivo 0.5730em
+ * (34.362em, as on the Mac), IBM Plex Mono 0.6000em (36em). The labels below are the p and li the
+ * site draws in Plex Mono, found by reading each one's computed face on all 17 pages of the sitemap
+ * (`.section-number` too, left out: the site never restyles it, FA-I-14, and it is short), plus
+ * `.contact-globe__coords`. ⚠️ `:where()`, SO THE RULE STAYS AT `p, li`'S WEIGHT: every class rule
+ * still wins, as against `p, li` before, e.g. base.css's `.label { max-width: none }` (FA-A-01: the
+ * home page's opening label on one line). One added later in Plex Mono and left off the list is held
+ * at 34.362em, 4.5% short of its own 60.
  */
 p,
 li {
-  max-width: max(60ch, 34.362em);
+  max-width: 34.362em;
+}
+
+p:where(
+  .label,
+  .family-card__meta,
+  .family-card__types,
+  .order-step__tag,
+  .field-label,
+  .footer-eyebrow,
+  .footer-dim,
+  .result-count,
+  .product-card__meta,
+  .subhead,
+  .mono,
+  .contact-globe__coords
+),
+li:where(.footer-block__address, .footer-block *) {
+  max-width: 36em;
 }
 
 /* ---------------------------------------------------------------- layout */
@@ -1448,8 +1488,15 @@ html {
  */
 .card-gallery__arrow {
   position: absolute;
-  /* The middle of the picture that shows, as an opening ticket's strip shortens (D3b). */
-  inset-block-start: calc((100% - var(--ticket-rise)) / 2);
+  /*
+   * The middle of the picture that shows once the ticket is open (D3b), from the moment it starts
+   * opening: `--ticket-open` switches at once, where `--ticket-rise` glides. ⚠️ NOT `--ticket-rise`
+   * (until 2026-10-05): the arrows appeared and then slid 58px up as the strip shortened, 120-340ms
+   * after the pointer arrived, so a press aimed where an arrow appeared could land on the picture,
+   * which opens the garment page. The MO6 press test measured an arrow, then pressed where it had
+   * been, and missed it (CI's image, 2026-10-05).
+   */
+  inset-block-start: calc((100% - var(--ticket-open, 0) * var(--ticket-rise-to, 0px)) / 2);
   z-index: var(--z-card-control);
   display: grid;
   place-items: center;
@@ -2232,10 +2279,14 @@ address.contact-block__value {
    2026-10-02). A finger on the picture is a press, so the card began scaling as the swipe began,
    and Safari dropped the strip's scroll mid-gesture: on iOS 26.5 a slow sideways drag never
    moved the colour, with this exclusion it does — tried both ways in the simulator. The
-   card still answers a press on its text (FA-R-01). The browser test pins both halves in
+   card still answers a press on its text (FA-R-01). ⚠️ NOR WHILE AN ARROW IS PRESSED (2026-10-05): the
+   arrows sit over the picture but outside its strip, so the exclusion above missed them, and stepping
+   through the colours shrank the whole card as if it were opening the garment, the dots' reason again. The browser test pins both halves in
    Chromium and Firefox only: this suite runs WebKit for the bar's files alone
    (playwright.config.ts), so the iPhone half rests on the simulator check. */
-.product-card:active:not(:has(.card-gallery :active, .card-gallery__dots :active)) {
+.product-card:active:not(
+  :has(.card-gallery :active, .card-gallery__dots :active, .card-gallery__arrow:active)
+) {
   scale: 0.97;
 }
 
@@ -3964,16 +4015,6 @@ a.contact-block__value:active {
   object-fit: cover;
 }
 
-.photo-figure__caption {
-  margin-block-start: 10px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  /* Normal letters, not capitals (visual audit VA-44, owner's choice 2026-10-02): a caption is read, and the longest ran 68 capitals
-     ("The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces"). The words are typed
-     in normal case in lib/factoryPhotos.ts, so the names keep their own capitals. */
-  color: var(--muted);
-}
-
 /*
  * A guide section's factory photo goes under its heading (polish X22): from 900px that is the
  * heading's half of the `.spread`, which stood empty beside the words, and on a phone it comes
@@ -4675,9 +4716,14 @@ a.contact-block__value:active {
  * stack's arithmetic below reads both. In rem, so a reader's larger text gets a taller card and
  * the words still fit (`e2e/orderTimeline.spec.ts` sets 200% text); a card whose words need more
  * than this still grows (`min-block-size`) rather than cut them.
+ *
+ * On a phone 16.875rem (270px), 20rem until polish X8 (2026-10-05, the owner's "shorter cards"): 50px
+ * less a card, 400px less on the phone home page (10,295px to 9,895px at 390x844 in CI's image;
+ * 9,819px once the photo labels went the same day). The fullest card's words ("Your quote") need
+ * 193px at 390px, so at least 61px of its photo still shows, and about 100px on the others.
  */
 .order-steps {
-  --step-h: 20rem;
+  --step-h: 16.875rem;
   --step-gap: 24px;
   display: grid;
   row-gap: var(--step-gap);
@@ -4738,7 +4784,7 @@ a.contact-block__value:active {
 .order-step__words {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(16px, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(16px, 1fr) auto auto;
   column-gap: 12px;
   padding: 20px;
   background-image:
@@ -4810,16 +4856,6 @@ a.contact-block__value:active {
   max-width: 28.635em;
   margin: 6px 0 0;
   font-size: var(--text-sm);
-  color: var(--text);
-}
-
-/* The room, in the words the photo already had (its caption), in normal letters (VA-44). */
-.order-step .order-step__room {
-  grid-column: 1 / -1;
-  grid-row: 5;
-  margin: 8px 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
   color: var(--text);
 }
 

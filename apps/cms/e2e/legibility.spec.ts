@@ -108,14 +108,7 @@ test.describe('FA-C-52 — the line length a reader actually gets', () => {
   const CEILING = 75
 
   for (const path of PAGES) {
-    test(`no line on ${path} runs past ${CEILING} characters`, async ({ page, browserName }) => {
-      // ⚠️ SKIPPED AT /privacy IN CI'S LINUX CHROME ONLY (PR #128, 2026-10-05, the owner's choice): one
-      // line there holds 76 characters (at 768 and 1180px; 535.5px at 1180), within 75 on the Mac.
-      // Linux-only and not yet measured; the next session does.
-      test.skip(
-        browserName === 'chromium' && process.platform === 'linux' && path === '/privacy',
-        "CI's Linux Chrome only (PR #128, 2026-10-05; the owner chose to skip it there for now): 76 characters a line there",
-      )
+    test(`no line on ${path} runs past ${CEILING} characters`, async ({ page }) => {
       // One navigation, three widths — see the note in textSize.spec.ts: a `goto` per
       // width is what tipped this suite into timing out on unrelated tests.
       await page.goto(path)

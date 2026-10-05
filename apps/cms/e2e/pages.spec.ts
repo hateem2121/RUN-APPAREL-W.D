@@ -214,20 +214,60 @@ test.describe('the product gallery', () => {
     await page.mouse.move(0, 0)
     await expect(next).toHaveCSS('opacity', '0')
     await card.locator('.product-card__figure').hover()
+    // ⚠️ AN ARROW SHOWS WHERE IT STAYS (2026-10-05): it used to slide 58px up as the ticket opened.
+    const placed = (await next.boundingBox())?.y
     await expect(next).toHaveCSS('opacity', '1')
+    await page.waitForTimeout(500)
+    expect((await next.boundingBox())?.y, 'the arrow moved after it appeared').toBe(placed)
     // Clicks need the card's script: wait for React to own the button.
     await page.waitForFunction(
       (el) => !!el && Object.keys(el).some((key) => key.startsWith('__reactProps')),
       await next.elementHandle(),
     )
     const pressedAt = async () => (await read()).findIndex((dot) => dot.pressed)
+    /*
+     * ⚠️ THE RECORDER (2026-10-05). Once, on PR #129's CI (run 37294573866), Firefox lost the first
+     * "previous": its trace shows the press dead on the arrow, the arrow still, and the gallery never
+     * answering, while the strip's glide from "next" was just starting (~150ms late). It did not recur
+     * in ~200 tries in CI's image. If it does, the failure carries every mouse event the page saw and
+     * where the strip was, so the next reader can tell a click the browser never sent from one the
+     * gallery ignored.
+     */
+    await page.evaluate(() => {
+      const log: string[] = []
+      ;(window as unknown as { va30: string[] }).va30 = log
+      const t0 = performance.now()
+      const strip = document.querySelector('.card-gallery')
+      for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+        document.addEventListener(
+          type,
+          (event) => {
+            const at = (event.target as Element).closest('button, a')
+            log.push(
+              `${Math.round(performance.now() - t0)}ms ${type} on ${at?.getAttribute('aria-label') ?? at?.className ?? (event.target as Element).nodeName} strip=${Math.round(strip?.scrollLeft ?? -1)}`,
+            )
+          },
+          true,
+        )
+      }
+    })
+    const recorded = async () =>
+      (await page.evaluate(() => (window as unknown as { va30: string[] }).va30)).join('\n')
     await next.click()
-    await expect.poll(pressedAt, { message: 'next did not move to the second colour' }).toBe(1)
+    await expect
+      .poll(pressedAt, { message: 'next did not move to the second colour' })
+      .toBe(1)
+      .catch(async (error) => {
+        throw new Error(`${error.message}\n${await recorded()}`)
+      })
     await previous.click()
     await previous.click()
     await expect
       .poll(pressedAt, { message: 'previous did not wrap from the first colour to the last' })
       .toBe(dots.length - 1)
+      .catch(async (error) => {
+        throw new Error(`${error.message}\n${await recorded()}`)
+      })
   })
 
   /*
@@ -321,6 +361,8 @@ test.describe('the product gallery', () => {
     const pressAndRead = async (selector: string) => {
       // On screen first: a press below the fold lands on nothing, and reads as "no press".
       await card.locator(selector).scrollIntoViewIfNeeded()
+      // Pointed at first, so an arrow is where it shows (it takes the opened ticket's place).
+      await card.locator('.product-card__figure').hover()
       const box = await card.locator(selector).boundingBox()
       if (!box) throw new Error(`no ${selector} to press`)
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
@@ -335,6 +377,11 @@ test.describe('the product gallery', () => {
     expect(
       await pressAndRead('.card-gallery'),
       'the card shrank under a press on its picture',
+    ).toBe('none')
+    // Stepping through colours is not opening the garment (2026-10-05), as for the dots.
+    expect(
+      await pressAndRead('.card-gallery__arrow--next'),
+      'the card shrank under a press on an arrow',
     ).toBe('none')
     expect(await pressAndRead('.product-card__link'), 'the card ignored a press on its text').toBe(
       '0.97',

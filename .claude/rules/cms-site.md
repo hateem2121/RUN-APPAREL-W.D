@@ -41,8 +41,8 @@ files.
 
 `pnpm --filter @run-apparel/cms test:e2e` — Chromium, Firefox and WebKit (608 tests listed on
 2026-09-24), added 2026-09-05 because nothing loaded `/`, `/products` or `/contact` in a browser and three blank pages
-would have passed every gate. Runs in CI on two of the five **`e2e-shard`** machines (since
-2026-09-29; a step inside the single `e2e` job before that), each seeding its own database.
+would have passed every gate. Runs in CI on four of the seven **`e2e-shard`** machines, one engine each and Firefox in
+halves (since 2026-10-05; two of five from 2026-09-29; a step inside the single `e2e` job before that), each seeding its own database.
 It is still gated through the one `e2e` check: that job passes only when every shard did,
 so neither `deploy.needs` nor the required-checks list changed — `.github/CLAUDE.md`
 records that splitting those silently stops a red gate blocking.
@@ -117,9 +117,11 @@ Four things that bit while building it:
   sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
   does, and also asserts the honest default — absent under automation.
 - **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`packages/shared/src/cursorBus.ts`),
-  never the raw pointer, and its 180ms linger needs its own timer tick: the bus publishes
-  only while the ring moves, so without one a hand-off caught inside the window stayed lit
-  over empty ground for good. The browser suite found that on its first run.
+  never the raw pointer, and its linger (300ms since 2026-10-05, 180ms before; counted from the
+  first frame seen off content, not the last seen on it) needs its own timer tick: the bus
+  publishes only while the ring moves, so without one a hand-off caught inside the window stayed
+  lit over empty ground for good. The browser suite found that on its first run. Why 300 and why
+  that start: the comments in `apps/cms/src/components/site/FooterGlow.tsx`.
 
 🟡 Two gates to know about here: `navbar.spec.ts` measures EVERY link on every page against
 the 44px touch floor (the first footer shipped 16px rows — real 44px rows, never a

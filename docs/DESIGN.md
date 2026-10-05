@@ -1255,6 +1255,68 @@ seconds on the live site, found 2026-10-01 by the screenshot suite). Anything th
 what it just sized gets `transition-property: none` on itself and on whatever inherits the
 size, as `.footer-mark` and `.footer-mark__layer` now do in `footer.css`.
 
+### A product card's picture grows into the garment page (polish MO3, 2026-10-05)
+
+The owner's choice, "grow into the loading screen": tap a product card and its picture spreads
+from the card to the whole screen while the garment page's loading screen fades in over it, which
+then wipes away to the garment as it always has. The garment page opens on that full-screen
+loading screen (RO-08), so the 3D window is not there yet to grow into.
+
+It is a **cross-document view transition**, so both pages opt in, each under
+`prefers-reduced-motion: no-preference`: `apps/cms/src/app/(frontend)/site.css` and, for the
+garment page, an inline `<style>` in `apps/viewer/index.html`. The two share one name,
+`garment-opening` (`apps/cms/src/lib/cardOpening.ts`): the website puts it on the tapped card's
+showing picture only, at the tap (`apps/cms/src/components/site/CardOpening.tsx`), and the garment
+page's `.preloader` carries it in `apps/viewer/src/styles/page.css`. It runs for `--settle` on
+`--ease-out-expo`; the picture is portrait and the screen is not, so both fill the growing box,
+cropped (`object-fit: cover`).
+
+- **Only a card tap does it.** The website's opt-in covers every navigation, so `CardOpening.tsx`
+  skips the transition on `pageswap` unless a card was tapped, and
+  `apps/viewer/src/lib/pageTransition.ts` does the same on every link out of a garment page. Any
+  other link just loads the next page, as before.
+- **Never a name in a stylesheet on the website.** Every card would carry it at once, and two
+  elements with one name cancel the whole transition.
+- **The garment page's opt-in is inline in `index.html`, not in `page.css`.** Measured 2026-10-05:
+  from the stylesheet Chromium turned every arrival down (0 of 3), because it decides before the
+  file has arrived; inline, 3 of 3. Its note there stays one line: the build keeps HTML comments,
+  and the first, 1,066-byte note moved the slow-3G first paint from 2,280 ms to 2,420 ms (median of
+  5) against `e2e/firstPaint.spec.ts`'s 2,400 ms ceiling. The full explanation is in `page.css`,
+  whose comments are removed when it is built.
+- **Reduced motion: no transition at all.** The visitor simply loads the page.
+- **Support:** Chrome, Edge and Safari 18.2+. Firefox has no cross-document transitions yet
+  (5 Oct 2026) and simply loads the page.
+- **Tests:** `apps/cms/src/lib/cardOpening.test.ts` (both pages opt in under the guard, one name,
+  none in the website's stylesheet), `apps/cms/e2e/motion.spec.ts` (a card tap lets the transition
+  go, any other link cancels it, reduced motion offers none) and
+  `apps/viewer/e2e/page-transition.spec.ts` (the card's picture pairs with the loading screen,
+  leaving stays instant). A test page also needs the website's own viewport line, or WebKit skips
+  the transition on a phone ("viewport size changed").
+
+### The ticket cards rise as they scroll in (polish MO4, 2026-10-05)
+
+The ticket cards (`.product-card`, `.family-card`) on the home and products pages rise into
+place as they scroll in, as the sections already do (`site-reveal`). `@keyframes card-rise` is
+`translate` from `--reveal-y` to none, over `--settle` on `--ease-out-expo`, driven by
+`animation-timeline: view()` across `entry 0%` to `entry 60%`, in `site.css`.
+
+- **A slide, never a fade.** No `opacity` in the keyframes: a fade once broke the contrast checks
+  (the same reason as `site-reveal`).
+- **`translate`, not `transform`.** The section rises by `transform` and the card presses by
+  `scale` (MO6); three separate properties compose, so none overrides another.
+- **No script, and only where it can work.** The rule sits under `prefers-reduced-motion:
+  no-preference` and `@supports ((animation-timeline: view()) and (animation-range: entry))`;
+  an engine with timelines but no ranges would otherwise run the rise across the whole page.
+  Firefox (5 Oct 2026) and a page without JavaScript show every card in place. Print sets the
+  animation to none.
+- **The order steps take nothing more:** their stack holds each card in place by exact arithmetic.
+- **A scroll-linked animation never finishes and stays in `getAnimations()`.** A test that waits
+  for a card to be "settled" by counting its animations never reaches 0 with motion allowed
+  (CI on PR #128). `apps/cms/e2e/productTickets.spec.ts` counts only animations whose `timeline`
+  is `document.timeline`; do the same in any new check.
+- **Tests:** `apps/cms/e2e/motion.spec.ts` (a card is lowered while it enters and in place once on
+  screen, on `/products` and `/`; under reduced motion no card moves), proven both ways.
+
 ---
 
 ## 6. Spacing

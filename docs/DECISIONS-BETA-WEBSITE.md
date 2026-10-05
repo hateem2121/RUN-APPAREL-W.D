@@ -715,6 +715,61 @@ and `apps/cms/e2e/oneListPerFamily.spec.ts` (each old address answers 308 to the
 heading opens its family's page, every garment is in the page with scripting off, a chip lands its
 group below the bar).
 
+## 2026-10-05 — the polish build: a motion, and the colour names
+
+### D28 · A product card's picture grows into the garment page — polish MO3
+
+**Decision: tapping a product card grows its picture from the card to the whole screen while the
+garment page's loading screen fades in over it. Owner's choice, 2026-10-05: "grow into the loading
+screen".** The garment page always opens on that full-screen loading screen (`apps/viewer/index.html`,
+RO-08), so the 3D window is not there yet to grow into; the loading screen then wipes away to the
+garment as it always has.
+
+It is a cross-document view transition, which has costs worth knowing before anyone touches it:
+
+- **Both pages opt in, under `prefers-reduced-motion: no-preference`, and the opt-in covers every
+  navigation.** So the website names ONLY the tapped card's picture (`CardOpening.tsx`) and skips the
+  transition for every other link, and the garment page skips it on every link out
+  (`apps/viewer/src/lib/pageTransition.ts`). Any other link just loads the next page, as before.
+- **The garment page's opt-in is inline in `index.html`.** From `page.css` Chromium turned every
+  arrival down (0 of 3, measured 2026-10-05); inline it paired the card's picture with the loading
+  screen 3 of 3. Its note there is one line: a 1,066-byte note moved the slow-3G first paint from
+  2,280 ms to 2,420 ms (median of 5) against `e2e/firstPaint.spec.ts`'s 2,400 ms ceiling, while the
+  opt-in itself cost nothing.
+- **Two elements with one name cancel the whole transition**, so the name `garment-opening` is
+  never written in the website's stylesheet.
+
+**Fallbacks:** reduced motion gets no transition at all; Firefox has no cross-document transitions
+yet (5 Oct 2026) and simply loads the page, as it did before. Chrome, Edge and Safari 18.2+ get it.
+
+**Guard:** `apps/cms/src/lib/cardOpening.test.ts` (both pages opt in under the reduced-motion guard,
+one shared name, none in the website's stylesheet), `apps/cms/e2e/motion.spec.ts` (a card tap lets
+the transition go, any other link cancels it, reduced motion offers none) and
+`apps/viewer/e2e/page-transition.spec.ts` (the card's picture pairs with the loading screen, leaving
+a garment page stays instant). The first two record a negative control run both ways. The motion is
+described in `docs/DESIGN.md`, section 5.
+
+### D29 · The live colours are renamed in their category's style; the addresses stay — polish N1, N2
+
+**Decision: the 200 colourways on the 40 published garments were given new display names, in the
+style the owner chose for each category. Owner's answer Q38; the owner approved all 200 new names
+on 5 Oct 2026.** Q38 set each category's style: sport words for Teamwear, performance words for
+Sportswear, nature words for Outerwear and easy fashion words for Casual Wear
+(`packages/shared/src/colourNames.ts`; `.claude/rules/products-and-colours.md`).
+
+- **Written to the live CMS on 5 Oct 2026**, as display names on the 40 published garments (200
+  colourways), each read back after the write. A nightly-backup run was taken first.
+- **No address changed and no row was reordered.** Every colourway slug (the web-address word
+  printed on QR tags) is unchanged, and so is the row order that decides the default colourway.
+- **The hidden photo descriptions (`altText`, "<garment> in <colour>") were updated to the new
+  names, at the owner's choice.**
+- **A new garment arrives named in its category's style** (polish N2), from the same table, so it
+  stays in step with the live ones.
+
+**Guard:** `packages/shared/src/colourNames.test.ts` (a name is unique inside its category, at most
+12 characters, never a plain word such as "Pink") and `tools/asset-pipeline/src/colour-name.test.ts`
+(fails if the namer gains a colour the table has no name for).
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

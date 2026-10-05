@@ -336,7 +336,7 @@ jobs:
   # heartbeat.yml, so it needs something that parses jq syntax. The static gates and the
   # browser gates need different machines anyway.
   #
-  # SPLIT ACROSS FIVE MACHINES SINCE 2026-09-29, BEHIND ONE `e2e` JOB.
+  # SPLIT ACROSS MACHINES SINCE 2026-09-29 (SEVEN SINCE 2026-10-05), BEHIND ONE `e2e` JOB.
   #
   # Until then one job ran the viewer suite and THEN the public-site suite on one
   # machine: run 36285360710 took 13.0 min (1,013 passed, 2 workers) plus 7.1 min
@@ -344,10 +344,10 @@ jobs:
   # job was done in under 5. And a red viewer suite meant the site suite never ran —
   # it sat dark from 2026-09-06 to 2026-09-07 that way.
   #
-  # `e2e-shard` is one matrix job: the viewer suite in thirds, the site suite in halves,
-  # all at once, each with `--shard=i/n`. Both configs are `fullyParallel`, so a shard
-  # is a slice of TESTS, not of files (listed 2026-09-29: viewer 379/379/378 of 1,136,
-  # site 368/368 of 736). ONE matrix job, not one per suite, because
+  # `e2e-shard` is one matrix job: the viewer suite in thirds (`--shard=i/3`), and since
+  # 2026-10-05 the site suite one engine a machine, Firefox in halves (see `timeout-minutes`
+  # there), all at once. Both configs are `fullyParallel`, so a shard is a slice of TESTS,
+  # not of files (listed 2026-09-29: viewer 379/379/378 of 1,136). ONE matrix job, not one per suite, because
   # workflowHardening.test.ts allows ci.yml exactly two Playwright containers (this and
   # `artwork`), so neither can drift.
   #
@@ -378,19 +378,23 @@ jobs:
   # built from the same image made this moot from 2026-09-08 until it was retired; this
   # job is back in the container, so the override is back with it.)
   e2e-shard:
-    name: e2e (${{ matrix.suite }} ${{ matrix.shard }}/${{ matrix.total }})
+    name: e2e (${{ matrix.suite }} ${{ matrix.label }})
     runs-on: ubuntu-26.04
-    # 30, raised from 20 on 2026-10-05. The 20 was set against ~5-6 min of tests per shard (a
-    # third of 13.0 min, or half of 7.1 min, plus ~1.5 min of image pull and install); the
-    # website suite has since grown to 1,172 tests per shard, and the SAME shard's job takes
-    # 12-21 min depending on the machine GitHub hands out. Measured: PR #128 site 1/2
-    # 16.5 min, site 2/2 16.0; after its merge, on main (run 37289393434), site 1/2 11.9 min
-    # while site 2/2 ran the same 56 spec files ~30% slower per spec and was CANCELLED at
-    # 20 min twice (tests 1,147 and 1,141 of 1,172), which skipped the deploy. Viewer 2/3
-    # took 16.9 min in that run. The single job before sharding needed 30 for the same
-    # reason (runs f9eb442 and 986b051, both CANCELLED at 20.1 min). ⚠️ A job that hits its
-    # own `timeout-minutes` reports `cancelled`, NOT `failure`, which reads like a
-    # concurrency cancellation; the tell is ONE job cancelled while the others finish.
+    # 30, raised from 20 on 2026-10-05 (PR #129). The 20 was set against ~5-6 min of tests per
+    # shard; the website suite has since grown to 2,346 tests across its engines. The SAME shard
+    # also takes about 1.45x longer on one machine than another (PR #129's site 2/2: 19.1 min of
+    # tests on one attempt, ~13 on the next). ⚠️ A job that hits its own `timeout-minutes` reports
+    # `cancelled`, NOT `failure`, which reads like a concurrency cancellation; the tell is ONE job
+    # cancelled while the others finish.
+    #
+    # WHY THE WEBSITE RUNS ONE ENGINE A MACHINE (2026-10-05). `--shard=i/n` cuts the test list into
+    # equal COUNTS in the config's project order (chromium, firefox, fontswap-webkit, webkit), so
+    # `site 2/2` drew nearly every Firefox and WebKit test: main's run 37299953438 summed 21.3
+    # test-minutes on site 1/2 (10.8 min with 2 workers) against 36.7 on site 2/2 (18.7 min; a
+    # 20.8-min job), at about 1.0 s a Chromium test, 1.4 s a Firefox one and 3.6 s a WebKit one.
+    # On the same per-test times one engine a machine, Firefox in halves, comes to about 8.6
+    # (chromium), 6.3 and 6.2 (firefox) and 7.9 (webkit) min of tests, plus ~2 min of setup each.
+    # Viewer 2/3 took 16.5 min in that run, and is now the longest.
     timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
@@ -399,11 +403,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { suite: viewer, dir: apps/viewer, shard: 1, total: 3 }
-          - { suite: viewer, dir: apps/viewer, shard: 2, total: 3 }
-          - { suite: viewer, dir: apps/viewer, shard: 3, total: 3 }
-          - { suite: site, dir: apps/cms, shard: 1, total: 2 }
-          - { suite: site, dir: apps/cms, shard: 2, total: 2 }
+          # `args` go to `playwright test`; `id` names the shard's report. The site runs ONE
+          # ENGINE A MACHINE (2026-10-05), Firefox in halves: `--shard` alone cuts the test LIST
+          # by count, in the config's project order, so `site 2/2` drew every Firefox and WebKit
+          # test (see `timeout-minutes` above).
+          - { suite: viewer, dir: apps/viewer, id: '1', label: 1/3, args: --shard=1/3 }
+          - { suite: viewer, dir: apps/viewer, id: '2', label: 2/3, args: --shard=2/3 }
+          - { suite: viewer, dir: apps/viewer, id: '3', label: 3/3, args: --shard=3/3 }
+          - { suite: site, dir: apps/cms, id: chromium, label: chromium, args: --project=chromium }
+          - { suite: site, dir: apps/cms, id: firefox-1, label: firefox 1/2, args: --project=firefox --shard=1/2 }
+          - { suite: site, dir: apps/cms, id: firefox-2, label: firefox 2/2, args: --project=firefox --shard=2/2 }
+          - { suite: site, dir: apps/cms, id: webkit, label: webkit, args: --project=webkit --project=fontswap-webkit }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -427,7 +437,7 @@ jobs:
       # nothing else, so it runs once, on one shard, and FIRST, so a red test cannot
       # hide it.
       - name: Doc pictures and diagrams
-        if: matrix.suite == 'viewer' && matrix.shard == 1
+        if: matrix.suite == 'viewer' && matrix.id == '1'
         env:
           HOME: /root
         run: node apps/cms/scripts/check-doc-visuals.mjs
@@ -440,10 +450,13 @@ jobs:
       # "Running N tests …, shard i of n" line in this step's log.
       - name: e2e (viewer, this shard)
         if: matrix.suite == 'viewer'
+        shell: bash
         env:
           HOME: /root
-          SHARD: ${{ matrix.shard }}/${{ matrix.total }}
-        run: pnpm --filter @run-apparel/viewer exec playwright test --shard="$SHARD"
+          ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a args <<< "$ARGS"
+          pnpm --filter @run-apparel/viewer exec playwright test "${args[@]}"
       # THE PUBLIC MARKETING SITE, added 2026-09-05. Until then nothing in the repo loaded
       # /, /products or /contact in a browser: all 54 CMS test files read source text or
       # exercise pure functions, so three blank pages would have gone green through every
@@ -473,17 +486,20 @@ jobs:
           pnpm seed:cms
       - name: e2e (public site, this shard)
         if: matrix.suite == 'site'
+        shell: bash
         env:
           HOME: /root
-          SHARD: ${{ matrix.shard }}/${{ matrix.total }}
-        run: pnpm --filter @run-apparel/cms exec playwright test --shard="$SHARD"
+          ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a args <<< "$ARGS"
+          pnpm --filter @run-apparel/cms exec playwright test "${args[@]}"
       # The shard's `blob` report (playwright.config.ts: `reporter` in CI) for `e2e` to
       # merge. Kept one day: only the merged report is for reading.
       - name: Keep this shard's report for the merge
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: blob-${{ matrix.suite }}-${{ matrix.shard }}
+          name: blob-${{ matrix.suite }}-${{ matrix.id }}
           path: ${{ matrix.dir }}/blob-report
           retention-days: 1
           if-no-files-found: warn
@@ -1801,6 +1817,10 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
+          # Reviewed exceptions, each with its reason and an expiry date (`exp:`), so a waiver
+          # lapses on its own. Named explicitly so a missing file fails the step ("cannot find
+          # ignorefile") instead of silently dropping them; security-scans.yml does the same.
+          trivyignores: .trivyignore
 
   # THE SHRINK DEPLOY. `wrangler deploy` builds the container image from
   # apps/shrink/Dockerfile on this runner and pushes it to Cloudflare's registry.

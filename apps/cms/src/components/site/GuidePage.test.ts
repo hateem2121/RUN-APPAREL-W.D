@@ -121,9 +121,9 @@ describe('a factory photo beside the words that name it (polish X22)', () => {
         expect(img).toContain(`sizes="${HALF_COLUMN_SIZES}"`)
         expect(img).toMatch(/ width="\d+" height="\d+"/)
         expect(img).toContain('loading="lazy"')
-        expect(
-          text(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/.exec(head ?? '')?.[1] ?? ''),
-        ).toBe(photo.caption)
+        // No label under the photo (the owner, 2026-10-05: "remove all the image names").
+        expect(head, 'the photo carries a label').not.toMatch(/<figcaption\b/)
+        expect(head).not.toContain(`>${photo.caption}<`)
       })
     }
   }
