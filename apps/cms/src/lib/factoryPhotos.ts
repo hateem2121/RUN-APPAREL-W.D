@@ -30,15 +30,16 @@ export type FactoryPhoto = {
   alt: string
   caption: string
   /**
-   * Where the subject sits when the timeline cuts this picture to a square, as `[across, down]`
-   * percentages for `object-position` — set only on the eight pictures the timeline draws.
+   * Where the subject sits when an order step's card cuts this picture (`OrderSteps.tsx`), as
+   * `[across, down]` percentages for `object-position` — set only on the eight pictures the steps
+   * draw.
    *
-   * ⚠️ ONE AXIS DOES THE WORK (visual audit VA-29, chosen by looking at each file 2026-10-02). In
-   * a square, `object-fit: cover` shows a `wide` file at full height and 62.5% of its width, and a
-   * `single` file at full width and 80% of its height, so a wide picture moves only across and a
-   * tall one only down; the other number is 50 and changes nothing. The page's scroll drift
-   * (`.photo-parallax`, scale 1.12) takes a further 6% off every edge of what is kept, so the
-   * subject is set in the middle of the kept part, not against its edge.
+   * ⚠️ CHOSEN FOR A SQUARE, ONE AXIS AT A TIME (visual audit VA-29, by looking at each file
+   * 2026-10-02). In the timeline's square a `wide` file kept its full height and a `single` file
+   * its full width, so a wide picture moved only across and a tall one only down, and the other
+   * number is 50. Since polish D4 (2026-10-05) the cut is the card's: about square on a phone and
+   * wider than tall from 560px, where a tall file shows a band of its height and `down` decides
+   * which band. The eight were looked at again in the cards on 2026-10-05 and kept.
    */
   focus?: readonly [x: number, y: number]
 }

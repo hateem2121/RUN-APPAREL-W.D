@@ -122,11 +122,11 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
     ).toEqual(['/world-map.svg', ...Array(6).fill('/standards/')])
 
     const timeline = await page
-      .locator('.timeline img')
+      .locator('.order-steps img')
       .evaluateAll((images) => images.map((img) => img.getAttribute('src') ?? ''))
     expect(
       timeline,
-      "the order timeline's pictures are not the steps' photos in src/lib/orderProcess.ts",
+      "the order steps' pictures are not the steps' photos in src/lib/orderProcess.ts",
     ).toEqual(
       ORDER_PHASES.flatMap((phase) => phase.steps).map((step) =>
         expect.stringMatching(new RegExp(`^/factory/${step.photo}-`)),

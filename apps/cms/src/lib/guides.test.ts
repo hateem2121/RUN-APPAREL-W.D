@@ -6,6 +6,7 @@ import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import { FACTS } from './companyFacts'
 import { GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt } from './guides'
+import { ORDER_PHASES } from './orderProcess'
 import { buildLlmsTxt } from './llmsTxt'
 import { sitemapFor } from './searchVisibility'
 import { guideBreadcrumbJsonLd } from './structuredData'
@@ -32,7 +33,13 @@ const everyWord = (guide: (typeof GUIDES)[number]): string =>
           ? [...block.items]
           : block.kind === 'point'
             ? [block.title, block.text]
-            : [block.text],
+            : block.kind === 'orderSteps'
+              ? // The home page's eight steps, drawn as they are there (polish D4, Q41).
+                ORDER_PHASES.flatMap((phase) => [
+                  phase.name,
+                  ...phase.steps.flatMap((step) => [step.title, step.body]),
+                ])
+              : [block.text],
       ),
     ]),
   ].join('\n')

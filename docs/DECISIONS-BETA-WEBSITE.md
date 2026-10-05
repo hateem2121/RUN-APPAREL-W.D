@@ -555,6 +555,18 @@ building and its roof, №04 the other eight). Steps 2 and 8 have no photo of th
 the testing lab and the tagging table stand in; the owner chose them. LA-01 now pins №01–№06.
 **Guard:** `apps/cms/src/orderTimelinePhotos.test.ts` and `apps/cms/e2e/orderTimeline.spec.ts`.
 
+**Amended 2026-10-05 (polish D4, the owner's answers Q14 and Q41 of 2026-10-03): stacking photo
+cards, and one set of steps.** №04's eight steps are photo cards that stack as the page scrolls
+(style B of the two the report showed): each step's own photo behind its words under the photo
+hero's wash, with the stage and "You" or "We" on every card. The drawn line, the phase sub-lists
+and the square frames went with the timeline. From 900px the heading stays beside the cards. The
+order guide draws the same cards from `orderProcess.ts`, in place of the eight it had typed with
+slightly different names (X21: the home page, the guide and the buyer pages had told the order
+three ways; the buyer pages' own list went with polish S4). With motion allowed the cards stop
+8px apart and the covered one sinks and darkens on a scroll timeline; Firefox stacks them without
+the sink, and reduced motion, short screens and paper get a plain list. **Guard:** the same two
+files, rewritten for the cards (`orderTimeline.spec.ts` runs in three engines).
+
 ### D24 · The home page's garment turns in real 3D — reverses the 2026-09-07 still
 
 **Decision: live 3D on scroll. Owner, 2026-09-29.** The owner asked for "more innovative and
@@ -648,6 +660,9 @@ the server sends), and none animates text opacity.
 **Guard:** `apps/viewer/src/styles/tokens.test.ts` (the token is documented in `docs/DESIGN.md`)
 and `apps/cms/e2e/motion.spec.ts` (reduced motion shows the final state at once, with a
 negative control).
+
+**Amended 2026-10-05 (polish D4):** the order timeline's drawn line went with the timeline (D23's
+amendment of that date), so two motions use `--showpiece`: the count-up and the globe's arcs.
 
 ## 2026-10-04 — the polish audit: one page per job
 

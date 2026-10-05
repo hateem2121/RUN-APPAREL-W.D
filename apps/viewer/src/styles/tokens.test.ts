@@ -1478,11 +1478,13 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         'tokens.css :root[data-theme]: light',
         // The site's photo hero (owner, 2026-09-29): text on a photograph's ink in BOTH themes.
         // It shared this rule with the photo lightbox until 2026-10-02, when the lightbox went
-        // with the factory strip (visual audit VA-29), so the scanner now names `.site-hero--photo`.
-        'site.css .site-hero--photo: dark',
-        // ...and on paper it goes light like every page (VA-04, found 2026-10-02 when the film made
-        // /products a photo hero): its re-declared dark colours were out of the paper rule's reach.
-        'site.css .site-hero--photo: light',
+        // with the factory strip (visual audit VA-29). Since polish D4 (2026-10-05) it shares it
+        // with the order steps' photo cards, and the scanner names the selector nearest the brace,
+        // `.order-step`.
+        'site.css .order-step: dark',
+        // ...and on paper they go light like every page (VA-04, found 2026-10-02 when the film made
+        // /products a photo hero): their re-declared dark colours were out of the paper rule's reach.
+        'site.css .order-step: light',
       ].sort(),
     )
   })

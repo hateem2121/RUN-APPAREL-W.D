@@ -95,9 +95,10 @@
   --ui: 220ms; /* controls: hover, press, state a finger is waiting on */
   --settle: 500ms; /* entrances */
   --slow: 800ms; /* wipes and reveals */
-  /* Owner decision 2026-09-29 (D26, amending D8's "existing tokens only"): the site's three
-     showpieces — the numbers counting up, the order timeline drawing, the globe's routes —
-     read as broken at 800ms. Those three only; reduced motion stops all of them. */
+  /* Owner decision 2026-09-29 (D26, amending D8's "existing tokens only"): the site's
+     showpieces — the numbers counting up and the globe's routes (and the order timeline's line,
+     until polish D4 replaced the timeline, 2026-10-05) — read as broken at 800ms. Those only;
+     reduced motion stops all of them. */
   --showpiece: 1400ms;
   /* The pause between rows that arrive one after another: the phone menu's rows (visual audit
      VA-51, owner-approved 2026-10-01: "the links fading in 30-50 ms apart"). A 60ms stagger
@@ -223,7 +224,7 @@
   --text-xs: 0.8125rem; /* 13px */
   /* Since 2026-10-02 (visual audit VA-11, owner's choice) every text that is READ is at least
      12px: it takes --text-mono-lg below. These two are left to the decorative register: bracket
-     labels, section numbers, the timeline's step numbers, "[ Photo to come ]", the arrow signs. */
+     labels, section numbers, "[ Photo to come ]", the arrow signs. */
   --text-mono: 0.6875rem; /* 11px — .mono, content labels */
   --text-mono-sm: 0.625rem; /* 10px */ /* .label, .section-number — chips */
 

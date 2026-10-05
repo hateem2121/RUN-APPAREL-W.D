@@ -79,11 +79,14 @@ export default defineConfig({
      * that CSS answers through `:has()`, and choosing a sport on a phone is a Safari visit too.
      * `familyTickets` the same day (polish D3): masks, `@property`, container queries and grid
      * tracks that glide, each newer in Safari than elsewhere, on a Mac's pointer and an iPhone.
+     * `productTickets` the same day (polish D3b), for the same parts on the product cards.
+     * `orderTimeline` joined 2026-10-05 (polish D4): the order steps are sticky cards whose sink
+     * runs on a named scroll timeline, which Safari draws only since 26.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

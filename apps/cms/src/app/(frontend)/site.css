@@ -840,7 +840,7 @@ html {
  * buttons are on the left and the picture on the right from 900px, and on a phone the picture
  * comes after them (it is after them in the markup too, so the reading and tab order never
  * disagree and no `order` is needed). 900px and 420px are the numbers `.proof` and the order
- * timeline already use for a column with a picture beside it.
+ * timeline used for a column with a picture beside it (until polish D2 and D4, 2026-10-05).
  *
  * ⚠️ THE FRAME RESERVES THE PICTURE'S SPACE: `aspect-ratio: 4 / 5` is the ratio of the 1200 x 1500
  * renders and of every other garment frame on the site, so the hero is the same height before the
@@ -3112,7 +3112,7 @@ a.contact-block__value:active {
  * The guides' running text, at 50ch of Archivo rather than `--site-measure` (55ch). A line of
  * narrow letters ("Puff, silicone, high-density and reflective…") set 78 characters at 55ch in
  * Firefox on 2026-09-30, past the 75 that `legibility.spec.ts` (FA-C-52) allows. The order
- * timeline uses 50ch for the same measured reason. In em since polish D11, for the reason at
+ * steps' words use 50ch for the same measured reason. In em since polish D11, for the reason at
  * `--site-measure`: 28.635em is 50 of Archivo's zeros, and it does not move when the font swaps.
  */
 .prose--guide p,
@@ -3672,7 +3672,8 @@ a.contact-block__value:active {
  * which `--text` (#ecebe4) is about 7:1 and `--muted` (#a2a695) would be about 3.4:1 — under
  * AA. axe cannot compute contrast over an image, so the arithmetic is the check.
  */
-.site-hero--photo {
+.site-hero--photo,
+.order-step {
   color-scheme: dark;
   /* The dark halves of tokens.css's pairs, re-declared here (see above). */
   --bg: #1c1f18;
@@ -3743,7 +3744,8 @@ a.contact-block__value:active {
  * parent's, which the paper rule has already made light). e2e/print.spec.ts prints all three.
  */
 @media print {
-  .site-hero--photo {
+  .site-hero--photo,
+  .order-step {
     color-scheme: light;
     --bg: inherit;
     --text: inherit;
@@ -3836,18 +3838,6 @@ a.contact-block__value:active {
 
 .photo-figure__frame--single {
   aspect-ratio: 4 / 5;
-}
-
-/*
- * The order timeline's shape (visual audit VA-29, owner's choice 2026-10-02): one square for
- * every picture, whatever shape its file has, so eight rows line up. `object-fit: cover` on
- * `.photo-figure__img` cuts the file to it and each picture's `focus` (lib/factoryPhotos.ts)
- * decides which part stays. A square, not 8:5 or 4:5, because the eight files are four of each
- * and a square gives up the least of both: a wide file keeps 62.5% of its width, a tall one 80%
- * of its height, where either of their own shapes would keep half of the other four.
- */
-.photo-figure__frame--square {
-  aspect-ratio: 1 / 1;
 }
 
 .photo-figure__img {
@@ -4428,8 +4418,8 @@ a.contact-block__value:active {
   flex-direction: column;
   gap: 8px;
   /* `max-width: none`: base.css caps every `li` at 60ch (about 584px at 17px), which would leave
-     the odd last card, spanning both columns, at half the row (the timeline's phases hit the same
-     cap, above). The cap is a measure for text, and the card is a box; the description keeps its own. */
+     the odd last card, spanning both columns, at half the row (the order cards meet the same cap,
+     below). The cap is a measure for text, and the card is a box; the description keeps its own. */
   max-width: none;
   padding: 20px;
   transition:
@@ -4494,155 +4484,309 @@ a.contact-block__value:active {
   scale: 0.98;
 }
 
-/* ------------------------------------------------ №04 how an order works */
+/* ------------------------------------------------ №04 how an order works: the order steps (D4) */
 
-.timeline {
-  position: relative;
-  margin-block-start: 24px;
-  padding-inline-start: 24px;
-}
+/*
+ * ⚠️ EIGHT PHOTO CARDS THAT STACK AS THE PAGE SCROLLS (polish D4, the owner's answer Q14 of
+ * 2026-10-03: "B, stacking photo cards"). Each step is a card over its own room's photo
+ * (`OrderSteps.tsx`). Each card stops 8px below the one before, the next slides up over it, and
+ * the covered card sinks back and darkens, like cards being dealt. The SAME cards are the order
+ * guide's "The eight steps" (Q41), so the two places cannot word the steps differently (X21).
+ * Until 2026-10-05 this was a timeline: rows of words beside square photos, and a drawn line.
+ *
+ * From 900px the heading and its words stay on the left while the cards pass on the right: the
+ * half №01's photos take, because the photo files stop at 1200px (wide) and 800px (tall). On the
+ * guide the section heading does the same beside its cards (`.spread`).
+ */
+@media (min-width: 900px) {
+  .order-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 64px;
+    align-items: start;
+  }
 
-/* The drawn line; without the scroll-driven animation it simply stands, fully drawn. */
-.timeline__line {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 4px;
-  width: 2px;
-  background: var(--dimension);
-  transform-origin: top;
-}
+  /* Its grid area runs the whole height of the cards and the button, so it can stay that long. */
+  .order-layout__head {
+    grid-row: 1 / span 2;
+    position: sticky;
+    top: var(--notch-clearance);
+  }
 
-.timeline__phases {
-  display: grid;
-  gap: 64px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+  .order-layout > .order-steps,
+  .order-layout__actions {
+    grid-column: 2;
+  }
 
-/* ⚠️ `max-width: none`: base.css caps every `li` at 60ch, which squeezed the copy column of a
-   two-column step to 100px (measured at 1440, 2026-09-29). The prose inside keeps its cap. */
-.timeline__phase,
-.timeline__step {
-  max-width: none;
-}
-
-.timeline__name {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps-wide);
-  text-transform: uppercase;
-  color: var(--dimension);
-}
-
-.timeline__steps {
-  display: grid;
-  gap: 24px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
+  .spread:has(> .spread__body > .order-steps) > .display {
+    position: sticky;
+    top: var(--notch-clearance);
+  }
 }
 
 /*
- * ⚠️ A STEP IS ONE ROW: ITS WORDS AND ITS OWN PICTURE (visual audit VA-29, owner's choice
- * 2026-10-02). A phase held two steps and one picture beside them, in a shape of its own (wide,
- * tall, wide, tall), so the rows of the four phases did not line up. Now each of the eight steps
- * has a square of the same size: the words on the left and the picture on the right from 900px,
- * both starting at the row's top edge, and on a phone the picture above its words. The words
- * come first in the markup (OrderTimeline.tsx says why), so `order: -1` moves the picture up
- * on a phone and is switched off again from 900px.
- *
- * 400px is the width the files were cut for (`FACTORY_PHOTO_WIDTHS`), so a 1x screen takes the
- * small file and a 2x screen the large one, and it is the cap between a phone and 900px, where a
- * one-column picture would otherwise stretch to the page's width: 667px square at 768px (768
- * less two 38px gutters and the timeline's 24px line gutter).
- * The 12px between a picture and its words is half the 24px between two steps, so each picture
- * reads as belonging to the words under it and not to the words above.
+ * `--step-h` is a card's height and `--step-gap` the room between two cards in the list; the
+ * stack's arithmetic below reads both. In rem, so a reader's larger text gets a taller card and
+ * the words still fit (`e2e/orderTimeline.spec.ts` sets 200% text); a card whose words need more
+ * than this still grows (`min-block-size`) rather than cut them.
  */
-.timeline__step {
+.order-steps {
+  --step-h: 20rem;
+  --step-gap: 24px;
   display: grid;
-  gap: 12px;
-  align-items: start;
+  row-gap: var(--step-gap);
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.timeline__step > .photo-figure {
-  order: -1;
-  max-width: 400px;
+@media (min-width: 560px) {
+  .order-steps {
+    --step-h: 23.75rem;
+  }
 }
 
-/* 280px from 900px, not 400px (owner's choice, 2026-10-02): with eight steps the 400px squares made
-   "How an order works" 3,808px tall at 1440px, about four screens; 280px squares make it 2,848px.
-   Each photo keeps its whole square cut, only smaller. Phones keep the 400px cap above. */
 @media (min-width: 900px) {
-  .timeline__step {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 280px);
-    column-gap: 64px;
-  }
-
-  .timeline__step > .photo-figure {
-    order: 0;
+  .order-layout > .order-steps {
+    margin-block-start: 0;
   }
 }
 
-/* The words: the number and the You / We chip on one line, the title and body under the chip. */
-.timeline__text {
+/*
+ * ⚠️ THE CARD IS DARK IN BOTH THEMES: it takes the photo hero's own tokens (the block that starts
+ * "THE HERO IS DARK IN BOTH THEMES" above names this selector too), and for the same reason its
+ * words are `--text`, never `--muted`. `max-width: none` because base.css caps every `li` at 60ch,
+ * and a guide's prose caps them again (`.prose--guide li`), which this beats on specificity.
+ */
+.order-steps > .order-step {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  align-items: baseline;
+  min-block-size: var(--step-h);
+  max-width: none;
+  overflow: clip;
+  border-radius: var(--radius-card);
+  background: var(--bg);
 }
 
-.timeline__marker {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  color: var(--muted);
+/* Behind the words: the picture's own `focus` (lib/factoryPhotos.ts) is its `object-position`. */
+.order-step__photo {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hero-grid);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.timeline__actor {
-  justify-self: start;
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+/*
+ * ⚠️ THE WASH IS 80% INK AT THE LEAST, the photo hero's rule and arithmetic: over the whitest pixel
+ * a photo could have, `--text` is about 7:1 and the volt about 6.8:1 (both 4.5:1 or better). It is
+ * the words' own background, so it covers the card wherever words can be, with the hero's faint
+ * grid over it. `e2e/orderTimeline.spec.ts` measures every line against the real pixels behind it,
+ * and again over a white picture.
+ *
+ * The number and the stage on top, the words at the foot, and the photo showing in the row
+ * between (at least 16px of it, and the room a card has to spare on a wider screen).
+ */
+.order-step__words {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(16px, 1fr) auto auto auto;
+  column-gap: 12px;
+  padding: 20px;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--bg) 80%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 80%, transparent) 50%,
+      color-mix(in srgb, var(--bg) 88%, transparent) 100%
+    );
+  background-size:
+    26px 26px,
+    26px 26px,
+    auto;
+}
+
+/* The section's own number size (`.display--section`, as №05's figures), in the volt. */
+.order-step .order-step__number {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--dimension);
+}
+
+/* The stage, then whose move it is: "You" is ringed in the volt, so a buyer can scan for their turns. */
+.order-step .order-step__tag {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 2;
+  grid-row: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  color: var(--muted);
 }
 
-/* "You" is the buyer's move — marked in the accent so a reader can scan for their turns. */
-.timeline__actor--You {
-  border-color: var(--dimension);
+.order-step__phase {
+  color: var(--dimension);
+}
+
+.order-step__actor {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   color: var(--text);
 }
 
-.timeline__title,
-.timeline__body {
-  grid-column: 2;
-  margin: 0;
+.order-step__actor--You {
+  border-color: var(--dimension);
 }
 
-.timeline__title {
-  font-family: var(--font-display);
-  font-weight: 700;
+.order-step .order-step__title {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin: 0;
   font-size: var(--text-card-title);
   letter-spacing: var(--tracking-card-title);
+  line-height: 1.1;
+}
+
+/* 28.635em is 50ch of Archivo, the timeline's measure (CI counted 77 characters a line at 55ch). */
+.order-step .order-step__body {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  max-width: 28.635em;
+  margin: 6px 0 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+/* The room, in the words the photo already had (its caption), in normal letters (VA-44). */
+.order-step .order-step__room {
+  grid-column: 1 / -1;
+  grid-row: 5;
+  margin: 8px 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  color: var(--text);
+}
+
+/* The shade a covered card sinks into; nothing at rest. It holds no words, so animating its
+   opacity does not set the axe contrast trap the entrance motion records (`site-reveal`). */
+.order-steps > .order-step::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  opacity: 0;
+  pointer-events: none;
 }
 
 /*
- * ⚠️ 50ch, NOT `--site-measure` (55ch): CI COUNTED 77 CHARACTERS ON ONE LINE. At 768 px the
- * timeline is one column and the body reaches its cap, 495 px at 55ch. This Mac fitted that in
- * 75 characters; CI's Linux Chromium set the same copy at 77 (PR #94, legibility.spec.ts FA-C-52,
- * ceiling 75). 50ch is 450 px, about 70 characters there. From 900 px the copy column is what
- * the row leaves beside its 400 px picture and 64 px gap (322 px at 900, 564 px at 1440, worked
- * out from the layout rather than measured), so the cap bites in one column and again from
- * about 1,050 px. 28.635em is those 50ch of Archivo, in a unit that holds still when the body text
- * swaps fonts (polish D11, `--site-measure`).
+ * ⚠️ THE STACK, ONLY FOR SOMEONE WHO ALLOWS MOTION, AND ONLY ON A SCREEN TALL ENOUGH TO HOLD IT.
+ * Under reduced motion the cards are a plain list (the report's D4: "reduce motion shows the steps
+ * without movement"). And a card that stops where its foot is below the screen hides its words for
+ * good, because the next card covers it from the foot up: a phone held sideways is 390px tall
+ * against a stopped card's 86px + 56px + 380px. 40rem (640px at the default text size) is the
+ * shortest screen the whole stack fits on with room to spare; rem in a media query follows the
+ * reader's text size, as the cards' rem heights do.
+ *
+ * Card i stops at the bar's clearance plus 8px for each card before it, so each card's top edge
+ * stays in sight under the next.
+ *
+ * ⚠️ THE LAST CARD'S ROOM TO STOP IS AN EMPTY ROW OF THE LIST, NOT A MARGIN. A stopped card may not
+ * leave its list, margin and all, so a margin under the last card took away exactly the room it
+ * was meant to give: the eighth card never stopped (measured 2026-10-05). `::after` is one more
+ * row, 24px after the gap, so the finished stack holds for 48px of scroll before it moves away.
  */
-.timeline__body {
-  font-size: var(--text-sm);
-  color: var(--muted);
-  max-width: 28.635em;
+@media screen and (prefers-reduced-motion: no-preference) and (min-height: 40rem) {
+  .order-steps > .order-step {
+    position: sticky;
+    top: calc(var(--notch-clearance) + var(--i) * 8px);
+    transform-origin: 50% 0;
+  }
+
+  .order-steps::after {
+    content: "";
+    block-size: 24px;
+  }
+
+  /*
+   * ⚠️ THE SINK RUNS ON THE LIST'S OWN SCROLL TIMELINE, AND THE ARITHMETIC IS THE STACK'S.
+   * `exit-crossing 0` is the list's top reaching the bar's clearance (`view-timeline-inset`), and
+   * a length after it is that many pixels of scroll later (CSS Scroll-driven Animations, editor's
+   * draft of 25 Sep 2026, §3.1). Card i stops at i × (H + M − 8px) of scroll, the next card touches
+   * its foot M later, and stops H − 8px after that, exactly covering it: so the sink runs from
+   * i × (H + M − 8px) + M to (i + 1) × (H + M − 8px). The list is the timeline because it never
+   * stops itself; a stopped card's position would hold still while the scroll moved on.
+   *
+   * Only where the browser has scroll timelines AND animation ranges (a browser with the first and
+   * not the second would run the sink over the whole page): in Firefox the cards stack without
+   * sinking, which is the progressive enhancement the web-guidance index recommends for a
+   * decorative effect (no script fallback). Transform and opacity only, so it stays on the
+   * compositor.
+   */
+  @supports ((animation-timeline: view()) and (animation-range: 0% 100%)) {
+    .order-steps {
+      view-timeline: --order-steps block;
+      view-timeline-inset: var(--notch-clearance) 0px;
+    }
+
+    .order-steps > .order-step:not(:last-child),
+    .order-steps > .order-step:not(:last-child)::after {
+      animation: order-step-sink var(--slow) linear both;
+      animation-timeline: --order-steps;
+      animation-range: exit-crossing
+        calc(var(--i) * (var(--step-h) + var(--step-gap) - 8px) + var(--step-gap)) exit-crossing
+        calc((var(--i) + 1) * (var(--step-h) + var(--step-gap) - 8px));
+    }
+
+    .order-steps > .order-step:not(:last-child)::after {
+      animation-name: order-step-shade;
+    }
+  }
+}
+
+@keyframes order-step-sink {
+  from {
+    scale: 1;
+  }
+  to {
+    scale: 0.94;
+  }
+}
+
+@keyframes order-step-shade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+/* On paper: the list (the stack is for screens only), without photos or shade, in the page's own
+   colours (the photo hero's print rule names this card too). */
+@media print {
+  .order-steps > .order-step {
+    border: 1px solid var(--line);
+    break-inside: avoid;
+  }
+
+  .order-step__photo,
+  .order-steps > .order-step::after {
+    display: none;
+  }
+
+  .order-step__words {
+    background: none;
+  }
 }
 
 /* ------------------------------------------------ №05 the numbers, as a bento */
@@ -4666,9 +4810,10 @@ a.contact-block__value:active {
 /* ------------------------------------------------ scroll motion (owner's points 2 and 6) */
 
 /*
- * The order timeline's line draws itself as the section is read, and each factory photo
- * wipes open as it arrives and drifts slightly against the page (the owner, 2026-09-29: the
- * photos "make the website feel static").
+ * Each factory photo in №01 wipes open as it arrives and drifts slightly against the page (the
+ * owner, 2026-09-29: the photos "make the website feel static"). Until polish D4 (2026-10-05) the
+ * order timeline's line drew itself here too, and its eight photos wiped and drifted; the order
+ * steps are photo cards now, and their motion is the stack ("the order steps" above).
  *
  * The SAME contract as `site-reveal` above, for the same reasons: scroll-driven CSS rather
  * than script, so a browser that runs no JavaScript still gets the finished page; inside
@@ -4679,15 +4824,6 @@ a.contact-block__value:active {
  * ⚠️ THE DRIFT NEEDS HEADROOM. The picture is scaled 1.12 inside a frame that clips, so a 5%
  * move never shows an edge; the frame keeps its reserved size, so nothing around it moves.
  */
-@keyframes timeline-draw {
-  from {
-    scale: 1 0;
-  }
-  to {
-    scale: 1 1;
-  }
-}
-
 @keyframes photo-wipe {
   from {
     clip-path: inset(0 0 100% 0);
@@ -4708,12 +4844,6 @@ a.contact-block__value:active {
 
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
-    .timeline__line {
-      animation: timeline-draw var(--slow) linear both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 70%;
-    }
-
     .photo-wipe {
       animation: photo-wipe var(--slow) var(--ease-out-expo) both;
       animation-timeline: view();
@@ -4730,7 +4860,6 @@ a.contact-block__value:active {
 }
 
 @media print {
-  .timeline__line,
   .photo-wipe,
   .photo-parallax {
     animation: none;

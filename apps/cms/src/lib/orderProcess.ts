@@ -1,7 +1,8 @@
 import { FACTS } from './companyFacts'
 
 /**
- * "How an order works" — the home page timeline (owner, 2026-09-29).
+ * "How an order works" — the order steps, drawn on the home page (№04) and in the order guide
+ * (owner, 2026-09-29; one list for both since polish D4, 2026-10-05).
  *
  * ⚠️ ONLY WHAT THE OWNER CONFIRMED IS TRUE FOR EVERY ORDER. They confirmed that bulk never
  * starts before the buyer signs off the sample, that the quote is free, and that the sample
@@ -18,7 +19,8 @@ import { FACTS } from './companyFacts'
  *
  * ⚠️ EVERY STEP HAS ITS OWN PHOTO (visual audit VA-29, owner's choice 2026-10-02). There were
  * eight steps and four pictures, one per phase and in mixed shapes (wide, tall, wide, tall), so
- * the rows did not line up. Eight steps, eight photos, all cut to one square. Two steps have no
+ * the rows did not line up. Eight steps, eight photos; since polish D4 (2026-10-05) each is the
+ * background of its step's card, on the home page and in the order guide (`OrderSteps.tsx`). Two steps have no
  * photo of their own subject, so the closest room was chosen and the owner approved it: the quote
  * (step 2) shows the testing lab, and the arrival (step 8) shows the tagging table. The words on
  * each picture are the ones it already carried (`lib/factoryPhotos.ts`), so the page says nothing

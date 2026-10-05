@@ -4,6 +4,7 @@ import { FAMILY_PAGE_ACTION, familyPageFor } from '../../lib/familyPages'
 import { GUIDES, GUIDES_INDEX, type Guide, type GuideBlock } from '../../lib/guides'
 import { guideBreadcrumbJsonLd } from '../../lib/structuredData'
 import { JsonLd } from './JsonLd'
+import { OrderSteps } from './OrderSteps'
 
 /**
  * One buyer guide (2026-09-30). Every word comes from `lib/guides.ts`, which the owner
@@ -16,6 +17,8 @@ import { JsonLd } from './JsonLd'
  * claim the site does not already make.
  */
 function Block({ block }: { block: GuideBlock }) {
+  // The home page's eight cards, not a copy (polish D4, the owner's answer Q41).
+  if (block.kind === 'orderSteps') return <OrderSteps />
   if (block.kind === 'text') return <p>{block.text}</p>
   if (block.kind === 'label') return <p className="subhead">{block.text}</p>
   if (block.kind === 'point') {
@@ -104,11 +107,13 @@ export function GuidePage({ guide }: { guide: Guide }) {
               {section.blocks.map((block) => (
                 <Block
                   key={
-                    block.kind === 'list'
-                      ? block.items[0]
-                      : 'title' in block
-                        ? block.title
-                        : block.text
+                    block.kind === 'orderSteps'
+                      ? 'order-steps'
+                      : block.kind === 'list'
+                        ? block.items[0]
+                        : 'title' in block
+                          ? block.title
+                          : block.text
                   }
                   block={block}
                 />

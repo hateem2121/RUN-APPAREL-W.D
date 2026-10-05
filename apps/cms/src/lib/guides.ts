@@ -8,8 +8,10 @@ import { FACTS } from './companyFacts'
  * words ("how does a private label order work", "minimum order custom apparel").
  *
  * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-09-30, AND EVERY FACT IS ALREADY ON THE SITE:
- * the order steps are the home page's (`orderProcess.ts`), the colour paragraph and "quoted
- * in writing" are the terms page's, "on request" is the owner's correction of 2026-09-29.
+ * the order steps are the home page's, drawn from `orderProcess.ts` itself since polish D4
+ * (2026-10-05, the owner's answer Q41; the guide had typed its own eight with slightly different
+ * names), the colour paragraph and "quoted in writing" are the terms page's, "on request" is the
+ * owner's correction of 2026-09-29.
  * A guide on a topic the site states nothing about waits for the owner's facts; do not write one from general knowledge.
  *
  * ⚠️ THE NUMBERS ARE READ FROM `FACTS`, NEVER RETYPED (`orderProcess.ts` says why).
@@ -25,6 +27,11 @@ export type GuideBlock =
   /** A titled point: a step, or a term and what it means. */
   | { kind: 'point'; title: string; text: string }
   | { kind: 'list'; ordered?: boolean; items: readonly string[] }
+  /**
+   * The home page's eight order steps, drawn as they are there (`OrderSteps`; polish D4, the
+   * owner's answer Q41): one list for the steps wherever they are told, never a copy typed here.
+   */
+  | { kind: 'orderSteps' }
 
 export type GuideSection = { heading: string; blocks: readonly GuideBlock[] }
 
@@ -71,52 +78,7 @@ export const GUIDES: readonly Guide[] = [
     sections: [
       {
         heading: 'The eight steps',
-        blocks: [
-          { kind: 'label', text: 'Talk' },
-          {
-            kind: 'point',
-            title: '1. You send what you have',
-            text: 'A sketch, a reference garment or a full tech pack. We reply within 24 hours.',
-          },
-          {
-            kind: 'point',
-            title: '2. We send your quote',
-            text: `Fabric, trims, sizes and price. The quote is free and commits you to nothing. The minimum is ${MINIMUM} pieces per style.`,
-          },
-          { kind: 'label', text: 'Develop' },
-          {
-            kind: 'point',
-            title: '3. We make your sample',
-            text: `It takes ${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
-          },
-          {
-            kind: 'point',
-            title: '4. You approve',
-            text: 'Nothing goes into bulk until you sign off the sample.',
-          },
-          { kind: 'label', text: 'Make' },
-          {
-            kind: 'point',
-            title: '5. Bulk production',
-            text: 'Cut, stitched and finished in one building in Pakistan.',
-          },
-          {
-            kind: 'point',
-            title: '6. Checked',
-            text: 'Testing, inspection under light and a final check before packing.',
-          },
-          { kind: 'label', text: 'Deliver' },
-          {
-            kind: 'point',
-            title: '7. Packed and shipped',
-            text: 'Sent to you, wherever you are.',
-          },
-          {
-            kind: 'point',
-            title: '8. Your order arrives',
-            text: 'Ready for your team, your store or your event.',
-          },
-        ],
+        blocks: [{ kind: 'orderSteps' }],
       },
       {
         heading: 'What helps us quote faster',

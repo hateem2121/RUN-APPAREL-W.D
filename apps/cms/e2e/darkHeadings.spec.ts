@@ -43,13 +43,17 @@ async function open(page: Page, path: string, scheme: 'light' | 'dark') {
  * Each kind of heading in `<main>`, with the colour it is drawn in. The home page's featured figure
  * ("100,000" in "Numbers you can hold us to") is display type but no heading: like the accent word
  * it takes the accent colour, `--dimension` (olive in light, volt in dark), so it is read apart.
+ * So are the order steps' numbers (polish D4, 2026-10-05): figures on a card that is dark in both
+ * themes, volt in both, as in the report's D4 drawing the owner chose (Q14).
  */
 const read = (page: Page) =>
   page.evaluate(() => {
     const FEATURE = '.fact--feature .fact__value'
+    const STEP = '.order-step__number'
     const drawn = (selector: string, part: 'color' | 'backgroundColor' = 'color') =>
       [...document.querySelectorAll(`main ${selector}`)]
         .filter((el) => selector === FEATURE || !el.matches(FEATURE))
+        .filter((el) => selector === STEP || !el.matches(STEP))
         .map((el) => ({
           text: (el.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 40),
           colour: getComputedStyle(el)[part],
@@ -60,6 +64,7 @@ const read = (page: Page) =>
       small: drawn('.product-card__name'),
       accents: drawn('.display--section .serif-accent'),
       feature: drawn(FEATURE),
+      steps: drawn(STEP),
       buttons: drawn('.btn--primary', 'backgroundColor'),
     }
   })
@@ -106,6 +111,8 @@ test.describe('X25 — in dark mode only the big title and the buttons are lime'
     expect(m.accents.length, 'no accent word in a section headline').toBeGreaterThanOrEqual(1)
     expect(colours(m.accents)).toEqual(m.accents.map(({ text }) => `${VOLT} ${text}`))
     expect(colours(m.feature)).toEqual([`${VOLT} ${m.feature[0]?.text}`])
+    expect(m.steps.length, 'no order step numbers').toBe(8)
+    expect(colours(m.steps)).toEqual(m.steps.map(({ text }) => `${VOLT} ${text}`))
   })
 
   test('the privacy notice’s part headings and the garment cards’ names: off-white', async ({

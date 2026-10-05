@@ -485,8 +485,10 @@ test.describe('D11 — a body-text box held at its width cap is the same width i
   // No family card since polish D3: a ticket is not held at a width in the font (it drops the
   // `li` cap, site.css), so a font's arrival has nothing of it to move.
   for (const [path, width, mustHold] of [
-    ['/', 768, ['p.site-lede', 'p.timeline__body', 'p.footer-derisk']],
-    ['/', 1024, ['p.timeline__body']],
+    // The order steps' words (polish D4): capped in a card the column's width at 768px, and in a
+    // card the right half's width at 1440px (at 1024px that half leaves them under the cap).
+    ['/', 768, ['p.site-lede', 'p.order-step__body', 'p.footer-derisk']],
+    ['/', 1440, ['p.order-step__body']],
     ['/contact', 1440, ['form.inquiry-form', 'p.contact-block__note']],
     ['/guides/garment-printing-methods', 1280, ['p']],
     // 1440, not 1024, since polish X4: from 900px the text is three fifths of the page beside

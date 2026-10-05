@@ -575,13 +575,14 @@ reads to act, not glances at. The chips and section numbers still keep 10–11px
 **Every text that is read is 12px since 2026-10-02 (owner's choice, visual audit VA-11).** The
 footer's headings, links, address, tab and small print; photo captions; the /products jump-bar
 chips and their counts; card cues ("View the range →", "Read this guide", "Opens the 3D
-viewer"), colour names on cards and the gallery's count; fact labels, timeline step names and
-the "We"/"You" tags; subheads and the facts' labels; and on a garment page the camera buttons,
+viewer"), colour names on cards and the gallery's count; fact labels, the order steps' stage
+names and "We"/"You" tags; subheads and the facts' labels; and on a garment page the camera buttons,
 the HD IMAGE button, the garment's facts (their group headings everywhere, and their bullets in
 the 3D window's corners), the retry button, the touch hint and the download count. They take
 `--text-mono-lg`. Only the decorative register keeps 10–11px: bracket labels (`.label`, the
-bracketed `.field-label`s on /contact), section numbers, the timeline's step numbers,
-"[ Photo to come ]" and the arrow signs.
+bracketed `.field-label`s on /contact), section numbers, "[ Photo to come ]" and the arrow
+signs. (The order timeline's 11px step numbers were on that list until polish D4 made each step
+a card with its number at the section-number size.)
 
 ### Page widths
 
@@ -630,7 +631,8 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 559px` | `site.css` | on a phone each product card is a sideways ticket, one a row: a square picture on its left, 12px of text padding and narrower colour dots (polish M1), and `/products`' jump bar is one row that scrolls sideways (VA-42) |
 | `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
-| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
+| `min-height: 40rem`, with motion allowed | `site.css` | the order steps stack as the page scrolls (polish D4); on a shorter screen, under reduced motion and on paper they are a plain list |
+| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, the order steps beside their sticky heading, polish D4), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
 | `700px` and `orientation: portrait` | `page.css` | an upright tablet keeps the phone's one column, its garment window half the screen tall so the name under it is on the first screen (polish F11) |
 | `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one). The garment's facts follow the same query into the 3D window's four corners, unless the 3D cannot run (polish D10; `specsInCorners` in `App.tsx` decides, so they are drawn once) |
@@ -641,23 +643,45 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12); the website's column is 1600px (polish D1) |
 | container `colourrail`: `252px`, `350px` | `page.css` | below 252px the dots go three to a row (3 + 2, VA-32); from 350px, beside the garment, each dot has its name under it (polish D8) |
 
-### Pictures in rows: the order timeline
+### The order steps: stacking photo cards (polish D4)
 
-№04 gives each of its eight steps one photo, every one cut to the same **1:1** square (visual
-audit VA-29, owner's choice 2026-10-02). The shape is CSS, not eight files: `.photo-figure__frame--square`
-(`aspect-ratio: 1 / 1`) frames the picture, `object-fit: cover` cuts it, and each photo's own
-`object-position` (its `focus` in `apps/cms/src/lib/factoryPhotos.ts`) keeps its subject in. A
-square, because the eight files are four 8:5 and four 4:5 and a square gives up the least of both.
+№04 "How an order works" and the order guide's "The eight steps" draw the same eight cards
+(`apps/cms/src/components/site/OrderSteps.tsx`, from `apps/cms/src/lib/orderProcess.ts`): the
+owner's answers Q14 ("B, stacking photo cards") and Q41 ("the home page's 8 steps everywhere"),
+2026-10-03. Each card is one step over its own room's photo: the number in the volt at the
+section-number size, the stage and "You"/"We" at the top; the step's title, its words and the
+room's name at the foot; the photo showing between. The card takes the photo hero's dark tokens
+and its wash, 80% ink at the least and 88% at the foot, with the hero's faint grid over it, so
+every line keeps 4.5:1 over the whitest pixel a photo could have (the arithmetic is the hero's).
 
-| Width | One step's row |
+| Width | The section |
 |---|---|
-| 900px and up | the words on the left, the photo on the right in a 400px column, both starting at the row's top edge |
-| under 900px | the photo above its words, as wide as the column up to 400px |
+| 900px and up | the heading and its words on the left, staying in view while the cards pass on the right half (the half №01's photos take: the photo files stop at 1200px wide and 800px tall) |
+| under 900px | the heading first, then the cards at the column's full width |
 
-The words come first in the markup and `order` lifts the photo above them on a phone only, so a
-screen reader hears a step's title before its picture; nothing in a row takes focus, so the two
-orders cannot disagree for a keyboard. The pictures are lazy and carry their width and height, and
-the wipe and drift that run as they scroll in stop under `prefers-reduced-motion`.
+| Card | Height |
+|---|---|
+| under 560px | `20rem` (320px) |
+| 560px and up | `23.75rem` (380px) |
+
+In rem, so a reader's larger text gets a taller card; a card whose words need more still grows
+rather than cut them.
+
+**The stack.** With motion allowed, on a screen at least `40rem` tall, each card stops at the
+bar's clearance plus 8px for each card before it, the next slides up over it, and the covered
+card sinks (to 94%, from its top edge) and darkens (an ink shade to 55%). The sink runs on the
+list's own scroll timeline (`view-timeline: --order-steps`), from the moment the next card
+touches the covered one's foot to the moment it stops over it. A browser without scroll
+timelines and animation ranges (Firefox today) stacks the cards without the sink; under reduced
+motion, on a shorter screen (a phone held sideways) and on paper, the eight are a plain list.
+The last card has an empty row of the list after it to stop in: a margin would not do, because
+a stopped card may not leave its list, margin and all. `apps/cms/e2e/orderTimeline.spec.ts`
+measures the stops, the sink and the plain list in three engines.
+
+The words come first in the markup and the photo is laid behind them, so a screen reader hears a
+step's title before its picture; the number is hidden from it (the ordered list already counts).
+Nothing in a card takes focus. The photos are lazy and carry their width and height, and each
+keeps its own `focus` as `object-position`.
 
 ### A family has one list (polish S1–S4, S8)
 
@@ -1171,7 +1195,7 @@ So the lock holds and the scale grows:
 | Controls — hover, press, a state change the user is waiting on | `--ui` |
 | Entrances, cross-fades, accordions | `--settle` |
 | Wipes, scroll reveals | `--slow` |
-| The site's three showpieces only: the numbers counting up, the order timeline drawing, the contact globe's routes | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
+| The site's showpieces only: the numbers counting up and the contact globe's routes (the order timeline's drawn line was the third until polish D4 replaced the timeline with stacking cards, 2026-10-05) | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
 | Retargeted progress fills | `--fast` (see `page.css`'s note — a fill retargeted several times a second visibly trails the number beside it at anything slower) |
 | The phone contact bar fading away while the page's own Email and WhatsApp, or the footer, are on screen (VA-54, 2026-10-02; the footer 2026-10-03) | `--fast`, as the audit's fix text asks. It follows the scroll position, which a visitor can reverse at any moment, so it is the retargeted case above rather than a state a finger is waiting on (`--ui`, 20ms slower). See "The phone contact bar" |
 | The pause between rows that arrive one after another — the phone menu's rows only (visual audit VA-51, 2026-10-01); never the page's entrance reveals (D8) | `--stagger` |
