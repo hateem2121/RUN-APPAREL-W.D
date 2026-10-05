@@ -444,7 +444,7 @@ test.describe('the cookie choice on a garment page', () => {
   // VA-18 (visual audit 2026-10-02): the same sentence and the same shared cap as the website's
   // (`apps/cms/e2e/consent.spec.ts` has the account). Counted from Range rects, never from a
   // width, because `ch` is a zero's width and renders more characters than it names.
-  test('the sentence keeps to 45-75 characters a line, in three lines, from 1024px up (VA-18)', async ({
+  test('the sentence keeps to 45-75 characters a line, in three or four lines, from 1024px up (VA-18)', async ({
     page,
     context,
   }) => {
@@ -488,10 +488,16 @@ test.describe('the cookie choice on a garment page', () => {
           `${width}px: line ${index + 1} has ${length} characters`,
         ).toBeLessThanOrEqual(75)
       }
+      // THREE OR FOUR (owner, 2026-10-05). The sentence naming PostHog is 214 characters with its
+      // link: three lines in Archivo, four in the ~6% wider stand-in a FIRST visit often keeps
+      // (`font-display: optional`), and a first visit is when this card shows. Both fonts keep
+      // every line inside 45-75, which is the readability rule; a fifth line would mean the cap
+      // had stopped holding.
+      expect(lines.length, `${width}px: ${lines.join(', ')} characters`).toBeGreaterThanOrEqual(3)
       expect(
         lines.length,
-        `${width}px: ${lines.join(', ')} characters; a fourth line is a taller card`,
-      ).toBe(3)
+        `${width}px: ${lines.join(', ')} characters; a fifth line is a taller card`,
+      ).toBeLessThanOrEqual(4)
     }
   })
 })

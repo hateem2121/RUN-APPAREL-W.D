@@ -560,9 +560,11 @@ test.describe('the cookie choice', () => {
    * COUNTED from Range rects, as `legibility.spec.ts` counts the prose and never `width / one
    * character's width`: `ch` is the width of a zero, which renders more characters than it names.
    * The cap was chosen so the sentence is still THREE lines, so the card does not grow taller.
+   * Since 2026-10-04 (the PostHog sentence, 214 characters) it is three in Archivo and four in the
+   * wider stand-in a first visit often keeps; the owner chose to allow four (2026-10-05).
    * The card is absent under automation, so the gate is lifted here as in every test above.
    */
-  test('the sentence keeps to 45-75 characters a line, in three lines, from 1024px up (VA-18)', async ({
+  test('the sentence keeps to 45-75 characters a line, in three or four lines, from 1024px up (VA-18)', async ({
     page,
     context,
   }) => {
@@ -606,10 +608,16 @@ test.describe('the cookie choice', () => {
           `${width}px: line ${index + 1} has ${length} characters`,
         ).toBeLessThanOrEqual(75)
       }
+      // THREE OR FOUR (owner, 2026-10-05). The sentence naming PostHog is 214 characters with its
+      // link: three lines in Archivo, four in the ~6% wider stand-in a FIRST visit often keeps
+      // (`font-display: optional`), and a first visit is when this card shows. Both fonts keep
+      // every line inside 45-75, which is the readability rule; a fifth line would mean the cap
+      // had stopped holding.
+      expect(lines.length, `${width}px: ${lines.join(', ')} characters`).toBeGreaterThanOrEqual(3)
       expect(
         lines.length,
-        `${width}px: ${lines.join(', ')} characters; a fourth line is a taller card`,
-      ).toBe(3)
+        `${width}px: ${lines.join(', ')} characters; a fifth line is a taller card`,
+      ).toBeLessThanOrEqual(4)
     }
   })
 })
