@@ -1,14 +1,14 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { AboutSection } from '../../components/site/AboutSection'
 import { FactsBento } from '../../components/site/FactsBento'
 import { FamilyCard } from '../../components/site/FamilyCard'
 import { HomeHero } from '../../components/site/HomeHero'
 import { JsonLd } from '../../components/site/JsonLd'
-import { LiveGarment } from '../../components/site/LiveGarment'
 import { OrderTimeline } from '../../components/site/OrderTimeline'
-import { ProductPoster } from '../../components/site/ProductPoster'
+import { type ProofProduct, ProofShowcase } from '../../components/site/ProofShowcase'
 import { TicketDismiss } from '../../components/site/TicketDismiss'
 import { ViewerCue } from '../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../lib/content'
@@ -72,32 +72,39 @@ export const metadata: Metadata = {
  * ⚠️ THE CAPTION NAMES THE GARMENT; `<ViewerCue />` SAYS WHERE THE LINK GOES (XS-09,
  * 2026-09-17). The caption used to end "— open the 3D reference", which the owner's
  * approved line now says in their words, so the tail went rather than saying it twice.
+ *
+ * Since polish D2 (2026-10-05) the figure is drawn by `ProofShowcase`, beside the words and their
+ * colour dots, which change it; this picks the garment and passes on only what it needs.
  */
-function ProofGarment({ product }: { product: ProductCard | null }) {
+function proofProduct(product: ProductCard | null): ProofProduct | null {
   if (!product?.posterUrl) return null
-  const href = `${GARMENT_PAGES}/${product.slug}/${product.defaultColourSlug}`
+  return {
+    slug: product.slug,
+    productName: product.productName,
+    productCode: product.productCode,
+    posterUrl: product.posterUrl,
+    posterAlt: product.posterAlt,
+    colours: product.colours,
+    model: product.model,
+  }
+}
+
+/** A point's icon: the site's line drawing, 1.6 wide, round ends (the "Drag to turn" hint's). */
+function PointIcon({ children }: { children: ReactNode }) {
   return (
-    <figure className="proof__figure">
-      <a className="proof__link" href={href}>
-        <span className="proof__frame">
-          <ProductPoster src={product.posterUrl} alt={product.posterAlt} />
-        </span>
-        <figcaption className="proof__caption" translate="no">
-          {product.productCode} {product.productName}
-        </figcaption>
-        <ViewerCue />
-      </a>
-      {/*
-        The live garment sits OVER the picture and OUTSIDE the link, so turning it never
-        navigates; the caption and cue below still open the full viewer (LiveGarment.tsx).
-      */}
-      {product.model ? (
-        <LiveGarment
-          model={product.model}
-          label={`${product.productCode} ${product.productName}`}
-        />
-      ) : null}
-    </figure>
+    <svg
+      className="proof__point-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
   )
 }
 
@@ -173,7 +180,18 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container proof">
-          <div className="proof__copy">
+          <ProofShowcase
+            product={proofProduct(proof)}
+            garmentPages={GARMENT_PAGES}
+            cue={<ViewerCue />}
+            actions={
+              <div className="site-actions">
+                <Link className="btn btn--primary" href="/products">
+                  Browse the references
+                </Link>
+              </div>
+            }
+          >
             <p className="section-number">№03 — See it before it exists</p>
             <h2 className="display display--section">
               Every reference, <span className="serif-accent">in&nbsp;3D.</span>
@@ -187,13 +205,44 @@ export default async function HomePage() {
               We can build a 3D reference of your garment on request — turn it, inspect the print
               and share it before a sample is cut.
             </p>
-            <div className="site-actions">
-              <Link className="btn btn--primary" href="/products">
-                Browse the references
-              </Link>
-            </div>
-          </div>
-          <ProofGarment product={proof} />
+            {/*
+              The lede's three verbs, each shown (polish D2; new words for the owner's approval at
+              the end, written only from what the site already says): the garment here turns under a
+              drag ("Drag to turn", LiveGarment.tsx); a garment's 3D page zooms ("Drag to rotate, use
+              scroll or pinch to zoom", the viewer's Stage.tsx); each colour has its own address on the
+              site (`/products/<garment>/<colour>`, the one a printed QR tag opens).
+            */}
+            <ul className="proof__points">
+              <li className="proof__point">
+                <PointIcon>
+                  <path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" />
+                  <path d="M17.3 3.4v3.3h-3.3M6.7 20.6v-3.3h3.3" />
+                </PointIcon>
+                <p>
+                  <b>Turn it all the way around.</b> Drag the garment to see every side.
+                </p>
+              </li>
+              <li className="proof__point">
+                <PointIcon>
+                  <circle cx="10.5" cy="10.5" r="6" />
+                  <path d="m15 15 5 5M8 10.5h5M10.5 8v5" />
+                </PointIcon>
+                <p>
+                  <b>Zoom into the print.</b> On its 3D page, scroll or pinch to look closer.
+                </p>
+              </li>
+              <li className="proof__point">
+                <PointIcon>
+                  <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+                  <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+                </PointIcon>
+                <p>
+                  <b>Share a link.</b> Each color has its own address, to send before a sample is
+                  cut.
+                </p>
+              </li>
+            </ul>
+          </ProofShowcase>
         </div>
       </section>
 

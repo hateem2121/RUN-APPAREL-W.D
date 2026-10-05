@@ -72,13 +72,38 @@ function loadLibrary(): Promise<void> {
   return libraryLoading
 }
 
-export function LiveGarment({ model, label }: { model: LiveModel; label: string }) {
+export function LiveGarment({
+  model,
+  label,
+  variant = null,
+}: {
+  model: LiveModel
+  label: string
+  /**
+   * The colour №03's dots chose (polish D2): its variant inside the one GLB, applied as the model
+   * loads and the moment it changes after. `null` keeps the default colour's.
+   */
+  variant?: string | null
+}) {
   const [phase, setPhase] = useState<Phase>('waiting')
   // The visitor has touched, dragged or keyed the garment: it stops turning for good (F7).
   const [touched, setTouched] = useState(false)
   const [touchAction, setTouchAction] = useState<'none' | 'pan-y'>('pan-y')
   const layer = useRef<HTMLDivElement>(null)
   const reduced = useRef(false)
+  const viewer = useRef<ModelViewerElement | null>(null)
+  // Read at load, so a colour chosen while the model was still on its way is the one it opens in.
+  const chosen = useRef(variant ?? model.variantId)
+  chosen.current = variant ?? model.variantId
+
+  // A colour chosen once the model is up switches it in place: model-viewer 4.3.1 applies a
+  // `variantName` set at any time, and fires `variant-applied`, which re-applies the depth bias.
+  useEffect(() => {
+    const mv = viewer.current
+    const name = variant ?? model.variantId
+    if (phase !== 'shown' || !mv || !name) return
+    if (mv.availableVariants?.includes(name)) mv.variantName = name
+  }, [phase, variant, model.variantId])
 
   // Re-decided whenever the frame or the screen changes size: turning a phone sideways is the case.
   useEffect(() => {
@@ -137,52 +162,52 @@ export function LiveGarment({ model, label }: { model: LiveModel; label: string 
     return () => observer.disconnect()
   }, [start])
 
-  const attach = useCallback(
-    (element: HTMLElement | null) => {
-      if (!element) return
-      const mv = element as ModelViewerElement
-      const bias = () => {
-        const materials = mv.model?.materials
-        if (materials) applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
+  const attach = useCallback((element: HTMLElement | null) => {
+    if (!element) return
+    const mv = element as ModelViewerElement
+    viewer.current = mv
+    const bias = () => {
+      const materials = mv.model?.materials
+      if (materials) applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
+    }
+    const onLoad = () => {
+      const name = chosen.current
+      if (name && mv.availableVariants?.includes(name)) {
+        mv.variantName = name
       }
-      const onLoad = () => {
-        if (model.variantId && mv.availableVariants?.includes(model.variantId)) {
-          mv.variantName = model.variantId
-        }
-        const dimensions = mv.getDimensions?.()
-        if (dimensions) {
-          installAdaptiveNearPlane(
-            internalCamera(mv),
-            () => mv.getCameraOrbit?.().radius ?? 0,
-            boundingRadius(dimensions),
-          )
-        }
-        bias()
-        setPhase('shown')
+      const dimensions = mv.getDimensions?.()
+      if (dimensions) {
+        installAdaptiveNearPlane(
+          internalCamera(mv),
+          () => mv.getCameraOrbit?.().radius ?? 0,
+          boundingRadius(dimensions),
+        )
       }
-      const onError = () => setPhase('failed')
-      // A press is a touch even before it moves anything; the arrow keys report as a camera change.
-      const onPress = () => setTouched(true)
-      const onCameraChange = (event: Event) => {
-        if ((event as CustomEvent<{ source?: string }>).detail?.source === 'user-interaction') {
-          setTouched(true)
-        }
+      bias()
+      setPhase('shown')
+    }
+    const onError = () => setPhase('failed')
+    // A press is a touch even before it moves anything; the arrow keys report as a camera change.
+    const onPress = () => setTouched(true)
+    const onCameraChange = (event: Event) => {
+      if ((event as CustomEvent<{ source?: string }>).detail?.source === 'user-interaction') {
+        setTouched(true)
       }
-      mv.addEventListener('load', onLoad)
-      mv.addEventListener('variant-applied', bias)
-      mv.addEventListener('error', onError)
-      mv.addEventListener('pointerdown', onPress)
-      mv.addEventListener('camera-change', onCameraChange)
-      return () => {
-        mv.removeEventListener('load', onLoad)
-        mv.removeEventListener('variant-applied', bias)
-        mv.removeEventListener('error', onError)
-        mv.removeEventListener('pointerdown', onPress)
-        mv.removeEventListener('camera-change', onCameraChange)
-      }
-    },
-    [model.variantId],
-  )
+    }
+    mv.addEventListener('load', onLoad)
+    mv.addEventListener('variant-applied', bias)
+    mv.addEventListener('error', onError)
+    mv.addEventListener('pointerdown', onPress)
+    mv.addEventListener('camera-change', onCameraChange)
+    return () => {
+      mv.removeEventListener('load', onLoad)
+      mv.removeEventListener('variant-applied', bias)
+      mv.removeEventListener('error', onError)
+      mv.removeEventListener('pointerdown', onPress)
+      mv.removeEventListener('camera-change', onCameraChange)
+      viewer.current = null
+    }
+  }, [])
 
   const live = phase === 'loading' || phase === 'shown'
   return (

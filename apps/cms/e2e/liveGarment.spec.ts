@@ -131,6 +131,37 @@ test.describe('№03 — the live 3D garment', () => {
     await expect.poll(() => stillOpacity(page), { timeout: 3000 }).toBe('1')
   })
 
+  /*
+   * Polish D2: №03's colour dots change the live garment. The seeded model holds the five colours as
+   * variants (`pnpm seed:assets`: N001-WINE … N001-BLACK, the colourways' `variantId`s), so a dot
+   * must switch the REAL model's variant, not only the picture under it, and the link follows.
+   */
+  test('a colour dot switches the live garment to that colour, and the link follows', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const variant = () =>
+      page.evaluate(
+        () =>
+          (document.querySelector('.live-garment model-viewer') as { variantName?: string } | null)
+            ?.variantName ?? null,
+      )
+    const dots = page.locator('.proof__colours .card-gallery__dot')
+    expect(await dots.count(), 'the seeded garment has five colours').toBe(5)
+    // The control: it starts on the default colour's variant.
+    await expect.poll(variant).toBe('N001-WINE')
+    await dots.nth(2).click()
+    await expect(dots.nth(2)).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(variant).toBe('N001-BUTTER')
+    await expect(page.locator('.proof__link')).toHaveAttribute('href', /\/products\/[^/]+\/butter$/)
+  })
+
   test('under reduced motion the model is shown but does not turn by itself', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await serveModel(page, true)

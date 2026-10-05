@@ -576,6 +576,17 @@ the viewer's file by one character, or if the lighting drifts.
 **Guard:** `apps/cms/e2e/liveGarment.spec.ts` (a failed model keeps the picture; nothing loads
 before the section is near; nothing loads on a data-saving connection until asked).
 
+**Amended by polish D2 (2026-10-05): the section is a showcase.** The garment's column was 22rem
+beside two lines and a button ("short words, tall picture", the polish report's D2). Now the
+garment takes half the row, never wider than 64% of the screen's height, so its 4:5 frame fits a
+laptop's screen; beside it, level with it, the words gain three points (turn it, zoom into the
+print on its 3D page, share a colour's own link) and colour dots. A dot switches the live model to
+that colour's variant inside the one GLB, the still under it, and the link, so a click lands on the
+colour on show (`ProofShowcase.tsx`). New words for the owner's end-of-build approval.
+**Guard:** `apps/cms/e2e/proofShowcase.spec.ts` (the size at four screens, the halves level, the
+points, the dots without WebGL, axe in both themes) and `liveGarment.spec.ts` (a dot switches the
+real model's variant).
+
 ### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
 
 **Decision: the footer draws the logos of the bodies its "Standards" entries name, in ONE row

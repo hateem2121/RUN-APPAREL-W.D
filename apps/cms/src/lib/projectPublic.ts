@@ -141,6 +141,12 @@ export interface LiveModel {
   url: string
   /** The default colour's variant inside a single-GLB product; `null` in per-colour mode. */
   variantId: string | null
+  /**
+   * Every colour's variant inside a single-GLB product, by colour slug, for №03's colour dots
+   * (polish D2): a dot switches the live garment to it. Empty in per-colour mode, where a colour
+   * is another file, not a variant to switch to in place; a colour with no variant name is absent.
+   */
+  variants: Readonly<Record<string, string>>
   camera: { orbit: string; target: string; fieldOfView: string }
 }
 
@@ -243,7 +249,7 @@ export function toProductCard(
     colours: colourways.map((colour, index) =>
       toCardColour(colour, productName, index === 0 ? product.posterFallback : undefined),
     ),
-    model: pickModel(product, colourways[0]),
+    model: pickModel(product, colourways),
     updatedAt: Number.isNaN(Date.parse(text(product.updatedAt))) ? null : text(product.updatedAt),
   }
 }
@@ -257,16 +263,26 @@ export function toProductCard(
  */
 function pickModel(
   product: Record<string, unknown>,
-  defaultColour: Record<string, unknown> | undefined,
+  colourways: readonly Record<string, unknown>[],
 ): LiveModel | null {
+  const defaultColour = colourways[0]
   const separate = product.variantMode === 'separate-glb-per-colour'
   const holder = separate ? defaultColour?.glbAsset : product.glbAsset
   if (!holder || typeof holder !== 'object') return null
   const url = onSiteMedia(text((holder as { url?: unknown }).url))
   if (!isPubliclyFetchable(url)) return null
+  const variants: Record<string, string> = {}
+  if (!separate) {
+    for (const colour of colourways) {
+      const slug = text(colour.slug)
+      const variant = text(colour.variantId)
+      if (slug && variant) variants[slug] = variant
+    }
+  }
   return {
     url,
     variantId: separate ? null : text(defaultColour?.variantId) || null,
+    variants,
     camera: {
       orbit: text(product.frontCameraOrbit) || '0deg 82deg 105%',
       target: text(product.cameraTarget) || 'auto auto auto',

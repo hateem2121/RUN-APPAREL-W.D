@@ -3473,11 +3473,80 @@ a.contact-block__value:active {
   align-items: start;
 }
 
+/*
+ * ⚠️ THE GARMENT TAKES HALF THE ROW, AS MUCH AS THE SCREEN'S HEIGHT ALLOWS (polish D2, 2026-10-05).
+ * Its column was 22rem (352px) beside about 900px of two lines and a button at 1440px: "short words,
+ * tall picture. Big empty corner under the button" (the report, D2). Now it is half the row less the
+ * gap, but never wider than 64% of the screen's height, so its 4:5 frame fits a 1440x760 laptop's
+ * screen under the bar (486px wide, 608 tall there; 576 by 720 at 1440x900; 691 by 864 at
+ * 1920x1080). The words' half is level with it (`center`) and holds the three points and the colour
+ * dots, so the two weigh the same. The column is sized, not the figure, so the figure still fills its
+ * column (`e2e/composition.spec.ts`) and the live garment laid over it keeps its box.
+ */
 @media (min-width: 900px) {
   .proof {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+    grid-template-columns: minmax(0, 1fr) min(calc((100% - 64px) / 2), 64svh);
     gap: 64px;
+    align-items: center;
   }
+}
+
+/* The three points: an icon, then a short heading run into its sentence. */
+.proof__points {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proof__point {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  max-inline-size: none;
+}
+
+.proof__point-icon {
+  inline-size: 24px;
+  block-size: 24px;
+  color: var(--dimension);
+}
+
+.proof__point p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.proof__point b {
+  font-weight: 600;
+  color: var(--heading);
+}
+
+/* The colour dots, the gallery cards' own (`.card-gallery__dot`), with the colour's name before them. */
+.proof__colours {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-block-start: 24px;
+}
+
+/* Full 44px buttons on every screen: there is room here that a phone's ticket does not have. */
+.proof__colours .card-gallery__dot {
+  flex: none;
+  inline-size: var(--target-min);
+  max-inline-size: none;
+}
+
+.proof__colours-name {
+  min-inline-size: 8ch;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 /*
