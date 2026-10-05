@@ -16,7 +16,7 @@
     "@run-apparel/shared": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260926.1",
+    "@cloudflare/workers-types": "5.20260928.1",
     "@vitest/coverage-v8": "5.0.2",
     "typescript": "7.0.2",
     "vite": "8.3.1",
