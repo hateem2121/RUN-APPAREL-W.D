@@ -41,8 +41,8 @@ files.
 
 `pnpm --filter @run-apparel/cms test:e2e` — Chromium, Firefox and WebKit (608 tests listed on
 2026-09-24), added 2026-09-05 because nothing loaded `/`, `/products` or `/contact` in a browser and three blank pages
-would have passed every gate. Runs in CI on two of the five **`e2e-shard`** machines (since
-2026-09-29; a step inside the single `e2e` job before that), each seeding its own database.
+would have passed every gate. Runs in CI on four of the seven **`e2e-shard`** machines, one engine each and Firefox in
+halves (since 2026-10-05; two of five from 2026-09-29; a step inside the single `e2e` job before that), each seeding its own database.
 It is still gated through the one `e2e` check: that job passes only when every shard did,
 so neither `deploy.needs` nor the required-checks list changed — `.github/CLAUDE.md`
 records that splitting those silently stops a red gate blocking.
