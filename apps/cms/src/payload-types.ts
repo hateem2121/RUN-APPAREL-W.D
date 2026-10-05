@@ -377,7 +377,7 @@ export interface Product {
    */
   productName: string;
   /**
-   * What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. Leave blank if unsure.
+   * What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. On Teamwear it also picks the sport button the garment is listed under (Soccer, Cycling, Tennis…). Leave blank if unsure.
    */
   garmentType?: string | null;
   /**
