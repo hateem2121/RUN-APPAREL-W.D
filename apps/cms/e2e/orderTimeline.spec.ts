@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import { FACTORY_PHOTOS } from '../src/lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoWidths } from '../src/lib/factoryPhotos'
 import { ORDER_PHASES } from '../src/lib/orderProcess'
 import { expect, type Page, test } from './offlineMedia'
 import { hintedWidth } from './sizesHint'
@@ -702,3 +702,47 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
     )
   })
 })
+
+/*
+ * Polish X16 (2026-10-05): on a 2x screen at 1,920px a step card is 704px wide and asks for 1,408px,
+ * where the files stopped at 1,200 (wide) and 800 (tall). `src/factoryPhotos.test.ts` works out
+ * which file each screen takes from the engines' own selection rule; this asks the engines. Each card
+ * is scrolled to so its lazy picture starts, and `currentSrc` names the file chosen. Tagging and
+ * packing stop at 1,200 because their originals do. The same page on a 1x screen is the control:
+ * if density were not what picks the file, both would come back the same.
+ */
+for (const [density, label] of [
+  [2, 'the widest file each photo has'],
+  [1, 'the file that covers 704px'],
+] as const) {
+  test.describe(`X16 — step photos at 1920px on a ${density}x screen`, () => {
+    test.use({ deviceScaleFactor: density })
+
+    test(`each card takes ${label}`, async ({ page }) => {
+      await open(page, 1920, 1080)
+      const photos = page.locator('.order-step__photo')
+      for (let index = 0; index < STEPS.length; index++) {
+        const photo = photos.nth(index)
+        await photo.scrollIntoViewIfNeeded()
+        await expect
+          .poll(() => photo.evaluate((img) => (img as HTMLImageElement).currentSrc))
+          .toMatch(/\/factory\/.+-\d+\.webp$/)
+      }
+      const chosen = await photos.evaluateAll((all) =>
+        all.map((img) =>
+          (img as HTMLImageElement).currentSrc.replace(/^.*\/factory\/(.+)-(\d+)\.webp$/, '$1 $2'),
+        ),
+      )
+      expect(chosen).toEqual(
+        STEPS.map((step) => {
+          const photo = photoOf(step.photo)
+          const widths = photo ? factoryPhotoWidths(photo) : []
+          // 1x: the smallest file at least 704px wide. 2x: 1,408px is past every file but the widest.
+          const file =
+            density === 1 ? widths.find((width) => width >= 704) : widths[widths.length - 1]
+          return `${step.photo} ${file}`
+        }),
+      )
+    })
+  })
+}
