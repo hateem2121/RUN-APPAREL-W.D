@@ -1488,8 +1488,15 @@ html {
  */
 .card-gallery__arrow {
   position: absolute;
-  /* The middle of the picture that shows, as an opening ticket's strip shortens (D3b). */
-  inset-block-start: calc((100% - var(--ticket-rise)) / 2);
+  /*
+   * The middle of the picture that shows once the ticket is open (D3b), from the moment it starts
+   * opening: `--ticket-open` switches at once, where `--ticket-rise` glides. ⚠️ NOT `--ticket-rise`
+   * (until 2026-10-05): the arrows appeared and then slid 58px up as the strip shortened, 120-340ms
+   * after the pointer arrived, so a press aimed where an arrow appeared could land on the picture,
+   * which opens the garment page. The MO6 press test measured an arrow, then pressed where it had
+   * been, and missed it (CI's image, 2026-10-05).
+   */
+  inset-block-start: calc((100% - var(--ticket-open, 0) * var(--ticket-rise-to, 0px)) / 2);
   z-index: var(--z-card-control);
   display: grid;
   place-items: center;
@@ -2272,10 +2279,14 @@ address.contact-block__value {
    2026-10-02). A finger on the picture is a press, so the card began scaling as the swipe began,
    and Safari dropped the strip's scroll mid-gesture: on iOS 26.5 a slow sideways drag never
    moved the colour, with this exclusion it does — tried both ways in the simulator. The
-   card still answers a press on its text (FA-R-01). The browser test pins both halves in
+   card still answers a press on its text (FA-R-01). ⚠️ NOR WHILE AN ARROW IS PRESSED (2026-10-05): the
+   arrows sit over the picture but outside its strip, so the exclusion above missed them, and stepping
+   through the colours shrank the whole card as if it were opening the garment, the dots' reason again. The browser test pins both halves in
    Chromium and Firefox only: this suite runs WebKit for the bar's files alone
    (playwright.config.ts), so the iPhone half rests on the simulator check. */
-.product-card:active:not(:has(.card-gallery :active, .card-gallery__dots :active)) {
+.product-card:active:not(
+  :has(.card-gallery :active, .card-gallery__dots :active, .card-gallery__arrow:active)
+) {
   scale: 0.97;
 }
 
