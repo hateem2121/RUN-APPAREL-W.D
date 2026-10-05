@@ -4,7 +4,7 @@ import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it } from 'vitest'
 import { FAMILIES } from '../../lib/families'
 import { familyPageFor } from '../../lib/familyPages'
-import { FACTORY_PHOTO_WIDTHS, FACTORY_PHOTOS } from '../../lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoWidths } from '../../lib/factoryPhotos'
 import { type Guide, GUIDES, GUIDES_INDEX, guideAt } from '../../lib/guides'
 import { HALF_COLUMN_SIZES } from './FactoryFigure'
 import { GuidePage } from './GuidePage'
@@ -109,11 +109,13 @@ describe('a factory photo beside the words that name it (polish X22)', () => {
         )?.[1]
         expect(head, 'the photo is not in the heading’s half').toMatch(/<h2\b[\s\S]*<figure\b/)
         const img = /<img\b[^>]*>/.exec(head ?? '')?.[0] ?? ''
-        const [small, large] = FACTORY_PHOTO_WIDTHS[photo.shape]
+        // Every width the photo has, the larger ones for sharp screens included (polish X16).
+        const widths = factoryPhotoWidths(photo)
+        expect(widths.length, 'no widths for the photo').toBeGreaterThanOrEqual(2)
         expect(img).toContain(`alt="${photo.alt}"`)
-        expect(img).toContain(`src="/factory/${photo.slug}-${small}.webp"`)
+        expect(img).toContain(`src="/factory/${photo.slug}-${widths[0]}.webp"`)
         expect(img).toContain(
-          `srcSet="/factory/${photo.slug}-${small}.webp ${small}w, /factory/${photo.slug}-${large}.webp ${large}w"`,
+          `srcSet="${widths.map((width) => `/factory/${photo.slug}-${width}.webp ${width}w`).join(', ')}"`,
         )
         // The heading's half is `.about`'s half: the same grid, the same 64px gap (site.css).
         expect(img).toContain(`sizes="${HALF_COLUMN_SIZES}"`)

@@ -1,10 +1,5 @@
 import Link from 'next/link'
-import {
-  FACTORY_PHOTO_ASPECT,
-  FACTORY_PHOTO_WIDTHS,
-  FACTORY_PHOTOS,
-  factoryPhotoSrc,
-} from '../../lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
 import { FAMILY_PAGE_ACTION, familyPageFor } from '../../lib/familyPages'
 import { GUIDES, GUIDES_INDEX, type Guide, type GuideBlock } from '../../lib/guides'
@@ -89,23 +84,14 @@ function GuideTable({ block }: { block: Extract<GuideBlock, { kind: 'table' }> }
  * One of the owner's factory photos under a section's heading (polish X22), in the heading's half
  * of the `.spread` from 900px, which was empty beside the words. That half is `.about`'s half (the
  * same grid and gap, site.css), so the photo asks for `HALF_COLUMN_SIZES`; the files and their
- * widths are `factoryPhotos.ts`'s, as `OrderSteps.tsx` reads them.
+ * widths are `factoryPhotos.ts`'s (`factoryPhotoImage`), as `OrderSteps.tsx` reads them.
  */
 function SectionPhoto({ slug }: { slug: string }) {
   const photo = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
   // `guides.test.ts` fails a slug with no photo; drawing nothing is the safe miss in production.
   if (!photo) return null
-  const [small, large] = FACTORY_PHOTO_WIDTHS[photo.shape]
-  return (
-    <FactoryFigure
-      photo={photo}
-      src={factoryPhotoSrc(photo, small)}
-      srcSet={`${factoryPhotoSrc(photo, small)} ${small}w, ${factoryPhotoSrc(photo, large)} ${large}w`}
-      sizes={HALF_COLUMN_SIZES}
-      width={small}
-      height={Math.round(small / FACTORY_PHOTO_ASPECT[photo.shape])}
-    />
-  )
+  // Every width the photo has (polish X16 added larger ones for sharp screens), as №01 asks.
+  return <FactoryFigure photo={photo} {...factoryPhotoImage(photo)} sizes={HALF_COLUMN_SIZES} />
 }
 
 /** One group of links at the end of a page, under its own heading. */
