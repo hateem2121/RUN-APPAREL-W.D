@@ -429,6 +429,9 @@ describe('one sport shown alone ends its rows as a list of its own would (polish
     for (const rule of lying) expect(rule.selector).toContain(`:not(${FILTERED_SCOPE} *)`)
   })
 
+  // 60 counts x every width, laid out twice: pure arithmetic, nothing to wait for. Measured 2026-10-05:
+  // 249 ms alone and 505 ms under coverage on the Mac, but 5,161 ms in CI's full coverage run on PR #128,
+  // where every suite shares the runner's few cores, past the 5 s default. Its own limit, not a slow test.
   it('every count from 1 to 60, at every width, lays out as the same count of a whole list', () => {
     const failures: string[] = []
     for (let count = 1; count <= 60; count++) {
@@ -442,7 +445,7 @@ describe('one sport shown alone ends its rows as a list of its own would (polish
       }
     }
     expect(failures).toEqual([])
-  })
+  }, 30_000)
 
   // The marks sit among other sports' cards in the HTML; only the chosen sport's are laid out.
   it('a sport’s cards among others keep their own marks', () => {
