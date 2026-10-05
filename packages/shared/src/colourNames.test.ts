@@ -21,8 +21,20 @@ import {
 const STYLED = Object.keys(COLOUR_NAME_STYLES) as (keyof typeof COLOUR_NAME_STYLES)[]
 
 describe('the colour-name styles (N1)', () => {
-  it('has a style for each of the four categories the owner gave one, and no other', () => {
-    expect(STYLED.sort()).toEqual(['Casual Wear', 'Outerwear', 'Sportswear', 'Teamwear & Uniforms'])
+  it('has a style for each of the five categories, and no other', () => {
+    expect(STYLED.sort()).toEqual([
+      'Casual Wear',
+      'Outerwear',
+      'Sports Accessories',
+      'Sportswear',
+      'Teamwear & Uniforms',
+    ])
+  })
+
+  it('gives Sports Accessories the Teamwear sport words (the sign-off, 2026-10-05)', () => {
+    expect(COLOUR_NAME_STYLES['Sports Accessories']).toEqual(
+      COLOUR_NAME_STYLES['Teamwear & Uniforms'],
+    )
   })
 
   for (const category of STYLED) {
@@ -63,6 +75,7 @@ describe('themedColourName (N2)', () => {
     expect(themedColourName('Powder Blue', 'Teamwear & Uniforms')).toBe('Ice Rink')
     expect(themedColourName('Powder Blue', 'Sportswear')).toBe('Ice Bath')
     expect(themedColourName('Powder Blue', 'Casual Wear')).toBe('Duck Egg')
+    expect(themedColourName('Powder Blue', 'Sports Accessories')).toBe('Ice Rink')
   })
 
   it('names the live skinsuit rxps the way the approval list does', () => {
@@ -80,8 +93,6 @@ describe('themedColourName (N2)', () => {
   })
 
   it('leaves the colour word alone where no style was given or the word is not a family', () => {
-    // Sports Accessories has no style yet (the owner named four), so its colours keep the word.
-    expect(themedColourName('Navy', 'Sports Accessories')).toBe('Navy')
     expect(themedColourName('Navy', undefined)).toBe('Navy')
     expect(themedColourName('Navy', 'Shoes')).toBe('Navy')
     // A word the owner typed is theirs, not the namer's.

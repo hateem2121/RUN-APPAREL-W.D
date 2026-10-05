@@ -103,8 +103,15 @@ describe('buildImportedRow', () => {
     ).toMatchObject({ displayName: 'Baize', slug: 'forest-green-2' })
   })
 
+  it('gives Sports Accessories the sport words, as Teamwear (the sign-off, 2026-10-05)', () => {
+    expect(buildImportedRow(colour(), [], 'Sports Accessories')).toMatchObject({
+      displayName: 'Baize',
+      slug: 'forest-green',
+    })
+  })
+
   it('keeps the namer word where no style was given', () => {
-    expect(buildImportedRow(colour(), [], 'Sports Accessories').displayName).toBe('Forest Green')
+    expect(buildImportedRow(colour(), [], 'Shoes').displayName).toBe('Forest Green')
     expect(buildImportedRow(colour(), [], undefined).displayName).toBe('Forest Green')
   })
 

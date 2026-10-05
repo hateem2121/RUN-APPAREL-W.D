@@ -2,10 +2,11 @@ import type { ProductCategory } from './types'
 
 /**
  * Colour names in each category's own style (polish N1/N2, the owner's answer Q38, 2026-10-03):
- * sport words for Teamwear & Uniforms, performance words for Sportswear, nature words for
- * Outerwear and easy fashion words for Casual Wear, and "the same colour has the same name inside
- * a category". The 200 live colourways were renamed from this table, in one approval by the owner
- * at the end of the polish build; the table is what keeps every NEW garment in step with them.
+ * sport words for Teamwear & Uniforms (and Sports Accessories, from the sign-off of 2026-10-05),
+ * performance words for Sportswear, nature words for Outerwear and easy fashion words for Casual
+ * Wear, and "the same colour has the same name inside a category". The 200 live colourways were
+ * renamed from this table, in one approval by the owner at the end of the polish build; the table
+ * is what keeps every NEW garment in step with them.
  *
  * ⚠️ ONLY THE WORDS CHANGE, NEVER THE ADDRESS. A colourway's slug is printed on QR tags, so the
  * live rows keep theirs ("Addresses keep their old word", Q38), and an imported row keeps the
@@ -98,66 +99,70 @@ export const COLOUR_FAMILIES = [
 export type ColourFamily = (typeof COLOUR_FAMILIES)[number]
 
 /**
- * One name per colour family per styled category. Sports Accessories has no style yet (the
- * owner gave four), so its colours keep the namer's word: see `themedColourName`.
+ * The sport words: Teamwear & Uniforms' own, and Sports Accessories' too (the owner's sign-off,
+ * 2026-10-05: "Use the sport words"). One table, so the two can never drift apart.
  */
+const SPORT_WORDS = {
+  'Optic White': 'Clean Sheet',
+  Ivory: 'Cue Ball',
+  Bone: 'Touchline',
+  Cream: 'Pavilion',
+  Beige: 'Bunker',
+  Sand: 'Beach Volley',
+  Khaki: 'Caddie',
+  Pebble: 'Silver Medal',
+  Ash: 'Bleachers',
+  Slate: 'Asphalt',
+  Charcoal: 'Cinder',
+  Black: 'Puck',
+  Tan: 'Bronze Medal',
+  Camel: 'Hardwood',
+  Chestnut: 'Saddle',
+  Mocha: 'Paddock',
+  Gold: 'Trophy',
+  Mustard: 'Goalpost',
+  Butter: 'Golden Goal',
+  Citron: 'Floodlight',
+  Lime: 'Tennis Ball',
+  Sage: 'Fairway',
+  Olive: 'Scrum',
+  Emerald: 'Pitch',
+  'Forest Green': 'Baize',
+  'Bottle Green': 'Grass Court',
+  Mint: 'Croquet',
+  Turquoise: 'Poolside',
+  Teal: 'Deep End',
+  Petrol: 'Pit Lane',
+  'Powder Blue': 'Ice Rink',
+  Sky: 'Bluebird Day',
+  Denim: 'Blue Line',
+  Navy: 'Varsity',
+  Cobalt: 'Diving Pool',
+  'Royal Blue': 'Hard Court',
+  Indigo: 'Night Game',
+  Lilac: 'Victory Lap',
+  Amethyst: 'Grand Slam',
+  Mauve: 'Fair Play',
+  Plum: 'Hat Trick',
+  Blush: 'Rosette',
+  Fuchsia: 'Hot Shot',
+  Magenta: 'Power Play',
+  Crimson: 'Cricket Ball',
+  Scarlet: 'Boxing Glove',
+  Burgundy: 'Clubhouse',
+  Wine: 'Pennant',
+  Maroon: 'Home Ground',
+  Rust: 'Infield',
+  Terracotta: 'Clay Court',
+  Coral: 'Rally',
+  Tangerine: 'Basketball',
+  Peach: 'Half Time',
+} as const satisfies Record<ColourFamily, string>
+
+/** One name per colour family per category. */
 export const COLOUR_NAME_STYLES = {
-  'Teamwear & Uniforms': {
-    'Optic White': 'Clean Sheet',
-    Ivory: 'Cue Ball',
-    Bone: 'Touchline',
-    Cream: 'Pavilion',
-    Beige: 'Bunker',
-    Sand: 'Beach Volley',
-    Khaki: 'Caddie',
-    Pebble: 'Silver Medal',
-    Ash: 'Bleachers',
-    Slate: 'Asphalt',
-    Charcoal: 'Cinder',
-    Black: 'Puck',
-    Tan: 'Bronze Medal',
-    Camel: 'Hardwood',
-    Chestnut: 'Saddle',
-    Mocha: 'Paddock',
-    Gold: 'Trophy',
-    Mustard: 'Goalpost',
-    Butter: 'Golden Goal',
-    Citron: 'Floodlight',
-    Lime: 'Tennis Ball',
-    Sage: 'Fairway',
-    Olive: 'Scrum',
-    Emerald: 'Pitch',
-    'Forest Green': 'Baize',
-    'Bottle Green': 'Grass Court',
-    Mint: 'Croquet',
-    Turquoise: 'Poolside',
-    Teal: 'Deep End',
-    Petrol: 'Pit Lane',
-    'Powder Blue': 'Ice Rink',
-    Sky: 'Bluebird Day',
-    Denim: 'Blue Line',
-    Navy: 'Varsity',
-    Cobalt: 'Diving Pool',
-    'Royal Blue': 'Hard Court',
-    Indigo: 'Night Game',
-    Lilac: 'Victory Lap',
-    Amethyst: 'Grand Slam',
-    Mauve: 'Fair Play',
-    Plum: 'Hat Trick',
-    Blush: 'Rosette',
-    Fuchsia: 'Hot Shot',
-    Magenta: 'Power Play',
-    Crimson: 'Cricket Ball',
-    Scarlet: 'Boxing Glove',
-    Burgundy: 'Clubhouse',
-    Wine: 'Pennant',
-    Maroon: 'Home Ground',
-    Rust: 'Infield',
-    Terracotta: 'Clay Court',
-    Coral: 'Rally',
-    Tangerine: 'Basketball',
-    Peach: 'Half Time',
-  },
+  'Teamwear & Uniforms': SPORT_WORDS,
+  'Sports Accessories': SPORT_WORDS,
   Sportswear: {
     'Optic White': 'Chalk',
     Ivory: 'First Light',
