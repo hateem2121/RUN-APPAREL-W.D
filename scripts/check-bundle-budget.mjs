@@ -167,6 +167,15 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   garment pages too (packages/ui/src/footer.css, VA-31) +2,799; the bar and its phone menu
  *   (notch.css: one shape with the menu, the status strip, the hairline, the bar that leaves)
  *   +620; page.css +397 net of the old footer it lost; base.css and tokens.css +319.
+ *   ⚠️ 2026-10-05, the polish build (audit of 3 Oct 2026, one PR). The owner chose at the end-of-build
+ *   sign-off "Raise the budget to 13.7 KB" (14,000 bytes: the measured size plus a little room) over
+ *   trimming 1.3 KB of the new look. Measured on the branch build (216cb6ec), gzip level 9, all three
+ *   .css files:
+ *       stylesheet    12,286 -> 13,687 B gzip  (+1,401)   budget 12,398 -> 14,000 (headroom 313)
+ *   Where it went: the main sheet (index-*.css) 11,479 -> 12,239 (+760, the new garment-page layout
+ *   and the growing card picture, MO3, about 0.1 KB of it); the related-garment cards now load
+ *   their own sheet with their lazy chunk (RelatedCards-*.css, 641 B, new); the picture dialog's
+ *   807 B is unchanged.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -193,7 +202,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 12_398, note: 'CSS' },
+  stylesheet: { bytes: 14_000, note: 'CSS' },
 }
 
 /**
