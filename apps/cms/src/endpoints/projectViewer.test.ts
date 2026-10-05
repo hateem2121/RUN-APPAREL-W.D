@@ -1,6 +1,18 @@
-import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
+import {
+  DEFAULT_SITE_SETTINGS,
+  FEATURE_NOTES,
+  FIT_NOTES,
+  specNote,
+  weightNote,
+} from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { absolutize, buildViewerResponse, toMediaAsset } from './projectViewer'
+import {
+  absolutize,
+  buildViewerResponse,
+  screenCopyName,
+  toMediaAsset,
+  toScreenCopy,
+} from './projectViewer'
 
 const deps = { richTextToHtml: () => '<p>intro</p>' }
 const origin = 'https://cms.example'
@@ -12,13 +24,21 @@ const media = (url: string) => ({
   mimeType: 'image/webp',
 })
 
+// A model as Payload stores it: every live one carries the size it recorded on upload
+// (`filesize`, checked against production 2026-10-04 — polish F12).
+const model = (url: string, filesize: number) => ({
+  ...media(url),
+  mimeType: 'model/gltf-binary',
+  filesize,
+})
+
 const product = (o: Record<string, unknown> = {}) => ({
   productCode: 'N001',
   slug: 'n001',
   productName: 'Velocity Tee',
   category: 'Sportswear',
   variantMode: 'single-glb-variants',
-  glbAsset: media('/media/n001.glb'),
+  glbAsset: model('/media/n001.glb', 3_839_756),
   posterFallback: media('/media/fallback.webp'),
   fabricComposition: 'Poly',
   gsm: '160',
@@ -40,7 +60,7 @@ const colourway = (o: Record<string, unknown> = {}) => ({
   slug: 'navy',
   sequence: 1,
   posterPreview: media('/media/navy.webp'),
-  glbAsset: media('/media/navy.glb'),
+  glbAsset: model('/media/navy.glb', 1_886_524),
   isDefault: true,
   altText: 'navy',
   hexSwatch: '#123456',
@@ -207,6 +227,109 @@ describe('the product’s garment type', () => {
   })
 })
 
+describe('the HD render’s screen-sized copy (polish D9 / F16)', () => {
+  const render = { ...media('/media/r-gtd-ash-render.webp'), filename: 'r-gtd-ash-render.webp' }
+  const copy = {
+    ...media('/media/r-gtd-ash-render-screen.webp'),
+    filename: 'r-gtd-ash-render-screen.webp',
+    width: 881,
+    height: 1400,
+  }
+  const colourOf = (o: Record<string, unknown>) =>
+    buildViewerResponse(product(), [colourway(o)], {}, origin, 'navy', deps)!.colourways[0]!
+
+  it('is named after the render it was made from', () => {
+    expect(screenCopyName('r-gtd-ash-render.webp')).toBe('r-gtd-ash-render-screen.webp')
+    expect(screenCopyName('a.b.png')).toBe('a.b-screen.webp')
+  })
+
+  it('is sent while its name matches the colour’s render', () => {
+    const colour = colourOf({ renderImage: render, renderScreen: copy })
+    expect(colour.renderScreen).toEqual({
+      url: `${origin}/media/r-gtd-ash-render-screen.webp`,
+      alt: 'a',
+      width: 881,
+      height: 1400,
+      mimeType: 'image/webp',
+    })
+    expect(colour.render?.url).toBe(`${origin}/media/r-gtd-ash-render.webp`)
+  })
+
+  it('is NOT sent once the render is replaced, so the window never shows the old picture', () => {
+    const replaced = { ...render, filename: 'r-gtd-ash-render-v2.webp' }
+    expect(colourOf({ renderImage: replaced, renderScreen: copy }).renderScreen).toBeNull()
+    expect(toScreenCopy(replaced, copy, origin)).toBeNull()
+  })
+
+  it('is null with no copy, or with no render to match', () => {
+    expect(colourOf({ renderImage: render }).renderScreen).toBeNull()
+    expect(colourOf({ renderScreen: copy }).renderScreen).toBeNull()
+    expect(toScreenCopy(render, 42, origin)).toBeNull()
+  })
+})
+
+describe('the product’s fact groups (polish D10)', () => {
+  it('groups the four fields with the glossary’s notes, null where it has none', () => {
+    const body = buildViewerResponse(
+      product({
+        fabricComposition: '85% Recycled Polyester / 15% Spandex',
+        gsm: '180–220 GSM',
+        garmentFit: 'Athletic fit',
+        performanceFeatures: [
+          { feature: 'Odor-resistant moisture wicking' },
+          { feature: 'Glow piping' },
+        ],
+      }),
+      [colourway()],
+      {},
+      origin,
+      'navy',
+      deps,
+    )!
+    expect(body.product.specs).toEqual([
+      {
+        key: 'fabric',
+        heading: 'Fabric',
+        items: [
+          { text: '85% Recycled Polyester', note: specNote('fabric', '85% Recycled Polyester') },
+          { text: '15% Spandex', note: specNote('fabric', '15% Spandex') },
+        ],
+      },
+      {
+        key: 'weight',
+        heading: 'Weight',
+        items: [{ text: '180–220 GSM', note: weightNote('180–220 GSM') }],
+      },
+      {
+        key: 'fit',
+        heading: 'Fit',
+        items: [{ text: 'Athletic fit', note: FIT_NOTES['athletic fit'] }],
+      },
+      {
+        key: 'performance',
+        heading: 'Performance',
+        items: [
+          {
+            text: 'Odor-resistant moisture wicking',
+            note: FEATURE_NOTES['odor-resistant moisture wicking'],
+          },
+          { text: 'Glow piping', note: null },
+        ],
+      },
+    ])
+    // Every note above is a real line, so the test cannot pass on nulls.
+    expect(
+      body.product.specs!.flatMap((group) => group.items).filter((item) => item.note).length,
+    ).toBe(5)
+  })
+
+  it('carries the same words as the plain fields, so the two can never disagree', () => {
+    const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)!
+    const words = body.product.specs!.map((group) => group.items.map((item) => item.text))
+    expect(words).toEqual([['Poly'], ['160'], ['Regular'], ['Stretch']])
+  })
+})
+
 describe('buildViewerResponse', () => {
   it('exposes only whitelisted product keys — no internal fields leak', () => {
     const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)
@@ -219,11 +342,15 @@ describe('buildViewerResponse', () => {
         'category',
         'variantMode',
         'glbUrl',
+        // The model's size (polish F12): a number about a public file, for the percentage.
+        'glbBytes',
         'posterFallback',
         'fabricComposition',
         'gsm',
         'performanceFeatures',
         'garmentFit',
+        // The same four fields grouped, with the glossary's public notes (polish D10).
+        'specs',
         'customisationIntroHtml',
         'customisationSteps',
         'camera',
@@ -250,7 +377,10 @@ describe('buildViewerResponse', () => {
         'poster',
         // The HD studio render (2026-09-27): a public product picture, like the poster.
         'render',
+        // Its screen-sized copy for the 3D window (polish D9 / F16), public in the same way.
+        'renderScreen',
         'glbUrl',
+        'glbBytes',
         'isDefault',
         'altText',
         'hexSwatch',
@@ -347,6 +477,28 @@ describe('buildViewerResponse', () => {
     const body = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)!
     expect(body.product.glbUrl).toBe('https://cms.example/media/n001.glb')
     expect(body.colourways[0]!.glbUrl).toBeNull()
+    // Its size travels with it, and only with it (polish F12).
+    expect(body.product.glbBytes).toBe(3_839_756)
+    expect(body.colourways[0]!.glbBytes).toBeNull()
+  })
+
+  it('a model with no recorded size, or a nonsense one, gives null: no percentage, no lie (F12)', () => {
+    for (const glbAsset of [
+      media('/media/n001.glb'),
+      { ...model('/media/n001.glb', 0), filesize: '3839756' },
+      model('/media/n001.glb', 0),
+      model('/media/n001.glb', -1),
+    ]) {
+      const body = buildViewerResponse(
+        product({ glbAsset }),
+        [colourway()],
+        {},
+        origin,
+        null,
+        deps,
+      )!
+      expect(body.product.glbBytes, JSON.stringify(glbAsset)).toBeNull()
+    }
   })
 
   it('separate-glb: product.glbUrl null, colourway.glbUrl set', () => {
@@ -360,6 +512,8 @@ describe('buildViewerResponse', () => {
     )!
     expect(body.product.glbUrl).toBeNull()
     expect(body.colourways[0]!.glbUrl).toBe('https://cms.example/media/navy.glb')
+    expect(body.product.glbBytes).toBeNull()
+    expect(body.colourways[0]!.glbBytes).toBe(1_886_524)
   })
 
   it('substitutes the default and flags fallback when the requested colourway is missing', () => {

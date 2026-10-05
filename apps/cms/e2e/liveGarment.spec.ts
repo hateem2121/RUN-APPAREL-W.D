@@ -131,6 +131,37 @@ test.describe('№03 — the live 3D garment', () => {
     await expect.poll(() => stillOpacity(page), { timeout: 3000 }).toBe('1')
   })
 
+  /*
+   * Polish D2: №03's colour dots change the live garment. The seeded model holds the five colours as
+   * variants (`pnpm seed:assets`: N001-WINE … N001-BLACK, the colourways' `variantId`s), so a dot
+   * must switch the REAL model's variant, not only the picture under it, and the link follows.
+   */
+  test('a colour dot switches the live garment to that colour, and the link follows', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const variant = () =>
+      page.evaluate(
+        () =>
+          (document.querySelector('.live-garment model-viewer') as { variantName?: string } | null)
+            ?.variantName ?? null,
+      )
+    const dots = page.locator('.proof__colours .card-gallery__dot')
+    expect(await dots.count(), 'the seeded garment has five colours').toBe(5)
+    // The control: it starts on the default colour's variant.
+    await expect.poll(variant).toBe('N001-WINE')
+    await dots.nth(2).click()
+    await expect(dots.nth(2)).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(variant).toBe('N001-BUTTER')
+    await expect(page.locator('.proof__link')).toHaveAttribute('href', /\/products\/[^/]+\/butter$/)
+  })
+
   test('under reduced motion the model is shown but does not turn by itself', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await serveModel(page, true)
@@ -142,6 +173,69 @@ test.describe('№03 — the live 3D garment', () => {
     const model = page.locator('.live-garment model-viewer')
     await expect(model).not.toHaveAttribute('auto-rotate')
     // NEGATIVE CONTROL lives in the real-model test above: without reduced motion it turns.
+  })
+
+  // Polish F7 (the owner's answer Q20): it turns until touched, then stays still for the visit,
+  // and the "Drag to turn" hint (M3) goes at the same moment.
+  test('a press stops the turning for good, and the hint goes with it', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const model = page.locator('.live-garment model-viewer')
+    const yaw = () =>
+      model.evaluate(
+        (element) => (element as unknown as { turntableRotation: number }).turntableRotation,
+      )
+    // The control: before any touch it really turns by itself, and the hint is up. CI's Firefox has
+    // no WebGL (e2e/stage.ts in the viewer): the model is shown but never draws a frame, so its angle
+    // cannot move, and this failed there on PR #128. Without WebGL the turning is read from the switch
+    // that starts it, as the real-model test above reads it.
+    const draws = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
+    })
+    if (draws) {
+      const before = await yaw()
+      await expect.poll(yaw, { timeout: 3000 }).not.toBe(before)
+    } else {
+      await expect(model).toHaveAttribute('auto-rotate', '')
+    }
+    await expect(page.locator('.live-garment__hint')).toHaveText(/drag to turn/i)
+
+    const box = await model.boundingBox()
+    if (!box) throw new Error('the model has no box')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 })
+    await page.mouse.up()
+
+    await expect(model).not.toHaveAttribute('auto-rotate')
+    await expect(page.locator('.live-garment__hint')).toHaveCount(0)
+    const after = await yaw()
+    await page.waitForTimeout(1500)
+    expect(await yaw(), 'it started turning again after the visitor let go').toBe(after)
+  })
+
+  // Polish M3: on an upright phone a swipe on the garment turns it; held sideways the frame is
+  // taller than the screen, so up-and-down stays the page's (lib/liveGarment.ts, measured).
+  test('the garment wins a swipe upright, and gives it back when the phone turns sideways', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const model = page.locator('.live-garment model-viewer')
+    await expect(model).toHaveAttribute('touch-action', 'none')
+    await page.setViewportSize({ width: 844, height: 390 })
+    await expect(model).toHaveAttribute('touch-action', 'pan-y')
   })
 
   test('a model that fails to load leaves the picture exactly as it was', async ({ page }) => {

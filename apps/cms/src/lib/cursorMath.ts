@@ -1,5 +1,10 @@
-/** The targets the ring inflates over — identical to apps/viewer's Cursor.tsx. */
-export const INTERACTIVE = 'a, button, [role="tab"], [data-cursor="pointer"]'
+import { CURSOR_INTERACTIVE, cursorGrows } from '@run-apparel/shared'
+
+/**
+ * The targets the ring inflates over: ONE list for both pointers since polish F4 (2026-10-04),
+ * in packages/shared/src/cursorRules.ts, which says why it grew to the form's controls.
+ */
+export const INTERACTIVE = CURSOR_INTERACTIVE
 
 /** One 60Hz frame, in milliseconds. `trail`'s `k` is defined against this. */
 export const FRAME_MS = 1000 / 60
@@ -52,5 +57,5 @@ export function ringTransform(x: number, y: number, scale: number): string {
 }
 
 export function isInteractive(node: Element | null): boolean {
-  return Boolean(node?.closest?.(INTERACTIVE))
+  return cursorGrows(node)
 }

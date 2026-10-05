@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 // The table moved to @run-apparel/shared on 2026-10-02 (VA-31); the files it names stay here.
-import { logosFor, marksFor, STANDARDS_LOGOS } from '@run-apparel/shared'
+import { logosFor, MARK_AREA, markBox, marksFor, STANDARDS_LOGOS } from '@run-apparel/shared'
 
 const PUBLIC_DIR = join(import.meta.dirname, '..', '..', 'public')
 
@@ -199,5 +199,29 @@ describe('the logo files', () => {
     const real = svgSize(readFileSync(join(PUBLIC_DIR, logo?.src ?? ''), 'utf8'))
     expect({ width: real.width + 1, height: real.height }).not.toEqual(real)
     expect(svgSize('<svg viewBox="0 0 10 20"></svg>')).toEqual({ width: 10, height: 20 })
+  })
+})
+
+// Polish X23: at one height the wordmarks ran long and the badges stayed small.
+describe('markBox', () => {
+  it('draws every mark at about the same area, each in its own proportions', () => {
+    for (const logo of STANDARDS_LOGOS) {
+      const box = markBox(logo)
+      const ratio = logo.width / logo.height
+      // Whole pixels: within 4% of the area, and of the file's proportions.
+      expect(Math.abs(box.width * box.height - MARK_AREA) / MARK_AREA, logo.slug).toBeLessThan(0.04)
+      expect(Math.abs(box.width / box.height - ratio) / ratio, logo.slug).toBeLessThan(0.04)
+    }
+  })
+
+  it('draws a wide wordmark shorter than a square badge, and a tall label taller', () => {
+    const height = (slug: string) =>
+      markBox(STANDARDS_LOGOS.find((logo) => logo.slug === slug) ?? { width: 1, height: 1 }).height
+    expect(height('sedex')).toBeLessThan(height('gots'))
+    expect(height('oeko-tex')).toBeGreaterThan(height('gots'))
+    // NEGATIVE CONTROL: the old rule, one 32px height for every mark, fails the area check.
+    const sedex = STANDARDS_LOGOS.find((logo) => logo.slug === 'sedex')
+    const oneHeightArea = 32 * 32 * ((sedex?.width ?? 1) / (sedex?.height ?? 1))
+    expect(Math.abs(oneHeightArea - MARK_AREA) / MARK_AREA).toBeGreaterThan(0.04)
   })
 })

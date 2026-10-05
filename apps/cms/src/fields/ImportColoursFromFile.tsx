@@ -3,8 +3,14 @@
 import { useForm, useFormFields } from '@payloadcms/ui'
 import type { UIFieldClientComponent } from 'payload'
 import { useState } from 'react'
-import type { ExistingRow, FileColour } from '@run-apparel/shared'
-import { missingFileColours, rowsToAdd, toSubFieldState } from './colourImportPanel'
+import type { ExistingRow } from '@run-apparel/shared'
+import {
+  fileColourLabel,
+  formCategory,
+  missingFileColours,
+  rowsToAdd,
+  toSubFieldState,
+} from './colourImportPanel'
 import { rowsFromFormState } from './formStateRows'
 
 /**
@@ -30,6 +36,7 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
   const [added, setAdded] = useState(0)
 
   const missing = missingFileColours(fields)
+  const category = formCategory(fields)
 
   if (missing.length === 0) {
     return added > 0 ? (
@@ -46,7 +53,7 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
     const existing = rowsFromFormState(fields, 'colourways') as ExistingRow[]
     // Appended at the end, one ADD_ROW each — the same action Payload's own "Add Colour"
     // button uses — so no existing row moves (row order decides the default colour).
-    for (const row of rowsToAdd(chosen, existing)) {
+    for (const row of rowsToAdd(chosen, existing, category)) {
       addFieldRow({
         path: 'colourways',
         schemaPath: 'colourways',
@@ -93,7 +100,7 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
               }}
             />
             <label htmlFor={`import-${colour.variantId}`}>
-              <strong>{label(colour)}</strong>{' '}
+              <strong>{fileColourLabel(colour, category)}</strong>{' '}
               <span style={{ opacity: 0.7 }}>
                 {colour.hex} · called “{colour.variantId}” in your file
               </span>
@@ -106,13 +113,4 @@ export const ImportColoursFromFile: UIFieldClientComponent = () => {
       </button>
     </div>
   )
-}
-
-/**
- * A low-confidence match shows its swatch and says so, rather than offering a
- * name. Suggesting one confidently is exactly how a maroon garment came to be
- * called Navy.
- */
-function label(colour: FileColour): string {
-  return colour.confidence === 'high' ? colour.name : 'Colour needs a name'
 }

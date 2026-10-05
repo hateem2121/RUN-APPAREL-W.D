@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { ciede2000, linearToSrgb, nameColour, srgbToLab, srgbToLinear } from './colour-name'
+import { COLOUR_FAMILIES, COLOUR_NAME_STYLES } from '../../../packages/shared/src/colourNames'
+import {
+  COLOUR_FAMILY_NAMES,
+  ciede2000,
+  linearToSrgb,
+  nameColour,
+  srgbToLab,
+  srgbToLinear,
+} from './colour-name'
 
 /**
  * The acceptance test for this module is the real garment.
@@ -163,4 +171,28 @@ describe('palette coverage for real garment colours', () => {
       expect(result.name).toBe(expected)
     })
   }
+})
+
+describe('the website names every colour this namer can answer with (polish N2)', () => {
+  // When a garment's colours are imported, the website renames each word below in its
+  // category's style (packages/shared/src/colourNames.ts: "Forest Green" is "Pine" on an
+  // outerwear garment). That table cannot be imported by this package's container build, so
+  // this test is the tie: a colour added to the palette without its four style names would
+  // arrive on a new garment as a plain word beside the 200 the owner approved.
+  it('lists exactly the words the shared colour-name styles name', () => {
+    expect([...COLOUR_FAMILY_NAMES].sort()).toEqual([...COLOUR_FAMILIES].sort())
+  })
+
+  it('gives every answer a name in each styled category', () => {
+    const unnamed: string[] = []
+    for (const word of COLOUR_FAMILY_NAMES) {
+      for (const [category, style] of Object.entries(COLOUR_NAME_STYLES)) {
+        if (!(word in style)) unnamed.push(`${category}: ${word}`)
+      }
+    }
+    expect(COLOUR_FAMILY_NAMES.length, 'the namer lists no words, so this measured nothing').toBe(
+      54,
+    )
+    expect(unnamed).toEqual([])
+  })
 })

@@ -14,87 +14,41 @@
   display: flex;
   flex-direction: column;
   /*
-   * Room for the mobile bottom action bar — THE TOKEN, not a raw number.
-   *
-   * ⚠️ THIS WAS A RAW `76px` AGAINST A BAR THAT MEASURES 72. `tokens.css` says
-   * that height "was re-derived by hand in three places that disagreed", which is
-   * precisely why `--action-bar-h` exists; this was a fourth place, still
-   * disagreeing, inside the fix. Owner decision 2026-08-20: make them match.
-   * Nothing on screen moves — the 4px was never doing a job anyone recorded.
-   *
-   * ⚠️ NO `env(safe-area-inset-bottom)` HERE, AND REMOVING IT FIXED TWO BUGS.
-   * It read `calc(var(--action-bar-h) + env(safe-area-inset-bottom, 0px))` until
-   * 2026-09-04.
-   *
-   * 1. DOUBLE-COUNTED THE INSET. `.action-bar` sets
-   *    `padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px))`, so the
-   *    height `lib/actionBarHeight.ts` measures ALREADY contains the inset.
-   *    Adding it again reserved the notch twice — ~34px of dead space at the
-   *    bottom of every page on a notched iPhone, which is the one device class
-   *    this viewer is built for.
-   *
-   * 2. THE RUNTIME MEASUREMENT NEVER REACHED THIS RULE ON SOME WEBKIT BUILDS.
-   *    Measured in CI (Linux WebKit + mobile-safari, 2026-09-04), across four
-   *    failing viewports at two root font sizes:
-   *
-   *        token 77px  -> .page padding-bottom 73px
-   *        token 81px  -> .page padding-bottom 73px
-   *        token 107px -> .page padding-bottom 73px
-   *
-   *    73px is 72px — the `:root` default in tokens.css — plus a 1px inset. The
-   *    inline custom property on <html> updated correctly every time and this
-   *    declaration never re-resolved, so the whole ResizeObserver was inert HERE
-   *    while appearing to work everywhere it was inspected. macOS WebKit does
-   *    re-resolve it, which is why four engines passed locally.
-   *
-   *    `calc(var() + env())` is the construct that does not re-resolve; a bare
-   *    `var()` does. Do NOT reintroduce the `env()` — the bar's height carries it.
+   * ⚠️ NO ROOM FOR THE CONTACT BAR UNDER THE FOOTER (polish M2, 2026-10-04, the owner's iPhone).
+   * Until then the page kept `max(var(--action-bar-h), 4.5rem)` (72px; 108px at the largest text
+   * size) under the footer, so the last content could scroll clear of the fixed Email / WhatsApp
+   * bar on a phone, and from 2026-10-03 painted it the footer's colour. Since that same day the bar
+   * steps aside while any of the footer is above it (`lib/actionBarStepsAside.ts`), so at the end of
+   * the page the bar is gone and the room was empty: a dark band under the RUN APPAREL wordmark on
+   * every garment page. The footer now runs to the bottom edge, as on the website;
+   * `e2e/action-bar-steps-aside.spec.ts` checks that the page ends at the footer and that the bar
+   * has gone there, with the text at its largest too (`e2e/motion-and-layout.spec.ts`). The
+   * reserve's history (a WebKit build that never re-resolved it, the rem floor) is in git:
+   * `git log -S"4.5rem" -- apps/viewer/src/styles/page.css`.
    */
-  /*
-   * ⚠️ `max()` WITH A rem FLOOR, BECAUSE THE RUNTIME MEASUREMENT CANNOT BE RELIED
-   * ON. `lib/actionBarHeight.ts` measures the bar and writes `--action-bar-h`, and
-   * on CI's WebKit that value reaches this element ONE UPDATE LATE — proven with
-   * the strongest write available, an important inline style:
-   *
-   *     attr "padding-bottom: 107px !important;"  prio "important"  pad "73px"
-   *
-   * Six mechanisms were tried and all six failed identically (custom property,
-   * bare var(), inline style, forced reflow, `!important`, and deferring the write
-   * out of the ResizeObserver into a rAF), so no write can fix it.
-   *
-   * The floor does, and for a reason rather than by luck: the bar grows because
-   * its own text is rem-based, so a rem floor grows with exactly the thing that
-   * makes the bar taller. Measured, 375x812 in WebKit:
-   *
-   *     root 16px   bar  72px   4.5rem  72px   ok
-   *     root 20px   bar  76px   4.5rem  90px   ok
-   *     root 24px   bar 107px   4.5rem 108px   ok
-   *
-   * 4.5rem is the smallest step that clears every measured height, and it is a
-   * FLOOR — where the variable does arrive it still wins whenever it is larger,
-   * so nothing loses precision. The cost is a few pixels of slack at enlarged text
-   * sizes, which is the correct direction to be wrong in: too much room below the
-   * last content is invisible, too little makes it unreachable.
-   */
-  padding-bottom: max(var(--action-bar-h), 4.5rem);
 }
 
 /*
- * ⚠️ THE ROOM KEPT FOR THE BAR IS THE FOOTER'S COLOUR (2026-10-03, owner's iPhone screenshot). The
- * footer is the last thing in `.page`, so this room sits UNDER it, and the bar no longer covers it:
- * it steps aside while the footer is on screen (`lib/actionBarStepsAside.ts`). In the page's paper
- * the room read as the same white band the owner reported on every page, so it is painted the
- * footer's colour, exactly the padding's height and nowhere else. The value is `--footer-bg`'s,
- * which is scoped to the footer and cannot be read from here (footer.css says the same).
+ * ⚠️ THIS PAGE'S COLUMN IS TWO TOKENS, AND THE FOOTER READS THE SAME TWO (polish D1, 2026-10-04).
+ * The shared footer (packages/ui/src/footer.css) centres its words in `--site-max` less two
+ * `--site-gutter`s, which are the website's column unless a page says otherwise, and from D1 the
+ * website is 1440px from a 1280px screen and 1600px from 1920px. A garment page keeps its own
+ * 1200px column, which its stage was measured against, so it sets both here and `.content` (below)
+ * is drawn from them too: the column and the footer cannot drift apart. Until D1 they were two
+ * numbers and missed by 26px at 1440 (1180px against 1200px, 64px gutters against 48px); with the
+ * website's new widths they would have missed by 104px from 1440, 14px at 1280 and 4px on a phone
+ * (measured 2026-10-04, `e2e/siteFooter.spec.ts`). Now the footer's first word sits under the
+ * trail's, at every width.
  */
 .page {
-  background-image: linear-gradient(
-    light-dark(var(--ink), var(--raised)),
-    light-dark(var(--ink), var(--raised))
-  );
-  background-repeat: no-repeat;
-  background-position: bottom;
-  background-size: 100% max(var(--action-bar-h), 4.5rem);
+  --site-max: 1200px;
+  --site-gutter: clamp(16px, 4vw, 48px);
+}
+
+@supports (width: round(1px, 2px)) {
+  .page {
+    --site-gutter: round(clamp(16px, 4vw, 48px), 2px);
+  }
 }
 
 /*
@@ -111,13 +65,6 @@
  */
 .page:focus {
   outline: none;
-}
-
-@media (min-width: 900px) {
-  .page {
-    padding-bottom: 0;
-    background-image: none;
-  }
 }
 
 /* ── Header: the website's bar, in this page's flow (since 2026-09-24) ──── */
@@ -146,19 +93,8 @@
   inset-block-start: 0;
 }
 
-/*
- * `[ 3D PRODUCT REFERENCE ]` on its own line under the bar, at EVERY width — owner decision
- * 2026-09-17, phones included (it was hidden under 700px). The first line of <main>, so
- * it scrolls away. Measured on the live viewer with the new bar injected, 2026-09-23, at eight
- * viewports from 320x640 to 1440x900: the band starts 23px lower than under the old 69px
- * header, the canvas gives up exactly those 23px, and the rail keeps its 17px over the action
- * bar (a best case — a desktop browser at a phone's width has no URL bar).
- */
-.viewer-tag {
-  display: flex;
-  justify-content: center;
-  padding-block: 8px 0;
-}
+/* `.viewer-tag` ("[ 3D PRODUCT REFERENCE ]" on its own line under the bar) was deleted on
+   2026-10-04: polish D8 and M5, owner-approved. The stage band starts under the bar. */
 
 /* ── 3D stage ──────────────────────────────────────────────────────── */
 
@@ -231,7 +167,7 @@
   /* The containing block for `.stage__more`, which is taken out of flow so it
      can sit in this band's own reserved bottom padding without costing the
      garment any height. Safe to add: every other absolutely positioned thing in
-     the band (`.stage__contours`, `.stage__callouts`, `.stage__loading`) is
+     the band (`.stage__contours`, `.spec-groups--corners`, `.stage__loading`) is
      inside `.stage__canvas`, which is `position: relative` itself and therefore
      a nearer containing block. */
   position: relative;
@@ -256,8 +192,9 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* No action bar above 900px — same seam and same shape as `.page`'s rule. */
-@media (min-width: 900px) {
+/* No action bar in two columns — same seam and same shape as `.page`'s rule. */
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage-block {
     padding-bottom: 0;
   }
@@ -476,6 +413,37 @@
 }
 
 /*
+ * ⚠️ AN UPRIGHT TABLET: THE PHONE'S ONE COLUMN, WITH A SHORTER GARMENT, SO ITS NAME IS ON THE
+ * FIRST SCREEN (polish F11, owner's answer Q23, 2026-10-04).
+ *
+ * The band is one screen on a phone, so the garment fills the first screen and the name follows
+ * it. Upright, a tablet's band was a whole screen too and its garment almost all of it: the name
+ * started 1,251px down on an 820x1180 iPad (the second check, 4 Oct). Here the band ends early:
+ * the garment window is about half the screen and the band takes no `min-height`, so the colours
+ * and the name follow on the first screen. Its reserve for the action bar goes too, because that
+ * reserve exists for a band that ends AT the bar, which this one no longer does (the page keeps
+ * its own, `.page`, for the end of the document).
+ *
+ * Wide enough is height-limited here (a 768px canvas half a screen tall is wider than the
+ * garment's 0.82), so the garment fills 86.3% of this height and shrinks with it.
+ * The number is measured, not chosen: e2e/motion-and-layout.spec.ts -> "an upright tablet shows
+ * the garment's name on the first screen".
+ */
+@media (min-width: 700px) and (orientation: portrait) {
+  .stage-block {
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .stage__canvas {
+    flex: 0 0 auto;
+    height: 50svh;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+/*
  * ⚠️ THIS BLOCK USED TO CARRY THE PHONE'S HEIGHT BUDGET, and its comment argued
  * at length for a subtrahend of 364 — 81 header + 8 + 8 stage padding + 12 gap +
  * 52 rail + 12 gap + 25 caption + 12 band padding + 72 bar. All of that is gone
@@ -510,10 +478,10 @@
  * controls, the colours), 8px within one (visual audit VA-35, owner-approved 2026-10-02).
  * Measured that day, the garment on an upright phone is limited by its card's WIDTH, so
  * this height costs it nothing (313x228 drawn at 390x844 either way); only the shortest
- * phones pay (320x640). 8px on top makes the product line's gap exactly 16 with the line's
- * own 8px margin, where the fluid `2vw` above gave 16.6px at 430px and 23.4px at 768px.
- * Upright only: below 501px of height the line is refused (`.stage-block__name`) and a
- * landscape phone keeps its own top. The gap above the controls is `.stage__plinth`'s.
+ * phones pay (320x640). 8px on top, under the bar, where the fluid `2vw` above gave 16.6px at
+ * 430px and 23.4px at 768px (the product line it once spaced was removed by polish M5).
+ * Upright only: a landscape phone keeps its own top. The gap above the controls is
+ * `.stage__plinth`'s.
  */
 @media (max-width: 899px) and (min-height: 501px) {
   .stage__inner {
@@ -564,89 +532,8 @@
    header's height — the number the band subtracts. It read 92px on every stage-band
    viewport (measured 2026-09-24); see tokens.css. */
 
-/*
- * The compact garment name, portrait phones only.
- *
- * Hidden everywhere else because everywhere else already shows the real thing: the
- * `<h1>` is in the aside from 1100x880 and 1280x800 up (VA-60), and in `.content` above the fold on any
- * screen tall enough. This exists for exactly the case where neither is true.
- *
- * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a
- * side effect. `.stage__canvas` is `flex: 1 1 auto` inside a band whose job is
- * dividing a fixed `100svh - var(--header-h)`, so every pixel here is a pixel off
- * the garment. MEASURED by rendering it and then hiding it at 375x812:
- * canvas 495px without, 475px with — a cost of exactly 20px, which is the 14px
- * line-box plus the 6px margin and nothing else. A named garment 20px shorter beats
- * an anonymous one, on a page a visitor reaches by scanning a tag and asking "what
- * is this?". The colourway rail's clearance above the action bar is unchanged at
- * 29px, measured at 320, 375 and 414.
- *
- * 699px, not the two-column query: at 844x390 the band is already asserted at
- * <=390px tall and has no row to spare.
- */
-.stage-block__name {
-  display: none;
-}
-
-/*
- * ⚠️ THE VISIBILITY DECISION MOVED TO JSX ON 2026-09-05, and the reason is in
- * App.tsx: this line is needed exactly when the `<h1>` is not on the first screen,
- * which is `!identityInAside` — a query no width ceiling here could express. A
- * `max-width: 699px` rule left iPad portrait (768x1024, 834x1194) and iPad Pro
- * 12.9 (1024x1366) showing a garment with no name at all.
- *
- * What CSS still owns is the HEIGHT refusal below, because that is a layout
- * question rather than a content one.
- *
- * ⚠️ IT COSTS THE CANVAS ITS OWN HEIGHT, and that trade is the point rather than a
- * side effect. `.stage__canvas` is `flex: 1 1 auto` inside a band whose job is
- * dividing a fixed `100svh - var(--header-h)`, so every pixel here is a pixel off
- * the garment. MEASURED by rendering it and then hiding it at 375x812:
- * canvas 495px without, 475px with — a cost of exactly 20px, which is the 14px
- * line-box plus the 6px margin and nothing else. A named garment 20px shorter beats
- * an anonymous one, on a page a visitor reaches by scanning a tag and asking "what
- * is this?".
- */
-.stage-block__name {
-  display: block;
-  margin: 0 0 6px;
-  padding: 0 var(--stage-gutter);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps);
-  line-height: 1.4;
-  text-transform: uppercase;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/*
- * The one place the 20px is NOT affordable: a landscape phone. At 844x390 the
- * two-column band is already asserted at <=390px tall and has no row to spare, so
- * the name is refused rather than taken out of the garment.
- *
- * Same 500px threshold the action bar uses, and for the same reason — it is the
- * height below which this band stops having spare rows. That leaves landscape
- * without a visible name, which is a real gap and the smaller one: the dominant
- * journey is a phone held upright at a garment rail.
- */
-@media (max-height: 500px) {
-  .stage-block__name {
-    display: none;
-  }
-}
-
-/* On an upright phone or tablet the line takes the stack's rhythm (VA-35): 8px under the label,
-   which it touched, and 8px over the garment's 8px top (see `.stage__inner`), 16px in all.
-   After the rule above on purpose — equal specificity, so source order decides. A short
-   desktop window that also shows the line keeps 0 / 6px: its garment is limited by height. */
-@media (max-width: 899px) and (min-height: 501px) {
-  .stage-block__name {
-    margin: 8px 0;
-  }
-}
+/* `.stage-block__name`, the garment's name over a phone's garment, was deleted on 2026-10-04:
+   polish M5, F11 and X1, owner-approved (App.tsx says where the name is now). */
 
 /* ── Two columns when the screen has width to spare ────────────────── */
 
@@ -683,7 +570,13 @@
  * appears and `.action-bar` disappears, and apps/viewer/CLAUDE.md records what
  * happened when those two numbers were allowed to differ: 900-1099px carried no
  * persistent contact control at all. A fourth breakpoint here would be a fourth
- * thing to keep in step.
+ * thing to keep in step. Since polish F11 (2026-10-04) the bar's rules use THIS
+ * query, not the width alone, so the hand-over stays exact now that it has a shape.
+ *
+ * ⚠️ `orientation: landscape` ON THE WIDTH CLAUSE SINCE 2026-10-04 (polish F11, owner's
+ * answer Q23): an upright tablet is one column, the phone's layout with a shorter garment,
+ * so the name under it is on the first screen. 1024x1366 (iPad Pro 12.9 upright) matched
+ * on width alone until then.
  *
  * Verified against the audit matrix: 1440x900 (1.60) and 2560x1440 (1.78) match
  * on width; 844x390 (2.16) matches on shape; 768x1024 (0.75), 402x714 (0.56) and
@@ -695,13 +588,12 @@
  *   under it. Putting a garment's own controls in a different column than the
  *   garment is the kind of tidiness that reads as a filing decision.
  *
- *   `.stage__callouts` — the spec facts are absolutely positioned over the
- *   canvas at left/right 3% ON PURPOSE, so a desktop visitor reads the product
- *   as a technical drawing rather than as a paragraph. That treatment is
- *   documented further down this file and is the reason `.spec-list` exists as a
- *   separate phone rendering. Moving them here would delete it.
+ *   The spec facts — on a computer they sit in the corners of the canvas ON PURPOSE
+ *   (`.spec-groups--corners`, polish D10), so a desktop visitor reads the product as a
+ *   technical drawing rather than as a paragraph. Moving them here would delete it.
  */
-@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage-block {
     flex-direction: row;
     align-items: stretch;
@@ -838,6 +730,18 @@
   }
 }
 
+/* Beside the garment the column holds the name, three lines of description, the colours and both
+   contact buttons (polish D8), so its groups sit 16px apart there, not 24, inside 12px: the
+   column's height decides whether Email and WhatsApp are on a laptop's screen, and these are the
+   values useIdentityInAside.ts's table was measured with. Same query as IDENTITY_IN_ASIDE_QUERY;
+   after the two-column block, which it must beat by order. */
+@media (min-width: 1024px) and (min-height: 620px) and (orientation: landscape) {
+  .stage__aside {
+    gap: 16px;
+    padding-block: 12px;
+  }
+}
+
 /*
  * ⚠️ FROM 1920px THE STAGE KEEPS GROWING (visual audit VA-12, 2026-10-02, owner-approved). At 2560x1440
  * the stage stopped at 800x980: 21% of the screen, against 43% at 1440x900. Two numbers did it, and
@@ -960,9 +864,9 @@
  *
  * The top-right is genuinely empty on a phone: the garment is centred and portrait
  * (widest live shape 0.60m against 0.24m depth), the hint and the loading readout
- * both anchor to the bottom, and `.callout` — which does use the corners — renders
- * only at >=1000px, where AR never appears because `canActivateAR` is false on
- * desktop. The two cannot co-occur.
+ * both anchor to the bottom. The garment's facts DO use the corners on a computer, and
+ * an iPad turned sideways is one, with AR (`IS_IOS` in model-viewer counts iPads): so
+ * `.spec-groups--corners` starts its top pair below this cube (polish D10).
  *
  * `--dimension` rather than `--muted`: this is a call to action a thumb has to find
  * against a rendered garment of unknown colour, and it is the token that already
@@ -1041,7 +945,16 @@
  * **5.10:1 light, 6.69:1 dark**.
  */
 
-@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+  .stage__more {
+    display: none;
+  }
+}
+
+/* An upright tablet's band ends above the fold with the name after it (F11), so it has nothing
+   to signal past, and no reserve under the rail for this to sit in. */
+@media (min-width: 700px) and (orientation: portrait) {
   .stage__more {
     display: none;
   }
@@ -1108,6 +1021,33 @@ model-viewer.stage__model {
 }
 
 /*
+ * MO2 (polish, 2026-10-04): the old colour's frame over the garment while the new colour is
+ * applied, then faded over --fast, the audit's "quick 200ms cross-fade" (lib/colourCrossFade.ts).
+ * The garment's exact box, so the copy lies on the frame it copied. Hidden at rest; `visibility`
+ * gets the fade's duration, so it hides just as the fade ends (the action bar's rule says why).
+ */
+.stage__crossfade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.stage__crossfade[data-state="held"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.stage__crossfade[data-state="fading"] {
+  transition:
+    opacity var(--fast) var(--ease),
+    visibility var(--fast) linear;
+}
+
+/*
  * The largest control on the page was the only one without the brand focus ring.
  *
  * `:focus-visible` in base.css cannot reach it: model-viewer takes focus on its
@@ -1137,11 +1077,13 @@ model-viewer.stage__model {
  * host (radius 0) could not do even unclipped.
  *
  * `.stage__canvas` holds the model-viewer and, since then, two buttons of its own:
- * the AR button and TRY 3D AGAIN (issue #41). The camera buttons live in
- * `.stage__plinth`, outside it. A focused retry button already draws its own ring,
- * so the canvas does not draw a second one around it.
+ * the AR button and TRY 3D AGAIN (issue #41), and on a computer the garment's facts
+ * (polish D10). The camera buttons live in `.stage__plinth`, outside it. A focused
+ * retry button or fact bullet draws its own ring, so the canvas does not draw a
+ * second one around it: a click on a bullet outlined the whole window (seen
+ * 2026-10-04 in the D10 screenshots; a summary takes focus on a mouse press).
  */
-.stage__canvas:focus-within:not(:has(.stage__retry:focus)) {
+.stage__canvas:focus-within:not(:has(.stage__retry:focus, .spec-groups summary:focus)) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -1214,107 +1156,6 @@ model-viewer.stage__model {
  *     }
  *   }
  */
-
-/* Technical callouts around the garment */
-.stage__callouts {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  display: none;
-}
-
-@media (min-width: 1000px) {
-  .stage__callouts {
-    display: block;
-  }
-}
-
-.callout {
-  position: absolute;
-  /*
-   * ⚠️ A THIRD OF THE STAGE AT MOST, NOT A FLAT 240px (2026-10-01, visual audit). The notes show
-   * from 1000px, where the stage is only 439-452px wide, so two 240px notes spanned all of it:
-   * with the X-MILO PRO BIB's six features, [ PERFORMANCE ] ran from 42% to 97% of the stage
-   * and [ FABRIC ] from 3% to 49%, both over the garment. From 1280px the stage is 800px and 30%
-   * IS 240px, so nothing moves there; below it a long note wraps onto more lines in its corner.
-   */
-  max-width: min(240px, 30%);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps-tight);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.callout::before {
-  content: "";
-  display: block;
-  width: 56px;
-  border-top: 1px dashed var(--dimension);
-  margin-bottom: 6px;
-}
-
-.callout--right::before {
-  margin-left: auto;
-}
-
-.callout--right {
-  text-align: right;
-}
-
-/*
- * The bottom pair shares one baseline — audit FA-D-07, and the account of what it
- * fixes is on the markup in `Stage.tsx`.
- *
- * `bottom: 18%` is the SAME anchor the two boxes carried individually, so the row's
- * bottom edge lands where theirs did (measured 686.7 at 1440x900, before and
- * after); `align-items: flex-start` is the whole fix. `left`/`right: 3%` reproduce
- * the two inline offsets exactly — measured x 144.0 and right edge 896.0 in an
- * 800px canvas at x 120, both unchanged.
- *
- * `margin-left: auto` rather than `justify-content: space-between`, because either
- * half can be absent: a lone [ PERFORMANCE ] must stay on the right, and
- * space-between would put it on the left.
- */
-.stage__callouts-bottom {
-  position: absolute;
-  left: 3%;
-  right: 3%;
-  bottom: 18%;
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-}
-
-.stage__callouts-bottom .callout {
-  position: static;
-}
-
-.stage__callouts-bottom .callout--right {
-  margin-left: auto;
-}
-
-.callout .label {
-  margin-bottom: 4px;
-}
-
-.callout__value {
-  color: var(--text);
-}
-
-/* Narrow stages (1000-1279px, before the stage reaches 800px): a long note keeps to four lines,
-   because capped at 30% the X-MILO's six features ran to eleven lines of 10px capitals down the
-   side of the garment (measured 2026-10-01). The notes are aria-hidden decoration; the full list
-   is in the product panel under the stage. */
-@media (max-width: 1279px) {
-  .callout__value {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    overflow: hidden;
-  }
-}
 
 /*
  * The plinth row — the garment's label and its camera controls, on ONE line.
@@ -1827,6 +1668,38 @@ model-viewer.stage__model {
   user-select: none;
 }
 
+/*
+ * POLISH D9: the colour's HD studio render IN the 3D window, at the garment's own size. The
+ * camera frames the 3D garment across 86.3% of the window's height (StageControls.tsx), so the
+ * picture takes the same band and the switch reads as the garment becoming its photo, not as a
+ * new, bigger thing arriving.
+ */
+.stage__hd {
+  position: absolute;
+  inset: 7% 4%;
+  width: 92%;
+  height: 86%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* The model stays loaded under the picture, so "VIEW IN 3D" is instant; `visibility` takes it
+   out of sight AND out of the tab order, which `opacity` would not. */
+.stage__canvas[data-hd] .stage__model {
+  visibility: hidden;
+}
+
+/* POLISH F14: the still picture a printed sheet shows in the window (Stage.tsx). Paper only; the
+   print block at the end of this file shows it. */
+.stage__print {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 /* ── Retired-colourway notice ──────────────────────────────────────── */
 .notice {
   display: flex;
@@ -1844,11 +1717,13 @@ model-viewer.stage__model {
 }
 
 /* ── Main content grid ─────────────────────────────────────────────── */
+/* The page's column, 1200px with `clamp(16px, 4vw, 48px)` either side, is `.page`'s two tokens
+   (top of this file), which the footer reads too (polish D1); their rounded twin is there as well. */
 .content {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--site-max);
   margin: 0 auto;
-  padding: clamp(24px, 4vw, 56px) clamp(16px, 4vw, 48px);
+  padding: clamp(24px, 4vw, 56px) var(--site-gutter);
   display: grid;
   gap: clamp(32px, 5vw, 64px);
 }
@@ -1856,9 +1731,60 @@ model-viewer.stage__model {
 @supports (width: round(1px, 2px)) {
   .content {
     padding-block: round(clamp(24px, 4vw, 56px), 2px);
-    padding-inline: round(clamp(16px, 4vw, 48px), 2px);
     gap: round(clamp(32px, 5vw, 64px), 2px);
   }
+}
+
+/*
+ * The trail, Home › Products › <category> › <garment> (polish S5, GarmentTrail.tsx): the house
+ * label's voice (mono capitals, 12px, the floor for read text, VA-11), muted, with the garment
+ * itself in the page's text colour. Links are underlined at rest, so they never rest on colour
+ * alone, and each is 24px tall (WCAG 2.5.8). A long garment name wraps onto its own line.
+ */
+.trail__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.trail__list > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trail__list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trail__list a:hover {
+    color: var(--text);
+  }
+}
+
+.trail__current {
+  color: var(--text);
+}
+
+.trail__separator {
+  flex: none;
 }
 
 /*
@@ -1897,6 +1823,39 @@ model-viewer.stage__model {
   --font-serif: "Instrument Serif", "Instrument Serif Fallback", Georgia, serif;
 }
 
+/*
+ * IBM Plex Mono, the code-style labels' font (polish X5, the owner's Q39; why, and the matched
+ * stand-ins it swaps from: packages/ui/src/tokens.css at `--font-mono`). A garment page draws it at
+ * 400 and, for the "How we build it" step titles (`h3`), at 700 (measured 2026-10-04), latin only,
+ * and the "№" of the section numbers from Plex Mono's cyrillic file: site.css says why that face
+ * comes second. ⚠️ NOT PRELOADED: vite.config.ts preloads the latin fonts it finds, and leaves these
+ * out, because the slow-3G first paint is held to 2,400ms (e2e/firstPaint.spec.ts) and a label
+ * that swaps moves nothing.
+ */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-cyrillic-400-normal.woff2")
+    format("woff2");
+  unicode-range: U+2116;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-700-normal.woff2") format("woff2");
+}
+
 /* ── Product info panel ────────────────────────────────────────────── */
 .product-info {
   display: grid;
@@ -1922,6 +1881,38 @@ model-viewer.stage__model {
   max-inline-size: 50ch;
 }
 
+/* Three lines beside the garment, then "Read more" (polish D8; ProductIdentity.tsx says why). The
+   three properties belong together: MDN "line-clamp" (modified 2026-09-14) gives the unprefixed
+   property as not Baseline, and this form as supported everywhere and staying so. */
+.product-info__statement[data-clamped] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* "Read more" / "Read less": the house tracked caps as a text button, close under the paragraph
+   it opens (the section's gap is between groups), and 24px tall at least (WCAG 2.5.8). */
+.product-info__more {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: -8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  /* 12px: the floor for words that are read (VA-11, e2e/readText.spec.ts). */
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 /*
  * The colourway qualifier, moved out of the swatch rail on 2026-08-20.
  *
@@ -1939,82 +1930,301 @@ model-viewer.stage__model {
   max-width: 60ch;
 }
 
-.spec-list {
+/*
+ * ── The garment's facts as four matching groups (polish D10) ─────────────────────────────
+ *
+ * One component, `SpecGroups.tsx`, in one of two places: the window's corners on a computer
+ * (`.spec-groups--corners`, near the stage rules above) or here, under the description, in two
+ * columns that mirror the corners: Fabric and Fit on the left, Weight and Performance on the
+ * right (the owner's layout). Named areas, not auto-placement, so a garment with no fit (R-PRS)
+ * keeps Performance bottom-right instead of sliding it into Fit's place.
+ *
+ * Every group is a list, even with one item, and every bullet is the same lime ring with a thin
+ * ink edge and an ink dot (Q5): Fabric, Weight and Fit look exactly like Performance.
+ */
+.spec-groups {
+  /* A bullet's width with its ring (`.spec-item__bullet`): a note's indent is measured from it. */
+  --spec-bullet-slot: 21px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px 24px;
-  margin: 8px 0 0;
-  padding: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "fabric weight"
+    "fit performance";
+  gap: 18px 16px;
+  margin: 0;
+}
+
+.spec-groups--list {
+  max-width: 48rem;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 /*
- * The four facts render ONCE at every width, and 1000px is not a number chosen
- * here — it is `.stage__callouts`'s.
- *
- * Above 1000px the callouts draw [ FABRIC ] [ WEIGHT ] [ FIT ] [ PERFORMANCE ]
- * over the canvas from the same fields this list reads, so both were on screen
- * together, word for word, until 2026-08-21. Below 1000px the callouts are off —
- * the canvas column is only ~559px at 900px wide and two 240px callouts would sit
- * on the garment — so between 900 and 1000px this list is the ONLY rendering of
- * those facts and must stay. That band is why the rule is `min-width: 1000px` and
- * not the two-column query.
- *
- * ⚠️ THE TWO BREAKPOINTS MUST MOVE TOGETHER. Lowering the callouts' without
- * lowering this one prints the facts twice again; raising this one without the
- * callouts' deletes them from the page entirely between the two values. Pinned by
- * `specDuplication.test.ts`, which reads both rules out of this file and fails if
- * the numbers differ.
+ * TWO COLUMNS WHILE A WORD FITS BESIDE ITS BULLET, ONE WHEN IT CANNOT. Each column gives 33px to
+ * the bullet and its gap, so with the browser's text at "Very large" (a 24px root) a 320px phone
+ * left about 100px for 22.5px words, and "management" pushed the page 13px wider than the screen
+ * (`motion-and-layout.spec.ts`, "no overflow … at 24px root", 2026-10-04). A container query in
+ * rem follows the text size; a media query's em would not follow `html { font-size }`.
+ * 17rem is 272px at the default 16px, so every phone from 320px keeps the approved two columns
+ * there (its list is 280px wide), and the list stacks at 408px from a 24px root, 340px from 20px.
  */
-@media (min-width: 1000px) {
-  .spec-list {
-    display: none;
-  }
+.spec-groups-frame {
+  container: spec-groups / inline-size;
+}
 
-  /*
-   * …EXCEPT WITHOUT 3D (LA-16). The callouts are drawn only around a garment, so while the
-   * no-3D notice shows they are gone, and this list is the only copy left. Keyed on the
-   * notice itself, `.stage__error:not([hidden])`, the same marker every fallback test here
-   * uses (the element is always mounted; `hidden` is what changes). Without this rule a wide
-   * screen with no 3D showed the fabric, weight, fit and performance facts nowhere at all
-   * (caught by "the spec facts render once at every width", 2026-09-25).
-   */
-  body:has(.stage__error:not([hidden])) .spec-list {
-    display: grid;
+@container spec-groups (width < 17rem) {
+  .spec-groups--list {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "fabric"
+      "weight"
+      "fit"
+      "performance";
   }
 }
 
-.spec-list div {
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
+.spec-group--fabric {
+  grid-area: fabric;
 }
 
-/* --text-mono (11px), not --text-mono-sm (10px). These <dt>s name the garment's
-   real facts — fabric, weight, fit, performance — so they are CONTENT labels,
-   not chips. At the chip size they read one step quieter than the decorative
-   section numbering above them, which inverts the page's own hierarchy. See
-   docs/DESIGN.md §3: .mono is for content, .label is for chips. */
-.spec-list dt {
+.spec-group--weight {
+  grid-area: weight;
+}
+
+.spec-group--fit {
+  grid-area: fit;
+}
+
+.spec-group--performance {
+  grid-area: performance;
+}
+
+.spec-group {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 12px, not the old `<dt>`s' 11px: they are read text, and VA-11 holds read text to 12px. */
+.spec-group__heading {
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
+  font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 4px;
 }
 
-.spec-list dd {
+.spec-group__body {
   margin: 0;
-  font-size: var(--text-sm);
 }
 
-/* The Performance features, one to a line (visual audit VA-59, 2026-10-02). Plain on purpose: no
-   bullets and no indent, so the list reads as the `dd`'s own text broken where each feature ends,
-   in the same size and colour. `list-style: none` is why `ProductPanel.tsx` writes `role="list"`
-   out: Safari drops a bullet-less list's semantics without it. */
-.spec-list__features {
+/*
+ * `list-style: none` is why `SpecGroups.tsx` writes `role="list"` out (VA-59).
+ * ⚠️ `minmax(0, 1fr)`, NOT THE IMPLICIT `auto` COLUMN, AND `min-width: 0` ON THE WORDS (below).
+ * An auto column grows to its longest word and a flex item will not shrink below it, so when a
+ * word was wider than its column the list ran 29px past its column and 13px past the screen instead
+ * of breaking it as `.spec-item__row` asks: Firefox, a 320px phone, text size changed to 24px while the page was
+ * open, 4 runs in 10 (2026-10-04), when Firefox had not yet re-checked the container query below.
+ */
+.spec-group__items {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.spec-group__items > li {
+  transition: opacity var(--ui) var(--ease);
+}
+
+/* While one note is open the other bullets step back, so the eye lands on it (the mockup's). */
+.spec-groups:has(.spec-item[open]) .spec-group__items > li:not(:has(.spec-item[open])) {
+  opacity: 0.45;
+}
+
+.spec-item__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 24px;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--text);
+  /* The last resort for a word wider than any line its column can give (R-SNP's
+     "Polychloroprene" on the narrowest phones): it breaks rather than leave its column. */
+  overflow-wrap: break-word;
+}
+
+summary.spec-item__row {
+  cursor: pointer;
+  list-style: none;
+}
+
+.spec-item__text {
+  min-width: 0;
+}
+
+/* Safari draws its own disclosure triangle unless this marker is hidden too. */
+summary.spec-item__row::-webkit-details-marker {
+  display: none;
+}
+
+summary.spec-item__row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-chip);
+}
+
+/*
+ * The ring is drawn with two shadows, so the 13px box looks 21px wide (`--spec-bullet-slot`, the
+ * box and its 4px margins, which hold the ring): the row's 12px gap is the air before the words.
+ * `--paper` inside, in both themes: the ink dot has to show on a dark page too, where a
+ * see-through middle would hide it.
+ */
+.spec-item__bullet {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  margin: calc((1.35em - 13px) / 2) 4px 0;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow:
+    0 0 0 3px var(--volt),
+    0 0 0 4px var(--ink);
+  transition: scale var(--ui) var(--ease);
+}
+
+.spec-item__bullet::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: scale var(--ui) var(--ease);
+}
+
+.spec-item[open] .spec-item__bullet::after {
+  scale: 1.75;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  summary.spec-item__row:hover .spec-item__bullet {
+    scale: 1.15;
+  }
+}
+
+/* Under the bullet's words: past the bullet's slot and the row's 12px gap. */
+.spec-item__note {
+  max-width: 40ch;
+  margin: 4px 0 0 calc(var(--spec-bullet-slot) + 12px);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--muted);
+  /* No last line of one word ("…every way you / do."), where the browser can avoid it. */
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .spec-item[open] .spec-item__note {
+    animation: spec-note-in var(--ui) var(--ease);
+  }
+}
+
+@keyframes spec-note-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+/*
+ * ── The same groups in the 3D window's corners, on every computer ────────────────────────
+ *
+ * Fabric top-left, Weight top-right, Fit bottom-left, Performance bottom-right (`specsInCorners`,
+ * App.tsx). They replace four `.callout`s that were `aria-hidden` decoration over a `.spec-list`
+ * holding the same words; these are the only copy, so they are real content. After the rules
+ * above on purpose: they refine them, and a refinement written first would lose to them.
+ *
+ * NO BOX BEHIND THEM (the owner's note on the mockup): the window's grid shows through, and a
+ * soft glow in the page's own colour keeps the letters readable if the garment turns under them.
+ *
+ * ⚠️ THE TOP PAIR STARTS BELOW THE AR BUTTON, NOT AT THE MOCKUP'S 6%. `.stage__ar` is a 44px cube
+ * 12px from the top-right on every iPhone AND iPad (model-viewer shows its slot wherever AR can
+ * run), and a sideways iPad is a computer here: from 1024px wide it has the corners too. 64px is
+ * its 12 + 44 and 8 more. The `.callout`s' old comment said the two "cannot co-occur" because AR
+ * is off on desktop; an iPad is not a desktop.
+ *
+ * Each column is at most 30% of the window: `.stage__hint`'s note measured the garment across the
+ * middle 39% at 1440x900, so the facts sit beside it, and where a wider garment reaches under a
+ * corner the glow keeps both readable.
+ *
+ * ⚠️ NO `align-self: end` ON THE BOTTOM PAIR (audit FA-D-07, 2026-09-07). Anchoring each bottom
+ * group to the bottom edge lets their headings float apart by however many features the CMS
+ * lists: the old callouts did exactly that, [ FIT ] 15.5 / 31 / 46.5 / 62px off [ PERFORMANCE ]
+ * across six live garments. Here the bottom ROW sits on the bottom edge (the middle row takes the
+ * slack) and both groups start at its top, so FIT and PERFORMANCE share one line, set by the
+ * taller group.
+ */
+.spec-groups--corners {
+  position: absolute;
+  inset: max(6%, 64px) 3% 6%;
+  grid-template-columns: minmax(0, 30%) 1fr minmax(0, 30%);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "fabric . weight"
+    ". . ."
+    "fit . performance";
+  gap: 0;
+  /* The window under the facts stays the garment's: only a bullet or an open note takes a press. */
+  pointer-events: none;
+  text-shadow:
+    0 0 6px var(--bg),
+    0 0 3px var(--bg),
+    0 0 1px var(--bg);
+}
+
+.spec-groups--corners summary,
+.spec-groups--corners .spec-item__note {
+  pointer-events: auto;
+}
+
+/* The bullets' words in the window: the tracked capitals of the window's other labels. */
+.spec-groups--corners .spec-item__row {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-compact);
+  text-transform: uppercase;
+}
+
+/* A note over the window may cross the garment: the full text colour, so the glow has a dark
+   letter to frame (muted grey on a dark sleeve read as a smudge at 1024x640, 2026-10-04). */
+.spec-groups--corners .spec-item__note {
+  color: var(--text);
+}
+
+/* The right-hand pair reads from the window's right edge: words, then bullet, then the edge. */
+.spec-groups--corners .spec-group--weight,
+.spec-groups--corners .spec-group--performance {
+  justify-items: end;
+  text-align: right;
+}
+
+.spec-groups--corners .spec-group--weight .spec-item__row,
+.spec-groups--corners .spec-group--performance .spec-item__row {
+  flex-direction: row-reverse;
+}
+
+.spec-groups--corners .spec-group--weight .spec-item__note,
+.spec-groups--corners .spec-group--performance .spec-item__note {
+  margin-inline: auto calc(var(--spec-bullet-slot) + 12px);
 }
 
 /* ── Colourway tabs ────────────────────────────────────────────────── */
@@ -2097,7 +2307,8 @@ model-viewer.stage__model {
  * In the column the rail needs no measure and no gutter — the aside supplies
  * both.
  */
-@media (min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .stage-block .colourways {
     max-width: none;
     margin: 0;
@@ -2194,10 +2405,11 @@ model-viewer.stage__model {
    88 in dark: a pale swatch vanished into the light page and a dark one into the dark
    page — the opposite of what the paragraph above asks of it. --line-control flips with
    the theme: 0 of 320 under 3:1, worst 3.39:1 light and 4.94:1 dark (all 80 live pages,
-   scripts/contrast-rules.mjs). The list's chosen row overrides it, on its inverted fill (the
-   last rule in this file). Guarded by apps/viewer/e2e/audit-guards.spec.ts → CO-12.
+   scripts/contrast-rules.mjs). Beside the garment the chosen dot also wears an outer ring in the
+   text colour (polish D8; VA-32's list, which inverted the chosen row, went with it). Guarded by
+   apps/viewer/e2e/audit-guards.spec.ts → CO-12 and AC-16.
 
-   28px in a 44px dot (VA-32); 14px beside a name in the list. */
+   28px in a 44px dot (VA-32); 24px over its name beside the garment (D8). */
 .colourway-tab__swatch {
   flex: 0 0 auto;
   width: 28px;
@@ -2351,6 +2563,21 @@ model-viewer.stage__model {
   color: var(--muted);
 }
 
+/*
+ * ── More from this category (polish S6, RelatedGarments.tsx) ─────────
+ *
+ * The section only. The cards' rules are in related-cards.css, which loads with the cards after
+ * the page has drawn: in this file they delayed every first paint (that file says how much).
+ */
+.related {
+  display: grid;
+  gap: 18px;
+}
+
+.related__all {
+  justify-self: start;
+}
+
 /* ── Contact ───────────────────────────────────────────────────────── */
 .contact {
   display: grid;
@@ -2486,7 +2713,12 @@ model-viewer.stage__model {
   }
 }
 
-@media (min-width: 900px) {
+/* Two columns carry Email and WhatsApp in the aside (`.stage__contact`), so the bar hands over at
+   exactly that query: the two must never leave a width with neither (see `.contact-rail` above).
+   The two-column query, not `min-width: 900px`, since polish F11 (2026-10-04): an upright tablet
+   of 900px and up is one column, has no aside, and keeps the bar. */
+@media (min-width: 900px) and (orientation: landscape),
+  (min-width: 700px) and (min-aspect-ratio: 3 / 2) {
   .action-bar {
     display: none;
   }
@@ -2509,11 +2741,6 @@ model-viewer.stage__model {
 @media (max-height: 500px) {
   .action-bar {
     display: none;
-  }
-
-  .page {
-    padding-bottom: 0;
-    background-image: none;
   }
 }
 
@@ -2689,6 +2916,44 @@ model-viewer.stage__model {
   clip-path: inset(0 0 100% 0);
 }
 
+/* ⚠️ A PRODUCT CARD'S PICTURE GROWS INTO THIS LOADING SCREEN (polish MO3, 2026-10-05, the owner's
+   "grow into the loading screen"). A cross-document view transition, so both pages opt in: the
+   website names the tapped card's picture `garment-opening` and cancels every other navigation
+   (apps/cms CardOpening.tsx), and this screen carries the same name, so the browser grows the
+   picture from the card to the whole screen while the screen fades in over it. It is the only
+   possible target: a visitor's page holds nothing else at its first paint (index.html, RO-08; the
+   words under it are served to robots only, worker/index.ts), so nothing unstyled shows while it
+   is lifted out. Leaving a garment page stays instant (lib/pageTransition.ts). Reduced motion: no
+   transition at all. Firefox has none yet (5 Oct 2026) and simply loads the page.
+
+   ⚠️ THIS PAGE'S OPT-IN IS INLINE IN index.html, NOT HERE, MEASURED
+   2026-10-05: from this file Chromium turned every arrival down (0 of 3), although the sheet was
+   applied by the first paint — it settles whether a page opts in before an external stylesheet
+   has arrived; inline, 3 of 3, the card's picture paired with this screen. Styles may be inline
+   there (`style-src 'unsafe-inline'`, scripts/csp.mjs); scripts may not.
+   ⚠️ AND ITS NOTE THERE STAYS ONE LINE. index.html's comments ship (the build keeps them) and sit
+   in front of the slow-3G first paint: the first, 1,066-byte version of this note took
+   e2e/firstPaint.spec.ts from 2,280 to 2,420 ms (median of 5) against its 2,400 ms ceiling, while
+   the opt-in itself cost nothing. Comments in this file are removed when it is minified.
+   The `expect` link beside it holds the browser until the loading screen is in the page, or the
+   picture has nothing to grow into (web.dev, "consistent cross-document transitions", read
+   2026-10-05). */
+.preloader {
+  view-transition-name: garment-opening;
+}
+::view-transition-group(garment-opening),
+::view-transition-old(garment-opening),
+::view-transition-new(garment-opening) {
+  animation-duration: var(--settle);
+  animation-timing-function: var(--ease-out-expo);
+}
+/* The card's picture is portrait and the screen is not: both fill the growing box, cropped. */
+::view-transition-old(garment-opening),
+::view-transition-new(garment-opening) {
+  block-size: 100%;
+  object-fit: cover;
+}
+
 /* ⚠️ WITH SCRIPTING OFF THE LOADING SCREEN IS NOT DRAWN (visual audit VA-56, 2026-10-02).
    `index.html` paints it from the HTML itself (RO-08), so a visitor without JavaScript got
    "PREPARING…" for ever — fixed over the whole screen and over the page's own no-JavaScript
@@ -2833,104 +3098,276 @@ model-viewer.stage__model {
     transform: none;
   }
 }
+
 /*
- * ⚠️ IN A TALL SIDE COLUMN THE COLOURS ARE A LIST, each name on a row of its own (VA-32; owner
- * decision 2026-10-02: the list only where it fits).
+ * ⚠️ BESIDE THE GARMENT ON A COMPUTER, EACH COLOUR'S NAME IS UNDER ITS DOT, IN A GRID, WHERE IT
+ * FITS (polish D8, owner-approved 2026-10-04). From 2 Oct (VA-32) the names showed there only as a
+ * list, and only in a window 1080px tall, so most laptops got bare dots with one name above them.
  *
- * The list is ~180px taller than the dots, and from 1100px the column also holds the product's
- * name and description (useIdentityInAside.ts). Measured 2026-10-02 with the longest live
- * descriptions served (454 characters; and 447 under the 25-character "THE KINETIC MATRIX
- * JACKET"), the Email and WhatsApp buttons stayed on screen in Chromium only from 990px of height
- * at 1100px wide and from 920px at 1280px and up; at 1280x800 and 1440x900 the list pushed them
- * off it. Firefox needs more: it sets the test's 26-character name on three lines, not two, and
- * needed 1041px at 1100 wide. 1080 keeps 39px over that, in all three engines. Shorter windows
- * keep the dots. Guarded by motion-and-layout.spec.ts -> "the colour list leaves both contact
- * buttons on screen at its shortest height".
+ * A name breaks only at the space after its "/": its parts are inline and unbreakable
+ * (`.colourway-tab__part`), so it is one line when it fits and "BOTTLE GREEN /" over "MINT" when
+ * not. Three to a row (3 + 2 for five colours, 2 + 2 for four, so no colour sits alone). The
+ * chosen colour: a ring round its dot, its name in the text colour where the others' are muted
+ * (colour only: a bolder weight would re-wrap the name). Each cell is one tab, at least 44px tall.
+ *
+ * WHERE IT FITS, MEASURED 2026-10-04 with the catalogue's longest copy (motion-and-layout.spec.ts):
+ *   width   at 12px, the floor for read words (VA-11), with the compact tracking, "BOTTLE GREEN /"
+ *           is 111px in Chromium and Firefox and 114px in WebKit. Three cells and two 4px gaps
+ *           need a 350px column; it is 360px from a 1280px window (cells of 117px, 3px clear of
+ *           WebKit) and 289-337px from 1024 to 1194, so a sideways iPad keeps the dots with the
+ *           chosen name above.
+ *   height  the names add a row of words under each row of dots: the column then needs 618-629px
+ *           of window in Chromium and Firefox, 618-640px in WebKit, against 549-602px with the
+ *           dots. 656px is 16px clear of WebKit's worst and takes in a 1366x768 laptop's window
+ *           (about 1366x657); shorter windows keep the dots (useIdentityInAside.ts has the table).
+ * The names change twice more in this build (the code font, X5, and every colour's name, N1), so
+ * both are re-measured after each.
  *
  * After the dots on purpose: equal-specificity rules here must win by source order.
  */
-@media (min-width: 900px) and (min-height: 1080px) {
-  .stage__aside .colourways__name {
-    display: none;
-  }
-
-  .stage__aside .colourways__list {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .stage__aside .colourway-tab {
-    justify-content: flex-start;
-    width: auto;
-    height: auto;
-    min-height: var(--target-min);
-    padding: 10px 16px;
-    border: 1.4px solid var(--line);
-    border-radius: var(--radius-button);
-    text-align: start;
-  }
-
-  .stage__aside .colourway-tab__swatch {
-    width: 14px;
-    height: 14px;
-  }
-
-  .stage__aside .colourway-tab__label {
-    display: inline;
-  }
-
-  /* The base hover rule comes before the border above, so the list repeats it. */
-  @media (hover: hover) and (pointer: fine) {
-    .stage__aside .colourway-tab:hover {
-      border-color: var(--dimension);
+@media (min-width: 1024px) and (min-height: 656px) and (orientation: landscape) {
+  @container colourrail (width >= 350px) {
+    /* The names are under the dots, so the line above them would say the chosen one twice. */
+    .stage__aside .colourways__name {
+      display: none;
     }
-  }
 
-  .stage__aside .colourway-tab[aria-selected="true"] {
-    border-color: var(--btn-primary-bg);
-    background: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
-  }
+    /* `align-items: start`: each cell is as tall as its own name, so the dots of a row line up
+       and every cell's content sits in its middle (FA-E-09, e2e/audit-guards.spec.ts). */
+    .stage__aside .colourways__list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+      gap: 8px 4px;
+    }
 
-  /* The chosen row's swatch ring is the row's own text colour (CO-12). --line-control is drawn
-     for the page ground; on the inverted fill it failed every selected ring in dark, while the
-     row's text colour stands 13–14:1 off that fill. */
-  .stage__aside .colourway-tab[aria-selected="true"] .colourway-tab__swatch {
-    border-color: currentColor;
+    .stage__aside .colourways__list:has(> :nth-child(4):last-child) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stage__aside .colourway-tab {
+      flex-direction: column;
+      justify-content: center;
+      width: auto;
+      height: auto;
+      min-height: var(--target-min);
+      gap: 4px;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius-button);
+      /* 12px, the floor for words that are read (VA-11, e2e/readText.spec.ts), with the compact
+         caps tracking so the widest part still fits its cell. */
+      font-size: var(--text-mono-lg);
+      letter-spacing: var(--tracking-caps-compact);
+      line-height: 1.2;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .stage__aside .colourway-tab__swatch {
+      width: 24px;
+      height: 24px;
+      transition: box-shadow var(--ui) var(--ease);
+    }
+
+    .stage__aside .colourway-tab__label {
+      display: block;
+      max-width: 100%;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .stage__aside .colourway-tab:hover {
+        color: var(--text);
+      }
+
+      .stage__aside .colourway-tab:hover .colourway-tab__swatch {
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent),
+          0 0 0 2px var(--bg),
+          0 0 0 3.5px var(--dimension);
+      }
+    }
+
+    .stage__aside .colourway-tab[aria-selected="true"] {
+      color: var(--text);
+    }
+
+    .stage__aside .colourway-tab[aria-selected="true"] .colourway-tab__swatch {
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent),
+        0 0 0 2px var(--bg),
+        0 0 0 4px currentColor;
+    }
   }
 }
 
 /*
- * The spec facts as ANNOTATIONS on a phone, not a list.
+ * ── PAPER: one clean sheet per garment (polish F14) ─────────────────────────────────────
  *
- * `.stage__callouts` is switched off below 1000px, and correctly so: those are
- * absolutely positioned at left/right 3% and would sit on top of the garment on
- * a narrow screen. But the four facts they show are real content that still
- * exists here in `.spec-list` — and styled as a stacked list with a solid rule,
- * a phone visitor read the product as a paragraph while a desktop visitor read
- * it as a technical drawing.
- *
- * These rules give the phone the callout's own language: paired columns and the
- * dashed dimension rule from `.callout::before`, at the exact breakpoint where
- * the floating version switches off, so one treatment always applies and never
- * both. The markup is untouched — it is still one <dl>, announced once.
+ * What a buyer prints is a spec sheet: the garment, its name and colour, the words, the facts
+ * and who to contact. Printed before this, a garment page ran to three A4 sheets (measured
+ * 2026-10-04 from a 1440x900 window, Chromium): the fixed Email / WhatsApp bar at the foot of
+ * every sheet, the camera and HD buttons, the colour dots as empty rings (paper drops their
+ * fill), the two long sections, and the footer's question on a sheet of its own.
+ * MDN "Printing" (modified 2025-11-07): `@media print`, `@page` margins, `break-inside`.
+ * The bar, the footer's colours and the light theme on paper are already in packages/ui
+ * (notch.css, footer.css, tokens.css); this is the garment page's part.
  */
-@media (max-width: 999px) {
-  .spec-list {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px 16px;
+@media print {
+  @page {
+    margin: 10mm;
   }
 
-  .spec-list div {
-    border-top: 0;
-    padding-top: 0;
+  /* Screen devices: buttons, bars, the window's download picture, contour lines and 3D notices,
+     the colour dots (the chosen colour is in the label above the name), the two long sections,
+     the trail, and the footer's question, logos and links. (The menu bar's links: notch.css.) */
+  .action-bar,
+  .trail,
+  .stage__plinth,
+  .stage__more,
+  .stage__hint,
+  .stage__loading,
+  .stage__placeholder,
+  .stage__crossfade,
+  .stage__contours,
+  .stage__error,
+  .stage__retry,
+  .colourways,
+  .stage__contact,
+  .product-info__more,
+  .customise,
+  .related,
+  .contact,
+  .footer-block--made,
+  .footer-block--capacity,
+  .footer-block--standards,
+  .footer-block--elsewhere,
+  .footer-marks,
+  .footer-legal > :not(:first-child) {
+    display: none !important;
   }
 
-  .spec-list div::before {
-    content: "";
+  /* The bar prints once, at the top of the sheet, not over every sheet. */
+  .notch-shell {
+    position: static;
+  }
+
+  /*
+   * A SPEC SHEET: the picture on the left, the labels, name and words beside it, then the facts
+   * and the contact details across the sheet. One column of them ran to 355mm with the longest
+   * description (measured 2026-10-04 at A4's printable width), where a sheet holds 277mm (A4) or
+   * 259mm (Letter) inside these margins. The page is always in its one-column arrangement here
+   * (App.tsx, `usePrinting`), so
+   * one float does it: the band floats, `.content` and `.product-info` become plain blocks that
+   * flow beside it, and the facts clear it. The picture is 4:5, the posters' shape.
+   */
+  .stage-block {
+    float: left;
+    width: 76mm;
+    min-height: 0;
+    margin: 0 8mm 6mm 0;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .stage__inner {
+    padding: 0;
+  }
+
+  .stage__canvas {
+    flex: none;
+    height: 95mm;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .content {
     display: block;
-    width: 40px;
-    border-top: 1px dashed var(--dimension);
-    margin-bottom: 8px;
+    padding: 0;
+  }
+
+  .product-info {
+    display: block;
+  }
+
+  .product-info > * + * {
+    margin-top: 4mm;
+  }
+
+  /* Boxes of their own, so each sits beside the picture whole: as plain blocks, their width
+     limits (50ch, 60ch) would be counted from under the picture. */
+  .product-info__statement,
+  .product-info__colour-note {
+    display: flow-root;
+  }
+
+  .spec-groups-frame {
+    clear: both;
+    padding-top: 6mm;
+  }
+
+  /* Rows at the height of their words: the 24px floor is for fingers (WCAG 2.5.8). With the
+     catalogue's most facts (six performance features) and its longest description, these and the
+     10mm margins are what keep the sheet to one Letter page. */
+  .spec-item__row {
+    min-height: 0;
+  }
+
+  .spec-group__items {
+    gap: 4px;
+  }
+
+  /* A bullet's centre dot is a background, and paper drops backgrounds; a border prints. */
+  .spec-item__bullet::after {
+    box-sizing: border-box;
+    background: none;
+    border: 2px solid var(--ink);
+  }
+
+  /* The footer under the facts, at the sheet's left edge like everything above it. On paper a
+     width query measures the whole page box, margins included (MDN "width", modified 2026-04-20),
+     so A4 counts as 794px and the footer took the wide screen's right-hand column. */
+  .site-footer__slab {
+    padding-inline: 0;
+  }
+
+  .site-footer__inner {
+    max-width: none;
+  }
+
+  /* Contact is the one block left on paper, so it takes the sheet's width (polish X23 made the
+     facts a grid of columns). */
+  .footer-facts {
+    grid-template-columns: minmax(0, 1fr);
+    border-top: 0;
+  }
+
+  /* The window on paper: the colour's still picture (Stage.tsx says why), with the 3D kept out
+     of sight under it. With the HD picture showing, that picture prints instead. */
+  .stage__model {
+    visibility: hidden;
+  }
+
+  .stage__print {
+    display: block;
+  }
+
+  .stage__canvas[data-hd] .stage__print {
+    display: none;
+  }
+
+  /* The description in full: paper has no "Read more". */
+  .product-info__statement[data-clamped] {
+    display: flow-root;
+    -webkit-line-clamp: unset;
+    line-clamp: none;
+    overflow: visible;
+  }
+
+  /* Whole blocks, never split across sheets. */
+  .product-info,
+  .spec-groups,
+  .footer-block {
+    break-inside: avoid;
   }
 }

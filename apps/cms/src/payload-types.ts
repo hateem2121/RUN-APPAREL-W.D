@@ -35,6 +35,10 @@ export type ProductColourway =
        */
       renderImage?: (number | null) | Media;
       /**
+       * A smaller copy of the HD render above, shown inside the 3D window. Its file name is the render’s with “-screen” added (e.g. r-gtd-ash-render-screen.webp). Leave empty and the page shows the HD render itself.
+       */
+      renderScreen?: (number | null) | Media;
+      /**
        * Describe the photo in a sentence, for people who use a screen reader. e.g. “Velocity Performance Tee in Navy”.
        */
       altText?: string | null;
@@ -373,7 +377,7 @@ export interface Product {
    */
   productName: string;
   /**
-   * What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. Leave blank if unsure.
+   * What kind of garment it is, in the words a buyer would search. For example: Women's Tennis Dress, Men's Cycling Bib Shorts. Used in the page title search engines show. On Teamwear it also picks the sport button the garment is listed under (Soccer, Cycling, Tennis…). Leave blank if unsure.
    */
   garmentType?: string | null;
   /**
@@ -911,6 +915,7 @@ export interface ProductColourwaySelect<T extends boolean = true> {
   variantId?: T;
   posterPreview?: T;
   renderImage?: T;
+  renderScreen?: T;
   altText?: T;
   hexSwatch?: T;
   glbAsset?: T;

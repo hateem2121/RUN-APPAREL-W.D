@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { missingFileColours, rowsToAdd, toSubFieldState } from './colourImportPanel'
+import {
+  fileColourLabel,
+  formCategory,
+  missingFileColours,
+  rowsToAdd,
+  toSubFieldState,
+} from './colourImportPanel'
 
 /**
  * The "We found colours in your file that are not on your website yet" panel.
@@ -79,6 +85,32 @@ describe('rowsToAdd — the rows appended for the ticked colours', () => {
     const rows = rowsToAdd(chosen as never, existing)
     expect(rows.map((row) => row.slug)).toEqual(['bottle-green-2', 'bottle-green-3'])
     expect(rows.every((row) => row.active === false)).toBe(true)
+  })
+})
+
+describe("the product's category names the colours (polish N2)", () => {
+  // R-AJM is Teamwear & Uniforms, whose style uses sport words (packages/shared/src/colourNames.ts).
+  it('adds each ticked colour under its category name, keeping the measured slug', () => {
+    const rows = rowsToAdd(FILE_COLOURS as never, [], 'Teamwear & Uniforms')
+    expect(rows.map((row) => [row.displayName, row.slug])).toEqual([
+      ['Grass Court', 'bottle-green'],
+      ['Clay Court', 'terracotta'],
+      ['Rally', 'coral'],
+    ])
+  })
+
+  it('shows the owner the same name the row will get, before it is added', () => {
+    expect(fileColourLabel(FILE_COLOURS[0] as never, 'Teamwear & Uniforms')).toBe('Grass Court')
+    expect(fileColourLabel(FILE_COLOURS[0] as never, undefined)).toBe('Bottle Green')
+    expect(
+      fileColourLabel({ ...FILE_COLOURS[0], confidence: 'low' } as never, 'Teamwear & Uniforms'),
+    ).toBe('Colour needs a name')
+  })
+
+  it('reads the category the form holds right now, unsaved changes included', () => {
+    expect(formCategory({ ...formState([]), category: { value: 'Outerwear' } })).toBe('Outerwear')
+    expect(formCategory(formState([]))).toBeUndefined()
+    expect(formCategory(undefined)).toBeUndefined()
   })
 })
 

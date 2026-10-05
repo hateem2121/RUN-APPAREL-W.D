@@ -2,11 +2,13 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { escapeRegExp } from '../regexEscape.mjs'
 import { describe, expect, it, vi } from 'vitest'
 import { AboutSection } from './components/site/AboutSection'
+import { GuidePage } from './components/site/GuidePage'
+import { OrderSteps } from './components/site/OrderSteps'
 import { OrderTimeline } from './components/site/OrderTimeline'
-import { FACTORY_PHOTO_WIDTHS, FACTORY_PHOTOS } from './lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoWidths } from './lib/factoryPhotos'
+import { guideAt } from './lib/guides'
 import { ORDER_PHASES } from './lib/orderProcess'
 
 vi.mock('next/link', () => ({
@@ -17,13 +19,15 @@ vi.mock('next/link', () => ({
 /**
  * VA-29 with VA-34 (visual audit 2026-10-01, owner's choice 2026-10-02): "How an order works"
  * had eight steps and four photos in mixed shapes, so its rows did not line up, and a strip
- * below the numbers showed all ten photos a second time. Now every step has its own photo,
- * all cut to one square, and the strip is gone.
+ * below the numbers showed all ten photos a second time. Now every step has its own photo and
+ * the strip is gone. Since polish D4 (2026-10-05, the owner's answers Q14 and Q41) the eight are
+ * photo cards that stack as the page scrolls, and the order guide draws the SAME cards from the
+ * same list, so the steps have one set of names everywhere (X21).
  *
  * What would have to break for these to fail: a step loses its picture or shares one with
- * another step; a photo is drawn twice on the home page; the pictures stop being one shape;
- * the removed strip comes back; or the closing section loses its place in the numbering.
- * `e2e/orderTimeline.spec.ts` measures the same promises in a real browser.
+ * another step; a photo is drawn twice on the home page; the removed strip comes back; the
+ * closing section loses its place in the numbering; or the guide words the steps its own way
+ * again. `e2e/orderTimeline.spec.ts` measures the cards in a real browser.
  */
 
 const FRONTEND = join(import.meta.dirname, 'app', '(frontend)')
@@ -48,6 +52,9 @@ const CHOSEN = [
 ] as const
 
 const timelineHtml = renderToStaticMarkup(createElement(OrderTimeline))
+const stepsHtml = renderToStaticMarkup(createElement(OrderSteps))
+const ORDER_GUIDE = guideAt('/guides/how-a-private-label-order-works')
+const guideHtml = renderToStaticMarkup(createElement(GuidePage, { guide: ORDER_GUIDE }))
 const aboutHtml = renderToStaticMarkup(createElement(AboutSection))
 
 const imgTags = (html: string) => [...html.matchAll(/<img\b[^>]*>/g)].map((match) => match[0])
@@ -68,7 +75,7 @@ describe('every step of the timeline has its own photo (VA-29)', () => {
     expect(steps).toHaveLength(8)
   })
 
-  it('names a real photo for every step, and every one of them is cut to a square by its focus', () => {
+  it('names a real photo for every step, and every one of them is aimed by its focus', () => {
     for (const step of steps) {
       const photo = photoOf(step.photo)
       expect(photo, `${step.title}: no photo "${step.photo}" in FACTORY_PHOTOS`).toBeDefined()
@@ -81,9 +88,11 @@ describe('every step of the timeline has its own photo (VA-29)', () => {
   })
 
   /*
-   * In a square a wide file loses width and a tall one loses height, so only one number of each
-   * `focus` can matter (lib/factoryPhotos.ts says so). A number that is not 50 on the axis that
-   * is not cropped steers nothing and would read as a decision somebody made.
+   * A card is cut from a file by `cover`, and every card's shape lies between the files' two
+   * (4:5 and 8:5; 0.85 to 1.65 measured from 320 to 1920px), so a wide file only ever loses width
+   * and a tall one only height. Only one number of each `focus` can matter (lib/factoryPhotos.ts
+   * says so); a number that is not 50 on the other axis steers nothing and would read as a
+   * decision somebody made.
    */
   it('moves a wide photo across and a tall photo down, and leaves the other axis at 50', () => {
     for (const step of steps) {
@@ -98,8 +107,15 @@ describe('every step of the timeline has its own photo (VA-29)', () => {
   })
 })
 
-describe('what the timeline draws', () => {
-  const figures = imgTags(timelineHtml)
+describe('what the order steps draw (D4)', () => {
+  const figures = imgTags(stepsHtml)
+  const cards = stepsHtml.split(/<li class="order-step"/).slice(1)
+
+  it('is one ordered list of eight cards, and the home page draws exactly that list', () => {
+    expect(stepsHtml.startsWith('<ol class="order-steps"')).toBe(true)
+    expect(cards).toHaveLength(8)
+    expect(timelineHtml).toContain(stepsHtml)
+  })
 
   it('draws eight pictures, in step order, each with its own alt text', () => {
     expect(figures).toHaveLength(8)
@@ -111,72 +127,92 @@ describe('what the timeline draws', () => {
     }
   })
 
-  it('sizes every picture before it arrives, loads it lazily and offers both widths', () => {
+  // Every width the photo has (polish X16: three or four, fewer where the original stops short).
+  it('sizes every picture before it arrives, loads it lazily and offers every width', () => {
     for (const [index, tag] of figures.entries()) {
       const photo = photoOf(steps[index]?.photo ?? '')
-      const [small, large] = FACTORY_PHOTO_WIDTHS[photo?.shape ?? 'wide']
+      const widths = photo ? factoryPhotoWidths(photo) : []
+      expect(widths.length, `step ${index + 1}`).toBeGreaterThanOrEqual(2)
       expect(attr(tag, 'loading'), `step ${index + 1} is not lazy`).toBe('lazy')
-      expect(attr(tag, 'width'), `step ${index + 1} has no width`).toBe(String(small))
+      expect(attr(tag, 'width'), `step ${index + 1} has no width`).toBe(String(widths[0]))
       expect(Number(attr(tag, 'height')), `step ${index + 1} has no height`).toBeGreaterThan(0)
-      const srcset = attr(tag, 'srcSet') ?? ''
-      expect(srcset, `step ${index + 1}`).toContain(
-        `/factory/${photo?.slug}-${small}.webp ${small}w`,
+      expect(attr(tag, 'srcSet'), `step ${index + 1}`).toBe(
+        widths.map((width) => `/factory/${photo?.slug}-${width}.webp ${width}w`).join(', '),
       )
-      expect(srcset, `step ${index + 1}`).toContain(
-        `/factory/${photo?.slug}-${large}.webp ${large}w`,
+      // One hint for all eight: every card is the same width. The browser suite checks it against
+      // the width each card is really drawn at.
+      expect(attr(tag, 'sizes'), `step ${index + 1} has no sizes`).toBe(
+        attr(figures[0] ?? '', 'sizes'),
       )
-      expect(attr(tag, 'sizes'), `step ${index + 1} has no sizes`).toMatch(
-        /\(min-width: 900px\) 280px/,
-      )
+      expect(attr(tag, 'sizes')).toMatch(/\(max-width: 899px\)/)
     }
   })
 
-  it('cuts every picture to the same square frame and aims each one at its own focus', () => {
-    const frames = [...timelineHtml.matchAll(/class="photo-figure__frame ([^"]*)"/g)].map(
-      (match) => match[1] ?? '',
-    )
-    expect(frames).toHaveLength(8)
-    for (const frame of frames) {
-      expect(frame).toContain('photo-figure__frame--square')
-      expect(frame).not.toMatch(/--wide|--single/)
-    }
+  it('fills every card with its picture and aims each one at its own focus', () => {
     for (const [index, tag] of figures.entries()) {
       const [across, down] = photoOf(steps[index]?.photo ?? '')?.focus ?? []
+      expect(attr(tag, 'class'), `step ${index + 1}`).toBe('order-step__photo')
       expect(attr(tag, 'style'), `step ${index + 1}`).toBe(`object-position:${across}% ${down}%`)
     }
   })
 
-  it('captions every picture with the words it already had', () => {
-    for (const step of steps) {
-      expect(timelineHtml).toContain(
-        `<figcaption class="photo-figure__caption">${photoOf(step.photo)?.caption}</figcaption>`,
+  it('names each picture’s room with the words the picture already had', () => {
+    for (const [index, card] of cards.entries()) {
+      const photo = photoOf(steps[index]?.photo ?? '')
+      expect(card, `step ${index + 1}`).toContain(
+        `<p class="order-step__room">${photo?.caption}</p>`,
       )
     }
   })
 
   /*
-   * The words come first in the markup and CSS lifts the picture above them on a phone, so a
-   * screen reader hears "Your quote" before "Two technicians in lab coats…".
+   * The words come first in the markup and the picture is laid behind them by CSS, so a screen
+   * reader hears "Your quote" before "Two technicians in lab coats…".
    */
   it('puts each step’s words before its picture in the markup', () => {
-    const rows = timelineHtml.split('<li class="timeline__step">').slice(1)
-    expect(rows).toHaveLength(8)
-    for (const [index, row] of rows.entries()) {
-      expect(row.indexOf('timeline__text'), `step ${index + 1}`).toBeGreaterThan(-1)
-      expect(row.indexOf('timeline__text'), `step ${index + 1}`).toBeLessThan(
-        row.indexOf('<figure'),
+    for (const [index, card] of cards.entries()) {
+      expect(card.indexOf('order-step__words'), `step ${index + 1}`).toBeGreaterThan(-1)
+      expect(card.indexOf('order-step__words'), `step ${index + 1}`).toBeLessThan(
+        card.indexOf('<img'),
       )
     }
   })
 
-  it('keeps the four phases and the You / We markers (decision D23)', () => {
-    const names = [...timelineHtml.matchAll(/timeline__name">([^<]*)</g)].map((match) => match[1])
-    expect(names).toEqual(ORDER_PHASES.map((phase) => phase.name))
-    const actors = [...timelineHtml.matchAll(/timeline__actor timeline__actor--(\w+)">/g)].map(
-      (match) => match[1],
+  it('marks every card with its stage and whose move it is (decision D23), and numbers it for the eye only', () => {
+    const phases = [...stepsHtml.matchAll(/order-step__phase">([^<]*)</g)].map((match) => match[1])
+    expect(phases).toEqual(ORDER_PHASES.flatMap((phase) => phase.steps.map(() => phase.name)))
+    const actors = [...stepsHtml.matchAll(/order-step__actor order-step__actor--(\w+)">(\w+)</g)]
+    expect(actors.map((match) => match[1])).toEqual(steps.map((step) => step.actor))
+    expect(actors.map((match) => match[2])).toEqual(steps.map((step) => step.actor))
+    const numbers = [
+      ...stepsHtml.matchAll(/<span class="order-step__number[^"]*" aria-hidden="true">(\d+)</g),
+    ]
+    expect(numbers.map((match) => match[1])).toEqual(
+      steps.map((_, index) => String(index + 1).padStart(2, '0')),
     )
-    expect(actors).toEqual(steps.map((step) => step.actor))
-    expect(timelineHtml).toContain('class="timeline__line"')
+    // The drawn line went with the timeline it ran down (polish D4).
+    expect(timelineHtml).not.toContain('timeline__line')
+  })
+})
+
+describe('the order guide draws the home page’s eight steps (Q41, X21)', () => {
+  it('its "The eight steps" section is the order steps, with no steps of its own', () => {
+    const section = ORDER_GUIDE.sections.find((entry) => entry.heading === 'The eight steps')
+    expect(section?.blocks).toEqual([{ kind: 'orderSteps' }])
+    const points = ORDER_GUIDE.sections.flatMap((entry) =>
+      entry.blocks.flatMap((block) => (block.kind === 'point' ? [block.title] : [])),
+    )
+    expect(
+      points.filter((title) => /^\d\./.test(title)),
+      'a numbered step of its own',
+    ).toEqual([])
+  })
+
+  it('renders the same list, word for word, as the home page', () => {
+    expect(guideHtml).toContain(stepsHtml)
+    for (const old of ['You send what you have', 'We send your quote', 'We make your sample']) {
+      expect(guideHtml).not.toContain(old)
+    }
   })
 })
 
@@ -232,22 +268,30 @@ describe('the factory strip is gone, and the numbering closed up (VA-29)', () =>
   })
 })
 
-describe('the square frame, in the stylesheet', () => {
-  const rule = (selector: string) =>
-    new RegExp(`(?:^|\\n)${escapeRegExp(selector)}\\s*\\{([^}]*)\\}`).exec(SITE_CSS)?.[1] ?? ''
-
-  it('is one 1:1 box, and the picture fills it by cover', () => {
-    expect(rule('.photo-figure__frame--square')).toMatch(/aspect-ratio:\s*1\s*\/\s*1/)
-    expect(rule('.photo-figure__img')).toMatch(/object-fit:\s*cover/)
+describe('the cards, in the stylesheet (D4)', () => {
+  it('no longer cuts anything to the timeline’s square', () => {
+    expect(SITE_CSS).not.toContain('.photo-figure__frame--square')
+    expect(SITE_CSS).not.toMatch(/\.timeline__/)
   })
 
-  it('puts the picture above its words on a phone and beside them from 900px', () => {
-    expect(rule('.timeline__step > .photo-figure')).toMatch(/order:\s*-1/)
-    const wide = /@media \(min-width: 900px\) \{([\s\S]*?)\n\}/g
-    const blocks = [...SITE_CSS.matchAll(wide)].map((match) => match[1] ?? '')
-    const own = blocks.find((block) => block.includes('.timeline__step {')) ?? ''
-    // 280px since the owner's choice of 2026-10-02 (it was 400px: four screens tall at 1440px).
-    expect(own).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 280px\)/)
-    expect(own).toMatch(/\.timeline__step > \.photo-figure \{\s*order:\s*0/)
+  /*
+   * The stack stops cards only for someone who allows motion, and the sink runs only where the
+   * browser has scroll timelines AND animation ranges (a browser with the first but not the
+   * second would run the sink over the whole page). Both are measured in a browser; this pins
+   * where the rules sit, so a later edit cannot lift one out of its guard unnoticed.
+   */
+  it('stops and sinks the cards only inside their guards', () => {
+    const motion =
+      /@media screen and \(prefers-reduced-motion: no-preference\) and \(min-height: 40rem\) \{([\s\S]*?)\n\}/g
+    const blocks = [...SITE_CSS.matchAll(motion)].map((match) => match[1] ?? '')
+    const own = blocks.find((block) => block.includes('.order-step {')) ?? ''
+    expect(own).toMatch(/position:\s*sticky/)
+    expect(own).toMatch(
+      /@supports \(\(animation-timeline: view\(\)\) and \(animation-range: 0% 100%\)\)/,
+    )
+    expect(own).toMatch(/animation-timeline:\s*--order-steps/)
+    const outside = SITE_CSS.replace(own, '')
+    expect(outside).not.toMatch(/\.order-step\b[^{]*\{[^}]*position:\s*sticky/)
+    expect(outside).not.toMatch(/animation-timeline:\s*--order-steps/)
   })
 })

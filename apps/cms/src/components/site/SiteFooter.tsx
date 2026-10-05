@@ -1,11 +1,14 @@
 import {
   capacityLines,
   formatPhoneForDisplay,
+  markBox,
   marksFor,
   normalizeWhatsAppNumber,
   SITE_FOOTER_LINKS,
+  SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
   splitLastWord,
+  standardsLines,
 } from '@run-apparel/shared'
 import Link from 'next/link'
 import type { PublicSiteSettings } from '../../lib/projectPublic'
@@ -48,12 +51,14 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
   const marks = marksFor(f.certifications)
   const words = SITE_FOOTER_WORDS
   /*
-   * ⚠️ THE FACTS AREA RENDERS ONE BLOCK OF FOUR TODAY, AND THAT IS THE CODE BEING RIGHT.
+   * ⚠️ WITH BLANK CLAIMS THE FACTS AREA RENDERS ONLY CONTACT AND "WHAT WE MAKE", AND THAT IS THE
+   * CODE BEING RIGHT. (The live footer has all five, from the facts the owner supplied on
+   * 2026-09-16, scripts/apply-footer-facts.mjs; a fresh database, CI's included, has none.)
    *
    * Audit FA-T-13 reads "a cursor-following footer light beside an empty fact block" — a
    * fair thing to notice, and the wrong thing to fix here. Capacity, Standards and
-   * Elsewhere are all CLAIMS ABOUT THE BUSINESS, and every one of them is blank in the
-   * CMS, so `projectFooter()` supplies nothing and these guards hide the headings. The
+   * Elsewhere are all CLAIMS ABOUT THE BUSINESS, and when one is blank in the
+   * CMS, `projectFooter()` supplies nothing and these guards hide the heading. The
    * alternative is a footer that invents a certification, which is the failure this
    * shape exists to prevent; `e2e/footer.spec.ts` -> "no block is ever empty, and no
    * placeholder ever appears" is the guard.
@@ -128,6 +133,37 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
               </ul>
             </div>
 
+            {/*
+              The four category pages, on every page (polish F9, the owner's Q22): the audit found
+              them reached only from the home page's cards, the guides and each other. Before the
+              claims, with Elsewhere, so the two short link lists share a row on a phone (X23).
+            */}
+            <div className="footer-block footer-block--made">
+              <h3>{words.made}</h3>
+              <ul>
+                {SITE_FOOTER_MADE.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href}>{link.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {f.socialLinks.length > 0 ? (
+              <div className="footer-block footer-block--elsewhere">
+                <h3>{words.elsewhere}</h3>
+                <ul>
+                  {f.socialLinks.map((link) => (
+                    <li key={link.url}>
+                      <a href={link.url} rel="noopener">
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             {capacity.length > 0 ? (
               <div className="footer-block footer-block--capacity">
                 <h3>{words.capacity}</h3>
@@ -167,23 +203,9 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                    * an audit, not a certificate. The marks themselves sit in one row under the
                    * facts (`footer-marks` below).
                    */}
-                  {f.certifications.map((name) => (
-                    <li key={name}>{name}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {f.socialLinks.length > 0 ? (
-              <div className="footer-block footer-block--elsewhere">
-                <h3>{words.elsewhere}</h3>
-                <ul>
-                  {f.socialLinks.map((link) => (
-                    <li key={link.url}>
-                      <a href={link.url} rel="noopener">
-                        {link.label}
-                      </a>
-                    </li>
+                  {/* Entries with the same holder share a line (X23: two began "Suppliers:"). */}
+                  {standardsLines(f.certifications).map((line) => (
+                    <li key={line}>{line}</li>
                   ))}
                 </ul>
               </div>
@@ -197,8 +219,9 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                     key={logo.slug}
                     className="footer-logo"
                     src={logo.src}
-                    width={logo.width}
-                    height={logo.height}
+                    // Drawn at one area, not one height (polish X23, `markBox`).
+                    width={markBox(logo).width}
+                    height={markBox(logo).height}
                     alt={logo.alt}
                     loading="lazy"
                     decoding="async"
@@ -214,7 +237,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
             Appending one to the other once rendered the name twice on every page.
           */}
           <div className="footer-legal">
-            <span>{settings.legalLine}</span>
+            <span translate="no">{settings.legalLine}</span>
             <span>{settings.footerLine}</span>
             {/*
               The bottom row, in SITE_FOOTER_LINKS's order (each entry says why it is here): the

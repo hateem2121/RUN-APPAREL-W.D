@@ -126,18 +126,18 @@ test.describe('the colourway rail seats five swatches in one row (FA-E-61)', () 
  * height the longest imposed, not hang from its top.
  *
  * Since VA-32 (2026-10-02) those boxes are gone. The colours are dots, a 28px swatch in a 44px
- * circle, and in a tall side column a list whose rows each take their own name's height. What
- * survives is the property: every control's content sits in its middle. Two declarations hold it
- * up and nothing else in the suite reads them: `.colourway-tab` is `align-items: center;
- * justify-content: center` (the dot, both ways), and the list's rows keep `align-items: center`
- * (a name beside a 14px swatch, in a row at least 44px tall). A `flex-start` "tidy-up" hangs the
- * swatch from the top of its circle, or the name from the top of its row.
+ * circle; beside the garment on a laptop (polish D8, 2026-10-04), each dot has its name under it,
+ * in a grid whose cells are each as tall as their own name (`align-items: start`). What survives
+ * is the property: every control's content sits in its middle. `.colourway-tab` is `align-items:
+ * center; justify-content: center` (the dot, both ways, and the grid cell's dot and name) and
+ * nothing else in the suite reads it. A `flex-start` "tidy-up" hangs the swatch from the top of
+ * its circle, or a one-line name's dot and name from the top of a 44px cell.
  */
 test.describe('a colour control holds its content in its middle (FA-E-09)', () => {
   for (const { width, height, layout } of [
     { width: 320, height: 812, layout: 'dots' },
     { width: 768, height: 1024, layout: 'dots' },
-    { width: 1100, height: 1100, layout: 'list' },
+    { width: 1440, height: 900, layout: 'names' },
   ] as const) {
     test(`the ${layout} at ${width}x${height}`, async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -173,11 +173,11 @@ test.describe('a colour control holds its content in its middle (FA-E-09)', () =
       )
 
       expect(tabs.length, 'no colourway tabs on the page').toBe(5)
-      // The control: the layout under test is the one drawn. A dot carries no name; a row does.
+      // The control: the layout under test is the one drawn. A dot carries no name; a cell does.
       expect(
         tabs.map((tab) => tab.nameShown),
         `this is not the ${layout} at ${width}x${height}`,
-      ).toEqual(tabs.map(() => layout === 'list'))
+      ).toEqual(tabs.map(() => layout === 'names'))
 
       for (const tab of tabs) {
         expect(
@@ -185,13 +185,11 @@ test.describe('a colour control holds its content in its middle (FA-E-09)', () =
           `"${tab.name}" hangs off-centre: ${tab.above.toFixed(1)}px above, ` +
             `${tab.below.toFixed(1)}px below. See audit FA-E-09.`,
         ).toBeLessThanOrEqual(1)
-        if (layout === 'dots') {
-          expect(
-            Math.abs(tab.before - tab.after),
-            `"${tab.name}"'s swatch sits off-centre in its dot: ${tab.before.toFixed(1)}px ` +
-              `before, ${tab.after.toFixed(1)}px after.`,
-          ).toBeLessThanOrEqual(1)
-        }
+        expect(
+          Math.abs(tab.before - tab.after),
+          `"${tab.name}" sits off-centre across its control: ${tab.before.toFixed(1)}px ` +
+            `before, ${tab.after.toFixed(1)}px after.`,
+        ).toBeLessThanOrEqual(1)
       }
     })
   }
@@ -760,8 +758,13 @@ test.describe('the custom cursor mounts as documented (FA-Q-03)', () => {
         'the "no cursor at all" window this ordering exists to close',
     ).toBe(false)
 
-    await page.mouse.move(640, 450)
-    await page.mouse.move(660, 460, { steps: 4 })
+    // Over the heading, taken from the page: (640, 450) was the 3D model, where the dot and
+    // ring now step aside for the browser's grab hand (polish F4, the test after this one).
+    const heading = await page.getByRole('heading', { level: 1 }).boundingBox()
+    const hx = (heading?.x ?? 0) + Math.min(40, (heading?.width ?? 80) / 2)
+    const hy = (heading?.y ?? 0) + (heading?.height ?? 40) / 2
+    await page.mouse.move(hx, hy)
+    await page.mouse.move(hx + 6, hy + 2, { steps: 4 })
 
     await expect
       .poll(
@@ -1365,9 +1368,10 @@ test.describe('the tracking and leading curves are correct by class (FA-C-54)', 
  * pale swatch vanished into the light page and a dark one into the dark page.
  * `--line-control` flips with the theme: 0 of 320 under 3:1, worst 3.39 light and 4.94 dark.
  * On the dots (VA-32, 2026-10-02) the chosen swatch sits on the page like the other four, so
- * `--line-control` serves all five. In the list the chosen row's fill inverts and its swatch
- * takes `currentColor`, the row's own text colour, which stands 13–14:1 off that fill;
- * `--line-control` there failed every selected ring in dark. Both layouts are graded.
+ * `--line-control` serves all five. Beside the garment on a laptop (polish D8, 2026-10-04) each
+ * dot has its name under it and nothing is filled: the chosen dot gets an outer ring (a shadow,
+ * graded by AC-16 below) and keeps this border, so `--line-control` serves all five there too.
+ * (VA-32's list, which inverted the chosen row's fill, is gone with D8.) Both layouts are graded.
  *
  * ⚠️ ONLY THE OUTER PAIR IS GRADED, ON PURPOSE. For a border, `measureContrastInPage` returns
  * the ring against the swatch's OWN fill (`pairs[0]`) and against what the swatch sits on
@@ -1381,10 +1385,10 @@ test.describe('the tracking and leading curves are correct by class (FA-C-54)', 
  */
 test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', () => {
   for (const [scheme, layout, width, height] of [
-    ['light', 'dots', 1280, 720],
-    ['dark', 'dots', 1280, 720],
-    ['light', 'list', 1440, 1100],
-    ['dark', 'list', 1440, 1100],
+    ['light', 'dots', 1024, 768],
+    ['dark', 'dots', 1024, 768],
+    ['light', 'names', 1440, 900],
+    ['dark', 'names', 1440, 900],
   ] as const) {
     test(`${scheme}, ${layout}: all five rings, the selected one included`, async ({ page }) => {
       await page.setViewportSize({ width, height })
@@ -1409,7 +1413,7 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
       // The controls. An un-revealed rail is opacity 0 and grades 1:1 whatever the ring is,
       // and a scheme that never applied would grade the other theme twice.
       expect(state.reduced, 'reduced motion never reached the page').toBe(true)
-      expect(state.listed, `this is not the ${layout}`).toBe(layout === 'list')
+      expect(state.listed, `this is not the ${layout}`).toBe(layout === 'names')
       const groundLuminance = relativeLuminance(parseCssColour(state.ground).rgb)
       if (scheme === 'dark') {
         expect(groundLuminance, `the page ground is ${state.ground}, not dark`).toBeLessThan(0.2)
@@ -1439,8 +1443,7 @@ test.describe('every colour swatch keeps a 3:1 ring against its tab (CO-12)', ()
       expect(
         failing,
         `${scheme}: a swatch ring under 3:1 lets the colour vanish into its tab (WCAG 1.4.11). ` +
-          "Rings use --line-control; the list's chosen row, on its inverted fill, currentColor. See " +
-          '.colourway-tab__swatch in apps/viewer/src/styles/page.css.',
+          'Rings use --line-control. See .colourway-tab__swatch in apps/viewer/src/styles/page.css.',
       ).toEqual([])
     })
   }
@@ -1519,14 +1522,15 @@ test.describe('Tab leaves the colour list from the tab the visitor arrowed to (V
  * AC-16 — the chosen colourway is never shown by colour alone: `aria-selected="true"` carries
  * the state for assistive technology, AND the chosen control differs by more than a hue. On the
  * dots (VA-32, 2026-10-02) that is a ring only the chosen dot wears: every other dot's border is
- * transparent, so a ring APPEARS rather than changing colour. In the list the row's fill inverts,
- * a 13-14:1 luminance swing (page.css, the `.colourway-tab__dot` note). This is a REDUNDANCY check
- * (both signals agree), separate from CO-12's ring-contrast grade above.
+ * transparent, so a ring APPEARS rather than changing colour. Beside the garment on a laptop
+ * (polish D8, 2026-10-04), with each name under its dot, it is a 4px ring round the chosen dot's
+ * swatch, drawn as a shadow in the text colour, which no other dot wears. This is a REDUNDANCY
+ * check (both signals agree), separate from CO-12's ring-contrast grade above.
  */
 test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
   for (const { width, height, layout } of [
     { width: 390, height: 844, layout: 'dots' },
-    { width: 1440, height: 1100, layout: 'list' },
+    { width: 1440, height: 900, layout: 'names' },
   ] as const) {
     test(`${layout}: aria-selected agrees with a cue that is more than a hue, on exactly one tab`, async ({
       page,
@@ -1534,18 +1538,38 @@ test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      // The ring fades in (`transition: box-shadow`, polish D8), and Firefox read the shadow before
+      // the fade's first frame: no ring at all, 1 run in 5 (measured 2026-10-05). The D8 test in
+      // motion-and-layout.spec.ts met the same race; as there, read the settled dots.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() =>
+              [...document.querySelectorAll('.colourway-tab')].every(
+                (tab) => tab.getAnimations({ subtree: true }).length === 0,
+              ),
+            ),
+          { message: 'the colourway dots never settled' },
+        )
+        .toBe(true)
 
       const { ground, tabs } = await page.evaluate(() => ({
         ground: getComputedStyle(document.body).backgroundColor,
         tabs: [...document.querySelectorAll('.colourway-tab')].map((el) => {
           const style = getComputedStyle(el)
+          // The swatch's shadows, split at the commas BETWEEN shadows (not those inside rgb()),
+          // and the colour of the one with a 4px spread: the chosen dot's ring (D8). Engines
+          // write a shadow's colour first (Chromium) or last (Firefox), so both are read.
+          const swatch = el.querySelector('.colourway-tab__swatch')
+          const shadows = swatch ? getComputedStyle(swatch).boxShadow.split(/,(?![^(]*\))/) : []
+          const ring = shadows.find((shadow) => /0px 0px 0px 4px/.test(shadow))
           return {
             selected: el.getAttribute('aria-selected') === 'true',
             listed: (el.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
             borderWidth: Number.parseFloat(style.borderTopWidth),
             borderStyle: style.borderTopStyle,
             borderColour: style.borderTopColor,
-            background: style.backgroundColor,
+            ringColour: ring?.match(/rgba?\([^)]*\)/)?.[0] ?? null,
           }
         }),
       }))
@@ -1553,7 +1577,7 @@ test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
       expect(
         tabs.map((t) => t.listed),
         `this is not the ${layout}`,
-      ).toEqual(tabs.map(() => layout === 'list'))
+      ).toEqual(tabs.map(() => layout === 'names'))
 
       const selectedTabs = tabs.filter((t) => t.selected)
       expect(selectedTabs, 'exactly one tab should carry aria-selected="true"').toHaveLength(1)
@@ -1571,14 +1595,15 @@ test.describe('the selected colourway tab is never colour-only (AC-16)', () => {
           'an unchosen dot wears a ring too, so the ring no longer tells them apart',
         ).toEqual([])
       } else {
+        expect(chosen.ringColour, 'the chosen dot wears no ring').not.toBeNull()
         expect(
-          contrastOf(chosen.background, ground),
-          `the chosen row's fill (${chosen.background}) barely differs from the page ` +
-            `(${ground}): aria-selected would be the ONLY signal of which colourway is active`,
+          contrastOf(chosen.ringColour as string, ground),
+          `the chosen dot's ring (${chosen.ringColour}) barely differs from the page (${ground}): ` +
+            'aria-selected would be the ONLY signal of which colourway is active',
         ).toBeGreaterThanOrEqual(3)
         expect(
-          others.filter((t) => parseCssColour(t.background).alpha > 0).map((t) => t.background),
-          'an unchosen row is filled too',
+          others.filter((t) => t.ringColour !== null).map((t) => t.ringColour),
+          'an unchosen dot wears the ring too, so the ring no longer tells them apart',
         ).toEqual([])
       }
     })

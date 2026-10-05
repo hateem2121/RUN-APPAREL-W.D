@@ -1,6 +1,7 @@
 import { type ComponentProps, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { CARD_SIZES } from '../../lib/cardImage'
 import type { CardColour } from '../../lib/projectPublic'
 import { CardGallery } from './CardGallery'
 
@@ -36,7 +37,9 @@ describe('CardGallery: the card draws a card-sized picture (owner, 2026-09-29)',
     expect(img).toMatch(
       /srcSet="[^"]*width=400[^"]* 400w, [^"]*width=720[^"]* 720w, [^"]*width=1080[^"]* 1080w"/,
     )
-    expect(img).toMatch(/sizes="\(max-width: 899px\) calc\(45vw - 6px\), 340px"/)
+    // The gallery's own hint (`lib/cardImage.ts`), whose widths `e2e/productsGrid.spec.ts` measures
+    // against real cards; here, only that the card carries it (it was a copied literal until polish D1).
+    expect(img).toContain(`sizes="${CARD_SIZES}"`)
   })
 
   it('keeps the first card eager and high priority, and the size it reserves', () => {

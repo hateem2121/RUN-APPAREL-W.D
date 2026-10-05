@@ -236,8 +236,9 @@ higher-volume search term in the US and Canada. The 3D pages followed it; the ma
 site was built afterwards and did not, so a buyer could read "5 colours" on one page and
 "COLORWAY 01" on the very next one.
 
-The site's wording now matches, and the footer button says **"Start an inquiry"**. Nothing
-is needed from you — this is here so the change does not surprise you.
+The site's wording now matches, and the footer button said **"Start an inquiry"**; since
+2026-10-05 it says **"Start a conversation"**, the one name you chose for that button
+everywhere (Q9). Nothing is needed from you — this is here so the change does not surprise you.
 
 ---
 

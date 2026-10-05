@@ -12,12 +12,47 @@ import { useSyncExternalStore } from 'react'
  * (844x390), which is wide enough in SHAPE for two columns while being narrower
  * than 900px. See the block it belongs to in page.css for the aspect-ratio
  * reasoning and the viewports it was verified against.
+ *
+ * ⚠️ `orientation: landscape` ON THE FIRST CLAUSE SINCE 2026-10-04 (polish F11, owner's answer
+ * Q23): an UPRIGHT tablet keeps the phone's one column. 1024x1366 (iPad Pro 12.9, upright) was
+ * two columns by width alone, with the name below the screen; upright, the garment is on top and
+ * the name under it, on the first screen (page.css shortens the garment for it).
  */
 export const TWO_COLUMN_QUERY =
-  '(min-width: 900px), (min-width: 700px) and (min-aspect-ratio: 3 / 2)'
+  '(min-width: 900px) and (orientation: landscape), (min-width: 700px) and (min-aspect-ratio: 3 / 2)'
 
 /**
  * When the product's name and description move into `.stage__aside`.
+ *
+ * ⚠️ EVERY COMPUTER SINCE 2026-10-04 (polish D8, owner-approved; F11 / Q23 for tablets):
+ * "garment on the left, everything else on the right, on every computer screen", and sideways
+ * iPads from 1024px. It needed a window 800-880px tall until then (VA-60, below), which most
+ * laptops are not (a browser on a 1440x900 screen shows about 760), so they all had the name
+ * under the garment. What made the tall window necessary was a long description pushing Email
+ * and WhatsApp off the screen; the description beside the garment now stops at three lines with
+ * "Read more" (ProductIdentity.tsx), which bounds the column instead of the window.
+ *
+ *   (min-width: 1024px)         F11/Q23's line: a sideways iPad (1024x768 and up) is a computer.
+ *   (min-height: 620px)         the measured floor below; it also keeps every sideways phone out
+ *                               (they are 500px tall or less).
+ *   (orientation: landscape)    an upright tablet keeps one column (TWO_COLUMN_QUERY).
+ *
+ * MEASURED 2026-10-04 with copy longer than any live garment's (`LONGEST_COPY` in
+ * e2e/garmentCopy.ts: a 462-character description, a 26-character name, five two-part
+ * colour names), the window height the column needs for Email and WhatsApp to be on screen:
+ *
+ *                                   Chromium / Firefox   WebKit (sets that name on 3 lines at some widths)
+ *     dots + the chosen name             549-578              548-602
+ *     names under the dots (1280+)       618-629              618-640
+ *
+ * So the name moves beside the garment from 620px of height, and the names under the dots show
+ * from 656px (page.css), 18px and 16px clear of WebKit's worst. A 1366x768 laptop's window (about
+ * 1366x657) gets both, and a 1280x720 one (about 1280x633) the first. Below 620px the name stays
+ * under the garment, as on every laptop before: the residual is a window that short.
+ *
+ * WHAT FOLLOWS IS THE HISTORY OF THE TALL-WINDOW RULE, kept because its two lessons still hold:
+ * measure with the worst content, and measure every engine (one sets the name on a line more than
+ * the others: Firefox in VA-60's measurements, WebKit in D8's).
  *
  * ⚠️ NARROWER THAN `TWO_COLUMN_QUERY`, IN BOTH AXES, AND BOTH NUMBERS ARE
  * MEASURED. Two builds of this shipped a wrong floor before the third measured it,
@@ -60,7 +95,7 @@ export const TWO_COLUMN_QUERY =
  * names to 25 characters ("THE KINETIC MATRIX JACKET"), and from 1100 to 1280px wide and
  * 720 to 800px tall those garments pushed Email and WhatsApp below the screen — at
  * 1100x799 by 8px. Re-measured that day with copy longer than any live garment's (462 and
- * 26 characters, `LONGEST_COPY` in motion-and-layout.spec.ts), the height the column
+ * 26 characters, `LONGEST_COPY`, now in e2e/garmentCopy.ts), the height the column
  * needs for both buttons to stay on screen:
  *
  *     viewport width   Firefox   Chromium   WebKit
@@ -89,7 +124,7 @@ export const TWO_COLUMN_QUERY =
  * `(min-width: …)` of at least 900px narrowed with `and`.
  */
 export const IDENTITY_IN_ASIDE_QUERY =
-  '(min-width: 1280px) and (min-height: 800px), (min-width: 1100px) and (min-height: 880px)'
+  '(min-width: 1024px) and (min-height: 620px) and (orientation: landscape)'
 
 /**
  * TWO signals, and the second one is not belt-and-braces.

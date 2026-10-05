@@ -2,13 +2,13 @@ import { publishCursor, resetCursorBus } from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FooterClock, FooterGlow, FooterWordmark } from './FooterLive'
+import { FooterGlow, FooterWordmark } from './FooterLive'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 /**
  * The garment footer's live parts (visual audit VA-31): they follow the website's islands line
- * for line, so these pin the behaviour a visitor sees from each — the clock and its light, the
- * light following the cursor ring, and the wordmark refitting.
+ * for line, so these pin the behaviour a visitor sees from each — the light following the cursor
+ * ring, and the wordmark refitting.
  */
 
 let host: HTMLDivElement
@@ -29,35 +29,10 @@ afterEach(() => {
 })
 
 const render = (node: React.ReactNode) => act(() => root.render(node))
-const MON_SAT = { firstDay: 1, lastDay: 6, open: '09:00', close: '18:00' }
 
-describe('FooterClock', () => {
-  it('shows Sialkot time once mounted, and no light without hours', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    // 2026-09-07 is a Monday; 05:30 UTC is 10:30 in Sialkot (UTC+5 all year).
-    vi.setSystemTime(new Date('2026-09-07T05:30:00Z'))
-    render(<FooterClock hours={null} />)
-    expect(host.querySelector('.footer-clock__time')?.textContent).toBe('10:30PKT')
-    expect(host.querySelector('.footer-status')).toBeNull()
-  })
-
-  it('lights "Open now" inside the hours and names the opening time outside them', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date('2026-09-07T05:30:00Z'))
-    render(<FooterClock hours={MON_SAT} />)
-    const status = () => host.querySelector('.footer-status')
-    expect(status()?.textContent).toBe('Open now')
-    expect(status()?.getAttribute('data-state')).toBe('open')
-
-    act(() => root.unmount())
-    root = createRoot(host)
-    // Sunday 2026-09-06, 10:30 in Sialkot: the works are shut.
-    vi.setSystemTime(new Date('2026-09-06T05:30:00Z'))
-    render(<FooterClock hours={MON_SAT} />)
-    expect(status()?.textContent).toBe('Opens 09:00 PKT')
-    expect(status()?.getAttribute('data-state')).toBe('closed')
-  })
-})
+// The clock's tests left with the clock (polish Q42). The website keeps its clock; the rules it
+// shows (Sialkot time, open or closed) are tested in packages/shared/src/footerHours.test.ts, and
+// the website's footer suite holds the clock's line to the shared template.
 
 describe('FooterGlow', () => {
   // jsdom has no hit-testing; each test says what the point is over.

@@ -1,12 +1,16 @@
 import {
+  askAboutGarmentPath,
   buildMailtoUrl,
   buildWhatsAppUrl,
   type EnquiryContext,
+  type TrackerWindow,
+  trackerEvent,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { useEffect, useRef } from 'react'
 import { startActionBarStepsAside } from '../lib/actionBarStepsAside'
 import { track } from '../lib/analytics'
+import { SITE_ORIGIN } from '../lib/siteLinks'
 
 interface ContactProps {
   settings: ViewerSiteSettings
@@ -44,11 +48,11 @@ interface ContactProps {
  * reachable; since 2026-10-03 also while the footer is, which carries the same routes. At every
  * other scroll position the duplication stands exactly as recorded here.
  */
-function ContactButtons({ settings, enquiry }: ContactProps) {
+function ContactButtons({ settings, enquiry, quiet = false }: ContactProps & { quiet?: boolean }) {
   return (
     <>
       <a
-        className="btn btn--primary"
+        className={quiet ? 'btn btn--ghost' : 'btn btn--primary'}
         href={buildMailtoUrl(settings.email, enquiry)}
         onClick={() => track('email_clicked')}
       >
@@ -67,20 +71,51 @@ function ContactButtons({ settings, enquiry }: ContactProps) {
   )
 }
 
-export function ContactSection(props: ContactProps) {
+/** The garment and the colour on the page, as slugs: what "Ask about this garment" carries. */
+export interface AskedGarment {
+  productSlug: string
+  colourSlug: string
+}
+
+/**
+ * The end of a garment page, and its ONE prompt (polish S10 + Q42, owner 2026-10-04): "Ask about
+ * this garment" opens the website's contact form with the garment and its colour already in it
+ * (`askAboutGarmentPath`; the contact page looks both up and writes them in). Email and WhatsApp
+ * stay beside it, quieter, because a buyer who wants their own record of what they sent, or who
+ * lives in WhatsApp, still has the route they came for; the footer below asks nothing since Q42.
+ *
+ * The line saying what the buttons do comes BEFORE them, so a buyer reads it on the way to them;
+ * after them it read as small print nobody reaches (the audit's X23).
+ *
+ * The click is counted twice under one name, the owner's key event `ask_about_garment` (Q37): in
+ * the site's own event log, and in Google Analytics only for a visitor who accepted it.
+ */
+export function ContactSection({ garment, ...props }: ContactProps & { garment: AskedGarment }) {
+  const ask = `${SITE_ORIGIN}${askAboutGarmentPath(garment.productSlug, garment.colourSlug)}`
+  const onAsk = () => {
+    track('ask_about_garment', { product: props.enquiry.productCode, variant: garment.colourSlug })
+    trackerEvent(window as unknown as TrackerWindow, 'ask_about_garment', {
+      garment_code: props.enquiry.productCode,
+      colour: props.enquiry.colourName,
+    })
+  }
   return (
     <section className="contact" aria-labelledby="contact-heading" data-reveal>
-      <p className="section-number">&#8470;03 — Start the conversation</p>
+      <p className="section-number">&#8470;04 — Start the conversation</p>
       <h2 id="contact-heading" className="display display--section">
         Develop this with <span className="serif-accent">us</span>.
       </h2>
-      <div className="contact__buttons">
-        <ContactButtons {...props} />
-      </div>
       <p className="contact__micro">
         We have already filled in this garment&rsquo;s code and colorway. Please add your company,
         your market and the quantity you need, then send.
       </p>
+      <div className="contact__buttons">
+        {/* `contact__ask`: what the phone's bar steps aside for (lib/actionBarStepsAside.ts). */}
+        <a className="btn btn--primary contact__ask" href={ask} onClick={onAsk}>
+          Ask about this garment
+        </a>
+        <ContactButtons {...props} quiet />
+      </div>
     </section>
   )
 }

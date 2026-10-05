@@ -144,6 +144,9 @@
     -->
     <link rel="preconnect" href="https://cms.wear-run.help" crossorigin />
     <link rel="preconnect" href="https://media.wear-run.com" crossorigin />
+    <!-- Polish MO3: inline on purpose, and this note short on purpose (page.css, `.preloader`). -->
+    <style>@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }</style>
+    <link rel="expect" href="#root" blocking="render" />
     <!--
       The meshopt decoder and the lighting map are preloaded by the APP, not here, since
       RO-08 (2026-09-25): src/lib/preload3d.ts, called from main.tsx right after mount. As

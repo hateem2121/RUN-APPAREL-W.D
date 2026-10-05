@@ -5,7 +5,8 @@
  * they were first made for was removed on 2026-10-02, owner's choice, visual audit VA-29/VA-34.)
  *
  * ⚠️ THE ORIGINALS NEVER ENTER THE REPOSITORY. They live in the owner's own folder on their
- * Mac (4,000–5,000 px, up to 16 MB each) and this repo is public; only the web-sized,
+ * Mac (1,280–4,875 px wide, up to 8.7 MB each, measured 2026-10-05; each source's `original`
+ * below) and this repo is public; only the web-sized,
  * pre-cropped WebPs this writes are committed, under `apps/cms/public/factory/`.
  *
  * ⚠️ EACH PICTURE IS CROPPED TO ITS TILE HERE, NOT BY `object-fit` IN THE BROWSER. The
@@ -26,10 +27,13 @@ import { mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 
-/** Tile shapes, as width/height, and the two widths written for each (1× and 2×). */
+/**
+ * Tile shapes, as width/height, and the widths written for each: the page's `FACTORY_PHOTO_WIDTHS`
+ * says why these (polish X16 added 1,600 wide and 1,200 + 1,536 tall for sharp screens).
+ */
 export const SHAPES = {
-  wide: { aspect: 8 / 5, widths: [640, 1200] },
-  single: { aspect: 4 / 5, widths: [400, 800] },
+  wide: { aspect: 8 / 5, widths: [640, 1200, 1600] },
+  single: { aspect: 4 / 5, widths: [400, 800, 1200, 1536] },
   // The home page hero (owner, 2026-09-29): wide screens, and phones.
   heroWide: { aspect: 16 / 9, widths: [1280, 1920, 2560] },
   heroTall: { aspect: 4 / 5, widths: [640, 1080] },
@@ -39,17 +43,24 @@ export const SHAPES = {
  * The hero's two crops of the stitching floor (a 4875x2403 original). The tall crop sits right
  * of centre, where the nearest operators are, so a phone shows people rather than crates.
  * Their files are `hero-wide-<w>.webp` / `hero-tall-<w>.webp` (`heroPhotoSrc` in the page's list).
+ *
+ * ⚠️ `original` IS THE ORIGINAL'S SIZE IN PIXELS, on every source here (measured 2026-10-05, polish
+ * X16): no file may be wider than the original's crop (an upscale is bytes with no detail in them),
+ * and `factoryPhotos.test.ts` checks every width against it without the originals, which never
+ * enter this public repository. `main()` stops if an original no longer has the size recorded.
  */
 export const HERO_SOURCES = [
   {
     slug: 'hero-wide',
     file: 'Apparel Stitching Department.png',
+    original: [4875, 2403],
     shape: 'heroWide',
     focus: [0.55, 0.5],
   },
   {
     slug: 'hero-tall',
     file: 'Apparel Stitching Department.png',
+    original: [4875, 2403],
     shape: 'heroTall',
     focus: [0.68, 0.55],
   },
@@ -64,6 +75,7 @@ export const CONTACT_HERO_SOURCES = [
   {
     slug: 'contact-hero-wide',
     file: "RUN's Showroom.png",
+    original: [2000, 1400],
     shape: 'heroWide',
     widths: [1280, 1920],
     // As high as the crop goes: any lower and the logo on the wall loses its top (looked at).
@@ -72,23 +84,91 @@ export const CONTACT_HERO_SOURCES = [
   {
     slug: 'contact-hero-tall',
     file: "RUN's Showroom.png",
+    original: [2000, 1400],
     shape: 'heroTall',
     widths: [640, 1080],
     focus: [0.74, 0.5],
   },
 ]
 
+/*
+ * Two originals are narrower than their shape's widest file, so they list their own `widths`
+ * (polish X16): the tagging floor (1280x896, an 8:5 crop 1,280 wide, so no 1,600) and packing
+ * (1568x1556, a 4:5 crop 1,245 wide, so no 1,536).
+ */
 export const SOURCES = [
-  { slug: 'exterior', file: 'factory exterior image.png', shape: 'wide', focus: [0.5, 0.6] },
-  { slug: 'solar-roof', file: 'Factory Solar.png', shape: 'wide', focus: [0.5, 0.5] },
-  { slug: 'showroom', file: "RUN's Showroom.png", shape: 'wide', focus: [0.5, 0.55] },
-  { slug: 'screen-printing', file: 'SCREEN PRINTING.png', shape: 'single', focus: [0.5, 0.45] },
-  { slug: 'inspection', file: 'QC.png', shape: 'single', focus: [0.5, 0.5] },
-  { slug: 'stitching', file: 'Apparel Stitching Department.png', shape: 'wide', focus: [0.5, 0.5] },
-  { slug: 'lab', file: 'apparel lab 2016@0.5x.png', shape: 'wide', focus: [0.55, 0.5] },
-  { slug: 'tagging', file: 'Tagging Department.png', shape: 'wide', focus: [0.5, 0.5] },
-  { slug: 'final-check', file: 'QC2.png', shape: 'single', focus: [0.5, 0.6] },
-  { slug: 'packing', file: 'Packaging-Department.png', shape: 'single', focus: [0.55, 0.5] },
+  {
+    slug: 'exterior',
+    file: 'factory exterior image.png',
+    original: [3555, 2000],
+    shape: 'wide',
+    focus: [0.5, 0.6],
+  },
+  {
+    slug: 'solar-roof',
+    file: 'Factory Solar.png',
+    original: [3500, 2000],
+    shape: 'wide',
+    focus: [0.5, 0.5],
+  },
+  {
+    slug: 'showroom',
+    file: "RUN's Showroom.png",
+    original: [2000, 1400],
+    shape: 'wide',
+    focus: [0.5, 0.55],
+  },
+  {
+    slug: 'screen-printing',
+    file: 'SCREEN PRINTING.png',
+    original: [1536, 2816],
+    shape: 'single',
+    focus: [0.5, 0.45],
+  },
+  {
+    slug: 'inspection',
+    file: 'QC.png',
+    original: [1536, 2816],
+    shape: 'single',
+    focus: [0.5, 0.5],
+  },
+  {
+    slug: 'stitching',
+    file: 'Apparel Stitching Department.png',
+    original: [4875, 2403],
+    shape: 'wide',
+    focus: [0.5, 0.5],
+  },
+  {
+    slug: 'lab',
+    file: 'apparel lab 2016@0.5x.png',
+    original: [2141, 1205],
+    shape: 'wide',
+    focus: [0.55, 0.5],
+  },
+  {
+    slug: 'tagging',
+    file: 'Tagging Department.png',
+    original: [1280, 896],
+    shape: 'wide',
+    widths: [640, 1200],
+    focus: [0.5, 0.5],
+  },
+  {
+    slug: 'final-check',
+    file: 'QC2.png',
+    original: [1792, 2560],
+    shape: 'single',
+    focus: [0.5, 0.6],
+  },
+  {
+    slug: 'packing',
+    file: 'Packaging-Department.png',
+    original: [1568, 1556],
+    shape: 'single',
+    widths: [400, 800, 1200],
+    focus: [0.55, 0.5],
+  },
 ]
 
 /**
@@ -123,8 +203,20 @@ async function main() {
   for (const source of [...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES]) {
     const shape = SHAPES[source.shape]
     const { width, height } = await sharp(join(from, source.file)).metadata()
+    // A different original makes the recorded size, and every width checked against it, untrue.
+    if (width !== source.original[0] || height !== source.original[1]) {
+      throw new Error(
+        `${source.file} is ${width}x${height}, recorded as ${source.original.join('x')}: ` +
+          'update `original` and check which widths it can give',
+      )
+    }
     const box = cropBox(width, height, shape.aspect, source.focus)
     for (const w of source.widths ?? shape.widths) {
+      if (w > box.width) {
+        throw new Error(
+          `${source.slug}-${w}: the crop is ${box.width}px wide, so that is an upscale`,
+        )
+      }
       const h = Math.round(w / shape.aspect)
       const target = join(out, `${source.slug}-${w}.webp`)
       const info = await sharp(join(from, source.file))

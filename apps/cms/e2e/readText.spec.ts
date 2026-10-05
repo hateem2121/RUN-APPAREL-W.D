@@ -12,8 +12,9 @@ import { expect, test } from './offlineMedia'
  * component written at those sizes. apps/viewer/e2e/readText.spec.ts asks the garment page.
  *
  * DECORATIVE, by the owner's list: bracket labels (`.label` and its two parts on the home page, and
- * the bracketed `.field-label`s on /contact), section numbers, the timeline's step numbers and the
- * "[ Photo to come ]" placeholder. Text nobody sees (hidden, transparent or screen-reader-only) is
+ * the bracketed `.field-label`s on /contact), section numbers and the "[ Photo to come ]"
+ * placeholder. The order timeline's 11px step numbers were on the list until polish D4 (2026-10-05)
+ * made each step a card with its number at the section-number size. Text nobody sees (hidden, transparent or screen-reader-only) is
  * not asked about.
  */
 const PAGES = [
@@ -22,6 +23,8 @@ const PAGES = [
   '/contact',
   '/guides',
   '/guides/how-a-private-label-order-works',
+  // The site's first table, its column headers in 12px mono (polish X22).
+  '/guides/garment-printing-methods',
   '/custom-teamwear-manufacturer',
   '/privacy',
   '/terms',
@@ -34,7 +37,6 @@ const DECORATIVE = [
   '.label__tail',
   '.section-number',
   '.contact-block .field-label',
-  '.timeline__marker',
   '.product-card__placeholder',
 ].join(', ')
 

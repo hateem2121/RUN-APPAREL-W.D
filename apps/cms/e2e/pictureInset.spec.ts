@@ -1,4 +1,5 @@
 import { FAMILY_PAGES } from '../src/lib/familyPages'
+import { answerCardPictures } from './cardPictures'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -64,7 +65,14 @@ async function drawnMargins(
           img.removeAttribute('sizes')
           img.src = source
         }
-        await img.decode()
+        // A picture that never loaded draws nothing to measure: a resized copy (`/cdn-cgi/image/`)
+        // that a local server cannot make, for a database whose garments name the live media host.
+        // Skipped, not counted as a margin of NaN; `expectInset` still fails on finding none.
+        const loaded = await img.decode().then(
+          () => img.naturalWidth > 0,
+          () => false,
+        )
+        if (!loaded) continue
         const box = img.closest<HTMLElement>(frame)
         if (!box) throw new Error(`${image} is not inside ${frame}`)
         const outer = box.getBoundingClientRect()
@@ -141,36 +149,6 @@ const SHAPES = [
   { name: 'a square picture', width: 500, height: 500 },
 ]
 
-/**
- * The card asks Cloudflare for a resized copy of its picture (`/cdn-cgi/image/…width=W,height=H…`,
- * `lib/cardImage.ts`). This answers that copy with a flat picture of exactly the box it asks for.
- *
- * ⚠️ WITHOUT IT THE PHONE CARDS HAD NO PICTURE TO MEASURE (CI, 2026-10-02). `offlineMedia.ts`
- * answers every media request, the resized ones included, with its 2 x 2 picture, and a browser
- * divides a srcset picture's width by its density: at 390px the 400-wide copy fills a 169.5px slot,
- * so the 2px picture reports a `naturalWidth` of 0 (measured in Chromium: 0 at 390px, 1 at 1440px,
- * 2 with no srcset). `ProductPoster` reads `complete && naturalWidth === 0` as a failed load and puts
- * its placeholder where the picture was, so at 390px these tests skipped on the Mac and failed in
- * CI. A real resized render is hundreds of pixels wide. A page route wins over the context route
- * `offlineMedia.ts` sets (Playwright, BrowserContext.route, read 2026-10-02), and it answers
- * locally too, so this suite still never reaches the media host.
- */
-const answered = new WeakSet<Page>()
-async function answerCardPictures(page: Page) {
-  if (answered.has(page)) return
-  answered.add(page)
-  await page.route('**/cdn-cgi/image/**', async (route) => {
-    const url = route.request().url()
-    const width = Number(/width=(\d+)/.exec(url)?.[1] ?? 400)
-    const height = Number(/height=(\d+)/.exec(url)?.[1] ?? width * 1.25)
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#888"/></svg>`,
-    })
-  })
-}
-
 async function openProducts(page: Page, width: number) {
   await answerCardPictures(page)
   await page.setViewportSize({ width, height: 900 })
@@ -181,9 +159,14 @@ async function openProducts(page: Page, width: number) {
   }
 }
 
-test.describe('the home family cards keep a margin around the garment (VA-55)', () => {
-  for (const width of [390, 1440]) {
-    test(`at ${width}px the pictures as served sit 6% or more from every edge of their 4:5 box`, async ({
+/*
+ * Since polish D3 a family card is a ticket and its picture box is the ticket's picture half, whatever
+ * shape that is: square-ish sideways on a phone (390px), wide for the fifth ticket across a tablet
+ * (900px), and in the row of five (1440px) the top of a closed ticket, or, opened, the tall left of it.
+ */
+test.describe('the home family tickets keep a margin around the garment (VA-55, D3)', () => {
+  for (const width of [390, 900, 1440]) {
+    test(`at ${width}px the pictures as served sit 6% or more from every edge of their box`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 })
@@ -206,18 +189,44 @@ test.describe('the home family cards keep a margin around the garment (VA-55)', 
     }
   }
 
-  test('the boxes are still 4:5, the Sports Accessories card included', async ({ page }) => {
+  // The tallest box there is: an opened ticket's picture at 1180px, the narrowest row (179 x 380).
+  for (const shape of SHAPES) {
+    test(`an opened ticket at 1180px: ${shape.name} sits 6% or more from every edge`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1180, height: 900 })
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.goto('/')
+      // The first: CI's one garment is a Sportswear one, so this ticket has a picture everywhere.
+      const first = page.locator('.family-grid > .family-card').first()
+      await first.hover()
+      // Open: its picture is the full height of the ticket.
+      await expect
+        .poll(() =>
+          first.evaluate((card) => {
+            const media = card.querySelector('.family-card__media')?.getBoundingClientRect()
+            return media ? Math.round(media.height) : 0
+          }),
+        )
+        .toBeGreaterThan(360)
+      expectInset(
+        await drawnMargins(
+          page,
+          '.family-card:hover .family-card__img',
+          '.family-card__media',
+          shape,
+        ),
+        `an opened ticket, ${shape.name}`,
+      )
+    })
+  }
+
+  test('five family pictures, the Sports Accessories photo with the same margin', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/')
-    const ratios = await page.locator('.family-card__media').evaluateAll((all) =>
-      all.map((box) => {
-        const { width, height } = box.getBoundingClientRect()
-        return width / height
-      }),
-    )
-    expect(ratios).toHaveLength(5)
-    for (const ratio of ratios)
-      expect(Math.abs(ratio - 0.8), `a family box is ${ratio}`).toBeLessThan(0.01)
+    await expect(page.locator('.family-card__media')).toHaveCount(5)
     // The owner kept the accessories photo and gave it the same margin as the others. (Once a
     // garment of its own is published its card shows that instead, and there is no photo to check.)
     if ((await page.locator('.family-card__img[src*="sports-accessories"]').count()) === 0) {
@@ -266,6 +275,49 @@ test.describe('the product cards’ swipe gallery keeps a margin around the garm
             shape,
           ),
           `product card, ${shape.name}`,
+        )
+      })
+    }
+  }
+
+  /*
+   * Polish D3b: an opened ticket's strip gives up its foot to the rising name band, so its pictures
+   * re-fit a box wider than 4:5 (1.29 on the narrowest card, at 560px). The STRIP is then the frame a
+   * garment keeps its margin in; the figure behind it keeps its 4:5 size.
+   */
+  for (const width of [560, 1280]) {
+    for (const shape of SHAPES) {
+      test(`at ${width}px an opened ticket: ${shape.name} sits 6% or more from every edge`, async ({
+        page,
+      }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        await openProducts(page, width)
+        const first = page.locator('.product-grid > .product-card').first()
+        await first.hover()
+        await expect
+          .poll(() =>
+            first.evaluate((card) => {
+              // Risen, and settled: under reduced motion each part runs its own short transition of
+              // the rise (productTickets.spec.ts, `isOpen`), the strip's foot included.
+              const style = getComputedStyle(card)
+              return (
+                style.getPropertyValue('--ticket-rise') ===
+                  style.getPropertyValue('--ticket-rise-to') &&
+                card.getAnimations({ subtree: true }).length === 0
+              )
+            }),
+          )
+          .toBe(true)
+        expectInset(
+          await drawnMargins(
+            page,
+            // The showing colour's slide (its roving tabindex): the neighbours an opened card has loaded
+            // lie beside the strip, in its scroll row, not inside it.
+            '.product-card:hover .card-gallery__slide[tabindex="0"] .product-card__img',
+            '.card-gallery',
+            shape,
+          ),
+          `opened ticket, ${shape.name}`,
         )
       })
     }

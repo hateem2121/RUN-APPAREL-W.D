@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { countryByName, type DialState, editDialCode, nextDialCode } from '../../lib/dialCode'
 import { fieldError, SENDING_LABEL, SUMMARY_HEADING } from '../../lib/inquiryForm'
 
 type Checked = HTMLInputElement | HTMLTextAreaElement
@@ -24,6 +25,11 @@ const CHECKED = '[data-check]'
  *    focus to that list (GOV.UK error summary, updated Feb 2025).
  * 3. While the inquiry is sending the button says "Sending…" and a second press does nothing.
  * 4. The browser's own pop-up bubbles are replaced by those sentences.
+ * 5. Since polish D7 (2026-10-05): a whole country name fills the phone's code, which stays the
+ *    buyer's to change (owner, 2026-09-29; the rule is `nextDialCode`, unit-tested); Send pressed
+ *    with mistakes gives the button one small shake (MO5; not played with reduced motion,
+ *    site.css); and `data-enhanced` on the form lets the styles put the drop area in place of the
+ *    browser's grey file button (X6), which without scripting stays.
  *
  * ⚠️ VALIDATION STAYS THE BROWSER'S. No `noValidate`: the form still refuses to submit while a
  * required field is empty, which `e2e/inquiry.spec.ts` asserts with the constraint API. This
@@ -44,6 +50,37 @@ export function InquiryFormEnhancer() {
     const touched = new WeakSet<Element>()
     let batch: number | null = null
     let sending = false
+    form.dataset.enhanced = ''
+
+    /*
+     * ⚠️ THE CODE FIELD IS NEVER CONTROLLED, ON PURPOSE (it was PhoneField's rule, kept): a value
+     * reset on hydration would wipe a code a quick buyer typed before the script arrived.
+     */
+    let dial: DialState = { dial: '', edited: false }
+    const code = form.querySelector<HTMLInputElement>('[name="phoneCode"]')
+    const onCountry = (event: Event) => {
+      const field = event.target as HTMLInputElement
+      if (field.name === 'phoneCode') {
+        dial = editDialCode(field.value)
+        return
+      }
+      if (field.name !== 'country' || !code) return
+      dial = nextDialCode(dial, countryByName(field.value)?.code ?? '')
+      if (!dial.edited) code.value = dial.dial ? `+${dial.dial}` : ''
+    }
+
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+    /** One small shake of the Send button (MO5), restarted if pressed again while it plays. */
+    const shake = () => {
+      if (!button) return
+      button.classList.remove('is-refused')
+      // Reading the size makes the browser drop the old animation before the class returns.
+      void button.offsetWidth
+      button.classList.add('is-refused')
+    }
+    const onShaken = (event: AnimationEvent) => {
+      if (event.animationName === 'inquiry-shake') button?.classList.remove('is-refused')
+    }
 
     /** Show or clear one field's sentence, and say so to assistive technology. */
     const mark = (field: Checked): string | null => {
@@ -85,6 +122,7 @@ export function InquiryFormEnhancer() {
       mark(field)
       // One list per attempt: every `invalid` of one Send fires before this timer runs.
       if (batch === null) {
+        shake()
         batch = window.setTimeout(() => {
           batch = null
           focusList.current = true
@@ -136,7 +174,6 @@ export function InquiryFormEnhancer() {
       if (field.matches?.(CHECKED)) refresh(field)
     }
 
-    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')
     const label = button?.textContent ?? ''
     const onSubmit = (event: SubmitEvent) => {
       if (sending) {
@@ -165,9 +202,14 @@ export function InquiryFormEnhancer() {
     form.addEventListener('change', onChange)
     form.addEventListener('inquiry-checked', onChecked)
     form.addEventListener('submit', onSubmit)
+    form.addEventListener('input', onCountry)
+    button?.addEventListener('animationend', onShaken)
     window.addEventListener('pageshow', onShow)
     return () => {
       if (batch !== null) window.clearTimeout(batch)
+      delete form.dataset.enhanced
+      form.removeEventListener('input', onCountry)
+      button?.removeEventListener('animationend', onShaken)
       form.removeEventListener('invalid', onInvalid, true)
       form.removeEventListener('input', onInput)
       form.removeEventListener('focusout', onLeave)

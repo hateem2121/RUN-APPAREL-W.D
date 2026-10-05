@@ -12,6 +12,12 @@ const DIST = path.resolve(dirname, '../dist')
 const ASSETS = path.resolve(dirname, '../../../tools/asset-pipeline/output')
 const PORT = Number(process.env.PORT ?? 4173)
 
+/** A seeded asset's size in bytes, or null before `pnpm seed:assets` has made it. */
+function fixtureBytes(name) {
+  const file = path.join(ASSETS, name)
+  return existsSync(file) ? statSync(file).size : null
+}
+
 // Apply the generated dist/_headers "/*" block (incl. the CSP) to every
 // response, so the e2e suite validates the real Content-Security-Policy the way
 // Cloudflare will serve it — a missing directive surfaces as a securitypolicy
@@ -284,7 +290,19 @@ function colourwayPayload(origin, c) {
           mimeType: 'image/png',
         }
       : null,
+    // Its screen-sized copy (polish D9 / F16, 2026-10-04), at a path of its own, so a test can
+    // prove the 3D window asks for the copy and only FULL SCREEN asks for the full render.
+    renderScreen: c.hasRender
+      ? {
+          url: `${origin}/fixtures/renders/n001-${c.slug}-screen.png`,
+          alt: `Velocity Performance Tee in ${c.displayName}, studio render`,
+          width: 1200,
+          height: 1500,
+          mimeType: 'image/png',
+        }
+      : null,
     glbUrl: null,
+    glbBytes: null,
     isDefault: c.isDefault,
     altText: `Velocity Performance Tee in ${c.displayName}`,
     hexSwatch: c.hexSwatch,
@@ -337,6 +355,45 @@ const PRODUCTS = {
   },
 }
 
+// "More from this category" (polish S6): what the CMS sends with n001's answer, the four garments
+// after it in its category (apps/cms/src/endpoints/relatedGarments.ts). n001 only, so every other
+// product answers WITHOUT the field, as an answer cached before it existed does, and draws no
+// section. The names are the catalogue's worst (garmentCopy.ts: one longer than any live name, the
+// widest word, and the hyphenated words a two-up phone card must keep whole). The pictures are on
+// the media host, so the page asks this server's stand-in for Cloudflare's copies (below).
+const RELATED = [
+  ['zrel-jacket', 'black', 'THE VELOCITY MATRIX JACKET', 'ZREL-01'],
+  ['zrel-vneck', 'wine', 'PERFORMANCE V-NECK TEE', 'ZREL-02'],
+  ['zrel-hoodie', 'navy', 'METRO-SHIELD ZIP-UP HOODIE', 'ZREL-03'],
+  ['zrel-short', 'black', 'TRAINING SHORT', 'ZREL-04'],
+].map(([slug, colourSlug, productName, productCode]) => ({
+  slug,
+  colourSlug,
+  productName,
+  productCode,
+  imageUrl: `https://media.wear-run.com/fixtures/related/${slug}.webp`,
+}))
+
+/*
+ * Cloudflare's card copies, `/cdn-cgi/image/<options>/<source>`, on the page's own address
+ * (packages/shared/src/cardImage.ts). Only the options a firewall rule allows in production are
+ * answered; anything else is the 403 that rule sends, which `onerror=redirect` does not catch,
+ * so a change to a width or the quality empties the cards here as it would live.
+ *
+ * The answer is a picture exactly the requested size, and that is what lets a test measure the
+ * page's `sizes`: a browser that chose the `w`-wide copy draws it at `w / density`, and its
+ * density-corrected `naturalWidth` is then the width `sizes` promised (e2e/related.spec.ts).
+ */
+const CARD_COPY =
+  /^\/cdn-cgi\/image\/fit=scale-down,width=(400|720|1080),height=(\d+),quality=90,format=auto,onerror=redirect\/https:\/\/media\.wear-run\.com\/.+$/
+
+function cardCopy(pathname) {
+  const match = pathname.match(CARD_COPY)
+  if (!match || Number(match[2]) !== Number(match[1]) * 1.25) return null
+  const [width, height] = [match[1], match[2]]
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="${width}" height="${height}" fill="#8a8578"/></svg>`
+}
+
 // Per-key request counts for the stall route below. Keyed so tests running in parallel never share a counter.
 const STALL_COUNTS = new Map()
 
@@ -361,11 +418,58 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: meta.hasGlb ? `${origin}/fixtures/${meta.glbFile ?? 'n001.glb'}` : null,
+      // The model's size, as the CMS sends it since polish F12 (2026-10-04): production's models
+      // arrive gzipped with no `content-length`, like this server's (below), and this is the
+      // total the percentage is drawn from. Read off the real file so it can never drift.
+      glbBytes: meta.hasGlb ? fixtureBytes(meta.glbFile ?? 'n001.glb') : null,
       posterFallback: fallback.poster,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',
       performanceFeatures: ['Moisture management', 'Four-way stretch'],
       garmentFit: 'Athletic regular',
+      // The four fields grouped, each bullet with its glossary note, as the CMS builds them since
+      // polish D10 (projectViewer.ts: `specGroups(fields, specNote)`). Written out because this
+      // server is plain Node and cannot import the TypeScript glossary; `spec-features.spec.ts`
+      // asks the shared package for the same answer and fails if the two differ. Two bullets have
+      // no note ("elastane", "Athletic regular"), as a term the glossary lacks would in production.
+      specs: [
+        {
+          key: 'fabric',
+          heading: 'Fabric',
+          items: [
+            {
+              text: 'Recycled polyester',
+              note: 'Polyester made from recycled plastic, such as used bottles, rather than new material.',
+            },
+            { text: 'elastane', note: null },
+          ],
+        },
+        {
+          key: 'weight',
+          heading: 'Weight',
+          items: [
+            {
+              text: '160 GSM',
+              note: 'How heavy the fabric is, in grams per square meter: light, an easy layer.',
+            },
+          ],
+        },
+        { key: 'fit', heading: 'Fit', items: [{ text: 'Athletic regular', note: null }] },
+        {
+          key: 'performance',
+          heading: 'Performance',
+          items: [
+            {
+              text: 'Moisture management',
+              note: 'Moves sweat away from the skin, to keep you dry.',
+            },
+            {
+              text: 'Four-way stretch',
+              note: 'Stretches across and along the fabric, so it moves every way you do.',
+            },
+          ],
+        },
+      ],
       customisationIntroHtml:
         '<p>Send us a finished design, a tech pack, artwork, a reference image — or simply an idea.</p>',
       customisationSteps: [
@@ -397,6 +501,7 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
     requestedColourwayUnavailable: unavailable,
     fallbackMessage: unavailable ? retiredMessage : null,
     siteSettings,
+    related: productSlug === 'n001' ? RELATED : undefined,
   }
 }
 
@@ -430,6 +535,18 @@ const server = http.createServer((req, res) => {
     return
   }
 
+  if (url.pathname.startsWith('/cdn-cgi/image/')) {
+    const svg = cardCopy(url.pathname)
+    if (!svg) {
+      res.statusCode = 403
+      res.end('Forbidden')
+      return
+    }
+    res.setHeader('content-type', 'image/svg+xml')
+    res.end(svg)
+    return
+  }
+
   // A model request that answers 200 with its headers and then sends NOTHING, for the first N requests per key —
   // exactly what Cloudflare's Islamabad edge did on 2026-09-24 (issue #41; its analytics logged status 499, 0
   // bytes). Not a slow file and not a 5xx: both of those settle on their own, and this must not.
@@ -457,7 +574,8 @@ const server = http.createServer((req, res) => {
   }
 
   // HD studio renders: the seeded poster PNGs, served under a path of their own.
-  const renderMatch = url.pathname.match(/^\/fixtures\/renders\/(n001-[a-z]+)\.png$/)
+  // `-screen`: the screen-sized copy (D9 / F16) is the same seeded file under its own name.
+  const renderMatch = url.pathname.match(/^\/fixtures\/renders\/(n001-[a-z]+)(?:-screen)?\.png$/)
   if (renderMatch) url.pathname = `/fixtures/placeholders/${renderMatch[1]}-poster.png`
 
   // Pipeline assets
@@ -466,16 +584,21 @@ const server = http.createServer((req, res) => {
     if (existsSync(file)) {
       res.setHeader('content-type', MIME[path.extname(file)] ?? 'application/octet-stream')
       /*
-       * ⚠️ NO `content-length`, AND THAT MAKES ONE WHOLE UI STATE UNREACHABLE HERE.
+       * ⚠️ NO `content-length`, AS IN PRODUCTION SINCE 2026-10.
        *
-       * Node streams chunked without it, so `fetchWithProgress` reads a null
-       * content-length and `bytesTotal` stays 0. `describeLoad` returns `preparing`
-       * only for `bytesTotal > 0 && bytesLoaded >= bytesTotal`, so that phase never
-       * occurs in e2e: its "PREPARING 3D MODEL…" title, its indeterminate sweep, and
-       * its live-region announcement "Download complete. Preparing the interactive
-       * 3D model." have never been exercised by any browser test. Production DOES
-       * send the header — measured on the live model 2026-09-04,
-       * `content-length: 3883016` — so this fixture is less faithful than it looks.
+       * Node streams chunked without it. Production sent the header once — measured on
+       * the live model 2026-09-04, `content-length: 3883016` — and stopped: the media
+       * hosts gzip models and send none (measured 2026-10-04), exactly as this server
+       * does. Since polish F12 the total comes from the garment data's `glbBytes` (the
+       * payload above carries the fixture's own size), so `bytesTotal` is no longer 0
+       * here, and the `preparing` phase — `describeLoad` returns it for `bytesTotal > 0
+       * && bytesLoaded >= bytesTotal`: its "PREPARING 3D MODEL…" title, its sweep and its
+       * announcement — can occur in e2e, which it never could before.
+       *
+       * Re-measured 2026-10-04 with the total from the data: the full suite passed the
+       * test the next paragraph is about (1,544 passed; the two failures were the known
+       * WebKit noscript flake and stall-webgl's readout, which now shows the total).
+       * Whether the HEADER itself would still trip it was not measured.
        *
        * ⚠️ IT WAS ADDED ON 2026-09-04 AND THEN REVERTED, and the reason is worth
        * more than the line was. With `res.setHeader('content-length', statSync(file)

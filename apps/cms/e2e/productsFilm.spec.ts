@@ -5,9 +5,10 @@ import { expect, type Page, test } from './offlineMedia'
  * `src/lib/productsFilm.ts`). What a visitor needs from it, each asserted below:
  *   - the hero is complete with scripting off: the still, the words, no film, no button;
  *   - the film adds no height: the garment cards start where they did;
- *   - an ordinary visit plays it, muted and looping, and "Pause video" / "Play video" work;
- *   - it never starts by itself under reduced motion, on Data Saver or under automation, and
- *     "Play video" starts it on request;
+ *   - an ordinary visit plays it, muted and looping, with NO pause button: the owner's choice
+ *     (polish D5, 2026-10-04; ProductsFilm.tsx has the WCAG 2.2.2 account);
+ *   - it never starts by itself under reduced motion, on Data Saver or under automation, and stops
+ *     the moment reduced motion is switched on: the part of 2.2.2 that is kept;
  *   - it pauses when scrolled away;
  *   - the words keep 4.5:1 over the film's lightest pixels, and the probe that says so fails when
  *     the dark wash is taken away.
@@ -26,7 +27,8 @@ const asAVisitor = (page: Page) =>
   })
 
 const film = (page: Page) => page.locator('.site-hero--film video')
-const toggle = (page: Page) => page.locator('.film-toggle')
+/** Any button in the hero: there must be none (polish D5). */
+const heroButton = (page: Page) => page.locator('.site-hero--film button')
 const isPlaying = (page: Page) =>
   film(page).evaluate((video: HTMLVideoElement) => !video.paused && video.currentTime > 0.1)
 
@@ -46,7 +48,7 @@ test.describe('the /products film', () => {
       await expect(page.locator('.site-hero--film img')).toBeVisible()
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Every garment/)
       await expect(film(page)).toHaveCount(0)
-      await expect(toggle(page)).toHaveCount(0)
+      await expect(heroButton(page)).toHaveCount(0)
     })
   })
 
@@ -77,41 +79,9 @@ test.describe('the /products film', () => {
       // 1440x900, measured on this Mac on 2026-10-02 before the change).
       expect(Math.abs(m.hero - m.words), JSON.stringify(m)).toBeLessThan(1)
     })
-
-    test(`the pause button covers no word at ${width}x${height}`, async ({ page }) => {
-      await asAVisitor(page)
-      await page.emulateMedia({ reducedMotion: 'reduce' })
-      await page.setViewportSize({ width, height })
-      await page.goto('/products')
-      await expect(toggle(page)).toBeVisible()
-      const overlaps = await page.evaluate(() => {
-        const button = document.querySelector('.film-toggle')!.getBoundingClientRect()
-        const hero = document.querySelector('.site-hero--film')!.getBoundingClientRect()
-        const words = [
-          ...document.querySelectorAll(
-            '.site-hero--film .label, .site-hero--film h1, .site-hero--film .site-lede',
-          ),
-        ].map((element) => element.getBoundingClientRect())
-        const hit = words.filter(
-          (box) =>
-            box.left < button.right &&
-            button.left < box.right &&
-            box.top < button.bottom &&
-            button.top < box.bottom,
-        ).length
-        const inside =
-          button.top >= hero.top && button.bottom <= hero.bottom && button.right <= hero.right
-        return { hit, inside, size: [button.width, button.height] }
-      })
-      expect(overlaps.hit, 'the button sits on the hero’s words').toBe(0)
-      expect(overlaps.inside, 'the button leaves the hero').toBe(true)
-      expect(overlaps.size).toEqual([44, 44])
-    })
   }
 
-  test('an ordinary visit plays it, muted and looping, and the button pauses and resumes it', async ({
-    page,
-  }) => {
+  test('an ordinary visit plays it, muted and looping, with no pause button', async ({ page }) => {
     await asAVisitor(page)
     await page.goto('/products')
     await expect(film(page)).toHaveCount(1)
@@ -130,16 +100,18 @@ test.describe('the /products film', () => {
       hidden: 'true',
       source: 'tie-dye-hoodie-av1.mp4',
     })
+    // The owner's choice (polish D5): the film loops, and nothing in the hero offers to pause it.
+    await expect(heroButton(page)).toHaveCount(0)
+  })
 
-    await expect(page.getByRole('button', { name: 'Pause video' })).toBeVisible()
-    await page.getByRole('button', { name: 'Pause video' }).click()
-    await expect(page.getByRole('button', { name: 'Play video' })).toBeVisible()
+  // What is kept of WCAG 2.2.2 without the button: a visitor who asks for less motion gets none.
+  test('it stops the moment reduced motion is switched on', async ({ page }) => {
+    await asAVisitor(page)
+    await page.goto('/products')
+    await expect.poll(() => isPlaying(page), { timeout: 10_000 }).toBe(true)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await expect
       .poll(() => film(page).evaluate((video: HTMLVideoElement) => video.paused))
-      .toBe(true)
-    await page.getByRole('button', { name: 'Play video' }).click()
-    await expect
-      .poll(() => film(page).evaluate((video: HTMLVideoElement) => !video.paused))
       .toBe(true)
   })
 
@@ -152,8 +124,6 @@ test.describe('the /products film', () => {
     await expect
       .poll(() => film(page).evaluate((video: HTMLVideoElement) => video.paused))
       .toBe(true)
-    // Scrolled away is not the visitor's own pause: the button still offers to pause.
-    await expect(page.getByRole('button', { name: 'Pause video' })).toHaveCount(1)
     await page.evaluate(() => window.scrollTo(0, 0))
     await expect
       .poll(() => film(page).evaluate((video: HTMLVideoElement) => !video.paused))
@@ -173,16 +143,14 @@ test.describe('the /products film', () => {
         }),
     },
   ]) {
-    test(`it never starts by itself ${why}, and "Play video" starts it`, async ({ page }) => {
+    test(`it never starts by itself ${why}: the still stays`, async ({ page }) => {
       await asAVisitor(page)
       await setUp(page)
       await page.goto('/products')
-      await expect(page.getByRole('button', { name: 'Play video' })).toBeVisible()
       await page.waitForLoadState('load')
+      await expect(page.locator('.site-hero--film img')).toBeVisible()
       await expect(film(page), 'the film loaded although it was not wanted').toHaveCount(0)
-      await page.getByRole('button', { name: 'Play video' }).click()
-      await expect.poll(() => isPlaying(page), { timeout: 10_000 }).toBe(true)
-      await expect(page.getByRole('button', { name: 'Pause video' })).toBeVisible()
+      await expect(heroButton(page)).toHaveCount(0)
     })
   }
 
@@ -190,9 +158,9 @@ test.describe('the /products film', () => {
     page,
   }) => {
     await page.goto('/products')
-    await expect(page.getByRole('button', { name: 'Play video' })).toBeVisible()
     await page.waitForLoadState('load')
     await expect(film(page)).toHaveCount(0)
+    await expect(heroButton(page)).toHaveCount(0)
   })
 })
 
@@ -209,7 +177,7 @@ async function lightestBehind(page: Page, selector: string) {
   // for `hidden`, make the picture the background alone.
   const hide = await page.addStyleTag({
     content:
-      '.site-hero--film .site-container, .film-toggle { visibility: hidden !important; transition: none !important; }',
+      '.site-hero--film .site-container { visibility: hidden !important; transition: none !important; }',
   })
   await expect
     .poll(() => page.locator(selector).evaluate((element) => getComputedStyle(element).visibility))

@@ -1073,3 +1073,125 @@ test('the offline shell caches the shell and never the garment', async ({ page }
     'a garment is in the precache shell — see docs/DECISION-OFFLINE-SCOPE.md',
   ).toEqual([])
 })
+
+/*
+ * Polish F4 (the owner's answer to Q19, 2026-10-04): ONE pointer. Over the 3D model the dot and
+ * ring step aside and the browser's grab hand shows (model-viewer draws it inside its own shadow
+ * root); over a control laid on the model they come back and the ring grows. Here, because only
+ * this project draws the real model (the DOM projects run the poster-first fallback).
+ * packages/shared/src/cursorRules.ts.
+ */
+test('over the 3D model the dot and ring step aside for the grab hand (F4)', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.addInitScript(`Object.defineProperty(Navigator.prototype, 'webdriver', {
+    get: () => false,
+    configurable: true,
+  })`)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/n001/wine')
+  await expect(page.locator('model-viewer'), 'no 3D model, so this measures nothing').toBeVisible()
+  await page.locator('.cursor-dot').waitFor({ state: 'attached' })
+  // As a person the cookie card shows (it hides under automation), and at this size it lies
+  // over the camera buttons; answer it first, as a visitor would.
+  const decline = page.getByRole('button', { name: /^decline$/i })
+  if (await decline.isVisible()) await decline.click()
+
+  const centre = async (selector: string) => {
+    const box = await page.locator(selector).first().boundingBox()
+    expect(box, `${selector} is not on the page`).not.toBeNull()
+    return { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 }
+  }
+  const state = () =>
+    page.evaluate(() => ({
+      dot: document.querySelector('.cursor-dot')?.getAttribute('data-hidden'),
+      ring: document.querySelector('.cursor-ring')?.getAttribute('data-hidden'),
+      grows: document.querySelector('.cursor-ring')?.getAttribute('data-pointer'),
+      model: getComputedStyle(document.querySelector('model-viewer') as Element).cursor,
+      page: getComputedStyle(document.body).cursor,
+    }))
+
+  const heading = await centre('h1')
+  await page.mouse.move(heading.x, heading.y)
+  await page.mouse.move(heading.x + 4, heading.y, { steps: 3 })
+  await expect
+    .poll(state)
+    .toMatchObject({ dot: 'false', ring: 'false', grows: 'false', page: 'none' })
+
+  const model = await centre('model-viewer')
+  await page.mouse.move(model.x, model.y, { steps: 4 })
+  await expect
+    .poll(state, { message: 'the dot and ring stayed over the 3D model' })
+    .toMatchObject({ dot: 'true', ring: 'true', model: 'auto' })
+
+  const button = await centre('.camera-btn:not(:disabled)')
+  await page.mouse.move(button.x, button.y, { steps: 4 })
+  await expect
+    .poll(state, { message: 'over a control on the model the dot and ring did not come back' })
+    .toMatchObject({ dot: 'false', ring: 'false', grows: 'true' })
+})
+
+/*
+ * Polish F12 (2026-10-04): the download's percentage came back. Production's models arrive
+ * gzipped with no `content-length` (measured live that day), and this server sends none either,
+ * so the only total left is the size in the garment data (`glbBytes`). Slowed through CDP to
+ * 60 kB/s, or the 86 kB fixture is gone before a reading can be taken. The control takes the
+ * size out of the data and must see no percentage at all.
+ */
+for (const withSize of [true, false]) {
+  test(
+    withSize
+      ? 'the download shows a percentage with no content-length, from the size in the data (F12)'
+      : 'NEGATIVE CONTROL: without the size in the data the download shows no percentage (F12)',
+    async ({ page }) => {
+      test.setTimeout(90_000)
+      const cdp = await page.context().newCDPSession(page)
+      await cdp.send('Network.enable')
+      await cdp.send('Network.emulateNetworkConditions', {
+        offline: false,
+        latency: 50,
+        downloadThroughput: 60_000,
+        uploadThroughput: 60_000,
+      })
+      const lengths: (string | null)[] = []
+      page.on('response', (response) => {
+        if (response.url().includes('/fixtures/n001.glb')) {
+          lengths.push(response.headers()['content-length'] ?? null)
+        }
+      })
+      if (!withSize) {
+        await page.route('**/api/public/viewer/**', async (route) => {
+          const response = await route.fetch()
+          const body = (await response.json()) as { product?: { glbBytes?: unknown } }
+          if (body.product) body.product.glbBytes = null
+          await route.fulfill({ response, json: body })
+        })
+      }
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 60_000 })
+
+      const percents: number[] = []
+      const deadline = Date.now() + 60_000
+      while (Date.now() < deadline) {
+        const title = await page.evaluate(
+          () => document.querySelector('.stage__loading-title')?.textContent ?? null,
+        )
+        if (title === null) break // the readout left: the model is in
+        const percent = /(\d+)%/.exec(title)
+        if (percent && title.startsWith('LOADING')) percents.push(Number(percent[1]))
+        await page.waitForTimeout(60)
+      }
+      await expect(page.locator('model-viewer'), 'the model never arrived').toBeVisible()
+      expect(lengths, 'the model was not fetched once, with no length, as in production').toEqual([
+        null,
+      ])
+      if (withSize) {
+        expect(percents.length, `percentages seen: ${percents.join(', ')}`).toBeGreaterThanOrEqual(
+          3,
+        )
+        expect(Math.max(...percents)).toBeLessThan(100)
+      } else {
+        expect(percents, 'a percentage with no total to take it from').toEqual([])
+      }
+    },
+  )
+}

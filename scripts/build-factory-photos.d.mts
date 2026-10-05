@@ -7,16 +7,20 @@ export declare const SHAPES: Record<
   { aspect: number; widths: number[] }
 >
 
+/** `original` is the original's size in pixels; `widths` only where it is narrower than the shape's. */
 export declare const SOURCES: {
   slug: string
   file: string
+  original: [number, number]
   shape: 'wide' | 'single'
+  widths?: number[]
   focus: [number, number]
 }[]
 
 export declare const HERO_SOURCES: {
   slug: string
   file: string
+  original: [number, number]
   shape: 'heroWide' | 'heroTall'
   focus: [number, number]
 }[]
@@ -25,6 +29,7 @@ export declare const HERO_SOURCES: {
 export declare const CONTACT_HERO_SOURCES: {
   slug: string
   file: string
+  original: [number, number]
   shape: 'heroWide' | 'heroTall'
   widths: number[]
   focus: [number, number]

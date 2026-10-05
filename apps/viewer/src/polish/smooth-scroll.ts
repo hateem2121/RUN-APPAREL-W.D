@@ -1,3 +1,4 @@
+import { pageHeld } from '@run-apparel/shared'
 import Lenis from 'lenis'
 import { prefersReducedMotion } from '../lib/capabilities'
 import { SCROLL_DURATION_S } from '../lib/motion'
@@ -53,8 +54,13 @@ export function startSmoothScroll(): () => void {
      * without a smooth-scroll layer, which is the whole basis of this change, so the
      * page now behaves the same way as the rest of the web rather than better than it
      * for that one case.
+     *
+     * ⚠️ AND A HELD PAGE IS NOT SCROLLED (polish F2, 2026-10-04). The HD picture's dialog holds
+     * the page with `overflow: hidden`, which stops a person but not Lenis's `scrollTo`: the
+     * page slid 1,200px behind the open picture. `false` hands the wheel to the browser, which
+     * honours the hold (packages/shared/src/pageHold.ts).
      */
-    virtualScroll: ({ event }) => event.isTrusted,
+    virtualScroll: ({ event }) => event.isTrusted && !pageHeld(document),
   })
   instance = lenis
 

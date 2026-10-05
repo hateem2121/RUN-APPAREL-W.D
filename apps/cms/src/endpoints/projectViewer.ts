@@ -1,5 +1,7 @@
 import {
   DEFAULT_SITE_SETTINGS,
+  specGroups,
+  specNote,
   type ViewerApiSuccess,
   type ViewerColourway,
   type ViewerMediaAsset,
@@ -42,6 +44,41 @@ export const toMediaAsset = (media: unknown, origin: string): ViewerMediaAsset |
     height: doc.height ?? null,
     mimeType: doc.mimeType ?? null,
   }
+}
+
+/**
+ * A model's size in bytes, as Payload recorded it on upload, or null (polish F12, 2026-10-04).
+ * The garment page's download percentage needs a total, and the media host sends models gzipped
+ * with no `content-length` (ViewerProduct.glbBytes). Checked live before relying on it: all 40
+ * models in use carry one, and three read back from the host byte for byte.
+ */
+export const mediaBytes = (media: unknown): number | null => {
+  if (!media || typeof media !== 'object') return null
+  const size = (media as { filesize?: unknown }).filesize
+  return typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : null
+}
+
+/** The name a render's screen-sized copy is made under: `<render name>-screen.webp` (F16). */
+export const screenCopyName = (renderFilename: string): string =>
+  `${renderFilename.replace(/\.[^.]+$/, '')}-screen.webp`
+
+/**
+ * The colour's screen-sized render copy, or null (polish D9 / F16, 2026-10-04). Sent only while
+ * its file name is the one made from the render the colour holds NOW: a render replaced in the
+ * CMS keeps its old copy linked until a new copy is made, and that copy would show the old
+ * picture in the 3D window while the full-screen view showed the new one. Without a match the
+ * page shows the full render, which is always right, only heavier.
+ */
+export const toScreenCopy = (
+  render: unknown,
+  copy: unknown,
+  origin: string,
+): ViewerMediaAsset | null => {
+  if (!render || typeof render !== 'object' || !copy || typeof copy !== 'object') return null
+  const renderName = (render as { filename?: unknown }).filename
+  const copyName = (copy as { filename?: unknown }).filename
+  if (typeof renderName !== 'string' || copyName !== screenCopyName(renderName)) return null
+  return toMediaAsset(copy, origin)
 }
 
 type Doc = Record<string, unknown>
@@ -142,7 +179,10 @@ export function buildViewerResponse(
       poster: poster ?? null,
       // The HD studio render behind the "HD IMAGE" button; null hides the button.
       render: toMediaAsset(doc.renderImage, origin),
+      // Its screen-sized copy, for the 3D window (D9 / F16); null when none matches it.
+      renderScreen: toScreenCopy(doc.renderImage, doc.renderScreen, origin),
       glbUrl: separateMode ? (toMediaAsset(doc.glbAsset, origin)?.url ?? null) : null,
+      glbBytes: separateMode ? mediaBytes(doc.glbAsset) : null,
       isDefault: colourways.length === 0,
       altText: String(doc.altText ?? ''),
       hexSwatch: (doc.hexSwatch as string | null) ?? null,
@@ -160,6 +200,17 @@ export function buildViewerResponse(
   const selectedColourway = requested ?? colourways[0]!
   const requestedColourwayUnavailable = colourSlug !== null && requested === null
 
+  const specFields = {
+    fabricComposition: String(product.fabricComposition ?? ''),
+    gsm: String(product.gsm ?? ''),
+    performanceFeatures: Array.isArray(product.performanceFeatures)
+      ? product.performanceFeatures
+          .map((item) => String((item as { feature?: unknown }).feature ?? ''))
+          .filter(Boolean)
+      : [],
+    garmentFit: String(product.garmentFit ?? ''),
+  }
+
   return {
     product: {
       productCode: String(product.productCode),
@@ -168,15 +219,12 @@ export function buildViewerResponse(
       category: product.category as ViewerApiSuccess['product']['category'],
       variantMode: separateMode ? 'separate-glb-per-colour' : 'single-glb-variants',
       glbUrl: separateMode ? null : (toMediaAsset(product.glbAsset, origin)?.url ?? null),
+      glbBytes: separateMode ? null : mediaBytes(product.glbAsset),
       posterFallback: toMediaAsset(product.posterFallback, origin),
-      fabricComposition: String(product.fabricComposition ?? ''),
-      gsm: String(product.gsm ?? ''),
-      performanceFeatures: Array.isArray(product.performanceFeatures)
-        ? product.performanceFeatures
-            .map((item) => String((item as { feature?: unknown }).feature ?? ''))
-            .filter(Boolean)
-        : [],
-      garmentFit: String(product.garmentFit ?? ''),
+      ...specFields,
+      // The page's four fact groups with the glossary's notes (polish D10). Built here, not in
+      // the page, so a corrected note goes live with a CMS deploy and the page stays small.
+      specs: specGroups(specFields, specNote),
       shortDescription: String(product.shortDescription ?? ''),
       garmentType: String(product.garmentType ?? '').trim(),
       customisationIntroHtml: deps.richTextToHtml(product.customisationIntro),

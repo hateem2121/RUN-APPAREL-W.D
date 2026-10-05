@@ -8,8 +8,10 @@ import { FACTS } from './companyFacts'
  * words ("how does a private label order work", "minimum order custom apparel").
  *
  * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-09-30, AND EVERY FACT IS ALREADY ON THE SITE:
- * the order steps are the home page's (`orderProcess.ts`), the colour paragraph and "quoted
- * in writing" are the terms page's, "on request" is the owner's correction of 2026-09-29.
+ * the order steps are the home page's, drawn from `orderProcess.ts` itself since polish D4
+ * (2026-10-05, the owner's answer Q41; the guide had typed its own eight with slightly different
+ * names), the colour paragraph and "quoted in writing" are the terms page's, "on request" is the
+ * owner's correction of 2026-09-29.
  * A guide on a topic the site states nothing about waits for the owner's facts; do not write one from general knowledge.
  *
  * ⚠️ THE NUMBERS ARE READ FROM `FACTS`, NEVER RETYPED (`orderProcess.ts` says why).
@@ -25,8 +27,34 @@ export type GuideBlock =
   /** A titled point: a step, or a term and what it means. */
   | { kind: 'point'; title: string; text: string }
   | { kind: 'list'; ordered?: boolean; items: readonly string[] }
+  /**
+   * The home page's eight order steps, drawn as they are there (`OrderSteps`; polish D4, the
+   * owner's answer Q41): one list for the steps wherever they are told, never a copy typed here.
+   */
+  | { kind: 'orderSteps' }
+  /**
+   * A small table (polish X22): each row is one of the guide's own `point`s, its first cell the
+   * point's title and the others that point's own words, so the table says nothing the guide does
+   * not (`guides.test.ts` checks every cell). Drawn with a caption, a header per column and a row
+   * header per row (`GuidePage.tsx`).
+   */
+  | {
+      kind: 'table'
+      caption: string
+      columns: readonly string[]
+      rows: readonly (readonly string[])[]
+    }
 
-export type GuideSection = { heading: string; blocks: readonly GuideBlock[] }
+export type GuideSection = {
+  heading: string
+  /**
+   * One of the owner's factory photos (a slug in `FACTORY_PHOTOS`), drawn under the heading
+   * (polish X22). Only where the section's own words name what it shows, so the photo illustrates
+   * a sentence and claims nothing new; `guides.test.ts` lists each one with those words.
+   */
+  photo?: string
+  blocks: readonly GuideBlock[]
+}
 
 export type Guide = {
   /** Root-relative, under `/guides/`. Public: a sent link must keep working. */
@@ -71,52 +99,7 @@ export const GUIDES: readonly Guide[] = [
     sections: [
       {
         heading: 'The eight steps',
-        blocks: [
-          { kind: 'label', text: 'Talk' },
-          {
-            kind: 'point',
-            title: '1. You send what you have',
-            text: 'A sketch, a reference garment or a full tech pack. We reply within 24 hours.',
-          },
-          {
-            kind: 'point',
-            title: '2. We send your quote',
-            text: `Fabric, trims, sizes and price. The quote is free and commits you to nothing. The minimum is ${MINIMUM} pieces per style.`,
-          },
-          { kind: 'label', text: 'Develop' },
-          {
-            kind: 'point',
-            title: '3. We make your sample',
-            text: `It takes ${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
-          },
-          {
-            kind: 'point',
-            title: '4. You approve',
-            text: 'Nothing goes into bulk until you sign off the sample.',
-          },
-          { kind: 'label', text: 'Make' },
-          {
-            kind: 'point',
-            title: '5. Bulk production',
-            text: 'Cut, stitched and finished in one building in Pakistan.',
-          },
-          {
-            kind: 'point',
-            title: '6. Checked',
-            text: 'Testing, inspection under light and a final check before packing.',
-          },
-          { kind: 'label', text: 'Deliver' },
-          {
-            kind: 'point',
-            title: '7. Packed and shipped',
-            text: 'Sent to you, wherever you are.',
-          },
-          {
-            kind: 'point',
-            title: '8. Your order arrives',
-            text: 'Ready for your team, your store or your event.',
-          },
-        ],
+        blocks: [{ kind: 'orderSteps' }],
       },
       {
         heading: 'What helps us quote faster',
@@ -210,6 +193,8 @@ export const GUIDES: readonly Guide[] = [
     sections: [
       {
         heading: 'The minimum order',
+        // "The same team": the stitching floor (polish X22).
+        photo: 'stitching',
         blocks: [
           {
             kind: 'text',
@@ -270,6 +255,8 @@ export const GUIDES: readonly Guide[] = [
     sections: [
       {
         heading: 'The seven methods',
+        // The first of the seven, in the owner's building (polish X22).
+        photo: 'screen-printing',
         blocks: [
           {
             kind: 'point',
@@ -311,6 +298,28 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Which method for your garment',
         blocks: [
+          /*
+           * Polish X22: the audit's "small table (method · best for · minimum · feel)", from the
+           * points above and nothing else. No minimum column: the guide states one minimum for
+           * all (the owner, 2026-10-04). No feel column: the points state a finish for two of the
+           * seven only ("part of the cloth", "raised or reflective"), so it would need words the
+           * owner has not given. The headings are the lede's own: "what each one is and what it
+           * suits".
+           */
+          {
+            kind: 'table',
+            caption: 'What each method suits',
+            columns: ['Method', 'What it suits'],
+            rows: [
+              ['Screen printing', 'Bold designs in a few colors, and larger runs'],
+              ['Sublimation', 'Polyester and all-over designs, such as team jerseys'],
+              ['DTF (direct to film)', 'Most fabrics and colors'],
+              ['DTG (direct to garment)', 'Cotton and designs with many colors'],
+              ['Heat transfer vinyl', 'Names and numbers'],
+              ['Embroidery', 'Logos and badges'],
+              ['Special inks', 'A raised or reflective finish'],
+            ],
+          },
           {
             kind: 'text',
             text: 'It depends on the fabric, the design and the quantity. Send us your artwork with your inquiry, and the method is stated in your quote.',
@@ -420,6 +429,9 @@ export const GUIDES: readonly Guide[] = [
       },
       {
         heading: 'Confirmed on a sample',
+        // "Confirmed against a physical sample": the testing lab's color-viewing cabinet (owner's
+        // sign-off, 2026-10-05: "Add it").
+        photo: 'lab',
         blocks: [
           {
             kind: 'text',
@@ -463,6 +475,8 @@ export const GUIDES: readonly Guide[] = [
       },
       {
         heading: 'Where it happens',
+        // "Tagging, the final check and packing": the tagging table (polish X22).
+        photo: 'tagging',
         blocks: [
           {
             kind: 'text',
@@ -516,6 +530,8 @@ export const GUIDES: readonly Guide[] = [
       },
       {
         heading: 'The price terms we quote',
+        // EXW: "You collect the goods from our building." The building (polish X22).
+        photo: 'exterior',
         blocks: [
           {
             kind: 'point',

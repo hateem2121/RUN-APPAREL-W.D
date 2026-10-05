@@ -4,11 +4,13 @@ import {
   EMPTY_FOOTER,
   formatAddress,
   SITE_FOOTER_LINKS,
+  SITE_FOOTER_MADE,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { SITE_ORIGIN } from '../lib/siteLinks'
 import { Footer } from './Footer'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -92,13 +94,17 @@ describe('Footer', () => {
     expect(byText('Guides')?.getAttribute('href')).toBe('https://wear-run.com/guides')
   })
 
-  it("sends the call to action to the website's contact page", () => {
+  // Polish Q42 (owner, 2026-10-04): a garment page ends on one prompt, "Ask about this garment",
+  // in its contact section. The footer's tab and question were the second and third (X23).
+  it('asks nothing: no "Start an inquiry" tab, no question, no clock beside it', () => {
     render(<Footer settings={settings} />)
-
-    // The website's tab goes to the email instead only ON /contact; a garment page never is.
-    const tab = host.querySelector<HTMLAnchorElement>('.site-footer__tab')
-    expect(tab?.getAttribute('href')).toBe('https://wear-run.com/contact')
-    expect(tab?.textContent).toContain(EMPTY_FOOTER.ctaLabel)
+    expect(host.querySelector('footer')?.classList.contains('site-footer--no-prompt')).toBe(true)
+    expect(host.querySelector('.site-footer__tab')).toBeNull()
+    expect(host.querySelector('.footer-cta, .footer-q, .footer-clock')).toBeNull()
+    expect(host.textContent).not.toContain(EMPTY_FOOTER.ctaLabel)
+    expect(host.textContent).not.toContain(EMPTY_FOOTER.ctaQuestion)
+    // The routes stay: the facts still carry the email and WhatsApp.
+    expect(headings()).toContain('Contact')
   })
 
   it('still shows the legal line', () => {
@@ -164,9 +170,20 @@ describe('Footer', () => {
     expect(host.querySelector('.footer-block--contact')?.textContent).toContain(formatAddress())
   })
 
+  // Polish F9 (the owner's Q22): the four category pages, on the website, from every footer.
+  it('links "What we make" to the website\'s four category pages', () => {
+    render(<Footer settings={settings} />)
+    const made = [...host.querySelectorAll<HTMLAnchorElement>('.footer-block--made a')]
+    expect(made.map((a) => [a.textContent, a.getAttribute('href')])).toEqual(
+      SITE_FOOTER_MADE.map((link) => [link.label, `${SITE_ORIGIN}${link.href}`]),
+    )
+    expect(made).toHaveLength(4)
+  })
+
   it('draws no claim block for a blank claim, and each claim block once it is set', () => {
     render(<Footer settings={settings} />)
-    expect(headings()).toEqual(['Contact'])
+    // "What we make" is not a claim: it is there with nothing set.
+    expect(headings()).toEqual(['Contact', 'What we make'])
     expect(host.querySelector('.footer-marks')).toBeNull()
 
     render(
@@ -183,7 +200,8 @@ describe('Footer', () => {
         }}
       />,
     )
-    expect(headings()).toEqual(['Contact', 'Capacity', 'Standards', 'Elsewhere'])
+    // The website's order since polish X23: the two link groups, then the two claims.
+    expect(headings()).toEqual(['Contact', 'What we make', 'Elsewhere', 'Capacity', 'Standards'])
     expect(host.textContent).toContain('MOQ 300 pieces')
     expect(host.textContent).toContain('32.4945° N, 74.5229° E')
     // The marks follow from the entry's words, in the order named, from the website's files.
@@ -199,9 +217,9 @@ describe('Footer', () => {
   it('draws the default footer from an API answer cached before the footer joined it', () => {
     const { footer: _dropped, ...older } = settings
     render(<Footer settings={older} />)
-    expect(host.querySelector('.footer-q')?.textContent).toBe(EMPTY_FOOTER.ctaQuestion)
-    expect(host.querySelector('.footer-q em')?.textContent).toBe('properly')
-    expect(headings()).toEqual(['Contact'])
+    // The facts with no claim (no capacity, standards or links), and the legal row.
+    expect(headings()).toEqual(['Contact', 'What we make'])
+    expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
   })
 
   it('counts the email and WhatsApp clicks, as the footer it replaced did', () => {

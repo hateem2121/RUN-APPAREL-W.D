@@ -20,6 +20,8 @@ import * as migration_20260927_120000_colourway_render_image from './20260927_12
 import * as migration_20260929_120000_inquiry_details_and_files from './20260929_120000_inquiry_details_and_files';
 import * as migration_20260930_160000_product_garment_type from './20260930_160000_product_garment_type';
 import * as migration_20261002_120000_add_web_vitals_inp from './20261002_120000_add_web_vitals_inp'
+import * as migration_20261004_150000_colourway_render_screen from './20261004_150000_colourway_render_screen'
+import * as migration_20261005_120000_footer_tab_one_name from './20261005_120000_footer_tab_one_name'
 
 export const migrations = [
   {
@@ -131,5 +133,15 @@ export const migrations = [
     up: migration_20261002_120000_add_web_vitals_inp.up,
     down: migration_20261002_120000_add_web_vitals_inp.down,
     name: '20261002_120000_add_web_vitals_inp',
+  },
+  {
+    up: migration_20261004_150000_colourway_render_screen.up,
+    down: migration_20261004_150000_colourway_render_screen.down,
+    name: '20261004_150000_colourway_render_screen',
+  },
+  {
+    up: migration_20261005_120000_footer_tab_one_name.up,
+    down: migration_20261005_120000_footer_tab_one_name.down,
+    name: '20261005_120000_footer_tab_one_name',
   },
 ];

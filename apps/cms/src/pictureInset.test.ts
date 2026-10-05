@@ -15,9 +15,9 @@ import { escapeRegExp } from '../regexEscape.mjs'
  * the same in a real engine, with real pictures swapped in.
  *
  * What would have to break for these to fail: the margin shrinks below the owner's floor, the rule
- * stops reaching one of the three pictures (or reaches a fourth — the home page's 3D section picture,
- * which a live model lies exactly over), or the padding moves onto the slide and changes the swipe's
- * geometry.
+ * stops reaching one of its two pictures (or reaches another — the home page's 3D section picture,
+ * which a live model lies exactly over), the padding moves onto the slide and changes the swipe's
+ * geometry, or the family tickets lose the margin they keep by position (polish D3).
  */
 
 const SITE_CSS = readFileSync(join(import.meta.dirname, 'app', '(frontend)', 'site.css'), 'utf8')
@@ -29,14 +29,11 @@ const FLOOR = 0.06
 const declared = (selectorPattern: string) =>
   new RegExp(`(?:^|\\n)${selectorPattern}\\s*\\{([^}]*)\\}`).exec(SITE_CSS)?.[1] ?? ''
 
-const THREE = [
-  '.family-card__img',
-  '.card-gallery__slide .product-card__img',
-  '.family-hero__frame .product-card__img',
-]
+/** The pictures padded in a 4:5 box. The family tickets' boxes are any shape: they keep it by position. */
+const PADDED = ['.card-gallery__slide .product-card__img', '.family-hero__frame .product-card__img']
 
 function insetRule() {
-  const selector = THREE.map((entry) => escapeRegExp(entry)).join(',\\s*')
+  const selector = PADDED.map((entry) => escapeRegExp(entry)).join(',\\s*')
   return declared(selector)
 }
 
@@ -79,9 +76,16 @@ function margins(inset: number, factor: number, boxRatio: number, ratio: number)
   }
 }
 
+/*
+ * An opened product ticket (polish D3b) gives up 116px at the foot of its 4:5 box, so the box is wider
+ * than 4:5: from 1.03 (a 420px card, at 899px) to 1.29 (a 246px card, at 560px), worked out from the
+ * stylesheet's rise. `e2e/pictureInset.spec.ts` measures one in a browser.
+ */
 const BOXES = [
-  { name: '4:5 (a card above a phone, the family cards, the hero)', ratio: 4 / 5 },
+  { name: '4:5 (a card above a phone, the hero)', ratio: 4 / 5 },
   { name: '1:1 (a product card on a phone, VA-42)', ratio: 1 },
+  { name: '1.03 (an opened ticket on the widest card, D3b)', ratio: 1.03 },
+  { name: '1.29 (an opened ticket on the narrowest card, D3b)', ratio: 1.29 },
 ]
 const PICTURES = [
   { name: 'a 4:5 render', ratio: 4 / 5 },
@@ -96,7 +100,7 @@ describe('the margin is in the stylesheet and is the owner’s 6 to 8%', () => {
     expect(insetFromCss()).toBeLessThanOrEqual(0.08)
   })
 
-  it('pads the picture itself, on exactly the family card, the product card’s slide and the hero', () => {
+  it('pads the picture itself, on exactly the product card’s slide and the hero', () => {
     expect(
       insetRule(),
       'the inset rule is missing or reaches a different set of pictures',
@@ -116,10 +120,10 @@ describe('the margin is in the stylesheet and is the owner’s 6 to 8%', () => {
     expect(declared('\\.card-gallery__slide')).toMatch(/flex:\s*0 0 100%/)
   })
 
-  it('keeps the 4:5 boxes', () => {
-    expect(declared('\\.family-card__media')).toMatch(/aspect-ratio:\s*4\s*\/\s*5/)
+  it('keeps the 4:5 boxes, but the family ticket’s, which is its half of the ticket (D3)', () => {
     expect(declared('\\.product-card__figure')).toMatch(/aspect-ratio:\s*4\s*\/\s*5/)
     expect(declared('\\.family-hero__frame')).toMatch(/aspect-ratio:\s*4\s*\/\s*5/)
+    expect(declared('\\.family-card__media')).not.toMatch(/aspect-ratio/)
   })
 })
 
@@ -156,5 +160,64 @@ describe('every garment sits at least 6% from every edge, whatever the shape of 
     const { side, topBottom } = margins(insetFromCss(), blockFactor(), 4 / 5, 4 / 5)
     expect(side).toBeCloseTo(insetFromCss(), 6)
     expect(topBottom).toBeCloseTo(insetFromCss(), 6)
+  })
+})
+
+/**
+ * Where a picture of `ratio` is drawn when the IMAGE BOX is inset by `inset` of the frame's width at
+ * the sides and of its HEIGHT at top and bottom (a position, as the family ticket's picture is), in
+ * fractions of the frame's width (sides) and height (top and bottom).
+ */
+function positioned(inset: number, boxRatio: number, ratio: number) {
+  const width = 1
+  const height = 1 / boxRatio
+  const contentW = width * (1 - 2 * inset)
+  const contentH = height * (1 - 2 * inset)
+  const scale = Math.min(contentW / ratio, contentH)
+  return {
+    side: (width - scale * ratio) / 2 / width,
+    topBottom: (height - scale) / 2 / height,
+  }
+}
+
+/*
+ * Polish D3: a family ticket's picture box is its half of the ticket, any shape from an opened
+ * ticket's tall left (179 x 380 at 1180px, 0.47) through a sideways ticket with three lines of kinds
+ * (139 x 204, 0.68, where the padding left a 2:3 render 5.97% from the top) to the fifth across a
+ * tablet (324 x 152, 2.1). So it keeps its margin by POSITION: `inset` reads the height for top and
+ * bottom, where percentage padding reads the width on every side.
+ */
+describe('a family ticket keeps the margin by position, whatever its box (D3)', () => {
+  const rule = declared('\\.family-card__img')
+
+  it('places the picture `--picture-inset` in from every edge, and pads it nowhere', () => {
+    expect(rule).toMatch(/position:\s*absolute/)
+    expect(rule).toMatch(/inset:\s*var\(--picture-inset\)/)
+    expect(rule).toMatch(/inline-size:\s*calc\(100% - 2 \* var\(--picture-inset\)\)/)
+    expect(rule).toMatch(/block-size:\s*calc\(100% - 2 \* var\(--picture-inset\)\)/)
+    expect(rule).not.toMatch(/padding/)
+    expect(PADDED).not.toContain('.family-card__img')
+  })
+
+  for (const boxRatio of [0.4, 0.47, 0.68, 0.8, 1, 1.5, 2.1, 2.6]) {
+    it(`every picture shape sits 6% or more from every edge of a ${boxRatio} box`, () => {
+      for (const picture of PICTURES) {
+        const { side, topBottom } = positioned(insetFromCss(), boxRatio, picture.ratio)
+        expect(side, picture.name).toBeGreaterThanOrEqual(FLOOR)
+        expect(topBottom, picture.name).toBeGreaterThanOrEqual(FLOOR)
+      }
+    })
+  }
+
+  // NEGATIVE CONTROL: the padding the other two pictures use fails a 2:3 render in the box shape
+  // where its width and its height bind at once (about 0.68, the ticket the browser test found),
+  // worked out from the stylesheet's own numbers; the position keeps it there.
+  it('sees the padding leave a 2:3 render under 6% where the position does not', () => {
+    const inset = insetFromCss()
+    const worst = 1 / ((1 - 2 * inset) / (2 / 3) + 2 * inset * blockFactor())
+    expect(worst).toBeGreaterThan(0.66)
+    expect(worst).toBeLessThan(0.7)
+    expect(margins(inset, blockFactor(), worst, 2 / 3).topBottom).toBeLessThan(FLOOR)
+    expect(positioned(inset, worst, 2 / 3).topBottom).toBeGreaterThanOrEqual(FLOOR)
   })
 })

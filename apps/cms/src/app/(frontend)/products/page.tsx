@@ -1,13 +1,19 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { AboutFamily } from '../../../components/site/FamilyCrossLinks'
+import { permanentRedirect } from 'next/navigation'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
+import { TicketDismiss } from '../../../components/site/TicketDismiss'
 import { getProductCards, type ProductCard } from '../../../lib/content'
-import { FAMILIES, familyBySlug } from '../../../lib/families'
-import { familyGalleryHref, familyPageFor } from '../../../lib/familyPages'
-import { productsDescription } from '../../../lib/pageDescriptions'
+import { FAMILIES } from '../../../lib/families'
+import {
+  FAMILY_SOON,
+  familyFilterForward,
+  familyIsSoon,
+  familyPageFor,
+} from '../../../lib/familyPages'
+import { PRODUCTS_DESCRIPTION } from '../../../lib/pageDescriptions'
 import { buildMetadata } from '../../../lib/seo'
 import { preconnectHost } from '../../../lib/posterHost'
 import { productListJsonLd } from '../../../lib/structuredData'
@@ -15,37 +21,27 @@ import { productListJsonLd } from '../../../lib/structuredData'
 export const dynamic = 'force-dynamic'
 
 /**
- * ⚠️ THE CANONICAL IS ALWAYS `/products`, WHATEVER THE FILTER SAYS.
- *
- * A filter is a way of looking at one page, not six pages. `?family=outerwear` shows a
- * subset of the same garments under a URL a visitor can share, and pointing its canonical
- * at itself would offer a search engine six near-duplicate pages competing with each
- * other — with the unfiltered one, the only page carrying every garment, the likeliest to
- * lose. `buildMetadata` is given the bare path for exactly that reason.
- *
- * The TITLE follows the filter, because that is what a shared link should say in a tab.
- */
-/**
  * The products page's title, in the owner's own words (2026-09-30). It was "Products", which
  * told a search engine nothing; measured that day, all ten pages ranking for "custom
  * sportswear manufacturer" lead their title with what they sell.
  *
- * ⚠️ 56 characters, and the layout adds " — RUN APPAREL" (70 in all). A result shows about
- * 60, so the brand at the end is usually cut. The owner was told and chose these words;
- * the part that is cut is the part already shown beside every result.
+ * ⚠️ SHORTENED TO FIT (polish F18, 2026-10-04): the owner's words were 56 characters, 71 with the
+ * " — RUN APPAREL" the layout adds, and Google cut them to "…RUN APPA…". These keep the owner's
+ * words and say "Sportswear", the word buyers search ("custom sportswear manufacturer", the
+ * 2026-09-30 study): 44 characters, 58 in all, inside the ~60 a result shows. On the owner's
+ * end-of-build list of new words; e2e/findability.spec.ts holds the length.
  */
-const PRODUCTS_TITLE = 'Private Label Sports Apparel & Casual Wear Products in 3D'
+const PRODUCTS_TITLE = 'Private Label Sportswear & Casual Wear in 3D'
 
-export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
-  const family = familyBySlug((await searchParams).family)
+export async function generateMetadata(): Promise<Metadata> {
   return buildMetadata({
-    title: family ? `${family.name} — 3D references` : PRODUCTS_TITLE,
-    description: productsDescription(family?.name ?? null),
+    title: PRODUCTS_TITLE,
+    description: PRODUCTS_DESCRIPTION,
     path: '/products',
   })
 }
 
-type PageProps = { searchParams: Promise<{ family?: string }> }
+type PageProps = { searchParams: Promise<{ family?: string | string[] }> }
 
 /**
  * The public product gallery.
@@ -93,32 +89,46 @@ function crossOriginPosterHost(products: ProductCard[]): string | null {
 }
 
 /**
- * ⚠️ FILTERED ON THE SERVER, AND THE UNFILTERED PAGE STILL CARRIES EVERY GARMENT.
+ * ⚠️ EVERY GARMENT ON ONE PAGE, UNDER ITS FAMILY'S HEADING (polish S2, the owner's answer Q25,
+ * 2026-10-04).
  *
- * Owner decision 2026-09-07 (FA-I-08, docs/DECISIONS-BETA-WEBSITE.md D1): filters rather
- * than pagination or a "load more". At 11 products one ungated list was right; at 67 the
- * page measured 45.8 phone screens, so a buyer looking for one jacket scrolled past 66
- * other things.
+ * Owner decision 2026-09-07 (FA-I-08, docs/DECISIONS-BETA-WEBSITE.md D1): no pagination and no
+ * "load more", so that `/products` keeps every garment in one document — a crawler sees the whole
+ * catalogue at one URL, and the page works with scripting off. That reason holds. What changed is
+ * the family filter: `?family=outerwear` showed a family's garments under a second address, beside
+ * the family's own page that listed them too, so a family had two lists (Q24). The family's page
+ * is the only list of its garments now (D27); this page shows every family under a heading that
+ * opens that page, and the filter's addresses forward there (`familyFilterForward`).
  *
- * Filters were chosen over pagination precisely so that `/products` keeps all 67 garments
- * in one document — a crawler sees the whole catalogue at one URL, and the page still
- * works with scripting off, because each chip is an ordinary link to an ordinary server
- * -rendered page. The filters have no client component and nothing to hydrate; the one
- * client component on a card is `CardGallery`, for its colour dots, and a card still
- * swipes and links with scripting off. The card itself is `ProductCardItem`, shared with
- * the buyer pages since 2026-09-30.
+ * ⚠️ THE CHIPS JUMP, THEY DO NOT FILTER (polish S8, Q28): each is an ordinary link to its family's
+ * group on this page (`#outerwear`), so it works with scripting off, lands below the bar
+ * (`html { scroll-padding-top }`, site.css) and changes no address a search engine could keep.
+ * Nothing here is a client component; the one on a card is `CardGallery`, for its colour dots.
  */
 export default async function ProductsPage({ searchParams }: PageProps) {
-  const family = familyBySlug((await searchParams).family)
-  const all = await getProductCards()
-  const products = family ? all.filter((product) => product.category === family.name) : all
-  // The family's buyer page, when the owner has approved one: Sports Accessories has none.
-  const aboutPage = family ? familyPageFor(family) : null
-  const posterHost = crossOriginPosterHost(products)
-  const counts = new Map<string, number>()
-  for (const product of all) {
-    if (product.category) counts.set(product.category, (counts.get(product.category) ?? 0) + 1)
+  // An old filter address forwards, permanently, to where its family is listed now (polish S3).
+  // Next sends 308 for a permanent redirect; Google treats 308 as it treats 301 (Search Central,
+  // "Redirects and Google Search", updated 14 April 2026).
+  const { family } = await searchParams
+  if (family !== undefined) {
+    permanentRedirect(familyFilterForward(Array.isArray(family) ? family[0] : family))
   }
+
+  const all = await getProductCards()
+  // Numbered across the groups, so the page's first card is the one picture that loads first
+  // (`ProductCardItem`'s `index`).
+  let first = 0
+  const groups = FAMILIES.map((entry) => {
+    const products = all.filter((product) => product.category === entry.name)
+    const start = first
+    first += products.length
+    const soon = familyIsSoon(entry, products.length)
+    return { family: entry, page: familyPageFor(entry), products, soon, start }
+  })
+  // A garment whose category names no family still stands on the page (D1): after the groups.
+  const named = new Set(FAMILIES.map((entry) => entry.name))
+  const unnamed = all.filter((product) => !named.has(product.category))
+  const posterHost = crossOriginPosterHost(all)
 
   return (
     <>
@@ -126,7 +136,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           non-CORS connection. A preconnect in CORS mode would open a SECOND connection
           the images never use, making it slower rather than faster. */}
       {posterHost ? <link rel="preconnect" href={posterHost} /> : null}
-      {products.length > 0 ? <JsonLd data={productListJsonLd(products)} /> : null}
+      {all.length > 0 ? <JsonLd data={productListJsonLd(all)} /> : null}
       {/* The hoodie film plays behind these words (owner, 2026-10-01); the words stay the server's. */}
       <ProductsFilmHero>
         <p className="label">[ 3D product references ]</p>
@@ -141,76 +151,110 @@ export default async function ProductsPage({ searchParams }: PageProps) {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          {/*
-            A <nav> of plain links, not a listbox or a set of buttons. Every chip is a real
-            URL that can be shared, bookmarked, opened in a new tab and reached with
-            scripting off, and `aria-current="page"` is what tells a screen reader which
-            view is showing — the same mechanism the header nav uses.
-
-            On a phone it is ONE ROW THAT SCROLLS SIDEWAYS (`filter-bar--scroll`, visual audit VA-42):
-            three wrapped rows had filled 172px of the first screen. Tab still walks every chip
-            and the browser scrolls each one into view, so it needs no script.
-          */}
-          <nav className="filter-bar filter-bar--scroll" aria-label="Filter by product family">
-            <Link
-              className="filter-chip"
-              href="/products"
-              aria-current={family ? undefined : 'page'}
-            >
-              All<span className="filter-chip__count">{all.length}</span>
-            </Link>
-            {FAMILIES.map((entry) => (
-              <Link
-                key={entry.slug}
-                className="filter-chip"
-                href={familyGalleryHref(entry)}
-                aria-current={family?.slug === entry.slug ? 'page' : undefined}
-                data-empty={(counts.get(entry.name) ?? 0) === 0 ? 'true' : undefined}
-              >
-                {entry.name}
-                <span className="filter-chip__count">{counts.get(entry.name) ?? 0}</span>
-              </Link>
-            ))}
-          </nav>
-
-          {/*
-            ⚠️ THE WAY BACK TO THE FAMILY'S BUYER PAGE SITS BESIDE THE COUNT, UNDER THE ACTIVE
-            CHIP (visual audit VA-33, owner-approved 2026-10-01; the words, 2026-10-02: "About
-            our outerwear"). From the home page the same word opened the buyer page, so a buyer
-            who arrived here never found it. It is drawn when the family HAS a buyer page and
-            whether or not the grid below has garments, so the empty family keeps its way out.
-            The canonical stays `/products` (see the top of this file): this is a link, not a
-            second page to index.
-          */}
-          {products.length > 0 || (family && aboutPage) ? (
-            <div className="result-bar">
-              {products.length > 0 ? (
-                <p className="result-count">
-                  {products.length} reference{products.length === 1 ? '' : 's'}
-                  {family ? ` in ${family.name}` : ''}
-                </p>
-              ) : null}
-              {family ? <AboutFamily family={family} /> : null}
-            </div>
-          ) : null}
-
-          {products.length === 0 ? (
-            /*
-              Two different empty states, because they mean two different things and the
-              old single message would have been a lie in the filtered case — nothing is
-              "being updated" when the catalogue is fine and this family is simply empty.
-            */
+          {all.length === 0 ? (
+            // No garment at all is one fact, said once: the catalogue, not five families, is empty.
             <p className="site-empty">
-              {family
-                ? `No 3D references in ${family.name} yet — the garments exist, the references are still being built. Email us and we will send what we have.`
-                : 'The references are being updated. Email us and we will send the current set directly.'}
+              The references are being updated. Email us and we will send the current set directly.
             </p>
           ) : (
-            <ul className="product-grid">
-              {products.map((product, index) => (
-                <ProductCardItem key={product.slug} product={product} index={index} />
+            <>
+              {/*
+                A <nav> of plain links to the groups below. On a phone it is ONE ROW THAT SCROLLS
+                SIDEWAYS (`filter-bar--scroll`, visual audit VA-42): three wrapped rows had filled
+                172px of the first screen. Tab still walks every chip and the browser scrolls each
+                one into view, so it needs no script. A family with no garment yet keeps its chip,
+                dashed, with its count of 0 (D17).
+              */}
+              <nav
+                className="filter-bar filter-bar--scroll"
+                aria-label="Product families on this page"
+              >
+                {groups.map(({ family: entry, products }) => (
+                  <a
+                    key={entry.slug}
+                    className="filter-chip"
+                    href={`#${entry.slug}`}
+                    data-empty={products.length === 0 ? 'true' : undefined}
+                  >
+                    {entry.name}
+                    <span className="filter-chip__count">{products.length}</span>
+                  </a>
+                ))}
+              </nav>
+
+              {groups.map(({ family: entry, page, products, soon, start }) => (
+                <section
+                  key={entry.slug}
+                  id={entry.slug}
+                  className="gallery-group"
+                  aria-labelledby={`${entry.slug}-heading`}
+                >
+                  <div className="gallery-group__head">
+                    {/* The heading opens the family's own page, its only list (Q25). */}
+                    <h2
+                      id={`${entry.slug}-heading`}
+                      className="display display--section gallery-group__title"
+                    >
+                      {page ? (
+                        <Link className="gallery-group__link" href={page.path}>
+                          {entry.name}
+                          {/* The no-break space keeps the arrow beside the last word. */}
+                          <span aria-hidden="true">&nbsp;&rarr;</span>
+                        </Link>
+                      ) : (
+                        entry.name
+                      )}
+                    </h2>
+                    {soon ? (
+                      // No page and no garments yet: the owner's words for this family (Q21).
+                      <p className="gallery-group__soon">
+                        <span className="label">{FAMILY_SOON.label}</span>
+                        <Link className="gallery-group__ask" href={FAMILY_SOON.href}>
+                          {FAMILY_SOON.ask}
+                          <span aria-hidden="true">&rarr;</span>
+                        </Link>
+                      </p>
+                    ) : (
+                      <p className="result-count">
+                        {products.length} reference{products.length === 1 ? '' : 's'}
+                      </p>
+                    )}
+                  </div>
+                  {products.length > 0 ? (
+                    <ul className="product-grid">
+                      {products.map((product, index) => (
+                        <ProductCardItem
+                          key={product.slug}
+                          product={product}
+                          index={start + index}
+                          heading="h3"
+                        />
+                      ))}
+                    </ul>
+                  ) : page ? (
+                    <p className="site-empty">
+                      No 3D references in {entry.name} yet — the garments exist, the references are
+                      still being built. Email us and we will send what we have.
+                    </p>
+                  ) : null}
+                </section>
               ))}
-            </ul>
+
+              {unnamed.length > 0 ? (
+                <ul className="product-grid">
+                  {unnamed.map((product, index) => (
+                    <ProductCardItem
+                      key={product.slug}
+                      product={product}
+                      index={first + index}
+                      heading="h3"
+                    />
+                  ))}
+                </ul>
+              ) : null}
+              {/* Escape closes an open product ticket (polish D3b); once for every grid above. */}
+              <TicketDismiss />
+            </>
           )}
         </div>
       </section>

@@ -142,3 +142,75 @@ describe('HdImageButton', () => {
     await import('./HdImageDialog')
   })
 })
+
+/**
+ * Polish D9: with 3D on the page the button SWITCHES the 3D window to the picture and back,
+ * and FULL SCREEN opens the full-screen view while the picture shows. The window draws the
+ * screen-sized copy (F16), so intent on the switch fetches only that.
+ */
+describe('HdImageButton as the 3D window’s switch (D9)', () => {
+  const SCREEN = { ...RENDER, url: 'https://media.example/r-xx-wine-render-screen.webp' }
+  const wine = { ...colourway('wine', true), renderScreen: SCREEN } as ViewerColourway
+
+  const mountSwitch = (shown: boolean, onShownChange = vi.fn()) => {
+    act(() =>
+      root.render(
+        <HdImageButton
+          productName="Velocity Performance Tee"
+          colourways={[wine]}
+          selected={wine}
+          shown={shown}
+          onShownChange={onShownChange}
+        />,
+      ),
+    )
+    return onShownChange
+  }
+  const buttons = () => [...host.querySelectorAll('button')]
+
+  it('off: one button, "HD IMAGE", that switches the window to the picture', () => {
+    const onShownChange = mountSwitch(false)
+    expect(buttons()).toHaveLength(1)
+    const button = buttons()[0]!
+    expect(button.textContent).toBe('HD IMAGE')
+    expect(button.getAttribute('aria-label')).toBe(
+      'HD image: studio render of Velocity Performance Tee in Wine',
+    )
+    expect(button.getAttribute('aria-haspopup'), 'it opens no dialog now').toBeNull()
+    act(() => button.click())
+    expect(onShownChange).toHaveBeenCalledWith(true)
+  })
+
+  it('off: intent fetches the window’s screen-sized copy, never the full render', () => {
+    mountSwitch(false)
+    act(() => {
+      buttons()[0]!.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    })
+    expect(created).toEqual([SCREEN.url])
+  })
+
+  it('on: FULL SCREEN, then VIEW IN 3D, each named for what it does', async () => {
+    const onShownChange = mountSwitch(true)
+    const [full, back] = buttons()
+    expect(full?.textContent).toBe('FULL SCREEN')
+    expect(full?.getAttribute('aria-label')).toBe(
+      'Full screen: studio render of Velocity Performance Tee in Wine',
+    )
+    expect(full?.getAttribute('aria-haspopup')).toBe('dialog')
+    expect(back?.textContent).toBe('VIEW IN 3D')
+    expect(back?.getAttribute('aria-label')).toBe('View in 3D')
+    // Label in name (WCAG 2.5.3, VA-09): the short forms shown below 22rem are in the names.
+    expect(full?.getAttribute('aria-label')?.toLowerCase().startsWith('full')).toBe(true)
+    expect(back?.getAttribute('aria-label')).toContain('3D')
+
+    act(() => back!.click())
+    expect(onShownChange).toHaveBeenCalledWith(false)
+
+    // FULL SCREEN's intent fetches the full render, which only the full-screen view draws.
+    act(() => {
+      full!.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    })
+    expect(created).toContain(RENDER.url)
+    await import('./HdImageDialog')
+  })
+})

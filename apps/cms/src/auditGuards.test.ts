@@ -29,6 +29,18 @@ function stripComments(source: string): string {
     .replace(/^[ \t]*\/\/.*$/gm, (line) => ' '.repeat(line.length))
 }
 
+/**
+ * The import statements in `source` that bring `from` in as a VALUE (anything but `import type`),
+ * read one statement at a time. This code writes no semicolons, so a pattern running to the next
+ * `;` crossed from one import into the next and read `import { pageHeld } …` above
+ * `import type Lenis` as a value import of Lenis (2026-10-04).
+ */
+function valueImports(source: string, from: string): string[] {
+  return [...source.matchAll(/^import\s[\s\S]*?\sfrom\s+'([^']+)'/gm)]
+    .filter((match) => match[1] === from && !/^import\s+type\b/.test(match[0]))
+    .map((match) => match[0])
+}
+
 function walk(dir: string, extensions: string[]): string[] {
   const out: string[] = []
   const step = (current: string) => {
@@ -86,8 +98,18 @@ describe('FA-F-06 / XS-06 — the site smooth-scrolls exactly as the viewer does
     const source = stripComments(read(SMOOTH))
     // `import type` is erased at build; a VALUE import would put the library in every
     // visitor's download, reduced-motion ones included (the viewer's 2026-09-04 trap).
-    expect(source).not.toMatch(/^import\s+(?!type\b)[^;]*from\s+'lenis'/m)
+    expect(valueImports(source, 'lenis'), 'a value import of the library').toEqual([])
     expect(source).toMatch(/import\('lenis'\)/)
+  })
+
+  it('NEGATIVE CONTROL: that import check sees a value import, on one line or on several', () => {
+    const typeOnly =
+      "import { pageHeld } from '@run-apparel/shared'\nimport type Lenis from 'lenis'"
+    expect(valueImports(typeOnly, 'lenis')).toEqual([])
+    expect(valueImports("import { a } from 'x'\nimport Lenis from 'lenis'", 'lenis')).toHaveLength(
+      1,
+    )
+    expect(valueImports("import {\n  default as Lenis,\n} from 'lenis'", 'lenis')).toHaveLength(1)
   })
 
   it('glides like the viewer and takes only a wheel a person rolled', () => {
@@ -97,6 +119,8 @@ describe('FA-F-06 / XS-06 — the site smooth-scrolls exactly as the viewer does
     expect(siteDuration).toBeDefined()
     expect(siteDuration).toBe(viewerDuration)
     expect(source).toMatch(/virtualScroll:\s*\(\{\s*event\s*\}\)\s*=>\s*event\.isTrusted/)
+    // …and none while a pop-up holds the page (polish F2/F3, packages/shared/src/pageHold.ts).
+    expect(source).toMatch(/virtualScroll:[^\n]*&&\s*!pageHeld\(document\)/)
     // The gate runs before the import, not inside the library's options.
     const gate = source.search(/navigator\.webdriver/)
     const load = source.search(/import\('lenis'\)/)

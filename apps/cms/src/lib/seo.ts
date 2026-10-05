@@ -1,5 +1,6 @@
 import { GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata } from 'next'
+import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
 
 /**
  * Canonical origin for the public site — `wear-run.com` since the domain move of
@@ -27,9 +28,10 @@ export const GARMENT_PAGES = `${SITE_ORIGIN}${GARMENT_PATH_PREFIX}`
 const SITE_NAME = 'RUN APPAREL'
 
 /**
- * The default social preview card.
+ * The social preview card each page shares (polish X14): its page type's own, from
+ * `shareImages.ts`.
  *
- * ⚠️ THE PAGES ALREADY PROMISED THIS AND DID NOT SUPPLY IT. `twitter.card` was set to
+ * ⚠️ THE PAGES ONCE PROMISED A PICTURE AND DID NOT SUPPLY IT. `twitter.card` was set to
  * `summary_large_image` — an explicit undertaking to provide a large picture — with no
  * image anywhere in the metadata. Measured 2026-09-05: `og:image` and `twitter:image`
  * both absent from all three pages, so every link shared to WhatsApp, LinkedIn or
@@ -38,14 +40,20 @@ const SITE_NAME = 'RUN APPAREL'
  *
  * 1200x630 is the ratio every major platform crops to. The 1200x1500 garment posters in
  * `apps/viewer/public/og/` are portrait link-preview cards for individual colourways and
- * are NOT interchangeable with this. Regenerate with
- * `apps/cms/scripts/gen-og-image.mjs` after a brand change.
+ * are NOT interchangeable with this. Until polish X14 every page named `og-default.png`,
+ * which still showed the address of before the domain move; it stays in `public/`, unchanged,
+ * for the links already shared. Regenerate the cards with
+ * `apps/cms/scripts/gen-share-images.mjs` after a page's label or headline changes.
  */
-const OG_IMAGE = {
-  url: `${SITE_ORIGIN}/og-default.png`,
-  width: 1200,
-  height: 630,
-  alt: 'RUN APPAREL — made to order, made properly. B2B apparel manufacturer, Sialkot, Pakistan.',
+function shareImage(path: string) {
+  const card = shareCardFor(path)
+  return {
+    url: shareImageUrl(card, SITE_ORIGIN),
+    width: SHARE_IMAGE.width,
+    height: SHARE_IMAGE.height,
+    alt: card.alt,
+    type: SHARE_IMAGE.type,
+  }
 }
 
 /**
@@ -67,6 +75,7 @@ export function buildMetadata({
   path: string
 }): Metadata {
   const url = `${SITE_ORIGIN}${path === '/' ? '' : path}`
+  const image = shareImage(path)
   return {
     title,
     description,
@@ -86,8 +95,13 @@ export function buildMetadata({
        * the marketing site was built after and inherited the value rather than resolving it.
        */
       locale: 'en_US',
-      images: [OG_IMAGE],
+      images: [image],
     },
-    twitter: { card: 'summary_large_image', title, description, images: [OG_IMAGE.url] },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [{ url: image.url, alt: image.alt }],
+    },
   }
 }

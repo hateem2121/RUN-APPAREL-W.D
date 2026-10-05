@@ -4,12 +4,14 @@ import {
   inquiryAdminUrl,
   inquiryNotice,
   NEED_US_SOONER,
-  OPTIONAL_DIVIDER,
   pickedFileProblem,
   pickProblem,
   RECEIVED_HEADING,
   SEND_ANOTHER,
+  REQUIRED_KEY,
   SENDING_LABEL,
+  SUBJECT_OTHER_LABEL,
+  SUBJECTS,
   SUMMARY_HEADING,
 } from './inquiryForm'
 import { MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
@@ -20,14 +22,30 @@ const fine = { valid: true, valueMissing: false, typeMismatch: false }
 const empty = { valid: false, valueMissing: true, typeMismatch: false }
 const malformed = { valid: false, valueMissing: false, typeMismatch: true }
 
-describe('the single-step form says exactly the words the owner approved (W1–W10)', () => {
+describe('the form says exactly the words the owner approved (W1–W10, D7)', () => {
   it('keeps each approved line word for word', () => {
-    expect(OPTIONAL_DIVIDER).toBe('Optional details')
     expect(SUMMARY_HEADING).toBe('Check these before sending:')
     expect(SENDING_LABEL).toBe('Sending…')
-    expect(RECEIVED_HEADING).toBe('Inquiry received.')
+    // D7 v2, as the owner tried it in the report (3 Oct): "Got it." with a tick that draws itself.
+    expect(RECEIVED_HEADING).toBe('Got it.')
     expect(SEND_ANOTHER).toBe('Send another inquiry')
     expect(NEED_US_SOONER).toBe('Need us sooner?')
+  })
+
+  it("marks the three needed boxes with a * and says so once, never writing 'optional' (Q17)", () => {
+    expect(REQUIRED_KEY).toBe('Fields marked * are needed. Everything else helps us reply faster.')
+    expect(REQUIRED_KEY).not.toMatch(/optional/i)
+  })
+
+  it('offers the six subjects the owner approved, the last opening a box of their own (Q15, Q43)', () => {
+    expect([...SUBJECTS, SUBJECT_OTHER_LABEL]).toEqual([
+      'Request a quote',
+      'Develop a new product',
+      'Samples',
+      'Private label & branding',
+      'Repeat or bulk order',
+      'Something else…',
+    ])
   })
 })
 

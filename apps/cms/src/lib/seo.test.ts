@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GARMENT_PAGES, SITE_ORIGIN, buildMetadata } from './seo'
+import { shareCardFor } from './shareImages'
 
 describe('origins', () => {
   /**
@@ -53,5 +54,33 @@ describe('buildMetadata', () => {
       title: 'Products',
       description: 'Every garment.',
     })
+  })
+
+  /*
+   * Polish X14 (the owner's answer Q11): each page type shares its own picture, with its size, its
+   * type and words that say what is in it, the same for Open Graph and for X. Until then every page
+   * named `og-default.png`, which showed the old address.
+   */
+  it('names the page type’s own picture, sized and described, for Open Graph and X alike', () => {
+    const path = '/guides/garment-printing-methods'
+    const card = shareCardFor(path)
+    const image = {
+      url: `${SITE_ORIGIN}/share/guides-garment-printing-methods.jpg`,
+      width: 1200,
+      height: 630,
+      alt: card.alt,
+      type: 'image/jpeg',
+    }
+    const guide = buildMetadata({ title: 'x', description: 'y', path })
+    expect(guide.openGraph?.images).toEqual([image])
+    expect(guide.twitter?.images).toEqual([{ url: image.url, alt: card.alt }])
+  })
+
+  it('gives privacy the home page’s picture, and no page the old one', () => {
+    const privacy = buildMetadata({ title: 'x', description: 'y', path: '/privacy' })
+    expect(privacy.openGraph?.images).toEqual([
+      expect.objectContaining({ url: `${SITE_ORIGIN}/share/home.jpg` }),
+    ])
+    expect(JSON.stringify(meta)).not.toContain('og-default')
   })
 })

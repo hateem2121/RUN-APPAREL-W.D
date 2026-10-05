@@ -1,3 +1,4 @@
+import { CATEGORY_PAGE_PATHS } from './categoryPages'
 import { formatAddress } from './company'
 import { CONSENT_COPY } from './consent'
 import { formatPhoneForDisplay } from './contact'
@@ -19,7 +20,8 @@ import { marksFor } from './standardsLogos'
  * ⚠️ WHY THE MARKUP IS NOT HERE — the bar's reason (siteBar.ts). The site's footer is a Next
  * server component with client islands; the garment pages' is a client component in a Vite SPA
  * whose links go to the site. So each app writes its own JSX, and what a visitor could see drift
- * is shared instead: the stylesheet is packages/ui/src/footer.css, the words, links and rules are
+ * is shared instead: the stylesheet is packages/ui/src/footer.css (the website-only prompt in
+ * packages/ui/src/footer-prompt.css, polish D1), the words, links and rules are
  * here, and `siteFooterAriaSnapshot` is the one template both apps' browser suites hold their
  * rendered footer to.
  */
@@ -49,7 +51,8 @@ export interface FooterSettings {
  * a blank certification list renders NO block, never an example one.
  */
 export const EMPTY_FOOTER: FooterSettings = {
-  ctaLabel: 'Start an inquiry',
+  // The site's one name for this action (polish X20, the owner's answer Q9, 2026-10-03).
+  ctaLabel: 'Start a conversation',
   ctaQuestion: 'Have a garment that needs making properly?',
   ctaSubline: 'Send a tech pack, a sketch, or just the idea.',
   ctaPromise: 'Reply within 24 hours',
@@ -63,6 +66,8 @@ export const EMPTY_FOOTER: FooterSettings = {
 export const SITE_FOOTER_WORDS = {
   eyebrow: 'Start here',
   contact: 'Contact',
+  /** The four category pages (polish F9, the owner's Q22): the home page's №02 heading. */
+  made: 'What we make',
   capacity: 'Capacity',
   standards: 'Standards',
   elsewhere: 'Elsewhere',
@@ -94,6 +99,36 @@ export const SITE_FOOTER_LINKS = [
   { href: '/terms', label: 'Terms', consent: false },
 ] as const
 
+/**
+ * The "What we make" group's links: each category's page, as paths on the site, in the order the
+ * website lists the families (polish F9, the owner's Q22 of 2026-10-04: "a footer group on every
+ * page"). The audit found the four pages reached only from the home page's cards, the guides and
+ * each other. The labels are the categories' own names, as each page's label reads.
+ */
+export const SITE_FOOTER_MADE: readonly { href: string; label: string }[] = Object.entries(
+  CATEGORY_PAGE_PATHS,
+).flatMap(([label, href]) => (href ? [{ href, label }] : []))
+
+/**
+ * The Standards block's lines: entries naming the same holder become one line (polish X23). The
+ * owner's entries are written one per claim, and two began "Suppliers:" one under the other (the
+ * audit read them as a repeat). Joined with "; " after the first's holder, so each claim keeps its
+ * own words: "Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS; amfori BSCI audits". The holder is what
+ * comes before the first colon, matched without regard to case; an entry with no colon stands
+ * alone. The stored entries are unchanged, so the marks (`marksFor`) still read each one.
+ */
+export function standardsLines(certifications: readonly string[]): string[] {
+  const lines: { holder: string | null; text: string }[] = []
+  for (const entry of certifications) {
+    const colon = entry.indexOf(':')
+    const holder = colon > 0 ? entry.slice(0, colon).trim().toLowerCase() : null
+    const same = holder ? lines.find((line) => line.holder === holder) : undefined
+    if (same) same.text = `${same.text}; ${entry.slice(colon + 1).trim()}`
+    else lines.push({ holder, text: entry.trim() })
+  }
+  return lines.map((line) => line.text)
+}
+
 /** The Capacity block's lines, each only when its claim is set. Empty means no block. */
 export function capacityLines(capacity: FooterSettings['capacity']): string[] {
   return [
@@ -117,24 +152,33 @@ export interface SiteFooterContent {
  * landmark child in order, `/children: equal`, so a block one host adds or drops fails both
  * suites. Built from the same content the page was given, because the blocks are conditional.
  * The clock's time is the one live value, so it is a pattern.
+ *
+ * `prompt: false` is the garment pages' footer (polish Q42, owner 2026-10-04): no tab, no
+ * question and no clock, because a garment page ends on its own one prompt, "Ask about this
+ * garment" (the audit counted three prompts in a row there, X23). The website keeps all of them.
  */
-export function siteFooterAriaSnapshot(content: SiteFooterContent): string {
+export function siteFooterAriaSnapshot(
+  content: SiteFooterContent,
+  { prompt = true }: { prompt?: boolean } = {},
+): string {
   const q = JSON.stringify
   const { footer } = content
   const words = SITE_FOOTER_WORDS
   const lines = ['- contentinfo:', '  - /children: equal']
   const add = (depth: number, line: string) => lines.push(`${'  '.repeat(depth)}- ${line}`)
 
-  add(1, `link ${q(footer.ctaLabel)}`)
-  add(1, `paragraph: ${q(words.eyebrow)}`)
-  add(1, `heading ${q(footer.ctaQuestion)} [level=2]`)
-  add(1, `paragraph: ${q(footer.ctaSubline)}`)
-  add(1, `paragraph: ${q(footer.ctaPromise)}`)
-  // The light appears only once the clock has mounted, so it is optional even with hours.
-  const status = footer.capacity.hours
-    ? `( ?(${words.openNow}|${opensAt(footer.capacity.hours.open)}))?`
-    : ''
-  add(1, `text: /^${words.clockCity} (--:--|\\d\\d:\\d\\d)${words.clockZone}${status}$/`)
+  if (prompt) {
+    add(1, `link ${q(footer.ctaLabel)}`)
+    add(1, `paragraph: ${q(words.eyebrow)}`)
+    add(1, `heading ${q(footer.ctaQuestion)} [level=2]`)
+    add(1, `paragraph: ${q(footer.ctaSubline)}`)
+    add(1, `paragraph: ${q(footer.ctaPromise)}`)
+    // The light appears only once the clock has mounted, so it is optional even with hours.
+    const status = footer.capacity.hours
+      ? `( ?(${words.openNow}|${opensAt(footer.capacity.hours.open)}))?`
+      : ''
+    add(1, `text: /^${words.clockCity} (--:--|\\d\\d:\\d\\d)${words.clockZone}${status}$/`)
+  }
 
   add(1, `heading ${q(words.contact)} [level=3]`)
   add(1, 'list:')
@@ -145,6 +189,21 @@ export function siteFooterAriaSnapshot(content: SiteFooterContent): string {
   add(2, `listitem: ${q(formatAddress())}`)
   if (footer.worksCoordinates) add(2, `listitem: ${q(footer.worksCoordinates)}`)
 
+  // The two link groups next (polish X23, F9), so on a phone, two short columns, they share a row.
+  add(1, `heading ${q(words.made)} [level=3]`)
+  add(1, 'list:')
+  for (const link of SITE_FOOTER_MADE) {
+    add(2, 'listitem:')
+    add(3, `link ${q(link.label)}`)
+  }
+  if (footer.socialLinks.length > 0) {
+    add(1, `heading ${q(words.elsewhere)} [level=3]`)
+    add(1, 'list:')
+    for (const link of footer.socialLinks) {
+      add(2, 'listitem:')
+      add(3, `link ${q(link.label)}`)
+    }
+  }
   const capacity = capacityLines(footer.capacity)
   if (capacity.length > 0) {
     add(1, `heading ${q(words.capacity)} [level=3]`)
@@ -154,15 +213,7 @@ export function siteFooterAriaSnapshot(content: SiteFooterContent): string {
   if (footer.certifications.length > 0) {
     add(1, `heading ${q(words.standards)} [level=3]`)
     add(1, 'list:')
-    for (const name of footer.certifications) add(2, `listitem: ${q(name)}`)
-  }
-  if (footer.socialLinks.length > 0) {
-    add(1, `heading ${q(words.elsewhere)} [level=3]`)
-    add(1, 'list:')
-    for (const link of footer.socialLinks) {
-      add(2, 'listitem:')
-      add(3, `link ${q(link.label)}`)
-    }
+    for (const line of standardsLines(footer.certifications)) add(2, `listitem: ${q(line)}`)
   }
   const marks = marksFor(footer.certifications)
   if (marks.length > 0) {

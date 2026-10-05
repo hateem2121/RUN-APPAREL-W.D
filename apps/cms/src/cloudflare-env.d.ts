@@ -15,6 +15,10 @@ declare global {
     ASSETS: Fetcher
     // The viewer Worker: worker.mjs forwards garment pages and its files to it (2026-09-28).
     VIEWER?: Fetcher
+    // The stored page cache (pageCache.mjs, 2026-10-04): the content version every CMS save
+    // rewrites, and the deploy version, which together key every kept page.
+    SITE_CACHE?: KVNamespace
+    CF_VERSION_METADATA?: WorkerVersionMetadata
     CMS_PUBLIC_URL?: string
     PUBLIC_MEDIA_BASE_URL?: string
     VIEWER_ALLOWED_ORIGINS?: string

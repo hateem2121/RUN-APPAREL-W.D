@@ -108,7 +108,14 @@ test.describe('FA-C-52 — the line length a reader actually gets', () => {
   const CEILING = 75
 
   for (const path of PAGES) {
-    test(`no line on ${path} runs past ${CEILING} characters`, async ({ page }) => {
+    test(`no line on ${path} runs past ${CEILING} characters`, async ({ page, browserName }) => {
+      // ⚠️ SKIPPED AT /privacy IN CI'S LINUX CHROME ONLY (PR #128, 2026-10-05, the owner's choice): one
+      // line there holds 76 characters (at 768 and 1180px; 535.5px at 1180), within 75 on the Mac.
+      // Linux-only and not yet measured; the next session does.
+      test.skip(
+        browserName === 'chromium' && process.platform === 'linux' && path === '/privacy',
+        "CI's Linux Chrome only (PR #128, 2026-10-05; the owner chose to skip it there for now): 76 characters a line there",
+      )
       // One navigation, three widths — see the note in textSize.spec.ts: a `goto` per
       // width is what tipped this suite into timing out on unrelated tests.
       await page.goto(path)
@@ -161,7 +168,8 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
       const text = await page.evaluate(() => {
         const parts: string[] = []
         for (const el of document.querySelectorAll('main p, main li')) {
-          if (el.closest('.product-card, .filter-bar, .facts-grid')) continue
+          // "On this page" (polish X4) repeats the headings as links: navigation, not prose.
+          if (el.closest('.product-card, .filter-bar, .facts-grid, .legal__toc')) continue
           if (
             ['section-number', 'subhead', 'field-label', 'result-count', 'label'].some((name) =>
               el.classList.contains(name),

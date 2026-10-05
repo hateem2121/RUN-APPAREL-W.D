@@ -40,8 +40,8 @@
   --notch-r: var(--radius-panel);
   /*
    * HOW FAR PAST ITS OWN HEIGHT A BAR THAT LEAVES MUST GO (VA-40, "the bar leaves", below). Its
-   * shadow reaches 32px below it (`--shadow-raised` is 0 8px 24px: 8 down, then 24 of blur) and
-   * its hairline 1px; 40px clears both, so no band of shadow is left on the screen's top edge.
+   * shadow reaches 32px below it (`--shadow-raised` is 0 8px 24px: 8 down, then 24 of blur);
+   * 40px clears it, so no band of shadow is left on the screen's top edge.
    */
   --notch-away: 40px;
 }
@@ -82,25 +82,13 @@
      bar's sibling, not its child — reads the same value (VA-50). */
   --notch-bg: light-dark(var(--ink), var(--raised));
   /*
-   * ⚠️ THE BAR'S HAIRLINE (visual audit VA-40, 2026-10-02, owner-approved). Over a dark photograph
-   * the bar's shadow and its curved edges vanish — the website's dark "Browse the references" button
-   * scrolling under it read as one dark shape — so a 1px ring in the paper colour outlines it. Paper
-   * at 22% in the light theme, where the bar is ink and meets dark photos; 12% in the dark theme,
-   * where the bar (`--raised`) is already lighter than the page and a stronger ring would glow.
-   * Computed with scripts/contrast-rules.mjs and held by `apps/viewer/src/styles/barEdge.test.ts`:
-   * over a dark photo (#202420) the ring reads 1.95:1 in the light theme and 1.41:1 in the dark;
-   * over the light page it is paper on paper, 1.00:1, so it cannot look heavier there.
-   *
-   * ⚠️ IT OUTLINES THE BAR, NOT THE TWO FLARES AT ITS TOP CORNERS. Those are masked pseudo-elements
-   * painted over the bar's own shadow, so where they are opaque they cover the ring, and their
-   * curved edge carries none: by the arithmetic of an 18px flare the ring shows from about 14px
-   * down each side (not measured, nothing here can render it). A border would stop at the same
-   * place, which is why the shadow rule below refuses one.
+   * ⚠️ NO OUTLINE AROUND THE BAR, BY THE OWNER'S CHOICE (polish D12, 2026-10-04). VA-40 (2026-10-02)
+   * had added a 1px paper-coloured ring so the dark bar stood out over dark photographs. The ring
+   * stopped where the two curved corners begin, because those are masked pseudo-elements painted
+   * over it, and the owner read that as unfinished. The bar now separates by its soft shadow
+   * (`--shadow-raised`) and its lime menu button. Ask before adding a ring back:
+   * `apps/viewer/src/styles/barEdge.test.ts` holds the bar to that one shadow.
    */
-  --notch-edge: light-dark(
-    color-mix(in srgb, var(--paper) 22%, transparent),
-    color-mix(in srgb, var(--paper) 12%, transparent)
-  );
 
   z-index: var(--z-header);
   display: flex;
@@ -208,11 +196,8 @@
    * Not a border: the fillets are pseudo-elements outside this element's border box,
    * so a border would stop dead where the carved arcs begin.
    */
-  /* The hairline first: the first shadow is the top one, and it must lie over the soft one (VA-40,
-     `--notch-edge` above). The soft one is still `--shadow-raised`, the bar's only separation in dark mode. */
-  box-shadow:
-    0 0 0 1px var(--notch-edge),
-    var(--shadow-raised);
+  /* Only the soft shadow: the outline is gone by the owner's choice (polish D12, `.notch-shell`). */
+  box-shadow: var(--shadow-raised);
   /* How the bar opens into the phone menu (VA-51, in the phone block below), and how it comes back
      after leaving (VA-40, "the bar leaves" below). `visibility` is `step-start` here so a returning
      bar is visible, and focusable, at once; its leaving list holds it until the slide has finished. */
@@ -775,6 +760,40 @@
     }
 
     /*
+     * ⚠️ THE PAGE BEHIND THE OPEN MENU DIMS, AND THE BAR DOES NOT (polish X26, 2026-10-04). The
+     * dim says the page is waiting and the menu is the thing to use; the page under it also holds
+     * still (F3: holdPageWhileOpen, packages/shared/src/siteBar.ts). It is the shell's own layer,
+     * BELOW the bar: a popover's `::backdrop` covers everything outside the top layer, the bar
+     * included, and would split the bar from the panel it widens into (above). Fixed to the
+     * screen, because the shell has no transform (the hiding bar moves `.notch`, not the shell).
+     * It takes the tap that closes the menu, so a tap beside the menu never also follows a link
+     * underneath. `visibility` keeps it drawn for the whole fade-out, then lets taps through; on
+     * the way in it switches at once, because a transition starts from the old value and a tap in
+     * that first frame went through to a card's link (siteBar.spec.ts, 2026-10-04).
+     * A dim and no blur: the plan's "soft dim", and the one `backdrop-filter` the site allows is
+     * `.stage__ar` (scripts/vibecoded-rules.mjs, VC-08 — a second needs the owner's decision).
+     */
+    .notch-shell::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-menu-dim);
+      background: color-mix(in srgb, var(--ink) 40%, transparent);
+      opacity: 0;
+      visibility: hidden;
+      transition:
+        opacity var(--instant) var(--ease),
+        visibility var(--instant);
+    }
+
+    .notch-shell:has(.notch__menu:popover-open)::before {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity var(--ui) var(--ease);
+    }
+
+    /*
      * ⚠️ BUG 1, DESIGNED OUT: only the open rule below gives the list a `display` on a phone.
      * An author `display` on a [popover] beats the browser's
      * `[popover]:not(:popover-open) { display: none }` whatever the specificity, so the old
@@ -1010,6 +1029,11 @@
   .notch__menu:popover-open {
     border: 1px solid CanvasText;
   }
+
+  /* The dim behind the open menu (X26) is decoration; the menu's own border does its work here. */
+  .notch-shell::before {
+    display: none;
+  }
 }
 
 /*
@@ -1022,16 +1046,22 @@
 @media print {
   .notch-shell {
     --notch-bg: transparent;
-    /* No hairline on paper either: there is no pill for it to outline (VA-40). */
-    --notch-edge: transparent;
   }
 
+  /* No shadow either: printed (Chromium, A4, 2026-10-04) the soft shadow came out as a solid
+     grey box around the name, with the pill's shape cut out of it (polish F14). */
   .notch {
     --notch-text: var(--ink);
     --notch-muted: var(--ink);
+    box-shadow: none;
   }
 
   .notch-strip {
     display: none;
+  }
+
+  /* The menu's links and buttons are for a screen; on paper the bar is the name (polish F14). */
+  .notch__nav {
+    display: none !important;
   }
 }

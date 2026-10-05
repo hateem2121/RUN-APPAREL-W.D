@@ -183,7 +183,8 @@ li {
   text-transform: uppercase;
   /* Tracking is set per size below, not here — see .display--hero. */
   line-height: 0.92;
-  color: var(--headline);
+  /* `--heading`; the big title takes `--headline` in `.display--hero` below (polish X25). */
+  color: var(--heading);
   /*
    * The display face must be allowed to break, or the page scrolls sideways.
    *
@@ -237,6 +238,16 @@ li {
 .display--hero {
   font-size: clamp(2.125rem, 5.4vw, 4.5rem);
   letter-spacing: var(--tracking-display-lg);
+  /*
+   * ⚠️ ONLY THE BIG TITLE IS LIME IN DARK MODE (polish X25, owner's answer Q12, 2026-10-03). Every
+   * heading used to take `--headline`, so a dark guide page showed its title, each section
+   * headline and every small heading ("Air courier", "Sea freight") in lime, and on a long page the
+   * lime stopped pointing at anything. The h1 keeps it; the others are `--heading`, the off-white
+   * of the page's text. Light mode is unchanged: both are ink. The serif accent word keeps its own
+   * colour (`--serif-accent`), as it is olive in light mode, and so does the home page's featured
+   * figure (`--dimension`, site.css).
+   */
+  color: var(--headline);
 }
 
 .display--section {
@@ -294,11 +305,13 @@ li {
  * `3.75vw` and `2.3958vw` are 72px and 46px divided by 1920, so the size is continuous at 1920. The
  * `max()` keeps the rem ceiling underneath, so a visitor who raised the browser's text size never gets
  * less than before (4.5rem is 90px at a 20px root). The `min()` is a ceiling at 3840px, and it is
- * worked out, not a taste: the page's column stops at `--site-max` (1440px: 1312px of text), and the
- * word that fixed the hero's floor on 2026-09-11, "PRODUCTION.", is 8.9em wide (302.8px at 34px,
- * docs/DESIGN.md §3), so it stops fitting that column at 147px. 144px keeps 2% of room, where the
- * engines differ on that word by under 1% (278.6px against 280.38px at 31.36px), so a word is not
- * split — the owner's rule of that day. The stage stops growing at the same 3840px (page.css).
+ * worked out, not a taste: the page's column stopped at `--site-max` (1440px then: 1312px of text),
+ * and the word that fixed the hero's floor on 2026-09-11, "PRODUCTION.", is 8.9em wide (302.8px at
+ * 34px, docs/DESIGN.md §3), so it stopped fitting that column at 147px. 144px kept 2% of room, where
+ * the engines differ on that word by under 1% (278.6px against 280.38px at 31.36px), so a word is
+ * not split — the owner's rule of that day. Since polish D1 (2026-10-04) the column is 1600px from
+ * 1920px (1472px of text, so the word fits up to 165px) and 144px keeps 12% of room. The stage
+ * stops growing at the same 3840px (page.css).
  *
  * Tracking goes with it (`--tracking-display-large`, tokens.css), because a px tracking would loosen
  * the type as it grows; `.serif-accent` inherits it.
@@ -634,13 +647,23 @@ html.lenis body {
   animation-duration: var(--settle);
 }
 
-/* Precision cursor — the component only mounts on fine pointers with motion. */
+/* Precision cursor — the component only mounts on fine pointers with motion.
+
+   ⚠️ ONE POINTER, EVERYWHERE BUT THE 3D WINDOW (polish F4, the owner's answer to Q19,
+   2026-10-04). This hid the browser's pointer on links, buttons and tabs only, so over a text
+   box (the I-beam), the country list, the file box, the globe (`grab`), the footer's wordmark
+   and a disabled camera button (`default`) the browser drew its pointer BESIDE the dot and ring.
+   Each of those is a rule with one class, which ties a universal rule on specificity and wins by
+   coming later, so a list can never keep up: `!important`, and only under `.has-custom-cursor`,
+   which is on the page only while the dot and ring are drawn. The 3D window is the one
+   exception: `<model-viewer>` draws its own grab hand inside (packages/shared/src/cursorRules.ts),
+   so its element falls back to the browser's pointer and the dot and ring step aside over it. */
 .has-custom-cursor,
-.has-custom-cursor a,
-.has-custom-cursor button,
-.has-custom-cursor [role="tab"],
-.has-custom-cursor .theme-toggle {
-  cursor: none;
+.has-custom-cursor * {
+  cursor: none !important;
+}
+.has-custom-cursor model-viewer {
+  cursor: auto !important;
 }
 /* `width`/`height` were transitioned here, which is layout + paint + composite on
    an element that follows the pointer — the worst possible property on the
@@ -660,12 +683,19 @@ html.lenis body {
    centre at (1224, 612). The ring flew off-target over every button and link for
    as long as that rule existed. The inflation now lives in the same transform
    string as the position, in Cursor.tsx — do not move it back here. */
+/* While the phone menu is open the dot and ring join the browser's top layer as popovers
+   (polish F5, keepAboveTopLayer in packages/shared/src/cursorRules.ts), and a popover comes
+   with the browser's own box: centred by `inset: 0` and `margin: auto`, with a border, padding
+   and a Canvas background. The four lines after the z-index undo it, so the two look the same
+   in the top layer as out of it. */
 .cursor-dot,
 .cursor-ring {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0 auto auto 0;
   z-index: var(--z-cursor);
+  margin: 0;
+  padding: 0;
+  overflow: visible;
   pointer-events: none;
   border-radius: 50%;
   translate: -50% -50%;
@@ -676,12 +706,14 @@ html.lenis body {
 .cursor-dot {
   width: 6px;
   height: 6px;
+  border: 0;
   background: var(--serif-accent);
 }
 .cursor-ring {
   width: 34px;
   height: 34px;
   border: 1px solid var(--serif-accent);
+  background: transparent;
 }
 /* Fill only. The 52/34 = 1.53 inflation this rule used to carry is owned by
    Cursor.tsx now — see the ⚠️ above and the long comment at the element. A paint
@@ -777,11 +809,13 @@ html.lenis body {
      79-92px for the same CSS): 56, 57 and 58ch all give three lines of 68-73 characters from
      1024px up (74px tall) and 63px on the sideways phone; 60ch already runs 76-77 a line. 57 is
      the middle of the band that works, so a character's drift either way still holds.
-     ⚠️ THAT IS IN ARCHIVO. The website's body text is "Archivo Optional" (font-display: optional,
-     site.css), so a FIRST visit, the one that sees this card, often keeps the ~6% wider stand-in:
-     measured on the website at 1024px, 64, 64, 66, 14 characters, four lines. 214 characters
-     cannot fit three lines of 75 in both fonts, so the owner chose (2026-10-05) three OR four
-     lines from 1024px up, the sentence unchanged; both suites hold every line to 45-75. */
+     ⚠️ THAT IS IN ARCHIVO. When this was measured the website's body text was "Archivo
+     Optional" (font-display: optional), so a FIRST visit, the one that sees this card, often
+     kept the ~6% wider stand-in for the whole visit: measured on the website at 1024px, 64, 64,
+     66, 14 characters, four lines. Since polish D11 the body text swaps to Archivo when it lands
+     (site.css), so the stand-in now shows only until then. 214 characters cannot fit three lines
+     of 75 in both fonts, so the owner chose (2026-10-05) three OR four lines from 1024px up, the
+     sentence unchanged; both suites hold every line to 45-75. */
   max-inline-size: 57ch;
   margin: 0;
   /* The px figures above were computed at the old 13px. `ch` scales with the text, so at 12px
@@ -823,14 +857,16 @@ html.lenis body {
    ⚠️ PADDING ALONE LEAVES THE LAST ROW OF THE PAGE UNDER THE CARD. Measured in that test:
    with only the scroll padding, the footer's legal links (Products … Terms) stayed under it,
    because the page cannot scroll past its own end. So while the question is open the page
-   gains the same height of empty room at its foot, behind the card. A pseudo-element's
+   gains the same height of empty room, behind the card. Since polish M2 (2026-10-04) that room
+   sits INSIDE the footer, above its RUN APPAREL wordmark (footer.css), so the wordmark stays the
+   last thing on the page; a page with no footer keeps it at its foot, below. A pseudo-element's
    block-size, not padding: the spacing allowlist in tokens.test.ts is for layout spacing,
    and this is neither layout nor permanent; it goes when the question is answered. */
 :root:has(.consent) {
   --consent-reserve: 11rem;
   scroll-padding-block-end: var(--consent-reserve);
 }
-:root:has(.consent) body::after {
+:root:has(.consent):not(:has(.site-footer)) body::after {
   content: "";
   display: block;
   block-size: var(--consent-reserve);

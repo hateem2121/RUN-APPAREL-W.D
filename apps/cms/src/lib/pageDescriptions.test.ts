@@ -5,26 +5,17 @@ import {
   findEmoji,
   findPlaceholders,
 } from '../../../../scripts/copy-rules.mjs'
-import { FAMILIES } from './families'
-import {
-  HOME_DESCRIPTION,
-  MAX_PAGE_DESCRIPTION,
-  PRODUCTS_DESCRIPTION,
-  productsDescription,
-} from './pageDescriptions'
+import { HOME_DESCRIPTION, MAX_PAGE_DESCRIPTION, PRODUCTS_DESCRIPTION } from './pageDescriptions'
 
 /**
  * L-06 / FI-01. Search results show about the first 160 characters of a description.
  * Measured live 2026-09-16: the home page's ran 296 and the products page's 186, so the
  * end of each was cut off in front of every searcher.
  */
+// The family filters' own descriptions went with the filters (polish S3, 2026-10-05).
 const EVERY: [string, string][] = [
   ['home', HOME_DESCRIPTION],
-  ['products', productsDescription(null)],
-  ...FAMILIES.map((family): [string, string] => [
-    `products?family=${family.slug}`,
-    productsDescription(family.name),
-  ]),
+  ['products', PRODUCTS_DESCRIPTION],
 ]
 
 describe('page descriptions (L-06, FI-01)', () => {
@@ -66,11 +57,5 @@ describe('page descriptions (L-06, FI-01)', () => {
     ]) {
       expect(text, `the home description no longer names ${word}`).toContain(word)
     }
-  })
-
-  it('prefixes a filtered view with its family and keeps the rest', () => {
-    expect(productsDescription('Outerwear')).toBe(
-      `Outerwear from RUN APPAREL. ${PRODUCTS_DESCRIPTION}`,
-    )
   })
 })

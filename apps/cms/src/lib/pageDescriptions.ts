@@ -19,15 +19,9 @@ export const MAX_PAGE_DESCRIPTION = 160
 export const HOME_DESCRIPTION =
   'Private label sportswear, teamwear, uniforms, casual wear, outerwear and sports accessories. Made to order in Pakistan, since 1889. 50-piece minimum.'
 
+/**
+ * The products page's description. It had a variant for each family filter until polish S3
+ * (2026-10-05), when the filter's addresses began forwarding to the families' own pages.
+ */
 export const PRODUCTS_DESCRIPTION =
   'Every RUN APPAREL garment in 3D. Turn it, check how it is made and see the print before a sample ships.'
-
-/**
- * The products page's description, for one family filter or for all of them. The prefix is
- * the one the page already used before 2026-09-16; only the sentence after it changed.
- */
-export function productsDescription(familyName: string | null): string {
-  return familyName
-    ? `${familyName} from RUN APPAREL. ${PRODUCTS_DESCRIPTION}`
-    : PRODUCTS_DESCRIPTION
-}

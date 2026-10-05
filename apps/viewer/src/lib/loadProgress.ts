@@ -21,10 +21,10 @@ export function secondsRemaining(
   total: number,
   bytesPerSecond: number,
 ): number | null {
-  // No size means no denominator. `content-length` is present on
-  // media.wear-run.help today (28,271,780 bytes, no content-encoding) but a
-  // future edge setting could remove it, and model-viewer's own loader guards
-  // the same case with `isFinite`.
+  // No size means no denominator. That came true: the media hosts gzip models and send
+  // no `content-length` (measured 2026-10-04), so the total now comes from the garment
+  // data's `glbBytes` (fetchWithProgress, polish F12), and an answer without it still
+  // reaches here as 0. model-viewer's own loader guards the same case with `isFinite`.
   if (!(total > 0)) return null
   // The first callback arrives with no elapsed time behind it, so the rate is 0.
   if (!(bytesPerSecond > 0)) return null

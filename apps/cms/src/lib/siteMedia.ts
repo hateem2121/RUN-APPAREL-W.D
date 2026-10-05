@@ -15,8 +15,11 @@
  * Payload builds each URL from the file name on every read (`generateFileURL`), so the
  * database holds nothing to rewrite.
  */
+import { SITE_MEDIA_ORIGIN } from '@run-apparel/shared'
+
 export const ADMIN_MEDIA_ORIGIN = 'https://media.wear-run.help'
-export const SITE_MEDIA_ORIGIN = 'https://media.wear-run.com'
+/** Kept in packages/shared since polish S6: the garment pages' cards resize from it too. */
+export { SITE_MEDIA_ORIGIN }
 
 /** A media URL as a wear-run.com page must name it. Anything not on the admin host passes through. */
 export function onSiteMedia(url: string): string {

@@ -20,6 +20,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { registerServiceWorker } from './lib/registerServiceWorker'
+import { keepLeavingInstant } from './lib/pageTransition'
 import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
 import { initWebVitals } from './lib/webVitals'
@@ -58,6 +59,9 @@ registerServiceWorker()
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual'
 }
+
+// A website card's picture grows INTO this page; leaving it stays instant (polish MO3, page.css).
+keepLeavingInstant()
 
 const root = createRoot(document.getElementById('root')!)
 

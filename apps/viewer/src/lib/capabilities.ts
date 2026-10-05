@@ -3,10 +3,14 @@
  * shouldn't, the page keeps the full experience (poster, specs, colourway
  * tabs, contacts, catalogue link) minus the live model.
  */
+/** The visitor has asked the browser to save data (Save-Data / Data Saver / Lite mode). */
+export function savesData(): boolean {
+  return Boolean((navigator as { connection?: { saveData?: boolean } }).connection?.saveData)
+}
+
 export function canRender3D(): boolean {
   // Respect reduced-data mode.
-  const connection = (navigator as { connection?: { saveData?: boolean } }).connection
-  if (connection?.saveData) return false
+  if (savesData()) return false
   // WebGL capability check.
   try {
     const canvas = document.createElement('canvas')

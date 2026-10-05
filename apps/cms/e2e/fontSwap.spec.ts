@@ -31,10 +31,10 @@ import { expect, type Page, test } from './offlineMedia'
 const FONT_FILES = /\.(woff2?|ttf|otf)(\?.*)?$/
 const PAGES = ['/', '/products', '/contact'] as const
 /**
- * 390: a phone. 1280: a common laptop, where the column is already at its 1052px cap but the
- * headline's type is still scaling with the window. 1350: Lighthouse's desktop profile, where
- * /products measured CLS 0.404. 1680: past the 1600px breakpoint where the page widens to a
- * 1312px column (FA-E-04).
+ * 390: a phone. 1280: a common laptop, where the headline's type is still scaling with the window
+ * (and, since polish D1, the page is the screen's width: a 1152px column). 1350: Lighthouse's
+ * desktop profile, where /products measured CLS 0.404. 1680: a 1312px column (1440px wide from 1280px
+ * since D1; from 1600px under FA-E-04 before it).
  */
 const WIDTHS = [390, 1280, 1350, 1680] as const
 /**
@@ -314,6 +314,12 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
         browserName,
       }) => {
         test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
+        // ⚠️ SKIPPED IN CI'S LINUX CHROME ONLY (PR #128, 2026-10-05, the owner's choice): 0.052 there,
+        // under 0.02 on the Mac. Linux-only and not yet measured; the next session calibrates it.
+        test.skip(
+          process.platform === 'linux' && path === '/terms' && width === 390,
+          "CI's Linux Chrome only (PR #128, 2026-10-05; the owner chose to skip it there for now): a Linux-only layout shift, to be measured",
+        )
         await installObserver(page)
         /*
          * ⚠️ THE DELAY IS THE TEST, NOT AN INCONVENIENCE. Local `.woff2` files load fast enough
@@ -336,4 +342,198 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
       })
     }
   }
+
+  /*
+   * Polish X19 (2026-10-04): at 1920px the not-found headline set two lines in the stand-in and one
+   * in Archivo, so the page jumped up 66px a moment after loading, every time (0.24 live). It keeps
+   * one font from first paint now (`.hero-notfound`). The control puts the swapping face back.
+   *
+   * ⚠️ THE CONTROL IS AT 1439px SINCE POLISH D1 (2026-10-04). The jump needs a 1311-1312px column
+   * under the 72px headline: the stand-in's line is wider than that and Archivo's is not. D1 widened
+   * the 1920px column to 1472px, where both fonts fit one line and the old face no longer jumps
+   * (the control failed to reproduce it), so the column the jump was measured in is now 1439px's.
+   */
+  for (const [width, swapping] of [
+    [1920, false],
+    [1439, false],
+    [1350, false],
+    [390, false],
+    [1439, true],
+  ] as const) {
+    test(`the not-found page at ${width}px ${swapping ? 'WITH THE OLD SWAPPING FACE (negative control) shifts' : 'stays at or under 0.02'} while the fonts arrive late`, async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
+      await installObserver(page)
+      if (swapping) {
+        await page.addInitScript(() => {
+          document.addEventListener('DOMContentLoaded', () => {
+            const style = document.createElement('style')
+            style.textContent =
+              '.hero-notfound{--font-display:"Archivo Variable","Archivo","Archivo Display Fallback",system-ui,sans-serif;--font-serif:"Instrument Serif","Instrument Serif Fallback",Georgia,serif}'
+            document.head.append(style)
+          })
+        })
+      }
+      await page.route(FONT_FILES, async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        await route.continue()
+      })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/definitely-not-a-page')
+      await page.evaluate(() => document.fonts.ready.then(() => true))
+      await page.waitForTimeout(300)
+      const shift = await readCls(page)
+      if (swapping) expect(shift, 'the control did not reproduce the jump').toBeGreaterThan(0.02)
+      else expect(shift, `moved: ${(await readMoved(page)).join(', ')}`).toBeLessThanOrEqual(0.02)
+    })
+  }
+})
+
+/*
+ * ⚠️ POLISH D11 (2026-10-04): BODY TEXT SWAPS TO ARCHIVO WHEN IT LANDS, AND A WIDTH IN `ch` MOVED WITH
+ * IT. A `ch` is the zero of whichever font draws (MDN, <length>), and the stand-in's zero is 4.6%
+ * narrower than Archivo's: at 768px the home page's lede lost a line (layout shift 0.022) and its
+ * fifth category card grew 34px taller when Archivo arrived. The website's body-text widths are in
+ * `em` since (site.css, `--site-measure` and `p, li`). This compares every body-text box that its
+ * width cap holds (lifting the cap would widen it) with the fonts blocked, so the stand-in draws,
+ * and delivered, at pages and widths where those caps hold (swept on 11 pages at 390-1920px).
+ *
+ * ⚠️ READ ONCE THE PAGE HAS SETTLED, NOT AT `document.fonts.ready`. Under reduced motion Chromium
+ * gives a `ch` box Archivo's zero a frame or two after `ready` resolves (26ms, measured), so a reading
+ * taken at once compared the stand-in with itself and passed with a `ch` cap planted on the lede.
+ * Each state is read after two animation frames, again until two readings agree.
+ *
+ * 1px of slack: Firefox rounds a zero's advance to its pixel grid, so at 15px Archivo's 60ch is
+ * 516.00px there against 34.362em's 515.43px, and `max(60ch, 34.362em)` takes the wider. The jumps
+ * this guards against measured 19-27px.
+ */
+test.describe('D11 — a body-text box held at its width cap is the same width in either font', () => {
+  interface Boxes {
+    capped: string[]
+    widths: Record<string, number>
+  }
+
+  async function readBoxes(
+    page: Page,
+    path: string,
+    width: number,
+    fonts: 'blocked' | 'delivered',
+  ) {
+    await page.unroute(FONT_FILES).catch(() => undefined)
+    if (fonts === 'blocked') await page.route(FONT_FILES, (route) => route.abort())
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(path)
+    await Promise.race([
+      page.evaluate(async () => {
+        await document.fonts.load('400 17px "Archivo Variable"').catch(() => undefined)
+        await document.fonts.ready
+      }),
+      page.waitForTimeout(3000),
+    ])
+    const archivoLoaded = await page.evaluate(() =>
+      [...document.fonts].some(
+        (face) =>
+          face.family.replaceAll('"', '') === 'Archivo Variable' && face.status === 'loaded',
+      ),
+    )
+    expect(archivoLoaded, `Archivo loaded with the fonts ${fonts}`).toBe(fonts === 'delivered')
+    let previous = ''
+    let boxes: Boxes = { capped: [], widths: {} }
+    for (let reading = 0; reading < 10; reading++) {
+      await page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      )
+      boxes = await page.evaluate((): Boxes => {
+        const seen = new Map<string, number>()
+        const capped: string[] = []
+        const widths: Record<string, number> = {}
+        for (const el of document.querySelectorAll<HTMLElement>('body *')) {
+          const name = `${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join('')}`
+          const count = (seen.get(name) ?? 0) + 1
+          seen.set(name, count)
+          const style = getComputedStyle(el)
+          // Body text only: its stack is the one that names the body stand-in.
+          if (style.maxWidth === 'none' || !style.fontFamily.includes('Archivo Fallback')) continue
+          const box = el.getBoundingClientRect().width
+          if (box === 0) continue
+          const key = `${name} #${count}`
+          widths[key] = box
+          const inline = el.style.maxWidth
+          el.style.maxWidth = 'none'
+          const free = el.getBoundingClientRect().width
+          el.style.maxWidth = inline
+          if (free > box + 0.5) capped.push(key)
+        }
+        return { capped, widths }
+      })
+      const now = JSON.stringify(boxes.widths)
+      if (now === previous) return boxes
+      previous = now
+    }
+    throw new Error(`${path} at ${width}px with the fonts ${fonts} never settled`)
+  }
+
+  const moved = (delivered: Boxes, blocked: Boxes) =>
+    [...new Set([...delivered.capped, ...blocked.capped])]
+      .filter((key) => Math.abs((delivered.widths[key] ?? -1) - (blocked.widths[key] ?? -1)) > 1)
+      .map(
+        (key) =>
+          `${key}: ${blocked.widths[key]?.toFixed(1)}px in the stand-in, ${delivered.widths[key]?.toFixed(1)}px in Archivo`,
+      )
+
+  const held = (delivered: Boxes, blocked: Boxes) => [
+    ...new Set([...delivered.capped, ...blocked.capped].map((key) => key.replace(/ #\d+$/, ''))),
+  ]
+
+  // No family card since polish D3: a ticket is not held at a width in the font (it drops the
+  // `li` cap, site.css), so a font's arrival has nothing of it to move.
+  for (const [path, width, mustHold] of [
+    // The order steps' words (polish D4): capped in a card the column's width at 768px, and in a
+    // card the right half's width at 1440px (at 1024px that half leaves them under the cap).
+    ['/', 768, ['p.site-lede', 'p.order-step__body', 'p.footer-derisk']],
+    ['/', 1440, ['p.order-step__body']],
+    ['/contact', 1440, ['form.inquiry-form', 'p.contact-block__note']],
+    ['/guides/garment-printing-methods', 1280, ['p']],
+    // 1440, not 1024, since polish X4: from 900px the text is three fifths of the page beside
+    // "On this page", and at 1024px that column (514px) is narrower than the cap (535px).
+    ['/privacy', 1440, ['p']],
+  ] as const) {
+    test(`${path} at ${width}px`, async ({ page, browserName }) => {
+      // ⚠️ SKIPPED IN CI'S LINUX CHROME ONLY (PR #128, 2026-10-05, the owner's choice). That Chrome rounds
+      // each letter to whole pixels: Archivo's zero (0.5727em, 9.74px here) becomes 10px, so 60ch is
+      // 600.0px against 34.362em's 584.1px, and the box is 16px wider once Archivo lands. The Mac
+      // measures 584.1px in both. A cap that holds under whole-pixel rounding is the next session's.
+      test.skip(
+        browserName === 'chromium' &&
+          process.platform === 'linux' &&
+          ['/ 768', '/ 1440', '/contact 1440'].includes(`${path} ${width}`),
+        "CI's Linux Chrome only (PR #128, 2026-10-05; the owner chose to skip it there for now): whole-pixel letters make Archivo's 60ch 600px",
+      )
+      const delivered = await readBoxes(page, path, width, 'delivered')
+      const blocked = await readBoxes(page, path, width, 'blocked')
+      // Not vacuous: the boxes this page is here for are held at their caps.
+      expect(held(delivered, blocked)).toEqual(expect.arrayContaining([...mustHold]))
+      expect(moved(delivered, blocked)).toEqual([])
+    })
+  }
+
+  test('the comparison sees a `ch` cap planted on the lede (negative control)', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style')
+        style.textContent = 'html body .site-lede{max-width:55ch}'
+        document.head.append(style)
+      })
+    })
+    const delivered = await readBoxes(page, '/', 768, 'delivered')
+    const blocked = await readBoxes(page, '/', 768, 'blocked')
+    expect(moved(delivered, blocked).join('\n'), 'the planted cap did not move').toContain(
+      'p.site-lede',
+    )
+  })
 })

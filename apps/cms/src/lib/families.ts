@@ -4,18 +4,20 @@ import type { ProductCard } from './projectPublic'
  * The five product families, in one place.
  *
  * ⚠️ THESE NAMES ARE THE `category` VALUES ON THE PRODUCTS COLLECTION, EXACTLY. The
- * gallery filter matches on them by string equality, so a rename in `Products.ts` that is
- * not made here does not throw, does not fail a typecheck, and does not look wrong — it
- * silently returns an empty gallery for that family. `families.test.ts` asserts the two
- * lists are identical and is the only thing standing between a one-word edit and a
- * filter that quietly matches nothing.
+ * products page's groups and the buyer pages match on them by string equality, so a rename in
+ * `Products.ts` that is not made here does not throw, does not fail a typecheck, and does not
+ * look wrong — it silently empties that family's group and page. `families.test.ts` asserts the
+ * two lists are identical and is the only thing standing between a one-word edit and a family
+ * that quietly matches nothing.
  *
  * The homepage already carried a comment claiming the two "cannot describe different
  * catalogues". That was an intention, not a mechanism, until this file existed.
  *
- * ⚠️ THE SLUGS ARE PUBLIC URLS (`/products?family=outerwear`) and are the owner's to
- * change, not a refactor's — a link shared in an email keeps working only if they do not
- * move. They are deliberately NOT derived from the name at runtime: deriving them would
+ * ⚠️ THE SLUGS ARE PUBLIC URLS and are the owner's to change, not a refactor's: each names its
+ * family's group on the products page (`/products#outerwear`), and the old filter addresses
+ * (`/products?family=outerwear`), which forward to the family's page since polish S3
+ * (`familyFilterForward`), read them. A link shared in an email keeps working only if they do
+ * not move. They are deliberately NOT derived from the name at runtime: deriving them would
  * make a copy edit silently break every existing link.
  */
 export type Family = {

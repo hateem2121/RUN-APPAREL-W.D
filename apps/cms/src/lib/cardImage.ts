@@ -1,89 +1,75 @@
 /**
  * A card-sized copy of a gallery picture, resized by Cloudflare at the edge (owner, 2026-09-29).
  *
- * ⚠️ WHY: THE FULL STUDIO RENDER COST /products ITS PHONE SCORE. Since PR #80 (2026-09-27) each
- * card shows the colour's studio render, 365–791 KB and up to 1,991 x 2,824 px, in a box at most
- * 369 x 460 CSS px. Measured with Lighthouse 13.5.0 (mobile) on the live page, 2026-09-29: the
- * first card's 791 KB render made Largest Contentful Paint 8.3–9.3 s and the score 0.67–0.74;
- * with the renders blocked the same page scored 0.88–0.90. Resized to fit 720 x 900 the first
- * three cards weigh about 150 KB instead of 1.86 MB (quality 90, below), and still carry more
- * pixels than a phone shows.
- *
- * ⚠️ ONLY media.wear-run.com, WHERE THE OWNER SWITCHED RESIZING ON. Cloudflare Images on the
- * free plan: 5,000 unique resizes a month at no charge, and past that a new resize FAILS rather
- * than bills. `onerror=redirect` then sends the browser to the original file, so the worst case
- * is today's page, never a broken card. This page asks for ~3 sizes x ~200 pictures. The admin's
- * media.wear-run.help passes through untouched: resizing works there too (measured), but a
- * picture from that host is blocked on a wear-run.com page by its same-site resource policy, so
- * the public pages never carry one. A local build's relative Payload paths pass through as well.
- *
- * `fit=scale-down` never enlarges, and fits the picture INSIDE a 4:5 box, as the card's
- * `object-fit: contain` does — a tall render is bounded by the height, a wide one by the width.
+ * The URLs are built in packages/shared/src/cardImage.ts since polish S6 (2026-10-04), where the
+ * reasons live: the firewall rule that allows exactly those copies, the quality the owner chose,
+ * and why the page's own address asks for them. The garment pages' "More from <category>" cards
+ * use the same builder, so the two can never ask for a size the rule refuses. What stays here is
+ * how wide THIS site's gallery draws a card.
  */
 
-import { SITE_MEDIA_ORIGIN } from './siteMedia'
+import { CARD_WIDTHS, resizedCardImage } from '@run-apparel/shared'
+
+export { CARD_WIDTHS }
 
 /**
- * The card box widths offered, 4:5 each: 400 for 1x screens, 720 and 1,080 for 2x and 3x phones.
+ * How wide a card's picture draws, from `.product-grid` in site.css (visual audit VA-42, 2026-10-02;
+ * the page widths of polish D1, 2026-10-04; the tickets of D3b and M1, 2026-10-05): one sideways ticket
+ * a row below 560 px, two columns to 900, three from 900, four from 1,440 and five from 1,920.
  *
- * ⚠️ A CLOUDFLARE FIREWALL RULE ALLOWS EXACTLY THESE URLS. wear-run.com blocks every other
- * /cdn-cgi/image/ request (rule "Only the card picture sizes may be resized", 2026-09-29, which
- * stops anyone spending the free quota on odd sizes). A blocked picture is a 403 that `onerror`
- * does not catch, so changing a width, a height or QUALITY here without changing the rule
- * empties every card. `cardImage.test.ts` pins the three; docs/RUNBOOK.md says how to change both.
+ * ⚠️ ASKED FOR THE BOX INSIDE VA-55's MARGIN, 86% OF THE PICTURE'S BOX (polish X15, 2026-10-05).
+ * Each slide picture is padded 7% of its width a side (`--picture-inset`, site.css), and `contain`
+ * fits the render inside that, so no render is drawn wider than 0.86 of the box. Asking for the
+ * whole box handed a 3x phone at 375-393 px the 720 file (38-60 KB, measured live) where the 400
+ * file (16-26 KB) already covers the picture, and a 2x tablet at 820-834 px or a 2x laptop at
+ * 1,280-1,439 px the 1,080 file where 720 covers it. The box, and 0.86 of it:
+ *
+ *   below 400     the ticket's left 44%: `0.44 × (100vw − two 20 px gutters − its 2 px of border)`,
+ *                 122 px at 320 and 153 at 390; inside the margin `37.84vw − 15.9px`, asked as
+ *                 `37.84vw − 15.6px`, which keeps a 393 px phone's 3x ask (399.3) under the 400 file
+ *   400–559       the same with gutters of 5vw rounded to 2 px, 220 px at 559; inside the margin at
+ *                 most `34.06vw`, asked as 34.1vw
+ *   560–899       `(100vw − two gutters − a 12 px gap) / 2`, `45vw − 6px` within the gutters'
+ *                 rounding (246 px at 560); inside the margin at most `38.7vw − 4.3px`
+ *   900–1,279     three in a page of up to 1,180: 254–338 px; inside the margin up to 291
+ *   1,280–1,439   three in the screen less two 64 px gutters: (100vw − 128 − 48) / 3, 368–421 px;
+ *                 inside the margin `28.67vw − 50.4px`
+ *   1,440–1,919   four in 1,312: 310 px; 266.6 inside the margin
+ *   1,920 and up  five in 1,472: 275.2 px; 236.7 inside the margin
+ *
+ * Never less than the margin's box (`e2e/productsGrid.spec.ts` measures it), so a sharp screen is
+ * never handed a file it would have to stretch. Until VA-42 this said one column below 586 px (348
+ * px at 390) and a phone fetched the 1,080 file for a 169 px card.
+ *
+ * The `w` numbers describe the 4:5 BOX the file is fitted into, not the picture. In a 4:5 card the
+ * margin's box is 4:5 too, so a file as wide as it is as tall as it as well. Below 560 px the card's
+ * box is square, or taller only when a long name needs the room: the margin's box there is 0.86 of
+ * the width by 0.825 of it (1.25 x 7% above and below), and the file's box, 1.25 times as tall as
+ * it is wide, is taller than that. A ticket stretched past 1.25 times its width by a long name is
+ * the one case a tall render could come out a little soft.
  */
-export const CARD_WIDTHS = [400, 720, 1080] as const
+export const CARD_SIZES =
+  '(max-width: 399px) calc(37.84vw - 15.6px), (max-width: 559px) 34.1vw, ' +
+  '(max-width: 899px) calc(38.7vw - 4px), (max-width: 1279px) 291px, ' +
+  '(max-width: 1439px) calc(28.67vw - 50px), (max-width: 1919px) 267px, 237px'
 
 /**
- * How wide a card draws, from `.product-grid` in site.css (visual audit VA-42, 2026-10-02): two
- * columns below 900 px, three from 900 and four from 1,600, so the card is ~134–169 px on a phone
- * and ~250–390 px up to 899, then ~254–335 px. Below 900 a card is
- * `(100vw − two gutters − a 12 px gap) / 2`. `45vw − 6px` is exact above 400 px, where the gutter is
- * 5vw, and 4 px too wide at 320 px (138 px asked for, 134 px drawn): close enough, since the browser
- * only uses it to choose between three files. From 900 px it is the 340 px the
- * live page measured 2026-09-29 (333 px at 1280, 308 at 1920). Until VA-42 this said one column
- * below 586 px (348 px at 390) and a phone fetched the 1,080 file for a 169 px card.
- *
- * The `w` numbers describe the 4:5 BOX, not the picture inside it. A render taller than 4:5 comes
- * back narrower than the box, but it is height-bound in the card too (`object-fit: contain`), so
- * the height it needs is what the box gives: a 3x phone's 434 px-tall card needs 1,302 px, and
- * the 1,080 box is 1,350 px tall. Below 560 px the box is square (169 px tall at 390 px), which
- * only means the file is a little larger than the picture needs.
+ * How wide a family ticket's picture on the home page draws (polish D3; `.family-card` in site.css),
+ * in the page widths of polish D1. Sideways, it is 40% of the card: one card a row below 560 px
+ * (`0.4 x (100vw - two gutters)`, asked as `40vw - 16px`), two from 560 px (`0.2 x (the column -
+ * a 24 px gap)`: `18vw - 4px` while the gutters are 5vw, to 1,279; `20vw - 30px` in the screen less
+ * 128 px of gutters, to 1,439; 257.6 in the 1,312 px column; 289.6 in the 1,472 px one). The fifth,
+ * which spans both columns, keeps the others' picture width, so this is its hint too. In the row of
+ * five (a pointer that can hover, from 1,180 px) a closed card's picture is the whole card, `(the
+ * column - four 12 px gaps) / 5`, which those same numbers cover within a few pixels (and an opened
+ * card's is smaller, 44% of a wider card). Only a hint: the picture it picks is one of the three
+ * card sizes above, the only ones the wear-run.com firewall rule lets through. Here, not in
+ * `FamilyCard.tsx`, so a browser test can import it without the component's Next imports.
  */
-export const CARD_SIZES = '(max-width: 899px) calc(45vw - 6px), 340px'
-
-const RESIZING_ORIGIN = `${SITE_MEDIA_ORIGIN}/`
-const DEFAULT_WIDTH = 720
-
-/*
- * ⚠️ QUALITY 90: THE OWNER'S TRADE BETWEEN FABRIC GRAIN AND SPEED (2026-09-29). The print and
- * logos were sharp at every setting; the FABRIC GRAIN was not. At Cloudflare's default (~85) and
- * at 90 the weave on the rxps chest panel was smoothed; at 95 it came back close to the original.
- * Measured at the 720 card size, AVIF: r-xmp-wine 38 / 60 / 115 KB, rxps-wine 31 / 49 / 123 KB at
- * default / 90 / 95. Lighthouse (mobile, 5 runs each, the local build with production data):
- * 95 scored 0.82, below the 0.85 floor; 90 scored 0.86; the default 0.86–0.88. Shown all three,
- * the owner chose 90. Raising it costs the /products floor; lowering it costs the grain.
- */
-const QUALITY = 90
-
-/*
- * ⚠️ ASKED OF THE PAGE'S OWN ADDRESS, NOT OF media.wear-run.com. Both answer
- * `/cdn-cgi/image/…` (same zone, same cache: measured 2026-09-29, `cf-resized: internal=ram/h`
- * on both), and "This zone only" lets wear-run.com resize a media.wear-run.com source. The
- * relative path means a phone reuses the connection the page arrived on, instead of opening a
- * second one to media.wear-run.com before the first picture can start. A failed resize still
- * falls back: forced with an invalid option, both forms answered 307 to the original file.
- */
-const resized = (url: string, width: number) =>
-  `/cdn-cgi/image/fit=scale-down,width=${width},height=${width * 1.25},quality=${QUALITY},format=auto,onerror=redirect/${url}`
+export const FAMILY_SIZES =
+  '(max-width: 559px) calc(40vw - 16px), (max-width: 1279px) calc(18vw - 4px), ' +
+  '(max-width: 1439px) calc(20vw - 30px), (max-width: 1919px) 258px, 290px'
 
 export function cardImage(url: string): { src: string; srcSet?: string; sizes?: string } {
-  if (!url.startsWith(RESIZING_ORIGIN)) return { src: url }
-  const key = url.slice(RESIZING_ORIGIN.length)
-  if (key.length === 0 || key.startsWith('cdn-cgi/')) return { src: url }
-  return {
-    src: resized(url, DEFAULT_WIDTH),
-    srcSet: CARD_WIDTHS.map((width) => `${resized(url, width)} ${width}w`).join(', '),
-    sizes: CARD_SIZES,
-  }
+  return resizedCardImage(url, CARD_SIZES)
 }

@@ -1,6 +1,6 @@
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
-import { FAMILY_PAGES, familyOf } from './familyPages'
+import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
 import { GUIDES } from './guides'
 
 /**
@@ -40,8 +40,10 @@ import { GUIDES } from './guides'
 /** American spelling throughout — owner decision, `docs/CUSTOMISATION-COPY-2026-09-04.md`. */
 export function buildLlmsTxt(siteOrigin: string): string {
   const facts = FACTS.map((fact) => `- ${fact.label}: ${fact.value}`).join('\n')
+  // Each family's one list: its own page, or its group on the products page (polish S1). The
+  // filter addresses this named until 2026-10-05 forward there now.
   const families = FAMILIES.map(
-    (family) => `- [${family.name}](${siteOrigin}/products?family=${family.slug}) — ${family.body}`,
+    (family) => `- [${family.name}](${siteOrigin}${familyHref(family)}) — ${family.body}`,
   ).join('\n')
   // The buyer pages (2026-09-30), from the list that holds their words: a family with a
   // page of its own is named here in the same change that creates it.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countryByCode, editDialCode, nextDialCode } from './dialCode'
+import { countryByCode, editDialCode, nextDialCode, countryByName } from './dialCode'
 import { COUNTRIES } from './dialCodes'
 
 describe('the generated country table', () => {
@@ -62,5 +62,18 @@ describe('nextDialCode (review focus #5)', () => {
 
   it('reads the country code case-insensitively', () => {
     expect(countryByCode(' pk ')?.name).toBe('Pakistan')
+  })
+})
+
+describe('countryByName (polish D7: the country is typed, with suggestions)', () => {
+  it('finds a country by its name, whatever the case and the spaces around it', () => {
+    expect(countryByName('Pakistan')?.dial).toBe('92')
+    expect(countryByName('  germany ')?.code).toBe('DE')
+  })
+
+  it('finds nothing for part of a name, or for nothing', () => {
+    // A half-typed name must not fill a code: "Paki" is not a country yet.
+    expect(countryByName('Paki')).toBeUndefined()
+    expect(countryByName('')).toBeUndefined()
   })
 })

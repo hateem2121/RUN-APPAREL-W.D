@@ -1,4 +1,4 @@
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 import {
   SITE_BAR_WORDMARK,
   SITE_MENU_ID,
@@ -133,5 +133,245 @@ test.describe('the phone status area takes the bar colour (VA-50) — the site',
     expect(top.display).toBe('none')
     expect(top.hit).toBe(false)
     expect(top.themeColour, 'a desktop took the phone colour').toBe(top.page)
+  })
+})
+
+/*
+ * Polish F3 and X26 (2026-10-04): while the phone menu is open, the page behind it holds still
+ * and is dimmed, and the bar is not. In the audit's second check a wheel beside the open menu
+ * scrolled the page away under it. These run AS A HUMAN with smooth scroll on, because a wheel
+ * that Lenis takes is exactly what slipped past the page's overflow (pageHold.ts), and in a
+ * phone-width window on a computer, because a wheel is how a computer scrolls.
+ *
+ * As a human the cookie card shows (it hides under automation), and it sits above the bar's
+ * layer at the foot of the screen, so every point here is taken from the page: on a link, below
+ * the open panel and above the card.
+ */
+test.describe('the open phone menu holds the page still and dims it (polish F3, X26) — the site', () => {
+  test.skip(({ isMobile }) => isMobile, 'a wheel: a narrow window on a computer')
+
+  const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
+    get: () => false,
+    configurable: true,
+  })`
+  const scrollY = (page: Page) => page.evaluate(() => Math.round(window.scrollY))
+  const menuOpen = (page: Page) =>
+    page.evaluate(
+      (id) => document.getElementById(id)?.matches(':popover-open') ?? false,
+      SITE_MENU_ID,
+    )
+  const openMenu = async (page: Page) => {
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+    await expect.poll(() => menuOpen(page)).toBe(true)
+  }
+
+  /** /products in a 600px window, scrolled a little, with smooth scroll proven running. */
+  async function openProducts(page: Page) {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.setViewportSize({ width: 600, height: 800 })
+    await page.goto('/products')
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
+        message: 'Lenis never started, so a wheel here would test native scrolling only',
+        timeout: 10_000,
+      })
+      .toBe(true)
+    await page.evaluate(() => window.scrollTo(0, 300))
+    await page.waitForTimeout(300)
+  }
+
+  /**
+   * A point on a link of the page, below where the open panel reaches and above the cookie card,
+   * found BEFORE the menu opens: a grid scan, because a card's links are taller than that band
+   * and their centres fall outside it. Null if the page offers none, which the tests refuse.
+   */
+  const pagePoint = (page: Page) =>
+    page.evaluate(() => {
+      const card = document.querySelector('.consent')?.getBoundingClientRect().top ?? innerHeight
+      for (let y = 420; y < card - 16; y += 12) {
+        for (let x = 40; x < innerWidth - 40; x += 40) {
+          if (document.elementFromPoint(x, y)?.closest('main a[href]')) return { x, y }
+        }
+      }
+      return null
+    })
+
+  async function pointOnThePage(page: Page) {
+    const point = await pagePoint(page)
+    expect(
+      point,
+      'no link between the panel and the cookie card, so this measures nothing',
+    ).not.toBeNull()
+    return point ?? { x: 0, y: 0 }
+  }
+
+  /** A wheel at `point`; longer than the 1.1 s glide, so a slow one cannot hide in the wait. */
+  async function wheelAt(page: Page, point: { x: number; y: number }) {
+    await page.mouse.move(point.x, point.y)
+    await page.mouse.wheel(0, 900)
+    await page.waitForTimeout(1500)
+  }
+
+  test('a wheel beside the open menu moves nothing, and scrolls again once it closes', async ({
+    page,
+  }) => {
+    await openProducts(page)
+    const point = await pointOnThePage(page)
+    const start = await scrollY(page)
+    await openMenu(page)
+    await wheelAt(page, point)
+    // WebKit is the engine that scrolled a page held on the wrong element (pageHold.ts).
+    expect(await scrollY(page), 'the page scrolled behind the open menu').toBe(start)
+    await page.keyboard.press('Escape')
+    await expect.poll(() => menuOpen(page)).toBe(false)
+    await wheelAt(page, point)
+    expect(await scrollY(page), 'the hold outlived the menu').toBeGreaterThan(start)
+  })
+
+  test('NEGATIVE CONTROL: with the hold taken off, the same wheel scrolls the page under the menu', async ({
+    page,
+  }) => {
+    await openProducts(page)
+    const point = await pointOnThePage(page)
+    const start = await scrollY(page)
+    await openMenu(page)
+    const lifted = await page.evaluate(() => {
+      const held = [document.documentElement, document.body].filter(
+        (element) => element.style.overflowY === 'hidden',
+      )
+      for (const element of held) {
+        element.style.overflowX = ''
+        element.style.overflowY = ''
+      }
+      return held.length
+    })
+    expect(lifted, 'the menu held nothing, so there was no hold to lift').toBe(1)
+    await wheelAt(page, point)
+    expect(await scrollY(page)).toBeGreaterThan(start)
+  })
+
+  test('the dim covers the page and not the bar, and the page does not move sideways', async ({
+    page,
+  }) => {
+    await openProducts(page)
+    const point = await pointOnThePage(page)
+    const width = await page.evaluate(() => document.documentElement.clientWidth)
+    await openMenu(page)
+    await expect
+      .poll(() =>
+        page
+          .locator('header.notch-shell')
+          .evaluate((shell) => getComputedStyle(shell, '::before').opacity),
+      )
+      .toBe('1')
+    const hits = await page.evaluate(({ x, y }) => {
+      const bar = (document.querySelector('.notch') as HTMLElement).getBoundingClientRect()
+      const onBar = document.elementFromPoint(bar.left + 24, bar.top + bar.height / 2)
+      return {
+        bar: Boolean(onBar?.closest('.notch')),
+        page: document.elementFromPoint(x, y)?.matches('header.notch-shell') ?? false,
+      }
+    }, point)
+    expect(hits.bar, 'the dim lies over the bar').toBe(true)
+    expect(hits.page, 'the dim does not cover the page').toBe(true)
+    // A classic scrollbar (Firefox here) keeps its space while the page is held.
+    expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(width)
+  })
+
+  /*
+   * The tap. A card's link goes to the live garment page, which a test must not visit, so the
+   * page records where each click lands and cancels it. Tapped the moment the menu reports open:
+   * the dim once arrived a frame late, and a tap in that frame reached the link (notch.css).
+   */
+  for (const dim of [true, false]) {
+    test(
+      dim
+        ? 'a tap on the dim only closes the menu'
+        : 'NEGATIVE CONTROL: without the dim, the same tap reaches the link under it',
+      async ({ page }) => {
+        await openProducts(page)
+        const point = await pointOnThePage(page)
+        if (!dim)
+          await page.addStyleTag({ content: '.notch-shell::before{display:none!important}' })
+        await page.evaluate(() => {
+          const clicks: boolean[] = []
+          ;(window as unknown as { __linkClicks: boolean[] }).__linkClicks = clicks
+          window.addEventListener(
+            'click',
+            (event) => {
+              const target = event.target instanceof Element ? event.target : null
+              // The bar's own controls, the menu button among them, keep their clicks.
+              if (target?.closest('.notch')) return
+              clicks.push(target?.closest('a') != null)
+              event.preventDefault()
+            },
+            { capture: true },
+          )
+        })
+        await openMenu(page)
+        await page.mouse.click(point.x, point.y)
+        await expect.poll(() => menuOpen(page)).toBe(false)
+        const clicks = await page.evaluate(
+          () => (window as unknown as { __linkClicks: boolean[] }).__linkClicks,
+        )
+        expect(clicks, 'the tap did not arrive as one click').toHaveLength(1)
+        expect(
+          clicks[0],
+          dim ? 'the tap went through the dim to a link' : 'the control tap missed the link',
+        ).toBe(!dim)
+      },
+    )
+  }
+
+  /*
+   * Polish F5 (2026-10-04): the menu is drawn in the browser's top layer, above every z-index, so
+   * the dot and ring passed under it, and over its links, where the browser's pointer is hidden
+   * too, there was no pointer at all. Between top-layer elements the last one added is drawn on
+   * top (CSS Positioned Layout 4), so the ORDER they arrive in is what puts the pointer above the
+   * menu: recorded from the `toggle` events, which fire as each one arrives.
+   */
+  test('the dot and ring stay above the open menu, which still takes its taps (F5)', async ({
+    page,
+  }) => {
+    await openProducts(page)
+    await page.locator('.cursor-dot').waitFor({ state: 'attached' })
+    const point = await pointOnThePage(page)
+    await page.mouse.move(point.x, point.y)
+    await page.mouse.move(point.x + 6, point.y, { steps: 3 })
+    await page.evaluate(() => {
+      const order: string[] = []
+      ;(window as unknown as { __order: string[] }).__order = order
+      document.addEventListener(
+        'toggle',
+        (event) => {
+          if ((event as Event & { newState?: string }).newState !== 'open') return
+          order.push(String((event.target as Element).className).split(' ')[0] ?? '')
+        },
+        true,
+      )
+    })
+    await openMenu(page)
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __order: string[] }).__order))
+      .toEqual(['notch__menu', 'cursor-dot', 'cursor-ring'])
+
+    const ring = () =>
+      page.evaluate(() => {
+        const element = document.querySelector('.cursor-ring')
+        return {
+          lifted: element?.matches(':popover-open') ?? false,
+          hidden: element?.getAttribute('data-hidden'),
+          grows: element?.getAttribute('data-pointer'),
+        }
+      })
+    await page.locator(`#${SITE_MENU_ID} .nav-link`).first().hover()
+    await expect.poll(ring).toEqual({ lifted: true, hidden: 'false', grows: 'true' })
+
+    await page.locator(`#${SITE_MENU_ID}`).getByRole('link', { name: 'Contact' }).click()
+    await expect(page).toHaveURL(/\/contact$/)
+    await expect
+      .poll(ring, { message: 'the dot and ring stayed in the top layer after the menu closed' })
+      .toMatchObject({ lifted: false })
   })
 })

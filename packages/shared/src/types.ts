@@ -1,4 +1,5 @@
 import type { FooterSettings } from './siteFooter'
+import type { SpecGroup } from './specs'
 
 /**
  * Public viewer API contract shared between apps/cms (producer) and
@@ -64,8 +65,18 @@ export interface ViewerColourway {
    * picture that does not exist. Fetched only when a visitor asks for it.
    */
   render: ViewerMediaAsset | null
+  /**
+   * A 1400px-tall copy of `render`, which the garment page shows inside the 3D window (polish
+   * D9 / F16, 2026-10-04): about a tenth of the bytes, while zooming and the full-screen view
+   * keep `render`. Null when no copy matches the colour's current render. OPTIONAL in
+   * practice: an answer cached before the field existed has none, and the page then shows
+   * `render` itself.
+   */
+  renderScreen?: ViewerMediaAsset | null
   /** Dedicated GLB — populated only when the parent product uses "separate-glb-per-colour". */
   glbUrl: string | null
+  /** That GLB's size in bytes (`ViewerProduct.glbBytes` says why), with the same rule. */
+  glbBytes: number | null
   isDefault: boolean
   altText: string
   hexSwatch: string | null
@@ -79,11 +90,28 @@ export interface ViewerProduct {
   variantMode: VariantMode
   /** Production merged GLB — populated only when variantMode is "single-glb-variants". */
   glbUrl: string | null
+  /**
+   * That GLB's size in bytes, as the CMS recorded it when the file was uploaded; null when it
+   * did not (polish F12, 2026-10-04). The media host sends the model gzipped and so without a
+   * `content-length` (measured live the same day), and the garment page's percentage and time
+   * left need a total: this is it. It is the UNCOMPRESSED size, which is what a browser counts
+   * as it reads the decompressed body. OPTIONAL in practice: an answer cached before the field
+   * existed has none, and the page then shows the download without a percentage, as before.
+   */
+  glbBytes: number | null
   posterFallback: ViewerMediaAsset | null
   fabricComposition: string
   gsm: string
   performanceFeatures: string[]
   garmentFit: string
+  /**
+   * The four fields above as the page draws them: Fabric, Weight, Fit and Performance, each
+   * bullet with its one-line note from the glossary (polish D10, 2026-10-04: `specs.ts`,
+   * `specNotes.ts`). Built by the CMS, so a note changes with a deploy of the CMS alone.
+   * OPTIONAL: an answer cached before the field existed has none, and the garment page then
+   * builds the groups from the four fields itself, with no notes.
+   */
+  specs?: SpecGroup[]
   /**
    * A few sentences about this garment, shown under its name. Empty string when
    * the owner has not written one — every product created before 2026-08-17 is
@@ -138,6 +166,28 @@ export interface ViewerApiSuccess {
   /** Display-safe notice shown when requestedColourwayUnavailable is true. */
   fallbackMessage: string | null
   siteSettings: ViewerSiteSettings
+  /**
+   * Up to four other garments from the same category, for "More from <category>" at the end of
+   * the page (polish S6, 2026-10-04): the ones that follow this garment in the website's order,
+   * wrapping round. Optional, because an answer cached before then has none, and the section is
+   * then simply not drawn.
+   */
+  related?: ViewerRelatedGarment[]
+}
+
+/** Another garment of the same category, as a card: its name, code, picture and page. */
+export interface ViewerRelatedGarment {
+  slug: string
+  /** The colour the card opens: the garment's default, as the website's cards open it. */
+  colourSlug: string
+  productName: string
+  productCode: string
+  /**
+   * The card's picture, chosen as the website's cards choose it: the default colour's studio
+   * render where it has one, else its 3D poster. `null` draws no picture. No description: the
+   * picture sits inside a link that the garment's name already names.
+   */
+  imageUrl: string | null
 }
 
 export interface ViewerApiError {
@@ -164,6 +214,9 @@ export const VIEWER_ANALYTICS_EVENTS = [
   'retired_colourway_fallback',
   // A visitor opened the "HD IMAGE" studio render (2026-09-27).
   'hd_image_opened',
+  // "Ask about this garment", the page's closing prompt (polish S10, 2026-10-04). The same name
+  // as the owner's Google Analytics key event (Q37), so the two counts can be laid side by side.
+  'ask_about_garment',
   /*
    * Core Web Vitals, one report per visit, sent when the page is hidden.
    *

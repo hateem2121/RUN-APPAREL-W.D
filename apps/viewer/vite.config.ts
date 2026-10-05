@@ -66,8 +66,14 @@ export default defineConfig({
         order: 'post' as const,
         handler(html: string, ctx: { bundle?: Record<string, unknown> }) {
           const files = Object.keys(ctx.bundle ?? {})
+          // Not IBM Plex Mono (polish X5): the labels swap to it without moving anything, and a
+          // preload would compete with the stylesheet for the slow-3G first paint (page.css).
           const wanted = files.filter(
-            (f) => /\.woff2$/.test(f) && /-latin-/.test(f) && !/latin-ext/.test(f),
+            (f) =>
+              /\.woff2$/.test(f) &&
+              /-latin-/.test(f) &&
+              !/latin-ext/.test(f) &&
+              !/ibm-plex-mono/.test(f),
           )
           if (wanted.length === 0) return html
           return {

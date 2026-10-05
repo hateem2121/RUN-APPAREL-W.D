@@ -119,8 +119,9 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   string: `TypeError`, at runtime, in the browser only. Nothing in the unit suite
   touches the clock, so it stayed green; it was caught by biome's
   `useExhaustiveDependencies` reporting a missing dependency on `performance.now`,
-  which is a lint rule finding a runtime bug by accident. The local is now
-  `performanceSummary`. **If you need a timestamp in a component, check what names
+  which is a lint rule finding a runtime bug by accident. The local became
+  `performanceSummary`, and went with the callouts it fed in polish D10 (2026-10-04); the
+  lesson outlived it. **If you need a timestamp in a component, check what names
   the component already binds** — `performance`, `history`, `location`, `name`,
   `status` and `screen` are all globals that read naturally as local variable names.
 

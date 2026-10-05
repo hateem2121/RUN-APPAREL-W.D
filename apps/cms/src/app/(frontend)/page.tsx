@@ -1,18 +1,20 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { AboutSection } from '../../components/site/AboutSection'
 import { FactsBento } from '../../components/site/FactsBento'
 import { FamilyCard } from '../../components/site/FamilyCard'
 import { HomeHero } from '../../components/site/HomeHero'
 import { JsonLd } from '../../components/site/JsonLd'
-import { LiveGarment } from '../../components/site/LiveGarment'
 import { OrderTimeline } from '../../components/site/OrderTimeline'
-import { ProductPoster } from '../../components/site/ProductPoster'
+import { type ProofProduct, ProofShowcase } from '../../components/site/ProofShowcase'
+import { TicketDismiss } from '../../components/site/TicketDismiss'
 import { ViewerCue } from '../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
 import { FAMILIES, familyPictures } from '../../lib/families'
+import { familyIsSoon } from '../../lib/familyPages'
 import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
 import { buildMetadata, GARMENT_PAGES } from '../../lib/seo'
 import { websiteJsonLd } from '../../lib/structuredData'
@@ -70,32 +72,39 @@ export const metadata: Metadata = {
  * ⚠️ THE CAPTION NAMES THE GARMENT; `<ViewerCue />` SAYS WHERE THE LINK GOES (XS-09,
  * 2026-09-17). The caption used to end "— open the 3D reference", which the owner's
  * approved line now says in their words, so the tail went rather than saying it twice.
+ *
+ * Since polish D2 (2026-10-05) the figure is drawn by `ProofShowcase`, beside the words and their
+ * colour dots, which change it; this picks the garment and passes on only what it needs.
  */
-function ProofGarment({ product }: { product: ProductCard | null }) {
+function proofProduct(product: ProductCard | null): ProofProduct | null {
   if (!product?.posterUrl) return null
-  const href = `${GARMENT_PAGES}/${product.slug}/${product.defaultColourSlug}`
+  return {
+    slug: product.slug,
+    productName: product.productName,
+    productCode: product.productCode,
+    posterUrl: product.posterUrl,
+    posterAlt: product.posterAlt,
+    colours: product.colours,
+    model: product.model,
+  }
+}
+
+/** A point's icon: the site's line drawing, 1.6 wide, round ends (the "Drag to turn" hint's). */
+function PointIcon({ children }: { children: ReactNode }) {
   return (
-    <figure className="proof__figure">
-      <a className="proof__link" href={href}>
-        <span className="proof__frame">
-          <ProductPoster src={product.posterUrl} alt={product.posterAlt} />
-        </span>
-        <figcaption className="proof__caption">
-          {product.productCode} {product.productName}
-        </figcaption>
-        <ViewerCue />
-      </a>
-      {/*
-        The live garment sits OVER the picture and OUTSIDE the link, so turning it never
-        navigates; the caption and cue below still open the full viewer (LiveGarment.tsx).
-      */}
-      {product.model ? (
-        <LiveGarment
-          model={product.model}
-          label={`${product.productCode} ${product.productName}`}
-        />
-      ) : null}
-    </figure>
+    <svg
+      className="proof__point-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
   )
 }
 
@@ -133,33 +142,56 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№02 — What we make</p>
-          <h2 className="display display--section">Five families, one&nbsp;standard.</h2>
-          <p className="site-lede">
-            One standard means one factory, one set of hands and one set of tolerances — every
-            family below is cut, stitched and finished on the same floor, to the same specification,
-            whether it is a hundred pieces or a hundred thousand.
-          </p>
+          {/* The heading beside its words from 900px (`.section-head`, polish D1). */}
+          <div className="section-head">
+            <div className="section-head__title">
+              <p className="section-number">№02 — What we make</p>
+              <h2 className="display display--section">Five families, one&nbsp;standard.</h2>
+            </div>
+            <p className="site-lede">
+              One standard means one factory, one set of hands and one set of tolerances — every
+              family below is cut, stitched and finished on the same floor, to the same
+              specification, whether it is a hundred pieces or a hundred thousand.
+            </p>
+          </div>
           {/*
             ⚠️ ITS OWN GRID, NOT THE PRODUCT ONE (FA-E-01): five items in a generic `auto-fill`
             grid never resolve into a shape. The count mirrors the `category` options on
             Products, so the grid treats it as a composition rather than an unknown list.
           */}
           <ul className="family-grid">
-            {FAMILIES.map((family) => (
-              <FamilyCard
-                key={family.slug}
-                family={family}
-                picture={pictures[family.slug] ?? null}
-              />
-            ))}
+            {FAMILIES.map((family) => {
+              const count = products.filter((product) => product.category === family.name).length
+              return (
+                <FamilyCard
+                  key={family.slug}
+                  family={family}
+                  picture={pictures[family.slug] ?? null}
+                  soon={familyIsSoon(family, count)}
+                  count={count}
+                />
+              )
+            })}
           </ul>
+          {/* Escape closes an open card; everything else about the cards is CSS (polish D3). */}
+          <TicketDismiss />
         </div>
       </section>
 
       <section className="site-section" data-site-reveal>
         <div className="site-container proof">
-          <div className="proof__copy">
+          <ProofShowcase
+            product={proofProduct(proof)}
+            garmentPages={GARMENT_PAGES}
+            cue={<ViewerCue />}
+            actions={
+              <div className="site-actions">
+                <Link className="btn btn--primary" href="/products">
+                  Browse in 3D
+                </Link>
+              </div>
+            }
+          >
             <p className="section-number">№03 — See it before it exists</p>
             <h2 className="display display--section">
               Every reference, <span className="serif-accent">in&nbsp;3D.</span>
@@ -173,13 +205,44 @@ export default async function HomePage() {
               We can build a 3D reference of your garment on request — turn it, inspect the print
               and share it before a sample is cut.
             </p>
-            <div className="site-actions">
-              <Link className="btn btn--primary" href="/products">
-                Browse the references
-              </Link>
-            </div>
-          </div>
-          <ProofGarment product={proof} />
+            {/*
+              The lede's three verbs, each shown (polish D2; new words for the owner's approval at
+              the end, written only from what the site already says): the garment here turns under a
+              drag ("Drag to turn", LiveGarment.tsx); a garment's 3D page zooms ("Drag to rotate, use
+              scroll or pinch to zoom", the viewer's Stage.tsx); each colour has its own address on the
+              site (`/products/<garment>/<colour>`, the one a printed QR tag opens).
+            */}
+            <ul className="proof__points">
+              <li className="proof__point">
+                <PointIcon>
+                  <path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3" />
+                  <path d="M17.3 3.4v3.3h-3.3M6.7 20.6v-3.3h3.3" />
+                </PointIcon>
+                <p>
+                  <b>Turn it all the way around.</b> Drag the garment to see every side.
+                </p>
+              </li>
+              <li className="proof__point">
+                <PointIcon>
+                  <circle cx="10.5" cy="10.5" r="6" />
+                  <path d="m15 15 5 5M8 10.5h5M10.5 8v5" />
+                </PointIcon>
+                <p>
+                  <b>Zoom into the print.</b> On its 3D page, scroll or pinch to look closer.
+                </p>
+              </li>
+              <li className="proof__point">
+                <PointIcon>
+                  <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+                  <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+                </PointIcon>
+                <p>
+                  <b>Share a link.</b> Each color has its own address, to send before a sample is
+                  cut.
+                </p>
+              </li>
+            </ul>
+          </ProofShowcase>
         </div>
       </section>
 
@@ -187,40 +250,48 @@ export default async function HomePage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <p className="section-number">№05 — The works</p>
-          <h2 className="display display--section">
-            Numbers you can <span className="serif-accent">hold us&nbsp;to.</span>
-          </h2>
-          <p className="site-lede">
-            Confirmed capacity, not marketing. If any of these matters to your program, ask and we
-            will put it in writing.
-          </p>
-          <FactsBento />
+          <div className="section-head">
+            <div className="section-head__title">
+              <p className="section-number">№05 — The works</p>
+              <h2 className="display display--section">
+                Numbers you can <span className="serif-accent">hold us&nbsp;to.</span>
+              </h2>
+            </div>
+            <p className="site-lede">
+              Confirmed capacity, not marketing. If any of these matters to your program, ask and we
+              will put it in writing.
+            </p>
+          </div>
+          <FactsBento worksCoordinates={settings.footer.worksCoordinates} />
         </div>
       </section>
 
       <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <p className="section-number">№06 — Talk to us</p>
-          <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-          <p className="site-lede">
-            Send the styles, quantities and specs you have — a sketch is enough to start. We reply
-            within 24 hours.
-          </p>
-          <div className="site-actions">
-            <Link className="btn btn--primary" href="/contact#inquiry">
-              Start a conversation
-            </Link>
-            <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
-              Email {settings.email}
-            </a>
-            <a
-              className="btn btn--ghost"
-              href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
-              rel="noopener"
-            >
-              WhatsApp
-            </a>
+        <div className="site-container section-head">
+          <div className="section-head__title">
+            <p className="section-number">№06 — Talk to us</p>
+            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
+          </div>
+          <div className="section-head__words">
+            <p className="site-lede">
+              Send the styles, quantities and specs you have — a sketch is enough to start. We reply
+              within 24 hours.
+            </p>
+            <div className="site-actions">
+              <Link className="btn btn--primary" href="/contact#inquiry">
+                Start a conversation
+              </Link>
+              <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
+                Email {settings.email}
+              </a>
+              <a
+                className="btn btn--ghost"
+                href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
+                rel="noopener"
+              >
+                WhatsApp
+              </a>
+            </div>
           </div>
         </div>
       </section>

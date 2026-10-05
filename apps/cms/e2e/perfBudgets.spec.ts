@@ -180,6 +180,9 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
     const samples = await collectInteractionMetrics(page, async () => {
       await page.locator('.notch__menu-btn').click()
       await page.locator('.theme-toggle').click()
+      // The open menu dims the page and a tap beside it only closes it (polish X26), so a
+      // visitor closes it before reaching the form: here with Escape.
+      await page.keyboard.press('Escape')
       await page.locator('input[name="name"]').click()
       await page.locator('input[name="name"]').fill('Perf Budget Robot')
     })

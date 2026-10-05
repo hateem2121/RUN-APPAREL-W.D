@@ -6,10 +6,12 @@ import { ConsentBanner } from './components/ConsentBanner'
 import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
+import { GarmentTrail } from './components/GarmentTrail'
 import { Header } from './components/Header'
 import { Preloader } from './components/Preloader'
 import { ProductIdentity } from './components/ProductIdentity'
 import { ProductPanel } from './components/ProductPanel'
+import { RelatedGarments } from './components/RelatedGarments'
 import { Stage } from './components/Stage'
 import { RetiredNotice, UnavailableState, UnreachableState } from './components/States'
 import { startActionBarHeight } from './lib/actionBarHeight'
@@ -19,6 +21,7 @@ import { diagnostic } from './lib/diagnostic'
 import { isFocusUnclaimed } from './lib/focusHandoff'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { useIdentityInAside } from './lib/useIdentityInAside'
+import { usePrinting } from './lib/usePrinting'
 
 type AppState =
   | { kind: 'loading' }
@@ -90,8 +93,21 @@ export default function App() {
    * ⚠️ NOT "is the layout two columns". A landscape phone IS two columns and is
    * still the wrong home for a paragraph — see `useIdentityInAside.ts` for the
    * 726px-band measurement that put the height clause in that query.
+   *
+   * Never while printing (polish F14, lib/usePrinting.ts): paper takes the one-column
+   * arrangement whatever screen it is printed from, so page.css lays out one sheet, not two.
    */
-  const identityInAside = useIdentityInAside()
+  const printing = usePrinting()
+  const identityInAside = useIdentityInAside() && !printing
+  /**
+   * Where the garment's facts go (polish D10, owner-approved 2026-10-03): the four corners of
+   * the 3D window on every computer, which is exactly where the name and description sit beside
+   * the garment, and under the description everywhere else. Not while the stage has no garment
+   * (LA-16): then the window holds the picture and the notice, and the facts go under the stage.
+   * ONE value, handed to both places, so the facts are drawn exactly once at every width.
+   */
+  const [stageFallback, setStageFallback] = useState(false)
+  const specsInCorners = identityInAside && !stageFallback
 
   const load = useCallback(async () => {
     const route = currentRoute()
@@ -431,14 +447,10 @@ export default function App() {
             through exactly the links the user just asked to skip. */}
         <main id="main-content" tabIndex={-1}>
           {/*
-            The label on its own line under the bar, at EVERY width — owner decision
-            2026-09-17, phones included; it was hidden under 700px until 2026-09-24.
-            Inside <main>, so it scrolls away and only the 60px bar stays pinned. The stage
-            band starts under it, which is what --header-h measures (tokens.css).
+            ⚠️ NO LABEL ROW ABOVE THE GARMENT (polish D8 and M5, owner-approved 2026-10-04).
+            "[ 3D PRODUCT REFERENCE ]" sat on its own line here from 2026-09-17; the stage band
+            now starts under the bar (--header-h, tokens.css) and the garment has the 32px.
           */}
-          <div className="viewer-tag">
-            <span className="label">[ 3D PRODUCT REFERENCE ]</span>
-          </div>
           {/*
             The garment and the control that recolours it, in one band.
 
@@ -455,49 +467,14 @@ export default function App() {
           */}
           <div className="stage-block">
             {/*
-              THE GARMENT'S NAME, ON THE FIRST SCREEN OF A PHONE.
-
-              ⚠️ Measured 2026-09-04 in two browsers, on all eleven live products:
-              `.product-info` starts at 836px on an 812px screen. It misses the fold
-              by 24px — one line of text — so a visitor who has just scanned a QR tag
-              sewn into a garment sees the garment, the colourways and both enquiry
-              buttons, and NO product name, code, category or spec until they scroll.
-              On a reference whose entire job is telling a buyer what they are
-              looking at, that is the wrong first screen.
-
-              ⚠️ `aria-hidden`, AND IT IS NOT AN OVERSIGHT. `<h1 id="product-heading">`
-              must exist exactly once — `<ProductIdentity>` and `<ProductPanel
-              showIdentity>` are deliberate opposites, and "the product heading moves
-              between columns and never doubles" is an e2e test. A screen reader has
-              no fold to be above, so it loses nothing; a second announcement of the
-              same name before the real heading is pure noise. This is a purely
-              visual affordance and is marked as one.
-
-              ⚠️ GATED ON `identityInAside`, NOT ON A WIDTH — and mirroring the CSS
-              query here instead is the mistake `useIdentityInAside.ts` was written
-              about. This line exists for exactly one condition: the `<h1>` is not
-              on the first screen. That is true whenever the identity has NOT moved
-              into the aside, which is its own query (880px tall from 1100px wide,
-              800px from 1280px, since VA-60) and a strict subset of the two-column one.
-
-              Keying it to `max-width: 699px` left three real devices anonymous,
-              measured 2026-09-05 with reveals forced:
-
-                  768x1024   iPad portrait        h1 top 1094 — 70px below the fold
-                  834x1194   iPad Pro portrait    h1 top 1267 — 73px below
-                  1024x1366  iPad Pro 12.9        h1 top 1446 — 80px below
-
-              The last one is two-column and still has no name, which no width
-              ceiling on this element could have expressed.
-
-              The height cost (a measured 20px off the canvas) is refused in CSS
-              below when the band is too short for it — the landscape-phone case.
+              ⚠️ NO NAME LINE OVER THE GARMENT ANY MORE (polish M5, F11 and X1, owner-approved
+              2026-10-04). `.stage-block__name` put "R-GTD · GEOVENT TENNIS DRESS" here from
+              2026-09-04 so the name was on a phone's first screen; it cost the garment 20px and
+              was cut to "GEOVENT TENN…" on laptops (X1). Now: on a phone the garment has the
+              room and the name follows it; an upright tablet's garment is shortened so the
+              name below it is on the first screen (page.css, F11); every computer has the name
+              beside the garment (useIdentityInAside.ts, D8).
             */}
-            {!identityInAside && (
-              <p className="stage-block__name" aria-hidden="true">
-                {data.product.productCode} · {data.product.productName}
-              </p>
-            )}
             {/* The panel half of <ColourwayTabs>'s tablist. Labelled by whichever
                 tab is selected, so a screen reader reaching the stage is told
                 which colourway it is showing. */}
@@ -512,6 +489,8 @@ export default function App() {
                 selected={selected}
                 preview={previewedColourway}
                 onSelectColourway={onSelectColourway}
+                cornerSpecs={specsInCorners}
+                onFallbackChange={setStageFallback}
               />
             </div>
             {/*
@@ -543,6 +522,7 @@ export default function App() {
                   product={data.product}
                   selected={selected}
                   selectedIndex={Math.max(selectedIndex, 0)}
+                  clampDescription
                 />
               )}
               <ColourwayTabs
@@ -588,14 +568,24 @@ export default function App() {
           </div>
           {retiredNotice && <RetiredNotice message={retiredNotice} />}
           <div className="content">
+            {/* Where the garment sits on the website (polish S5). Here, under the garment band,
+                not above it: the owner gave the garment the row a label once took (D8, M5). */}
+            <GarmentTrail product={data.product} />
             <ProductPanel
               data={data}
               selected={selected}
               selectedIndex={Math.max(selectedIndex, 0)}
               showIdentity={!identityInAside}
+              showSpecs={!specsInCorners}
             />
             <CustomisationSection data={data} />
-            <ContactSection settings={data.siteSettings} enquiry={enquiry} />
+            {/* Before the contact section, so the page still ends on its one prompt (S6, Q42). */}
+            <RelatedGarments data={data} />
+            <ContactSection
+              settings={data.siteSettings}
+              enquiry={enquiry}
+              garment={{ productSlug: data.product.slug, colourSlug: selected.slug }}
+            />
           </div>
         </main>
         <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />

@@ -89,6 +89,7 @@ describe('familyPictures', () => {
     productName: 'P',
     productCode: 'R-P',
     category: 'Sportswear',
+    garmentType: '',
     shortDescription: '',
     posterUrl: 'https://media.example/poster.webp',
     posterAlt: 'poster alt',

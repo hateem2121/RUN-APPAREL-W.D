@@ -29,6 +29,42 @@
       "port": 4180
     },
     {
+      "name": "cms-edge",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "pnpm@12.6.0",
+        "--filter",
+        "@run-apparel/cms",
+        "exec",
+        "opennextjs-cloudflare",
+        "preview",
+        "--local-upstream",
+        "wear-run.com",
+        "--port",
+        "4174"
+      ],
+      "port": 4174
+    },
+    {
+      "name": "cms-edge-admin",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "pnpm@12.6.0",
+        "--filter",
+        "@run-apparel/cms",
+        "exec",
+        "opennextjs-cloudflare",
+        "preview",
+        "--local-upstream",
+        "cms.wear-run.help",
+        "--port",
+        "4174"
+      ],
+      "port": 4174
+    },
+    {
       "name": "cms-prod",
       "runtimeExecutable": "sh",
       "runtimeArgs": [

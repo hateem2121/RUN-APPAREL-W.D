@@ -1,7 +1,7 @@
 'use client'
 
 import { createElement, useCallback, useEffect, useRef, useState } from 'react'
-import { autoLoadAllowed, type ConnectionHint } from '../../lib/liveGarment'
+import { autoLoadAllowed, type ConnectionHint, garmentTouchAction } from '../../lib/liveGarment'
 import type { LiveModel } from '../../lib/projectPublic'
 import {
   boundingRadius,
@@ -32,9 +32,16 @@ import { LIVE_RENDER } from '../../lib/render/liveRender'
  *   - no `poster` attribute: model-viewer 4.x paints it and nothing can hide it
  *     (`viewer-layout.md`), so the page's own picture underneath is the poster.
  *
- * ⚠️ `touch-action="pan-y"`, NOT the viewer's `none`. A vertical swipe must scroll the home page
- * past the garment; a sideways drag turns it. Zoom and pan are off — this is a showcase, and the
- * link beneath opens the full viewer.
+ * ⚠️ THE GARMENT WINS A SWIPE ONLY WHERE THERE IS ROOM TO SCROLL PAST IT (polish M3, 2026-10-04).
+ * `touch-action: none`, the garment pages' setting, while the frame fits within about two-thirds
+ * of the screen's height (every upright phone); `pan-y` where it does not (a phone held sideways,
+ * an upright tablet), so nobody is trapped on it. `lib/liveGarment.ts` has the measurements. Zoom
+ * and pan are off — this is a showcase, and the link beneath opens the full viewer.
+ *
+ * ⚠️ IT TURNS UNTIL TOUCHED, THEN STAYS STILL (polish F7, the owner's answer Q20). The first
+ * press, drag or arrow key stops the turning for the rest of the visit: model-viewer's own
+ * `auto-rotate-delay` would start it again (staging.js, 4.3.1), so the attribute itself goes.
+ * A "Drag to turn" hint shows until then. Under reduced motion it never turns at all.
  */
 type Phase = 'waiting' | 'offer' | 'preparing' | 'loading' | 'shown' | 'failed'
 
@@ -65,10 +72,56 @@ function loadLibrary(): Promise<void> {
   return libraryLoading
 }
 
-export function LiveGarment({ model, label }: { model: LiveModel; label: string }) {
+export function LiveGarment({
+  model,
+  label,
+  variant = null,
+}: {
+  model: LiveModel
+  label: string
+  /**
+   * The colour №03's dots chose (polish D2): its variant inside the one GLB, applied as the model
+   * loads and the moment it changes after. `null` keeps the default colour's.
+   */
+  variant?: string | null
+}) {
   const [phase, setPhase] = useState<Phase>('waiting')
+  // The visitor has touched, dragged or keyed the garment: it stops turning for good (F7).
+  const [touched, setTouched] = useState(false)
+  const [touchAction, setTouchAction] = useState<'none' | 'pan-y'>('pan-y')
   const layer = useRef<HTMLDivElement>(null)
   const reduced = useRef(false)
+  const viewer = useRef<ModelViewerElement | null>(null)
+  // Read at load, so a colour chosen while the model was still on its way is the one it opens in.
+  const chosen = useRef(variant ?? model.variantId)
+  chosen.current = variant ?? model.variantId
+
+  // A colour chosen once the model is up switches it in place: model-viewer 4.3.1 applies a
+  // `variantName` set at any time, and fires `variant-applied`, which re-applies the depth bias.
+  useEffect(() => {
+    const mv = viewer.current
+    const name = variant ?? model.variantId
+    if (phase !== 'shown' || !mv || !name) return
+    if (mv.availableVariants?.includes(name)) mv.variantName = name
+  }, [phase, variant, model.variantId])
+
+  // Re-decided whenever the frame or the screen changes size: turning a phone sideways is the case.
+  useEffect(() => {
+    const element = layer.current
+    if (!element) return
+    const decide = () => {
+      const screen = Math.min(window.innerHeight, window.visualViewport?.height ?? Infinity)
+      setTouchAction(garmentTouchAction(element.getBoundingClientRect().height, screen))
+    }
+    decide()
+    const resize = new ResizeObserver(decide)
+    resize.observe(element)
+    window.addEventListener('resize', decide)
+    return () => {
+      resize.disconnect()
+      window.removeEventListener('resize', decide)
+    }
+  }, [])
 
   /*
    * ⚠️ THE ELEMENT IS RENDERED ONLY AFTER THE LIBRARY HAS LOADED, NOT WHILE IT LOADS. Rendered
@@ -109,41 +162,52 @@ export function LiveGarment({ model, label }: { model: LiveModel; label: string 
     return () => observer.disconnect()
   }, [start])
 
-  const attach = useCallback(
-    (element: HTMLElement | null) => {
-      if (!element) return
-      const mv = element as ModelViewerElement
-      const bias = () => {
-        const materials = mv.model?.materials
-        if (materials) applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
+  const attach = useCallback((element: HTMLElement | null) => {
+    if (!element) return
+    const mv = element as ModelViewerElement
+    viewer.current = mv
+    const bias = () => {
+      const materials = mv.model?.materials
+      if (materials) applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
+    }
+    const onLoad = () => {
+      const name = chosen.current
+      if (name && mv.availableVariants?.includes(name)) {
+        mv.variantName = name
       }
-      const onLoad = () => {
-        if (model.variantId && mv.availableVariants?.includes(model.variantId)) {
-          mv.variantName = model.variantId
-        }
-        const dimensions = mv.getDimensions?.()
-        if (dimensions) {
-          installAdaptiveNearPlane(
-            internalCamera(mv),
-            () => mv.getCameraOrbit?.().radius ?? 0,
-            boundingRadius(dimensions),
-          )
-        }
-        bias()
-        setPhase('shown')
+      const dimensions = mv.getDimensions?.()
+      if (dimensions) {
+        installAdaptiveNearPlane(
+          internalCamera(mv),
+          () => mv.getCameraOrbit?.().radius ?? 0,
+          boundingRadius(dimensions),
+        )
       }
-      const onError = () => setPhase('failed')
-      mv.addEventListener('load', onLoad)
-      mv.addEventListener('variant-applied', bias)
-      mv.addEventListener('error', onError)
-      return () => {
-        mv.removeEventListener('load', onLoad)
-        mv.removeEventListener('variant-applied', bias)
-        mv.removeEventListener('error', onError)
+      bias()
+      setPhase('shown')
+    }
+    const onError = () => setPhase('failed')
+    // A press is a touch even before it moves anything; the arrow keys report as a camera change.
+    const onPress = () => setTouched(true)
+    const onCameraChange = (event: Event) => {
+      if ((event as CustomEvent<{ source?: string }>).detail?.source === 'user-interaction') {
+        setTouched(true)
       }
-    },
-    [model.variantId],
-  )
+    }
+    mv.addEventListener('load', onLoad)
+    mv.addEventListener('variant-applied', bias)
+    mv.addEventListener('error', onError)
+    mv.addEventListener('pointerdown', onPress)
+    mv.addEventListener('camera-change', onCameraChange)
+    return () => {
+      mv.removeEventListener('load', onLoad)
+      mv.removeEventListener('variant-applied', bias)
+      mv.removeEventListener('error', onError)
+      mv.removeEventListener('pointerdown', onPress)
+      mv.removeEventListener('camera-change', onCameraChange)
+      viewer.current = null
+    }
+  }, [])
 
   const live = phase === 'loading' || phase === 'shown'
   return (
@@ -162,8 +226,8 @@ export function LiveGarment({ model, label }: { model: LiveModel; label: string 
             'disable-pan': '',
             'disable-tap': '',
             'interaction-prompt': 'none',
-            'touch-action': 'pan-y',
-            ...(reduced.current
+            'touch-action': touchAction,
+            ...(reduced.current || touched
               ? {}
               : { 'auto-rotate': '', 'auto-rotate-delay': '0', 'rotation-per-second': '12deg' }),
             'interpolation-decay': reduced.current ? 1 : LIVE_RENDER.cameraDecayMs,
@@ -176,6 +240,31 @@ export function LiveGarment({ model, label }: { model: LiveModel; label: string 
             reveal: 'auto',
           })
         : null}
+      {phase === 'shown' && !touched ? (
+        // The garment pages' hint (`.stage__hint` in apps/viewer), in this page's words. Hidden from
+        // screen readers as that one is: the model's own label already says it can be turned.
+        <p className="live-garment__hint" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <title>Turn</title>
+            <path
+              d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+            <path
+              d="M17.3 3.4v3.3h-3.3M6.7 20.6v-3.3h3.3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Drag to turn
+        </p>
+      ) : null}
       {phase === 'offer' ? (
         <button type="button" className="btn btn--ghost live-garment__offer" onClick={start}>
           Turn it in 3D

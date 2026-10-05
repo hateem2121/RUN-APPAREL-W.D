@@ -18,6 +18,8 @@
  * suites follow — then re-measure the inline fit (docs/DESIGN.md, "The menu bar").
  */
 
+import { type HoldablePage, holdPage } from './pageHold'
+
 /** The bar's links, as paths on the site. The viewer prefixes the site's origin. */
 export const SITE_NAV_LINKS = [
   { href: '/products', label: 'Products' },
@@ -146,5 +148,37 @@ export function markMenuClosing(menu: ClosingMenu): () => void {
   return () => {
     clock.clearTimeout(timer)
     menu.removeEventListener('beforetoggle', onToggle)
+  }
+}
+
+/** As much of the phone menu as `holdPageWhileOpen` touches. A plain HTMLElement satisfies it. */
+export interface ToggleSource {
+  addEventListener(type: 'beforetoggle', listener: ToggleListener): void
+  removeEventListener(type: 'beforetoggle', listener: ToggleListener): void
+}
+
+/**
+ * ⚠️ THE PAGE HOLDS STILL WHILE THE PHONE MENU IS OPEN (polish F3, 2026-10-04). The menu is fixed
+ * under the bar, so a wheel or a swipe beside it scrolled the page away underneath, and a tap to
+ * close it then landed somewhere else. `beforetoggle` fires for every way the menu opens and
+ * closes, so the hold cannot outlive it; a scroll inside the menu stays in the menu
+ * (`overscroll-behavior: contain`, notch.css). pageHold.ts says how the page is held without a
+ * sideways jump. Returns the clean-up for a React effect.
+ */
+export function holdPageWhileOpen(menu: ToggleSource, page: HoldablePage): () => void {
+  let release: (() => void) | null = null
+  const onToggle: ToggleListener = (event) => {
+    if (event.newState === 'open') {
+      release ??= holdPage(page)
+    } else {
+      release?.()
+      release = null
+    }
+  }
+  menu.addEventListener('beforetoggle', onToggle)
+  return () => {
+    menu.removeEventListener('beforetoggle', onToggle)
+    release?.()
+    release = null
   }
 }

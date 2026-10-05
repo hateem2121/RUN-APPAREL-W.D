@@ -154,7 +154,8 @@ test.describe('the product gallery', () => {
    * ⚠️ A LONG COLOUR NAME MUST NOT STRAND ONE DOT ON A LINE OF ITS OWN (2026-09-28). Live at
    * 1280px, "WINE / BLACK" on the X-Milo Pro Bib pushed the fifth dot onto a second row while
    * the other four stayed beside the name. The CI seed's colour names are short, so the
-   * test writes a long one into the card itself before measuring.
+   * test writes a long one into the card itself before measuring. Since polish D3b the name has
+   * left the dots' row (it shows above it on an opened ticket), so this holds that it stays out.
    */
   test('keeps a card’s colour dots on one row, whatever the colour is called', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
@@ -462,9 +463,11 @@ test.describe('the guides index lists each guide once (VA-47)', () => {
     await expect(page).toHaveURL(new RegExp(`${middle.path}$`))
   })
 
+  // Named by its own heading since polish X22 (it was "More to read"; four buyer pages are not reading).
   test('the foot of the page links the buyer pages and no guide', async ({ page }) => {
     await page.goto('/guides')
-    const foot = page.getByRole('navigation', { name: 'More to read' })
+    const foot = page.getByRole('navigation', { name: 'What we make' })
+    await expect(foot.getByRole('heading', { level: 2, name: 'What we make' })).toBeVisible()
     await expect(foot.locator('a')).toHaveCount(FAMILY_PAGE_SOURCES.length)
     for (const path of FAMILY_PAGE_SOURCES)
       await expect(foot.locator(`a[href="${path}"]`)).toHaveCount(1)
@@ -552,10 +555,10 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
    * seeded products here, 0 there). So the empty state was asserted in exactly the
    * environment nobody looks at, and the one where it is easy to look never ran it.
    *
-   * The family filters make it reachable deterministically in both: `?family=` on a
-   * family with no garments renders the SECOND empty message, the one written because a
-   * single message would have been a lie — nothing is "being updated" when the catalogue
-   * is fine and this family is simply empty.
+   * The families make it reachable deterministically in both: a family with no garments shows
+   * the SECOND empty message in its own group on the page (since polish S2, 2026-10-05; behind its
+   * filter address until then), the one written because a single message would have been a lie —
+   * nothing is "being updated" when the catalogue is fine and this family is simply empty.
    *
    * What "designed" has to mean, or the row is just "some text appeared": the dashed
    * panel, centred in its column (FA-D-03 — it used to hug the left edge with up to 468px
@@ -566,33 +569,32 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/products')
 
-    const empties = await page.locator('.filter-chip[data-empty="true"]').all()
+    const empties = page.locator('section.gallery-group:has(.site-empty)')
     /*
      * The negative control on the FIXTURE, not on the page. If every family has garments
-     * there is no empty route to visit, and this test would skip quietly forever — which
+     * there is no empty group to read, and this test would skip quietly forever — which
      * is the failure it was written to remove. Fail instead, and say what to do.
      */
     expect(
-      empties.length,
-      'no family is empty in this environment, so the empty gallery cannot be reached. ' +
+      await empties.count(),
+      'no family is empty in this environment, so the empty state cannot be reached. ' +
         'Point this test at a fixture that has one rather than letting it skip.',
     ).toBeGreaterThan(0)
 
-    const href = await empties[0]?.getAttribute('href')
-    const familyName = ((await empties[0]?.textContent()) ?? '').replace(/\d+$/, '').trim()
-    expect(href).toMatch(/\?family=/)
-    await page.goto(href as string)
-
-    await expect(page.locator('.product-card')).toHaveCount(0)
-    const empty = page.locator('.site-empty')
+    const group = empties.first()
+    const familyName = ((await group.locator('h2').textContent()) ?? '').replace('→', '').trim()
+    await expect(group.locator('.product-card')).toHaveCount(0)
+    const empty = group.locator('.site-empty')
     await expect(empty).toBeVisible()
 
     // It names THIS family — the generic "being updated" message would be untrue here.
     await expect(empty).toContainText(familyName)
     await expect(empty).toContainText(/email us/i)
+    // And its heading is the way to the family's own page.
+    await expect(group.locator('h2 a')).toHaveAttribute('href', /^\/[a-z-]+$/)
 
-    const box = await page.evaluate(() => {
-      const panel = document.querySelector('.site-empty') as HTMLElement
+    const box = await group.evaluate((section) => {
+      const panel = section.querySelector('.site-empty') as HTMLElement
       const column = panel.closest('.site-container') as HTMLElement
       const p = panel.getBoundingClientRect()
       const c = column.getBoundingClientRect()
@@ -618,22 +620,21 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
     expect(box.borderStyle, 'the panel lost its dashed edge').toBe('dashed')
     expect(box.borderWidth).toBeGreaterThanOrEqual(1)
 
-    // and the page is still a page: the filters, the header and the footer are all there
+    // and the page is still a page: the jump bar, the header and the footer are all there
     await expect(page.locator('.filter-bar .filter-chip').first()).toBeVisible()
     // Products, Contact and — shown in the phone menu only — Guides (VA-37).
     await expect(page.locator('.notch__nav a')).toHaveCount(3)
     await expect(page.locator('.site-footer')).toBeVisible()
   })
 
-  test('the unfiltered empty message is a DIFFERENT sentence from the filtered one', async ({
+  test('the whole catalogue’s empty message is a DIFFERENT sentence from a family’s', async ({
     page,
   }) => {
     /*
-     * Both strings live in one ternary and one is unreachable in whichever environment
-     * this runs in, so the two are compared as SOURCE-visible copy through the rendered
-     * page: whichever branch is live here must not be the other one's wording. It is a
-     * small assertion and it pins the decision the comment in products/page.tsx records —
-     * that a single message would have been a lie in the filtered case.
+     * One is unreachable in whichever environment this runs in, so the two are compared through
+     * the rendered page: whichever is live here must not be the other one's wording. It pins the
+     * decision products/page.tsx records — a single message would have been a lie for an empty
+     * family, when nothing is "being updated".
      */
     await page.goto('/products')
     const cards = await page.locator('.product-card').count()
@@ -642,11 +643,9 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
       await expect(page.locator('.site-empty')).not.toContainText(/yet —/i)
       return
     }
-    const empties = await page.locator('.filter-chip[data-empty="true"]').all()
-    expect(empties.length).toBeGreaterThan(0)
-    await page.goto((await empties[0]?.getAttribute('href')) as string)
-    await expect(page.locator('.site-empty')).toContainText(/still being built/i)
-    await expect(page.locator('.site-empty')).not.toContainText(/being updated/i)
+    const empty = page.locator('section.gallery-group .site-empty').first()
+    await expect(empty).toContainText(/still being built/i)
+    await expect(empty).not.toContainText(/being updated/i)
   })
 })
 
@@ -700,7 +699,32 @@ test.describe('the teamwear buyer page, as a search engine receives it', () => {
     }
     await page.goto(PATH)
     const action = page.locator('.site-hero .btn--primary')
-    await expect(action).toHaveText('Get a free quote')
+    await expect(action).toHaveText('Start a conversation')
     await expect(action).toHaveAttribute('href', '/contact#inquiry')
+  })
+})
+
+/*
+ * Polish X27 (2026-10-04): buyers abroad read with the browser's Translate, which could turn
+ * "RUN APPAREL" into "LAUF BEKLEIDUNG" and rename a garment or its code. Those carry
+ * `translate="no"`; the words around them still translate.
+ */
+test.describe('X27 — the names are never machine-translated', () => {
+  test('the wordmark, the footer mark and legal line, and every card name and code', async ({
+    page,
+  }) => {
+    await page.goto('/products')
+    await expect(page.locator('.notch__wordmark')).toHaveAttribute('translate', 'no')
+    await expect(page.locator('.footer-mark')).toHaveAttribute('translate', 'no')
+    const cards = page.locator('.product-card')
+    if ((await cards.count()) === 0) {
+      if (process.env.CI) throw new Error('CI seeds a published garment, so /products shows a card')
+      test.skip(true, 'no published garment in this local database')
+    }
+    const card = cards.first()
+    await expect(card.locator('.product-card__name')).toHaveAttribute('translate', 'no')
+    await expect(card.locator('.product-card__meta [translate="no"]')).toHaveCount(1)
+    // The control: the paragraph about the garment is left to translate.
+    await expect(page.locator('.site-lede').first()).not.toHaveAttribute('translate', 'no')
   })
 })

@@ -1,5 +1,5 @@
 import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
-import { siteFooterAriaSnapshot } from '../../../packages/shared/src/siteFooter'
+import { SITE_FOOTER_MADE, siteFooterAriaSnapshot } from '../../../packages/shared/src/siteFooter'
 import { expect, test } from './offlineMedia'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
@@ -32,62 +32,86 @@ test.describe('the footer geometry', () => {
   })
 
   /**
-   * ⚠️ THIS TEST USED TO ASSERT `gridTemplateColumns` HAD TWO TRACKS, AND IT COULD NEVER
-   * HAVE FAILED FOR A REAL REASON.
-   *
-   * `repeat(2, minmax(0, 1fr))` reports two tracks whatever the content is, so the
-   * assertion read the CSS declaration back to itself. Meanwhile the 2x2 it was named for
-   * is a state the site cannot currently reach: three of the four blocks are conditional
-   * on CMS fields the owner has not filled, so ONE block renders — into a two-column grid
-   * with a `border-top` drawn across the whole 640px box. The rule ran 51.9-56.4% wider
-   * than anything beneath it (audit FA-D-02), on the emptiest surface on the site, and
-   * this test was green throughout.
-   *
-   * It now measures the thing the rule is for: a hairline that underlines content should
-   * be about as wide as the content. Measured after the fix, at 430/600/768/1440/1920:
-   * rule 303.6px, widest ink 303.6px, overshoot 0.0% at every width.
-   *
-   * The 10% bound is generous on purpose — the grid gap and a block's own padding are
-   * legitimate reasons for the rule to exceed the ink slightly. What it rejects is the
-   * half-empty rule the audit found.
+   * ⚠️ THE FACTS RUN THE COLUMN'S WIDTH, FROM ITS LEFT EDGE (polish X23, 2026-10-04). They were a
+   * box of up to 640px pushed to the right: on a computer they began about 40% across and left a
+   * gap under the big heading. Their rule was an underline for that box, and audit FA-D-02 held
+   * it to its content's width when a blank database left one block under it; it is a divider now,
+   * across the column like the legal row's under it, with always at least two blocks above it
+   * (Contact and "What we make"). Both, measured at each width: the first block starts at the
+   * column's left edge, and the facts' rule is as wide as the legal row's.
    */
-  test('the rule is as wide as what it underlines', async ({ page }) => {
-    for (const width of [430, 768, 1440, 1920]) {
+  test("the facts start at the column's left edge, under a rule as wide as the legal row's", async ({
+    page,
+  }) => {
+    for (const width of [430, 768, 1024, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/contact')
-      const m = await page.locator('.footer-facts').evaluate((el) => {
-        let ink = 0
-        for (const child of el.querySelectorAll('li, h3')) {
-          const range = document.createRange()
-          range.selectNodeContents(child)
-          for (const rect of range.getClientRects()) ink = Math.max(ink, rect.width)
+      const m = await page.evaluate(() => {
+        const box = (selector: string) =>
+          document.querySelector(selector)?.getBoundingClientRect() ?? null
+        return {
+          facts: box('.footer-facts'),
+          first: box('.footer-facts > .footer-block'),
+          legal: box('.footer-legal'),
+          inner: box('.site-footer__inner'),
         }
-        return { rule: el.getBoundingClientRect().width, ink }
       })
       expect(
-        m.ink,
-        `no measurable content at ${width}px — the probe is reading nothing`,
-      ).toBeGreaterThan(50)
-      const overshoot = ((m.rule - m.ink) / m.ink) * 100
+        m.facts && m.first && m.legal && m.inner,
+        `${width}px: a footer part is missing`,
+      ).toBeTruthy()
       expect(
-        overshoot,
-        `at ${width}px the rule is ${m.rule.toFixed(1)}px over ${m.ink.toFixed(1)}px of ink ` +
-          `(${overshoot.toFixed(1)}% wider than the content it underlines)`,
-      ).toBeLessThan(10)
+        Math.abs((m.first?.left ?? 0) - (m.inner?.left ?? 0)),
+        `${width}px`,
+      ).toBeLessThanOrEqual(1)
+      expect(
+        Math.abs((m.facts?.width ?? 0) - (m.legal?.width ?? 0)),
+        `${width}px`,
+      ).toBeLessThanOrEqual(1)
     }
   })
 
-  test('the facts grid uses one track per block that renders', async ({ page }) => {
-    // `auto-fit` collapses empty tracks, so the count follows the content rather than a
-    // hardcoded 2. With the three conditional blocks unfilled that is one; when the owner
-    // fills them it becomes two at desktop, without a CSS change.
-    await page.setViewportSize({ width: 1440, height: 900 })
+  test('the facts take two columns on a phone, three on a tablet and five from 1280px', async ({
+    page,
+  }) => {
+    for (const [width, tracks] of [
+      [390, 2],
+      [719, 2],
+      [720, 3],
+      [1279, 3],
+      [1280, 5],
+      [1920, 5],
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/contact')
+      const m = await page.locator('.footer-facts').evaluate((el) => {
+        const contact = el.querySelector('.footer-block--contact')?.getBoundingClientRect()
+        const made = el.querySelector('.footer-block--made')?.getBoundingClientRect()
+        return {
+          tracks: getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
+          // On a phone Contact spans both columns and "What we make" starts the next row.
+          contactWide: (contact?.width ?? 0) > el.getBoundingClientRect().width - 2,
+          madeBelow: (made?.top ?? 0) >= (contact?.bottom ?? 0),
+        }
+      })
+      expect(m.tracks, `${width}px`).toBe(tracks)
+      expect(m.contactWide, `${width}px: Contact spans the row`).toBe(tracks === 2)
+      expect(m.madeBelow, `${width}px: "What we make" is under Contact`).toBe(tracks === 2)
+    }
+  })
+
+  // Polish F9 (the owner's Q22): the four category pages from every page's footer.
+  test('"What we make" links the four category pages, and each one opens', async ({ page }) => {
     await page.goto('/contact')
-    const m = await page.locator('.footer-facts').evaluate((el) => ({
-      tracks: getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
-      blocks: el.children.length,
-    }))
-    expect(m.tracks).toBe(Math.min(m.blocks, 2))
+    const links = page.locator('.footer-block--made a')
+    await expect(links).toHaveCount(SITE_FOOTER_MADE.length)
+    expect(await links.evaluateAll((all) => all.map((a) => a.getAttribute('href')))).toEqual(
+      SITE_FOOTER_MADE.map((link) => link.href),
+    )
+    for (const link of SITE_FOOTER_MADE) {
+      const response = await page.request.get(link.href)
+      expect(response.status(), link.href).toBe(200)
+    }
   })
 
   test('the wordmark spans the slab exactly, cropped only at the bottom', async ({ page }) => {
@@ -294,7 +318,7 @@ test.describe('the cursor and the glow', () => {
 })
 
 test.describe('the numbers the design audit fixed', () => {
-  test('the light rides with the ring, and the hand-off does not flicker across the 2×2', async ({
+  test('the light rides with the ring, and the hand-off does not flicker inside a block', async ({
     page,
     context,
   }) => {
@@ -321,19 +345,21 @@ test.describe('the numbers the design audit fixed', () => {
     })
     expect(Math.abs(settled.ringX - settled.lightX)).toBeLessThanOrEqual(1)
 
-    // Sweep down through the 2×2's INTERIOR at 3px per frame — from just above the
-    // first block to just below the last — and count over/off toggles. The gap between
-    // the two rows is the case: without hysteresis the halo dimmed and relit across it.
-    // The empty padding BELOW the last block is deliberately outside the sweep: there
-    // is nothing to light there, so the halo coming back is correct, not a flicker.
-    const blocks = page.locator('.footer-block')
-    const firstBlock = await blocks.first().boundingBox()
-    const lastBlock = await blocks.last().boundingBox()
-    if (!firstBlock || !lastBlock) throw new Error('no facts blocks')
+    // Sweep DOWN one block at 3px per frame and count over/off toggles: entering it is the one
+    // toggle, and nothing inside it may dim the halo. Until polish X23 this swept a 2×2 and crossed
+    // the gap between its rows; since then the facts sit in one row from 1280px
+    // (packages/ui/src/footer.css), so on PR #128 (2026-10-05) the sweep crossed no gap and its one
+    // extra toggle was the step 1px BELOW the row, where the halo correctly turns off once the 180ms
+    // linger runs out on a slow runner (reproduced in CI's image at 250ms a step). It now ends inside.
+    // ⚠️ KNOWN, FOR THE NEXT SESSION (owner, 2026-10-05): across the 24px gap BETWEEN two blocks a
+    // slow pointer (3px a frame) outlasts that 180ms, and the halo dims for a moment (measured in CI's
+    // image). A sideways sweep that crosses a gap belongs here once the linger covers it.
+    const block = await page.locator('.footer-block').first().boundingBox()
+    if (!block) throw new Error('no facts block')
     let toggles = 0
     let last: string | null = null
-    for (let y = firstBlock.y - 2; y < lastBlock.y + lastBlock.height + 2; y += 3) {
-      await page.mouse.move(firstBlock.x + 60, y)
+    for (let y = block.y - 2; y < block.y + block.height - 2; y += 3) {
+      await page.mouse.move(block.x + 60, y)
       await page.waitForTimeout(16)
       const over = await slab.getAttribute('data-over')
       if (last !== null && over !== last) toggles++
@@ -518,10 +544,19 @@ test.describe("the footer's content edge agrees with the page's (DS-06)", () => 
  * own documented figure; `CEILING_TOLERANCE_PX` below is 2px — genuine headroom above
  * the ~1px artefact actually observed, not the previous 323 + 0.03px margin, which was
  * the same measurement rounded rather than room to move.
+ *
+ * ⚠️ THE FLOOR IS 100px SINCE POLISH X23 AND F9 (2026-10-04). The footer gained "What we make",
+ * a fourth row of links with every database, and with this suite's database the band measured
+ * 214, 208 and 126px at 768, 1024 and 1440px (144px was D7's figure from a footer of one block).
+ * What D7 kept is the band itself, so the floor is what fails if it goes: removed (0px) or
+ * squeezed to its 24px minimum. The live footer, with all five blocks, was at that 24px minimum
+ * at every width before X23 (wear-run.com), and with its values drawn into this build it is
+ * 24-59px, in a slab 33-219px shorter (docs/DECISIONS-BETA-WEBSITE.md, D7's amendment).
  */
 test.describe("the footer's quiet band stays inside D7's documented range (DS-09)", () => {
   const CEILING_TOLERANCE_PX = 2
-  test('height stays within 144-323px across the documented width range', async ({ page }) => {
+  const FLOOR_PX = 100
+  test('height stays within 100-323px across the documented width range', async ({ page }) => {
     await page.goto('/contact')
     for (const width of [768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -534,11 +569,11 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
         .evaluate((el) => el.getBoundingClientRect().height)
       expect(
         height,
-        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 144-323px`,
-      ).toBeGreaterThanOrEqual(144)
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 100-323px`,
+      ).toBeGreaterThanOrEqual(FLOOR_PX)
       expect(
         height,
-        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 144-323px`,
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 100-323px`,
       ).toBeLessThanOrEqual(323 + CEILING_TOLERANCE_PX)
     }
   })
@@ -580,7 +615,7 @@ test.describe('LA-14 — the facts grid: structure plus the current fill count',
     page,
   }, testInfo) => {
     await page.goto('/contact')
-    const kinds = ['contact', 'capacity', 'standards', 'elsewhere']
+    const kinds = ['contact', 'made', 'elsewhere', 'capacity', 'standards']
     const rendered = await page.evaluate((kinds) => {
       return kinds.map((kind) => {
         const block = document.querySelector(`.footer-block--${kind}`)
@@ -599,9 +634,12 @@ test.describe('LA-14 — the facts grid: structure plus the current fill count',
       }
     }
 
-    // Contact is unconditional — it must always be one of the rendered blocks.
-    const contact = rendered.find((b) => b.kind === 'contact')
-    expect(contact?.present, 'the Contact block did not render at all').toBe(true)
+    // Contact is unconditional — it must always be one of the rendered blocks — and so is
+    // "What we make" since polish F9: the four category pages are code, not a CMS claim.
+    for (const kind of ['contact', 'made']) {
+      const block = rendered.find((b) => b.kind === kind)
+      expect(block?.present, `the .footer-block--${kind} block did not render at all`).toBe(true)
+    }
 
     // Current fill count, recorded so a change here is a decision, not a drift: today
     // only Contact renders (the CMS fields behind Capacity/Standards/Elsewhere are blank
@@ -670,28 +708,44 @@ test.describe('MO-08 — the footer light lingers on content for ~180ms after le
     await page.mouse.move(contactBox.x + 12, contactBox.y + 12)
     await expect(slab).toHaveAttribute('data-over', 'true')
 
-    // One move to empty ground, then STOP — the linger timer, not further movement, has
-    // to carry this to release. The window this test grades is the FULL round trip
-    // (`releasedAfterMs` below) rather than an intermediate "still true" snapshot: under
-    // parallel test load a fixed short poll for "still true" can lose the race against
-    // the timer itself, which is a scheduler artefact, not evidence the linger is
-    // broken — the release-time window is both the more robust and the more direct
-    // measurement of LINGER_MS.
-    const leftAt = Date.now()
-    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2)
+    // ⚠️ TIMED INSIDE THE PAGE: from the leave move's own event to the moment `data-over`
+    // flips. Timed from the test runner, the window also counted the mouse-move round trip
+    // and expect.poll's back-off (checks at 0, +100, +250, +500ms), so a release at ~190ms
+    // was first SEEN at the third check: 370-382ms on an idle Mac (8 runs, 2026-10-05), and
+    // 516ms then 622ms on a loaded CI runner (PR #128), over the ceiling, with FooterGlow.tsx
+    // unchanged from main. Measured in the page in the same runs: 182-199ms after the move,
+    // 180-183ms after the trailed ring left the block, which is LINGER_MS itself.
+    await page.evaluate((selector) => {
+      const watched = document.querySelector(selector) as HTMLElement
+      const clock = window as unknown as { leaveAt?: number; releasedAt?: number }
+      document.addEventListener('pointermove', (event) => {
+        clock.leaveAt = event.timeStamp
+      })
+      new MutationObserver(() => {
+        if (watched.dataset.over === 'false') clock.releasedAt ??= performance.now()
+      }).observe(watched, { attributes: true, attributeFilter: ['data-over'] })
+    }, SLAB)
 
-    // Released within a window around 180ms — generous on both sides (real timer +
-    // rAF/setTimeout jitter, and CI scheduler slack), never snapping instantly and
-    // never lingering indefinitely.
+    // One move to empty ground, then STOP — the linger timer, not further movement, has
+    // to carry this to release.
+    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2)
     await expect
       .poll(() => slab.getAttribute('data-over'), {
         message: 'data-over never released after leaving content',
         timeout: 1000,
       })
       .toBe('false')
-    const releasedAfterMs = Date.now() - leftAt
+    const releasedAfterMs = await page.evaluate(() => {
+      const clock = window as unknown as { leaveAt?: number; releasedAt?: number }
+      return Math.round((clock.releasedAt ?? Number.NaN) - (clock.leaveAt ?? Number.NaN))
+    })
+
+    // Released within a window around 180ms: never before the linger (the ring is still on
+    // the block in the frame after the move, so the release cannot come sooner than
+    // LINGER_MS), and never lingering on (the upper bound leaves room for timer jitter on a
+    // loaded runner).
     expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeGreaterThan(
-      50,
+      150,
     )
     expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeLessThan(
       500,

@@ -36,3 +36,10 @@ export interface PrimaryActions {
   windows: { top: number; destinations: string[] }[]
 }
 export declare function primaryActionsInPage(): PrimaryActions
+
+/** A main button a visitor can see and press at the current scroll position. */
+export interface OnScreenAction {
+  label: string
+  destination: string
+}
+export declare function primaryActionsOnScreen(): OnScreenAction[]

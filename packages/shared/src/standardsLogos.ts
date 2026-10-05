@@ -132,6 +132,33 @@ export function logosFor(entry: string): StandardLogo[] {
 }
 
 /**
+ * The area every mark is drawn at in the footer's row: that of a 36px square (polish X23).
+ *
+ * ⚠️ THE SAME AREA, NOT THE SAME HEIGHT. At one height of 32px the wide wordmarks ran long (Sedex
+ * 119px, SMETA 102px) and the badges stayed small (OEKO-TEX 23px wide, GOTS and ISO 32px): the audit
+ * of 3 October read them as two sizes of mark. Kept to one area, a wide mark is drawn shorter and a
+ * tall one taller, and each takes about the same room on the row.
+ */
+export const MARK_AREA = 36 * 36
+
+/**
+ * The size a mark is drawn at: its own proportions, at `area` (the footer's `MARK_AREA` unless
+ * told otherwise; the home page's certification panel draws them larger, polish X7), in whole
+ * pixels.
+ */
+export function markBox(
+  { width, height }: { width: number; height: number },
+  area: number = MARK_AREA,
+): {
+  width: number
+  height: number
+} {
+  const ratio = width / height
+  const drawn = Math.sqrt(area / ratio)
+  return { width: Math.round(drawn * ratio), height: Math.round(drawn) }
+}
+
+/**
  * Every mark the entries name, each body once, in the order the entries name them — the
  * footer's ONE row of marks under the facts (owner, 2026-09-29). Marks under each entry
  * grew the footer from one screen (900 px) to 1,173 px at 768 px wide with the production

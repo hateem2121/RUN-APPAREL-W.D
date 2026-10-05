@@ -1,9 +1,11 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { boundingRadius, installAdaptiveNearPlane, internalCamera } from '../lib/camera-near-plane'
 import { applyDecalDepthBias, correlatedThreeMaterials } from '../lib/decal-depth-bias'
 import { track } from '../lib/analytics'
-import { canRender3D, prefersReducedMotion } from '../lib/capabilities'
+import { canRender3D, prefersReducedMotion, savesData } from '../lib/capabilities'
+import { fadeWhenApplied, holdFrame } from '../lib/colourCrossFade'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import {
@@ -16,11 +18,14 @@ import { downloadWithRetries, MAX_ATTEMPTS } from '../lib/downloadWithRetries'
 import { DownloadStalledError } from '../lib/fetchWithProgress'
 import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
+import { pictureHeadStart } from '../lib/pictureFirst'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
+import { usePrinting } from '../lib/usePrinting'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { HdImageButton } from './HdImageButton'
+import { SpecGroups } from './SpecGroups'
 import { type CameraView, StageControls } from './StageControls'
 import {
   applyAdaptivePan,
@@ -58,6 +63,17 @@ interface StageProps {
    * closing the dialog lands on the colour the visitor was last looking at.
    */
   onSelectColourway?: (colourway: ViewerColourway) => void
+  /**
+   * Draw the garment's facts in the window's four corners (polish D10). App.tsx decides, from
+   * the layout and from `onFallbackChange` below; the stage still draws nothing over a failure
+   * state whatever it is told, because there the window holds the picture and the notice (LA-16).
+   */
+  cornerSpecs?: boolean
+  /**
+   * Fires when the stage enters or leaves a failure state (no 3D: Save-Data, no WebGL, a failed
+   * or stalled download). App.tsx moves the facts out of the corners while it holds.
+   */
+  onFallbackChange?: (fallback: boolean) => void
 }
 
 export function Stage({
@@ -66,15 +82,23 @@ export function Stage({
   preview = null,
   onModelReadyChange,
   onSelectColourway,
+  cornerSpecs = false,
+  onFallbackChange,
 }: StageProps) {
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
   const glbUrl = separateMode ? selected.glbUrl : product.glbUrl
+  // The model's size, for the download's percentage (polish F12). `?? null`: an API answer cached
+  // before the field existed has none, and the readout then shows no percentage, as it did.
+  const glbBytes = (separateMode ? selected.glbBytes : product.glbBytes) ?? null
 
   // What the model should currently DISPLAY, as opposed to what is selected.
   const displayed = displayedColourway(separateMode, preview, selected)
 
   const mvRef = useRef<ModelViewerEl | null>(null)
+  /** MO2: the canvas a colour change fades out from, and the colour last applied to the model. */
+  const crossFadeRef = useRef<HTMLCanvasElement | null>(null)
+  const appliedVariantRef = useRef<string | null>(null)
   // Where keyboard focus goes when TRY 3D AGAIN unmounts itself on press (issue #41).
   const canvasRef = useRef<HTMLDivElement | null>(null)
   /** Last `panSensitivity` written. See PAN_SENS_STEP — one gesture fires ~165 events. */
@@ -93,6 +117,10 @@ export function Stage({
   const modelLoaded = isLive(phase)
   const swapping = isSwapping(phase)
   const stalled = phase.kind === 'poster' && phase.reason === 'stalled'
+  // App.tsx keeps the garment's facts out of the corners while there is no garment (polish D10).
+  useEffect(() => {
+    onFallbackChange?.(fallback)
+  }, [fallback, onFallbackChange])
   const [notice, setNotice] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<CameraView | null>('front')
   /**
@@ -130,6 +158,8 @@ export function Stage({
    * `model_loaded` reported only the product code.
    */
   const downloadStartedAtRef = useRef<number | null>(null)
+  /** The colour's picture shown during the download, which the download waits for (polish F13). */
+  const placeholderRef = useRef<HTMLImageElement | null>(null)
   /**
    * The download's total size, mirrored into a ref.
    *
@@ -601,7 +631,26 @@ export function Stage({
     if (!mv || !modelLoaded) return
     if (separateMode) return // handled via src/poster attributes below
     const available = mv.availableVariants ?? []
+    let stopFade: (() => void) | undefined
     if (available.includes(displayed.variantId)) {
+      /*
+       * MO2 (polish, 2026-10-04): the old colour's frame is held over the garment while the new
+       * one is applied, then fades over --fast (lib/colourCrossFade.ts). Not the first colour a
+       * page applies (nothing was showing to fade from), not under reduced motion (the change is
+       * instant, as it was), and not while the HD picture covers the model (`data-hd`).
+       */
+      const overlay = crossFadeRef.current
+      if (
+        overlay &&
+        appliedVariantRef.current !== null &&
+        mv.variantName !== displayed.variantId &&
+        !reduceMotion &&
+        !canvasRef.current?.hasAttribute('data-hd') &&
+        holdFrame(mv, overlay)
+      ) {
+        stopFade = fadeWhenApplied(mv, overlay)
+      }
+      appliedVariantRef.current = displayed.variantId
       mv.variantName = displayed.variantId
       setNotice(null)
     } else {
@@ -619,6 +668,8 @@ export function Stage({
         })
       }
     }
+    // A stage that changes before the colour lands lets the held frame go at once, never leaves it.
+    return () => stopFade?.()
   }, [
     modelLoaded,
     displayed.variantId,
@@ -626,6 +677,7 @@ export function Stage({
     selected.slug,
     separateMode,
     product.productCode,
+    reduceMotion,
   ])
 
   // Tell the parent when a variant swap would actually be visible, so the tabs
@@ -685,74 +737,87 @@ export function Stage({
     let smoothed: number | null = null
     let lastAt = performance.now()
     let lastLoaded = 0
-    downloadStartedAtRef.current = lastAt
 
-    downloadWithRetries(glbUrl, {
-      signal: controller.signal,
-      onProgress: ({ loaded, total }) => {
-        if (cancelled) return
-        setBytesLoaded(loaded)
-        setBytesTotal(total)
-        downloadTotalRef.current = total
-        const now = performance.now()
-        const seconds = (now - lastAt) / 1000
-        // Sample no faster than ~10 Hz: below that the deltas are dominated by
-        // chunk boundaries rather than throughput.
-        if (seconds >= 0.1) {
-          smoothed = smoothRate(smoothed, (loaded - lastLoaded) / seconds)
-          setRate(smoothed)
-          lastAt = now
-          lastLoaded = loaded
-        }
-      },
-      onAttempt: (attempt) => {
-        if (cancelled) return
-        setDownloadAttempt(attempt)
-        if (attempt === 1) return
-        // A retry starts from byte 0, so the readout must too — otherwise it would
-        // hold the dead attempt's count, and the rate would be computed across the
-        // 12 s of silence and promise a countdown nobody could meet.
-        setBytesLoaded(0)
-        setBytesTotal(0)
-        setRate(null)
-        smoothed = null
-        lastAt = performance.now()
-        lastLoaded = 0
-      },
-      onStall: (attempt, bytes) => {
-        // Every stall, not only the last: a stall that a retry cured is the early
-        // warning, and on 2026-09-24 no signal of any kind reached us before a
-        // person noticed the garments were stuck.
-        // In `reason`, because telemetry.ts forwards only kind/product/variant and one
-        // message field — separate `attempt`/`bytes` keys were silently dropped, and
-        // "a retry cured it" could not be told apart from "gave up".
-        diagnostic('model-download-stalled', {
-          product: product.productCode,
-          reason: `attempt ${attempt} of ${MAX_ATTEMPTS}, ${bytes} bytes`,
+    // The download itself, started once the colour's picture is in (below). The clock starts
+    // with it, so `model_loaded` still times OUR fetch, as it always has.
+    const startDownload = () => {
+      lastAt = performance.now()
+      downloadStartedAtRef.current = lastAt
+      downloadWithRetries(glbUrl, {
+        signal: controller.signal,
+        expectedBytes: glbBytes,
+        onProgress: ({ loaded, total }) => {
+          if (cancelled) return
+          setBytesLoaded(loaded)
+          setBytesTotal(total)
+          downloadTotalRef.current = total
+          const now = performance.now()
+          const seconds = (now - lastAt) / 1000
+          // Sample no faster than ~10 Hz: below that the deltas are dominated by
+          // chunk boundaries rather than throughput.
+          if (seconds >= 0.1) {
+            smoothed = smoothRate(smoothed, (loaded - lastLoaded) / seconds)
+            setRate(smoothed)
+            lastAt = now
+            lastLoaded = loaded
+          }
+        },
+        onAttempt: (attempt) => {
+          if (cancelled) return
+          setDownloadAttempt(attempt)
+          if (attempt === 1) return
+          // A retry starts from byte 0, so the readout must too — otherwise it would
+          // hold the dead attempt's count, and the rate would be computed across the
+          // 12 s of silence and promise a countdown nobody could meet.
+          setBytesLoaded(0)
+          setBytesTotal(0)
+          setRate(null)
+          smoothed = null
+          lastAt = performance.now()
+          lastLoaded = 0
+        },
+        onStall: (attempt, bytes) => {
+          // Every stall, not only the last: a stall that a retry cured is the early
+          // warning, and on 2026-09-24 no signal of any kind reached us before a
+          // person noticed the garments were stuck.
+          // In `reason`, because telemetry.ts forwards only kind/product/variant and one
+          // message field — separate `attempt`/`bytes` keys were silently dropped, and
+          // "a retry cured it" could not be told apart from "gave up".
+          diagnostic('model-download-stalled', {
+            product: product.productCode,
+            reason: `attempt ${attempt} of ${MAX_ATTEMPTS}, ${bytes} bytes`,
+          })
+        },
+      })
+        .then((blob) => {
+          if (cancelled) return
+          objectUrl = URL.createObjectURL(blob)
+          setResolvedSrc(objectUrl)
         })
-      },
+        .catch((error: unknown) => {
+          if (cancelled) return
+          // ⚠️ NOT the plain-URL fallback below. <model-viewer> would fetch the same
+          // file over the same route and stall the same way, with no readout at all —
+          // the exact screen this replaces. The visitor gets STALL_NOTICE and
+          // TRY 3D AGAIN instead.
+          if (error instanceof DownloadStalledError) {
+            dispatchPhase({ type: 'load-failed', reason: 'stalled' })
+            return
+          }
+          diagnostic('model-prefetch-failed', {
+            product: product.productCode,
+            reason: 'falling back to direct model-viewer fetch',
+          })
+          setResolvedSrc(glbUrl)
+        })
+    }
+
+    // ⚠️ THE PICTURE FIRST (polish F13): the download waits until the colour's picture is in,
+    // at most PICTURE_HEAD_START_MAX_MS. Asked for together, the ~4 MB model held the picture
+    // back to about 12 s at 1.6 Mbit/s (lib/pictureFirst.ts has the measurements).
+    void pictureHeadStart(placeholderRef.current, controller.signal).then(() => {
+      if (!cancelled) startDownload()
     })
-      .then((blob) => {
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
-        setResolvedSrc(objectUrl)
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        // ⚠️ NOT the plain-URL fallback below. <model-viewer> would fetch the same
-        // file over the same route and stall the same way, with no readout at all —
-        // the exact screen this replaces. The visitor gets STALL_NOTICE and
-        // TRY 3D AGAIN instead.
-        if (error instanceof DownloadStalledError) {
-          dispatchPhase({ type: 'load-failed', reason: 'stalled' })
-          return
-        }
-        diagnostic('model-prefetch-failed', {
-          product: product.productCode,
-          reason: 'falling back to direct model-viewer fetch',
-        })
-        setResolvedSrc(glbUrl)
-      })
 
     return () => {
       cancelled = true
@@ -762,7 +827,7 @@ export function Stage({
       // between colourways in separate-GLB mode accumulates a copy per swap.
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [glbUrl, fallback, product.productCode])
+  }, [glbUrl, glbBytes, fallback, product.productCode])
 
   const applyView = (view: CameraView) => {
     const mv = mvRef.current
@@ -906,13 +971,92 @@ export function Stage({
    * fallback draws it, sharp and described, with the notice kept underneath; a product with no
    * picture keeps the notice alone.
    */
-  const fallbackPicture = fallback ? placeholder : null
-  // NOT `performance`: that name shadows the global for the whole component, and
-  // the byte-counting effect above calls `performance.now()`. As a shadowed
-  // string it would throw "performance.now is not a function" at runtime, with
-  // every unit test still green — the pure helpers never touch the clock.
-  // Caught by the linter's exhaustive-deps rule, of all things.
-  const performanceSummary = product.performanceFeatures.join(' / ')
+  /*
+   * ⚠️ THE SCREEN-SIZED HD COPY STANDS IN WHEN IT EXISTS (polish D9: "if the 3D can't load, the
+   * HD picture can stand in for it"), but NEVER under Save-Data: the colour's poster is ~34 KB
+   * and the copy a median 175 KB (113 copies measured 2026-10-04), and a visitor who asked the
+   * browser to save data gets the small one. The full render is never used here: a stalled
+   * download is a failing connection, and the full render is 0.5-1.2 MB.
+   */
+  const fallbackPicture = fallback ? (!savesData() && selected.renderScreen) || placeholder : null
+
+  /*
+   * POLISH F14: ON PAPER THE WINDOW HOLDS THE CHOSEN COLOUR'S PICTURE, NOT THE 3D. A browser
+   * prints a WebGL canvas as the last frame it drew, at the size it drew it: printed from a
+   * 1440px window (Chromium, A4, 2026-10-04) the garment came out cropped and pushed to one side.
+   * So page.css hides the model in print and shows this still picture instead, on paper only
+   * (`display: none` on a screen). The selected colour, never the one a pointer is resting on:
+   * the sheet names the selected one.
+   *
+   * ⚠️ WHEN IT LOADS IS THE WHOLE DESIGN. Every live garment is one 3D file holding every colour
+   * (all 68 products, production D1 read 2026-10-04), so changing colour downloads no picture,
+   * and this must not start doing so for a sheet almost nobody prints. Measured 2026-10-04:
+   *
+   *   - The poster painted while the 3D downloads: the copy is made only once that poster has
+   *     arrived (`printWaits`, then `heldPosters`), and eager, so no engine waits to see it.
+   *     Made while the poster was still arriving, the copy was a request of its own in 3 of 16
+   *     Chromium page loads; made after, the browser hands the finished picture over (one request
+   *     in 11 of 12 runs, four engines). A rare repeat costs nothing live: the media host marks
+   *     pictures `max-age=604800`, so the browser answers it from its own cache. The test server
+   *     marks nothing, which is how the repeats showed (`e2e/print.spec.ts` asks the page
+   *     whether the copy came after the poster, which a request count cannot hold).
+   *   - Any other colour: `lazy`, so a hidden picture never downloads.
+   *
+   * While the page prints (`usePrinting`) every case turns eager: Chrome has loaded lazy pictures
+   * for print since January 2022, and Safari does only after that switch (WebKit bug 224547,
+   * still open at its last update 2024-11-08).
+   */
+  const printPicture = fallback ? null : placeholderAsset(selected, product)
+  const [heldPosters, setHeldPosters] = useState<ReadonlySet<string>>(() => new Set())
+  const holdPoster = useCallback((url: string) => {
+    setHeldPosters((held) => (held.has(url) ? held : new Set(held).add(url)))
+  }, [])
+  const printing = usePrinting()
+
+  /*
+   * POLISH D9 (owner-approved 2026-10-03): "HD IMAGE" shows the colour's studio render IN the
+   * 3D window, and the same button then reads "VIEW IN 3D". The model stays loaded underneath
+   * (`visibility: hidden`, page.css), so going back is instant; FRONT / BACK / SIDE step aside,
+   * because there is one picture, from the front; the colour dots switch the picture. The
+   * window shows the screen-sized copy (F16), and FULL SCREEN opens the zoomable full render.
+   * Not in a failure state: there the picture already IS the window (`fallbackPicture`).
+   */
+  const [hdShown, setHdShown] = useState(false)
+  const hdPicture = selected.renderScreen ?? selected.render ?? null
+  const showHd = hdShown && hdPicture !== null && !fallback
+  // F14 (above): eager once held or printing; no copy at all while the same picture is still
+  // arriving for the download placeholder (which is painted only while the HD picture is not).
+  const printHeld = printPicture !== null && heldPosters.has(printPicture.url)
+  const printWaits =
+    !printing &&
+    !printHeld &&
+    showPlaceholder &&
+    !showHd &&
+    placeholder !== null &&
+    placeholder.url === printPicture?.url
+  // A colour with no render has nothing to show: back to the 3D (the button leaves with it).
+  useEffect(() => {
+    if (!selected.render) setHdShown(false)
+  }, [selected.render])
+  /*
+   * A cross-fade between the garment and the picture, with the browser's own view transition
+   * (modern-web-guidance "same-document-transitions", read 2026-10-04: Baseline since
+   * 2025-10-14, Chrome 111, Safari 18, Firefox 144). Where it is missing, or the visitor
+   * asked for less motion, the switch is instant. `flushSync`, so React has drawn the new
+   * state before the browser takes its second snapshot. The switch button is the same element
+   * in both states, so keyboard focus stays on it (the guide's focus rule).
+   */
+  const onHdShownChange = useCallback((next: boolean) => {
+    const swap = () => flushSync(() => setHdShown(next))
+    if (typeof document.startViewTransition === 'function' && !prefersReducedMotion()) {
+      // A skipped transition (two quick presses, a tab sent to the back) rejects `ready`, which
+      // reached Sentry as an uncaught error from the theme switch (VIEWER-9, lib/theme.ts says
+      // more); the swap itself has already happened, so it is not one.
+      void document.startViewTransition(swap).ready.catch(() => {})
+    } else {
+      swap()
+    }
+  }, [])
 
   /**
    * Coarse progress for assistive technology, at 25% steps.
@@ -936,10 +1080,22 @@ export function Stage({
     // which lost the identical clause in the identical way on the same day.
     <section
       className="stage"
-      aria-label={fallback ? 'Product reference' : 'Interactive 3D product reference'}
+      aria-label={
+        fallback
+          ? 'Product reference'
+          : showHd
+            ? 'Product picture'
+            : 'Interactive 3D product reference'
+      }
     >
       <div className="stage__inner">
-        <div className="stage__canvas" data-lenis-prevent ref={canvasRef}>
+        <div
+          className="stage__canvas"
+          data-lenis-prevent
+          ref={canvasRef}
+          // D9: the HD picture is showing; page.css hides the model under it, still loaded.
+          data-hd={showHd ? '' : undefined}
+        >
           <svg
             className="stage__contours"
             aria-hidden="true"
@@ -1045,8 +1201,34 @@ export function Stage({
             </model-viewer>
           )}
 
-          {showPlaceholder && placeholder && (
+          {/* MO2: the old colour's frame while the new one is applied (lib/colourCrossFade.ts).
+              A copy of what is already on screen, so hidden from screen readers; it never takes
+              a pointer, so a drag during the fade turns the garment. */}
+          {libReady && resolvedSrc && !fallback && (
+            // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (the website's globe canvas carries the same note).
+            <canvas ref={crossFadeRef} className="stage__crossfade" aria-hidden="true" />
+          )}
+
+          {/* D9: the colour's studio render in the window, the screen-sized copy (F16). A real
+              picture with a real description, unlike the decorative download placeholder. */}
+          {showHd && hdPicture && (
             <img
+              className="stage__hd"
+              src={hdPicture.url}
+              alt={
+                hdPicture.alt || `${product.productName} in ${selected.displayName}, studio render`
+              }
+              decoding="async"
+              draggable={false}
+              {...(hdPicture.width && hdPicture.height
+                ? { width: hdPicture.width, height: hdPicture.height }
+                : {})}
+            />
+          )}
+
+          {showPlaceholder && placeholder && !showHd && (
+            <img
+              ref={placeholderRef}
               className={`stage__placeholder${
                 placeholderStage === 'leaving' ? ' stage__placeholder--leaving' : ''
               }`}
@@ -1054,6 +1236,9 @@ export function Stage({
               alt=""
               aria-hidden="true"
               decoding="async"
+              // The page's main picture while the model downloads, and the model waits for it
+              // (polish F13, lib/pictureFirst.ts): an image otherwise starts at "Low".
+              fetchPriority="high"
               draggable={false}
               /*
                * The payload has carried these since the CMS started storing them,
@@ -1076,6 +1261,21 @@ export function Stage({
                 ? { width: placeholder.width, height: placeholder.height }
                 : {})}
               style={{ filter: `blur(${placeholderBlurPx(load.phase, load.percent)}px)` }}
+              onLoad={() => holdPoster(placeholder.url)}
+            />
+          )}
+
+          {/* F14: paper only (page.css). `loading` before `src`, so it is lazy from the start. */}
+          {printPicture && !printWaits && (
+            <img
+              className="stage__print"
+              loading={printing || printHeld ? 'eager' : 'lazy'}
+              src={printPicture.url}
+              alt={printPicture.alt || `${product.productName} in ${selected.displayName}`}
+              draggable={false}
+              {...(printPicture.width && printPicture.height
+                ? { width: printPicture.width, height: printPicture.height }
+                : {})}
             />
           )}
 
@@ -1104,62 +1304,14 @@ export function Stage({
            */}
 
           {/*
-            Only around a garment (LA-16). In a fallback the stage holds the notice, and
-            the callouts were drawn over the same box: measured 2026-09-25 with Save-Data,
-            4 callouts drawn and 1-2 of them over the notice at every width from 1000 to
-            1920px. The same facts stay on the page in `.spec-list`.
+            The garment's facts in the four corners (polish D10): on a computer they are the
+            ONLY copy, so they are real content, not the `aria-hidden` decoration the four
+            `.callout`s were. Only around a garment (LA-16): in a failure state the window holds
+            the picture and the notice, and App.tsx draws the facts under the stage instead;
+            measured 2026-09-25 with Save-Data, the old callouts sat over that notice at every
+            width from 1000 to 1920px.
           */}
-          {!fallback && (
-            <div className="stage__callouts" aria-hidden="true">
-              {product.fabricComposition && (
-                <div className="callout" style={{ top: '14%', left: '3%' }}>
-                  <span className="label">[ FABRIC ]</span>
-                  <div className="callout__value">{product.fabricComposition}</div>
-                </div>
-              )}
-              {product.gsm && (
-                <div className="callout callout--right" style={{ top: '14%', right: '3%' }}>
-                  <span className="label">[ WEIGHT ]</span>
-                  <div className="callout__value">{product.gsm}</div>
-                </div>
-              )}
-              {/*
-              ⚠️ THE BOTTOM PAIR IS ONE ROW, NOT TWO ABSOLUTE BOXES — 2026-09-07,
-              audit FA-D-07. They were `bottom: 18%` each, which pins their BOTTOM
-              edges and lets their chips float apart by however many lines of text
-              the CMS put in each: measured at 1440x900, [ FIT ] top 636.7 against
-              [ PERFORMANCE ] top 621.2 on the fixture, and 15.5 / 31.0 / 46.5 /
-              62.0 across six live products — always a whole multiple of 15.5px, one
-              line of the value text. Three corners of a technical-drawing layout
-              lined up and the fourth floated, by an amount the CMS decided.
-
-              `align-items: flex-start` inside a bottom-anchored row gives both
-              chips one baseline while keeping the row's bottom edge exactly where
-              it was, so nothing moves toward the plinth. The taller block sets the
-              line and the shorter one rises to meet it.
-
-              The pair is deliberately still rendered by the same two conditions:
-              either half can be absent, and `.callout--right`'s `margin-left: auto`
-              keeps a lone right-hand block on the right.
-            */}
-              {(product.garmentFit || performanceSummary) && (
-                <div className="stage__callouts-bottom">
-                  {product.garmentFit && (
-                    <div className="callout">
-                      <span className="label">[ FIT ]</span>
-                      <div className="callout__value">{product.garmentFit}</div>
-                    </div>
-                  )}
-                  {performanceSummary && (
-                    <div className="callout callout--right">
-                      <span className="label">[ PERFORMANCE ]</span>
-                      <div className="callout__value">{performanceSummary}</div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {cornerSpecs && !fallback && <SpecGroups product={product} placement="corners" />}
 
           {/* Only once there is something to drag. It used to show throughout the
               download, inviting the visitor to rotate a garment that had not
@@ -1179,7 +1331,7 @@ export function Stage({
               the exact behaviour the owner reported as a bug on 2026-08-17. See
               TOUCH_ACTION above: a one-finger drag now turns the garment, in any
               direction, and the page is scrolled from outside the canvas. */}
-          {!fallback && modelLoaded && !swapping && cueVisible && (
+          {!fallback && !showHd && modelLoaded && !swapping && cueVisible && (
             /*
              * ⚠️ STILL `aria-hidden`, AND DELIBERATELY SO. A `visually-hidden`
              * paragraph below already tells a screen reader how to rotate and
@@ -1224,7 +1376,7 @@ export function Stage({
             a second; the coarse live region at the end of the section is what
             assistive technology hears.
           */}
-          {loading && (
+          {loading && !showHd && (
             <div className="stage__loading" aria-hidden="true">
               <span className="stage__loading-title">
                 {/* "3D MODEL", not "REFERENCE". The live region below already
@@ -1303,6 +1455,8 @@ export function Stage({
                 src={fallbackPicture.url}
                 alt={fallbackPicture.alt || `${product.productName} in ${displayed.displayName}`}
                 decoding="async"
+                // With no 3D, this is the page's main picture (polish F13).
+                fetchPriority="high"
                 draggable={false}
                 {...(fallbackPicture.width && fallbackPicture.height
                   ? { width: fallbackPicture.width, height: fallbackPicture.height }
@@ -1382,7 +1536,8 @@ export function Stage({
             activeView={activeView}
             onSelect={applyView}
             disabled={!modelLoaded || swapping}
-            showCameras={!fallback}
+            // D9: no camera to point while the window shows the (front) picture.
+            showCameras={!fallback && !showHd}
             extra={
               selected.render ? (
                 <HdImageButton
@@ -1390,6 +1545,7 @@ export function Stage({
                   colourways={data.colourways}
                   selected={selected}
                   onSelectColourway={onSelectColourway}
+                  {...(fallback ? {} : { shown: showHd, onShownChange: onHdShownChange })}
                 />
               ) : null
             }
@@ -1400,17 +1556,20 @@ export function Stage({
             four times during a download, where the visible readout changes
             several times a second. */}
         <p className="visually-hidden" role="status">
-          {loading
-            ? load.phase === 'preparing'
-              ? 'Download complete. Preparing the interactive 3D model.'
-              : retryWaiting
-                ? `The download stopped. Trying again, ${downloadAttempt} of ${MAX_ATTEMPTS}.`
-                : announcedPercent === null
-                  ? 'Loading the interactive 3D model.'
-                  : `Loading the interactive 3D model, ${announcedPercent} percent.`
-            : modelLoaded
-              ? `Showing ${product.productName} in ${selected.displayName}.`
-              : ''}
+          {/* The picture first: while it shows, the 3D downloading behind it is not news. */}
+          {showHd
+            ? `Showing the studio picture of ${product.productName} in ${selected.displayName}.`
+            : loading
+              ? load.phase === 'preparing'
+                ? 'Download complete. Preparing the interactive 3D model.'
+                : retryWaiting
+                  ? `The download stopped. Trying again, ${downloadAttempt} of ${MAX_ATTEMPTS}.`
+                  : announcedPercent === null
+                    ? 'Loading the interactive 3D model.'
+                    : `Loading the interactive 3D model, ${announcedPercent} percent.`
+              : modelLoaded
+                ? `Showing ${product.productName} in ${selected.displayName}.`
+                : ''}
         </p>
         {/* ONE instruction, and it names the keyboard.
             Three overlapping strings described this object — this one, the

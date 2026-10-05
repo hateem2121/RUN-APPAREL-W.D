@@ -37,6 +37,11 @@ import { type FileColour, type ImportedRow, buildImportedRow } from '@run-appare
 export interface ProductState {
   status: string | null
   colourwayCount: number
+  /**
+   * The product's category, so the colours arrive named in its style (polish N2, 2026-10-05:
+   * packages/shared/src/colourNames.ts). Absent or null keeps the namer's measured words.
+   */
+  category?: string | null
 }
 
 export function planColourImport(
@@ -87,7 +92,7 @@ export function planColourImport(
   // with here: colourwayCount === 0, refused above otherwise.
   const rows: ImportedRow[] = []
   for (const colour of fileColours) {
-    rows.push(buildImportedRow(colour, rows))
+    rows.push(buildImportedRow(colour, rows, product.category))
   }
 
   return {

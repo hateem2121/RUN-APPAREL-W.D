@@ -128,6 +128,9 @@ describe('the Latin fonts are preloaded, and only those', () => {
       // bytes for nothing, which is the opposite of the point.
       expect(joined, 'latin-ext must not be preloaded').not.toMatch(/latin-ext/)
       expect(joined, 'vietnamese must not be preloaded').not.toMatch(/vietnamese/)
+      // IBM Plex Mono's latin files ARE "-latin-" (polish X5): the labels swap to it without moving
+      // anything, so it waits for the page rather than racing the stylesheet on slow 3G (RO-08).
+      expect(joined, 'IBM Plex Mono must not be preloaded').not.toMatch(/ibm-plex-mono/)
       expect(joined, 'the .woff fallbacks are never chosen by a modern browser').not.toMatch(
         /\.woff"/,
       )

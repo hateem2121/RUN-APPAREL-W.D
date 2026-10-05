@@ -58,9 +58,10 @@ function barOfHeight(height: number) {
   return bar
 }
 
+/** The page's own main contact button, "Ask about this garment" since polish S10. */
 function inPagePair() {
-  const pair = document.createElement('div')
-  pair.className = 'contact__buttons'
+  const pair = document.createElement('a')
+  pair.className = 'btn btn--primary contact__ask'
   document.body.append(pair)
   return pair
 }
@@ -80,15 +81,15 @@ afterEach(() => {
 })
 
 describe('startActionBarStepsAside', () => {
-  it('watches the in-page pair, above the bar, for most of the pair', () => {
+  it('watches the page’s main button against the whole screen, for most of it (polish S10)', () => {
     const bar = barOfHeight(72.4)
     const pair = inPagePair()
     startActionBarStepsAside(bar)
     expect(live()).toHaveLength(1)
     expect(live()[0]?.observed).toEqual([pair])
-    // The bar covers the foot of the screen, so the viewport's bottom edge is pulled up by it,
-    // rounded UP: a pair scrolled in underneath the bar is on screen and not usable.
-    expect(live()[0]?.options).toEqual({ rootMargin: '0px 0px -73px 0px', threshold: ON_SCREEN })
+    // Not the bar's edge: "Ask about this garment" half clear of the bar showed beside the bar's
+    // own main button. On screen at all, the bar fades away from over it.
+    expect(live()[0]?.options).toEqual({ rootMargin: '0px', threshold: ON_SCREEN })
   })
 
   it('tucks the bar when the pair is on screen and brings it back when it is not', () => {
@@ -134,12 +135,12 @@ describe('startActionBarStepsAside', () => {
     expect(bar.hasAttribute(TUCKED_ATTRIBUTE)).toBe(true)
   })
 
-  it('rebuilds the observer when the bar changes height, and not when it does not', () => {
+  it('rebuilds the footer’s watcher when the bar changes height, and not when it does not', () => {
     // The bar grows with the visitor's text size (`actionBarHeight.ts`): the margin has to follow.
     let height = 72
     const bar = barOfHeight(height)
     bar.getBoundingClientRect = () => ({ height }) as DOMRect
-    inPagePair()
+    pageFooter()
     startActionBarStepsAside(bar)
     expect(resizing[0]?.observed).toEqual([bar])
 
@@ -153,9 +154,9 @@ describe('startActionBarStepsAside', () => {
     expect(live()[0]?.options.rootMargin).toBe('0px 0px -107px 0px')
   })
 
-  it('pulls the margin by nothing where the layout hides the bar', () => {
+  it('pulls the footer’s margin by nothing where the layout hides the bar', () => {
     const bar = barOfHeight(0)
-    inPagePair()
+    pageFooter()
     startActionBarStepsAside(bar)
     expect(live()[0]?.options.rootMargin).toBe('0px 0px -0px 0px')
   })
@@ -188,8 +189,8 @@ describe('startActionBarStepsAside', () => {
 
 /*
  * The footer too (2026-10-03, owner's iPhone screenshot): over the dark footer the paper bar was a
- * white block, extended by Safari into the strip behind its toolbar. The footer carries the email,
- * WhatsApp and "Start an inquiry" itself, so the bar steps aside while ANY of the footer is above it.
+ * white block, extended by Safari into the strip behind its toolbar. The footer carries the email
+ * and WhatsApp itself, so the bar steps aside while ANY of the footer is above it.
  */
 function pageFooter() {
   const footer = document.createElement('footer')
@@ -254,8 +255,9 @@ describe('startActionBarStepsAside and the footer', () => {
       intersection.slice(0, 2).every((observer) => observer.disconnected),
       'an old watcher was left running',
     ).toBe(true)
+    // The main button's watcher uses the whole screen; only the footer's follows the bar.
     expect(live().map((observer) => observer.options.rootMargin)).toEqual([
-      '0px 0px -107px 0px',
+      '0px',
       '0px 0px -107px 0px',
     ])
     live()[1]?.report(0.5)

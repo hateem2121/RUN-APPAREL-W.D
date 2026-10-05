@@ -408,6 +408,44 @@ describe('the card carries its 3D model, framed as the viewer frames it', () => 
     expect(card?.model?.variantId).toBeNull()
   })
 
+  /*
+   * №03's colour dots change the live garment (polish D2): one GLB holds every colour as a variant,
+   * so each colour's name inside it is what a dot switches to. One GLB per colour cannot switch in
+   * place, so it names none and the dots change the still picture only.
+   */
+  it('single-model products name every colour’s variant, in row order', () => {
+    const card = toProductCard(
+      product({
+        glbAsset: { url: `${MEDIA}/rxps.glb` },
+        colourways: [
+          { slug: 'wine', displayName: 'Wine', variantId: 'Wine_01' },
+          { slug: 'blush', displayName: 'Blush', variantId: 'Blush_02' },
+          { slug: 'lime', displayName: 'Lime' },
+        ],
+      }),
+    )
+    // A colour with no variant name is left out: a dot cannot switch to it live.
+    expect(card?.model?.variants).toEqual({ wine: 'Wine_01', blush: 'Blush_02' })
+  })
+
+  it('one-model-per-colour products name no variants to switch to', () => {
+    const card = toProductCard(
+      product({
+        variantMode: 'separate-glb-per-colour',
+        colourways: [
+          {
+            slug: 'wine',
+            displayName: 'Wine',
+            variantId: 'Wine_01',
+            glbAsset: { url: `${MEDIA}/rxps-wine.glb` },
+          },
+          { slug: 'blush', displayName: 'Blush', glbAsset: { url: `${MEDIA}/rxps-blush.glb` } },
+        ],
+      }),
+    )
+    expect(card?.model?.variants).toEqual({})
+  })
+
   it("carries the product's own camera, with the viewer's defaults when unset", () => {
     const framed = toProductCard(
       product({
@@ -440,7 +478,8 @@ describe('the card carries its 3D model, framed as the viewer frames it', () => 
 describe('projectFooter', () => {
   it('projects nothing but copy defaults from an empty global', () => {
     expect(projectFooter(null)).toEqual(EMPTY_FOOTER)
-    expect(EMPTY_FOOTER.ctaLabel).toBe('Start an inquiry')
+    // The site's one name for this action (polish X20, the owner's answer Q9).
+    expect(EMPTY_FOOTER.ctaLabel).toBe('Start a conversation')
     expect(EMPTY_FOOTER.certifications).toEqual([])
     expect(EMPTY_FOOTER.socialLinks).toEqual([])
     expect(EMPTY_FOOTER.capacity).toEqual({ moq: '', leadTime: '', hours: null })

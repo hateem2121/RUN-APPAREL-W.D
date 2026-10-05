@@ -43,6 +43,11 @@ throttled connection (`FA-L-61`).
 on `/products` regardless of the active filter, and that the page renders its
 full list with JavaScript disabled.
 
+**Amended by D27 (2026-10-04):** the filters are gone; their addresses forward to the families'
+own pages, and `/products` groups every garment under its family's heading. The reason above —
+every garment in one document — still holds, and `apps/cms/e2e/oneListPerFamily.spec.ts` checks it
+with scripting off.
+
 ### D2 · The 3D viewer stays the product detail page — `FA-I-07`
 
 **Decision: no per-product page on the marketing site. Keep linking out to
@@ -65,6 +70,12 @@ caption once per link — **"Opens the 3D viewer ↗"**, the owner's wording of 
 themes, the caption's contrast included. Until 2026-09-17 only the host was tested, so
 the "marked as leaving the site" half of this guard existed here and nowhere else
 (audit XS-09).
+
+**Since polish D3b (2026-10-05) a product card's own caption shows when its ticket opens**
+(the owner's X9: "the rest appears when the card opens"), and on a phone, whose sideways
+ticket never opens, not at all (M1). Every link still carries the words in its accessible
+name, so a screen reader hears them on every card either way, and `viewerCue.spec.ts`
+measures each ticket's caption with the ticket open (closed, it is transparent).
 
 ### D3 · The contact page gets a form — `FA-I-06`
 
@@ -95,6 +106,20 @@ Subject left the form. After Send the form gives way to a confirmation that a re
 (VA-27). The rules above stand: store-then-notify, works with scripting off, email and
 WhatsApp links kept. Guard: `apps/cms/e2e/inquiry.spec.ts`.
 
+**Amended 2026-10-05 (owner, polish D7 with F10, X6 and MO5; answers Q15–Q17, Q43): the
+owner's own layout.** Name + Job title, Company + Country, Email + Phone in pairs (side by
+side wherever the form is 28rem wide, stacked on a phone), then Subject as six answers to tap
+(the last, "Something else…", opens a box for the buyer's own words), Message, Files and Send.
+Only Name, Email and Message must be filled, each with a red * that one line explains; the
+word "optional" appears nowhere, which reverses W1's "Optional details" (the owner's choice:
+three boxes to mark against six). One height for every box and button (48px). The country is
+a box that suggests as you type and fills the phone's code; the files have a drop area, a
+list with sizes and a × each, and the grey browser controls show only without scripting. The
+box in use glows, a needed box rightly filled shows a tick, an early Send shakes the button
+once, and the confirmation reads "Got it." under a tick that draws itself. Job title and
+Subject are back on the page; the route never stopped accepting them (no migration). Guards:
+`apps/cms/e2e/inquiry.spec.ts` and `apps/cms/e2e/inquiryLayout.spec.ts` (all three engines).
+
 ### D4 · The gallery grows to four columns above 1600px — `FA-E-04`
 
 **Decision: a fourth column on wide screens. Nothing changes below 1600px.**
@@ -109,6 +134,11 @@ ordinary laptops. On a 1920px monitor it left the same three garments as a
 the 40 garments fill ten rows of four on a 1440px screen instead of leaving one alone. 1280px keeps
 three, so the guard above still holds; `apps/cms/src/productGridOrphans.test.ts` and
 `apps/cms/e2e/productsGrid.spec.ts` check 1440px too.
+
+**Amended 2026-10-04 (owner's polish plan, D1):** the page itself is wider, 1440px from a 1280px
+screen and 1600px from 1920px (it was 1180px until 1600px), and a fifth column starts at **1920px**,
+where five cards are about the width four have at 1440px. 1280px still has three, now wider; the
+guard reads three at 1280px, four at 1440px and five at 1920px.
 
 ### D5 · The viewer wordmark becomes a link home — `FA-W-02`
 
@@ -149,6 +179,15 @@ fixed; the space is not.
 
 **Guard:** a test asserts the footer's content edge agrees with the page
 container's at every audited width.
+
+**Amended 2026-10-04 (owner's polish plan, X23 and F9):** the band stays; its range was measured
+on a footer of one block. The facts gained "What we make" (four links, with every database) and
+now run the column's width in up to five columns. Measured at 900px tall: with the test
+database the band is 214, 208 and 126px at 768, 1024 and 1440px, so `e2e/footer.spec.ts` (DS-09)
+holds it to 100–323px, a floor that still fails a band removed or squeezed to its 24px minimum.
+With the live footer's five blocks the band was already at that 24px minimum at every width
+before X23 (measured on wear-run.com: the slab 996–1,120px tall, past one screen), and with the
+same values drawn into this build it is 24–59px, in a slab of 900–970px.
 
 ### D8 · The marketing site gets the viewer's entrance animations — `FA-H-11`
 
@@ -320,6 +359,9 @@ fault. The count is honest, the chip is dashed rather than dimmed (dimming faile
 at 2.19:1), and clicking one gives a designed message offering to send what exists.
 
 It resolves itself as references are built; nothing needs doing again.
+
+**Amended by D27 (2026-10-04):** the chips jump to groups on the page instead of filtering it; an
+empty family keeps its dashed chip and its 0, and its group carries the message.
 
 ---
 
@@ -527,6 +569,18 @@ building and its roof, №04 the other eight). Steps 2 and 8 have no photo of th
 the testing lab and the tagging table stand in; the owner chose them. LA-01 now pins №01–№06.
 **Guard:** `apps/cms/src/orderTimelinePhotos.test.ts` and `apps/cms/e2e/orderTimeline.spec.ts`.
 
+**Amended 2026-10-05 (polish D4, the owner's answers Q14 and Q41 of 2026-10-03): stacking photo
+cards, and one set of steps.** №04's eight steps are photo cards that stack as the page scrolls
+(style B of the two the report showed): each step's own photo behind its words under the photo
+hero's wash, with the stage and "You" or "We" on every card. The drawn line, the phase sub-lists
+and the square frames went with the timeline. From 900px the heading stays beside the cards. The
+order guide draws the same cards from `orderProcess.ts`, in place of the eight it had typed with
+slightly different names (X21: the home page, the guide and the buyer pages had told the order
+three ways; the buyer pages' own list went with polish S4). With motion allowed the cards stop
+8px apart and the covered one sinks and darkens on a scroll timeline; Firefox stacks them without
+the sink, and reduced motion, short screens and paper get a plain list. **Guard:** the same two
+files, rewritten for the cards (`orderTimeline.spec.ts` runs in three engines).
+
 ### D24 · The home page's garment turns in real 3D — reverses the 2026-09-07 still
 
 **Decision: live 3D on scroll. Owner, 2026-09-29.** The owner asked for "more innovative and
@@ -547,6 +601,17 @@ the viewer's file by one character, or if the lighting drifts.
 
 **Guard:** `apps/cms/e2e/liveGarment.spec.ts` (a failed model keeps the picture; nothing loads
 before the section is near; nothing loads on a data-saving connection until asked).
+
+**Amended by polish D2 (2026-10-05): the section is a showcase.** The garment's column was 22rem
+beside two lines and a button ("short words, tall picture", the polish report's D2). Now the
+garment takes half the row, never wider than 64% of the screen's height, so its 4:5 frame fits a
+laptop's screen; beside it, level with it, the words gain three points (turn it, zoom into the
+print on its 3D page, share a colour's own link) and colour dots. A dot switches the live model to
+that colour's variant inside the one GLB, the still under it, and the link, so a click lands on the
+colour on show (`ProofShowcase.tsx`). New words for the owner's end-of-build approval.
+**Guard:** `apps/cms/e2e/proofShowcase.spec.ts` (the size at four screens, the halves level, the
+points, the dots without WebGL, axe in both themes) and `liveGarment.spec.ts` (a dot switches the
+real model's variant).
 
 ### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
 
@@ -609,6 +674,46 @@ the server sends), and none animates text opacity.
 **Guard:** `apps/viewer/src/styles/tokens.test.ts` (the token is documented in `docs/DESIGN.md`)
 and `apps/cms/e2e/motion.spec.ts` (reduced motion shows the final state at once, with a
 negative control).
+
+**Amended 2026-10-05 (polish D4):** the order timeline's drawn line went with the timeline (D23's
+amendment of that date), so two motions use `--showpiece`: the count-up and the globe's arcs.
+
+## 2026-10-04 — the polish audit: one page per job
+
+### D27 · A family has one list: its own page — amends D1 and D17
+
+**Decision: the four buyer pages are the ONLY lists of their families' garments. `/products` shows
+every garment under its family's heading, which opens that page; the old filter addresses
+(`/products?family=…`) forward to it permanently; and the buyer pages stop copying the home page.
+Owner, 2026-10-04 (Q24, Q25, Q26, Q28); built 2026-10-05.**
+
+A family's garments were listed twice — on its buyer page and on its filtered gallery — and the two
+pages linked to each other (visual audit VA-33). Two addresses for one list compete with each other
+in search (Google, "Consolidate duplicate URLs", 10 July 2026), and a buyer could not tell which
+was the family's page. The buyer pages keep their addresses, which Google already shows.
+
+- **D1's reason holds.** Every garment is still in `/products`' HTML, grouped by family, so a
+  crawler sees the whole catalogue at one URL and the page works with scripting off. The filter
+  chips became a jump bar: plain links to the groups on the same page (Q28).
+- **D17 now reads:** a family with no garments keeps its chip, dashed, with its count of 0, and its
+  group on the page says so in its own words. Sports Accessories, which has no page, shows
+  "[ soon ]" and "Ask what we make →" to Contact (Q21), and so does its home-page card, which
+  opens Contact (polish F8, 2026-10-05). Both say it only while the family has neither a page nor
+  a garment.
+- **The old addresses forward** with Next's permanent redirect (308, which Google treats as a 301,
+  "Redirects and Google Search", updated 14 April 2026): a family with a page to the page, Sports
+  Accessories to its group, anything else to `/products`.
+- **The buyer pages copy nothing:** no numbers, no factory photos, and none of their own five order
+  steps (the third telling of the order process, audit X21). They link the order guide instead.
+- **Everything that linked a family links its one list:** the home page's family cards (but the
+  "[ soon ]" one, above), the footer's "What we make", the garment pages' trail and their "See all
+  … in 3D", and `/llms.txt`.
+
+**Guard:** `apps/cms/src/oneListPerFamily.test.ts` (every family link and forward, no `?family=`
+link anywhere in the site's source with a planted-link control, no copied section on a buyer page)
+and `apps/cms/e2e/oneListPerFamily.spec.ts` (each old address answers 308 to the right place, each
+heading opens its family's page, every garment is in the page with scripting off, a chip lands its
+group below the bar).
 
 ## Closed since
 

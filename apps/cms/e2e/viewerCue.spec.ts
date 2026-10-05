@@ -80,10 +80,30 @@ test.describe('XS-09 — every link to the 3D viewer says so', () => {
         // Nothing else wears the caption; it would promise a destination it does not have.
         await expect(page.locator('.viewer-cue')).toHaveCount(count)
 
+        /*
+         * ⚠️ A PRODUCT TICKET'S OWN CAPTION SHOWS ONLY WHILE THE TICKET IS OPEN (polish D3b, X9: the
+         * owner's "the rest appears when the card opens"; on a phone it is never on show, M1). Closed,
+         * it is transparent, and the probe multiplies opacity up the tree into 1:1, so each ticket is
+         * opened, by a resting pointer as a visitor opens it, and its caption measured then. Every
+         * other caption, the pictures' hidden ones included, is measured as it stands.
+         */
+        const OPENING = '.product-card__more .viewer-cue'
         const rows = await page.evaluate(measureContrastInPage, {
-          selector: '.viewer-cue',
+          selector: `.viewer-cue:not(${OPENING})`,
           part: 'text' as const,
         })
+        const tickets = page.locator('.product-card:has(.product-card__more)')
+        for (let index = 0; index < (await tickets.count()); index += 1) {
+          await tickets.nth(index).hover()
+          const opened = tickets.nth(index).locator(OPENING)
+          await expect.poll(() => opened.evaluate((cue) => getComputedStyle(cue).opacity)).toBe('1')
+          rows.push(
+            ...(await page.evaluate(measureContrastInPage, {
+              selector: `.product-card:hover ${OPENING}`,
+              part: 'text' as const,
+            })),
+          )
+        }
         expect(rows).toHaveLength(count)
         const failing = rows
           .filter((row) => worstRatio(row) < 4.5)

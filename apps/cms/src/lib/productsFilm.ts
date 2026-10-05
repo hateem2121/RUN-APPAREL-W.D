@@ -1,7 +1,7 @@
 /**
  * The /products hero film (owner, 2026-10-01: the hoodie film plays behind the hero's headline,
- * filling the hero the way the factory photo fills the home page's, under the same dark wash; the
- * buttons are named "Pause video" and "Play video"; no caption).
+ * filling the hero the way the factory photo fills the home page's, under the same dark wash; no
+ * caption; no pause button since polish D5, 2026-10-04, by the owner's choice: ProductsFilm.tsx).
  *
  * The files are written by `scripts/build-products-film.mjs` from the owner's original and served
  * from `apps/cms/public/film/`; `src/lib/productsFilm.test.ts` fails if one is missing or is not the
@@ -9,7 +9,8 @@
  *
  * ⚠️ THE FILM IS DECORATION, NOT CONTENT. It shows the same embroidered hoodie in a 4.5 s loop
  * behind the words; nothing in it is information, so the still has empty alt text and the video is
- * hidden from assistive technology. The pause button is the one part a visitor uses (WCAG 2.2.2).
+ * hidden from assistive technology. A visitor uses no part of it: the owner removed the pause button
+ * (polish D5), keeping the reduced-motion and Data Saver stops below.
  */
 
 export type FilmSource = { src: string; type: string }
@@ -58,7 +59,7 @@ export type FilmVisit = {
  * May the film start by itself? Never under reduced motion (the owner's hard stop), on Data Saver
  * (the 3D garment pages' own rule, `canRender3D()` in apps/viewer/src/lib/capabilities.ts), on a
  * connection the browser reports as 2G (the plan's "a slow connection"), or under automation. In
- * each of those cases the still shows, with a "Play video" button that starts it on request.
+ * each of those cases the still shows, and stays.
  */
 export function filmMayAutoplay(visit: FilmVisit): boolean {
   if (visit.reducedMotion || visit.saveData || visit.webdriver) return false

@@ -5,6 +5,7 @@ import {
   HONEYPOT_FIELD,
   isHoneypotTripped,
   MAX_LENGTHS,
+  SUBJECT_OTHER,
   validateInquiry,
 } from './inquiry'
 
@@ -25,6 +26,41 @@ describe('validateInquiry', () => {
     const result = validateInquiry({ ...good })
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.value).toEqual(good)
+  })
+
+  describe('the subject (D7: six answers to tap, the last opening a box of its own)', () => {
+    it('keeps a chosen answer as its words', () => {
+      const result = validateInquiry({ ...good, subject: 'Samples' })
+      expect(result.ok && result.value.subject).toBe('Samples')
+    })
+
+    it('keeps the buyer’s own words when "Something else…" was chosen', () => {
+      const result = validateInquiry({
+        ...good,
+        subject: SUBJECT_OTHER,
+        subjectOther: '  Football socks   for a club ',
+      })
+      expect(result.ok && result.value.subject).toBe('Football socks for a club')
+    })
+
+    it('stores no subject when "Something else…" was chosen and nothing typed', () => {
+      const result = validateInquiry({ ...good, subject: SUBJECT_OTHER, subjectOther: '' })
+      expect(result.ok && result.value.subject).toBe('')
+    })
+
+    it('ignores words left in the own box once another answer is chosen', () => {
+      const result = validateInquiry({ ...good, subject: 'Samples', subjectOther: 'old words' })
+      expect(result.ok && result.value.subject).toBe('Samples')
+    })
+
+    it('clips the own words to the subject’s length, like every other field', () => {
+      const result = validateInquiry({
+        ...good,
+        subject: SUBJECT_OTHER,
+        subjectOther: 'x'.repeat(400),
+      })
+      expect(result.ok && result.value.subject.length).toBe(MAX_LENGTHS.subject)
+    })
   })
 
   describe('the optional details (2026-09-29)', () => {

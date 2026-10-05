@@ -74,10 +74,21 @@ export default defineConfig({
      * sits under it, which is scroll and focus behaviour, exactly where engines differ, and a
      * first visit from a QR code is a Safari visit. Run once locally before it joined: two of
      * its tests needed Option-Tab, which WebKit uses for links (`tabKey` in the spec).
+     *
+     * `sportFilter` joined 2026-10-05 (polish S7): the Teamwear page's sport buttons are radios
+     * that CSS answers through `:has()`, and choosing a sport on a phone is a Safari visit too.
+     * `familyTickets` the same day (polish D3): masks, `@property`, container queries and grid
+     * tracks that glide, each newer in Safari than elsewhere, on a Mac's pointer and an iPhone.
+     * `productTickets` the same day (polish D3b), for the same parts on the product cards.
+     * `orderTimeline` joined 2026-10-05 (polish D4): the order steps are sticky cards whose sink
+     * runs on a named scroll timeline, which Safari draws only since 26.
+     * `guides` joined 2026-10-05 (polish X22): the site's first table, on a 320px phone, in the
+     * engine every iPhone draws with, which until Safari 17 changed how tables were read.
      */
     {
       name: 'webkit',
-      testMatch: /(navbar|themeSwitch|siteBar|globe|consent)\.spec\.ts/,
+      testMatch:
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

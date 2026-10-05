@@ -404,6 +404,9 @@ async function main() {
       status: fresh.status ?? null,
       hasGlbAsset: fresh.glbAsset != null && fresh.glbAsset !== '',
       colourwayCount: Array.isArray(fresh.colourways) ? fresh.colourways.length : 0,
+      // The colour import names the colours in this category's style, as the robot does
+      // (polish N2, packages/shared/src/colourNames.ts); a plan's family words are renamed too.
+      category: typeof fresh.category === 'string' ? fresh.category : null,
     }
     if (target.status === 'published') {
       console.log(

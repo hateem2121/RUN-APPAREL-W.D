@@ -1,5 +1,6 @@
 'use client'
 
+import { pageHeld } from '@run-apparel/shared'
 import type Lenis from 'lenis'
 import { useEffect } from 'react'
 
@@ -11,7 +12,8 @@ import { useEffect } from 'react'
  * The SAME guards as `apps/viewer/src/polish/smooth-scroll.ts`, each with its own browser
  * test in `e2e/smoothScroll.spec.ts`:
  *   - gated BEFORE the import: automation and reduced motion never download the library;
- *   - `virtualScroll` accepts only a trusted wheel (the viewer's FA-F-12 predicate);
+ *   - `virtualScroll` accepts only a trusted wheel (the viewer's FA-F-12 predicate), and none
+ *     while a pop-up holds the page (polish F2/F3: packages/shared/src/pageHold.ts);
  *   - keyboard, touch and the scrollbar stay the browser's — Lenis binds no key listener
  *     and `syncTouch` is off by default;
  *   - the glide lasts the viewer's 1.1 s with the viewer's ease-out, so one wheel tick
@@ -62,7 +64,7 @@ export function SmoothScroll() {
           autoRaf: true,
           duration: SITE_SCROLL_DURATION_S,
           easing: siteScrollEasing,
-          virtualScroll: ({ event }) => event.isTrusted,
+          virtualScroll: ({ event }) => event.isTrusted && !pageHeld(document),
         })
         window.addEventListener('pointerdown', endGlide, { capture: true })
         window.addEventListener('keydown', onKey, { capture: true })

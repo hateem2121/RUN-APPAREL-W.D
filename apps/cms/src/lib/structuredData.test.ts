@@ -42,6 +42,11 @@ describe('organisation', () => {
     expect(contactPageJsonLd(settings()).mainEntity['@id']).toBe(org['@id'])
   })
 
+  // Polish X14: the old picture showed the address of before the domain move.
+  it('pictures the company with the home page’s share card, not the old one', () => {
+    expect(organizationJsonLd(settings()).image).toBe(`${SITE_ORIGIN}/share/home.jpg`)
+  })
+
   it('uses the owner uploaded logo when there is one, and the shipped mark otherwise', () => {
     // Same precedence as the browser tab icon, so the two cannot disagree about which
     // mark represents the company.

@@ -83,6 +83,63 @@ test.describe('FA-H-05 — a press is answered immediately', () => {
   })
 })
 
+/**
+ * MO6 (owner, 3 Oct: "every button presses the same way"): the controls that answered a press with
+ * nothing now shrink as `.btn` does, 0.97, and the file drop area as the cards do, 0.98 (site.css
+ * says why). Each is pressed for real, with the pointer on its middle, and the value it reaches
+ * is read, then that it comes back on release.
+ */
+test.describe('MO6 — every control answers a press the same way', () => {
+  const CASES = [
+    {
+      path: '/products',
+      selector: '.card-gallery__dot',
+      scale: '0.97',
+      hover: '.product-card__figure',
+    },
+    {
+      path: '/products',
+      selector: '.card-gallery__arrow--next',
+      scale: '0.97',
+      hover: '.product-card__figure',
+    },
+    { path: '/contact', selector: '.inquiry-form__answer', scale: '0.97' },
+    { path: '/contact', selector: '.inquiry-form__drop', scale: '0.98' },
+    { path: '/contact', selector: '.inquiry-files__remove', scale: '0.97', file: true },
+    { path: '/custom-teamwear-manufacturer', selector: '.sport-filter__chip', scale: '0.97' },
+  ] as const
+
+  for (const item of CASES) {
+    test(`${item.selector} on ${item.path} presses to ${item.scale}`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.goto(item.path)
+      if ('file' in item && item.file) {
+        await page.locator('.inquiry-form [name="files"]').setInputFiles({
+          name: 'tech-pack.pdf',
+          mimeType: 'application/pdf',
+          buffer: Buffer.from('%PDF-1.7\nxref\n%%EOF\n'),
+        })
+      }
+      const control = page.locator(item.selector).first()
+      if ((await control.count()) === 0) test.skip(true, `no ${item.selector} on ${item.path} here`)
+      await control.scrollIntoViewIfNeeded()
+      if ('hover' in item && item.hover) await page.locator(item.hover).first().hover()
+      await control.hover()
+      const box = await control.boundingBox()
+      expect(box, `${item.selector} has no box`).not.toBeNull()
+      const scale = () => control.evaluate((el) => getComputedStyle(el).scale)
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+      await page.mouse.down()
+      await expect.poll(scale, { timeout: 2_000, message: 'no press feedback' }).toBe(item.scale)
+      await page.mouse.up()
+      // The × does its job on release: the file leaves, and the button with it.
+      if ('file' in item && item.file)
+        await expect(page.locator('.inquiry-files__item')).toHaveCount(0)
+      else await expect.poll(scale, { timeout: 2_000, message: 'it stayed pressed' }).toBe('none')
+    })
+  }
+})
+
 test.describe('VA-46 — both buttons answer a mouse the same way', () => {
   /**
    * Visual audit 2026-10-02, measured live: the primary button lifted 2px with no change of colour
@@ -689,17 +746,17 @@ test.describe('№05 — the numbers count up, and only when they may', () => {
 })
 
 /**
- * The scroll motion (owner, 2026-09-29): the timeline draws, the photos wipe open and drift.
+ * The scroll motion (owner, 2026-09-29): the photos wipe open and drift.
  * What would have to break: motion for someone who asked for none, or a photo left half-clipped
  * once it is on screen — which is how a scroll animation turns into missing content.
- * Since 2026-10-02 the photos measured are the order timeline's eight (`.timeline`), one per step:
- * the factory strip they were measured on is gone (visual audit VA-29).
+ * The photos measured are №01's two (`.about`): the factory strip they were first measured on went
+ * with VA-29 (2026-10-02), and the order timeline's eight, and its drawn line, with polish D4
+ * (2026-10-05), whose stacking cards `e2e/orderTimeline.spec.ts` measures.
  */
-test.describe('scroll motion — the timeline draws, the photos open and drift', () => {
+test.describe('scroll motion — the photos open and drift', () => {
   const targets = {
-    '.timeline__line': 'timeline-draw',
-    '.timeline .photo-wipe': 'photo-wipe',
-    '.timeline .photo-parallax': 'photo-drift',
+    '.about .photo-wipe': 'photo-wipe',
+    '.about .photo-parallax': 'photo-drift',
   } as const
 
   const names = (page: Page) =>
@@ -726,13 +783,13 @@ test.describe('scroll motion — the timeline draws, the photos open and drift',
   test('under reduced motion none of them runs', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/')
-    expect(await names(page)).toEqual(['none', 'none', 'none'])
+    expect(await names(page)).toEqual(['none', 'none'])
   })
 
   test('a photo scrolled into view is fully open, whatever the engine', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.goto('/')
-    const frame = page.locator('.timeline .photo-wipe').first()
+    const frame = page.locator('.about .photo-wipe').first()
     await frame.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     // "Fully open" is `none` or an inset whose every edge is zero — Chromium writes the
     // animation's end as `inset(0px 0px 0%)`.
@@ -745,4 +802,219 @@ test.describe('scroll motion — the timeline draws, the photos open and drift',
       )
       .toBe(true)
   })
+})
+
+/**
+ * MO4 (polish, 2026-10-05): the ticket cards rise into place as they scroll in, as the sections do.
+ * What would have to break: motion for someone who asked for none, or a card left part-way up once
+ * it is on screen, which is how a scroll animation turns into a card out of line with its row.
+ * The card measured is the first one below the first screen, so it can be seen entering.
+ */
+test.describe('MO4 — the ticket cards rise into place as they scroll in', () => {
+  for (const [path, selector] of [
+    ['/products', '.product-card'],
+    ['/', '.family-card'],
+  ] as const) {
+    test(`${path}: a card is lowered while it enters and in place once on screen`, async ({
+      page,
+      browserName,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+      // 700 tall (a laptop with its bars): the seed has ONE garment, whose card starts 778px down,
+      // inside a 900px screen, so only a shorter one shows it arriving.
+      await page.setViewportSize({ width: 1440, height: 700 })
+      await page.goto(path)
+      const supported = await page.evaluate(() =>
+        CSS.supports('(animation-timeline: view()) and (animation-range: entry)'),
+      )
+      test.skip(
+        !supported,
+        `${browserName} has no scroll-driven animations: every card is in place`,
+      )
+
+      const below = await page.evaluate(
+        (sel) =>
+          [...document.querySelectorAll(sel)].findIndex(
+            (card) => card.getBoundingClientRect().top > window.innerHeight,
+          ),
+        selector,
+      )
+      expect(
+        below,
+        'every card is on the first screen, so none can be seen entering',
+      ).toBeGreaterThan(-1)
+      const card = page.locator(selector).nth(below)
+      const style = () =>
+        card.evaluate((el) => ({
+          name: getComputedStyle(el).animationName,
+          lowered: Number.parseFloat(getComputedStyle(el).translate.split(' ')[1] ?? '0'),
+        }))
+      expect((await style()).name).toBe('card-rise')
+
+      // Its top a little inside the foot of the screen: entering, so still lowered.
+      await card.evaluate((el) =>
+        window.scrollBy(0, el.getBoundingClientRect().top - window.innerHeight + 40),
+      )
+      await expect.poll(async () => (await style()).lowered).toBeGreaterThan(0)
+      // In the middle of the screen: wholly in place.
+      await card.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+      await expect
+        .poll(() => card.evaluate((el) => getComputedStyle(el).translate))
+        .toMatch(/^(none|0px( 0px)?)$/)
+    })
+  }
+
+  test('under reduced motion no card moves', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/products')
+    await expect(page.locator('.product-card').first()).toBeVisible()
+    const names = await page.evaluate(() => [
+      ...new Set(
+        [...document.querySelectorAll('.product-card')].map(
+          (card) => getComputedStyle(card).animationName,
+        ),
+      ),
+    ])
+    expect(names).toEqual(['none'])
+  })
+})
+
+/**
+ * MO3 (owner, 5 Oct: "grow into the loading screen"): a product card's picture grows into the
+ * garment page, and every other link on the site loads the next page exactly as before.
+ *
+ * In this suite the garment pages live on the viewer's own server, another origin, where no
+ * transition can run, so the card's link is pointed at a website page for the test. What is
+ * measured is THIS page's half (`CardOpening.tsx`), on the page being LEFT: whether the browser
+ * offered a transition (`pageswap`) and whether the script cancelled it. Whether the next page
+ * then takes it is that page's business: the garment page's half, inline opt-in included, is
+ * apps/viewer's `e2e/page-transition.spec.ts`.
+ */
+test.describe('MO3 — only a card tap carries its picture into the next page', () => {
+  const NAME = 'garment-opening'
+
+  /** Open /products with a recorder on every page, the first card aimed at /contact, and taps held. */
+  async function ready(page: Page, motion: 'no-preference' | 'reduce') {
+    await page.addInitScript(() => {
+      // Registered before the page's own scripts, so it runs before CardOpening's listener: it
+      // notes what the browser offered, and the wrapped skip notes whether the script cancelled it.
+      const proto = (
+        window as Window & { ViewTransition?: { prototype: { skipTransition(): void } } }
+      ).ViewTransition?.prototype
+      if (proto) {
+        const skip = proto.skipTransition
+        proto.skipTransition = function (this: unknown) {
+          sessionStorage.setItem('mo3-skipped', 'yes')
+          return skip.call(this)
+        }
+      }
+      window.addEventListener('pageswap', (event) => {
+        const offered = (event as Event & { viewTransition?: unknown }).viewTransition
+        sessionStorage.setItem('mo3-offered', offered ? 'yes' : 'no')
+        sessionStorage.removeItem('mo3-skipped')
+      })
+    })
+    await page.emulateMedia({ reducedMotion: motion })
+    await page.goto('/products')
+    const supported = await page.evaluate(() => 'onpageswap' in window)
+    test.skip(!supported, 'this engine has no cross-document view transitions: it simply loads')
+    const slide = page.locator('.product-card .card-gallery__slide[tabindex="0"]').first()
+    await slide.evaluate((el) => {
+      el.setAttribute('href', '/contact')
+      // A held tap does everything a tap does but leave the page, so the script can be watched.
+      document.addEventListener(
+        'click',
+        (event) => {
+          if ((window as Window & { hold?: boolean }).hold) event.preventDefault()
+        },
+        { capture: true },
+      )
+      ;(window as Window & { hold?: boolean }).hold = true
+    })
+    // The script is there once a held tap names the picture (the page may still be hydrating).
+    await expect
+      .poll(async () => {
+        await slide.click()
+        return slide.evaluate((el) => el.style.getPropertyValue('view-transition-name'))
+      })
+      .toBe(NAME)
+    return slide
+  }
+
+  const named = (page: Page) =>
+    page.evaluate(
+      (name) =>
+        [...document.querySelectorAll<HTMLElement>('*')].filter(
+          (el) => el.style.getPropertyValue('view-transition-name') === name,
+        ).length,
+      NAME,
+    )
+  const release = (page: Page) =>
+    page.evaluate(() => {
+      ;(window as Window & { hold?: boolean }).hold = false
+    })
+  /** What the page that was left decided: offered by the browser, and cancelled by the script? */
+  const decision = (page: Page) =>
+    page.evaluate(() => ({
+      offered: sessionStorage.getItem('mo3-offered'),
+      cancelled: sessionStorage.getItem('mo3-skipped') === 'yes',
+    }))
+
+  test('a card tap names that one picture and lets the transition go', async ({ page }) => {
+    const slide = await ready(page, 'no-preference')
+    expect(await named(page), 'two names cancel the whole transition').toBe(1)
+    await release(page)
+    await slide.click()
+    await page.waitForURL('**/contact')
+    expect(await decision(page)).toEqual({ offered: 'yes', cancelled: false })
+  })
+
+  test('any other link clears the name and cancels the transition', async ({ page }) => {
+    await ready(page, 'no-preference')
+    await page.evaluate(() => {
+      const plain = document.createElement('a')
+      plain.id = 'mo3-plain'
+      plain.href = '/contact'
+      plain.textContent = 'Contact'
+      // Over everything, so no sticky bar can sit on the link the test presses.
+      plain.style.cssText =
+        'position: fixed; top: 50%; left: 50%; z-index: 2147483647; padding: 12px'
+      document.body.append(plain)
+    })
+    await release(page)
+    await page.locator('#mo3-plain').click()
+    await page.waitForURL('**/contact')
+    expect(await decision(page)).toEqual({ offered: 'yes', cancelled: true })
+  })
+
+  test('under reduced motion even a card tap simply loads', async ({ page }) => {
+    const slide = await ready(page, 'reduce')
+    await release(page)
+    await slide.click()
+    await page.waitForURL('**/contact')
+    // No opt-in under reduced motion, so the browser offers nothing to cancel.
+    expect(await decision(page)).toEqual({ offered: 'no', cancelled: false })
+  })
+})
+
+/**
+ * MO1 (owner, 3 Oct: "each card type its own hover"): a guide card no longer lifts 4px like every
+ * card did; it slides its arrow 4px, as the family cards' "View the range" does, and takes the
+ * accent edge. Read off the real hover: the card stays where it is, the arrow moves.
+ */
+test('MO1 — a guide card slides its arrow on hover and does not lift', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/guides')
+  const card = page.locator('.guide-card').first()
+  const arrow = card.locator('.guide-card__cue b')
+  await expect(arrow).toHaveText('→')
+  const read = () =>
+    card.evaluate((element) => ({
+      card: getComputedStyle(element).translate,
+      arrow: getComputedStyle(element.querySelector('.guide-card__cue b') as Element).translate,
+    }))
+  expect((await read()).arrow, 'the arrow is already moved at rest').toBe('none')
+  await card.hover()
+  await expect.poll(async () => (await read()).arrow).toBe('4px')
+  expect((await read()).card, 'the card lifted').toBe('none')
 })

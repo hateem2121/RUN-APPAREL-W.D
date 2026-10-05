@@ -1,14 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { familySlug } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { familySlug } from '../worker/preview'
 
 /**
- * The garment pages' breadcrumbs link a category to the website's family filter,
- * `/products?family=<slug>` (domain move, 2026-09-28). The website keeps each family's
- * slug next to its name in apps/cms/src/lib/families.ts, and the viewer DERIVES the slug
- * from the name — two spellings no build step compares, the rename-breaks-a-gate class
- * `src/siteLinks.test.ts` describes.
+ * The garment pages' trail and breadcrumbs link a category with no page of its own to its group on
+ * the website's products page, `/products#<slug>` (polish S1, 2026-10-05; until then the family
+ * filter, `/products?family=<slug>`, which now forwards; categories WITH a page link it since
+ * polish S5, packages/shared/src/categoryPages.ts). The website keeps each
+ * family's slug next to its name in apps/cms/src/lib/families.ts, and the garment pages DERIVE
+ * the slug from the name — two spellings no build step compares, the rename-breaks-a-gate
+ * class `src/siteLinks.test.ts` describes.
  *
  * The CMS file is READ, not imported: `biome.jsonc` forbids cross-app imports.
  */

@@ -8,8 +8,13 @@
  * website's site.css unchanged, so both hosts are styled by the same lines (the bar's
  * arrangement: notch.css). Each app imports this file after notch.css.
  *
- * The column it lines up with is the website's (`--site-gutter`, `--site-content`), which
- * moved to tokens.css with it.
+ * The tab, the question, the clock and the open/closed status are the WEBSITE's alone since the
+ * garment pages dropped them (polish Q42), so their rules are in footer-prompt.css, which only the
+ * website imports, right after this file (polish D1: the garment pages' first paint pays for every
+ * byte of this one).
+ *
+ * The column it lines up with is the page's (`--site-max`, `--site-gutter`), which moved to
+ * tokens.css with it; a garment page sets both to its own column (polish D1, page.css).
  *
  * ⚠️ THE PRINT BLOCK STAYS AT THE END OF THIS FILE. `@media print` rules take part in the
  * normal cascade and only differ in when they APPLY, so above `.site-footer { --footer-bg: … }`
@@ -68,10 +73,12 @@
  * footer's left edge left the page's by up to 370px (FA-D-01).
  *
  * This reproduces `.site-container`'s geometry exactly rather than approximating it:
- * the slab's padding supplies the gutter, and this centres a `--site-content`-wide
- * column inside what remains. Checked against the audit's measured table at every
+ * the slab's padding supplies the gutter, and this centres a column of `--site-max` less
+ * two gutters inside what remains. Checked against the audit's measured table at every
  * width it sampled — 20.0 at 320, 38.4 at 768, 51.2 at 1024, 194.0 at 1440, 434.0 at
- * 1920 — all of which now match the page to the pixel by construction.
+ * 1920 — all of which now match the page to the pixel by construction. Worked out HERE,
+ * from the two tokens (polish D1): a garment page sets them to its own column on `.page`, and
+ * a third token computed on `:root` would have kept the website's numbers inside it.
  *
  * `flex` and `flex-direction` are inherited responsibilities, not decoration:
  * `.footer-grow`'s `flex: 1 1 auto` is what holds the Quiet Room open, and it needs a
@@ -83,7 +90,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   width: 100%;
-  max-width: var(--site-content);
+  max-width: calc(var(--site-max) - var(--site-gutter) * 2);
   margin-inline: auto;
 }
 
@@ -110,362 +117,30 @@
   }
 }
 
-/* ── the flipped notch ─────────────────────────────────────────────────────
- *   header (.notch)              footer tab
- *   border-end-*-radius          border-start-*-radius
- *   fillet inset-block-start: 0  fillet inset-block-end: 0
- *   mask circle at *,100%        mask circle at *,0
- * The fillets live OUTSIDE the tab's box, one --notch-r each; the max-width reserves
- * exactly that (see .notch-shell for why "exactly"). */
-.site-footer__tab {
-  --arrow-w: 14px;
-  --arrow-gap: 10px;
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 50%;
-  translate: -50% 0;
-  z-index: var(--z-footer-tab);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--target-min);
-  max-width: calc(100% - var(--notch-r) * 2);
-  padding-inline: 24px;
-  background: var(--volt);
-  color: var(--ink);
-  text-decoration: none;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-instrument);
-  text-transform: uppercase;
-  white-space: nowrap;
-  border-start-start-radius: var(--notch-r);
-  border-start-end-radius: var(--notch-r);
-  /* Ungated, unlike the hover transition further down — a press happens on both
-     pointer types and this tab is the footer's only call to action. */
-  transition: background-color var(--instant) var(--ease);
-}
-
 /*
- * ⚠️ THE TAB PRESSES WITH COLOUR, NOT WITH `scale` LIKE EVERY OTHER CONTROL HERE.
- *
- * Its two concave fillets are `::before`/`::after` drawn OUTSIDE its own box, seating it
- * into the slab's top edge (see the geometry note above). A transform on the tab scales
- * its pseudo-elements with it, so `scale: 0.97` would lift the tab off the edge and open
- * a hairline gap where the fillets were — the exact property the audit scored 9 for
- * keeping still (FA-R-09: "its width, and therefore its two carved corner fillets, never
- * change"). Colour costs a paint and moves no geometry.
- *
- * 88% volt / 12% ink measures 10.4:1 against the ink label — the hover mix goes the
- * other way, toward white, so press and hover never look like the same state.
+ * A footer without its question and its tab: the garment pages' (polish Q42, owner 2026-10-04).
+ * A garment page ends on its own one prompt, "Ask about this garment", so the footer drops the
+ * tab, the question and the room each took: no space above the slab for a tab, no full screen of
+ * slab for a question to stand in, and its first block starts where the question did.
  */
-.site-footer__tab:active {
-  background: color-mix(in srgb, var(--volt) 88%, var(--ink));
+.site-footer--no-prompt {
+  padding-block-start: 0;
 }
 
-.site-footer__tab::before,
-.site-footer__tab::after {
-  content: "";
-  position: absolute;
-  inset-block-end: 0;
-  width: var(--notch-r);
-  height: var(--notch-r);
-  background: var(--volt);
-  pointer-events: none;
-}
-
-.site-footer__tab::before {
-  inset-inline-end: 100%;
-  mask: radial-gradient(circle at 0 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
-}
-
-.site-footer__tab::after {
-  inset-inline-start: 100%;
-  mask: radial-gradient(circle at 100% 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
-}
-
-/* The label rests centred; on hover it slides left and the arrow arrives. The tab's
-   WIDTH NEVER CHANGES — the arrow's slot is always reserved and the label is nudged
-   right by half of it at rest — so the fillets never move. Touch has no hover, so
-   there the arrow is simply always shown. */
-.site-footer__tab-arrow {
-  font-family: var(--font-display);
-  width: var(--arrow-w);
-  margin-inline-start: var(--arrow-gap);
-  text-align: end;
-}
-
-.site-footer__tab:focus-visible {
-  outline: 2px solid var(--footer-text);
-  outline-offset: 4px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .site-footer__tab {
-    transition: background-color var(--fast) var(--ease);
-  }
-
-  .site-footer__tab:hover {
-    background: color-mix(in srgb, var(--volt) 88%, white);
-  }
-
-  .site-footer__tab-label {
-    transform: translateX(calc((var(--arrow-w) + var(--arrow-gap)) / 2));
-    transition: transform var(--ui) var(--ease);
-  }
-
-  .site-footer__tab-arrow {
-    opacity: 0;
-    transform: translateX(-6px);
-    transition:
-      opacity var(--fast) var(--ease),
-      transform var(--ui) var(--ease);
-  }
-
-  .site-footer__tab:hover .site-footer__tab-label,
-  .site-footer__tab:focus-visible .site-footer__tab-label {
-    transform: translateX(0);
-  }
-
-  .site-footer__tab:hover .site-footer__tab-arrow,
-  .site-footer__tab:focus-visible .site-footer__tab-arrow {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* ── the question ──────────────────────────────────────────────────────── */
-.footer-cta {
-  position: relative;
+.site-footer--no-prompt .site-footer__inner {
   padding-block-start: clamp(44px, 6vw, 84px);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
-  align-items: start;
 }
 
-/* On the 2px scale where the browser can round, AFTER the rule it refines (visual audit VA-17;
-   why, and why behind `@supports`: the note above `--site-gutter`'s rounding in tokens.css). */
 @supports (width: round(1px, 2px)) {
-  .footer-cta {
+  .site-footer--no-prompt .site-footer__inner {
     padding-block-start: round(clamp(44px, 6vw, 84px), 2px);
   }
 }
 
-.footer-side {
-  display: grid;
-  gap: 14px;
-  justify-items: end;
-}
-
-@media (max-width: 720px) {
-  .footer-cta {
-    /*
-     * `minmax(0, 1fr)`, NOT `1fr` (audit TY-11). A bare `1fr` keeps an AUTOMATIC minimum, so
-     * the nowrap promise line below could stretch the whole column past the slab — and the
-     * slab is `overflow: hidden`, so at 200% browser text every paragraph in the column was
-     * clipped mid-word instead of wrapping. The two-column rule above already had this right.
-     */
-    grid-template-columns: minmax(0, 1fr);
+@media (min-width: 768px) {
+  .site-footer--no-prompt .site-footer__slab {
+    min-height: 0;
   }
-
-  .footer-side {
-    justify-items: start;
-  }
-}
-
-.footer-eyebrow {
-  margin: 0 0 14px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-eyebrow);
-  text-transform: uppercase;
-  color: var(--footer-muted);
-}
-
-.footer-q {
-  margin: 0;
-  max-width: 22ch;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-stretch: 122%;
-  font-size: clamp(27px, 4.3vw, 52px);
-  line-height: 1;
-  letter-spacing: var(--tracking-display-sm);
-  text-wrap: balance;
-}
-
-.footer-q em {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  font-stretch: 100%;
-  color: var(--volt);
-}
-
-.footer-derisk {
-  margin: 16px 0 0;
-  max-width: 44ch;
-  font-size: var(--text-sm);
-  color: var(--footer-muted);
-}
-
-/* the dimension line: end ticks on the ends of the text, so it is fit-content and
-   nowrap — a wrapped one measured half of what it labelled. */
-.footer-dim {
-  position: relative;
-  width: fit-content;
-  margin: 24px 0 0;
-  padding-block-start: 8px;
-  border-top: 1px solid currentColor;
-  color: var(--volt);
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-instrument);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.footer-dim::before,
-.footer-dim::after {
-  content: "";
-  position: absolute;
-  inset-block-start: -4px;
-  width: 1px;
-  height: 8px;
-  background: currentColor;
-}
-
-.footer-dim::before {
-  inset-inline-start: 0;
-}
-
-.footer-dim::after {
-  inset-inline-end: 0;
-}
-
-/*
- * One column below 720px, so the promise may wrap when it genuinely cannot fit — at 200% text on a
- * phone (audit TY-11). At normal sizes it still fits on one row, so its ticks stay on the ends of
- * its own text (footer.spec.ts). After the rules above rather than inside the 720px block with the
- * rest of the CTA's narrow layout, so a more specific selector never precedes a less specific one
- * (Biome's noDescendingSpecificity); `.footer-cta` keeps it to the promise line.
- */
-@media (max-width: 720px) {
-  .footer-cta .footer-dim {
-    white-space: normal;
-  }
-}
-
-/* ── the clock, corner-bracketed ───────────────────────────────────────── */
-/*
- * ⚠️ `max-width: 100%` AND A CAPTION THAT MAY WRAP (LA-06 sweep, 2026-09-25). With the whole
- * clock on `nowrap`, a reader at 200% text on a 320px phone lost the last 40.8px of
- * "SIALKOT · HQ & WORKS" off the right edge (0.8px at 360), and WebKit let the page slide
- * sideways by 3px. The time stays on one line; only the caption breaks, between words.
- * Measured with the browser's own text size (`Page.setFontSizes`), not an injected
- * `html { font-size }` — e2e/textSize.spec.ts explains why only the first is real.
- */
-.footer-clock {
-  position: relative;
-  display: inline-grid;
-  gap: 4px;
-  max-width: 100%;
-  padding: 10px 14px 8px;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.footer-clock i {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.footer-clock::before,
-.footer-clock::after,
-.footer-clock i::before,
-.footer-clock i::after {
-  content: "";
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border: 1px solid var(--footer-muted);
-  pointer-events: none;
-}
-
-.footer-clock::before {
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  border-width: 1px 0 0 1px;
-}
-
-.footer-clock::after {
-  inset-block-end: 0;
-  inset-inline-end: 0;
-  border-width: 0 1px 1px 0;
-}
-
-.footer-clock i::before {
-  inset-block-start: 0;
-  inset-inline-end: 0;
-  border-width: 1px 1px 0 0;
-}
-
-.footer-clock i::after {
-  inset-block-end: 0;
-  inset-inline-start: 0;
-  border-width: 0 0 1px 1px;
-}
-
-.footer-clock__city {
-  white-space: normal;
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-clock-caption);
-  color: var(--footer-muted);
-}
-
-.footer-clock__time {
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-caps-compact);
-  font-weight: 500;
-}
-
-.footer-clock__time small {
-  margin-inline-start: 6px;
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps-wide);
-  color: var(--footer-muted);
-}
-
-.footer-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps-spaced);
-  text-transform: uppercase;
-  color: var(--footer-muted);
-}
-
-.footer-status::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--footer-muted);
-}
-
-.footer-status[data-state="open"] {
-  color: var(--footer-text);
-}
-
-.footer-status[data-state="open"]::before {
-  background: var(--volt);
-  box-shadow: var(--shadow-raised);
 }
 
 /* ── the facts, 2 × 2, bottom-right ────────────────────────────────────── */
@@ -475,55 +150,60 @@
 }
 
 /*
- * ⚠️ `auto-fit`, NOT `repeat(2, …)`, AND THAT CLOSES TWO FINDINGS AT ONCE.
+ * ⚠️ THE FACTS RUN THE WIDTH OF THE COLUMN, IN COLUMNS OF THEIR OWN (polish X23 and F9, owner-
+ * approved plan of 2026-10-04). Until then they were one box of up to 640px pushed to the right,
+ * bottom-right to answer the question at the top-left: on a computer the columns began about 40%
+ * across and left a gap under the big heading, and on a phone the blocks stood one above another
+ * for about two and a half screens. Now the blocks, five with "What we make" (F9), take one row
+ * from 1280px, three columns from a tablet, and on a phone two short columns: the two link groups
+ * side by side, Contact and the two claims across both, as their lines are long.
  *
- * The fixed two-track grid assumed a 2 × 2 the site cannot currently reach: three of the
- * four blocks are conditional on CMS fields that are empty, so ONE block renders — into
- * a two-column grid with a `border-top` drawn across the whole 640px block. The rule ran
- * 51.9–56.4% further right than anything beneath it, on the emptiest surface on the site
- * (FA-D-02).
- *
- * The same declaration also closed a hole between two breakpoints. Below 421px the grid
- * went single-column and below 721px it stopped right-aligning, but nothing made it
- * single-column BETWEEN them — so at 430px (iPhone 15/16 Pro Max) the sole contact block
- * was 183px wide with an empty 183px column beside it, sixteen pixels narrower than the
- * same block at 414px (FA-E-06). `auto-fit` collapses empty tracks by definition, so the
- * 420px query is not replaced, it is unnecessary.
- *
- * `min(100%, 280px)` rather than a bare minimum: a bare `minmax(280px, 1fr)` overflows a
- * 320px screen once the gutters are taken, which is the classic auto-fit mistake.
+ * The rule over them spans the column, as the legal row's under them does. FA-D-02 (2026-09-07)
+ * once drew this box to its content's width because a blank database left one block under a 640px
+ * rule; there are now always two (Contact and "What we make"), and the live footer has five.
  */
 .footer-facts {
-  /*
-   * ⚠️ `fit-content`, AND WITHOUT IT THE auto-fit ABOVE DOES NOT ACTUALLY FIX FA-D-02.
-   * Measured 2026-09-07: `auto-fit` collapses the empty tracks, but the surviving track is
-   * `1fr` of a 640px box, so one block still filled 640px while its widest ink was 303.6px
-   * — the same 52% overshoot, now drawn by one track instead of two. The rule is a
-   * `border-top` on this element, so the element has to be the width of its content.
-   */
-  width: fit-content;
-  max-width: 640px;
-  margin-inline-start: auto;
   padding: 24px 0 clamp(24px, 4vw, 64px);
   border-top: 1px solid var(--footer-line);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
+}
+
+.footer-block--contact,
+.footer-block--capacity,
+.footer-block--standards {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  .footer-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .footer-block--contact,
+  .footer-block--capacity {
+    grid-column: auto;
+  }
+
+  .footer-block--standards {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 1280px) {
+  .footer-facts {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .footer-block--standards {
+    grid-column: auto;
+  }
 }
 
 @supports (width: round(1px, 2px)) {
   .footer-facts {
     padding-block-end: round(clamp(24px, 4vw, 64px), 2px);
-  }
-}
-
-/* On a phone bottom-right has nowhere to be bottom-right OF: measured 2026-09-05 the
-   block kept its desktop right-alignment and sat in the right 264px of a 390px screen
-   with a dead gutter beside it. Full width there. */
-@media (max-width: 720px) {
-  .footer-facts {
-    max-width: none;
-    margin-inline-start: 0;
   }
 }
 
@@ -547,6 +227,15 @@
   gap: 0;
 }
 
+/*
+ * ⚠️ IN NORMAL LETTERS, NOT CAPITALS (polish X23). The headings above stay short capitals; what
+ * is under them is read and copied: an email, a phone number, an address, a supplier list.
+ * VA-44 (2026-10-02) took the address out of capitals first, when it ran 42 of them; the audit of
+ * 3 October counted about two and a half phone screens of capital lines here, and MDN's
+ * `text-transform` page (modified 20 April 2026) notes that long runs of uppercase are hard to
+ * read for people with dyslexia. The letters are the entries' own, so "WhatsApp" and "OEKO-TEX"
+ * read as their owners write them.
+ */
 .footer-block li,
 .footer-block a {
   /* THE 44px TOUCH FLOOR. navbar.spec.ts measures every link on every page at 390px
@@ -558,8 +247,6 @@
   min-height: var(--target-min);
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-link-mono);
-  text-transform: uppercase;
   color: var(--footer-text);
   text-decoration: none;
   font-variant-numeric: tabular-nums;
@@ -568,16 +255,6 @@
 .footer-block__sub {
   color: var(--footer-muted);
   font-size: var(--text-mono-lg);
-}
-
-/* The address is read and copied, so it is set in normal letters (visual audit VA-44, owner's choice 2026-10-02): it ran 42 capitals,
-   "13 KM DASKA ROAD, SIALKOT, 51040, PAKISTAN". The footer's short lines keep their capitals.
-   ⚠️ TWO CLASSES, NOT ONE: `.footer-block li` above is a class AND an element, so a bare
-   `.footer-block__address` lost to it and the address stayed in capitals (found 2026-10-02, the
-   day it shipped, by a survey of computed styles; both apps' e2e now ask the page). */
-.footer-block .footer-block__address {
-  text-transform: none;
-  letter-spacing: inherit;
 }
 
 /*
@@ -595,9 +272,11 @@
  * into blank shapes — both measured in a side-by-side the owner chose from. So each SVG in
  * `public/standards/` keeps its brand colours and has its black and dark-grey fills recoloured
  * to #ecebe6 (the paper tone; an <img> cannot read a CSS token), and ISO's dark blue lightened to
- * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back. Height is fixed
- * and width follows each file's own width/height attributes, which also reserve the box before
- * the lazy image loads.
+ * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back.
+ * ⚠️ NO HEIGHT HERE SINCE POLISH X23: each mark is drawn at the width and height its `<img>`
+ * carries, one area for every mark (`markBox`, packages/shared/src/standardsLogos.ts), where a
+ * single 32px height made the wordmarks long and the badges small. The attributes also reserve the
+ * box before the lazy image loads.
  */
 .footer-marks {
   grid-column: 1 / -1;
@@ -607,10 +286,17 @@
   gap: 12px 20px;
 }
 
+/* Three a row on a phone: six marks overran one row of a 390px screen by about 40px and left the
+   last alone on a second (polish X23, 2026-10-04). */
+@media (width < 720px) {
+  .footer-marks {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+  }
+}
+
 .footer-logo {
   display: block;
-  width: auto;
-  height: 32px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -787,15 +473,9 @@
   }
 }
 
-/* Windows High Contrast: the tab's fillets and the grid are decoration and may go;
-   the tab keeps a border, the wordmark keeps a stroke in a system colour. */
+/* Windows High Contrast: the grid is decoration and may go; the wordmark keeps a stroke in a
+   system colour. (The tab's own rules are in footer-prompt.css.) */
 @media (forced-colors: active) {
-  .site-footer__tab {
-    border: 1px solid CanvasText;
-  }
-
-  .site-footer__tab::before,
-  .site-footer__tab::after,
   .site-footer__slab::before {
     display: none;
   }
@@ -806,36 +486,19 @@
 }
 
 /*
- * Every focusable element already had a visible ring; the finding was that there were
- * three variants on one page (audit FA-R-08). The page/footer split is justified — the
- * volt ring is what carries contrast against the dark slab — but the tab's 4px offset
- * made it the only ring on the site that does not sit 2px from its control, for no
- * reason the design gives.
+ * ⚠️ THE ROOM KEPT FOR THE COOKIE QUESTION SITS ABOVE THE WORDMARK, NOT UNDER IT (polish M2,
+ * 2026-10-04). While the question is open the page needs 11rem of room so the footer's last links
+ * can scroll clear of the card (base.css, `--consent-reserve`). It was an empty block after the
+ * footer: first a pale band under it (visual audit VA-25, the owner's iPhone), then, painted the
+ * footer's colour, still an empty band under the RUN APPAREL wordmark (polish M2, the owner's
+ * iPhone again). Here it is the wordmark's top margin, inside the slab and the slab's colour, so the
+ * wordmark is the last thing on every page of both hosts and the card covers the wordmark, which is
+ * decoration (both its layers are `aria-hidden`), instead of empty room. From a tablet up the slab is a screen tall
+ * and `.footer-grow` gives the room up, so the links lift and the page grows by nothing; on a
+ * phone the page is 11rem longer while the question is open, as before.
  */
-.site-footer__tab:focus-visible {
-  outline-offset: 2px;
-  /*
-   * ⚠️ TWO TONES, BECAUSE THE TAB STRADDLES TWO GROUNDS (visual audit, 2026-10-01). It sits on the
-   * slab's top edge, half over the paper page and half over the dark slab, and its ring is
-   * `--footer-text` (paper). Photographed focused at 1440x900: the ring showed only along the
-   * slab and vanished on the paper half. An ink band behind it (the shadow, under the outline)
-   * shows on paper; the outline shows on the slab. Forced-colours mode drops the shadow and keeps
-   * the outline, which the system colours then make visible on both.
-   */
-  box-shadow: 0 0 0 6px var(--ink);
-}
-
-/*
- * ⚠️ THE ROOM KEPT FOR THE COOKIE QUESTION IS THE FOOTER'S COLOUR (visual audit VA-25). While the
- * question is open, base.css adds 11rem of empty room at the page's foot so the last links can
- * scroll clear of the card. It took the page's paper colour, so on a phone a pale band a third
- * of a screen tall sat under the dark footer — reported by the owner from an iPhone. The footer
- * is the last thing on every page of both hosts (the garment pages draw it too since 2026-10-02,
- * VA-31, which is why this moved here from site.css), so the room now reads as more footer. The value
- * is `--footer-bg`'s, which is scoped to the footer and cannot be read from here.
- */
-:root:has(.consent) body::after {
-  background: light-dark(var(--ink), var(--raised));
+:root:has(.consent) .footer-mark {
+  margin-block-start: var(--consent-reserve);
 }
 
 /*
@@ -900,6 +563,8 @@
     --footer-stroke: #999;
     /* the serif accent in the CTA and the dimension line read this directly */
     --volt: #111;
+    /* the room kept above the slab is the tab's, and the tab is not printed */
+    padding-block-start: 0;
   }
 
   .site-footer__slab {
@@ -919,10 +584,39 @@
 
   /* Decoration, interaction and things that only mean something on a screen. */
   .footer-glow,
-  .footer-mark,
-  .site-footer__tab,
-  .footer-status {
+  .footer-mark {
     display: none !important;
+  }
+
+  /*
+   * ⚠️ THE GRID LAYER COVERED THE CONTACT DETAILS ON PAPER (polish F14, 2026-10-04). It is a
+   * masked layer laid over the whole slab, and printed (Chromium, A4 and Letter) it came out as
+   * an opaque white sheet: the email, WhatsApp number and address were in the PDF's text and
+   * nowhere on the page. With `--footer-grid` transparent it has nothing to draw anyway.
+   */
+  .site-footer__slab::before {
+    display: none;
+  }
+
+  /* Rows at the height of their words: the 44px floor is for fingers, and paper has none. */
+  .footer-block li,
+  .footer-block a,
+  .footer-legal .nav-link {
+    min-height: 0;
+  }
+
+  .footer-facts {
+    padding-block: 12px;
+  }
+
+  /* The garment pages' footer starts where its question would have (Q42); on paper the facts
+     follow the sheet straight on, as they do on the website's printed page. */
+  .site-footer--no-prompt .site-footer__inner {
+    padding-block-start: 0;
+  }
+
+  .footer-legal {
+    padding-block: 8px 0;
   }
 
   /* Nothing that reads as one block should be split across a sheet. */

@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { DEFAULT_SITE_SETTINGS } from '../../../packages/shared/src/defaults'
 import {
   EMPTY_FOOTER,
@@ -15,6 +15,10 @@ import { parseCssColour, relativeLuminance } from '../../../scripts/contrast-rul
  * website's. apps/cms/e2e/footer.spec.ts holds the website's footer to the same template, so
  * a block that drifts on either host fails on THAT host. WCAG 2.2 SC 3.2.6 Consistent Help asks
  * for contact details in the same order on every page of a site.
+ *
+ * Without its tab, question and clock since polish Q42 (owner, 2026-10-04): a garment page ends
+ * on its own one prompt, "Ask about this garment" (`{ prompt: false }`). The contact details SC
+ * 3.2.6 speaks of stay, in the same order as on the website.
  */
 
 const API = '**/api/public/viewer/**'
@@ -29,11 +33,16 @@ const content = (footer: FooterSettings): SiteFooterContent => ({
   footerLine: DEFAULT_SITE_SETTINGS.footerLine,
 })
 
+/** Two entries for one holder, as the live footer has (polish X23 draws them as one line). */
 const CLAIMS: FooterSettings = {
   ...EMPTY_FOOTER,
   capacity: { moq: '300 pieces', leadTime: '6 weeks', hours: null },
   worksCoordinates: '32.4945° N, 74.5229° E',
-  certifications: ['Parent: SEDEX-registered, SMETA-audited', 'Suppliers: OEKO-TEX, GOTS'],
+  certifications: [
+    'Parent: SEDEX-registered, SMETA-audited',
+    'Suppliers: OEKO-TEX, GOTS',
+    'Suppliers: amfori BSCI audits',
+  ],
   socialLinks: [{ label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel' }],
 }
 
@@ -71,27 +80,35 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
   }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(EMPTY_FOOTER)))
+    await expect(footer(page)).toMatchAriaSnapshot(
+      siteFooterAriaSnapshot(content(EMPTY_FOOTER), { prompt: false }),
+    )
   })
 
-  // VA-44 (the owner's choice, 2026-10-02): the address is in normal letters. An accessibility
-  // snapshot reads the words, never the capitals CSS draws, and the first rule lost to
-  // `.footer-block li` unseen; this asks the computed style (apps/cms/e2e/composition.spec.ts too).
-  test('sets the address in normal letters, while the email link beside it keeps its capitals', async ({
+  // VA-44 (the owner's choice, 2026-10-02): the address is in normal letters, and since polish X23
+  // every line of the footer's facts. An accessibility snapshot reads the words, never the
+  // capitals CSS draws, and the first rule lost to `.footer-block li` unseen; this asks the
+  // computed style (apps/cms/e2e/composition.spec.ts too).
+  test("sets the footer's facts in normal letters, while their headings keep their capitals", async ({
     page,
   }) => {
+    await serveFooter(page, CLAIMS)
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const address = footer(page).locator('.footer-block__address')
-    await expect(address).toHaveCount(1)
-    const facts = await address.evaluate((el) => ({
-      address: getComputedStyle(el).textTransform,
-      link: getComputedStyle(el.closest('.footer-block')?.querySelector('a') ?? el).textTransform,
+    await expect(footer(page).locator('.footer-block__address')).toHaveCount(1)
+    const facts = await footer(page).evaluate((el) => ({
+      lines: [...el.querySelectorAll('.footer-block li, .footer-block a')].map(
+        (line) => `${getComputedStyle(line).textTransform} ${(line.textContent ?? '').trim()}`,
+      ),
+      headings: [...el.querySelectorAll('.footer-block h3')].map(
+        (heading) => getComputedStyle(heading).textTransform,
+      ),
     }))
-    expect(facts.address, 'the address is still set in capitals').toBe('none')
-    expect(facts.link, 'the email link lost its capitals, or the block was not found').toBe(
-      'uppercase',
-    )
+    // Every claim block is there (CLAIMS), so a rule missing from any block shows.
+    expect(facts.headings).toHaveLength(5)
+    expect(facts.lines.filter((line) => !line.startsWith('none '))).toEqual([])
+    // The control: the rule reached the lines and not the headings over them.
+    expect(new Set(facts.headings)).toEqual(new Set(['uppercase']))
   })
 
   test('adds each claim block the website has, in the shared order, marks included', async ({
@@ -100,7 +117,9 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     await serveFooter(page, CLAIMS)
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(CLAIMS)))
+    await expect(footer(page)).toMatchAriaSnapshot(
+      siteFooterAriaSnapshot(content(CLAIMS), { prompt: false }),
+    )
     // Every mark arrived and decodes: the files are the website's, by the same path.
     const marks = footer(page).locator('.footer-marks img')
     await expect(marks).toHaveCount(4)
@@ -120,24 +139,64 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
         )
         .toBe(true)
     }
+    // The two supplier entries are one line (polish X23); the snapshot above holds the rest.
+    await expect(
+      footer(page).getByText('Suppliers: OEKO-TEX, GOTS; amfori BSCI audits'),
+    ).toHaveCount(1)
+    // One area for every mark, not one height (X23): Sedex is a wide wordmark, OEKO-TEX a tall
+    // label, and at one 32px height their areas were 3,804 and 726 square pixels.
+    const areas = await marks.evaluateAll((all) =>
+      all.map((img) => {
+        const box = img.getBoundingClientRect()
+        return Math.round(box.width * box.height)
+      }),
+    )
+    for (const area of areas) expect(Math.abs(area - 36 * 36) / (36 * 36)).toBeLessThan(0.06)
   })
 
-  test("is the website's dark slab, one screen tall from tablet width up, its tab on the edge", async ({
+  // Polish X23: on a phone two short columns, and the two link groups side by side.
+  test('on a phone the two link groups share a row, under Contact', async ({ page }) => {
+    await serveFooter(page, CLAIMS)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const at = await footer(page).evaluate((el) => {
+      const box = (kind: string) =>
+        el.querySelector(`.footer-block--${kind}`)?.getBoundingClientRect() ?? null
+      return { contact: box('contact'), made: box('made'), elsewhere: box('elsewhere') }
+    })
+    expect(at.contact && at.made && at.elsewhere, 'a footer block is missing').toBeTruthy()
+    expect(at.made?.top, 'the two link groups are not on one row').toBe(at.elsewhere?.top)
+    expect(at.elsewhere?.left ?? 0).toBeGreaterThan((at.made?.right ?? 0) - 1)
+    expect(at.made?.top ?? 0).toBeGreaterThanOrEqual(at.contact?.bottom ?? 0)
+  })
+
+  /*
+   * Polish Q42 (owner, 2026-10-04): no tab and no question on a garment page, so no room kept
+   * above the slab for a tab, no full screen of slab for a question to stand in, and the first
+   * block starts where the question did. Until then this asked for a one-screen slab with its tab
+   * straddling the top edge, which the website's footer still is (apps/cms/e2e/footer.spec.ts).
+   */
+  test("is the website's dark slab, without the tab or the screen its question stood in", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const geometry = await page.evaluate(() => {
+      const footer = document.querySelector('footer.site-footer') as HTMLElement
       const slab = document.querySelector('.site-footer__slab') as HTMLElement
-      const tab = document.querySelector('.site-footer__tab') as HTMLElement
-      const s = slab.getBoundingClientRect()
-      const t = tab.getBoundingClientRect()
+      const inner = document.querySelector('.site-footer__inner') as HTMLElement
       return {
         background: getComputedStyle(slab).backgroundColor,
-        slabHeight: s.height,
-        tabStraddles: t.top < s.top && t.bottom >= s.top,
-        viewport: innerHeight,
+        tabs: document.querySelectorAll('.site-footer__tab').length,
+        roomAbove: slab.getBoundingClientRect().top - footer.getBoundingClientRect().top,
+        slabMinHeight: getComputedStyle(slab).minHeight,
+        firstBlockAt: Number.parseFloat(getComputedStyle(inner).paddingTop),
+        // Bottom-right answered the question at the top-left; with none, the facts start left.
+        factsFromLeft:
+          (document.querySelector('.footer-facts') as HTMLElement).getBoundingClientRect().left -
+          inner.getBoundingClientRect().left,
       }
     })
     // An unstyled footer (the shared stylesheet not loaded) is a transparent box on paper.
@@ -145,8 +204,51 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     const ground = parseCssColour(geometry.background)
     expect(ground.alpha, `slab background ${geometry.background}`).toBe(1)
     expect(relativeLuminance(ground.rgb)).toBeLessThan(0.05)
-    expect(geometry.slabHeight).toBeGreaterThanOrEqual(geometry.viewport - 1)
-    expect(geometry.tabStraddles, 'the tab must sit on the slab’s top edge').toBe(true)
+    expect(geometry.tabs).toBe(0)
+    expect(geometry.roomAbove, 'room kept above the slab for a tab that is not there').toBe(0)
+    expect(geometry.slabMinHeight, 'a full screen of slab for a question that is not there').toBe(
+      '0px',
+    )
+    // The question's own top spacing, clamp(44px, 6vw, 84px): 76.8px at 1280px, rounded to 76.
+    expect(geometry.firstBlockAt).toBeGreaterThanOrEqual(44)
+    expect(geometry.firstBlockAt).toBeLessThanOrEqual(84)
+    expect(
+      Math.abs(geometry.factsFromLeft),
+      'the facts sit right, under a question that is gone',
+    ).toBeLessThan(1)
+  })
+
+  /*
+   * Polish D1 (2026-10-04): the website's column is 1440px from a 1280px screen, and the footer
+   * centres its words in the column `--site-max` and `--site-gutter` name. A garment page keeps its
+   * own 1200px column, so `.page` sets both to it and `.content` is drawn from them (page.css).
+   * Nothing compared the two before, and they had missed each other by 26px at 1440 since the
+   * footer came to these pages (VA-31). What would have to break for this to fail: the override
+   * gone (planted 2026-10-04: off by 4px at 390, 14px at 1280, 104px from 1440), or `.content`
+   * given a width or padding of its own again.
+   */
+  test("the footer's words line up with the garment page's own column", async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const misses: string[] = []
+    for (const width of [390, 768, 1280, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      const edges = await page.evaluate(() => {
+        const column = document.querySelector('.content') as HTMLElement
+        const inner = document.querySelector('.site-footer__inner') as HTMLElement
+        const box = column.getBoundingClientRect()
+        const style = getComputedStyle(column)
+        const words = inner.getBoundingClientRect()
+        return {
+          left: words.left - (box.left + Number.parseFloat(style.paddingLeft)),
+          right: words.right - (box.right - Number.parseFloat(style.paddingRight)),
+        }
+      })
+      if (Math.abs(edges.left) > 1 || Math.abs(edges.right) > 1) {
+        misses.push(`${width}px: left ${edges.left.toFixed(1)}, right ${edges.right.toFixed(1)}`)
+      }
+    }
+    expect(misses, "the footer's words miss the page's column").toEqual([])
   })
 
   for (const width of [320, 390, 1440]) {
@@ -178,38 +280,84 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
 /*
  * VA-25 on the garment pages: with the website's dark footer last on the page, the room kept for
  * the cookie question and an iPhone's bounce would show a pale band under it, as they did on the
- * website before 2026-10-01. The two rules moved into the shared footer.css with the footer;
- * apps/cms/e2e/consent.spec.ts holds the website to the same two checks.
+ * website before 2026-10-01. The rules moved into the shared footer.css with the footer.
+ * Polish M2 (2026-10-04, the owner's iPhone): painted the footer's colour, the room was still an
+ * empty band under the RUN APPAREL wordmark, so it is the wordmark's top margin since, and the
+ * wordmark is the last thing on the page, question or not. apps/cms/e2e/consent.spec.ts holds the
+ * website to the same checks.
  */
-test.describe('the room under the footer on the garment pages (VA-25, VA-31)', () => {
-  test("with the question open, the room kept at the foot is the footer's colour", async ({
+/** The room above the wordmark, and how far the page runs on past the footer (0: none). */
+const readFoot = (page: Page) =>
+  page.evaluate(() => {
+    const slab = document.querySelector('.site-footer__slab') as HTMLElement
+    return {
+      aboveMark: getComputedStyle(document.querySelector('.footer-mark') as Element)
+        .marginBlockStart,
+      underFooter: Math.round(
+        document.documentElement.scrollHeight -
+          (slab.getBoundingClientRect().bottom + window.scrollY),
+      ),
+    }
+  })
+
+/** The cookie question honours navigator.webdriver; lift it, as consent.spec.ts does. */
+const showTheQuestion = (context: BrowserContext) =>
+  context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false })
+  })
+
+test.describe('the room kept for the cookie question on the garment pages (VA-25, VA-31, M2)', () => {
+  /*
+   * ⚠️ POLLED: under reduced motion base.css gives every element a 0.01ms transition on every
+   * property, so the margin the open question adds reads as its old value until the next frame.
+   */
+  test('with the question open the room is above the wordmark, and the page ends at the footer', async ({
     page,
     context,
   }) => {
-    // The cookie question honours navigator.webdriver; lift it, as consent.spec.ts does.
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false })
-    })
+    await showTheQuestion(context)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/n001/wine')
     await expect(page.locator('.consent')).toBeVisible()
-    const look = await page.evaluate(() => {
-      const room = getComputedStyle(document.body, '::after')
-      const slab = document.querySelector('.site-footer__slab') as HTMLElement
-      return {
-        height: room.blockSize,
-        room: room.backgroundColor,
-        footer: getComputedStyle(slab).backgroundColor,
-      }
-    })
-    expect(look.height, 'the room is not the 11rem the card needs').toBe('176px')
-    // Polled: WebKit runs the theme's colour transition once as the page loads (the website's
-    // copy of this test records it), and one run in six read the room mid-way on 2026-10-02.
     await expect
-      .poll(() => page.evaluate(() => getComputedStyle(document.body, '::after').backgroundColor), {
-        message: 'the room under the footer is not the footer colour',
+      .poll(async () => (await readFoot(page)).aboveMark, {
+        message: 'the room is not the 11rem the card needs',
       })
-      .toBe(look.footer)
+      .toBe('176px')
+    // One pixel of rounding: `scrollHeight` is an integer and the slab's edge is not.
+    expect(
+      Math.abs((await readFoot(page)).underFooter),
+      'the page runs on under the footer',
+    ).toBeLessThanOrEqual(1)
+
+    // Answered, the room goes and the footer still ends the page.
+    await page.locator('.consent').getByRole('button', { name: 'Decline' }).click()
+    await expect(page.locator('.consent')).toBeHidden()
+    await expect
+      .poll(async () => (await readFoot(page)).aboveMark, {
+        message: 'the room outlived the question',
+      })
+      .toBe('0px')
+    expect(Math.abs((await readFoot(page)).underFooter)).toBeLessThanOrEqual(1)
+  })
+
+  test('the check sees a room under the footer (negative control: the room at the foot, as before M2)', async ({
+    page,
+    context,
+  }) => {
+    await showTheQuestion(context)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.locator('.consent')).toBeVisible()
+    await page.addStyleTag({
+      content:
+        ':root:has(.consent) body::after { content: ""; display: block; block-size: var(--consent-reserve); }',
+    })
+    await expect
+      .poll(async () => (await readFoot(page)).underFooter, {
+        message: 'the planted room did not land',
+      })
+      .toBeGreaterThanOrEqual(175)
   })
 
   test.describe('on a touch phone', () => {

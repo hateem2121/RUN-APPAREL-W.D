@@ -18,14 +18,20 @@ import {
  * the page has finished loading and the hero is on screen, so the 0.3–0.9 MB never competes with
  * the page's own first paint. The film's first frame IS the still, so the change is invisible.
  *
- * ⚠️ IT PAUSES WHEN NOBODY CAN SEE IT: scrolled off screen, or the tab hidden. A visitor's own
- * "Pause video" holds until they press "Play video" (WCAG 2.2 SC 2.2.2: moving content that lasts
- * more than five seconds needs a way to pause it). Reduced motion switched on mid-visit pauses it
- * at once, as the 3D garment pages do since VA-20.
+ * ⚠️ IT PAUSES WHEN NOBODY CAN SEE IT: scrolled off screen, or the tab hidden. Reduced motion
+ * switched on mid-visit stops it at once, as the 3D garment pages do since VA-20.
  *
- * ⚠️ A REFUSED play() IS NORMAL: iPhone Low Power Mode and some autoplay settings refuse it. The page
- * then shows "Play video", which works because it is a tap. An `AbortError` only means a pause
- * arrived before play() settled (a quick scroll past), so it changes nothing.
+ * ⚠️ NO PAUSE BUTTON, BY THE OWNER'S CHOICE (polish D5, answer Q2, 2026-10-04). WCAG 2.2 SC 2.2.2
+ * (level A) asks for a way to pause anything that moves by itself for more than five seconds next
+ * to other content; the button that did it went in on 2026-10-02. The owner had it removed, so the
+ * film loops for everyone who has not asked the browser for less motion. What is kept of the rule:
+ * it never plays under reduced motion or on Data Saver, and it stops the moment reduced motion is
+ * switched on. Source: W3C "Understanding SC 2.2.2" (updated 10 Aug 2026). Ask before adding a
+ * button back.
+ *
+ * ⚠️ A REFUSED play() IS NORMAL: iPhone Low Power Mode and some autoplay settings refuse it. The
+ * still then stays, and it is the whole hero. An `AbortError` only means a pause arrived before
+ * play() settled (a quick scroll past), so it changes nothing.
  *
  * The hero's words are the server's own `children`, so they are complete HTML before any script.
  */
@@ -34,7 +40,7 @@ type Want = 'play' | 'pause'
 export function ProductsFilmHero({ children }: { children: ReactNode }) {
   const heroRef = useRef<HTMLElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  // null until the script has run: then there is no button and no video, exactly as with scripting off.
+  // null until the script has run: then there is no video, exactly as with scripting off.
   const [want, setWant] = useState<Want | null>(null)
   const [mounted, setMounted] = useState(false)
   const [tick, setTick] = useState(0)
@@ -106,8 +112,6 @@ export function ProductsFilmHero({ children }: { children: ReactNode }) {
     })
   }, [want, mounted, tick])
 
-  const label = want === 'play' ? 'Pause video' : 'Play video'
-
   return (
     <section className="site-hero site-hero--photo site-hero--film" ref={heroRef}>
       <div className="site-hero__photo">
@@ -148,28 +152,6 @@ export function ProductsFilmHero({ children }: { children: ReactNode }) {
       </div>
       <div className="blueprint site-hero__grid" aria-hidden="true" />
       <div className="site-container">{children}</div>
-      {want ? (
-        <button
-          type="button"
-          className="film-toggle"
-          aria-label={label}
-          onClick={() => setWant((current) => (current === 'play' ? 'pause' : 'play'))}
-        >
-          {want === 'play' ? (
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor" />
-              <rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor" />
-            </svg>
-          ) : (
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path
-                d="M4 2.5v11a.75.75 0 0 0 1.13.65l9.1-5.5a.75.75 0 0 0 0-1.3l-9.1-5.5A.75.75 0 0 0 4 2.5Z"
-                fill="currentColor"
-              />
-            </svg>
-          )}
-        </button>
-      ) : null}
     </section>
   )
 }

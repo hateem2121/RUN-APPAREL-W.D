@@ -8,7 +8,8 @@
     "./tokens.css": "./src/tokens.css",
     "./base.css": "./src/base.css",
     "./notch.css": "./src/notch.css",
-    "./footer.css": "./src/footer.css"
+    "./footer.css": "./src/footer.css",
+    "./footer-prompt.css": "./src/footer-prompt.css"
   },
   "files": [
     "src"

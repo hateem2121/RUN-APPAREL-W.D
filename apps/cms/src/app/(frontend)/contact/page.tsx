@@ -1,9 +1,16 @@
-import { formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
+import { askedGarment, formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
-import { getSiteSettings } from '../../../lib/content'
+import { resolveAskedGarment } from '../../../lib/askAboutGarment'
+import { getProductCards, getSiteSettings } from '../../../lib/content'
 import { CONTACT_HERO_PHOTO, contactHeroSrc, HERO_PHOTO } from '../../../lib/factoryPhotos'
-import { HONEYPOT_FIELD, MAX_LENGTHS } from '../../../lib/inquiry'
-import { inquiryNotice, OPTIONAL_DIVIDER } from '../../../lib/inquiryForm'
+import { COUNTRIES } from '../../../lib/dialCodes'
+import { HONEYPOT_FIELD, MAX_LENGTHS, SUBJECT_OTHER } from '../../../lib/inquiry'
+import {
+  inquiryNotice,
+  REQUIRED_KEY,
+  SUBJECT_OTHER_LABEL,
+  SUBJECTS,
+} from '../../../lib/inquiryForm'
 import { buildMetadata } from '../../../lib/seo'
 import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
 import { ContactGlobe } from '../../../components/site/ContactGlobe'
@@ -11,7 +18,6 @@ import { FilePicker } from '../../../components/site/FilePicker'
 import { InquiryFormEnhancer } from '../../../components/site/InquiryFormEnhancer'
 import { InquiryProblem, InquiryReceived } from '../../../components/site/InquiryOutcome'
 import { JsonLd } from '../../../components/site/JsonLd'
-import { PhoneField } from '../../../components/site/PhoneField'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +40,19 @@ export const metadata: Metadata = buildMetadata({
  * in `structuredData.ts` and both sides follow.
  */
 const ADDRESS = formatAddress()
+
+/**
+ * The tick inside a needed box once it is rightly filled (polish MO5, "the form feels alive"),
+ * shown by CSS on `:user-valid`, so it waits until the buyer has been in the box and needs no
+ * script. Decoration only: a screen reader already hears that nothing is wrong.
+ */
+function Tick() {
+  return (
+    <svg className="inquiry-form__tick" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M4 10.5l4 4 8-9" />
+    </svg>
+  )
+}
 
 /**
  * ⚠️ THE FORM'S ONE RULE: THE INQUIRY IS STORED BEFORE ANY MAIL IS ATTEMPTED.
@@ -66,11 +85,24 @@ const ADDRESS = formatAddress()
 export default async function ContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string; reason?: string }>
+  searchParams: Promise<{
+    sent?: string
+    error?: string
+    reason?: string
+    garment?: string | string[]
+    colour?: string | string[]
+  }>
 }) {
+  const params = await searchParams
   const settings = await getSiteSettings()
   const whatsapp = `https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`
-  const notice = inquiryNotice(await searchParams)
+  const notice = inquiryNotice(params)
+  /*
+   * "Ask about this garment" (polish S10): a garment page's one prompt opens this form with the
+   * garment and colour in it. Looked up among the published garments, and only when the address
+   * names both (`lib/askAboutGarment.ts` says why words are never echoed from it).
+   */
+  const asking = askedGarment(params) ? resolveAskedGarment(params, await getProductCards()) : null
   const [tall640, tall1080] = CONTACT_HERO_PHOTO.widths.heroTall
   const [wide1280, wide1920] = CONTACT_HERO_PHOTO.widths.heroWide
 
@@ -139,9 +171,9 @@ export default async function ContactPage({
        * ⚠️ THE FORM COMES FIRST, DIRECTLY UNDER THE HERO (owner, 2026-09-29), and `id="inquiry"` is
        * where every "Start a conversation" link on the site lands (`/contact#inquiry`).
        *
-       * ⚠️ ONE STEP SINCE 2026-10-01 (owner, visual audit VA-02): one column, every field showing,
-       * the three required ones first and the rest under "Optional details". The two-step form and
-       * its progress bar (2026-09-29) are gone. On wide screens the heading and the direct contacts
+       * ⚠️ ONE STEP SINCE 2026-10-01 (owner, visual audit VA-02), every field showing; the two-step
+       * form and its progress bar (2026-09-29) are gone. Since polish D7 (2026-10-05) the fields
+       * follow the owner's own layout, in pairs (see the form below). On wide screens the heading and the direct contacts
        * stand in a column beside the form, so a buyer who would rather email sees how at once (the
        * Balmoral and Clothing Network contact pages in the audit's benchmarks); on a phone they
        * follow the form. They replace the separate contact block that sat further down (VA-41).
@@ -150,8 +182,11 @@ export default async function ContactPage({
         <div className="site-container inquiry-layout">
           <div className="inquiry-layout__intro">
             <p className="subhead">What helps us reply faster</p>
+            {/* "A&nbsp;sketch": Firefox balanced this as "…you have. a / sketch is enough", the "a"
+                alone at a line's end (polish F17, 2026-10-03). */}
             <h2 className="display display--section">
-              Send what you have. <span className="serif-accent">A sketch is&nbsp;enough.</span>
+              Send what you have.{' '}
+              <span className="serif-accent">A&nbsp;sketch is&nbsp;enough.</span>
             </h2>
             <p className="site-lede">
               Styles and quantities, your target fabric or a reference garment, any artwork, and the
@@ -195,85 +230,249 @@ export default async function ContactPage({
             >
               <InquiryFormEnhancer />
 
-              <div className="inquiry-form__field">
-                <label className="inquiry-form__label" htmlFor="inquiry-name">
-                  Your name
-                </label>
-                <input
-                  className="inquiry-form__input"
-                  id="inquiry-name"
-                  type="text"
-                  name="name"
-                  required
-                  maxLength={MAX_LENGTHS.name}
-                  autoComplete="name"
-                  data-check
-                />
-                <p className="inquiry-form__error" id="inquiry-name-error" hidden />
-              </div>
+              {/*
+               * The garment a garment page asked about (polish S10), with the way back to it; the
+               * message below opens with the same sentence, and the hidden subject names it in the
+               * notification email. Its name and code are the garment's own words (`translate`).
+               */}
+              {asking ? (
+                <p className="inquiry-form__about">
+                  <span className="inquiry-form__label">Asking about</span>{' '}
+                  <a href={asking.href}>
+                    <span translate="no">
+                      {asking.productName} ({asking.productCode})
+                    </span>
+                    , {asking.colourName}
+                  </a>
+                  <input type="hidden" name="subject" value={asking.subject} />
+                </p>
+              ) : null}
 
-              <div className="inquiry-form__field">
-                <label className="inquiry-form__label" htmlFor="inquiry-email">
-                  Email
-                </label>
-                <input
-                  className="inquiry-form__input"
-                  id="inquiry-email"
-                  type="email"
-                  name="email"
-                  required
-                  maxLength={MAX_LENGTHS.email}
-                  autoComplete="email"
-                  spellCheck={false}
-                  data-check
-                />
-                <p className="inquiry-form__error" id="inquiry-email-error" hidden />
-              </div>
-
-              <div className="inquiry-form__field">
-                <label className="inquiry-form__label" htmlFor="inquiry-message">
-                  What are you making?
-                </label>
-                <textarea
-                  className="inquiry-form__input inquiry-form__textarea"
-                  id="inquiry-message"
-                  name="message"
-                  required
-                  rows={6}
-                  maxLength={MAX_LENGTHS.message}
-                  data-check
-                  /*
-                    ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly
-                    above it word for word — the same sentence twice on one phone screen,
-                    which a screenshot showed and no test would have. A placeholder is a poor
-                    place for guidance anyway: it disappears the moment someone starts
-                    typing, exactly when they might want to re-read it.
-                  */
-                />
-                <p className="inquiry-form__error" id="inquiry-message-error" hidden />
-              </div>
+              <p className="inquiry-form__key">
+                {REQUIRED_KEY.split('*')[0]}
+                <span className="inquiry-form__req">*</span>
+                {REQUIRED_KEY.split('*')[1]}
+              </p>
 
               {/*
-               * The optional half, grouped so a screen reader hears "Optional details" once for the
-               * group. Job title and Subject left the form on 2026-10-01 (owner, VA-02): the message
-               * already says what Subject asked, and fewer optional fields suit a first B2B contact.
-               * The route still accepts both, so a page cached before then still sends.
+               * ⚠️ THE OWNER'S OWN LAYOUT (polish D7, answers Q15-Q17, 2026-10-03), replacing the
+               * one column of VA-02: Name + Job title, Company + Country, Email + Phone, then
+               * Subject, Message, Files and Send. A pair sits side by side wherever the form is wide
+               * enough for two boxes, a tablet or a computer, and stacks on a phone (Q16, site.css).
+               * Baymard measured more skipped boxes in two-column forms, so each pair reads left to
+               * right in the order a buyer would answer it.
+               *
+               * ⚠️ ONLY NAME, EMAIL AND MESSAGE MUST BE FILLED, and each carries a red * that the
+               * sentence above explains; "optional" is written nowhere (Q17). The * is hidden from a
+               * screen reader, which hears "required" from the field itself.
                */}
-              <fieldset className="inquiry-form__group">
-                <legend className="inquiry-form__divider">{OPTIONAL_DIVIDER}</legend>
-                <label className="inquiry-form__field">
-                  <span className="inquiry-form__label">Company (optional)</span>
+              <div className="inquiry-form__pair">
+                <div className="inquiry-form__field">
+                  <label className="inquiry-form__label" htmlFor="inquiry-name">
+                    Name{' '}
+                    <span className="inquiry-form__req" aria-hidden="true">
+                      *
+                    </span>
+                  </label>
+                  <div className="inquiry-form__control">
+                    <input
+                      className="inquiry-form__input"
+                      id="inquiry-name"
+                      type="text"
+                      name="name"
+                      required
+                      maxLength={MAX_LENGTHS.name}
+                      autoComplete="name"
+                      data-check
+                    />
+                    <Tick />
+                  </div>
+                  <p className="inquiry-form__error" id="inquiry-name-error" hidden />
+                </div>
+                <div className="inquiry-form__field">
+                  <label className="inquiry-form__label" htmlFor="inquiry-job">
+                    Job title
+                  </label>
                   <input
                     className="inquiry-form__input"
+                    id="inquiry-job"
+                    type="text"
+                    name="jobTitle"
+                    maxLength={MAX_LENGTHS.jobTitle}
+                    autoComplete="organization-title"
+                  />
+                </div>
+              </div>
+
+              <div className="inquiry-form__pair">
+                <div className="inquiry-form__field">
+                  <label className="inquiry-form__label" htmlFor="inquiry-company">
+                    Company
+                  </label>
+                  <input
+                    className="inquiry-form__input"
+                    id="inquiry-company"
                     type="text"
                     name="company"
                     maxLength={MAX_LENGTHS.company}
                     autoComplete="organization"
                   />
+                </div>
+                {/*
+                 * ⚠️ A BOX THAT SUGGESTS AS THE BUYER TYPES, WHERE A LIST WAS (D7, X6): the browser's
+                 * grey list was one of the two plain grey controls left on the site. Without scripting
+                 * it is a text box with the same suggestions; with it, a whole country name fills the
+                 * phone's code (InquiryFormEnhancer, `countryByName`).
+                 */}
+                <div className="inquiry-form__field">
+                  <label className="inquiry-form__label" htmlFor="inquiry-country">
+                    Country
+                  </label>
+                  <input
+                    className="inquiry-form__input"
+                    id="inquiry-country"
+                    type="text"
+                    name="country"
+                    list="inquiry-countries"
+                    maxLength={MAX_LENGTHS.country}
+                    autoComplete="country-name"
+                  />
+                  <datalist id="inquiry-countries">
+                    {COUNTRIES.map((country) => (
+                      <option key={country.code} value={country.name} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+
+              <div className="inquiry-form__pair">
+                <div className="inquiry-form__field">
+                  <label className="inquiry-form__label" htmlFor="inquiry-email">
+                    Email{' '}
+                    <span className="inquiry-form__req" aria-hidden="true">
+                      *
+                    </span>
+                  </label>
+                  <div className="inquiry-form__control">
+                    <input
+                      className="inquiry-form__input"
+                      id="inquiry-email"
+                      type="email"
+                      name="email"
+                      required
+                      maxLength={MAX_LENGTHS.email}
+                      autoComplete="email"
+                      spellCheck={false}
+                      data-check
+                    />
+                    <Tick />
+                  </div>
+                  <p className="inquiry-form__error" id="inquiry-email-error" hidden />
+                </div>
+                {/*
+                 * ONE PHONE BOX (D7): the code and the number side by side inside one frame, the code
+                 * filled from the country and still the buyer's to change (owner, 2026-09-29). Two
+                 * fields to the route, which joins them (`joinPhone`, lib/inquiry.ts).
+                 */}
+                <div className="inquiry-form__field">
+                  <label className="inquiry-form__label" htmlFor="inquiry-phone">
+                    Phone
+                  </label>
+                  <div className="inquiry-form__phone">
+                    <label className="visually-hidden" htmlFor="inquiry-phone-code">
+                      Country code
+                    </label>
+                    <input
+                      className="inquiry-form__code"
+                      id="inquiry-phone-code"
+                      type="text"
+                      name="phoneCode"
+                      inputMode="tel"
+                      autoComplete="tel-country-code"
+                      maxLength={5}
+                    />
+                    <input
+                      className="inquiry-form__number"
+                      id="inquiry-phone"
+                      type="tel"
+                      name="phone"
+                      autoComplete="tel-national"
+                      maxLength={MAX_LENGTHS.phone}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/*
+               * SUBJECT: SIX ANSWERS TO TAP (Q15, Q43), one at a time, and the last opens a box for
+               * the buyer's own words (CSS alone, so it works without scripting; GOV.UK Radios, June
+               * 2026: a revealed question kept to one simple box). Radios cannot be un-chosen, which
+               * GOV.UK answers with an escape option; "Something else…" is that, and the subject
+               * is optional. A garment page's "Ask about this garment" already names the subject, so
+               * the answers are not offered then.
+               */}
+              {asking ? null : (
+                <fieldset className="inquiry-form__subject">
+                  <legend className="inquiry-form__label">Subject</legend>
+                  <div className="inquiry-form__answers">
+                    {SUBJECTS.map((subject) => (
+                      <label className="filter-chip inquiry-form__answer" key={subject}>
+                        <input type="radio" name="subject" value={subject} />
+                        <span>{subject}</span>
+                      </label>
+                    ))}
+                    <label className="filter-chip inquiry-form__answer">
+                      <input type="radio" name="subject" value={SUBJECT_OTHER} />
+                      <span>{SUBJECT_OTHER_LABEL}</span>
+                    </label>
+                  </div>
+                  <div className="inquiry-form__own">
+                    <label className="inquiry-form__label" htmlFor="inquiry-subject-own">
+                      Your subject
+                    </label>
+                    <input
+                      className="inquiry-form__input"
+                      id="inquiry-subject-own"
+                      type="text"
+                      name="subjectOther"
+                      maxLength={MAX_LENGTHS.subject}
+                    />
+                  </div>
+                </fieldset>
+              )}
+
+              <div className="inquiry-form__field">
+                <label className="inquiry-form__label" htmlFor="inquiry-message">
+                  Message{' '}
+                  <span className="inquiry-form__req" aria-hidden="true">
+                    *
+                  </span>
                 </label>
-                <PhoneField />
-                <FilePicker />
-              </fieldset>
+                <div className="inquiry-form__control">
+                  <textarea
+                    className="inquiry-form__input inquiry-form__textarea"
+                    id="inquiry-message"
+                    name="message"
+                    required
+                    rows={6}
+                    maxLength={MAX_LENGTHS.message}
+                    // The asked garment's sentence, then an empty line for the buyer (polish S10).
+                    defaultValue={asking?.message}
+                    data-check
+                    /*
+                      ⚠️ NO PLACEHOLDER. The first version repeated the paragraph directly
+                      above it word for word — the same sentence twice on one phone screen,
+                      which a screenshot showed and no test would have. A placeholder is a poor
+                      place for guidance anyway: it disappears the moment someone starts
+                      typing, exactly when they might want to re-read it.
+                    */
+                  />
+                  <Tick />
+                </div>
+                <p className="inquiry-form__error" id="inquiry-message-error" hidden />
+              </div>
+
+              <FilePicker />
 
               <div className="site-actions">
                 {/* One of the site's agreed primary labels (CT-08, `e2e/copy.spec.ts`). */}
@@ -337,7 +536,11 @@ export default async function ContactPage({
           <h2 className="display display--section">
             From Sialkot, <span className="serif-accent">to wherever you&nbsp;are.</span>
           </h2>
-          <ContactGlobe coordinates={settings.footer.worksCoordinates} address={ADDRESS} />
+          <ContactGlobe
+            coordinates={settings.footer.worksCoordinates}
+            address={ADDRESS}
+            name={settings.companyName}
+          />
         </div>
       </section>
     </>

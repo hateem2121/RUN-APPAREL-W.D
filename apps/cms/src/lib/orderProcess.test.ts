@@ -16,7 +16,7 @@ const steps = ORDER_PHASES.flatMap((phase) => phase.steps)
 const text = JSON.stringify(ORDER_PHASES)
 const fact = (prefix: string) => FACTS.find((f) => f.label.startsWith(prefix))?.value
 
-describe('the order timeline', () => {
+describe('the order steps', () => {
   it('has four phases and eight steps, each done by You or We', () => {
     expect(ORDER_PHASES.map((phase) => phase.name)).toEqual(['Talk', 'Develop', 'Make', 'Deliver'])
     expect(steps).toHaveLength(8)

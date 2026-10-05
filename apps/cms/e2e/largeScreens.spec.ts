@@ -9,7 +9,8 @@ import { expect, type Page, test } from './offlineMedia'
  * What would have to break for these to fail: a headline that does not grow, or moves at 1440 or
  * 1919, or steps at 1920; the tracking staying in px so the type loosens as it grows; a word split by
  * the larger type (the owner's 2026-09-11 rule: "PRODUCTION." is 8.9em, and the page's column is
- * 1312px); a sideways scroll; or the page column widening with the type (the owner's widths stay).
+ * 1472px from 1920px since polish D1, 1312px before it); a sideways scroll; or the page column
+ * widening with the type (the owner's widths stay: 1600px from 1920px, polish D1).
  *
  * ⚠️ NOT RUN BY ITS AUTHOR (no browser was started). Every number here is CSS arithmetic on a
  * `max()`/`min()`/`vw` expression, so the sizes are asked exactly; the hero's and the footer's heights
@@ -115,7 +116,7 @@ test.describe('the larger type keeps the page whole (VA-12)', () => {
         column: document.querySelector('.site-container')?.getBoundingClientRect().width ?? 0,
       }))
       expect(page_.scroll, 'the page scrolls sideways').toBeLessThanOrEqual(page_.client)
-      expect(page_.column, 'the column widened with the type').toBeLessThanOrEqual(1440)
+      expect(page_.column, 'the column widened with the type').toBeLessThanOrEqual(1600)
       expect(await page.evaluate(splitWords), 'a headline word was split').toEqual([])
     })
   }

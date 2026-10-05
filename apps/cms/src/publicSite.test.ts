@@ -9,8 +9,10 @@ import {
   findEmoji,
   findPlaceholders,
 } from '../../../scripts/copy-rules.mjs'
+import { PUBLIC_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { VIEWER_CUE_ARROW, VIEWER_CUE_WORDS, ViewerCue } from './components/site/ViewerCue'
 import { isAddressableColourway } from './lib/colourwayAccess'
+import { buildMetadata } from './lib/seo'
 
 /**
  * Gates for the public marketing site (the `(frontend)` route group).
@@ -774,14 +776,19 @@ describe('findability', () => {
     // Measured 2026-09-05: og:image and twitter:image were absent from all three pages,
     // so every shared link rendered as a bare grey box. Promising and omitting is worse
     // than declaring `summary`.
-    const seo = code(CMS_ROOT, 'src', 'lib', 'seo.ts')
-    expect(seo).toMatch(/card: 'summary_large_image'/)
-    expect(seo).toMatch(/images: \[OG_IMAGE\]/)
-    expect(seo).toMatch(/images: \[OG_IMAGE\.url\]/)
-    // and the file it points at must actually exist, at the ratio platforms crop to
-    expect(existsSync(join(CMS_ROOT, 'public', 'og-default.png'))).toBe(true)
-    expect(seo).toMatch(/width: 1200/)
-    expect(seo).toMatch(/height: 630/)
+    // Since polish X14 each page type names its own picture (`lib/shareImages.ts`), so this asks
+    // the builder for every public page instead of reading one constant out of seo.ts.
+    for (const path of PUBLIC_PAGE_SOURCES) {
+      const meta = buildMetadata({ title: 'x', description: 'y', path })
+      expect(meta.twitter, path).toMatchObject({ card: 'summary_large_image' })
+      const [image] = (meta.openGraph?.images ?? []) as { url: string; width: number }[]
+      const [shared] = (meta.twitter?.images ?? []) as { url: string }[]
+      expect(shared?.url, path).toBe(image?.url)
+      // and the file it points at must actually exist, at the ratio platforms crop to
+      const file = new URL(image?.url ?? 'https://x/missing').pathname
+      expect(existsSync(join(CMS_ROOT, 'public', file)), `${path}: ${file}`).toBe(true)
+      expect(image, path).toMatchObject({ width: 1200, height: 630 })
+    }
   })
 
   it('escapes `<` in structured data so a value cannot close the script element', () => {

@@ -295,6 +295,9 @@ export default function HdImageDialog({
               <div
                 ref={setLayerEl}
                 className="hd-image__viewport"
+                // The ring grows here, the cue that replaces its hidden `zoom-in` pointer once the
+                // dot and ring are drawn: a double-click zooms and a drag pans (polish F4).
+                data-cursor="pointer"
                 style={{ width: box.width, height: box.height }}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}

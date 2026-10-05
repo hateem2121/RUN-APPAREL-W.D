@@ -56,8 +56,11 @@
   /* Primary button: light = ink fill + volt text · dark = volt fill + ink text */
   --btn-primary-bg: light-dark(var(--ink), var(--volt));
   --btn-primary-text: light-dark(var(--volt), var(--ink));
-  /* Display headlines: light = ink · dark = volt */
+  /* The page's big title (`.display--hero`, its h1): light = ink · dark = volt */
   --headline: light-dark(var(--ink), var(--volt));
+  /* Every other heading: light = ink · dark = the off-white of `--text` (polish X25: in dark
+     mode lime is kept for the big title and the buttons, so it points at what matters) */
+  --heading: light-dark(var(--ink), #ecebe4);
   /* Serif accents & dimension lines: light = volt-deep · dark = volt */
   --serif-accent: light-dark(var(--volt-deep), var(--volt));
   --dimension: light-dark(var(--volt-deep), var(--volt));
@@ -92,9 +95,10 @@
   --ui: 220ms; /* controls: hover, press, state a finger is waiting on */
   --settle: 500ms; /* entrances */
   --slow: 800ms; /* wipes and reveals */
-  /* Owner decision 2026-09-29 (D26, amending D8's "existing tokens only"): the site's three
-     showpieces — the numbers counting up, the order timeline drawing, the globe's routes —
-     read as broken at 800ms. Those three only; reduced motion stops all of them. */
+  /* Owner decision 2026-09-29 (D26, amending D8's "existing tokens only"): the site's
+     showpieces — the numbers counting up and the globe's routes (and the order timeline's line,
+     until polish D4 replaced the timeline, 2026-10-05) — read as broken at 800ms. Those only;
+     reduced motion stops all of them. */
   --showpiece: 1400ms;
   /* The pause between rows that arrive one after another: the phone menu's rows (visual audit
      VA-51, owner-approved 2026-10-01: "the links fading in 30-50 ms apart"). A 60ms stagger
@@ -186,8 +190,11 @@
      ⚠️ 2026-10-01: DERIVED FROM THE BAR, because the bar stopped being one height. On a
      screen 500px tall or less it rests at 52px (notch.css), and the fixed 92px left the
      stage band 8px short at 844x390 on all four engines (the guard read 83.5px). 92 = the
-     60px bar + the 32px label row, so the row is the constant and the bar is read. */
-  --header-h: calc(var(--notch-h) + 32px);
+     60px bar + the 32px label row, so the row is the constant and the bar is read.
+
+     ⚠️ 2026-10-04: THE LABEL ROW IS GONE (polish D8 and M5, owner-approved): the band starts
+     where the bar ends, and the 32px went to the garment. The guard reads it off the page. */
+  --header-h: var(--notch-h);
 
   /* ── Type ───────────────────────────────────────────────────────── */
   /* Sizes were added 2026-08-14 and DOCUMENT what already shipped — the same
@@ -217,7 +224,7 @@
   --text-xs: 0.8125rem; /* 13px */
   /* Since 2026-10-02 (visual audit VA-11, owner's choice) every text that is READ is at least
      12px: it takes --text-mono-lg below. These two are left to the decorative register: bracket
-     labels, section numbers, the timeline's step numbers, "[ Photo to come ]", the arrow signs. */
+     labels, section numbers, "[ Photo to come ]", the arrow signs. */
   --text-mono: 0.6875rem; /* 11px — .mono, content labels */
   --text-mono-sm: 0.625rem; /* 10px */ /* .label, .section-number — chips */
 
@@ -313,7 +320,6 @@
   --tracking-clock-caption: 0.18em; /* .footer-clock__city — "SIALKOT · HQ & WORKS" */
   --tracking-eyebrow: 0.2em; /* .footer-eyebrow — the mono eyebrow over the question */
   --tracking-legal: 0.13em; /* .footer-legal — the © line and its two links */
-  --tracking-link-mono: 0.055em; /* .footer-block a — the email and WhatsApp rows */
   --tracking-footer-mark: -0.045em; /* .footer-mark__layer — the cropped outline wordmark at 122% stretch */
 
   /* ── Layering ───────────────────────────────────────────────────────
@@ -342,6 +348,9 @@
   --z-footer-glow: 6; /* .footer-glow — the light, blended over the slab's content */
   /* A fourth, 2026-10-02 (visual audit VA-30): above the card's picture strip, under the header. */
   --z-card-control: 1; /* .card-gallery__arrow — previous / next over a gallery card's picture */
+  /* Both hosts, 2026-10-04 (polish X26): -1 INSIDE the bar's own layer (--z-header), so the dim
+     covers the page and stays under the bar it belongs to (notch.css). */
+  --z-menu-dim: -1; /* .notch-shell::before — the dim behind the open phone menu */
 
   /*
    * ⚠️ THE PAGE'S WIDTH AND GUTTER ARE ONE SOURCE, BECAUSE THREE THINGS HAD TO AGREE AND
@@ -354,35 +363,91 @@
    * and the page is centred (audit FA-D-01). Five pixels is the worst available value: too
    * small to read as contrast, large enough to read as a mistake.
    *
-   * Naming them also makes the width a single dial. `--site-max` is the ONLY thing the
-   * 1600px query below changes, and the gallery's fourth column, the wider hero and the
-   * footer's edge all follow from it — they cannot drift apart, because there is one
-   * number.
+   * Naming them also makes the width a single dial. `--site-max` is the ONLY thing the website's
+   * width steps change (site.css, 1280px and 1920px since polish D1), and the gallery's columns,
+   * the wider hero and the footer's edge all follow from it — they cannot drift apart, because
+   * there is one number. The footer's column is worked out from these two where it is used
+   * (footer.css); a third token for it is not kept, because a custom property's `var()`s are
+   * resolved where it is DECLARED, so a page that sets these two would have had to declare it again.
+   *
+   * In this file since 2026-10-02 (visual audit VA-31), because the shared footer reads them on
+   * both hosts. ⚠️ THE GARMENT PAGES SET THEIR OWN (polish D1, apps/viewer/src/styles/page.css,
+   * `.page`): their 1200px column, which their stage was measured against, and the website's width
+   * steps live in site.css, not here, so a garment page does not download them (its first paint on
+   * slow 3G is held to 2,400ms and was 16ms over with them, e2e/firstPaint.spec.ts).
    */
-  /* In this file since 2026-10-02 (visual audit VA-31): the footer lines up with this column on
-     the garment pages too, so the page's width is one source for both hosts. */
   --site-max: 1180px;
   --site-gutter: clamp(20px, 5vw, 64px);
-  /* what a `.site-container` child actually gets, at the cap */
-  --site-content: calc(var(--site-max) - var(--site-gutter) * 2);
 
   --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
+  /* IBM Plex Mono, shipped with both apps (polish X5, the owner's Q39, 2026-10-04), then two local
+     stand-ins sized to it (below), then the system stack the labels used until then. */
   --font-mono:
-    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    "IBM Plex Mono", "IBM Plex Mono Fallback", "IBM Plex Mono Fallback Courier", ui-monospace,
+    "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 /*
- * Owner decision 2026-09-07 (audit FA-E-04): below 1600px nothing changes at all; above
- * it the page widens so a fourth gallery column fills space that was empty margin.
- * 1440 − 128 = 1312px of content takes four 260px minimum tracks with 24px gaps
- * (4 × 260 + 3 × 24 = 1112), where 1052px took three. Prose is unaffected — `p, li` are
- * capped at 60ch and `.site-lede` at 62ch, so nothing gets a longer line to read.
+ * ⚠️ THE CODE-STYLE LABELS ARE ONE FONT ON EVERY DEVICE, AND THE "№" IS DRAWN (polish X5, F17).
+ * Until 2026-10-04 they were each device's own monospace: SF Mono on Apple, Consolas on Windows,
+ * something else on Android, and in Chrome and Firefox on a Mac that font has no "№", so every
+ * section number started with a squashed stand-in. The owner chose IBM Plex Mono (Q39). Each app
+ * declares its files (apps/cms/src/app/(frontend)/site.css, apps/viewer/src/styles/page.css), at
+ * the weights it draws, and with `font-display: swap`.
+ *
+ * Swapping a monospace font can move nothing, because every character in one is the same width:
+ * a stand-in scaled to that width matches every line exactly, which no proportional stand-in can.
+ * Measured 2026-10-04 with canvas TextMetrics at 1000px in Chromium, WebKit and Firefox (all three
+ * agree to 0.001):
+ *
+ *   IBM Plex Mono   width 0.6em      ascent 1.025   descent 0.275   (the shipped woff2)
+ *   Menlo           width 0.60205em  ascent 0.928   descent 0.236   (every Mac)
+ *   Courier New     width 0.6001em   ascent 0.833   descent 0.300   (Windows and Mac)
+ *
+ * size-adjust is Plex's width over the stand-in's, and the overrides are Plex's ascent and descent
+ * divided by it (the formula site.css's stand-ins document), so the stand-in's lines are Plex's.
+ * Liberation Mono, CI's and Linux's, is drawn to Courier New's widths, so it is that face's second
+ * source; it was not measured here, the Mac has no copy. SF Mono cannot be named by a page (it
+ * measures as missing), so a Mac reaches Menlo. Both are `local()` only and download nothing.
  */
-@media (min-width: 1600px) {
+@font-face {
+  font-family: "IBM Plex Mono Fallback";
+  src: local("Menlo-Regular"), local("Menlo Regular"), local("Menlo");
+  size-adjust: 99.66%;
+  ascent-override: 102.85%;
+  descent-override: 27.59%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono Fallback Courier";
+  src: local("CourierNewPSMT"), local("Courier New"), local("Liberation Mono");
+  size-adjust: 99.98%;
+  ascent-override: 102.52%;
+  descent-override: 27.5%;
+  line-gap-override: 0%;
+}
+
+/*
+ * ⚠️ THE 10px LABELS GROW ON A COMPUTER (polish X3, 2026-10-04). `--text-mono-sm` sets the section
+ * numbers ("№02 — WHAT WE MAKE"), the bracket chips and the small form and count labels: 10px at
+ * every width, so on a 1920px screen they were the hardest words on the page to read. From 1280px
+ * they take the next step of the scale (12px, `--text-mono-lg`) and from 1920px the one above
+ * (13px, `--text-xs`), so no new size joins the scale. Phones and tablets keep 10px, the size every
+ * one of their layouts was measured with. Both apps read this file, so the website and the garment
+ * pages grow together; the shared footer does not use this size.
+ */
+@media (min-width: 1280px) {
   :root {
-    --site-max: 1440px;
+    --text-mono-sm: var(--text-mono-lg);
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --text-mono-sm: var(--text-xs);
   }
 }
 

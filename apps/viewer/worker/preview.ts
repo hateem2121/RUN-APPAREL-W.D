@@ -1,8 +1,10 @@
 import {
   buildViewerPath,
+  categoryPath,
   GARMENT_PATH_PREFIX,
   garmentPageTitle,
   PAGE_TITLE_BRAND,
+  seeAllInCategoryLabel,
   type ViewerApiSuccess,
 } from '@run-apparel/shared'
 import type { OgCard } from './og-cards'
@@ -340,15 +342,29 @@ function buildCrawlerBody(
     )
   if (colours.length > 1) parts.push(`<h2>Colorways</h2><ul>${colours.join('')}</ul>`)
 
+  // "More from this category" (polish S6), in the page's own words (RelatedGarments.tsx): each
+  // garment the CMS sent, linked to its page, then the category's gallery. These links are how a
+  // robot that does not run JavaScript walks from a garment to its neighbours. On the website
+  // only, with the other links to its pages below.
+  const category = p.category.trim()
+  const related = (payload.related ?? []).filter(
+    (garment) => garment.slug && garment.colourSlug && garment.productName.trim(),
+  )
+  if (onSite && category && related.length > 0) {
+    const cards = related.map(
+      (garment) =>
+        `<li><a href="${esc(`${origin}${buildViewerPath(garment.slug, garment.colourSlug, GARMENT_PATH_PREFIX)}`)}">${esc(garment.productName.trim())}</a></li>`,
+    )
+    const all = `<a href="${esc(`${origin}${categoryPath(category)}`)}">${esc(seeAllInCategoryLabel(category))}</a>`
+    parts.push(`<h2>${esc(`More ${category} in 3D.`)}</h2><ul>${cards.join('')}</ul><p>${all}</p>`)
+  }
+
   // The website's own pages, only where they exist: the old viewer host just forwards.
   if (onSite) {
     const products = `${origin}${GARMENT_PATH_PREFIX}`
     const links = [`<a href="${esc(products)}">All products</a>`]
-    const category = p.category.trim()
     if (category) {
-      links.push(
-        `<a href="${esc(`${products}?family=${familySlug(category)}`)}">${esc(category)}</a>`,
-      )
+      links.push(`<a href="${esc(`${origin}${categoryPath(category)}`)}">${esc(category)}</a>`)
     }
     const company = payload.siteSettings.companyName.trim() || 'RUN APPAREL'
     links.push(`<a href="${esc(`${origin}/contact`)}">Contact ${esc(company)}</a>`)
@@ -359,26 +375,14 @@ function buildCrawlerBody(
 }
 
 /**
- * The family filter's address for a category, spelled the way the website spells it:
- * `Teamwear & Uniforms` → `teamwear-uniforms` (apps/cms/src/lib/families.ts, where each
- * family's `name` is the category verbatim). `src/familySlugs.test.ts` reads that file and
- * fails if the two spellings ever part.
- */
-export function familySlug(category: string): string {
-  return category
-    .toLowerCase()
-    .replace(/&/g, ' ')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-/**
  * Home › Products › <category> › <garment>, for search results (domain move, 2026-09-28).
  *
  * The owner kept the category OUT of the address — it is an editable dropdown, and the
- * address is printed on QR tags — so this is where it lives for a search engine, pointing
- * at the /products family filter a visitor can actually open. A garment with no category
- * gets no invented step. The last item is the canonical URL, the page that loaded.
+ * address is printed on QR tags — so this is where it lives for a search engine, pointing at
+ * the category's own page on the website since polish S5 (2026-10-04; it was the /products
+ * family filter), the same step the trail on the page shows (`GarmentTrail.tsx`). A garment
+ * with no category gets no invented step. The last item is the canonical URL, the page that
+ * loaded.
  */
 function buildBreadcrumbJsonLd(
   payload: ViewerApiSuccess,
@@ -390,7 +394,7 @@ function buildBreadcrumbJsonLd(
     ['Home', `${context.origin}/`],
     ['Products', products],
   ]
-  if (category) steps.push([category, `${products}?family=${familySlug(category)}`])
+  if (category) steps.push([category, `${context.origin}${categoryPath(category)}`])
   steps.push([payload.product.productName, context.url])
   const data = {
     '@context': 'https://schema.org',

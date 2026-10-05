@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { SITE_MENU_ID, SITE_MENU_NAME } from '../../../packages/shared/src/siteBar'
+import { LONGEST_COPY } from './garmentCopy'
 import { stageFallsBack } from './stage'
 
 const MENU = `#${SITE_MENU_ID}`
@@ -147,24 +148,9 @@ function serveGarment(
 }
 
 /**
- * Copy longer than any live garment's (measured 2026-10-02, all 40): the longest description was
- * 454 characters (r-atj) and the longest name 25 ("THE KINETIC MATRIX JACKET"). Invented, so a
- * test does not carry a product's words; 462 and 26 characters, so it cannot pass for less.
- */
-const LONGEST_COPY = {
-  productName: 'THE VELOCITY MATRIX JACKET',
-  shortDescription:
-    'A four-way stretch shell cut for cold early starts and long training blocks. Bonded seams ' +
-    'keep the weight down, laser-cut vents open under the arms and across the back, and a ' +
-    'brushed inner face holds warmth without trapping heat. Reflective trims sit on the cuffs, ' +
-    'hem and shoulders for low light, the zipped chest pocket takes a phone, and the dropped ' +
-    'back hem stays put when the rider leans forward into a headwind for hours on end through ' +
-    'rain, grit and cold.',
-}
-
-/**
  * RUNS IN THE PAGE. Whether an email AND a WhatsApp control are wholly on screen, unscrolled —
- * LA-11's own measure — and whether the colours are drawn as the list (a row shows its name).
+ * LA-11's own measure — and whether each colour's own name is drawn (`listed`: VA-32's list
+ * until polish D8, the names under the dots since).
  */
 function contactOnScreen() {
   const inView = (el: Element) => {
@@ -680,37 +666,32 @@ test.describe('the bar survives a phone', () => {
   })
 })
 
-test.describe('the label row (owner decision 2026-09-17)', () => {
+/**
+ * NOTHING BETWEEN THE BAR AND THE GARMENT (polish D8 and M5, owner-approved 2026-10-04). From
+ * 2026-09-17 "[ 3D PRODUCT REFERENCE ]" had a line of its own here, and on a phone the garment's
+ * code and name a second one; both said again what the page says under or beside the garment.
+ * The stage band now starts where the bar ends: "the header token matches where the stage band
+ * starts" below holds the number, and this holds that nothing is drawn in between.
+ */
+test.describe('no label row and no name line over the garment (D8, M5)', () => {
   for (const [width, height] of [
     [320, 640],
     [390, 844],
     [768, 1024],
     [1440, 900],
   ] as const) {
-    test(`[ 3D PRODUCT REFERENCE ] on its own line under the bar at ${width}px`, async ({
-      page,
-    }) => {
+    test(`the garment's band starts at the bar at ${width}x${height}`, async ({ page }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      const tag = page.locator('main .viewer-tag .label')
-      await expect(tag).toHaveText('[ 3D PRODUCT REFERENCE ]')
-      await expect(tag).toBeVisible()
-      const m = await page.evaluate(() => {
+      await expect(page.locator('main .viewer-tag, .stage-block__name')).toHaveCount(0)
+      await expect(page.locator('main').getByText('3D PRODUCT REFERENCE')).toHaveCount(0)
+      const gap = await page.evaluate(() => {
         const bar = document.querySelector('.notch')?.getBoundingClientRect()
-        const label = document.querySelector('main .viewer-tag .label')?.getBoundingClientRect()
-        return bar && label
-          ? {
-              below: label.top - bar.bottom,
-              centre: label.left + label.width / 2 - document.documentElement.clientWidth / 2,
-              oneLine: label.height < 30,
-            }
-          : null
+        const band = document.querySelector('.stage-block')?.getBoundingClientRect()
+        return bar && band ? Math.round(band.top - bar.bottom) : null
       })
-      if (!m) throw new Error('no bar or no label to measure')
-      expect(m.below, 'the label is not under the bar').toBeGreaterThanOrEqual(0)
-      expect(Math.abs(m.centre), 'the label is not centred on the page').toBeLessThanOrEqual(1)
-      expect(m.oneLine, 'the label wrapped').toBe(true)
+      expect(gap, 'something sits between the bar and the garment').toBe(0)
     })
   }
 })
@@ -1729,22 +1710,21 @@ test.describe('layout invariants', () => {
   /**
    * The four spec facts are on screen exactly once, at every width.
    *
-   * `specDuplication.test.ts` proves the two breakpoints are the same NUMBER by
-   * reading the stylesheet. This proves the number is the right one by counting
-   * what a visitor can actually see — the two checks fail for different reasons
-   * and neither replaces the other.
+   * Since polish D10 (2026-10-04) they are ONE component, `SpecGroups`, drawn in the 3D window's
+   * corners on a computer or under the description everywhere else, and App.tsx's
+   * `specsInCorners` picks one. Until then two CSS breakpoints decided it (the callouts over the
+   * canvas from 1000px, the list hidden from 1000px) and a unit test held them equal; the
+   * facts were printed twice above 1000px until 2026-08-21. This counts what a visitor gets.
    *
-   * 1024px and 960px straddle the 1000px seam deliberately: between 900 and 1000
-   * the two-column layout is on but the callouts are NOT, so `.spec-list` is the
-   * only rendering there and must stay visible. That band is the easiest thing to
-   * delete by accident while "tidying up the duplication".
+   * 1024 and 1023 straddle the corners' seam (`IDENTITY_IN_ASIDE_QUERY`), and 960 is in the
+   * two-column band where the name is still under the garment, so the list must carry the facts
+   * there. That band is the easiest one to lose while "tidying up".
    */
   /*
-   * Both branches, on every engine. With 3D the callouts carry the facts above 1000px and the
-   * list below it. Without 3D (LA-16) no callout is drawn, so the list must carry them at
-   * EVERY width: the first version of LA-16 left a wide screen with no 3D showing the facts
-   * nowhere, and only CI's Firefox (no WebGL on a runner) took that branch. Save-Data forces
-   * it everywhere: `canRender3D()` refuses 3D on it.
+   * Both branches, on every engine. Without 3D (LA-16) nothing is drawn over the window, so the
+   * list must carry the facts at EVERY width: the first version of LA-16 left a wide screen
+   * with no 3D showing them nowhere, and only CI's Firefox (no WebGL on a runner) took that
+   * branch. Save-Data forces it everywhere: `canRender3D()` refuses 3D on it.
    */
   for (const mode of ['as it loads', 'without 3D (Save-Data)'] as const) {
     test(`the spec facts render once at every width, ${mode}`, async ({ page }) => {
@@ -1773,36 +1753,37 @@ test.describe('layout invariants', () => {
         expect(noThreeD, 'Save-Data did not put the stage in its no-3D state').toBe(true)
       }
 
-      const shown = async () => {
-        const callouts = await page.locator('.stage__callouts .callout').count()
-        const listVisible = await page.locator('.spec-list').isVisible()
-        const calloutsVisible = await page.locator('.stage__callouts').isVisible()
-        return { callouts, listVisible, calloutsVisible }
-      }
-
-      await page.setViewportSize({ width: 1280, height: 800 })
-      expect(
-        await shown(),
-        noThreeD
-          ? 'above 1000px without 3D no callout is drawn, so the list must carry the facts'
-          : 'above 1000px the callouts say it and the list must not',
-      ).toMatchObject(
-        noThreeD
-          ? { callouts: 0, listVisible: true }
-          : { calloutsVisible: true, listVisible: false },
-      )
-
-      await page.setViewportSize({ width: 960, height: 800 })
-      expect(
-        await shown(),
-        'between 900 and 1000 the callouts are off, so the list is the ONLY copy',
-      ).toMatchObject({ calloutsVisible: false, listVisible: true })
-
-      await page.setViewportSize({ width: 375, height: 812 })
-      expect(await shown(), 'on a phone the list is the only copy').toMatchObject({
-        calloutsVisible: false,
-        listVisible: true,
+      // Every copy of the facts on the page, and each one's place; `visible` because a copy
+      // drawn and hidden would still be a copy a screen reader could reach.
+      const shown = async () => ({
+        corners: await page.locator('.spec-groups--corners').count(),
+        list: await page.locator('.spec-groups--list').count(),
+        visible: await page
+          .locator('.spec-groups')
+          .evaluateAll(
+            (all) => all.filter((el) => (el as HTMLElement).offsetParent !== null).length,
+          ),
       })
+      const once = (place: 'corners' | 'list') =>
+        place === 'corners'
+          ? { corners: 1, list: 0, visible: 1 }
+          : { corners: 0, list: 1, visible: 1 }
+
+      for (const [width, height, withThreeD] of [
+        [1280, 800, 'corners'],
+        [1024, 768, 'corners'],
+        [1023, 768, 'list'],
+        [960, 800, 'list'],
+        [375, 812, 'list'],
+      ] as const) {
+        await page.setViewportSize({ width, height })
+        const place = noThreeD ? 'list' : withThreeD
+        await expect
+          .poll(shown, {
+            message: `${width}x${height}${noThreeD ? ' without 3D' : ''}: the facts once, in the ${place}`,
+          })
+          .toEqual(once(place))
+      }
     })
   }
 
@@ -2190,99 +2171,98 @@ test.describe('bundle weight on a phone', () => {
   })
 })
 
-test.describe('the garment is named on the first screen', () => {
-  /**
-   * Measured 2026-09-04 in two browsers on all eleven live products: `.product-info`
-   * starts at 836px on an 812px screen, missing the fold by 24px. A visitor who has
-   * just scanned a QR tag saw the garment, the colourways and both enquiry buttons —
-   * and no name, code, category or spec until they scrolled.
-   *
-   * The fix is a compact `aria-hidden` line above the canvas, portrait phones only.
-   * `aria-hidden` because `<h1 id="product-heading">` must exist exactly once and a
-   * screen reader has no fold to be above; see "the product heading moves between
-   * columns and never doubles" in this file.
-   */
-  /**
-   * ⚠️ THE TABLET ROWS WERE ADDED 2026-09-05, AND THEY ARE THE POINT OF THIS BLOCK
-   * NOW. The rule was `max-width: 699px`, so three real devices took the hidden
-   * branch and showed no name at all — measured with reveals forced:
-   *
-   *     768x1024   iPad portrait       h1 top 1094 — 70px below the fold
-   *     834x1194   iPad Pro portrait   h1 top 1267 — 73px below
-   *     1024x1366  iPad Pro 12.9       h1 top 1446 — 80px below
-   *
-   * The last one is two-column, so no width ceiling on this element could have
-   * expressed the condition. The element is gated on `!identityInAside` instead —
-   * the query that actually decides whether the `<h1>` is on the first screen.
-   */
-  for (const { width, height, name } of [
-    { width: 320, height: 640, name: 'small mobile' },
-    { width: 375, height: 812, name: 'mobile' },
-    { width: 414, height: 896, name: 'large mobile' },
-    { width: 768, height: 1024, name: 'tablet portrait' },
-    { width: 834, height: 1194, name: 'tablet pro portrait' },
-    { width: 1024, height: 1366, name: 'tablet pro 12.9 portrait' },
-  ]) {
-    test(`the product code and name are above the fold at ${name} (${width}x${height})`, async ({
+/**
+ * WHERE THE GARMENT'S NAME IS ON THE FIRST SCREEN (polish D8, F11 and M5, owner-approved
+ * 2026-10-04). From 2026-09-04 an `aria-hidden` line put the code and name over the garment
+ * wherever the <h1> was not on the first screen; tablets were added the next day, when iPads
+ * measured their <h1> 70-80px below the fold. The owner's decisions replaced it:
+ *
+ *   computers  the <h1> beside the garment, from 1024px wide and 620px tall (D8, held by the
+ *              tests further down that walk the floor with the longest copy)
+ *   tablets    upright, a garment window half the screen tall, so the <h1> under it is on the
+ *              first screen (F11, Q23); sideways they are computers
+ *   phones     nothing over the garment, which takes the room, and the name follows it (M5)
+ *
+ * Measured 2026-10-04 in Chromium with the longest copy: the <h1>'s top on the five upright
+ * tablets below was 815 / 868 / 895 / 904 / 1012px, against the action bar's top at 950 / 1059 /
+ * 1106 / 1120 / 1292. On phones the garment window measured 61-66% of the screen (about 55% with
+ * the two lines over it).
+ */
+test.describe("the garment's name on the first screen (D8, F11, M5)", () => {
+  for (const [width, height] of [
+    [768, 1024],
+    [744, 1133],
+    [820, 1180],
+    [834, 1194],
+    [1024, 1366],
+  ] as const) {
+    test(`an upright tablet shows the heading above the action bar at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await serveGarment(page, LONGEST_COPY)
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const m = await page.evaluate(() => {
+        const heading = document.querySelector('h1') as HTMLElement
+        const box = heading.getBoundingClientRect()
+        const firstLine = Number.parseFloat(getComputedStyle(heading).fontSize) * 1.2
+        const bar = document.querySelector('.action-bar')
+        const barShown = bar !== null && getComputedStyle(bar).display !== 'none'
+        return {
+          firstLineBottom: Math.round(box.top + firstLine),
+          barTop: Math.round(barShown ? (bar as Element).getBoundingClientRect().top : innerHeight),
+          barShown,
+          oneColumn: getComputedStyle(document.querySelector('.stage-block') as Element)
+            .flexDirection,
+        }
+      })
+      expect(m.oneColumn, 'an upright tablet is the one-column layout (F11)').toBe('column')
+      expect(
+        m.barShown,
+        'one column with no aside needs the action bar for Email and WhatsApp',
+      ).toBe(true)
+      expect(
+        m.firstLineBottom,
+        `the heading's first line ends at ${m.firstLineBottom}px, under the action bar at ${m.barTop}px`,
+      ).toBeLessThanOrEqual(m.barTop)
+    })
+  }
+
+  for (const [width, height] of [
+    [375, 812],
+    [390, 844],
+    [430, 932],
+  ] as const) {
+    test(`a phone gives the garment the room and names it after at ${width}x${height}`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-      const line = page.locator('.stage-block__name')
-      await expect(line).toBeVisible()
-      const box = await line.boundingBox()
-      expect(box, 'the compact name line has no box').not.toBeNull()
-      expect(
-        (box as { y: number; height: number }).y + (box as { height: number }).height,
-        `the garment's name is below the fold at ${width}x${height} — the case this ` +
-          `element exists for`,
-      ).toBeLessThan(height)
-
-      // It must carry the code AND the name: the code is what is printed on the tag
-      // the visitor just scanned, and the name is what they will quote back.
-      const text = (await line.textContent()) ?? ''
-      expect(text).toContain('N001')
-      expect(text.length, 'the line rendered empty').toBeGreaterThan(6)
+      const m = await page.evaluate(() => {
+        const canvas = (document.querySelector('.stage__canvas') as Element).getBoundingClientRect()
+        const band = (document.querySelector('.stage-block') as Element).getBoundingClientRect()
+        const heading = (document.querySelector('h1') as Element).getBoundingClientRect()
+        return {
+          share: canvas.height / innerHeight,
+          headingAfterBand: heading.top >= band.bottom,
+        }
+      })
+      // 58%, not the 61-66% measured: a line put back over the garment costs it about 32px, 4%.
+      expect(m.share, 'the garment window lost its room').toBeGreaterThanOrEqual(0.58)
+      expect(m.headingAfterBand, 'the name is no longer after the garment').toBe(true)
     })
   }
 
-  test('a wide desktop uses the real heading instead, so the line is not rendered at all', async ({
+  test('a phone held sideways keeps its band to one screen and draws no name line', async ({
     page,
   }) => {
-    /**
-     * NEGATIVE CONTROL for the block above. Without it, a change that rendered the
-     * compact line unconditionally would pass all six sizes and quietly put a second
-     * name on every desktop page, above a heading that already says it.
-     *
-     * 1440x900 puts the identity in the aside (from 1280px wide it needs 800px of
-     * height, VA-60), so `identityInAside` is true and the element is absent
-     * from the DOM entirely — not merely hidden.
-     */
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/n001/wine')
-    const h1 = page.getByRole('heading', { level: 1 })
-    await expect(h1).toBeVisible()
-    const box = await h1.boundingBox()
-    expect(
-      (box as { y: number }).y,
-      'the real heading is below the fold on a desktop, so hiding the compact line ' +
-        'leaves the garment unnamed there too',
-    ).toBeLessThan(900)
-    await expect(page.locator('.stage-block__name')).toHaveCount(0)
-  })
-
-  test('it stays hidden in the two-column landscape band, which has no row to spare', async ({
-    page,
-  }) => {
-    // 844x390 is asserted elsewhere in this file at <=390px of band. Adding a row
-    // there would break that, so the element is deliberately portrait-only — and
-    // this pins the deliberateness so nobody "fixes" the inconsistency later.
     await page.setViewportSize({ width: 844, height: 390 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(page.locator('.stage-block__name')).toBeHidden()
+    await expect(page.locator('.stage-block__name')).toHaveCount(0)
+    await expect(page.getByTestId('product-identity-aside')).toHaveCount(0)
   })
 })
 
@@ -2340,10 +2320,13 @@ test.describe('text follows the browser text-size setting', () => {
          * measuring the harness, which is the exact defect this block already
          * carries a scar from.
          */
+        /*
+         * Until polish M2 (2026-10-04) this also read `.page`'s padding, the room under the
+         * footer that the footer check below stood on. That room is gone (the bar steps aside
+         * at the footer), so the rem probe alone says whether the text size reached the layout.
+         */
         const applied = await page.evaluate(() => {
-          const page_ = document.querySelector('footer')?.closest('.page')
           const rootPx = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-          const padPx = page_ ? Number.parseFloat(getComputedStyle(page_).paddingBottom) : 0
           // A rem length on a throwaway element, measured through layout rather
           // than read back off a declaration. Nothing of ours can make it stale,
           // so it says whether `rem` means the injected root AT ALL.
@@ -2352,7 +2335,7 @@ test.describe('text follows the browser text-size setting', () => {
           document.body.appendChild(probe)
           const probePx = probe.getBoundingClientRect().height
           probe.remove()
-          return { rootPx, padPx, probePx }
+          return { rootPx, probePx }
         })
         /**
          * ⚠️ THE YARDSTICK IS THE ROOT WE INJECTED, NEVER THE ONE THE ENGINE REPORTS.
@@ -2377,12 +2360,11 @@ test.describe('text follows the browser text-size setting', () => {
          */
         const expectedFloor = 4.5 * root
         test.skip(
-          applied.probePx + 1 < expectedFloor || applied.padPx + 1 < expectedFloor,
+          applied.probePx + 1 < expectedFloor,
           `the engine did not re-resolve after the root font-size changed to ${root}px ` +
-            `(4.5rem probe measured ${applied.probePx}px, .page padding ${applied.padPx}px, ` +
-            `both against an expected ${expectedFloor}px; <html> reports ` +
-            `${applied.rootPx}px) — the text size never reached the layout, so there is ` +
-            `nothing here to measure`,
+            `(4.5rem probe measured ${applied.probePx}px against an expected ` +
+            `${expectedFloor}px; <html> reports ${applied.rootPx}px) — the text size never ` +
+            `reached the layout, so there is nothing here to measure`,
         )
 
         /**
@@ -2390,8 +2372,9 @@ test.describe('text follows the browser text-size setting', () => {
          * It asserted clearance at scroll 0, which failed on WebKit and mobile
          * Safari at 320px with 24px text — Chrome's largest setting on the smallest
          * phone. That failure was real but it was not the right question: the action
-         * bar is `position: fixed` and `.page` reserves its height at the document
-         * end, so a rail sitting under it at REST scrolls clear a moment later.
+         * bar is `position: fixed` and the page runs on far past the rail (it reserved
+         * the bar's height at the document end too, until polish M2), so a rail sitting
+         * under it at REST scrolls clear a moment later.
          *
          * What actually harms a visitor is a swatch they can never reach, not one
          * they must scroll to. So the invariant asserted is reachability, which is
@@ -2462,8 +2445,7 @@ test.describe('text follows the browser text-size setting', () => {
           return {
             scrollW: document.documentElement.scrollWidth,
             innerW: window.innerWidth,
-            // Document-space reachability. Positive clearance = clears the bar;
-            // positive footerHidden = permanently underneath it, no further to scroll.
+            // Document-space reachability. Positive clearance = clears the bar.
             clearance:
               bar && tabs.length
                 ? Math.round(
@@ -2472,15 +2454,21 @@ test.describe('text follows the browser text-size setting', () => {
                       (Math.max(...tabs.map((t) => t.bottom)) + window.scrollY),
                   )
                 : null,
-            footerHidden:
-              bar && footer
-                ? Math.round(
-                    footer.bottom +
-                      window.scrollY -
-                      (document.documentElement.scrollHeight - bar.height),
-                  )
-                : null,
+            // Document space too: how far the page runs on past the footer (0 since polish M2).
+            roomUnderFooter: footer
+              ? Math.round(document.documentElement.scrollHeight - (footer.bottom + window.scrollY))
+              : null,
             why: {
+              // What sticks out past the screen's right edge, the deepest first, so a sideways
+              // overflow names its element (found 2026-10-04 once this test stopped skipping).
+              overflowing: [...document.querySelectorAll('body *')]
+                .map((el) => ({ el, right: el.getBoundingClientRect().right }))
+                .filter(({ right }) => right > window.innerWidth + 0.5)
+                .slice(-4)
+                .map(
+                  ({ el, right }) =>
+                    `${el.tagName.toLowerCase()}.${[...el.classList].join('.')} ${Math.round(right)}`,
+                ),
               barH: bar ? Math.round(bar.height) : null,
               barDisplay: barEl ? getComputedStyle(barEl).display : null,
               token: getComputedStyle(document.documentElement)
@@ -2573,40 +2561,41 @@ test.describe('text follows the browser text-size setting', () => {
         }
 
         /**
-         * ⚠️ THE FOOTER IS THE ELEMENT THAT ACTUALLY CAUGHT THE BUG, and checking
-         * only the rail said the fix was unnecessary.
+         * ⚠️ THE FOOTER IS THE ELEMENT THAT CAUGHT THE BUG ONCE, and checking only the
+         * rail said the fix was unnecessary. Until polish M2 (2026-10-04) `.page`
+         * reserved the bar's height under the footer (`--action-bar-h`, written by
+         * lib/actionBarHeight.ts), and at 320x640 with a 24px root the footer sat 34px
+         * UNDER a 106px bar whenever that token still read 72px — permanently, with no
+         * further to scroll.
          *
-         * `--action-bar-h` is what `.page` reserves at the DOCUMENT END, so when it
-         * is wrong the last thing on the page is what disappears. Measured at
-         * 320x640 with a 24px root, scrolled fully down: with the runtime measure in
-         * lib/actionBarHeight.ts the footer clears the bar by 1px; without it the
-         * token reads 72px against a 106px bar and the footer sits 34px UNDER it,
-         * permanently — there is no further to scroll.
-         *
-         * Removing that module made every rail assertion above still pass, which is
-         * exactly the shape of a guard that measures the wrong element. This line is
-         * what makes the module load-bearing in the suite.
+         * Since M2 nothing is reserved there: the bar steps aside while any of the
+         * footer is above it, its height read off the bar itself
+         * (lib/actionBarStepsAside.ts), so at the largest text the page ends AT the
+         * footer and the bar has gone there. Both halves are asserted: the room in
+         * document space (one pixel of rounding: `scrollHeight` is an integer and the
+         * footer's edge is not), and the bar scrolled to the end, re-scrolled on each
+         * poll because this file records the document growing after a scroll in CI.
          */
-        if (m.footerHidden !== null) {
-          /**
-           * ⚠️ ONE PIXEL OF TOLERANCE BELOW, AND IT IS ROUNDING RATHER THAN SLACK.
-           * `documentElement.scrollHeight` is an INTEGER; `footer.bottom` and
-           * `bar.height` are fractional, and the reserve is `Math.ceil(height)`. So
-           * a correct page lands in [-1, 0] and this assertion sat exactly on its
-           * own boundary — measured flaky on Chromium at 375x812 with a 20px root,
-           * failing once and passing on a re-run with nothing changed.
-           *
-           * This does not weaken the gate. The defect it exists for measured +34px
-           * in CI, and forcing `--action-bar-h` to 20px against a 106px bar measures
-           * +86. One pixel is not a footer anyone cannot read; it is two coordinate
-           * systems disagreeing in the last digit.
-           */
-          expect(
-            m.footerHidden,
-            `the footer ends ${m.footerHidden}px past the last point the page can scroll ` +
-              `to at a ${root}px root — the bottom reserve (--action-bar-h) is smaller than ` +
-              `the bar, so the last content on the page can never clear it. ${why}`,
-          ).toBeLessThanOrEqual(1)
+        expect(
+          Math.abs(m.roomUnderFooter ?? 0),
+          `the page runs on ${m.roomUnderFooter}px past the footer at a ${root}px root. ${why}`,
+        ).toBeLessThanOrEqual(1)
+        if (m.why.barDisplay !== null && m.why.barDisplay !== 'none') {
+          await expect
+            .poll(
+              async () => {
+                await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+                return page.evaluate(
+                  () =>
+                    getComputedStyle(document.querySelector('.action-bar') as Element).visibility,
+                )
+              },
+              {
+                message: `the bar stayed over the footer at a ${root}px root. ${why}`,
+                timeout: 5_000,
+              },
+            )
+            .toBe('hidden')
         }
       })
     }
@@ -2778,77 +2767,80 @@ test.describe('the page composes on one grid', () => {
     })
   }
 
-  test('the four stage callouts share two baselines, not three', async ({ page }) => {
-    // 1440x900 because `.stage__callouts` is `display: none` below 1000px — measured
-    // 0x0 boxes at 834, 768 and 390 — so this is a desktop-only composition.
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/n001/wine')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    test.skip(
-      await stageFallsBack(page),
-      'no 3D here (CI Firefox has no WebGL): the callouts are not drawn at all by design ' +
-        '(LA-16), so there are no baselines to compare',
-    )
+  /*
+   * The garment's facts in the window's corners are a technical drawing (polish D10): the top
+   * pair hangs from one line, the bottom pair shares one line (FA-D-07: the old callouts'
+   * fourth corner floated by one line of text per feature the CMS listed), the left pair shares
+   * a left edge and the right pair a right edge. The PERFORMANCE list is the fixture's two
+   * features against FIT's one, so a floating bottom pair shows here as a whole line.
+   */
+  for (const [width, height] of [
+    [1440, 900],
+    [1024, 640],
+  ] as const) {
+    test(`the four corner groups make one drawing at ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      test.skip(
+        await stageFallsBack(page),
+        'no 3D here (CI Firefox has no WebGL): the facts are under the stage by design (LA-16)',
+      )
+      await expect(page.locator('.spec-groups--corners')).toBeVisible()
 
-    const tops = await page.evaluate(() =>
-      [...document.querySelectorAll('.callout')].map((c) => ({
-        label: c.querySelector('.label')?.textContent?.trim() ?? '',
-        top: Math.round(c.getBoundingClientRect().top * 10) / 10,
-        bottom: Math.round(c.getBoundingClientRect().bottom * 10) / 10,
-      })),
-    )
+      const m = await page.evaluate(() => {
+        const box = (selector: string) => {
+          const r = document.querySelector(selector)?.getBoundingClientRect()
+          return r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null
+        }
+        const heading = (key: string) => box(`.spec-group--${key} .spec-group__heading`)
+        const lastRow = (key: string) => box(`.spec-group--${key} li:last-child .spec-item__row`)
+        return {
+          canvas: box('.stage__canvas'),
+          plinth: box('.stage__plinth'),
+          fabric: heading('fabric'),
+          weight: heading('weight'),
+          fit: heading('fit'),
+          performance: heading('performance'),
+          fabricRow: box('.spec-group--fabric .spec-item__row'),
+          fitRow: box('.spec-group--fit .spec-item__row'),
+          weightRow: box('.spec-group--weight .spec-item__row'),
+          performanceRow: box('.spec-group--performance .spec-item__row'),
+          performanceEnd: lastRow('performance'),
+        }
+      })
+      const near = (a: number | undefined, b: number | undefined) =>
+        Math.abs((a ?? Number.NaN) - (b ?? Number.NaN)) <= 1
 
-    expect(tops).toHaveLength(4)
-    const at = (label: string) => tops.find((t) => t.label.includes(label))
+      expect(near(m.fabric?.top, m.weight?.top), 'the top pair does not share a line').toBe(true)
+      expect(
+        near(m.fit?.top, m.performance?.top),
+        `FIT sits at ${m.fit?.top} and PERFORMANCE at ${m.performance?.top}: the bottom pair ` +
+          'is meant to share one line, set by the taller group (FA-D-07)',
+      ).toBe(true)
+      expect(near(m.fabricRow?.left, m.fitRow?.left), 'the left pair does not share an edge').toBe(
+        true,
+      )
+      expect(
+        near(m.weightRow?.right, m.performanceRow?.right),
+        'the right pair does not share an edge',
+      ).toBe(true)
 
-    // The top pair was always pinned and always agreed; asserting it is what makes
-    // the bottom assertion meaningful rather than a coincidence of one layout.
-    expect(at('FABRIC')?.top).toBe(at('WEIGHT')?.top)
-
-    // ⚠️ THE ONE THAT USED TO FAIL. Measured before the fix, this fixture: [ FIT ]
-    // 636.7 against [ PERFORMANCE ] 621.2, and 15.5 / 31.0 / 46.5 / 62.0 across six
-    // live products — always a whole multiple of 15.5px, one line of value text,
-    // because each block was bottom-anchored and grew upward by however many lines
-    // the CMS gave it.
-    expect(
-      at('FIT')?.top,
-      `[ FIT ] sits at ${at('FIT')?.top} and [ PERFORMANCE ] at ${at('PERFORMANCE')?.top} — ` +
-        `the bottom pair is meant to share one baseline, set by the taller block.`,
-    ).toBe(at('PERFORMANCE')?.top)
-
-    /*
-     * …and the row is still anchored where it was: the taller block's bottom edge has not
-     * moved toward the plinth.
-     *
-     * ⚠️ THIS WAS `toBe(686.7)`, AND THAT NUMBER SILENTLY ENCODED "THE STAGE HAS WebGL".
-     * CI's Firefox measured 688.3 and failed twice on a layout that is correct.
-     *
-     * The first guess was platform font metrics, and it was wrong — REPRODUCED locally by
-     * launching Firefox with `webgl.disabled: true`, which gives **688.3 exactly**. The
-     * 1.6px is the poster-fallback branch composing the stage slightly differently, not a
-     * different font stack. A constant read off a WebGL-capable machine is therefore not a
-     * property of this layout at all; it is a property of the runner.
-     *
-     * The sentence above describes a RELATIONSHIP — "has not moved toward the plinth" —
-     * and it was written as an absolute, which is the arithmetic-instead-of-measurement
-     * mistake this repo's stage-height budget has already made three times. The
-     * relationship holds in both branches.
-     *
-     * So the relationship is what is asserted. The plinth is the thing it must not
-     * approach, and its position is read from the same page rather than assumed.
-     */
-    const plinthTop = await page.evaluate(
-      () => document.querySelector('.stage__plinth')?.getBoundingClientRect().top ?? null,
-    )
-    expect(plinthTop, 'no .stage__plinth to measure against').not.toBeNull()
-
-    const bottom = at('PERFORMANCE')?.bottom ?? 0
-    expect(
-      plinthTop === null ? 0 : plinthTop - bottom,
-      `[ PERFORMANCE ] ends at ${bottom} and the plinth starts at ${plinthTop} — the ` +
-        'callout row has drifted down into the controls.',
-    ).toBeGreaterThan(0)
-  })
+      // Inside the window, the top pair clear of the AR cube's 12 + 44px (iPads have it), and
+      // the bottom pair clear of the controls under the window.
+      const canvas = m.canvas!
+      expect(m.fabric!.top - canvas.top, 'the top pair is up under the AR button').toBeGreaterThan(
+        56,
+      )
+      expect(m.fabricRow!.left).toBeGreaterThan(canvas.left)
+      expect(m.weightRow!.right).toBeLessThan(canvas.right)
+      expect(
+        m.performanceEnd!.bottom,
+        'the bottom pair runs out of the window',
+      ).toBeLessThanOrEqual(canvas.bottom)
+      expect(m.performanceEnd!.bottom).toBeLessThan(m.plinth?.top ?? Number.POSITIVE_INFINITY)
+    })
+  }
 })
 
 /**
@@ -2880,8 +2872,9 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
           range.selectNodeContents(el)
           return Math.round(range.getBoundingClientRect().left)
         }
-        const tag = box('.viewer-tag .label')
-        const name = box('.stage-block__name')
+        // Since polish D8 and M5 (2026-10-04) the garment is the first thing under the bar: the
+        // label and the product line that stood between them are gone.
+        const bar = box('.notch')
         const canvas = box('.stage__canvas')
         const controls = box('.stage__plinth')
         const colour = box('.colourways__name')
@@ -2889,29 +2882,23 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
         const gap = (a?: DOMRect, b?: DOMRect) => (a && b ? Math.round(b.top - a.bottom) : null)
         return {
           gaps: {
-            'label > product line': gap(tag, name),
-            'product line > garment': gap(name, canvas),
+            'bar > garment': gap(bar, canvas),
             'garment > controls': gap(canvas, controls),
             'controls > colour name': gap(controls, colour),
             'colour name > colours': gap(colour, dot),
           },
-          words: [
-            textLeft('.stage-block__name'),
-            textLeft('.colourways__name'),
-            dot && Math.round(dot.left),
-          ],
+          words: [textLeft('.colourways__name'), dot && Math.round(dot.left)],
           card: canvas ? Math.round(canvas.left) : null,
         }
       })
       expect(m.gaps).toEqual({
-        'label > product line': 8,
-        'product line > garment': 16,
+        'bar > garment': 8,
         'garment > controls': 16,
         'controls > colour name': 16,
         'colour name > colours': 8,
       })
       expect(m.words, "the words and the colours start at the website's 20px margin").toEqual([
-        20, 20, 20,
+        20, 20,
       ])
       expect(
         m.card,
@@ -2934,9 +2921,20 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
   /**
    * VA-32 (owner, 2026-10-01 and 2026-10-02): colour names break only after a "/", never inside a
    * word, reopening SZ-06's soft hyphens, which the owner found cramped. The colours are dots with
-   * the chosen name written above them, on phones and tablets alike, and a list with each name on
-   * a row of its own in a tall side column. The spill check here also covers FA-E-08 ("TERRACOTTA"
-   * 0.3px past its tab at 1440x900), whose own test measured the five-across tabs this replaced.
+   * the chosen name written above them, on phones and tablets alike. The spill check here also
+   * covers FA-E-08 ("TERRACOTTA" 0.3px past its tab at 1440x900), whose own test measured the
+   * five-across tabs this replaced.
+   *
+   * POLISH D8 (owner-approved 2026-10-04) put each name under its dot beside the garment on a
+   * laptop, where the column is at least 350px and the window 656px tall (page.css has the
+   * measurements); it replaced VA-32's list, which needed a 1080px window. A sideways iPad's
+   * column is narrower (289-337px) and keeps the dots.
+   *
+   * POLISH N1 (names awaiting the owner's approval, 2026-10-05) renames every colour in its
+   * category's style (packages/shared/src/colourNames.ts, at most 12 characters a name). The third
+   * set is that list's worst garment-for-garment: 12-character names before a " /" (14 characters,
+   * as wide as "Bottle Green /"), and the longest whole name, 26 characters, first, so the dots'
+   * one line above carries it. Kept beside the old sets: the live names change only at the end.
    */
   const LONG_NAMES = [
     ['Terracotta / Blush', 'Bottle Green / Mint', 'Tangerine', 'Turquoise', 'Magenta / Burgundy'],
@@ -2947,6 +2945,13 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
       'Burgundy',
       'Tangerine / Rust',
     ],
+    [
+      'Silver Medal / Clean Sheet',
+      'Bluebird Day / Ice Rink',
+      'Black Cherry / Cranberry',
+      'Ice Rink / Bluebird Day',
+      'Victory Lap / Night Game',
+    ],
   ] as const
 
   for (const [width, height, layout] of [
@@ -2954,10 +2959,14 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
     [390, 844, 'dots'],
     [768, 1024, 'dots'],
     [834, 1194, 'dots'],
-    [1280, 720, 'dots'],
-    [1440, 1100, 'list'],
-    // The narrowest list: a 190px column, where a long name takes a second line after its "/".
-    [900, 1100, 'narrow list'],
+    // Beside the garment on a sideways iPad: a column under 350px keeps the dots (D8).
+    [1024, 768, 'dots'],
+    [1180, 820, 'dots'],
+    // A laptop's 360px column, and the 400px one of a 2560px window: a name under each dot (D8).
+    [1280, 720, 'names'],
+    [1366, 657, 'names'],
+    [1440, 900, 'names'],
+    [2560, 1440, 'names'],
   ] as const) {
     for (const [set, names] of LONG_NAMES.entries()) {
       test(`colour names never break inside a word at ${width}x${height}, ${layout} (set ${set + 1}, VA-32)`, async ({
@@ -2977,12 +2986,13 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
           expect(report.shown).toEqual([names[0]])
           expect(report.lines, 'the name above the dots took more than one line').toEqual([1])
         } else {
+          // under each dot its own name, on a line per "/" part at most: a name breaks only
+          // after its "/" (D8), and one that fits stays on one line
           expect(report.shown).toEqual([...names])
-        }
-        if (layout === 'list') {
-          expect(report.lines, 'a name in the list took more than one line').toEqual(
-            names.map(() => 1),
+          const tooTall = names.filter(
+            (name, index) => (report.lines[index] ?? 0) > name.split('/').length,
           )
+          expect(tooTall, 'a name took more lines than it has "/" parts').toEqual([])
         }
 
         const tabs = page.getByRole('tab')
@@ -3052,63 +3062,167 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
     })
   }
 
+  test('beside the garment on a laptop, the colours are three to a row, names under, the chosen one ringed (D8)', async ({
+    page,
+  }) => {
+    await serveGarment(page, { names: LONG_NAMES[1] })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // The ring fades in (`transition: box-shadow`), and Firefox applies the grid's container query
+    // a frame after the others, so it was read mid-fade there: measure the settled state.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const swatch = document.querySelector(
+              '.stage__aside .colourway-tab[aria-selected="true"] .colourway-tab__swatch',
+            )
+            return swatch
+              ? swatch.getAnimations().length === 0 &&
+                  /0px 0px 0px 4px/.test(getComputedStyle(swatch).boxShadow)
+              : false
+          }),
+        { message: 'the chosen dot never settled with its ring' },
+      )
+      .toBe(true)
+    const m = await page.evaluate(() => {
+      const tabs = [...document.querySelectorAll<HTMLElement>('.stage__aside .colourway-tab')]
+      return tabs.map((tab) => {
+        const box = tab.getBoundingClientRect()
+        const swatch = tab.querySelector('.colourway-tab__swatch') as HTMLElement
+        return {
+          top: Math.round(box.top),
+          height: Math.round(box.height),
+          selected: tab.getAttribute('aria-selected') === 'true',
+          // The ring is the shadow with a 4px spread. Engines write its colour first (Chromium) or
+          // last (Firefox), so the offsets and spread are what is matched.
+          ring: /0px 0px 0px 4px/.test(getComputedStyle(swatch).boxShadow),
+          named: (tab.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
+        }
+      })
+    })
+    const rows = [...new Set(m.map((tab) => tab.top))]
+    expect(
+      rows.map((top) => m.filter((tab) => tab.top === top).length),
+      'five colours are not 3 + 2',
+    ).toEqual([3, 2])
+    for (const tab of m) {
+      expect(tab.height, 'a cell under 44px').toBeGreaterThanOrEqual(44)
+      expect(tab.named, 'a dot without its name').toBe(true)
+      expect(
+        tab.ring,
+        `${tab.selected ? 'the chosen dot has no' : 'an unchosen dot has a'} ring`,
+      ).toBe(tab.selected)
+    }
+  })
+
+  test('four colours beside the garment are two rows of two, so none sits alone (D8)', async ({
+    page,
+  }) => {
+    await page.route('**/api/public/viewer/**', async (route) => {
+      const response = await route.fetch()
+      const body = (await response.json()) as { colourways?: unknown[] }
+      body.colourways = body.colourways?.slice(0, 4)
+      await route.fulfill({ response, json: body })
+    })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const perRow = await page.evaluate(() => {
+      const tops = [...document.querySelectorAll('.stage__aside .colourway-tab')].map((tab) =>
+        Math.round(tab.getBoundingClientRect().top),
+      )
+      return [...new Set(tops)].map((top) => tops.filter((t) => t === top).length)
+    })
+    expect(perRow).toEqual([2, 2])
+  })
+
   /**
-   * VA-32's list is ~180px taller than the dots, and from 1100px the side column also holds the
-   * product's name and description. Measured 2026-10-02 against the live catalogue, the list at
-   * 1280x800 and 1440x900 pushed Email and WhatsApp off the screen, so it shows only from 1080px
-   * of height (page.css). This walks the widths at exactly that height with copy LONGER than any
-   * live garment's: the 454-character description was the longest, and "THE KINETIC MATRIX
-   * JACKET" the longest name (25). The fixture's own copy is 145 characters and fits anywhere —
-   * against it this test could not fail.
+   * D8's names add a row of words under each row of dots, and the side column also holds the
+   * name, three lines of description and both buttons. Measured 2026-10-04 with the longest copy
+   * and these names, the column needs 614-625px of window in Chromium and Firefox and 617-638px in
+   * WebKit with the names, 549-602px without, so the names show from 656px of height (page.css).
+   * This walks the widths at exactly that height and one pixel under, with copy LONGER than any
+   * live garment's: against the fixture's own 145-character description it could not fail.
    */
-  test('the colour list leaves both contact buttons on screen at its shortest height (VA-32)', async ({
+  test('the names under the dots leave both contact buttons on screen at their shortest height (D8)', async ({
     page,
   }) => {
     test.setTimeout(180_000)
-    await serveGarment(page, LONGEST_COPY)
+    await serveGarment(page, { ...LONGEST_COPY, names: LONG_NAMES[0] })
     const gaps: string[] = []
-    for (const width of [900, 1000, 1099, 1100, 1150, 1200, 1279, 1280, 1366, 1440, 1920]) {
-      await page.setViewportSize({ width, height: 1080 })
+    for (const [width, height, named] of [
+      [1280, 656, true],
+      [1366, 656, true],
+      [1440, 656, true],
+      [1536, 656, true],
+      [1920, 656, true],
+      [2560, 656, true],
+      [1280, 655, false],
+      [1920, 655, false],
+      // A column under 350px keeps the dots, however tall the window.
+      [1024, 768, false],
+      [1180, 820, false],
+    ] as const) {
+      await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       const seen = await page.evaluate(contactOnScreen)
-      if (!seen.listed) gaps.push(`${width}px: the colours are not a list here`)
-      if (!seen.email) gaps.push(`${width}px: no email control on screen`)
-      if (!seen.whatsapp) gaps.push(`${width}px: no WhatsApp control on screen`)
+      const at = `${width}x${height}`
+      if (seen.listed !== named) {
+        gaps.push(`${at}: the names are ${seen.listed ? '' : 'not '}under the dots`)
+      }
+      if (!seen.email) gaps.push(`${at}: no email control on screen`)
+      if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen`)
     }
     expect(gaps).toEqual([])
   })
 })
 
 /**
- * VA-60 (visual audit, owner decision 2026-10-02): live descriptions run to 454 characters, and
- * the side column's old floor (1100 x 720) had been measured with the fixture's 145. From 1100
- * to 1280px wide and 720 to 800px tall those garments put Email and WhatsApp below the screen —
- * at 1100x799 by 8px. The description now goes beside the garment only where copy longer than
- * any live garment's still leaves both on screen (useIdentityInAside.ts has the per-engine
- * table), and under it otherwise. This walks each step of that floor and the pixel below it.
+ * POLISH D8 (owner-approved 2026-10-04): the name and description beside the garment on every
+ * computer, the description at three lines with "Read more". From 2 Oct (VA-60) they went beside
+ * it only in a window 800-880px tall, because live descriptions run to 454 characters and pushed
+ * Email and WhatsApp below a shorter screen; the three lines bound the column instead. Measured
+ * with the longest copy and names (useIdentityInAside.ts has the per-engine table), the column
+ * needs 549-602px of window, so the floor is 620px. This walks every width at the floor and one
+ * pixel under it, the two commonest laptop windows by name, and the layouts either side.
  */
-test.describe('the longest description never pushes the contact buttons off screen (VA-60)', () => {
-  test('at each step of the side-column floor, and one pixel below it', async ({ page }) => {
+test.describe('the longest copy never pushes the contact buttons off screen (D8)', () => {
+  test('beside the garment from 1024px wide and 620px tall, and under it one pixel shorter', async ({
+    page,
+  }) => {
     test.setTimeout(180_000)
-    await serveGarment(page, LONGEST_COPY)
+    await serveGarment(page, {
+      ...LONGEST_COPY,
+      names: [
+        'Terracotta / Blush',
+        'Bottle Green / Mint',
+        'Tangerine',
+        'Turquoise',
+        'Magenta / Burgundy',
+      ],
+    })
     const gaps: string[] = []
     for (const [width, height, beside] of [
-      [1100, 880, true],
-      [1150, 880, true],
-      [1200, 880, true],
-      [1279, 880, true],
-      [1100, 879, false],
-      [1279, 879, false],
-      [1280, 800, true],
-      [1366, 800, true],
-      [1440, 800, true],
-      [1920, 800, true],
-      [1280, 799, false],
-      [1920, 799, false],
-      // Where the old 1100 x 720 floor put it beside the garment and the buttons went under.
-      [1100, 800, false],
-      [1280, 760, false],
+      [1024, 620, true],
+      [1100, 620, true],
+      [1180, 620, true],
+      [1280, 620, true],
+      [1366, 620, true],
+      [1440, 620, true],
+      [1920, 620, true],
+      [2560, 620, true],
+      [1024, 619, false],
+      [1280, 619, false],
+      [1920, 619, false],
+      // 1366x768 and 1280x720 laptop screens, less the browser's own bars.
+      [1366, 657, true],
+      [1280, 633, true],
+      // Upright, never beside (F11); and from 900 to 1023px wide the name stays under it.
+      [1024, 1366, false],
+      [960, 700, false],
     ] as const) {
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
@@ -3123,6 +3237,69 @@ test.describe('the longest description never pushes the contact buttons off scre
       if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen`)
     }
     expect(gaps).toEqual([])
+  })
+})
+
+/**
+ * "READ MORE" (polish D8, owner-approved 2026-10-04): beside the garment the description stops at
+ * three lines (ProductIdentity.tsx), which is what bounds the column above. The button shows only
+ * when there is more to read, the whole text stays in the page for a screen reader while closed,
+ * and under the garment, where nothing needs bounding, the description is whole.
+ */
+test.describe('the description beside the garment opens with Read more (D8)', () => {
+  const lines = (statement: import('@playwright/test').Locator) =>
+    statement.evaluate((el) =>
+      Math.round(
+        el.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(el).lineHeight),
+      ),
+    )
+
+  test('a long description shows three lines, and opens and closes in full', async ({ page }) => {
+    await serveGarment(page, LONGEST_COPY)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const statement = page.locator('.product-info--aside .product-info__statement')
+    const more = page.getByRole('button', { name: 'Read more' })
+    await expect(more).toHaveAttribute('aria-expanded', 'false')
+    expect(await lines(statement)).toBe(3)
+    // The clipped lines are still text in the page, for a screen reader and for search.
+    await expect(statement).toContainText('rain, grit and cold.')
+    const box = await more.boundingBox()
+    expect(
+      box?.height ?? 0,
+      'Read more is under the 24px WCAG 2.5.8 target',
+    ).toBeGreaterThanOrEqual(24)
+
+    await more.click()
+    const less = page.getByRole('button', { name: 'Read less' })
+    await expect(less).toHaveAttribute('aria-expanded', 'true')
+    expect(await lines(statement)).toBeGreaterThan(3)
+
+    await less.click()
+    await expect(page.getByRole('button', { name: 'Read more' })).toBeVisible()
+    expect(await lines(statement)).toBe(3)
+  })
+
+  test('a description that fits in three lines has no Read more (the control)', async ({
+    page,
+  }) => {
+    await serveGarment(page, { shortDescription: 'A short description that fits on one line.' })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.getByTestId('product-identity-aside')).toHaveCount(1)
+    await expect(page.locator('.product-info__more')).toHaveCount(0)
+  })
+
+  test('under the garment the description is whole, with no Read more', async ({ page }) => {
+    await serveGarment(page, LONGEST_COPY)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.product-info__more')).toHaveCount(0)
+    await expect(page.locator('.product-info__statement[data-clamped]')).toHaveCount(0)
+    expect(await lines(page.locator('.product-info__statement'))).toBeGreaterThan(3)
   })
 })
 
@@ -3359,11 +3536,14 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
 
   /**
    * LA-15: the pinned chrome never sits over content. The bar is sticky at the top and the
-   * action bar is fixed at the bottom below 900px; each can hide content only if the page
-   * forgets to reserve room for it. Top: at rest, <main> starts where the bar ends. Bottom:
-   * the footer's last pixel is reachable above the action bar, in DOCUMENT space
-   * (`bottom + scrollY <= documentHeight - barHeight`) with no scroll in the measurement,
-   * because a check that scrolls first measures the scroll (e2e-scroll-not-layout).
+   * action bar is fixed at the bottom below 900px. Top: at rest, <main> starts where the bar
+   * ends. Bottom: until polish M2 (2026-10-04) the page reserved the action bar's height under
+   * the footer, and this checked the footer's last pixel was reachable above the bar. Since M2
+   * the bar steps aside while any of the footer is above it (lib/actionBarStepsAside.ts) and the
+   * page ends AT the footer, so those two are asserted: the footer ends the document, in
+   * DOCUMENT space with no scroll in the measurement, because a check that scrolls first
+   * measures the scroll (e2e-scroll-not-layout); and scrolled to the end, the bar has gone,
+   * re-scrolled on each poll for the same reason.
    */
   for (const [width, height] of [
     [320, 640],
@@ -3376,11 +3556,9 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       // Measured 2026-09-25: read straight after the heading, the bar was still in the
-      // fallback font (74.25px) while the reserve sat on its 4.5rem floor, so the footer's
-      // bottom padding read 2.7px under it. Once the webfont swaps in, the bar is 73.6px and
-      // `--action-bar-h` (74px) follows it. A visitor never reaches the bottom inside that
-      // first instant, so measure the settled page: fonts in, then two frames for the
-      // ResizeObserver's write to land.
+      // fallback font (74.25px), against 73.6px once the webfont swapped in. A visitor never
+      // reaches the bottom inside that first instant, so measure the settled page: fonts in,
+      // then two frames for the ResizeObservers' writes to land.
       await page.evaluate(() =>
         document.fonts.ready.then(
           () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
@@ -3406,34 +3584,50 @@ test.describe('the page keeps its structure (LA-03, LA-11, LA-15)', () => {
         m.mainTop,
         `<main> starts under the bar: bar ends at ${m.headerBottom}, main starts at ${m.mainTop}`,
       ).toBeGreaterThanOrEqual((m.headerBottom ?? Number.POSITIVE_INFINITY) - 0.5)
-      const ceiling = m.documentHeight - m.barHeight
+      // One pixel of rounding: `scrollHeight` is an integer and the footer's edge is not.
       expect(
-        m.footerBottom,
-        `the footer ends under the action bar: footer bottom ${m.footerBottom}, ` +
-          `reachable ceiling ${ceiling} (document ${m.documentHeight} − bar ${m.barHeight})`,
-      ).toBeLessThanOrEqual(ceiling + 1)
+        Math.abs(m.documentHeight - m.footerBottom),
+        `the page runs on past the footer: footer bottom ${m.footerBottom}, ` +
+          `document ${m.documentHeight}`,
+      ).toBeLessThanOrEqual(1)
+      if (m.barHeight > 0) {
+        await expect
+          .poll(
+            async () => {
+              await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+              return page.evaluate(
+                () => getComputedStyle(document.querySelector('.action-bar') as Element).visibility,
+              )
+            },
+            {
+              message: `the action bar stayed over the footer at ${width}x${height}`,
+              timeout: 5_000,
+            },
+          )
+          .toBe('hidden')
+      }
     })
   }
 })
 
 /**
- * LA-16 — the four spec callouts are decoration around a GARMENT. When 3D cannot run
- * (Save-Data, no WebGL, a stalled download), the stage holds the notice instead, and the
+ * LA-16 — the facts in the window's corners frame a GARMENT. When 3D cannot run (Save-Data, no
+ * WebGL, a stalled download), the stage holds the picture and the notice instead, and the old
  * callouts were still drawn over the same box: measured 2026-09-25 before the fix, at five
- * widths from 1000px, see the PR. `Stage.tsx` now renders them only when `!fallback`, the
- * guard the cue and the camera controls already use. The same facts stay on the page in
- * `.spec-list`, so nothing is lost.
+ * widths from 1000px. Since polish D10 the corners are the facts' only copy on a computer, so
+ * App.tsx moves them under the stage while the stage has no garment ("the spec facts render
+ * once at every width" counts that), and `Stage.tsx` draws none over a failure state either way.
  */
-test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () => {
+test.describe('the corner facts never sit over the no-3D notice (LA-16)', () => {
   const WIDTHS = [1000, 1100, 1280, 1440, 1920] as const
   const measure = (page: Page) =>
     page.evaluate(() => {
       const failure = document.querySelector('.stage__failure')?.getBoundingClientRect()
-      const callouts = [...document.querySelectorAll('.stage__callouts .callout')]
+      const groups = [...document.querySelectorAll('.spec-groups--corners .spec-group')]
         .map((el) => el.getBoundingClientRect())
         .filter((r) => r.width > 0 && r.height > 0)
       const overlaps = failure
-        ? callouts.filter(
+        ? groups.filter(
             (r) =>
               r.left < failure.right &&
               failure.left < r.right &&
@@ -3441,7 +3635,7 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
               failure.top < r.bottom,
           ).length
         : 0
-      return { shown: callouts.length, overlaps }
+      return { shown: groups.length, overlaps }
     })
 
   for (const width of WIDTHS) {
@@ -3459,15 +3653,17 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
       await expect(page.locator('.stage__error:not([hidden])')).toBeVisible()
       const m = await measure(page)
       console.log(
-        `LA-16 fallback ${width}px: ${m.shown} callouts drawn, ${m.overlaps} over the notice`,
+        `LA-16 fallback ${width}px: ${m.shown} corner groups drawn, ${m.overlaps} over the notice`,
       )
-      expect(m.overlaps, `${m.overlaps} callouts sit over the no-3D notice`).toBe(0)
-      expect(m.shown, 'callouts are decoration around a garment that is not here').toBe(0)
+      expect(m.overlaps, `${m.overlaps} corner groups sit over the no-3D notice`).toBe(0)
+      expect(m.shown, 'the corners frame a garment that is not here').toBe(0)
     })
   }
 
-  test('with 3D available they still render at every width', async ({ page, browserName }) => {
-    for (const width of WIDTHS) {
+  // From 1024px: the corners follow the name and description beside the garment, which starts
+  // there (`IDENTITY_IN_ASIDE_QUERY`); at 1000px the facts are under the description.
+  test('with 3D available they render at every computer width', async ({ page, browserName }) => {
+    for (const width of [1024, ...WIDTHS.slice(1)]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -3479,7 +3675,7 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
        * out waiting for models to load. The cause is NOT established — no snapshot was kept,
        * this Mac cannot reproduce it (also tried inside CI's image, with the 3D library's
        * download delayed 3s), and in the code a fallback always shows the notice. So this
-       * waits up to 20s for callouts or the notice; a stage that shows neither now fails
+       * waits up to 20s for the corners or the notice; a stage that shows neither now fails
        * with "the stage never settled", which names the real question.
        */
       await expect
@@ -3487,10 +3683,10 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
           () =>
             page.evaluate(() => {
               if (document.querySelector('.stage__error:not([hidden])')) return 'fallback'
-              const drawn = [...document.querySelectorAll('.stage__callouts .callout')].filter(
-                (el) => el.getBoundingClientRect().width > 0,
-              ).length
-              return drawn > 0 ? 'callouts' : 'pending'
+              const drawn = [
+                ...document.querySelectorAll('.spec-groups--corners .spec-group'),
+              ].filter((el) => el.getBoundingClientRect().width > 0).length
+              return drawn > 0 ? 'corners' : 'pending'
             }),
           { message: `the stage never settled at ${width}px`, timeout: 20_000 },
         )
@@ -3498,7 +3694,7 @@ test.describe('the spec callouts never sit over the no-3D notice (LA-16)', () =>
       const fallback = await page.locator('.stage__error:not([hidden])').count()
       test.skip(fallback > 0, `${browserName}: no WebGL here, so there is no garment to frame`)
       const m = await measure(page)
-      expect(m.shown, `no callouts at ${width}px with 3D available`).toBe(4)
+      expect(m.shown, `not four corner groups at ${width}px with 3D available`).toBe(4)
     }
   })
 })
@@ -3702,8 +3898,10 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
    *
    * THREE SINCE 2026-10-02: the footer was the fourth, and its reveal went with it when these
    * pages took the website's footer (visual audit VA-31), which has never revealed on the site.
+   * FOUR AGAIN SINCE 2026-10-04: "More from this category" (polish S6) sits between customise
+   * and contact, the two sections that already reveal, and moves as they do.
    */
-  test('three blocks reveal, each by fading and rising', async ({ page }) => {
+  test('four blocks reveal, each by fading and rising', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -3715,7 +3913,12 @@ test.describe('the motion layer keeps its contracts (MO-03, MO-04, MO-17)', () =
           .map((p) => p.trim()),
       })),
     )
-    expect(inventory.map((r) => r.block).sort()).toEqual(['colourways', 'contact', 'customise'])
+    expect(inventory.map((r) => r.block).sort()).toEqual([
+      'colourways',
+      'contact',
+      'customise',
+      'related',
+    ])
     for (const r of inventory) {
       expect(r.properties, `${r.block} does not fade`).toContain('opacity')
       expect(r.properties, `${r.block} does not rise`).toContain('transform')

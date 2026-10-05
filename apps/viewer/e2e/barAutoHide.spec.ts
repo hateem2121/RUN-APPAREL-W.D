@@ -282,33 +282,21 @@ test.describe('on a desktop, the bar never leaves (VA-40)', () => {
 })
 
 /**
- * The hairline is in the shared bar stylesheet, so it is the bar on both hosts
- * (apps/cms/e2e/barEdge.spec.ts asks the website). Asked in the page the way a browser reports it:
- * the first shadow is a ring of 1px with no blur and no offset, over the soft shadow.
+ * The bar's edge is its soft shadow alone since polish D12 (2026-10-04, the owner's choice): VA-40's
+ * 1px hairline stopped where the curved corners begin and read as unfinished, so it went. It is in
+ * the shared bar stylesheet, so it is the bar on both hosts (apps/cms/e2e/barEdge.spec.ts asks the
+ * website). Asked in the page the way a browser reports it.
  */
-test.describe('the bar has a hairline (VA-40) — the garment pages', () => {
-  const alphaOf = (colour: string) => {
-    const slash = colour.match(/\/\s*([\d.]+)\s*\)/)
-    if (slash?.[1]) return Number(slash[1])
-    const numbers = colour.match(/[\d.]+/g) ?? []
-    return numbers.length > 3 ? Number(numbers[3]) : 1
-  }
-
-  for (const [scheme, alpha] of [
-    ['light', 0.22],
-    ['dark', 0.12],
-  ] as const) {
-    test(`${scheme}: a 1px ring over the soft shadow, paper at ${alpha * 100}%`, async ({
-      page,
-    }) => {
+test.describe('the bar’s edge is its soft shadow alone (polish D12) — the garment pages', () => {
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: one soft shadow, and no ring`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
       await openGarment(page)
       const shadow = await page.locator(BAR).evaluate((bar) => getComputedStyle(bar).boxShadow)
       const layers = shadow.split(/,(?![^(]*\))/).map((layer) => layer.trim())
-      expect(layers, `the bar's shadow is not two layers: ${shadow}`).toHaveLength(2)
-      expect(layers[0], 'the first layer is not a 1px ring').toMatch(/0px 0px 0px 1px/)
-      expect(layers[1], 'the soft shadow is gone').toMatch(/0px 8px 24px/)
-      expect(alphaOf(layers[0] ?? '')).toBeCloseTo(alpha, 2)
+      expect(layers, `the bar's shadow is not one layer: ${shadow}`).toHaveLength(1)
+      expect(layers[0], 'the soft shadow is gone').toMatch(/0px 8px 24px/)
+      expect(layers[0], 'a 1px ring is back').not.toMatch(/0px 0px 0px 1px/)
     })
   }
 })

@@ -1,7 +1,7 @@
 import type { ViewerApiSuccess, ViewerColourway, ViewerProduct } from '@run-apparel/shared'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProductIdentity } from './ProductIdentity'
 import { ProductPanel } from './ProductPanel'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -64,6 +64,19 @@ afterEach(() => {
   host.remove()
 })
 
+// Polish X27 (2026-10-04): a browser's Translate must not rename the garment or its code.
+describe('the garment name and code are never machine-translated', () => {
+  it('marks the heading and the code translate="no", and leaves the category word to translate', () => {
+    act(() =>
+      root.render(<ProductIdentity product={PRODUCT} selected={SELECTED} selectedIndex={0} />),
+    )
+    expect(host.querySelector('h1')?.getAttribute('translate')).toBe('no')
+    const marked = [...host.querySelectorAll('[translate="no"]')].map((el) => el.textContent)
+    expect(marked).toContain('N001')
+    expect(marked.some((text) => text?.includes('ATHLETIC'))).toBe(false)
+  })
+})
+
 describe('the product identity has exactly one home', () => {
   it('renders the chips, heading, description and colour note in the aside', () => {
     act(() =>
@@ -83,14 +96,20 @@ describe('the product identity has exactly one home', () => {
   it('renders the same fields in .content when the layout is one column', () => {
     act(() =>
       root.render(
-        <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity={true} />,
+        <ProductPanel
+          data={DATA}
+          selected={SELECTED}
+          selectedIndex={0}
+          showIdentity={true}
+          showSpecs={true}
+        />,
       ),
     )
     expect(host.querySelector('h1')?.id).toBe('product-heading')
-    expect(host.querySelector('.spec-list')).not.toBeNull()
+    expect(host.querySelector('.spec-groups')).not.toBeNull()
     // The single-column shape: identity and facts inside ONE section, sharing its
     // 16px gap rather than `.content`'s 32-64px grid gap.
-    expect(host.querySelector('.product-info .spec-list')).not.toBeNull()
+    expect(host.querySelector('.product-info .spec-groups')).not.toBeNull()
   })
 
   /**
@@ -101,16 +120,21 @@ describe('the product identity has exactly one home', () => {
   it('renders no heading in .content when the identity has moved to the aside', () => {
     act(() =>
       root.render(
-        <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity={false} />,
+        <ProductPanel
+          data={DATA}
+          selected={SELECTED}
+          selectedIndex={0}
+          showIdentity={false}
+          showSpecs={true}
+        />,
       ),
     )
     expect(host.querySelector('h1')).toBeNull()
     expect(host.querySelector('#product-heading')).toBeNull()
-    // No named-but-empty landmark either: above 1000px `.spec-list` is display:none,
-    // so a `.product-info` wrapper here would be a region announcing the product
-    // name and containing nothing at all.
+    // No named landmark either: a `.product-info` wrapper here would be a region announcing
+    // the product's name and holding only the facts (or, with them in the corners, nothing).
     expect(host.querySelector('.product-info')).toBeNull()
-    expect(host.querySelector('.spec-list')).not.toBeNull()
+    expect(host.querySelector('.spec-groups')).not.toBeNull()
   })
 
   it('falls back to the development-reference wording when there is no description', () => {
@@ -189,5 +213,91 @@ describe('the colour note re-announces itself on every switch', () => {
     )
 
     expect(host.querySelector('.product-info__colour')).toBe(first)
+  })
+})
+
+/**
+ * Polish D8 (2026-10-04): beside the garment the description stops at three lines with "Read
+ * more". jsdom lays nothing out, so the paragraph's overflow is stated here (its scrollHeight
+ * against its clientHeight); e2e/motion-and-layout.spec.ts measures it in real browsers.
+ */
+describe('Read more beside the garment (D8)', () => {
+  function overflowing(scroll: number, client: number): () => void {
+    const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(scroll)
+    const clientSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(client)
+    return () => {
+      scrollSpy.mockRestore()
+      clientSpy.mockRestore()
+    }
+  }
+
+  it('offers it when the text runs past three lines, and opens and closes', () => {
+    const restore = overflowing(200, 72)
+    try {
+      act(() =>
+        root.render(
+          <ProductIdentity
+            product={PRODUCT}
+            selected={SELECTED}
+            selectedIndex={0}
+            clampDescription
+          />,
+        ),
+      )
+      const paragraph = host.querySelector('.product-info__statement') as HTMLElement
+      const button = host.querySelector('.product-info__more') as HTMLButtonElement
+      expect(paragraph.hasAttribute('data-clamped')).toBe(true)
+      expect(button.textContent).toBe('Read more')
+      expect(button.getAttribute('aria-expanded')).toBe('false')
+      expect(button.getAttribute('aria-controls')).toBe(paragraph.id)
+
+      act(() => button.click())
+      expect(paragraph.hasAttribute('data-clamped')).toBe(false)
+      expect(button.textContent).toBe('Read less')
+      expect(button.getAttribute('aria-expanded')).toBe('true')
+
+      act(() => button.click())
+      expect(paragraph.hasAttribute('data-clamped')).toBe(true)
+      expect(button.textContent).toBe('Read more')
+    } finally {
+      restore()
+    }
+  })
+
+  it('offers nothing when the text fits in three lines (the control)', () => {
+    const restore = overflowing(72, 72)
+    try {
+      act(() =>
+        root.render(
+          <ProductIdentity
+            product={PRODUCT}
+            selected={SELECTED}
+            selectedIndex={0}
+            clampDescription
+          />,
+        ),
+      )
+      expect(host.querySelector('.product-info__statement')?.hasAttribute('data-clamped')).toBe(
+        true,
+      )
+      expect(host.querySelector('.product-info__more')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('never clamps the description under the garment', () => {
+    const restore = overflowing(200, 72)
+    try {
+      act(() =>
+        root.render(
+          <ProductPanel data={DATA} selected={SELECTED} selectedIndex={0} showIdentity showSpecs />,
+        ),
+      )
+      expect(host.querySelector('[data-clamped]')).toBeNull()
+      expect(host.querySelector('.product-info__more')).toBeNull()
+    } finally {
+      restore()
+    }
   })
 })

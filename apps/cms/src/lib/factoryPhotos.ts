@@ -30,23 +30,40 @@ export type FactoryPhoto = {
   alt: string
   caption: string
   /**
-   * Where the subject sits when the timeline cuts this picture to a square, as `[across, down]`
-   * percentages for `object-position` — set only on the eight pictures the timeline draws.
+   * Where the subject sits when an order step's card cuts this picture (`OrderSteps.tsx`), as
+   * `[across, down]` percentages for `object-position` — set only on the eight pictures the steps
+   * draw.
    *
-   * ⚠️ ONE AXIS DOES THE WORK (visual audit VA-29, chosen by looking at each file 2026-10-02). In
-   * a square, `object-fit: cover` shows a `wide` file at full height and 62.5% of its width, and a
-   * `single` file at full width and 80% of its height, so a wide picture moves only across and a
-   * tall one only down; the other number is 50 and changes nothing. The page's scroll drift
-   * (`.photo-parallax`, scale 1.12) takes a further 6% off every edge of what is kept, so the
-   * subject is set in the middle of the kept part, not against its edge.
+   * ⚠️ CHOSEN FOR A SQUARE, ONE AXIS AT A TIME (visual audit VA-29, by looking at each file
+   * 2026-10-02). In the timeline's square a `wide` file kept its full height and a `single` file
+   * its full width, so a wide picture moved only across and a tall one only down, and the other
+   * number is 50. Since polish D4 (2026-10-05) the cut is the card's: about square on a phone and
+   * wider than tall from 560px, where a tall file shows a band of its height and `down` decides
+   * which band. The eight were looked at again in the cards on 2026-10-05 and kept.
    */
   focus?: readonly [x: number, y: number]
+  /**
+   * Set only where the original is narrower than the shape's widest file: the widths this photo's
+   * original holds (never an upscale; `scripts/build-factory-photos.mjs` records each original's size).
+   */
+  widths?: readonly number[]
 }
 
-/** Widths written per shape (1× and 2×); the height follows from the file's ratio. */
-export const FACTORY_PHOTO_WIDTHS: Record<FactoryPhotoShape, readonly [number, number]> = {
-  wide: [640, 1200],
-  single: [400, 800],
+/**
+ * Widths written per shape; the height follows from the file's ratio.
+ *
+ * ⚠️ SIZED FOR SHARP SCREENS AT THE WIDEST EACH PHOTO IS DRAWN (polish X16, 2026-10-05). Until then
+ * the files stopped at 1,200 (wide) and 800 (tall), and the audit of 3 October measured the step
+ * photos 1.4 times stretched on a sharp laptop. Since polish D4 a step card is up to 704 px wide
+ * (`ORDER_STEP_SIZES`, as №01's photos, `HALF_COLUMN_SIZES`) and 753 px on an 834 px tablet, so a 2x
+ * screen asks for up to 1,408 and 1,506 px. Wide files add 1,600. Tall files add 1,536, the
+ * width two of their originals stop at, and 1,200 for 3x phones (a 350-390 px card asks 1,050-1,167),
+ * which would otherwise skip from 800 to the 1,536 file. `src/factoryPhotos.test.ts` picks each
+ * screen's file the way the browsers do and fails on a photo left short.
+ */
+export const FACTORY_PHOTO_WIDTHS: Record<FactoryPhotoShape, readonly number[]> = {
+  wide: [640, 1200, 1600],
+  single: [400, 800, 1200, 1536],
 }
 
 export const FACTORY_PHOTO_ASPECT: Record<FactoryPhotoShape, number> = {
@@ -112,6 +129,8 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
     shape: 'wide',
     // Both hands and the tag gun.
     focus: [55, 50],
+    // Its original is 1,280 x 896, so the 1,600 file would be an upscale: a 2x laptop asks 1,248-1,408 (X16).
+    widths: [640, 1200],
     alt: 'Hands fastening a tag to navy pants with a tag gun.',
     caption: 'Tagging',
   },
@@ -128,6 +147,8 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
     shape: 'single',
     // The sewn label and the gloved hands; the top of the glove is the part given up.
     focus: [50, 20],
+    // Its original's 4:5 crop is 1,245 px wide, so no 1,536 file: a 2x laptop asks 1,248-1,408 (X16).
+    widths: [400, 800, 1200],
     alt: 'A gloved hand slides a black T-shirt with a RUN label into a clear bag.',
     caption: 'Packing',
   },
@@ -200,4 +221,30 @@ export function contactHeroSrc(
 /** `/factory/<slug>-<width>.webp`, the path `public/` serves it at. */
 export function factoryPhotoSrc(photo: FactoryPhoto, width: number): string {
   return `/factory/${photo.slug}-${width}.webp`
+}
+
+/** The widths written for `photo`: its shape's, or its own where the original stops short. */
+export function factoryPhotoWidths(photo: FactoryPhoto): readonly number[] {
+  return photo.widths ?? FACTORY_PHOTO_WIDTHS[photo.shape]
+}
+
+/**
+ * What an `<img>` of `photo` carries: every width to choose from, and the smallest as `src` and as
+ * the reserved size (only its ratio matters there). The page names the `sizes`, as only the page
+ * knows how wide it draws the photo.
+ */
+export function factoryPhotoImage(photo: FactoryPhoto): {
+  src: string
+  srcSet: string
+  width: number
+  height: number
+} {
+  const widths = factoryPhotoWidths(photo)
+  const smallest = widths[0] ?? FACTORY_PHOTO_WIDTHS[photo.shape][0] ?? 0
+  return {
+    src: factoryPhotoSrc(photo, smallest),
+    srcSet: widths.map((width) => `${factoryPhotoSrc(photo, width)} ${width}w`).join(', '),
+    width: smallest,
+    height: Math.round(smallest / FACTORY_PHOTO_ASPECT[photo.shape]),
+  }
 }

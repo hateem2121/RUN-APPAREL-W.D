@@ -1,4 +1,5 @@
 import { canonicalHrefs } from '../../../scripts/canonical-tags.mjs'
+import { PUBLIC_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { THEME_COLOR } from '../src/lib/themeColor'
 import { expect, test } from './offlineMedia'
 
@@ -20,6 +21,20 @@ const PAGES = [
 
 /** The head, as a crawler that does not run scripts sees it. */
 const headOf = (html: string) => html.slice(0, html.indexOf('</head>') + 1)
+
+/*
+ * Polish F18 (2026-10-04): at 71 characters Google cut the products title to "…RUN APPA…". It
+ * shows about 60 (Google's own guidance names no limit and truncates "to fit the device width",
+ * read 2026-10-04), so the brand the layout adds at the end must fit inside them.
+ */
+test('the products title fits a search result: 60 characters or fewer, brand included (F18)', async ({
+  request,
+}) => {
+  const head = headOf(await (await request.get('/products')).text())
+  const title = (head.match(/<title>([^<]*)<\/title>/)?.[1] ?? '').replace(/&amp;/g, '&')
+  expect(title, 'the brand fell off the end').toMatch(/— RUN APPAREL$/)
+  expect([...title].length, title).toBeLessThanOrEqual(60)
+})
 
 test.describe('FA-N-04 — every page names itself', () => {
   /**
@@ -81,17 +96,17 @@ test.describe('FA-N-04 — every page names itself', () => {
     })
   }
 
-  test('a family-filtered products view still fits a search result', async ({ request }) => {
-    const response = await request.get('/products?family=teamwear-uniforms')
-    expect(response.status()).toBe(200)
-    const head = headOf(await response.text())
-    const description =
-      head.match(/<meta name="description" content="([^"]*)"/)?.[1] ??
-      head.match(/<meta content="([^"]*)" name="description"/)?.[1] ??
-      ''
-    const shown = description.replace(/&amp;/g, '&')
-    expect(shown).toContain('Teamwear & Uniforms from RUN APPAREL.')
-    expect(shown.length).toBeLessThanOrEqual(160)
+  // The family-filtered views had their own titles and descriptions until polish S3 (2026-10-05):
+  // their addresses forward to the families' own pages now (e2e/oneListPerFamily.spec.ts), so a
+  // search engine consolidates each onto the page that lists the family.
+  test('a family-filter address is no page of its own: it forwards, permanently', async ({
+    request,
+  }) => {
+    const response = await request.get('/products?family=teamwear-uniforms', { maxRedirects: 0 })
+    expect(response.status()).toBe(308)
+    expect(new URL(response.headers().location ?? '', 'http://localhost').pathname).toBe(
+      '/custom-teamwear-manufacturer',
+    )
   })
 })
 
@@ -155,39 +170,65 @@ test.describe('FA-N-07 — the social card resolves and is the right size', () =
    * either one can move alone. A card whose declared dimensions do not match the file is
    * cropped or letterboxed by every platform, and the person who replaces the artwork is
    * not the person who wrote the meta tags.
+   *
+   * Since polish X14 (2026-10-05) every page type shares its own JPEG under `/share/`, so this
+   * asks every public page, and the declared type is held to the file's too.
    */
-  test('the file is there, is a PNG, and is 1200 x 630 as declared', async ({ page, request }) => {
-    await page.goto('/')
-    const declared = await page.evaluate(() => ({
-      url: document.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? '',
-      width: document.querySelector('meta[property="og:image:width"]')?.getAttribute('content'),
-      height: document.querySelector('meta[property="og:image:height"]')?.getAttribute('content'),
-      alt: document.querySelector('meta[property="og:image:alt"]')?.getAttribute('content'),
-    }))
-    expect(declared.url, 'no og:image at all').toMatch(/^https?:\/\//)
-    expect(declared.alt, 'the card has no alt text').toBeTruthy()
+  for (const path of PUBLIC_PAGE_SOURCES) {
+    test(`${path}: its card is there, a JPEG, and 1200 x 630 as declared`, async ({
+      page,
+      request,
+    }) => {
+      await page.goto(path)
+      const declared = await page.evaluate(() => {
+        const meta = (key: string) =>
+          document
+            .querySelector(`meta[property="${key}"], meta[name="${key}"]`)
+            ?.getAttribute('content') ?? ''
+        return {
+          url: meta('og:image'),
+          width: meta('og:image:width'),
+          height: meta('og:image:height'),
+          type: meta('og:image:type'),
+          alt: meta('og:image:alt'),
+          twitter: meta('twitter:image'),
+          twitterAlt: meta('twitter:image:alt'),
+        }
+      })
+      expect(declared.url, 'no og:image at all').toMatch(
+        /^https?:\/\/[^/]+\/share\/[a-z0-9-]+\.jpg$/,
+      )
+      expect(declared.alt, 'the card has no alt text').toBeTruthy()
+      expect(declared.twitter, 'X is shown another picture').toBe(declared.url)
+      expect(declared.twitterAlt, 'X is told another alt text').toBe(declared.alt)
 
-    /*
-     * ⚠️ THE PATH IS FETCHED FROM THIS SERVER, NOT THE DECLARED ABSOLUTE URL. The tag
-     * correctly names the production origin, which this fixture is not; fetching it would
-     * make the gate depend on the live site being up, and CI has already learned that a
-     * `wear-run.help` fetch from a runner can 403 for reasons that are not a defect.
-     */
-    const response = await request.get(new URL(declared.url).pathname)
-    expect(response.status(), `${declared.url} does not resolve on this origin`).toBe(200)
-    expect(response.headers()['content-type']).toContain('image/png')
+      /*
+       * ⚠️ THE PATH IS FETCHED FROM THIS SERVER, NOT THE DECLARED ABSOLUTE URL. The tag
+       * correctly names the production origin, which this fixture is not; fetching it would
+       * make the gate depend on the live site being up, and CI has already learned that a
+       * `wear-run.help` fetch from a runner can 403 for reasons that are not a defect.
+       */
+      const response = await request.get(new URL(declared.url).pathname)
+      expect(response.status(), `${declared.url} does not resolve on this origin`).toBe(200)
+      expect(response.headers()['content-type']).toContain('image/jpeg')
+      expect(declared.type, 'og:image:type disagrees with the file').toBe('image/jpeg')
 
-    // PNG IHDR: width and height are big-endian uint32 at byte offsets 16 and 20.
-    const bytes = await response.body()
-    const width = bytes.readUInt32BE(16)
-    const height = bytes.readUInt32BE(20)
-    expect({ width, height }, 'the social card is no longer 1200 x 630').toEqual({
-      width: 1200,
-      height: 630,
+      // JPEG frame header (SOF0-SOF15, less DHT, JPG and DAC): height then width, big-endian.
+      const bytes = await response.body()
+      let size: { width: number; height: number } | null = null
+      for (let at = 2; at + 9 < bytes.length && bytes[at] === 0xff; ) {
+        const marker = bytes[at + 1] ?? 0
+        if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+          size = { height: bytes.readUInt16BE(at + 5), width: bytes.readUInt16BE(at + 7) }
+          break
+        }
+        at += 2 + bytes.readUInt16BE(at + 2)
+      }
+      expect(size, 'the social card is no longer 1200 x 630').toEqual({ width: 1200, height: 630 })
+      expect(Number(declared.width), 'og:image:width disagrees with the file').toBe(size?.width)
+      expect(Number(declared.height), 'og:image:height disagrees with the file').toBe(size?.height)
     })
-    expect(Number(declared.width), 'og:image:width disagrees with the file').toBe(width)
-    expect(Number(declared.height), 'og:image:height disagrees with the file').toBe(height)
-  })
+  }
 })
 
 test.describe('FA-N-08 — the structured data parses and says what it should', () => {
@@ -314,8 +355,9 @@ test.describe('FA-P-02 / FA-W-04 — the pages work with scripting off', () => {
     const tab = page.locator('.site-footer__tab')
     await expect(tab).toHaveAttribute('href', /\/contact$|^mailto:/)
 
-    // and a link out of the home page navigates for real
-    await page.locator('a.btn', { hasText: /3D references/i }).click()
+    // and a link out of the home page navigates for real: the hero's way to the 3D garments, named
+    // "Browse in 3D" since polish X20 ("See the 3D references" until then)
+    await page.locator('.site-hero a.btn', { hasText: /^Browse in 3D$/ }).click()
     await expect(page).toHaveURL(/\/products$/)
     await expect(page.locator('h1')).toHaveCount(1)
   })
@@ -419,7 +461,9 @@ test.describe('FA-N-16 / FA-N-17 — the machine-readable files are served as te
   test('llms.txt names the garment pages and states the real capacity', async ({ request }) => {
     const body = await (await request.get('/llms.txt')).text()
     expect(body).toContain('100,000')
-    expect(body).toContain('/products?family=outerwear')
+    // Each family by its one list since polish S1, never the filter address that now forwards.
+    expect(body).toContain('/custom-outerwear-manufacturer')
+    expect(body).not.toContain('?family=')
     // One host since the domain move (2026-09-28): the garment pages are this site's own.
     expect(body).toContain('/products/<product-code>/<colorway>')
     expect(body).not.toContain('viewer.wear-run.help')

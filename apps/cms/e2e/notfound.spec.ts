@@ -132,6 +132,23 @@ test.describe('the branded 404', () => {
     await expect(page).toHaveURL(/\/products$/)
     await expect(page.locator('h1')).toContainText(/Every garment/i)
   })
+
+  // Polish F6 (2026-10-04): built outside every layout, it missed the site's tab title, its pointer
+  // and its smooth scroll. Both of those stay off under automation, so the flag is lifted here.
+  test('is the same site: the site name in its title, the dot pointer and the smooth scroll', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    })
+    await page.goto('/definitely-not-a-page')
+    await expect(page).toHaveTitle('Page not found — RUN APPAREL')
+    await expect(page.locator('html')).toHaveClass(/\blenis\b/)
+    await page.mouse.move(200, 200)
+    await page.mouse.move(240, 260)
+    await expect(page.locator('html')).toHaveClass(/\bhas-custom-cursor\b/)
+  })
 })
 
 test.describe('the 404 shadows nothing', () => {
@@ -150,6 +167,8 @@ test.describe('the 404 shadows nothing', () => {
     { path: '/robots.txt', label: 'robots.txt', status: 200 },
     { path: '/sitemap.xml', label: 'sitemap.xml', status: 200 },
     { path: '/og-default.png', label: 'the social card', status: 200 },
+    // Each page type's own card since polish X14; the old one above stays for links already shared.
+    { path: '/share/home.jpg', label: 'the home page’s share picture', status: 200 },
     { path: '/icon.svg', label: 'the fallback tab icon', status: 200 },
     /*
      * ⚠️ MEASURED 404 ON THE LIVE SITE, 2026-09-16, both of them:

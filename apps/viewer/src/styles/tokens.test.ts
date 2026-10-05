@@ -674,8 +674,9 @@ describe('raw values in component stylesheets', () => {
       selector: '.site-hero .display--hero',
       value: 'clamp(min(2.125rem, 9.6vw), 5.4vw, 4.5rem)',
     },
-    // The footer's rules moved from site.css to the shared footer.css on 2026-10-02 (VA-31).
-    { file: 'footer.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
+    // The footer's rules moved from site.css to the shared footer.css on 2026-10-02 (VA-31); the
+    // question's, with the rest of the website-only prompt, to footer-prompt.css (polish D1).
+    { file: 'footer-prompt.css', selector: '.footer-q', value: 'clamp(27px, 4.3vw, 52px)' },
     // VA-12 (2026-10-02): from 1920px the hero and the section headline keep growing, each in a
     // `@media (min-width: 1920px)` rule that starts at its old ceiling (72px, 46px) and stops at
     // 144px and 92px at 3840px. The five above are untouched; these three are added, and
@@ -698,6 +699,14 @@ describe('raw values in component stylesheets', () => {
     {
       file: 'site.css',
       selector: '.product-card__body .product-card__name',
+      value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
+    },
+    // The same rule on a garment page's "More from this category" cards (polish S6, 2026-10-04),
+    // two to a row on a phone like the website's: `e2e/related.spec.ts` sets the catalogue's long
+    // words in them at five phone widths, with a negative control at a fixed 18px.
+    {
+      file: 'related-cards.css',
+      selector: '.related__body .related__name',
       value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
     },
   ] as const
@@ -993,6 +1002,7 @@ describe('text on the --wash surface', () => {
       'base.css',
       'notch.css',
       'footer.css',
+      'footer-prompt.css',
       'page.css',
       'site.css',
     ].flatMap((file) => washTextFailures(readFileSync(cssPath(file), 'utf8'), tokensSource, file))
@@ -1468,11 +1478,13 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         'tokens.css :root[data-theme]: light',
         // The site's photo hero (owner, 2026-09-29): text on a photograph's ink in BOTH themes.
         // It shared this rule with the photo lightbox until 2026-10-02, when the lightbox went
-        // with the factory strip (visual audit VA-29), so the scanner now names `.site-hero--photo`.
-        'site.css .site-hero--photo: dark',
-        // ...and on paper it goes light like every page (VA-04, found 2026-10-02 when the film made
-        // /products a photo hero): its re-declared dark colours were out of the paper rule's reach.
-        'site.css .site-hero--photo: light',
+        // with the factory strip (visual audit VA-29). Since polish D4 (2026-10-05) it shares it
+        // with the order steps' photo cards, and the scanner names the selector nearest the brace,
+        // `.order-step`.
+        'site.css .order-step: dark',
+        // ...and on paper they go light like every page (VA-04, found 2026-10-02 when the film made
+        // /products a photo hero): their re-declared dark colours were out of the paper rule's reach.
+        'site.css .order-step: light',
       ].sort(),
     )
   })
@@ -1671,16 +1683,21 @@ describe('CO-08 — every literal colour is on the palette, or a named exception
   })
 })
 
-describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Inter, no Space Grotesk', () => {
+describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for labels; no Inter, no Space Grotesk', () => {
   /*
-   * The two faces the brand is set in, the system monospace stack for labels, and the
-   * generic families each stack ends on. Every OTHER family a stylesheet names must be a
-   * metric-matched stand-in declared with `@font-face` in these same files and built from
+   * The two faces the brand is set in, IBM Plex Mono for the code-style labels (the owner's Q39,
+   * polish X5, 2026-10-04; until then each device's own monospace), the system monospace stack
+   * behind it, and the generic families each stack ends on. Every OTHER family a stylesheet names
+   * must be a metric-matched stand-in declared with `@font-face` in these same files and built from
    * `local()` fonts only — it downloads nothing and exists to stop layout shift
    * (docs/DESIGN.md §3). The fonts an AI-generated page reaches for by default are named
    * separately so a failure says what went wrong, not just that something did.
    */
-  const BRAND = ['Archivo Variable', 'Archivo', 'Instrument Serif']
+  const BRAND = ['Archivo Variable', 'Archivo', 'Instrument Serif', 'IBM Plex Mono']
+  /** Brand faces a stylesheet declares itself, and the only package each may load files from. */
+  const BRAND_FILES: Record<string, RegExp> = {
+    'IBM Plex Mono': /^\s*url\("@fontsource\/ibm-plex-mono\/files\/ibm-plex-mono-[\w-]+\.woff2"\)/,
+  }
   /*
    * The brand faces again, with `font-display: optional` (site.css, owner decision 2026-10-01):
    * body text and the guide headlines never swap fonts mid-visit. Same files as the brand
@@ -1700,8 +1717,9 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Int
     'serif',
     'Georgia',
   ]
+  // `IBM Plex` but not IBM Plex Mono, which the owner chose for the labels (Q39).
   const AI_DEFAULTS =
-    /\b(?:Inter|Space Grotesk|Roboto|Poppins|Montserrat|Open Sans|Lato|Geist|DM Sans|Manrope|Plus Jakarta Sans|Outfit|IBM Plex)\b/i
+    /\b(?:Inter|Space Grotesk|Roboto|Poppins|Montserrat|Open Sans|Lato|Geist|DM Sans|Manrope|Plus Jakarta Sans|Outfit|IBM Plex(?! Mono\b))\b/i
 
   const familiesOf = (value: string) =>
     value
@@ -1747,6 +1765,15 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Int
       }
     }
     for (const [family, src] of faces) {
+      const brandFiles = BRAND_FILES[family]
+      if (brandFiles) {
+        if (!brandFiles.test(src)) {
+          offenders.push(
+            `@font-face "${family}" loads something other than its own package's files`,
+          )
+        }
+        continue
+      }
       if (NO_SWAP_COPIES.includes(family)) {
         // A copy may load only the brand's own fontsource files, never a new webfont.
         if (
@@ -1760,26 +1787,33 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Int
         offenders.push(`@font-face "${family}" downloads a file — a stand-in must be local() only`)
       }
     }
-    expect(offenders, 'docs/DESIGN.md §3: two families plus a system mono stack.').toEqual([])
+    expect(
+      offenders,
+      'docs/DESIGN.md §3: two families and IBM Plex Mono, plus the system mono stack.',
+    ).toEqual([])
   })
 
   it('each stack starts with its brand face, wherever it is redefined', () => {
     const first = new Map<string, Set<string>>()
     for (const { source } of cssFiles()) {
-      for (const match of source.matchAll(/(--font-(?:display|body|serif))\s*:\s*([^;{}]+)[;}]/g)) {
+      for (const match of source.matchAll(
+        /(--font-(?:display|body|serif|mono))\s*:\s*([^;{}]+)[;}]/g,
+      )) {
         const token = match[1] ?? ''
         first.set(token, (first.get(token) ?? new Set()).add(familiesOf(match[2] ?? '')[0] ?? ''))
       }
     }
-    // The brand face, or its no-swap copy where text must never move (site.css, 2026-10-01).
+    // The brand face, or its no-swap copy where text must never move (site.css, 2026-10-01): since
+    // polish D11 (2026-10-04) only the four headlines that re-wrap keep the copy; body text swaps.
     expect(Object.fromEntries([...first].map(([token, set]) => [token, [...set].sort()]))).toEqual({
       '--font-display': ['Archivo Optional', 'Archivo Variable'],
-      '--font-body': ['Archivo Optional', 'Archivo Variable'],
+      '--font-body': ['Archivo Variable'],
       '--font-serif': ['Instrument Serif', 'Instrument Serif Optional'],
+      '--font-mono': ['IBM Plex Mono'],
     })
   })
 
-  it('the only webfonts either app installs or imports are Archivo and Instrument Serif', () => {
+  it('the only webfonts either app installs or imports are Archivo, Instrument Serif and IBM Plex Mono', () => {
     const imported = new Set<string>()
     const entries = [
       join(REPO_ROOT, 'apps', 'viewer', 'src', 'main.tsx'),
@@ -1803,6 +1837,6 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and a system mono; no Int
         if (match?.[1]) imported.add(match[1])
       }
     }
-    expect([...imported].sort()).toEqual(['archivo', 'instrument-serif'])
+    expect([...imported].sort()).toEqual(['archivo', 'ibm-plex-mono', 'instrument-serif'])
   })
 })

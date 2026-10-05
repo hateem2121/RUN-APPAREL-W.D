@@ -31,7 +31,7 @@ export function GuideCard({ guide }: { guide: Guide }) {
       </h2>
       <p className="product-card__desc">{guide.description}</p>
       <span className="guide-card__cue" aria-hidden="true">
-        Read this guide
+        Read this guide <b>→</b>
       </span>
     </li>
   )

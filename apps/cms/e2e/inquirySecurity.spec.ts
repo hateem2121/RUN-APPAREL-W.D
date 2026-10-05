@@ -343,7 +343,7 @@ test.describe('AC-12 — contact-form fields carry a real label and sensible aut
     // organization-title, country-name, tel-country-code, tel-national.
     const missingAutocomplete = fields.filter(
       (f) =>
-        !['website', 'message', 'subject', 'files'].includes(f.name) &&
+        !['website', 'message', 'subject', 'subjectOther', 'files'].includes(f.name) &&
         (!f.autocomplete || f.autocomplete === 'off'),
     )
     expect(

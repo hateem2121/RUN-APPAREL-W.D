@@ -1648,8 +1648,10 @@ now fetches every colourway's poster after a deploy and fails on one that is not
 
 Since 2026-09-29 the /products cards show card-sized copies of each picture, resized by
 Cloudflare on the page's own address (`/cdn-cgi/image/…`, built by
-`apps/cms/src/lib/cardImage.ts`, quality 90 by the owner's choice). The full studio renders
-(365–791 KB) had taken the phone score to 0.67; measured with the copies, 0.86.
+`packages/shared/src/cardImage.ts`, quality 90 by the owner's choice). The full studio renders
+(365–791 KB) had taken the phone score to 0.67; measured with the copies, 0.86. Since polish S6
+(2026-10-04) the garment pages' "More from <category>" cards ask for the same copies, from the
+same builder.
 
 It depends on two things no code can see:
 
@@ -1664,7 +1666,7 @@ It depends on two things no code can see:
 - **The firewall rule.** "Only the card picture sizes may be resized" on `wear-run.com`
   (Security → WAF → Custom rules, added 2026-09-29) blocks every `/cdn-cgi/image/` request
   except the three card sizes at quality 90 from media.wear-run.com, so nobody can spend the
-  quota on odd sizes. 🟡 **Change the sizes or the quality in `apps/cms/src/lib/cardImage.ts`
+  quota on odd sizes. 🟡 **Change the sizes or the quality in `packages/shared/src/cardImage.ts`
   and you must change this rule in the same breath**: a blocked picture is a 403, which the
   fallback below does NOT catch, so every card would lose its picture. The test
   `cardImage.test.ts` → "asks only for the three sizes the firewall rule allows" fails first.
@@ -1679,6 +1681,32 @@ node scripts/preconnect-probe.mjs   # exits 1 if the cards are not resized or fe
 
 If it fails with "fell back to the original": check the setting above first, then the
 month's count in the dashboard (Images → Transformations → Analytics).
+
+### The HD picture inside the 3D window — screen-sized copies
+
+Since polish D9 / F16 (2026-10-04) "HD IMAGE" on a garment page shows the colour's studio
+render inside the 3D window, and FULL SCREEN opens the full render with zoom. The window
+draws a smaller copy, not the render: each colour's **HD render, screen-sized copy** in the
+CMS (`renderScreen`, `apps/cms/src/fields/colourways.ts`). The 113 copies made on 2026-10-04
+took the window's pictures from 87.7 MB in all to 22.3 MB (median 175 KB). They do NOT
+remove the ripple lines seen on fine knits (F16): those are in CLO's render itself, at full
+size, and no resize removes them; the fix is in the render, in CLO.
+
+A copy is used only while its file name is the render's with `-screen` added
+(`r-gtd-ash-render.webp` → `r-gtd-ash-render-screen.webp`, `screenCopyName` in
+`apps/cms/src/endpoints/projectViewer.ts`), so after a render is replaced the page shows the
+new render at full size until a new copy is made. Nothing breaks without a copy; the window
+only downloads more. To make one for a new render, with Pillow (installed on the owner's Mac):
+
+```bash
+python3 -c "
+from PIL import Image; import sys
+im = Image.open(sys.argv[1]); h = 1400
+if im.height > h: im = im.resize((round(im.width * h / im.height), h), Image.Resampling.LANCZOS)
+im.save(sys.argv[2], 'WEBP', quality=82, method=6)" r-xyz-wine-render.webp r-xyz-wine-render-screen.webp
+```
+
+Upload it in Photos & 3D files, then pick it on the colour, under the HD render.
 
 ### Is a poster too heavy? — `scripts/poster-sizes.mjs`
 
@@ -2105,6 +2133,27 @@ step, read the *previous* version, and reported all five assertions failing in
 convincing detail — while the same URL checked by hand minutes later passed every
 one. Six attempts, ten seconds apart. If you add another post-deploy check
 against the viewer, give it the same treatment.
+
+### The website pages' own pictures (polish X14, 2026-10-05)
+
+A website page (not a garment page) shares its page type's own 1200x630 JPEG from
+`apps/cms/public/share/`: the home page, /products (four garments, one per family), /contact (the
+showroom), each category page (four of its garments), the guides index and each guide (its title).
+Privacy and terms share the home page's. Until then all 17 shared `og-default.png`, made before the
+domain move and still showing `wear-run.help`; it stays in `public/`, unchanged, for links already
+shared.
+
+The words and pictures are listed in `apps/cms/src/lib/shareImages.ts`, which takes them from the
+pages. After a page's label or headline changes, remake the files and look at every one before
+committing:
+
+```bash
+tools/asset-pipeline/node_modules/.bin/tsx apps/cms/scripts/gen-share-images.mjs --force
+```
+
+`apps/cms/src/lib/shareImages.test.ts` fails when a file is missing, is not 1200x630, is over
+300 KB, or no longer carries its page's words. A platform keeps a card it has already fetched for a
+while, so a remade picture can take days to show on a link shared before.
 
 ### What a search robot reads on a garment page (since 2026-09-30)
 

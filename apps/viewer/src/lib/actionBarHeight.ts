@@ -6,8 +6,9 @@ const SELECTOR = '.action-bar'
  * Keep `--action-bar-h` equal to the action bar's ACTUAL height.
  *
  * ⚠️ IT WAS A CONSTANT 72px, AND rem TEXT BROKE THAT ASSUMPTION. The token is what
- * `.page` and `.stage-block` reserve at the bottom so the colourway rail sits above
- * the fixed bar. It was correct while every font size was px — the bar could not
+ * `.stage-block` reserves at its bottom so the colourway rail sits above the fixed bar
+ * (`.page` kept it under the footer too, until polish M2 removed that room, below).
+ * It was correct while every font size was px — the bar could not
  * change height. Since the type scale became rem on 2026-09-04 the bar grows with
  * the visitor's own text-size setting, and the reserve did not follow.
  *
@@ -31,14 +32,14 @@ const SELECTOR = '.action-bar'
  *
  * ⚠️ NO FEEDBACK LOOP, and it is worth checking before believing that. A
  * ResizeObserver that writes a property affecting its own target oscillates.
- * `--action-bar-h` is read by `.page` (padding-bottom), `.stage-block`
- * (padding-bottom) and `.stage__more` (bottom) — never by `.action-bar` itself, so
- * writing it cannot change what was just measured.
+ * `--action-bar-h` is read by `.stage-block` (padding-bottom) and `.stage__more`
+ * (bottom) — never by `.action-bar` itself, so writing it cannot change what was
+ * just measured.
  *
- * ⚠️ THIS IS NO LONGER THE ONLY THING HOLDING THE RESERVE UP, AND IT MUST NOT BE.
- * On CI's WebKit the value written here reaches `.page` one update late, proven
- * with the strongest write the platform has — an important inline style read back
- * on the same element in the same pass:
+ * ⚠️ DO NOT LET THIS BE THE ONLY THING HOLDING A RESERVE UP. On CI's WebKit the
+ * value written here reached `.page` one update late (2026-09-04), proven with the
+ * strongest write the platform has — an important inline style read back on the
+ * same element in the same pass:
  *
  *     attr "padding-bottom: 107px !important;"  prio "important"  pad "73px"
  *
@@ -46,9 +47,11 @@ const SELECTOR = '.action-bar'
  * of `calc(var() + env())`, an inline style, a forced `offsetHeight` reflow,
  * `!important` priority, and deferring the write out of the ResizeObserver into a
  * requestAnimationFrame. The engine is reporting a stale computed style, which no
- * write can correct. So `page.css` carries a `max(var(--action-bar-h), 4.5rem)`
- * floor that is correct without this module running at all; what this adds is
- * precision on the engines where it works. Do not remove the floor.
+ * write can correct. So `.page`'s room under the footer carried a
+ * `max(var(--action-bar-h), 4.5rem)` floor, correct without this module running at
+ * all, until polish M2 (2026-10-04) removed the room: the bar steps aside while the
+ * footer shows (`actionBarStepsAside.ts`). A new reserve read from this token needs
+ * the same kind of rem floor.
  *
  * Below 900px only, by construction: the bar is `display: none` above that, so
  * `getBoundingClientRect()` returns 0 and the guard below leaves the CSS default in

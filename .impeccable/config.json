@@ -1,0 +1,49 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/e2e/composition.spec.ts"],
+        "createdAt": "2026-10-04T05:37:41.007Z",
+        "reason": "Claude, 2026-10-04: test code, not UI; the matches are a regex, a comment and test messages that mention <img>, and nothing in this Playwright spec renders an image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/e2e/perfBudgets.spec.ts"],
+        "createdAt": "2026-10-04T06:51:01.029Z",
+        "reason": "Claude, 2026-10-04: test code, not UI; the match is a regex that finds a product card's <img> in the served HTML, and this Playwright spec renders no image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/e2e/findability.spec.ts"],
+        "createdAt": "2026-10-04T07:27:03.650Z",
+        "reason": "Claude, 2026-10-04: test code, not UI; the matches are regexes that find <img> tags in the served HTML and a test name, and this Playwright spec renders no image"
+      },
+      {
+        "rule": "overused-font",
+        "value": "instrument serif",
+        "createdAt": "2026-10-04T18:31:58.693Z",
+        "reason": "Claude, 2026-10-04: the brand's accent face, not a default; docs/DESIGN.md §3 (The serif accent) and .claude/rules/cms-site.md name the one italic serif word per headline as the brand, which a generic-look rule must not remove"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/src/components/site/FamilyCard.test.ts"],
+        "createdAt": "2026-10-04T22:10:12.211Z",
+        "reason": "Claude, 2026-10-05: test code, not UI; the match is a regex that finds the card's <img> in server-rendered markup, and this Vitest file renders no image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/src/familyHeroPicture.test.ts"],
+        "createdAt": "2026-10-04T22:49:28.168Z",
+        "reason": "Claude, 2026-10-05: test code, not UI; the match is a regex that finds the hero's <img> in server-rendered markup, and this Vitest file renders no image"
+      }
+    ]
+  }
+}

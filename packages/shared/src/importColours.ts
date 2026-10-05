@@ -39,6 +39,8 @@
  * CMS-only.
  */
 
+import { themedColourName } from './colourNames'
+
 /** One entry of a product's `fileColourDetails`, written by the shrink robot. */
 export interface FileColour {
   variantId: string
@@ -76,8 +78,17 @@ export function unmappedFileColours(fileColours: FileColour[], rows: ExistingRow
  *
  * `taken` is every existing slug on the product. A collision gets `-2`, `-3`, …
  * rather than reusing or editing the existing one — see rule 1 above.
+ *
+ * `category` is the product's own (polish N2, 2026-10-05): the NAME takes that category's style
+ * ("Forest Green" becomes "Pine" on an outerwear garment, colourNames.ts), so a new garment's
+ * colours read like the 200 the owner approved. The SLUG stays the namer's measured word, as it
+ * always has: it becomes a printed QR address, and a style name may change again.
  */
-export function buildImportedRow(colour: FileColour, rows: ExistingRow[]): ImportedRow {
+export function buildImportedRow(
+  colour: FileColour,
+  rows: ExistingRow[],
+  category?: unknown,
+): ImportedRow {
   // A poor match contributes a swatch and nothing else. The hex is measured off
   // the file; the NAME is the part that was guessed, and a wrong one printed on
   // a colour button is worse than a blank the owner has to fill in.
@@ -100,7 +111,7 @@ export function buildImportedRow(colour: FileColour, rows: ExistingRow[]): Impor
   }
 
   return {
-    displayName: colour.name,
+    displayName: themedColourName(colour.name, category),
     slug,
     hexSwatch: colour.hex,
     variantId: colour.variantId,

@@ -350,3 +350,92 @@ test.describe('the phone status area takes the bar colour (VA-50) — the viewer
     })
   })
 })
+
+/*
+ * Polish F3 and X26 (2026-10-04): the open phone menu holds the page still and dims it on this
+ * host too. The wheel itself is proven on the site (apps/cms/e2e/siteBar.spec.ts), from the same
+ * shared code; this holds the viewer's header to wiring it (Header.tsx, holdPageWhileOpen).
+ */
+test.describe('the open phone menu holds the page and dims it (polish F3, X26) — the viewer', () => {
+  test('held and dimmed while open, let go when it closes', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // Held on whichever of <html> and <body> the page scrolls by (pageHold.ts).
+    const state = () =>
+      page.evaluate(() => ({
+        held: document.documentElement.style.overflowY || document.body.style.overflowY,
+        dim: getComputedStyle(document.querySelector('.notch-shell') as Element, '::before')
+          .opacity,
+      }))
+    expect(await state()).toEqual({ held: '', dim: '0' })
+
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+    await expect(page.locator(`#${SITE_MENU_ID}:popover-open`)).toHaveCount(1)
+    await expect.poll(state).toEqual({ held: 'hidden', dim: '1' })
+
+    await page.keyboard.press('Escape')
+    await expect(page.locator(`#${SITE_MENU_ID}:popover-open`)).toHaveCount(0)
+    await expect.poll(state).toEqual({ held: '', dim: '0' })
+  })
+
+  /*
+   * Polish F5 (2026-10-04): the dot and ring rise above the open menu, which is in the browser's
+   * top layer; the last element added there is drawn on top, so the order they arrive in is the
+   * proof. The site's copy of this test also follows a link in the open menu.
+   */
+  test('the dot and ring join the top layer after the menu, and leave with it (F5)', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'the cursor never mounts on a coarse pointer, by design')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(`Object.defineProperty(Navigator.prototype, 'webdriver', {
+      get: () => false,
+      configurable: true,
+    })`)
+    await page.setViewportSize({ width: 600, height: 800 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.locator('.cursor-dot').waitFor({ state: 'attached' })
+    const heading = await page.getByRole('heading', { level: 1 }).boundingBox()
+    const x = (heading?.x ?? 0) + 20
+    const y = (heading?.y ?? 0) + (heading?.height ?? 40) / 2
+    await page.mouse.move(x, y)
+    await page.mouse.move(x + 6, y, { steps: 3 })
+    await page.evaluate(() => {
+      const order: string[] = []
+      ;(window as unknown as { __order: string[] }).__order = order
+      document.addEventListener(
+        'toggle',
+        (event) => {
+          if ((event as Event & { newState?: string }).newState !== 'open') return
+          order.push(String((event.target as Element).className).split(' ')[0] ?? '')
+        },
+        true,
+      )
+    })
+
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __order: string[] }).__order))
+      .toEqual(['notch__menu', 'cursor-dot', 'cursor-ring'])
+
+    await page.keyboard.press('Escape')
+    await expect(page.locator(`#${SITE_MENU_ID}:popover-open`)).toHaveCount(0)
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          ['.cursor-dot', '.cursor-ring'].map((selector) => {
+            const element = document.querySelector(selector) as HTMLElement
+            return [element.matches(':popover-open'), element.popover]
+          }),
+        ),
+      )
+      .toEqual([
+        [false, null],
+        [false, null],
+      ])
+  })
+})

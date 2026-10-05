@@ -1,21 +1,15 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import {
-  compositeOver,
-  contrastRatio,
-  parseCssColour,
-  relativeLuminance,
-} from '../../../../scripts/contrast-rules.mjs'
 import { BAR_AUTOHIDE_QUERY } from '../lib/barAutoHide'
 
 /**
- * VA-40 (visual audit, 2026-10-02) in the stylesheet: the bar's HAIRLINE, and the rule by which a
- * page's bar LEAVES. Read as text because the two things that must not break are numbers and
- * contracts, and neither shows in a unit render: the hairline must be visible over a dark photograph
- * and must not look heavier on a light page, and the leaving rule must name the same phone as the
- * script that sets it, keep the status strip where it is, and take nothing but `transform` and
- * `visibility`. The motion itself is measured in a browser: e2e/barAutoHide.spec.ts.
+ * The bar's EDGE and the rule by which a page's bar LEAVES (VA-40, visual audit 2026-10-02), read
+ * as text because what must not break is a contract, and no unit render shows it. The edge is the
+ * soft shadow alone since polish D12 (2026-10-04, the owner's choice): VA-40's 1px outline is gone.
+ * The leaving rule must name the same phone as the script that sets it, keep the status strip where
+ * it is, and take nothing but `transform` and `visibility`. The motion itself is measured in a
+ * browser: e2e/barAutoHide.spec.ts.
  */
 
 const REPO = join(import.meta.dirname, '..', '..', '..', '..')
@@ -45,60 +39,16 @@ function declaration(body: string, property: string): string | undefined {
 const entries = (list: string | undefined) =>
   (list ?? '').split(/,(?![^(]*\))/).map((e) => e.trim())
 
-const rgb = (hex: string) => parseCssColour(hex).rgb
 const token = (name: string) => TOKENS.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1]?.trim() ?? ''
 
-describe('the hairline', () => {
-  // `--notch-edge: light-dark(color-mix(… var(--paper) 22%, transparent), color-mix(… 12% …))`
-  const percents = [
-    ...(declaration(ruleBody(NOTCH, '.notch-shell'), '--notch-edge') ?? '').matchAll(
-      /color-mix\(in srgb, var\(--paper\) (\d+)%, transparent\)/g,
-    ),
-  ].map((match) => Number(match[1]))
-  const [lightTheme, darkTheme] = percents
-  const paper = rgb(token('--paper'))
-  const [lightPage, darkPage] = (token('--bg').match(/#[0-9a-f]{6}/gi) ?? []).map(rgb)
-  const [, darkBar] = (token('--raised').match(/#[0-9a-f]{6}/gi) ?? []).map(rgb)
-  /** A dark photograph under the bar: the website's hero, near black with a green cast. */
-  const DARK_PHOTO = rgb('#202420')
-  const ringOver = (percent: number | undefined, under: number[]) =>
-    compositeOver(paper, (percent ?? 0) / 100, under)
-
-  it('is a paper-coloured ring in two strengths, the light theme the stronger', () => {
-    expect(
-      percents,
-      '--notch-edge is not light-dark(color-mix(paper N%), color-mix(paper N%))',
-    ).toHaveLength(2)
-    expect(lightTheme).toBeGreaterThan(darkTheme ?? 100)
-  })
-
-  it('shows over a dark photograph in the light theme, where the bar vanished', () => {
-    expect(contrastRatio(ringOver(lightTheme, DARK_PHOTO), DARK_PHOTO)).toBeGreaterThanOrEqual(1.5)
-  })
-
-  it('still shows over a dark photograph in the dark theme', () => {
-    expect(contrastRatio(ringOver(darkTheme, DARK_PHOTO), DARK_PHOTO)).toBeGreaterThanOrEqual(1.2)
-  })
-
-  it('is paper on paper over a light page, so it cannot look heavier there', () => {
-    expect(
-      contrastRatio(ringOver(lightTheme, lightPage as number[]), lightPage as number[]),
-    ).toBeLessThanOrEqual(1.02)
-  })
-
-  it('is no lighter than the bar itself over the dark page: an outline, not a glow', () => {
-    const ring = ringOver(darkTheme, darkPage as number[])
-    expect(relativeLuminance(ring)).toBeLessThanOrEqual(relativeLuminance(darkBar as number[]))
-  })
-
-  it('is the FIRST shadow, over the soft one, and the soft one stays', () => {
+describe("the bar's edge (the owner's choice, polish D12)", () => {
+  it('is the soft shadow alone, with no outline ring', () => {
     const shadows = entries(declaration(ruleBody(NOTCH, '.notch'), 'box-shadow'))
-    expect(shadows).toEqual(['0 0 0 1px var(--notch-edge)', 'var(--shadow-raised)'])
+    expect(shadows).toEqual(['var(--shadow-raised)'])
   })
 
-  it('is gone on paper, with the pill it outlines', () => {
-    const print = NOTCH.slice(NOTCH.lastIndexOf('@media print'))
-    expect(declaration(ruleBody(print, '.notch-shell'), '--notch-edge')).toBe('transparent')
+  it('leaves no outline token behind for a later rule to pick up', () => {
+    expect(NOTCH).not.toMatch(/--notch-edge/)
   })
 })
 
@@ -129,7 +79,7 @@ describe('the bar leaves', () => {
     expect(properties.sort()).toEqual(['transform', 'transition', 'visibility'])
   })
 
-  it('goes far enough: --notch-away clears the shadow below the bar and the hairline', () => {
+  it('goes far enough: --notch-away clears the shadow below the bar, with a pixel to spare', () => {
     const away = Number.parseFloat(NOTCH.match(/--notch-away:\s*([^;]+);/)?.[1] ?? '')
     // `--shadow-raised: light-dark(0 8px 24px …, 0 8px 24px …)`: x 0, then 8 down and 24 of blur.
     const shadow = token('--shadow-raised').match(/\b0 (\d+)px (\d+)px/)

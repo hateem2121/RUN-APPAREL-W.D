@@ -1,6 +1,7 @@
 import type { PayloadRequest } from 'payload'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { publicViewerDefaultColourEndpoint, publicViewerEndpoint } from './publicViewer'
+import { __clearRelatedCache } from './relatedGarments'
 import { __clearViewerCache } from './viewerCache'
 
 /**
@@ -89,6 +90,14 @@ const makeReq = (
   return { req, find }
 }
 
+/**
+ * The garment's own reads: the ones asking for ONE slug. Since polish S6 an answer also reads
+ * the published list for "More from <category>" (kept a minute, relatedGarments.ts), which
+ * these counts are not about.
+ */
+const productQueries = (find: ReturnType<typeof vi.fn>): unknown[] =>
+  find.mock.calls.filter(([args]) => Array.isArray(args?.where?.and))
+
 const withColour = publicViewerEndpoint.handler as (req: PayloadRequest) => Promise<Response>
 const defaultColour = publicViewerDefaultColourEndpoint.handler as (
   req: PayloadRequest,
@@ -107,6 +116,7 @@ const defaultColour = publicViewerDefaultColourEndpoint.handler as (
  */
 afterEach(() => {
   __clearViewerCache()
+  __clearRelatedCache()
   delete process.env.CMS_PUBLIC_URL
 })
 
@@ -368,7 +378,7 @@ describe('the in-process payload cache', () => {
     __clearViewerCache()
     const first = makeReq({ productSlug: 'n001', colourSlug: 'wine' })
     const a = await withColour(first.req)
-    expect(first.find).toHaveBeenCalledTimes(1)
+    expect(productQueries(first.find)).toHaveLength(1)
 
     const second = makeReq({ productSlug: 'n001', colourSlug: 'wine' })
     const b = await withColour(second.req)
@@ -385,9 +395,9 @@ describe('the in-process payload cache', () => {
     const other = makeReq({ productSlug: 'n001', colourSlug: 'navy' })
     await withColour(other.req)
     expect(
-      other.find,
+      productQueries(other.find),
       'a different colour must not be served from wine’s entry',
-    ).toHaveBeenCalledTimes(1)
+    ).toHaveLength(1)
   })
 
   /**
@@ -402,7 +412,7 @@ describe('the in-process payload cache', () => {
     process.env.CMS_PUBLIC_URL = 'http://localhost:3100'
     const local = makeReq({ productSlug: 'n001', colourSlug: 'wine' })
     const res = await withColour(local.req)
-    expect(local.find, 'a different origin must re-query').toHaveBeenCalledTimes(1)
+    expect(productQueries(local.find), 'a different origin must re-query').toHaveLength(1)
     const body = (await res.json()) as { product: { posterFallback: { url: string } } }
     expect(body.product.posterFallback.url).toContain('localhost:3100')
   })
@@ -414,8 +424,107 @@ describe('the in-process payload cache', () => {
     const retry = makeReq({ productSlug: 'gone', colourSlug: 'wine' })
     await withColour(retry.req)
     expect(
-      retry.find,
+      productQueries(retry.find),
       'a failure must stay a bad request, not become a bad minute',
-    ).toHaveBeenCalledTimes(1)
+    ).toHaveLength(1)
+  })
+})
+
+/**
+ * POLISH S6 — "More from <category>" rides on the garment's own answer (relatedGarments.ts).
+ */
+describe('the other garments of its category (polish S6)', () => {
+  // Absolute media addresses: a card refuses a Payload-relative one, which is a 403 on a public
+  // page (projectPublic.ts, FA-O-10).
+  const garment = (slug: string, category: string) => ({
+    ...PRODUCT,
+    slug,
+    productName: `Garment ${slug}`,
+    productCode: slug.toUpperCase(),
+    category,
+    colourways: PRODUCT.colourways.map((colour) => ({
+      ...colour,
+      posterPreview: media(`https://media.wear-run.com/${slug}-${colour.slug}.webp`),
+    })),
+  })
+  /** The published list in the website's order; n001 (PRODUCT) is Sportswear, second. */
+  const LIST = [
+    garment('a', 'Sportswear'),
+    PRODUCT,
+    garment('b', 'Sportswear'),
+    garment('c', 'Outerwear'),
+    garment('d', 'Sportswear'),
+    garment('e', 'Sportswear'),
+    garment('f', 'Sportswear'),
+  ]
+
+  const reqWithList = (colourSlug: string, list: unknown[] | Error) => {
+    const find = vi.fn(async (args: { where?: { and?: unknown } }) => {
+      if (Array.isArray(args?.where?.and)) return { docs: [PRODUCT] }
+      if (list instanceof Error) throw list
+      return { docs: list }
+    })
+    const req = {
+      routeParams: { productSlug: 'n001', colourSlug },
+      url: 'https://cms.example/api/x',
+      payload: { find, findGlobal: vi.fn().mockResolvedValue({}) },
+    } as unknown as PayloadRequest
+    return { req, find }
+  }
+  type Related = { slug: string; colourSlug: string; imageUrl: string | null }
+  const relatedOf = async (req: PayloadRequest) =>
+    ((await (await withColour(req)).json()) as { related?: Related[] }).related
+
+  it('sends the four that follow this garment in its category, none from another', async () => {
+    const related = await relatedOf(reqWithList('wine', LIST).req)
+    expect(related?.map((entry) => entry.slug)).toEqual(['b', 'd', 'e', 'f'])
+  })
+
+  it('opens each at its default colour, with the website card’s picture', async () => {
+    const [first] = (await relatedOf(reqWithList('wine', LIST).req)) ?? []
+    expect(first).toMatchObject({
+      slug: 'b',
+      colourSlug: 'navy',
+      imageUrl: 'https://media.wear-run.com/b-navy.webp',
+    })
+  })
+
+  it('reads the published list once a minute, not on every answer', async () => {
+    const wine = reqWithList('wine', LIST)
+    await withColour(wine.req)
+    const navy = reqWithList('navy', LIST)
+    await withColour(navy.req)
+    const listReads = (find: ReturnType<typeof vi.fn>) =>
+      find.mock.calls.length - productQueries(find).length
+    expect(listReads(wine.find)).toBe(1)
+    expect(listReads(navy.find), 'the second answer reads it from memory').toBe(0)
+  })
+
+  it('asks for the list while the settings are still on their way, never after', async () => {
+    // The answer is the slowest thing on a garment page; a read after the settings would add
+    // its whole time to every first scan of an isolate.
+    const events: string[] = []
+    const { req, find } = reqWithList('wine', LIST)
+    const list = find.getMockImplementation()
+    if (!list) throw new Error('reqWithList gives `find` an implementation')
+    find.mockImplementation(async (args: { where?: { and?: unknown } }) => {
+      if (!Array.isArray(args?.where?.and)) events.push('list asked')
+      return list(args)
+    })
+    ;(req.payload as unknown as { findGlobal: unknown }).findGlobal = vi.fn(async () => {
+      events.push('settings asked')
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      events.push('settings answered')
+      return {}
+    })
+    await withColour(req)
+    expect(events).toEqual(['settings asked', 'list asked', 'settings answered'])
+  })
+
+  it('a failed list sends the garment without the section, never a failure', async () => {
+    const { req } = reqWithList('wine', new Error('D1 is having a bad minute'))
+    const res = await withColour(req)
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { related?: Related[] }).related).toEqual([])
   })
 })

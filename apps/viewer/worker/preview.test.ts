@@ -65,6 +65,7 @@ function colourway(overrides: Partial<ViewerColourway> = {}): ViewerColourway {
     poster: { ...BASE_POSTER },
     render: null,
     glbUrl: null,
+    glbBytes: null,
     isDefault: true,
     altText: 'Velocity Performance Skinsuit in Wine',
     hexSwatch: '#825353',
@@ -76,6 +77,7 @@ function payload(overrides: {
   product?: Partial<ViewerApiSuccess['product']>
   colourways?: ViewerColourway[]
   selectedColourway?: ViewerColourway
+  related?: ViewerApiSuccess['related']
 }): ViewerApiSuccess {
   const colourways = overrides.colourways ?? [
     colourway(),
@@ -92,6 +94,7 @@ function payload(overrides: {
       category: 'Sportswear',
       variantMode: 'single-glb-variants',
       glbUrl: 'https://media.wear-run.help/cycling-all-colours-optimized-4.glb',
+      glbBytes: 3_839_756,
       posterFallback: null,
       fabricComposition: '80% recycled polyester / 20% elastane',
       gsm: '160 GSM',
@@ -123,6 +126,7 @@ function payload(overrides: {
       footerLine: '',
       legalLine: '',
     },
+    related: overrides.related,
   }
 }
 
@@ -499,17 +503,61 @@ describe('buildPreview — the readable page body for robots', () => {
     expect(html).toContain('<a href="https://wear-run.com/products/n001/lime">Lime</a>')
   })
 
-  it('links back to the catalogue, the family and the contact page, on the website only', () => {
+  it('links back to the catalogue, the category and the contact page, on the website only', () => {
     const html = onSite(full())
     expect(html).toContain('<a href="https://wear-run.com/products">All products</a>')
+    // The category's own page since polish S5 (2026-10-04), not the /products filter.
     expect(html).toContain(
-      '<a href="https://wear-run.com/products?family=sportswear">Sportswear</a>',
+      '<a href="https://wear-run.com/custom-activewear-manufacturer">Sportswear</a>',
     )
     expect(html).toContain('<a href="https://wear-run.com/contact">Contact RUN APPAREL</a>')
     // The old viewer host only forwards; it has no catalogue or contact page of its own.
     const old = build(full()).bodyHtml
     expect(old).not.toContain('All products')
     expect(old).not.toContain('/contact')
+  })
+
+  // "More from this category" (polish S6), as the page draws it.
+  const related = [
+    {
+      slug: 'r-xmp',
+      colourSlug: 'black',
+      productName: 'X-Max Pro',
+      productCode: 'R-XMP',
+      imageUrl: null,
+    },
+    {
+      slug: 'r-cch',
+      colourSlug: 'wine',
+      productName: 'Coach <b>Jacket',
+      productCode: 'R-CCH',
+      imageUrl: null,
+    },
+  ]
+
+  it('links the garments "More from this category" shows, and the category’s gallery, on the website only', () => {
+    const html = onSite(payload({ related }))
+    expect(html).toContain(
+      '<h2>More Sportswear in 3D.</h2><ul><li><a href="https://wear-run.com/products/r-xmp/black">X-Max Pro</a></li>',
+    )
+    // CMS text, escaped like every other line here.
+    expect(html).toContain(
+      '<li><a href="https://wear-run.com/products/r-cch/wine">Coach &lt;b&gt;Jacket</a></li>',
+    )
+    expect(html).toContain(
+      '<p><a href="https://wear-run.com/custom-activewear-manufacturer">See all sportswear in 3D</a></p>',
+    )
+    // Before the links to the website's other pages, as the section sits before the contact one.
+    expect(html.indexOf('More Sportswear in 3D.')).toBeLessThan(html.indexOf('All products'))
+    expect(build(payload({ related })).bodyHtml).not.toContain('More Sportswear')
+  })
+
+  it('says nothing of other garments when the answer carries none', () => {
+    for (const none of [undefined, []]) {
+      const html = onSite(payload({ related: none }))
+      expect(html).not.toContain('More Sportswear')
+      expect(html).not.toContain('See all')
+    }
   })
 
   it('escapes CMS text, so a description cannot inject markup', () => {
@@ -742,7 +790,8 @@ describe('schema.org Product JSON-LD', () => {
 /**
  * The garment's place on the website, for search results (domain move, 2026-09-28). The
  * category is deliberately NOT in the address — it is an editable dropdown and the address
- * is printed on QR tags — so it lives here, as data, and as the /products family filter.
+ * is printed on QR tags — so it lives here, as data, pointing at the category's own page
+ * (polish S5, 2026-10-04; it was the /products family filter).
  */
 describe('buildPreview — breadcrumbs on the website', () => {
   const SITE = 'https://wear-run.com'
@@ -762,17 +811,18 @@ describe('buildPreview — breadcrumbs on the website', () => {
     ).toEqual([
       [1, 'Home', `${SITE}/`],
       [2, 'Products', `${SITE}/products`],
-      [3, 'Sportswear', `${SITE}/products?family=sportswear`],
+      [3, 'Sportswear', `${SITE}/custom-activewear-manufacturer`],
       [4, 'Velocity Performance Skinsuit', preview.url],
     ])
   })
 
-  it('makes the family filter address the way the site spells it', () => {
-    const data = JSON.parse(
-      onSite(payload({ product: { category: 'Teamwear & Uniforms' as never } })).breadcrumbJsonLd ??
-        'null',
-    )
-    expect(data.itemListElement[2].item).toBe(`${SITE}/products?family=teamwear-uniforms`)
+  it('sends each category to its own page, and one with no page to the family filter', () => {
+    const categoryStep = (category: string) =>
+      JSON.parse(
+        onSite(payload({ product: { category: category as never } })).breadcrumbJsonLd ?? 'null',
+      ).itemListElement[2].item
+    expect(categoryStep('Teamwear & Uniforms')).toBe(`${SITE}/custom-teamwear-manufacturer`)
+    expect(categoryStep('Sports Accessories')).toBe(`${SITE}/products#sports-accessories`)
   })
 
   it('skips the category step when a garment has none, rather than inventing one', () => {

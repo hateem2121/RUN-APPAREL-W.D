@@ -4,6 +4,7 @@ paths:
   - "apps/cms/src/fields/**"
   - "apps/shrink/src/colourImport.ts"
   - "packages/shared/src/importColours*"
+  - "packages/shared/src/colourNames*"
   - "tools/asset-pipeline/src/variant-colour.ts"
   - "tools/asset-pipeline/src/colour-name.ts"
 ---
@@ -41,3 +42,18 @@ must never be changed by an automated process, and **row order decides the defau
 colourway**, so nothing may reorder rows. Imported rows append, arrive
 `active: false`, and a low-confidence match arrives with an empty name rather than
 a guess. Tested in `packages/shared/src/importColours.test.ts` (moved 2026-08-11).
+
+## A colour's NAME follows its category's style; its slug stays the measured word
+
+🟡 **Since polish N2 (2026-10-05) an imported colour is named in its product category's
+style** (the owner's answer Q38: sport words for Teamwear, performance words for
+Sportswear, nature words for Outerwear, easy fashion words for Casual Wear), from
+`packages/shared/src/colourNames.ts`: "Forest Green" arrives as "Pine" on an outerwear
+garment. `buildImportedRow` takes the category; the robot, the "Add the ticked colours"
+button and `scripts/process-local.mjs` all pass it. The **slug stays the namer's measured
+word** (`forest-green`): it is printed on QR tags, and a style name may change again.
+Sports Accessories has no style yet, so it keeps the namer's words.
+🟡 **Add a colour to `colour-name.ts` → give it a name in all four styles.**
+`colour-name.test.ts` fails until you do; the container cannot import the shared table,
+so that test is the only tie between the two lists. A name is at most 12 characters (the
+garment page's name cell) and never a plain word like "Pink" (owner, 2026-09-04).

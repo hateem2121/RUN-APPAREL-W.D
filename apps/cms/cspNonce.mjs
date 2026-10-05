@@ -58,7 +58,23 @@ export function withNonce(policy, nonce) {
 }
 
 /**
- * Headers for the rewritten page: the nonced policy, and NO Content-Length or ETag.
+ * How a nonced page may be kept (polish audit X13, 2026-10-04): no shared cache may keep it at
+ * all (`private`), and a browser must ask again before reusing it (`no-cache`).
+ * - `private` is the nonce's safety. A cache that served one visitor's page to the next would
+ *   hand over that visitor's nonce. The guard sets the WHOLE value rather than trusting
+ *   Next's, so a page that someday renders as cacheable (`s-maxage`) still leaves here private.
+ * - No `no-store`. Next sends `private, no-cache, no-store, max-age=0, must-revalidate`, and
+ *   `no-store` kept every page out of the browser's back/forward cache. Measured 2026-10-04 on
+ *   all five public pages: Back rebuilt each one, and Chrome named
+ *   `response-cache-control-no-store` as the reason. web.dev ("Back/forward cache", updated
+ *   2 Jul 2026) keeps `no-store` for pages that show private data. A public page uses
+ *   `no-cache`, which keeps it fresh without blocking the instant Back.
+ */
+export const NONCED_PAGE_CACHE_CONTROL = 'private, no-cache, max-age=0, must-revalidate'
+
+/**
+ * Headers for the rewritten page: the nonced policy, `NONCED_PAGE_CACHE_CONTROL`, and NO
+ * Content-Length or ETag.
  * - Stamping attributes changes the body's length, and a stale length makes the runtime reject
  *   or cut off the stream. The 404 arrives with one (17,947 bytes under `next start`, measured
  *   2026-09-18).
@@ -80,6 +96,7 @@ export function noncedHeaders(headers, nonce) {
   if (policy === null) return null
   const out = new Headers(headers)
   out.set('content-security-policy', policy)
+  out.set('cache-control', NONCED_PAGE_CACHE_CONTROL)
   out.delete('content-length')
   out.delete('etag')
   return out

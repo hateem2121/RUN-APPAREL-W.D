@@ -66,11 +66,16 @@ newer Playwright.
 therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never
 the nonce. To see the guard:
 1. Run `opennextjs-cloudflare build`.
-2. Put a throwaway `PAYLOAD_SECRET` in a `.dev.vars` (gitignored) and run
-   `opennextjs-cloudflare preview --local-upstream wear-run.help`.
-3. Run `node e2e/csp-nonce-edge.mjs`: 3 engines × 6 page types.
+2. Put a throwaway `PAYLOAD_SECRET` in a `.dev.vars` (gitignored). In a fresh worktree, apply
+   the migrations to its local D1 first (`PAYLOAD_SECRET=<throwaway> pnpm --filter
+   @run-apparel/cms migrate`). Without them every page logs "no such table", and the preview
+   exited after 2–3 minutes twice (2026-10-04).
+3. Start `cms-edge` from `.claude/launch.json`, which runs `opennextjs-cloudflare preview
+   --local-upstream wear-run.com --port 4174`. 🟡 Not `wear-run.help`: since the domain move
+   that host only 308s to wear-run.com, so a preview pinned to it serves no page.
+4. Run `node e2e/csp-nonce-edge.mjs --origin=http://localhost:4174`: 3 engines × 6 page types.
 
-After a deploy, run it with `--origin=https://wear-run.help`. 🟡 A control that skips the nonce
+After a deploy, run it with `--origin=https://wear-run.com`. 🟡 A control that skips the nonce
 on an EXTERNAL script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
 on an INLINE script breaks a page, so plant the fault there. 🟡 A local `curl` without
 `--compressed` counts ZERO scripts: the local runtime gzips a page the way Cloudflare's edge
@@ -89,10 +94,15 @@ main narrowed `Media.read` — the catch-all test expects that, not 200.
 Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
 
 🟡 **The garment pages draw this footer too since 2026-10-02 (visual audit VA-31).** Its rules
-are `packages/ui/src/footer.css` (not site.css), its words, links and rules are
+are `packages/ui/src/footer.css` (not site.css), and the tab, question and clock that only the
+website draws are in `packages/ui/src/footer-prompt.css`, which only the website imports (polish
+D1: the garment pages' first paint pays for every byte they load); its words, links and rules are
 `packages/shared/src/siteFooter.ts`, and both browser suites hold it to `siteFooterAriaSnapshot`
 — so a block added or moved in `SiteFooter.tsx` must move in `apps/viewer/src/components/Footer.tsx`
-in the same change, or both suites fail.
+in the same change, or both suites fail. One deliberate difference since polish Q42 (owner,
+2026-10-04): the garment pages leave out the tab, the question and its clock, because they end on
+their own "Ask about this garment" (`siteFooterAriaSnapshot(…, { prompt: false })`,
+`.site-footer--no-prompt`).
 
 Four things that bit while building it:
 

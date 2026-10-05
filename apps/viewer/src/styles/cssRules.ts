@@ -9,8 +9,9 @@
  * of silently reading a wrong answer here.
  *
  * Added with the VA-07 fix (visual audit, 2026-10-02), where the earlier crude string reads in
- * `specDuplication.test.ts` could not tell a declaration inside `@media (forced-colors: active)`
- * from the same property on the same selector outside it.
+ * `specDuplication.test.ts` (deleted with the breakpoints it compared, polish D10) could not tell
+ * a declaration inside `@media (forced-colors: active)` from the same property on the same
+ * selector outside it.
  */
 
 export interface CssRule {

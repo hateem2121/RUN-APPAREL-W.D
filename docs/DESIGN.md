@@ -35,7 +35,7 @@ loud colour; everything else in the system is quiet so that it reads.
 
 | Token | Value | Role |
 |---|---|---|
-| `--volt` | `#cdf345` | The signal. Highlights, dark-mode headlines, dark-mode primary fill. |
+| `--volt` | `#cdf345` | The signal. Highlights, the dark-mode page title, dark-mode primary fill. |
 | `--volt-deep` | `#5f7414` | Light-mode serif accents and dimension lines — volt is illegible on paper-white. |
 | `--ink` | `#1d1f1a` | Near-black with an olive cast. Never `#000`. |
 
@@ -65,8 +65,19 @@ usually means darkening — here it means swapping.
 |---|---|---|
 | Tag `[ LABEL ]` | volt block, ink text | transparent, volt text |
 | Primary button | ink fill, volt text | volt fill, ink text |
-| Display headline | ink | volt |
+| Page title (`.display--hero`, the h1): `--headline` | ink | volt |
+| Every other heading (section headlines, card names, part headings): `--heading` | ink | off-white `#ecebe4` |
 | Serif accent / dimension line | volt-deep | volt |
+
+**In dark mode lime is kept for the big title and the buttons** (polish X25, the owner's answer
+Q12, 2026-10-03). Until then every heading took volt, so a dark guide page showed its title, each
+section headline and every small heading ("Air courier", "Sea freight") in lime, and on a long page
+the lime stopped pointing at anything. Every other heading now takes the off-white of the page's
+text; light mode is unchanged. The serif accent word keeps volt, the dark twin of its olive in
+light mode, and so does the home page's featured figure ("100,000", `--dimension`), which is a
+number, not a heading. The photo heroes, dark in both themes, re-declare `--heading` with the others
+(`site.css`). `apps/cms/e2e/darkHeadings.spec.ts` and `apps/viewer/e2e/darkHeadings.spec.ts`
+measure it.
 
 ### Motif inks
 
@@ -127,14 +138,15 @@ rule — plus explicit `display: none` fallbacks for `[data-theme='light']`.
 
 ## 3. Type
 
-Two families plus a system mono stack. Loaded via `@fontsource`, self-hosted — no
-font CDN, which is also a CSP consideration.
+Three families: Archivo, Instrument Serif, and IBM Plex Mono for the code-style labels (since
+polish X5, 2026-10-04; until then the labels used each device's own monospace). Loaded via
+`@fontsource`, self-hosted — no font CDN, which is also a CSP consideration.
 
 | Token | Stack |
 |---|---|
 | `--font-display` / `--font-body` | `'Archivo Variable', 'Archivo', system-ui, sans-serif` |
 | `--font-serif` | `'Instrument Serif', Georgia, serif` |
-| `--font-mono` | `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, …` |
+| `--font-mono` | `'IBM Plex Mono'`, two local stand-ins sized to it, then `ui-monospace, 'SF Mono', Menlo, …` |
 
 ### The marketing site adds three metric-matched fallback faces
 
@@ -171,22 +183,34 @@ correct in them, and every other piece of display text uses them too.
 and fails on any hero headline that breaks differently; `apps/cms/src/fallbackMetrics.test.ts`
 fails when a headline is reworded without re-running the script.
 
-**Body text and the guide headlines never swap (owner decision 2026-10-01, after the visual
-audit).** Stand-ins match *average* widths, and real text varies about the average: measured on
-94 paragraphs the body stand-in ran 0.4–0.5% wide (it is 98.19% since, from 98.61%), with single
-paragraphs about ±1% either side, so somewhere a paragraph always re-wraps — `/privacy` scored CLS
-0.2136 at 768px live, and six of seven guide headlines broke differently at some width (the
-printing guide measured 0.233 at 412px). So the site declares the same font files a second time
-with `font-display: optional` — `Archivo Optional` and `Instrument Serif Optional` — and uses them
-for `--font-body` and, through `.hero-guide`, for the guide headlines. The `/privacy` and `/terms`
-headlines joined them the same day, through `.hero-legal`: they keep their line count in either
-font, but `text-wrap: balance` moved a word between lines (CLS 0.0384 at 390px in CI). The four
-family pages followed through `.hero-family` (teamwear 0.063 at 1280px, casual-wear 0.028 at
-368px); the home headline keeps `swap` by the owner's choice, as the first impression. CSS Fonts 4:
-an optional font not ready at first paint is not used on that page, and must never make it jump.
-The other headlines keep `swap` and the files they load are the same, so from the second page on everything
-is Archivo at first paint. The stack after an optional face must not name `Archivo Variable`, or a
-face that missed first paint falls through to the swapping one.
+**Four kinds of headline never swap (owner decisions 2026-10-01, and "never jump, as now" on
+2026-10-04).** Stand-ins match *average* widths, and real text varies about the average, so
+somewhere a line re-wraps: six of seven guide headlines broke differently at some width (the
+printing guide measured CLS 0.233 at 412px live). So the site declares the same font files a second
+time with `font-display: optional` — `Archivo Optional` and `Instrument Serif Optional` — and uses
+them, through `.hero-guide`, for the guide headlines. The `/privacy` and `/terms` headlines joined
+them through `.hero-legal`: they keep their line count in either font, but `text-wrap: balance`
+moved a word between lines (CLS 0.0384 at 390px in CI). The four family pages followed through
+`.hero-family` (teamwear 0.063 at 1280px, casual-wear 0.028 at 368px), and the not-found page
+through `.hero-notfound` (polish X19). The home headline keeps `swap` by the owner's choice, as the
+first impression. CSS Fonts 4: an optional font not ready at first paint is not used on that page,
+and must never make it jump. The other headlines keep `swap` and the files they load are the same,
+so from the second page on everything is Archivo at first paint. The stack after an optional face
+must not name `Archivo Variable`, or a face that missed first paint falls through to the swapping one.
+
+**Body text swaps to Archivo when it lands (polish D11, the owner's "always our font", 2026-10-03).**
+From 2026-10-01 it used `Archivo Optional` too, and since every font was re-checked on each page
+(fixed by polish X12) a visitor got the Arial stand-in on every page: 60 times in 60, measured live.
+With the stand-in at 98.19% and the fonts held 150ms, body text swapping scored 0.000–0.017 on ten
+pages at five widths, and the home page 0.022 at 768px, over `fontSwap.spec.ts`'s 0.02. Most of
+that was not the letters but the boxes: a `ch` is the width of a zero in whichever font draws (MDN,
+`<length>`), and the stand-in's zero is 4.6% narrower than Archivo's, so every width written in `ch`
+grew when Archivo arrived — the home page's lede lost a line at 768px and its fifth category card
+grew 34px taller. So the website writes its body-text widths in `em`, at the values its `ch` widths
+had in Archivo: `--site-measure` 31.5em (55ch), the guides and the order steps 28.635em (50ch), the
+form 35.508em (62ch), and `p, li` `max(60ch, 34.362em)`, which keeps a font with a wider zero (the
+mono labels, the headline face) at its own 60ch. The same sweep then scored 0.000–0.006 on eleven
+pages. `fontSwap.spec.ts` compares every capped body-text box in both fonts.
 
 **Card titles have a stand-in of their own.** `.product-card__name` is Archivo 700 at normal width,
 where the display stand-in (sized for 860 at 122%) is 28% too wide, so four guide-card titles
@@ -213,8 +237,8 @@ do — swapping the import silently flattens every headline back to normal width
 
 ```
 .display          Archivo · weight 860 · font-stretch 122% · UPPERCASE
-                  line-height 0.92 · colour --headline · text-wrap balance
-.display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg
+                  line-height 0.92 · colour --heading · text-wrap balance
+.display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg · colour --headline
 .display--section clamp(26px, 4vw, 46px)  · --tracking-display-sm
 .footer-q         clamp(27px, 4.3vw, 52px) · --tracking-display-sm · the site footer's question
 ```
@@ -234,12 +258,15 @@ split there.) At the 34px floor "PRODUCTION." is
 
 **On a phone a garment card's name shrinks with its card rather than split a word (owner
 decision 2026-10-02, the same rule).** Below 560px `.product-card__body .product-card__name`
-takes a range in `cqi`, the card's body being the container: 13.3px at 320px, 16.7px at 375,
-17.6px at 390 and the full 18px from about 415px (measured in Chromium). Two cards a row
-(VA-42) leave a name 108px at 320px, and the catalogue's widest word, PERFORMANCE, is 140.1px
-at 18px, so at a fixed 18px eight live words broke mid-word at 320px. A hyphenated word
-(V-NECK) is held whole. `apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words in
-a phone card at seven widths.
+takes a range in `cqi`, the card's body being the container. Two cards a row (VA-42) left a name
+108px at 320px, and the catalogue's widest word, PERFORMANCE, is 140.1px at 18px, so at a fixed
+18px eight live words broke mid-word at 320px. Since polish M1 (2026-10-05) a phone's sideways
+ticket gives the name its right half, 132px at 320px: 16.2px there, 17.6px at 340 and the full
+18px from 360px (measured in Chromium). A hyphenated word (V-NECK) is held whole.
+`apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words in a phone card at seven
+widths. A garment page's "More from this category" cards (polish S6,
+2026-10-04) are the same card two to a row, and `.related__body .related__name` takes the same
+range: its words have 112px at 320px, and `apps/viewer/e2e/related.spec.ts` checks five widths.
 
 **Tracking follows the optical size — changed 2026-08-15 by owner decision.**
 
@@ -310,8 +337,9 @@ the garment looked drawn for a laptop. From 1920px, and only from there, they ke
   rules gated by `@media (min-width: 1920px)` in `base.css` and `site.css`. The two `clamp()` rules
   above are untouched (TY-03 pins them), and the new ones start at exactly the old ceilings, so
   nothing moves at 1920px; the rem floor keeps a reader's larger text size.
-- The 144px ceiling is worked out: the page's column is 1312px of text at most and "PRODUCTION." is
-  8.9em wide, so it stops fitting at 147px; 144px leaves 2%.
+- The 144px ceiling is worked out: the page's column was 1312px of text at most and "PRODUCTION." is
+  8.9em wide, so it stopped fitting at 147px; 144px left 2%. Since polish D1 (2026-10-04) the column
+  is 1472px from 1920px wide, so the word fits up to 165px and 144px leaves 12%.
 - Tracking scales with the type: `--tracking-display-large` is `-0.03em`, which is what the two px
   tokens give at the 1920px sizes, and it keeps large type as tight as §3 asks.
 - The stage (`page.css`): measure `max(1200px, min(62.5vw, calc(100svh * 1200 / 1080), 2400px))` and
@@ -319,8 +347,9 @@ the garment looked drawn for a laptop. From 1920px, and only from there, they ke
   and height — so a window that is wide and only 1080px tall does not grow, because its garment is
   limited by height. The measure and the cap move together: raised alone, the garment turns
   width-limited and gains nothing.
-- Not moved: the page columns (`--site-max`, the garment pages' 1200px content), the aside's width,
-  and the product's name in it (`.product-info--aside`, sized to its own column).
+- Not moved by VA-12: the page columns (`--site-max`, the garment pages' 1200px content), the aside's
+  width, and the product's name in it (`.product-info--aside`, sized to its own column). The website's
+  column moved later, with polish D1 (Page widths, below).
 - The canvas widths are arithmetic. Its height is what the window leaves it, roughly 1200px at
   2560x1440 (about 38% of that screen); that was not measured here.
   `apps/viewer/src/styles/largeScreens.test.ts` computes the rules at the pinned widths, and both
@@ -361,13 +390,27 @@ device stops reading as an accent and starts reading as a second typeface.
 | `.label` | 10px | 0.12em | Tag chips, 4/8px padding, 6px radius |
 | `.section-number` | 10px | 0.14em | Section numbering, `--muted` |
 
+**The face is IBM Plex Mono, the same on every device (polish X5 and F17, the owner's Q39).** Until
+2026-10-04 the labels were each device's own monospace, and in Chrome and Firefox on a Mac that font
+has no `№`, so every section number began with a squashed stand-in. Plex Mono has the sign and is
+close to the old labels' width. Each app declares only the weights it draws — the website 400 and
+500, the garment pages 400 and 700 — in latin, plus Plex Mono's cyrillic file for `№` alone (the
+website at both weights, the garment pages at 400, the weight of their section numbers), declared
+after the latin face so it is asked first (`unicode-range: U+2116`). The swap moves
+nothing: every character of a monospace font is one width, so the two `local()` stand-ins in
+`tokens.css` (Menlo on a Mac; Courier New, or Liberation Mono on Linux) are scaled to Plex's 0.6em
+advance with its ascent and descent, and match every line exactly. The garment pages do not preload
+it: their first paint on slow 3G is held to 2,400ms (`e2e/firstPaint.spec.ts`), and the labels are
+not what a visitor reads first.
+
 **Long runs of capitals are set in normal letters since 2026-10-02 (visual audit VA-44, the owner's
 choice).** Capitals read slowly past a few words, and the audit counted runs of 31 to 74 characters.
 So the bracket label above every page's headline, photo captions, the figures' descriptions, the
 guide titles listed at the foot of each guide, the legal pages' subheads and the footer's address
-are in normal letters, with the same words, typed in normal case in the source. Short labels keep
-their capitals: chips that name a family, buttons, section numbers, the footer's other lines and the
-garment pages' field labels. `e2e/composition.spec.ts` holds both halves (CR-06 and VA-44).
+are in normal letters, with the same words, typed in normal case in the source; since polish X23
+(2026-10-04) every line of the footer's facts is too. Short labels keep their capitals: chips that
+name a family, buttons, section numbers, the footer's headings and legal row, and the garment
+pages' field labels. `e2e/composition.spec.ts` holds both halves (CR-06 and VA-44).
 
 **A label on the website's heroes never leaves its last words alone (VA-43, 2026-10-02).**
 `.site-hero .label` carries `text-wrap: balance` (in `site.css`, not on the shared `.label`, so the
@@ -379,7 +422,9 @@ the dot between them dropped; from 40rem it is one line with its dot. The words 
 ### Body
 
 `17px / 1.55`. **Paragraphs and list items are capped at `60ch`** — a measure limit,
-enforced globally in `base.css`, not per-component.
+enforced globally in `base.css`, not per-component. The website restates it as
+`max(60ch, 34.362em)`, the same width in Archivo, because its body text swaps fonts (§3,
+"Body text swaps to Archivo when it lands").
 
 ### The size scale
 
@@ -420,9 +465,10 @@ with nothing to stop a tenth.
 The two mono sizes are not interchangeable and the distinction is load-bearing:
 `--text-mono` (11px) is for **content labels** — the `.mono` register, a spec's
 name. `--text-mono-sm` (10px) is for **chips** — `.label`, `.section-number`. An
-audit finding (VIS-10) is that the spec list's `<dt>` uses the chip size for
-content, which is why the garment's own facts read one step quieter than the
-decorative section numbering above them.
+audit finding (VIS-10) was that the spec list's `<dt>` used the chip size for
+content, so the garment's own facts read one step quieter than the decorative
+section numbering above them. Since polish D10 (2026-10-04) the facts' group
+headings (`.spec-group__heading`) are read text at `--text-mono-lg`.
 
 Display sizes stay as `clamp()` expressions rather than tokens, because they are
 ranges rather than values; see `.display--hero` and `.display--section` above.
@@ -445,10 +491,10 @@ and it shipped as 21 literals until 2026-09-05.
 
 | Token | Value | Use |
 |---|---|---|
-| `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.callout`, `.preloader__status` |
-| `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-list dt`, `.stage__ar`, `.stage__loading`, `.stage-block__name` |
+| `--tracking-caps-tight` | 0.1em | `.btn`, `.step__num`, `.step__title`, `.stage__hint`, `.colourway-tab`, `.preloader__status` |
+| `--tracking-caps` | 0.12em | `.label`, `.camera-btn`, `.spec-group__heading`, `.stage__ar`, `.stage__loading`, `.product-info__more` |
 | `--tracking-caps-wide` | 0.14em | `.section-number`; the footer's `.footer-clock__time small` |
-| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the site's `.footer-clock__time` |
+| `--tracking-caps-compact` | 0.06em | the colourway rail below its 500px container; the garment's facts in the 3D window's corners (`.spec-groups--corners .spec-item__row`); the site's `.footer-clock__time` |
 | `--tracking-mono` | 0.11em | `.mono` — see the warning below |
 | `--tracking-wordmark` | -0.02em | the bar's `.notch__wordmark`, and the aside heading that borrows it |
 | `--tracking-card-title` | -0.02em | the site's `.product-card__name` |
@@ -458,10 +504,10 @@ and it shipped as 21 literals until 2026-09-05.
 | `--tracking-clock-caption` | 0.18em | `.footer-clock__city` — "SIALKOT · HQ & WORKS" |
 | `--tracking-eyebrow` | 0.2em | `.footer-eyebrow` — the mono eyebrow over the footer's question |
 | `--tracking-legal` | 0.13em | `.footer-legal` — the © line and its two links |
-| `--tracking-link-mono` | 0.055em | `.footer-block a` — the email and WhatsApp rows |
 | `--tracking-footer-mark` | -0.045em | `.footer-mark__layer` — the cropped outline wordmark at 122% stretch |
 
-**The eight site rows landed 2026-09-06, the day the two branches merged.** The
+**The eight site rows landed 2026-09-06, the day the two branches merged** (seven since polish
+X23 retired `--tracking-link-mono` with the footer's capital info lines). The
 marketing site (`apps/cms`) reads the same token file, and this branch's
 `tokens.test.ts` deliberately scans its stylesheet, so the three gates above reached
 21 values the navbar and footer had shipped as literals. They are named by **role**
@@ -527,15 +573,16 @@ field labels and legend, and the colour names on a garment's colourway tabs — 
 reads to act, not glances at. The chips and section numbers still keep 10–11px.
 
 **Every text that is read is 12px since 2026-10-02 (owner's choice, visual audit VA-11).** The
-footer's headings, links, address, tab and small print; photo captions; the /products filter
+footer's headings, links, address, tab and small print; photo captions; the /products jump-bar
 chips and their counts; card cues ("View the range →", "Read this guide", "Opens the 3D
-viewer"), colour names on cards and the gallery's count; fact labels, timeline step names and
-the "We"/"You" tags; subheads and the facts' labels; and on a garment page the camera buttons,
-the HD IMAGE button, the spec notes on the stage, the product line above it on a phone, the
-retry button, the touch hint and the download count. They take `--text-mono-lg`. Only the
-decorative register keeps 10–11px: bracket labels (`.label`, the bracketed `.field-label`s on
-/contact, the spec list's `[ Fabric ]`), section numbers, the timeline's step numbers,
-"[ Photo to come ]" and the arrow signs.
+viewer"), colour names on cards and the gallery's count; fact labels, the order steps' stage
+names and "We"/"You" tags; subheads and the facts' labels; and on a garment page the camera buttons,
+the HD IMAGE button, the garment's facts (their group headings everywhere, and their bullets in
+the 3D window's corners), the retry button, the touch hint and the download count. They take
+`--text-mono-lg`. Only the decorative register keeps 10–11px: bracket labels (`.label`, the
+bracketed `.field-label`s on /contact), section numbers, "[ Photo to come ]" and the arrow
+signs. (The order timeline's 11px step numbers were on that list until polish D4 made each step
+a card with its number at the section-number size.)
 
 ### Page widths
 
@@ -543,8 +590,46 @@ Two measures, on purpose (owner, 2026-10-01: document, do not merge):
 
 | Surface | Content width | Why |
 |---|---|---|
-| The website | `--site-max` **1180px**, **1440px** from 1600px wide | a fourth gallery column above 1600px (D4, FA-E-04); prose stays capped at 60–62ch. In `tokens.css` since 2026-10-02: the footer lines up with this column on the garment pages too (VA-31) |
-| A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that |
+| The website | `--site-max` **1180px**, **1440px** from a 1280px screen, **1600px** from 1920px | polish D1 (2026-10-04): at 1440 wide the 1180px page left 194px empty each side, and its words used the left half of what was left. The room goes to the heading beside its words and to the card grids; prose stays at `--site-measure` (31.5em, 55ch of Archivo). In `tokens.css` since 2026-10-02 (VA-31) |
+| A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that. `.page` sets `--site-max` and `--site-gutter` to this column and `.content` is drawn from them, so the shared footer, which reads the same two, lines up with it (D1; it had missed by 26px at 1440). The website's width steps live in `site.css`, so a garment page never downloads them |
+
+### A section's head: the heading beside its words
+
+From 900px (polish D1), a section's label and heading take the left three fifths of the column and
+its paragraph, with any buttons, the right two (`.section-head`, site.css): a paragraph alone sits
+on the heading's last line, and words with buttons start level with the heading so the buttons run
+on below it. Three fifths, not half, because a heading's last two words are joined
+by a no-break space (TY-12) and in half a column at 1024px "YOU'RE MAKING." no longer fit. A list
+under a heading takes halves, the heading at the top of the left one and the entries in the right,
+where running text needs the room (`.spread`: the category pages' lists and the guides' sections).
+The markup keeps its order (label, heading, words, buttons), so a screen reader and the Tab key
+meet them as before; below 900px they stack as they always did.
+
+### Long pages name their parts: privacy and terms
+
+Since polish X4 (2026-10-04) each part of the privacy notice and the terms is a real `h2` in the
+card title's type (`.prose__heading`), not the small code-style label it was, smaller than the
+words under it. "On this page" (`OnThisPage.tsx`) lists them as plain links to each heading: from
+900px beside the text, in the same 3:2 split as a section's head, and sticky below the bar, so the
+right half of a computer's page is no longer empty; on a phone above the text, its links in a
+wrapping row. It works with no script and does not mark the part in view, which in October 2026
+still needs a script to tell a screen reader. `e2e/legalPages.spec.ts` holds the headings, the
+list and both layouts.
+
+### The guides: a photo, a table, and the links at the end (polish X22)
+
+The audit of 3 October 2026 found the guides walls of text. A guide section may show one of the
+owner's factory photos (`photo` in `lib/guides.ts`), under its heading: from 900px in the heading's
+half of the `.spread`, which stood empty beside the words, and on a phone between the heading and
+the words. Only where the section's own words name what the photo shows ("Screen printing",
+"Tagging", "our building", "the same team"); `guides.test.ts` lists each with those words. The
+printing guide's "Which method for your garment" opens with the site's first table (`.guide-table`):
+a caption, a header per column, the method as each row's header, every cell the guide's own words
+(the test checks each against its point). Two columns of short words, so it stays a real table on a
+320px phone, with no `display` changed on any part of it. At the end of a guide, the other guides and
+the four families are two lists of plain links under "Buyer guides" and "What we make", drawn as "On
+this page" draws its links (44px rows) and side by side from 900px, no longer one cloud of filter
+chips. `e2e/guides.spec.ts` measures all three.
 
 ### Breakpoints
 
@@ -554,79 +639,180 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 
 | Query | Where | What changes |
 |---|---|---|
-| `max-height: 500px` | `base.css`, `notch.css`, `page.css` | sideways phones: the cookie card goes to one row, the bar rests at its condensed 52px; on a garment page the product line above the stage and the phone action bar are hidden |
+| `max-height: 500px` | `base.css`, `notch.css`, `page.css` | sideways phones: the cookie card goes to one row, the bar rests at its condensed 52px; on a garment page the phone action bar is hidden |
 | `max-width: 359.98px` | `page.css` | narrower padding on the phone action bar's two buttons |
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
-| `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column |
-| `max-width: 559px` | `site.css` | on a phone the product cards have a square picture, 12px of text padding and narrower colour dots, and `/products`' filter is one row that scrolls sideways (VA-42) |
-| `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
+| `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column; from it the product grid has two columns and each card is an upright ticket that opens (polish D3b) |
+| `max-width: 559px` | `site.css` | on a phone each product card is a sideways ticket, one a row: a square picture on its left, 12px of text padding and narrower colour dots (polish M1), and `/products`' jump bar is one row that scrolls sideways (VA-42) |
+| `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
-| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, timeline); facts go to three columns; the garment page's two-column stage, and the phone action bar is hidden |
+| `min-height: 40rem`, with motion allowed | `site.css` | the order steps stack as the page scrolls (polish D4); on a shorter screen, under reduced motion and on paper they are a plain list |
+| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, the order steps beside their sticky heading, polish D4), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
-| `1000px`, `1279px` | `page.css` | the spec list and the corner notes on the stage; below 1280 a note's value is clamped to four lines |
-| `1100px` and `min-height: 880px`, or `1280px` and `min-height: 800px` | `useIdentityInAside.ts` | the product's name and description move beside the garment, only where the longest live description leaves the contact buttons on screen (VA-60; a script query, kept a strict subset of the CSS one) |
+| `700px` and `orientation: portrait` | `page.css` | an upright tablet keeps the phone's one column, its garment window half the screen tall so the name under it is on the first screen (polish F11) |
+| `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one). The garment's facts follow the same query into the 3D window's four corners, unless the 3D cannot run (polish D10; `specsInCorners` in `App.tsx` decides, so they are drawn once) |
+| `1024px` and `min-height: 656px`, sideways, and container `colourrail` `350px` | `page.css` | beside the garment, each colour's name under its dot, three to a row (polish D8) |
 | `1180px` | `site.css` | the product families go to five columns |
-| `max-width: 899px`, `900px`, `1440px` | `site.css` | the product grid is two columns, three from 900px and four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px), each with its own rule against a lone last card (VA-42) |
-| `1600px` | `site.css` | the site column widens to 1440px for a fourth gallery column (D4) |
-| `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12) |
-| container `colourrail`: `500px`, `280px` | `page.css` | the colour rail's compact swatches, and its two-row fallback |
+| `1280px` | `site.css`, `footer.css` | the website's column widens to 1440px (polish D1; it was 1180px until 1600px); the footer's facts go to five columns (polish X23) |
+| `560px` to `899px`, `900px`, `1440px`, `1920px` | `site.css` | the product grid is one column on a phone, two from 560px (a tablet's odd last card lies across both), three from 900px, four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px) and five from 1920px (polish D1), each with its own rule against a lone last card (VA-42) |
+| `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12); the website's column is 1600px (polish D1) |
+| container `colourrail`: `252px`, `350px` | `page.css` | below 252px the dots go three to a row (3 + 2, VA-32); from 350px, beside the garment, each dot has its name under it (polish D8) |
 
-### Pictures in rows: the order timeline
+### The order steps: stacking photo cards (polish D4)
 
-№04 gives each of its eight steps one photo, every one cut to the same **1:1** square (visual
-audit VA-29, owner's choice 2026-10-02). The shape is CSS, not eight files: `.photo-figure__frame--square`
-(`aspect-ratio: 1 / 1`) frames the picture, `object-fit: cover` cuts it, and each photo's own
-`object-position` (its `focus` in `apps/cms/src/lib/factoryPhotos.ts`) keeps its subject in. A
-square, because the eight files are four 8:5 and four 4:5 and a square gives up the least of both.
+№04 "How an order works" and the order guide's "The eight steps" draw the same eight cards
+(`apps/cms/src/components/site/OrderSteps.tsx`, from `apps/cms/src/lib/orderProcess.ts`): the
+owner's answers Q14 ("B, stacking photo cards") and Q41 ("the home page's 8 steps everywhere"),
+2026-10-03. Each card is one step over its own room's photo: the number in the volt at the
+section-number size, the stage and "You"/"We" at the top; the step's title, its words and the
+room's name at the foot; the photo showing between. The card takes the photo hero's dark tokens
+and its wash, 80% ink at the least and 88% at the foot, with the hero's faint grid over it, so
+every line keeps 4.5:1 over the whitest pixel a photo could have (the arithmetic is the hero's).
 
-| Width | One step's row |
+| Width | The section |
 |---|---|
-| 900px and up | the words on the left, the photo on the right in a 400px column, both starting at the row's top edge |
-| under 900px | the photo above its words, as wide as the column up to 400px |
+| 900px and up | the heading and its words on the left, staying in view while the cards pass on the right half (the half №01's photos take: the photo files stop at 1200px wide and 800px tall) |
+| under 900px | the heading first, then the cards at the column's full width |
 
-The words come first in the markup and `order` lifts the photo above them on a phone only, so a
-screen reader hears a step's title before its picture; nothing in a row takes focus, so the two
-orders cannot disagree for a keyboard. The pictures are lazy and carry their width and height, and
-the wipe and drift that run as they scroll in stop under `prefers-reduced-motion`.
+| Card | Height |
+|---|---|
+| under 560px | `20rem` (320px) |
+| 560px and up | `23.75rem` (380px) |
 
-### A family's two pages name each other
+In rem, so a reader's larger text gets a taller card; a card whose words need more still grows
+rather than cut them.
 
-A product family can have two pages: its buyer page (for example `/custom-outerwear-manufacturer`)
-and its filtered gallery (`/products?family=outerwear`). Since visual audit VA-33 (owner-approved
-2026-10-01, words 2026-10-02) each links to the other with the existing ghost button, never the
-primary one: the buyer page ends "What we make" with "See all outerwear in 3D", and the gallery
-puts "About our outerwear" beside its result count. The words are built from the family's own name,
-lower-cased (`seeAllLabel` and `aboutLabel` in `apps/cms/src/lib/familyPages.ts`), and Sports
-Accessories, which has no buyer page, has neither link. The gallery's canonical address stays
-`/products`: the link is a way across, not a second page to index.
+**The stack.** With motion allowed, on a screen at least `40rem` tall, each card stops at the
+bar's clearance plus 8px for each card before it, the next slides up over it, and the covered
+card sinks (to 94%, from its top edge) and darkens (an ink shade to 55%). The sink runs on the
+list's own scroll timeline (`view-timeline: --order-steps`), from the moment the next card
+touches the covered one's foot to the moment it stops over it. A browser without scroll
+timelines and animation ranges (Firefox today) stacks the cards without the sink; under reduced
+motion, on a shorter screen (a phone held sideways) and on paper, the eight are a plain list.
+The last card has an empty row of the list after it to stop in: a margin would not do, because
+a stopped card may not leave its list, margin and all. `apps/cms/e2e/orderTimeline.spec.ts`
+measures the stops, the sink and the plain list in three engines.
 
-### The product grid: two on a phone, and never one alone
+The words come first in the markup and the photo is laid behind them, so a screen reader hears a
+step's title before its picture; the number is hidden from it (the ordered list already counts).
+Nothing in a card takes focus. The photos are lazy and carry their width and height, and each
+keeps its own `focus` as `object-position`.
+
+### A family has one list (polish S1–S4, S8)
+
+Each product family's garments are listed on ONE page: its buyer page (for example
+`/custom-outerwear-manufacturer`). Until 2026-10-05 a family also had a filtered gallery
+(`/products?family=outerwear`), and the two linked to each other (visual audit VA-33); the owner
+chose one page per job (Q24–Q26, 2026-10-04, decision D27). So:
+
+- `/products` shows every garment (D1) under its family's heading. The heading opens the family's
+  page (`.gallery-group`, site.css); Sports Accessories, with no page and no garments yet, shows
+  "[ soon ]" and "Ask what we make →" to Contact (Q21). Its home-page card says the same, with the
+  label on the picture's corner, and opens Contact (polish F8); a family says it only while it has
+  neither a page nor a garment (`familyIsSoon`). A chip row at the top jumps to each group,
+  its counts beside the names; on a phone it is one sideways row (VA-42).
+- `/products?family=…` forwards permanently to the family's page (Next's 308, which Google treats as
+  a 301), a family with no page to its group, anything else to `/products`
+  (`familyFilterForward` in `apps/cms/src/lib/familyPages.ts`).
+- A buyer page copies nothing from the home page: no numbers, no factory photos, and no steps of
+  its own. Under its "How an order works" heading it gives the order guide's own description and a
+  link to it.
+- The Teamwear page has a button per sport over its garments (polish S7; the owner's six groups,
+  Q44): All, Soccer, American football, Cycling, Tennis & pickleball, Training, Water sports, each
+  with its count, filtering in place with no new address (Q27). They are radios in a fieldset and
+  CSS does the showing (`.sport-scope`, site.css), so they work with scripting off. A garment's
+  sport is read from its garment type (`lib/sports.ts`); while one sport is shown, each card's
+  `data-cut` / `data-lie` stand in for the grid's last-row rules, so no card is left alone (VA-42).
+- The garment pages' trail and "See all … in 3D" open the family's page too (`categoryPath` in
+  `packages/shared/src/categoryPages.ts`).
+
+### The family tickets (polish D3, M1, F1)
+
+The home page's five families are tickets: two halves and a dashed tear line between them, with a
+notch where the tear line meets each edge (the owner's version 2 of 3 October 2026; `FamilyCard.tsx`,
+`site.css` "The family tickets"). The notches are a CSS mask whose sizes are registered properties,
+so they glide as a card opens.
+
+- **The row of five**, only from 1180px and only where a pointer can hover: closed, the picture sits
+  over a stub with the name and the count ("[ 19 references ]", "[ 19 refs ]" where the card is too
+  narrow for it). A card opens when the pointer rests on it for `--instant`, or at once for the
+  keyboard: it widens (2.7 shares to 1), the picture moves left, the opened half's lines arrive
+  `--stagger` apart (the count and minimum, the name, the description, the first four groups of the
+  family's buyer page, the way in), and the neighbours' pictures fade back while their words keep
+  full contrast. It closes when the pointer leaves, and on Escape (`TicketDismiss.tsx`, the one
+  script). Reduced motion opens it without moving anything.
+- **Sideways everywhere else** (M1, the owner's answer Q3): picture left, words right, notches top
+  and bottom. A phone shows one a row; a tablet, or a touch screen of any width, two, the fifth across
+  both with its picture as wide as the others'. The card's own width decides whether the description
+  shows (a container query); out of sight, it is still read to a screen reader.
+- **One link per card**, the title's, stretched over the card (as the guide cards). Nothing between
+  the link and the card may be positioned or moved, or the stretch covers less than the card.
+- **The keyboard ring is drawn inside the card (F1)**, 4px in, by the link's stretched `::after`,
+  which is painted last: on the card itself the picture half covered it.
+
+### The product tickets (polish D3b, X9, M1, F1)
+
+Every garment card on `/products` and the buyer pages is a ticket in the family tickets' language
+(the owner's words, 5 October 2026: "the same shape for every product card on computers. Phones get
+the sideways version all the time"; X9: "the front shows picture + name + dots, and the rest appears
+when the card opens"). `ProductCardItem.tsx` holds the markup, `site.css` "The product tickets" the
+geometry.
+
+- **On a phone, sideways** (M1): one a row, the picture the left 44% and at least square, the name at
+  the top right and the colour dots at the bottom right, notches top and bottom where the halves
+  meet. The code, the description, "Opens the 3D viewer" and the colour's name are out of sight
+  (the visually-hidden technique), still read to a screen reader. A phone's ticket never opens.
+- **From 560px, upright**: the picture (4:5), a dashed tear line with a notch on each side, the name,
+  the dots. It opens when a pointer that can hover rests on it for `--instant`, or at once when the
+  keyboard reaches any of its controls, and closes when the pointer leaves, focus moves on, or on
+  Escape (`TicketDismiss.tsx`). A touch screen of any width keeps it closed.
+- **Opening is one length, `--ticket-rise` (116px, measured)**: the picture's strip gives it up at its
+  foot and the pictures re-fit the shorter box, so the garment stays whole; the name band rises by it
+  over the picture's foot; the code, two lines of description and the way in arrive `--stagger` apart
+  in the room it leaves, with the colour's name over the dots. The card never changes height, so
+  nothing around it moves. The notches and the tear line ride up with the band.
+- **A tablet's odd last card** lies across both columns as a sideways ticket, its picture one column
+  wide, its words laid open beside it, as the family row's fifth is.
+- **The keyboard rings are drawn inside the ticket (F1)**: the picture's 2-4px inside the picture; the
+  name's by the name band's `::after`, round the band and the opened part; the dots keep 6px under
+  them for theirs.
+- **No neighbour fade** on product grids: forty cards fading as a pointer crossed them would flicker.
+
+`apps/cms/e2e/productTickets.spec.ts` holds all of it in a browser, the rings and the notches in
+pixels.
+
+### The product grid: one ticket a row on a phone, and never one alone
 
 `/products` and the buyer pages share `.product-grid`. Visual audit VA-42 (owner's choice
 2026-10-02) found `/products` 30,363px long on a 390px phone, 36 screens with no garment on the
 first one, and at 1440px the 40 cards leaving one alone on the last row. Decision D1 stands: one
 long page, every garment in the document. Since the owner's call of 2026-10-02 the fourth column
 starts at 1440px, so the catalogue's 40 garments fill ten rows of four there; 1280px keeps three.
+From 1920px, where the page is 1600px wide since polish D1, there are five: eight full rows.
 
-| Width | Columns | Picture | The filter on `/products` |
+| Width | Columns | Picture | The jump bar on `/products` |
 |---|---|---|---|
-| under 560px | 2 | square | one row that scrolls sideways |
+| under 560px | 1, sideways tickets (polish M1) | square, the ticket's left 44% | one row that scrolls sideways |
 | 560 to 899px | 2 | 4:5 | wraps |
 | 900 to 1439px | 3 | 4:5 | wraps |
-| 1440px and up | 4 | 4:5 | wraps |
+| 1440 to 1919px | 4 | 4:5 | wraps |
+| 1920px and up | 5 | 4:5 | wraps |
 
-The counts are written out rather than left to `auto-fill`, because the rule against a lone last
-card has to know them. With three or four columns and one card over, the second-to-last card
+VA-42 gave a phone two cards a row; since polish M1 (the owner's answer Q3) it is one sideways
+ticket a row, about a square picture tall. The count is one number, `--grid-columns`, which the
+tracks and each card's own width (`--card-w`, which places a ticket's tear line) both read. The
+counts are written out rather than left to `auto-fill`, because the rule against a lone last
+card has to know them. With three, four or five columns and one card over, the second-to-last card
 starts the last row, so it holds two. With two columns and an odd count the last card spans both
 and lies down, its picture on the left and its words on the right. A single card on a page is
 left alone. `apps/cms/src/productGridOrphans.test.ts` runs the real selectors over every count
 from 2 to 60, and `apps/cms/e2e/productsGrid.spec.ts` does it with real cards.
 
 On a phone the colour dots are 24 to 40px wide and still 44px tall: WCAG 2.2 SC 2.5.8 asks for 24px
-and the site holds every button to 44px tall, but five 44px-wide dots do not fit a 134px card.
-That is narrower than the 44px width §4 states for touch targets, which is the cost of the fix;
-the owner accepted it on 2026-10-02.
-The card's text has 12px of padding and a long name wraps inside it. The filter row is a scroller
+and the site holds every button to 44px tall, but five 44px-wide dots do not fit a phone ticket's
+156px half. That is narrower than the 44px width §4 states for touch targets, which is the cost of
+the fix; the owner accepted it on 2026-10-02.
+The card's text has 12px of padding and a long name wraps inside it. The jump bar is a scroller
 of links, so Tab walks every chip and the browser scrolls each into view; it ends at the screen's
 edges and cannot make the page scroll sideways.
 
@@ -657,7 +843,11 @@ The property is declared in `apps/cms/src/app/(frontend)/site.css`, not `tokens.
 website's cards read it.
 
 `object-fit: contain` fits the picture into what the padding leaves, so the 4:5 boxes are the size they
-were and a 4:5 render lands 7% from every edge. Percentage padding is measured against the width, so the
+were and a 4:5 render lands 7% from every edge. (The home family tickets' pictures are their half of the
+ticket since polish D3, tall when one opens and wide for the fifth on a tablet; the margin holds at both
+extremes, `src/pictureInset.test.ts` and `e2e/pictureInset.spec.ts`. An opened product ticket's strip,
+since polish D3b, is wider than 4:5, from 1.03 to 1.29, and the padding keeps the margin there too.)
+Percentage padding is measured against the width, so the
 block value is 1.25 times the inline one to reach the same fraction of the height. A render taller than
 4:5 is bound by the height and keeps its 7% of height; a wider one keeps its 7% of width. The browser
 test holds a floor of 6%, the bottom of the owner's "about 6-8%". Sports Accessories, whose photo is the
@@ -669,7 +859,9 @@ page's 3D section picture has none, because the live model lies exactly over its
 The choice is a fixed card at the foot of the screen (`base.css` `.consent`), with Decline and
 Accept the same size and style. Since 2026-10-01: it is the first stop after the skip link; while
 it is open the page keeps a strip clear of it (`scroll-padding-block-end` plus the same height of
-room at the foot) so no focused item sits under it (WCAG 2.2 SC 2.4.11); on a short screen it is
+room, which since polish M2 sits inside the footer above the RUN APPAREL wordmark, so the wordmark
+stays the last thing on the page; a page with no footer keeps it at its foot) so no focused item
+sits under it (WCAG 2.2 SC 2.4.11); on a short screen it is
 one row; and on a garment page the phone action bar steps aside until it is answered. Safari
 does not scroll a field it already counts as on screen, so `ConsentBanner.tsx` lifts a focused
 field clear itself, and only one shorter than the room above the card: its first version also
@@ -689,14 +881,17 @@ us" are what a screen reader meets reading down. Both stay (`Contact.tsx` record
 it, because at 402x874 and 375x667 the same two buttons were shown twice at the same moment, and
 it returns when that pair scrolls off. Since 2026-10-03 it also fades while any of the footer is
 above it (owner's choice): over the dark footer the paper bar was a white block on an iPhone, and
-the footer carries the email, WhatsApp and "Start an inquiry" itself; the room kept for the bar
-under the footer is painted the footer's colour. `lib/actionBarStepsAside.ts` sets `data-tucked` on the bar
+the footer carries the email, WhatsApp and "Start a conversation" itself (the tab's name since polish
+X20, 2026-10-05; "Start an inquiry" until then). So since polish M2
+(2026-10-04) no room is kept for the bar under the footer: with the bar always gone there, it was an
+empty band under the wordmark, and a garment page now ends at its footer as the website does.
+`lib/actionBarStepsAside.ts` sets `data-tucked` on the bar
 from an `IntersectionObserver` whose bottom edge is pulled up by the bar's own height; the fade,
 and leaving the Tab order and the accessibility tree, are CSS: `opacity` over `--fast`, and
 `visibility`, which hides the bar once the fade ends and shows it again at once. A bar with
 keyboard focus inside it stays until focus leaves, and under reduced motion the change is
 instant. The cookie card hides the bar separately, with no fade. The bar keeps its place in the
-layout throughout, so the room the page reserves for it is unchanged, and it is still not shown
+layout throughout, so the room the stage reserves for it is unchanged, and it is still not shown
 from 900px wide or on a screen 500px tall or less (see Breakpoints).
 
 ### Panels
@@ -707,9 +902,29 @@ from 900px wide or on a screen 500px tall or less (see Breakpoints).
 list each guide twice, as a card with its own button and as a chip at the foot of the page. Now the
 card's heading is the only link, named by the guide's title, and its `::after` is stretched over the
 card (`site.css`, `.guide-card__link`), so a click or tap anywhere on it opens the guide. Nothing
-interactive sits inside it, and the card hovers as the family cards do: a 4px lift and an accent
-edge on a mouse and on keyboard focus, the press on touch. The foot of the page keeps only the
-buyer-page chips; each guide page still lists its sibling guides.
+interactive sits inside it, and the card hovers with a 4px lift and an accent edge on a mouse and on
+keyboard focus, the press on touch. (The family cards used to do the same; since polish D3 they open
+instead, below.) The foot of the page keeps only the
+four buyer pages, under their own heading, "What we make", since polish X22; each guide page still
+lists its sibling guides.
+
+### The works slab: where we ship, and the marks (polish X7)
+
+№05's numbers end in one slab of two halves split by a hairline (`site.css`, `.works-slab`;
+`FactsBento.tsx`, on the home page and the four buyer pages). "Where we ship" draws the world in dots,
+from the land mask of the contact globe's library (`apps/cms/scripts/gen-world-map.mjs` writes
+`public/world-map.svg`), with the works pinned in volt where the CMS's `worksCoordinates` put them
+(no coordinates, no pin: the contact globe's rule, `lib/globe.ts`); the line under it is `SHIPS_TO`.
+"Certification" is the footer's marks, at a 44px square's area (the footer's are 36), each group
+beside its one line (`CERTIFICATION_LINES`, held to the owner's paragraph by
+`companyFacts.test.ts`); the paragraph itself stays whole in `/llms.txt`. Until 2026-10-05 the two
+were a line beside seven (audit of 3 October).
+
+**The slab is dark in both themes, in the footer's colours** (ink in light mode, `--raised` in dark),
+because the marks are the bodies' reversed artwork, off-white for a dark ground. Its colours are
+declared on the slab, which sets no `color-scheme`, so each `light-dark()` takes the page's theme. On
+paper it takes the page's colours and drops the map and the marks; in forced colours the map goes.
+`apps/cms/e2e/worksSlab.spec.ts` measures the balance, the ground and the pin.
 
 ### Motifs
 
@@ -771,19 +986,17 @@ animate `width`, which is layout on every frame; `scripts/served-css-motion-prob
 carries an exception for them. The customisation panel's grid rows are the other animation that
 moves layout; that one is deliberate and stays (`page.css`).
 
-### The bar's hairline, and the bar that leaves (VA-40)
+### The bar's edge, and the bar that leaves (VA-40)
 
 Visual audit VA-40, owner-approved 2026-10-01, built 2026-10-02. The bar and the label row under it took
 92px of an 874px phone at all times, and over a dark photograph the bar's shadow and curved edges
 vanished (the website's dark "Browse the references" button scrolling under it read as one shape).
 
-**The hairline** is in the shared stylesheet, so both hosts have it: a 1px ring in the paper colour,
-the first layer of the bar's shadow, `--notch-edge` in `packages/ui/src/notch.css` — paper at 22% in
-the light theme and 12% in the dark. Computed with `scripts/contrast-rules.mjs` and held by
-`apps/viewer/src/styles/barEdge.test.ts`: over a dark photograph (#202420) it reads 1.95:1 in the
-light theme and 1.41:1 in the dark; over the light page it is paper on paper, 1.00:1, so it cannot
-look heavier there. It outlines the bar and not the two flares at its top corners (masks, painted over
-the bar's own shadow). It is transparent on paper and not drawn in forced-colours mode.
+**The edge is the soft shadow alone** (`--shadow-raised`), by the owner's choice in polish D12
+(2026-10-04). VA-40 had added a 1px ring in the paper colour as the bar's first shadow layer. It
+stopped where the two curved top corners begin (masks painted over the bar's own shadow), and the
+owner read that as unfinished. Over dark photographs the bar now separates by its shadow and its lime
+menu button. `apps/viewer/src/styles/barEdge.test.ts` holds the bar to that one shadow.
 
 **The bar that leaves** is the garment pages' alone, on a phone (`screen`, under 720px,
 `hover: none` — the phone the status-area strip defines): while the visitor scrolls down it slides off
@@ -811,13 +1024,27 @@ in `notch.css`, and the website never sets the attribute.
 One footer on the public site and the 3D garment pages since 2026-10-02 (visual audit VA-31,
 owner-approved 2026-10-01: the garment pages had ended in a pale footer of their own, which no
 decision chose). The bar's arrangement: its stylesheet is
-[`packages/ui/src/footer.css`](../packages/ui/src/footer.css); its words, links and rules are
+[`packages/ui/src/footer.css`](../packages/ui/src/footer.css), with the tab, question and clock
+that only the website draws (polish Q42) in
+[`packages/ui/src/footer-prompt.css`](../packages/ui/src/footer-prompt.css), which only the website
+imports (polish D1); its words, links and rules are
 [`packages/shared/src/siteFooter.ts`](../packages/shared/src/siteFooter.ts); each app writes the
 same markup in its own framework (`apps/cms/src/components/site/SiteFooter.tsx`,
 `apps/viewer/src/components/Footer.tsx`), and both browser suites hold the result to one
 accessibility tree, `siteFooterAriaSnapshot`. The garment pages get the footer's details in
 their API answer (`siteSettings.footer`), from the same projection the website uses. WCAG 2.2
 SC 3.2.6 Consistent Help asks for contact details in the same place on every page of a site.
+
+**The facts since polish X23 and F9 (2026-10-04).** Five blocks in one order on both hosts:
+Contact, "What we make" (the four category pages, F9, the owner's Q22), Elsewhere, Capacity and
+Standards, then one row of the standards' marks. They run the column's width from its left edge,
+under a rule as wide as the legal row's: two columns on a phone (the two link groups side by side,
+Contact and the two claims across both), three from 720px, five from 1280px. They were a box of up
+to 640px pushed to the right, which left a gap under the question on a computer and stood about two
+and a half phone screens tall. Their lines are in normal letters (only the headings and the legal
+row keep capitals); entries naming the same holder share a line (`standardsLines`: the two
+"Suppliers:" entries); and every mark is drawn at one area, a 36px square's, not one height
+(`markBox`), three to a row on a phone.
 
 ### Paper
 
@@ -834,6 +1061,19 @@ word against white. The photo heroes (home, contact, and products with its film)
 own dark colours, which the paper rule cannot reach, so on paper `site.css` drops the photo, the
 film and the pause button and hands those colours back to the page (found 2026-10-02: volt on
 white, 1.27:1, from either theme).
+
+A garment page prints as one spec sheet (polish F14, 2026-10-04; it ran to three sheets with the
+Email / WhatsApp bar on each): the colour's picture on the left at 76 x 95mm (4:5, the posters'
+shape), the labels, name and description beside it, then the facts and the contact details
+across the sheet, inside 10mm margins. One A4 or Letter sheet holds the catalogue's fullest
+garment (the longest description and six performance features). Three things make it work:
+`apps/viewer/src/lib/usePrinting.ts` gives paper the one-column arrangement whatever screen
+it is printed from (on a computer the facts sit in the 3D window's corners); a still picture
+stands in for the 3D, whose canvas prints as its last frame, cropped; and the print block at the
+end of `apps/viewer/src/styles/page.css` floats the picture and hides everything made for a
+screen. The shared footer had a grid layer that printed as an opaque white sheet over the
+contact details; `footer.css` drops it on paper. `apps/viewer/e2e/print.spec.ts` prints both
+paper sizes from a computer and a phone.
 
 ### The products film
 
@@ -894,6 +1134,7 @@ nothing moved — with one stated exception below.
 | Token | Value | Layer |
 |---|---|---|
 | `--z-hero-grid` | -1 | the site's `.site-hero__grid` — the blueprint grid behind the hero copy |
+| `--z-menu-dim` | -1 | `.notch-shell::before`, both hosts — the dim behind the open phone menu (polish X26, 2026-10-04); -1 inside the bar's own layer, so it covers the page and stays under the bar |
 | `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
 | `--z-card-control` | 1 | the site's `.card-gallery__arrow` — previous / next over a gallery card's picture (VA-30) |
 | `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
@@ -914,7 +1155,12 @@ sees is unchanged — measured by grep of `site.css` and `base.css`, not assumed
 
 **The open phone menu is in the browser's TOP LAYER, above every z-index here — the skip link
 and the cursor included.** It opens under the bar, so it never covers the skip link, which
-appears at the top-left; the cursor ring (fine pointers only) passes under it.
+appears at the top-left. The cursor's dot and ring (fine pointers only) passed under it until
+2026-10-04; since polish F5 they join the top layer after the menu while it is open, because the
+last element added there is drawn on top (packages/shared/src/cursorRules.ts). While it is open
+the page behind it is dimmed and holds still (polish X26 and F3, 2026-10-04); the dim is the
+bar's own layer rather than the popover's `::backdrop`, which would cover the bar as well and
+split it from the menu it widens into.
 
 **A z-index only means something against the others**, and until this table existed
 the only way to learn the stack was to grep two stylesheets and sort the results.
@@ -966,7 +1212,7 @@ So the lock holds and the scale grows:
 | Controls — hover, press, a state change the user is waiting on | `--ui` |
 | Entrances, cross-fades, accordions | `--settle` |
 | Wipes, scroll reveals | `--slow` |
-| The site's three showpieces only: the numbers counting up, the order timeline drawing, the contact globe's routes | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
+| The site's showpieces only: the numbers counting up and the contact globe's routes (the order timeline's drawn line was the third until polish D4 replaced the timeline with stacking cards, 2026-10-05) | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
 | Retargeted progress fills | `--fast` (see `page.css`'s note — a fill retargeted several times a second visibly trails the number beside it at anything slower) |
 | The phone contact bar fading away while the page's own Email and WhatsApp, or the footer, are on screen (VA-54, 2026-10-02; the footer 2026-10-03) | `--fast`, as the audit's fix text asks. It follows the scroll position, which a visitor can reverse at any moment, so it is the retargeted case above rather than a state a finger is waiting on (`--ui`, 20ms slower). See "The phone contact bar" |
 | The pause between rows that arrive one after another — the phone menu's rows only (visual audit VA-51, 2026-10-01); never the page's entrance reveals (D8) | `--stagger` |

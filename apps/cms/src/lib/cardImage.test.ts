@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { hintAt, pickedWidth } from '../sizesAt'
 import { CARD_SIZES, CARD_WIDTHS, cardImage } from './cardImage'
 
 const RENDER = 'https://media.wear-run.com/r-xmp-wine-render.webp'
@@ -74,11 +77,52 @@ describe('cardImage: a card-sized copy of a gallery picture (owner, 2026-09-29)'
     expect(cardImage(onHost)).toEqual({ src: onHost })
   })
 
-  // The grid is two cards wide below 900 px since 2026-10-02 (visual audit VA-42): a phone card is
-  // 134-169 px, so a full-width `sizes` would have a phone fetch the 1,080 file for a 169 px card.
-  // 45vw - 6px is (100vw - two gutters - a 12 px gap) / 2 once the gutter is 5vw; from 900 px it is
-  // the 340 px three columns measured.
-  it('treats the page as two columns below 900 px and 340 px above', () => {
-    expect(cardImage(RENDER).sizes).toBe('(max-width: 899px) calc(45vw - 6px), 340px')
+  // A phone's sideways ticket draws its picture as its left 44% since polish M1 (2026-10-05): 122-220
+  // px, so a full-width `sizes` would have a phone fetch the 1,080 file for a 153 px picture. From
+  // 560 px the grid is two cards wide (visual audit VA-42), from 900 px three, four and five (polish
+  // D1). Since polish X15 each step asks for the picture's box less VA-55's 7% margin a side (below);
+  // `e2e/productsGrid.spec.ts` measures every step against a real card, which this string cannot.
+  it('follows the grid: a sideways ticket below 560 px, two columns below 900, then three, four and five', () => {
+    expect(cardImage(RENDER).sizes).toBe(
+      '(max-width: 399px) calc(37.84vw - 15.6px), (max-width: 559px) 34.1vw, ' +
+        '(max-width: 899px) calc(38.7vw - 4px), (max-width: 1279px) 291px, ' +
+        '(max-width: 1439px) calc(28.67vw - 50px), (max-width: 1919px) 267px, 237px',
+    )
+  })
+
+  /*
+   * ⚠️ THE HINT IS THE BOX THE PICTURE IS FITTED INTO, NOT THE CARD'S PICTURE BOX (polish X15,
+   * 2026-10-05). VA-55's margin pads every slide picture 7% of its width a side (site.css,
+   * `.card-gallery__slide .product-card__img`), so `contain` fits the render into 86% of the box's
+   * width, and no render, wide or tall, is drawn wider than that. Asking for the whole box handed
+   * a 3x phone at 375-393 px the 720 file (38-60 KB measured live, 2026-10-05) where the 400 file
+   * (16-26 KB) already has more pixels than the screen draws, and an 834 px tablet or a 1,280 px
+   * laptop at 2x the 1,080 file where 720 is enough. What would have to break: the margin changes
+   * and the hint does not follow (here), or the hint falls below the box really drawn (the
+   * browser suite).
+   */
+  it('asks for the picture inside VA-55’s margin, so phones and tablets take the smaller file that still covers it', () => {
+    const css = readFileSync(
+      join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'),
+      'utf8',
+    )
+    expect(css).toMatch(/--picture-inset:\s*7%;/)
+    expect(css).toMatch(
+      /\.card-gallery__slide \.product-card__img,[^{]*\{\s*padding: calc\(var\(--picture-inset\) \* 1\.25\) var\(--picture-inset\);/,
+    )
+    const { srcSet = '', sizes = '' } = cardImage(RENDER)
+    const takes = (width: number, density: number) =>
+      pickedWidth(srcSet, hintAt(sizes, width), density)
+    for (const width of [360, 375, 390, 393]) expect(takes(width, 3), `${width}@3x`).toBe(400)
+    expect(takes(412, 2.625), '412@2.625x').toBe(400)
+    for (const width of [820, 834]) expect(takes(width, 2), `${width}@2x`).toBe(720)
+    for (const width of [1280, 1366]) expect(takes(width, 2), `${width}@2x`).toBe(720)
+    // NEGATIVE CONTROL: the whole box's hint, until X15, handed those screens the larger files.
+    const box =
+      '(max-width: 559px) calc(40vw - 1px), (max-width: 899px) calc(45vw - 6px), ' +
+      '(max-width: 1279px) 340px, (max-width: 1439px) calc(33.34vw - 58px), (max-width: 1919px) 310px, 276px'
+    expect(pickedWidth(srcSet, hintAt(box, 390), 3)).toBe(720)
+    expect(pickedWidth(srcSet, hintAt(box, 834), 2)).toBe(1080)
+    expect(pickedWidth(srcSet, hintAt(box, 1280), 2)).toBe(1080)
   })
 })

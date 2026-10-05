@@ -1,4 +1,5 @@
 import {
+  holdPageWhileOpen,
   markMenuClosing,
   SITE_MENU_ID,
   SITE_MENU_LINKS,
@@ -68,6 +69,12 @@ export function Header({ wordmark }: HeaderProps) {
     return menu ? markMenuClosing(menu) : undefined
   }, [])
 
+  // The page holds still while the menu is open (polish F3; packages/shared/src/siteBar.ts).
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    return menu ? holdPageWhileOpen(menu, document) : undefined
+  }, [])
+
   // On a phone the bar leaves while the visitor scrolls down and returns as they scroll up
   // (VA-40). The script only sets `data-bar-hidden`; notch.css does the rest.
   const shell = useRef<HTMLElement>(null)
@@ -87,8 +94,10 @@ export function Header({ wordmark }: HeaderProps) {
           then to the 54 MB catalogue PDF; then it was a <span> while the site had no pages.
           The destination is the site's ORIGIN: a wordmark is a home affordance, and every
           visitor here already has a garment in front of them. `viewer.spec.ts` guards it.
+          `translate="no"` (polish X27, 2026-10-04): a browser's Translate must not rename the
+          company; the garment's name and code carry it too (ProductIdentity.tsx).
         */}
-        <a className="notch__wordmark" href={SITE_ORIGIN}>
+        <a className="notch__wordmark" href={SITE_ORIGIN} translate="no">
           {wordmark}
         </a>
         <nav className="notch__nav" aria-label={SITE_NAV_LABEL}>

@@ -309,10 +309,20 @@ test.describe('the cookie choice on a garment page', () => {
 
     // ⚠️ A RAW MOUSE CLICK ON TEXT ALREADY ON SCREEN. `locator.click()` scrolls its target
     // into view first, and the product's <h1> is below the fold here: the first draft
-    // measured Playwright's own 621px scroll and blamed the page.
-    const name = await page.locator('.stage-block__name').boundingBox()
-    if (!name) throw new Error('the product line above the garment is not on the page')
-    expect(name.y + name.height, 'the text to click is not on screen').toBeLessThan(844)
+    // measured Playwright's own 621px scroll and blamed the page. Since polish M5 (2026-10-04)
+    // nothing names the garment over it, so the text is the colour's name above the dots: in
+    // <main>, outside the tabpanel (which takes focus itself), and the only text in <main> that
+    // reaches above the card. ⚠️ MEASURE THE CARD, NOT THE REGION: the region is the card's
+    // click-through shell, 8px bigger all round (base.css `.consent`), so its top reads 8px above
+    // anything that covers the page. Since the sentence named PostHog (2026-10-05) the region's top
+    // is at 684.4px, which first read as the name (670.4-689px) going under the card; the card's
+    // own top is at 692.4px, 3.4px clear, in all four engines.
+    const name = await page.locator('.colourways__name').boundingBox()
+    if (!name) throw new Error('the colour name above the dots is not on the page')
+    const cardTop = (await banner(page).locator('.consent__card').boundingBox())?.y ?? 844
+    expect(name.y + name.height, 'the text to click is under the cookie card').toBeLessThanOrEqual(
+      cardTop,
+    )
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
     await page.mouse.click(name.x + name.width / 2, name.y + name.height / 2)
     // The control: the click must have focused something taller than the screen, or this

@@ -34,13 +34,18 @@ export async function downloadWithRetries(
     stallMs?: number
     attempts?: number
     fetcher?: typeof fetchWithProgress
+    /** The model's size from the garment data, for the percentage (fetchWithProgress, F12). */
+    expectedBytes?: number | null
   },
 ): Promise<Blob> {
   const { stallMs = STALL_MS, attempts = MAX_ATTEMPTS, fetcher = fetchWithProgress } = opts
   for (let attempt = 1; ; attempt++) {
     opts.onAttempt?.(attempt)
     try {
-      return await fetcher(url, opts.onProgress, opts.signal, { stallMs })
+      return await fetcher(url, opts.onProgress, opts.signal, {
+        stallMs,
+        expectedBytes: opts.expectedBytes,
+      })
     } catch (error) {
       if (!(error instanceof DownloadStalledError)) throw error
       opts.onStall?.(attempt, error.loaded)

@@ -27,12 +27,24 @@ import { expect, type Page, test } from './offlineMedia'
  * meet each other or `inquirySecurity.spec.ts`'s TEST-NET-2 and TEST-NET-3 addresses.
  */
 /**
- * ONE STEP SINCE 2026-10-01 (owner, visual audit VA-02): name, email and message first, then the
- * optional details under "Optional details", every field showing. Job title and Subject left the
- * form that day, so they are absent from both lists on purpose.
+ * POLISH D7, THE OWNER'S OWN LAYOUT (2026-10-03, answers Q15-Q17; it replaces VA-02's one column):
+ * Name + Job title, Company + Country, Email + Phone, then Subject (six answers to tap, the last
+ * opening a box for the buyer's own), Message, Files and Send. Pairs sit side by side on tablets
+ * and computers and stack on a phone (Q16). Only Name, Email and Message must be filled, each with
+ * a red * that one sentence at the top explains, and "optional" is written nowhere (Q17). Job
+ * title and Subject are back on the page; the route never stopped accepting them.
  */
 const REQUIRED = ['name', 'email', 'message'] as const
-const OPTIONAL = ['company', 'country', 'phoneCode', 'phone', 'files'] as const
+const OPTIONAL = ['jobTitle', 'company', 'country', 'phoneCode', 'phone', 'files'] as const
+/** The owner's subjects (Q43), in order; the last opens a box for the buyer's own words. */
+const SUBJECTS = [
+  'Request a quote',
+  'Develop a new product',
+  'Samples',
+  'Private label & branding',
+  'Repeat or bulk order',
+  'Something else…',
+]
 
 async function fillRequired(page: Page) {
   await page.fill('.inquiry-form [name="name"]', 'Dana Okafor')
@@ -61,25 +73,73 @@ test.describe('the inquiry form', () => {
       expect(await field.evaluate((el) => (el as HTMLInputElement).required)).toBe(true)
     }
 
-    // The optional half: every field optional, every label SAYS so, all under "Optional details".
-    await expect(form.locator('fieldset legend')).toHaveText('Optional details')
+    // The three that must be filled carry a red * in their label, hidden from a screen reader,
+    // which hears "required" instead; one sentence at the top says what the * means (Q17).
+    await expect(form.locator('.inquiry-form__key')).toContainText('Fields marked * are needed.')
+    for (const name of REQUIRED) {
+      expect(
+        await form
+          .locator(`[name="${name}"]`)
+          .evaluate((el) =>
+            [...((el as HTMLInputElement).labels ?? [])].some((label) =>
+              label.querySelector('.inquiry-form__req[aria-hidden="true"]'),
+            ),
+          ),
+        `${name} has no * in its label`,
+      ).toBe(true)
+    }
+    // Everything else is simply not required: no label says so, and there is no "optional" group.
+    expect(await form.textContent(), 'the form still says "optional"').not.toMatch(/optional/i)
+    await expect(form.locator('legend', { hasText: /optional/i })).toHaveCount(0)
     for (const name of OPTIONAL) {
       const field = form.locator(`[name="${name}"]`)
-      await expect(field, `${name} is missing`).toBeVisible()
-      expect(await field.evaluate(labelOf), `${name} does not say it is optional`).toMatch(
-        /\(optional\)/i,
-      )
+      await expect(field, `${name} is missing`).toHaveCount(1)
+      expect((await field.evaluate(labelOf)).trim(), `${name} has no label`).not.toBe('')
       expect(
         await field.evaluate((el) => (el as HTMLInputElement).required),
         `${name} is required`,
       ).toBe(false)
       expect(
-        await field.evaluate((el) => Boolean(el.closest('fieldset'))),
-        `${name} is outside the optional group`,
-      ).toBe(true)
+        await field.evaluate((el) =>
+          [...((el as HTMLInputElement).labels ?? [])].some((label) =>
+            label.querySelector('.inquiry-form__req'),
+          ),
+        ),
+        `${name} carries a *`,
+      ).toBe(false)
     }
-    // Gone with the single step: no second step, no progress bar, no Job title or Subject.
-    await expect(form.locator('[name="jobTitle"], [name="subject"]')).toHaveCount(0)
+    // The owner's order (D7), each name once; the honeypot and the "own subject" box aside.
+    const order = await form.evaluate((element) => [
+      ...new Set(
+        [...element.querySelectorAll<HTMLInputElement>('[name]')]
+          .map((field) => field.name)
+          .filter((name) => !['website', 'subjectOther'].includes(name)),
+      ),
+    ])
+    expect(order).toEqual([
+      'name',
+      'jobTitle',
+      'company',
+      'country',
+      'email',
+      'phoneCode',
+      'phone',
+      'subject',
+      'message',
+      'files',
+    ])
+    // The subject is six answers to tap, one at a time (Q15, Q43), none chosen to begin with.
+    const subjects = form.locator('input[type="radio"][name="subject"]')
+    expect(
+      await subjects.evaluateAll((radios) =>
+        radios.map((radio) => radio.closest('label')?.textContent?.trim()),
+      ),
+    ).toEqual(SUBJECTS)
+    expect(
+      await subjects.evaluateAll(
+        (radios) => radios.filter((radio) => (radio as HTMLInputElement).checked).length,
+      ),
+    ).toBe(0)
     await expect(form.getByRole('progressbar')).toHaveCount(0)
     await expect(form.locator('button[type="submit"]')).toHaveCount(1)
 
@@ -129,12 +189,23 @@ test.describe('the inquiry form', () => {
     const controls = await page.locator('.inquiry-form').evaluate((form) =>
       [...form.querySelectorAll('input, textarea, select, button')]
         .filter((el) => !el.closest('[aria-hidden="true"]'))
-        .map((el) => ({
-          name: (el as HTMLInputElement).name || el.textContent || el.tagName,
-          height: el.getBoundingClientRect().height,
-        })),
+        // Only what is drawn: the box for the buyer's own subject opens with "Something else…".
+        .filter((el) => el.getClientRects().length > 0)
+        // A subject answer and the file picker are pressed through their label (D7): the label
+        // is the target a finger meets, so it is what is measured.
+        .map((el) => {
+          const input = el as HTMLInputElement
+          const target =
+            input.type === 'radio' || input.type === 'file'
+              ? (input.closest('label') ?? form.querySelector(`label[for="${input.id}"]`) ?? el)
+              : el
+          return {
+            name: `${input.name || el.textContent || el.tagName}${input.value && input.type === 'radio' ? `=${input.value}` : ''}`,
+            height: target.getBoundingClientRect().height,
+          }
+        }),
     )
-    expect(controls.length, 'no controls were measured').toBeGreaterThanOrEqual(9)
+    expect(controls.length, 'no controls were measured').toBeGreaterThanOrEqual(16)
     const small = controls.filter((c) => c.height < 43.95).map((c) => c.name)
     expect(small, 'a form control is under the 44px floor').toEqual([])
   })
@@ -203,7 +274,7 @@ test.describe('the inquiry form', () => {
      */
     const done = page.locator('.inquiry-done')
     await expect(done).toBeVisible()
-    await expect(done.getByRole('heading', { name: 'Inquiry received.' })).toBeVisible()
+    await expect(done.getByRole('heading', { name: 'Got it.' })).toBeVisible()
     await expect(done).toContainText('We reply within 24 hours.')
     await expect(done).toContainText('Need us sooner?')
     await expect(page.locator('.inquiry-form')).toBeHidden()
@@ -377,13 +448,20 @@ test.describe('the inquiry form', () => {
     await page.goto('/contact')
     const form = page.locator('.inquiry-form')
     const code = form.locator('[name="phoneCode"]')
-    await form.locator('[name="country"]').selectOption('Pakistan')
+    const country = form.locator('[name="country"]')
+    // A box that suggests as the buyer types (D7, X6), no longer the browser's grey list.
+    expect(await country.evaluate((el) => el.tagName)).toBe('INPUT')
+    expect(
+      await country.evaluate((el) => (el as HTMLInputElement).list?.options.length ?? 0),
+    ).toBeGreaterThan(100)
+    await country.fill('Pakistan')
     await expect(code).toHaveValue('+92')
-    await form.locator('[name="country"]').selectOption('Germany')
+    // Typed in another case, it is still the country.
+    await country.fill('germany')
     await expect(code).toHaveValue('+49')
     // Negative control for the rule: typed by the buyer, it is theirs.
     await code.fill('+971')
-    await form.locator('[name="country"]').selectOption('Canada')
+    await country.fill('Canada')
     await expect(code).toHaveValue('+971')
   })
 
@@ -499,7 +577,11 @@ test.describe('the inquiry form', () => {
       await page.fill('.inquiry-form [name="email"]', 'noscript@example.com')
       await page.fill('.inquiry-form [name="message"]', 'Sent with JavaScript disabled.')
       await page.fill('.inquiry-form [name="company"]', 'Northfield Athletic')
-      await page.selectOption('.inquiry-form [name="country"]', 'Canada')
+      await page.fill('.inquiry-form [name="country"]', 'Canada')
+      await page.fill('.inquiry-form [name="jobTitle"]', 'Head of kit')
+      // A subject is a radio inside its label: pressing the words chooses it, with or without
+      // scripting.
+      await page.locator('.inquiry-form label', { hasText: 'Samples' }).click()
       await page.fill('.inquiry-form [name="phoneCode"]', '+1')
       await page.fill('.inquiry-form [name="phone"]', '555 0100')
 
@@ -508,7 +590,14 @@ test.describe('the inquiry form', () => {
       const posted = page.waitForRequest((r) => r.url().endsWith('/contact/submit'))
       await page.locator('.inquiry-form button[type="submit"]').click()
       const body = (await posted).postData() ?? ''
-      for (const value of ['Northfield Athletic', 'Canada', '555 0100', 'name="files"']) {
+      for (const value of [
+        'Northfield Athletic',
+        'Canada',
+        'Head of kit',
+        'Samples',
+        '555 0100',
+        'name="files"',
+      ]) {
         expect(body, `the POST did not carry ${value}`).toContain(value)
       }
       // The confirmation replaces the form here too; only the address keeps its code.
@@ -516,5 +605,55 @@ test.describe('the inquiry form', () => {
       await expect(page.locator('.inquiry-done')).toBeVisible()
       await expect(page.locator('.inquiry-form')).toBeHidden()
     })
+  })
+})
+
+/*
+ * "Ask about this garment" (polish S10; the owner's one prompt at the end of a garment page,
+ * Q42, 2026-10-04): the garment page links here with the garment and colour as slugs, and this
+ * page looks both up among the published garments (`lib/askAboutGarment.ts`). The seeded garment
+ * is n001, Velocity Performance Tee, in five colours (src/seed/seed.ts).
+ */
+test.describe('"Ask about this garment" opens the form already filled in', () => {
+  test('names the garment, its code and colour, links back, and starts the message', async ({
+    page,
+  }) => {
+    await page.goto('/contact?garment=n001&colour=black#inquiry')
+    const about = page.locator('.inquiry-form__about')
+    await expect(about).toBeVisible()
+    await expect(about).toHaveText(/^Asking about\s*Velocity Performance Tee \(N001\), Black$/)
+    await expect(about.getByRole('link')).toHaveAttribute('href', '/products/n001/black')
+    await expect(page.locator('.inquiry-form [name="message"]')).toHaveValue(
+      'I am interested in Velocity Performance Tee (N001) in Black.\n\n',
+    )
+    await expect(page.locator('.inquiry-form [name="subject"]')).toHaveValue(
+      'Velocity Performance Tee (N001) / Black',
+    )
+    // It lands on the form itself, as every "Start a conversation" link does.
+    await expect(page.locator('#inquiry')).toBeInViewport()
+  })
+
+  test('an address naming no published garment or colour opens the ordinary empty form', async ({
+    page,
+  }) => {
+    for (const address of [
+      '/contact?garment=not-a-garment&colour=black',
+      '/contact?garment=n001&colour=not-a-colour',
+      '/contact?garment=n001',
+    ]) {
+      await page.goto(address)
+      await expect(page.locator('.inquiry-form'), address).toBeVisible()
+      await expect(page.locator('.inquiry-form__about'), address).toHaveCount(0)
+      // No garment's subject is carried; the buyer's own six answers are offered instead (D7).
+      await expect(
+        page.locator('.inquiry-form input[type="hidden"][name="subject"]'),
+        address,
+      ).toHaveCount(0)
+      await expect(
+        page.locator('.inquiry-form input[type="radio"][name="subject"]'),
+        address,
+      ).toHaveCount(6)
+      await expect(page.locator('.inquiry-form [name="message"]'), address).toHaveValue('')
+    }
   })
 })

@@ -33,11 +33,15 @@ import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
 import '@run-apparel/ui/notch.css'
 import '@run-apparel/ui/footer.css'
+// The footer's tab, question and clock: the website's alone since the garment pages dropped them
+// (polish Q42), so the viewer does not download them (polish D1). After footer.css, as they were.
+import '@run-apparel/ui/footer-prompt.css'
 import './site.css'
 
 import type { Metadata, Viewport } from 'next'
 import type React from 'react'
 import { Analytics } from '../../components/site/Analytics'
+import { CardOpening } from '../../components/site/CardOpening'
 import { ConsentBanner } from '../../components/site/ConsentBanner'
 import { Cursor } from '../../components/site/Cursor'
 import { SmoothScroll } from '../../components/site/SmoothScroll'
@@ -173,6 +177,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <Cursor />
         {/* The viewer's smooth scroll: trusted wheels only, off under reduced motion. */}
         <SmoothScroll />
+        {/* A card's picture grows into the garment page; every other link loads as before (MO3). */}
+        <CardOpening />
       </body>
     </html>
   )

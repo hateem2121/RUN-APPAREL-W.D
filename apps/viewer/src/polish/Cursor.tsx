@@ -1,6 +1,11 @@
-import { publishCursor } from '@run-apparel/shared'
+import {
+  cursorGrows,
+  cursorOverThreeD,
+  keepAboveTopLayer,
+  publishCursor,
+} from '@run-apparel/shared'
 import { motion, useMotionValue, useSpring } from 'motion/react'
-import { createElement, useEffect, useState } from 'react'
+import { createElement, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
 
@@ -21,6 +26,11 @@ import { isCoarsePointer, prefersReducedMotion } from '../lib/capabilities'
  * `HOVER_INTENT_MS` coalescing that exists precisely because that sweep is the
  * expected gesture. The ring still inflates over them — `[role="tab"]` is in the
  * interactive selector — which is the cue that matters.
+ *
+ * One pointer (polish F4, owner Q19, 2026-10-04): over the 3D model the dot and ring step
+ * aside for the browser's grab hand, and while the phone menu is open they rise above it (F5).
+ * Both rules, and the interactive selector, are shared with the website's cursor
+ * (packages/shared/src/cursorRules.ts).
  */
 export function Cursor() {
   const enabled =
@@ -55,6 +65,15 @@ export function Cursor() {
   const ringY = useSpring(y, spring)
   const [pointer, setPointer] = useState(false)
   const [armed, setArmed] = useState(false)
+  const [threeD, setThreeD] = useState(false)
+  const dot = useRef<HTMLSpanElement>(null)
+  const ring = useRef<HTMLSpanElement>(null)
+
+  // While the phone menu is open, the dot and ring rise above it (F5).
+  useEffect(() => {
+    if (!enabled || !dot.current || !ring.current) return
+    return keepAboveTopLayer([dot.current, ring.current], document)
+  }, [enabled])
 
   /**
    * ⚠️ `has-custom-cursor` IS APPLIED ONLY ONCE THE REPLACEMENT IS DRAWN, and that
@@ -91,8 +110,7 @@ export function Cursor() {
     // exit so re-entry snaps instead of springing in from wherever the pointer left.
     let placed = false
 
-    const isInteractive = (node: Element | null) =>
-      Boolean(node?.closest('a, button, [role="tab"], [data-cursor="pointer"]'))
+    const isInteractive = (node: Element | null) => cursorGrows(node)
 
     const onMove = (event: MouseEvent) => {
       x.set(event.clientX)
@@ -113,6 +131,7 @@ export function Cursor() {
       // on an event that fires continuously. A no-op when unchanged.
       setArmed((was) => (was ? was : true))
       setPointer(isInteractive(event.target as Element | null))
+      setThreeD(cursorOverThreeD(event.target as Element | null))
     }
 
     /**
@@ -128,6 +147,7 @@ export function Cursor() {
     const onOver = (event: PointerEvent) => {
       if (!placed) return
       setPointer(isInteractive(event.target as Element | null))
+      setThreeD(cursorOverThreeD(event.target as Element | null))
     }
 
     /*
@@ -234,9 +254,10 @@ export function Cursor() {
   return (
     <>
       <motion.span
+        ref={dot}
         className="cursor-dot"
         aria-hidden="true"
-        data-hidden={!armed}
+        data-hidden={!armed || threeD}
         style={{ x, y }}
       />
       {/**
@@ -279,9 +300,10 @@ export function Cursor() {
        * colour, which is a paint-only change and safe where it is.
        */}
       <motion.span
+        ref={ring}
         className="cursor-ring"
         aria-hidden="true"
-        data-hidden={!armed}
+        data-hidden={!armed || threeD}
         data-pointer={pointer}
         style={{ x: ringX, y: ringY }}
         animate={{ scale: pointer ? 1.53 : 1 }}

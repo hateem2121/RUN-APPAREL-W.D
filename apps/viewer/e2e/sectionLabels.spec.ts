@@ -32,12 +32,31 @@ test.describe('section labels carry their number once (VA-39) — the garment pa
     })
   })
 
-  test('"№03 — Start the conversation", and the page draws it in capitals', async ({ page }) => {
+  // №03 since polish S6 (2026-10-04): "More from this category" sits between the two.
+  test('"№03 — More from this category", and the page draws it in capitals', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    expect(await labelFacts(page.locator('.related .section-number'))).toEqual({
+      words: '№03 — More from this category',
+      transform: 'uppercase',
+    })
+  })
+
+  test('"№04 — Start the conversation", and the page draws it in capitals', async ({ page }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     expect(await labelFacts(page.locator('.contact .section-number'))).toEqual({
-      words: '№03 — Start the conversation',
+      words: '№04 — Start the conversation',
       transform: 'uppercase',
     })
+  })
+
+  test('the numbers run in page order, one each, with none skipped', async ({ page }) => {
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const numbers = (await page.locator('main .section-number').allTextContents()).map(
+      (label) => label.trim().match(/^№(\d{2})/)?.[1],
+    )
+    expect(numbers).toEqual(['02', '03', '04'])
   })
 })
