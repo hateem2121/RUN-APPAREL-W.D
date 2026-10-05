@@ -323,6 +323,8 @@ test.describe('the numbers the design audit fixed', () => {
     context,
   }) => {
     await liftAutomationGate(context)
+    // The clock flows normally until the sweep below pauses it (see the sideways sweep's note).
+    await page.clock.install()
     await page.goto('/contact')
     const slab = page.locator(SLAB)
     await slab.scrollIntoViewIfNeeded()
@@ -351,22 +353,90 @@ test.describe('the numbers the design audit fixed', () => {
     // (packages/ui/src/footer.css), so on PR #128 (2026-10-05) the sweep crossed no gap and its one
     // extra toggle was the step 1px BELOW the row, where the halo correctly turns off once the 180ms
     // linger runs out on a slow runner (reproduced in CI's image at 250ms a step). It now ends inside.
-    // ⚠️ KNOWN, FOR THE NEXT SESSION (owner, 2026-10-05): across the 24px gap BETWEEN two blocks a
-    // slow pointer (3px a frame) outlasts that 180ms, and the halo dims for a moment (measured in CI's
-    // image). A sideways sweep that crosses a gap belongs here once the linger covers it.
+    // The sideways crossing of the gap BETWEEN two blocks is the next test, on the fake clock.
+    // ⚠️ ON THE FAKE CLOCK SINCE 2026-10-05: 3px a 16ms frame, exactly. In real time each step also
+    // waited for a page round trip, so the pace was the runner's: ~140ms a step in CI's image, and
+    // the ~100 steps outran the 30s test limit in Chromium there (4 of 4, main's code too). Toggles
+    // are counted in the page, so no step waits for the test runner.
     const block = await page.locator('.footer-block').first().boundingBox()
     if (!block) throw new Error('no facts block')
-    let toggles = 0
-    let last: string | null = null
+    await page.mouse.move(block.x + 60, block.y - 2)
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
+    await page.clock.runFor(500)
+    await page.evaluate((selector) => {
+      const watched = document.querySelector(selector) as HTMLElement
+      const seen = window as unknown as { toggles?: number; last?: string }
+      seen.toggles = 0
+      seen.last = watched.dataset.over
+      new MutationObserver(() => {
+        if (watched.dataset.over !== seen.last) seen.toggles = (seen.toggles ?? 0) + 1
+        seen.last = watched.dataset.over
+      }).observe(watched, { attributes: true, attributeFilter: ['data-over'] })
+    }, SLAB)
     for (let y = block.y - 2; y < block.y + block.height - 2; y += 3) {
       await page.mouse.move(block.x + 60, y)
-      await page.waitForTimeout(16)
-      const over = await slab.getAttribute('data-over')
-      if (last !== null && over !== last) toggles++
-      last = over
+      await page.clock.runFor(16)
     }
+    await page.clock.runFor(1000)
+    const toggles = await page.evaluate(() => (window as unknown as { toggles?: number }).toggles)
     // one toggle: the entry. Anything more means the hand-off flickered inside the block.
     expect(toggles).toBeLessThanOrEqual(1)
+  })
+
+  /*
+   * ⚠️ ON PLAYWRIGHT'S FAKE CLOCK, SO EVERY MACHINE SEES THE SAME FRAMES (2026-10-05). The cursor
+   * trails on animation frames and the light lingers on a timer, and the clock owns both (with
+   * `performance` and event times; playwright.dev/docs/clock). Driven in real time this sweep's pace
+   * was the runner's: "3px a step" took 140ms a step in CI's image, a different crossing on every
+   * machine. Here it is 100 px/s exactly, a slow, deliberate hand: 1.6px a 16ms frame. The light
+   * is off content for ~240ms crossing the 24px gap between the first two facts blocks (one row
+   * from 1280px, polish X23); FooterGlow.tsx's LINGER_MS (300) covers it. At the old 180 the halo
+   * dimmed for 59ms here, in both engines: the negative control, run both ways.
+   */
+  test('a slow sideways sweep across the gap between two blocks never dims the halo', async ({
+    page,
+    context,
+  }) => {
+    await liftAutomationGate(context)
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.clock.install()
+    await page.goto('/contact')
+    const slab = page.locator(SLAB)
+    await slab.scrollIntoViewIfNeeded()
+    const [first, second] = await page
+      .locator('.footer-block')
+      .evaluateAll((blocks) =>
+        blocks.slice(0, 2).map((block) => block.getBoundingClientRect().toJSON() as DOMRect),
+      )
+    if (!first || !second || second.left - first.right < 16) {
+      throw new Error('expected two facts blocks side by side, a gap apart, at 1280px')
+    }
+    const y = Math.max(first.top, second.top) + 20
+    // Land on the first block in real time, so the cursor arms and the ring parks on content.
+    await page.mouse.move(first.right - 40, y)
+    await page.mouse.move(first.right - 30, y)
+    await expect(slab).toHaveAttribute('data-over', 'true')
+
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
+    await page.clock.runFor(500)
+    await page.evaluate((selector) => {
+      const watched = document.querySelector(selector) as HTMLElement
+      const seen = window as unknown as { dimmed?: boolean }
+      seen.dimmed = false
+      new MutationObserver(() => {
+        if (watched.dataset.over === 'false') seen.dimmed = true
+      }).observe(watched, { attributes: true, attributeFilter: ['data-over'] })
+    }, SLAB)
+    for (let x = first.right - 30; x <= second.left + 30; x += 1.6) {
+      await page.mouse.move(x, y)
+      await page.clock.runFor(16)
+    }
+    await page.clock.runFor(1000)
+    expect(
+      await page.evaluate(() => (window as unknown as { dimmed?: boolean }).dimmed),
+      'the halo dimmed while a slow pointer crossed the gap',
+    ).toBe(false)
+    await expect(slab).toHaveAttribute('data-over', 'true')
   })
 
   test('the facts run full width on a phone, and the legal links get the design focus ring', async ({
@@ -679,20 +749,33 @@ test.describe('LA-17 — print keeps the contact details', () => {
 })
 
 /**
- * MO-08 — the footer light's 180ms LEAVE linger, tested standing still. The "hand-off
- * does not flicker" test above already proves the ring/light position agree and that a
- * SWEEP through the 2×2's gap does not toggle `data-over` more than once; this is the
- * timing half: after the pointer leaves content and STOPS (no further move — which is
- * exactly the case `FooterGlow.tsx`'s own comment says needed its own re-scheduled
- * timer, since the cursor bus otherwise only re-fires on movement), `data-over` holds
- * true for LINGER_MS (180ms) and then releases on its own.
+ * MO-08 — the footer light's LEAVE linger (LINGER_MS in FooterGlow.tsx, 300ms since 2026-10-05),
+ * tested standing still. The "hand-off does not flicker" test above proves the ring and the light
+ * agree; this is the timing half: after the pointer leaves content and STOPS (no further move,
+ * the case `FooterGlow.tsx`'s own comment says needed its own re-scheduled timer, since the cursor
+ * bus otherwise only re-fires on movement), `data-over` holds true for the linger and then releases
+ * on its own.
+ *
+ * ⚠️ ON PLAYWRIGHT'S FAKE CLOCK SINCE 2026-10-05, AFTER IT FAILED IN FIREFOX ON EVERY CI RUN. Timed
+ * in real time it read 83-141ms in CI's Firefox against at least 150 (first try every run; both tries
+ * on main after PR #128, so the deploy was skipped), while Chromium read 182-199. That was a real
+ * fault, not the runner: the linger was counted from the last frame the light was seen ON content,
+ * which in CI's Firefox (a frame every ~130ms) came well before the light left, or, after the ring
+ * had parked, before the move itself. FooterGlow.tsx now counts from the first frame seen OFF
+ * content. The clock owns the frames, the timer and `performance` here, so the window below is
+ * exact on any machine. The ring starts 4px inside the block's edge, so it leaves on the first frame
+ * after the move, as it did between CI's Firefox frames; with the old count the release came on that
+ * first frame (the negative control, run both ways).
  */
-test.describe('MO-08 — the footer light lingers on content for ~180ms after leaving it', () => {
-  test('data-over stays true for a window around 180ms, then releases without further movement', async ({
+const LINGER_MS = 300
+
+test.describe('MO-08 — the footer light lingers on content after leaving it', () => {
+  test('data-over stays true for the linger, then releases without further movement', async ({
     page,
     context,
   }) => {
     await liftAutomationGate(context)
+    await page.clock.install()
     await page.goto('/contact')
     const slab = page.locator(SLAB)
     await slab.scrollIntoViewIfNeeded()
@@ -701,20 +784,26 @@ test.describe('MO-08 — the footer light lingers on content for ~180ms after le
     const emptyBox = await page.locator('.footer-grow').boundingBox()
     if (!contactBox || !emptyBox) throw new Error('no content/empty region to measure')
 
-    // Land ON content first, and give the trailed ring time to actually settle there
-    // (same shape as "the light rides with the ring" above) before trusting data-over.
-    await page.mouse.move(contactBox.x + 10, contactBox.y + 10)
-    await page.waitForTimeout(500)
-    await page.mouse.move(contactBox.x + 12, contactBox.y + 12)
+    // Land ON content in real time, so the cursor arms and the trailed ring parks there: 4px
+    // inside the block's edge nearest the empty ground, so the ring (22% of the way a frame)
+    // leaves the block on the FIRST frame after the move. That is the case the old count got
+    // wrong whatever the frame rate: its last frame on content was the one where the ring parked.
+    const target = { x: emptyBox.x + emptyBox.width / 2, y: emptyBox.y + emptyBox.height / 2 }
+    const clamp = (v: number, low: number, high: number) => Math.min(Math.max(v, low), high)
+    const start = {
+      x: clamp(target.x, contactBox.x + 4, contactBox.x + contactBox.width - 4),
+      y: clamp(target.y, contactBox.y + 4, contactBox.y + contactBox.height - 4),
+    }
+    if (Math.hypot(target.x - start.x, target.y - start.y) < 40) {
+      throw new Error('the empty ground is too close to the block for a first-frame leave')
+    }
+    await page.mouse.move(contactBox.x + contactBox.width / 2, contactBox.y + contactBox.height / 2)
+    await page.mouse.move(start.x, start.y)
     await expect(slab).toHaveAttribute('data-over', 'true')
 
-    // ⚠️ TIMED INSIDE THE PAGE: from the leave move's own event to the moment `data-over`
-    // flips. Timed from the test runner, the window also counted the mouse-move round trip
-    // and expect.poll's back-off (checks at 0, +100, +250, +500ms), so a release at ~190ms
-    // was first SEEN at the third check: 370-382ms on an idle Mac (8 runs, 2026-10-05), and
-    // 516ms then 622ms on a loaded CI runner (PR #128), over the ceiling, with FooterGlow.tsx
-    // unchanged from main. Measured in the page in the same runs: 182-199ms after the move,
-    // 180-183ms after the trailed ring left the block, which is LINGER_MS itself.
+    // Then stop time, and let the parked ring sit: its last frame ON content is now 500ms old.
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
+    await page.clock.runFor(500)
     await page.evaluate((selector) => {
       const watched = document.querySelector(selector) as HTMLElement
       const clock = window as unknown as { leaveAt?: number; releasedAt?: number }
@@ -726,29 +815,22 @@ test.describe('MO-08 — the footer light lingers on content for ~180ms after le
       }).observe(watched, { attributes: true, attributeFilter: ['data-over'] })
     }, SLAB)
 
-    // One move to empty ground, then STOP — the linger timer, not further movement, has
-    // to carry this to release.
-    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2)
-    await expect
-      .poll(() => slab.getAttribute('data-over'), {
-        message: 'data-over never released after leaving content',
-        timeout: 1000,
-      })
-      .toBe('false')
+    // One move to empty ground, then STOP: the linger timer, not further movement, has to carry
+    // this to release. Time moves only when the test moves it, a frame at a time.
+    await page.mouse.move(target.x, target.y)
+    for (let ms = 0; ms < LINGER_MS + 400; ms += 16) await page.clock.runFor(16)
+    await expect(slab).toHaveAttribute('data-over', 'false')
     const releasedAfterMs = await page.evaluate(() => {
       const clock = window as unknown as { leaveAt?: number; releasedAt?: number }
       return Math.round((clock.releasedAt ?? Number.NaN) - (clock.leaveAt ?? Number.NaN))
     })
 
-    // Released within a window around 180ms: never before the linger (the ring is still on
-    // the block in the frame after the move, so the release cannot come sooner than
-    // LINGER_MS), and never lingering on (the upper bound leaves room for timer jitter on a
-    // loaded runner).
-    expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeGreaterThan(
-      150,
-    )
-    expect(releasedAfterMs, `released after ${releasedAfterMs}ms, expected ~180ms`).toBeLessThan(
-      500,
+    // Never before the linger (the light leaves content at the earliest on the first frame after
+    // the move), and no later than a few frames after it (the trailed ring takes a frame or two to
+    // leave the block; it moves 22% of the way each frame).
+    expect(releasedAfterMs, `released after ${releasedAfterMs}ms`).toBeGreaterThanOrEqual(LINGER_MS)
+    expect(releasedAfterMs, `released after ${releasedAfterMs}ms`).toBeLessThanOrEqual(
+      LINGER_MS + 100,
     )
   })
 })

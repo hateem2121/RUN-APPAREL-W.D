@@ -7,8 +7,17 @@ import { useEffect, useRef } from 'react'
 const CONTENT =
   'a, .footer-q, .footer-eyebrow, .footer-derisk, .footer-dim, .footer-block, .footer-clock, .footer-status, .footer-legal, .footer-mark'
 
-/** How long the content keeps the light after the point leaves it. */
-const LINGER_MS = 180
+/**
+ * How long the content keeps the light after the point leaves it.
+ *
+ * 300 since 2026-10-05 (180 before): long enough for a slow, deliberate pointer (100 px/s) to cross
+ * the 24px gap between two facts blocks in the one-row footer (polish X23) without the halo dimming,
+ * with 60ms (about four frames) to spare. Measured in CI's image on Playwright's fake clock, so every
+ * frame is 16ms: at 100 px/s the light is off content for ~240ms (24px at 100 px/s; at 180ms both
+ * engines dimmed for 59ms), at 50 px/s for ~480ms. Covering that would leave the light on a block
+ * for half a second after the pointer had gone to empty ground. `e2e/footer.spec.ts` sweeps the gap.
+ */
+const LINGER_MS = 300
 
 /**
  * ONE light for the whole slab, positioned from the cursor ring's TRAILED point via
@@ -39,7 +48,8 @@ export function FooterGlow() {
     const inside = (r: DOMRect, x: number, y: number) =>
       x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     let glowOn = false
-    let lastOverAt = Number.NEGATIVE_INFINITY
+    let wasOver = false
+    let leftAt = Number.NEGATIVE_INFINITY
     let lastPoint: CursorPoint | null = null
     let settle = 0
 
@@ -53,6 +63,8 @@ export function FooterGlow() {
         slab.dataset.glow = String(on)
       }
       if (!on) {
+        // Off the slab is not "just left content": coming back onto empty ground must not linger.
+        wasOver = false
         if (mark?.dataset.lit === 'true') mark.dataset.lit = 'false'
         return
       }
@@ -63,8 +75,21 @@ export function FooterGlow() {
       // under the point is real content or the slab itself.
       const under = document.elementFromPoint(point.x, point.y)
       const overNow = Boolean(under && slab.contains(under) && under.closest(CONTENT))
-      if (overNow) lastOverAt = point.now
-      const lingering = !overNow && point.now - lastOverAt < LINGER_MS
+      /*
+       * ⚠️ THE LINGER STARTS AT THE FIRST FRAME SEEN OFF CONTENT, NOT THE LAST ONE SEEN ON IT.
+       * Counted from the last "on" frame until 2026-10-05, it was spent before the light had left
+       * whenever frames came far apart: in CI's Firefox (one frame every ~130ms) the ring was last
+       * seen on the contact block at 19ms, first seen off it at 152ms, and the light let go at
+       * 194ms, 42ms after leaving. The same happened after the ring had parked on a block: its last
+       * "on" frame was from before the move. MO-08 failed its first try on every CI run in Firefox
+       * (83-141ms against at least 150) and both tries on main after PR #128.
+       */
+      if (overNow) wasOver = true
+      else if (wasOver) {
+        wasOver = false
+        leftAt = point.now
+      }
+      const lingering = !overNow && point.now - leftAt < LINGER_MS
       slab.dataset.over = String(overNow || lingering)
       /*
        * ⚠️ THE LINGER NEEDS ITS OWN TICK. The bus publishes only while the ring moves;
@@ -78,7 +103,7 @@ export function FooterGlow() {
           () => {
             if (lastPoint) light({ ...lastPoint, now: performance.now() })
           },
-          LINGER_MS - (point.now - lastOverAt) + 1,
+          LINGER_MS - (point.now - leftAt) + 1,
         )
       }
 

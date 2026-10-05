@@ -117,9 +117,11 @@ Four things that bit while building it:
   sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
   does, and also asserts the honest default — absent under automation.
 - **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`packages/shared/src/cursorBus.ts`),
-  never the raw pointer, and its 180ms linger needs its own timer tick: the bus publishes
-  only while the ring moves, so without one a hand-off caught inside the window stayed lit
-  over empty ground for good. The browser suite found that on its first run.
+  never the raw pointer, and its linger (300ms since 2026-10-05, 180ms before; counted from the
+  first frame seen off content, not the last seen on it) needs its own timer tick: the bus
+  publishes only while the ring moves, so without one a hand-off caught inside the window stayed
+  lit over empty ground for good. The browser suite found that on its first run. Why 300 and why
+  that start: the comments in `apps/cms/src/components/site/FooterGlow.tsx`.
 
 🟡 Two gates to know about here: `navbar.spec.ts` measures EVERY link on every page against
 the 44px touch floor (the first footer shipped 16px rows — real 44px rows, never a
