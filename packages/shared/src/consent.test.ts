@@ -414,11 +414,11 @@ describe('a page brought back by Back or Forward', () => {
     expect(scripts).toHaveLength(0)
   })
 
-  it('accepted on another page since: both trackers start here, and the question closes', () => {
+  it('accepted on another page since: the three trackers start here, and the question closes', () => {
     const { win, scripts } = fakeWindow()
     const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
     expect(restoreTrackers(win, storage, jar)).toEqual({ answered: true, reload: false })
-    expect(scripts).toHaveLength(2)
+    expect(scripts).toHaveLength(3)
   })
 
   it('accepted and already running: the restore is counted once, and nothing loads twice', () => {
@@ -428,7 +428,7 @@ describe('a page brought back by Back or Forward', () => {
     expect(pageViews(win)).toBe(0)
     restoreTrackers(win, storage, jar)
     expect(pageViews(win)).toBe(1)
-    expect(scripts).toHaveLength(2)
+    expect(scripts).toHaveLength(3)
     const last = win.dataLayer?.at(-1)
     expect(Object.prototype.toString.call(last)).toBe('[object Arguments]')
   })

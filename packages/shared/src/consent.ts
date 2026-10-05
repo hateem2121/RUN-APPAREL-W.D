@@ -417,8 +417,8 @@ export function declineTrackers(
  *   (a started script cannot be stopped).
  * - Declined, nothing running: clear again, as every page load does.
  * - Accepted and running: one page view for the restore.
- * - Accepted on another page, nothing running here: start both; Google's `config` counts
- *   the view itself.
+ * - Accepted on another page, nothing running here: start all three; Google's `config`
+ *   counts the view itself.
  *
  * `answered` lets the component close the question it put up unasked.
  */
