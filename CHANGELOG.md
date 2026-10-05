@@ -20,6 +20,7 @@ timeline
 
 ### Added
 
+- PostHog, under the same cookie question: for visitors who press Accept, it records how they use each page (clicks, scrolling, the 3D viewer) so the owner can watch the visit back. What anyone types into a form is hidden before it leaves their browser.
 - A cookie question on every page. Google Analytics and Apollo (which shows which companies visit) start only if a visitor presses Accept; nothing is stored before that. A "Cookies" link in the footer of every page brings the question back.
 - A picture-first front page, with a door each for RUN staff, developers and AI agents.
 - A picture guide for RUN staff, in six short pages.

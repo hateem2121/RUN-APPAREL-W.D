@@ -217,6 +217,9 @@ the bucket policy.
 > is `packages/shared/src/consent.ts`; the two policies that admit their hosts are
 > `apps/cms/publicViewerHeaders.mjs` and `apps/viewer/scripts/csp.mjs`. The Cloudflare
 > beacon below is unchanged and still runs for everyone, because it sets no cookie.
+> PostHog (session replay and heatmaps) joined the same question on 2026-10-04, with
+> its two exact hosts (`us-assets.i.posthog.com`, `us.i.posthog.com`) in both policies; it
+> records only on `wear-run.com`.
 
 **Already done — nothing to configure.** The beacon is embedded directly in
 `apps/viewer/index.html` as a `<script src>` with the zone's token, which is a
