@@ -102,7 +102,7 @@ const spread = (values: number[]) => Math.max(...values) - Math.min(...values)
 
 test.describe('D4 — the home page’s eight steps, as cards, everywhere (Q14, Q41, X21)', () => {
   for (const path of ['/', GUIDE]) {
-    test(`${path}: eight cards carry the home page’s eight steps, word for word, with their photos’ captions`, async ({
+    test(`${path}: eight cards carry the home page’s eight steps, word for word, and no photo label`, async ({
       page,
     }) => {
       await open(page, 1440, 900, { path })
@@ -114,7 +114,8 @@ test.describe('D4 — the home page’s eight steps, as cards, everywhere (Q14, 
           actor: card.querySelector('.order-step__actor')?.textContent ?? '',
           title: card.querySelector('h3.order-step__title')?.textContent ?? '',
           body: card.querySelector('.order-step__body')?.textContent ?? '',
-          room: card.querySelector('.order-step__room')?.textContent ?? '',
+          // No label naming the room (the owner, 2026-10-05): the photo's alt describes it.
+          labels: card.querySelectorAll('.order-step__room, figcaption').length,
         })),
       )
       expect(cards).toEqual(
@@ -125,7 +126,7 @@ test.describe('D4 — the home page’s eight steps, as cards, everywhere (Q14, 
           actor: step.actor,
           title: step.title,
           body: step.body,
-          room: photoOf(step.photo)?.caption,
+          labels: 0,
         })),
       )
       // An ordered list, so a screen reader counts the eight and says where each one is.
@@ -426,7 +427,6 @@ test.describe('D4 — every card holds its words, and they read over the photos'
     '.order-step__tag',
     '.order-step__title',
     '.order-step__body',
-    '.order-step__room',
   ]
 
   for (const width of [320, 360, 390, 560, 768, 900, 1024, 1280, 1440, 1920]) {
@@ -589,7 +589,6 @@ test.describe('D4 — every card holds its words, and they read over the photos'
     ['.order-step__actor', 4.5],
     ['.order-step__title', 4.5],
     ['.order-step__body', 4.5],
-    ['.order-step__room', 4.5],
     ['.order-step__number', 3],
   ] as const
 

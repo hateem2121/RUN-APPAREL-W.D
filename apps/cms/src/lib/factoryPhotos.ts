@@ -19,8 +19,10 @@
  * DURUS INDUSTRIES is the parent company and RUN APPAREL produces in the same building,
  * which the certification line on this page already says in the same words.
  *
- * `alt` says what is in the picture; `caption` says what it is. Neither repeats the other,
- * so a screen reader hears each once.
+ * `alt` says what is in the picture; `caption` says what it is. Neither repeats the other.
+ * ⚠️ NO CAPTION IS SHOWN SINCE 2026-10-05 (the owner: "remove all the image names"): the photo
+ * frames and the order-step cards draw none, and a test pins that. The words stay here, so one
+ * can come back as a one-line change; the `alt` is what a screen reader hears.
  */
 export type FactoryPhotoShape = 'wide' | 'single'
 

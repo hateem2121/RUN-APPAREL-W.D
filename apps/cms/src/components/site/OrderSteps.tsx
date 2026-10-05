@@ -5,8 +5,9 @@ import { ORDER_PHASES } from '../../lib/orderProcess'
 /**
  * The eight order steps as photo cards that stack as the page scrolls (polish D4, the owner's
  * answers Q14 "B, stacking photo cards" and Q41 "the home page's 8 steps everywhere", 2026-10-03).
- * Each card is one step: its number, its stage and whose move it is, its words, and the room it
- * happens in, over that room's own photo under the photo hero's dark wash. The next card slides up
+ * Each card is one step: its number, its stage and whose move it is, and its words, over the photo
+ * of the room it happens in under the photo hero's dark wash. The room's name under the words went
+ * on 2026-10-05 (the owner: "remove all the image names"); the photo's `alt` still says what it shows. The next card slides up
  * over the one before, which sinks back and darkens (site.css, "the order steps").
  *
  * ⚠️ ONE LIST, DRAWN WHEREVER THE STEPS ARE TOLD (X21). The home page's №04 and the order guide's
@@ -70,7 +71,6 @@ export function OrderSteps() {
               </p>
               <h3 className="order-step__title display">{step.title}</h3>
               <p className="order-step__body">{step.body}</p>
-              {photo ? <p className="order-step__room">{photo.caption}</p> : null}
             </div>
             {photo && image ? (
               // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the widths are pre-built files, picked by srcSet.

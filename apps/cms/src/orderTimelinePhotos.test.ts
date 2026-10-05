@@ -156,12 +156,12 @@ describe('what the order steps draw (D4)', () => {
     }
   })
 
-  it('names each picture’s room with the words the picture already had', () => {
+  // The owner, 2026-10-05: "remove all the image names". The photo's alt says what it shows.
+  it('labels no picture with its room', () => {
     for (const [index, card] of cards.entries()) {
       const photo = photoOf(steps[index]?.photo ?? '')
-      expect(card, `step ${index + 1}`).toContain(
-        `<p class="order-step__room">${photo?.caption}</p>`,
-      )
+      expect(card, `step ${index + 1}`).not.toContain('order-step__room')
+      expect(card, `step ${index + 1}`).not.toContain(`>${photo?.caption}<`)
     }
   })
 

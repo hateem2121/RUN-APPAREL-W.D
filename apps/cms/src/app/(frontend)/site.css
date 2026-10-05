@@ -3964,15 +3964,6 @@ a.contact-block__value:active {
   object-fit: cover;
 }
 
-.photo-figure__caption {
-  margin-block-start: 10px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  /* Normal letters, not capitals (visual audit VA-44, owner's choice 2026-10-02): a caption is read, and the longest ran 68 capitals
-     ("The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces"). The words are typed
-     in normal case in lib/factoryPhotos.ts, so the names keep their own capitals. */
-  color: var(--muted);
-}
 
 /*
  * A guide section's factory photo goes under its heading (polish X22): from 900px that is the
@@ -4677,9 +4668,9 @@ a.contact-block__value:active {
  * than this still grows (`min-block-size`) rather than cut them.
  *
  * On a phone 16.875rem (270px), 20rem until polish X8 (2026-10-05, the owner's "shorter cards"): 50px
- * less a card, 400px less on the phone home page (10,295px to 9,895px at 390x844 in CI's image).
- * The fullest card's words ("Your quote") need 219px at 390px, so at least 35px of its photo still
- * shows, and about 74px on the others.
+ * less a card, 400px less on the phone home page (10,295px to 9,895px at 390x844 in CI's image;
+ * 9,819px once the photo labels went the same day). The fullest card's words ("Your quote") need
+ * 193px at 390px, so at least 61px of its photo still shows, and about 100px on the others.
  */
 .order-steps {
   --step-h: 16.875rem;
@@ -4743,7 +4734,7 @@ a.contact-block__value:active {
 .order-step__words {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(16px, 1fr) auto auto auto;
+  grid-template-rows: auto minmax(16px, 1fr) auto auto;
   column-gap: 12px;
   padding: 20px;
   background-image:
@@ -4818,15 +4809,6 @@ a.contact-block__value:active {
   color: var(--text);
 }
 
-/* The room, in the words the photo already had (its caption), in normal letters (VA-44). */
-.order-step .order-step__room {
-  grid-column: 1 / -1;
-  grid-row: 5;
-  margin: 8px 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  color: var(--text);
-}
 
 /* The shade a covered card sinks into; nothing at rest. It holds no words, so animating its
    opacity does not set the axe contrast trap the entrance motion records (`site-reveal`). */

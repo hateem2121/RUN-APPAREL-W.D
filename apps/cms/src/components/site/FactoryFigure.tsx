@@ -28,6 +28,10 @@ export const HALF_COLUMN_SIZES =
  * width and height reserve the space before a byte arrives (`composition.spec.ts` fails any
  * `<img>` without both).
  *
+ * NO LABEL UNDER THE PHOTO (the owner, 2026-10-05: "remove all the image names"). Each one said
+ * which room it was (`caption` in lib/factoryPhotos.ts, kept there); the picture's `alt` still
+ * describes it to a screen reader.
+ *
  * The frame takes the file's own shape (8:5 or 4:5). The order timeline's square frame went with
  * the timeline (polish D4, 2026-10-05): the order steps are photo cards now (`OrderSteps.tsx`).
  */
@@ -62,7 +66,6 @@ export function FactoryFigure({
           decoding="async"
         />
       </span>
-      <figcaption className="photo-figure__caption">{photo.caption}</figcaption>
     </figure>
   )
 }
