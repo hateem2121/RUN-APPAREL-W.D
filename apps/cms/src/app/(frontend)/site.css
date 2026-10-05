@@ -4675,9 +4675,14 @@ a.contact-block__value:active {
  * stack's arithmetic below reads both. In rem, so a reader's larger text gets a taller card and
  * the words still fit (`e2e/orderTimeline.spec.ts` sets 200% text); a card whose words need more
  * than this still grows (`min-block-size`) rather than cut them.
+ *
+ * On a phone 16.875rem (270px), 20rem until polish X8 (2026-10-05, the owner's "shorter cards"): 50px
+ * less a card, 400px less on the phone home page (10,295px to 9,895px at 390x844 in CI's image).
+ * The fullest card's words ("Your quote") need 219px at 390px, so at least 35px of its photo still
+ * shows, and about 74px on the others.
  */
 .order-steps {
-  --step-h: 20rem;
+  --step-h: 16.875rem;
   --step-gap: 24px;
   display: grid;
   row-gap: var(--step-gap);
