@@ -95,7 +95,7 @@ describe("the product's category names the colours (polish N2)", () => {
     expect(rows.map((row) => [row.displayName, row.slug])).toEqual([
       ['Grass Court', 'bottle-green'],
       ['Clay Court', 'terracotta'],
-      ['Rally', 'coral'],
+      ['Rally Coral', 'coral'],
     ])
   })
 

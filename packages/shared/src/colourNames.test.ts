@@ -78,17 +78,18 @@ describe('themedColourName (N2)', () => {
     expect(themedColourName('Powder Blue', 'Sports Accessories')).toBe('Ice Rink')
   })
 
-  it('names the live skinsuit rxps the way the approval list does', () => {
-    // rxps is Teamwear & Uniforms; its five colours on 2026-10-05, in row order.
+  it('names the live skinsuit rxps the way the approved list does', () => {
+    // rxps is Teamwear & Uniforms; its five colours on 2026-10-05, in row order. The owner's
+    // second list that evening gave most sport names a colour word: Pennant became Claret Red.
     expect(
       ['Wine', 'Blush', 'Butter', 'Lime', 'Black'].map((name) =>
         themedColourName(name, 'Teamwear & Uniforms'),
       ),
-    ).toEqual(['Pennant', 'Rosette', 'Golden Goal', 'Tennis Ball', 'Puck'])
+    ).toEqual(['Claret Red', 'Rosette Pink', 'Lemon Squash', 'Tennis Ball', 'Puck Black'])
   })
 
   it('names each part of a two-fabric name, keeping the " / " between them', () => {
-    expect(themedColourName('Wine / Black', 'Teamwear & Uniforms')).toBe('Pennant / Puck')
+    expect(themedColourName('Wine / Black', 'Teamwear & Uniforms')).toBe('Claret Red / Puck Black')
     expect(themedColourName('Olive/Sage', 'Casual Wear')).toBe('Bay Leaf / Matcha')
   })
 

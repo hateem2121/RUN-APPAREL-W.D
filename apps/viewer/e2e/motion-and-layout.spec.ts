@@ -2930,11 +2930,12 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
    * measurements); it replaced VA-32's list, which needed a 1080px window. A sideways iPad's
    * column is narrower (289-337px) and keeps the dots.
    *
-   * POLISH N1 (names awaiting the owner's approval, 2026-10-05) renames every colour in its
-   * category's style (packages/shared/src/colourNames.ts, at most 12 characters a name). The third
-   * set is that list's worst garment-for-garment: 12-character names before a " /" (14 characters,
-   * as wide as "Bottle Green /"), and the longest whole name, 26 characters, first, so the dots'
-   * one line above carries it. Kept beside the old sets: the live names change only at the end.
+   * POLISH N1 (2026-10-05) renames every colour in its category's style
+   * (packages/shared/src/colourNames.ts, at most 12 characters a name), and the owner's second
+   * list the same evening adds a colour word to most ("Claret Red", "Puck Black"). The third set
+   * is that list's worst: 12-character names before a " /" (14 characters, as wide as "Bottle
+   * Green /"), and the longest whole name, 27 characters (r-xmp's), first, so the dots' one line
+   * above carries it; the rest are r-ajm's, the garment whose five names are longest together.
    */
   const LONG_NAMES = [
     ['Terracotta / Blush', 'Bottle Green / Mint', 'Tangerine', 'Turquoise', 'Magenta / Burgundy'],
@@ -2946,11 +2947,11 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
       'Tangerine / Rust',
     ],
     [
-      'Silver Medal / Clean Sheet',
-      'Bluebird Day / Ice Rink',
-      'Black Cherry / Cranberry',
-      'Ice Rink / Bluebird Day',
-      'Victory Lap / Night Game',
+      'Podium Lilac / Night Indigo',
+      'Bunker Beige / Fairway Sage',
+      'Grass Court / Croquet Mint',
+      'Clay Court / Rosette Pink',
+      'Rally Coral / Track Peach',
     ],
   ] as const
 

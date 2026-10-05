@@ -765,6 +765,13 @@ Sportswear, nature words for Outerwear and easy fashion words for Casual Wear
   names, at the owner's choice.**
 - **A new garment arrives named in its category's style** (polish N2), from the same table, so it
   stays in step with the live ones.
+- **Renamed again the same evening, so every name says its colour.** The owner: "the current names
+  do not give a hint of what the garment is". Owner's choice: a themed word plus a colour word
+  ("Pennant" became "Claret Red", "Varsity" "Varsity Navy"), keeping each category's own style
+  and every name that already paints its colour ("Ice Rink", "Tennis Ball", "Strawberry"). The
+  owner approved the whole second list on 5 Oct 2026: 103 of the table's 216 names changed, and 127
+  of the 200 live colourways. Written the same way as the first, after a fresh backup run, each
+  garment read back; still no slug sent and no row moved.
 
 **Guard:** `packages/shared/src/colourNames.test.ts` (a name is unique inside its category, at most
 12 characters, never a plain word such as "Pink") and `tools/asset-pipeline/src/colour-name.test.ts`
