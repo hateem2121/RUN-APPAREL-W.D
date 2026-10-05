@@ -3648,20 +3648,28 @@ a.contact-block__value:active {
   outline-offset: -4px;
 }
 
-/* Positioned for its dot, so it would sit over the title's stretched link: clicks pass through. */
+/*
+ * Positioned for its dot, so it would sit over the title's stretched link: clicks pass through.
+ * ⚠️ A BORDER, NOT A BACKGROUND (2026-10-05): `--line` is translucent ink, and a 1px-tall background
+ * over 100px wide read as a see-through surface to `e2e/motion.spec.ts` (FA-H-08, "nothing translucent to
+ * reduce"). The border draws the same hairline.
+ */
 .family-card__line {
   position: relative;
   display: none;
-  block-size: 1px;
+  block-size: 0;
   margin-block: 4px;
-  background: var(--line);
+  border-block-start: 1px solid var(--line);
   pointer-events: none;
 }
 
-/* The dot that slides along the line as the card opens (the owner's example, 27 July 2026). */
+/*
+ * The dot that slides along the line as the card opens (the owner's example, 27 July 2026). Its box
+ * is measured from under the 1px border, so −4px centres the 7px dot on it.
+ */
 .family-card__line i {
   position: absolute;
-  inset-block-start: -3px;
+  inset-block-start: -4px;
   inset-inline-start: 4%;
   inline-size: 7px;
   block-size: 7px;
