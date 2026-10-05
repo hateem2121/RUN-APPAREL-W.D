@@ -102,6 +102,22 @@ const nextConfig = {
    * measurements, and the earlier list of crawlers that needed one.
    */
   htmlLimitedBots: HTML_LIMITED_BOTS,
+  /*
+   * ⚠️ THE BROWSERS SUPPORTED ARE NEXT'S OWN, AND THE "LEGACY JAVASCRIPT" FINDING IS NEXT'S OWN
+   * (polish X15, 2026-10-05). There is no `browserslist` here or in package.json, so Next 16.3.8
+   * builds for its documented default: Chrome and Edge 111+, Firefox 111+, Safari 16.4+ (nextjs.org
+   * "Supported Browsers", for 16.3.8, updated 2026-07-28). Lighthouse 13.5.0 priced "about 35 KB of
+   * code only very old browsers need" on every website page (audit, 3 October). Run over the live
+   * scripts on 2026-10-05, its detector matched one script a modern browser loads: the framework
+   * chunk, through Next's `polyfill-module` (Array.prototype.at, flat, flatMap, Object.fromEntries,
+   * Object.hasOwn, trimStart, trimEnd), which is 1,380 bytes; Lighthouse prices the core-js modules
+   * those names stand for (43,785 B before compression). `next/dist/client/app-globals.js` imports
+   * it for every browser, so no browserslist removes it (vercel/next.js#86785, open). The other
+   * match, 112 KB of polyfills, is a `nomodule` script these browsers never fetch. The finding
+   * weighs 0 in the performance score, so it is left alone: removing it would mean aliasing a file
+   * inside Next for about 1 KB, and its `URL.canParse` is still needed by Chrome 111-119, Firefox
+   * 111-114 and Safari 16.4-16.x.
+   */
   transpilePackages: ['@run-apparel/shared'],
   /*
    * RO-08 — THE STYLESHEET INSIDE THE PAGE, so first paint does not wait for a second
