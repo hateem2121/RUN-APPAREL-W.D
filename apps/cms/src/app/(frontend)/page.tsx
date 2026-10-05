@@ -187,7 +187,7 @@ export default async function HomePage() {
             actions={
               <div className="site-actions">
                 <Link className="btn btn--primary" href="/products">
-                  Browse the references
+                  Browse in 3D
                 </Link>
               </div>
             }

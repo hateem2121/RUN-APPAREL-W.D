@@ -123,7 +123,7 @@ export default function NotFound() {
               </p>
               <div className="site-actions">
                 <Link className="btn btn--primary" href="/products">
-                  Browse the references
+                  Browse in 3D
                 </Link>
                 <Link className="btn btn--ghost" href="/contact">
                   Tell us what you were looking for

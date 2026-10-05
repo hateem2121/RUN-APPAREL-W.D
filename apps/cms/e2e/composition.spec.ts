@@ -926,7 +926,8 @@ test.describe('X30 — a paper hero’s label and headline keep apart', () => {
 
 /*
  * Polish M4 and X2 (2026-10-04): the chips after a page's own buttons sat 0px under them (WhatsApp
- * on the buyer pages, "Get a free quote" on the guides), and the two rows read as one jumble.
+ * on the buyer pages, "Get a free quote" on the guides, "Start a conversation" since polish X20), and
+ * the two rows read as one jumble.
  */
 test.describe('M4 / X2 — a "see also" group stands apart from the buttons above it', () => {
   const gapAbove = (page: import('@playwright/test').Page) =>

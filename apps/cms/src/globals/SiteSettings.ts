@@ -129,7 +129,10 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       required: true,
       maxLength: 32,
-      defaultValue: 'Start an inquiry',
+      // The site's one name for this action (polish X20, the owner's answer Q9). Only the default:
+      // the column's own SQL default is still the 2026-09-05 text, as it was through the
+      // 2026-09-07 change, and the stored value is written through the API.
+      defaultValue: 'Start a conversation',
       admin: { description: 'The green tab at the top of the footer. Links to the Contact page.' },
     },
     {

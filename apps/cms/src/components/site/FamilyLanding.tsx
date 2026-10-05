@@ -76,7 +76,7 @@ export function FamilyLanding({
         </Link>
         {garments.length > 0 ? (
           <a className="btn btn--ghost" href="#garments">
-            See the garments in 3D
+            Browse in 3D
           </a>
         ) : null}
       </div>
@@ -212,7 +212,7 @@ export function FamilyLanding({
                 </Link>
               ))}
               <Link className="filter-chip" href="/products">
-                All products in 3D
+                Browse in 3D
               </Link>
             </div>
           </nav>

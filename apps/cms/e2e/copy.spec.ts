@@ -123,12 +123,12 @@ for (const width of [390, 1280]) {
  * same destination repeated counts once.
  */
 const PRIMARY_LABELS = [
+  // One name each since polish X20 (the owner's answers Q9 and Q40, 2026-10-03): the buyer pages'
+  // "Get a free quote" became "Start a conversation", and "Browse the references" "Browse in 3D".
   /^Start a conversation$/,
-  /^Browse the references$/,
+  /^Browse in 3D$/,
   /^Email \S+@\S+$/,
   /^Send inquiry$/,
-  // The buyer pages' one action (owner approved the page and its button, 2026-09-30).
-  /^Get a free quote$/,
 ]
 
 for (const viewport of [
@@ -155,3 +155,73 @@ for (const viewport of [
     }
   })
 }
+
+/**
+ * Polish X20 (the owner's answers Q9 and Q40, 2026-10-03): one name for each action. The audit
+ * counted six names for "talk to us" ("Get a free quote" 15 times, "Start an inquiry", …) and four
+ * for the link to the 3D garments ("See the 3D references", "Browse the references", "See the
+ * garments in 3D", "All products in 3D"). One name for each is what WCAG 3.2.4 (Consistent
+ * Identification) asks of the same function on every page. The form's own "Send inquiry" sends,
+ * and the email and WhatsApp links write; each is another action, so each keeps its name. Two
+ * narrower links keep theirs too, as the audit's list did not name them: the 404's "Tell us what
+ * you were looking for" (a ghost button beside the main one) and the garment pages' "See all
+ * <category> in 3D" (the owner's words for one category's garments, VA-33, 2026-10-02).
+ *
+ * What would have to break: an old name back on any page, a main button to the inquiry form or
+ * the footer's tab with another name, or a button or chip to the 3D garments with another name.
+ */
+const OLD_NAMES =
+  /^(?:Get a free quote|Start an inquiry|See the 3D references|Browse the references|See the garments in 3D|All products in 3D)$/
+
+test('X20 — the way to talk to us and the way to the 3D garments each have one name, on every page', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  let talk = 0
+  let browse = 0
+  for (const path of PAGES) {
+    await page.goto(path)
+    const links = await page.locator('main a, footer a').evaluateAll((all) =>
+      all.map((element) => ({
+        text: (
+          element.querySelector('.site-footer__tab-label')?.textContent ??
+          element.textContent ??
+          ''
+        )
+          .trim()
+          .replace(/\s+/g, ' '),
+        href: element.getAttribute('href') ?? '',
+        kind: element.classList.contains('btn--primary')
+          ? 'main'
+          : /\bbtn\b/.test(element.className)
+            ? 'button'
+            : element.classList.contains('site-footer__tab')
+              ? 'tab'
+              : element.classList.contains('filter-chip')
+                ? 'chip'
+                : 'link',
+      })),
+    )
+    expect(
+      links.filter((link) => OLD_NAMES.test(link.text)).map((link) => link.text),
+      `${path}: an old name is back`,
+    ).toEqual([])
+    for (const link of links) {
+      if (link.kind === 'link') continue
+      if (
+        (link.kind === 'main' || link.kind === 'tab') &&
+        /^\/contact(?:#inquiry)?$/.test(link.href)
+      ) {
+        talk++
+        expect(link.text, `${path}: a way to the form named otherwise`).toBe('Start a conversation')
+      }
+      if (link.href === '/products' || link.href === '#garments') {
+        browse++
+        expect(link.text, `${path}: a way to the 3D garments named otherwise`).toBe('Browse in 3D')
+      }
+    }
+  }
+  // Not vacuous: the sweep met both actions, on many pages.
+  expect(talk, 'no button to the inquiry form was found').toBeGreaterThanOrEqual(10)
+  expect(browse, 'no link to the 3D garments was found').toBeGreaterThanOrEqual(5)
+})

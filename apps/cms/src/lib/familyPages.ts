@@ -69,8 +69,12 @@ const fact = (prefix: string): string =>
 export const MINIMUM = fact('Minimum')
 const SAMPLE_DAYS = fact('Working days')
 
-/** The one action every buyer page asks for. `e2e/copy.spec.ts` knows it as a primary label. */
-export const FAMILY_PAGE_ACTION = 'Get a free quote'
+/**
+ * The one action every buyer page asks for, in the site's one name for it (polish X20, the owner's
+ * answer Q9, 2026-10-03: "Start a conversation" everywhere; it was "Get a free quote" here and on
+ * the guides). `e2e/copy.spec.ts` knows it as a primary label.
+ */
+export const FAMILY_PAGE_ACTION = 'Start a conversation'
 
 /*
  * ⚠️ NO STEPS OF THEIR OWN, NO NUMBERS, NO FACTORY PHOTOS (polish S4, the owner's answer Q26,

@@ -478,7 +478,8 @@ describe('the card carries its 3D model, framed as the viewer frames it', () => 
 describe('projectFooter', () => {
   it('projects nothing but copy defaults from an empty global', () => {
     expect(projectFooter(null)).toEqual(EMPTY_FOOTER)
-    expect(EMPTY_FOOTER.ctaLabel).toBe('Start an inquiry')
+    // The site's one name for this action (polish X20, the owner's answer Q9).
+    expect(EMPTY_FOOTER.ctaLabel).toBe('Start a conversation')
     expect(EMPTY_FOOTER.certifications).toEqual([])
     expect(EMPTY_FOOTER.socialLinks).toEqual([])
     expect(EMPTY_FOOTER.capacity).toEqual({ moq: '', leadTime: '', hours: null })

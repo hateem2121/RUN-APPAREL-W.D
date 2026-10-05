@@ -51,7 +51,8 @@ export interface FooterSettings {
  * a blank certification list renders NO block, never an example one.
  */
 export const EMPTY_FOOTER: FooterSettings = {
-  ctaLabel: 'Start an inquiry',
+  // The site's one name for this action (polish X20, the owner's answer Q9, 2026-10-03).
+  ctaLabel: 'Start a conversation',
   ctaQuestion: 'Have a garment that needs making properly?',
   ctaSubline: 'Send a tech pack, a sketch, or just the idea.',
   ctaPromise: 'Reply within 24 hours',

@@ -697,7 +697,7 @@ test.describe('the teamwear buyer page, as a search engine receives it', () => {
     }
     await page.goto(PATH)
     const action = page.locator('.site-hero .btn--primary')
-    await expect(action).toHaveText('Get a free quote')
+    await expect(action).toHaveText('Start a conversation')
     await expect(action).toHaveAttribute('href', '/contact#inquiry')
   })
 })

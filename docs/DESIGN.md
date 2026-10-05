@@ -866,7 +866,8 @@ us" are what a screen reader meets reading down. Both stay (`Contact.tsx` record
 it, because at 402x874 and 375x667 the same two buttons were shown twice at the same moment, and
 it returns when that pair scrolls off. Since 2026-10-03 it also fades while any of the footer is
 above it (owner's choice): over the dark footer the paper bar was a white block on an iPhone, and
-the footer carries the email, WhatsApp and "Start an inquiry" itself. So since polish M2
+the footer carries the email, WhatsApp and "Start a conversation" itself (the tab's name since polish
+X20, 2026-10-05; "Start an inquiry" until then). So since polish M2
 (2026-10-04) no room is kept for the bar under the footer: with the bar always gone there, it was an
 empty band under the wordmark, and a garment page now ends at its footer as the website does.
 `lib/actionBarStepsAside.ts` sets `data-tucked` on the bar

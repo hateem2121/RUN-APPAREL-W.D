@@ -203,8 +203,9 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
         >
           WhatsApp Us
         </a>
+        {/* The site's one name for the way to the 3D garments (polish X20, the owner's answer Q40). */}
         <a className="btn btn--ghost" href={SITE_PRODUCTS_URL}>
-          Browse References
+          Browse in 3D
         </a>
       </div>
     </main>

@@ -79,7 +79,7 @@ export function HomeHero() {
             Start a conversation
           </Link>
           <Link className="btn btn--ghost" href="/products">
-            See the 3D references
+            Browse in 3D
           </Link>
         </div>
       </div>

@@ -25,7 +25,8 @@ const HOURS = { firstDay: 1, lastDay: 6, open: '09:00', close: '18:00' }
 
 describe('the shared footer (VA-31)', () => {
   it('has copy by default and no claim by default', () => {
-    expect(EMPTY_FOOTER.ctaLabel).toBe('Start an inquiry')
+    // The site's one name for this action (polish X20, the owner's answer Q9).
+    expect(EMPTY_FOOTER.ctaLabel).toBe('Start a conversation')
     expect(EMPTY_FOOTER.capacity).toEqual({ moq: '', leadTime: '', hours: null })
     expect(EMPTY_FOOTER.worksCoordinates).toBe('')
     expect(EMPTY_FOOTER.certifications).toEqual([])
@@ -114,7 +115,7 @@ describe('siteFooterAriaSnapshot', () => {
     expect(lines.slice(0, 3)).toEqual([
       '- contentinfo:',
       '  - /children: equal',
-      '  - link "Start an inquiry"',
+      '  - link "Start a conversation"',
     ])
     expect(snapshot).toContain(`  - heading "${SITE_FOOTER_WORDS.contact}" [level=3]`)
     expect(snapshot).toContain('      - link "WhatsApp +92 336 1777313"')
