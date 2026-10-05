@@ -616,6 +616,21 @@ wrapping row. It works with no script and does not mark the part in view, which 
 still needs a script to tell a screen reader. `e2e/legalPages.spec.ts` holds the headings, the
 list and both layouts.
 
+### The guides: a photo, a table, and the links at the end (polish X22)
+
+The audit of 3 October 2026 found the guides walls of text. A guide section may show one of the
+owner's factory photos (`photo` in `lib/guides.ts`), under its heading: from 900px in the heading's
+half of the `.spread`, which stood empty beside the words, and on a phone between the heading and
+the words. Only where the section's own words name what the photo shows ("Screen printing",
+"Tagging", "our building", "the same team"); `guides.test.ts` lists each with those words. The
+printing guide's "Which method for your garment" opens with the site's first table (`.guide-table`):
+a caption, a header per column, the method as each row's header, every cell the guide's own words
+(the test checks each against its point). Two columns of short words, so it stays a real table on a
+320px phone, with no `display` changed on any part of it. At the end of a guide, the other guides and
+the four families are two lists of plain links under "Buyer guides" and "What we make", drawn as "On
+this page" draws its links (44px rows) and side by side from 900px, no longer one cloud of filter
+chips. `e2e/guides.spec.ts` measures all three.
+
 ### Breakpoints
 
 Content-led, not a framework's set: each width is where a measured layout stopped fitting.
@@ -890,7 +905,8 @@ card (`site.css`, `.guide-card__link`), so a click or tap anywhere on it opens t
 interactive sits inside it, and the card hovers with a 4px lift and an accent edge on a mouse and on
 keyboard focus, the press on touch. (The family cards used to do the same; since polish D3 they open
 instead, below.) The foot of the page keeps only the
-buyer-page chips; each guide page still lists its sibling guides.
+four buyer pages, under their own heading, "What we make", since polish X22; each guide page still
+lists its sibling guides.
 
 ### The works slab: where we ship, and the marks (polish X7)
 

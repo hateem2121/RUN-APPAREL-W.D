@@ -463,9 +463,11 @@ test.describe('the guides index lists each guide once (VA-47)', () => {
     await expect(page).toHaveURL(new RegExp(`${middle.path}$`))
   })
 
+  // Named by its own heading since polish X22 (it was "More to read"; four buyer pages are not reading).
   test('the foot of the page links the buyer pages and no guide', async ({ page }) => {
     await page.goto('/guides')
-    const foot = page.getByRole('navigation', { name: 'More to read' })
+    const foot = page.getByRole('navigation', { name: 'What we make' })
+    await expect(foot.getByRole('heading', { level: 2, name: 'What we make' })).toBeVisible()
     await expect(foot.locator('a')).toHaveCount(FAMILY_PAGE_SOURCES.length)
     for (const path of FAMILY_PAGE_SOURCES)
       await expect(foot.locator(`a[href="${path}"]`)).toHaveCount(1)

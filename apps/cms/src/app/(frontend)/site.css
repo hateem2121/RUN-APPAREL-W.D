@@ -2760,6 +2760,34 @@ a.contact-block__value:active {
   margin-block-start: 40px;
 }
 
+/*
+ * ⚠️ AT THE END OF A GUIDE, TWO GROUPS UNDER THEIR OWN HEADINGS, NOT ONE CLOUD OF CHIPS (polish
+ * X22). The audit of 3 October 2026 found the other guides and the four families "together in one
+ * cloud of 12 small 'filter' chips", the chips `/products` filters with. Each group is now a list of
+ * plain links, "Buyer guides" and "What we make" (`GuidePage.tsx` says where the words come from),
+ * drawn as "On this page" draws its links (`.legal__toc a`, below), and side by side from 900px in
+ * the halves a guide's sections use (`.spread`). On the guides index the one group left is the whole
+ * navigation.
+ */
+.see-also__groups {
+  display: grid;
+  gap: 24px;
+  margin-block-start: 16px;
+}
+
+@media (min-width: 900px) {
+  .see-also__groups {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 64px;
+  }
+}
+
+.see-also__list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
 .filter-chip {
   display: inline-flex;
   align-items: center;
@@ -3071,7 +3099,9 @@ a.contact-block__value:active {
   list-style: none;
 }
 
-.legal__toc a {
+/* The links at the end of a guide are drawn the same way (`.see-also__list`, polish X22). */
+.legal__toc a,
+.see-also__list a {
   display: flex;
   align-items: center;
   min-height: var(--target-min);
@@ -3081,7 +3111,8 @@ a.contact-block__value:active {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .legal__toc a:hover {
+  .legal__toc a:hover,
+  .see-also__list a:hover {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
@@ -3130,6 +3161,52 @@ a.contact-block__value:active {
 .prose .prose__list {
   margin: 16px 0 0;
   padding-inline-start: 24px;
+}
+
+/*
+ * ⚠️ A GUIDE'S TABLE (polish X22): the printing guide's seven methods and what each suits, which
+ * the audit of 3 October 2026 found as a paragraph. The first one on the site. A table at the
+ * guides' measure, so its right edge is the paragraphs' (28.635em, above), with the caption in the
+ * card title's type over it, the column headers in the subheads' voice (12px mono, read, so not
+ * 10px: VA-11) and a line under each row.
+ *
+ * NO `display` IS CHANGED ON ANY PART OF IT: two columns of short words fit a 320px phone as a
+ * table (`e2e/guides.spec.ts` measures it), and changing a table part's display has stripped its
+ * meaning from screen readers before (Safari until 17; `GuidePage.tsx` cites the source).
+ */
+.guide-table {
+  width: 100%;
+  max-width: 28.635em;
+  margin-block-start: 16px;
+  border-collapse: collapse;
+}
+
+.guide-table caption {
+  caption-side: top;
+  text-align: start;
+  padding-block-end: 12px;
+}
+
+.guide-table th,
+.guide-table td {
+  padding-block: 12px;
+  padding-inline: 0 16px;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.guide-table thead th {
+  padding-block: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.guide-table tbody th {
+  font-weight: 600;
+  color: var(--heading);
 }
 
 /*
@@ -3895,6 +3972,16 @@ a.contact-block__value:active {
      ("The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces"). The words are typed
      in normal case in lib/factoryPhotos.ts, so the names keep their own capitals. */
   color: var(--muted);
+}
+
+/*
+ * A guide section's factory photo goes under its heading (polish X22): from 900px that is the
+ * heading's half of the `.spread`, which stood empty beside the words, and on a phone it comes
+ * between the heading and the words, as in the markup. The half is `.about`'s, so the photo's
+ * `sizes` is too (`GuidePage.tsx`). After `.photo-figure`, which it refines.
+ */
+.spread__head > .photo-figure {
+  margin-block-start: 24px;
 }
 
 /* ------------------------------------------------ №02 the family tickets (polish D3, M1, F1) */
@@ -5593,12 +5680,9 @@ a.contact-block__value:active {
  * normal letters for the guide titles listed at the foot of each guide and for the bracket labels
  * above every page's headline; the words are the same, typed in normal case in the source. Short
  * labels elsewhere (chips that name a family, buttons, section numbers) keep their capitals.
+ * The guide titles' rule went with their chips in polish X22: they are plain links in a list now
+ * (`.see-also__list`), which never set capitals.
  */
-.filter-bar--titles .filter-chip {
-  text-transform: none;
-  letter-spacing: inherit;
-}
-
 .site-hero .label {
   text-transform: none;
   letter-spacing: inherit;

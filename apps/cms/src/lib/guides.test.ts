@@ -5,6 +5,7 @@ import { GUIDE_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHeade
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import { FACTS } from './companyFacts'
+import { FACTORY_PHOTOS } from './factoryPhotos'
 import { GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import { buildLlmsTxt } from './llmsTxt'
@@ -33,16 +34,59 @@ const everyWord = (guide: (typeof GUIDES)[number]): string =>
           ? [...block.items]
           : block.kind === 'point'
             ? [block.title, block.text]
-            : block.kind === 'orderSteps'
-              ? // The home page's eight steps, drawn as they are there (polish D4, Q41).
-                ORDER_PHASES.flatMap((phase) => [
-                  phase.name,
-                  ...phase.steps.flatMap((step) => [step.title, step.body]),
-                ])
-              : [block.text],
+            : block.kind === 'table'
+              ? [block.caption, ...block.columns, ...block.rows.flat()]
+              : block.kind === 'orderSteps'
+                ? // The home page's eight steps, drawn as they are there (polish D4, Q41).
+                  ORDER_PHASES.flatMap((phase) => [
+                    phase.name,
+                    ...phase.steps.flatMap((step) => [step.title, step.body]),
+                  ])
+                : [block.text],
       ),
     ]),
   ].join('\n')
+
+/** The words of a guide's `point` blocks, by title: what a table row may quote. */
+const pointsOf = (guide: (typeof GUIDES)[number]): Map<string, string> =>
+  new Map(
+    guide.sections.flatMap((section) =>
+      section.blocks.flatMap((block) =>
+        block.kind === 'point' ? [[block.title, block.text] as const] : [],
+      ),
+    ),
+  )
+
+/**
+ * Everything wrong with a guide's tables, as sentences: a row whose heading is not one of the
+ * guide's own points, or a cell whose words that point does not say. Compared without the first
+ * letter's case, because a cell starts a line ("Names and numbers") where the point has the same
+ * words mid-sentence ("It suits names and numbers.").
+ */
+function tableProblems(guide: (typeof GUIDES)[number]): string[] {
+  const points = pointsOf(guide)
+  const problems: string[] = []
+  for (const block of guide.sections.flatMap((section) => section.blocks)) {
+    if (block.kind !== 'table') continue
+    for (const row of block.rows) {
+      const [method, ...cells] = row
+      if (row.length !== block.columns.length) {
+        problems.push(`"${method}" has ${row.length} cells for ${block.columns.length} columns`)
+      }
+      const said = points.get(method ?? '')
+      if (said === undefined) {
+        problems.push(`"${method}" is not one of the guide's own points`)
+        continue
+      }
+      for (const cell of cells) {
+        if (!said.toLowerCase().includes(cell.toLowerCase())) {
+          problems.push(`"${method}": "${cell}" is not in the guide's words`)
+        }
+      }
+    }
+  }
+  return problems
+}
 
 describe('every guide is wired everywhere a public page must be', () => {
   it('the guide list and the header list name the same addresses, in the same order', () => {
@@ -155,6 +199,100 @@ describe("the three guides built from the owner's own facts (2026-09-30)", () =>
 
   it('the packaging guide says there is no set minimum', () => {
     expect(everyWord(guideAt('/guides/private-label-packaging'))).toContain('no set minimum')
+  })
+})
+
+/*
+ * Polish X22 (audit of 3 October 2026, the owner's plan of 4 October): "Which method for your
+ * garment" was a paragraph where a small table is faster. The table says nothing the guide does
+ * not: each row is one of the seven points, and each cell is that point's own words.
+ */
+describe('the printing guide’s table (polish X22)', () => {
+  const guide = guideAt('/guides/garment-printing-methods')
+  const table = guide.sections
+    .find((section) => section.heading === 'Which method for your garment')
+    ?.blocks.find((block) => block.kind === 'table')
+
+  it('sits in "Which method for your garment", one row per method, in the guide’s order', () => {
+    if (table?.kind !== 'table') throw new Error('the section has no table')
+    expect(table.rows.map((row) => row[0])).toEqual([...pointsOf(guide).keys()])
+    expect(table.caption.length).toBeGreaterThan(0)
+  })
+
+  // The owner, 2026-10-04: no minimum column, because the guide states one minimum for all.
+  it('has no minimum column, and no column without a cell in every row', () => {
+    if (table?.kind !== 'table') throw new Error('the section has no table')
+    expect(table.columns.join(' ')).not.toMatch(/minimum|MOQ/i)
+    for (const row of table.rows) expect(row.every((cell) => cell.trim().length > 0)).toBe(true)
+  })
+
+  it('every cell is the guide’s own words, from the row’s own point', () => {
+    expect(tableProblems(guide)).toEqual([])
+  })
+
+  // NEGATIVE CONTROL, run both ways: a cell the point does not say, a row that is no point, and a
+  // short row are each named; the guide's own table gives nothing to name (the test above).
+  it('sees a cell, a row or a column the guide does not have', () => {
+    if (table?.kind !== 'table') throw new Error('the section has no table')
+    const planted = (rows: readonly (readonly string[])[]) => ({
+      ...guide,
+      sections: [...guide.sections, { heading: 'x', blocks: [{ ...table, rows }] }],
+    })
+    expect(tableProblems(planted([['Screen printing', 'A soft feel on the skin']]))).toContain(
+      '"Screen printing": "A soft feel on the skin" is not in the guide\'s words',
+    )
+    expect(tableProblems(planted([['Foil', 'Names and numbers']]))).toContain(
+      '"Foil" is not one of the guide\'s own points',
+    )
+    expect(tableProblems(planted([['Embroidery']]))).toContain(
+      '"Embroidery" has 1 cells for 2 columns',
+    )
+  })
+})
+
+/*
+ * Polish X22: the guides were walls of text, "though you have factory photos of screen printing
+ * and inspection". A section may show ONE of the owner's factory photos, and only where the
+ * section's own words name what it shows: the photo illustrates a sentence, it makes no claim.
+ * Each is listed here with those words, so a photo moved to a section that does not name it, or
+ * words edited away from under one, fails.
+ */
+describe('a guide shows a factory photo only beside words that name it (polish X22)', () => {
+  // In the order of `GUIDES`.
+  const NAMED_BY = [
+    ['/guides/minimum-order-and-samples', 'The minimum order', 'stitching', 'the same team'],
+    ['/guides/garment-printing-methods', 'The seven methods', 'screen-printing', 'Screen printing'],
+    ['/guides/private-label-packaging', 'Where it happens', 'tagging', 'Tagging'],
+    ['/guides/shipping-and-import-duties', 'The price terms we quote', 'exterior', 'our building'],
+  ] as const
+
+  const shown = GUIDES.flatMap((guide) =>
+    guide.sections.flatMap((section) =>
+      section.photo ? [[guide.path, section.heading, section.photo] as const] : [],
+    ),
+  )
+
+  it('shows exactly the photos listed, in the sections listed', () => {
+    expect(shown).toEqual(NAMED_BY.map(([path, heading, slug]) => [path, heading, slug]))
+  })
+
+  for (const [path, heading, slug, words] of NAMED_BY) {
+    it(`${path}: "${heading}" names what its photo shows ("${words}")`, () => {
+      const section = guideAt(path).sections.find((entry) => entry.heading === heading)
+      if (!section) throw new Error(`${path} has no section "${heading}"`)
+      const sectionWords = everyWord({ ...guideAt(path), sections: [section] })
+      expect(sectionWords).toContain(words)
+      expect(FACTORY_PHOTOS.map((photo) => photo.slug)).toContain(slug)
+    })
+  }
+
+  it('no guide shows a photo twice, and the order guide adds none to its eight cards', () => {
+    for (const guide of GUIDES) {
+      const slugs = guide.sections.flatMap((section) => (section.photo ? [section.photo] : []))
+      expect(new Set(slugs).size, guide.path).toBe(slugs.length)
+    }
+    const order = guideAt('/guides/how-a-private-label-order-works')
+    expect(order.sections.filter((section) => section.photo)).toEqual([])
   })
 })
 

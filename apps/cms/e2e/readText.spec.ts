@@ -23,6 +23,8 @@ const PAGES = [
   '/contact',
   '/guides',
   '/guides/how-a-private-label-order-works',
+  // The site's first table, its column headers in 12px mono (polish X22).
+  '/guides/garment-printing-methods',
   '/custom-teamwear-manufacturer',
   '/privacy',
   '/terms',

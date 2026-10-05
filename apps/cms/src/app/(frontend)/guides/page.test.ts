@@ -91,12 +91,22 @@ describe('the guides index lists each guide once (VA-47)', () => {
     for (const path of wanted) expect(hrefs, `${path} is no longer linked`).toContain(path)
   })
 
-  it('has no chip for a guide, which was the repeated list', () => {
-    const chips = [...html.matchAll(/<a\b[^>]*class="[^"]*\bfilter-chip\b[^"]*"[^>]*>/g)].map(
-      (match) => /href="([^"]*)"/.exec(match[0])?.[1],
-    )
-    expect(chips.length, 'the foot of the page has no chips at all').toBeGreaterThan(0)
-    for (const guide of GUIDES) expect(chips).not.toContain(guide.path)
+  /*
+   * Polish X22 (audit of 3 October 2026): "followed by 4 family buttons with no heading". The foot
+   * is now a navigation named by its own heading, "What we make" (the home page's №02 and the
+   * footer's group for the same four pages), holding those four and no guide, and no chips.
+   */
+  it('names the foot "What we make", with the four buyer pages, no guide and no chip', () => {
+    const nav = /<nav\b[^>]*aria-labelledby="([^"]+)"[^>]*>([\s\S]*?)<\/nav>/.exec(html)
+    expect(nav, 'the foot is no navigation').not.toBeNull()
+    const [, labelledBy, inside = ''] = nav ?? []
+    const heading = new RegExp(`<h2\\b[^>]*id="${labelledBy}"[^>]*>([^<]*)</h2>`).exec(inside)
+    expect(heading?.[1], 'the navigation is not named by a heading of its own').toBe('What we make')
+    const hrefs = [...inside.matchAll(/href="([^"]*)"/g)].map((match) => match[1])
+    const wanted = FAMILIES.flatMap((family) => familyPageFor(family)?.path ?? [])
+    expect(hrefs).toEqual(wanted)
+    for (const guide of GUIDES) expect(hrefs).not.toContain(guide.path)
+    expect(inside).not.toMatch(/filter-chip/)
   })
 
   it('hides the cue from assistive technology, so a card is announced by its title alone', () => {

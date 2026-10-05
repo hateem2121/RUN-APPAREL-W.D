@@ -82,11 +82,13 @@ export default defineConfig({
      * `productTickets` the same day (polish D3b), for the same parts on the product cards.
      * `orderTimeline` joined 2026-10-05 (polish D4): the order steps are sticky cards whose sink
      * runs on a named scroll timeline, which Safari draws only since 26.
+     * `guides` joined 2026-10-05 (polish X22): the site's first table, on a 320px phone, in the
+     * engine every iPhone draws with, which until Safari 17 changed how tables were read.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],
