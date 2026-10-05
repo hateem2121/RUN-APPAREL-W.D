@@ -1817,6 +1817,10 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
+          # Reviewed exceptions, each with its reason and an expiry date (`exp:`), so a waiver
+          # lapses on its own. Named explicitly so a missing file fails the step ("cannot find
+          # ignorefile") instead of silently dropping them; security-scans.yml does the same.
+          trivyignores: .trivyignore
 
   # THE SHRINK DEPLOY. `wrangler deploy` builds the container image from
   # apps/shrink/Dockerfile on this runner and pushes it to Cloudflare's registry.

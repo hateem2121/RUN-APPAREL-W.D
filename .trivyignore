@@ -8,3 +8,19 @@
 # container-class/); Docker's HEALTHCHECK is not part of that and is never read. The
 # service still answers GET /health (container/server.ts), checked on a local run.
 DS-0026
+
+# CVE-2026-13221, CVE-2026-42496, CVE-2026-8376: perl-base 5.36.0-7+deb12u3 in the shrink
+# container's base image (apps/shrink/Dockerfile), read by `shrink-image-audit` in
+# .github/workflows/ci.yml. Accepted 2026-10-05 by the owner as a DATED waiver, on PR #130.
+# The same pinned image passed that gate at 10:59 UTC on main (run 37299953438) and failed at
+# 15:05 on these three, fixed in Debian deb12u4; no node:24-slim image carried the fix yet (the
+# pin was still the current tag, last pushed 2026-09-19). The container never runs Perl: it runs
+# `npm run start` and installs nothing with apt; perl-base is there because Debian requires it.
+# The node:24-trixie-slim image (Debian 13.7) had no fixable CRITICAL that day, but moving to it
+# changes the system libraries sharp links against, so it waits for its own print check. Each
+# line lapses on 2026-10-19 and the gate then fails on it again: checked both ways with Trivy
+# v0.70.0 (waiver: exit 0; none, expired or one line missing: exit 1). Bump the digest instead
+# once a fixed node:24-slim is published, and delete these lines in that change.
+CVE-2026-13221 exp:2026-10-19
+CVE-2026-42496 exp:2026-10-19
+CVE-2026-8376 exp:2026-10-19
