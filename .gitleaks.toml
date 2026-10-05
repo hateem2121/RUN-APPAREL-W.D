@@ -70,5 +70,11 @@ regexes = [
   '''cfd98c6043ce4fd2a594010af6b80c75''',
   # The wear-run.com Web Analytics site tag (2026-09-28, the domain move) — public, like the one above.
   '''17250268831a423ea902fe766fa5feed''',
+  # PostHog's project token (2026-10-04, PR #127, owner-approved). Public by design, like the
+  # site tags above: PostHog's docs call it "a public, client-side key" that is write-only (it
+  # can send events, never read them), and every visitor's browser must receive it.
+  # packages/shared/src/consent.ts has the citation. Its own literal, never a `phc_` pattern,
+  # so any other PostHog token committed anywhere is still caught.
+  '''phc_koNg9SmLSye49u8trEjUf9kd5cTYUveERNRDYKbW9p5y''',
   '''rxps-2026-09-03-optimized\.glb''',
 ]

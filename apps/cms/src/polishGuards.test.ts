@@ -185,9 +185,15 @@ describe("VA-18 — the cookie card's sentence has a line length of its own", ()
    * comfortably; 59ch is the 75 that `legibility.spec.ts` holds the site's prose to; and under 48ch
    * the sentence is four lines tall instead of three. The cap sits between the two, with room
    * either side for kerning and the engines' small differences.
+   *
+   * ⚠️ THE BAND MOVED ON 2026-10-04, WITH THE SENTENCE: naming PostHog took it from 155 to 199
+   * characters. MEASURED then in the viewer suite's four engines (base.css has the figures): 54ch
+   * now sets "notice" alone on a fourth line, 56-58ch keep three lines of 68-73 characters, and
+   * 60ch runs 76-77. A band computed for one sentence is wrong for the next; re-measure when the
+   * words change.
    */
-  const CEILING_CH = 56
-  const FLOOR_CH = 48
+  const CEILING_CH = 58
+  const FLOOR_CH = 56
 
   function problemsWith(cap: string | undefined): string[] {
     const match = /^(\d+(?:\.\d+)?)ch$/.exec(cap ?? '')
@@ -203,7 +209,7 @@ describe("VA-18 — the cookie card's sentence has a line length of its own", ()
     return problems
   }
 
-  it('caps .consent__text in characters, between 48ch and 56ch', () => {
+  it('caps .consent__text in characters, between 56ch and 58ch', () => {
     expect(problemsWith(topLevel(BASE, '.consent__text').get('max-inline-size'))).toEqual([])
   })
 
@@ -219,13 +225,15 @@ describe("VA-18 — the cookie card's sentence has a line length of its own", ()
     }
   })
 
-  // NEGATIVE CONTROLS: the page's own 60ch, a cap too tight, and no cap at all.
+  // NEGATIVE CONTROLS: the page's own 60ch, a cap too tight (the old 54ch among them), and no cap at all.
   it('sees each fault: the inherited 60ch, 40ch, and a missing cap', () => {
-    expect(problemsWith('60ch')).toEqual(['60ch is over 56ch: lines past the 75-character ceiling'])
-    expect(problemsWith('40ch')).toEqual(['40ch is under 48ch: the sentence tips to four lines'])
+    expect(problemsWith('60ch')).toEqual(['60ch is over 58ch: lines past the 75-character ceiling'])
+    expect(problemsWith('40ch')).toEqual(['40ch is under 56ch: the sentence tips to four lines'])
+    // The old cap, which the longer sentence measured four lines at.
+    expect(problemsWith('54ch')).toEqual(['54ch is under 56ch: the sentence tips to four lines'])
     expect(problemsWith(undefined)).toEqual(['max-inline-size is missing, not a number of ch'])
     expect(problemsWith('403px')).toEqual(['max-inline-size is 403px, not a number of ch'])
-    expect(problemsWith('54ch')).toEqual([])
+    expect(problemsWith('57ch')).toEqual([])
   })
 })
 

@@ -769,8 +769,20 @@ html.lenis body {
      text renders 2 percent wider or narrower. It is a cap, not a width: it only bites once the
      card is about 773px wide (a 790px window), so every phone and a 768px tablet are unchanged.
      The room the sentence gives up goes to the two buttons, which stay equal (about 22px wider
-     each at the card's full 880px). */
-  max-inline-size: 54ch;
+     each at the card's full 880px).
+     ⚠️ 57ch SINCE 2026-10-04, when the sentence grew from 155 to 199 characters to name PostHog
+     (owner-approved words). At 54ch it set "notice" alone on a fourth line: 92px tall from
+     1024px up, 79px on a 640x360 phone (over its 72px fifth). MEASURED in all four engines of
+     the viewer suite, after waiting for each resize to settle (an unsettled first pass read
+     79-92px for the same CSS): 56, 57 and 58ch all give three lines of 68-73 characters from
+     1024px up (74px tall) and 63px on the sideways phone; 60ch already runs 76-77 a line. 57 is
+     the middle of the band that works, so a character's drift either way still holds.
+     ⚠️ THAT IS IN ARCHIVO. The website's body text is "Archivo Optional" (font-display: optional,
+     site.css), so a FIRST visit, the one that sees this card, often keeps the ~6% wider stand-in:
+     measured on the website at 1024px, 64, 64, 66, 14 characters, four lines. 214 characters
+     cannot fit three lines of 75 in both fonts, so the owner chose (2026-10-05) three OR four
+     lines from 1024px up, the sentence unchanged; both suites hold every line to 45-75. */
+  max-inline-size: 57ch;
   margin: 0;
   /* The px figures above were computed at the old 13px. `ch` scales with the text, so at 12px
      the cap still holds the same characters a line, in a narrower column (VA-13). */
@@ -838,7 +850,17 @@ html.lenis body {
    side measured 113px of a 360px-high screen, 31%, under a 60px bar, and the card covered
    the home page's own buttons. Text beside the buttons, which keep their 44px height and
    stay equal: a grid of equal columns, so Decline is never the narrower of the two. The
-   reserve above shrinks to match the shorter card. */
+   reserve above shrinks to match the shorter card.
+
+   ⚠️ THREE LINES BESIDE THE BUTTONS IS THE MOST A 360px-HIGH SCREEN HOLDS: 3 x 16.2px plus
+   padding is 63px, under the 72px fifth; a fourth line is 79px. Since the sentence named
+   PostHog (199 characters, 2026-10-04) the 57ch cap above tipped it to four lines just under
+   640px wide: at 610-625px locally in all four engines, and at 640x360 itself in CI's Linux
+   Firefox (78.8px, PR #127), where a classic scrollbar and wider glyphs eat the margin. So here
+   the cap is lifted, the gap and the buttons' side padding are trimmed: measured, three lines
+   hold down to 600px in every engine, and an 844x390 phone gets two lines (58px). The cost,
+   chosen knowingly: on a wide sideways phone a line runs past 75 characters. Short screens
+   favour the smaller card (the owner's "compact"); the 45-75 rule is held from 1024px up. */
 @media (max-height: 500px) {
   :root:has(.consent) {
     --consent-reserve: 5rem;
@@ -849,12 +871,16 @@ html.lenis body {
   }
   .consent__card {
     flex-wrap: nowrap;
-    gap: 12px;
+    gap: 8px;
     padding: 6px 8px 6px 14px;
   }
   .consent__text {
     flex: 1 1 auto;
+    max-inline-size: none;
     line-height: 1.35;
+  }
+  .consent__actions .btn {
+    padding-inline: 10px;
   }
   .consent__actions {
     flex: 0 0 auto;

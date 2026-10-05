@@ -10,7 +10,7 @@ import { expect, type Page, test } from './offlineMedia'
  * because the question is absent under automation; THIS file lifts that gate and checks the
  * three states a real visitor can be in: not answered, declined, accepted.
  *
- * ⚠️ THE TRACKER HOSTS ARE ANSWERED LOCALLY. Every request to Google or Apollo is fulfilled
+ * ⚠️ THE TRACKER HOSTS ARE ANSWERED LOCALLY. Every request to Google, Apollo or PostHog is fulfilled
  * here with an empty script, so a test run never appears as a visit in the owner's real
  * reports and never depends on either company being up. The request is still MADE, which
  * is what the assertions read: we supply the response, never suppress the request.
@@ -22,9 +22,12 @@ const TRACKER_HOSTS = [
   'aplo-evnt.com',
   'www.google-analytics.com',
   'region1.google-analytics.com',
+  'us-assets.i.posthog.com',
+  'us.i.posthog.com',
 ]
 const GA_SCRIPT = 'www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'assets.apollo.io/micro/website-tracker/tracker.iife.js'
+const POSTHOG_SCRIPT = 'us-assets.i.posthog.com/static/array.js'
 
 /** Playwright sets navigator.webdriver; the question honours it, as the cursor does. */
 const liftAutomationGate = (context: ReturnType<Page['context']>) =>
@@ -120,7 +123,7 @@ test.describe('the cookie choice', () => {
     expect(await context.cookies()).toEqual([])
   })
 
-  test('ACCEPT: both trackers load, the choice is kept, and the next page starts them again', async ({
+  test('ACCEPT: all three trackers load, the choice is kept, and the next page starts them again', async ({
     page,
     context,
   }) => {
@@ -131,6 +134,7 @@ test.describe('the cookie choice', () => {
     await expect(banner(page)).toHaveCount(0)
     await expect.poll(() => outside).toContain(GA_SCRIPT)
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
+    await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
     expect((await stored(page)).local['run-consent']).toBe('accepted')
 
     // Google's queue carries consent BEFORE config, with every advertising use denied.
@@ -149,33 +153,53 @@ test.describe('the cookie choice', () => {
       ad_personalization: 'denied',
     })
 
+    /*
+     * PostHog's queue, as this page built it. This is not the real site, so it must be opted
+     * out from the start and never record: the browser-side half of `posthogConfig`'s host
+     * rule. (The stand-in script is empty, so the queue is still the page's own.)
+     */
+    const posthog = await page.evaluate(
+      () =>
+        (window as unknown as { posthog?: { _i?: [string, Record<string, unknown>, string][] } })
+          .posthog?._i?.[0],
+    )
+    expect(posthog?.[2]).toBe('posthog')
+    expect(posthog?.[1]).toMatchObject({
+      api_host: 'https://us.i.posthog.com',
+      opt_out_capturing_by_default: true,
+      disable_session_recording: true,
+      session_recording: { maskAllInputs: true },
+    })
+
     outside.length = 0
     await page.goto('/contact')
     await expect(banner(page)).toHaveCount(0)
     await expect.poll(() => outside).toContain(GA_SCRIPT)
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
+    await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
   })
 
-  test('only the two named companies are contacted after Accept', async ({ page, context }) => {
+  test('only the three named companies are contacted after Accept', async ({ page, context }) => {
     await liftAutomationGate(context)
     const outside = await watch(page)
     await page.goto('/')
     await banner(page).getByRole('button', { name: 'Accept' }).click()
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
+    await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
     await page.waitForLoadState('networkidle')
     const hosts = [...new Set(outside.map((entry) => entry.split('/')[0]))]
     for (const host of hosts) expect(TRACKER_HOSTS, `unexpected host ${host}`).toContain(host)
   })
 
   /*
-   * ⚠️ THE PAGE POLICY MUST ADMIT THE TWO SCRIPTS AND REFUSE LIVEINTENT, and both halves are
-   * checked in the browser because a policy string that reads right can still be wrong.
+   * ⚠️ THE PAGE POLICY MUST ADMIT THE TRACKER SCRIPTS AND REFUSE LIVEINTENT, and both halves
+   * are checked in the browser because a policy string that reads right can still be wrong.
    * The second half is the negative control for the first: the same listener that stays
-   * silent for Google and Apollo must fire for `d-code.liadm.com`, the script Apollo would
+   * silent for the three trackers must fire for `d-code.liadm.com`, the script Apollo would
    * use to identify a person. If it ever stops firing, the privacy page's "companies, not
    * people" sentence has become untrue.
    */
-  test('the page policy admits Google and Apollo, and refuses LiveIntent', async ({
+  test('the page policy admits Google, Apollo and PostHog, and refuses LiveIntent', async ({
     page,
     context,
   }) => {
@@ -215,8 +239,14 @@ test.describe('the cookie choice', () => {
     await page.goto('/privacy')
     await banner(page).getByRole('button', { name: 'Accept' }).click()
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
-    // What Apollo's real script would have stored (its response here is an empty file).
-    await page.evaluate(() => localStorage.setItem('apolloAnonId', 'planted-by-the-test'))
+    await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
+    // What Apollo's and PostHog's real scripts would have stored (each response here is an
+    // empty file). The token in PostHog's name does not matter: Decline clears by prefix.
+    await page.evaluate(() => {
+      localStorage.setItem('apolloAnonId', 'planted-by-the-test')
+      localStorage.setItem('ph_phc_test_posthog', 'planted-by-the-test')
+      localStorage.setItem('__ph_opt_in_out_phc_test', 'planted-by-the-test')
+    })
 
     await page.getByRole('button', { name: 'Change your cookie choice' }).click()
     await expect(banner(page)).toBeVisible()
@@ -526,13 +556,15 @@ test.describe('the cookie choice', () => {
 
   /*
    * VA-18 (visual audit 2026-10-02): from 1024px up the sentence ran 76-79 characters a line,
-   * past the 45-75 that reads comfortably. `.consent__text` is capped at 54ch now (base.css).
+   * past the 45-75 that reads comfortably. `.consent__text` is capped in ch (base.css; 57ch since the PostHog sentence, 2026-10-04).
    * COUNTED from Range rects, as `legibility.spec.ts` counts the prose and never `width / one
    * character's width`: `ch` is the width of a zero, which renders more characters than it names.
    * The cap was chosen so the sentence is still THREE lines, so the card does not grow taller.
+   * Since 2026-10-04 (the PostHog sentence, 214 characters) it is three in Archivo and four in the
+   * wider stand-in a first visit often keeps; the owner chose to allow four (2026-10-05).
    * The card is absent under automation, so the gate is lifted here as in every test above.
    */
-  test('the sentence keeps to 45-75 characters a line, in three lines, from 1024px up (VA-18)', async ({
+  test('the sentence keeps to 45-75 characters a line, in three or four lines, from 1024px up (VA-18)', async ({
     page,
     context,
   }) => {
@@ -576,10 +608,16 @@ test.describe('the cookie choice', () => {
           `${width}px: line ${index + 1} has ${length} characters`,
         ).toBeLessThanOrEqual(75)
       }
+      // THREE OR FOUR (owner, 2026-10-05). The sentence naming PostHog is 214 characters with its
+      // link: three lines in Archivo, four in the ~6% wider stand-in a FIRST visit often keeps
+      // (`font-display: optional`), and a first visit is when this card shows. Both fonts keep
+      // every line inside 45-75, which is the readability rule; a fifth line would mean the cap
+      // had stopped holding.
+      expect(lines.length, `${width}px: ${lines.join(', ')} characters`).toBeGreaterThanOrEqual(3)
       expect(
         lines.length,
-        `${width}px: ${lines.join(', ')} characters; a fourth line is a taller card`,
-      ).toBe(3)
+        `${width}px: ${lines.join(', ')} characters; a fifth line is a taller card`,
+      ).toBeLessThanOrEqual(4)
     }
   })
 })

@@ -55,6 +55,13 @@ export const metadata: Metadata = buildMetadata({
  * Cookie-question wording (the lede, "If you accept the cookie question", and the three
  * sentences it added further down) approved by the owner 2026-09-30.
  *
+ * PostHog joined the same question on 2026-10-04 (owner decision; `packages/shared/src/
+ * consent.ts` has why). Its sentences are held to the code: typing is masked in the browser
+ * (`maskAllInputs`), and "never tell PostHog who you are" is `person_profiles:
+ * 'identified_only'` with no `identify` call anywhere. "30 days" is the project's recording
+ * retention and "up to seven years" its plan's analytics retention, both read through
+ * PostHog's API on 2026-10-04.
+ *
  * NOT LEGAL ADVICE. This is a factual account of what the software does, plus the
  * mainstream reading of the rules as of September 2026. Wording approved by the owner
  * 2026-09-07; a solicitor should review it before it carries any weight. Visit-records
@@ -76,9 +83,10 @@ export default async function PrivacyPage() {
           </h1>
           <p className="site-lede">
             Nothing is stored on your device, and no tracker runs, unless you choose it. We ask
-            once, on this site and on our 3D reference pages alike. If you accept, Google Analytics
-            and Apollo count your visit; if you decline, or do not answer, neither ever loads. Your
-            browser also keeps the light or dark setting, and only after you press that switch.
+            once, on this site and on our 3D reference pages alike. If you accept, Google Analytics,
+            Apollo and PostHog count your visit; if you decline, or do not answer, none of them ever
+            loads. Your browser also keeps the light or dark setting, and only after you press that
+            switch.
           </p>
         </div>
       </section>
@@ -98,18 +106,22 @@ export default async function PrivacyPage() {
             cookies and without identifying you.
           </p>
           <p id="cookies">
-            <strong>If you accept the cookie question.</strong> Two more services start, and only
+            <strong>If you accept the cookie question.</strong> Three more services start, and only
             then. Google Analytics, from Google, sets cookies named <code>_ga</code> so that it can
             tell us how many people visit, which pages they read, which country they are in and
             which website sent them. We have switched off its advertising features. Apollo, a
             service based in the United States, stores an identifier in your browser and tells us
             which companies visited, by matching your connection to a company. We use it to
             recognize companies, not people, and our pages block the part of it that identifies
-            individuals. If you decline, or never answer, neither service is loaded and nothing is
-            stored.
+            individuals. PostHog, a service based in the United States, stores an identifier in your
+            browser and records how you use our pages (where you click, scroll and move the pointer)
+            as a replay we can watch, so that we can see which parts of our pages are hard to use.
+            Anything you type into a form is hidden in your browser before the recording leaves it,
+            and we never tell PostHog who you are. If you decline, or never answer, none of these
+            services is loaded and nothing is stored.
           </p>
           <p>
-            You can change your mind at any time. Declining after accepting removes what the two
+            You can change your mind at any time. Declining after accepting removes what the three
             services stored in your browser.
           </p>
           <p>
@@ -147,8 +159,8 @@ export default async function PrivacyPage() {
           <p>
             To run and secure the website, to see how the documents we share are used, and to answer
             business inquiries — our legitimate interests — and to perform a contract where one
-            follows. Google Analytics and Apollo run only with your consent, which you can withdraw
-            above.
+            follows. Google Analytics, Apollo and PostHog run only with your consent, which you can
+            withdraw above.
           </p>
 
           <p className="subhead">How long we keep it</p>
@@ -157,15 +169,17 @@ export default async function PrivacyPage() {
             relationship needs it; when we delete an inquiry, its files are deleted with it.
             Technical logs and error reports are kept briefly by our providers and then deleted.
             Records of visits to our shared documents for 12 months, after which they are deleted
-            automatically. Google Analytics keeps visit data for 14 months.
+            automatically. Google Analytics keeps visit data for 14 months. PostHog keeps recordings
+            for 30 days and other visit data for up to seven years.
           </p>
 
           <p className="subhead">Where it goes</p>
           <p>
             Cloudflare, Sentry and Resend (which delivers our inquiry notifications to us) process
             data outside Pakistan, including in the United States and the European Union, under
-            their standard contractual protections. So do Google and Apollo, if you accepted the
-            cookie question. We do not sell your data and we do not share it for advertising.
+            their standard contractual protections. So do Google, Apollo and PostHog, if you
+            accepted the cookie question. We do not sell your data and we do not share it for
+            advertising.
           </p>
 
           <p className="subhead">Your rights</p>

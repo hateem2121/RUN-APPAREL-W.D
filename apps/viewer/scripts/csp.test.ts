@@ -142,8 +142,8 @@ describe('buildCsp — third-party allow-list (PF-15)', () => {
   const DSN = 'https://abc123@o4511868350496768.ingest.us.sentry.io/4509876'
 
   /*
-   * The two trackers joined on 2026-09-30 (owner decision; they run only after a visitor
-   * accepts the cookie choice). Still an EXACT list: a host added to the policy without
+   * The trackers joined on 2026-09-30 (Google, Apollo) and 2026-10-04 (PostHog), by owner
+   * decision; they run only after a visitor accepts the cookie choice. Still an EXACT list: a host added to the policy without
    * being added here fails, which is the whole job of this test.
    */
   const TRACKERS = [
@@ -152,10 +152,12 @@ describe('buildCsp — third-party allow-list (PF-15)', () => {
     'https://*.googletagmanager.com',
     'https://aplo-evnt.com',
     'https://assets.apollo.io',
+    'https://us-assets.i.posthog.com',
+    'https://us.i.posthog.com',
     'https://www.googletagmanager.com',
   ]
 
-  it('the policy admits no third party beyond the beacon, the two trackers and Sentry', () => {
+  it('the policy admits no third party beyond the beacon, the trackers and Sentry', () => {
     const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API, sentryDsn: DSN })
     expect(thirdPartyOrigins(csp)).toEqual(
       [
@@ -167,7 +169,7 @@ describe('buildCsp — third-party allow-list (PF-15)', () => {
     )
   })
 
-  it('is exactly the beacon and the two trackers when no Sentry DSN is configured', () => {
+  it('is exactly the beacon and the trackers when no Sentry DSN is configured', () => {
     const csp = buildCsp({ html: THEME_BOOTSTRAP, apiBaseUrl: API })
     expect(thirdPartyOrigins(csp)).toEqual(
       [

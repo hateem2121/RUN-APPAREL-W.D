@@ -82,7 +82,7 @@ describe('withNonce: script-src only, and only the expected shape', () => {
     expect(out).not.toBeNull()
     const policy = out as string
     expect(directive(policy, 'script-src')).toBe(
-      `script-src 'self' 'nonce-${NONCE}' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io`,
+      `script-src 'self' 'nonce-${NONCE}' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com`,
     )
     expect(directive(policy, 'style-src')).toBe("style-src 'self' 'unsafe-inline'")
     const before = PUBLIC_PAGE_CSP.split('; ').filter((d) => !d.startsWith('script-src '))
