@@ -83,6 +83,63 @@ test.describe('FA-H-05 — a press is answered immediately', () => {
   })
 })
 
+/**
+ * MO6 (owner, 3 Oct: "every button presses the same way"): the controls that answered a press with
+ * nothing now shrink as `.btn` does, 0.97, and the file drop area as the cards do, 0.98 (site.css
+ * says why). Each is pressed for real, with the pointer on its middle, and the value it reaches
+ * is read, then that it comes back on release.
+ */
+test.describe('MO6 — every control answers a press the same way', () => {
+  const CASES = [
+    {
+      path: '/products',
+      selector: '.card-gallery__dot',
+      scale: '0.97',
+      hover: '.product-card__figure',
+    },
+    {
+      path: '/products',
+      selector: '.card-gallery__arrow--next',
+      scale: '0.97',
+      hover: '.product-card__figure',
+    },
+    { path: '/contact', selector: '.inquiry-form__answer', scale: '0.97' },
+    { path: '/contact', selector: '.inquiry-form__drop', scale: '0.98' },
+    { path: '/contact', selector: '.inquiry-files__remove', scale: '0.97', file: true },
+    { path: '/custom-teamwear-manufacturer', selector: '.sport-filter__chip', scale: '0.97' },
+  ] as const
+
+  for (const item of CASES) {
+    test(`${item.selector} on ${item.path} presses to ${item.scale}`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.goto(item.path)
+      if ('file' in item && item.file) {
+        await page.locator('.inquiry-form [name="files"]').setInputFiles({
+          name: 'tech-pack.pdf',
+          mimeType: 'application/pdf',
+          buffer: Buffer.from('%PDF-1.7\nxref\n%%EOF\n'),
+        })
+      }
+      const control = page.locator(item.selector).first()
+      if ((await control.count()) === 0) test.skip(true, `no ${item.selector} on ${item.path} here`)
+      await control.scrollIntoViewIfNeeded()
+      if ('hover' in item && item.hover) await page.locator(item.hover).first().hover()
+      await control.hover()
+      const box = await control.boundingBox()
+      expect(box, `${item.selector} has no box`).not.toBeNull()
+      const scale = () => control.evaluate((el) => getComputedStyle(el).scale)
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+      await page.mouse.down()
+      await expect.poll(scale, { timeout: 2_000, message: 'no press feedback' }).toBe(item.scale)
+      await page.mouse.up()
+      // The × does its job on release: the file leaves, and the button with it.
+      if ('file' in item && item.file)
+        await expect(page.locator('.inquiry-files__item')).toHaveCount(0)
+      else await expect.poll(scale, { timeout: 2_000, message: 'it stayed pressed' }).toBe('none')
+    })
+  }
+})
+
 test.describe('VA-46 — both buttons answer a mouse the same way', () => {
   /**
    * Visual audit 2026-10-02, measured live: the primary button lifted 2px with no change of colour

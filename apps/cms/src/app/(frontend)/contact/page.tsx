@@ -416,12 +416,12 @@ export default async function ContactPage({
                   <legend className="inquiry-form__label">Subject</legend>
                   <div className="inquiry-form__answers">
                     {SUBJECTS.map((subject) => (
-                      <label className="inquiry-form__answer" key={subject}>
+                      <label className="filter-chip inquiry-form__answer" key={subject}>
                         <input type="radio" name="subject" value={subject} />
                         <span>{subject}</span>
                       </label>
                     ))}
-                    <label className="inquiry-form__answer">
+                    <label className="filter-chip inquiry-form__answer">
                       <input type="radio" name="subject" value={SUBJECT_OTHER} />
                       <span>{SUBJECT_OTHER_LABEL}</span>
                     </label>

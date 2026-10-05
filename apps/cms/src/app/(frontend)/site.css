@@ -1346,6 +1346,7 @@ html {
   border: 0;
   background: none;
   cursor: pointer;
+  transition: scale var(--instant) var(--ease);
 }
 
 /*
@@ -1462,7 +1463,9 @@ html {
   cursor: pointer;
   translate: 0 -50%;
   opacity: 0;
-  transition: opacity var(--ui) var(--ease);
+  transition:
+    opacity var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
 }
 
 .card-gallery__arrow--prev {
@@ -2881,13 +2884,15 @@ a.contact-block__value:active {
   cursor: pointer;
 }
 
-.sport-filter__chip:has(.sport-filter__input:checked) {
+.sport-filter__chip:has(.sport-filter__input:checked),
+.inquiry-form__answer:has(input:checked) {
   background: var(--volt);
   border-color: var(--volt);
   color: var(--ink);
 }
 
-.sport-filter__chip:has(.sport-filter__input:focus-visible) {
+.sport-filter__chip:has(.sport-filter__input:focus-visible),
+.inquiry-form__answer:has(input:focus-visible) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
@@ -2899,7 +2904,8 @@ a.contact-block__value:active {
  * brand's colours over the user's (`tokens.test.ts` allows it on the garment page's swatch alone).
  */
 @media (forced-colors: active) {
-  .sport-filter__chip:has(.sport-filter__input:checked) {
+  .sport-filter__chip:has(.sport-filter__input:checked),
+  .inquiry-form__answer:has(input:checked) {
     outline: 2px solid Highlight;
     outline-offset: 2px;
   }
@@ -5379,9 +5385,11 @@ a.contact-block__value:active {
 }
 
 /*
- * SUBJECT (Q15, Q43): six answers to tap, each a radio inside its own pill, the radio laid over
- * the whole pill (transparent) so the pill is what a finger, a mouse and Playwright press. The
- * chosen one is filled with ink. "Something else…" opens the box below it by CSS alone.
+ * SUBJECT (Q15, Q43): six answers to tap, one at a time, in the site's one chip: the Teamwear
+ * page's sport buttons are the same radio-in-a-`.filter-chip` (GarmentGrid.tsx), so the two share
+ * their look, their lime "chosen" fill, their focus ring and their press (the rules below name
+ * both). The radio lies over the whole chip, transparent, so the chip is what a finger, a mouse
+ * and Playwright press. "Something else…" opens the box below it by CSS alone.
  */
 .inquiry-form__subject {
   min-width: 0;
@@ -5402,20 +5410,8 @@ a.contact-block__value:active {
 
 .inquiry-form__answer {
   position: relative;
-  display: inline-flex;
-  align-items: center;
   block-size: var(--field-block);
-  padding: 0 16px;
-  font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--line-control);
-  border-radius: var(--radius-pill);
   cursor: pointer;
-  transition:
-    color var(--ui) var(--ease),
-    background-color var(--ui) var(--ease),
-    border-color var(--ui) var(--ease);
 }
 
 .inquiry-form__answer > input {
@@ -5424,23 +5420,6 @@ a.contact-block__value:active {
   margin: 0;
   opacity: 0;
   cursor: pointer;
-}
-
-.inquiry-form__answer:has(input:checked) {
-  color: var(--bg);
-  background: var(--text);
-  border-color: var(--text);
-}
-
-.inquiry-form__answer:has(input:focus-visible) {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) {
-  .inquiry-form__answer:hover:not(:has(input:checked)) {
-    border-color: var(--text);
-  }
 }
 
 .inquiry-form__own {
@@ -5470,7 +5449,8 @@ a.contact-block__value:active {
   cursor: pointer;
   transition:
     border-color var(--ui) var(--ease),
-    background-color var(--ui) var(--ease);
+    background-color var(--ui) var(--ease),
+    scale var(--instant) var(--ease);
 }
 
 .inquiry-form__drop[data-over] {
@@ -5522,6 +5502,24 @@ a.contact-block__value:active {
   .inquiry-files__remove:hover {
     color: var(--danger);
   }
+}
+
+/*
+ * MO6, "EVERY BUTTON PRESSES THE SAME WAY" (owner, 3 Oct): the controls that answered a press with
+ * nothing get the site's one press, `scale: 0.97` on --instant (base.css `.btn:active` has the
+ * account). The gallery's arrows and dots, and the form's × on a file; the subject answers are
+ * `.filter-chip`s and press with them. The drop area is a surface, and presses as the cards do,
+ * 0.98: a large area shrinking 3% moves its edges further than a finger expects. The footer's
+ * tab keeps its colour press (footer-prompt.css says why). Ungated, as every press here.
+ */
+.card-gallery__arrow:active,
+.card-gallery__dot:active,
+.inquiry-files__remove:active {
+  scale: 0.97;
+}
+
+.inquiry-form__drop:active {
+  scale: 0.98;
 }
 
 .inquiry-files__remove:focus-visible {
