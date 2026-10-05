@@ -61,14 +61,21 @@ test('the page asks for no render until the visitor shows intent', async ({ page
   })
   await openReady(page, 'wine')
   await expect(hdButton(page)).toBeVisible()
+  // Without 3D the window's own picture IS the screen-sized copy (polish D9, and the "stands in
+  // for the poster" test below), so it arrives with the page; there only the full render waits for
+  // intent. CI's Firefox has no WebGL (e2e/stage.ts): this failed there on PR #128 and passed on a
+  // Mac, whose Firefox draws 3D.
+  const fallback = await stageFallsBack(page)
+  const early = () =>
+    fallback ? renderRequests.filter((url) => !url.endsWith('-screen.png')) : renderRequests
   // Give any eager preload the chance to show itself before asserting there was none.
   await page.waitForTimeout(1000)
-  expect(renderRequests, 'a render was fetched before anyone asked for it').toEqual([])
+  expect(early(), 'a render was fetched before anyone asked for it').toEqual([])
 
   await hdButton(page).hover()
-  await expect.poll(() => renderRequests.length).toBeGreaterThan(0)
+  await expect.poll(() => early().length).toBeGreaterThan(0)
   // With 3D the switch warms the window's screen-sized copy; without, the full render.
-  expect(renderRequests[0]).toMatch(/n001-wine(-screen)?\.png$/)
+  expect(early()[0]).toMatch(fallback ? /n001-wine\.png$/ : /n001-wine(-screen)?\.png$/)
 })
 
 test('opens full screen, closes on Escape, and gives focus back to the button', async ({
