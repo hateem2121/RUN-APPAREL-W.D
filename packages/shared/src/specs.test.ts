@@ -78,3 +78,26 @@ describe('specGroups', () => {
     expect(groups[2]?.items[0]?.note).toBe('Snug.')
   })
 })
+
+/*
+ * GitHub's code scan (CodeQL, js/polynomial-redos, on PR #128) flagged both splitters: a
+ * pattern that starts with `\s+` or `\d+` and then fails re-scans the same run from every
+ * position, so a long run of spaces or digits takes quadratic time. The CMS text these read is
+ * typed by a person, but the scan blocks the merge, and a linear pattern costs nothing.
+ */
+describe('long runs stay fast (code scan, 2026-10-05)', () => {
+  const RUN = 50_000
+  const timed = (work: () => unknown) => {
+    const start = Date.now()
+    work()
+    return Date.now() - start
+  }
+
+  it('fabricParts reads a long run of spaces in linear time', () => {
+    expect(timed(() => fabricParts(`a${' '.repeat(RUN)}b`))).toBeLessThan(50)
+  })
+
+  it('noteKey reads a long run of digits in linear time', () => {
+    expect(timed(() => noteKey('0'.repeat(RUN)))).toBeLessThan(50)
+  })
+})

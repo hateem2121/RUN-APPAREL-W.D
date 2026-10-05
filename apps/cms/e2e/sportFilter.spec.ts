@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
+import { stripUntilStable } from '../../../scripts/strip-until-stable.mjs'
 import { TEAMWEAR_SPORTS } from '../src/lib/sports'
 import { LIVE_TEAMWEAR } from './fixtures/teamwear'
 import { expect, type Page, test } from './offlineMedia'
@@ -198,7 +199,8 @@ test.describe('the sport buttons (polish S7)', () => {
   test('with scripting off, the buttons still filter', async ({ page, browser }) => {
     await openHarness(page)
     const drawn = await page.evaluate(() => document.documentElement.outerHTML)
-    const html = `<!doctype html>${drawn.replace(/<script[\s\S]*?<\/script>/gi, '')}`
+    // Until stable, and any end tag (`</script >` too): the code scan, PR #128.
+    const html = `<!doctype html>${stripUntilStable(drawn, /<script\b[\s\S]*?<\/script[^>]*>/gi, '')}`
     expect(html).not.toMatch(/<script/i)
     const context = await browser.newContext({ javaScriptEnabled: false })
     try {

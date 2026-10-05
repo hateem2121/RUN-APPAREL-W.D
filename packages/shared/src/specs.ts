@@ -44,10 +44,14 @@ export const SPEC_HEADINGS: Record<SpecGroupKey, string> = {
  * that contains one is not cut.
  */
 export function fabricParts(composition: string): string[] {
-  return composition
-    .split(/\s+\/\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean)
+  return (
+    composition
+      // One space-like character each side is enough to find " / ", and the trim below takes the
+      // rest. `\s+\/\s+` re-scans a run of spaces from every position (the code scan, PR #128).
+      .split(/\s\/\s/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+  )
 }
 
 /**
@@ -55,12 +59,16 @@ export function fabricParts(composition: string): string[] {
  * percentage, so "85% Recycled Polyester" and "100% Recycled Polyester" share one note.
  */
 export function noteKey(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/^\s*[a-z]+:\s*/, '')
-    .replace(/\d+(?:\.\d+)?\s*%\s*/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return (
+    text
+      .toLowerCase()
+      .replace(/^\s*[a-z]+:\s*/, '')
+      // Every number is matched once, and dropped only when a "%" follows it. Requiring the "%"
+      // made a run of digits with none re-scan from every digit (the code scan, PR #128).
+      .replace(/\d+(?:\.\d+)?(\s*%\s*)?/g, (number, percent) => (percent ? '' : number))
+      .replace(/\s+/g, ' ')
+      .trim()
+  )
 }
 
 type SpecFields = {

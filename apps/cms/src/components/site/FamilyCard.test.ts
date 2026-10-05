@@ -1,5 +1,6 @@
 import { type ComponentProps, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it, vi } from 'vitest'
 import { FAMILIES } from '../../lib/families'
 import { familyIsSoon, familyPageFor } from '../../lib/familyPages'
@@ -60,8 +61,8 @@ const cardOf = (slug: string, garments: number) => {
  * space as one plain space (`\s` takes in the no-break spaces that hold a "/" to its kind).
  */
 const words = (markup: string) =>
-  markup
-    .replace(/<[^>]+>/g, '')
+  // Tags out until none is left (one pass can join two halves into a new tag: the code scan, PR #128).
+  stripUntilStable(markup, /<[^>]+>/g, '')
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim()

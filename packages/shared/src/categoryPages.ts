@@ -27,11 +27,16 @@ export const CATEGORY_PAGE_PATHS: Readonly<Partial<Record<ProductCategory, strin
  * `apps/viewer/src/familySlugs.test.ts` reads that file and fails if the two spellings ever part.
  */
 export function familySlug(category: string): string {
-  return category
-    .toLowerCase()
-    .replace(/&/g, ' ')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+  return (
+    category
+      .toLowerCase()
+      .replace(/&/g, ' ')
+      // Split on every run of other characters and join with one hyphen: no hyphen at either end,
+      // and no `^-+|-+$` trim, which the code scan flags as slow on long runs (PR #128).
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+      .join('-')
+  )
 }
 
 /**
