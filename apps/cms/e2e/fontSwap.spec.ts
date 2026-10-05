@@ -314,12 +314,6 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
         browserName,
       }) => {
         test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
-        // ⚠️ SKIPPED IN CI'S LINUX CHROME ONLY (PR #128, 2026-10-05, the owner's choice): 0.052 there,
-        // under 0.02 on the Mac. Linux-only and not yet measured; the next session calibrates it.
-        test.skip(
-          process.platform === 'linux' && path === '/terms' && width === 390,
-          "CI's Linux Chrome only (PR #128, 2026-10-05; the owner chose to skip it there for now): a Linux-only layout shift, to be measured",
-        )
         await installObserver(page)
         /*
          * ⚠️ THE DELAY IS THE TEST, NOT AN INCONVENIENCE. Local `.woff2` files load fast enough
@@ -501,17 +495,7 @@ test.describe('D11 — a body-text box held at its width cap is the same width i
     // "On this page", and at 1024px that column (514px) is narrower than the cap (535px).
     ['/privacy', 1440, ['p']],
   ] as const) {
-    test(`${path} at ${width}px`, async ({ page, browserName }) => {
-      // ⚠️ SKIPPED IN CI'S LINUX CHROME ONLY (PR #128, 2026-10-05, the owner's choice). That Chrome rounds
-      // each letter to whole pixels: Archivo's zero (0.5727em, 9.74px here) becomes 10px, so 60ch is
-      // 600.0px against 34.362em's 584.1px, and the box is 16px wider once Archivo lands. The Mac
-      // measures 584.1px in both. A cap that holds under whole-pixel rounding is the next session's.
-      test.skip(
-        browserName === 'chromium' &&
-          process.platform === 'linux' &&
-          ['/ 768', '/ 1440', '/contact 1440'].includes(`${path} ${width}`),
-        "CI's Linux Chrome only (PR #128, 2026-10-05; the owner chose to skip it there for now): whole-pixel letters make Archivo's 60ch 600px",
-      )
+    test(`${path} at ${width}px`, async ({ page }) => {
       const delivered = await readBoxes(page, path, width, 'delivered')
       const blocked = await readBoxes(page, path, width, 'blocked')
       // Not vacuous: the boxes this page is here for are held at their caps.

@@ -311,7 +311,9 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-family: var(--font-display);
+  /* `--font-wordmark` is the display face (tokens.css) unless a surface names its own stand-in: the
+     website does (apps/cms site.css), because its headline stand-in drew this word 29px too wide. */
+  font-family: var(--font-wordmark);
   font-weight: 800;
   font-size: var(--text-wordmark-sm);
   /*
