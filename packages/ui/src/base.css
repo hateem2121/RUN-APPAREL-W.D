@@ -809,11 +809,13 @@ html.lenis body {
      79-92px for the same CSS): 56, 57 and 58ch all give three lines of 68-73 characters from
      1024px up (74px tall) and 63px on the sideways phone; 60ch already runs 76-77 a line. 57 is
      the middle of the band that works, so a character's drift either way still holds.
-     ⚠️ THAT IS IN ARCHIVO. The website's body text is "Archivo Optional" (font-display: optional,
-     site.css), so a FIRST visit, the one that sees this card, often keeps the ~6% wider stand-in:
-     measured on the website at 1024px, 64, 64, 66, 14 characters, four lines. 214 characters
-     cannot fit three lines of 75 in both fonts, so the owner chose (2026-10-05) three OR four
-     lines from 1024px up, the sentence unchanged; both suites hold every line to 45-75. */
+     ⚠️ THAT IS IN ARCHIVO. When this was measured the website's body text was "Archivo
+     Optional" (font-display: optional), so a FIRST visit, the one that sees this card, often
+     kept the ~6% wider stand-in for the whole visit: measured on the website at 1024px, 64, 64,
+     66, 14 characters, four lines. Since polish D11 the body text swaps to Archivo when it lands
+     (site.css), so the stand-in now shows only until then. 214 characters cannot fit three lines
+     of 75 in both fonts, so the owner chose (2026-10-05) three OR four lines from 1024px up, the
+     sentence unchanged; both suites hold every line to 45-75. */
   max-inline-size: 57ch;
   margin: 0;
   /* The px figures above were computed at the old 13px. `ch` scales with the text, so at 12px

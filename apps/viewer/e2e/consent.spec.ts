@@ -311,11 +311,15 @@ test.describe('the cookie choice on a garment page', () => {
     // into view first, and the product's <h1> is below the fold here: the first draft
     // measured Playwright's own 621px scroll and blamed the page. Since polish M5 (2026-10-04)
     // nothing names the garment over it, so the text is the colour's name above the dots: in
-    // <main>, outside the tabpanel (which takes focus itself), and above the card (measured at
-    // 670-689px against the card's 702px, in all three engines).
+    // <main>, outside the tabpanel (which takes focus itself), and the only text in <main> that
+    // reaches above the card. ⚠️ MEASURE THE CARD, NOT THE REGION: the region is the card's
+    // click-through shell, 8px bigger all round (base.css `.consent`), so its top reads 8px above
+    // anything that covers the page. Since the sentence named PostHog (2026-10-05) the region's top
+    // is at 684.4px, which first read as the name (670.4-689px) going under the card; the card's
+    // own top is at 692.4px, 3.4px clear, in all four engines.
     const name = await page.locator('.colourways__name').boundingBox()
     if (!name) throw new Error('the colour name above the dots is not on the page')
-    const cardTop = (await banner(page).boundingBox())?.y ?? 844
+    const cardTop = (await banner(page).locator('.consent__card').boundingBox())?.y ?? 844
     expect(name.y + name.height, 'the text to click is under the cookie card').toBeLessThanOrEqual(
       cardTop,
     )
