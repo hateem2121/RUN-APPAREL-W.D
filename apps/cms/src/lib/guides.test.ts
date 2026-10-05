@@ -262,6 +262,12 @@ describe('a guide shows a factory photo only beside words that name it (polish X
   const NAMED_BY = [
     ['/guides/minimum-order-and-samples', 'The minimum order', 'stitching', 'the same team'],
     ['/guides/garment-printing-methods', 'The seven methods', 'screen-printing', 'Screen printing'],
+    [
+      '/guides/sportswear-fabrics-and-weights',
+      'Confirmed on a sample',
+      'lab',
+      'confirmed against a physical sample',
+    ],
     ['/guides/private-label-packaging', 'Where it happens', 'tagging', 'Tagging'],
     ['/guides/shipping-and-import-duties', 'The price terms we quote', 'exterior', 'our building'],
   ] as const

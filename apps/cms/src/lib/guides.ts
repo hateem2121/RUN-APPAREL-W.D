@@ -429,6 +429,9 @@ export const GUIDES: readonly Guide[] = [
       },
       {
         heading: 'Confirmed on a sample',
+        // "Confirmed against a physical sample": the testing lab's color-viewing cabinet (owner's
+        // sign-off, 2026-10-05: "Add it").
+        photo: 'lab',
         blocks: [
           {
             kind: 'text',
