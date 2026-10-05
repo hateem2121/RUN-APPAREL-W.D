@@ -7,7 +7,7 @@ import { AboutSection } from './components/site/AboutSection'
 import { GuidePage } from './components/site/GuidePage'
 import { OrderSteps } from './components/site/OrderSteps'
 import { OrderTimeline } from './components/site/OrderTimeline'
-import { FACTORY_PHOTO_WIDTHS, FACTORY_PHOTOS } from './lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoWidths } from './lib/factoryPhotos'
 import { guideAt } from './lib/guides'
 import { ORDER_PHASES } from './lib/orderProcess'
 
@@ -127,19 +127,17 @@ describe('what the order steps draw (D4)', () => {
     }
   })
 
-  it('sizes every picture before it arrives, loads it lazily and offers both widths', () => {
+  // Every width the photo has (polish X16: three or four, fewer where the original stops short).
+  it('sizes every picture before it arrives, loads it lazily and offers every width', () => {
     for (const [index, tag] of figures.entries()) {
       const photo = photoOf(steps[index]?.photo ?? '')
-      const [small, large] = FACTORY_PHOTO_WIDTHS[photo?.shape ?? 'wide']
+      const widths = photo ? factoryPhotoWidths(photo) : []
+      expect(widths.length, `step ${index + 1}`).toBeGreaterThanOrEqual(2)
       expect(attr(tag, 'loading'), `step ${index + 1} is not lazy`).toBe('lazy')
-      expect(attr(tag, 'width'), `step ${index + 1} has no width`).toBe(String(small))
+      expect(attr(tag, 'width'), `step ${index + 1} has no width`).toBe(String(widths[0]))
       expect(Number(attr(tag, 'height')), `step ${index + 1} has no height`).toBeGreaterThan(0)
-      const srcset = attr(tag, 'srcSet') ?? ''
-      expect(srcset, `step ${index + 1}`).toContain(
-        `/factory/${photo?.slug}-${small}.webp ${small}w`,
-      )
-      expect(srcset, `step ${index + 1}`).toContain(
-        `/factory/${photo?.slug}-${large}.webp ${large}w`,
+      expect(attr(tag, 'srcSet'), `step ${index + 1}`).toBe(
+        widths.map((width) => `/factory/${photo?.slug}-${width}.webp ${width}w`).join(', '),
       )
       // One hint for all eight: every card is the same width. The browser suite checks it against
       // the width each card is really drawn at.

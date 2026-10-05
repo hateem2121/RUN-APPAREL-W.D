@@ -1,14 +1,19 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
 import { CONTACT_HERO_SOURCES, HERO_SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import { AboutSection } from './components/site/AboutSection'
+import { OrderSteps } from './components/site/OrderSteps'
 import {
   CONTACT_HERO_PHOTO,
   contactHeroSrc,
   FACTORY_PHOTO_ASPECT,
   FACTORY_PHOTO_WIDTHS,
   FACTORY_PHOTOS,
+  factoryPhotoWidths,
   HERO_PHOTO,
   HERO_SHAPES,
   heroPhotoSrc,
@@ -50,10 +55,10 @@ function webpSize(file: Uint8Array): { width: number; height: number } {
 }
 
 describe('the factory photos (OI-3)', () => {
-  it('every picture the page names exists, at both widths, at its tile shape', () => {
+  it('every picture the page names exists, at each of its widths, at its tile shape', () => {
     const wrong: string[] = []
     for (const photo of FACTORY_PHOTOS) {
-      for (const width of FACTORY_PHOTO_WIDTHS[photo.shape]) {
+      for (const width of factoryPhotoWidths(photo)) {
         const file = `${photo.slug}-${width}.webp`
         let size: { width: number; height: number }
         try {
@@ -76,7 +81,7 @@ describe('the factory photos (OI-3)', () => {
   it('no picture sits in public/factory that the page does not show', () => {
     const named = new Set([
       ...FACTORY_PHOTOS.flatMap((photo) =>
-        FACTORY_PHOTO_WIDTHS[photo.shape].map((width) => `${photo.slug}-${width}.webp`),
+        factoryPhotoWidths(photo).map((width) => `${photo.slug}-${width}.webp`),
       ),
       ...HERO_SHAPES.flatMap((shape) =>
         HERO_PHOTO.widths[shape].map((width) =>
@@ -105,6 +110,42 @@ describe('the factory photos (OI-3)', () => {
       expect(SHAPES[shape].widths).toEqual([...FACTORY_PHOTO_WIDTHS[shape]])
       expect(SHAPES[shape].aspect).toBe(FACTORY_PHOTO_ASPECT[shape])
     }
+    // A photo whose original is too narrow for its shape's widest file lists its own (polish X16).
+    expect(SOURCES.map((source) => source.widths ?? SHAPES[source.shape].widths)).toEqual(
+      FACTORY_PHOTOS.map((photo) => [...factoryPhotoWidths(photo)]),
+    )
+  })
+
+  /*
+   * ⚠️ NEVER AN UPSCALE (polish X16, 2026-10-05): a file wider than the original's crop is more
+   * bytes with no more detail in it. Each source records its original's size, measured on the
+   * owner's files; the script refuses to run when an original no longer has that size, so the
+   * record cannot drift from the file it describes.
+   */
+  it('writes no file wider than its original holds, at the crop the page shows', () => {
+    const tooWide = (
+      sources: readonly {
+        slug: string
+        shape: keyof typeof SHAPES
+        focus: [number, number]
+        original: [number, number]
+        widths?: number[]
+      }[],
+    ) =>
+      sources.flatMap((source) => {
+        const shape = SHAPES[source.shape]
+        const box = cropBox(...source.original, shape.aspect, source.focus)
+        return (source.widths ?? shape.widths)
+          .filter((width) => width > box.width)
+          .map((width) => `${source.slug}-${width}: the original's crop is ${box.width}px wide`)
+      })
+    expect(tooWide([...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES])).toEqual([])
+    // NEGATIVE CONTROL: the tagging floor's 1,280px original cannot give the wide shape's 1,600.
+    const tagging = SOURCES.find((source) => source.slug === 'tagging')
+    expect(tagging?.original).toEqual([1280, 896])
+    expect(tooWide(tagging ? [{ ...tagging, widths: [640, 1200, 1600] }] : [])).toEqual([
+      "tagging-1600: the original's crop is 1280px wide",
+    ])
   })
 
   it('every picture has alt text and a caption, and they are not the same words', () => {
@@ -224,6 +265,144 @@ describe('the factory photos (OI-3)', () => {
       width: 1000,
       height: 1250,
     })
+  })
+})
+
+/*
+ * ⚠️ A SHARP SCREEN GETS A FILE AS WIDE AS THE PICTURE ASKS (polish X16, 2026-10-05). The audit of
+ * 3 October measured the home step photos 1.4 times stretched on sharp laptop screens; since polish
+ * D4 the steps are cards up to 704 px wide, and the 4:5 files stopped at 800 px, so a 2x screen at
+ * 1,920 px stretched them 1.76 times (1,408 px asked, 800 given). A bigger file may only come from a
+ * bigger original: two originals are narrower than their shape's largest file (`ORIGINAL_LIMITS`),
+ * and those two photos are the only ones still short, each by what its original lacks.
+ *
+ * The check reads the page's own markup (№01 and №04, as the server sends them) and picks a file
+ * the way both engines do: the smallest whose density reaches the screen's, else the largest
+ * (Chromium `SelectionLogic` with `SrcsetSelectionMatchesImageSet` stable, WebKit
+ * `pickBestImageCandidate`; both read 2026-10-05). The hint (`sizes`) is what the browser goes by,
+ * and the browser suites hold every hint to the width really drawn (`e2e/orderTimeline.spec.ts`,
+ * `e2e/homePicture.spec.ts`). What would have to break: a width removed, a hint that grew past
+ * the files, or a new place that draws a photo larger than its files.
+ */
+describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
+  /** Phones at 2x and 3x, tablets and computers at 2x: the widths a 1x screen asks are all covered. */
+  const SCREENS: readonly (readonly [width: number, density: number])[] = [
+    ...[360, 375, 390, 393, 412, 430].flatMap((width) => [
+      [width, 2] as const,
+      [width, 3] as const,
+    ]),
+    ...[744, 768, 820, 834, 1024, 1180, 1280, 1366, 1440, 1512, 1728, 1920, 2560].map(
+      (width) => [width, 2] as const,
+    ),
+  ]
+
+  /** The photo files narrower than their shape asks, because the original is: slug → its widest. */
+  const ORIGINAL_LIMITS = { tagging: 1200, packing: 1200 }
+
+  /** A `sizes` length at a window `width` px wide, in the forms the site writes; anything else throws. */
+  function lengthAt(length: string, width: number): number {
+    const px = length.match(/^(\d+(?:\.\d+)?)px$/)
+    if (px) return Number(px[1])
+    const vw = length.match(/^(\d+(?:\.\d+)?)vw$/)
+    if (vw) return (Number(vw[1]) * width) / 100
+    const sum = length.match(/^calc\((\d+(?:\.\d+)?)vw ([+-]) (\d+(?:\.\d+)?)px\)$/)
+    if (sum) return (Number(sum[1]) * width) / 100 + (sum[2] === '+' ? 1 : -1) * Number(sum[3])
+    throw new Error(`a sizes length this check cannot read: "${length}"`)
+  }
+
+  /** The width a `sizes` value names at a window `width` px wide: its first entry that applies. */
+  function hintAt(sizes: string, width: number): number {
+    for (const entry of sizes.split(/,\s*/)) {
+      const [, max, length] = entry.trim().match(/^(?:\(max-width: (\d+)px\)\s+)?(.+)$/) ?? []
+      if (max !== undefined && width > Number(max)) continue
+      if (length !== undefined) return lengthAt(length, width)
+    }
+    throw new Error(`no entry of "${sizes}" applies at ${width}px`)
+  }
+
+  type Picture = { slug: string; srcset: string; sizes: string }
+
+  /** Every picture a screen is handed fewer pixels than its hint asks for. */
+  function shortfalls(pictures: readonly Picture[]) {
+    const misses: { slug: string; screen: string; asks: number; gets: number }[] = []
+    for (const picture of pictures) {
+      const widths = picture.srcset
+        .split(', ')
+        .map((candidate) => Number(candidate.match(/ (\d+)w$/)?.[1]))
+        .sort((a, b) => a - b)
+      for (const [width, density] of SCREENS) {
+        const hint = hintAt(picture.sizes, width)
+        const gets = widths.find((each) => each / hint >= density) ?? widths.at(-1) ?? 0
+        const asks = hint * density
+        if (gets < asks - 0.5) {
+          misses.push({ slug: picture.slug, screen: `${width}@${density}x`, asks, gets })
+        }
+      }
+    }
+    return misses
+  }
+
+  const imgTags = (html: string) => [...html.matchAll(/<img\b[^>]*>/g)].map((match) => match[0])
+  const attr = (tag: string, name: string) =>
+    tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]?.replace(/&amp;/g, '&') ?? ''
+  const pictures: Picture[] = [
+    ...imgTags(renderToStaticMarkup(createElement(AboutSection))),
+    ...imgTags(renderToStaticMarkup(createElement(OrderSteps))),
+  ].map((tag) => ({
+    slug: attr(tag, 'src').match(/^\/factory\/(.+)-\d+\.webp$/)?.[1] ?? attr(tag, 'src'),
+    srcset: attr(tag, 'srcSet'),
+    sizes: attr(tag, 'sizes'),
+  }))
+
+  it('reads all ten photos off the page, each with its widths and its hint', () => {
+    expect(pictures.map((picture) => picture.slug).sort()).toEqual(
+      FACTORY_PHOTOS.map((photo) => photo.slug).sort(),
+    )
+    for (const picture of pictures) {
+      expect(picture.srcset, picture.slug).toMatch(/ \d+w$/)
+      expect(picture.sizes, picture.slug).not.toBe('')
+    }
+  })
+
+  it('leaves only the two photos whose originals hold no more, each at its widest file', () => {
+    const misses = shortfalls(pictures)
+    const said = misses.map(
+      (miss) => `${miss.slug} at ${miss.screen}: asks ${miss.asks}, gets ${miss.gets}`,
+    )
+    expect([...new Set(misses.map((miss) => miss.slug))].sort(), said.join('\n')).toEqual(
+      Object.keys(ORIGINAL_LIMITS).sort(),
+    )
+    for (const miss of misses) {
+      expect(miss.gets, said.join('\n')).toBe(
+        ORIGINAL_LIMITS[miss.slug as keyof typeof ORIGINAL_LIMITS],
+      )
+    }
+  })
+
+  // NEGATIVE CONTROL, both ways: the files №04 offered until X16 are short on a 2x computer, and
+  // the widths a tall photo is offered now are not.
+  it('sees a photo stretched on a sharp screen, and none when the widths reach', () => {
+    const sizes = pictures.find((picture) => picture.slug === 'inspection')?.sizes ?? ''
+    const before = shortfalls([
+      { slug: 'before', srcset: 'a-400.webp 400w, a-800.webp 800w', sizes },
+    ])
+    expect(before.map((miss) => miss.screen)).toContain('1920@2x')
+    expect(
+      shortfalls([
+        {
+          slug: 'after',
+          srcset: 'a-400.webp 400w, a-800.webp 800w, a-1200.webp 1200w, a-1536.webp 1536w',
+          sizes,
+        },
+      ]),
+    ).toEqual([])
+  })
+
+  it('reads the forms of hint the site writes, and refuses one it cannot', () => {
+    expect(hintAt('(max-width: 899px) calc(90vw + 2px), 704px', 834)).toBeCloseTo(752.6, 5)
+    expect(hintAt('(max-width: 899px) calc(90vw + 2px), 704px', 1920)).toBe(704)
+    expect(hintAt('(max-width: 399px) calc(100vw - 40px), 50vw', 390)).toBe(350)
+    expect(() => hintAt('min(50vw, 400px)', 390)).toThrow(/cannot read/)
   })
 })
 

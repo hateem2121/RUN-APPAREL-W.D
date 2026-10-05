@@ -4535,8 +4535,9 @@ a.contact-block__value:active {
  * Until 2026-10-05 this was a timeline: rows of words beside square photos, and a drawn line.
  *
  * From 900px the heading and its words stay on the left while the cards pass on the right: the
- * half №01's photos take, because the photo files stop at 1200px (wide) and 800px (tall). On the
- * guide the section heading does the same beside its cards (`.spread`).
+ * half №01's photos take, because the photo files stopped at 1200px (wide) and 800px (tall); since
+ * polish X16 they reach 1600px and 1536px, which is what a 2x screen asks for this half (up to 704px
+ * wide). On the guide the section heading does the same beside its cards (`.spread`).
  */
 @media (min-width: 900px) {
   .order-layout {

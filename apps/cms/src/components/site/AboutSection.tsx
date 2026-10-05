@@ -1,5 +1,5 @@
 import { ABOUT, type AboutPoint } from '../../lib/aboutCopy'
-import { FACTORY_PHOTOS, factoryPhotoSrc } from '../../lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 
 /**
@@ -51,11 +51,8 @@ export function AboutSection() {
             <FactoryFigure
               key={photo.slug}
               photo={photo}
-              src={factoryPhotoSrc(photo, 640)}
-              srcSet={`${factoryPhotoSrc(photo, 640)} 640w, ${factoryPhotoSrc(photo, 1200)} 1200w`}
+              {...factoryPhotoImage(photo)}
               sizes={HALF_COLUMN_SIZES}
-              width={640}
-              height={400}
             />
           ))}
         </div>

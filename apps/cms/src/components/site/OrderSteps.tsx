@@ -1,10 +1,5 @@
 import type { CSSProperties } from 'react'
-import {
-  FACTORY_PHOTO_ASPECT,
-  FACTORY_PHOTO_WIDTHS,
-  FACTORY_PHOTOS,
-  factoryPhotoSrc,
-} from '../../lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { ORDER_PHASES } from '../../lib/orderProcess'
 
 /**
@@ -54,7 +49,7 @@ export function OrderSteps() {
     <ol className="order-steps">
       {STEPS.map((step, index) => {
         const photo = PHOTOS.get(step.photo)
-        const [small, large] = photo ? FACTORY_PHOTO_WIDTHS[photo.shape] : [0, 0]
+        const image = photo ? factoryPhotoImage(photo) : null
         const [across, down] = photo?.focus ?? [50, 50]
         return (
           <li
@@ -77,15 +72,15 @@ export function OrderSteps() {
               <p className="order-step__body">{step.body}</p>
               {photo ? <p className="order-step__room">{photo.caption}</p> : null}
             </div>
-            {photo ? (
-              // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the two widths are pre-built files, picked by srcSet.
+            {photo && image ? (
+              // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the widths are pre-built files, picked by srcSet.
               <img
                 className="order-step__photo"
-                src={factoryPhotoSrc(photo, small)}
-                srcSet={`${factoryPhotoSrc(photo, small)} ${small}w, ${factoryPhotoSrc(photo, large)} ${large}w`}
+                src={image.src}
+                srcSet={image.srcSet}
                 sizes={ORDER_STEP_SIZES}
-                width={small}
-                height={Math.round(small / FACTORY_PHOTO_ASPECT[photo.shape])}
+                width={image.width}
+                height={image.height}
                 alt={photo.alt}
                 // Which part of the file stays when the card cuts it: a value per picture.
                 style={{ objectPosition: `${across}% ${down}%` }}
