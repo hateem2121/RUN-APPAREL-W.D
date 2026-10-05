@@ -4595,16 +4595,34 @@ a.contact-block__value:active {
   color: var(--dimension);
 }
 
+/*
+ * MO1, "EACH CARD TYPE ITS OWN HOVER" (owner, 3 Oct): until polish every card did the same 4px
+ * lift. The tickets now open (D3, D3b) and a guide card slides its arrow, as the family cards'
+ * "View the range" does, its edge taking the accent: a card that leads to more reading points the
+ * way rather than rising. Keyboard focus shows the same.
+ */
+.guide-card__cue b {
+  display: inline-block;
+  font-weight: inherit;
+  transition: translate var(--ui) var(--ease);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .guide-card:hover {
-    translate: 0 -4px;
     border-color: var(--dimension);
+  }
+
+  .guide-card:hover .guide-card__cue b {
+    translate: 4px 0;
   }
 }
 
 .guide-card:has(.guide-card__link:focus-visible) {
-  translate: 0 -4px;
   border-color: var(--dimension);
+}
+
+.guide-card:has(.guide-card__link:focus-visible) .guide-card__cue b {
+  translate: 4px 0;
 }
 
 .guide-card:has(.guide-card__link:active) {

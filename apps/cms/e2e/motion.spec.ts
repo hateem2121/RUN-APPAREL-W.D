@@ -803,3 +803,25 @@ test.describe('scroll motion — the photos open and drift', () => {
       .toBe(true)
   })
 })
+
+/**
+ * MO1 (owner, 3 Oct: "each card type its own hover"): a guide card no longer lifts 4px like every
+ * card did; it slides its arrow 4px, as the family cards' "View the range" does, and takes the
+ * accent edge. Read off the real hover: the card stays where it is, the arrow moves.
+ */
+test('MO1 — a guide card slides its arrow on hover and does not lift', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/guides')
+  const card = page.locator('.guide-card').first()
+  const arrow = card.locator('.guide-card__cue b')
+  await expect(arrow).toHaveText('→')
+  const read = () =>
+    card.evaluate((element) => ({
+      card: getComputedStyle(element).translate,
+      arrow: getComputedStyle(element.querySelector('.guide-card__cue b') as Element).translate,
+    }))
+  expect((await read()).arrow, 'the arrow is already moved at rest').toBe('none')
+  await card.hover()
+  await expect.poll(async () => (await read()).arrow).toBe('4px')
+  expect((await read()).card, 'the card lifted').toBe('none')
+})

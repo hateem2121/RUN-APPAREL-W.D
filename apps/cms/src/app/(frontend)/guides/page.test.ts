@@ -110,11 +110,12 @@ describe('the guides index lists each guide once (VA-47)', () => {
   })
 
   it('hides the cue from assistive technology, so a card is announced by its title alone', () => {
-    const cues = [...html.matchAll(/<span class="guide-card__cue"([^>]*)>([^<]*)<\/span>/g)]
+    const cues = [...html.matchAll(/<span class="guide-card__cue"([^>]*)>(.*?)<\/span>/g)]
     expect(cues).toHaveLength(GUIDES.length)
     for (const cue of cues) {
       expect(cue[1]).toContain('aria-hidden="true"')
-      expect(cue[2]).toBe('Read this guide')
+      // The arrow that slides on hover (polish MO1), as the family cards' "View the range".
+      expect(cue[2]).toBe('Read this guide <b>→</b>')
     }
   })
 
