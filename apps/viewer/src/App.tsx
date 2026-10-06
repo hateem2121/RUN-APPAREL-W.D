@@ -1,5 +1,11 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
-import { garmentPageTitle, isViewerApiError, PAGE_TITLE_BRAND } from '@run-apparel/shared'
+import {
+  garmentPageTitle,
+  isViewerApiError,
+  PAGE_TITLE_BRAND,
+  type TrackerWindow,
+  trackerEvent,
+} from '@run-apparel/shared'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
 import { ConsentBanner } from './components/ConsentBanner'
@@ -78,6 +84,11 @@ export default function App() {
   // because <Stage> and <ColourwayTabs> are siblings, and deliberately separate
   // from `selected`: a preview must never move the URL or the enquiry payload.
   const [previewedColourway, setPreviewedColourway] = useState<ViewerColourway | null>(null)
+  /**
+   * Action glow on contact buttons (Item C, PostHog 3D lead-capture engagement cue).
+   * Lights up after 20 seconds dwell on a 3D garment or when changing colorway.
+   */
+  const [actionGlow, setActionGlow] = useState(false)
   // `variantSwapReady` lived here until 2026-08-15. Its only consumer was the hover
   // thumbnail in <ColourwayTabs>, removed by owner decision; <Stage> still exposes
   // `onModelReadyChange` (optional) for the next thing that needs to know.
@@ -284,6 +295,28 @@ export default function App() {
     }
   }, [state.kind])
 
+  // 3D garment engagement cue: pulse CTA after 20s dwell on the 3D model.
+  useEffect(() => {
+    if (state.kind !== 'ready' || actionGlow) return
+    const productCode = state.data.product.productCode
+    const variantSlug = state.selected.slug
+    const colourName = state.selected.displayName
+    const timer = window.setTimeout(() => {
+      setActionGlow(true)
+      track('garment_3d_engaged', {
+        product: productCode,
+        variant: variantSlug,
+        trigger: 'dwell',
+      })
+      trackerEvent(window as unknown as TrackerWindow, 'garment_3d_engaged', {
+        garment_code: productCode,
+        colour: colourName,
+        trigger: 'dwell',
+      })
+    }, 20_000)
+    return () => window.clearTimeout(timer)
+  }, [state, actionGlow])
+
   /**
    * Hand focus to the TOP OF THE PAGE when the preloader leaves.
    *
@@ -408,6 +441,20 @@ export default function App() {
   const onSelectColourway = (colourway: ViewerColourway) => {
     setPreviewedColourway(null)
     if (colourway.slug === selected.slug) return
+    if (!actionGlow) {
+      setActionGlow(true)
+      const selectedSlug = colourway.slug
+      track('garment_3d_engaged', {
+        product: data.product.productCode,
+        variant: selectedSlug,
+        trigger: 'colourway_selected',
+      })
+      trackerEvent(window as unknown as TrackerWindow, 'garment_3d_engaged', {
+        garment_code: data.product.productCode,
+        colour: colourway.displayName,
+        trigger: 'colourway_selected',
+      })
+    }
     setColourwayUrl(data.product.slug, colourway.slug)
     setState({ kind: 'ready', data, selected: colourway, retiredNotice: null })
     // The SLUG, not `variantId`. Measured live 2026-08-30: the beacon was reporting
@@ -531,7 +578,11 @@ export default function App() {
                 onSelect={onSelectColourway}
                 onPreview={setPreviewedColourway}
               />
-              <StageContact settings={data.siteSettings} enquiry={enquiry} />
+              <StageContact
+                settings={data.siteSettings}
+                enquiry={enquiry}
+                actionGlow={actionGlow}
+              />
             </div>
             {/*
               The only thing on the first screen that says the page continues.
@@ -585,10 +636,11 @@ export default function App() {
               settings={data.siteSettings}
               enquiry={enquiry}
               garment={{ productSlug: data.product.slug, colourSlug: selected.slug }}
+              actionGlow={actionGlow}
             />
           </div>
         </main>
-        <MobileActionBar settings={data.siteSettings} enquiry={enquiry} />
+        <MobileActionBar settings={data.siteSettings} enquiry={enquiry} actionGlow={actionGlow} />
         <Footer settings={data.siteSettings} />
       </div>
     </>

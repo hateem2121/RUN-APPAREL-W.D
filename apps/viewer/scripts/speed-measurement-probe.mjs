@@ -29,7 +29,6 @@
  *
  *   node apps/viewer/scripts/speed-measurement-probe.mjs
  */
-import { chromium } from '@playwright/test'
 import { DEFAULT_PRODUCT } from '../../../scripts/live-products.mjs'
 import { realpathSync } from 'node:fs'
 
@@ -191,6 +190,7 @@ async function runOnce(browser) {
 }
 
 async function main() {
+  const { chromium } = await import('@playwright/test')
   const browser = await chromium.launch()
   const results = []
   try {

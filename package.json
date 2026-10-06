@@ -24,7 +24,8 @@
     "index:ai": "node scripts/index-ai.mjs",
     "eval:artwork": "pnpm --filter @run-apparel/asset-pipeline eval:artwork",
     "eval:artwork:real": "pnpm --filter @run-apparel/asset-pipeline eval:artwork:real",
-    "og:cards": "pnpm --filter @run-apparel/asset-pipeline og:cards"
+    "og:cards": "pnpm --filter @run-apparel/asset-pipeline og:cards",
+    "ping:indexnow": "node scripts/ping-indexnow.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

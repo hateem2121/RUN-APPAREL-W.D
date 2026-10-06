@@ -217,6 +217,8 @@ export const VIEWER_ANALYTICS_EVENTS = [
   // "Ask about this garment", the page's closing prompt (polish S10, 2026-10-04). The same name
   // as the owner's Google Analytics key event (Q37), so the two counts can be laid side by side.
   'ask_about_garment',
+  // 3D engagement cue (PostHog & telemetry) after 20s dwell or colorway switch (2026-10-06).
+  'garment_3d_engaged',
   /*
    * Core Web Vitals, one report per visit, sent when the page is hidden.
    *

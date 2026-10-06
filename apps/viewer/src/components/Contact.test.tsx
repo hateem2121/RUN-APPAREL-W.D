@@ -209,6 +209,14 @@ describe('ContactSection', () => {
       delete win.runTrackersStarted
     }
   })
+
+  it('applies btn--action-glow when actionGlow is true', () => {
+    render(
+      <ContactSection settings={SETTINGS} enquiry={ENQUIRY} garment={GARMENT} actionGlow={true} />,
+    )
+    const askBtn = host.querySelector<HTMLAnchorElement>('.contact__ask')
+    expect(askBtn?.classList.contains('btn--action-glow')).toBe(true)
+  })
 })
 
 /**

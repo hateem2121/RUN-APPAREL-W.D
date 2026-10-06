@@ -88,6 +88,7 @@ ${CERTIFICATION}
 ## Pages
 
 - [Home](${siteOrigin}) — what the company makes, the numbers above, and how to start.
+- [Full Technical Compendium](${siteOrigin}/llms-full.txt) — complete manufacturing operations, all 8 buyer guides, order workflow, and reference garment specifications.
 - [Products](${siteOrigin}/products) — every reference garment, filterable by family. Each card
   links to that garment's 3D page.
 ${buyerPages}
