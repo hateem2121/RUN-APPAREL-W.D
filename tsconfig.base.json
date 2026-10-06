@@ -34,6 +34,18 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    // Explicit .ts extensions on relative imports inside packages/shared/src.
+    // WHY: four root scripts (link-crawl-probe, process-local, public-security-probe)
+    // import shared .ts modules under PLAIN Node, and Node's TypeScript type-stripping
+    // refuses extensionless relative specifiers (ERR_MODULE_NOT_FOUND — it broke
+    // link-crawl's 2026-10-05 run through defaults.ts → './siteFooter'). The flag is
+    // only valid with noEmit, which every package here sets. The bundlers (Vite,
+    // esbuild, Next/webpack) all resolve exact .ts paths, verified by the cms+viewer
+    // builds and the full test suite on the day this shipped. The guard
+    // scripts/check-ts-extensions.mjs (+ its test) fails CI the day an extensionless
+    // relative import reappears in that folder. Scoped to packages/shared/src —
+    // app-internal imports stay extensionless, bundler-resolved.
+    "allowImportingTsExtensions": true
   }
 }

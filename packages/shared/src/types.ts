@@ -1,5 +1,5 @@
-import type { FooterSettings } from './siteFooter'
-import type { SpecGroup } from './specs'
+import type { FooterSettings } from './siteFooter.ts'
+import type { SpecGroup } from './specs.ts'
 
 /**
  * Public viewer API contract shared between apps/cms (producer) and

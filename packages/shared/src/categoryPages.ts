@@ -1,4 +1,4 @@
-import type { ProductCategory } from './types'
+import type { ProductCategory } from './types.ts'
 
 /**
  * Each garment category's page on the website: where a garment page's trail (polish S5) and its

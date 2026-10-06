@@ -1,9 +1,9 @@
-import { CATEGORY_PAGE_PATHS } from './categoryPages'
-import { formatAddress } from './company'
-import { CONSENT_COPY } from './consent'
-import { formatPhoneForDisplay } from './contact'
-import { formatHours } from './footerHours'
-import { marksFor } from './standardsLogos'
+import { CATEGORY_PAGE_PATHS } from './categoryPages.ts'
+import { formatAddress } from './company.ts'
+import { CONSENT_COPY } from './consent.ts'
+import { formatPhoneForDisplay } from './contact.ts'
+import { formatHours } from './footerHours.ts'
+import { marksFor } from './standardsLogos.ts'
 
 /**
  * The site footer's words, links and rules — ONCE, for the public site and the garment pages.

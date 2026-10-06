@@ -1,4 +1,4 @@
-import type { FooterHours } from './siteFooter'
+import type { FooterHours } from './siteFooter.ts'
 
 /** The works are in Sialkot. One constant, so the clock, the light and the label agree. */
 export const WORKS_TIME_ZONE = 'Asia/Karachi'
