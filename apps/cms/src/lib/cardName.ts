@@ -3,5 +3,7 @@
  *
  * Built in packages/shared/src/cardName.ts since polish S6 (2026-10-04), where the reasons live:
  * a garment page's "More from this category" cards follow the same rule as the website's.
+ * NameSegment stopped being re-exported on 2026-10-06: nothing imported it from here
+ * (knip, report-only) — import it from @run-apparel/shared directly.
  */
-export { type NameSegment, nameSegments } from '@run-apparel/shared'
+export { nameSegments } from '@run-apparel/shared'

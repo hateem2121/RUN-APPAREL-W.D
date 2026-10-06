@@ -23,7 +23,8 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   That HELD `@cloudflare/workers-types` at `5.20260804.1` in `apps/shrink` from 2026-08-12 to
   2026-10-03, while `apps/cms` and `apps/viewer` moved on. **RELEASED 2026-10-03** by fixing
   the cause: the report's shape, `SIZE_WARNING_BYTES` and `describeSoftArtwork` moved into
-  the node-free `tools/asset-pipeline/src/glb-report.ts` (`validate.ts` re-exports them), and
+  the node-free `tools/asset-pipeline/src/glb-report.ts` (`validate.ts` re-exports the type and the constant; `describeSoftArtwork` stopped being
+  re-exported on 2026-10-06, since nothing imported it there), and
   the report imports them from there. The written fix had named only the constant and the
   type, but `tsc --explainFiles` showed a type-only import pulls the whole file in too.
   `dependencyPolicy.test.ts` follows apps/shrink's imports and fails, naming the fix, if

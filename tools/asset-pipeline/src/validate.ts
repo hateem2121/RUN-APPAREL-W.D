@@ -8,11 +8,13 @@ import { auditArtworkAlpha, findCrushedArtwork } from './texture-artwork'
 import { CRUSHED_BYTES_PER_PIXEL, offUv0Warning, summariseUvSets } from './textures'
 import { readVariantColoursSampled } from './variant-colour'
 
-// The report's shape, the size limit and describeSoftArtwork live in glb-report.ts since
-// 2026-10-03, so the shrink Worker can import them without its typecheck reaching this
-// file's Node calls (see there). Re-exported so every `from './validate'` import still works.
+// The report's shape and the size limit live in glb-report.ts since 2026-10-03, so the
+// shrink Worker can import them without its typecheck reaching this file's Node calls
+// (see there). Re-exported so every `from './validate'` import still works. describeSoftArtwork
+// stopped being re-exported on 2026-10-06: nothing imported it from here any more (knip,
+// report-only) — its home in glb-report.ts is the import site now.
 export type { GlbReport } from './glb-report'
-export { SIZE_WARNING_BYTES, describeSoftArtwork } from './glb-report'
+export { SIZE_WARNING_BYTES } from './glb-report'
 
 /** Uncompressed raster formats that should be re-encoded before upload. */
 const UNCOMPRESSED_TEXTURE_MIME = new Set(['image/png', 'image/jpeg'])
