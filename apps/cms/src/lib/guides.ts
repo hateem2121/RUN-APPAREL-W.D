@@ -585,7 +585,7 @@ export const GUIDES: readonly Guide[] = [
     title: 'Pakistan vs China Apparel Manufacturing',
     description:
       'How Pakistan apparel manufacturing compares to China for custom clothing brands: minimum order quantities, sample speed, communication, and shipping costs.',
-    heading: 'Pakistan vs. China apparel manufacturing,',
+    heading: 'Pakistan vs. China apparel,',
     headingAccent: 'compared.',
     lede: 'For clothing brands choosing where to produce custom apparel, the decision comes down to minimum orders, turnaround speed, and communication. Here is how manufacturing with RUN APPAREL in Sialkot, Pakistan compares directly with large overseas factories.',
     sections: [

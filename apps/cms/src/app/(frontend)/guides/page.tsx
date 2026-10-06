@@ -44,7 +44,7 @@ export default function GuidesPage() {
       <section className="site-section" data-site-reveal>
         <div className="site-container">
           <ul className="guide-grid">
-            {GUIDES.map((guide) => (
+            {GUIDES.slice(0, 4).map((guide) => (
               <GuideCard key={guide.path} guide={guide} />
             ))}
           </ul>
