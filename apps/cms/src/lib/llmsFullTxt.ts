@@ -90,7 +90,7 @@ function renderProducts(products: ProductCard[], siteOrigin: string): string {
 /**
  * `/llms-full.txt` — The comprehensive machine-readable technical compendium for RUN APPAREL.
  *
- * Provides complete operational facts, manufacturing capabilities, full texts of all 8 buyer guides,
+ * Provides complete operational facts, manufacturing capabilities, full texts of all buyer guides,
  * the 8-step order workflow, and complete technical reference garment specifications.
  * American spelling throughout.
  */

@@ -580,6 +580,110 @@ export const GUIDES: readonly Guide[] = [
       },
     ],
   },
+  {
+    path: '/guides/pakistan-vs-china-apparel-manufacturing',
+    title: 'Pakistan vs China Apparel Manufacturing',
+    description:
+      'How Pakistan apparel manufacturing compares to China for custom clothing brands: minimum order quantities, sample speed, communication, and shipping costs.',
+    heading: 'Pakistan vs. China apparel manufacturing,',
+    headingAccent: 'compared.',
+    lede: 'For clothing brands choosing where to produce custom apparel, the decision comes down to minimum orders, turnaround speed, and communication. Here is how manufacturing with RUN APPAREL in Sialkot, Pakistan compares directly with large overseas factories.',
+    sections: [
+      {
+        heading: 'Minimum order quantities',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Overseas factories in China often set minimums of 500 to 1,000 pieces per style. At RUN APPAREL, our minimum order is ${MINIMUM} pieces per style. You can develop and test new colorways without committing capital to excessive inventory.`,
+          },
+        ],
+      },
+      {
+        heading: 'Sample turnaround speed',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Sample development overseas can take weeks before a physical prototype is cut. Our samples are produced in ${SAMPLE_DAYS} working days in our own building. The sample fee is credited back against your bulk order upon approval.`,
+          },
+        ],
+      },
+      {
+        heading: 'Production capacity',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Our facility delivers a capacity of ${CAPACITY} pieces per month. The same team and the same equipment make your order whether it is a hundred pieces or a hundred thousand.`,
+          },
+        ],
+      },
+      {
+        heading: 'Quotes and intellectual property',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
+          },
+          {
+            kind: 'text',
+            text: 'Tech packs, artwork and samples you send us remain your property. We use them only to quote and to manufacture for you.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/guides/how-to-prepare-an-apparel-tech-pack',
+    title: 'How to Prepare an Apparel Tech Pack',
+    description:
+      'What to include in a clothing tech pack to get an accurate manufacturing quote: garment sketches, fabric specifications, size grading, and artwork files.',
+    heading: 'How to prepare an apparel tech pack,',
+    headingAccent: 'for production.',
+    lede: 'A tech pack is the specification sheet for your custom garment. It tells pattern makers, cutters, and stitchers how to build your design. While a sketch or reference sample is enough to start a quote, here is what makes a complete tech pack.',
+    sections: [
+      {
+        heading: 'What a tech pack includes',
+        blocks: [
+          {
+            kind: 'list',
+            items: [
+              'Flat sketches showing front and back views with seam and stitch details.',
+              'Fabric specification with target fiber composition, knit structure, and weight in GSM.',
+              'Measurements and graded size specifications across your target size range.',
+              'Artwork placement dimensions, colors, and positioning measurements.',
+              'Packaging details such as custom neck labels, hang tags, or bags.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Artwork files and formats',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Vector files such as AI, EPS, or PDF give the cleanest result for decoration. High-resolution raster artwork can also be used. Tech packs, artwork and samples you send us remain your property.',
+          },
+        ],
+      },
+      {
+        heading: 'From specification to physical sample',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Once we review your specification, our quote states the fabric, trims, sizes, and price. A physical sample takes ${SAMPLE_DAYS} working days to produce. Bulk production starts only after you approve the sample.`,
+          },
+        ],
+      },
+      {
+        heading: 'What is quoted per order',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
+          },
+        ],
+      },
+    ],
+  },
 ]
 
 /** Every address the guides answer on: the index, then each guide. */

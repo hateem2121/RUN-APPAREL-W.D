@@ -8,7 +8,7 @@ import { SITE_ORIGIN } from '../../lib/seo'
  * Sits at `src/app/`, outside both route groups, so it is served as plain text without
  * inheriting the frontend layout.
  *
- * Provides the complete technical compendium: manufacturing operations, all 8 buyer guides,
+ * Provides the complete technical compendium: manufacturing operations, the buyer guides,
  * the 8-step order workflow, and the 3D reference garment catalog.
  *
  * Cached for an hour at the edge and a day as stale.

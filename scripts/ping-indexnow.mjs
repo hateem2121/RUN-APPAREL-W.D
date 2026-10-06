@@ -114,15 +114,24 @@ if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   console.log(`[indexnow] Found ${urlList.length} URLs to submit.`)
 
   const payload = buildIndexNowPayload(host, key, urlList)
-  const result = await submitIndexNow(payload, { dryRun })
+  try {
+    const result = await submitIndexNow(payload, { dryRun })
 
-  if (result.ok) {
-    console.log(
-      `[indexnow] Success (${result.status}): ${urlList.length} URLs submitted to IndexNow.`,
+    if (result.ok) {
+      console.log(
+        `[indexnow] Success (${result.status}): ${urlList.length} URLs submitted to IndexNow.`,
+      )
+      process.exit(0)
+    } else {
+      console.warn(
+        `[indexnow] Non-fatal: IndexNow endpoint returned status ${result.status}: ${result.message}`,
+      )
+      process.exit(0)
+    }
+  } catch (err) {
+    console.warn(
+      `[indexnow] Non-fatal: Could not reach IndexNow endpoint: ${err instanceof Error ? err.message : String(err)}`,
     )
     process.exit(0)
-  } else {
-    console.error(`[indexnow] Failed with HTTP status ${result.status}: ${result.message}`)
-    process.exit(1)
   }
 }
