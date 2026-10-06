@@ -1,4 +1,4 @@
-import type { ProductCategory } from './types'
+import type { ProductCategory } from './types.ts'
 
 /**
  * Colour names in each category's own style (polish N1/N2, the owner's answer Q38, 2026-10-03):

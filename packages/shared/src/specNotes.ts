@@ -1,4 +1,4 @@
-import { noteKey, type SpecGroupKey } from './specs'
+import { noteKey, type SpecGroupKey } from './specs.ts'
 
 /**
  * THE ONE-LINE NOTES UNDER THE SPEC BULLETS (polish D10; owner's answers Q18 and Q46).

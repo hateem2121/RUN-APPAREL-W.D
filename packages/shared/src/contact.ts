@@ -1,4 +1,4 @@
-import { normalizeSlug } from './slugs'
+import { normalizeSlug } from './slugs.ts'
 
 /**
  * Contact-link builders. The enquiry template is a locked piece of brief

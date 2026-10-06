@@ -18,7 +18,7 @@
  * suites follow — then re-measure the inline fit (docs/DESIGN.md, "The menu bar").
  */
 
-import { type HoldablePage, holdPage } from './pageHold'
+import { type HoldablePage, holdPage } from './pageHold.ts'
 
 /** The bar's links, as paths on the site. The viewer prefixes the site's origin. */
 export const SITE_NAV_LINKS = [

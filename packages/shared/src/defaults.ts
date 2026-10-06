@@ -1,5 +1,5 @@
-import { EMPTY_FOOTER } from './siteFooter'
-import type { ViewerSiteSettings } from './types'
+import { EMPTY_FOOTER } from './siteFooter.ts'
+import type { ViewerSiteSettings } from './types.ts'
 
 /**
  * Default public site settings — the single source of truth for the values

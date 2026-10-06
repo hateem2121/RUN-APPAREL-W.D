@@ -39,7 +39,7 @@
  * CMS-only.
  */
 
-import { themedColourName } from './colourNames'
+import { themedColourName } from './colourNames.ts'
 
 /** One entry of a product's `fileColourDetails`, written by the shrink robot. */
 export interface FileColour {
