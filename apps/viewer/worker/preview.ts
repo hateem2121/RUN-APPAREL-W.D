@@ -494,6 +494,21 @@ export function buildProductJsonLd(
   if (context.image) data.image = context.image.url
   if (specs.length > 0) data.additionalProperty = specs
 
+  const glbUrl = (selected.glbUrl || p.glbUrl || '').trim()
+  if (glbUrl) {
+    data.subjectOf = {
+      '@type': '3DModel',
+      name: `${p.productName} 3D Digital Reference`,
+      encoding: [
+        {
+          '@type': 'MediaObject',
+          contentUrl: glbUrl,
+          encodingFormat: 'model/gltf-binary',
+        },
+      ],
+    }
+  }
+
   /*
    * Made to order, sold, quoted per enquiry — see the warning above. No `price`, no
    * `priceCurrency`, and deliberately no `priceSpecification`: a `Specification` with an

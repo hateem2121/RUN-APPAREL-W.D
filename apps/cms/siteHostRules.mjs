@@ -77,6 +77,7 @@ export const CMS_PUBLIC_PATHS = [
   // One description of one business, on the address it describes. robots.txt is the
   // deliberate exception and stays on this host.
   '/llms.txt',
+  '/llms-full.txt',
   // The buyer pages (2026-09-30): pages of the site, so the admin host hands them over too.
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,

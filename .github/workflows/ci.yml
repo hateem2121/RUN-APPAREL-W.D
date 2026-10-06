@@ -1625,6 +1625,9 @@ jobs:
       - name: Post-deploy security.txt and redirect headers
         run: node scripts/public-security-probe.mjs
 
+      - name: Post-deploy Bing IndexNow instant indexation
+        run: node scripts/ping-indexnow.mjs
+
       # Put the rollback command where someone will actually be looking.
       #
       # docs/RUNBOOK.md → "Undoing a bad deploy" is the authority and is more complete

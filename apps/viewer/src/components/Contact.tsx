@@ -15,6 +15,8 @@ import { SITE_ORIGIN } from '../lib/siteLinks'
 interface ContactProps {
   settings: ViewerSiteSettings
   enquiry: EnquiryContext
+  /** When true, pulses the primary CTA with action-glow (engagement cue) */
+  actionGlow?: boolean
 }
 
 /**
@@ -48,11 +50,17 @@ interface ContactProps {
  * reachable; since 2026-10-03 also while the footer is, which carries the same routes. At every
  * other scroll position the duplication stands exactly as recorded here.
  */
-function ContactButtons({ settings, enquiry, quiet = false }: ContactProps & { quiet?: boolean }) {
+function ContactButtons({
+  settings,
+  enquiry,
+  quiet = false,
+  actionGlow = false,
+}: ContactProps & { quiet?: boolean }) {
+  const primaryClass = `btn btn--primary${actionGlow && !quiet ? ' btn--action-glow' : ''}`
   return (
     <>
       <a
-        className={quiet ? 'btn btn--ghost' : 'btn btn--primary'}
+        className={quiet ? 'btn btn--ghost' : primaryClass}
         href={buildMailtoUrl(settings.email, enquiry)}
         onClick={() => track('email_clicked')}
       >
@@ -90,8 +98,13 @@ export interface AskedGarment {
  * The click is counted twice under one name, the owner's key event `ask_about_garment` (Q37): in
  * the site's own event log, and in Google Analytics only for a visitor who accepted it.
  */
-export function ContactSection({ garment, ...props }: ContactProps & { garment: AskedGarment }) {
+export function ContactSection({
+  garment,
+  actionGlow = false,
+  ...props
+}: ContactProps & { garment: AskedGarment }) {
   const ask = `${SITE_ORIGIN}${askAboutGarmentPath(garment.productSlug, garment.colourSlug)}`
+  const askClass = `btn btn--primary contact__ask${actionGlow ? ' btn--action-glow' : ''}`
   const onAsk = () => {
     track('ask_about_garment', { product: props.enquiry.productCode, variant: garment.colourSlug })
     trackerEvent(window as unknown as TrackerWindow, 'ask_about_garment', {
@@ -111,7 +124,7 @@ export function ContactSection({ garment, ...props }: ContactProps & { garment: 
       </p>
       <div className="contact__buttons">
         {/* `contact__ask`: what the phone's bar steps aside for (lib/actionBarStepsAside.ts). */}
-        <a className="btn btn--primary contact__ask" href={ask} onClick={onAsk}>
+        <a className={askClass} href={ask} onClick={onAsk}>
           Ask about this garment
         </a>
         <ContactButtons {...props} quiet />

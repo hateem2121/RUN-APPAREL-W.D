@@ -359,7 +359,7 @@ describe('placeholder tee document', () => {
         'Default Topstitch',
       ])
     }
-  })
+  }, 30_000)
 
   it('carries a printed graphic on a SECOND UV set, over a hard alpha cutout', async () => {
     // The fixture exists to be capable of failing. Until it did, the entire

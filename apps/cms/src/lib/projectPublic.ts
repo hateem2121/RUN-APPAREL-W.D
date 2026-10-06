@@ -114,6 +114,10 @@ export interface ProductCard {
    */
   garmentType: string
   shortDescription: string
+  /** Technical specifications for machine-readable documents (llms-full.txt) */
+  fabricComposition?: string
+  gsm?: string
+  garmentFit?: string
   /** Poster for the card. `null` renders the drawn placeholder, never a broken image. */
   posterUrl: string | null
   posterAlt: string
@@ -242,6 +246,9 @@ export function toProductCard(
     category: text(product.category),
     garmentType: text(product.garmentType),
     shortDescription: text(product.shortDescription),
+    fabricComposition: text(product.fabricComposition),
+    gsm: text(product.gsm),
+    garmentFit: text(product.garmentFit),
     posterUrl: poster.url,
     posterAlt: poster.alt || `${productName} — 3D product reference`,
     defaultColourSlug: text(colourways[0]?.slug),

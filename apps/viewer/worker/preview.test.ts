@@ -668,6 +668,17 @@ describe('schema.org Product JSON-LD', () => {
     expect(data.brand).toEqual({ '@type': 'Brand', name: 'RUN' })
     expect(data.url).toBe(`${ORIGIN}/n001/wine`)
     expect(data.image).toBe(`${ORIGIN}/og/n001/wine.jpg`)
+    expect(data.subjectOf).toEqual({
+      '@type': '3DModel',
+      name: 'Velocity Performance Skinsuit 3D Digital Reference',
+      encoding: [
+        {
+          '@type': 'MediaObject',
+          contentUrl: 'https://media.wear-run.help/cycling-all-colours-optimized-4.glb',
+          encodingFormat: 'model/gltf-binary',
+        },
+      ],
+    })
 
     const specs = Object.fromEntries(
       (data.additionalProperty as Array<{ name: string; value: string }>).map((s) => [
@@ -679,6 +690,21 @@ describe('schema.org Product JSON-LD', () => {
     expect(specs.Fit).toBe('Race fit')
     expect(specs['Performance features']).toBe('Moisture management, Four-way stretch')
     expect(specs['Colorways available']).toBe('3')
+  })
+
+  it('omits subjectOf 3DModel when no glbUrl is available', () => {
+    const only = colourway({ glbUrl: null })
+    const data = parse(
+      buildPreview(
+        payload({
+          product: { glbUrl: null },
+          colourways: [only],
+          selectedColourway: only,
+        }),
+        { origin: ORIGIN, cards: CARDS },
+      ),
+    )
+    expect(data).not.toHaveProperty('subjectOf')
   })
 
   it('declares made-to-order, because silence is not the same as no price', () => {

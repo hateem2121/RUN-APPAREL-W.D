@@ -504,6 +504,32 @@ li {
   }
 }
 
+/* High-engagement conversion cue (PostHog 3D viewer engagement glow) */
+.btn--action-glow {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  animation: action-glow-pulse var(--showpiece) var(--ease) infinite;
+}
+
+@keyframes action-glow-pulse {
+  0%,
+  100% {
+    outline-offset: 1px;
+    box-shadow: 0 0 4px var(--glow);
+  }
+  50% {
+    outline-offset: 3px;
+    box-shadow: 0 0 16px var(--glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn--action-glow {
+    animation: none;
+    outline-offset: 2px;
+  }
+}
+
 /*
  * Press feedback — and note where it is NOT.
  *
