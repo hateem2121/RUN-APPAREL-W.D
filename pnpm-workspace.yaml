@@ -54,6 +54,9 @@ overrides:
   nanoid: ^3.3.18
   basic-ftp: ^6.2.1
   lodash-es: ^4.18.0
+  proxy-addr: ^2.0.8
+  compression: ^1.8.2
+  source-map-js: ^1.2.2
 
 # Which dependencies may run install scripts (pnpm 11 replaced
 # `onlyBuiltDependencies` with this map). `true` = allowed, the same four that
