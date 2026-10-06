@@ -18,6 +18,7 @@
  */
 import { FOOTER_FACTS } from './apply-footer-facts.mjs'
 import { stripUntilStable } from './strip-until-stable.mjs'
+import { standardsLines } from '../packages/shared/src/siteFooter.ts'
 import { realpathSync } from 'node:fs'
 
 export const SITE_URL = 'https://wear-run.com/'
@@ -49,7 +50,18 @@ export function footerText(section) {
   )
 }
 
-/** Pure: what the footer must show, derived from the approved facts, never retyped. */
+/**
+ * Pure: what the footer must show, derived from the approved facts, never retyped.
+ *
+ * The Standards lines run through the SAME `standardsLines` the component renders
+ * (polish X23 groups same-holder rows: the two "Suppliers:" entries show as ONE line,
+ * "Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS; amfori BSCI audits"). Until 2026-10-06
+ * this probe expected each approved row verbatim, so the merged line read as a missing
+ * fact and the robot went red on a footer that WAS showing the claim — the expectation
+ * and the renderer had drifted. Deriving both sides from one function keeps CT-07's
+ * guarantee intact: if the CMS ever loses the amfori row, the derived line loses
+ * "; amfori BSCI audits" and this probe fails again.
+ */
 export function expectedFacts(facts = FOOTER_FACTS) {
   const cap = facts.capacity
   return {
@@ -58,7 +70,7 @@ export function expectedFacts(facts = FOOTER_FACTS) {
       `Lead time ${cap.leadTime}`,
       `${cap.hoursOpen}–${cap.hoursClose} PKT`,
       facts.worksCoordinates,
-      ...facts.certifications.map((c) => c.name),
+      ...standardsLines(facts.certifications.map((c) => c.name)),
       ...facts.socialLinks.map((l) => l.label),
     ],
     hrefs: facts.socialLinks.map((l) => l.url),

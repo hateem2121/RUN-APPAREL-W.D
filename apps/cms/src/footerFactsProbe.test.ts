@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { standardsLines } from '@run-apparel/shared'
 import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
 import {
   expectedFacts,
@@ -9,12 +10,33 @@ import {
 
 /**
  * CT-07 / CT-07b — the live footer-facts robot, fed planted pages before its live "all
- * present" is trusted. The fixture is rendered the way React streams it: `<!-- -->` between
- * a label and its value, and the same values repeated in the RSC payload after the footer.
+ * present" is trusted. The fixture is rendered the way the component renders it: React
+ * streams `<!-- -->` between a label and its value, the Standards block shows
+ * `standardsLines`'s GROUPED lines (polish X23: same-holder rows merge), and the same
+ * values repeated in the RSC payload after the footer.
+ *
+ * ⚠️ THE FIXTURE GOES THROUGH `standardsLines` TOO, not a retyped copy — probe
+ * expectation and planted page must share one derivation, or they can drift apart
+ * the way they did on 2026-10-06: the probe expected each approved row verbatim
+ * while the component showed the two "Suppliers:" rows as one merged line, so the
+ * robot went red on a footer that WAS showing the claim.
  */
 const cap = FOOTER_FACTS.capacity
-const footer = (blocks: { capacity?: boolean; standards?: boolean; elsewhere?: boolean } = {}) => {
-  const { capacity = true, standards = true, elsewhere = true } = blocks
+const approvedStandards = FOOTER_FACTS.certifications.map((c) => c.name)
+const footer = (
+  blocks: {
+    capacity?: boolean
+    standards?: boolean
+    elsewhere?: boolean
+    certifications?: readonly string[]
+  } = {},
+) => {
+  const {
+    capacity = true,
+    standards = true,
+    elsewhere = true,
+    certifications = approvedStandards,
+  } = blocks
   return [
     '<footer class="site-footer"><div class="footer-facts">',
     `<div class="footer-block footer-block--contact"><ul><li class="footer-block__sub">${FOOTER_FACTS.worksCoordinates}</li></ul></div>`,
@@ -22,10 +44,14 @@ const footer = (blocks: { capacity?: boolean; standards?: boolean; elsewhere?: b
       ? `<div class="footer-block footer-block--capacity"><ul><li>MOQ <!-- -->${cap.moq}</li><li>Lead time <!-- -->${cap.leadTime}</li><li>Mon–Sat ${cap.hoursOpen}–${cap.hoursClose} PKT</li></ul></div>`
       : '',
     standards
-      ? `<div class="footer-block footer-block--standards"><ul>${FOOTER_FACTS.certifications.map((c) => `<li>${c.name}</li>`).join('')}</ul></div>`
+      ? `<div class="footer-block footer-block--standards"><ul>${standardsLines(certifications)
+          .map((line) => `<li>${line}</li>`)
+          .join('')}</ul></div>`
       : '',
     elsewhere
-      ? `<div class="footer-block footer-block--elsewhere"><ul>${FOOTER_FACTS.socialLinks.map((l) => `<li><a href="${l.url}">${l.label}</a></li>`).join('')}</ul></div>`
+      ? `<div class="footer-block footer-block--elsewhere"><ul>${FOOTER_FACTS.socialLinks
+          .map((l) => `<li><a href="${l.url}">${l.label}</a></li>`)
+          .join('')}</ul></div>`
       : '',
     '</div></footer>',
   ].join('')
@@ -53,8 +79,19 @@ describe('missingFacts', () => {
       `text "${cap.hoursOpen}–${cap.hoursClose} PKT"`,
     ])
     expect(missingFacts(page(footer({ standards: false })))).toHaveLength(
-      FOOTER_FACTS.certifications.length,
+      standardsLines(approvedStandards).length,
     )
+  })
+
+  it('still catches a row the CMS lost, THROUGH the merge (the 2026-10-06 negative control)', () => {
+    // If the amfori row ever leaves the CMS, the merged Suppliers line must lose its
+    // "; amfori BSCI audits" tail and the probe must fail again — the guarantee CT-07
+    // exists for. standardsLines(approvedStandards)[1] IS that merged line, by the
+    // order the owner wrote the rows in.
+    const withoutAmfori = approvedStandards.filter((name) => !name.includes('amfori'))
+    expect(missingFacts(page(footer({ certifications: withoutAmfori })))).toEqual([
+      `text "${standardsLines(approvedStandards)[1]}"`,
+    ])
   })
 
   it('reads ONLY the footer: facts left in the RSC payload do not count', () => {
@@ -63,7 +100,7 @@ describe('missingFacts', () => {
       page(footer({ capacity: false, standards: false, elsewhere: false })),
     )
     expect(missing.length).toBe(
-      3 + FOOTER_FACTS.certifications.length + FOOTER_FACTS.socialLinks.length * 2,
+      3 + standardsLines(approvedStandards).length + FOOTER_FACTS.socialLinks.length * 2,
     )
   })
 
@@ -81,10 +118,13 @@ describe('missingFacts', () => {
     ])
   })
 
-  it('derives what it checks from the approved facts, 12 of them today', () => {
+  it('derives what it checks from the approved facts, 11 shown lines today', () => {
     const want = expectedFacts()
-    // 10 until 2026-09-29, when the owner added ISO 9001, amfori BSCI and SECP (two new rows).
-    expect(want.text.length + want.hrefs.length).toBe(12)
+    // 12 until 2026-10-06: the owner's 2026-09-29 additions took it 10 → 12, then
+    // polish X23 started rendering the two "Suppliers:" rows as ONE merged line and
+    // the probe derived its expectations through the same standardsLines — so 4
+    // stored rows show as 3 lines (3 capacity + hours… 9 text + 2 hrefs = 11).
+    expect(want.text.length + want.hrefs.length).toBe(11)
   })
 
   it('treats 403 and 429 as inconclusive, a real error as an answer', () => {
