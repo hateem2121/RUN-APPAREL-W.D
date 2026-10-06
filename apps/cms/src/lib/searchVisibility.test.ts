@@ -84,8 +84,6 @@ describe('what the switch does', () => {
       'https://wear-run.com/guides/sportswear-fabrics-and-weights',
       'https://wear-run.com/guides/private-label-packaging',
       'https://wear-run.com/guides/shipping-and-import-duties',
-      'https://wear-run.com/guides/pakistan-vs-china-apparel-manufacturing',
-      'https://wear-run.com/guides/how-to-prepare-an-apparel-tech-pack',
       'https://wear-run.com/contact',
       'https://wear-run.com/privacy',
       'https://wear-run.com/terms',

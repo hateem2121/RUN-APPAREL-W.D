@@ -100,8 +100,6 @@ export const GUIDE_PAGE_SOURCES = [
   '/guides/sportswear-fabrics-and-weights',
   '/guides/private-label-packaging',
   '/guides/shipping-and-import-duties',
-  '/guides/pakistan-vs-china-apparel-manufacturing',
-  '/guides/how-to-prepare-an-apparel-tech-pack',
 ]
 
 export const PUBLIC_PAGE_SOURCES = [

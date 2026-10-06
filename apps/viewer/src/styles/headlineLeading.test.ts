@@ -133,7 +133,7 @@ describe('who carries the class', () => {
     expect(families, 'the matcher found no buyer-page headlines').toHaveLength(4)
     // The guides' file lists the index page's headline first; the index is not a carrier.
     const [, ...guides] = headlines('apps/cms/src/lib/guides.ts')
-    expect(guides, 'the matcher found no guide headlines').toHaveLength(9)
+    expect(guides, 'the matcher found no guide headlines').toHaveLength(7)
     for (const headline of [...families, ...guides]) {
       expect(
         headline.length,
