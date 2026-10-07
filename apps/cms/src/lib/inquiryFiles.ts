@@ -110,8 +110,22 @@ const extensionOf = (name: string) => {
   const dot = name.lastIndexOf('.')
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
 }
-const kindFor = (extension: string): InquiryFileKind | undefined =>
-  INQUIRY_FILE_KINDS.find((kind) => kind.extensions.includes(extension))
+/**
+ * What one form allows. The contact form's are the defaults; the careers form passes its own
+ * (one CV, 10 MB, four kinds — `applicationFileTypes.ts`) through the SAME byte check, so the
+ * two forms can never disagree about what a PDF looks like.
+ */
+export type FileRules = {
+  maxFiles: number
+  maxTotalBytes: number
+  kinds: readonly InquiryFileKind[]
+}
+
+export const INQUIRY_FILE_RULES: FileRules = {
+  maxFiles: MAX_FILES,
+  maxTotalBytes: MAX_TOTAL_BYTES,
+  kinds: INQUIRY_FILE_KINDS,
+}
 
 /**
  * Check everything the form's `files` field sent. `entries` is `formData.getAll('files')`.
@@ -121,20 +135,23 @@ const kindFor = (extension: string): InquiryFileKind | undefined =>
  * without JavaScript that is every inquiry sent with no attachment. It is ignored, not
  * refused — refusing it would break the plain form for everyone.
  */
-export async function checkFiles(entries: readonly unknown[]): Promise<FileCheck> {
+export async function checkFiles(
+  entries: readonly unknown[],
+  rules: FileRules = INQUIRY_FILE_RULES,
+): Promise<FileCheck> {
   const files = entries.filter(
     (entry): entry is File => entry instanceof File && !(entry.name === '' && entry.size === 0),
   )
-  if (files.length > MAX_FILES) return { ok: false, reason: 'too-many' }
+  if (files.length > rules.maxFiles) return { ok: false, reason: 'too-many' }
   const total = files.reduce((sum, file) => sum + file.size, 0)
-  if (total > MAX_TOTAL_BYTES) return { ok: false, reason: 'too-big' }
+  if (total > rules.maxTotalBytes) return { ok: false, reason: 'too-big' }
 
   const checked: CheckedFile[] = []
   for (const file of files) {
     const name = cleanFileName(file.name)
     if (file.size === 0) return { ok: false, reason: 'empty', name }
     const extension = extensionOf(name)
-    const kind = kindFor(extension)
+    const kind = rules.kinds.find((candidate) => candidate.extensions.includes(extension))
     // Only the ends: 16 bytes carry every signature, the last 1,024 a PDF's ending.
     const head = new Uint8Array(await file.slice(0, 16).arrayBuffer())
     const tail = new Uint8Array(await file.slice(Math.max(0, file.size - 1024)).arrayBuffer())

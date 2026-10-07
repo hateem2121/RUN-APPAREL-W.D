@@ -107,3 +107,62 @@ export function validateApplication(raw: Record<string, unknown>): ApplicationRe
 export function isHoneypotTripped(raw: Record<string, unknown>): boolean {
   return clean(raw[HONEYPOT_FIELD], 1) !== ''
 }
+
+/**
+ * ⚠️ WHERE APPLICATIONS GO, FIXED HERE ON PURPOSE (owner, 2026-10-07: "Always hr@, fixed in
+ * code", chosen over a CMS setting). Changing the inbox is therefore a code change and a deploy.
+ * The careers PAGE still reads its "Write to us at" address from SiteSettings, which is a
+ * different address on purpose until the owner says otherwise.
+ */
+export const APPLICATIONS_TO = 'hr@wear-run.com'
+
+/** The application's own screen in the admin: a CV is opened there, never attached to mail. */
+export function applicationAdminUrl(id: string | number): string {
+  return `https://cms.wear-run.help/admin/collections/job-applications/${encodeURIComponent(String(id))}`
+}
+
+/** A subject an inbox can scan without opening: what they do, then who. */
+export function applicationSubject(value: ApplicationInput): string {
+  return `Job application — ${value.role} — ${value.name}`.slice(0, 160)
+}
+
+export type ApplicationEmailExtras = {
+  /** The CV that was stored, named as stored. */
+  files?: readonly { name: string; size: string }[]
+  /** Why the CV could not be stored, when it could not. */
+  filesError?: string
+  adminUrl?: string
+}
+
+/**
+ * The notification, as PLAIN TEXT for the reason `formatInquiryEmail` gives: every value is typed
+ * by a stranger, and plain text cannot carry markup into the HR inbox. Optional details appear
+ * only when given.
+ */
+export function formatApplicationEmail(
+  value: ApplicationInput,
+  receivedAt: Date,
+  extras: ApplicationEmailExtras = {},
+): string {
+  const files = extras.files ?? []
+  const optional: [string, string][] = [
+    ['Email:  ', value.email],
+    ['Years:  ', value.years === null ? '' : String(value.years)],
+  ]
+  return [
+    `Name:    ${value.name}`,
+    `Phone:   ${value.phone}`,
+    `Role:    ${value.role}`,
+    ...optional.filter(([, text]) => text).map(([label, text]) => `${label} ${text}`),
+    `Sent:    ${receivedAt.toISOString()}`,
+    ...(files.length > 0
+      ? [`CV:      ${files.map((file) => `${file.name} (${file.size})`).join(', ')}`]
+      : []),
+    ...(extras.filesError ? [`CV NOT saved: ${extras.filesError}`] : []),
+    ...(extras.adminUrl ? [`Open:    ${extras.adminUrl}`] : []),
+    '',
+    value.note,
+    '',
+    '— sent from the careers form on wear-run.com',
+  ].join('\n')
+}

@@ -1,3 +1,4 @@
+import { checkFiles } from './inquiryFiles'
 import { INQUIRY_FILE_KINDS } from './inquiryFileTypes'
 
 /**
@@ -25,3 +26,14 @@ export const APPLICATION_UPLOAD_MIME_TYPES: readonly string[] = [
 export const APPLICATION_FILE_ACCEPT = APPLICATION_FILE_KINDS.flatMap((kind) =>
   kind.extensions.map((ext) => `.${ext}`),
 ).join(',')
+
+/**
+ * The careers route's file check: the contact form's byte-level check (`inquiryFiles.ts`), with
+ * the CV's rules. An empty picker still sends one empty part, which is ignored, not refused.
+ */
+export const checkApplicationFiles = (entries: readonly unknown[]) =>
+  checkFiles(entries, {
+    maxFiles: 1,
+    maxTotalBytes: APPLICATION_FILE_MAX_BYTES,
+    kinds: APPLICATION_FILE_KINDS,
+  })
