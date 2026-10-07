@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as caseStudies from './caseStudies'
 import * as companyPages from './companyPages'
+import * as journal from './journal'
 import * as policies from './policies'
 
 /**
@@ -19,6 +21,8 @@ import * as policies from './policies'
 const COPY_MODULES: Record<string, object> = {
   'policies.ts': policies,
   'companyPages.ts': companyPages,
+  'journal.ts': journal,
+  'caseStudies.ts': caseStudies,
 }
 
 const FORBIDDEN: ReadonlyArray<readonly [string, RegExp]> = [
