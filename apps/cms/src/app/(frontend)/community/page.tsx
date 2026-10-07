@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import { CompanyPage } from '../../components/site/CompanyPage'
-import { COMMUNITY_PAGE } from '../../lib/companyPages'
-import { buildMetadata } from '../../lib/seo'
+import { CompanyPage } from '../../../components/site/CompanyPage'
+import { COMMUNITY_PAGE } from '../../../lib/companyPages'
+import { buildMetadata } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'

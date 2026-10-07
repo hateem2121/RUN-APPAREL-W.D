@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import { PolicyIndex } from '../../components/site/PolicyIndex'
-import { POLICIES_INDEX } from '../../lib/policies'
-import { buildMetadata } from '../../lib/seo'
+import { PolicyIndex } from '../../../components/site/PolicyIndex'
+import { POLICIES_INDEX } from '../../../lib/policies'
+import { buildMetadata } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'

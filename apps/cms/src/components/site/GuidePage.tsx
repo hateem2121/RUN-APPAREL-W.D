@@ -18,7 +18,7 @@ import { OrderSteps } from './OrderSteps'
  * The closing heading and sentence are the home page's own (№06), so the guides add no
  * claim the site does not already make.
  */
-function Block({ block }: { block: GuideBlock }) {
+export function Block({ block }: { block: GuideBlock }) {
   // The home page's eight cards, not a copy (polish D4, the owner's answer Q41).
   if (block.kind === 'orderSteps') return <OrderSteps />
   if (block.kind === 'table') return <GuideTable block={block} />

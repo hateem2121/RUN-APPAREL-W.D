@@ -1,38 +1,20 @@
 import Link from 'next/link'
-import type { CompanyPage as CompanyContentType, GuideBlock } from '../../lib/companyPages'
+import type { CompanyPage as CompanyContentType } from '../../lib/companyPages'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { Breadcrumb } from './Breadcrumb'
+import { Block } from './GuidePage'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
 
 /**
  * A company page — careers and community (PLAN.md D3/D4). Every word comes from
  * `lib/companyPages.ts`, which the owner approved on 2026-10-07; this file only lays it
- * out, on the guides' structure. The one primary button is the site's own closing block;
- * the "How to apply" email arrives from `SiteSettings` and is never typed anywhere.
+ * out, on the guides' structure and block renderer. The one primary button is the site's
+ * own closing block; the "How to apply" email arrives from `SiteSettings` and is never
+ * typed anywhere.
  */
-function Block({ block }: { block: GuideBlock }) {
-  if (block.kind === 'text') return <p>{block.text}</p>
-  if (block.kind === 'label') return <p className="subhead">{block.text}</p>
-  if (block.kind === 'point') {
-    return (
-      <div>
-        <h3 className="product-card__name prose__heading">{block.title}</h3>
-        <p>{block.text}</p>
-      </div>
-    )
-  }
-  const List = block.ordered ? 'ol' : 'ul'
-  return (
-    <List className="prose__list">
-      {block.items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </List>
-  )
-}
 
 /** One of the owner's factory photos under a section heading (as the guides draw them). */
 function SectionPhoto({ slug }: { slug: string }) {
@@ -87,11 +69,15 @@ export function CompanyPage({
                 {section.blocks.map((block) => (
                   <Block
                     key={
-                      'title' in block
-                        ? block.title
-                        : block.kind === 'list'
-                          ? block.items[0]
-                          : block.text
+                      block.kind === 'list'
+                        ? block.items[0]
+                        : 'title' in block
+                          ? block.title
+                          : block.kind === 'orderSteps'
+                            ? 'order-steps'
+                            : block.kind === 'table'
+                              ? block.caption
+                              : block.text
                     }
                     block={block}
                   />

@@ -47,19 +47,19 @@ export type Policy = {
 
 /** The four sections every policy page carries, in this order (PLAN.md D2). */
 const SECTION_IDS = ['commit', 'day-to-day', 'concerns', 'responsible'] as const
-const SECTION_HEADINGS = [
-  'What we commit to',
-  'How it works day to day',
-  'How to raise a concern',
-  'Who is responsible',
-] as const
+const SECTION_HEADINGS: Record<(typeof SECTION_IDS)[number], string> = {
+  commit: 'What we commit to',
+  'day-to-day': 'How it works day to day',
+  concerns: 'How to raise a concern',
+  responsible: 'Who is responsible',
+}
 
 const section = (
   id: (typeof SECTION_IDS)[number],
   blocks: readonly GuideBlock[],
 ): PolicySection => ({
   id,
-  heading: SECTION_HEADINGS[SECTION_IDS.indexOf(id)],
+  heading: SECTION_HEADINGS[id],
   blocks,
 })
 

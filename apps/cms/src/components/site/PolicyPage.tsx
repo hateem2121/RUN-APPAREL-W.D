@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import type { GuideBlock } from '../../lib/guides'
 import { POLICY_ACTION, POLICY_CLOSING, type Policy } from '../../lib/policies'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { Breadcrumb } from './Breadcrumb'
+import { Block } from './GuidePage'
 import { JsonLd } from './JsonLd'
 import { OnThisPage } from './OnThisPage'
 
@@ -10,31 +10,13 @@ import { OnThisPage } from './OnThisPage'
  * One policy page (PLAN.md D2), on the legal pages' layout: hero, "On this page" beside the
  * text from 900px, four sections in the owner's order. Every word comes from
  * `lib/policies.ts`, which the owner approved on 2026-10-07; this file only lays it out.
+ * Blocks render through the guides' own renderer, so a policy page can say nothing a guide
+ * block could not.
  *
  * ⚠️ THE CLOSING ACTION IS A SECONDARY LINK, never a new primary button (PLAN.md Part D):
  * the site's one primary label stays "Start a conversation". The closing sentence is the
  * owner's own, word for word (F20-12a).
  */
-function Block({ block }: { block: GuideBlock }) {
-  if (block.kind === 'text') return <p>{block.text}</p>
-  if (block.kind === 'label') return <p className="subhead">{block.text}</p>
-  if (block.kind === 'point') {
-    return (
-      <div>
-        <h3 className="product-card__name prose__heading">{block.title}</h3>
-        <p>{block.text}</p>
-      </div>
-    )
-  }
-  const List = block.ordered ? 'ol' : 'ul'
-  return (
-    <List className="prose__list">
-      {block.items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </List>
-  )
-}
 
 export function PolicyPage({ policy }: { policy: Policy }) {
   const trail = [
@@ -76,11 +58,15 @@ export function PolicyPage({ policy }: { policy: Policy }) {
                 {s.blocks.map((block) => (
                   <Block
                     key={
-                      'title' in block
-                        ? block.title
-                        : block.kind === 'list'
-                          ? block.items[0]
-                          : block.text
+                      block.kind === 'list'
+                        ? block.items[0]
+                        : 'title' in block
+                          ? block.title
+                          : block.kind === 'orderSteps'
+                            ? 'order-steps'
+                            : block.kind === 'table'
+                              ? block.caption
+                              : block.text
                     }
                     block={block}
                   />

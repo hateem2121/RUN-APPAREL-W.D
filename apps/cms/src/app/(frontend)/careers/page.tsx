@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import { CompanyPage } from '../../components/site/CompanyPage'
-import { getSiteSettings } from '../../lib/content'
-import { CAREERS_PAGE } from '../../lib/companyPages'
-import { buildMetadata } from '../../lib/seo'
+import { CompanyPage } from '../../../components/site/CompanyPage'
+import { CAREERS_PAGE } from '../../../lib/companyPages'
+import { getSiteSettings } from '../../../lib/content'
+import { buildMetadata } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
