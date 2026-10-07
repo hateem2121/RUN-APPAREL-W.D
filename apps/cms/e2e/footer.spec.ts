@@ -71,14 +71,16 @@ test.describe('the footer geometry', () => {
     }
   })
 
-  test('the facts take two columns on a phone, three on a tablet and five from 1280px', async ({
+  // Four on a tablet since the Learn group (2026-10-07): with three, Learn stood alone on a row and
+  // the one-screen slab overflowed (site.css says why). The garment pages' footer keeps three.
+  test('the facts take two columns on a phone, four on a tablet and five from 1280px', async ({
     page,
   }) => {
     for (const [width, tracks] of [
       [390, 2],
       [719, 2],
-      [720, 3],
-      [1279, 3],
+      [720, 4],
+      [1279, 4],
       [1280, 5],
       [1920, 5],
     ] as const) {
@@ -615,18 +617,23 @@ test.describe("the footer's content edge agrees with the page's (DS-06)", () => 
  * the ~1px artefact actually observed, not the previous 323 + 0.03px margin, which was
  * the same measurement rounded rather than room to move.
  *
- * ⚠️ THE FLOOR IS 100px SINCE POLISH X23 AND F9 (2026-10-04). The footer gained "What we make",
+ * ⚠️ THE FLOOR WAS 100px FROM POLISH X23 AND F9 (2026-10-04). The footer gained "What we make",
  * a fourth row of links with every database, and with this suite's database the band measured
  * 214, 208 and 126px at 768, 1024 and 1440px (144px was D7's figure from a footer of one block).
  * What D7 kept is the band itself, so the floor is what fails if it goes: removed (0px) or
  * squeezed to its 24px minimum. The live footer, with all five blocks, was at that 24px minimum
  * at every width before X23 (wear-run.com), and with its values drawn into this build it is
  * 24-59px, in a slab 33-219px shorter (docs/DECISIONS-BETA-WEBSITE.md, D7's amendment).
+ *
+ * ⚠️ 48px SINCE THE COMPANY GROUP REACHED FIVE LINKS (2026-10-07). Every footer link is a 44px
+ * row, so Press (the owner's plan, E5) took 44px at every width: 170, 164 and 82px at 768, 1024
+ * and 1440px. 48px still fails the band's removal and its 24px minimum, which is what this floor
+ * is for, and one more link in the tallest group (to 38px) fails it, so the next link gets a look.
  */
 test.describe("the footer's quiet band stays inside D7's documented range (DS-09)", () => {
   const CEILING_TOLERANCE_PX = 2
-  const FLOOR_PX = 100
-  test('height stays within 100-323px across the documented width range', async ({ page }) => {
+  const FLOOR_PX = 48
+  test('height stays within 48-323px across the documented width range', async ({ page }) => {
     await page.goto('/contact')
     for (const width of [768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 })
@@ -639,11 +646,11 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
         .evaluate((el) => el.getBoundingClientRect().height)
       expect(
         height,
-        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 100-323px`,
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 48-323px`,
       ).toBeGreaterThanOrEqual(FLOOR_PX)
       expect(
         height,
-        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 100-323px`,
+        `.footer-grow is ${height}px tall at ${width}px, outside D7's documented 48-323px`,
       ).toBeLessThanOrEqual(323 + CEILING_TOLERANCE_PX)
     }
   })

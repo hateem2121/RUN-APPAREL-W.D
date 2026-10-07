@@ -1,7 +1,11 @@
+import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
-import { COMPANY_PATHS } from './companyPages'
+import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
+import { COMPANY_PATHS, PRESS_PAGE } from './companyPages'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
+import { FAQ_INDEX, FAQ_TOPICS } from './faqs'
+import { GLOSSARY_INDEX } from './glossary'
 import { GUIDES } from './guides'
 import { POLICIES, POLICIES_INDEX } from './policies'
 
@@ -57,18 +61,33 @@ export function buildLlmsTxt(siteOrigin: string): string {
     (guide) => `- [${guide.title}](${siteOrigin}${guide.path}) — a buyer guide.`,
   ).join('\n')
   // The company pages (2026-10-07): the policies hub, each APPROVED policy, and careers and
-  // community, from the lists that hold their words (PLAN.md E9). Press joins in Phase 5.
+  // community and press, from the lists that hold their words (PLAN.md E9).
+  const companyLines: Record<string, string> = {
+    '/careers': `- [Careers at RUN APPAREL](${siteOrigin}/careers) — what we offer, and how to apply.`,
+    '/community': `- [Community](${siteOrigin}/community) — the works in Sialkot, and the people the policies serve.`,
+    '/press': `- [Press](${siteOrigin}/press) — ${PRESS_PAGE.description}`,
+  }
   const companyPages = [
     `- [${POLICIES_INDEX.title}](${siteOrigin}${POLICIES_INDEX.path}) — the policies hub.`,
     ...POLICIES.map(
       (policy) => `- [${policy.title}](${siteOrigin}${policy.path}) — company policy.`,
     ),
-    ...COMPANY_PATHS.map((path) =>
-      path === '/careers'
-        ? `- [Careers at RUN APPAREL](${siteOrigin}/careers) — what we offer, and how to apply.`
-        : `- [Community](${siteOrigin}/community) — the works in Sialkot, and the people the policies serve.`,
-    ),
+    ...COMPANY_PATHS.map((path) => companyLines[path] ?? `- [${path}](${siteOrigin}${path})`),
   ].join('\n')
+  // The FAQ and the glossary (2026-10-07, PLAN.md E9), from the lists that hold their words.
+  const answers = [
+    `- [${FAQ_INDEX.title}](${siteOrigin}${FAQ_INDEX.path}) — the questions buyers ask most.`,
+    ...FAQ_TOPICS.map(
+      (topic) => `- [${topic.title}](${siteOrigin}${topic.path}) — questions and answers.`,
+    ),
+    `- [${GLOSSARY_INDEX.title}](${siteOrigin}${GLOSSARY_INDEX.path}) — garment and export terms in plain words.`,
+  ].join('\n')
+  /*
+   * The Journal and the case studies (2026-10-07, E9): named from day one, as in the sitemap
+   * (owner: "Show them right away"; both hubs are indexable while empty).
+   */
+  const caseStudies = `- [${CASE_STUDIES_HUB.title}](${siteOrigin}${CASE_STUDIES_PATH}) — orders we have made: what, for whom, how many and how long.\n`
+  const journal = `\n## Journal\n\n- [${JOURNAL_HUB.title}](${siteOrigin}${JOURNAL_PATH}) — ${JOURNAL_HUB.description}\n`
 
   return `# RUN APPAREL
 
@@ -109,9 +128,10 @@ ${CERTIFICATION}
 ${buyerPages}
 ${guides}
 ${companyPages}
-- [Contact](${siteOrigin}/contact) — the addresses, and a form that reaches the company directly.
+${answers}
+${caseStudies}- [Contact](${siteOrigin}/contact) — the addresses, and a form that reaches the company directly.
 - [Privacy](${siteOrigin}/privacy) and [Terms](${siteOrigin}/terms).
-
+${journal}
 ## The 3D references
 
 Each reference garment has its own page on this site, in the shape

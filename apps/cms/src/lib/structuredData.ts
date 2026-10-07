@@ -223,6 +223,109 @@ export function faqJsonLd(questions: ReadonlyArray<{ question: string; answer: s
   }
 }
 
+/** The Journal as a blog: its newest posts by address (PLAN.md E2). */
+export function blogJsonLd(posts: ReadonlyArray<{ path: string; headline: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': `${SITE_ORIGIN}/journal#blog`,
+    name: 'RUN APPAREL Journal',
+    url: `${SITE_ORIGIN}/journal`,
+    publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+    blogPost: posts.map((post) => ({
+      '@type': 'BlogPosting',
+      headline: post.headline,
+      url: `${SITE_ORIGIN}${post.path}`,
+    })),
+  }
+}
+
+type ArticleInput = {
+  path: string
+  headline: string
+  description: string
+  /** The share picture; null when the post has none a visitor can load, and then none is stated. */
+  image: { url: string; width: number; height: number } | null
+  datePublished: string
+  dateModified: string
+  author: { name: string; url?: string | null } | null
+  companyName: string
+}
+
+/**
+ * One article's data (Google's Article guide, updated 2026-09-08: headline, image,
+ * datePublished, dateModified, author with name and url). A piece with no named author is the
+ * company's, by its `@id`, so it is not a second, unrelated company.
+ */
+function articleData(type: 'BlogPosting' | 'Article', article: ArticleInput) {
+  const url = `${SITE_ORIGIN}${article.path}`
+  return {
+    '@context': 'https://schema.org',
+    '@type': type,
+    '@id': `${url}#article`,
+    mainEntityOfPage: url,
+    headline: article.headline,
+    description: article.description,
+    ...(article.image
+      ? {
+          image: [
+            {
+              '@type': 'ImageObject',
+              url: article.image.url,
+              width: article.image.width,
+              height: article.image.height,
+            },
+          ],
+        }
+      : {}),
+    datePublished: article.datePublished,
+    dateModified: article.dateModified,
+    author: article.author
+      ? {
+          '@type': 'Person',
+          name: article.author.name,
+          ...(article.author.url ? { url: article.author.url } : {}),
+        }
+      : {
+          '@type': 'Organization',
+          '@id': `${SITE_ORIGIN}/#organization`,
+          name: article.companyName,
+          url: SITE_ORIGIN,
+        },
+    publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+  }
+}
+
+/** One Journal post, part of the Journal's Blog node. */
+export function blogPostingJsonLd(post: ArticleInput) {
+  return { ...articleData('BlogPosting', post), isPartOf: { '@id': `${SITE_ORIGIN}/journal#blog` } }
+}
+
+/** One case study (Task 5.3): the post's shape as an `Article`, part of no blog. */
+export function articleJsonLd(article: ArticleInput) {
+  return articleData('Article', article)
+}
+
+/**
+ * The case-study hub once at least one is published (Part C): a CollectionPage of its articles.
+ * With none, the hub carries `noindex` and no data at all (T5).
+ */
+export function caseStudiesJsonLd(studies: ReadonlyArray<{ path: string; headline: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': `${SITE_ORIGIN}/case-studies#page`,
+    url: `${SITE_ORIGIN}/case-studies`,
+    name: 'Case studies',
+    publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+    hasPart: studies.map((study) => ({
+      '@type': 'Article',
+      headline: study.headline,
+      url: `${SITE_ORIGIN}${study.path}`,
+    })),
+  }
+}
+
 /** The contact page, tied back to the organisation node rather than redescribing it. */
 export function contactPageJsonLd(settings: PublicSiteSettings) {
   return {
@@ -235,5 +338,32 @@ export function contactPageJsonLd(settings: PublicSiteSettings) {
       name: settings.companyName,
       email: settings.email,
     },
+  }
+}
+
+/**
+ * The glossary as a defined-term set (schema.org `DefinedTermSet`, read 2026-10-07): each term
+ * with its visible definition and its anchor on /glossary, linked back with `inDefinedTermSet`.
+ * Built from the list the page draws, so the two cannot differ.
+ */
+export function definedTermSetJsonLd(
+  set: { name: string; path: string },
+  terms: ReadonlyArray<{ id: string; name: string; definition: string }>,
+) {
+  const url = `${SITE_ORIGIN}${set.path}`
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'DefinedTermSet',
+    '@id': `${url}#terms`,
+    name: set.name,
+    url,
+    hasDefinedTerm: terms.map((term) => ({
+      '@type': 'DefinedTerm',
+      '@id': `${url}#${term.id}`,
+      name: term.name,
+      description: term.definition,
+      url: `${url}#${term.id}`,
+      inDefinedTermSet: `${url}#terms`,
+    })),
   }
 }

@@ -163,3 +163,16 @@ describe('it passes Lighthouse 13.5.0’s llms-txt audit (FI-08)', () => {
     }
   })
 })
+
+/**
+ * The Journal and the case studies (PLAN.md E9): named from day one, even before anything is
+ * published (owner, 2026-10-07: "Show them right away"; both hubs are indexable when empty).
+ */
+describe('the Journal and the case studies', () => {
+  it('are linked to their hubs while nothing is published', () => {
+    expect(text).toContain('## Journal')
+    expect(text).toContain(`](${SITE}/journal)`)
+    expect(text).toContain(`](${SITE}/case-studies)`)
+    expect(llmsTxtProblems(text)).toEqual([])
+  })
+})

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { getProductCards } from '../lib/content'
+import { getCaseStudies, getJournalPosts, getProductCards } from '../lib/content'
 import { searchVisibility, sitemapFor } from '../lib/searchVisibility'
 import { SITE_ORIGIN } from '../lib/seo'
 
@@ -24,5 +24,13 @@ import { SITE_ORIGIN } from '../lib/seo'
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Empty while the site is hidden — see searchVisibility.ts. An empty urlset is valid
   // XML and is what a crawler should see for a site carrying noindex.
-  return sitemapFor(await searchVisibility(), SITE_ORIGIN, await getProductCards())
+  // The Journal and the case studies (2026-10-07): published ones only, read like the
+  // garments by readers that never throw; both hubs are listed even with none (owner,
+  // 2026-10-07: "Show them right away").
+  const [garments, posts, caseStudies] = await Promise.all([
+    getProductCards(),
+    getJournalPosts(),
+    getCaseStudies(),
+  ])
+  return sitemapFor(await searchVisibility(), SITE_ORIGIN, garments, { posts, caseStudies })
 }

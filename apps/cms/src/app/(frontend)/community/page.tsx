@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { CompanyPage } from '../../../components/site/CompanyPage'
+import { CommunityPage as CommunityLayout } from '../../../components/site/CommunityPage'
 import { COMMUNITY_PAGE } from '../../../lib/companyPages'
 import { buildMetadata } from '../../../lib/seo'
 
@@ -16,5 +16,5 @@ export const metadata: Metadata = buildMetadata({
 })
 
 export default function CommunityPage() {
-  return <CompanyPage page={COMMUNITY_PAGE} />
+  return <CommunityLayout />
 }

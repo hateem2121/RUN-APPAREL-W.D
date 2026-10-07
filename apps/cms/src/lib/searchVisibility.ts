@@ -4,6 +4,8 @@ import type { Metadata, MetadataRoute } from 'next'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDE_PATHS } from './guides'
 import { COMPANY_PATHS } from './companyPages'
+import { FAQ_PATHS } from './faqs'
+import { GLOSSARY_INDEX } from './glossary'
 import { POLICY_PATHS } from './policies'
 
 /**
@@ -104,10 +106,45 @@ function realDate(value: string | null | undefined): Date | null {
   return Number.isNaN(time) ? null : new Date(time)
 }
 
+/** A published Journal post or case study: its address and the database's date. */
+export interface SitemapArticle {
+  path: string
+  updatedAt?: string | null
+}
+
+/**
+ * ⚠️ THE HUB IS LISTED EVEN EMPTY (owner, 2026-10-07: "Show them right away"). It was listed
+ * only with its first published page while an empty hub carried `noindex` (T5); both hubs are
+ * indexable from day one now, and a sitemap must list what the pages allow. Each published page
+ * carries its own `updatedAt`.
+ */
+function articleEntries(
+  origin: string,
+  hub: string,
+  articles: ReadonlyArray<SitemapArticle> = [],
+): MetadataRoute.Sitemap {
+  return [
+    { url: `${origin}${hub}`, changeFrequency: 'weekly', priority: 0.6 },
+    ...articles.map((article) => {
+      const changed = realDate(article.updatedAt)
+      return {
+        url: `${origin}${article.path}`,
+        changeFrequency: 'monthly' as const,
+        priority: 0.6,
+        ...(changed ? { lastModified: changed } : {}),
+      }
+    }),
+  ]
+}
+
 export function sitemapFor(
   visibility: SearchVisibility,
   origin: string,
   garments: ReadonlyArray<SitemapGarment> = [],
+  content: {
+    posts?: ReadonlyArray<SitemapArticle>
+    caseStudies?: ReadonlyArray<SitemapArticle>
+  } = {},
 ): MetadataRoute.Sitemap {
   if (visibility === 'hidden') return []
   return [
@@ -138,6 +175,14 @@ export function sitemapFor(
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     })),
+    // The FAQ and the glossary (2026-10-07), from the lists that hold their words.
+    ...[...FAQ_PATHS, GLOSSARY_INDEX.path].map((path) => ({
+      url: `${origin}${path}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    })),
+    ...articleEntries(origin, '/journal', content.posts),
+    ...articleEntries(origin, '/case-studies', content.caseStudies),
     { url: `${origin}/contact`, changeFrequency: 'yearly', priority: 0.5 },
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },

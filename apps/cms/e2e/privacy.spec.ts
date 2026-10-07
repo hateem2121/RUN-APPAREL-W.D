@@ -27,3 +27,64 @@ test.describe('privacy page — visit-records wording', () => {
     await expect(main).toContainText('the time between your first and last activity on it that day')
   })
 })
+
+/**
+ * The notice for people we email first (owner's brief, 2026-10-07; UK and EU GDPR Articles 14
+ * and 21). Outreach emails link to `/privacy#outreach`, so the anchor is the contract. Article 21
+ * asks for the right to object "clearly and separately from any other information" (ICO, "What
+ * privacy information should we provide?"), hence its own paragraph, asserted alone.
+ */
+test.describe('privacy page — when we write to you first', () => {
+  const OBJECT =
+    'You can tell us to stop at any time. Reply to any of our emails, or write to privacy@wear-run.com, and we will never email you again.'
+
+  test('the section sits after "When you contact us", under its anchor, and is listed', async ({
+    page,
+  }) => {
+    await page.goto('/privacy#outreach')
+    const heading = page.locator('h2#outreach')
+    await expect(heading).toHaveText('When we write to you first')
+    await expect(heading).toBeInViewport()
+    await expect(page.locator('nav.legal__toc a[href="#outreach"]')).toHaveText(
+      'When we write to you first',
+    )
+    // Straight after the contact paragraph, before job applications. Read in the notice's body:
+    // "On this page" names the section first.
+    const order = await page.locator('.legal__body').evaluate((body) => {
+      const text = body.textContent ?? ''
+      return [
+        text.indexOf('When you contact us.'),
+        text.indexOf('When we write to you first'),
+        text.indexOf('When you apply for a job.'),
+      ]
+    })
+    expect(order[0]).toBeLessThan(order[1] ?? -1)
+    expect(order[1]).toBeLessThan(order[2] ?? -1)
+  })
+
+  test('the right to object stands in a paragraph of its own', async ({ page }) => {
+    await page.goto('/privacy')
+    const paragraph = page.locator('p', { hasText: 'You can tell us to stop at any time.' })
+    await expect(paragraph).toHaveCount(1)
+    expect((await paragraph.textContent())?.replace(/\s+/g, ' ').trim()).toBe(OBJECT)
+  })
+
+  test('data requests go to privacy@, and the section names its sources', async ({ page }) => {
+    await page.goto('/privacy')
+    const rights = page.locator('h2#your-rights + p')
+    await expect(rights.locator('a[href="mailto:privacy@wear-run.com"]')).toHaveCount(1)
+    await expect(rights).not.toContainText('partner@wear-run.com')
+    const main = page.locator('main')
+    for (const fact of [
+      'Apollo (apollo.io)',
+      'Wikidata and OpenStreetMap',
+      'Companies House',
+      'up to four short emails',
+      '2 years after our last email',
+      'do-not-contact list',
+      'Information Commissioner’s Office (ico.org.uk)',
+    ]) {
+      await expect(main).toContainText(fact)
+    }
+  })
+})

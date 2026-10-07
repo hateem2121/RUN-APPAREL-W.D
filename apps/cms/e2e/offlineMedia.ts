@@ -100,4 +100,4 @@ export const test = base.extend({
 })
 
 export { expect }
-export type { Page } from '@playwright/test'
+export type { APIRequestContext, Page } from '@playwright/test'

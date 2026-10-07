@@ -77,11 +77,23 @@ export const metadata: Metadata = buildMetadata({
 const SECTIONS = [
   { id: 'who-we-are', title: 'Who we are' },
   { id: 'what-we-collect', title: 'What we collect, and when' },
+  // People we email first (owner's brief, 2026-10-07). Outreach emails link to `#outreach`, so
+  // the id is a contract; `e2e/privacy.spec.ts` holds it.
+  { id: 'outreach', title: 'When we write to you first' },
+  // The careers form (owner-approved words, 2026-10-07); the form's privacy line links here.
+  { id: 'job-applications', title: 'Job applications' },
   { id: 'why-we-are-allowed', title: 'Why we are allowed to' },
   { id: 'how-long-we-keep-it', title: 'How long we keep it' },
   { id: 'where-it-goes', title: 'Where it goes' },
   { id: 'your-rights', title: 'Your rights' },
 ] as const satisfies readonly PageSection[]
+
+/**
+ * Where data requests and "stop emailing me" go (owner, 2026-10-07; the mailbox exists and
+ * reaches the owner). Only this page uses it: the footer and the contact page keep partner@, the
+ * Site Settings email.
+ */
+const PRIVACY_EMAIL = 'privacy@wear-run.com'
 
 const heading = (id: (typeof SECTIONS)[number]['id']) => {
   const section = SECTIONS.find((entry) => entry.id === id)
@@ -181,6 +193,107 @@ export default async function PrivacyPage() {
               team can open them.
             </p>
 
+            {/*
+             * UK and EU GDPR Article 14 (details not collected from the person) and Article 21 (the
+             * right to object), from the owner's brief of 2026-10-07; every fact is the owner's. Two
+             * things are left out on purpose until the owner confirms them in writing: any safeguard for the
+             * transfers abroad, and "no tracking in our emails" (some are sent through Apollo, and
+             * whether its open and click tracking is off is not yet checked).
+             */}
+            {heading('outreach')}
+            <p>
+              {settings.companyName}, {formatAddress()}, sometimes emails people at other businesses
+              who have not written to us first, to offer sportswear and apparel manufacturing.
+            </p>
+            <p>
+              <strong>What we hold about you.</strong> Your name, job title, work email address,
+              company, country and city. Where available, also your seniority, department, LinkedIn
+              page address and work phone number.
+            </p>
+            <p>
+              <strong>Where we got it.</strong> Mostly from Apollo (apollo.io), a business contact
+              directory. Some comes from your company’s own website, from public open data (Wikidata
+              and OpenStreetMap) and, for UK companies, from the Companies House register.
+            </p>
+            <p>
+              <strong>Why we are allowed to.</strong> Our legitimate interest in offering
+              manufacturing to businesses whose work fits it. We only write to you about your
+              professional role.
+            </p>
+            <p>
+              <strong>What we send.</strong> We send up to four short emails. If you reply, the
+              conversation continues as a normal business inquiry.
+            </p>
+            <p>
+              <strong>How we choose whom to write to.</strong> By job title and by the company’s
+              industry. No decision with legal or similarly significant effects on you is made
+              automatically.
+            </p>
+            <p>
+              <strong>Who helps us.</strong> Apollo, based in the United States, supplies contact
+              details and sends some of our emails. Twilio SendGrid, based in the United States,
+              delivers our emails. Hostinger hosts our mailboxes. Our customer records are kept in
+              our own system, on our own computer in Pakistan, reached securely through Cloudflare.
+              This means your details are handled outside the EU and the UK, including in Pakistan
+              and the United States.
+            </p>
+            <p>
+              <strong>How long we keep it.</strong> If you never reply, we keep your details for 2
+              years after our last email, then remove them. If you ask us to stop, we keep only your
+              email address on a do-not-contact list, for as long as needed so that we never email
+              you again.
+            </p>
+            {/* Article 21: "clearly and separately from any other information" (ICO). Its own
+                paragraph, in the owner's exact words, ruled apart (`.legal__object`). */}
+            <p className="legal__object">
+              <strong>You can tell us to stop at any time.</strong> Reply to any of our emails, or
+              write to{' '}
+              <a className="prose__link" href={`mailto:${PRIVACY_EMAIL}`}>
+                {PRIVACY_EMAIL}
+              </a>
+              , and we will never email you again.
+            </p>
+            <p>
+              {/* Worded to break short: the first wording ran to 76 characters at 768px (legibility
+                  e2e), measured in the browser before this one (71). */}
+              <strong>Your other rights.</strong> Ask us for a copy of what we hold about you, or
+              ask us to correct it, delete it or limit how we use it. You can also ask to receive it
+              in a portable form. Write to{' '}
+              <a className="prose__link" href={`mailto:${PRIVACY_EMAIL}`}>
+                {PRIVACY_EMAIL}
+              </a>
+              .
+            </p>
+            <p>
+              <strong>Complaints.</strong> You may complain to the data protection authority in your
+              country. In the UK that is the Information Commissioner’s Office (
+              <a className="prose__link" href="https://ico.org.uk">
+                ico.org.uk
+              </a>
+              ).
+            </p>
+
+            {heading('job-applications')}
+            <p>
+              <strong>When you apply for a job.</strong> If you apply through the form on our
+              careers page, we keep what you send — your name, phone number and the work you do,
+              and, if you add them, your email address, years of experience, a note and one CV — so
+              that our HR team can consider you for work with us and contact you about it.
+            </p>
+            <p>
+              <strong>Your CV</strong> is stored privately with Cloudflare, never at a public
+              address, and only our team can open it. When you send an application, Resend delivers
+              a notification to our HR team.
+            </p>
+            <p>
+              <strong>Why we are allowed to.</strong> To consider your application and take the
+              steps you ask for before any job offer.
+            </p>
+            <p>
+              <strong>How long we keep it.</strong> We keep your application, and any CV, for up to
+              12 months, then delete it. If you would like it deleted sooner, email us and we will.
+            </p>
+
             {heading('why-we-are-allowed')}
             <p>
               To run and secure the website, to see how the documents we share are used, and to
@@ -212,8 +325,8 @@ export default async function PrivacyPage() {
             <p>
               You may ask us for a copy of what we hold about you, ask us to correct or delete it,
               or object to our processing. Email{' '}
-              <a className="prose__link" href={`mailto:${settings.email}`}>
-                {settings.email}
+              <a className="prose__link" href={`mailto:${PRIVACY_EMAIL}`}>
+                {PRIVACY_EMAIL}
               </a>{' '}
               and we will reply within 24 hours.
             </p>

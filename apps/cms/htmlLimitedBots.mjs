@@ -95,6 +95,13 @@ export const AI_CRAWLER_UAS = [
   // Meta.
   'meta-externalagent',
   'meta-externalfetcher',
+  // Added 2026-10-07 (plan E11). Meta's crawler page, read that day
+  // (https://developers.facebook.com/docs/sharing/webmasters/web-crawlers), says it "navigates the
+  // web to improve Meta AI search result quality", so it is an ANSWERING crawler like
+  // OAI-SearchBot: it stays welcome and is NOT in TRAINING_ONLY_UAS. Its published user agent is
+  // `meta-webindexer/1.1`. The page does not say whether it honours robots.txt, only that two
+  // other Meta agents may bypass it and this one is not named among them.
+  'Meta-WebIndexer',
   'FacebookBot',
   // Amazon. Amazonbot may train; Amzn-SearchBot indexes for Amazon search (Alexa included); Amzn-User fetches live for a person's Alexa question.
   'Amazonbot',

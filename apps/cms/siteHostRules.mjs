@@ -1,7 +1,11 @@
 import {
+  CASE_STUDY_PAGE_SOURCES,
   COMPANY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
   FAMILY_PAGE_SOURCES,
   GUIDE_PAGE_SOURCES,
+  JOURNAL_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
   sourceMatches,
 } from './publicViewerHeaders.mjs'
@@ -91,6 +95,13 @@ export const CMS_PUBLIC_PATHS = [
   ...POLICY_PAGE_SOURCES,
   // The company pages — careers and community (2026-10-07), same reasoning.
   ...COMPANY_PAGE_SOURCES,
+  // The FAQ and the glossary (2026-10-07), same reasoning.
+  ...FAQ_PAGE_SOURCES,
+  ...GLOSSARY_PAGE_SOURCES,
+  // The Journal and the case studies (2026-10-07): their hubs and every post or study, so a link
+  // the admin host hands out (a preview from the CMS, say) reaches the site.
+  ...JOURNAL_PAGE_SOURCES,
+  ...CASE_STUDY_PAGE_SOURCES,
 ]
 
 /**

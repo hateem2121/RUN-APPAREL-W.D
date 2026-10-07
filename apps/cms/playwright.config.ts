@@ -100,11 +100,13 @@ export default defineConfig({
      * runs on a named scroll timeline, which Safari draws only since 26.
      * `guides` joined 2026-10-05 (polish X22): the site's first table, on a 320px phone, in the
      * engine every iPhone draws with, which until Safari 17 changed how tables were read.
+     * `careersForm` joined 2026-10-07 (Phase 2): its "Something else" box opens through `:has()`,
+     * as the sport filter does, and an applicant on an iPhone applies in this engine.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

@@ -1,4 +1,11 @@
-import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import {
+  COMPANY_PAGE_SOURCES,
+  FAMILY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
+  GUIDE_PAGE_SOURCES,
+  POLICY_PAGE_SOURCES,
+} from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 import {
   findBritishSpellings,
@@ -24,8 +31,23 @@ const PAGES = [
   '/terms',
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,
+  // The company pages, the FAQ and the glossary (2026-10-07).
+  ...POLICY_PAGE_SOURCES,
+  ...COMPANY_PAGE_SOURCES,
+  ...FAQ_PAGE_SOURCES,
+  ...GLOSSARY_PAGE_SOURCES,
   '/no-such-page',
 ] as const
+
+/**
+ * A listed word used in its plain sense, page by page, with the sentence that does it. The rule
+ * treats "next generation" and "next-generation" alike on purpose; on /community it is the
+ * owner's sentence about people ("Senior stitchers and cutters train the next generation",
+ * approved 2026-10-07), found when the company pages joined this suite.
+ */
+const PLAIN_MEANING: Readonly<Record<string, readonly string[]>> = {
+  '/community': ['next-generation', 'next-gen'],
+}
 
 for (const path of PAGES) {
   test(`copy rules hold on ${path}`, async ({ page }) => {
@@ -39,7 +61,10 @@ for (const path of PAGES) {
       copy.headings.flatMap((heading) => findEmoji(heading)),
       'emoji in a heading (CT-01)',
     ).toEqual([])
-    expect(findBuzzwords(copy.body), 'buzzwords in the copy (CT-03)').toEqual([])
+    expect(
+      findBuzzwords(copy.body, { allow: [...(PLAIN_MEANING[path] ?? [])] }),
+      'buzzwords in the copy (CT-03)',
+    ).toEqual([])
     expect(
       findBritishSpellings([copy.body, ...copy.decoded].join('\n')),
       'British spelling in visible or pre-filled text (CT-05)',
@@ -129,6 +154,8 @@ const PRIMARY_LABELS = [
   /^Browse in 3D$/,
   /^Email \S+@\S+$/,
   /^Send inquiry$/,
+  // The careers form's Send (owner, F23, 2026-10-07).
+  /^Send application$/,
 ]
 
 for (const viewport of [

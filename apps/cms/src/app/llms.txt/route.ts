@@ -17,6 +17,9 @@ import { SITE_ORIGIN } from '../../lib/seo'
  * Cached for an hour at the edge and a day as stale. It changes when the company's
  * confirmed numbers change, which is to say almost never, and a crawler re-reading it
  * every request costs a Worker invocation for an identical answer.
+ *
+ * Static again since 2026-10-07: the Journal and case-study hubs are named from day one (owner:
+ * "Show them right away"), so the file no longer depends on what is published.
  */
 export const dynamic = 'force-static'
 

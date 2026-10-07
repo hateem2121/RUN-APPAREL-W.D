@@ -1,3 +1,5 @@
+import { FAQ_INDEX, faqTopicAt, faqTopicForGuide } from '../../lib/faqs'
+import { GLOSSARY_INDEX } from '../../lib/glossary'
 import Link from 'next/link'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
@@ -155,6 +157,13 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
       </nav>
     )
   }
+  // The guide's FAQ topic and the glossary (PLAN.md Task 3.4, shown to the owner 2026-10-07).
+  const topic = faqTopicForGuide(current)
+  const answers = [
+    ...(topic ? [{ href: topic, name: faqTopicAt(topic).title }] : []),
+    { href: FAQ_INDEX.path, name: 'All questions' },
+    { href: GLOSSARY_INDEX.path, name: GLOSSARY_INDEX.title },
+  ]
   const otherGuides = [
     ...GUIDES.filter((guide) => guide.path !== current).map((guide) => ({
       href: guide.path,
@@ -170,6 +179,7 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
       <div className="see-also__groups">
         <LinkGroup id="more-guides" title="Buyer guides" level="h3" links={otherGuides} />
         <LinkGroup id="more-families" title="What we make" level="h3" links={buyerPages} />
+        <LinkGroup id="more-answers" title="Answers" level="h3" links={answers} />
       </div>
     </nav>
   )

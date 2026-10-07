@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { countryByName, type DialState, editDialCode, nextDialCode } from '../../lib/dialCode'
+import { careersFieldError } from '../../lib/careersForm'
 import { fieldError, SENDING_LABEL, SUMMARY_HEADING } from '../../lib/inquiryForm'
 
 type Checked = HTMLInputElement | HTMLTextAreaElement
@@ -37,7 +38,17 @@ const CHECKED = '[data-check]'
  * It reads `validity.valid`, never `checkValidity()`, because `checkValidity()` fires `invalid`
  * again and would feed its own listener.
  */
-export function InquiryFormEnhancer() {
+export function InquiryFormEnhancer({
+  form: which = 'inquiry',
+}: {
+  /**
+   * Whose words a field's sentence comes from: the contact form's by default; the careers form's
+   * owner-approved words (`careersFieldError`, 2026-10-07) otherwise. A NAME, not a function: the
+   * pages that draw this are server components, and a function cannot cross into a client one.
+   */
+  form?: 'inquiry' | 'careers'
+} = {}) {
+  const messages = which === 'careers' ? careersFieldError : fieldError
   const anchor = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
   const [problems, setProblems] = useState<Problem[]>([])
@@ -51,6 +62,24 @@ export function InquiryFormEnhancer() {
     let batch: number | null = null
     let sending = false
     form.dataset.enhanced = ''
+
+    /*
+     * ⚠️ A BOX NEEDED FOR ONE ANSWER ONLY — the careers form's "Something else" (2026-10-07).
+     * `required` on a box out of sight would block every other answer, and no `required` let an
+     * empty "Something else" reach the server, whose refusal reloaded the page and cost the
+     * applicant everything typed (found in the owner's picture). So `data-needed-when="role=other"`
+     * is switched here with the choice; without scripting the server still refuses it.
+     */
+    const needed = () => [...form.querySelectorAll<HTMLInputElement>('[data-needed-when]')]
+    const syncNeeded = () => {
+      for (const box of needed()) {
+        const [group, value] = (box.dataset.neededWhen ?? '').split('=')
+        box.required =
+          form.querySelector<HTMLInputElement>(`[name="${group}"]:checked`)?.value === value
+      }
+    }
+    // Also on a form restored by Back, which keeps its choice.
+    syncNeeded()
 
     /*
      * ⚠️ THE CODE FIELD IS NEVER CONTROLLED, ON PURPOSE (it was PhoneField's rule, kept): a value
@@ -84,7 +113,7 @@ export function InquiryFormEnhancer() {
 
     /** Show or clear one field's sentence, and say so to assistive technology. */
     const mark = (field: Checked): string | null => {
-      const text = fieldError(field.name, field.validity, field.validationMessage)
+      const text = messages(field.name, field.validity, field.validationMessage)
       // The file picker shows its own sentence, so it has no note here; it still joins the list.
       const note = document.getElementById(`${field.id}-error`)
       if (!note) return text
@@ -110,7 +139,7 @@ export function InquiryFormEnhancer() {
     /** The list at the top: every field that is still wrong, in page order. */
     const collect = (): Problem[] =>
       fields().flatMap((field) => {
-        const text = fieldError(field.name, field.validity, field.validationMessage)
+        const text = messages(field.name, field.validity, field.validationMessage)
         return text ? [{ id: field.id, text }] : []
       })
 
@@ -164,6 +193,11 @@ export function InquiryFormEnhancer() {
      */
     const onChange = (event: Event) => {
       const field = event.target as Checked
+      if (field.type === 'radio') {
+        syncNeeded()
+        // A sentence already showing goes when its need goes; a new one waits for Send or a leave.
+        for (const box of needed()) if (box.getAttribute('aria-invalid') === 'true') refresh(box)
+      }
       if (field.matches?.(CHECKED) && field.type === 'file') {
         touched.add(field)
         window.setTimeout(() => refresh(field), 0)
@@ -218,7 +252,7 @@ export function InquiryFormEnhancer() {
       form.removeEventListener('submit', onSubmit)
       window.removeEventListener('pageshow', onShow)
     }
-  }, [])
+  }, [messages])
 
   useEffect(() => {
     if (focusList.current && problems.length > 0) list.current?.focus()

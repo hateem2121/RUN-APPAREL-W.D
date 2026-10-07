@@ -484,12 +484,17 @@ jobs:
           pnpm seed:assets
           pnpm --filter @run-apparel/cms migrate
           pnpm seed:cms
+      # The server needs the same throwaway as the seed step (2026-10-07): without one Payload
+      # never starts, the pages fall back to their defaults, and `journal.spec.ts`, which signs
+      # in and writes a post, cannot pass. Measured locally: "missing secret key" in the server
+      # log and every Journal read failing until the variable was set.
       - name: e2e (public site, this shard)
         if: matrix.suite == 'site'
         shell: bash
         env:
           HOME: /root
           ARGS: ${{ matrix.args }}
+          PAYLOAD_SECRET: ci-e2e-${{ github.run_id }}
         run: |
           read -r -a args <<< "$ARGS"
           pnpm --filter @run-apparel/cms exec playwright test "${args[@]}"
@@ -1625,7 +1630,13 @@ jobs:
       - name: Post-deploy security.txt and redirect headers
         run: node scripts/public-security-probe.mjs
 
+      # Tells search engines only about the pages this push changed (2026-10-07, plan E10).
+      # `before` is the commit main pointed at before the push; the script fetches it on its own
+      # (the checkout above is shallow) and falls back to the whole sitemap when it cannot.
       - name: Post-deploy Bing IndexNow instant indexation
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
         run: node scripts/ping-indexnow.mjs
 
       # Put the rollback command where someone will actually be looking.

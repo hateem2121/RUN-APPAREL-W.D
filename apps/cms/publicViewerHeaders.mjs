@@ -122,7 +122,33 @@ export const POLICY_PAGE_SOURCES = [
  * The company pages (2026-10-07): careers and community, in `COMPANY_PATHS`' order. Held to
  * `src/lib/companyPages.ts` by `companyPages.test.ts`. Phase 5 adds `/press`.
  */
-export const COMPANY_PAGE_SOURCES = ['/careers', '/community']
+export const COMPANY_PAGE_SOURCES = ['/careers', '/community', '/press']
+
+/**
+ * The FAQ hub and its topic pages (2026-10-07), in `FAQ_PATHS`' order. Held to
+ * `src/lib/faqs.ts` by `newPagesWiring.test.ts`.
+ */
+export const FAQ_PAGE_SOURCES = [
+  '/faq',
+  '/faq/orders-and-samples',
+  '/faq/quality-and-certifications',
+  '/faq/shipping-and-importing',
+  '/faq/fabrics-and-printing',
+  '/faq/working-with-us',
+]
+
+/** The glossary (2026-10-07). Held to `src/lib/glossary.ts` by `newPagesWiring.test.ts`. */
+export const GLOSSARY_PAGE_SOURCES = ['/glossary']
+
+/**
+ * The Journal (2026-10-07, PLAN.md E6): the hub and every post. `:slug` is one path segment
+ * (`sourceMatches`), so it covers `/journal/rss.xml` too, which only gains the public pages'
+ * headers. Held to `src/lib/journal.ts` by `newPagesWiring.test.ts`.
+ */
+export const JOURNAL_PAGE_SOURCES = ['/journal', '/journal/:slug']
+
+/** The case studies (2026-10-07, PLAN.md E6): the hub and each one. As the Journal. */
+export const CASE_STUDY_PAGE_SOURCES = ['/case-studies', '/case-studies/:slug']
 
 export const PUBLIC_PAGE_SOURCES = [
   '/',
@@ -134,6 +160,10 @@ export const PUBLIC_PAGE_SOURCES = [
   ...GUIDE_PAGE_SOURCES,
   ...POLICY_PAGE_SOURCES,
   ...COMPANY_PAGE_SOURCES,
+  ...FAQ_PAGE_SOURCES,
+  ...GLOSSARY_PAGE_SOURCES,
+  ...JOURNAL_PAGE_SOURCES,
+  ...CASE_STUDY_PAGE_SOURCES,
 ]
 
 /**

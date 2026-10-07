@@ -1,3 +1,4 @@
+import { faqTopicForGuide } from '../../lib/faqs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
@@ -137,9 +138,10 @@ describe('a factory photo beside the words that name it (polish X22)', () => {
 /**
  * The links at the end of a guide (polish X22). The audit: "links to other guides and to product
  * families sit together in one cloud of 12 small 'filter' chips under the quote button". Now two
- * groups, each with its own heading, and every link that was there before is still there.
+ * groups, each with its own heading, and every link that was there before is still there. A third,
+ * "Answers" (the guide's FAQ topic, all the questions, the glossary), joined on 2026-10-07.
  */
-describe('the end of a guide: two labelled groups, every link kept (polish X22)', () => {
+describe('the end of a guide: three labelled groups, every link kept (polish X22, Task 3.4)', () => {
   const familyPaths = FAMILIES.flatMap((family) => familyPageFor(family)?.path ?? [])
 
   /** The `<nav>` named "More to read", its group headings, and each group's link targets. */
@@ -164,7 +166,7 @@ describe('the end of a guide: two labelled groups, every link kept (polish X22)'
     const problems: string[] = []
     if (end.chips) problems.push('still drawn as filter chips')
     const titles = end.groups.map((group) => group.title)
-    if (titles.join(' | ') !== 'Buyer guides | What we make') {
+    if (titles.join(' | ') !== 'Buyer guides | What we make | Answers') {
       problems.push(`groups "${titles.join(' | ')}"`)
     }
     const guides = [
@@ -177,8 +179,14 @@ describe('the end of a guide: two labelled groups, every link kept (polish X22)'
     if (end.groups[1]?.hrefs.join(' ') !== familyPaths.join(' ')) {
       problems.push(`the families group links ${end.groups[1]?.hrefs.join(' ')}`)
     }
-    if (end.all !== guides.length + familyPaths.length) {
-      problems.push(`${end.all} links where ${guides.length + familyPaths.length} were`)
+    const answers = [faqTopicForGuide(guide.path) ?? '(no topic)', '/faq', '/glossary']
+    if (end.groups[2]?.hrefs.join(' ') !== answers.join(' ')) {
+      problems.push(`the answers group links ${end.groups[2]?.hrefs.join(' ')}`)
+    }
+    if (end.all !== guides.length + familyPaths.length + answers.length) {
+      problems.push(
+        `${end.all} links where ${guides.length + familyPaths.length + answers.length} were`,
+      )
     }
     return problems
   }

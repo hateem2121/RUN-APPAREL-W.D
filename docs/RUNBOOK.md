@@ -2273,13 +2273,37 @@ share card per page is drawn by `apps/cms/scripts/gen-share-images.mjs` from
 `tools/asset-pipeline/node_modules/.bin/tsx apps/cms/scripts/gen-share-images.mjs --force`
 and LOOK at the result. After any routing or header change:
 `npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`, then
-`test:routes` and `test:built-config`. The careers "How to apply" email is read from
-`SiteSettings` at render time — never type an address into `companyPages.ts`
-(`companyPages.test.ts` refuses one). The footer's "Company" group lives in
+`test:routes` and `test:built-config`. The careers "How to apply" line names the
+applications inbox, `APPLICATIONS_TO` in `apps/cms/src/lib/application.ts` (since Phase 2,
+next section) — never type an address into `companyPages.ts` (`companyPages.test.ts`
+refuses one). The footer's "Company" group lives in
 `packages/shared/src/siteFooter.ts` (`SITE_FOOTER_COMPANY`, live links only) and must be
 drawn in BOTH `apps/cms/src/components/site/SiteFooter.tsx` and
 `apps/viewer/src/components/Footer.tsx` in the same change, or both aria-snapshot suites
-fail.
+fail. The "Learn" group (Guides, FAQ, Glossary, Journal) is `SITE_FOOTER_LEARN` in the same
+file; "Company" also carries Case studies and Press.
+
+**The FAQ, the glossary and the press page.** The answers are in `apps/cms/src/lib/faqs.ts`
+(five topics; "Working with us" since 2026-10-07), the terms in `apps/cms/src/lib/glossary.ts`,
+and the press page's facts and downloads in `apps/cms/src/lib/press.ts`, with its headings in
+`PRESS_PAGE` (`companyPages.ts`). The owner approved every word on 2026-10-07. Two tests refuse
+words nobody approved: `faqs.test.ts` lets an answer carry only a number the site already
+states (`FACTS`, `LEAD_TIME`, the guides) or one of `OWNER_FIGURES` (the owner's own answers),
+and `glossary.test.ts` holds each term to `APPROVED_AS_WRITTEN`. The press page offers every
+photo in `apps/cms/src/lib/factoryPhotos.ts` for download, on the owner's word that the people
+in them agreed to press use, so a new photo showing a person needs that consent before it is
+added there. Journalists write to media@wear-run.com (`MEDIA_EMAIL`, an alias on the owner's
+mailbox); the page's "News" band appears only once a Journal post in the "Company news" topic
+is published.
+
+**The privacy page's "When we write to you first" (`/privacy#outreach`).** It describes the
+owner's own emails to businesses that have not written first: the sources, the services that
+handle the addresses, two years' keep and the do-not-contact list. Every sentence is the
+owner's (DECISIONS-BETA-WEBSITE, D33). Data requests go to privacy@wear-run.com
+(`PRIVACY_EMAIL` in `apps/cms/src/app/(frontend)/privacy/page.tsx`); `partner@` stays the
+buyers' address everywhere else. The section names each service, so changing a service means
+changing these words, with the owner's approval; `apps/cms/e2e/privacy.spec.ts` holds its place, its anchor and the right-to-object
+paragraph word for word.
 
 🟡 **A footer picture taken locally must show the real footer.** On 2026-10-07 the owner approved
 a picture of the new group that had no Capacity, Standards or Elsewhere blocks: `next start`
@@ -2291,6 +2315,84 @@ does), write the owner's facts into the LOCAL settings from `FOOTER_FACTS` in
 `scripts/apply-footer-facts.mjs` (the same values the live site has), and start `next start`
 with `PAYLOAD_LOCAL_D1=1`. The CMS browser suite needs the seed too: without it,
 `apps/cms/e2e/footer.spec.ts` gets a 404 for `/api/public/viewer/n001/wine`.
+
+### Job applications from the careers form (since 2026-10-07)
+
+The form under "How to apply" on `/careers` posts to
+`apps/cms/src/app/(frontend)/careers/submit/route.ts`, which works like the contact form's
+route: the honeypot is thanked and dropped, the words are checked
+(`apps/cms/src/lib/application.ts`), the CV is checked by its bytes against
+`APPLICATION_FILE_KINDS` (`apps/cms/src/lib/applicationFileTypes.ts`: PDF, Word, JPG or PNG,
+up to 10 MB, one file), and the per-address limit has its own counters
+(`apps/cms/src/lib/applicationRate.ts`). Then it **stores first and emails second**: the
+application is a row in **Content → Job applications** and the CV a row in **Application
+files**, kept in the private inquiry bucket under the `careers` prefix with no public address
+— only a signed-in person can download one. Only then does Resend send the notification to
+`APPLICATIONS_TO` (`hr@wear-run.com`, fixed in code by the owner's choice; changing it is a
+code change and a deploy). A failed email is written on the row (`notified`, `notifyError`)
+and never loses the application. The page's address carries codes only (`sent=1`,
+`error=…`), never a typed value.
+
+**Deleting old applications — the owner, once a month.** The privacy notice promises 12
+months (`/privacy#job-applications`). Each row's **Delete after** date is set once, when it
+arrives, and a later status change never moves it (`setDeleteAfter` in
+`apps/cms/src/collections/JobApplications.ts`). Once a month, open Job applications, sort by
+Delete after, select every row whose date has passed, and delete them: the CV is deleted with
+its application. Only an admin can delete. **Claude never deletes an application**; it may
+list the overdue ones for the owner to click.
+
+The tables come from a hand-written migration,
+`apps/cms/src/migrations/20261007_140000_job_applications.ts`: `migrate:create` stops at an
+interactive prompt (the last JSON snapshot is from 2026-07-29), so its columns were copied
+from `payload generate:db-schema`, and `apps/cms/src/migrationReplay/replay.test.ts` replays
+it up and down. Its `down` rebuilds `payload_locked_documents_rels` first, as every migration
+here does.
+
+**After the deploy that ships it:** the owner sends one test application and confirms it
+reaches hr@wear-run.com, then deletes that test row.
+
+### The Journal and case studies (since 2026-10-07)
+
+Unlike every other page on the site, these are written in the CMS: **Website → Journal
+posts**, **Case studies** and **Authors** (`apps/cms/src/collections/JournalPosts.ts`,
+`CaseStudies.ts`, `Authors.ts`). The hub words, the five topics and the "Read more" choices
+are code (`apps/cms/src/lib/journal.ts`, `apps/cms/src/lib/caseStudies.ts`).
+
+**Writing and publishing a post — the owner or an editor.** Open Journal posts → Create new.
+Fill the title, the address (`slug`: lowercase words joined by hyphens), the description, the
+topic, the hero picture, the share picture (at least 1200 × 630; a smaller one is refused) and
+the body, and choose at least one buyer guide and one "What we make" page under Read more.
+Leave Author empty to show RUN APPAREL; name a person only after their signed consent form is
+on file (Authors refuses to save without the tick). If AI helped draft it, tick "Drafted with
+AI help" and name who checked it. **Save draft** as often as needed: a draft is never shown,
+its address answers 404 to anyone signed out. **Publish** puts it live within about a minute.
+Once published, its address can never change (`lockPublishedSlug` in
+`apps/cms/src/lib/journalHooks.ts`), because shared links would break. Case studies work the
+same way; the client's name or words are shown only with the "client agreed" tick, and the
+CMS refuses to save a shown name or a quote without it.
+
+**What shows from the start, and what switches on by itself.** The owner chose to show both
+hubs straight away (2026-10-07): with nothing published, `/journal` and `/case-studies` answer
+200 with their hub words, are indexable, and are listed in the sitemap and `/llms.txt`
+(`sitemapFor` in `apps/cms/src/lib/searchVisibility.ts`, `buildLlmsTxt` in
+`apps/cms/src/lib/llmsTxt.ts`, a static file). Each published entry adds its own page to the
+sitemap, and the Journal's feed link appears with the first post. A publish from the live admin
+also tells IndexNow the page and its hub (`pingIndexNowWhenPublished`); a save from a local
+server never does.
+
+**Drafts stay private in two places.** The collections' `read` lets an anonymous REST reader
+see published rows only, and the site's own readers (`apps/cms/src/lib/journalPublic.ts`,
+`caseStudyPublic.ts`) ask for published rows and refuse anything else, because Payload's local
+API skips access control. `apps/cms/e2e/journal.spec.ts` writes a published and a draft post
+and checks both.
+
+**Deleting a picture a post uses.** `scripts/find-orphan-media.mjs` counts the pictures these
+collections use (`CONTENT_REFERENCES`, `CONTENT_RICH_TEXT`), drafts included, so it never lists
+one as unused. The Media library's own delete guard still checks published garments only:
+delete a post's picture from the post, not from Media.
+
+The tables come from `apps/cms/src/migrations/20261007_160000_journal_case_studies.ts`,
+hand-written from `payload generate:db-schema` like the job applications' migration.
 
 ### Why only crawlers get the rewrite
 

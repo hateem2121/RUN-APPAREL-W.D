@@ -189,6 +189,12 @@ With the live footer's five blocks the band was already at that 24px minimum at 
 before X23 (measured on wear-run.com: the slab 996–1,120px tall, past one screen), and with the
 same values drawn into this build it is 24–59px, in a slab of 900–970px.
 
+**Amended 2026-10-07 (D34):** the Company group reached five links with Press, and every footer
+link is a 44px row, so the band lost 44px at every width: 170, 164 and 82px at 768, 1024 and
+1440px with the test database. The floor in `e2e/footer.spec.ts` is now 48px, which still fails a
+band removed or squeezed to its 24px minimum, and fails again if one more link joins the tallest
+group.
+
 ### D8 · The marketing site gets the viewer's entrance animations — `FA-H-11`
 
 **Decision: add matching fade-ins, using the existing motion tokens.**
@@ -792,8 +798,8 @@ in the CMS; pages that state the company's commitments change rarely and are rev
 - **The anti-harassment policy is held back on purpose**, until the complaints committee it
   describes exists (owner, 7 Oct 2026). It is absent from the hub, the sitemap and the footer, not
   a page saying "coming soon".
-- **The careers page never types an email address.** It reads the address from the CMS site
-  settings when it draws, so one change in the CMS moves every page.
+- **The careers page's words never type an email address.** Its "Write to us at" line names
+  the applications inbox from one constant in code since Phase 2 (D32).
 - **The company's structured data names its parent company** (`parentOrganization`), and still
   carries no `Product` schema (`apps/cms/src/lib/structuredData.ts` says why).
 - **No new header-menu items**; the header stays as the owner approved it. The footer carries the
@@ -814,17 +820,88 @@ screen and Elsewhere (LinkedIn, Instagram) starts its own row on a phone, where 
 Company share a row. The owner chose that layout over squeezing six columns into one row.
 
 - **Live links only.** Press joins the group, and a "Learn" group arrives, only when those pages
-  exist (later phases), so the footer never links to a missing page.
+  exist (later phases), so the footer never links to a missing page. Done 7 Oct 2026 (D34).
 - **Not on paper.** Printed, the group's three lines pushed the fullest garment onto a second A4
   sheet, so the owner chose to leave it off paper (7 Oct 2026) and keep polish F14's one-sheet
   garment page. That print-only rule in `packages/ui/src/footer.css` is the group's only new style:
   the garment pages' stylesheets grew 9 bytes gzipped (13,777 to 13,786, measured 7 Oct 2026),
-  within budget.
+  within the bundle budget. Lighthouse's budget reads the TRANSFER size instead (headers
+  included, uncompressed CSS): CI measured 62,613 B against 62,610, +23 B raw, so the owner chose
+  to raise it by exactly that (62,610 to 62,633; `lighthouserc.json` has the dated entry, PR #141).
 - **The standards logos stay exactly as they are.**
 
 **Guard:** both footers are held to `siteFooterAriaSnapshot` (`packages/shared/src/siteFooter.ts`);
 `apps/viewer/e2e/siteFooter.spec.ts` holds the phone layout with the real footer facts, and
 `apps/viewer/e2e/print.spec.ts` the one printed sheet.
+
+### D32 · Job applications go to hr@wear-run.com, fixed in code, and are kept 12 months
+
+**Decision: the careers page carries an application form. Applications go to
+hr@wear-run.com, an address fixed in code rather than a CMS setting, and the page's "Write to
+us at" line names the same inbox. The owner chose both on 7 Oct 2026.** The fields (name, phone
+and role required; email, years, a note and one CV optional), the "Send application" button,
+the 12-month keep and the privacy notice's "Job applications" section were approved on the same
+day, word for word.
+
+- **One constant, two uses.** The form's recipient and the page's line both read
+  `APPLICATIONS_TO` (`apps/cms/src/lib/application.ts`), so they can never disagree. Changing
+  the inbox is a code change and a deploy, which the owner preferred to a setting someone
+  could change by mistake.
+- **Built like the contact form, kept apart from it.** Stored first and emailed second; a
+  private bucket prefix for CVs (`careers`) with no public address; its own rate counters, so
+  a burst of applications cannot block buyers' inquiries.
+- **Twelve months, then the owner deletes.** The "Delete after" date is set once when an
+  application arrives. No robot deletes applications; the owner does it monthly from the
+  admin (RUNBOOK, "Job applications from the careers form").
+- **No job listings and no `JobPosting` data**, as the plan for these pages set: the page
+  takes applications; it does not advertise vacancies.
+
+**Guard:** `apps/cms/e2e/careersForm.spec.ts` sends applications with and without a CV in
+three browsers, refuses a renamed program, and checks that a stranger gets 403 for the
+applications and their CVs; `apps/cms/e2e/privacyClaims.spec.ts` holds the notice's words.
+
+### D33 · The privacy notice tells the people we email first, and claims nothing unconfirmed
+
+**Decision: `/privacy` gains "When we write to you first" (`#outreach`), after "When you contact
+us", in the owner's words, approved from a preview on 7 Oct 2026. Data requests go to
+privacy@wear-run.com; partner@ stays the buyers' address.**
+
+- **The right to object stands alone**, in its own paragraph and box, as the ICO's "What
+  privacy information should we provide?" asks ("clearly and separately"; read 7 Oct 2026).
+- **No safeguard is named for the transfers outside the UK and EU.** The same ICO page asks for
+  one, or for a statement that there is none; the owner was told and chose to say nothing beyond
+  the approved sentence, as no safeguard, certificate or contract is confirmed in writing.
+- **No "no tracking" line.** The owner could not confirm that open and click tracking is off,
+  so the sentence was left out, and on 7 Oct 2026 chose not to check it further.
+- The box is a hairline on all four sides: `vibecodedRules.test.ts` (VC-07) refuses a thick
+  coloured stripe down one side.
+
+**Guard:** `apps/cms/e2e/privacy.spec.ts` checks the section's place inside the notice, its
+"On this page" link and jump, the objection paragraph word for word, and the privacy@ link
+under "Your rights".
+
+### D34 · The Learn pages, the hubs and the press page
+
+**Decision: the FAQ (with "Working with us"), the glossary, the Journal, case studies and a
+press page ship together, every word approved by the owner on 7 Oct 2026.** Amends D31's "later
+phases" bullet: Learn (Guides, FAQ, Glossary, Journal) and Company (Careers, Community,
+Policies, Case studies, Press) are now complete.
+
+- **Both hubs show from day one.** `/journal` and `/case-studies` are indexable and listed in the
+  sitemap and `/llms.txt` before anything is published (the owner's choice); an empty Journal
+  shows its five topics, and nothing reads "coming soon" (`JournalIndex.tsx`).
+- **The FAQ quotes the owner, not an estimate.** Numbers in an answer come from the site's facts
+  or `OWNER_FIGURES` (`apps/cms/src/lib/faqs.ts`); the under-50 answer stands beside the
+  50-piece minimum, as the owner wrote it.
+- **The press page names no founding year and no person.** The family year is read from the
+  lineage line; every factory photo may be downloaded with the credit "RUN APPAREL", because the
+  owner confirmed the people in them agreed to press use; journalists write to media@.
+- **Every footer group link is 44px wide as well as tall**, as the legal links are: "FAQ" was
+  21.6px. The garment pages' stylesheet grew 28 bytes, and the owner chose to raise its Lighthouse
+  limit by exactly that (62,633 to 62,661; `lighthouserc.json` has the dated entry).
+
+**Guard:** `faqs.test.ts`, `glossary.test.ts`, `press.test.ts` and `companyPages.test.ts`;
+`apps/cms/e2e/pages.spec.ts` and `legibility.spec.ts` load every page.
 
 ## Closed since
 

@@ -1,16 +1,16 @@
-import { LINEAGE } from './companyFacts'
+import { CERTIFICATION_LINES, LINEAGE } from './companyFacts'
 import type { GuideBlock } from './guides'
 
 /**
  * The company pages (PLAN.md D3/D4): careers and community.
  *
- * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-10-07 (drafts in
- * `~/Sites/Model-Viewer-main/.superpowers/page-creation-2026-10-06/drafts/`, answers in
- * `OWNER-FACTS.md`). Nothing here may state a fact that answer sheet does not carry.
+ * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-10-07, page by page, from drafts built on the
+ * owner's own answers (docs/DECISIONS-BETA-WEBSITE.md D30). Nothing here may state a fact the
+ * owner has not given.
  *
  * ⚠️ THE BENEFITS ARE ONE LIST, shared by both pages, so they cannot disagree (PLAN.md D4).
- * The "How to apply" email is read from `SiteSettings` at render time and is NEVER typed
- * here — `companyPages.test.ts` refuses an `@` in this file's source. The photos are the
+ * The "How to apply" email is the applications inbox, `APPLICATIONS_TO` in `application.ts`
+ * (owner, 2026-10-07, D32), and is NEVER typed here — `companyPages.test.ts` refuses an `@` in this file's source. The photos are the
  * owner's factory photos, used only where the section's own words name what they show
  * (`guides.test.ts`'s rule): only the floor and the building exist (C-8, 2026-10-07).
  */
@@ -55,9 +55,49 @@ export const WORK_HERE: readonly string[] = [
   'Training and promotion from within',
 ]
 
+/*
+ * ⚠️ THE CAREERS PAGE IS DRAWN BY ITS OWN LAYOUT SINCE 2026-10-07 (`CareersPage.tsx`): the
+ * owner turned down the guides' heading-left, list-right sections for it ("too much empty space
+ * on left", "looks AI generated"). The lists below give that layout its structure. Every word in
+ * them is already in the approved sections, and `companyPages.test.ts` holds each one to them.
+ */
+
+/** The real example under "Training and promotion", one step per role, drawn as a path. */
+export const CAREER_PATH = ['Helper', 'Stitcher', 'Line supervisor'] as const
+
+/**
+ * The roles, split the way "How to apply" already splits them: floor roles need no CV, office
+ * roles include one. The section's list is built from these, so the two cannot disagree.
+ */
+export const ROLE_GROUPS = [
+  {
+    name: 'Floor roles',
+    roles: ['Stitchers and machinists', 'Cutters and printers', 'Quality checkers'],
+  },
+  {
+    name: 'Office roles',
+    roles: ['Merchandisers and coordinators', 'Pattern makers and designers', 'Administrators'],
+  },
+] as const
+
+/**
+ * The careers photos (C-8: floor and building photos only). The hero shows printing, a maker at
+ * work; "Life at RUN APPAREL" shows the sewing, checking and packing its sentence names.
+ */
+export const CAREERS_HERO_PHOTO = 'screen-printing'
+export const CAREERS_LIFE_PHOTOS = ['stitching', 'inspection', 'packing'] as const
+
+/**
+ * The community photos (C-8: floor and building photos only), for its own layout since
+ * 2026-10-07 (`CommunityPage.tsx`, the careers page's reasons): the hero shows the building the
+ * lede names; "The works, in pictures" the building from above and the floor its sentence names.
+ */
+export const COMMUNITY_HERO_PHOTO = 'exterior'
+export const COMMUNITY_WORKS_PHOTOS = ['solar-roof', 'stitching'] as const
+
 export const CAREERS_PAGE: CompanyPage = {
   path: '/careers',
-  title: 'Careers at RUN APPAREL',
+  title: 'Careers',
   description:
     'Join a family of makers in Sialkot. A written contract, paid emergency leave, a festival bonus, medical coverage, transport, and training from within.',
   eyebrow: '[ Careers ]',
@@ -90,14 +130,7 @@ export const CAREERS_PAGE: CompanyPage = {
       blocks: [
         {
           kind: 'list',
-          items: [
-            'Stitchers and machinists',
-            'Cutters and printers',
-            'Quality checkers',
-            'Merchandisers and coordinators',
-            'Pattern makers and designers',
-            'Administrators',
-          ],
+          items: ROLE_GROUPS.flatMap((group) => group.roles),
         },
         {
           kind: 'text',
@@ -206,5 +239,53 @@ export const COMMUNITY_PAGE: CompanyPage = {
   ],
 }
 
-/** Every company address, hub-free and in wiring order (Phase 5 adds `/press`). */
-export const COMPANY_PATHS: readonly string[] = [CAREERS_PAGE.path, COMMUNITY_PAGE.path]
+/**
+ * The press page (PLAN.md D8; words approved by the owner 2026-10-07). Its email address, photo
+ * list and fact rows are in `press.ts`; the first "About" sentence names the legal name from Site
+ * Settings at render time (`PressPage.tsx`), so it is not typed here.
+ */
+export const PRESS_PAGE: CompanyPage = {
+  path: '/press',
+  title: 'Press',
+  description: 'Facts, photos and a contact for anyone writing about RUN APPAREL.',
+  eyebrow: '[ Press ]',
+  heading: 'For journalists, researchers,',
+  headingAccent: 'and the curious.',
+  lede: 'Facts, photos and a contact for anyone writing about RUN APPAREL.',
+  sections: [
+    {
+      id: 'about',
+      heading: 'About RUN APPAREL',
+      blocks: [
+        { kind: 'text', text: LINEAGE },
+        {
+          kind: 'text',
+          text: 'It makes team wear, active wear, casual wear, outerwear and sports accessories to order, inside the building of its parent company, DURUS INDUSTRIES: cutting, printing, stitching, checking and packing under one roof.',
+        },
+        { kind: 'list', items: CERTIFICATION_LINES },
+      ],
+    },
+    { id: 'quick-facts', heading: 'Quick facts', blocks: [] },
+    { id: 'photos', heading: 'Factory photos', blocks: [] },
+    { id: 'news', heading: 'News', blocks: [] },
+    {
+      id: 'media-contact',
+      heading: 'Media contact',
+      blocks: [{ kind: 'text', text: 'We reply within 24 hours.' }],
+    },
+  ],
+  links: [
+    { href: '/community', name: 'Community' },
+    { href: '/careers', name: 'Careers' },
+    { href: '/policies', name: 'Policies' },
+    { href: '/journal', name: 'Journal' },
+    { href: '/products', name: 'Products' },
+  ],
+}
+
+/** Every company address, hub-free and in wiring order. */
+export const COMPANY_PATHS: readonly string[] = [
+  CAREERS_PAGE.path,
+  COMMUNITY_PAGE.path,
+  PRESS_PAGE.path,
+]

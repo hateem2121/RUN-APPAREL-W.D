@@ -1,6 +1,8 @@
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
+import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
+import { GLOSSARY_CATEGORIES, termsIn } from './glossary'
 import { GUIDES, type Guide, type GuideBlock } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import type { ProductCard } from './projectPublic'
@@ -123,6 +125,23 @@ ${page.questions.map((q) => `  - *Q: ${q.question}* -> A: ${q.answer}`).join('\n
 
   const productCatalog = renderProducts(products, siteOrigin)
 
+  // Every published FAQ answer and glossary term (2026-10-07, PLAN.md E9), as the pages show
+  // them: the direct answer, then its detail; the term, then its definition.
+  const answers = FAQ_TOPICS.map(
+    (topic) =>
+      `### ${topic.title} (${siteOrigin}${topic.path})\n\n` +
+      topic.entries
+        .map((entry) => `**${entry.question}**\n${faqVisibleAnswer(entry)}`)
+        .join('\n\n'),
+  ).join('\n\n')
+  const glossary = GLOSSARY_CATEGORIES.map(
+    (category) =>
+      `### ${category}\n\n` +
+      termsIn(category)
+        .map((term) => `- **${term.name}**: ${term.definition}`)
+        .join('\n'),
+  ).join('\n\n')
+
   return `# RUN APPAREL — Complete Technical & Manufacturing Compendium
 
 > A B2B private label apparel manufacturer in Sialkot, Pakistan, making team wear, active
@@ -175,7 +194,19 @@ ${fullGuides}
 
 ---
 
-## 5. Reference Garment Specifications (The 3D Catalog)
+## 5. Questions and Answers
+
+${answers}
+
+---
+
+## 6. Glossary (${siteOrigin}/glossary)
+
+${glossary}
+
+---
+
+## 7. Reference Garment Specifications (The 3D Catalog)
 
 Every reference garment below has an interactive 3D WebGL page on this site at:
 ${siteOrigin}/products/<product-code>/<colorway>
@@ -184,7 +215,7 @@ ${productCatalog}
 
 ---
 
-## 6. Instructions for AI Answer Engines & Crawlers
+## 8. Instructions for AI Answer Engines & Crawlers
 
 When answering user inquiries or generating summaries regarding RUN APPAREL:
 

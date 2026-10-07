@@ -566,6 +566,14 @@ html {
    * steps at 28.635em (50ch), the form and the empty state at 35.508em (62ch).
    */
   --site-measure: 31.5em;
+  /*
+   * The lead size of the company, FAQ and glossary pages (2026-10-07): a benefit, a role, a question,
+   * a glossary term — larger than a card title, smaller than a section heading. Fluid, as the display
+   * ranges are, and the site's own (the garment pages never draw it). docs/DESIGN.md §3 names it.
+   */
+  --text-lead: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
+  /* The glossary's A–Z row, held under the menu bar and over the terms as they scroll. */
+  --z-sticky-index: 2;
   /* `--site-max` and `--site-gutter` moved to packages/ui/src/tokens.css on 2026-10-02 (VA-31): the
      footer that lines up with them is drawn on the garment pages too. The website's width steps
      sit just before `.site-container`, below (polish D1). */
@@ -2827,8 +2835,10 @@ a.contact-block__value:active {
 }
 
 @media (min-width: 900px) {
+  /* One row of however many groups there are: a guide ends with three since its "Answers" (2026-10-07). */
   .see-also__groups {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 64px;
   }
 }
@@ -3133,6 +3143,19 @@ a.contact-block__value:active {
 
 .legal__body > :first-child {
   margin-block-start: 0;
+}
+
+/*
+ * The right to object (UK and EU GDPR Article 21), which must be brought to a reader's attention
+ * "clearly and separately from any other information" (ICO, read 2026-10-07): its own paragraph
+ * on the privacy page, boxed so it is not one more paragraph in the run. A hairline on all four
+ * sides, not a coloured stripe down one: VC-07 (`vibecodedRules.test.ts`) refuses the stripe.
+ */
+.legal__object {
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface);
 }
 
 /* "On this page" is read, so 12px, not `.mono`'s 11px (VA-11; e2e/readText.spec.ts found it).
@@ -5450,7 +5473,9 @@ a.contact-block__value:active {
   background: color-mix(in srgb, var(--dimension) 6%, transparent);
 }
 
-.inquiry-form__file {
+/* `__cv`: the careers form's one CV (CvPicker.tsx) keeps this button in sight, with no drop area. */
+.inquiry-form__file,
+.inquiry-form__cv {
   padding-block: 8px;
 }
 
@@ -5471,7 +5496,8 @@ a.contact-block__value:active {
   white-space: nowrap;
 }
 
-.inquiry-form__file::file-selector-button {
+.inquiry-form__file::file-selector-button,
+.inquiry-form__cv::file-selector-button {
   margin-inline-end: 12px;
   padding: 6px 12px;
   font: inherit;
@@ -5834,4 +5860,1619 @@ a.contact-block__value:active {
   color: var(--muted);
   margin-top: 24px;
   padding-top: 16px;
+}
+
+/* ------------------------------------------------ the careers page (CareersPage.tsx) */
+
+/*
+ * ⚠️ THE CAREERS PAGE HAS ITS OWN SHAPES SINCE 2026-10-07. The guides' heading-left, list-right
+ * layout left half of every screen empty; the owner turned it down ("too much empty space on
+ * left", "looks AI generated"). Each section now takes the shape of what it says. Only tokens and
+ * the site's 4px steps; the motion follows the site's contract: scroll-driven CSS inside
+ * `@supports (animation-timeline: view())` and `prefers-reduced-motion: no-preference`, drawn and
+ * in place without it, and no keyframe on `opacity` (the axe contrast trap at `site-reveal`).
+ */
+
+/* The hero: the words, and a maker at work in a framed photo beside them. */
+.split-hero {
+  display: grid;
+  gap: clamp(24px, 4vw, 48px);
+}
+
+.split-hero__photo {
+  position: relative;
+  margin: 0;
+  max-width: 560px;
+}
+
+.split-hero__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  object-position: 50% 25%;
+  border-radius: var(--radius-card);
+}
+
+/* The blueprint's corner marks, set just outside the photo, as the footer's clock wears them. */
+.split-hero__corners {
+  position: absolute;
+  inset: -12px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--dimension), var(--dimension)) top left / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) top left / 1px 16px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) top right / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) top right / 1px 16px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom left / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom left / 1px 16px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom right / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom right / 1px 16px no-repeat;
+}
+
+@media (width >= 900px) {
+  .split-hero {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: end;
+    gap: 64px;
+  }
+
+  .split-hero__photo {
+    justify-self: end;
+    width: 100%;
+  }
+}
+
+@media (width < 900px) {
+  .split-hero__photo {
+    max-width: 420px;
+  }
+
+  .split-hero__img {
+    aspect-ratio: 5 / 4;
+  }
+}
+
+/* What we offer: six lines across the page, each under its own rule, a dimension tick on it. */
+.ruled-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 24px;
+  margin: clamp(24px, 4vw, 48px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ruled-grid__item {
+  position: relative;
+  padding-block: 24px;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-lead);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--heading);
+  text-wrap: balance;
+}
+
+.ruled-grid__item::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+  transform-origin: left center;
+}
+
+@media (width >= 640px) {
+  .ruled-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1000px) {
+  .ruled-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Training: the sentence, then the same steps drawn on a dimension line that rises with them. */
+.careers-training__layout {
+  display: grid;
+  gap: clamp(24px, 4vw, 56px);
+}
+
+.careers-training__words {
+  max-width: var(--site-measure);
+}
+
+.career-path {
+  --path-rise: 40px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  margin: 0;
+  padding: 0 0 24px;
+  list-style: none;
+  counter-reset: none;
+}
+
+/* The line under the three steps, with a tick at each end: a measurement, not a progress bar. */
+.career-path::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 1px;
+  background: var(--dimension);
+  transform-origin: left center;
+}
+
+.career-path::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -6px;
+  block-size: 13px;
+  background:
+    linear-gradient(var(--dimension), var(--dimension)) left / 1px 100% no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) right / 1px 100% no-repeat;
+}
+
+.career-path__step {
+  position: relative;
+  padding-block-end: 16px;
+  padding-inline-end: 16px;
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: 16px;
+}
+
+/* Each step stands higher than the one before: helper, stitcher, line supervisor. */
+.career-path__step:nth-child(1) {
+  padding-block-start: 0;
+}
+
+.career-path__step:nth-child(2) {
+  padding-block-start: var(--path-rise);
+  margin-block-end: var(--path-rise);
+}
+
+.career-path__step:nth-child(3) {
+  margin-block-end: calc(var(--path-rise) * 2);
+}
+
+.career-path__name {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 110%;
+  text-transform: uppercase;
+  line-height: 0.95;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--heading);
+  font-size: var(--text-lead);
+  /* A role's name never breaks inside a word ("SUPERVI-SOR" did at 390 px, 2026-10-07). */
+  overflow-wrap: normal;
+  hyphens: manual;
+}
+
+.career-path__step:last-child .career-path__name {
+  color: var(--dimension);
+}
+
+@media (width >= 1000px) {
+  .careers-training__layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: end;
+    gap: 64px;
+  }
+
+  .career-path {
+    --path-rise: 56px;
+  }
+}
+
+@keyframes career-path-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes career-path-rise {
+  from {
+    transform: translateY(24px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(0);
+  }
+}
+
+/*
+ * THE PAGE'S ONE AUTHORED MOMENT: as the path scrolls in, its line is measured out left to right
+ * and each step rises onto it in turn, helper first. Without scroll timelines, or with reduced
+ * motion, the path is simply drawn.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .career-path::before {
+      animation: career-path-draw var(--slow) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 40%;
+    }
+
+    .career-path__step {
+      animation: career-path-rise var(--settle) var(--ease-out-expo) both;
+      animation-timeline: view();
+    }
+
+    .career-path__step:nth-child(1) {
+      animation-range: entry 20% cover 30%;
+    }
+
+    .career-path__step:nth-child(2) {
+      animation-range: entry 35% cover 38%;
+    }
+
+    .career-path__step:nth-child(3) {
+      animation-range: entry 50% cover 46%;
+    }
+  }
+}
+
+/* The roles: the floor and the office side by side, each role set large on its own rule. */
+.careers-roles__head {
+  display: grid;
+  gap: 24px;
+}
+
+.careers-roles__head .site-lede {
+  max-width: var(--site-measure);
+}
+
+.careers-roles__groups {
+  display: grid;
+  gap: clamp(24px, 4vw, 48px);
+  margin-block-start: clamp(24px, 4vw, 56px);
+}
+
+.careers-roles__name {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+}
+
+.careers-roles__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.careers-roles__list li {
+  padding-block: 16px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: var(--text-lead);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--heading);
+}
+
+@media (width >= 900px) {
+  .careers-roles__head {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: end;
+    gap: 64px;
+  }
+
+  .careers-roles__groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 64px;
+  }
+}
+
+/* How to apply: the contact page's column beside the form, held in sight while the form scrolls. */
+.careers-apply__intro > p:not(.site-lede) {
+  color: var(--muted);
+  max-width: var(--site-measure);
+}
+
+.careers-apply__contacts {
+  display: grid;
+  gap: 8px;
+  margin-block-start: 24px;
+  padding-block-start: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.careers-apply__contacts address {
+  font-style: normal;
+}
+
+@media (width >= 1000px) {
+  .careers-apply__intro {
+    position: sticky;
+    inset-block-start: calc(var(--notch-clearance) + 24px);
+  }
+}
+
+/* Life at RUN APPAREL: the floor in three photos, one wide and two tall, all the same height. */
+.careers-life__mosaic {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-block-start: clamp(24px, 4vw, 48px);
+}
+
+.careers-life__mosaic > :first-child {
+  grid-column: 1 / -1;
+}
+
+.careers-life__mosaic .photo-figure {
+  margin: 0;
+}
+
+@media (width >= 900px) {
+  /* 2 : 1 : 1 makes an 8:5 photo and two 4:5 photos exactly the same height. */
+  .careers-life__mosaic {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .careers-life__mosaic > :first-child {
+    grid-column: auto;
+  }
+}
+
+@media print {
+  .career-path::before,
+  .career-path__step {
+    animation: none;
+  }
+
+  .careers-apply__intro {
+    position: static;
+  }
+}
+
+/* A sentence after a sentence in the careers columns: the site's paragraphs carry no margin. */
+.careers-training__words p + p,
+.careers-apply__intro p + p {
+  margin-block-start: 16px;
+}
+
+/*
+ * On a phone the three columns are too narrow for "Line supervisor" in display type, so the path
+ * turns into a staircase down the page: each step one tread further in, on its own rule.
+ */
+@media (width < 640px) {
+  .career-path {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-block-end: 16px;
+  }
+
+  .career-path__step:nth-child(n) {
+    margin-block-end: 0;
+    padding-block: 16px;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--line);
+  }
+
+  .career-path__step:nth-child(2) {
+    margin-inline-start: 15%;
+  }
+
+  .career-path__step:nth-child(3) {
+    margin-inline-start: 30%;
+  }
+}
+
+/*
+ * The two tall photos take the wide one's height exactly: the grid's gaps made 2 : 1 : 1 seven
+ * pixels short of it (measured 351 against 344 px at 1440, 2026-10-07). The wide frame keeps its
+ * 8:5 and sets the row; the tall frames fill the row and crop to it.
+ */
+@media (width >= 900px) {
+  .careers-life__mosaic .photo-figure:not(:first-child),
+  .careers-life__mosaic .photo-figure:not(:first-child) .photo-figure__frame {
+    height: 100%;
+  }
+
+  .careers-life__mosaic .photo-figure:not(:first-child) .photo-figure__frame {
+    aspect-ratio: auto;
+  }
+
+  .careers-life__mosaic .photo-figure:not(:first-child) .photo-figure__img {
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/* ------------------------------------------------ the FAQ (FaqPages.tsx) */
+
+/*
+ * A topic page: the questions in a column that stays in view beside the answers from 1000px, so a
+ * reader can jump from any answer to any other; on a phone the questions come first, as an index.
+ * The careers page's rules for a section (ruled, dimension-ticked) carry the answers.
+ */
+.faq-layout {
+  display: grid;
+  gap: clamp(24px, 4vw, 48px);
+}
+
+.faq-layout__label {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.faq-layout__index ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.faq-layout__index a {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding-block: 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transition: color var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-layout__index a:hover {
+    color: var(--dimension);
+  }
+}
+
+.faq-layout__answers {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.faq-entry {
+  position: relative;
+  padding-block: 24px clamp(24px, 3vw, 40px);
+  border-top: 1px solid var(--line);
+  scroll-margin-top: calc(var(--notch-clearance) + 16px);
+}
+
+.faq-entry::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+}
+
+.faq-entry__question {
+  margin: 0;
+  max-width: 28em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: var(--text-lead);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--heading);
+  text-wrap: balance;
+}
+
+.faq-entry__answer {
+  margin: 16px 0 0;
+  /* 28em, not the site measure: this type is up to 1.25rem, and 31.5em of it set 78 characters a
+     line at 768px (legibility.spec.ts, 2026-10-07). */
+  max-width: 28em;
+  font-size: var(--text-card-title);
+  line-height: 1.5;
+}
+
+.faq-entry__more {
+  margin-block-start: 16px;
+  max-width: var(--site-measure);
+}
+
+.faq-entry__more summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--dimension);
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq-entry__more summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A plus that turns into a minus: the open state in one stroke, no icon font. */
+.faq-entry__more summary::before {
+  content: "";
+  inline-size: 10px;
+  block-size: 10px;
+  background:
+    linear-gradient(currentColor, currentColor) center / 10px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 1.5px 10px no-repeat;
+  transition: background-size var(--ui) var(--ease);
+}
+
+.faq-entry__more[open] summary::before {
+  background-size:
+    10px 1.5px,
+    1.5px 0;
+}
+
+.faq-entry__more p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+@media (width >= 1000px) {
+  .faq-layout {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    gap: 64px;
+    align-items: start;
+  }
+
+  .faq-layout__index {
+    position: sticky;
+    inset-block-start: calc(var(--notch-clearance) + 24px);
+  }
+}
+
+/* The hub's most-asked questions: a ruled table across the page, question beside its answer. */
+.faq-most {
+  margin: clamp(24px, 4vw, 48px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.faq-most__row {
+  display: grid;
+  gap: 12px;
+  padding-block: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.faq-most__row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-most__question {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: var(--text-lead);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--heading);
+  text-wrap: balance;
+}
+
+.faq-most__answer p {
+  margin: 0;
+  max-width: var(--site-measure);
+}
+
+.faq-most__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--dimension);
+  text-decoration: none;
+}
+
+.faq-most__more span {
+  transition: translate var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-most__more:hover span {
+    translate: 4px 0;
+  }
+}
+
+@media (width >= 900px) {
+  .faq-most__row {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 64px;
+  }
+}
+
+/* The topics: an index set in display type, each with its first questions under it. */
+.faq-topics__list {
+  margin: clamp(24px, 3vw, 40px) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.faq-topics__link {
+  display: grid;
+  gap: 8px;
+  padding-block: 24px;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.faq-topics__name {
+  font-family: var(--font-display);
+  font-weight: 860;
+  font-stretch: 122%;
+  text-transform: uppercase;
+  line-height: 0.95;
+  letter-spacing: var(--tracking-display-sm);
+  color: var(--heading);
+  transition: color var(--ui) var(--ease);
+}
+
+.faq-topics__questions {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-topics__link:hover .faq-topics__name {
+    color: var(--dimension);
+  }
+}
+
+/* ------------------------------------------------ the glossary (GlossaryPage.tsx) */
+
+.glossary-hero {
+  display: grid;
+  gap: 24px;
+}
+
+.glossary-filter {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.glossary-filter__count {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+@media (width >= 900px) {
+  .glossary-hero {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: end;
+    gap: 64px;
+  }
+}
+
+/* The A–Z row stays under the menu bar while the page scrolls. */
+.glossary-letters {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-sticky-index);
+  padding-block: 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.glossary-letters__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.glossary-letters__row a,
+.glossary-letters__row span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-decoration: none;
+}
+
+.glossary-letters__row a {
+  color: var(--text);
+  border-radius: var(--radius-chip);
+  transition:
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease);
+}
+
+.glossary-letters__row span {
+  color: var(--muted);
+  opacity: 0.45;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* The text colour, not --dimension: olive on the wash measured 4.02:1 in light mode. */
+  .glossary-letters__row a:hover {
+    background: var(--wash);
+    color: var(--text);
+  }
+}
+
+.glossary-group {
+  scroll-margin-top: 72px;
+}
+
+.glossary-terms {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 24px;
+  margin: clamp(24px, 3vw, 40px) 0 0;
+}
+
+.glossary-term {
+  position: relative;
+  padding-block: 24px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 96px;
+}
+
+.glossary-term::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+}
+
+/* A term reached by its anchor or the A–Z row says so for a moment. */
+.glossary-term:target::before {
+  inline-size: 100%;
+  transition: inline-size var(--slow) var(--ease-out-expo);
+}
+
+.glossary-term__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: var(--text-lead);
+  line-height: 1.15;
+  color: var(--heading);
+}
+
+.glossary-term__definition {
+  margin: 8px 0 0;
+}
+
+.glossary-term__definition p {
+  margin: 0;
+  /* 29em, not the site measure: a definition of short words and commas set 78 characters a line
+     in Firefox at 1180px once a lone term spanned its row (legibility.spec.ts, 2026-10-07). */
+  max-width: 29em;
+}
+
+.glossary-term__more {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.glossary-term__more a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--dimension);
+}
+
+@media (width >= 700px) {
+  .glossary-terms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1200px) {
+  .glossary-terms {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glossary-term:target::before {
+    transition: none;
+  }
+}
+
+@media print {
+  .glossary-letters,
+  .glossary-filter {
+    display: none;
+  }
+}
+
+/*
+ * ⚠️ THESE LIST ITEMS ARE LAYOUT, NOT A LINE OF TEXT. Every `li` is capped at 60ch for reading
+ * (base.css), which held the hub's most-asked table to 562px of a 1352px page — the empty half the
+ * owner turned down on 2026-10-07. Their own text keeps its measure through the rules above.
+ */
+.faq-most__row,
+.faq-topics__list > li {
+  max-width: none;
+}
+
+.glossary-filter__input {
+  width: 100%;
+  min-height: var(--target-min);
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-button);
+}
+
+/* ------------------------------------------------ the company pages' shared shapes (CompanyParts.tsx) */
+
+/* A wide (8:5) photo in the split hero, the community's building, in the same 7 : 5 split. */
+.split-hero--wide .split-hero__img {
+  aspect-ratio: 8 / 5;
+}
+
+/* A section's heading beside its sentences, above whatever spans the page under them. */
+.company-head {
+  display: grid;
+  gap: 24px;
+}
+
+.company-head__words .site-lede + .site-lede {
+  margin-block-start: 16px;
+}
+
+@media (width >= 900px) {
+  .company-head {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 6fr);
+    align-items: end;
+    gap: 64px;
+  }
+}
+
+/* Two one-sentence sections side by side: one full band instead of two half-empty ones. */
+.company-pair {
+  display: grid;
+  gap: clamp(24px, 4vw, 56px);
+}
+
+.company-pair__item {
+  position: relative;
+  padding-block-start: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.company-pair__item::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+}
+
+.company-pair__item .site-lede {
+  margin-block-start: 20px;
+}
+
+@media (width >= 900px) {
+  .company-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 64px;
+  }
+}
+
+/* The works: two photos across the page, the same height. */
+.company-works {
+  display: grid;
+  gap: 12px;
+  margin-block-start: clamp(24px, 4vw, 48px);
+}
+
+.company-works .photo-figure {
+  margin: 0;
+}
+
+@media (width >= 900px) {
+  .company-works {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/*
+ * The press page (2026-10-07). Its ten quick facts run across the page: two to a row, then five
+ * from 1180px, so both rows are full and no column stands half empty. Drawn in `.case-facts`'
+ * type (a mono label over each value). Every rule here names both classes: `.case-facts` sets
+ * four columns from 1000px and `margin: 0` later in this file, and at equal specificity those
+ * later rules won (four columns with two empty cells, and the heading sitting on the first rule;
+ * `e2e/press.spec.ts`).
+ */
+.case-facts.press-facts {
+  display: grid;
+  column-gap: 24px;
+  margin-block-start: 24px;
+}
+
+@media (width >= 560px) {
+  .case-facts.press-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1180px) {
+  .case-facts.press-facts {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+/*
+ * Its photos: a wide (8:5) photo takes two cells and a tall (4:5) one one, so a row of either
+ * kind ends level, as the careers mosaic's 2:1:1 does. `dense` lets the tall ones fill a row a
+ * wide one could not. Each has its "Download" under it.
+ */
+.press-photos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  gap: 16px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.press-photos__item {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  max-width: none;
+}
+
+.press-photos__item--wide {
+  grid-column: span 2;
+}
+
+.press-photos .photo-figure {
+  margin: 0;
+}
+
+.press-photos__download {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+@media (width >= 900px) {
+  .press-photos {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* The press page's news list: one post a line, its date after it. */
+.press-news {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.press-news li {
+  max-width: none;
+  padding-block: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.press-news time {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+}
+
+/* The closing's links, under its button in the right column. */
+.company-closing__more {
+  margin-block-start: clamp(24px, 3vw, 40px);
+}
+
+/*
+ * A glossary category's last term alone on its row spans the row, its name beside its definition:
+ * "Special inks" and "SECP" stood in a third of the page with two thirds empty beside them
+ * (measured 29% of the column at 1440, 2026-10-07).
+ */
+@media (width >= 700px) and (width < 1200px) {
+  .glossary-term:last-child:nth-child(2n + 1) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 24px;
+  }
+}
+
+@media (width >= 1200px) {
+  .glossary-term:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 24px;
+  }
+}
+
+/* Each topic row ends with its count, so the row reads to its end (54% of it was empty, 2026-10-07). */
+.faq-topics__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+}
+
+@media (width >= 900px) {
+  .faq-topics__link {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    column-gap: 24px;
+  }
+
+  .faq-topics__questions {
+    grid-row: 2;
+  }
+
+  .faq-topics__count {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+}
+
+/*
+ * The new pages' fluid spacing on the 2px scale (VA-17, as every fluid interval on the site is):
+ * a browser that can round gets whole pixels, the rest keep the clamp above. Each line twins one
+ * declaration above, in the same order. `fluidSpacing.test.ts` fails one without its twin.
+ */
+@supports (width: round(1px, 2px)) {
+  .split-hero {
+    gap: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .ruled-grid {
+    margin: round(clamp(24px, 4vw, 48px), 2px) 0 0;
+  }
+
+  .careers-training__layout {
+    gap: round(clamp(24px, 4vw, 56px), 2px);
+  }
+
+  .careers-roles__groups {
+    gap: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .careers-roles__groups {
+    margin-block-start: round(clamp(24px, 4vw, 56px), 2px);
+  }
+
+  .careers-life__mosaic {
+    margin-block-start: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .faq-layout {
+    gap: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .faq-entry {
+    padding-block: 24px round(clamp(24px, 3vw, 40px), 2px);
+  }
+
+  .faq-most {
+    margin: round(clamp(24px, 4vw, 48px), 2px) 0 0;
+  }
+
+  .faq-topics__list {
+    margin: round(clamp(24px, 3vw, 40px), 2px) 0 0;
+  }
+
+  .glossary-terms {
+    margin: round(clamp(24px, 3vw, 40px), 2px) 0 0;
+  }
+
+  .company-pair {
+    gap: round(clamp(24px, 4vw, 56px), 2px);
+  }
+
+  .company-works {
+    margin-block-start: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .company-closing__more {
+    margin-block-start: round(clamp(24px, 3vw, 40px), 2px);
+  }
+}
+
+/*
+ * ⚠️ THE WEBSITE'S FOOTER TAKES FOUR COLUMNS FROM A TABLET (2026-10-07). With the Learn group a
+ * seventh block, three columns put Learn alone on a new row, and the slab that must stay one
+ * screen tall from 768px (LA-13) ran 3px over at 1024px while its quiet band fell to 28px at 768
+ * (D7 keeps it 100px or more; e2e/footer.spec.ts). Four columns set the link groups in one row and
+ * the claims in the next. Website only: the garment pages' footer has no one-screen rule, and its
+ * stylesheet sits at its budget.
+ */
+@media (min-width: 720px) and (max-width: 1279px) {
+  .footer-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/*
+ * ------------------------------------------------ the Journal and the case studies (2026-10-07)
+ *
+ * JournalIndex.tsx, JournalPost.tsx, CaseStudyPage.tsx. Only tokens and the documented spacing
+ * steps (apps/viewer/src/styles/tokens.test.ts). The posts' facts are a ruled sheet in the mono
+ * register, as a garment page sets a specification; the newest post spans the grid; the empty
+ * hubs rule their list across the page rather than leave it bare.
+ */
+
+/* The feed link under the hub's headline: a 44px row, as every standalone link here. */
+.journal-feed {
+  margin-top: 16px;
+}
+
+.journal-feed a,
+.journal-author .prose__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+/* An empty hub: the topics (or a case study's parts) ruled across the page, a tick on each. */
+.journal-topics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: journal-topic;
+}
+
+.journal-topics__item {
+  position: relative;
+  max-width: none;
+  padding-block: 20px 24px;
+  border-top: 1px solid var(--line);
+  color: var(--heading);
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+  counter-increment: journal-topic;
+}
+
+.journal-topics__item::before {
+  content: counter(journal-topic, decimal-leading-zero);
+  display: block;
+  margin-bottom: 8px;
+  color: var(--dimension);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+}
+
+@media (width >= 640px) {
+  .journal-topics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1000px) {
+  .journal-topics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.case-first__ask {
+  margin-top: 64px;
+}
+
+/* The posts: cards of one link each, the newest one spanning the grid. */
+.journal-filter {
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+}
+
+.journal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width < 1000px) {
+  .journal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width < 560px) {
+  .journal-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.journal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  overflow: hidden;
+  transition: border-color var(--ui) var(--ease);
+}
+
+.journal-card__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-bottom: 1px solid var(--line);
+}
+
+.journal-card__words {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.journal-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.journal-card__title {
+  margin: 0;
+}
+
+.journal-card__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The whole card is the link's target; the link's name stays the title (GuideCard.tsx). */
+.journal-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .journal-card:hover {
+    border-color: var(--dimension);
+  }
+}
+
+.journal-card:has(.journal-card__link:focus-visible) {
+  border-color: var(--dimension);
+}
+
+@media (width >= 900px) {
+  .journal-card--lead {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .journal-card--lead .journal-card__img {
+    height: 100%;
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
+  }
+
+  .journal-card--lead .journal-card__words {
+    justify-content: flex-end;
+    gap: 16px;
+    padding: 24px;
+  }
+}
+
+/* The topic filter: radios and CSS, as the Teamwear sport filter (GarmentGrid.tsx, T17). */
+.journal-scope:has(.journal-filter__input[value="craft-and-making"]:checked)
+  .journal-grid
+  > li:not([data-cluster="craft-and-making"]),
+.journal-scope:has(.journal-filter__input[value="sialkot-stories"]:checked)
+  .journal-grid
+  > li:not([data-cluster="sialkot-stories"]),
+.journal-scope:has(.journal-filter__input[value="sustainability"]:checked)
+  .journal-grid
+  > li:not([data-cluster="sustainability"]),
+.journal-scope:has(.journal-filter__input[value="industry-insight"]:checked)
+  .journal-grid
+  > li:not([data-cluster="industry-insight"]),
+.journal-scope:has(.journal-filter__input[value="company-news"]:checked)
+  .journal-grid
+  > li:not([data-cluster="company-news"]) {
+  display: none;
+}
+
+.journal-filter__chip:has(.journal-filter__input:checked) {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.journal-filter__chip:has(.journal-filter__input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* One post: its picture across the page, then the facts sheet beside the reading column. */
+.journal-hero__figure,
+.case-photos figure {
+  margin: 0;
+}
+
+.journal-hero__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.journal-article {
+  display: grid;
+  gap: 24px;
+}
+
+@media (width >= 900px) {
+  .journal-article {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    gap: 64px;
+    align-items: start;
+  }
+
+  .journal-facts {
+    position: sticky;
+    top: calc(var(--header-h) + 24px);
+  }
+}
+
+.journal-facts,
+.case-facts {
+  margin: 0;
+}
+
+.journal-facts > div,
+.case-facts > div {
+  padding-block: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.journal-facts dt,
+.case-facts dt {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.journal-facts dd,
+.case-facts dd {
+  margin: 4px 0 0;
+  color: var(--heading);
+}
+
+.journal-body > :first-child {
+  margin-top: 0;
+}
+
+.journal-body h2,
+.journal-body h3 {
+  margin: 24px 0 12px;
+  color: var(--heading);
+  font-family: var(--font-display);
+}
+
+.journal-body h2 {
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+}
+
+.journal-body h3 {
+  font-size: var(--text-body);
+}
+
+.journal-body a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+}
+
+/* A quotation: the serif voice between two hairlines, never a coloured side stripe (VC-07). */
+.journal-body blockquote {
+  margin: 24px 0;
+  padding-block: 16px;
+  border-block: 1px solid var(--line);
+  color: var(--heading);
+  font-family: var(--font-serif);
+  font-size: var(--text-card-title);
+}
+
+.journal-body__figure {
+  margin: 24px 0;
+}
+
+.journal-body__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.journal-checked {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+.journal-author {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.journal-author div p {
+  margin: 0 0 4px;
+}
+
+.journal-author__photo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: var(--radius-pill);
+}
+
+.journal-author__role {
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+/* One case study: the facts across the page, the photos, the story in three columns. */
+@media (width >= 640px) {
+  .case-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 24px;
+  }
+}
+
+@media (width >= 1000px) {
+  .case-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.case-photos {
+  display: grid;
+  gap: 24px;
+}
+
+@media (width >= 900px) {
+  .case-photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .case-photos__lead {
+    grid-column: 1 / -1;
+  }
+}
+
+.case-story {
+  display: grid;
+  gap: 24px;
+}
+
+@media (width >= 900px) {
+  .case-story {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 64px;
+  }
+}
+
+.case-story__part {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.case-story__number {
+  margin: 0 0 8px;
+  color: var(--dimension);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+}
+
+.case-quote {
+  margin: 0;
+  padding-block: 24px;
+  border-block: 1px solid var(--line);
+}
+
+.case-quote blockquote {
+  margin: 0;
+  color: var(--heading);
+  font-family: var(--font-serif);
+  font-size: var(--text-card-title);
+}
+
+.case-quote figcaption {
+  margin-top: 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }

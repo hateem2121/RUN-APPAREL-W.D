@@ -70,6 +70,8 @@ export const SITE_FOOTER_WORDS = {
   made: 'What we make',
   /** The company pages (2026-10-07, PLAN.md E5): careers, community, and the policies. */
   company: 'Company',
+  /** The reading pages (2026-10-07, PLAN.md Task 3.5): the guides, the FAQ, the glossary. */
+  learn: 'Learn',
   capacity: 'Capacity',
   standards: 'Standards',
   elsewhere: 'Elsewhere',
@@ -93,8 +95,7 @@ export function opensAt(open: string): string {
 export const SITE_FOOTER_LINKS = [
   { href: '/products', label: 'Products', consent: false },
   { href: '/contact', label: 'Contact', consent: false },
-  // The buyer guides (owner, 2026-09-30): a page nothing links to is rarely found.
-  { href: '/guides', label: 'Guides', consent: false },
+  // The buyer guides moved up into the "Learn" group on 2026-10-07 (PLAN.md Task 3.5).
   // A legal requirement, not a nicety: both hosts process at least an IP address (FA-O-75).
   { href: '/privacy', label: 'Privacy', consent: false },
   { href: '/privacy#cookies', label: CONSENT_COPY.change, consent: true },
@@ -113,13 +114,28 @@ export const SITE_FOOTER_MADE: readonly { href: string; label: string }[] = Obje
 
 /**
  * The "Company" group's links (2026-10-07, PLAN.md E5): LIVE links only, so an address is
- * listed in the same change that creates the page. Phase 1: careers, community, policies
- * (Phase 5 adds Press). A group with fewer than two live links is not drawn.
+ * listed in the same change that creates the page. Phase 1: careers, community, policies; then
+ * the case studies (owner, 2026-10-07: listed from day one, even before the first is published).
+ * and Press (2026-10-07). A group with fewer than two live links is not drawn.
  */
 export const SITE_FOOTER_COMPANY: readonly { href: string; label: string }[] = [
   { href: '/careers', label: 'Careers' },
   { href: '/community', label: 'Community' },
   { href: '/policies', label: 'Policies' },
+  { href: '/case-studies', label: 'Case studies' },
+  { href: '/press', label: 'Press' },
+]
+
+/**
+ * The "Learn" group's links (2026-10-07, PLAN.md Task 3.5): the guides, which left the bottom row
+ * for it, the FAQ, the glossary and the Journal (owner, 2026-10-07: listed from day one). LIVE
+ * links only, as the Company group's are. A group with fewer than two live links is not drawn.
+ */
+export const SITE_FOOTER_LEARN: readonly { href: string; label: string }[] = [
+  { href: '/guides', label: 'Guides' },
+  { href: '/faq', label: 'FAQ' },
+  { href: '/glossary', label: 'Glossary' },
+  { href: '/journal', label: 'Journal' },
 ]
 
 /**
@@ -214,6 +230,15 @@ export function siteFooterAriaSnapshot(
     add(1, `heading ${q(words.company)} [level=3]`)
     add(1, 'list:')
     for (const link of SITE_FOOTER_COMPANY) {
+      add(2, 'listitem:')
+      add(3, `link ${q(link.label)}`)
+    }
+  }
+  // The Learn group (2026-10-07), the same way: code-side links, there with a blank database.
+  if (SITE_FOOTER_LEARN.length > 1) {
+    add(1, `heading ${q(words.learn)} [level=3]`)
+    add(1, 'list:')
+    for (const link of SITE_FOOTER_LEARN) {
       add(2, 'listitem:')
       add(3, `link ${q(link.label)}`)
     }

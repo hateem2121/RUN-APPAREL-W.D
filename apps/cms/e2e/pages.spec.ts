@@ -1,5 +1,7 @@
 import {
   COMPANY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
   FAMILY_PAGE_SOURCES,
   GUIDE_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
@@ -117,6 +119,26 @@ const PAGES = [
   // The company pages (2026-10-07); the form joins /careers in Phase 2.
   { path: '/careers', name: 'careers page', heading: /Join a family/i },
   { path: '/community', name: 'community page', heading: /Steady work/i },
+  { path: '/press', name: 'press page', heading: /For journalists/i },
+  // The FAQ and the glossary (2026-10-07).
+  { path: '/faq', name: 'FAQ hub', heading: /Questions/i },
+  { path: '/faq/orders-and-samples', name: 'FAQ: orders and samples', heading: /Orders/i },
+  {
+    path: '/faq/quality-and-certifications',
+    name: 'FAQ: quality and certifications',
+    heading: /Quality/i,
+  },
+  {
+    path: '/faq/shipping-and-importing',
+    name: 'FAQ: shipping and importing',
+    heading: /Shipping/i,
+  },
+  { path: '/faq/fabrics-and-printing', name: 'FAQ: fabrics and printing', heading: /Fabrics/i },
+  { path: '/faq/working-with-us', name: 'FAQ: working with us', heading: /Working/i },
+  { path: '/glossary', name: 'glossary', heading: /Every term/i },
+  // The Journal's and the case studies' hubs (2026-10-07): 200 with or without a published entry.
+  { path: '/journal', name: 'Journal hub', heading: /Notes from the works/i },
+  { path: '/case-studies', name: 'case studies hub', heading: /Proof, not promises/i },
 ] as const
 
 test.describe('every page renders real content', () => {
@@ -593,6 +615,8 @@ test.describe('search visibility follows the committed switch: visible since lau
    * out of search, and the sitemap offers every page. Setting the file back to "hidden"
    * turns these red, which is the control.
    */
+  // The two CMS hubs included: indexable from day one, even empty (owner, 2026-10-07: "Show them
+  // right away", replacing T5's noindex until the first published entry).
   for (const page of PAGES) {
     test(`${page.name} does not carry noindex`, async ({ page: browser }) => {
       await browser.goto(page.path)
@@ -608,9 +632,16 @@ test.describe('search visibility follows the committed switch: visible since lau
   }) => {
     const response = await request.get('/sitemap.xml')
     expect(response.status()).toBe(200)
-    const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
-      (m) => new URL(m[1] ?? '').pathname,
-    )
+    const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)]
+      .map((m) => new URL(m[1] ?? '').pathname)
+      // A Journal post or case study is listed only while published, and `journal.spec.ts`
+      // creates one for a while and removes it; the unit suite holds that
+      // (`searchVisibility.test.ts`, `newPagesWiring.test.ts`). The hubs are always listed.
+      // A garment colour is listed once the server can read the seeded catalogue, which it can
+      // since the e2e step has a Payload secret (2026-10-07); `searchVisibility.test.ts` holds
+      // the garment entries.
+      .filter((path) => !/^\/(journal|case-studies)\/./.test(path))
+      .filter((path) => !/^\/products\/[^/]+\/[^/]+$/.test(path))
     expect(locs.sort()).toEqual(
       [
         '/',
@@ -623,6 +654,12 @@ test.describe('search visibility follows the committed switch: visible since lau
         // The policies hub, seven policies, careers and community (2026-10-07).
         ...POLICY_PAGE_SOURCES,
         ...COMPANY_PAGE_SOURCES,
+        // The FAQ hub, four topics and the glossary (2026-10-07).
+        ...FAQ_PAGE_SOURCES,
+        ...GLOSSARY_PAGE_SOURCES,
+        // The two CMS hubs, listed from day one (owner, 2026-10-07).
+        '/journal',
+        '/case-studies',
       ].sort(),
     )
   })

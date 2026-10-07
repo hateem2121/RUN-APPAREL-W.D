@@ -1,7 +1,11 @@
+import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CONTACT_HERO_PHOTO } from './factoryPhotos'
-import { CAREERS_PAGE, COMMUNITY_PAGE } from './companyPages'
+import { CAREERS_PAGE, COMMUNITY_PAGE, PRESS_PAGE } from './companyPages'
+import { FAQ_INDEX, FAQ_TOPICS } from './faqs'
+import { GLOSSARY_INDEX } from './glossary'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDES, GUIDES_INDEX } from './guides'
+import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
 import { POLICIES, POLICIES_INDEX } from './policies'
 
 /**
@@ -235,6 +239,56 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
       COMMUNITY_PAGE.eyebrow,
       COMMUNITY_PAGE.heading,
       COMMUNITY_PAGE.headingAccent,
+    ),
+  ],
+  [
+    PRESS_PAGE.path,
+    wordsCard(
+      fileFor(PRESS_PAGE.path),
+      PRESS_PAGE.eyebrow,
+      PRESS_PAGE.heading,
+      PRESS_PAGE.headingAccent,
+    ),
+  ],
+  // The FAQ and the glossary (2026-10-07), words from their own lists.
+  [
+    FAQ_INDEX.path,
+    wordsCard(fileFor(FAQ_INDEX.path), '[ FAQ ]', FAQ_INDEX.heading, FAQ_INDEX.headingAccent),
+  ],
+  ...FAQ_TOPICS.map(
+    (topic) =>
+      [
+        topic.path,
+        wordsCard(fileFor(topic.path), '[ FAQ ]', topic.heading, topic.headingAccent),
+      ] as const,
+  ),
+  [
+    GLOSSARY_INDEX.path,
+    wordsCard(
+      fileFor(GLOSSARY_INDEX.path),
+      '[ Glossary ]',
+      GLOSSARY_INDEX.heading,
+      GLOSSARY_INDEX.headingAccent,
+    ),
+  ],
+  // The Journal's and the case studies' hubs (2026-10-07), from their own words. Each post and
+  // case study shares its OWN picture, chosen in the CMS (`buildArticleMetadata`, T8).
+  [
+    JOURNAL_PATH,
+    wordsCard(
+      fileFor(JOURNAL_PATH),
+      JOURNAL_HUB.eyebrow,
+      JOURNAL_HUB.heading,
+      JOURNAL_HUB.headingAccent,
+    ),
+  ],
+  [
+    CASE_STUDIES_PATH,
+    wordsCard(
+      fileFor(CASE_STUDIES_PATH),
+      CASE_STUDIES_HUB.eyebrow,
+      CASE_STUDIES_HUB.heading,
+      CASE_STUDIES_HUB.headingAccent,
     ),
   ],
 ])

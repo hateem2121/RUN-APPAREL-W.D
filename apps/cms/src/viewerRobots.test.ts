@@ -59,6 +59,7 @@ describe('the viewer host’s robots.txt matches the site’s policy (L-09, FI-0
     'Claude-User',
     'PerplexityBot',
     'meta-externalfetcher',
+    'Meta-WebIndexer',
     'Amzn-SearchBot',
     'Amzn-User',
   ])('never refuses %s (link previews and answer engines)', (agent) => {

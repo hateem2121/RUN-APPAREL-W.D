@@ -7,6 +7,7 @@ import {
   type FooterSettings,
   opensAt,
   SITE_FOOTER_COMPANY,
+  SITE_FOOTER_LEARN,
   SITE_FOOTER_LINKS,
   SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
@@ -38,7 +39,7 @@ describe('the shared footer (VA-31)', () => {
     expect(SITE_FOOTER_LINKS.map((link) => link.label)).toEqual([
       'Products',
       'Contact',
-      'Guides',
+      // Guides moved up into the Learn group on 2026-10-07 (PLAN.md Task 3.5).
       'Privacy',
       CONSENT_COPY.change,
       'Terms',
@@ -134,8 +135,15 @@ describe('siteFooterAriaSnapshot', () => {
       snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.made}"`),
     )
     for (const link of SITE_FOOTER_COMPANY) expect(snapshot).toContain(`link "${link.label}"`)
+    // The Learn group (2026-10-07), code-side as well, after Company.
+    expect(snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.learn}" [level=3]`)).toBeGreaterThan(
+      snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.company}"`),
+    )
+    for (const link of SITE_FOOTER_LEARN) expect(snapshot).toContain(`link "${link.label}"`)
     for (const link of SITE_FOOTER_MADE) expect(snapshot).toContain(`link "${link.label}"`)
-    expect(lines.slice(-6)).toEqual(SITE_FOOTER_LINKS.map((link) => `  - link "${link.label}"`))
+    expect(lines.slice(-SITE_FOOTER_LINKS.length)).toEqual(
+      SITE_FOOTER_LINKS.map((link) => `  - link "${link.label}"`),
+    )
   })
 
   it('adds each claim block only when its claim is set, in the order both footers draw them', () => {

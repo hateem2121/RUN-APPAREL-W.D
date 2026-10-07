@@ -4,10 +4,9 @@ import type { GuideBlock } from './guides'
 /**
  * The policy pages (PLAN.md D1/D2).
  *
- * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-10-07 (drafts in
- * `~/Sites/Model-Viewer-main/.superpowers/page-creation-2026-10-06/drafts/`, answers in
- * `OWNER-FACTS.md`). Nothing here may state a fact that answer sheet does not carry. The
- * anti-harassment page is deliberately ABSENT (no "coming soon"): the owner holds it until a
+ * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-10-07, page by page, from drafts built on the
+ * owner's own answers (docs/DECISIONS-BETA-WEBSITE.md D30). Nothing here may state a fact the
+ * owner has not given. The anti-harassment page is deliberately ABSENT (no "coming soon"): the owner holds it until a
  * complaints committee exists (2026-10-07).
  *
  * ⚠️ EVERY POLICY IS A PLAIN-ENGLISH SUMMARY of a policy that belongs to both RUN APPAREL and
