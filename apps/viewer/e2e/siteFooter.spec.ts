@@ -104,8 +104,9 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
         (heading) => getComputedStyle(heading).textTransform,
       ),
     }))
-    // Every claim block is there (CLAIMS), so a rule missing from any block shows.
-    expect(facts.headings).toHaveLength(5)
+    // Every block is there (CLAIMS fills the claim blocks; Company since 2026-10-07 is always
+    // drawn), so a rule missing from any block shows.
+    expect(facts.headings).toHaveLength(6)
     expect(facts.lines.filter((line) => !line.startsWith('none '))).toEqual([])
     // The control: the rule reached the lines and not the headings over them.
     expect(new Set(facts.headings)).toEqual(new Set(['uppercase']))
@@ -154,8 +155,14 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     for (const area of areas) expect(Math.abs(area - 36 * 36) / (36 * 36)).toBeLessThan(0.06)
   })
 
-  // Polish X23: on a phone two short columns, and the two link groups side by side.
-  test('on a phone the two link groups share a row, under Contact', async ({ page }) => {
+  // Polish X23: on a phone two short columns, and the link groups side by side. Since the
+  // Company group (owner, 2026-10-07, approved with the real footer facts) the first pair is
+  // What we make and Company; Elsewhere starts the next row. Until then it was What we make
+  // and Elsewhere — the owner's first approved picture had no Elsewhere at all, because the
+  // local server drew it from defaults, and this test is what showed the difference.
+  test('on a phone What we make and Company share a row under Contact, Elsewhere below', async ({
+    page,
+  }) => {
     await serveFooter(page, CLAIMS)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/n001/wine')
@@ -163,12 +170,22 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     const at = await footer(page).evaluate((el) => {
       const box = (kind: string) =>
         el.querySelector(`.footer-block--${kind}`)?.getBoundingClientRect() ?? null
-      return { contact: box('contact'), made: box('made'), elsewhere: box('elsewhere') }
+      return {
+        contact: box('contact'),
+        made: box('made'),
+        company: box('company'),
+        elsewhere: box('elsewhere'),
+      }
     })
-    expect(at.contact && at.made && at.elsewhere, 'a footer block is missing').toBeTruthy()
-    expect(at.made?.top, 'the two link groups are not on one row').toBe(at.elsewhere?.top)
-    expect(at.elsewhere?.left ?? 0).toBeGreaterThan((at.made?.right ?? 0) - 1)
+    expect(
+      at.contact && at.made && at.company && at.elsewhere,
+      'a footer block is missing',
+    ).toBeTruthy()
+    expect(at.made?.top, 'What we make and Company are not on one row').toBe(at.company?.top)
+    expect(at.company?.left ?? 0).toBeGreaterThan((at.made?.right ?? 0) - 1)
     expect(at.made?.top ?? 0).toBeGreaterThanOrEqual(at.contact?.bottom ?? 0)
+    expect(at.elsewhere?.left, 'Elsewhere does not start the next row').toBe(at.made?.left)
+    expect(at.elsewhere?.top ?? 0).toBeGreaterThanOrEqual(at.made?.bottom ?? 0)
   })
 
   /*
