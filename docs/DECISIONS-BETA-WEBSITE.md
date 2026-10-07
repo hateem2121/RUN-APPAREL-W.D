@@ -777,6 +777,51 @@ Sportswear, nature words for Outerwear and easy fashion words for Casual Wear
 12 characters, never a plain word such as "Pink") and `tools/asset-pipeline/src/colour-name.test.ts`
 (fails if the namer gains a colour the table has no name for).
 
+## 2026-10-07 — the company pages: policies, careers and community
+
+### D30 · Policies, careers and community are pages in code, every word approved by the owner
+
+**Decision: a policies hub at `/policies` with seven policy pages, plus `/careers` and
+`/community`, written in code (not the CMS). The words were drafted from the owner's answers and
+the owner approved every page on 7 Oct 2026, with changes.** Only the Journal (a later phase) goes
+in the CMS; pages that state the company's commitments change rarely and are reviewed like code.
+
+- **Addresses use the guides' "-and-" style**, so the vaccine page is
+  `/policies/health-and-vaccination`. The words live in `apps/cms/src/lib/policies.ts` and
+  `apps/cms/src/lib/companyPages.ts`.
+- **The anti-harassment policy is held back on purpose**, until the complaints committee it
+  describes exists (owner, 7 Oct 2026). It is absent from the hub, the sitemap and the footer, not
+  a page saying "coming soon".
+- **The careers page never types an email address.** It reads the address from the CMS site
+  settings when it draws, so one change in the CMS moves every page.
+- **The company's structured data names its parent company** (`parentOrganization`), and still
+  carries no `Product` schema (`apps/cms/src/lib/structuredData.ts` says why).
+- **No new header-menu items**; the header stays as the owner approved it. The footer carries the
+  new pages (D31).
+
+**Guard:** `apps/cms/src/lib/siteFacts.test.ts` refuses the claims the owner has ruled out in any
+new page's words; `policies.test.ts`, `companyPages.test.ts` and `apps/cms/src/newPagesWiring.test.ts`
+fail when a page is missing from any list a public page must be in (the RUNBOOK section "The
+company pages, FAQ and glossary").
+
+### D31 · The footer gains a "Company" group; its layout was approved with the real footer facts
+
+**Decision: a "Company" group (Careers, Community, Policies) after "What we make", on the website
+and on the garment pages alike. The owner approved it on 7 Oct 2026, twice: first from pictures
+drawn without the footer's facts, then — after a browser test showed the difference — from pictures
+drawn with the real ones.** With all six groups filled, Standards takes a second row on a wide
+screen and Elsewhere (LinkedIn, Instagram) starts its own row on a phone, where What we make and
+Company share a row. The owner chose that layout over squeezing six columns into one row.
+
+- **Live links only.** Press joins the group, and a "Learn" group arrives, only when those pages
+  exist (later phases), so the footer never links to a missing page.
+- **No stylesheet change:** the group reuses the footer's existing block rules, so the garment
+  pages' stylesheets are byte-identical to before (measured 7 Oct 2026, 13,777 bytes gzipped).
+- **The standards logos stay exactly as they are.**
+
+**Guard:** both footers are held to `siteFooterAriaSnapshot` (`packages/shared/src/siteFooter.ts`),
+and `apps/viewer/e2e/siteFooter.spec.ts` holds the phone layout with the real footer facts.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

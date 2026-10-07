@@ -2255,6 +2255,43 @@ the owner gave on 2026-09-30; the comment above them in `guides.ts` records whic
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
 The four buyer pages and all eight guide pages are in it.
 
+### The company pages, FAQ and glossary (since 2026-10-07)
+
+The policies hub, seven policy pages, careers and community work like the buyer pages,
+one level of test deeper. The words are in `apps/cms/src/lib/policies.ts` and
+`apps/cms/src/lib/companyPages.ts` (the owner approved every word on 2026-10-07; the
+anti-harassment policy is deliberately absent until its complaints committee exists), the
+addresses in `POLICY_PAGE_SOURCES` and `COMPANY_PAGE_SOURCES` in
+`apps/cms/publicViewerHeaders.mjs`, one route folder each under
+`apps/cms/src/app/(frontend)/`, and `apps/cms/src/lib/policies.test.ts`,
+`companyPages.test.ts` and `newPagesWiring.test.ts` fail when any of the registrations
+disagree: the security-policy list, the admin-host redirects (`siteHostRules.mjs`), the
+sitemap (`src/lib/searchVisibility.ts`), `/llms.txt` (`src/lib/llmsTxt.ts`), the edge
+script's page list (`apps/cms/e2e/csp-nonce-edge.mjs`), and the route folder itself. A
+share card per page is drawn by `apps/cms/scripts/gen-share-images.mjs` from
+`src/lib/shareImages.ts` into `apps/cms/public/share/` — run it with
+`tools/asset-pipeline/node_modules/.bin/tsx apps/cms/scripts/gen-share-images.mjs --force`
+and LOOK at the result. After any routing or header change:
+`npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`, then
+`test:routes` and `test:built-config`. The careers "How to apply" email is read from
+`SiteSettings` at render time — never type an address into `companyPages.ts`
+(`companyPages.test.ts` refuses one). The footer's "Company" group lives in
+`packages/shared/src/siteFooter.ts` (`SITE_FOOTER_COMPANY`, live links only) and must be
+drawn in BOTH `apps/cms/src/components/site/SiteFooter.tsx` and
+`apps/viewer/src/components/Footer.tsx` in the same change, or both aria-snapshot suites
+fail.
+
+🟡 **A footer picture taken locally must show the real footer.** On 2026-10-07 the owner approved
+a picture of the new group that had no Capacity, Standards or Elsewhere blocks: `next start`
+without `PAYLOAD_LOCAL_D1=1` cannot reach the local D1, so every read falls back to defaults
+(`apps/cms/e2e/serve.mjs` says so), and those blocks render nothing while blank. With the real
+facts, the layout differed, and only `apps/viewer/e2e/siteFooter.spec.ts` showed it. So, before a
+footer picture: migrate and seed the local D1 (`migrate`, then `seed:cms`, as CI's `e2e-shard`
+does), write the owner's facts into the LOCAL settings from `FOOTER_FACTS` in
+`scripts/apply-footer-facts.mjs` (the same values the live site has), and start `next start`
+with `PAYLOAD_LOCAL_D1=1`. The CMS browser suite needs the seed too: without it,
+`apps/cms/e2e/footer.spec.ts` gets a 404 for `/api/public/viewer/n001/wine`.
+
 ### Why only crawlers get the rewrite
 
 Measured 2026-08-08, warm connection, five requests each:
