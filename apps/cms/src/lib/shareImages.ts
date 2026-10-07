@@ -60,6 +60,13 @@ export type ShareCard = {
     | { kind: 'photo'; photo: 'contact-hero' }
   /** `og:image:alt`: what is in the picture, not a caption (ogp.me). */
   alt: string
+  /**
+   * A new address for the same file, `?v=<n>`, when a link previewer kept a bad copy. LinkedIn
+   * keys its stored picture to the address and Post Inspector does not replace it: /community was
+   * stored at 160 px wide (`articleshare-shrink_160`) on its first fetch (2026-10-07) and still was that evening,
+   * while the live file was 1200 x 630. Raise it only for a card a previewer got wrong.
+   */
+  version?: number
 }
 
 const BRAND = `RUN APPAREL, ${SHARE_IMAGE.host}.`
@@ -234,12 +241,16 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
   ],
   [
     COMMUNITY_PAGE.path,
-    wordsCard(
-      fileFor(COMMUNITY_PAGE.path),
-      COMMUNITY_PAGE.eyebrow,
-      COMMUNITY_PAGE.heading,
-      COMMUNITY_PAGE.headingAccent,
-    ),
+    {
+      ...wordsCard(
+        fileFor(COMMUNITY_PAGE.path),
+        COMMUNITY_PAGE.eyebrow,
+        COMMUNITY_PAGE.heading,
+        COMMUNITY_PAGE.headingAccent,
+      ),
+      // LinkedIn stored this card at 160 px wide on its first fetch and kept it (see `version`).
+      version: 2,
+    },
   ],
   [
     PRESS_PAGE.path,
@@ -303,4 +314,4 @@ export function shareCardFor(path: string): ShareCard {
 
 /** The absolute address of a card's file on `origin`. */
 export const shareImageUrl = (card: ShareCard, origin: string) =>
-  `${origin}${SHARE_IMAGE.folder}/${card.file}`
+  `${origin}${SHARE_IMAGE.folder}/${card.file}${card.version ? `?v=${card.version}` : ''}`

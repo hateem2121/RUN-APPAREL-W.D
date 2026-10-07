@@ -197,8 +197,10 @@ test.describe('FA-N-07 — the social card resolves and is the right size', () =
           twitterAlt: meta('twitter:image:alt'),
         }
       })
+      // `?v=<n>` only where a link previewer kept a bad copy (ShareCard.version: /community,
+      // 2026-10-07, LinkedIn stored it at 160 px); the file fetched below is the same.
       expect(declared.url, 'no og:image at all').toMatch(
-        /^https?:\/\/[^/]+\/share\/[a-z0-9-]+\.jpg$/,
+        /^https?:\/\/[^/]+\/share\/[a-z0-9-]+\.jpg(\?v=\d+)?$/,
       )
       expect(declared.alt, 'the card has no alt text').toBeTruthy()
       expect(declared.twitter, 'X is shown another picture').toBe(declared.url)
