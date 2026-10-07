@@ -5823,8 +5823,10 @@ a.contact-block__value:active {
   min-height: var(--target-min);
 }
 
-.crumbs a:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .crumbs a:hover {
+    color: var(--text);
+  }
 }
 
 .policy-closing {

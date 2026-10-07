@@ -182,8 +182,8 @@ describe('Footer', () => {
 
   it('draws no claim block for a blank claim, and each claim block once it is set', () => {
     render(<Footer settings={settings} />)
-    // "What we make" is not a claim: it is there with nothing set.
-    expect(headings()).toEqual(['Contact', 'What we make'])
+    // "What we make" and "Company" (2026-10-07) are not claims: they are there with nothing set.
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company'])
     expect(host.querySelector('.footer-marks')).toBeNull()
 
     render(
@@ -200,8 +200,16 @@ describe('Footer', () => {
         }}
       />,
     )
-    // The website's order since polish X23: the two link groups, then the two claims.
-    expect(headings()).toEqual(['Contact', 'What we make', 'Elsewhere', 'Capacity', 'Standards'])
+    // The website's order since polish X23: the link groups (Company since 2026-10-07), then
+    // the two claims.
+    expect(headings()).toEqual([
+      'Contact',
+      'What we make',
+      'Company',
+      'Elsewhere',
+      'Capacity',
+      'Standards',
+    ])
     expect(host.textContent).toContain('MOQ 300 pieces')
     expect(host.textContent).toContain('32.4945° N, 74.5229° E')
     // The marks follow from the entry's words, in the order named, from the website's files.
@@ -218,7 +226,7 @@ describe('Footer', () => {
     const { footer: _dropped, ...older } = settings
     render(<Footer settings={older} />)
     // The facts with no claim (no capacity, standards or links), and the legal row.
-    expect(headings()).toEqual(['Contact', 'What we make'])
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company'])
     expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
   })
 
