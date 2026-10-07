@@ -88,8 +88,8 @@ describe('Footer', () => {
     render(<Footer settings={settings} />)
 
     // Audit FA-W-01 found every anchor on this page was an enquiry or the skip link. The
-    // website's bottom row answers it with Products and Guides (the "wear-run.com" link the
-    // old footer carried went with it, VA-31).
+    // website's bottom row answers it with Products, and its Learn group with Guides (in the bottom
+    // row until 2026-10-07; the "wear-run.com" link the old footer carried went with it, VA-31).
     expect(byText('Products')?.getAttribute('href')).toBe('https://wear-run.com/products')
     expect(byText('Guides')?.getAttribute('href')).toBe('https://wear-run.com/guides')
   })
@@ -183,7 +183,7 @@ describe('Footer', () => {
   it('draws no claim block for a blank claim, and each claim block once it is set', () => {
     render(<Footer settings={settings} />)
     // "What we make" and "Company" (2026-10-07) are not claims: they are there with nothing set.
-    expect(headings()).toEqual(['Contact', 'What we make', 'Company'])
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn'])
     expect(host.querySelector('.footer-marks')).toBeNull()
 
     render(
@@ -200,12 +200,13 @@ describe('Footer', () => {
         }}
       />,
     )
-    // The website's order since polish X23: the link groups (Company since 2026-10-07), then
+    // The website's order since polish X23: the link groups (Company and Learn since 2026-10-07), then
     // the two claims.
     expect(headings()).toEqual([
       'Contact',
       'What we make',
       'Company',
+      'Learn',
       'Elsewhere',
       'Capacity',
       'Standards',
@@ -226,7 +227,7 @@ describe('Footer', () => {
     const { footer: _dropped, ...older } = settings
     render(<Footer settings={older} />)
     // The facts with no claim (no capacity, standards or links), and the legal row.
-    expect(headings()).toEqual(['Contact', 'What we make', 'Company'])
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn'])
     expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
   })
 

@@ -104,9 +104,9 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
         (heading) => getComputedStyle(heading).textTransform,
       ),
     }))
-    // Every block is there (CLAIMS fills the claim blocks; Company since 2026-10-07 is always
-    // drawn), so a rule missing from any block shows.
-    expect(facts.headings).toHaveLength(6)
+    // Every block is there (CLAIMS fills the claim blocks; Company and Learn since 2026-10-07 are
+    // always drawn), so a rule missing from any block shows.
+    expect(facts.headings).toHaveLength(7)
     expect(facts.lines.filter((line) => !line.startsWith('none '))).toEqual([])
     // The control: the rule reached the lines and not the headings over them.
     expect(new Set(facts.headings)).toEqual(new Set(['uppercase']))
@@ -160,7 +160,9 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
   // What we make and Company; Elsewhere starts the next row. Until then it was What we make
   // and Elsewhere — the owner's first approved picture had no Elsewhere at all, because the
   // local server drew it from defaults, and this test is what showed the difference.
-  test('on a phone What we make and Company share a row under Contact, Elsewhere below', async ({
+  // Since the Learn group (2026-10-07, owner-approved picture): Learn starts the next row and
+  // Elsewhere shares it.
+  test('on a phone What we make and Company share a row under Contact, Learn and Elsewhere below', async ({
     page,
   }) => {
     await serveFooter(page, CLAIMS)
@@ -174,18 +176,21 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
         contact: box('contact'),
         made: box('made'),
         company: box('company'),
+        learn: box('learn'),
         elsewhere: box('elsewhere'),
       }
     })
     expect(
-      at.contact && at.made && at.company && at.elsewhere,
+      at.contact && at.made && at.company && at.learn && at.elsewhere,
       'a footer block is missing',
     ).toBeTruthy()
     expect(at.made?.top, 'What we make and Company are not on one row').toBe(at.company?.top)
     expect(at.company?.left ?? 0).toBeGreaterThan((at.made?.right ?? 0) - 1)
     expect(at.made?.top ?? 0).toBeGreaterThanOrEqual(at.contact?.bottom ?? 0)
-    expect(at.elsewhere?.left, 'Elsewhere does not start the next row').toBe(at.made?.left)
-    expect(at.elsewhere?.top ?? 0).toBeGreaterThanOrEqual(at.made?.bottom ?? 0)
+    expect(at.learn?.left, 'Learn does not start the next row').toBe(at.made?.left)
+    expect(at.learn?.top ?? 0).toBeGreaterThanOrEqual(at.made?.bottom ?? 0)
+    expect(at.elsewhere?.top, 'Learn and Elsewhere are not on one row').toBe(at.learn?.top)
+    expect(at.elsewhere?.left).toBe(at.company?.left)
   })
 
   /*

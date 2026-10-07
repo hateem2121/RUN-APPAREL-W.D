@@ -242,7 +242,9 @@ export function FaqHubPage() {
               {FAQ_TOPICS.map((topic) => (
                 <li key={topic.path}>
                   <Link className="faq-topics__link" href={topic.path}>
-                    <span className="faq-topics__name">{topicName(topic)}</span>
+                    <span className="faq-topics__name display display--section">
+                      {topicName(topic)}
+                    </span>
                     <span className="faq-topics__count">{topic.entries.length} questions</span>
                     <span className="faq-topics__questions">
                       {topic.entries

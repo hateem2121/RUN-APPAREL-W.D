@@ -71,14 +71,16 @@ test.describe('the footer geometry', () => {
     }
   })
 
-  test('the facts take two columns on a phone, three on a tablet and five from 1280px', async ({
+  // Four on a tablet since the Learn group (2026-10-07): with three, Learn stood alone on a row and
+  // the one-screen slab overflowed (site.css says why). The garment pages' footer keeps three.
+  test('the facts take two columns on a phone, four on a tablet and five from 1280px', async ({
     page,
   }) => {
     for (const [width, tracks] of [
       [390, 2],
       [719, 2],
-      [720, 3],
-      [1279, 3],
+      [720, 4],
+      [1279, 4],
       [1280, 5],
       [1920, 5],
     ] as const) {

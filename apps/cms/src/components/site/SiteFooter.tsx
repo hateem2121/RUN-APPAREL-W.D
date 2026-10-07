@@ -5,6 +5,7 @@ import {
   marksFor,
   normalizeWhatsAppNumber,
   SITE_FOOTER_COMPANY,
+  SITE_FOOTER_LEARN,
   SITE_FOOTER_LINKS,
   SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
@@ -157,6 +158,24 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 <h3>{words.company}</h3>
                 <ul>
                   {SITE_FOOTER_COMPANY.map((link) => (
+                    <li key={link.href}>
+                      <Link href={link.href}>{link.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {/* The reading pages (2026-10-07): the guides, the FAQ and the glossary, LIVE links
+                only, drawn here and in the other footer in the same change. It wears the Company
+                group's class as well, for that group's print rule (off paper, footer.css): a selector
+                of its own there would grow the garment pages' stylesheet, which sits at its budget
+                (lighthouserc.json, raised 23 bytes for the Company group). */}
+            {SITE_FOOTER_LEARN.length > 1 ? (
+              <div className="footer-block footer-block--company footer-block--learn">
+                <h3>{words.learn}</h3>
+                <ul>
+                  {SITE_FOOTER_LEARN.map((link) => (
                     <li key={link.href}>
                       <Link href={link.href}>{link.label}</Link>
                     </li>

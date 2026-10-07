@@ -440,6 +440,7 @@ enforced globally in `base.css`, not per-component. The website restates it as
 | `--text-mono-lg` | 0.75rem | 12px — tracked caps one step above `--text-mono`; since 2026-09-11 also `.btn` and the site's `.nav-link` (audit TY-07) |
 | `--text-fine` | 0.75rem | 12px in the body face — the cookie card's sentence (owner, 2026-10-02, VA-13); the floor for read text |
 | `--text-card-title` | 1.125rem | 18px — the marketing site's `.product-card__name`; the wordmark's size in a different role |
+| `--text-lead` (website only, `site.css`) | clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem) | 20–28px — a benefit, a role, a question or a glossary term on the company, FAQ and glossary pages (2026-10-07); larger than a card title, smaller than a section heading, and never drawn on the garment pages |
 | `--text-footer-mark` | 12vw | first paint only — the site's cropped footer wordmark, refitted to the slab's width by `FooterWordmark.tsx` once fonts load |
 
 ⚠️ **rem since 2026-09-04, and the unit is the accessibility feature.** Every size

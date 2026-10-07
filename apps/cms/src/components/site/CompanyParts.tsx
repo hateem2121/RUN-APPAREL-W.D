@@ -74,7 +74,11 @@ export function SplitHero({
           <Breadcrumb trail={trail} />
           <p className="label">{page.eyebrow}</p>
           {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
-          <h1 className="display display--hero hero-legal">
+          {/* `display--long` where the headline runs long on a phone (base.css, VA-45): community's
+              38 characters do; careers' 25 do not. */}
+          <h1
+            className={`display display--hero hero-legal${page.heading.length + page.headingAccent.length >= 36 ? ' display--long' : ''}`}
+          >
             {page.heading} <span className="serif-accent">{page.headingAccent}</span>
           </h1>
           <p className="site-lede">{page.lede}</p>

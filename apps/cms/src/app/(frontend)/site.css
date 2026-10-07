@@ -566,6 +566,14 @@ html {
    * steps at 28.635em (50ch), the form and the empty state at 35.508em (62ch).
    */
   --site-measure: 31.5em;
+  /*
+   * The lead size of the company, FAQ and glossary pages (2026-10-07): a benefit, a role, a question,
+   * a glossary term — larger than a card title, smaller than a section heading. Fluid, as the display
+   * ranges are, and the site's own (the garment pages never draw it). docs/DESIGN.md §3 names it.
+   */
+  --text-lead: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
+  /* The glossary's A–Z row, held under the menu bar and over the terms as they scroll. */
+  --z-sticky-index: 2;
   /* `--site-max` and `--site-gutter` moved to packages/ui/src/tokens.css on 2026-10-02 (VA-31): the
      footer that lines up with them is drawn on the garment pages too. The website's width steps
      sit just before `.site-container`, below (polish D1). */
@@ -5855,7 +5863,7 @@ a.contact-block__value:active {
 /* The hero: the words, and a maker at work in a framed photo beside them. */
 .split-hero {
   display: grid;
-  gap: 48px;
+  gap: clamp(24px, 4vw, 48px);
 }
 
 .split-hero__photo {
@@ -5917,19 +5925,19 @@ a.contact-block__value:active {
 .ruled-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0 32px;
-  margin: 48px 0 0;
+  gap: 0 24px;
+  margin: clamp(24px, 4vw, 48px) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .ruled-grid__item {
   position: relative;
-  padding-block: 24px 32px;
+  padding-block: 24px;
   border-top: 1px solid var(--line);
-  font-size: clamp(1.25rem, 1.6vw + 0.6rem, 1.75rem);
+  font-size: var(--text-lead);
   line-height: 1.25;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
   text-wrap: balance;
 }
@@ -5960,7 +5968,7 @@ a.contact-block__value:active {
 /* Training: the sentence, then the same steps drawn on a dimension line that rises with them. */
 .careers-training__layout {
   display: grid;
-  gap: 56px;
+  gap: clamp(24px, 4vw, 56px);
 }
 
 .careers-training__words {
@@ -6030,9 +6038,9 @@ a.contact-block__value:active {
   font-stretch: 110%;
   text-transform: uppercase;
   line-height: 0.95;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
-  font-size: clamp(1rem, 1.4vw + 0.55rem, 1.75rem);
+  font-size: var(--text-lead);
   /* A role's name never breaks inside a word ("SUPERVI-SOR" did at 390 px, 2026-10-07). */
   overflow-wrap: normal;
   hyphens: manual;
@@ -6118,8 +6126,8 @@ a.contact-block__value:active {
 
 .careers-roles__groups {
   display: grid;
-  gap: 48px;
-  margin-block-start: 56px;
+  gap: clamp(24px, 4vw, 48px);
+  margin-block-start: clamp(24px, 4vw, 56px);
 }
 
 .careers-roles__name {
@@ -6144,9 +6152,9 @@ a.contact-block__value:active {
   font-family: var(--font-display);
   font-weight: 700;
   font-stretch: 105%;
-  font-size: clamp(1.25rem, 1.5vw + 0.7rem, 2rem);
+  font-size: var(--text-lead);
   line-height: 1.1;
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
 }
 
@@ -6172,7 +6180,7 @@ a.contact-block__value:active {
 .careers-apply__contacts {
   display: grid;
   gap: 8px;
-  margin-block-start: 32px;
+  margin-block-start: 24px;
   padding-block-start: 24px;
   border-top: 1px solid var(--line);
 }
@@ -6193,7 +6201,7 @@ a.contact-block__value:active {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-block-start: 48px;
+  margin-block-start: clamp(24px, 4vw, 48px);
 }
 
 .careers-life__mosaic > :first-child {
@@ -6290,7 +6298,7 @@ a.contact-block__value:active {
  */
 .faq-layout {
   display: grid;
-  gap: 48px;
+  gap: clamp(24px, 4vw, 48px);
 }
 
 .faq-layout__label {
@@ -6331,7 +6339,7 @@ a.contact-block__value:active {
 
 .faq-entry {
   position: relative;
-  padding-block: 32px 40px;
+  padding-block: 24px clamp(24px, 3vw, 40px);
   border-top: 1px solid var(--line);
   scroll-margin-top: calc(var(--notch-clearance) + 16px);
 }
@@ -6352,9 +6360,9 @@ a.contact-block__value:active {
   font-family: var(--font-display);
   font-weight: 700;
   font-stretch: 105%;
-  font-size: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
+  font-size: var(--text-lead);
   line-height: 1.15;
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
   text-wrap: balance;
 }
@@ -6364,7 +6372,7 @@ a.contact-block__value:active {
   /* 28em, not the site measure: this type is up to 1.25rem, and 31.5em of it set 78 characters a
      line at 768px (legibility.spec.ts, 2026-10-07). */
   max-width: 28em;
-  font-size: clamp(1.0625rem, 0.4vw + 0.95rem, 1.25rem);
+  font-size: var(--text-card-title);
   line-height: 1.5;
 }
 
@@ -6428,7 +6436,7 @@ a.contact-block__value:active {
 
 /* The hub's most-asked questions: a ruled table across the page, question beside its answer. */
 .faq-most {
-  margin: 48px 0 0;
+  margin: clamp(24px, 4vw, 48px) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -6436,7 +6444,7 @@ a.contact-block__value:active {
 .faq-most__row {
   display: grid;
   gap: 12px;
-  padding-block: 28px;
+  padding-block: 24px;
   border-top: 1px solid var(--line);
 }
 
@@ -6449,9 +6457,9 @@ a.contact-block__value:active {
   font-family: var(--font-display);
   font-weight: 700;
   font-stretch: 105%;
-  font-size: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
+  font-size: var(--text-lead);
   line-height: 1.15;
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
   text-wrap: balance;
 }
@@ -6493,7 +6501,7 @@ a.contact-block__value:active {
 
 /* The topics: an index set in display type, each with its first questions under it. */
 .faq-topics__list {
-  margin: 40px 0 0;
+  margin: clamp(24px, 3vw, 40px) 0 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--line);
@@ -6502,7 +6510,7 @@ a.contact-block__value:active {
 .faq-topics__link {
   display: grid;
   gap: 8px;
-  padding-block: 28px;
+  padding-block: 24px;
   border-bottom: 1px solid var(--line);
   color: inherit;
   text-decoration: none;
@@ -6513,9 +6521,8 @@ a.contact-block__value:active {
   font-weight: 860;
   font-stretch: 122%;
   text-transform: uppercase;
-  font-size: clamp(1.5rem, 3vw + 0.5rem, 3rem);
   line-height: 0.95;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
   transition: color var(--ui) var(--ease);
 }
@@ -6535,7 +6542,7 @@ a.contact-block__value:active {
 
 .glossary-hero {
   display: grid;
-  gap: 32px;
+  gap: 24px;
 }
 
 .glossary-filter {
@@ -6562,7 +6569,7 @@ a.contact-block__value:active {
 .glossary-letters {
   position: sticky;
   inset-block-start: 0;
-  z-index: 2;
+  z-index: var(--z-sticky-index);
   padding-block: 8px;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
@@ -6571,7 +6578,7 @@ a.contact-block__value:active {
 .glossary-letters__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -6603,9 +6610,10 @@ a.contact-block__value:active {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  /* The text colour, not --dimension: olive on the wash measured 4.02:1 in light mode. */
   .glossary-letters__row a:hover {
     background: var(--wash);
-    color: var(--dimension);
+    color: var(--text);
   }
 }
 
@@ -6616,13 +6624,13 @@ a.contact-block__value:active {
 .glossary-terms {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0 32px;
-  margin: 40px 0 0;
+  gap: 0 24px;
+  margin: clamp(24px, 3vw, 40px) 0 0;
 }
 
 .glossary-term {
   position: relative;
-  padding-block: 24px 32px;
+  padding-block: 24px;
   border-top: 1px solid var(--line);
   scroll-margin-top: 96px;
 }
@@ -6647,7 +6655,7 @@ a.contact-block__value:active {
   font-family: var(--font-display);
   font-weight: 700;
   font-stretch: 105%;
-  font-size: clamp(1.125rem, 0.8vw + 0.85rem, 1.5rem);
+  font-size: var(--text-lead);
   line-height: 1.15;
   color: var(--heading);
 }
@@ -6751,12 +6759,12 @@ a.contact-block__value:active {
 /* Two one-sentence sections side by side: one full band instead of two half-empty ones. */
 .company-pair {
   display: grid;
-  gap: 56px;
+  gap: clamp(24px, 4vw, 56px);
 }
 
 .company-pair__item {
   position: relative;
-  padding-block-start: 32px;
+  padding-block-start: 24px;
   border-top: 1px solid var(--line);
 }
 
@@ -6785,7 +6793,7 @@ a.contact-block__value:active {
 .company-works {
   display: grid;
   gap: 12px;
-  margin-block-start: 48px;
+  margin-block-start: clamp(24px, 4vw, 48px);
 }
 
 .company-works .photo-figure {
@@ -6801,7 +6809,7 @@ a.contact-block__value:active {
 
 /* The closing's links, under its button in the right column. */
 .company-closing__more {
-  margin-block-start: 40px;
+  margin-block-start: clamp(24px, 3vw, 40px);
 }
 
 /*
@@ -6814,7 +6822,7 @@ a.contact-block__value:active {
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    gap: 32px;
+    gap: 24px;
   }
 }
 
@@ -6823,7 +6831,7 @@ a.contact-block__value:active {
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    gap: 32px;
+    gap: 24px;
   }
 }
 
@@ -6840,7 +6848,7 @@ a.contact-block__value:active {
   .faq-topics__link {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
-    column-gap: 32px;
+    column-gap: 24px;
   }
 
   .faq-topics__questions {
@@ -6851,5 +6859,82 @@ a.contact-block__value:active {
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
+  }
+}
+
+/*
+ * The new pages' fluid spacing on the 2px scale (VA-17, as every fluid interval on the site is):
+ * a browser that can round gets whole pixels, the rest keep the clamp above. Each line twins one
+ * declaration above, in the same order. `fluidSpacing.test.ts` fails one without its twin.
+ */
+@supports (width: round(1px, 2px)) {
+  .split-hero {
+    gap: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .ruled-grid {
+    margin: round(clamp(24px, 4vw, 48px), 2px) 0 0;
+  }
+
+  .careers-training__layout {
+    gap: round(clamp(24px, 4vw, 56px), 2px);
+  }
+
+  .careers-roles__groups {
+    gap: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .careers-roles__groups {
+    margin-block-start: round(clamp(24px, 4vw, 56px), 2px);
+  }
+
+  .careers-life__mosaic {
+    margin-block-start: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .faq-layout {
+    gap: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .faq-entry {
+    padding-block: 24px round(clamp(24px, 3vw, 40px), 2px);
+  }
+
+  .faq-most {
+    margin: round(clamp(24px, 4vw, 48px), 2px) 0 0;
+  }
+
+  .faq-topics__list {
+    margin: round(clamp(24px, 3vw, 40px), 2px) 0 0;
+  }
+
+  .glossary-terms {
+    margin: round(clamp(24px, 3vw, 40px), 2px) 0 0;
+  }
+
+  .company-pair {
+    gap: round(clamp(24px, 4vw, 56px), 2px);
+  }
+
+  .company-works {
+    margin-block-start: round(clamp(24px, 4vw, 48px), 2px);
+  }
+
+  .company-closing__more {
+    margin-block-start: round(clamp(24px, 3vw, 40px), 2px);
+  }
+}
+
+/*
+ * ⚠️ THE WEBSITE'S FOOTER TAKES FOUR COLUMNS FROM A TABLET (2026-10-07). With the Learn group a
+ * seventh block, three columns put Learn alone on a new row, and the slab that must stay one
+ * screen tall from 768px (LA-13) ran 3px over at 1024px while its quiet band fell to 28px at 768
+ * (D7 keeps it 100px or more; e2e/footer.spec.ts). Four columns set the link groups in one row and
+ * the claims in the next. Website only: the garment pages' footer has no one-screen rule, and its
+ * stylesheet sits at its budget.
+ */
+@media (min-width: 720px) and (max-width: 1279px) {
+  .footer-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

@@ -121,13 +121,13 @@ describe('who carries the class', () => {
       // The company pages (2026-10-07) add it only to a headline of 36 characters or more, the
       // guides' shortest: two of ten reach 37 ("How we treat each other, on the floor.",
       // "Steady work, honest craft, since 1889."); the test below holds that condition.
-      'apps/cms/src/components/site/CompanyPage.tsx': 1,
+      'apps/cms/src/components/site/CompanyParts.tsx': 1,
       'apps/cms/src/components/site/PolicyPage.tsx': 1,
     })
   })
 
   it('the company pages carry it only from 36 characters, so a short headline never does', () => {
-    for (const file of ['CompanyPage.tsx', 'PolicyPage.tsx']) {
+    for (const file of ['CompanyParts.tsx', 'PolicyPage.tsx']) {
       expect(read(`apps/cms/src/components/site/${file}`), file).toMatch(
         /\.length >= 36 \? ' display--long' : ''/,
       )
