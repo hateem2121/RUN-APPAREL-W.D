@@ -147,7 +147,7 @@ After the routing is built and green, and before the owner is asked to merge:
 ## 11. Residual risks, stated
 
 - **Route ownership behaviour.** If the deploy order were ever reversed, the CMS deploy would try to claim a route the PDF Worker still holds. The plan encodes the order in the workflow and in a comment; the failure, if it happened, is a refused deploy, not an outage.
-- **Smart Placement.** The CMS Worker is smart-placed near D1. Serving the site through zone routes does not change that, and assets are still served asset-first at the edge (Cloudflare docs: Smart Placement with assets first "lets you serve assets from as close as possible to your users").
+- **Smart Placement.** *(Removed 2026-10-07: every live answer showed `cf-placement: local-ISB`, so it had never moved the Worker; the reasoning is in the comment where it stood in `apps/cms/wrangler.jsonc`.)* The CMS Worker is smart-placed near D1. Serving the site through zone routes does not change that, and assets are still served asset-first at the edge (Cloudflare docs: Smart Placement with assets first "lets you serve assets from as close as possible to your users").
 - **Local previews wear the wrong hostname.** `wrangler dev` infers the origin from the first route. Every local measurement of a host rule must pass `--infer-origin-from-routes=false` or set the Host explicitly, or it measures the wrong host and passes for the wrong reason.
 
 ## 12. Out of scope

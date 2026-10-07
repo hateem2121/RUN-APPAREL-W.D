@@ -528,3 +528,131 @@ describe('the other garments of its category (polish S6)', () => {
     expect(((await res.json()) as { related?: Related[] }).related).toEqual([])
   })
 })
+
+/*
+ * ⚠️ THE ROUND TRIPS (2026-10-07). An uncached answer took 4.0–4.5 s from Pakistan: the CMS
+ * Worker runs beside the visitor (`cf-placement: local-ISB`), the database is in ENAM about
+ * 0.4 s away, and the answer made about ten trips there one after another. Each `find` with
+ * Payload's default pagination runs a COUNT before the read (drizzle `findMany`), and each
+ * with joins on runs the `rawUploads` subquery and then fetches those uploads. These tests
+ * fail if either comes back, or if the three reads stop starting together, and prove the
+ * answer did not change by a byte for it.
+ */
+describe('the database round trips behind one answer (2026-10-07)', () => {
+  type FindArgs = { where?: { and?: unknown }; pagination?: boolean; joins?: unknown }
+  /** Database trips a `find` costs before its pictures: the read, a COUNT, the join. */
+  const tripsFor = (args: FindArgs): number =>
+    1 + (args.pagination === false ? 0 : 1) + (args.joins === false ? 0 : 1)
+
+  const LIST = [PRODUCT, { ...PRODUCT, slug: 'n002', productCode: 'N002' }]
+  const reqCounting = () => {
+    const find = vi.fn(async (args: FindArgs) =>
+      Array.isArray(args?.where?.and) ? { docs: [PRODUCT] } : { docs: LIST },
+    )
+    const findGlobal = vi.fn().mockResolvedValue({})
+    const req = {
+      routeParams: { productSlug: 'n001', colourSlug: 'wine' },
+      url: 'https://cms.example/api/x',
+      payload: { find, findGlobal },
+    } as unknown as PayloadRequest
+    return { req, find, findGlobal }
+  }
+
+  it('the trip counter counts a COUNT and a join (control: it can see the old cost)', () => {
+    expect(tripsFor({}), 'Payload’s defaults: count + read + join').toBe(3)
+    expect(tripsFor({ pagination: false, joins: false })).toBe(1)
+  })
+
+  it('asks for no COUNT and no CLO-file join, on the garment or on the list', async () => {
+    const { req, find, findGlobal } = reqCounting()
+    expect((await withColour(req)).status).toBe(200)
+    expect(find).toHaveBeenCalledTimes(2)
+    for (const [args] of find.mock.calls) {
+      expect(args, 'a COUNT or a join came back').toMatchObject({ pagination: false, joins: false })
+    }
+    const trips =
+      find.mock.calls.reduce((sum, [args]) => sum + tripsFor(args), 0) +
+      findGlobal.mock.calls.length
+    expect(trips, 'one trip each for the garment, the list and the settings').toBe(3)
+  })
+
+  it('starts the settings and the list before the garment has answered', async () => {
+    const events: string[] = []
+    const { req, find, findGlobal } = reqCounting()
+    find.mockImplementation(async (args: FindArgs) => {
+      if (Array.isArray(args?.where?.and)) {
+        events.push('garment asked')
+        await new Promise((resolve) => setTimeout(resolve, 5))
+        events.push('garment answered')
+        return { docs: [PRODUCT] }
+      }
+      events.push('list asked')
+      return { docs: LIST }
+    })
+    findGlobal.mockImplementation(async () => {
+      events.push('settings asked')
+      return {}
+    })
+    await withColour(req)
+    expect(events.indexOf('settings asked')).toBeGreaterThan(-1)
+    expect(events.indexOf('settings asked')).toBeLessThan(events.indexOf('garment answered'))
+    expect(events.indexOf('list asked')).toBeGreaterThan(-1)
+    expect(events.indexOf('list asked')).toBeLessThan(events.indexOf('garment answered'))
+  })
+
+  it('answers byte for byte as it did with the COUNT and the join (the projection ignores both)', async () => {
+    // What Payload returned BEFORE: pagination fields on the result, and the populated
+    // `rawUploads` join on every garment (its shape at depth 1).
+    const withJoin = (product: Record<string, unknown>) => ({
+      ...product,
+      rawUploads: {
+        docs: [
+          {
+            id: 7,
+            filename: 'N001-export.glb',
+            status: 'ready',
+            resultGlb: media('/media/n001-result.glb'),
+          },
+        ],
+        hasNextPage: false,
+      },
+    })
+    const paged = (docs: unknown[]) => ({
+      docs,
+      totalDocs: docs.length,
+      limit: 10,
+      totalPages: 1,
+      page: 1,
+      pagingCounter: 1,
+      hasPrevPage: false,
+      hasNextPage: false,
+      prevPage: null,
+      nextPage: null,
+    })
+    const answer = async (before: boolean) => {
+      __clearViewerCache()
+      __clearRelatedCache()
+      const list = LIST.map((doc) => (before ? withJoin(doc) : doc))
+      const find = vi.fn(async (args: FindArgs) => {
+        const docs = Array.isArray(args?.where?.and) ? [list[0]] : list
+        return before ? paged(docs) : { docs }
+      })
+      const req = {
+        routeParams: { productSlug: 'n001', colourSlug: 'wine' },
+        url: 'https://cms.example/api/x',
+        payload: { find, findGlobal: vi.fn().mockResolvedValue({}) },
+      } as unknown as PayloadRequest
+      const res = await withColour(req)
+      expect(res.status).toBe(200)
+      return res.text()
+    }
+    const before = await answer(true)
+    const after = await answer(false)
+    expect(after).toBe(before)
+    // Control: the fixture really did carry the join and a second garment for the list, so
+    // the comparison had something that could have leaked into the answer.
+    expect(JSON.stringify(withJoin(PRODUCT))).toContain('N001-export.glb')
+    expect(before).not.toContain('N001-export.glb')
+    expect(before).toContain('"n002"')
+  })
+})
