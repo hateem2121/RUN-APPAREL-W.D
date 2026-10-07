@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {
+  FAQ_GUIDES,
   FAQ_INDEX,
   FAQ_TOPIC_LEDE,
   FAQ_TOPICS,
@@ -33,25 +34,9 @@ function topicName(topic: FaqTopic): string {
   return topic.title.replace(/^FAQ: /, '')
 }
 
-/** The guides each topic sends a reader on to (D5's "Related guides"), by address. */
-const RELATED_GUIDES: Readonly<Record<string, readonly string[]>> = {
-  '/faq/orders-and-samples': [
-    '/guides/how-a-private-label-order-works',
-    '/guides/minimum-order-and-samples',
-  ],
-  '/faq/quality-and-certifications': ['/guides/how-a-private-label-order-works'],
-  '/faq/shipping-and-importing': [
-    '/guides/shipping-and-import-duties',
-    '/guides/private-label-packaging',
-  ],
-  '/faq/fabrics-and-printing': [
-    '/guides/sportswear-fabrics-and-weights',
-    '/guides/garment-printing-methods',
-  ],
-}
-
+/** The guides a topic sends a reader on to (`FAQ_GUIDES`), as links. */
 export function relatedGuidesFor(path: string) {
-  return (RELATED_GUIDES[path] ?? []).map((href) => {
+  return (FAQ_GUIDES[path] ?? []).map((href) => {
     const guide = GUIDES.find((entry) => entry.path === href)
     if (!guide) throw new Error(`FaqPages.tsx names a guide that does not exist: ${href}`)
     return { href, name: guide.title }

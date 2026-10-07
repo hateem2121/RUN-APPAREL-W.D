@@ -4,10 +4,12 @@ import { describe, expect, it } from 'vitest'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE, FACTS, LEAD_TIME } from './companyFacts'
 import {
+  FAQ_GUIDES,
   FAQ_INDEX,
   FAQ_PATHS,
   FAQ_TOPICS,
   faqEntryById,
+  faqTopicForGuide,
   faqTopicAt,
   faqVisibleAnswer,
 } from './faqs'
@@ -102,4 +104,15 @@ describe('every FAQ page has an address, a route and a title that fits', () => {
       expect(page.description.length).toBeLessThanOrEqual(DESCRIPTION_MAX)
     })
   }
+})
+
+describe('the guides and the FAQ point at each other (Task 3.4)', () => {
+  it('every guide a topic names exists, and every guide has a topic to point back at', () => {
+    const guides = new Set(GUIDES.map((guide) => guide.path))
+    for (const [topic, paths] of Object.entries(FAQ_GUIDES)) {
+      expect(FAQ_PATHS, topic).toContain(topic)
+      for (const path of paths) expect(guides.has(path), `${topic} → ${path}`).toBe(true)
+    }
+    for (const guide of GUIDES) expect(faqTopicForGuide(guide.path), guide.path).toBeDefined()
+  })
 })

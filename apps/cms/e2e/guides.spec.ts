@@ -167,15 +167,21 @@ const endGroups = (page: Page) =>
     }
   })
 
-test.describe('X22 — the end of a guide: two labelled groups', () => {
+/*
+ * Three groups since 2026-10-07 (PLAN.md Task 3.4): "Answers" — the guide's FAQ topic, all the
+ * questions and the glossary — joins the two of polish X22, in the same row.
+ */
+test.describe('X22 — the end of a guide: three labelled groups', () => {
   test('at 1440px side by side, every link 44px tall', async ({ page }) => {
     await open(page, PRINTING, 1440)
     const end = await endGroups(page)
-    expect(end.titles).toEqual(['Buyer guides', 'What we make'])
-    const [guides, families] = end.boxes
+    expect(end.titles).toEqual(['Buyer guides', 'What we make', 'Answers'])
+    const [guides, families, answers] = end.boxes
     expect(Math.abs((guides?.top ?? 0) - (families?.top ?? 99))).toBeLessThanOrEqual(0.5)
+    expect(Math.abs((families?.top ?? 0) - (answers?.top ?? 99))).toBeLessThanOrEqual(0.5)
     expect((families?.left ?? 0) - (guides?.right ?? 0)).toBeGreaterThanOrEqual(63.5)
-    expect(end.links).toBeGreaterThanOrEqual(11)
+    expect((answers?.left ?? 0) - (families?.right ?? 0)).toBeGreaterThanOrEqual(63.5)
+    expect(end.links).toBeGreaterThanOrEqual(14)
     expect(end.small).toEqual([])
   })
 

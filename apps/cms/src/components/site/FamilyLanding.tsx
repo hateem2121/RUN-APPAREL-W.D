@@ -161,16 +161,31 @@ export function FamilyLanding({
       </section>
 
       <section className="site-section" data-site-reveal>
-        <div className="site-container prose spread">
-          <h2 className="display display--section">Questions buyers ask</h2>
-          <div className="spread__body">
-            {page.questions.map((entry) => (
-              <div key={entry.question}>
-                <h3 className="product-card__name prose__heading">{entry.question}</h3>
-                <p>{entry.answer}</p>
-              </div>
-            ))}
+        <div className="site-container">
+          {/*
+           * The questions as a ruled table across the page, each beside its answer, as the FAQ hub
+           * sets its most-asked (2026-10-07): the heading-left, answers-right spread left half the
+           * screen empty, which the owner asked to be found and fixed on every page.
+           */}
+          <div className="company-head">
+            <h2 className="display display--section">Questions buyers ask</h2>
+            <div className="company-head__words">
+              {/* PLAN.md Task 3.4: the site's FAQ, one link on (shown to the owner 2026-10-07). */}
+              <Link className="faq-most__more" href="/faq">
+                More answers in the FAQ <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </div>
+          <ol className="faq-most">
+            {page.questions.map((entry) => (
+              <li className="faq-most__row" key={entry.question}>
+                <h3 className="faq-most__question">{entry.question}</h3>
+                <div className="faq-most__answer">
+                  <p>{entry.answer}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 

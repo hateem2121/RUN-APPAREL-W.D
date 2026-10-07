@@ -334,6 +334,33 @@ const FABRICS: FaqTopic = {
   ],
 }
 
+/**
+ * Which buyer guides each topic sends a reader on to (D5's "Related guides"), and so which topic
+ * each guide's "Answers" points back at (Task 3.4). One table, read both ways, so a guide and its
+ * topic cannot disagree. The 3D guide answers to orders and samples until "Working with us" exists.
+ */
+export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
+  '/faq/orders-and-samples': [
+    '/guides/how-a-private-label-order-works',
+    '/guides/minimum-order-and-samples',
+    '/guides/3d-garment-reference',
+  ],
+  '/faq/quality-and-certifications': ['/guides/how-a-private-label-order-works'],
+  '/faq/shipping-and-importing': [
+    '/guides/shipping-and-import-duties',
+    '/guides/private-label-packaging',
+  ],
+  '/faq/fabrics-and-printing': [
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/garment-printing-methods',
+  ],
+}
+
+/** The first topic that names a guide: where that guide's "Answers" link goes. */
+export function faqTopicForGuide(guidePath: string): string | undefined {
+  return Object.keys(FAQ_GUIDES).find((topic) => FAQ_GUIDES[topic]?.includes(guidePath))
+}
+
 /** The topic pages, in the hub's order. "Working with us" joins with its fifth answer. */
 export const FAQ_TOPICS: readonly FaqTopic[] = [ORDERS, QUALITY, SHIPPING, FABRICS]
 
