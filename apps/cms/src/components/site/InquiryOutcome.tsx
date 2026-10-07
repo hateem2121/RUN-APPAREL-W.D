@@ -1,5 +1,6 @@
 'use client'
 
+import { type TrackerWindow, trackerEvent } from '@run-apparel/shared'
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
 import { NEED_US_SOONER, RECEIVED_HEADING, SEND_ANOTHER } from '../../lib/inquiryForm'
 
@@ -21,18 +22,29 @@ import { NEED_US_SOONER, RECEIVED_HEADING, SEND_ANOTHER } from '../../lib/inquir
  * focus on it; rewritten to `#inquiry` too early, the anchor named a section that cannot take focus
  * and Chromium dropped focus to <body> — every run, measured 2026-10-01. A reload of the tidied
  * address lands on the form's section.
+ *
+ * ⚠️ THE KEY EVENT IS A NAMED EVENT, SENT HERE, NOT A RULE ON THE ADDRESS (2026-10-07). Analytics
+ * matched `inquiry_sent` to a page_view whose address contains `?sent=1`, and it counted nothing in
+ * 90 days: measured on the live site, Google's script read the address 9.3 s after the page
+ * started, long after the tidy below. Queued by `trackerEvent` at the tidy, when every effect on
+ * the page has run (the consent banner's start included), the event keeps its name however late
+ * the script arrives; `trackerEvent` queues nothing for a visitor who has not accepted.
+ * `e2e/keyEvents.spec.ts` holds both forms to it.
  */
-function useArrival(target: RefObject<HTMLDivElement | null>) {
+function useArrival(target: RefObject<HTMLDivElement | null>, keyEvent?: string) {
   useEffect(() => {
     target.current?.focus()
-    const tidy = () => window.history.replaceState(null, '', `${window.location.pathname}#inquiry`)
+    const tidy = () => {
+      if (keyEvent) trackerEvent(window as unknown as TrackerWindow, keyEvent)
+      window.history.replaceState(null, '', `${window.location.pathname}#inquiry`)
+    }
     if (document.readyState === 'complete') {
       tidy()
       return
     }
     window.addEventListener('load', tidy, { once: true })
     return () => window.removeEventListener('load', tidy)
-  }, [target])
+  }, [target, keyEvent])
 }
 
 /** The form's place after a successful Send: the form is gone, this is all that shows (VA-27). */
@@ -50,7 +62,7 @@ export function InquiryReceived({
   const panel = useRef<HTMLDivElement>(null)
   const again = useRef<HTMLAnchorElement>(null)
   const [shown, setShown] = useState(true)
-  useArrival(panel)
+  useArrival(panel, 'inquiry_sent')
 
   /*
    * ⚠️ "SEND ANOTHER INQUIRY" IS A REAL LINK, AND THE SCRIPT ONLY SHORTENS ITS TRIP. Without

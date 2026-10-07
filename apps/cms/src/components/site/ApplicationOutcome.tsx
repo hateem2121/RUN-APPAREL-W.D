@@ -1,26 +1,31 @@
 'use client'
 
+import { type TrackerWindow, trackerEvent } from '@run-apparel/shared'
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
 import { SEND_ANOTHER_APPLICATION } from '../../lib/careersForm'
 import { RECEIVED_HEADING } from '../../lib/inquiryForm'
 
 /**
  * The careers form's two results, copied from `InquiryOutcome.tsx` (whose comments carry the
- * reasons) with the careers ids and words (owner-approved 2026-10-07). Both take focus on arrival
- * — the route sends the browser to `#application-done` / `#application-problem` (VA-01) — and
- * then clear the code from the address, so a refresh or a shared link does not repeat it.
+ * reasons, the key event's included) with the careers ids and words (owner-approved 2026-10-07).
+ * Both take focus on arrival — the route sends the browser to `#application-done` /
+ * `#application-problem` (VA-01) — and then clear the code from the address, so a refresh or a
+ * shared link does not repeat it. A received application is the key event `job_application_sent`.
  */
-function useArrival(target: RefObject<HTMLDivElement | null>) {
+function useArrival(target: RefObject<HTMLDivElement | null>, keyEvent?: string) {
   useEffect(() => {
     target.current?.focus()
-    const tidy = () => window.history.replaceState(null, '', `${window.location.pathname}#apply`)
+    const tidy = () => {
+      if (keyEvent) trackerEvent(window as unknown as TrackerWindow, keyEvent)
+      window.history.replaceState(null, '', `${window.location.pathname}#apply`)
+    }
     if (document.readyState === 'complete') {
       tidy()
       return
     }
     window.addEventListener('load', tidy, { once: true })
     return () => window.removeEventListener('load', tidy)
-  }, [target])
+  }, [target, keyEvent])
 }
 
 /** A received application: replaces the form; "Send another application" brings it back. */
@@ -28,7 +33,7 @@ export function ApplicationReceived({ thanks }: { thanks: string }) {
   const panel = useRef<HTMLDivElement>(null)
   const again = useRef<HTMLAnchorElement>(null)
   const [shown, setShown] = useState(true)
-  useArrival(panel)
+  useArrival(panel, 'job_application_sent')
 
   useEffect(() => {
     const link = again.current
