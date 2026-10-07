@@ -1,4 +1,5 @@
 import {
+  COMPANY_PAGE_SOURCES,
   FAMILY_PAGE_SOURCES,
   GUIDE_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
@@ -88,6 +89,8 @@ export const CMS_PUBLIC_PATHS = [
   ...GUIDE_PAGE_SOURCES,
   // The policies hub and the approved policies (2026-10-07), same reasoning.
   ...POLICY_PAGE_SOURCES,
+  // The company pages — careers and community (2026-10-07), same reasoning.
+  ...COMPANY_PAGE_SOURCES,
 ]
 
 /**

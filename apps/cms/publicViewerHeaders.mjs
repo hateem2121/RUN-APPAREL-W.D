@@ -118,6 +118,12 @@ export const POLICY_PAGE_SOURCES = [
   '/policies/environmental',
 ]
 
+/**
+ * The company pages (2026-10-07): careers and community, in `COMPANY_PATHS`' order. Held to
+ * `src/lib/companyPages.ts` by `companyPages.test.ts`. Phase 5 adds `/press`.
+ */
+export const COMPANY_PAGE_SOURCES = ['/careers', '/community']
+
 export const PUBLIC_PAGE_SOURCES = [
   '/',
   '/products',
@@ -127,6 +133,7 @@ export const PUBLIC_PAGE_SOURCES = [
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,
   ...POLICY_PAGE_SOURCES,
+  ...COMPANY_PAGE_SOURCES,
 ]
 
 /**

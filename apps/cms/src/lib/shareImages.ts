@@ -1,4 +1,5 @@
 import { CONTACT_HERO_PHOTO } from './factoryPhotos'
+import { CAREERS_PAGE, COMMUNITY_PAGE } from './companyPages'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDES, GUIDES_INDEX } from './guides'
 import { POLICIES, POLICIES_INDEX } from './policies'
@@ -217,6 +218,25 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
         wordsCard(fileFor(policy.path), '[ Policy ]', policy.heading, policy.headingAccent),
       ] as const,
   ),
+  // The company pages (2026-10-07), words from their own lists.
+  [
+    CAREERS_PAGE.path,
+    wordsCard(
+      fileFor(CAREERS_PAGE.path),
+      CAREERS_PAGE.eyebrow,
+      CAREERS_PAGE.heading,
+      CAREERS_PAGE.headingAccent,
+    ),
+  ],
+  [
+    COMMUNITY_PAGE.path,
+    wordsCard(
+      fileFor(COMMUNITY_PAGE.path),
+      COMMUNITY_PAGE.eyebrow,
+      COMMUNITY_PAGE.heading,
+      COMMUNITY_PAGE.headingAccent,
+    ),
+  ],
 ])
 
 /** Every card the generator draws, once each. */

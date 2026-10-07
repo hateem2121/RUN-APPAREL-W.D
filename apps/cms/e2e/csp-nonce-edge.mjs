@@ -52,6 +52,8 @@ const PAGES = [
   ['/policies/labor-rights', 200],
   ['/policies/quality', 200],
   ['/policies/environmental', 200],
+  ['/careers', 200],
+  ['/community', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [

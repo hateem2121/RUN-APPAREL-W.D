@@ -59,10 +59,11 @@ const OWN_PICTURE = PUBLIC_PAGE_SOURCES.filter((path) => !['/privacy', '/terms']
 const cardWords = (card: ShareCard) => [card.label, card.heading, card.accent].join(' ')
 
 describe('every website page shares a picture of its own type (X14, Q11)', () => {
-  it('the home page, products, contact, each category page, the guides index, each guide, the policies hub and each policy: one each', () => {
+  it('the home page, products, contact, each category page, the guides index, each guide, the policies hub, each policy, careers and community: one each', () => {
     const files = OWN_PICTURE.map((path) => shareCardFor(path).file)
-    // 1 home + products + contact + 4 category + guides index + 7 guides + policies hub + 7 policies.
-    expect(OWN_PICTURE).toHaveLength(23)
+    // 1 home + products + contact + 4 category + guides index + 7 guides + policies hub
+    // + 7 policies + careers + community.
+    expect(OWN_PICTURE).toHaveLength(25)
     expect(new Set(files).size, 'two page types share a picture').toBe(OWN_PICTURE.length)
   })
 

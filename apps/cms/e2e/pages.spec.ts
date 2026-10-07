@@ -109,6 +109,9 @@ const PAGES = [
     name: 'environmental policy',
     heading: /What we use/i,
   },
+  // The company pages (2026-10-07); the form joins /careers in Phase 2.
+  { path: '/careers', name: 'careers page', heading: /Join a family/i },
+  { path: '/community', name: 'community page', heading: /Steady work/i },
 ] as const
 
 test.describe('every page renders real content', () => {
