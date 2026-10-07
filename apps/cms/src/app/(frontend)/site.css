@@ -5851,18 +5851,18 @@ a.contact-block__value:active {
  */
 
 /* The hero: the words, and a maker at work in a framed photo beside them. */
-.careers-hero__layout {
+.split-hero {
   display: grid;
   gap: 48px;
 }
 
-.careers-hero__photo {
+.split-hero__photo {
   position: relative;
   margin: 0;
   max-width: 560px;
 }
 
-.careers-hero__img {
+.split-hero__img {
   display: block;
   width: 100%;
   height: auto;
@@ -5873,7 +5873,7 @@ a.contact-block__value:active {
 }
 
 /* The blueprint's corner marks, set just outside the photo, as the footer's clock wears them. */
-.careers-hero__corners {
+.split-hero__corners {
   position: absolute;
   inset: -12px;
   pointer-events: none;
@@ -5889,30 +5889,30 @@ a.contact-block__value:active {
 }
 
 @media (width >= 900px) {
-  .careers-hero__layout {
+  .split-hero {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     align-items: end;
     gap: 64px;
   }
 
-  .careers-hero__photo {
+  .split-hero__photo {
     justify-self: end;
     width: 100%;
   }
 }
 
 @media (width < 900px) {
-  .careers-hero__photo {
+  .split-hero__photo {
     max-width: 420px;
   }
 
-  .careers-hero__img {
+  .split-hero__img {
     aspect-ratio: 5 / 4;
   }
 }
 
 /* What we offer: six lines across the page, each under its own rule, a dimension tick on it. */
-.careers-offer__list {
+.ruled-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0 32px;
@@ -5921,7 +5921,7 @@ a.contact-block__value:active {
   list-style: none;
 }
 
-.careers-offer__item {
+.ruled-grid__item {
   position: relative;
   padding-block: 24px 32px;
   border-top: 1px solid var(--line);
@@ -5932,7 +5932,7 @@ a.contact-block__value:active {
   text-wrap: balance;
 }
 
-.careers-offer__item::before {
+.ruled-grid__item::before {
   content: "";
   position: absolute;
   inset-block-start: -1px;
@@ -5944,13 +5944,13 @@ a.contact-block__value:active {
 }
 
 @media (width >= 640px) {
-  .careers-offer__list {
+  .ruled-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (width >= 1000px) {
-  .careers-offer__list {
+  .ruled-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
@@ -6031,7 +6031,9 @@ a.contact-block__value:active {
   letter-spacing: -0.01em;
   color: var(--heading);
   font-size: clamp(1rem, 1.4vw + 0.55rem, 1.75rem);
-  overflow-wrap: anywhere;
+  /* A role's name never breaks inside a word ("SUPERVI-SOR" did at 390 px, 2026-10-07). */
+  overflow-wrap: normal;
+  hyphens: manual;
 }
 
 .career-path__step:last-child .career-path__name {
@@ -6229,12 +6231,6 @@ a.contact-block__value:active {
   margin-block-start: 16px;
 }
 
-/* A role's name never breaks inside a word ("SUPERVI-SOR" did at 390 px, 2026-10-07). */
-.career-path__name {
-  overflow-wrap: normal;
-  hyphens: manual;
-}
-
 /*
  * On a phone the three columns are too narrow for "Line supervisor" in display type, so the path
  * turns into a staircase down the page: each step one tread further in, on its own rule.
@@ -6280,5 +6276,578 @@ a.contact-block__value:active {
   .careers-life__mosaic .photo-figure:not(:first-child) .photo-figure__img {
     height: 100%;
     object-fit: cover;
+  }
+}
+
+/* ------------------------------------------------ the FAQ (FaqPages.tsx) */
+
+/*
+ * A topic page: the questions in a column that stays in view beside the answers from 1000px, so a
+ * reader can jump from any answer to any other; on a phone the questions come first, as an index.
+ * The careers page's rules for a section (ruled, dimension-ticked) carry the answers.
+ */
+.faq-layout {
+  display: grid;
+  gap: 48px;
+}
+
+.faq-layout__label {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.faq-layout__index ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.faq-layout__index a {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding-block: 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transition: color var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-layout__index a:hover {
+    color: var(--dimension);
+  }
+}
+
+.faq-layout__answers {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.faq-entry {
+  position: relative;
+  padding-block: 32px 40px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: calc(var(--notch-clearance) + 16px);
+}
+
+.faq-entry::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+}
+
+.faq-entry__question {
+  margin: 0;
+  max-width: 28em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--heading);
+  text-wrap: balance;
+}
+
+.faq-entry__answer {
+  margin: 16px 0 0;
+  /* 28em, not the site measure: this type is up to 1.25rem, and 31.5em of it set 78 characters a
+     line at 768px (legibility.spec.ts, 2026-10-07). */
+  max-width: 28em;
+  font-size: clamp(1.0625rem, 0.4vw + 0.95rem, 1.25rem);
+  line-height: 1.5;
+}
+
+.faq-entry__more {
+  margin-block-start: 16px;
+  max-width: var(--site-measure);
+}
+
+.faq-entry__more summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--dimension);
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq-entry__more summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A plus that turns into a minus: the open state in one stroke, no icon font. */
+.faq-entry__more summary::before {
+  content: "";
+  inline-size: 10px;
+  block-size: 10px;
+  background:
+    linear-gradient(currentColor, currentColor) center / 10px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 1.5px 10px no-repeat;
+  transition: background-size var(--ui) var(--ease);
+}
+
+.faq-entry__more[open] summary::before {
+  background-size:
+    10px 1.5px,
+    1.5px 0;
+}
+
+.faq-entry__more p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+@media (width >= 1000px) {
+  .faq-layout {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    gap: 64px;
+    align-items: start;
+  }
+
+  .faq-layout__index {
+    position: sticky;
+    inset-block-start: calc(var(--notch-clearance) + 24px);
+  }
+}
+
+/* The hub's most-asked questions: a ruled table across the page, question beside its answer. */
+.faq-most {
+  margin: 48px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.faq-most__row {
+  display: grid;
+  gap: 12px;
+  padding-block: 28px;
+  border-top: 1px solid var(--line);
+}
+
+.faq-most__row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-most__question {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--heading);
+  text-wrap: balance;
+}
+
+.faq-most__answer p {
+  margin: 0;
+  max-width: var(--site-measure);
+}
+
+.faq-most__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--dimension);
+  text-decoration: none;
+}
+
+.faq-most__more span {
+  transition: translate var(--ui) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-most__more:hover span {
+    translate: 4px 0;
+  }
+}
+
+@media (width >= 900px) {
+  .faq-most__row {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 64px;
+  }
+}
+
+/* The topics: an index set in display type, each with its first questions under it. */
+.faq-topics__list {
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.faq-topics__link {
+  display: grid;
+  gap: 8px;
+  padding-block: 28px;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.faq-topics__name {
+  font-family: var(--font-display);
+  font-weight: 860;
+  font-stretch: 122%;
+  text-transform: uppercase;
+  font-size: clamp(1.5rem, 3vw + 0.5rem, 3rem);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  color: var(--heading);
+  transition: color var(--ui) var(--ease);
+}
+
+.faq-topics__questions {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-topics__link:hover .faq-topics__name {
+    color: var(--dimension);
+  }
+}
+
+/* ------------------------------------------------ the glossary (GlossaryPage.tsx) */
+
+.glossary-hero {
+  display: grid;
+  gap: 32px;
+}
+
+.glossary-filter {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.glossary-filter__count {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+@media (width >= 900px) {
+  .glossary-hero {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: end;
+    gap: 64px;
+  }
+}
+
+/* The A–Z row stays under the menu bar while the page scrolls. */
+.glossary-letters {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  padding-block: 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.glossary-letters__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.glossary-letters__row a,
+.glossary-letters__row span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-decoration: none;
+}
+
+.glossary-letters__row a {
+  color: var(--text);
+  border-radius: var(--radius-chip);
+  transition:
+    background-color var(--ui) var(--ease),
+    color var(--ui) var(--ease);
+}
+
+.glossary-letters__row span {
+  color: var(--muted);
+  opacity: 0.45;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .glossary-letters__row a:hover {
+    background: var(--wash);
+    color: var(--dimension);
+  }
+}
+
+.glossary-group {
+  scroll-margin-top: 72px;
+}
+
+.glossary-terms {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 32px;
+  margin: 40px 0 0;
+}
+
+.glossary-term {
+  position: relative;
+  padding-block: 24px 32px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 96px;
+}
+
+.glossary-term::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+}
+
+/* A term reached by its anchor or the A–Z row says so for a moment. */
+.glossary-term:target::before {
+  inline-size: 100%;
+  transition: inline-size var(--slow) var(--ease-out-expo);
+}
+
+.glossary-term__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: clamp(1.125rem, 0.8vw + 0.85rem, 1.5rem);
+  line-height: 1.15;
+  color: var(--heading);
+}
+
+.glossary-term__definition {
+  margin: 8px 0 0;
+}
+
+.glossary-term__definition p {
+  margin: 0;
+  /* 29em, not the site measure: a definition of short words and commas set 78 characters a line
+     in Firefox at 1180px once a lone term spanned its row (legibility.spec.ts, 2026-10-07). */
+  max-width: 29em;
+}
+
+.glossary-term__more {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.glossary-term__more a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--dimension);
+}
+
+@media (width >= 700px) {
+  .glossary-terms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1200px) {
+  .glossary-terms {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glossary-term:target::before {
+    transition: none;
+  }
+}
+
+@media print {
+  .glossary-letters,
+  .glossary-filter {
+    display: none;
+  }
+}
+
+/*
+ * ⚠️ THESE LIST ITEMS ARE LAYOUT, NOT A LINE OF TEXT. Every `li` is capped at 60ch for reading
+ * (base.css), which held the hub's most-asked table to 562px of a 1352px page — the empty half the
+ * owner turned down on 2026-10-07. Their own text keeps its measure through the rules above.
+ */
+.faq-most__row,
+.faq-topics__list > li {
+  max-width: none;
+}
+
+.glossary-filter__input {
+  width: 100%;
+  min-height: var(--target-min);
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-button);
+}
+
+/* ------------------------------------------------ the company pages' shared shapes (CompanyParts.tsx) */
+
+/* A wide (8:5) photo in the split hero, the community's building, in the same 7 : 5 split. */
+.split-hero--wide .split-hero__img {
+  aspect-ratio: 8 / 5;
+}
+
+/* A section's heading beside its sentences, above whatever spans the page under them. */
+.company-head {
+  display: grid;
+  gap: 24px;
+}
+
+.company-head__words .site-lede + .site-lede {
+  margin-block-start: 16px;
+}
+
+@media (width >= 900px) {
+  .company-head {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 6fr);
+    align-items: end;
+    gap: 64px;
+  }
+}
+
+/* Two one-sentence sections side by side: one full band instead of two half-empty ones. */
+.company-pair {
+  display: grid;
+  gap: 56px;
+}
+
+.company-pair__item {
+  position: relative;
+  padding-block-start: 32px;
+  border-top: 1px solid var(--line);
+}
+
+.company-pair__item::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+}
+
+.company-pair__item .site-lede {
+  margin-block-start: 20px;
+}
+
+@media (width >= 900px) {
+  .company-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 64px;
+  }
+}
+
+/* The works: two photos across the page, the same height. */
+.company-works {
+  display: grid;
+  gap: 12px;
+  margin-block-start: 48px;
+}
+
+.company-works .photo-figure {
+  margin: 0;
+}
+
+@media (width >= 900px) {
+  .company-works {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* The closing's links, under its button in the right column. */
+.company-closing__more {
+  margin-block-start: 40px;
+}
+
+/*
+ * A glossary category's last term alone on its row spans the row, its name beside its definition:
+ * "Special inks" and "SECP" stood in a third of the page with two thirds empty beside them
+ * (measured 29% of the column at 1440, 2026-10-07).
+ */
+@media (width >= 700px) and (width < 1200px) {
+  .glossary-term:last-child:nth-child(2n + 1) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 32px;
+  }
+}
+
+@media (width >= 1200px) {
+  .glossary-term:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 32px;
+  }
+}
+
+/* Each topic row ends with its count, so the row reads to its end (54% of it was empty, 2026-10-07). */
+.faq-topics__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+}
+
+@media (width >= 900px) {
+  .faq-topics__link {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    column-gap: 32px;
+  }
+
+  .faq-topics__questions {
+    grid-row: 2;
+  }
+
+  .faq-topics__count {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
   }
 }

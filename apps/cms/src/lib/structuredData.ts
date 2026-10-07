@@ -237,3 +237,30 @@ export function contactPageJsonLd(settings: PublicSiteSettings) {
     },
   }
 }
+
+/**
+ * The glossary as a defined-term set (schema.org `DefinedTermSet`, read 2026-10-07): each term
+ * with its visible definition and its anchor on /glossary, linked back with `inDefinedTermSet`.
+ * Built from the list the page draws, so the two cannot differ.
+ */
+export function definedTermSetJsonLd(
+  set: { name: string; path: string },
+  terms: ReadonlyArray<{ id: string; name: string; definition: string }>,
+) {
+  const url = `${SITE_ORIGIN}${set.path}`
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'DefinedTermSet',
+    '@id': `${url}#terms`,
+    name: set.name,
+    url,
+    hasDefinedTerm: terms.map((term) => ({
+      '@type': 'DefinedTerm',
+      '@id': `${url}#${term.id}`,
+      name: term.name,
+      description: term.definition,
+      url: `${url}#${term.id}`,
+      inDefinedTermSet: `${url}#terms`,
+    })),
+  }
+}

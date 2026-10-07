@@ -3,11 +3,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   COMPANY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
   PUBLIC_PAGE_SOURCES,
 } from '../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../siteHostRules.mjs'
 import { COMPANY_PATHS } from './lib/companyPages'
+import { FAQ_PATHS } from './lib/faqs'
+import { GLOSSARY_INDEX } from './lib/glossary'
 import { POLICY_PATHS } from './lib/policies'
 import { buildLlmsTxt } from './lib/llmsTxt'
 import { sitemapFor } from './lib/searchVisibility'
@@ -26,7 +30,7 @@ const EDGE_SCRIPT = readFileSync(
   'utf8',
 )
 
-const NEW_PATHS = [...POLICY_PATHS, ...COMPANY_PATHS]
+const NEW_PATHS = [...POLICY_PATHS, ...COMPANY_PATHS, ...FAQ_PATHS, GLOSSARY_INDEX.path]
 
 describe('every new page is wired everywhere a public page must be', () => {
   it('the area lists and the header lists agree, so nothing is checked that does not exist', () => {
@@ -34,6 +38,8 @@ describe('every new page is wired everywhere a public page must be', () => {
     // spreads, or the test would be wiring nothing.
     expect(POLICY_PATHS).toEqual(POLICY_PAGE_SOURCES)
     expect(COMPANY_PATHS).toEqual(COMPANY_PAGE_SOURCES)
+    expect(FAQ_PATHS).toEqual(FAQ_PAGE_SOURCES)
+    expect([GLOSSARY_INDEX.path]).toEqual(GLOSSARY_PAGE_SOURCES)
     expect(NEW_PATHS.length).toBeGreaterThanOrEqual(10)
   })
 

@@ -1,102 +1,18 @@
 import Link from 'next/link'
 import type { CompanyPage as CompanyContentType } from '../../lib/companyPages'
-import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
-import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
-import { Breadcrumb } from './Breadcrumb'
-import { Block } from './GuidePage'
-import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
-import { JsonLd } from './JsonLd'
 
 /**
- * A company page on the guides' structure and block renderer — community (PLAN.md D3). Every
- * word comes from `lib/companyPages.ts`, which the owner approved on 2026-10-07; this file only
- * lays it out. The one primary button is the site's own closing block (`CompanyClosing`).
- * Careers has its own layout since the owner turned this one down for it (`CareersPage.tsx`).
+ * The company pages' closing block: the site's one primary action, and "More about us".
+ *
+ * Careers and community each have their own layout since 2026-10-07 (`CareersPage.tsx`,
+ * `CommunityPage.tsx`): the guides' heading-left, list-right sections this file used to draw for
+ * them left half of every screen empty, which the owner turned down.
+ *
+ * ⚠️ "MORE ABOUT US" SITS IN THE RIGHT COLUMN, UNDER THE BUTTON. Under the whole block it was four
+ * short links in the left corner with the rest of the row empty (measured 9% of a 1312px column at
+ * 1440, 2026-10-07); beside the heading it finishes the column the button starts.
  */
-
-/** One of the owner's factory photos under a section heading (as the guides draw them). */
-function SectionPhoto({ slug }: { slug: string }) {
-  const photo = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
-  // `companyPages.test.ts` fails a slug with no photo; drawing nothing is the safe miss.
-  if (!photo) return null
-  return <FactoryFigure photo={photo} {...factoryPhotoImage(photo)} sizes={HALF_COLUMN_SIZES} />
-}
-
-export function CompanyPage({ page }: { page: CompanyContentType }) {
-  const trail = [{ name: page.title, path: page.path }]
-  return (
-    <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
-
-      <section className="site-hero">
-        <div className="blueprint site-hero__grid" aria-hidden="true" />
-        <div className="site-container">
-          {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
-              `display--long` where the headline runs long on a phone (base.css, VA-45). */}
-          <Breadcrumb trail={trail} />
-          <p className="label">{page.eyebrow}</p>
-          <h1
-            className={`display display--hero hero-legal${page.heading.length + page.headingAccent.length >= 36 ? ' display--long' : ''}`}
-          >
-            {page.heading} <span className="serif-accent">{page.headingAccent}</span>
-          </h1>
-          <p className="site-lede">{page.lede}</p>
-        </div>
-      </section>
-
-      {page.sections.map((section) => {
-        /*
-         * ⚠️ THE ANCHOR IS ON THE HEADING, AS ON THE POLICY PAGES. `companyPages.ts` calls
-         * `#what-we-offer`, `#training` and `#apply` load-bearing (LinkedIn's commitments point
-         * at them), and until 2026-10-07 this line drew no id at all: the live page carried none
-         * of them, so every such link opened at the top. `e2e/careersForm.spec.ts` holds them.
-         */
-        const heading = (
-          <h2 className="display display--section" id={section.id}>
-            {section.heading}
-          </h2>
-        )
-        return (
-          <section className="site-section" data-site-reveal key={section.id}>
-            <div className="site-container prose prose--guide spread">
-              {section.photo ? (
-                <div className="spread__head">
-                  {heading}
-                  <SectionPhoto slug={section.photo} />
-                </div>
-              ) : (
-                heading
-              )}
-              <div className="spread__body">
-                {section.blocks.map((block) => (
-                  <Block
-                    key={
-                      block.kind === 'list'
-                        ? block.items[0]
-                        : 'title' in block
-                          ? block.title
-                          : block.kind === 'orderSteps'
-                            ? 'order-steps'
-                            : block.kind === 'table'
-                              ? block.caption
-                              : block.text
-                    }
-                    block={block}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
-        )
-      })}
-
-      <CompanyClosing links={page.links} />
-    </>
-  )
-}
-
-/** The company pages' closing block: the site's one primary action, then "More about us". */
 export function CompanyClosing({ links }: { links: CompanyContentType['links'] }) {
   return (
     <section className="site-section" data-site-reveal>
@@ -113,22 +29,22 @@ export function CompanyClosing({ links }: { links: CompanyContentType['links'] }
                 {FAMILY_PAGE_ACTION}
               </Link>
             </div>
+            <nav className="see-also company-closing__more" aria-label="More about us">
+              <div className="see-also__group">
+                <h3 className="product-card__name" id="more-about-us">
+                  More about us
+                </h3>
+                <ul className="see-also__list">
+                  {links.map((link) => (
+                    <li key={link.href}>
+                      <Link href={link.href}>{link.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </nav>
           </div>
         </div>
-        <nav className="see-also" aria-label="More about us">
-          <div className="see-also__group">
-            <h3 className="product-card__name" id="more-about-us">
-              More about us
-            </h3>
-            <ul className="see-also__list">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href}>{link.name}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </nav>
       </div>
     </section>
   )

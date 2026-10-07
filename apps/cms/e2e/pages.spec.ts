@@ -1,5 +1,7 @@
 import {
   COMPANY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
   FAMILY_PAGE_SOURCES,
   GUIDE_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
@@ -117,6 +119,21 @@ const PAGES = [
   // The company pages (2026-10-07); the form joins /careers in Phase 2.
   { path: '/careers', name: 'careers page', heading: /Join a family/i },
   { path: '/community', name: 'community page', heading: /Steady work/i },
+  // The FAQ and the glossary (2026-10-07).
+  { path: '/faq', name: 'FAQ hub', heading: /Questions/i },
+  { path: '/faq/orders-and-samples', name: 'FAQ: orders and samples', heading: /Orders/i },
+  {
+    path: '/faq/quality-and-certifications',
+    name: 'FAQ: quality and certifications',
+    heading: /Quality/i,
+  },
+  {
+    path: '/faq/shipping-and-importing',
+    name: 'FAQ: shipping and importing',
+    heading: /Shipping/i,
+  },
+  { path: '/faq/fabrics-and-printing', name: 'FAQ: fabrics and printing', heading: /Fabrics/i },
+  { path: '/glossary', name: 'glossary', heading: /Every term/i },
 ] as const
 
 test.describe('every page renders real content', () => {
@@ -623,6 +640,9 @@ test.describe('search visibility follows the committed switch: visible since lau
         // The policies hub, seven policies, careers and community (2026-10-07).
         ...POLICY_PAGE_SOURCES,
         ...COMPANY_PAGE_SOURCES,
+        // The FAQ hub, four topics and the glossary (2026-10-07).
+        ...FAQ_PAGE_SOURCES,
+        ...GLOSSARY_PAGE_SOURCES,
       ].sort(),
     )
   })

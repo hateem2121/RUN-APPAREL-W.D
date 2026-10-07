@@ -2,6 +2,8 @@ import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { COMPANY_PATHS } from './companyPages'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
+import { FAQ_INDEX, FAQ_TOPICS } from './faqs'
+import { GLOSSARY_INDEX } from './glossary'
 import { GUIDES } from './guides'
 import { POLICIES, POLICIES_INDEX } from './policies'
 
@@ -69,6 +71,14 @@ export function buildLlmsTxt(siteOrigin: string): string {
         : `- [Community](${siteOrigin}/community) — the works in Sialkot, and the people the policies serve.`,
     ),
   ].join('\n')
+  // The FAQ and the glossary (2026-10-07, PLAN.md E9), from the lists that hold their words.
+  const answers = [
+    `- [${FAQ_INDEX.title}](${siteOrigin}${FAQ_INDEX.path}) — the questions buyers ask most.`,
+    ...FAQ_TOPICS.map(
+      (topic) => `- [${topic.title}](${siteOrigin}${topic.path}) — questions and answers.`,
+    ),
+    `- [${GLOSSARY_INDEX.title}](${siteOrigin}${GLOSSARY_INDEX.path}) — garment and export terms in plain words.`,
+  ].join('\n')
 
   return `# RUN APPAREL
 
@@ -109,6 +119,7 @@ ${CERTIFICATION}
 ${buyerPages}
 ${guides}
 ${companyPages}
+${answers}
 - [Contact](${siteOrigin}/contact) — the addresses, and a form that reaches the company directly.
 - [Privacy](${siteOrigin}/privacy) and [Terms](${siteOrigin}/terms).
 

@@ -1,5 +1,7 @@
 import { CONTACT_HERO_PHOTO } from './factoryPhotos'
 import { CAREERS_PAGE, COMMUNITY_PAGE } from './companyPages'
+import { FAQ_INDEX, FAQ_TOPICS } from './faqs'
+import { GLOSSARY_INDEX } from './glossary'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDES, GUIDES_INDEX } from './guides'
 import { POLICIES, POLICIES_INDEX } from './policies'
@@ -235,6 +237,27 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
       COMMUNITY_PAGE.eyebrow,
       COMMUNITY_PAGE.heading,
       COMMUNITY_PAGE.headingAccent,
+    ),
+  ],
+  // The FAQ and the glossary (2026-10-07), words from their own lists.
+  [
+    FAQ_INDEX.path,
+    wordsCard(fileFor(FAQ_INDEX.path), '[ FAQ ]', FAQ_INDEX.heading, FAQ_INDEX.headingAccent),
+  ],
+  ...FAQ_TOPICS.map(
+    (topic) =>
+      [
+        topic.path,
+        wordsCard(fileFor(topic.path), '[ FAQ ]', topic.heading, topic.headingAccent),
+      ] as const,
+  ),
+  [
+    GLOSSARY_INDEX.path,
+    wordsCard(
+      fileFor(GLOSSARY_INDEX.path),
+      '[ Glossary ]',
+      GLOSSARY_INDEX.heading,
+      GLOSSARY_INDEX.headingAccent,
     ),
   ],
 ])

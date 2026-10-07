@@ -54,6 +54,12 @@ const PAGES = [
   ['/policies/environmental', 200],
   ['/careers', 200],
   ['/community', 200],
+  ['/faq', 200],
+  ['/faq/orders-and-samples', 200],
+  ['/faq/quality-and-certifications', 200],
+  ['/faq/shipping-and-importing', 200],
+  ['/faq/fabrics-and-printing', 200],
+  ['/glossary', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [

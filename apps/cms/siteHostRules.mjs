@@ -1,5 +1,7 @@
 import {
   COMPANY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
   FAMILY_PAGE_SOURCES,
   GUIDE_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
@@ -91,6 +93,9 @@ export const CMS_PUBLIC_PATHS = [
   ...POLICY_PAGE_SOURCES,
   // The company pages — careers and community (2026-10-07), same reasoning.
   ...COMPANY_PAGE_SOURCES,
+  // The FAQ and the glossary (2026-10-07), same reasoning.
+  ...FAQ_PAGE_SOURCES,
+  ...GLOSSARY_PAGE_SOURCES,
 ]
 
 /**

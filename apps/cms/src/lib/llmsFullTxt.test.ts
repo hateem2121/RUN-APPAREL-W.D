@@ -5,6 +5,8 @@ import { FAMILY_PAGES } from './familyPages'
 import { GUIDES } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import { buildLlmsFullTxt } from './llmsFullTxt'
+import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
+import { GLOSSARY_TERMS } from './glossary'
 import type { ProductCard } from './projectPublic'
 
 const SITE = 'https://example.test'
@@ -112,5 +114,21 @@ describe('buildLlmsFullTxt', () => {
         expect(textWithProducts.toLowerCase()).not.toContain(british)
       },
     )
+  })
+})
+
+describe('the FAQ and the glossary, whole (2026-10-07, PLAN.md E9)', () => {
+  const text = buildLlmsFullTxt('https://wear-run.com')
+  for (const topic of FAQ_TOPICS) {
+    for (const entry of topic.entries) {
+      it(`answers "${entry.question}" as the page does`, () => {
+        expect(text).toContain(entry.question)
+        expect(text).toContain(faqVisibleAnswer(entry))
+      })
+    }
+  }
+  it('defines every glossary term as the page does', () => {
+    for (const term of GLOSSARY_TERMS)
+      expect(text).toContain(`**${term.name}**: ${term.definition}`)
   })
 })

@@ -4,6 +4,8 @@ import type { Metadata, MetadataRoute } from 'next'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDE_PATHS } from './guides'
 import { COMPANY_PATHS } from './companyPages'
+import { FAQ_PATHS } from './faqs'
+import { GLOSSARY_INDEX } from './glossary'
 import { POLICY_PATHS } from './policies'
 
 /**
@@ -134,6 +136,12 @@ export function sitemapFor(
     })),
     // The company pages — careers and community (2026-10-07), same reasoning.
     ...COMPANY_PATHS.map((path) => ({
+      url: `${origin}${path}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    })),
+    // The FAQ and the glossary (2026-10-07), from the lists that hold their words.
+    ...[...FAQ_PATHS, GLOSSARY_INDEX.path].map((path) => ({
       url: `${origin}${path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.6,

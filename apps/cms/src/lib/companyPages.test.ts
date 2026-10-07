@@ -92,7 +92,8 @@ describe('the company pages, as the owner approved them', () => {
 
   it('use only the two photos that exist, and only where the words name them', () => {
     // C-8 (2026-10-07): only the factory floor and the building photos exist.
-    const allowed = new Set(['stitching', 'exterior'])
+    // solar-roof is the same building from above (factoryPhotos.ts), added with community's layout.
+    const allowed = new Set(['stitching', 'exterior', 'solar-roof'])
     for (const page of PAGES) {
       for (const section of page.sections) {
         if (!section.photo) continue

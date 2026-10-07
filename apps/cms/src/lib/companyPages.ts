@@ -87,6 +87,14 @@ export const ROLE_GROUPS = [
 export const CAREERS_HERO_PHOTO = 'screen-printing'
 export const CAREERS_LIFE_PHOTOS = ['stitching', 'inspection', 'packing'] as const
 
+/**
+ * The community photos (C-8: floor and building photos only), for its own layout since
+ * 2026-10-07 (`CommunityPage.tsx`, the careers page's reasons): the hero shows the building the
+ * lede names; "The works, in pictures" the building from above and the floor its sentence names.
+ */
+export const COMMUNITY_HERO_PHOTO = 'exterior'
+export const COMMUNITY_WORKS_PHOTOS = ['solar-roof', 'stitching'] as const
+
 export const CAREERS_PAGE: CompanyPage = {
   path: '/careers',
   title: 'Careers',

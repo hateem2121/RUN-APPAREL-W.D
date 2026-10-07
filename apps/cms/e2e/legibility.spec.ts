@@ -1,6 +1,8 @@
 import {
   COMPANY_PAGE_SOURCES,
   FAMILY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
   GUIDE_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
 } from '../publicViewerHeaders.mjs'
@@ -28,6 +30,8 @@ const PAGES = [
   ...GUIDE_PAGE_SOURCES,
   ...POLICY_PAGE_SOURCES,
   ...COMPANY_PAGE_SOURCES,
+  ...FAQ_PAGE_SOURCES,
+  ...GLOSSARY_PAGE_SOURCES,
 ] as const
 
 /**
@@ -168,12 +172,17 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
       const text = await page.evaluate(() => {
         const parts: string[] = []
         for (const el of document.querySelectorAll('main p, main li')) {
-          // "On this page" (polish X4) repeats the headings as links: navigation, not prose.
+          // "On this page" (polish X4) repeats the headings as links: navigation, not prose; so does
+          // the FAQ's question index beside the answers (2026-10-07).
           // `[data-facts]` (2026-10-07, owner's choice): the policies hub's certificate lines are
           // names (SEDEX, SMETA, OEKO-TEX, the SECP), which the syllable count reads as hard words;
           // the home page shows the same lines in `.facts-grid`, skipped above for the same reason.
           // With them the hub scored 48.9 ease; without them 64.7. Its own sentences still count.
-          if (el.closest('.product-card, .filter-bar, .facts-grid, .legal__toc, [data-facts]')) {
+          if (
+            el.closest(
+              '.product-card, .filter-bar, .facts-grid, .legal__toc, .faq-layout__index, [data-facts]',
+            )
+          ) {
             continue
           }
           if (

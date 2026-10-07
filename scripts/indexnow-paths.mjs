@@ -29,6 +29,8 @@ import { execFileSync } from 'node:child_process'
 import {
   COMPANY_PAGE_SOURCES,
   FAMILY_PAGE_SOURCES,
+  FAQ_PAGE_SOURCES,
+  GLOSSARY_PAGE_SOURCES,
   GUIDE_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
   PUBLIC_PAGE_SOURCES,
@@ -43,15 +45,16 @@ const ROUTE_ROOT = 'apps/cms/src/app/(frontend)/'
  *
  * Keys are matched against a list of changed files, never opened, so a key for a file that
  * does not exist yet is harmless: it simply never matches. ⚠️ THIS IS THE PLACE FOR THE NEXT
- * ONE. When the FAQ and glossary pages land (`apps/cms/src/lib/faqs.ts`,
- * `apps/cms/src/lib/glossary.ts`), add their key here with the paths read from the list that
- * holds them in `publicViewerHeaders.mjs`, exactly as the four below do.
+ * ONE: a new words file gets its key here, with the paths read from the list that holds them in
+ * `publicViewerHeaders.mjs`, as the FAQ and glossary did (2026-10-07).
  */
 export const SOURCE_FILE_PATHS = {
   'apps/cms/src/lib/guides.ts': GUIDE_PAGE_SOURCES,
   'apps/cms/src/lib/familyPages.ts': FAMILY_PAGE_SOURCES,
   'apps/cms/src/lib/policies.ts': POLICY_PAGE_SOURCES,
   'apps/cms/src/lib/companyPages.ts': COMPANY_PAGE_SOURCES,
+  'apps/cms/src/lib/faqs.ts': FAQ_PAGE_SOURCES,
+  'apps/cms/src/lib/glossary.ts': GLOSSARY_PAGE_SOURCES,
 }
 
 /**
