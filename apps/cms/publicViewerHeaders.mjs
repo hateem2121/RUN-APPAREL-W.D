@@ -102,6 +102,22 @@ export const GUIDE_PAGE_SOURCES = [
   '/guides/shipping-and-import-duties',
 ]
 
+/**
+ * The policies hub and the approved policies (2026-10-07), in `POLICIES`' order. Held to
+ * `src/lib/policies.ts` by `policies.test.ts`. The anti-harassment policy is deliberately
+ * absent: the owner holds it until a complaints committee exists.
+ */
+export const POLICY_PAGE_SOURCES = [
+  '/policies',
+  '/policies/workplace-conduct',
+  '/policies/health-and-safety',
+  '/policies/health-and-vaccination',
+  '/policies/equal-opportunity',
+  '/policies/labor-rights',
+  '/policies/quality',
+  '/policies/environmental',
+]
+
 export const PUBLIC_PAGE_SOURCES = [
   '/',
   '/products',
@@ -110,6 +126,7 @@ export const PUBLIC_PAGE_SOURCES = [
   '/terms',
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,
+  ...POLICY_PAGE_SOURCES,
 ]
 
 /**

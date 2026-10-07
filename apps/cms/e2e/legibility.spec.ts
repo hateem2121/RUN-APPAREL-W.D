@@ -1,4 +1,8 @@
-import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import {
+  FAMILY_PAGE_SOURCES,
+  GUIDE_PAGE_SOURCES,
+  POLICY_PAGE_SOURCES,
+} from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 import { contrastOf, worstRatio } from '../../../scripts/contrast-rules.mjs'
 import { readability } from '../src/lib/readingLevel'
@@ -21,6 +25,7 @@ const PAGES = [
   '/terms',
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,
+  ...POLICY_PAGE_SOURCES,
 ] as const
 
 /**

@@ -1,6 +1,7 @@
 import { CONTACT_HERO_PHOTO } from './factoryPhotos'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDES, GUIDES_INDEX } from './guides'
+import { POLICIES, POLICIES_INDEX } from './policies'
 
 /**
  * The picture a shared link shows, one per page type (polish X14; the owner's answer Q11 of
@@ -197,6 +198,23 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
       [
         guide.path,
         wordsCard(fileFor(guide.path), '[ Buyer guide ]', guide.heading, guide.headingAccent),
+      ] as const,
+  ),
+  // The policies hub and each approved policy (2026-10-07), words from their own lists.
+  [
+    POLICIES_INDEX.path,
+    wordsCard(
+      fileFor(POLICIES_INDEX.path),
+      '[ Policies ]',
+      POLICIES_INDEX.heading,
+      POLICIES_INDEX.headingAccent,
+    ),
+  ],
+  ...POLICIES.map(
+    (policy) =>
+      [
+        policy.path,
+        wordsCard(fileFor(policy.path), '[ Policy ]', policy.heading, policy.headingAccent),
       ] as const,
   ),
 ])

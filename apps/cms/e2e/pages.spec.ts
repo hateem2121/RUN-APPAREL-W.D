@@ -75,6 +75,40 @@ const PAGES = [
     name: 'shipping guide',
     heading: /Shipping and import duties/i,
   },
+  // The policies hub and the approved policies (2026-10-07); the anti-harassment page is
+  // deliberately absent until its complaints committee exists.
+  { path: '/policies', name: 'policies hub', heading: /How we work/i },
+  {
+    path: '/policies/workplace-conduct',
+    name: 'workplace conduct policy',
+    heading: /How we treat each other/i,
+  },
+  {
+    path: '/policies/health-and-safety',
+    name: 'health and safety policy',
+    heading: /Safe work/i,
+  },
+  {
+    path: '/policies/health-and-vaccination',
+    name: 'health and vaccination policy',
+    heading: /Good health/i,
+  },
+  {
+    path: '/policies/equal-opportunity',
+    name: 'equal opportunity policy',
+    heading: /Fair chances/i,
+  },
+  {
+    path: '/policies/labor-rights',
+    name: 'labor rights policy',
+    heading: /Your rights at work/i,
+  },
+  { path: '/policies/quality', name: 'quality policy', heading: /Checked, at every step/i },
+  {
+    path: '/policies/environmental',
+    name: 'environmental policy',
+    heading: /What we use/i,
+  },
 ] as const
 
 test.describe('every page renders real content', () => {
