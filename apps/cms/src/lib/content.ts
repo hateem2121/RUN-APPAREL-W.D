@@ -4,6 +4,17 @@ import config from '@payload-config'
 import { getPayload } from 'payload'
 import { drawingToKeep, spoilKeptRender } from '../../pageCache.mjs'
 import {
+  type CaseStudyView,
+  readPublishedCaseStudies,
+  readPublishedCaseStudy,
+} from './caseStudyPublic'
+import {
+  type Find,
+  type JournalPostView,
+  readPublishedPost,
+  readPublishedPosts,
+} from './journalPublic'
+import {
   FALLBACK_SITE_SETTINGS,
   type ProductCard,
   type PublicSiteSettings,
@@ -30,7 +41,7 @@ import {
  * fully, with the defaults and an empty gallery, and logged the cause once per read.
  */
 
-export type { ProductCard, PublicSiteSettings }
+export type { CaseStudyView, JournalPostView, ProductCard, PublicSiteSettings }
 
 /**
  * A SHORT IN-PROCESS CACHE, and the honest limits of it.
@@ -140,5 +151,104 @@ export async function getProductCards(): Promise<ProductCard[]> {
       err instanceof Error ? err.cause : undefined,
     )
     return []
+  }
+}
+
+/*
+ * The Journal and the case studies (PLAN.md E6), on the same policy as the products above: 60
+ * seconds in memory, skipped while drawing a kept page, a failure never cached and never
+ * thrown. What is NEW is that their collections have drafts, and this file's local API reads
+ * skip access control (Payload docs, "Local API: access control", read 2026-10-07), so the
+ * readers in `journalPublic.ts` and `caseStudyPublic.ts` ask for published rows themselves and
+ * refuse anything else. Their tests plant a draft beside a published row.
+ */
+
+let journalCache: Cached<JournalPostView[]> | null = null
+let caseStudiesCache: Cached<CaseStudyView[]> | null = null
+const journalPostCache = new Map<string, Cached<JournalPostView>>()
+const caseStudyCache = new Map<string, Cached<CaseStudyView>>()
+
+/** `payload.find`, narrowed to what the readers send. */
+async function finder(): Promise<Find> {
+  const payload = await client()
+  return (args) => payload.find(args as Parameters<typeof payload.find>[0])
+}
+
+/**
+ * One document by its address. `failed` is kept apart from `missing` on purpose: a missing post
+ * is a 404, but a database wobble must not tell a crawler that a live post is gone.
+ */
+export type Lookup<T> = { status: 'found'; value: T } | { status: 'missing' } | { status: 'failed' }
+
+/** Every published Journal post, newest first; none on failure. */
+export async function getJournalPosts(): Promise<JournalPostView[]> {
+  if (!drawingToKeep() && journalCache && journalCache.expires > Date.now()) {
+    return journalCache.value
+  }
+  try {
+    const value = await readPublishedPosts(await finder())
+    journalCache = { value, expires: Date.now() + TTL_MS }
+    return value
+  } catch (err) {
+    void reportCaught('content.journal-posts', err)
+    spoilKeptRender()
+    console.error('[content] journal posts unavailable:', err)
+    return []
+  }
+}
+
+/** One published Journal post. Only a found post is remembered: an address that is not a post
+ * could be anything a crawler typed, and remembering each would grow without end. */
+export async function getJournalPost(slug: string): Promise<Lookup<JournalPostView>> {
+  const cached = journalPostCache.get(slug)
+  if (!drawingToKeep() && cached && cached.expires > Date.now()) {
+    return { status: 'found', value: cached.value }
+  }
+  try {
+    const value = await readPublishedPost(await finder(), slug)
+    if (!value) return { status: 'missing' }
+    journalPostCache.set(slug, { value, expires: Date.now() + TTL_MS })
+    return { status: 'found', value }
+  } catch (err) {
+    void reportCaught('content.journal-post', err)
+    spoilKeptRender()
+    console.error('[content] journal post unavailable:', err)
+    return { status: 'failed' }
+  }
+}
+
+/** Every published case study, newest first; none on failure. */
+export async function getCaseStudies(): Promise<CaseStudyView[]> {
+  if (!drawingToKeep() && caseStudiesCache && caseStudiesCache.expires > Date.now()) {
+    return caseStudiesCache.value
+  }
+  try {
+    const value = await readPublishedCaseStudies(await finder())
+    caseStudiesCache = { value, expires: Date.now() + TTL_MS }
+    return value
+  } catch (err) {
+    void reportCaught('content.case-studies', err)
+    spoilKeptRender()
+    console.error('[content] case studies unavailable:', err)
+    return []
+  }
+}
+
+/** One published case study, as `getJournalPost`. */
+export async function getCaseStudy(slug: string): Promise<Lookup<CaseStudyView>> {
+  const cached = caseStudyCache.get(slug)
+  if (!drawingToKeep() && cached && cached.expires > Date.now()) {
+    return { status: 'found', value: cached.value }
+  }
+  try {
+    const value = await readPublishedCaseStudy(await finder(), slug)
+    if (!value) return { status: 'missing' }
+    caseStudyCache.set(slug, { value, expires: Date.now() + TTL_MS })
+    return { status: 'found', value }
+  } catch (err) {
+    void reportCaught('content.case-study', err)
+    spoilKeptRender()
+    console.error('[content] case study unavailable:', err)
+    return { status: 'failed' }
   }
 }

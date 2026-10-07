@@ -105,3 +105,75 @@ export function buildMetadata({
     },
   }
 }
+
+/**
+ * A Journal post's or a case study's metadata (PLAN.md T8): `buildMetadata`'s canonical and
+ * tags, as an Open Graph `article` with its published and modified times and author (Next's
+ * generateMetadata docs, 16.4.0, updated 2026-08-19), sharing its OWN picture — at least
+ * 1200 × 630, which the collection enforces — on X's large card. Pinterest's article pins and
+ * LinkedIn's previews read exactly these. With no usable picture it keeps the page type's card.
+ *
+ * `feed` adds `<link rel="alternate" type="application/rss+xml">` (T9).
+ */
+export function buildArticleMetadata({
+  title,
+  description,
+  path,
+  image,
+  publishedTime,
+  modifiedTime,
+  authors,
+  feed,
+}: {
+  title: string
+  description: string
+  path: string
+  image: { url: string; width: number; height: number; alt: string } | null
+  publishedTime: string
+  modifiedTime: string
+  authors: string[]
+  feed?: { title: string; path: string }
+}): Metadata {
+  const base = buildMetadata({ title, description, path })
+  const picture = image ? { ...image } : base.openGraph?.images
+  return {
+    ...base,
+    alternates: {
+      ...base.alternates,
+      ...(feed
+        ? {
+            types: {
+              'application/rss+xml': [{ url: `${SITE_ORIGIN}${feed.path}`, title: feed.title }],
+            },
+          }
+        : {}),
+    },
+    openGraph: {
+      ...base.openGraph,
+      type: 'article',
+      publishedTime,
+      modifiedTime,
+      authors,
+      images: Array.isArray(picture) ? picture : picture ? [picture] : [],
+    },
+    twitter: {
+      ...base.twitter,
+      card: 'summary_large_image',
+      ...(image ? { images: [{ url: image.url, alt: image.alt }] } : {}),
+    },
+  }
+}
+
+/**
+ * The feed link alone, for a page that is not an article (the Journal hub): the same
+ * `alternates.types` entry `buildArticleMetadata` adds.
+ */
+export function withFeed(metadata: Metadata, feed: { title: string; path: string }): Metadata {
+  return {
+    ...metadata,
+    alternates: {
+      ...metadata.alternates,
+      types: { 'application/rss+xml': [{ url: `${SITE_ORIGIN}${feed.path}`, title: feed.title }] },
+    },
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GARMENT_PAGES, SITE_ORIGIN, buildMetadata } from './seo'
+import { GARMENT_PAGES, SITE_ORIGIN, buildArticleMetadata, buildMetadata } from './seo'
 import { shareCardFor } from './shareImages'
 
 describe('origins', () => {
@@ -82,5 +82,79 @@ describe('buildMetadata', () => {
       expect.objectContaining({ url: `${SITE_ORIGIN}/share/home.jpg` }),
     ])
     expect(JSON.stringify(meta)).not.toContain('og-default')
+  })
+})
+
+/**
+ * T8 (PLAN.md): a Journal post shares as an article: og:type article with its published and
+ * modified times and author (Next's generateMetadata docs, 16.4.0, updated 2026-08-19), its own
+ * share picture of at least 1200 × 630, and X's large card. Pinterest, LinkedIn and X read these.
+ */
+describe('buildArticleMetadata', () => {
+  const image = {
+    url: 'https://media.wear-run.com/share.jpg',
+    width: 1200,
+    height: 630,
+    alt: 'Stitching a collar',
+  }
+  const article = buildArticleMetadata({
+    title: 'What made properly means',
+    description: 'How a garment is checked.',
+    path: '/journal/made-properly',
+    image,
+    publishedTime: '2026-10-08T09:00:00.000Z',
+    modifiedTime: '2026-10-09T10:00:00.000Z',
+    authors: ['RUN APPAREL'],
+  })
+
+  it('is an article with its times and author, on its canonical address', () => {
+    expect(article.alternates?.canonical).toBe(`${SITE_ORIGIN}/journal/made-properly`)
+    expect(article.openGraph).toMatchObject({
+      type: 'article',
+      url: `${SITE_ORIGIN}/journal/made-properly`,
+      publishedTime: '2026-10-08T09:00:00.000Z',
+      modifiedTime: '2026-10-09T10:00:00.000Z',
+      authors: ['RUN APPAREL'],
+      locale: 'en_US',
+    })
+  })
+
+  it('shares the post’s own picture, with its size and words, on a large card', () => {
+    expect(article.openGraph?.images).toEqual([image])
+    expect(article.twitter).toMatchObject({
+      card: 'summary_large_image',
+      images: [{ url: image.url, alt: image.alt }],
+    })
+  })
+
+  it('falls back to the page type’s card when the post has no usable picture', () => {
+    const bare = buildArticleMetadata({
+      title: 'x',
+      description: 'y',
+      path: '/journal/x',
+      image: null,
+      publishedTime: '2026-10-08T09:00:00.000Z',
+      modifiedTime: '2026-10-08T09:00:00.000Z',
+      authors: [],
+    })
+    expect(bare.openGraph?.images).toEqual([expect.objectContaining({ width: 1200, height: 630 })])
+  })
+
+  it('carries the feed link when asked, for the Journal pages (T9)', () => {
+    const withFeed = buildArticleMetadata({
+      title: 'x',
+      description: 'y',
+      path: '/journal/x',
+      image,
+      publishedTime: '2026-10-08T09:00:00.000Z',
+      modifiedTime: '2026-10-08T09:00:00.000Z',
+      authors: [],
+      feed: { title: 'RUN APPAREL Journal', path: '/journal/rss.xml' },
+    })
+    expect(withFeed.alternates?.types).toEqual({
+      'application/rss+xml': [
+        { url: `${SITE_ORIGIN}/journal/rss.xml`, title: 'RUN APPAREL Journal' },
+      ],
+    })
   })
 })
