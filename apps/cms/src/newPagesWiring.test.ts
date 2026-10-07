@@ -6,6 +6,7 @@ import {
   POLICY_PAGE_SOURCES,
   PUBLIC_PAGE_SOURCES,
 } from '../publicViewerHeaders.mjs'
+import { CMS_PUBLIC_PATHS } from '../siteHostRules.mjs'
 import { COMPANY_PATHS } from './lib/companyPages'
 import { POLICY_PATHS } from './lib/policies'
 import { buildLlmsTxt } from './lib/llmsTxt'
@@ -39,6 +40,7 @@ describe('every new page is wired everywhere a public page must be', () => {
   for (const path of NEW_PATHS) {
     it(`${path}: security policy, admin-host redirect, sitemap, llms.txt, edge script, route folder`, () => {
       expect(PUBLIC_PAGE_SOURCES, 'missing from the security-policy list').toContain(path)
+      expect(CMS_PUBLIC_PATHS, 'missing from the admin-host redirects').toContain(path)
       expect(
         sitemapFor('visible', ORIGIN).map((entry) => entry.url),
         'missing from the sitemap',
