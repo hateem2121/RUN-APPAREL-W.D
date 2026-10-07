@@ -13,6 +13,8 @@ import { DocumentVisitSalts } from './collections/DocumentVisitSalts'
 import { Events } from './collections/Events'
 import { Inquiries } from './collections/Inquiries'
 import { InquiryFiles } from './collections/InquiryFiles'
+import { ApplicationFiles } from './collections/ApplicationFiles'
+import { JobApplications } from './collections/JobApplications'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { RawUploads } from './collections/RawUploads'
@@ -176,6 +178,9 @@ export default buildConfig({
     Events,
     Inquiries,
     InquiryFiles,
+    // The careers form (Phase 2, 2026-10-07): applications and their CVs, as private as inquiries.
+    JobApplications,
+    ApplicationFiles,
     DocumentVisits,
     DocumentVisitSalts,
     DocumentVisitEmails,
@@ -278,6 +283,9 @@ export default buildConfig({
       bucket: env?.R2_INQUIRY as R2Bucket,
       collections: {
         'inquiry-files': true,
+        // Applicants' CVs share this PRIVATE bucket under careers/ (owner, F23, 2026-10-07): the
+        // same closed posture, no new Cloudflare resource. The same two settings stay absent.
+        'application-files': { prefix: 'careers' },
       },
     }),
   ],

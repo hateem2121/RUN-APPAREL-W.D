@@ -129,6 +129,8 @@ export interface Config {
     events: Event;
     inquiries: Inquiry;
     'inquiry-files': InquiryFile;
+    'job-applications': JobApplication;
+    'application-files': ApplicationFile;
     'document-visits': DocumentVisit;
     'document-visit-salts': DocumentVisitSalt;
     'document-visit-emails': DocumentVisitEmail;
@@ -145,6 +147,9 @@ export interface Config {
     inquiries: {
       files: 'inquiry-files';
     };
+    'job-applications': {
+      files: 'application-files';
+    };
     'payload-folders': {
       documentsAndFolders: 'payload-folders' | 'media';
     };
@@ -157,6 +162,8 @@ export interface Config {
     events: EventsSelect<false> | EventsSelect<true>;
     inquiries: InquiriesSelect<false> | InquiriesSelect<true>;
     'inquiry-files': InquiryFilesSelect<false> | InquiryFilesSelect<true>;
+    'job-applications': JobApplicationsSelect<false> | JobApplicationsSelect<true>;
+    'application-files': ApplicationFilesSelect<false> | ApplicationFilesSelect<true>;
     'document-visits': DocumentVisitsSelect<false> | DocumentVisitsSelect<true>;
     'document-visit-salts': DocumentVisitSaltsSelect<false> | DocumentVisitSaltsSelect<true>;
     'document-visit-emails': DocumentVisitEmailsSelect<false> | DocumentVisitEmailsSelect<true>;
@@ -614,6 +621,78 @@ export interface InquiryFile {
   height?: number | null;
 }
 /**
+ * Applications sent through the form on the careers page. Each is saved here BEFORE the notification email is attempted. Keep each one for 12 months, then delete it: the "Delete after" column shows the date.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "job-applications".
+ */
+export interface JobApplication {
+  id: number;
+  name: string;
+  /**
+   * Stored as typed, with the country code first.
+   */
+  phone: string;
+  email?: string | null;
+  /**
+   * What they do: one of the form’s roles, or their own words.
+   */
+  role: string;
+  years?: number | null;
+  note?: string | null;
+  /**
+   * The CV, if one was sent. It downloads when opened.
+   */
+  files?: {
+    docs?: (number | ApplicationFile)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Why a CV could not be saved, if one could not. The application itself was saved.
+   */
+  filesError?: string | null;
+  /**
+   * The one field on this screen you are meant to change.
+   */
+  status: 'new' | 'reviewed' | 'contacted';
+  /**
+   * 12 months after it arrived. Delete the application on or after this date.
+   */
+  deleteAfter?: string | null;
+  /**
+   * Whether the notification email was accepted for delivery.
+   */
+  notified?: boolean | null;
+  /**
+   * Why the notification could not be sent, if it could not. The application is unaffected.
+   */
+  notifyError?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * CVs sent with job applications. Each belongs to one application and is deleted with it. They download to your computer rather than opening here, because anyone can send one.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "application-files".
+ */
+export interface ApplicationFile {
+  id: number;
+  application?: (number | null) | JobApplication;
+  prefix?: string | null;
+  _objectKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+}
+/**
  * One line per person, per document, per day (Pakistan time). Counts of people are approximate. WhatsApp visits usually show as Safari or Chrome. Email scanners such as Outlook Safe Links can look like a person. Lines older than 12 months are deleted automatically.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -720,6 +799,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'inquiry-files';
         value: number | InquiryFile;
+      } | null)
+    | ({
+        relationTo: 'job-applications';
+        value: number | JobApplication;
+      } | null)
+    | ({
+        relationTo: 'application-files';
+        value: number | ApplicationFile;
       } | null)
     | ({
         relationTo: 'document-visits';
@@ -968,6 +1055,44 @@ export interface InquiriesSelect<T extends boolean = true> {
  */
 export interface InquiryFilesSelect<T extends boolean = true> {
   inquiry?: T;
+  _objectKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "job-applications_select".
+ */
+export interface JobApplicationsSelect<T extends boolean = true> {
+  name?: T;
+  phone?: T;
+  email?: T;
+  role?: T;
+  years?: T;
+  note?: T;
+  files?: T;
+  filesError?: T;
+  status?: T;
+  deleteAfter?: T;
+  notified?: T;
+  notifyError?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "application-files_select".
+ */
+export interface ApplicationFilesSelect<T extends boolean = true> {
+  application?: T;
+  prefix?: T;
   _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
