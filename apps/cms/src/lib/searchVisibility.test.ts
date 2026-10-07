@@ -100,6 +100,8 @@ describe('what the switch does', () => {
       'https://wear-run.com/faq/shipping-and-importing',
       'https://wear-run.com/faq/fabrics-and-printing',
       'https://wear-run.com/glossary',
+      'https://wear-run.com/journal',
+      'https://wear-run.com/case-studies',
       'https://wear-run.com/contact',
       'https://wear-run.com/privacy',
       'https://wear-run.com/terms',
@@ -206,19 +208,20 @@ describe('what the switch does', () => {
 })
 
 /**
- * The Journal and the case studies (2026-10-07): their hubs and pages are listed only once
- * something is published (T5 and the empty-hub rule), each page with the database's own date.
+ * The Journal and the case studies (2026-10-07): both hubs are listed from day one (owner: "Show
+ * them right away"), and each published page with the database's own date.
  */
 describe('the Journal and case studies in the sitemap', () => {
   const ORIGIN = 'https://wear-run.com'
   const urls = (content: Parameters<typeof sitemapFor>[3]) =>
     sitemapFor('visible', ORIGIN, [], content).map((entry) => entry.url)
 
-  it('lists neither hub while nothing is published', () => {
-    const empty = urls({ posts: [], caseStudies: [] })
-    expect(empty).not.toContain(`${ORIGIN}/journal`)
-    expect(empty).not.toContain(`${ORIGIN}/case-studies`)
-    expect(urls(undefined).some((url) => /journal|case-studies/.test(url))).toBe(false)
+  it('lists both hubs, and nothing under them, while nothing is published', () => {
+    for (const empty of [urls({ posts: [], caseStudies: [] }), urls(undefined)]) {
+      expect(empty).toContain(`${ORIGIN}/journal`)
+      expect(empty).toContain(`${ORIGIN}/case-studies`)
+      expect(empty.some((url) => /\/(journal|case-studies)\/./.test(url))).toBe(false)
+    }
   })
 
   it('lists the hub and every published post with its own date once one is published', () => {

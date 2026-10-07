@@ -124,12 +124,25 @@ export const requireShareImageSize: CollectionBeforeChangeHook = async ({
   })
 }
 
-/** `checkedBy`'s validate: required when the post was drafted with AI help (T14). */
+/**
+ * `checkedBy`'s validate: an AUTHOR, required when the post was drafted with AI help (T14).
+ *
+ * ⚠️ AN AUTHOR, NEVER TYPED TEXT (security review, 2026-10-07; PLAN.md G19). The page names the
+ * checker, and a typed name reached it with no consent behind it. An author row cannot be saved
+ * without "consent recorded" ticked (`Authors.ts`), so a named checker always has it. The id comes
+ * as a number, or as the populated row.
+ */
 export function checkedByRequired(value: unknown, siblingData: Doc | undefined): true | string {
   if (!siblingData?.aiAssisted) return true
-  return typeof value === 'string' && value.trim() !== ''
+  const id =
+    value && typeof value === 'object'
+      ? (value as Doc).id
+      : typeof value === 'number'
+        ? value
+        : null
+  return typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id))
     ? true
-    : 'Name the person who checked this post.'
+    : 'Choose the author who checked this post.'
 }
 
 /**

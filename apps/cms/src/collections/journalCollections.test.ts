@@ -63,6 +63,28 @@ describe.each([
     expect(visible(ask(collection.access?.read, admin) as boolean | Where, ROWS)).toHaveLength(2)
   })
 
+  /*
+   * ⚠️ THE ROBOT'S API KEY IS NOT A PERSON (2026-10-07, the security review of this work). It
+   * is signed in, so `req.user ? true` showed it every draft — a case study's client name or
+   * quote before the client agreed. The site keeps private records from it with
+   * `isSignedInPerson` (applications, inquiries); drafts are held the same way.
+   */
+  it('the robot’s API key reads published rows only, as a stranger does', () => {
+    const robot = { role: 'admin', _strategy: 'api-key' }
+    const rule = ask(collection.access?.read, robot) as boolean | Where
+    expect(visible(rule, ROWS).map((row) => row.slug)).toEqual(['made-properly'])
+  })
+
+  it('only a signed-in person reads the version history, where every draft lives', () => {
+    // Payload sets no default for readVersions: left out, anyone signed in (the robot too) reads it.
+    expect(collection.access?.readVersions, 'readVersions is not set').toBeDefined()
+    expect(ask(collection.access?.readVersions, admin)).toBe(true)
+    expect(ask(collection.access?.readVersions, { role: 'admin', _strategy: 'api-key' })).toBe(
+      false,
+    )
+    expect(ask(collection.access?.readVersions, null)).toBe(false)
+  })
+
   it('keeps drafts: without them every save would publish', () => {
     expect(collection.versions).toMatchObject({ drafts: true })
   })

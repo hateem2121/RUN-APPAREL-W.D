@@ -13,7 +13,7 @@ import {
   UploadFeature,
 } from '@payloadcms/richtext-lexical'
 import type { Access, CollectionConfig } from 'payload'
-import { isAdmin, isAdminOrEditor } from '../access/roles'
+import { isAdmin, isAdminOrEditor, isSignedInPerson } from '../access/roles'
 import { keptPagesAfterChange, keptPagesAfterDelete } from '../lib/contentVersion'
 import { JOURNAL_CLUSTERS, JOURNAL_PATH, JOURNAL_RELATED_PAGES } from '../lib/journal'
 import {
@@ -27,14 +27,18 @@ import {
 } from '../lib/journalHooks'
 
 /**
- * ⚠️ DRAFTS ARE PRIVATE. Anyone signed in reads everything; everyone else reads published
+ * ⚠️ DRAFTS ARE PRIVATE. A signed-in PERSON reads everything; everyone else reads published
  * documents only (Payload's own pattern, docs "Drafts", read 2026-10-07). The site's readers in
  * `lib/content.ts` ask for `_status: published` and `draft: false` THEMSELVES, because the local
  * API overrides access control by default (docs "Local API: access control", read 2026-10-07).
  * Shared by `CaseStudies.ts`.
+ *
+ * ⚠️ A PERSON, NOT ANY SIGNED-IN CALLER (security review, 2026-10-07). `req.user ? true` let the
+ * robot's API key read every draft, a case study's client name or quote before the client agreed
+ * among them; `isSignedInPerson` keeps it out, as it does from applications and inquiries.
  */
-export const publishedOrSignedIn: Access = ({ req }) =>
-  req.user ? true : { _status: { equals: 'published' } }
+export const publishedOrSignedIn: Access = (args) =>
+  isSignedInPerson(args) ? true : { _status: { equals: 'published' } }
 
 /**
  * The post body's editor: the parts a post needs and nothing that can break the page. Headings
@@ -89,6 +93,8 @@ export const JournalPosts: CollectionConfig = {
   versions: { drafts: true, maxPerDoc: 25 },
   access: {
     read: publishedOrSignedIn,
+    // Every draft lives in the version history; Payload sets no default here (any caller signed in).
+    readVersions: isSignedInPerson,
     create: isAdminOrEditor,
     update: isAdminOrEditor,
     delete: isAdmin,
@@ -161,7 +167,9 @@ export const JournalPosts: CollectionConfig = {
     { name: 'aiAssisted', label: 'Drafted with AI help', type: 'checkbox', defaultValue: false },
     {
       name: 'checkedBy',
-      type: 'text',
+      // An author, so a named checker has consent on file (G19; journalHooks.ts says why).
+      type: 'relationship',
+      relationTo: 'authors',
       validate: (value: unknown, { siblingData }: { siblingData: Record<string, unknown> }) =>
         checkedByRequired(value, siblingData),
       admin: {

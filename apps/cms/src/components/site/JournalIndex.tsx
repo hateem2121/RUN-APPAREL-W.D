@@ -16,10 +16,9 @@ import { JsonLd } from './JsonLd'
  * The Journal hub, `/journal` (PLAN.md D7): "[ Journal ]", "Notes" + "from the works.", the
  * newest post drawn large, the rest in a grid, a topic filter, the feed link.
  *
- * ⚠️ WITH NO PUBLISHED POST IT STILL ANSWERS 200 (the main session's empty-hub rule, as T5 is
- * for case studies): the hub words and the five topics the Journal will cover, with `noindex`
- * (the route's metadata), and it is left out of the sitemap, llms.txt and every link list until
- * the first post is published. Nothing reads "coming soon".
+ * ⚠️ WITH NO PUBLISHED POST IT STILL ANSWERS 200: the hub words and the five topics the Journal
+ * will cover. It is indexable, listed and linked from day one (owner, 2026-10-07: "Show them
+ * right away"). Nothing reads "coming soon".
  *
  * ⚠️ THE FILTER IS RADIOS AND CSS, NO SCRIPT (T17, the Teamwear sport filter's pattern,
  * `GarmentGrid.tsx`): every post is in the HTML whichever topic is chosen, it filters with

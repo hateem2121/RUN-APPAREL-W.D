@@ -788,7 +788,7 @@ export interface JournalPost {
   /**
    * The person who checked the post. Shown on the page.
    */
-  checkedBy?: string | null;
+  checkedBy?: (number | null) | Author;
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;

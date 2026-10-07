@@ -113,16 +113,16 @@ export interface SitemapArticle {
 }
 
 /**
- * ⚠️ A HUB JOINS ONLY WITH ITS FIRST PUBLISHED PAGE (2026-10-07; T5 for case studies, the same
- * rule for the Journal). Until then it carries `noindex`, and a sitemap listing a `noindex`
- * page asks a crawler to index what the page refuses. Each page carries its own `updatedAt`.
+ * ⚠️ THE HUB IS LISTED EVEN EMPTY (owner, 2026-10-07: "Show them right away"). It was listed
+ * only with its first published page while an empty hub carried `noindex` (T5); both hubs are
+ * indexable from day one now, and a sitemap must list what the pages allow. Each published page
+ * carries its own `updatedAt`.
  */
 function articleEntries(
   origin: string,
   hub: string,
-  articles: ReadonlyArray<SitemapArticle> | undefined,
+  articles: ReadonlyArray<SitemapArticle> = [],
 ): MetadataRoute.Sitemap {
-  if (!articles || articles.length === 0) return []
   return [
     { url: `${origin}${hub}`, changeFrequency: 'weekly', priority: 0.6 },
     ...articles.map((article) => {

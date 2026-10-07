@@ -18,8 +18,9 @@ import { type APIRequestContext, expect, test } from './offlineMedia'
  * reads the database the first time it is asked, and a draft's address is never remembered.
  *
  * ⚠️ THE CASE STUDIES ARE LEFT EMPTY ON PURPOSE: that hub is checked in the state it ships in,
- * 200 with `noindex` and absent from the sitemap and llms.txt (T5). The published state of both
- * hubs is held by the unit suite (`newPagesWiring.test.ts`, `searchVisibility.test.ts`).
+ * 200, indexable and listed in the sitemap and llms.txt from day one (owner, 2026-10-07: "Show
+ * them right away"). The published state is held by the unit suite (`newPagesWiring.test.ts`,
+ * `searchVisibility.test.ts`).
  */
 
 const ADMIN = { email: 'admin@wear-run.help', password: 'run-apparel-dev-only' }
@@ -206,7 +207,7 @@ test.describe('the Journal', () => {
 })
 
 test.describe('the case studies, before the first one is published', () => {
-  test('the hub answers 200 with its words, asks not to be indexed, and is listed nowhere', async ({
+  test('the hub answers 200 with its words, may be indexed, and is listed', async ({
     page,
     request,
   }) => {
@@ -217,10 +218,10 @@ test.describe('the case studies, before the first one is published', () => {
     const robots = await page
       .locator('meta[name="robots"]')
       .evaluateAll((tags) => tags.map((tag) => tag.getAttribute('content') ?? ''))
-    expect(robots.some((content) => /noindex/i.test(content))).toBe(true)
+    expect(robots.filter((content) => /noindex/i.test(content))).toEqual([])
 
-    expect(await (await request.get('/sitemap.xml')).text()).not.toContain('/case-studies')
-    expect(await (await request.get('/llms.txt')).text()).not.toContain('/case-studies')
+    expect(await (await request.get('/sitemap.xml')).text()).toContain('/case-studies</loc>')
+    expect(await (await request.get('/llms.txt')).text()).toContain('/case-studies)')
   })
 
   test('an address under it is a 404', async ({ page }) => {

@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { isAdmin, isAdminOrEditor } from '../access/roles'
+import { isAdmin, isAdminOrEditor, isSignedInPerson } from '../access/roles'
 import { CASE_STUDIES_PATH } from '../lib/caseStudies'
 import { keptPagesAfterChange, keptPagesAfterDelete } from '../lib/contentVersion'
 import {
@@ -17,8 +17,8 @@ import { firstPublishedAtField, publishedOrSignedIn } from './JournalPosts'
  * challenge, what we did and the result, with the client's name and words only with their
  * permission. Drafts, access and hooks as `JournalPosts`.
  *
- * ⚠️ `/case-studies` STAYS OUT OF SEARCH UNTIL ONE IS PUBLISHED (T5): an empty hub renders with
- * `noindex` and is left out of the sitemap and llms.txt; the first publish switches it on.
+ * `/case-studies` is indexable and listed from day one, even empty (owner, 2026-10-07: "Show them
+ * right away", replacing T5's `noindex` until the first one is published).
  */
 export const CaseStudies: CollectionConfig = {
   slug: 'case-studies',
@@ -33,6 +33,8 @@ export const CaseStudies: CollectionConfig = {
   versions: { drafts: true, maxPerDoc: 25 },
   access: {
     read: publishedOrSignedIn,
+    // Every draft lives in the version history; Payload sets no default here (any caller signed in).
+    readVersions: isSignedInPerson,
     create: isAdminOrEditor,
     update: isAdminOrEditor,
     delete: isAdmin,

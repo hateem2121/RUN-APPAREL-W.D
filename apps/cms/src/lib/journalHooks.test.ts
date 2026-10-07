@@ -185,10 +185,14 @@ describe('the share picture is large enough for a link preview (T8: at least 120
 
 describe('the AI-help line names the person who checked it (T14)', () => {
   it('is required only when the post was drafted with AI help', () => {
-    expect(checkedByRequired('', { aiAssisted: true })).toEqual(expect.any(String))
-    expect(checkedByRequired('   ', { aiAssisted: true })).toEqual(expect.any(String))
-    expect(checkedByRequired('A. Writer', { aiAssisted: true })).toBe(true)
-    expect(checkedByRequired('', { aiAssisted: false })).toBe(true)
+    // The checker is an author row (2026-10-07): an id, or the populated row.
+    expect(checkedByRequired(null, { aiAssisted: true })).toEqual(expect.any(String))
+    expect(checkedByRequired(undefined, { aiAssisted: true })).toEqual(expect.any(String))
+    expect(checkedByRequired(3, { aiAssisted: true })).toBe(true)
+    expect(checkedByRequired({ id: 3 }, { aiAssisted: true })).toBe(true)
+    // A typed name is not an author: refused, so no unconsented name reaches the page.
+    expect(checkedByRequired('A. Writer', { aiAssisted: true })).toEqual(expect.any(String))
+    expect(checkedByRequired(null, { aiAssisted: false })).toBe(true)
     expect(checkedByRequired(undefined, {})).toBe(true)
   })
 })

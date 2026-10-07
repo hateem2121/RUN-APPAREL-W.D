@@ -150,7 +150,12 @@ export function toJournalPost(doc: unknown): JournalPostView | null {
   const publishedAt = isoDate(row.publishedAt)
   if (validSlug(slug) !== true || !title || !publishedAt) return null
   const label = journalClusterLabel(row.cluster)
-  const checkedBy = row.aiAssisted === true ? text(row.checkedBy) : ''
+  // The checker is an author row (2026-10-07): only its name is drawn, never a typed string.
+  const checker =
+    row.aiAssisted === true && row.checkedBy && typeof row.checkedBy === 'object'
+      ? (row.checkedBy as Doc)
+      : null
+  const checkedBy = checker ? text(checker.name) : ''
   return {
     slug,
     path: journalPostPath(slug),

@@ -8,19 +8,15 @@ import { buildMetadata } from '../../../lib/seo'
 export const dynamic = 'force-dynamic'
 
 /**
- * The case-study hub (PLAN.md D9). ⚠️ `noindex` UNTIL ONE IS PUBLISHED (T5): with none it is a
- * page about case studies to come, which is thin content; the first published case study
- * switches it on, and the layout's own value applies from then.
+ * The case-study hub (PLAN.md D9). ⚠️ INDEXED FROM DAY ONE, EVEN EMPTY (owner, 2026-10-07: "Show
+ * them right away", replacing T5's `noindex` until the first case study). The layout's own value
+ * applies, so a site hidden as a whole stays hidden.
  */
-export async function generateMetadata(): Promise<Metadata> {
-  const base = buildMetadata({
-    title: CASE_STUDIES_HUB.title,
-    description: CASE_STUDIES_HUB.description,
-    path: CASE_STUDIES_PATH,
-  })
-  const studies = await getCaseStudies()
-  return studies.length === 0 ? { ...base, robots: { index: false } } : base
-}
+export const metadata: Metadata = buildMetadata({
+  title: CASE_STUDIES_HUB.title,
+  description: CASE_STUDIES_HUB.description,
+  path: CASE_STUDIES_PATH,
+})
 
 export default async function CaseStudiesPage() {
   return <CaseStudyIndex studies={await getCaseStudies()} />

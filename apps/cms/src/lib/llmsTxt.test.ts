@@ -165,26 +165,14 @@ describe('it passes Lighthouse 13.5.0’s llms-txt audit (FI-08)', () => {
 })
 
 /**
- * The Journal and the case studies (PLAN.md E9; 2026-10-07): named only once something is
- * published, because until then their hubs carry `noindex` and say nothing a reader could quote.
+ * The Journal and the case studies (PLAN.md E9): named from day one, even before anything is
+ * published (owner, 2026-10-07: "Show them right away"; both hubs are indexable when empty).
  */
 describe('the Journal and the case studies', () => {
-  it('are absent while nothing is published', () => {
-    for (const empty of [buildLlmsTxt(SITE), buildLlmsTxt(SITE, { posts: 0, caseStudies: 0 })]) {
-      expect(empty).not.toContain(`${SITE}/journal`)
-      expect(empty).not.toContain(`${SITE}/case-studies`)
-      expect(empty).not.toContain('## Journal')
-    }
-  })
-
-  it('each joins with its first published page, linked to its hub', () => {
-    const journal = buildLlmsTxt(SITE, { posts: 1, caseStudies: 0 })
-    expect(journal).toContain('## Journal')
-    expect(journal).toContain(`](${SITE}/journal)`)
-    expect(journal).not.toContain(`${SITE}/case-studies`)
-    const studies = buildLlmsTxt(SITE, { posts: 0, caseStudies: 2 })
-    expect(studies).toContain(`](${SITE}/case-studies)`)
-    expect(studies).not.toContain('## Journal')
-    expect(llmsTxtProblems(journal)).toEqual([])
+  it('are linked to their hubs while nothing is published', () => {
+    expect(text).toContain('## Journal')
+    expect(text).toContain(`](${SITE}/journal)`)
+    expect(text).toContain(`](${SITE}/case-studies)`)
+    expect(llmsTxtProblems(text)).toEqual([])
   })
 })

@@ -44,10 +44,7 @@ import { POLICIES, POLICIES_INDEX } from './policies'
  */
 
 /** American spelling throughout — owner decision, `docs/CUSTOMISATION-COPY-2026-09-04.md`. */
-export function buildLlmsTxt(
-  siteOrigin: string,
-  published: { posts?: number; caseStudies?: number } = {},
-): string {
+export function buildLlmsTxt(siteOrigin: string): string {
   const facts = FACTS.map((fact) => `- ${fact.label}: ${fact.value}`).join('\n')
   // Each family's one list: its own page, or its group on the products page (polish S1). The
   // filter addresses this named until 2026-10-05 forward there now.
@@ -85,18 +82,11 @@ export function buildLlmsTxt(
     `- [${GLOSSARY_INDEX.title}](${siteOrigin}${GLOSSARY_INDEX.path}) — garment and export terms in plain words.`,
   ].join('\n')
   /*
-   * The Journal and the case studies (2026-10-07, E9): named only once one is published, as in
-   * the sitemap. Until then their hubs carry `noindex`; a line here would send a reader to a page
-   * that asks not to be quoted. Hence a dynamic route (`app/llms.txt/route.ts`) since that day.
+   * The Journal and the case studies (2026-10-07, E9): named from day one, as in the sitemap
+   * (owner: "Show them right away"; both hubs are indexable while empty).
    */
-  const caseStudies =
-    (published.caseStudies ?? 0) > 0
-      ? `- [${CASE_STUDIES_HUB.title}](${siteOrigin}${CASE_STUDIES_PATH}) — orders we have made: what, for whom, how many and how long.\n`
-      : ''
-  const journal =
-    (published.posts ?? 0) > 0
-      ? `\n## Journal\n\n- [${JOURNAL_HUB.title}](${siteOrigin}${JOURNAL_PATH}) — ${JOURNAL_HUB.description}\n`
-      : ''
+  const caseStudies = `- [${CASE_STUDIES_HUB.title}](${siteOrigin}${CASE_STUDIES_PATH}) — orders we have made: what, for whom, how many and how long.\n`
+  const journal = `\n## Journal\n\n- [${JOURNAL_HUB.title}](${siteOrigin}${JOURNAL_PATH}) — ${JOURNAL_HUB.description}\n`
 
   return `# RUN APPAREL
 

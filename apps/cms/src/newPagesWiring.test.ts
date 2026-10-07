@@ -50,8 +50,8 @@ describe('every new page is wired everywhere a public page must be', () => {
 
   /**
    * The Journal and the case studies (2026-10-07) are CMS pages: their hubs and each post are
-   * wired into the header and redirect lists always, but into the sitemap and llms.txt only once
-   * something is published (T5 and the empty-hub rule). Both states are held here.
+   * wired into the header and redirect lists, the sitemap and llms.txt from day one (owner,
+   * 2026-10-07: "Show them right away"); each published page joins the sitemap too.
    */
   describe('the Journal and the case studies', () => {
     const CMS_PAGES = [
@@ -71,22 +71,22 @@ describe('every new page is wired everywhere a public page must be', () => {
         expect(EDGE_SCRIPT, 'missing from the CSP nonce edge script').toContain(`'${hub}'`)
       })
 
-      it(`${hub}: out of the sitemap and llms.txt while nothing is published`, () => {
+      // Owner, 2026-10-07: "Show them right away". The hub is offered even while empty.
+      it(`${hub}: in the sitemap and llms.txt while nothing is published`, () => {
         const urls = sitemapFor('visible', ORIGIN, [], { posts: [], caseStudies: [] }).map(
           (entry) => entry.url,
         )
-        expect(urls).not.toContain(`${ORIGIN}${hub}`)
-        expect(buildLlmsTxt(ORIGIN, { posts: 0, caseStudies: 0 })).not.toContain(`${ORIGIN}${hub}`)
+        expect(urls).toContain(`${ORIGIN}${hub}`)
+        expect(buildLlmsTxt(ORIGIN)).toContain(`(${ORIGIN}${hub})`)
       })
 
-      it(`${hub}: in both once one is published`, () => {
+      it(`${hub}: each published page joins the sitemap`, () => {
         const one = [{ path: `${hub}/first`, updatedAt: null }]
         const urls = sitemapFor('visible', ORIGIN, [], { posts: one, caseStudies: one }).map(
           (entry) => entry.url,
         )
         expect(urls).toContain(`${ORIGIN}${hub}`)
         expect(urls).toContain(`${ORIGIN}${hub}/first`)
-        expect(buildLlmsTxt(ORIGIN, { posts: 1, caseStudies: 1 })).toContain(`(${ORIGIN}${hub})`)
       })
     }
 

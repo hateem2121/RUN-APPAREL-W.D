@@ -12,9 +12,10 @@ export const dynamic = 'force-dynamic'
  * `components/site/JournalIndex.tsx`, the posts in the CMS; this file is the address and its
  * metadata.
  *
- * ⚠️ `noindex` UNTIL A POST IS PUBLISHED (the empty-hub rule, as T5 is for case studies): an
- * empty hub is thin content. With one, the layout's own value applies (`robotsFor`), so a site
- * hidden as a whole stays hidden. The feed link joins with the first post too.
+ * ⚠️ INDEXED FROM DAY ONE, EVEN EMPTY (owner, 2026-10-07: "Show them right away"). The first
+ * plan kept an empty hub `noindex` as thin content (T5); the owner chose to show it at once, so
+ * the layout's own value applies (`robotsFor`) and a site hidden as a whole stays hidden. The
+ * feed link still joins with the first post: an empty feed gives a reader nothing to follow.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const base = buildMetadata({
@@ -23,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     path: JOURNAL_PATH,
   })
   const posts = await getJournalPosts()
-  if (posts.length === 0) return { ...base, robots: { index: false } }
+  if (posts.length === 0) return base
   return withFeed(base, { title: 'RUN APPAREL Journal', path: JOURNAL_RSS_PATH })
 }
 

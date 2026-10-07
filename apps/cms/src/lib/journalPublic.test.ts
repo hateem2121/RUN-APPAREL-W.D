@@ -143,9 +143,24 @@ describe('a post as the page sees it', () => {
     expect(post?.share).toMatchObject({ width: 1200, height: 630 })
   })
 
-  it('names the checker only when the post was drafted with AI help (T14)', () => {
-    expect(toJournalPost({ ...published, aiAssisted: true })?.checkedBy).toBe('Someone')
-    expect(toJournalPost({ ...published, aiAssisted: true, checkedBy: ' ' })?.checkedBy).toBeNull()
+  /*
+   * ⚠️ THE CHECKER IS AN AUTHOR, SO A NAMED PERSON HAS CONSENT ON FILE (security review,
+   * 2026-10-07; PLAN.md G19). It was free text, which put any typed name on a public page with
+   * no consent behind it. Now only an author row's name is drawn; a typed string never is.
+   */
+  it('names the checker only when the post was drafted with AI help, from the author row (T14)', () => {
+    const checker = { id: 3, name: 'A. Author', consentRecorded: true }
+    expect(toJournalPost({ ...published, aiAssisted: true, checkedBy: checker })?.checkedBy).toBe(
+      'A. Author',
+    )
+    expect(
+      toJournalPost({ ...published, aiAssisted: false, checkedBy: checker })?.checkedBy,
+    ).toBeNull()
+    // A bare id (not populated) or a typed name: no name to draw.
+    expect(toJournalPost({ ...published, aiAssisted: true, checkedBy: 3 })?.checkedBy).toBeNull()
+    expect(
+      toJournalPost({ ...published, aiAssisted: true, checkedBy: 'Someone' })?.checkedBy,
+    ).toBeNull()
   })
 
   it('shows a named author only when the author row is there', () => {

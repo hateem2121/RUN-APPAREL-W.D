@@ -50,11 +50,12 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`share_image_id\` integer,
   	\`body\` text,
   	\`ai_assisted\` integer DEFAULT false,
-  	\`checked_by\` text,
+  	\`checked_by_id\` integer,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`_status\` text DEFAULT 'draft',
   	FOREIGN KEY (\`author_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`checked_by_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`hero_image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`share_image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
@@ -64,6 +65,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   )
   for (const [index, column] of [
     ['journal_posts_author_idx', 'author_id'],
+    ['journal_posts_checked_by_idx', 'checked_by_id'],
     ['journal_posts_hero_image_idx', 'hero_image_id'],
     ['journal_posts_share_image_idx', 'share_image_id'],
     ['journal_posts_updated_at_idx', 'updated_at'],
@@ -102,7 +104,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`version_share_image_id\` integer,
   	\`version_body\` text,
   	\`version_ai_assisted\` integer DEFAULT false,
-  	\`version_checked_by\` text,
+  	\`version_checked_by_id\` integer,
   	\`version_updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   	\`version_created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   	\`version__status\` text DEFAULT 'draft',
@@ -111,6 +113,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`latest\` integer,
   	FOREIGN KEY (\`parent_id\`) REFERENCES \`journal_posts\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`version_author_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`version_checked_by_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`version_hero_image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`version_share_image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
@@ -119,6 +122,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
     ['_journal_posts_v_parent_idx', 'parent_id'],
     ['_journal_posts_v_version_version_slug_idx', 'version_slug'],
     ['_journal_posts_v_version_version_author_idx', 'version_author_id'],
+    ['_journal_posts_v_version_version_checked_by_idx', 'version_checked_by_id'],
     ['_journal_posts_v_version_version_hero_image_idx', 'version_hero_image_id'],
     ['_journal_posts_v_version_version_share_image_idx', 'version_share_image_id'],
     ['_journal_posts_v_version_version_updated_at_idx', 'version_updated_at'],
