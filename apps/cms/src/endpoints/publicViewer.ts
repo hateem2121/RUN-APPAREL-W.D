@@ -2,6 +2,7 @@ import type { ViewerApiError } from '@run-apparel/shared'
 import { normalizeSlug } from '@run-apparel/shared'
 import { convertLexicalToHTML } from '@payloadcms/richtext-lexical/html'
 import type { Endpoint, PayloadRequest } from 'payload'
+import { drawingToKeep } from '../../pageCache.mjs'
 import { buildViewerResponse } from './projectViewer'
 import { pickRelated, publishedCards } from './relatedGarments'
 import { readViewerCache, viewerCacheKey, writeViewerCache } from './viewerCache'
@@ -51,8 +52,10 @@ const PUBLIC_CACHE_CONTROL = 'public, s-maxage=60, stale-while-revalidate=300'
  * serve it to the viewer's cross-origin fetch, which the browser blocks — the page
  * renders "REFERENCE UNAVAILABLE" intermittently, inside the 60s/300s window.
  *
- * Inert today, because nothing caches these (above). Correct now so it stays
- * correct if anything ever does.
+ * Since 2026-10-07 something does: worker.mjs keeps these answers in Cloudflare's cache
+ * (viewerApiCache.mjs). That cache ignores `Vary`, so it keeps them WITHOUT the CORS
+ * headers and works those out again for each request; this header alone would not have
+ * been enough.
  *
  * ⚠️ THIS HEADER IS NOT WHAT SHIPS, AND SETTING IT HERE WAS NOT ENOUGH. `withPayload`
  * appends a blanket `/:path*` rule carrying `Vary: Sec-CH-Prefers-Color-Scheme`
@@ -147,7 +150,13 @@ const buildHandler =
      * not, and for the honest limit: a first scan of a cold isolate is unaffected.
      */
     const cacheKey = viewerCacheKey(origin, productSlug, colourSlug)
-    const cached = readViewerCache(cacheKey)
+    /*
+     * ⚠️ NOT WHILE worker.mjs DRAWS A COPY TO KEEP (viewerApiCache.mjs, 2026-10-07). That copy is
+     * filed under the content version read just before, for up to a day; a body from this
+     * memory could predate the save that version names, and would then outlive it everywhere.
+     */
+    const keeping = drawingToKeep()
+    const cached = keeping ? null : readViewerCache(cacheKey)
     if (cached) {
       return Response.json(cached, { headers: successHeaders() })
     }
@@ -188,7 +197,7 @@ const buildHandler =
       req.payload.findGlobal({ slug: 'site-settings', depth: 0, req }),
       // The other garments for "More from <category>" (polish S6): relatedGarments.ts says
       // why they travel in this answer, and keeps them a minute per isolate.
-      publishedCards(req.payload),
+      publishedCards(req.payload, { fresh: keeping }),
     ])
     const product = products.docs[0]
     if (!product) {

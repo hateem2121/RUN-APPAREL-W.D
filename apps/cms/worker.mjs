@@ -1,10 +1,11 @@
 /**
  * The site's Worker entry: OpenNext's generated handler, wrapped by the script guard
  * (SE-04, decided 2026-09-18, live from the merge that deploys it), with the stored page
- * cache in front of it (polish X15, 2026-10-04).
+ * cache in front of it (polish X15, 2026-10-04) and the garment data kept the same way
+ * (viewerApiCache.mjs, 2026-10-07).
  *
- * Every decision is in cspNonce.mjs and pageCache.mjs (pure, tested). This file only applies
- * them.
+ * Every decision is in cspNonce.mjs, pageCache.mjs and viewerApiCache.mjs (pure, tested). This
+ * file only applies them.
  *
  * ⚠️ IT FAILS OPEN — UNTIL THE BODY STARTS STREAMING. Any exception while deciding, or a policy
  * or encoding it does not recognise, returns OpenNext's response unchanged. Every page then keeps
@@ -41,6 +42,7 @@ import {
   wholePage,
 } from './pageCache.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
+import { serveViewerApi } from './viewerApiCache.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
 export * from './.open-next/worker.js'
@@ -106,6 +108,15 @@ export default {
     // whole file to every range request (filmRange.mjs has the measurements). Only `/film/*` reaches
     // this line before the assets do (`run_worker_first` in wrangler.jsonc).
     if (servesFilm(new URL(request.url))) return filmResponse(request, env)
+
+    // The garment data on cms.wear-run.help, kept like the pages (viewerApiCache.mjs, 2026-10-07:
+    // 4.0–4.5 s uncached from Pakistan, ~10 database trips from local-ISB to ENAM). The viewer
+    // Worker's `CMS` binding asks for the same address, so a robot's garment page gains too.
+    // Its CORS headers are worked out per request there; null = not one to keep, serve as before.
+    const garmentData = await serveViewerApi(request, env, ctx, (clean) =>
+      openNext.fetch(clean, env, ctx),
+    )
+    if (garmentData) return garmentData
 
     // The stored page cache (pageCache.mjs): answer from a kept copy, or draw the page and keep it.
     const kept = await findKeptPage(request, env)

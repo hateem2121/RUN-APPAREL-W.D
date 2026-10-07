@@ -1,5 +1,6 @@
 import type { ViewerRelatedGarment } from '@run-apparel/shared'
 import type { Payload } from 'payload'
+import { spoilKeptRender } from '../../pageCache.mjs'
 import { type ProductCard, toProductCard } from '../lib/projectPublic'
 
 /**
@@ -53,9 +54,17 @@ let cached: { cards: ProductCard[]; expires: number } | null = null
 /**
  * Every published garment as a card, kept for a minute per isolate. A failed read is an empty
  * list and is never kept: the garment's answer goes out without the section, never fails.
+ *
+ * `fresh` (2026-10-07): worker.mjs is drawing an answer to keep for up to a day
+ * (viewerApiCache.mjs), so read the database, not this minute-old memory, and mark that
+ * answer unkeepable if the read fails — a garment without its "More from" list is a bad
+ * answer, not a day's answer.
  */
-export async function publishedCards(payload: Payload): Promise<ProductCard[]> {
-  if (cached && cached.expires > Date.now()) return cached.cards
+export async function publishedCards(
+  payload: Payload,
+  { fresh = false }: { fresh?: boolean } = {},
+): Promise<ProductCard[]> {
+  if (!fresh && cached && cached.expires > Date.now()) return cached.cards
   try {
     const res = await payload.find({
       collection: 'products',
@@ -76,6 +85,7 @@ export async function publishedCards(payload: Payload): Promise<ProductCard[]> {
     return cards
   } catch (err) {
     console.error('[related] published garments unavailable:', err)
+    spoilKeptRender()
     return []
   }
 }
