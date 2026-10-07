@@ -126,7 +126,7 @@ export const COMPANY_PAGE_SOURCES = ['/careers', '/community']
 
 /**
  * The FAQ hub and its topic pages (2026-10-07), in `FAQ_PATHS`' order. Held to
- * `src/lib/faqs.ts` by `newPagesWiring.test.ts`. "Working with us" joins with its fifth answer.
+ * `src/lib/faqs.ts` by `newPagesWiring.test.ts`.
  */
 export const FAQ_PAGE_SOURCES = [
   '/faq',
@@ -134,6 +134,7 @@ export const FAQ_PAGE_SOURCES = [
   '/faq/quality-and-certifications',
   '/faq/shipping-and-importing',
   '/faq/fabrics-and-printing',
+  '/faq/working-with-us',
 ]
 
 /** The glossary (2026-10-07). Held to `src/lib/glossary.ts` by `newPagesWiring.test.ts`. */

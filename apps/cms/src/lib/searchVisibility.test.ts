@@ -99,6 +99,7 @@ describe('what the switch does', () => {
       'https://wear-run.com/faq/quality-and-certifications',
       'https://wear-run.com/faq/shipping-and-importing',
       'https://wear-run.com/faq/fabrics-and-printing',
+      'https://wear-run.com/faq/working-with-us',
       'https://wear-run.com/glossary',
       'https://wear-run.com/journal',
       'https://wear-run.com/case-studies',

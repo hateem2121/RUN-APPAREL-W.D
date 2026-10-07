@@ -133,6 +133,7 @@ const PAGES = [
     heading: /Shipping/i,
   },
   { path: '/faq/fabrics-and-printing', name: 'FAQ: fabrics and printing', heading: /Fabrics/i },
+  { path: '/faq/working-with-us', name: 'FAQ: working with us', heading: /Working/i },
   { path: '/glossary', name: 'glossary', heading: /Every term/i },
   // The Journal's and the case studies' hubs (2026-10-07): 200 with or without a published entry.
   { path: '/journal', name: 'Journal hub', heading: /Notes from the works/i },
@@ -635,7 +636,11 @@ test.describe('search visibility follows the committed switch: visible since lau
       // A Journal post or case study is listed only while published, and `journal.spec.ts`
       // creates one for a while and removes it; the unit suite holds that
       // (`searchVisibility.test.ts`, `newPagesWiring.test.ts`). The hubs are always listed.
+      // A garment colour is listed once the server can read the seeded catalogue, which it can
+      // since the e2e step has a Payload secret (2026-10-07); `searchVisibility.test.ts` holds
+      // the garment entries.
       .filter((path) => !/^\/(journal|case-studies)\/./.test(path))
+      .filter((path) => !/^\/products\/[^/]+\/[^/]+$/.test(path))
     expect(locs.sort()).toEqual(
       [
         '/',

@@ -66,9 +66,9 @@ describe('every website page shares a picture of its own type (X14, Q11)', () =>
   it('the home page, products, contact, each category page, the guides index, each guide, the policies hub, each policy, careers and community: one each', () => {
     const files = OWN_PICTURE.map((path) => shareCardFor(path).file)
     // 1 home + products + contact + 4 category + guides index + 7 guides + policies hub
-    // + 7 policies + careers + community + the FAQ hub + 4 FAQ topics + the glossary + the
+    // + 7 policies + careers + community + the FAQ hub + 5 FAQ topics + the glossary + the
     // Journal's and the case studies' hubs.
-    expect(OWN_PICTURE).toHaveLength(33)
+    expect(OWN_PICTURE).toHaveLength(34)
     expect(new Set(files).size, 'two page types share a picture').toBe(OWN_PICTURE.length)
   })
 

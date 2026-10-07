@@ -194,6 +194,10 @@ test.describe('the Journal', () => {
   test('the feed is RSS 2.0 and soon carries the published post, never the draft', async ({
     request,
   }) => {
+    // The poll below may need the whole 75 s (the list is kept 60 s), which the default 30 s
+    // test limit cut short: measured 2026-10-07, Firefox failed at 30 s with Chromium's post in
+    // the feed and its own not yet.
+    test.setTimeout(90_000)
     await expect(async () => {
       const response = await request.get('/journal/rss.xml')
       expect(response.status()).toBe(200)

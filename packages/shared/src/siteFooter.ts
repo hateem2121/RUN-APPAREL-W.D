@@ -114,24 +114,27 @@ export const SITE_FOOTER_MADE: readonly { href: string; label: string }[] = Obje
 
 /**
  * The "Company" group's links (2026-10-07, PLAN.md E5): LIVE links only, so an address is
- * listed in the same change that creates the page. Phase 1: careers, community, policies
- * (Phase 5 adds Press). A group with fewer than two live links is not drawn.
+ * listed in the same change that creates the page. Phase 1: careers, community, policies; then
+ * the case studies (owner, 2026-10-07: listed from day one, even before the first is published).
+ * Phase 5 adds Press. A group with fewer than two live links is not drawn.
  */
 export const SITE_FOOTER_COMPANY: readonly { href: string; label: string }[] = [
   { href: '/careers', label: 'Careers' },
   { href: '/community', label: 'Community' },
   { href: '/policies', label: 'Policies' },
+  { href: '/case-studies', label: 'Case studies' },
 ]
 
 /**
  * The "Learn" group's links (2026-10-07, PLAN.md Task 3.5): the guides, which left the bottom row
- * for it, the FAQ and the glossary. LIVE links only, as the Company group's are; the Journal joins
- * in the change that creates it. A group with fewer than two live links is not drawn.
+ * for it, the FAQ, the glossary and the Journal (owner, 2026-10-07: listed from day one). LIVE
+ * links only, as the Company group's are. A group with fewer than two live links is not drawn.
  */
 export const SITE_FOOTER_LEARN: readonly { href: string; label: string }[] = [
   { href: '/guides', label: 'Guides' },
   { href: '/faq', label: 'FAQ' },
   { href: '/glossary', label: 'Glossary' },
+  { href: '/journal', label: 'Journal' },
 ]
 
 /**

@@ -12,6 +12,7 @@ import {
   faqTopicForGuide,
   faqTopicAt,
   faqVisibleAnswer,
+  OWNER_FIGURES,
 } from './faqs'
 import { GUIDES } from './guides'
 
@@ -58,6 +59,8 @@ describe('the FAQ answers', () => {
       CERTIFICATION_PROMISE,
       JSON.stringify(GUIDES),
       FAQ_INDEX.lede,
+      // The owner's written figures (2026-10-07), each with its answer.
+      ...Object.values(OWNER_FIGURES),
     ].join(' ')
     const allowed = new Set(known.match(/\d+(?:,\d{3})*/g) ?? [])
     const invented: string[] = []

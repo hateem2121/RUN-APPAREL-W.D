@@ -17,15 +17,26 @@ import {
  * typed into an answer that the constants do not supply.
  *
  * ⚠️ A QUESTION WAITS FOR ITS FACT. Payment terms, transit times, documents, color matching and
- * the rest need the owner's answers (OWNER-FACTS F1–F15); none is written until they arrive. A
- * topic publishes only with five questions or more, which is why "Working with us" (four
- * answerable today) is not a page yet.
+ * the rest waited for the owner's answers (F1–F15), given on 2026-10-07; each such entry's
+ * `source` names its answer. A topic publishes only with five questions or more.
  *
  * ⚠️ GOOGLE NO LONGER SHOWS FAQ RICH RESULTS (its FAQPage page, read 2026-10-07: restricted to
  * government and health sites in 2023, not shown from 7 May 2026). The question data stays for
  * the reason `faqJsonLd` gives: answer engines assemble answers from that shape, and the data is
  * the visible page, word for word.
  */
+
+/**
+ * The figures the owner gave in writing for the FAQ (2026-10-07): the only numbers an answer
+ * may state beyond `FACTS`, `LEAD_TIME` and the guides. `faqs.test.ts` allows these and no
+ * others, so a figure is added here, with its answer, or not at all.
+ */
+export const OWNER_FIGURES = {
+  /** F2: the example split within the minimum, the owner's draft sentence approved as written. */
+  sizeSplit: '10 S, 20 M, 15 L, 5 XL',
+  /** F15: how long after delivery a buyer has to report a problem. */
+  reportProblemDays: '14',
+} as const
 
 export type FaqEntry = {
   /** Anchor id, lowercase and hyphens, unique across every FAQ page. */
@@ -73,11 +84,11 @@ export const FAQ_INDEX = {
   headingAccent: 'answered plainly.',
   lede: 'Everything buyers ask us before they write. If your question isn’t here, ask us — we reply within 24 hours.',
   /**
-   * The hub's "five we hear most", as anchors on the topic pages, in D5's order (O1, O2, S6, Q1).
-   * D5's fifth, "Who owns the artwork I send?", lives on "Working with us", which waits for the
-   * owner's answers; the bulk lead time stands in until it is a page (shown to the owner).
+   * The hub's "five we hear most", as anchors on the topic pages, in D5's order (O1, O2, S6, Q1,
+   * W2). "Who owns the artwork I send?" took the fifth place from the bulk lead time, its stand-in,
+   * when "Working with us" became a page (2026-10-07).
    */
-  mostAsked: ['minimum-order', 'sample-time', 'countries', 'certifications', 'lead-time'] as const,
+  mostAsked: ['minimum-order', 'sample-time', 'countries', 'certifications', 'artwork'] as const,
 } as const
 
 /** The topic pages' lede: the hub's own second sentence. */
@@ -106,8 +117,27 @@ const ORDERS: FaqTopic = {
     {
       id: 'sample-fee',
       question: 'Is the sample fee credited back?',
-      answer: 'Yes. The sample fee is credited back against your bulk order.',
-      source: 'minimum-order guide',
+      answer:
+        'Yes. The sample fee is credited back against your bulk order. If no bulk order follows, we keep the fee.',
+      source: 'minimum-order guide + owner (F1, 2026-10-07)',
+    },
+    {
+      id: 'split-minimum',
+      question: 'Can I split the minimum across sizes and colors?',
+      answer: `Within the ${MINIMUM} you can typically split across sizes (for example ${OWNER_FIGURES.sizeSplit}). Color splits depend on the fabric and printing method; we confirm exact splits in your quote.`,
+      source: 'owner (F2, 2026-10-07), the draft sentence approved as written',
+    },
+    {
+      id: 'fewer-than-minimum',
+      question: `Can I order fewer than ${MINIMUM} pieces?`,
+      answer: `Yes, at a higher price per piece. ${MINIMUM} pieces per style is our standard minimum.`,
+      source: 'owner (F3, 2026-10-07): "Do fewer than 50. But the cost increase."',
+    },
+    {
+      id: 'payment-terms',
+      question: 'What are your payment terms?',
+      answer: 'We agree payment terms with each buyer.',
+      source: 'owner (F4, 2026-10-07): "mutually agreed with the customer"',
     },
     {
       id: 'quote',
@@ -211,7 +241,16 @@ const QUALITY: FaqTopic = {
       question: 'What checks happen before an order ships?',
       answer:
         'Every order is checked before it is packed: testing, inspection under light and a final check before packing.',
-      source: 'ORDER_PHASES step 6',
+      detail:
+        'We check seams, measurements, print and color during production and before packing, and inspect to the AQL level you choose. You get photos before the order ships.',
+      source: 'ORDER_PHASES step 6; detail: owner (F6, 2026-10-07)',
+    },
+    {
+      id: 'order-certificates',
+      question: 'Can I get certificates and test reports for my order?',
+      answer:
+        'Yes. We can send copies of our suppliers’ certificates, and transaction certificates where every company in the chain is certified. We can also arrange lab test reports, paid for by you.',
+      source: 'owner (F5, 2026-10-07)',
     },
     {
       id: 'market-certification',
@@ -270,6 +309,20 @@ const SHIPPING: FaqTopic = {
       answer:
         'The way you want them, under your brand: neck and care labels, hang tags, bags and cartons. There is no set minimum for custom packaging.',
       source: 'packaging guide',
+    },
+    {
+      id: 'transit-time',
+      question: 'How long does shipping take?',
+      answer:
+        'It depends on how your order travels: air courier, air freight or sea. We confirm the transit time in your quote.',
+      source: 'owner (F7, 2026-10-07): no numbers on the site',
+    },
+    {
+      id: 'shipping-documents',
+      question: 'Which documents come with a shipment?',
+      answer:
+        'A commercial invoice, a packing list, a certificate of origin, and the air waybill or bill of lading.',
+      source: 'owner (F8, 2026-10-07)',
     },
   ],
 }
@@ -331,19 +384,106 @@ const FABRICS: FaqTopic = {
         'Tell us what the garment is for, or send a reference garment; your quote names the fabric.',
       source: 'order guide and fabrics guide',
     },
+    {
+      id: 'pantone',
+      question: 'Can you match a Pantone color?',
+      answer:
+        'Yes. We match the Pantone color you give us, and you approve a lab dip (dyed fabric) or a strike-off (a print sample) before bulk production.',
+      source: 'owner (F9, 2026-10-07)',
+    },
+    {
+      id: 'recycled-organic',
+      question: 'Can you use recycled or organic fabric?',
+      answer:
+        'Yes. We source recycled and organic fabrics from certified suppliers, and you get the certificates that prove it.',
+      source: 'owner (F10, 2026-10-07)',
+    },
+    {
+      id: 'own-fabric',
+      question: 'Can I send my own fabric?',
+      answer: 'Yes. We can cut, make and trim garments from fabric you send us.',
+      source: 'owner (F11, 2026-10-07)',
+    },
+  ],
+}
+
+/**
+ * "Working with us" (PLAN.md D5), a page since the owner's answers of 2026-10-07 (F12–F15).
+ * The plan's hours question (W5) is left out: the hours live in Site Settings, and an entry here
+ * is fixed text that the question data and llms-full.txt repeat.
+ */
+const WORKING: FaqTopic = {
+  path: '/faq/working-with-us',
+  title: 'FAQ: Working with Us',
+  description:
+    'How working with RUN APPAREL goes: the order steps, who owns your artwork, how designs are protected, factory visits, NDAs and order problems.',
+  heading: 'Working',
+  headingAccent: 'with us.',
+  entries: [
+    {
+      id: 'order-steps',
+      question: 'How does an order work, step by step?',
+      answer:
+        'A private label order at RUN APPAREL has four stages and eight steps. At every step you know whose move it is: yours or ours. Nothing goes into bulk production until you sign off a sample.',
+      source: 'order guide lede, word for word',
+    },
+    {
+      id: 'artwork',
+      question: 'Who owns the artwork I send?',
+      answer:
+        'You do. Tech packs, artwork and samples you send us remain your property. We use them only to quote and to manufacture for you.',
+      source: 'order guide, word for word',
+    },
+    {
+      id: 'protect-designs',
+      question: 'How do you protect my designs?',
+      answer:
+        'Only the team working on your order sees your files. Your patterns and artwork are never made for anyone else. We keep your patterns and samples for your next order.',
+      source: 'owner (F12, 2026-10-07)',
+    },
+    {
+      id: 'factory-visit',
+      question: 'Can I visit the factory?',
+      answer:
+        'Yes. Email us to arrange a visit. If you cannot travel, we can show you the factory on a video call.',
+      source: 'owner (F13, 2026-10-07)',
+    },
+    {
+      id: 'reply-time',
+      question: 'How quickly do you reply?',
+      answer: 'Within 24 hours.',
+      source: 'the reply promise (replyPromise.test.ts)',
+    },
+    {
+      id: 'nda',
+      question: 'Will you sign an NDA?',
+      answer: 'Yes. We sign a buyer’s NDA, and we have our own if you need one.',
+      source: 'owner (F14, 2026-10-07)',
+    },
+    {
+      id: 'order-problem',
+      question: 'What happens if there is a problem with my order?',
+      answer: `Tell us within ${OWNER_FIGURES.reportProblemDays} days of delivery, with photos. Depending on the problem, we remake the pieces or give you a credit.`,
+      source: 'owner (F15, 2026-10-07)',
+    },
   ],
 }
 
 /**
  * Which buyer guides each topic sends a reader on to (D5's "Related guides"), and so which topic
  * each guide's "Answers" points back at (Task 3.4). One table, read both ways, so a guide and its
- * topic cannot disagree. The 3D guide answers to orders and samples until "Working with us" exists.
+ * topic cannot disagree. The plan's split (D5): the order guide and the 3D guide answer to
+ * "Working with us", listed first so their "Answers" link goes there; the minimum guide to orders
+ * and samples.
  */
 export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
-  '/faq/orders-and-samples': [
+  '/faq/working-with-us': [
     '/guides/how-a-private-label-order-works',
-    '/guides/minimum-order-and-samples',
     '/guides/3d-garment-reference',
+  ],
+  '/faq/orders-and-samples': [
+    '/guides/minimum-order-and-samples',
+    '/guides/how-a-private-label-order-works',
   ],
   '/faq/quality-and-certifications': ['/guides/how-a-private-label-order-works'],
   '/faq/shipping-and-importing': [
@@ -361,8 +501,8 @@ export function faqTopicForGuide(guidePath: string): string | undefined {
   return Object.keys(FAQ_GUIDES).find((topic) => FAQ_GUIDES[topic]?.includes(guidePath))
 }
 
-/** The topic pages, in the hub's order. "Working with us" joins with its fifth answer. */
-export const FAQ_TOPICS: readonly FaqTopic[] = [ORDERS, QUALITY, SHIPPING, FABRICS]
+/** The topic pages, in the hub's order. */
+export const FAQ_TOPICS: readonly FaqTopic[] = [ORDERS, QUALITY, SHIPPING, FABRICS, WORKING]
 
 /** Every address the FAQ answers on: the hub, then each topic. */
 export const FAQ_PATHS: readonly string[] = [

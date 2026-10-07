@@ -55,6 +55,14 @@ describe('the glossary terms', () => {
     incoterms:
       'The International Chamber of Commerce’s rules for who pays for and arranges each part of a shipment.',
     secp: 'The Securities and Exchange Commission of Pakistan. Both companies are registered with it.',
+    // F26: the four terms the owner confirmed on 2026-10-07.
+    'placement-print':
+      'A print in one fixed position on a garment, such as a chest logo or a back number, rather than across the whole fabric.',
+    'overlock-seam':
+      'A seam whose stitch wraps the fabric’s cut edge, joining and finishing it in one pass so it does not fray.',
+    'bar-tack':
+      'A short, dense run of zigzag stitches that strengthens a point under strain, such as a pocket corner or a belt loop.',
+    'cut-and-sew': 'Garments made by cutting fabric into pattern pieces and sewing them together.',
   }
 
   it('a term written out reads exactly as approved', () => {

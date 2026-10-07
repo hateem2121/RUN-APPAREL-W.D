@@ -215,12 +215,38 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
   printing('heat-transfer-vinyl', 'Heat transfer vinyl', 'Heat transfer vinyl'),
   printing('embroidery', 'Embroidery', 'Embroidery'),
   printing('special-inks', 'Special inks', 'Special inks'),
+  // F26 (owner, 2026-10-07): "we do these". Plain definitions, approved as written.
+  {
+    id: 'placement-print',
+    name: 'Placement print',
+    category: 'Printing and decoration',
+    definition:
+      'A print in one fixed position on a garment, such as a chest logo or a back number, rather than across the whole fabric.',
+    seeAlso: [PRINTING_GUIDE],
+  },
 
   {
     id: 'flatlock-seam',
     name: 'Flatlock seam',
     category: 'Construction and performance',
     definition: note(FEATURE_NOTES, 'flatlock stitching'),
+    seeAlso: [],
+  },
+  // F26 (owner, 2026-10-07), as the placement print above.
+  {
+    id: 'overlock-seam',
+    name: 'Overlock seam',
+    category: 'Construction and performance',
+    definition:
+      'A seam whose stitch wraps the fabric’s cut edge, joining and finishing it in one pass so it does not fray.',
+    seeAlso: [],
+  },
+  {
+    id: 'bar-tack',
+    name: 'Bar-tack stitching',
+    category: 'Construction and performance',
+    definition:
+      'A short, dense run of zigzag stitches that strengthens a point under strain, such as a pocket corner or a belt loop.',
     seeAlso: [],
   },
   {
@@ -286,6 +312,14 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     category: 'Ordering and production',
     definition: 'Private label means the garment leaves under your brand, not ours.',
     seeAlso: [PACKAGING_GUIDE],
+  },
+  // F26 (owner, 2026-10-07), as the placement print.
+  {
+    id: 'cut-and-sew',
+    name: 'Cut and sew',
+    category: 'Ordering and production',
+    definition: 'Garments made by cutting fabric into pattern pieces and sewing them together.',
+    seeAlso: [ORDER_GUIDE],
   },
   {
     id: 'tech-pack',
