@@ -68,6 +68,8 @@ export const SITE_FOOTER_WORDS = {
   contact: 'Contact',
   /** The four category pages (polish F9, the owner's Q22): the home page's №02 heading. */
   made: 'What we make',
+  /** The company pages (2026-10-07, PLAN.md E5): careers, community, and the policies. */
+  company: 'Company',
   capacity: 'Capacity',
   standards: 'Standards',
   elsewhere: 'Elsewhere',
@@ -108,6 +110,17 @@ export const SITE_FOOTER_LINKS = [
 export const SITE_FOOTER_MADE: readonly { href: string; label: string }[] = Object.entries(
   CATEGORY_PAGE_PATHS,
 ).flatMap(([label, href]) => (href ? [{ href, label }] : []))
+
+/**
+ * The "Company" group's links (2026-10-07, PLAN.md E5): LIVE links only, so an address is
+ * listed in the same change that creates the page. Phase 1: careers, community, policies
+ * (Phase 5 adds Press). A group with fewer than two live links is not drawn.
+ */
+export const SITE_FOOTER_COMPANY: readonly { href: string; label: string }[] = [
+  { href: '/careers', label: 'Careers' },
+  { href: '/community', label: 'Community' },
+  { href: '/policies', label: 'Policies' },
+]
 
 /**
  * The Standards block's lines: entries naming the same holder become one line (polish X23). The
@@ -195,6 +208,15 @@ export function siteFooterAriaSnapshot(
   for (const link of SITE_FOOTER_MADE) {
     add(2, 'listitem:')
     add(3, `link ${q(link.label)}`)
+  }
+  // The Company group (2026-10-07): code-side links, so it is there with a blank database too.
+  if (SITE_FOOTER_COMPANY.length > 1) {
+    add(1, `heading ${q(words.company)} [level=3]`)
+    add(1, 'list:')
+    for (const link of SITE_FOOTER_COMPANY) {
+      add(2, 'listitem:')
+      add(3, `link ${q(link.label)}`)
+    }
   }
   if (footer.socialLinks.length > 0) {
     add(1, `heading ${q(words.elsewhere)} [level=3]`)

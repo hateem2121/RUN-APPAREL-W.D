@@ -1,4 +1,9 @@
-import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import {
+  COMPANY_PAGE_SOURCES,
+  FAMILY_PAGE_SOURCES,
+  GUIDE_PAGE_SOURCES,
+  POLICY_PAGE_SOURCES,
+} from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 import { contrastOf, worstRatio } from '../../../scripts/contrast-rules.mjs'
 import { readability } from '../src/lib/readingLevel'
@@ -21,6 +26,8 @@ const PAGES = [
   '/terms',
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,
+  ...POLICY_PAGE_SOURCES,
+  ...COMPANY_PAGE_SOURCES,
 ] as const
 
 /**
@@ -162,7 +169,13 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
         const parts: string[] = []
         for (const el of document.querySelectorAll('main p, main li')) {
           // "On this page" (polish X4) repeats the headings as links: navigation, not prose.
-          if (el.closest('.product-card, .filter-bar, .facts-grid, .legal__toc')) continue
+          // `[data-facts]` (2026-10-07, owner's choice): the policies hub's certificate lines are
+          // names (SEDEX, SMETA, OEKO-TEX, the SECP), which the syllable count reads as hard words;
+          // the home page shows the same lines in `.facts-grid`, skipped above for the same reason.
+          // With them the hub scored 48.9 ease; without them 64.7. Its own sentences still count.
+          if (el.closest('.product-card, .filter-bar, .facts-grid, .legal__toc, [data-facts]')) {
+            continue
+          }
           if (
             ['section-number', 'subhead', 'field-label', 'result-count', 'label'].some((name) =>
               el.classList.contains(name),

@@ -44,6 +44,16 @@ const PAGES = [
   ['/guides/sportswear-fabrics-and-weights', 200],
   ['/guides/private-label-packaging', 200],
   ['/guides/shipping-and-import-duties', 200],
+  ['/policies', 200],
+  ['/policies/workplace-conduct', 200],
+  ['/policies/health-and-safety', 200],
+  ['/policies/health-and-vaccination', 200],
+  ['/policies/equal-opportunity', 200],
+  ['/policies/labor-rights', 200],
+  ['/policies/quality', 200],
+  ['/policies/environmental', 200],
+  ['/careers', 200],
+  ['/community', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [

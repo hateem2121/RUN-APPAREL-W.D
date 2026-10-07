@@ -7,6 +7,7 @@ import {
   markBox,
   marksFor,
   normalizeWhatsAppNumber,
+  SITE_FOOTER_COMPANY,
   SITE_FOOTER_LINKS,
   SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
@@ -86,7 +87,7 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
               </ul>
             </div>
 
-            {/* The four category pages (polish F9), then Elsewhere: SiteFooter.tsx says why. */}
+            {/* The four category pages (polish F9), then Company, then Elsewhere: SiteFooter.tsx says why. */}
             <div className="footer-block footer-block--made">
               <h3>{words.made}</h3>
               <ul>
@@ -97,6 +98,21 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                 ))}
               </ul>
             </div>
+
+            {/* The company pages (2026-10-07): drawn here and in SiteFooter.tsx in the same
+                change, or both aria-snapshot suites fail. */}
+            {SITE_FOOTER_COMPANY.length > 1 ? (
+              <div className="footer-block footer-block--company">
+                <h3>{words.company}</h3>
+                <ul>
+                  {SITE_FOOTER_COMPANY.map((link) => (
+                    <li key={link.href}>
+                      <a href={`${SITE_ORIGIN}${link.href}`}>{link.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             {f.socialLinks.length > 0 ? (
               <div className="footer-block footer-block--elsewhere">

@@ -1,7 +1,9 @@
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
+import { COMPANY_PATHS } from './companyPages'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
 import { GUIDES } from './guides'
+import { POLICIES, POLICIES_INDEX } from './policies'
 
 /**
  * `/llms.txt` for the marketing site (audit FA-N-16).
@@ -54,6 +56,19 @@ export function buildLlmsTxt(siteOrigin: string): string {
   const guides = GUIDES.map(
     (guide) => `- [${guide.title}](${siteOrigin}${guide.path}) — a buyer guide.`,
   ).join('\n')
+  // The company pages (2026-10-07): the policies hub, each APPROVED policy, and careers and
+  // community, from the lists that hold their words (PLAN.md E9). Press joins in Phase 5.
+  const companyPages = [
+    `- [${POLICIES_INDEX.title}](${siteOrigin}${POLICIES_INDEX.path}) — the policies hub.`,
+    ...POLICIES.map(
+      (policy) => `- [${policy.title}](${siteOrigin}${policy.path}) — company policy.`,
+    ),
+    ...COMPANY_PATHS.map((path) =>
+      path === '/careers'
+        ? `- [Careers at RUN APPAREL](${siteOrigin}/careers) — what we offer, and how to apply.`
+        : `- [Community](${siteOrigin}/community) — the works in Sialkot, and the people the policies serve.`,
+    ),
+  ].join('\n')
 
   return `# RUN APPAREL
 
@@ -93,6 +108,7 @@ ${CERTIFICATION}
   links to that garment's 3D page.
 ${buyerPages}
 ${guides}
+${companyPages}
 - [Contact](${siteOrigin}/contact) — the addresses, and a form that reaches the company directly.
 - [Privacy](${siteOrigin}/privacy) and [Terms](${siteOrigin}/terms).
 

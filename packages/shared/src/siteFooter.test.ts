@@ -6,6 +6,7 @@ import {
   EMPTY_FOOTER,
   type FooterSettings,
   opensAt,
+  SITE_FOOTER_COMPANY,
   SITE_FOOTER_LINKS,
   SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
@@ -127,6 +128,12 @@ describe('siteFooterAriaSnapshot', () => {
     expect(snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.made}" [level=3]`)).toBeGreaterThan(
       snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.contact}"`),
     )
+    // The Company group (2026-10-07) is code-side too: there with a blank database, after
+    // "What we make" and before any claim block.
+    expect(snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.company}" [level=3]`)).toBeGreaterThan(
+      snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.made}"`),
+    )
+    for (const link of SITE_FOOTER_COMPANY) expect(snapshot).toContain(`link "${link.label}"`)
     for (const link of SITE_FOOTER_MADE) expect(snapshot).toContain(`link "${link.label}"`)
     expect(lines.slice(-6)).toEqual(SITE_FOOTER_LINKS.map((link) => `  - link "${link.label}"`))
   })
@@ -142,9 +149,10 @@ describe('siteFooterAriaSnapshot', () => {
     )
     const at = (text: string) => snapshot.indexOf(text)
     expect(at('listitem: "32.4945° N, 74.5229° E"')).toBeGreaterThan(at('"Contact"'))
-    // Contact, the two link groups (side by side on a phone, X23), then the two claims.
+    // Contact, the link groups (side by side on a phone, X23), then the two claims.
     expect(at(`"${SITE_FOOTER_WORDS.made}"`)).toBeGreaterThan(at('"Contact"'))
-    expect(at('"Elsewhere"')).toBeGreaterThan(at(`"${SITE_FOOTER_WORDS.made}"`))
+    expect(at(`"${SITE_FOOTER_WORDS.company}"`)).toBeGreaterThan(at(`"${SITE_FOOTER_WORDS.made}"`))
+    expect(at('"Elsewhere"')).toBeGreaterThan(at(`"${SITE_FOOTER_WORDS.company}"`))
     expect(at('"Capacity"')).toBeGreaterThan(at('"Elsewhere"'))
     expect(at('"Standards"')).toBeGreaterThan(at('"Capacity"'))
     // One holder, one line.

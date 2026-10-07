@@ -3,6 +3,8 @@ import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata, MetadataRoute } from 'next'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDE_PATHS } from './guides'
+import { COMPANY_PATHS } from './companyPages'
+import { POLICY_PATHS } from './policies'
 
 /**
  * Whether search engines may index the public site.
@@ -119,6 +121,19 @@ export function sitemapFor(
       priority: 0.8,
     })),
     ...GUIDE_PATHS.map((path) => ({
+      url: `${origin}${path}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    })),
+    // The policies hub and the approved policies (2026-10-07), from the list that holds
+    // their words, so an approved policy is offered to crawlers in the same change.
+    ...POLICY_PATHS.map((path) => ({
+      url: `${origin}${path}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    })),
+    // The company pages — careers and community (2026-10-07), same reasoning.
+    ...COMPANY_PATHS.map((path) => ({
       url: `${origin}${path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.6,

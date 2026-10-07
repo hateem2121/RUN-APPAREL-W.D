@@ -5799,3 +5799,39 @@ a.contact-block__value:active {
   text-transform: none;
   letter-spacing: inherit;
 }
+
+/*
+ * ------------------------------------------------ breadcrumbs and the policies' closing line (the company pages, 2026-10-07)
+ *
+ * The new company pages carry a visible breadcrumb that matches their `breadcrumbTrailJsonLd`
+ * trail (PLAN.md E4/G15), drawn in the site's mono register, and the owner's closing sentence,
+ * set off from the sections above it by the same hairline the panels use. The breadcrumb's links
+ * are 44px touch rows, like every other link here.
+ */
+.crumbs {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-tight);
+  margin-bottom: 12px;
+}
+
+.crumbs a {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  min-height: var(--target-min);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .crumbs a:hover {
+    color: var(--text);
+  }
+}
+
+.policy-closing {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  margin-top: 24px;
+  padding-top: 16px;
+}

@@ -1,8 +1,10 @@
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
+import { PARENT_COMPANY } from './companyFacts'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
 import { GARMENT_PAGES, SITE_ORIGIN } from './seo'
 import {
+  breadcrumbTrailJsonLd,
   contactPageJsonLd,
   formatAddress,
   organizationJsonLd,
@@ -251,5 +253,53 @@ describe('FA-N-10 — no price anywhere in the structured data, and the page say
     })
     expect(PRICE_SHAPED.test(withOffer)).toBe(true)
     expect(NUMERIC_PRICE.test(withOffer)).toBe(true)
+  })
+})
+
+/**
+ * PLAN.md E2 — the policy, company and CMS pages sit at any depth, so their trail is a
+ * builder of any depth: Home, then each step, positions from 1, absolute URLs. The visible
+ * breadcrumb on the page must be drawn from the same steps (each page's test holds that).
+ */
+describe('the breadcrumb trail of any depth', () => {
+  it('starts at Home, numbers positions from 1 and gives absolute URLs', () => {
+    const trail = breadcrumbTrailJsonLd([
+      { name: 'Policies', path: '/policies' },
+      { name: 'Health and safety', path: '/policies/health-and-safety' },
+    ])
+    expect(trail['@type']).toBe('BreadcrumbList')
+    expect(trail.itemListElement.map((item) => item.name)).toEqual([
+      'Home',
+      'Policies',
+      'Health and safety',
+    ])
+    expect(trail.itemListElement.map((item) => item.position)).toEqual([1, 2, 3])
+    expect(trail.itemListElement[0]?.item).toBe(`${SITE_ORIGIN}/`)
+    expect(trail.itemListElement[2]?.item).toBe(`${SITE_ORIGIN}/policies/health-and-safety`)
+  })
+
+  it('works at one step, where the trail is Home then the page', () => {
+    const trail = breadcrumbTrailJsonLd([{ name: 'Careers', path: '/careers' }])
+    expect(trail.itemListElement).toHaveLength(2)
+    expect(trail.itemListElement[1]?.item).toBe(`${SITE_ORIGIN}/careers`)
+  })
+})
+
+/**
+ * PLAN.md E2/T7 — the site states the parent company in words (CERTIFICATION, ABOUT), and
+ * Google's Organization guide (updated 2026-09-08) recommends it as `parentOrganization`.
+ * No foundingDate anywhere: 1889 is the family's trade, not this entity's founding.
+ */
+describe('the parent company in the organisation data', () => {
+  it('names DURUS INDUSTRIES as parentOrganization', () => {
+    const org = organizationJsonLd(settings())
+    expect(org.parentOrganization).toEqual({
+      '@type': 'Organization',
+      name: PARENT_COMPANY,
+    })
+  })
+
+  it('still declares no foundingDate', () => {
+    expect(JSON.stringify(organizationJsonLd(settings()))).not.toContain('foundingDate')
   })
 })

@@ -1,4 +1,5 @@
 import { normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
+import { PARENT_COMPANY } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_ORIGIN, GARMENT_PAGES } from './seo'
 import { shareCardFor, shareImageUrl } from './shareImages'
@@ -94,6 +95,9 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
       'and inspect before a sample is cut is available on request.',
     numberOfEmployees: { '@type': 'QuantitativeValue', value: 200 },
     areaServed: 'Worldwide',
+    // The parent company, as the site already states in words (CERTIFICATION, ABOUT). Google's
+    // Organization guide (updated 2026-09-08) lists parentOrganization as a recommended property.
+    parentOrganization: { '@type': 'Organization', name: PARENT_COMPANY },
     ...(sameAs.length > 0 ? { sameAs } : {}),
   }
 }
@@ -176,6 +180,25 @@ export function guideBreadcrumbJsonLd(guide: { title: string; path: string }) {
       { '@type': 'ListItem', position: 2, name: 'Guides', item: `${SITE_ORIGIN}/guides` },
       { '@type': 'ListItem', position: 3, name: guide.title, item: `${SITE_ORIGIN}${guide.path}` },
     ],
+  }
+}
+
+/**
+ * A breadcrumb trail of any depth: Home, then each step; the last step is the page itself.
+ * Replaces nothing: `breadcrumbJsonLd` and `guideBreadcrumbJsonLd` stay for the pages that use
+ * them. The trail must match the visible breadcrumb on the page.
+ */
+export function breadcrumbTrailJsonLd(trail: ReadonlyArray<{ name: string; path: string }>) {
+  const steps = [{ name: 'Home', path: '/' }, ...trail]
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: steps.map((step, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: step.name,
+      item: step.path === '/' ? `${SITE_ORIGIN}/` : `${SITE_ORIGIN}${step.path}`,
+    })),
   }
 }
 

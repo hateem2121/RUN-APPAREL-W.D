@@ -4,6 +4,7 @@ import {
   markBox,
   marksFor,
   normalizeWhatsAppNumber,
+  SITE_FOOTER_COMPANY,
   SITE_FOOTER_LINKS,
   SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
@@ -148,6 +149,21 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 ))}
               </ul>
             </div>
+
+            {/* The company pages (2026-10-07): careers, community and the policies, LIVE links
+                only, drawn here and in the viewer's Footer in the same change (E5). */}
+            {SITE_FOOTER_COMPANY.length > 1 ? (
+              <div className="footer-block footer-block--company">
+                <h3>{words.company}</h3>
+                <ul>
+                  {SITE_FOOTER_COMPANY.map((link) => (
+                    <li key={link.href}>
+                      <Link href={link.href}>{link.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             {f.socialLinks.length > 0 ? (
               <div className="footer-block footer-block--elsewhere">

@@ -1,4 +1,10 @@
-import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES, sourceMatches } from './publicViewerHeaders.mjs'
+import {
+  COMPANY_PAGE_SOURCES,
+  FAMILY_PAGE_SOURCES,
+  GUIDE_PAGE_SOURCES,
+  POLICY_PAGE_SOURCES,
+  sourceMatches,
+} from './publicViewerHeaders.mjs'
 import { escapeRegExp } from './regexEscape.mjs'
 
 /**
@@ -81,6 +87,10 @@ export const CMS_PUBLIC_PATHS = [
   // The buyer pages (2026-09-30): pages of the site, so the admin host hands them over too.
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,
+  // The policies hub and the approved policies (2026-10-07), same reasoning.
+  ...POLICY_PAGE_SOURCES,
+  // The company pages — careers and community (2026-10-07), same reasoning.
+  ...COMPANY_PAGE_SOURCES,
 ]
 
 /**

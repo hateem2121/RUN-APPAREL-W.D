@@ -589,6 +589,16 @@
   }
 
   /*
+   * The Company group (careers, community, policies; 2026-10-07) is the website's own navigation,
+   * and on paper a link goes nowhere. Printed, its three lines pushed the fullest garment onto a
+   * second A4 sheet (apps/viewer/e2e/print.spec.ts), so the owner chose to leave it off paper and
+   * keep the one-sheet garment page of polish F14.
+   */
+  .footer-block--company {
+    display: none;
+  }
+
+  /*
    * ⚠️ THE GRID LAYER COVERED THE CONTACT DETAILS ON PAPER (polish F14, 2026-10-04). It is a
    * masked layer laid over the whole slab, and printed (Chromium, A4 and Letter) it came out as
    * an opaque white sheet: the email, WhatsApp number and address were in the PDF's text and

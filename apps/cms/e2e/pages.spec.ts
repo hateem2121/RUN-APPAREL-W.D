@@ -1,4 +1,9 @@
-import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import {
+  COMPANY_PAGE_SOURCES,
+  FAMILY_PAGE_SOURCES,
+  GUIDE_PAGE_SOURCES,
+  POLICY_PAGE_SOURCES,
+} from '../publicViewerHeaders.mjs'
 import AxeBuilder from '@axe-core/playwright'
 import { GUIDES } from '../src/lib/guides'
 import { expect, test } from './offlineMedia'
@@ -75,6 +80,43 @@ const PAGES = [
     name: 'shipping guide',
     heading: /Shipping and import duties/i,
   },
+  // The policies hub and the approved policies (2026-10-07); the anti-harassment page is
+  // deliberately absent until its complaints committee exists.
+  { path: '/policies', name: 'policies hub', heading: /How we work/i },
+  {
+    path: '/policies/workplace-conduct',
+    name: 'workplace conduct policy',
+    heading: /How we treat each other/i,
+  },
+  {
+    path: '/policies/health-and-safety',
+    name: 'health and safety policy',
+    heading: /Safe work/i,
+  },
+  {
+    path: '/policies/health-and-vaccination',
+    name: 'health and vaccination policy',
+    heading: /Good health/i,
+  },
+  {
+    path: '/policies/equal-opportunity',
+    name: 'equal opportunity policy',
+    heading: /Fair chances/i,
+  },
+  {
+    path: '/policies/labor-rights',
+    name: 'labor rights policy',
+    heading: /Your rights at work/i,
+  },
+  { path: '/policies/quality', name: 'quality policy', heading: /Checked, at every step/i },
+  {
+    path: '/policies/environmental',
+    name: 'environmental policy',
+    heading: /What we use/i,
+  },
+  // The company pages (2026-10-07); the form joins /careers in Phase 2.
+  { path: '/careers', name: 'careers page', heading: /Join a family/i },
+  { path: '/community', name: 'community page', heading: /Steady work/i },
 ] as const
 
 test.describe('every page renders real content', () => {
@@ -561,7 +603,9 @@ test.describe('search visibility follows the committed switch: visible since lau
     })
   }
 
-  test('the sitemap lists the five site pages and the buyer pages', async ({ request }) => {
+  test('the sitemap lists the five site pages, the buyer pages and the company pages', async ({
+    request,
+  }) => {
     const response = await request.get('/sitemap.xml')
     expect(response.status()).toBe(200)
     const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
@@ -576,6 +620,9 @@ test.describe('search visibility follows the committed switch: visible since lau
         '/terms',
         ...FAMILY_PAGE_SOURCES,
         ...GUIDE_PAGE_SOURCES,
+        // The policies hub, seven policies, careers and community (2026-10-07).
+        ...POLICY_PAGE_SOURCES,
+        ...COMPANY_PAGE_SOURCES,
       ].sort(),
     )
   })
