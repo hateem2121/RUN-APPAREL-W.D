@@ -35,29 +35,19 @@
   // expose /admin on ephemeral hosts; the viewer never uses them. Disabled.
   "preview_urls": false,
   /**
-   * SMART PLACEMENT — run this Worker near D1, not near the visitor.
+   * NO PLACEMENT SETTING, ON PURPOSE (removed 2026-10-07). Smart Placement
+   * (`"placement": { "mode": "smart" }`) was added on 2026-08-31 to run this Worker
+   * near the database (ENAM) instead of near the visitor, for the garment-data
+   * answer (audit 2026-08-30 PM, findings L3-01 and L1-02). Its own comment asked for
+   * a re-measure and for the setting to be deleted if nothing had moved.
    *
-   * ⚠️ MEASURED BEFORE CHANGING ANYTHING. Five consecutive plain GETs of
-   * /api/public/viewer/rxps/wine on 2026-08-31: 2.041 / 1.991 / 2.849 / 1.943 /
-   * 1.971 s to first byte, and NOT ONE carried a `cf-cache-status` header. The
-   * viewer page on the same network in the same minute: 0.089 / 0.105 / 0.159 s
-   * with `cf-cache-status: HIT`. So the delay is this Worker's own work, not the
-   * network — every QR scan pays it.
-   *
-   * The `s-maxage=60` this endpoint sends is INERT and publicViewer.ts already says
-   * so: a Worker's own response does not pass through the edge cache. So the edge
-   * cannot be the fix here; the round trip to D1 is what there is to shorten.
-   * `wrangler d1 info` puts the database in ENAM, and no placement was set on any
-   * Worker in this repo.
-   *
-   * Cloudflare's own guidance is that this helps Workers making round trips to a
-   * database and that fewer than 1% of Workers get slower. It takes up to 15
-   * MINUTES after deploy to analyse traffic, so a measurement taken immediately
-   * afterwards proves nothing either way — re-measure later, and if it has not
-   * moved, delete these four lines rather than leaving a setting nobody can point
-   * at a number for. Audit 2026-08-30 PM, findings L3-01 and L1-02.
+   * Nothing had. Re-measured 2026-10-07 from Pakistan: every answer carried
+   * `cf-placement: local-ISB` (Cloudflare ran it in Islamabad, beside the visitor,
+   * not near ENAM), and an uncached /api/public/viewer answer still took 4.0–4.5 s,
+   * ~10 database trips of ~0.4 s. The speed now comes from fewer trips
+   * (src/endpoints/publicViewer.ts) and from keeping the answer (viewerApiCache.mjs).
+   * Before adding placement back, measure `cf-placement` on a live answer first.
    */
-  "placement": { "mode": "smart" },
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   // Workers Logs (free tier): worker errors + console output become queryable
