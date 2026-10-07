@@ -189,6 +189,12 @@ With the live footer's five blocks the band was already at that 24px minimum at 
 before X23 (measured on wear-run.com: the slab 996–1,120px tall, past one screen), and with the
 same values drawn into this build it is 24–59px, in a slab of 900–970px.
 
+**Amended 2026-10-07 (D34):** the Company group reached five links with Press, and every footer
+link is a 44px row, so the band lost 44px at every width: 170, 164 and 82px at 768, 1024 and
+1440px with the test database. The floor in `e2e/footer.spec.ts` is now 48px, which still fails a
+band removed or squeezed to its 24px minimum, and fails again if one more link joins the tallest
+group.
+
 ### D8 · The marketing site gets the viewer's entrance animations — `FA-H-11`
 
 **Decision: add matching fade-ins, using the existing motion tokens.**
@@ -814,7 +820,7 @@ screen and Elsewhere (LinkedIn, Instagram) starts its own row on a phone, where 
 Company share a row. The owner chose that layout over squeezing six columns into one row.
 
 - **Live links only.** Press joins the group, and a "Learn" group arrives, only when those pages
-  exist (later phases), so the footer never links to a missing page.
+  exist (later phases), so the footer never links to a missing page. Done 7 Oct 2026 (D34).
 - **Not on paper.** Printed, the group's three lines pushed the fullest garment onto a second A4
   sheet, so the owner chose to leave it off paper (7 Oct 2026) and keep polish F14's one-sheet
   garment page. That print-only rule in `packages/ui/src/footer.css` is the group's only new style:
@@ -853,6 +859,46 @@ day, word for word.
 **Guard:** `apps/cms/e2e/careersForm.spec.ts` sends applications with and without a CV in
 three browsers, refuses a renamed program, and checks that a stranger gets 403 for the
 applications and their CVs; `apps/cms/e2e/privacyClaims.spec.ts` holds the notice's words.
+
+### D33 · The privacy notice tells the people we email first, and claims nothing unconfirmed
+
+**Decision: `/privacy` gains "When we write to you first" (`#outreach`), after "When you contact
+us", in the owner's words, approved from a preview on 7 Oct 2026. Data requests go to
+privacy@wear-run.com; partner@ stays the buyers' address.**
+
+- **The right to object stands alone**, in its own paragraph and box, as the ICO's "What
+  privacy information should we provide?" asks ("clearly and separately"; read 7 Oct 2026).
+- **No safeguard is named for the transfers outside the UK and EU.** The same ICO page asks for
+  one, or for a statement that there is none; the owner was told and chose to say nothing beyond
+  the approved sentence, as no safeguard, certificate or contract is confirmed in writing.
+- **No "no tracking" line.** The owner could not confirm that open and click tracking is off,
+  so the sentence was left out, and on 7 Oct 2026 chose not to check it further.
+- The box is a hairline on all four sides: `vibecodedRules.test.ts` (VC-07) refuses a thick
+  coloured stripe down one side.
+
+**Guard:** `apps/cms/e2e/privacy.spec.ts` checks the section's place inside the notice, its
+"On this page" link and jump, the objection paragraph word for word, and the privacy@ link
+under "Your rights".
+
+### D34 · The Learn pages, the hubs and the press page
+
+**Decision: the FAQ (with "Working with us"), the glossary, the Journal, case studies and a
+press page ship together, every word approved by the owner on 7 Oct 2026.** Amends D31's "later
+phases" bullet: Learn (Guides, FAQ, Glossary, Journal) and Company (Careers, Community,
+Policies, Case studies, Press) are now complete.
+
+- **Both hubs show from day one.** `/journal` and `/case-studies` are indexable and listed in the
+  sitemap and `/llms.txt` before anything is published (the owner's choice); an empty Journal
+  shows its five topics, and nothing reads "coming soon" (`JournalIndex.tsx`).
+- **The FAQ quotes the owner, not an estimate.** Numbers in an answer come from the site's facts
+  or `OWNER_FIGURES` (`apps/cms/src/lib/faqs.ts`); the under-50 answer stands beside the
+  50-piece minimum, as the owner wrote it.
+- **The press page names no founding year and no person.** The family year is read from the
+  lineage line; every factory photo may be downloaded with the credit "RUN APPAREL", because the
+  owner confirmed the people in them agreed to press use; journalists write to media@.
+
+**Guard:** `faqs.test.ts`, `glossary.test.ts`, `press.test.ts` and `companyPages.test.ts`;
+`apps/cms/e2e/pages.spec.ts` and `legibility.spec.ts` load every page.
 
 ## Closed since
 

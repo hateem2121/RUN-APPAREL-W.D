@@ -2280,7 +2280,30 @@ refuses one). The footer's "Company" group lives in
 `packages/shared/src/siteFooter.ts` (`SITE_FOOTER_COMPANY`, live links only) and must be
 drawn in BOTH `apps/cms/src/components/site/SiteFooter.tsx` and
 `apps/viewer/src/components/Footer.tsx` in the same change, or both aria-snapshot suites
-fail.
+fail. The "Learn" group (Guides, FAQ, Glossary, Journal) is `SITE_FOOTER_LEARN` in the same
+file; "Company" also carries Case studies and Press.
+
+**The FAQ, the glossary and the press page.** The answers are in `apps/cms/src/lib/faqs.ts`
+(five topics; "Working with us" since 2026-10-07), the terms in `apps/cms/src/lib/glossary.ts`,
+and the press page's facts and downloads in `apps/cms/src/lib/press.ts`, with its headings in
+`PRESS_PAGE` (`companyPages.ts`). The owner approved every word on 2026-10-07. Two tests refuse
+words nobody approved: `faqs.test.ts` lets an answer carry only a number the site already
+states (`FACTS`, `LEAD_TIME`, the guides) or one of `OWNER_FIGURES` (the owner's own answers),
+and `glossary.test.ts` holds each term to `APPROVED_AS_WRITTEN`. The press page offers every
+photo in `apps/cms/src/lib/factoryPhotos.ts` for download, on the owner's word that the people
+in them agreed to press use, so a new photo showing a person needs that consent before it is
+added there. Journalists write to media@wear-run.com (`MEDIA_EMAIL`, an alias on the owner's
+mailbox); the page's "News" band appears only once a Journal post in the "Company news" topic
+is published.
+
+**The privacy page's "When we write to you first" (`/privacy#outreach`).** It describes the
+owner's own emails to businesses that have not written first: the sources, the services that
+handle the addresses, two years' keep and the do-not-contact list. Every sentence is the
+owner's (DECISIONS-BETA-WEBSITE, D33). Data requests go to privacy@wear-run.com
+(`PRIVACY_EMAIL` in `apps/cms/src/app/(frontend)/privacy/page.tsx`); `partner@` stays the
+buyers' address everywhere else. The section names each service, so changing a service means
+changing these words, with the owner's approval; `apps/cms/e2e/privacy.spec.ts` holds its place, its anchor and the right-to-object
+paragraph word for word.
 
 🟡 **A footer picture taken locally must show the real footer.** On 2026-10-07 the owner approved
 a picture of the new group that had no Capacity, Standards or Elsewhere blocks: `next start`
@@ -2348,12 +2371,14 @@ Once published, its address can never change (`lockPublishedSlug` in
 same way; the client's name or words are shown only with the "client agreed" tick, and the
 CMS refuses to save a shown name or a quote without it.
 
-**What switches on by itself.** With nothing published, `/journal` and `/case-studies` answer
-200 with their hub words and `noindex`, and are absent from the sitemap and `/llms.txt`. The
-first published entry adds the hub and the page to both (`sitemapFor` in
-`apps/cms/src/lib/searchVisibility.ts`, `buildLlmsTxt` in `apps/cms/src/lib/llmsTxt.ts`) and
-lifts the `noindex`. A publish from the live admin also tells IndexNow the page and its hub
-(`pingIndexNowWhenPublished`); a save from a local server never does.
+**What shows from the start, and what switches on by itself.** The owner chose to show both
+hubs straight away (2026-10-07): with nothing published, `/journal` and `/case-studies` answer
+200 with their hub words, are indexable, and are listed in the sitemap and `/llms.txt`
+(`sitemapFor` in `apps/cms/src/lib/searchVisibility.ts`, `buildLlmsTxt` in
+`apps/cms/src/lib/llmsTxt.ts`, a static file). Each published entry adds its own page to the
+sitemap, and the Journal's feed link appears with the first post. A publish from the live admin
+also tells IndexNow the page and its hub (`pingIndexNowWhenPublished`); a save from a local
+server never does.
 
 **Drafts stay private in two places.** The collections' `read` lets an anonymous REST reader
 see published rows only, and the site's own readers (`apps/cms/src/lib/journalPublic.ts`,
