@@ -1,4 +1,9 @@
-import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import {
+  COMPANY_PAGE_SOURCES,
+  FAMILY_PAGE_SOURCES,
+  GUIDE_PAGE_SOURCES,
+  POLICY_PAGE_SOURCES,
+} from '../publicViewerHeaders.mjs'
 import AxeBuilder from '@axe-core/playwright'
 import { GUIDES } from '../src/lib/guides'
 import { expect, test } from './offlineMedia'
@@ -598,7 +603,9 @@ test.describe('search visibility follows the committed switch: visible since lau
     })
   }
 
-  test('the sitemap lists the five site pages and the buyer pages', async ({ request }) => {
+  test('the sitemap lists the five site pages, the buyer pages and the company pages', async ({
+    request,
+  }) => {
     const response = await request.get('/sitemap.xml')
     expect(response.status()).toBe(200)
     const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
@@ -613,6 +620,9 @@ test.describe('search visibility follows the committed switch: visible since lau
         '/terms',
         ...FAMILY_PAGE_SOURCES,
         ...GUIDE_PAGE_SOURCES,
+        // The policies hub, seven policies, careers and community (2026-10-07).
+        ...POLICY_PAGE_SOURCES,
+        ...COMPANY_PAGE_SOURCES,
       ].sort(),
     )
   })

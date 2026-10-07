@@ -71,8 +71,12 @@ export function PolicyIndex() {
         <div className="site-container prose prose--guide spread">
           <h2 className="display display--section">Checked by others</h2>
           <div className="spread__body">
+            {/* `data-facts`: certificate and registry names, which the reading-ease check skips as it
+                skips the home page's facts panel (owner, 2026-10-07; apps/cms/e2e/legibility.spec.ts). */}
             {POLICIES_INDEX.standards.map((line) => (
-              <p key={line}>{line}</p>
+              <p key={line} data-facts>
+                {line}
+              </p>
             ))}
             <p>{POLICIES_INDEX.standardsPromise}</p>
           </div>

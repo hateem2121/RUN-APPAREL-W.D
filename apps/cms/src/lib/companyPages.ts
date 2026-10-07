@@ -146,7 +146,10 @@ export const COMMUNITY_PAGE: CompanyPage = {
   eyebrow: '[ Community ]',
   heading: 'Steady work, honest craft,',
   headingAccent: 'since 1889.',
-  lede: `Our building sits among the people of Sialkot. Steady, dignified work is the most important thing we do for Sialkot. Their children see that craft is a career, not a last resort. ${LINEAGE}`,
+  // "is a" is tied with a non-breaking space (the owner's words unchanged): untied, "is" ended a
+  // 76-character line at the site measure, one over FA-C-52's 75 (apps/cms/e2e/legibility.spec.ts,
+  // 2026-10-07); tied, the longest line is 73 at 768, 1180 and 1440px.
+  lede: `Our building sits among the people of Sialkot. Steady, dignified work is the most important thing we do for Sialkot. Their children see that craft is\u00a0a career, not a last resort. ${LINEAGE}`,
   sections: [
     {
       id: 'work',
