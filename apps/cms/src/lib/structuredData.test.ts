@@ -4,7 +4,11 @@ import { PARENT_COMPANY } from './companyFacts'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
 import { GARMENT_PAGES, SITE_ORIGIN } from './seo'
 import {
+  articleJsonLd,
+  blogJsonLd,
+  blogPostingJsonLd,
   breadcrumbTrailJsonLd,
+  caseStudiesJsonLd,
   contactPageJsonLd,
   formatAddress,
   organizationJsonLd,
@@ -301,5 +305,98 @@ describe('the parent company in the organisation data', () => {
 
   it('still declares no foundingDate', () => {
     expect(JSON.stringify(organizationJsonLd(settings()))).not.toContain('foundingDate')
+  })
+})
+
+/**
+ * PLAN.md E2: the Journal as a Blog, each post a BlogPosting, a case study an Article (Google's
+ * Article guide, updated 2026-09-08: headline, image, datePublished, dateModified, author with
+ * name and url; schema.org V30.1). Built from what the page shows, pointing at the company by @id.
+ */
+describe('the Journal and case-study data', () => {
+  const image = { url: 'https://media.wear-run.com/a.jpg', width: 1200, height: 630 }
+  const post = {
+    path: '/journal/made-properly',
+    headline: 'What made properly means',
+    description: 'How a garment is checked.',
+    image,
+    datePublished: '2026-10-08T09:00:00.000Z',
+    dateModified: '2026-10-09T10:00:00.000Z',
+    companyName: 'RUN APPAREL',
+  }
+
+  it('the hub is a Blog listing its posts by address', () => {
+    const blog = blogJsonLd([{ path: post.path, headline: post.headline }])
+    expect(blog).toMatchObject({
+      '@type': 'Blog',
+      '@id': `${SITE_ORIGIN}/journal#blog`,
+      url: `${SITE_ORIGIN}/journal`,
+      publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+    })
+    expect(blog.blogPost).toEqual([
+      { '@type': 'BlogPosting', headline: post.headline, url: `${SITE_ORIGIN}${post.path}` },
+    ])
+  })
+
+  it('a post with no named author is the company’s, by @id', () => {
+    const data = blogPostingJsonLd({ ...post, author: null })
+    expect(data).toMatchObject({
+      '@type': 'BlogPosting',
+      '@id': `${SITE_ORIGIN}${post.path}#article`,
+      mainEntityOfPage: `${SITE_ORIGIN}${post.path}`,
+      headline: post.headline,
+      datePublished: post.datePublished,
+      dateModified: post.dateModified,
+      image: [{ '@type': 'ImageObject', ...image }],
+      author: { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization` },
+      isPartOf: { '@id': `${SITE_ORIGIN}/journal#blog` },
+    })
+  })
+
+  it('a named author is a Person, with a link only when there is one', () => {
+    expect(
+      blogPostingJsonLd({
+        ...post,
+        author: { name: 'A. Writer', url: 'https://www.linkedin.com/in/a' },
+      }).author,
+    ).toEqual({ '@type': 'Person', name: 'A. Writer', url: 'https://www.linkedin.com/in/a' })
+    expect(blogPostingJsonLd({ ...post, author: { name: 'A. Writer' } }).author).toEqual({
+      '@type': 'Person',
+      name: 'A. Writer',
+    })
+  })
+
+  it('a post without a usable picture states none rather than an empty one', () => {
+    expect(blogPostingJsonLd({ ...post, image: null, author: null })).not.toHaveProperty('image')
+  })
+
+  it('a case study is an Article, by the company, part of no blog', () => {
+    const data = articleJsonLd({ ...post, path: '/case-studies/club-kit', author: null })
+    expect(data['@type']).toBe('Article')
+    expect(data).not.toHaveProperty('isPartOf')
+    expect(data.author).toMatchObject({ '@id': `${SITE_ORIGIN}/#organization` })
+  })
+
+  it('the case-study hub is a CollectionPage of its Articles', () => {
+    expect(caseStudiesJsonLd([{ path: '/case-studies/club-kit', headline: 'Club kit' }])).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      '@id': `${SITE_ORIGIN}/case-studies#page`,
+      url: `${SITE_ORIGIN}/case-studies`,
+      name: 'Case studies',
+      publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+      hasPart: [
+        { '@type': 'Article', headline: 'Club kit', url: `${SITE_ORIGIN}/case-studies/club-kit` },
+      ],
+    })
+  })
+
+  it('none of them is Product data or a founding date (G15)', () => {
+    const all = JSON.stringify([
+      blogJsonLd([]),
+      blogPostingJsonLd({ ...post, author: null }),
+      articleJsonLd({ ...post, author: null }),
+    ])
+    expect(all).not.toMatch(/"Product"|foundingDate/)
   })
 })

@@ -23,6 +23,7 @@ import * as migration_20261002_120000_add_web_vitals_inp from './20261002_120000
 import * as migration_20261004_150000_colourway_render_screen from './20261004_150000_colourway_render_screen'
 import * as migration_20261005_120000_footer_tab_one_name from './20261005_120000_footer_tab_one_name'
 import * as migration_20261007_140000_job_applications from './20261007_140000_job_applications'
+import * as migration_20261007_160000_journal_case_studies from './20261007_160000_journal_case_studies'
 
 export const migrations = [
   {
@@ -149,5 +150,10 @@ export const migrations = [
     up: migration_20261007_140000_job_applications.up,
     down: migration_20261007_140000_job_applications.down,
     name: '20261007_140000_job_applications',
+  },
+  {
+    up: migration_20261007_160000_journal_case_studies.up,
+    down: migration_20261007_160000_journal_case_studies.down,
+    name: '20261007_160000_journal_case_studies',
   },
 ];

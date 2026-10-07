@@ -2328,6 +2328,47 @@ here does.
 **After the deploy that ships it:** the owner sends one test application and confirms it
 reaches hr@wear-run.com, then deletes that test row.
 
+### The Journal and case studies (since 2026-10-07)
+
+Unlike every other page on the site, these are written in the CMS: **Website → Journal
+posts**, **Case studies** and **Authors** (`apps/cms/src/collections/JournalPosts.ts`,
+`CaseStudies.ts`, `Authors.ts`). The hub words, the five topics and the "Read more" choices
+are code (`apps/cms/src/lib/journal.ts`, `apps/cms/src/lib/caseStudies.ts`).
+
+**Writing and publishing a post — the owner or an editor.** Open Journal posts → Create new.
+Fill the title, the address (`slug`: lowercase words joined by hyphens), the description, the
+topic, the hero picture, the share picture (at least 1200 × 630; a smaller one is refused) and
+the body, and choose at least one buyer guide and one "What we make" page under Read more.
+Leave Author empty to show RUN APPAREL; name a person only after their signed consent form is
+on file (Authors refuses to save without the tick). If AI helped draft it, tick "Drafted with
+AI help" and name who checked it. **Save draft** as often as needed: a draft is never shown,
+its address answers 404 to anyone signed out. **Publish** puts it live within about a minute.
+Once published, its address can never change (`lockPublishedSlug` in
+`apps/cms/src/lib/journalHooks.ts`), because shared links would break. Case studies work the
+same way; the client's name or words are shown only with the "client agreed" tick, and the
+CMS refuses to save a shown name or a quote without it.
+
+**What switches on by itself.** With nothing published, `/journal` and `/case-studies` answer
+200 with their hub words and `noindex`, and are absent from the sitemap and `/llms.txt`. The
+first published entry adds the hub and the page to both (`sitemapFor` in
+`apps/cms/src/lib/searchVisibility.ts`, `buildLlmsTxt` in `apps/cms/src/lib/llmsTxt.ts`) and
+lifts the `noindex`. A publish from the live admin also tells IndexNow the page and its hub
+(`pingIndexNowWhenPublished`); a save from a local server never does.
+
+**Drafts stay private in two places.** The collections' `read` lets an anonymous REST reader
+see published rows only, and the site's own readers (`apps/cms/src/lib/journalPublic.ts`,
+`caseStudyPublic.ts`) ask for published rows and refuse anything else, because Payload's local
+API skips access control. `apps/cms/e2e/journal.spec.ts` writes a published and a draft post
+and checks both.
+
+**Deleting a picture a post uses.** `scripts/find-orphan-media.mjs` counts the pictures these
+collections use (`CONTENT_REFERENCES`, `CONTENT_RICH_TEXT`), drafts included, so it never lists
+one as unused. The Media library's own delete guard still checks published garments only:
+delete a post's picture from the post, not from Media.
+
+The tables come from `apps/cms/src/migrations/20261007_160000_journal_case_studies.ts`,
+hand-written from `payload generate:db-schema` like the job applications' migration.
+
 ### Why only crawlers get the rewrite
 
 Measured 2026-08-08, warm connection, five requests each:

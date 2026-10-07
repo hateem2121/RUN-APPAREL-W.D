@@ -60,6 +60,10 @@ const PAGES = [
   ['/faq/shipping-and-importing', 200],
   ['/faq/fabrics-and-printing', 200],
   ['/glossary', 200],
+  // The Journal's and the case studies' hubs (2026-10-07): 200 with or without a published
+  // entry. Add a published post's address here once one is live (PLAN.md E6).
+  ['/journal', 200],
+  ['/case-studies', 200],
   ['/definitely-not-a-page', 404],
 ]
 const ENGINES = [

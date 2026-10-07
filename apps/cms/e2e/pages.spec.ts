@@ -134,6 +134,9 @@ const PAGES = [
   },
   { path: '/faq/fabrics-and-printing', name: 'FAQ: fabrics and printing', heading: /Fabrics/i },
   { path: '/glossary', name: 'glossary', heading: /Every term/i },
+  // The Journal's and the case studies' hubs (2026-10-07): 200 with or without a published entry.
+  { path: '/journal', name: 'Journal hub', heading: /Notes from the works/i },
+  { path: '/case-studies', name: 'case studies hub', heading: /Proof, not promises/i },
 ] as const
 
 test.describe('every page renders real content', () => {
@@ -610,7 +613,9 @@ test.describe('search visibility follows the committed switch: visible since lau
    * out of search, and the sitemap offers every page. Setting the file back to "hidden"
    * turns these red, which is the control.
    */
-  for (const page of PAGES) {
+  // The two CMS hubs carry noindex until their first published entry, on purpose (T5 and the
+  // empty-hub rule); `journal.spec.ts` holds that state.
+  for (const page of PAGES.filter((entry) => !['/journal', '/case-studies'].includes(entry.path))) {
     test(`${page.name} does not carry noindex`, async ({ page: browser }) => {
       await browser.goto(page.path)
       const robots = await browser
@@ -625,9 +630,12 @@ test.describe('search visibility follows the committed switch: visible since lau
   }) => {
     const response = await request.get('/sitemap.xml')
     expect(response.status()).toBe(200)
-    const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
-      (m) => new URL(m[1] ?? '').pathname,
-    )
+    const locs = [...(await response.text()).matchAll(/<loc>([^<]+)<\/loc>/g)]
+      .map((m) => new URL(m[1] ?? '').pathname)
+      // The Journal and the case studies join only with a published entry, which
+      // `journal.spec.ts` creates for a while and removes; the unit suite holds both states
+      // (`searchVisibility.test.ts`, `newPagesWiring.test.ts`).
+      .filter((path) => !/^\/(journal|case-studies)(\/|$)/.test(path))
     expect(locs.sort()).toEqual(
       [
         '/',

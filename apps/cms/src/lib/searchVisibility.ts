@@ -106,10 +106,45 @@ function realDate(value: string | null | undefined): Date | null {
   return Number.isNaN(time) ? null : new Date(time)
 }
 
+/** A published Journal post or case study: its address and the database's date. */
+export interface SitemapArticle {
+  path: string
+  updatedAt?: string | null
+}
+
+/**
+ * ⚠️ A HUB JOINS ONLY WITH ITS FIRST PUBLISHED PAGE (2026-10-07; T5 for case studies, the same
+ * rule for the Journal). Until then it carries `noindex`, and a sitemap listing a `noindex`
+ * page asks a crawler to index what the page refuses. Each page carries its own `updatedAt`.
+ */
+function articleEntries(
+  origin: string,
+  hub: string,
+  articles: ReadonlyArray<SitemapArticle> | undefined,
+): MetadataRoute.Sitemap {
+  if (!articles || articles.length === 0) return []
+  return [
+    { url: `${origin}${hub}`, changeFrequency: 'weekly', priority: 0.6 },
+    ...articles.map((article) => {
+      const changed = realDate(article.updatedAt)
+      return {
+        url: `${origin}${article.path}`,
+        changeFrequency: 'monthly' as const,
+        priority: 0.6,
+        ...(changed ? { lastModified: changed } : {}),
+      }
+    }),
+  ]
+}
+
 export function sitemapFor(
   visibility: SearchVisibility,
   origin: string,
   garments: ReadonlyArray<SitemapGarment> = [],
+  content: {
+    posts?: ReadonlyArray<SitemapArticle>
+    caseStudies?: ReadonlyArray<SitemapArticle>
+  } = {},
 ): MetadataRoute.Sitemap {
   if (visibility === 'hidden') return []
   return [
@@ -146,6 +181,8 @@ export function sitemapFor(
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     })),
+    ...articleEntries(origin, '/journal', content.posts),
+    ...articleEntries(origin, '/case-studies', content.caseStudies),
     { url: `${origin}/contact`, changeFrequency: 'yearly', priority: 0.5 },
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },

@@ -123,11 +123,20 @@ describe('who carries the class', () => {
       // "Steady work, honest craft, since 1889."); the test below holds that condition.
       'apps/cms/src/components/site/CompanyParts.tsx': 1,
       'apps/cms/src/components/site/PolicyPage.tsx': 1,
+      // A Journal post's and a case study's title (2026-10-07) are CMS text of up to 70
+      // characters, so they carry it on the company pages' terms: from 36 characters only.
+      'apps/cms/src/components/site/JournalPost.tsx': 1,
+      'apps/cms/src/components/site/CaseStudyPage.tsx': 1,
     })
   })
 
   it('the company pages carry it only from 36 characters, so a short headline never does', () => {
-    for (const file of ['CompanyParts.tsx', 'PolicyPage.tsx']) {
+    for (const file of [
+      'CompanyParts.tsx',
+      'PolicyPage.tsx',
+      'JournalPost.tsx',
+      'CaseStudyPage.tsx',
+    ]) {
       expect(read(`apps/cms/src/components/site/${file}`), file).toMatch(
         /\.length >= 36 \? ' display--long' : ''/,
       )

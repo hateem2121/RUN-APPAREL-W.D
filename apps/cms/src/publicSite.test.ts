@@ -127,7 +127,7 @@ describe('the public site is indexable and the admin is not exposed by it', () =
     // value it means rather than rely on a default.
     expect(read(CMS_ROOT, 'wrangler.jsonc')).toMatch(/"SITE_INDEXING":\s*"visible"/)
     expect(code(join(CMS_ROOT, 'src', 'app'), 'sitemap.ts')).toMatch(
-      /sitemapFor\(await searchVisibility\(\), SITE_ORIGIN, await getProductCards\(\)\)/,
+      /sitemapFor\(await searchVisibility\(\), SITE_ORIGIN, garments, \{ posts, caseStudies \}\)/,
     )
   })
 
@@ -951,9 +951,10 @@ describe('the 404, the policy, and analytics', () => {
     const headers = code(CMS_ROOT, 'publicViewerHeaders.mjs')
     // The five site pages, then the buyer pages from their own list (2026-09-30), then the
     // policies hub and the approved policies from theirs (2026-10-07), then careers and
-    // community from theirs, then the FAQ and the glossary from theirs.
+    // community from theirs, then the FAQ and the glossary from theirs, then the Journal's and
+    // the case studies' hubs and pages.
     expect(headers.replace(/\s+/g, ' ')).toMatch(
-      /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \.\.\.GUIDE_PAGE_SOURCES, \.\.\.POLICY_PAGE_SOURCES, \.\.\.COMPANY_PAGE_SOURCES, \.\.\.FAQ_PAGE_SOURCES, \.\.\.GLOSSARY_PAGE_SOURCES, \]/,
+      /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \.\.\.GUIDE_PAGE_SOURCES, \.\.\.POLICY_PAGE_SOURCES, \.\.\.COMPANY_PAGE_SOURCES, \.\.\.FAQ_PAGE_SOURCES, \.\.\.GLOSSARY_PAGE_SOURCES, \.\.\.JOURNAL_PAGE_SOURCES, \.\.\.CASE_STUDY_PAGE_SOURCES, \]/,
     )
     expect(headers).toMatch(/FAMILY_PAGE_SOURCES = \[\s*'\/custom-teamwear-manufacturer',/)
     // The directives that are worth having regardless of the inline-script compromise:
