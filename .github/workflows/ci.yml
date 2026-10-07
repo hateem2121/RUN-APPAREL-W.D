@@ -327,12 +327,15 @@ jobs:
       # THE CMS WORKER'S SIZE, BEFORE IT CAN SHIP (2026-10-07). Until this step nothing
       # built the Worker before a deploy, and one merge took it 52,301 -> 64,905 KiB, 99% of
       # Cloudflare's 64 MiB: fresh copies failed to load and bursts of requests got Error
-      # 1101 on the live site. `--skipNextBuild` bundles the `pnpm build` above rather than
-      # building twice; the script runs wrangler's own dry run (no token, nothing uploaded)
-      # and fails over 80% of the limit. scripts/check-cms-worker-size.mjs has the detail.
-      - name: CMS Worker size budget (needs the build above)
+      # 1101 on the live site. The full OpenNext build, as the deploy runs it (no secrets
+      # needed): `--skipNextBuild` cannot reuse the `pnpm build` above, because it reads
+      # Next's standalone output, which only OpenNext's own build writes (measured: ENOENT
+      # .next/standalone/…/pages-manifest.json). It is the LAST step here, so rebuilding
+      # `.next` cannot change what the guards above read. The script then runs wrangler's
+      # own dry run (no token, nothing uploaded) and fails over 80% of the limit.
+      - name: CMS Worker size budget (its own build, last)
         run: |
-          pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build --skipNextBuild
+          pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build
           node scripts/check-cms-worker-size.mjs
 
   # E2E IN A REAL BROWSER. Split out of `verify` on 2026-08-20 and containerised for

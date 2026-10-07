@@ -48,11 +48,13 @@ describe('the local gate runner and CI', () => {
   const gateChecks = nodeChecksByJob(ciYaml).filter((entry) => GATE_JOBS.includes(entry.job))
 
   it('finds the node checks it is meant to compare — negative control for the parser', () => {
-    // Measured 2026-09-30: CI's two gate jobs ran exactly these three.
+    // Measured 2026-09-30: CI's two gate jobs ran exactly these three; the CMS Worker's size
+    // joined `verify` on 2026-10-07.
     expect(gateChecks.map((entry) => entry.script).sort()).toEqual(
       [
         'apps/cms/scripts/check-doc-visuals.mjs',
         'scripts/check-bundle-budget.mjs',
+        'scripts/check-cms-worker-size.mjs',
         'scripts/check-docs-index.mjs',
       ].sort(),
     )

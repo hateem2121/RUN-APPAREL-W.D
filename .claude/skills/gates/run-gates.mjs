@@ -84,6 +84,20 @@ const GATES = [
     argv: ['node', 'scripts/check-bundle-budget.mjs'],
   },
   {
+    // The CMS Worker from the `build` above (2026-10-07): at 99% of Cloudflare's limit it
+    // broke the live site under load, and nothing had measured it before a deploy.
+    // Its own full build: `--skipNextBuild` needs Next's standalone output, which a plain
+    // `next build` does not write.
+    name: 'cms-worker-build',
+    why: 'builds the CMS Worker as the deploy does (~3 min), as CI verify does',
+    argv: [...PNPM, '--filter', '@run-apparel/cms', 'exec', 'opennextjs-cloudflare', 'build'],
+  },
+  {
+    name: 'cms-worker-size',
+    why: 'fails over 80% of the 64 MiB limit — needs cms-worker-build',
+    argv: ['node', 'scripts/check-cms-worker-size.mjs'],
+  },
+  {
     name: 'eval-artwork',
     why: 'separate CI job — gates the deploy',
     argv: [...PNPM, 'eval:artwork'],
