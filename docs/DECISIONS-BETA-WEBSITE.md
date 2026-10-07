@@ -792,8 +792,8 @@ in the CMS; pages that state the company's commitments change rarely and are rev
 - **The anti-harassment policy is held back on purpose**, until the complaints committee it
   describes exists (owner, 7 Oct 2026). It is absent from the hub, the sitemap and the footer, not
   a page saying "coming soon".
-- **The careers page never types an email address.** It reads the address from the CMS site
-  settings when it draws, so one change in the CMS moves every page.
+- **The careers page's words never type an email address.** Its "Write to us at" line names
+  the applications inbox from one constant in code since Phase 2 (D32).
 - **The company's structured data names its parent company** (`parentOrganization`), and still
   carries no `Product` schema (`apps/cms/src/lib/structuredData.ts` says why).
 - **No new header-menu items**; the header stays as the owner approved it. The footer carries the
@@ -827,6 +827,32 @@ Company share a row. The owner chose that layout over squeezing six columns into
 **Guard:** both footers are held to `siteFooterAriaSnapshot` (`packages/shared/src/siteFooter.ts`);
 `apps/viewer/e2e/siteFooter.spec.ts` holds the phone layout with the real footer facts, and
 `apps/viewer/e2e/print.spec.ts` the one printed sheet.
+
+### D32 · Job applications go to hr@wear-run.com, fixed in code, and are kept 12 months
+
+**Decision: the careers page carries an application form. Applications go to
+hr@wear-run.com, an address fixed in code rather than a CMS setting, and the page's "Write to
+us at" line names the same inbox. The owner chose both on 7 Oct 2026.** The fields (name, phone
+and role required; email, years, a note and one CV optional), the "Send application" button,
+the 12-month keep and the privacy notice's "Job applications" section were approved on the same
+day, word for word.
+
+- **One constant, two uses.** The form's recipient and the page's line both read
+  `APPLICATIONS_TO` (`apps/cms/src/lib/application.ts`), so they can never disagree. Changing
+  the inbox is a code change and a deploy, which the owner preferred to a setting someone
+  could change by mistake.
+- **Built like the contact form, kept apart from it.** Stored first and emailed second; a
+  private bucket prefix for CVs (`careers`) with no public address; its own rate counters, so
+  a burst of applications cannot block buyers' inquiries.
+- **Twelve months, then the owner deletes.** The "Delete after" date is set once when an
+  application arrives. No robot deletes applications; the owner does it monthly from the
+  admin (RUNBOOK, "Job applications from the careers form").
+- **No job listings and no `JobPosting` data**, as the plan for these pages set: the page
+  takes applications; it does not advertise vacancies.
+
+**Guard:** `apps/cms/e2e/careersForm.spec.ts` sends applications with and without a CV in
+three browsers, refuses a renamed program, and checks that a stranger gets 403 for the
+applications and their CVs; `apps/cms/e2e/privacyClaims.spec.ts` holds the notice's words.
 
 ## Closed since
 

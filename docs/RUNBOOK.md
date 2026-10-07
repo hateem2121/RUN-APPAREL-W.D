@@ -2273,9 +2273,10 @@ share card per page is drawn by `apps/cms/scripts/gen-share-images.mjs` from
 `tools/asset-pipeline/node_modules/.bin/tsx apps/cms/scripts/gen-share-images.mjs --force`
 and LOOK at the result. After any routing or header change:
 `npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`, then
-`test:routes` and `test:built-config`. The careers "How to apply" email is read from
-`SiteSettings` at render time — never type an address into `companyPages.ts`
-(`companyPages.test.ts` refuses one). The footer's "Company" group lives in
+`test:routes` and `test:built-config`. The careers "How to apply" line names the
+applications inbox, `APPLICATIONS_TO` in `apps/cms/src/lib/application.ts` (since Phase 2,
+next section) — never type an address into `companyPages.ts` (`companyPages.test.ts`
+refuses one). The footer's "Company" group lives in
 `packages/shared/src/siteFooter.ts` (`SITE_FOOTER_COMPANY`, live links only) and must be
 drawn in BOTH `apps/cms/src/components/site/SiteFooter.tsx` and
 `apps/viewer/src/components/Footer.tsx` in the same change, or both aria-snapshot suites
@@ -2291,6 +2292,41 @@ does), write the owner's facts into the LOCAL settings from `FOOTER_FACTS` in
 `scripts/apply-footer-facts.mjs` (the same values the live site has), and start `next start`
 with `PAYLOAD_LOCAL_D1=1`. The CMS browser suite needs the seed too: without it,
 `apps/cms/e2e/footer.spec.ts` gets a 404 for `/api/public/viewer/n001/wine`.
+
+### Job applications from the careers form (since 2026-10-07)
+
+The form under "How to apply" on `/careers` posts to
+`apps/cms/src/app/(frontend)/careers/submit/route.ts`, which works like the contact form's
+route: the honeypot is thanked and dropped, the words are checked
+(`apps/cms/src/lib/application.ts`), the CV is checked by its bytes against
+`APPLICATION_FILE_KINDS` (`apps/cms/src/lib/applicationFileTypes.ts`: PDF, Word, JPG or PNG,
+up to 10 MB, one file), and the per-address limit has its own counters
+(`apps/cms/src/lib/applicationRate.ts`). Then it **stores first and emails second**: the
+application is a row in **Content → Job applications** and the CV a row in **Application
+files**, kept in the private inquiry bucket under the `careers` prefix with no public address
+— only a signed-in person can download one. Only then does Resend send the notification to
+`APPLICATIONS_TO` (`hr@wear-run.com`, fixed in code by the owner's choice; changing it is a
+code change and a deploy). A failed email is written on the row (`notified`, `notifyError`)
+and never loses the application. The page's address carries codes only (`sent=1`,
+`error=…`), never a typed value.
+
+**Deleting old applications — the owner, once a month.** The privacy notice promises 12
+months (`/privacy#job-applications`). Each row's **Delete after** date is set once, when it
+arrives, and a later status change never moves it (`setDeleteAfter` in
+`apps/cms/src/collections/JobApplications.ts`). Once a month, open Job applications, sort by
+Delete after, select every row whose date has passed, and delete them: the CV is deleted with
+its application. Only an admin can delete. **Claude never deletes an application**; it may
+list the overdue ones for the owner to click.
+
+The tables come from a hand-written migration,
+`apps/cms/src/migrations/20261007_140000_job_applications.ts`: `migrate:create` stops at an
+interactive prompt (the last JSON snapshot is from 2026-07-29), so its columns were copied
+from `payload generate:db-schema`, and `apps/cms/src/migrationReplay/replay.test.ts` replays
+it up and down. Its `down` rebuilds `payload_locked_documents_rels` first, as every migration
+here does.
+
+**After the deploy that ships it:** the owner sends one test application and confirms it
+reaches hr@wear-run.com, then deletes that test row.
 
 ### Why only crawlers get the rewrite
 
