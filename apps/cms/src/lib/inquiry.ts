@@ -64,7 +64,7 @@ export type InquiryResult =
   | { ok: true; value: InquiryInput }
   | { ok: false; errors: Partial<Record<RequiredField, string>> }
 
-const clean = (value: unknown, max: number): string =>
+export const clean = (value: unknown, max: number): string =>
   typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : ''
 
 /**
@@ -76,7 +76,7 @@ const clean = (value: unknown, max: number): string =>
  * worth refusing is input that is plainly not an address at all. Whether the address
  * receives mail is answered by replying to it, not by a pattern.
  */
-const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
+export const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
 
 /**
  * The phone as one readable string. The form sends the code and the number as two fields
@@ -84,7 +84,7 @@ const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
  * alone is not a phone number, so it is dropped; a number alone is kept as typed, because a
  * buyer may have typed the "+44" into it themselves.
  */
-function joinPhone(rawCode: unknown, rawNumber: unknown): string {
+export function joinPhone(rawCode: unknown, rawNumber: unknown): string {
   const number = clean(rawNumber, MAX_LENGTHS.phone)
   if (!number) return ''
   const code = clean(rawCode, 8).replace(/\D/g, '').slice(0, 4)
