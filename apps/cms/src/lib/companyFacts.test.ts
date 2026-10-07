@@ -5,6 +5,8 @@ import {
   CERTIFICATION_LINES,
   CERTIFICATION_PROMISE,
   FACTS,
+  LEAD_TIME,
+  PARENT_COMPANY,
   SHIPS_TO,
 } from './companyFacts'
 
@@ -81,5 +83,26 @@ describe('the certification lines on the home page', () => {
     expect(lines).not.toMatch(/SMETA[\s-]certified/i)
     expect(CERTIFICATION).toContain(CERTIFICATION_LINES[2])
     expect(CERTIFICATION).toContain(CERTIFICATION_PROMISE)
+  })
+})
+
+/**
+ * PLAN.md E3 — the two facts the new company pages share. The lead time is the owner's
+ * decision of 2026-10-06 (question tool, A1 #2); the refused 21–45 window of 2026-09-29
+ * stays refused above, so the constant must say "your quote states the exact date".
+ */
+describe('the lead time and the parent company', () => {
+  it('state the lead time in the owner’s words, and never as a fixed promise', () => {
+    expect(LEAD_TIME).toBe(
+      'Usually 2–4 weeks from order confirmation; your quote states the exact date.',
+    )
+    expect(LEAD_TIME).toContain('2–4 weeks')
+    expect(LEAD_TIME).toContain('quote')
+    expect(LEAD_TIME).not.toMatch(/21\s*[–-]\s*45/)
+  })
+
+  it('name the parent company the certification paragraph names', () => {
+    expect(PARENT_COMPANY).toBe('DURUS INDUSTRIES')
+    expect(CERTIFICATION).toContain(PARENT_COMPANY)
   })
 })

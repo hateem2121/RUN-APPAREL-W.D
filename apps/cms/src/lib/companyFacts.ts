@@ -99,3 +99,15 @@ export const CERTIFICATION_PROMISE =
 export const LINEAGE =
   'The family began manufacturing and exporting in 1889 and has done so since. Company ' +
   'names have changed over that time; the roots have not.'
+
+/**
+ * The bulk lead time, as every page states it (owner, 2026-10-06, question tool): a typical
+ * window a buyer and an answer engine can quote, while each order's real date stays in its
+ * quote. It replaces nothing in `FACTS` (the home page shows five numbers); the 21–45 day window
+ * the owner removed on 2026-09-29 stays refused by `companyFacts.test.ts`.
+ */
+export const LEAD_TIME =
+  'Usually 2–4 weeks from order confirmation; your quote states the exact date.'
+
+/** The parent company, named as `CERTIFICATION` and `ABOUT` already name it. */
+export const PARENT_COMPANY = 'DURUS INDUSTRIES'
