@@ -9,7 +9,7 @@ import { FAMILIES } from './families'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDES, GUIDES_INDEX } from './guides'
 import { SITE_ORIGIN } from './seo'
-import { SHARE_IMAGE, type ShareCard, shareCardFor } from './shareImages'
+import { SHARE_IMAGE, type ShareCard, shareCardFor, shareImageUrl } from './shareImages'
 
 /**
  * Polish X14 (audit of 3 October 2026; the owner's answer Q11: "fix the address, and one picture
@@ -238,5 +238,22 @@ describe('the pictures on a card come from the repository, and say what they sho
         expect(card.alt, path).toContain(garment.type.toLowerCase())
       }
     }
+  })
+})
+
+describe('a card LinkedIn cached too small gets a new address (2026-10-07)', () => {
+  it('community: ?v=2, so LinkedIn fetches the 1200 x 630 file again', () => {
+    // Post Inspector, morning and evening of 2026-10-07: LinkedIn kept `articleshare-shrink_160`
+    // for /community from its first fetch, while the live file was 1200 x 630 and every other
+    // company page was stored at `shrink_1280_800`. LinkedIn keys that copy to the address.
+    expect(shareImageUrl(shareCardFor('/community'), SITE_ORIGIN)).toBe(
+      `${SITE_ORIGIN}/share/community.jpg?v=2`,
+    )
+  })
+
+  it('every other card keeps its plain address, so nothing else is fetched again', () => {
+    expect(shareImageUrl(shareCardFor('/careers'), SITE_ORIGIN)).toBe(
+      `${SITE_ORIGIN}/share/careers.jpg`,
+    )
   })
 })
