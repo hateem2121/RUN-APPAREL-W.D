@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FOOTER_FACTS, type FooterFacts, problems } from '../../../scripts/apply-footer-facts.mjs'
+import { LEAD_TIME } from './lib/companyFacts'
 
 /**
  * The owner's footer facts, checked BEFORE they are sent to the live CMS.
@@ -37,7 +38,18 @@ describe('the footer facts the owner supplied, 2026-09-16', () => {
     // The field's description suggests "50 pcs per style"; the owner said "50 pieces per
     // style". Their words win — this is their company speaking to their buyers.
     expect(FOOTER_FACTS.capacity.moq).toBe('50 pieces per style')
-    expect(FOOTER_FACTS.capacity.leadTime).toBe('2–4 weeks from order confirmation')
+    // F16 (owner, 2026-10-07): "usually", as the live footer has said since that day.
+    expect(FOOTER_FACTS.capacity.leadTime).toBe('usually 2–4 weeks from order confirmation')
+  })
+
+  it('say the lead time the site says, so the daily probe cannot fall behind the CMS again', () => {
+    // 2026-10-07: the owner's lead time changed in the CMS ("usually 2–4 weeks…", F16), this
+    // file kept the old words, and `footer-facts-probe.mjs`, which checks the live footer
+    // against them, failed the daily uptime run and opened an "Outage" issue (#144) for a
+    // footer that was right. The site's own sentence is the reference both must follow.
+    expect(LEAD_TIME.toLowerCase().startsWith(FOOTER_FACTS.capacity.leadTime.toLowerCase())).toBe(
+      true,
+    )
   })
 
   it('store days as select CODES, not the numbers the footer renders', () => {

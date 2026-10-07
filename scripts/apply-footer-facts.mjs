@@ -59,7 +59,7 @@ const GLOBAL = '/api/globals/site-settings'
 export const FOOTER_FACTS = {
   capacity: {
     moq: '50 pieces per style',
-    leadTime: '2–4 weeks from order confirmation',
+    leadTime: 'usually 2–4 weeks from order confirmation',
     hoursFirstDay: 'mon',
     hoursLastDay: 'sat',
     hoursOpen: '08:00',
