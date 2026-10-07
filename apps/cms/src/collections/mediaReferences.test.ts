@@ -2,6 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MEDIA_REFERENCE_PATHS } from '../../../shrink/src/cms'
+import { Authors } from './Authors'
+import { CaseStudies } from './CaseStudies'
+import { JournalPosts } from './JournalPosts'
 import { Products } from './Products'
 import { RawUploads } from './RawUploads'
 
@@ -78,6 +81,70 @@ async function scriptReferencePaths(): Promise<string[]> {
   if (!block) throw new Error('REFERENCE_PATHS not found in find-orphan-media.mjs')
   return [...block.matchAll(/'([^']+)'/g)].map((m) => m[1] as string)
 }
+
+/**
+ * The website's own content collections (2026-10-07): Journal posts, case studies and authors.
+ * The shrink robot never deletes their pictures (it only retires a model it made itself,
+ * `apps/shrink/src/orphanGuard.ts`), but `find-orphan-media.mjs --delete` deletes whatever it
+ * cannot see used, so it must see these. Read from the script as text, as above.
+ */
+async function scriptContentReferences(name: string): Promise<Record<string, string[]>> {
+  const source = await readFile(join(REPO_ROOT, 'scripts', 'find-orphan-media.mjs'), 'utf8')
+  const block = new RegExp(`const ${name} = \\{([^}]*)\\}`).exec(source)?.[1]
+  if (!block) throw new Error(`${name} not found in find-orphan-media.mjs`)
+  return Object.fromEntries(
+    [...block.matchAll(/'?([\w-]+)'?:\s*\[([^\]]*)\]/g)].map((m) => [
+      m[1] as string,
+      [...(m[2] as string).matchAll(/'([^']+)'/g)].map((n) => n[1] as string).sort(),
+    ]),
+  )
+}
+
+/** Every rich-text field's dotted path: an upload inside one points at a Media file too. */
+function richTextPaths(fields: Field[] | undefined, prefix = ''): string[] {
+  return (fields ?? []).flatMap((field) => {
+    const name = field.name
+    if (typeof name !== 'string') return richTextPaths(field.fields, prefix)
+    const path = prefix ? `${prefix}.${name}` : name
+    return field.type === 'richText' ? [path] : richTextPaths(field.fields, path)
+  })
+}
+
+describe('the website content collections’ pictures are seen by the orphan finder', () => {
+  const CONTENT = {
+    'journal-posts': JournalPosts,
+    'case-studies': CaseStudies,
+    authors: Authors,
+  } as const
+
+  it('every Media field on them is in CONTENT_REFERENCES', async () => {
+    const actual = Object.fromEntries(
+      Object.entries(CONTENT).map(([slug, collection]) => [
+        slug,
+        mediaPaths(collection.fields as Field[]).sort(),
+      ]),
+    )
+    expect(
+      await scriptContentReferences('CONTENT_REFERENCES'),
+      'A Media field was added to a website content collection. Add it to CONTENT_REFERENCES ' +
+        'in scripts/find-orphan-media.mjs, or `--delete` removes pictures a published page uses.',
+    ).toEqual(actual)
+  })
+
+  it('every rich-text field on them is in CONTENT_RICH_TEXT (a picture inside a post body)', async () => {
+    const actual = Object.fromEntries(
+      Object.entries(CONTENT)
+        .map(([slug, collection]) => [slug, richTextPaths(collection.fields as Field[]).sort()])
+        .filter(([, paths]) => (paths as string[]).length > 0),
+    )
+    expect(await scriptContentReferences('CONTENT_RICH_TEXT')).toEqual(actual)
+  })
+
+  it('⚠️ CONTROL: the walkers find the post’s two pictures and its body', () => {
+    expect(mediaPaths(JournalPosts.fields as Field[]).sort()).toEqual(['heroImage', 'shareImage'])
+    expect(richTextPaths(JournalPosts.fields as Field[])).toEqual(['body'])
+  })
+})
 
 describe('Media relationships are all accounted for', () => {
   /**

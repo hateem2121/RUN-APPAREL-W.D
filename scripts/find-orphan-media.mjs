@@ -55,6 +55,27 @@ const REFERENCE_PATHS = [
   'colourways.renderScreen',
 ]
 
+/**
+ * The website's own content collections (2026-10-07): the Journal, case studies and authors
+ * point at Media too — a post's hero and share pictures, a case study's photos, an author's
+ * photo. Without these, `--delete` would remove a picture a published post is showing.
+ * `apps/cms/src/collections/mediaReferences.test.ts` walks the three collections and fails when
+ * a Media field is missing here.
+ *
+ * Not in MEDIA_REFERENCE_PATHS (apps/shrink/src/cms.ts), deliberately: that list answers "may
+ * the robot retire the model it just made", and these collections never hold a model.
+ */
+const CONTENT_REFERENCES = {
+  'journal-posts': ['heroImage', 'shareImage'],
+  'case-studies': ['images', 'shareImage'],
+  authors: ['photo'],
+}
+
+/** Rich-text fields whose upload nodes point at Media: a picture placed inside a post's body. */
+const CONTENT_RICH_TEXT = {
+  'journal-posts': ['body'],
+}
+
 function parseArgs(argv) {
   const options = {
     delete: false,
@@ -134,6 +155,32 @@ async function main() {
     const json = await request(`/api/raw-uploads?limit=100&depth=0&page=${page}`)
     for (const upload of json.docs ?? []) noteReference(upload.resultGlb)
     if (!json.hasNextPage) break
+  }
+
+  // An upload node anywhere inside a rich-text value: `{ type: 'upload', relationTo, value }`.
+  const noteRichText = (node) => {
+    if (!node || typeof node !== 'object') return
+    if (node.type === 'upload' && node.relationTo === 'media') noteReference(node.value)
+    for (const child of Array.isArray(node.children) ? node.children : []) noteRichText(child)
+  }
+
+  // The website content collections, read TWICE: as published (the main rows) and with
+  // `draft=true` (each document's newest version). A picture only the published post shows,
+  // or only the draft being written uses, is in use either way.
+  for (const [collection, paths] of Object.entries(CONTENT_REFERENCES)) {
+    for (const draft of ['', '&draft=true']) {
+      for (let page = 1; ; page++) {
+        const json = await request(`/api/${collection}?limit=100&depth=0&page=${page}${draft}`)
+        for (const doc of json.docs ?? []) {
+          for (const path of paths) {
+            const value = doc?.[path]
+            for (const item of Array.isArray(value) ? value : [value]) noteReference(item)
+          }
+          for (const field of CONTENT_RICH_TEXT[collection] ?? []) noteRichText(doc?.[field]?.root)
+        }
+        if (!json.hasNextPage) break
+      }
+    }
   }
 
   const orphans = media.filter((doc) => !referenced.has(String(doc.id)))

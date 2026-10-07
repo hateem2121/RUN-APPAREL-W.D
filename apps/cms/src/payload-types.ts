@@ -131,6 +131,9 @@ export interface Config {
     'inquiry-files': InquiryFile;
     'job-applications': JobApplication;
     'application-files': ApplicationFile;
+    authors: Author;
+    'journal-posts': JournalPost;
+    'case-studies': CaseStudy;
     'document-visits': DocumentVisit;
     'document-visit-salts': DocumentVisitSalt;
     'document-visit-emails': DocumentVisitEmail;
@@ -164,6 +167,9 @@ export interface Config {
     'inquiry-files': InquiryFilesSelect<false> | InquiryFilesSelect<true>;
     'job-applications': JobApplicationsSelect<false> | JobApplicationsSelect<true>;
     'application-files': ApplicationFilesSelect<false> | ApplicationFilesSelect<true>;
+    authors: AuthorsSelect<false> | AuthorsSelect<true>;
+    'journal-posts': JournalPostsSelect<false> | JournalPostsSelect<true>;
+    'case-studies': CaseStudiesSelect<false> | CaseStudiesSelect<true>;
     'document-visits': DocumentVisitsSelect<false> | DocumentVisitsSelect<true>;
     'document-visit-salts': DocumentVisitSaltsSelect<false> | DocumentVisitSaltsSelect<true>;
     'document-visit-emails': DocumentVisitEmailsSelect<false> | DocumentVisitEmailsSelect<true>;
@@ -693,6 +699,144 @@ export interface ApplicationFile {
   height?: number | null;
 }
 /**
+ * People named as the writer of a Journal post. Add someone only after they have signed the consent form. A post with no author is shown as written by RUN APPAREL.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "authors".
+ */
+export interface Author {
+  id: number;
+  name: string;
+  /**
+   * For example, "Merchandiser".
+   */
+  role?: string | null;
+  /**
+   * One line.
+   */
+  bio?: string | null;
+  photo?: (number | null) | Media;
+  linkedinUrl?: string | null;
+  consentRecorded?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Posts for the Journal on the website. Save a draft as often as you like: only a published post is shown, and once published its address cannot change.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "journal-posts".
+ */
+export interface JournalPost {
+  id: number;
+  title: string;
+  /**
+   * The end of the post’s address: wear-run.com/journal/<this>. It cannot change once published.
+   */
+  slug: string;
+  /**
+   * One or two sentences. Shown in search results and link previews.
+   */
+  description: string;
+  cluster: 'craft-and-making' | 'sialkot-stories' | 'sustainability' | 'industry-insight' | 'company-news';
+  /**
+   * Leave empty to show RUN APPAREL as the writer.
+   */
+  author?: (number | null) | Author;
+  publishedAt: string;
+  /**
+   * Set when this was first published. From then on its address cannot change.
+   */
+  firstPublishedAt?: string | null;
+  heroImage: number | Media;
+  /**
+   * The picture shown when the post is shared. At least 1200 × 630.
+   */
+  shareImage: number | Media;
+  body: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  /**
+   * At least one buyer guide and one “What we make” page.
+   */
+  relatedPages: (
+    | '/guides/how-a-private-label-order-works'
+    | '/guides/3d-garment-reference'
+    | '/guides/minimum-order-and-samples'
+    | '/guides/garment-printing-methods'
+    | '/guides/sportswear-fabrics-and-weights'
+    | '/guides/private-label-packaging'
+    | '/guides/shipping-and-import-duties'
+    | '/custom-teamwear-manufacturer'
+    | '/custom-activewear-manufacturer'
+    | '/custom-outerwear-manufacturer'
+    | '/private-label-casual-wear-manufacturer'
+  )[];
+  aiAssisted?: boolean | null;
+  /**
+   * The person who checked the post. Shown on the page.
+   */
+  checkedBy?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * Stories of real orders for the website. Name the client or quote them only with their permission. Only a published case study is shown.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "case-studies".
+ */
+export interface CaseStudy {
+  id: number;
+  title: string;
+  /**
+   * The end of the address: wear-run.com/case-studies/<this>. It cannot change once published.
+   */
+  slug: string;
+  description: string;
+  /**
+   * Set when this was first published. From then on its address cannot change.
+   */
+  firstPublishedAt?: string | null;
+  /**
+   * Without a name, for example "a cycling club in the UK".
+   */
+  clientDescription: string;
+  clientNamed?: boolean | null;
+  clientName?: string | null;
+  whatWasMade: string;
+  quantity: string;
+  timeline: string;
+  challenge: string;
+  whatWeDid: string;
+  result: string;
+  clientQuote?: string | null;
+  quoteAttribution?: string | null;
+  clientPermission?: boolean | null;
+  images?: (number | Media)[] | null;
+  relatedProducts?: (number | Product)[] | null;
+  /**
+   * The picture shown when the case study is shared. At least 1200 × 630.
+   */
+  shareImage: number | Media;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
  * One line per person, per document, per day (Pakistan time). Counts of people are approximate. WhatsApp visits usually show as Safari or Chrome. Email scanners such as Outlook Safe Links can look like a person. Lines older than 12 months are deleted automatically.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -807,6 +951,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'application-files';
         value: number | ApplicationFile;
+      } | null)
+    | ({
+        relationTo: 'authors';
+        value: number | Author;
+      } | null)
+    | ({
+        relationTo: 'journal-posts';
+        value: number | JournalPost;
+      } | null)
+    | ({
+        relationTo: 'case-studies';
+        value: number | CaseStudy;
       } | null)
     | ({
         relationTo: 'document-visits';
@@ -1103,6 +1259,70 @@ export interface ApplicationFilesSelect<T extends boolean = true> {
   filesize?: T;
   width?: T;
   height?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "authors_select".
+ */
+export interface AuthorsSelect<T extends boolean = true> {
+  name?: T;
+  role?: T;
+  bio?: T;
+  photo?: T;
+  linkedinUrl?: T;
+  consentRecorded?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "journal-posts_select".
+ */
+export interface JournalPostsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  description?: T;
+  cluster?: T;
+  author?: T;
+  publishedAt?: T;
+  firstPublishedAt?: T;
+  heroImage?: T;
+  shareImage?: T;
+  body?: T;
+  relatedPages?: T;
+  aiAssisted?: T;
+  checkedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "case-studies_select".
+ */
+export interface CaseStudiesSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  description?: T;
+  firstPublishedAt?: T;
+  clientDescription?: T;
+  clientNamed?: T;
+  clientName?: T;
+  whatWasMade?: T;
+  quantity?: T;
+  timeline?: T;
+  challenge?: T;
+  whatWeDid?: T;
+  result?: T;
+  clientQuote?: T;
+  quoteAttribution?: T;
+  clientPermission?: T;
+  images?: T;
+  relatedProducts?: T;
+  shareImage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

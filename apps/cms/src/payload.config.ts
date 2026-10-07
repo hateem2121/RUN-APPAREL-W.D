@@ -14,7 +14,10 @@ import { Events } from './collections/Events'
 import { Inquiries } from './collections/Inquiries'
 import { InquiryFiles } from './collections/InquiryFiles'
 import { ApplicationFiles } from './collections/ApplicationFiles'
+import { Authors } from './collections/Authors'
+import { CaseStudies } from './collections/CaseStudies'
 import { JobApplications } from './collections/JobApplications'
+import { JournalPosts } from './collections/JournalPosts'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { RawUploads } from './collections/RawUploads'
@@ -181,6 +184,9 @@ export default buildConfig({
     // The careers form (Phase 2, 2026-10-07): applications and their CVs, as private as inquiries.
     JobApplications,
     ApplicationFiles,
+    Authors,
+    JournalPosts,
+    CaseStudies,
     DocumentVisits,
     DocumentVisitSalts,
     DocumentVisitEmails,
