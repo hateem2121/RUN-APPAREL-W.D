@@ -77,6 +77,8 @@ export const metadata: Metadata = buildMetadata({
 const SECTIONS = [
   { id: 'who-we-are', title: 'Who we are' },
   { id: 'what-we-collect', title: 'What we collect, and when' },
+  // The careers form (owner-approved words, 2026-10-07); the form's privacy line links here.
+  { id: 'job-applications', title: 'Job applications' },
   { id: 'why-we-are-allowed', title: 'Why we are allowed to' },
   { id: 'how-long-we-keep-it', title: 'How long we keep it' },
   { id: 'where-it-goes', title: 'Where it goes' },
@@ -179,6 +181,27 @@ export default async function PrivacyPage() {
               your job title, country, phone number, a subject and any files you attach. Attached
               files are stored privately with Cloudflare, never at a public address, and only our
               team can open them.
+            </p>
+
+            {heading('job-applications')}
+            <p>
+              <strong>When you apply for a job.</strong> If you apply through the form on our
+              careers page, we keep what you send — your name, phone number and the work you do,
+              and, if you add them, your email address, years of experience, a note and one CV — so
+              that our HR team can consider you for work with us and contact you about it.
+            </p>
+            <p>
+              <strong>Your CV</strong> is stored privately with Cloudflare, never at a public
+              address, and only our team can open it. When you send an application, Resend delivers
+              a notification to our HR team.
+            </p>
+            <p>
+              <strong>Why we are allowed to.</strong> To consider your application and take the
+              steps you ask for before any job offer.
+            </p>
+            <p>
+              <strong>How long we keep it.</strong> We keep your application, and any CV, for up to
+              12 months, then delete it. If you would like it deleted sooner, email us and we will.
             </p>
 
             {heading('why-we-are-allowed')}

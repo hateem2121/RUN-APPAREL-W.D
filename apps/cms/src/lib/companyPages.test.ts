@@ -4,7 +4,16 @@ import { describe, expect, it } from 'vitest'
 import { COMPANY_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
-import { CAREERS_PAGE, COMMUNITY_PAGE, COMPANY_PATHS, WORK_HERE } from './companyPages'
+import {
+  CAREER_PATH,
+  CAREERS_HERO_PHOTO,
+  CAREERS_LIFE_PHOTOS,
+  CAREERS_PAGE,
+  COMMUNITY_PAGE,
+  COMPANY_PATHS,
+  ROLE_GROUPS,
+  WORK_HERE,
+} from './companyPages'
 import { FACTORY_PHOTOS } from './factoryPhotos'
 import { buildLlmsTxt } from './llmsTxt'
 import { POLICY_PATHS } from './policies'
@@ -114,6 +123,62 @@ describe('the company pages, as the owner approved them', () => {
     ])
     for (const page of PAGES) {
       for (const link of page.links) expect(known.has(link.href), link.href).toBe(true)
+    }
+  })
+})
+
+/*
+ * The careers page's own layout (2026-10-07) draws three lists beside the approved sentences. They
+ * add no word: each must already be said in the approved section it draws, so a list cannot run
+ * ahead of what the owner signed off.
+ */
+describe('the careers layout adds no word to the approved sections', () => {
+  const words = (id: string) => {
+    const section = CAREERS_PAGE.sections.find((entry) => entry.id === id)
+    if (!section) throw new Error(`no careers section ${id}`)
+    return section.blocks
+      .flatMap((block) =>
+        block.kind === 'text' ? [block.text] : block.kind === 'list' ? block.items : [],
+      )
+      .join(' ')
+      .toLowerCase()
+  }
+
+  it('every step of the drawn path is in the training sentence, in its order', () => {
+    const sentence = words('training')
+    const at = CAREER_PATH.map((step) => sentence.indexOf(step.toLowerCase()))
+    expect(
+      at.every((index) => index >= 0),
+      CAREER_PATH.join(', '),
+    ).toBe(true)
+    expect([...at].sort((a, b) => a - b)).toEqual(at)
+  })
+
+  it('the role groups are the roles list, and their names are how "How to apply" splits them', () => {
+    const roles = CAREERS_PAGE.sections.find((entry) => entry.id === 'roles')
+    const list = roles?.blocks.find((block) => block.kind === 'list')
+    expect(list?.kind === 'list' ? list.items : []).toEqual(
+      ROLE_GROUPS.flatMap((group) => group.roles),
+    )
+    const apply = words('apply')
+    expect(apply).toContain('floor roles')
+    expect(apply).toContain('an office role')
+  })
+
+  it('every careers photo exists, and "Life" names what each one shows', () => {
+    // The photo's own word in the section's sentence: sewing, checking, packing.
+    const shows: Record<string, string> = {
+      stitching: 'sewing',
+      inspection: 'checking',
+      packing: 'packing',
+      'screen-printing': 'printing',
+    }
+    for (const slug of [CAREERS_HERO_PHOTO, ...CAREERS_LIFE_PHOTOS]) {
+      expect(
+        FACTORY_PHOTOS.some((photo) => photo.slug === slug),
+        slug,
+      ).toBe(true)
+      expect(words('life'), `${slug} is not named in "Life"`).toContain(shows[slug] ?? `(${slug})`)
     }
   })
 })

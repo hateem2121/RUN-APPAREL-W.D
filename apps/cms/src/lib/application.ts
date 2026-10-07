@@ -111,8 +111,8 @@ export function isHoneypotTripped(raw: Record<string, unknown>): boolean {
 /**
  * ⚠️ WHERE APPLICATIONS GO, FIXED HERE ON PURPOSE (owner, 2026-10-07: "Always hr@, fixed in
  * code", chosen over a CMS setting). Changing the inbox is therefore a code change and a deploy.
- * The careers PAGE still reads its "Write to us at" address from SiteSettings, which is a
- * different address on purpose until the owner says otherwise.
+ * The careers page's "Write to us at" line names this same constant (owner, 2026-10-07: "show
+ * hr@ there"), so the form and the page can never disagree (DECISIONS-BETA-WEBSITE.md D32).
  */
 export const APPLICATIONS_TO = 'hr@wear-run.com'
 

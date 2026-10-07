@@ -9,8 +9,8 @@ import type { GuideBlock } from './guides'
  * owner has not given.
  *
  * ⚠️ THE BENEFITS ARE ONE LIST, shared by both pages, so they cannot disagree (PLAN.md D4).
- * The "How to apply" email is read from `SiteSettings` at render time and is NEVER typed
- * here — `companyPages.test.ts` refuses an `@` in this file's source. The photos are the
+ * The "How to apply" email is the applications inbox, `APPLICATIONS_TO` in `application.ts`
+ * (owner, 2026-10-07, D32), and is NEVER typed here — `companyPages.test.ts` refuses an `@` in this file's source. The photos are the
  * owner's factory photos, used only where the section's own words name what they show
  * (`guides.test.ts`'s rule): only the floor and the building exist (C-8, 2026-10-07).
  */
@@ -55,6 +55,38 @@ export const WORK_HERE: readonly string[] = [
   'Training and promotion from within',
 ]
 
+/*
+ * ⚠️ THE CAREERS PAGE IS DRAWN BY ITS OWN LAYOUT SINCE 2026-10-07 (`CareersPage.tsx`): the
+ * owner turned down the guides' heading-left, list-right sections for it ("too much empty space
+ * on left", "looks AI generated"). The lists below give that layout its structure. Every word in
+ * them is already in the approved sections, and `companyPages.test.ts` holds each one to them.
+ */
+
+/** The real example under "Training and promotion", one step per role, drawn as a path. */
+export const CAREER_PATH = ['Helper', 'Stitcher', 'Line supervisor'] as const
+
+/**
+ * The roles, split the way "How to apply" already splits them: floor roles need no CV, office
+ * roles include one. The section's list is built from these, so the two cannot disagree.
+ */
+export const ROLE_GROUPS = [
+  {
+    name: 'Floor roles',
+    roles: ['Stitchers and machinists', 'Cutters and printers', 'Quality checkers'],
+  },
+  {
+    name: 'Office roles',
+    roles: ['Merchandisers and coordinators', 'Pattern makers and designers', 'Administrators'],
+  },
+] as const
+
+/**
+ * The careers photos (C-8: floor and building photos only). The hero shows printing, a maker at
+ * work; "Life at RUN APPAREL" shows the sewing, checking and packing its sentence names.
+ */
+export const CAREERS_HERO_PHOTO = 'screen-printing'
+export const CAREERS_LIFE_PHOTOS = ['stitching', 'inspection', 'packing'] as const
+
 export const CAREERS_PAGE: CompanyPage = {
   path: '/careers',
   title: 'Careers',
@@ -90,14 +122,7 @@ export const CAREERS_PAGE: CompanyPage = {
       blocks: [
         {
           kind: 'list',
-          items: [
-            'Stitchers and machinists',
-            'Cutters and printers',
-            'Quality checkers',
-            'Merchandisers and coordinators',
-            'Pattern makers and designers',
-            'Administrators',
-          ],
+          items: ROLE_GROUPS.flatMap((group) => group.roles),
         },
         {
           kind: 'text',

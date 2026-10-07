@@ -112,6 +112,29 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
     )
   })
 
+  /*
+   * Owner-approved 2026-10-07 (the careers form). As for inquiry files, the CV claim must stay
+   * TRUE: `application-files` lives in the private bucket with no public address, and every
+   * download goes through the admin's sign-in (`collections/ApplicationFiles.ts`).
+   */
+  test('has a Job applications section: what is kept, where the CV goes, for how long', async ({
+    request,
+  }) => {
+    const body = await (await request.get('/privacy')).text()
+    expect(body).toContain('id="job-applications"')
+    expect(body).toContain(
+      'we keep what you send — your name, phone number and the work you do, and, if you add ' +
+        'them, your email address, years of experience, a note and one CV',
+    )
+    expect(body).toContain(
+      'is stored privately with Cloudflare, never at a public address, and only our team can ' +
+        'open it.',
+    )
+    expect(body).toContain(
+      'We keep your application, and any CV, for up to 12 months, then delete it.',
+    )
+  })
+
   test('names Resend, which carries every inquiry to the owner', async ({ request }) => {
     // Owner, 2026-09-29: the notification email holds the inquiry, so its carrier is named.
     const body = await (await request.get('/privacy')).text()

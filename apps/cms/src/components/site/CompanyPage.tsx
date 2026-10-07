@@ -9,11 +9,10 @@ import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
 
 /**
- * A company page — careers and community (PLAN.md D3/D4). Every word comes from
- * `lib/companyPages.ts`, which the owner approved on 2026-10-07; this file only lays it
- * out, on the guides' structure and block renderer. The one primary button is the site's
- * own closing block; the "How to apply" email arrives from `SiteSettings` and is never
- * typed anywhere.
+ * A company page on the guides' structure and block renderer — community (PLAN.md D3). Every
+ * word comes from `lib/companyPages.ts`, which the owner approved on 2026-10-07; this file only
+ * lays it out. The one primary button is the site's own closing block (`CompanyClosing`).
+ * Careers has its own layout since the owner turned this one down for it (`CareersPage.tsx`).
  */
 
 /** One of the owner's factory photos under a section heading (as the guides draw them). */
@@ -24,13 +23,7 @@ function SectionPhoto({ slug }: { slug: string }) {
   return <FactoryFigure photo={photo} {...factoryPhotoImage(photo)} sizes={HALF_COLUMN_SIZES} />
 }
 
-export function CompanyPage({
-  page,
-  applyEmail,
-}: {
-  page: CompanyContentType
-  applyEmail?: string
-}) {
+export function CompanyPage({ page }: { page: CompanyContentType }) {
   const trail = [{ name: page.title, path: page.path }]
   return (
     <>
@@ -53,7 +46,17 @@ export function CompanyPage({
       </section>
 
       {page.sections.map((section) => {
-        const heading = <h2 className="display display--section">{section.heading}</h2>
+        /*
+         * ⚠️ THE ANCHOR IS ON THE HEADING, AS ON THE POLICY PAGES. `companyPages.ts` calls
+         * `#what-we-offer`, `#training` and `#apply` load-bearing (LinkedIn's commitments point
+         * at them), and until 2026-10-07 this line drew no id at all: the live page carried none
+         * of them, so every such link opened at the top. `e2e/careersForm.spec.ts` holds them.
+         */
+        const heading = (
+          <h2 className="display display--section" id={section.id}>
+            {section.heading}
+          </h2>
+        )
         return (
           <section className="site-section" data-site-reveal key={section.id}>
             <div className="site-container prose prose--guide spread">
@@ -82,49 +85,51 @@ export function CompanyPage({
                     block={block}
                   />
                 ))}
-                {section.id === 'apply' && applyEmail ? (
-                  <p>
-                    Write to us at <a href={`mailto:${applyEmail}`}>{applyEmail}</a>.
-                  </p>
-                ) : null}
               </div>
             </div>
           </section>
         )
       })}
 
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <div className="section-head">
-            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-            <div className="section-head__words">
-              <p className="site-lede">
-                Send the styles, quantities and specs you have — a sketch is enough to start. We
-                reply within 24 hours.
-              </p>
-              <div className="site-actions">
-                <Link className="btn btn--primary" href="/contact#inquiry">
-                  {FAMILY_PAGE_ACTION}
-                </Link>
-              </div>
+      <CompanyClosing links={page.links} />
+    </>
+  )
+}
+
+/** The company pages' closing block: the site's one primary action, then "More about us". */
+export function CompanyClosing({ links }: { links: CompanyContentType['links'] }) {
+  return (
+    <section className="site-section" data-site-reveal>
+      <div className="site-container">
+        <div className="section-head">
+          <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
+          <div className="section-head__words">
+            <p className="site-lede">
+              Send the styles, quantities and specs you have — a sketch is enough to start. We reply
+              within 24 hours.
+            </p>
+            <div className="site-actions">
+              <Link className="btn btn--primary" href="/contact#inquiry">
+                {FAMILY_PAGE_ACTION}
+              </Link>
             </div>
           </div>
-          <nav className="see-also" aria-label="More about us">
-            <div className="see-also__group">
-              <h3 className="product-card__name" id="more-about-us">
-                More about us
-              </h3>
-              <ul className="see-also__list">
-                {page.links.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href}>{link.name}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </nav>
         </div>
-      </section>
-    </>
+        <nav className="see-also" aria-label="More about us">
+          <div className="see-also__group">
+            <h3 className="product-card__name" id="more-about-us">
+              More about us
+            </h3>
+            <ul className="see-also__list">
+              {links.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href}>{link.name}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </section>
   )
 }

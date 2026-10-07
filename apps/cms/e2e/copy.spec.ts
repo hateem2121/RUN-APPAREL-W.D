@@ -129,6 +129,8 @@ const PRIMARY_LABELS = [
   /^Browse in 3D$/,
   /^Email \S+@\S+$/,
   /^Send inquiry$/,
+  // The careers form's Send (owner, F23, 2026-10-07).
+  /^Send application$/,
 ]
 
 for (const viewport of [

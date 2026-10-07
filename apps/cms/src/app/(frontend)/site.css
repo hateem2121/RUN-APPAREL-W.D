@@ -5450,7 +5450,9 @@ a.contact-block__value:active {
   background: color-mix(in srgb, var(--dimension) 6%, transparent);
 }
 
-.inquiry-form__file {
+/* `__cv`: the careers form's one CV (CvPicker.tsx) keeps this button in sight, with no drop area. */
+.inquiry-form__file,
+.inquiry-form__cv {
   padding-block: 8px;
 }
 
@@ -5471,7 +5473,8 @@ a.contact-block__value:active {
   white-space: nowrap;
 }
 
-.inquiry-form__file::file-selector-button {
+.inquiry-form__file::file-selector-button,
+.inquiry-form__cv::file-selector-button {
   margin-inline-end: 12px;
   padding: 6px 12px;
   font: inherit;
@@ -5834,4 +5837,448 @@ a.contact-block__value:active {
   color: var(--muted);
   margin-top: 24px;
   padding-top: 16px;
+}
+
+/* ------------------------------------------------ the careers page (CareersPage.tsx) */
+
+/*
+ * ⚠️ THE CAREERS PAGE HAS ITS OWN SHAPES SINCE 2026-10-07. The guides' heading-left, list-right
+ * layout left half of every screen empty; the owner turned it down ("too much empty space on
+ * left", "looks AI generated"). Each section now takes the shape of what it says. Only tokens and
+ * the site's 4px steps; the motion follows the site's contract: scroll-driven CSS inside
+ * `@supports (animation-timeline: view())` and `prefers-reduced-motion: no-preference`, drawn and
+ * in place without it, and no keyframe on `opacity` (the axe contrast trap at `site-reveal`).
+ */
+
+/* The hero: the words, and a maker at work in a framed photo beside them. */
+.careers-hero__layout {
+  display: grid;
+  gap: 48px;
+}
+
+.careers-hero__photo {
+  position: relative;
+  margin: 0;
+  max-width: 560px;
+}
+
+.careers-hero__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  object-position: 50% 25%;
+  border-radius: var(--radius-card);
+}
+
+/* The blueprint's corner marks, set just outside the photo, as the footer's clock wears them. */
+.careers-hero__corners {
+  position: absolute;
+  inset: -12px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--dimension), var(--dimension)) top left / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) top left / 1px 16px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) top right / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) top right / 1px 16px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom left / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom left / 1px 16px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom right / 16px 1px no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) bottom right / 1px 16px no-repeat;
+}
+
+@media (width >= 900px) {
+  .careers-hero__layout {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: end;
+    gap: 64px;
+  }
+
+  .careers-hero__photo {
+    justify-self: end;
+    width: 100%;
+  }
+}
+
+@media (width < 900px) {
+  .careers-hero__photo {
+    max-width: 420px;
+  }
+
+  .careers-hero__img {
+    aspect-ratio: 5 / 4;
+  }
+}
+
+/* What we offer: six lines across the page, each under its own rule, a dimension tick on it. */
+.careers-offer__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 32px;
+  margin: 48px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.careers-offer__item {
+  position: relative;
+  padding-block: 24px 32px;
+  border-top: 1px solid var(--line);
+  font-size: clamp(1.25rem, 1.6vw + 0.6rem, 1.75rem);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--heading);
+  text-wrap: balance;
+}
+
+.careers-offer__item::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: 0;
+  inline-size: 32px;
+  block-size: 2px;
+  background: var(--dimension);
+  transform-origin: left center;
+}
+
+@media (width >= 640px) {
+  .careers-offer__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1000px) {
+  .careers-offer__list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Training: the sentence, then the same steps drawn on a dimension line that rises with them. */
+.careers-training__layout {
+  display: grid;
+  gap: 56px;
+}
+
+.careers-training__words {
+  max-width: var(--site-measure);
+}
+
+.career-path {
+  --path-rise: 40px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  margin: 0;
+  padding: 0 0 24px;
+  list-style: none;
+  counter-reset: none;
+}
+
+/* The line under the three steps, with a tick at each end: a measurement, not a progress bar. */
+.career-path::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 1px;
+  background: var(--dimension);
+  transform-origin: left center;
+}
+
+.career-path::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -6px;
+  block-size: 13px;
+  background:
+    linear-gradient(var(--dimension), var(--dimension)) left / 1px 100% no-repeat,
+    linear-gradient(var(--dimension), var(--dimension)) right / 1px 100% no-repeat;
+}
+
+.career-path__step {
+  position: relative;
+  padding-block-end: 16px;
+  padding-inline-end: 16px;
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: 16px;
+}
+
+/* Each step stands higher than the one before: helper, stitcher, line supervisor. */
+.career-path__step:nth-child(1) {
+  padding-block-start: 0;
+}
+
+.career-path__step:nth-child(2) {
+  padding-block-start: var(--path-rise);
+  margin-block-end: var(--path-rise);
+}
+
+.career-path__step:nth-child(3) {
+  margin-block-end: calc(var(--path-rise) * 2);
+}
+
+.career-path__name {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 110%;
+  text-transform: uppercase;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  color: var(--heading);
+  font-size: clamp(1rem, 1.4vw + 0.55rem, 1.75rem);
+  overflow-wrap: anywhere;
+}
+
+.career-path__step:last-child .career-path__name {
+  color: var(--dimension);
+}
+
+@media (width >= 1000px) {
+  .careers-training__layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: end;
+    gap: 64px;
+  }
+
+  .career-path {
+    --path-rise: 56px;
+  }
+}
+
+@keyframes career-path-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes career-path-rise {
+  from {
+    transform: translateY(24px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(0);
+  }
+}
+
+/*
+ * THE PAGE'S ONE AUTHORED MOMENT: as the path scrolls in, its line is measured out left to right
+ * and each step rises onto it in turn, helper first. Without scroll timelines, or with reduced
+ * motion, the path is simply drawn.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .career-path::before {
+      animation: career-path-draw var(--slow) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 40%;
+    }
+
+    .career-path__step {
+      animation: career-path-rise var(--settle) var(--ease-out-expo) both;
+      animation-timeline: view();
+    }
+
+    .career-path__step:nth-child(1) {
+      animation-range: entry 20% cover 30%;
+    }
+
+    .career-path__step:nth-child(2) {
+      animation-range: entry 35% cover 38%;
+    }
+
+    .career-path__step:nth-child(3) {
+      animation-range: entry 50% cover 46%;
+    }
+  }
+}
+
+/* The roles: the floor and the office side by side, each role set large on its own rule. */
+.careers-roles__head {
+  display: grid;
+  gap: 24px;
+}
+
+.careers-roles__head .site-lede {
+  max-width: var(--site-measure);
+}
+
+.careers-roles__groups {
+  display: grid;
+  gap: 48px;
+  margin-block-start: 56px;
+}
+
+.careers-roles__name {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+}
+
+.careers-roles__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.careers-roles__list li {
+  padding-block: 16px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: clamp(1.25rem, 1.5vw + 0.7rem, 2rem);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--heading);
+}
+
+@media (width >= 900px) {
+  .careers-roles__head {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: end;
+    gap: 64px;
+  }
+
+  .careers-roles__groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 64px;
+  }
+}
+
+/* How to apply: the contact page's column beside the form, held in sight while the form scrolls. */
+.careers-apply__intro > p:not(.site-lede) {
+  color: var(--muted);
+  max-width: var(--site-measure);
+}
+
+.careers-apply__contacts {
+  display: grid;
+  gap: 8px;
+  margin-block-start: 32px;
+  padding-block-start: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.careers-apply__contacts address {
+  font-style: normal;
+}
+
+@media (width >= 1000px) {
+  .careers-apply__intro {
+    position: sticky;
+    inset-block-start: calc(var(--notch-clearance) + 24px);
+  }
+}
+
+/* Life at RUN APPAREL: the floor in three photos, one wide and two tall, all the same height. */
+.careers-life__mosaic {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-block-start: 48px;
+}
+
+.careers-life__mosaic > :first-child {
+  grid-column: 1 / -1;
+}
+
+.careers-life__mosaic .photo-figure {
+  margin: 0;
+}
+
+@media (width >= 900px) {
+  /* 2 : 1 : 1 makes an 8:5 photo and two 4:5 photos exactly the same height. */
+  .careers-life__mosaic {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .careers-life__mosaic > :first-child {
+    grid-column: auto;
+  }
+}
+
+@media print {
+  .career-path::before,
+  .career-path__step {
+    animation: none;
+  }
+
+  .careers-apply__intro {
+    position: static;
+  }
+}
+
+/* A sentence after a sentence in the careers columns: the site's paragraphs carry no margin. */
+.careers-training__words p + p,
+.careers-apply__intro p + p {
+  margin-block-start: 16px;
+}
+
+/* A role's name never breaks inside a word ("SUPERVI-SOR" did at 390 px, 2026-10-07). */
+.career-path__name {
+  overflow-wrap: normal;
+  hyphens: manual;
+}
+
+/*
+ * On a phone the three columns are too narrow for "Line supervisor" in display type, so the path
+ * turns into a staircase down the page: each step one tread further in, on its own rule.
+ */
+@media (width < 640px) {
+  .career-path {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-block-end: 16px;
+  }
+
+  .career-path__step:nth-child(n) {
+    margin-block-end: 0;
+    padding-block: 16px;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--line);
+  }
+
+  .career-path__step:nth-child(2) {
+    margin-inline-start: 15%;
+  }
+
+  .career-path__step:nth-child(3) {
+    margin-inline-start: 30%;
+  }
+}
+
+/*
+ * The two tall photos take the wide one's height exactly: the grid's gaps made 2 : 1 : 1 seven
+ * pixels short of it (measured 351 against 344 px at 1440, 2026-10-07). The wide frame keeps its
+ * 8:5 and sets the row; the tall frames fill the row and crop to it.
+ */
+@media (width >= 900px) {
+  .careers-life__mosaic .photo-figure:not(:first-child),
+  .careers-life__mosaic .photo-figure:not(:first-child) .photo-figure__frame {
+    height: 100%;
+  }
+
+  .careers-life__mosaic .photo-figure:not(:first-child) .photo-figure__frame {
+    aspect-ratio: auto;
+  }
+
+  .careers-life__mosaic .photo-figure:not(:first-child) .photo-figure__img {
+    height: 100%;
+    object-fit: cover;
+  }
 }
