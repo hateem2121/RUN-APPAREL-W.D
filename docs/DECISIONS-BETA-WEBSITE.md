@@ -903,6 +903,36 @@ Policies, Case studies, Press) are now complete.
 **Guard:** `faqs.test.ts`, `glossary.test.ts`, `press.test.ts` and `companyPages.test.ts`;
 `apps/cms/e2e/pages.spec.ts` and `legibility.spec.ts` load every page.
 
+### D35 · The website's CSS is one cached file again — reverses RO-08's inlined CSS
+
+**Decision: `experimental.inlineCss` is off (7 Oct 2026, delegated by the owner to "the latest
+best practices" after a live incident), and CI measures the CMS Worker's size before every
+merge.**
+
+- **The incident.** The pages PR (D34) took the CMS Worker to 64,905 KiB, 99% of Cloudflare's
+  64 MiB limit (developers.cloudflare.com/workers/platform/limits, read 7 Oct 2026). One request at
+  a time the site served; a burst of 16 or more simultaneous requests got Error 1101 for
+  everything past the first ~10, because a fresh copy of the Worker failed to load. No Worker
+  recorded an error (GraphQL analytics and a live tail both showed only successes), and the same
+  probe had passed that morning on the 52,301 KiB version.
+- **The cause.** With inline CSS, Next writes the whole minified stylesheet (124 KB) into every
+  route's `page_client-reference-manifest.js`, four times, and the Worker bundles all 51 of them:
+  22 MB. Each new page cost 0.5 MB and each 1 KB of CSS about 200 KB. Off, the Worker measured
+  42,994 KiB and a manifest 14.6 KB.
+- **Why off rather than fewer pages.** Next's page on the option (v16.4.0, updated 2026-03-03)
+  calls it experimental and "not recommended for production", and says to skip it for "large CSS
+  bundles" and "many pages sharing styles". Merging pages into templates would still have left
+  the Worker near the limit and every new style multiplying.
+- **What a visitor pays, measured.** On slow 3G the first paint waits for one stylesheet download
+  again: 3.4-3.5 s on the local harness (1.1 s inline), past RO-08's 3 s target, because the sheet
+  grew to 127 KB raw (22 KB gzip) while inlining hid it. On 4G or Wi-Fi the difference is tens of
+  milliseconds, and every later page reads the sheet from the cache. `e2e/firstPaint.spec.ts`
+  holds one shared, hashed sheet and today's number (4.1 s ceiling); a smaller stylesheet is
+  what brings RO-08 back.
+
+**Guard:** `scripts/check-cms-worker-size.mjs` in `verify` fails over 80% of the limit
+(`apps/cms/src/cmsWorkerSize.test.ts`, with the incident's bundle as its negative control).
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap
