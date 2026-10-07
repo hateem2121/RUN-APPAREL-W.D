@@ -76,6 +76,29 @@ export function publicImage(value: unknown): PublicImage | null {
   return { url, alt: text(media.alt), width, height }
 }
 
+/**
+ * A link's address inside a post body, or null to draw its words without a link. Only web,
+ * mail and phone addresses and paths on this site: a `javascript:` or `data:` address typed into
+ * the editor never reaches the page, and `//host` (which leaves the site) is refused as well. A
+ * link to another post becomes that post's address; at depth 0 its slug is unknown, so none.
+ */
+export function richTextHref(fields: unknown): string | null {
+  if (!fields || typeof fields !== 'object') return null
+  const link = fields as { linkType?: unknown; url?: unknown; doc?: unknown }
+  if (link.linkType === 'internal') {
+    const doc = link.doc as { relationTo?: unknown; value?: unknown } | undefined
+    const slug =
+      doc?.relationTo === 'journal-posts' && doc.value && typeof doc.value === 'object'
+        ? text((doc.value as Doc).slug)
+        : ''
+    return validSlug(slug) === true ? journalPostPath(slug) : null
+  }
+  const url = text(link.url)
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(url)) return url
+  if (url.startsWith('/') && !url.startsWith('//')) return url
+  return null
+}
+
 export type JournalAuthor = {
   name: string
   role: string

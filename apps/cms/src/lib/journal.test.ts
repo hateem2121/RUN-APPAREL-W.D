@@ -7,6 +7,8 @@ import {
   JOURNAL_PATH,
   JOURNAL_RELATED_PAGES,
   JOURNAL_RSS_PATH,
+  differentDay,
+  formatPostDate,
   journalClusterLabel,
   journalPostPath,
   relatedPagesFor,
@@ -81,6 +83,19 @@ describe('the Journal addresses', () => {
     expect(JOURNAL_PATH).toBe('/journal')
     expect(journalPostPath('made-properly')).toBe('/journal/made-properly')
     expect(JOURNAL_RSS_PATH).toBe('/journal/rss.xml')
+  })
+})
+
+describe('a post’s date as the page prints it', () => {
+  it('is the American long form, read in UTC so a server anywhere prints the same day', () => {
+    expect(formatPostDate('2026-10-08T09:00:00.000Z')).toBe('October 8, 2026')
+    // 23:30 UTC is already the 9th in Pakistan; the page and its data say the 8th, as stored.
+    expect(formatPostDate('2026-10-08T23:30:00.000Z')).toBe('October 8, 2026')
+  })
+
+  it('says whether two dates fall on different days (an "Updated" line only then)', () => {
+    expect(differentDay('2026-10-08T09:00:00.000Z', '2026-10-08T22:00:00.000Z')).toBe(false)
+    expect(differentDay('2026-10-08T09:00:00.000Z', '2026-10-09T08:00:00.000Z')).toBe(true)
   })
 })
 

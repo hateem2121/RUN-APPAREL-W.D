@@ -63,6 +63,23 @@ export function relatedPagesFor(stored: unknown): Array<{ href: string; name: st
 }
 
 /**
+ * A post's date as the page prints it: "October 8, 2026" (American, G9). Read in UTC, so the
+ * day printed is the day stored whatever the server's clock zone, and the page and its data
+ * (`datePublished`) can never name different days.
+ */
+export function formatPostDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(iso))
+}
+
+/** Whether two dates fall on different days (UTC): a post shows "Updated" only then. */
+export const differentDay = (a: string, b: string) => a.slice(0, 10) !== b.slice(0, 10)
+
+/**
  * The hub's words around the posts (D7: "[ Journal ]", "Notes" + accent "from the works.").
  * `description` is the search-result and feed description.
  */

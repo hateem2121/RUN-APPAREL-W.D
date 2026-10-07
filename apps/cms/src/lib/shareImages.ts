@@ -1,7 +1,9 @@
+import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CONTACT_HERO_PHOTO } from './factoryPhotos'
 import { CAREERS_PAGE, COMMUNITY_PAGE } from './companyPages'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDES, GUIDES_INDEX } from './guides'
+import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
 import { POLICIES, POLICIES_INDEX } from './policies'
 
 /**
@@ -235,6 +237,26 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
       COMMUNITY_PAGE.eyebrow,
       COMMUNITY_PAGE.heading,
       COMMUNITY_PAGE.headingAccent,
+    ),
+  ],
+  // The Journal's and the case studies' hubs (2026-10-07), from their own words. Each post and
+  // case study shares its OWN picture, chosen in the CMS (`buildArticleMetadata`, T8).
+  [
+    JOURNAL_PATH,
+    wordsCard(
+      fileFor(JOURNAL_PATH),
+      JOURNAL_HUB.eyebrow,
+      JOURNAL_HUB.heading,
+      JOURNAL_HUB.headingAccent,
+    ),
+  ],
+  [
+    CASE_STUDIES_PATH,
+    wordsCard(
+      fileFor(CASE_STUDIES_PATH),
+      CASE_STUDIES_HUB.eyebrow,
+      CASE_STUDIES_HUB.heading,
+      CASE_STUDIES_HUB.headingAccent,
     ),
   ],
 ])

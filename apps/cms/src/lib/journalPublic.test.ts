@@ -6,6 +6,7 @@ import {
   publicImage,
   readPublishedPost,
   readPublishedPosts,
+  richTextHref,
   toJournalPost,
 } from './journalPublic'
 
@@ -174,6 +175,36 @@ describe('a post as the page sees it', () => {
 
   it('an unknown cluster reads as no cluster rather than a broken label', () => {
     expect(toJournalPost({ ...published, cluster: 'retired' })?.cluster).toBeNull()
+  })
+})
+
+describe('a link written inside a post body', () => {
+  it('keeps web, mail, phone and on-site addresses', () => {
+    expect(richTextHref({ url: 'https://example.com/a' })).toBe('https://example.com/a')
+    expect(richTextHref({ url: 'mailto:partner@example.com' })).toBe('mailto:partner@example.com')
+    expect(richTextHref({ url: 'tel:+923361777313' })).toBe('tel:+923361777313')
+    expect(richTextHref({ url: '/guides/minimum-order-and-samples' })).toBe(
+      '/guides/minimum-order-and-samples',
+    )
+  })
+
+  it('refuses a script address and a protocol-relative one', () => {
+    expect(richTextHref({ url: 'javascript:alert(1)' })).toBeNull()
+    expect(richTextHref({ url: ' JavaScript:alert(1)' })).toBeNull()
+    expect(richTextHref({ url: '//evil.example/x' })).toBeNull()
+    expect(richTextHref({ url: 'data:text/html,x' })).toBeNull()
+  })
+
+  it('turns a link to another post into that post’s address, or nothing at depth 0', () => {
+    expect(
+      richTextHref({
+        linkType: 'internal',
+        doc: { relationTo: 'journal-posts', value: { slug: 'made-properly' } },
+      }),
+    ).toBe('/journal/made-properly')
+    expect(
+      richTextHref({ linkType: 'internal', doc: { relationTo: 'journal-posts', value: 4 } }),
+    ).toBeNull()
   })
 })
 

@@ -6282,3 +6282,438 @@ a.contact-block__value:active {
     object-fit: cover;
   }
 }
+
+/*
+ * ------------------------------------------------ the Journal and the case studies (2026-10-07)
+ *
+ * JournalIndex.tsx, JournalPost.tsx, CaseStudyPage.tsx. Only tokens and the documented spacing
+ * steps (apps/viewer/src/styles/tokens.test.ts). The posts' facts are a ruled sheet in the mono
+ * register, as a garment page sets a specification; the newest post spans the grid; the empty
+ * hubs rule their list across the page rather than leave it bare.
+ */
+
+/* The feed link under the hub's headline: a 44px row, as every standalone link here. */
+.journal-feed {
+  margin-top: 16px;
+}
+
+.journal-feed a,
+.journal-author .prose__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+/* An empty hub: the topics (or a case study's parts) ruled across the page, a tick on each. */
+.journal-topics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: journal-topic;
+}
+
+.journal-topics__item {
+  position: relative;
+  max-width: none;
+  padding-block: 20px 24px;
+  border-top: 1px solid var(--line);
+  color: var(--heading);
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+  counter-increment: journal-topic;
+}
+
+.journal-topics__item::before {
+  content: counter(journal-topic, decimal-leading-zero);
+  display: block;
+  margin-bottom: 8px;
+  color: var(--dimension);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+}
+
+@media (width >= 640px) {
+  .journal-topics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1000px) {
+  .journal-topics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.case-first__ask {
+  margin-top: 64px;
+}
+
+/* The posts: cards of one link each, the newest one spanning the grid. */
+.journal-filter {
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+}
+
+.journal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width < 1000px) {
+  .journal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width < 560px) {
+  .journal-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.journal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  overflow: hidden;
+  transition: border-color var(--ui) var(--ease);
+}
+
+.journal-card__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-bottom: 1px solid var(--line);
+}
+
+.journal-card__words {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.journal-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.journal-card__title {
+  margin: 0;
+}
+
+.journal-card__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The whole card is the link's target; the link's name stays the title (GuideCard.tsx). */
+.journal-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .journal-card:hover {
+    border-color: var(--dimension);
+  }
+}
+
+.journal-card:has(.journal-card__link:focus-visible) {
+  border-color: var(--dimension);
+}
+
+@media (width >= 900px) {
+  .journal-card--lead {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .journal-card--lead .journal-card__img {
+    height: 100%;
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
+  }
+
+  .journal-card--lead .journal-card__words {
+    justify-content: flex-end;
+    gap: 16px;
+    padding: 24px;
+  }
+}
+
+/* The topic filter: radios and CSS, as the Teamwear sport filter (GarmentGrid.tsx, T17). */
+.journal-scope:has(.journal-filter__input[value="craft-and-making"]:checked)
+  .journal-grid
+  > li:not([data-cluster="craft-and-making"]),
+.journal-scope:has(.journal-filter__input[value="sialkot-stories"]:checked)
+  .journal-grid
+  > li:not([data-cluster="sialkot-stories"]),
+.journal-scope:has(.journal-filter__input[value="sustainability"]:checked)
+  .journal-grid
+  > li:not([data-cluster="sustainability"]),
+.journal-scope:has(.journal-filter__input[value="industry-insight"]:checked)
+  .journal-grid
+  > li:not([data-cluster="industry-insight"]),
+.journal-scope:has(.journal-filter__input[value="company-news"]:checked)
+  .journal-grid
+  > li:not([data-cluster="company-news"]) {
+  display: none;
+}
+
+.journal-filter__chip:has(.journal-filter__input:checked) {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.journal-filter__chip:has(.journal-filter__input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* One post: its picture across the page, then the facts sheet beside the reading column. */
+.journal-hero__figure,
+.case-photos figure {
+  margin: 0;
+}
+
+.journal-hero__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.journal-article {
+  display: grid;
+  gap: 24px;
+}
+
+@media (width >= 900px) {
+  .journal-article {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    gap: 64px;
+    align-items: start;
+  }
+
+  .journal-facts {
+    position: sticky;
+    top: calc(var(--header-h) + 24px);
+  }
+}
+
+.journal-facts,
+.case-facts {
+  margin: 0;
+}
+
+.journal-facts > div,
+.case-facts > div {
+  padding-block: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.journal-facts dt,
+.case-facts dt {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.journal-facts dd,
+.case-facts dd {
+  margin: 4px 0 0;
+  color: var(--heading);
+}
+
+.journal-body > :first-child {
+  margin-top: 0;
+}
+
+.journal-body h2,
+.journal-body h3 {
+  margin: 24px 0 12px;
+  color: var(--heading);
+  font-family: var(--font-display);
+}
+
+.journal-body h2 {
+  font-size: var(--text-card-title);
+  letter-spacing: var(--tracking-card-title);
+}
+
+.journal-body h3 {
+  font-size: var(--text-body);
+}
+
+.journal-body a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+}
+
+/* A quotation: the serif voice between two hairlines, never a coloured side stripe (VC-07). */
+.journal-body blockquote {
+  margin: 24px 0;
+  padding-block: 16px;
+  border-block: 1px solid var(--line);
+  color: var(--heading);
+  font-family: var(--font-serif);
+  font-size: var(--text-card-title);
+}
+
+.journal-body__figure {
+  margin: 24px 0;
+}
+
+.journal-body__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.journal-checked {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+.journal-author {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.journal-author div p {
+  margin: 0 0 4px;
+}
+
+.journal-author__photo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: var(--radius-pill);
+}
+
+.journal-author__role {
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+/* One case study: the facts across the page, the photos, the story in three columns. */
+@media (width >= 640px) {
+  .case-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 24px;
+  }
+}
+
+@media (width >= 1000px) {
+  .case-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.case-photos {
+  display: grid;
+  gap: 24px;
+}
+
+@media (width >= 900px) {
+  .case-photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .case-photos__lead {
+    grid-column: 1 / -1;
+  }
+}
+
+.case-story {
+  display: grid;
+  gap: 24px;
+}
+
+@media (width >= 900px) {
+  .case-story {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 64px;
+  }
+}
+
+.case-story__part {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.case-story__number {
+  margin: 0 0 8px;
+  color: var(--dimension);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+}
+
+.case-quote {
+  margin: 0;
+  padding-block: 24px;
+  border-block: 1px solid var(--line);
+}
+
+.case-quote blockquote {
+  margin: 0;
+  color: var(--heading);
+  font-family: var(--font-serif);
+  font-size: var(--text-card-title);
+}
+
+.case-quote figcaption {
+  margin-top: 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
