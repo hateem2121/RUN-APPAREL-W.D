@@ -815,12 +815,16 @@ Company share a row. The owner chose that layout over squeezing six columns into
 
 - **Live links only.** Press joins the group, and a "Learn" group arrives, only when those pages
   exist (later phases), so the footer never links to a missing page.
-- **No stylesheet change:** the group reuses the footer's existing block rules, so the garment
-  pages' stylesheets are byte-identical to before (measured 7 Oct 2026, 13,777 bytes gzipped).
+- **Not on paper.** Printed, the group's three lines pushed the fullest garment onto a second A4
+  sheet, so the owner chose to leave it off paper (7 Oct 2026) and keep polish F14's one-sheet
+  garment page. That print-only rule in `packages/ui/src/footer.css` is the group's only new style:
+  the garment pages' stylesheets grew 9 bytes gzipped (13,777 to 13,786, measured 7 Oct 2026),
+  within budget.
 - **The standards logos stay exactly as they are.**
 
-**Guard:** both footers are held to `siteFooterAriaSnapshot` (`packages/shared/src/siteFooter.ts`),
-and `apps/viewer/e2e/siteFooter.spec.ts` holds the phone layout with the real footer facts.
+**Guard:** both footers are held to `siteFooterAriaSnapshot` (`packages/shared/src/siteFooter.ts`);
+`apps/viewer/e2e/siteFooter.spec.ts` holds the phone layout with the real footer facts, and
+`apps/viewer/e2e/print.spec.ts` the one printed sheet.
 
 ## Closed since
 
