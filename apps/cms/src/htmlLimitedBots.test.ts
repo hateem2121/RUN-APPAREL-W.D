@@ -39,6 +39,9 @@ const AI_CRAWLERS: Record<string, string> = {
     'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)',
   'meta-externalagent':
     'meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)',
+  // The UA string Meta publishes on its crawler page (read 2026-10-07).
+  'Meta-WebIndexer':
+    'meta-webindexer/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/web-crawlers)',
   Amazonbot:
     'Mozilla/5.0 (Linux; like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Amazonbot/0.1',
   CCBot: 'CCBot/2.0 (https://commoncrawl.org/faq/)',

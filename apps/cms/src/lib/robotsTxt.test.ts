@@ -143,6 +143,7 @@ describe('who is welcomed and who is refused', () => {
     'Claude-User',
     'PerplexityBot',
     'meta-externalfetcher',
+    'Meta-WebIndexer', // Meta AI's search index (2026-10-07): an answering crawler, never training-only
     'Amzn-SearchBot',
     'Amzn-User',
   ])('%s is WELCOME', (agent) => {
