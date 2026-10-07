@@ -906,6 +906,24 @@ probe fails with "the page is cut off or garbled".
 - **Prove it:** `node apps/cms/e2e/csp-nonce-edge.mjs --origin=https://wear-run.com` checks
   3 browser engines × 6 page types.
 
+## Error 1101 only under load — the CMS Worker's size (since 2026-10-07)
+
+**What it looks like.** Pages answer one at a time, but the security probe (which sends all its
+requests at once) reports HTTP 500, and the body is Cloudflare's "Error 1101 Worker threw
+exception" page. Every Worker's analytics and `wrangler tail` show only successes, because the
+failing requests never reach the Worker's code: a fresh copy of it failed to load.
+
+**Check it in a minute.** Send the same page 2, 8, 16 and 30 times at once; on 2026-10-07 up to 8
+were all 200 and 30 gave 20 errors. Then read the deploy log's `Total Upload` line for the CMS
+Worker against Cloudflare's 64 MiB (65,536 KiB) limit: it was 64,905 KiB that day.
+
+**The fix that day** was `experimental.inlineCss: false` in `apps/cms/next.config.mjs`
+(DECISIONS-BETA-WEBSITE, D35): it had copied the stylesheet into every page's manifest.
+`scripts/check-cms-worker-size.mjs` now fails `verify` over 80% of the limit, and its message says
+where to look. To see what grew: `opennextjs-cloudflare build`, then in `apps/cms`
+`wrangler deploy --dry-run --outdir <dir> --metafile <file>`, and list
+`.next/server/app/**/page_client-reference-manifest.js` by size.
+
 ## Private document links (catalogue and profile)
 
 Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the
