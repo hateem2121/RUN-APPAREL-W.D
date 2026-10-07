@@ -2,12 +2,17 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  CASE_STUDY_PAGE_SOURCES,
   COMPANY_PAGE_SOURCES,
+  JOURNAL_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
   PUBLIC_PAGE_SOURCES,
+  sourceMatches,
 } from '../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../siteHostRules.mjs'
+import { CASE_STUDIES_PATH } from './lib/caseStudies'
 import { COMPANY_PATHS } from './lib/companyPages'
+import { JOURNAL_PATH, JOURNAL_RSS_PATH } from './lib/journal'
 import { POLICY_PATHS } from './lib/policies'
 import { buildLlmsTxt } from './lib/llmsTxt'
 import { sitemapFor } from './lib/searchVisibility'
@@ -35,6 +40,54 @@ describe('every new page is wired everywhere a public page must be', () => {
     expect(POLICY_PATHS).toEqual(POLICY_PAGE_SOURCES)
     expect(COMPANY_PATHS).toEqual(COMPANY_PAGE_SOURCES)
     expect(NEW_PATHS.length).toBeGreaterThanOrEqual(10)
+  })
+
+  /**
+   * The Journal and the case studies (2026-10-07) are CMS pages: their hubs and each post are
+   * wired into the header and redirect lists always, but into the sitemap and llms.txt only once
+   * something is published (T5 and the empty-hub rule). Both states are held here.
+   */
+  describe('the Journal and the case studies', () => {
+    const CMS_PAGES = [
+      { sources: JOURNAL_PAGE_SOURCES, hub: JOURNAL_PATH, folder: 'journal' },
+      { sources: CASE_STUDY_PAGE_SOURCES, hub: CASE_STUDIES_PATH, folder: 'case-studies' },
+    ]
+
+    for (const { sources, hub, folder } of CMS_PAGES) {
+      it(`${hub}: the hub and its pages carry the security policy and the admin-host redirect`, () => {
+        expect(sources).toEqual([hub, `${hub}/:slug`])
+        for (const source of sources) {
+          expect(PUBLIC_PAGE_SOURCES, 'missing from the security-policy list').toContain(source)
+          expect(CMS_PUBLIC_PATHS, 'missing from the admin-host redirects').toContain(source)
+        }
+        expect(existsSync(join(FRONTEND, folder, 'page.tsx')), 'no hub route').toBe(true)
+        expect(existsSync(join(FRONTEND, folder, '[slug]', 'page.tsx')), 'no page route').toBe(true)
+        expect(EDGE_SCRIPT, 'missing from the CSP nonce edge script').toContain(`'${hub}'`)
+      })
+
+      it(`${hub}: out of the sitemap and llms.txt while nothing is published`, () => {
+        const urls = sitemapFor('visible', ORIGIN, [], { posts: [], caseStudies: [] }).map(
+          (entry) => entry.url,
+        )
+        expect(urls).not.toContain(`${ORIGIN}${hub}`)
+        expect(buildLlmsTxt(ORIGIN, { posts: 0, caseStudies: 0 })).not.toContain(`${ORIGIN}${hub}`)
+      })
+
+      it(`${hub}: in both once one is published`, () => {
+        const one = [{ path: `${hub}/first`, updatedAt: null }]
+        const urls = sitemapFor('visible', ORIGIN, [], { posts: one, caseStudies: one }).map(
+          (entry) => entry.url,
+        )
+        expect(urls).toContain(`${ORIGIN}${hub}`)
+        expect(urls).toContain(`${ORIGIN}${hub}/first`)
+        expect(buildLlmsTxt(ORIGIN, { posts: 1, caseStudies: 1 })).toContain(`(${ORIGIN}${hub})`)
+      })
+    }
+
+    it('the feed sits beside the posts, inside the Journal’s header list', () => {
+      expect(existsSync(join(FRONTEND, 'journal', 'rss.xml', 'route.ts'))).toBe(true)
+      expect(sourceMatches('/journal/:slug', JOURNAL_RSS_PATH)).toBe(true)
+    })
   })
 
   for (const path of NEW_PATHS) {

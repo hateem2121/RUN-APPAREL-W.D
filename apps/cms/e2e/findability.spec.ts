@@ -174,7 +174,9 @@ test.describe('FA-N-07 — the social card resolves and is the right size', () =
    * Since polish X14 (2026-10-05) every page type shares its own JPEG under `/share/`, so this
    * asks every public page, and the declared type is held to the file's too.
    */
-  for (const path of PUBLIC_PAGE_SOURCES) {
+  // A `:slug` source (a Journal post, a case study) is many pages, each sharing its own CMS
+  // picture; `journal.spec.ts` asks a real post for its card. Here, every fixed page.
+  for (const path of PUBLIC_PAGE_SOURCES.filter((source) => !source.includes(':'))) {
     test(`${path}: its card is there, a JPEG, and 1200 x 630 as declared`, async ({
       page,
       request,

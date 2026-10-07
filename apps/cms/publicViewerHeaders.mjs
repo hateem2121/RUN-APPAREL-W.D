@@ -124,6 +124,16 @@ export const POLICY_PAGE_SOURCES = [
  */
 export const COMPANY_PAGE_SOURCES = ['/careers', '/community']
 
+/**
+ * The Journal (2026-10-07, PLAN.md E6): the hub and every post. `:slug` is one path segment
+ * (`sourceMatches`), so it covers `/journal/rss.xml` too, which only gains the public pages'
+ * headers. Held to `src/lib/journal.ts` by `newPagesWiring.test.ts`.
+ */
+export const JOURNAL_PAGE_SOURCES = ['/journal', '/journal/:slug']
+
+/** The case studies (2026-10-07, PLAN.md E6): the hub and each one. As the Journal. */
+export const CASE_STUDY_PAGE_SOURCES = ['/case-studies', '/case-studies/:slug']
+
 export const PUBLIC_PAGE_SOURCES = [
   '/',
   '/products',
@@ -134,6 +144,8 @@ export const PUBLIC_PAGE_SOURCES = [
   ...GUIDE_PAGE_SOURCES,
   ...POLICY_PAGE_SOURCES,
   ...COMPANY_PAGE_SOURCES,
+  ...JOURNAL_PAGE_SOURCES,
+  ...CASE_STUDY_PAGE_SOURCES,
 ]
 
 /**

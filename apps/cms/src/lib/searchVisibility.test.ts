@@ -198,3 +198,48 @@ describe('what the switch does', () => {
     for (const entry of entries) expect(entry).not.toHaveProperty('images')
   })
 })
+
+/**
+ * The Journal and the case studies (2026-10-07): their hubs and pages are listed only once
+ * something is published (T5 and the empty-hub rule), each page with the database's own date.
+ */
+describe('the Journal and case studies in the sitemap', () => {
+  const ORIGIN = 'https://wear-run.com'
+  const urls = (content: Parameters<typeof sitemapFor>[3]) =>
+    sitemapFor('visible', ORIGIN, [], content).map((entry) => entry.url)
+
+  it('lists neither hub while nothing is published', () => {
+    const empty = urls({ posts: [], caseStudies: [] })
+    expect(empty).not.toContain(`${ORIGIN}/journal`)
+    expect(empty).not.toContain(`${ORIGIN}/case-studies`)
+    expect(urls(undefined).some((url) => /journal|case-studies/.test(url))).toBe(false)
+  })
+
+  it('lists the hub and every published post with its own date once one is published', () => {
+    const entries = sitemapFor('visible', ORIGIN, [], {
+      posts: [{ path: '/journal/made-properly', updatedAt: '2026-10-09T10:00:00.000Z' }],
+      caseStudies: [{ path: '/case-studies/club-kit', updatedAt: 'not a date' }],
+    })
+    const post = entries.find((entry) => entry.url === `${ORIGIN}/journal/made-properly`)
+    expect(post?.lastModified).toEqual(new Date('2026-10-09T10:00:00.000Z'))
+    expect(entries.map((entry) => entry.url)).toEqual(
+      expect.arrayContaining([
+        `${ORIGIN}/journal`,
+        `${ORIGIN}/case-studies`,
+        `${ORIGIN}/case-studies/club-kit`,
+      ]),
+    )
+    // An unreadable date is no date, never "now".
+    const study = entries.find((entry) => entry.url === `${ORIGIN}/case-studies/club-kit`)
+    expect(study).not.toHaveProperty('lastModified')
+  })
+
+  it('lists nothing at all while the site is hidden', () => {
+    expect(
+      sitemapFor('hidden', ORIGIN, [], {
+        posts: [{ path: '/journal/a', updatedAt: null }],
+        caseStudies: [],
+      }),
+    ).toEqual([])
+  })
+})
