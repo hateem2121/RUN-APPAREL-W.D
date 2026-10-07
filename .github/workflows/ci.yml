@@ -1625,7 +1625,13 @@ jobs:
       - name: Post-deploy security.txt and redirect headers
         run: node scripts/public-security-probe.mjs
 
+      # Tells search engines only about the pages this push changed (2026-10-07, plan E10).
+      # `before` is the commit main pointed at before the push; the script fetches it on its own
+      # (the checkout above is shallow) and falls back to the whole sitemap when it cannot.
       - name: Post-deploy Bing IndexNow instant indexation
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
         run: node scripts/ping-indexnow.mjs
 
       # Put the rollback command where someone will actually be looking.

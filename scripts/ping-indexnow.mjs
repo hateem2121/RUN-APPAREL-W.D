@@ -9,11 +9,25 @@
  * Free protocol: zero subscription fees, instantaneous notification to search engines.
  * Key location verified via https://<host>/<key>.txt (served from apps/cms/public/).
  *
+ * WHAT IT SENDS (since 2026-10-07, plan E10). Only the pages whose source changed in the
+ * deploy: `scripts/indexnow-paths.mjs` maps the files in `git diff <before> HEAD` to paths, and
+ * when no public page changed nothing is sent at all. IndexNow's documentation says to submit
+ * changed, added or deleted URLs only (https://www.indexnow.org/documentation, read 2026-10-07).
+ * With no trustworthy `before` (a hand-run workflow, a first push, git cannot see the commit)
+ * it sends the whole sitemap, as it always did; `--all` forces that.
+ *
+ * ⚠️ WHAT IT PRINTS goes to a PUBLIC Actions log (the repository is public): counts and public
+ * page paths only. The key is never printed outside `--dry-run`, and even there it is the value
+ * served openly at https://<host>/<key>.txt, which is how IndexNow checks it. The key file and
+ * `keyLocation` are unchanged.
+ *
  * Usage:
- *   node scripts/ping-indexnow.mjs [--dry-run] [--host wear-run.com]
+ *   node scripts/ping-indexnow.mjs [--dry-run] [--all] [--host wear-run.com]
+ *   (in CI: EVENT_NAME and BEFORE come from the push event, as for ci-changed-paths.mjs)
  */
 
 import { realpathSync } from 'node:fs'
+import { gitChangedFiles, indexNowSelection } from './indexnow-paths.mjs'
 
 const DEFAULT_HOST = 'wear-run.com'
 const DEFAULT_KEY = 'c7e4b2d9a1f83c5e6d0a7b4f2e9c1a3d'
@@ -58,6 +72,13 @@ export async function getSubmissionUrls(origin) {
   }
 
   return CORE_URLS.map((path) => `${origin}${path === '/' ? '' : path}`)
+}
+
+/**
+ * Public paths to absolute URLs. The home page is the bare origin, as in the sitemap.
+ */
+export function urlsForPaths(origin, paths) {
+  return paths.map((path) => (path === '/' ? origin : `${origin}${path}`))
 }
 
 /**
@@ -109,8 +130,25 @@ if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   const key = process.env.INDEXNOW_KEY || DEFAULT_KEY
   const origin = `https://${host}`
 
-  console.log(`[indexnow] Gathering URLs for host ${host}...`)
-  const urlList = await getSubmissionUrls(origin)
+  const selection = args.includes('--all')
+    ? { mode: 'all', paths: [] }
+    : indexNowSelection({ eventName: process.env.EVENT_NAME, before: process.env.BEFORE }, (base) =>
+        gitChangedFiles(base),
+      )
+
+  if (selection.mode === 'none') {
+    console.log('[indexnow] No public page changed in this deploy; nothing to submit.')
+    process.exit(0)
+  }
+
+  let urlList
+  if (selection.mode === 'changed') {
+    console.log(`[indexnow] Pages changed in this deploy: ${selection.paths.join(' ')}`)
+    urlList = urlsForPaths(origin, selection.paths)
+  } else {
+    console.log(`[indexnow] No usable diff for this run; submitting the whole sitemap for ${host}.`)
+    urlList = await getSubmissionUrls(origin)
+  }
   console.log(`[indexnow] Found ${urlList.length} URLs to submit.`)
 
   const payload = buildIndexNowPayload(host, key, urlList)
