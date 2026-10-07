@@ -3145,6 +3145,19 @@ a.contact-block__value:active {
   margin-block-start: 0;
 }
 
+/*
+ * The right to object (UK and EU GDPR Article 21), which must be brought to a reader's attention
+ * "clearly and separately from any other information" (ICO, read 2026-10-07): its own paragraph
+ * on the privacy page, boxed so it is not one more paragraph in the run. A hairline on all four
+ * sides, not a coloured stripe down one: VC-07 (`vibecodedRules.test.ts`) refuses the stripe.
+ */
+.legal__object {
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+}
+
 /* "On this page" is read, so 12px, not `.mono`'s 11px (VA-11; e2e/readText.spec.ts found it).
    Two classes, so it beats base.css's `.mono` in whichever order the stylesheets arrive. */
 .legal__toc .legal__toc-label {
