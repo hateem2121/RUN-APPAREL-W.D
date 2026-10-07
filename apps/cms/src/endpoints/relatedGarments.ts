@@ -64,6 +64,10 @@ export async function publishedCards(payload: Payload): Promise<ProductCard[]> {
       limit: 200,
       // depth 1 populates each colour's pictures; at depth 0 they are bare row ids.
       depth: 1,
+      // Two database round trips fewer, neither read by a card (publicViewer.ts, 2026-10-07):
+      // no COUNT before the read, and no `rawUploads` join (the CLO files of 200 garments).
+      pagination: false,
+      joins: false,
     })
     const cards = res.docs
       .map((doc) => toProductCard(doc as unknown as Record<string, unknown>))

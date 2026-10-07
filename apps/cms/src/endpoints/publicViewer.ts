@@ -152,15 +152,44 @@ const buildHandler =
       return Response.json(cached, { headers: successHeaders() })
     }
 
-    const products = await req.payload.find({
-      collection: 'products',
-      where: {
-        and: [{ slug: { equals: productSlug } }, { status: { equals: 'published' } }],
-      },
-      limit: 1,
-      depth: 1,
-      req,
-    })
+    /*
+     * ⚠️ THREE READS AT ONCE, AND EACH AS FEW ROUND TRIPS AS IT CAN BE (2026-10-07). Measured
+     * that day from Pakistan: an uncached answer took 4.0–4.5 s, because the CMS Worker runs
+     * beside the visitor (`cf-placement: local-ISB`) and the database is in ENAM, ~0.4 s away,
+     * and an answer made about ten trips there ONE AFTER ANOTHER: the garment's count, the
+     * garment, its pictures, its CLO files, then the settings beside the list's count, the
+     * list, its pictures and its CLO files. Three changes, none of which alters a byte of the
+     * answer (publicViewer.test.ts proves that and counts the trips):
+     * - `pagination: false`: Payload otherwise runs a COUNT before the read (drizzle
+     *   `findMany`), and nothing here reads totalDocs or a page number;
+     * - `joins: false`: the `rawUploads` join (the 3D file tab's "Your CLO files") is a
+     *   subquery plus a fetch of those uploads, and neither projectViewer.ts nor
+     *   projectPublic.ts reads it;
+     * - the settings and the list start WITH the garment instead of after it. On an unknown
+     *   slug that spends a settings read on a 404 (the list is kept a minute per isolate), a
+     *   fair price for every real scan.
+     */
+    const [products, settings, cards] = await Promise.all([
+      req.payload.find({
+        collection: 'products',
+        where: {
+          and: [{ slug: { equals: productSlug } }, { status: { equals: 'published' } }],
+        },
+        limit: 1,
+        depth: 1,
+        pagination: false,
+        joins: false,
+        req,
+      }),
+      // ⚠️ ONE global now, not two. `build-process` was read here on every public
+      // request until 2026-09-05 and is retired — see the docblock on
+      // buildViewerResponse for why a shared copy that silently overrode eleven
+      // garments' bespoke text had to go.
+      req.payload.findGlobal({ slug: 'site-settings', depth: 0, req }),
+      // The other garments for "More from <category>" (polish S6): relatedGarments.ts says
+      // why they travel in this answer, and keeps them a minute per isolate.
+      publishedCards(req.payload),
+    ])
     const product = products.docs[0]
     if (!product) {
       return notFound('This product reference is not currently available.')
@@ -168,22 +197,9 @@ const buildHandler =
 
     // Colours arrive with the product (inline array, populated at depth 1), so
     // the second query this endpoint used to run — a `where` against the old
-    // top-level `colourways` collection — is gone. One fewer D1 round trip on
-    // every QR scan. Ordering, the active filter and the default colour are all
-    // derived from the array itself inside buildViewerResponse.
+    // top-level `colourways` collection — is gone. Ordering, the active filter and
+    // the default colour are all derived from the array itself inside buildViewerResponse.
     const colourwayDocs = Array.isArray(product.colourways) ? product.colourways : []
-
-    // ⚠️ ONE global now, not two. `build-process` was read here on every public
-    // request until 2026-09-05 and is retired — see the docblock on
-    // buildViewerResponse for why a shared copy that silently overrode eleven
-    // garments' bespoke text had to go. Dropping it also removes a D1 round trip
-    // from the hottest endpoint in the product.
-    // The other garments for "More from <category>" (polish S6) are read AT THE SAME TIME,
-    // never after: relatedGarments.ts says why, and keeps them a minute per isolate.
-    const [settings, cards] = await Promise.all([
-      req.payload.findGlobal({ slug: 'site-settings', depth: 0, req }),
-      publishedCards(req.payload),
-    ])
 
     // The public projection (only whitelisted fields cross this boundary) lives
     // in a pure, unit-tested function. Null → no usable colourway → 404.
