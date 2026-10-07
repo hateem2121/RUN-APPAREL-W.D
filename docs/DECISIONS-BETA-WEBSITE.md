@@ -896,6 +896,9 @@ Policies, Case studies, Press) are now complete.
 - **The press page names no founding year and no person.** The family year is read from the
   lineage line; every factory photo may be downloaded with the credit "RUN APPAREL", because the
   owner confirmed the people in them agreed to press use; journalists write to media@.
+- **Every footer group link is 44px wide as well as tall**, as the legal links are: "FAQ" was
+  21.6px. The garment pages' stylesheet grew 28 bytes, and the owner chose to raise its Lighthouse
+  limit by exactly that (62,633 to 62,661; `lighthouserc.json` has the dated entry).
 
 **Guard:** `faqs.test.ts`, `glossary.test.ts`, `press.test.ts` and `companyPages.test.ts`;
 `apps/cms/e2e/pages.spec.ts` and `legibility.spec.ts` load every page.

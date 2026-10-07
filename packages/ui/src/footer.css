@@ -245,6 +245,10 @@
   display: flex;
   align-items: center;
   min-height: var(--target-min);
+  /* …and 44px WIDE, as the legal row's links are (SZ-03): the Learn and Company groups'
+     short words measured "FAQ" 21.6px, "Press" 36px and "Guides" 43.2px wide at 390px
+     (apps/viewer/e2e/a11y.spec.ts, 2026-10-07). The extra width sits after the word. */
+  min-width: var(--target-min);
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
   color: var(--footer-text);
