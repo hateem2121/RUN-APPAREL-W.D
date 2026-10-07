@@ -54,6 +54,7 @@ const PAGES = [
   ['/policies/environmental', 200],
   ['/careers', 200],
   ['/community', 200],
+  ['/press', 200],
   ['/faq', 200],
   ['/faq/orders-and-samples', 200],
   ['/faq/quality-and-certifications', 200],

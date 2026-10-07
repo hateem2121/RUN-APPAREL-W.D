@@ -119,6 +119,7 @@ const PAGES = [
   // The company pages (2026-10-07); the form joins /careers in Phase 2.
   { path: '/careers', name: 'careers page', heading: /Join a family/i },
   { path: '/community', name: 'community page', heading: /Steady work/i },
+  { path: '/press', name: 'press page', heading: /For journalists/i },
   // The FAQ and the glossary (2026-10-07).
   { path: '/faq', name: 'FAQ hub', heading: /Questions/i },
   { path: '/faq/orders-and-samples', name: 'FAQ: orders and samples', heading: /Orders/i },

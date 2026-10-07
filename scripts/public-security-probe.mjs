@@ -119,6 +119,18 @@ export const TARGETS = [
     '/policies/environmental',
     '/careers',
     '/community',
+    // The Learn pages, the Journal and case-study hubs and the press page join with the PR that
+    // makes them (2026-10-07): this probe runs after that PR's deploy, so they are live by then.
+    '/faq',
+    '/faq/orders-and-samples',
+    '/faq/quality-and-certifications',
+    '/faq/shipping-and-importing',
+    '/faq/fabrics-and-printing',
+    '/faq/working-with-us',
+    '/glossary',
+    '/journal',
+    '/case-studies',
+    '/press',
     '/',
   ].map((pathname, i, all) => ({
     name: i === all.length - 1 ? 'site / again' : `site ${pathname}`,

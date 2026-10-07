@@ -11,6 +11,7 @@ import {
   CAREERS_PAGE,
   COMMUNITY_PAGE,
   COMPANY_PATHS,
+  PRESS_PAGE,
   ROLE_GROUPS,
   WORK_HERE,
 } from './companyPages'
@@ -27,7 +28,7 @@ import { sitemapFor } from './searchVisibility'
 const FRONTEND = join(import.meta.dirname, '..', 'app', '(frontend)')
 const ORIGIN = 'https://wear-run.com'
 const BRAND_SUFFIX = ' — RUN APPAREL'
-const PAGES = [CAREERS_PAGE, COMMUNITY_PAGE]
+const PAGES = [CAREERS_PAGE, COMMUNITY_PAGE, PRESS_PAGE]
 
 describe('every company page is wired everywhere a public page must be', () => {
   it('the page list and the header list name the same addresses, in the same order', () => {
@@ -119,6 +120,9 @@ describe('the company pages, as the owner approved them', () => {
       '/contact',
       '/privacy',
       '/terms',
+      // The press page's links out (D8).
+      '/journal',
+      '/products',
       ...POLICY_PATHS,
       ...COMPANY_PATHS,
     ])

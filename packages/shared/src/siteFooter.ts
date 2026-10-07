@@ -116,13 +116,14 @@ export const SITE_FOOTER_MADE: readonly { href: string; label: string }[] = Obje
  * The "Company" group's links (2026-10-07, PLAN.md E5): LIVE links only, so an address is
  * listed in the same change that creates the page. Phase 1: careers, community, policies; then
  * the case studies (owner, 2026-10-07: listed from day one, even before the first is published).
- * Phase 5 adds Press. A group with fewer than two live links is not drawn.
+ * and Press (2026-10-07). A group with fewer than two live links is not drawn.
  */
 export const SITE_FOOTER_COMPANY: readonly { href: string; label: string }[] = [
   { href: '/careers', label: 'Careers' },
   { href: '/community', label: 'Community' },
   { href: '/policies', label: 'Policies' },
   { href: '/case-studies', label: 'Case studies' },
+  { href: '/press', label: 'Press' },
 ]
 
 /**

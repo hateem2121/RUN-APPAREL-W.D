@@ -1,6 +1,6 @@
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CONTACT_HERO_PHOTO } from './factoryPhotos'
-import { CAREERS_PAGE, COMMUNITY_PAGE } from './companyPages'
+import { CAREERS_PAGE, COMMUNITY_PAGE, PRESS_PAGE } from './companyPages'
 import { FAQ_INDEX, FAQ_TOPICS } from './faqs'
 import { GLOSSARY_INDEX } from './glossary'
 import { FAMILY_PAGES } from './familyPages'
@@ -239,6 +239,15 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
       COMMUNITY_PAGE.eyebrow,
       COMMUNITY_PAGE.heading,
       COMMUNITY_PAGE.headingAccent,
+    ),
+  ],
+  [
+    PRESS_PAGE.path,
+    wordsCard(
+      fileFor(PRESS_PAGE.path),
+      PRESS_PAGE.eyebrow,
+      PRESS_PAGE.heading,
+      PRESS_PAGE.headingAccent,
     ),
   ],
   // The FAQ and the glossary (2026-10-07), words from their own lists.

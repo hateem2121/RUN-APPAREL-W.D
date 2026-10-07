@@ -94,6 +94,7 @@ describe('what the switch does', () => {
       'https://wear-run.com/policies/environmental',
       'https://wear-run.com/careers',
       'https://wear-run.com/community',
+      'https://wear-run.com/press',
       'https://wear-run.com/faq',
       'https://wear-run.com/faq/orders-and-samples',
       'https://wear-run.com/faq/quality-and-certifications',

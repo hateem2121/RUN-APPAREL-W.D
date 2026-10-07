@@ -53,6 +53,8 @@ export const SOURCE_FILE_PATHS = {
   'apps/cms/src/lib/familyPages.ts': FAMILY_PAGE_SOURCES,
   'apps/cms/src/lib/policies.ts': POLICY_PAGE_SOURCES,
   'apps/cms/src/lib/companyPages.ts': COMPANY_PAGE_SOURCES,
+  // The press page's own facts and photo list (2026-10-07).
+  'apps/cms/src/lib/press.ts': ['/press'],
   'apps/cms/src/lib/faqs.ts': FAQ_PAGE_SOURCES,
   'apps/cms/src/lib/glossary.ts': GLOSSARY_PAGE_SOURCES,
 }

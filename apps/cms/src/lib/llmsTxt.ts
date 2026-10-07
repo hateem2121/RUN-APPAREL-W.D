@@ -1,7 +1,7 @@
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
-import { COMPANY_PATHS } from './companyPages'
+import { COMPANY_PATHS, PRESS_PAGE } from './companyPages'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
 import { FAQ_INDEX, FAQ_TOPICS } from './faqs'
@@ -61,17 +61,18 @@ export function buildLlmsTxt(siteOrigin: string): string {
     (guide) => `- [${guide.title}](${siteOrigin}${guide.path}) — a buyer guide.`,
   ).join('\n')
   // The company pages (2026-10-07): the policies hub, each APPROVED policy, and careers and
-  // community, from the lists that hold their words (PLAN.md E9). Press joins in Phase 5.
+  // community and press, from the lists that hold their words (PLAN.md E9).
+  const companyLines: Record<string, string> = {
+    '/careers': `- [Careers at RUN APPAREL](${siteOrigin}/careers) — what we offer, and how to apply.`,
+    '/community': `- [Community](${siteOrigin}/community) — the works in Sialkot, and the people the policies serve.`,
+    '/press': `- [Press](${siteOrigin}/press) — ${PRESS_PAGE.description}`,
+  }
   const companyPages = [
     `- [${POLICIES_INDEX.title}](${siteOrigin}${POLICIES_INDEX.path}) — the policies hub.`,
     ...POLICIES.map(
       (policy) => `- [${policy.title}](${siteOrigin}${policy.path}) — company policy.`,
     ),
-    ...COMPANY_PATHS.map((path) =>
-      path === '/careers'
-        ? `- [Careers at RUN APPAREL](${siteOrigin}/careers) — what we offer, and how to apply.`
-        : `- [Community](${siteOrigin}/community) — the works in Sialkot, and the people the policies serve.`,
-    ),
+    ...COMPANY_PATHS.map((path) => companyLines[path] ?? `- [${path}](${siteOrigin}${path})`),
   ].join('\n')
   // The FAQ and the glossary (2026-10-07, PLAN.md E9), from the lists that hold their words.
   const answers = [

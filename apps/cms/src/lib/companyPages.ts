@@ -1,4 +1,4 @@
-import { LINEAGE } from './companyFacts'
+import { CERTIFICATION_LINES, LINEAGE } from './companyFacts'
 import type { GuideBlock } from './guides'
 
 /**
@@ -239,5 +239,53 @@ export const COMMUNITY_PAGE: CompanyPage = {
   ],
 }
 
-/** Every company address, hub-free and in wiring order (Phase 5 adds `/press`). */
-export const COMPANY_PATHS: readonly string[] = [CAREERS_PAGE.path, COMMUNITY_PAGE.path]
+/**
+ * The press page (PLAN.md D8; words approved by the owner 2026-10-07). Its email address, photo
+ * list and fact rows are in `press.ts`; the first "About" sentence names the legal name from Site
+ * Settings at render time (`PressPage.tsx`), so it is not typed here.
+ */
+export const PRESS_PAGE: CompanyPage = {
+  path: '/press',
+  title: 'Press',
+  description: 'Facts, photos and a contact for anyone writing about RUN APPAREL.',
+  eyebrow: '[ Press ]',
+  heading: 'For journalists, researchers,',
+  headingAccent: 'and the curious.',
+  lede: 'Facts, photos and a contact for anyone writing about RUN APPAREL.',
+  sections: [
+    {
+      id: 'about',
+      heading: 'About RUN APPAREL',
+      blocks: [
+        { kind: 'text', text: LINEAGE },
+        {
+          kind: 'text',
+          text: 'It makes team wear, active wear, casual wear, outerwear and sports accessories to order, inside the building of its parent company, DURUS INDUSTRIES: cutting, printing, stitching, checking and packing under one roof.',
+        },
+        { kind: 'list', items: CERTIFICATION_LINES },
+      ],
+    },
+    { id: 'quick-facts', heading: 'Quick facts', blocks: [] },
+    { id: 'photos', heading: 'Factory photos', blocks: [] },
+    { id: 'news', heading: 'News', blocks: [] },
+    {
+      id: 'media-contact',
+      heading: 'Media contact',
+      blocks: [{ kind: 'text', text: 'We reply within 24 hours.' }],
+    },
+  ],
+  links: [
+    { href: '/community', name: 'Community' },
+    { href: '/careers', name: 'Careers' },
+    { href: '/policies', name: 'Policies' },
+    { href: '/journal', name: 'Journal' },
+    { href: '/products', name: 'Products' },
+  ],
+}
+
+/** Every company address, hub-free and in wiring order. */
+export const COMPANY_PATHS: readonly string[] = [
+  CAREERS_PAGE.path,
+  COMMUNITY_PAGE.path,
+  PRESS_PAGE.path,
+]

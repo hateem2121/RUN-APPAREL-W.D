@@ -6820,6 +6820,96 @@ a.contact-block__value:active {
   }
 }
 
+/*
+ * The press page (2026-10-07). Its ten quick facts run across the page: two to a row, then five
+ * from 1180px, so both rows are full and no column stands half empty. Drawn in `.case-facts`'
+ * type (a mono label over each value). Every rule here names both classes: `.case-facts` sets
+ * four columns from 1000px and `margin: 0` later in this file, and at equal specificity those
+ * later rules won (four columns with two empty cells, and the heading sitting on the first rule;
+ * `e2e/press.spec.ts`).
+ */
+.case-facts.press-facts {
+  display: grid;
+  column-gap: 24px;
+  margin-block-start: 24px;
+}
+
+@media (width >= 560px) {
+  .case-facts.press-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1180px) {
+  .case-facts.press-facts {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+/*
+ * Its photos: a wide (8:5) photo takes two cells and a tall (4:5) one one, so a row of either
+ * kind ends level, as the careers mosaic's 2:1:1 does. `dense` lets the tall ones fill a row a
+ * wide one could not. Each has its "Download" under it.
+ */
+.press-photos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  gap: 16px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.press-photos__item {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  max-width: none;
+}
+
+.press-photos__item--wide {
+  grid-column: span 2;
+}
+
+.press-photos .photo-figure {
+  margin: 0;
+}
+
+.press-photos__download {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+@media (width >= 900px) {
+  .press-photos {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* The press page's news list: one post a line, its date after it. */
+.press-news {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.press-news li {
+  max-width: none;
+  padding-block: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.press-news time {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+}
+
 /* The closing's links, under its button in the right column. */
 .company-closing__more {
   margin-block-start: clamp(24px, 3vw, 40px);
