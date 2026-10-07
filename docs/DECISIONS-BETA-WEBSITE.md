@@ -819,7 +819,9 @@ Company share a row. The owner chose that layout over squeezing six columns into
   sheet, so the owner chose to leave it off paper (7 Oct 2026) and keep polish F14's one-sheet
   garment page. That print-only rule in `packages/ui/src/footer.css` is the group's only new style:
   the garment pages' stylesheets grew 9 bytes gzipped (13,777 to 13,786, measured 7 Oct 2026),
-  within budget.
+  within the bundle budget. Lighthouse's budget reads the TRANSFER size instead (headers
+  included, uncompressed CSS): CI measured 62,613 B against 62,610, +23 B raw, so the owner chose
+  to raise it by exactly that (62,610 to 62,633; `lighthouserc.json` has the dated entry, PR #141).
 - **The standards logos stay exactly as they are.**
 
 **Guard:** both footers are held to `siteFooterAriaSnapshot` (`packages/shared/src/siteFooter.ts`);

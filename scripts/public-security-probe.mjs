@@ -89,7 +89,8 @@ export const TARGETS = [
   // a reused nonce is visible. The admin's own policy must stay exactly as it was.
   // The four buyer pages joined on 2026-09-30, AFTER they went live (#103): a page added
   // here before its deploy fails this probe on the real site. All seven guides joined
-  // after #104, #105 and #107 went live.
+  // after #104, #105 and #107 went live. The policies hub, seven policies, careers and
+  // community joined on 2026-10-07, after #141 went live (csp-nonce-edge passed them live).
   ...[
     '/',
     '/products',
@@ -108,6 +109,16 @@ export const TARGETS = [
     '/guides/sportswear-fabrics-and-weights',
     '/guides/private-label-packaging',
     '/guides/shipping-and-import-duties',
+    '/policies',
+    '/policies/workplace-conduct',
+    '/policies/health-and-safety',
+    '/policies/health-and-vaccination',
+    '/policies/equal-opportunity',
+    '/policies/labor-rights',
+    '/policies/quality',
+    '/policies/environmental',
+    '/careers',
+    '/community',
     '/',
   ].map((pathname, i, all) => ({
     name: i === all.length - 1 ? 'site / again' : `site ${pathname}`,

@@ -4,9 +4,9 @@ import type { GuideBlock } from './guides'
 /**
  * The company pages (PLAN.md D3/D4): careers and community.
  *
- * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-10-07 (drafts in
- * `~/Sites/Model-Viewer-main/.superpowers/page-creation-2026-10-06/drafts/`, answers in
- * `OWNER-FACTS.md`). Nothing here may state a fact that answer sheet does not carry.
+ * ⚠️ THE OWNER APPROVED THESE WORDS ON 2026-10-07, page by page, from drafts built on the
+ * owner's own answers (docs/DECISIONS-BETA-WEBSITE.md D30). Nothing here may state a fact the
+ * owner has not given.
  *
  * ⚠️ THE BENEFITS ARE ONE LIST, shared by both pages, so they cannot disagree (PLAN.md D4).
  * The "How to apply" email is read from `SiteSettings` at render time and is NEVER typed
@@ -57,7 +57,7 @@ export const WORK_HERE: readonly string[] = [
 
 export const CAREERS_PAGE: CompanyPage = {
   path: '/careers',
-  title: 'Careers at RUN APPAREL',
+  title: 'Careers',
   description:
     'Join a family of makers in Sialkot. A written contract, paid emergency leave, a festival bonus, medical coverage, transport, and training from within.',
   eyebrow: '[ Careers ]',
