@@ -383,6 +383,83 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
       else expect(shift, `moved: ${(await readMoved(page)).join(', ')}`).toBeLessThanOrEqual(0.02)
     })
   }
+
+  /*
+   * ⚠️ THE HOME HEADLINE, AT THE WIDTHS WHERE IT JUMPED (findability audit, 2026-10-08; `.hero-home`
+   * in site.css). Google's mobile test scored the home page 0.153. Swept at 37 widths from 320 to
+   * 1920px, in all three font orders: on a Mac the shared stand-ins set the headline on one more line
+   * than Archivo at 408px (0.144) and from 820 to 1180px (0.21-0.24); inside CI's image only at
+   * 400px with Archivo first (0.288). The 390, 768 and 1350px rows above missed all of them. With
+   * the faces sized to it: at most 0.0006 on the Mac and 0.001 in the image.
+   *
+   * The control puts the shared faces back where they jumped on the machine it runs on, which it
+   * reads from the fonts it has: a Mac draws the Georgia stand-ins, CI's image has no Georgia.
+   */
+  const ORDERS = {
+    together: { archivo: 150, serif: 150 },
+    archivoFirst: { archivo: 150, serif: 600 },
+    serifFirst: { archivo: 600, serif: 150 },
+  } as const
+  const homeAt = async (page: Page, width: number, order: keyof typeof ORDERS) => {
+    await installObserver(page)
+    await page.route(FONT_FILES, async (route) => {
+      const serif = /instrument-serif/.test(route.request().url())
+      await new Promise((resolve) =>
+        setTimeout(resolve, serif ? ORDERS[order].serif : ORDERS[order].archivo),
+      )
+      await route.continue()
+    })
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/')
+    await page.evaluate(() => document.fonts.ready.then(() => true))
+    await page.waitForTimeout(300)
+    return readCls(page)
+  }
+  for (const [width, order] of [
+    [400, 'archivoFirst'],
+    [408, 'together'],
+    [408, 'serifFirst'],
+    [820, 'together'],
+    [900, 'serifFirst'],
+    [1100, 'together'],
+    [1180, 'archivoFirst'],
+  ] as const) {
+    test(`/ at ${width}px, fonts ${order}, where its headline re-wrapped, stays at or under 0.02`, async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
+      const shift = await homeAt(page, width, order)
+      expect(shift, `moved: ${(await readMoved(page)).join(', ')}`).toBeLessThanOrEqual(0.02)
+    })
+  }
+
+  test('/ WITH THE SHARED STAND-INS PUT BACK shifts (negative control)', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'the Layout Instability API is Chromium-only')
+    const georgia = await page.evaluate(() =>
+      new FontFace('probe', 'local("Georgia Italic"), local("Georgia")').load().then(
+        () => true,
+        () => false,
+      ),
+    )
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style')
+        style.textContent =
+          '.hero-home{--font-display:"Archivo Variable","Archivo","Archivo Display Fallback",system-ui,sans-serif;--font-serif:"Instrument Serif","Instrument Serif Fallback","Instrument Serif Fallback Liberation",Georgia,serif}'
+        document.head.append(style)
+      })
+    })
+    const shift = georgia
+      ? await homeAt(page, 820, 'together')
+      : await homeAt(page, 400, 'archivoFirst')
+    expect(shift, `the control did not reproduce the jump (Georgia: ${georgia})`).toBeGreaterThan(
+      0.02,
+    )
+  })
 })
 
 /*

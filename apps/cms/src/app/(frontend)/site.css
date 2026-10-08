@@ -391,6 +391,64 @@
   line-gap-override: 0%;
 }
 
+/*
+ * ⚠️ THE HOME HEADLINE HAS FACES OF ITS OWN TOO (findability audit, 2026-10-08). It keeps its swap by
+ * the owner's choice (the first impression is the real font), and the owner asked for the swap
+ * without the jump: these faces are sized to "Made to order. Made properly." the way the /products
+ * faces are sized to theirs.
+ *
+ * WHY. Google's mobile test scored the home page CLS 0.153. Swept that day on a local build, fonts
+ * held 150ms (both together, Archivo first, the serif first) at 37 widths from 320 to 1920px: the
+ * shared faces set the headline 1.5% (display) and 0.95% (serif) WIDER than the real fonts, so it took
+ * an extra line until they arrived — 0.144 at 408px, 0.21-0.24 from 820 to 1180px, the lede jumping
+ * up 31-59px. `e2e/fontSwap.spec.ts` checked only 390, 768 and 1350px, where it happens not to.
+ * Inside CI's image the same sweep jumped once, 0.288 at 400px with Archivo first.
+ *
+ * VALUES from `apps/cms/scripts/calibrate-fallback.mjs`: 126.27-126.33% for "Made to order. " and
+ * 78.75-78.79% for "Made properly." across Chromium, WebKit and Firefox. Overrides re-derived:
+ * 68.47 × 128.24 / 126.30 = 69.52 and 16.38 × 128.24 / 126.30 = 16.63; 124.49 × 79.52 / 78.77 =
+ * 125.68 and 38.98 × 79.52 / 78.77 = 39.35. With them the same sweep scored at most 0.0006 on the
+ * Mac and 0.001 inside CI's image, the same lines at every width in either font.
+ */
+@font-face {
+  font-family: "Archivo Display Fallback Home";
+  src:
+    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
+  font-weight: 700 900;
+  size-adjust: 126.30%;
+  ascent-override: 69.52%;
+  descent-override: 16.63%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Instrument Serif Fallback Home";
+  src: local("Georgia Italic"), local("Georgia");
+  font-style: italic;
+  size-adjust: 78.77%;
+  ascent-override: 125.68%;
+  descent-override: 39.35%;
+  line-gap-override: 0%;
+}
+
+/*
+ * Its Linux twin (`calibrate-fallback.mjs --linux` inside CI's image, 2026-10-08). "Made properly."
+ * measured 91.25% in Chromium at 1350 and 1440px and 90.86-90.90% in Firefox; 91.05% is the minimax
+ * of those. Chromium's 390px row (90.00%, search error 2.66%) is left out: it draws `local()` faces in
+ * whole pixels there, and the bisection never converged. The display face needs no twin: Liberation
+ * Sans Bold measured 125.00-126.29% (Chromium's 390px row the low one), within that headline's 0.5%.
+ * Overrides: 124.49 × 79.52 / 91.05 = 108.72 and 38.98 × 79.52 / 91.05 = 34.04.
+ */
+@font-face {
+  font-family: "Instrument Serif Fallback Home Liberation";
+  src: local("Liberation Serif Italic"), local("Liberation Serif");
+  font-style: italic;
+  size-adjust: 91.05%;
+  ascent-override: 108.72%;
+  descent-override: 34.04%;
+  line-gap-override: 0%;
+}
+
 /* The guide headlines never swap: "Archivo Optional" and "Instrument Serif Optional" are the
    no-swap copies of the same fonts, with the shared stand-ins after them for a slow first visit.
    Why, and the sweep behind it: the "Archivo Optional" comment above. GuidePage.tsx sets it.
@@ -399,7 +457,8 @@
    0.0384 at 390px in CI. The sweep and the font order that causes it: e2e/fontSwap.spec.ts.
    The four family pages joined the same day (`.hero-family`, FamilyLanding.tsx): teamwear moved
    a word at every width from 768 to 1440px (CLS 0.063 at 1280px) and casual-wear lost a line at
-   368px. The home headline keeps its swap, by the owner's choice: it is the first impression.
+   368px. The home headline keeps its swap, by the owner's choice: it is the first impression
+   (since 2026-10-08 from stand-ins sized to it, `.hero-home` below, so the swap no longer moves it).
    The not-found headline joined on 2026-10-04 (`.hero-notfound`, polish X19): at 1920px it set
    two lines in the stand-in and one in Archivo, so the whole page jumped up 66px a moment after
    loading, every time (layout shift 0.24). */
@@ -419,6 +478,14 @@
   --font-serif:
     "Instrument Serif", "Instrument Serif Fallback Products",
     "Instrument Serif Fallback Products Liberation", Georgia, serif;
+}
+
+.hero-home {
+  --font-display:
+    "Archivo Variable", "Archivo", "Archivo Display Fallback Home", system-ui, sans-serif;
+  --font-serif:
+    "Instrument Serif", "Instrument Serif Fallback Home",
+    "Instrument Serif Fallback Home Liberation", Georgia, serif;
 }
 
 /* ------------------------------------------------ widows and measure (FA-C-53) */

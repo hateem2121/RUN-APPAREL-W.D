@@ -66,7 +66,8 @@ export function HomeHero() {
           [ Private label manufacturer since 1889<span className="label__dot"> · </span>
           <span className="label__tail">Start from {minimum} pieces per style ]</span>
         </p>
-        <h1 className="display display--hero">
+        {/* `hero-home`: stand-in faces sized to these words, so the font swap moves nothing (site.css). */}
+        <h1 className="display display--hero hero-home">
           Made to order. <span className="serif-accent">Made&nbsp;properly.</span>
         </h1>
         <p className="site-lede">
