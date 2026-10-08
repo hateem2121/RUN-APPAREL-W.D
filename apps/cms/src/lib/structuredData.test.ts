@@ -50,7 +50,7 @@ describe('organisation', () => {
 
   // Polish X14: the old picture showed the address of before the domain move.
   it('pictures the company with the home page’s share card, not the old one', () => {
-    expect(organizationJsonLd(settings()).image).toBe(`${SITE_ORIGIN}/share/home.jpg`)
+    expect(organizationJsonLd(settings()).image).toBe(`${SITE_ORIGIN}/share/home.jpg?v=2`)
   })
 
   it('uses the owner uploaded logo when there is one, and the shipped mark otherwise', () => {

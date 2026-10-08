@@ -79,7 +79,7 @@ describe('buildMetadata', () => {
   it('gives privacy the home page’s picture, and no page the old one', () => {
     const privacy = buildMetadata({ title: 'x', description: 'y', path: '/privacy' })
     expect(privacy.openGraph?.images).toEqual([
-      expect.objectContaining({ url: `${SITE_ORIGIN}/share/home.jpg` }),
+      expect.objectContaining({ url: `${SITE_ORIGIN}/share/home.jpg?v=2` }),
     ])
     expect(JSON.stringify(meta)).not.toContain('og-default')
   })

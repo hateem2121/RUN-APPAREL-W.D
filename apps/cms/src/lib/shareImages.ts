@@ -241,16 +241,12 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
   ],
   [
     COMMUNITY_PAGE.path,
-    {
-      ...wordsCard(
-        fileFor(COMMUNITY_PAGE.path),
-        COMMUNITY_PAGE.eyebrow,
-        COMMUNITY_PAGE.heading,
-        COMMUNITY_PAGE.headingAccent,
-      ),
-      // LinkedIn stored this card at 160 px wide on its first fetch and kept it (see `version`).
-      version: 2,
-    },
+    wordsCard(
+      fileFor(COMMUNITY_PAGE.path),
+      COMMUNITY_PAGE.eyebrow,
+      COMMUNITY_PAGE.heading,
+      COMMUNITY_PAGE.headingAccent,
+    ),
   ],
   [
     PRESS_PAGE.path,
@@ -308,8 +304,29 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
 export const SHARE_CARDS: readonly ShareCard[] = [...new Set(CARDS.values())]
 
 /** The card a page shares; a page with none of its own (privacy, terms) shares the home page's. */
+/**
+ * ⚠️ PAGES WHOSE CARD LINKEDIN KEPT AT A SMALL SIZE, AND THE VERSION THAT MADE IT FETCH AGAIN.
+ * Post Inspector, 2026-10-07/08: LinkedIn stored some cards from its first fetch at 160 or 480 px
+ * wide (`articleshare-shrink_160` / `_480`) and drew them stretched and blurry, although every file
+ * is 1200 x 630 (LinkedIn help a521928: at least 1200 x 627, under 5 MB). Neither the file's size
+ * nor its encoding predicted it, and inspecting again never replaced the copy. A new address did:
+ * /community went from `shrink_160` to `shrink_1280_800` once it was `?v=2`. Raise a page's number
+ * only after Post Inspector shows its copy small; never for a card stored at `shrink_1280_800`.
+ */
+const LINKEDIN_REFETCH: Readonly<Record<string, number>> = {
+  '/community': 2,
+  '/press': 2,
+  '/faq': 2,
+  '/products': 2,
+  '/': 2,
+  '/custom-teamwear-manufacturer': 2,
+  '/policies/equal-opportunity': 2,
+}
+
 export function shareCardFor(path: string): ShareCard {
-  return CARDS.get(path) ?? HOME
+  const card = CARDS.get(path) ?? HOME
+  const version = LINKEDIN_REFETCH[CARDS.has(path) ? path : '/']
+  return version ? { ...card, version } : card
 }
 
 /** The absolute address of a card's file on `origin`. */

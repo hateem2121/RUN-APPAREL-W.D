@@ -73,8 +73,8 @@ describe('every website page shares a picture of its own type (X14, Q11)', () =>
   })
 
   it('privacy and terms, which the owner did not name, share the home page’s', () => {
-    expect(shareCardFor('/privacy')).toBe(shareCardFor('/'))
-    expect(shareCardFor('/terms')).toBe(shareCardFor('/'))
+    expect(shareCardFor('/privacy')).toEqual(shareCardFor('/'))
+    expect(shareCardFor('/terms')).toEqual(shareCardFor('/'))
   })
 
   for (const path of PUBLIC_PAGE_SOURCES) {
@@ -241,19 +241,36 @@ describe('the pictures on a card come from the repository, and say what they sho
   })
 })
 
-describe('a card LinkedIn cached too small gets a new address (2026-10-07)', () => {
-  it('community: ?v=2, so LinkedIn fetches the 1200 x 630 file again', () => {
-    // Post Inspector, morning and evening of 2026-10-07: LinkedIn kept `articleshare-shrink_160`
-    // for /community from its first fetch, while the live file was 1200 x 630 and every other
-    // company page was stored at `shrink_1280_800`. LinkedIn keys that copy to the address.
-    expect(shareImageUrl(shareCardFor('/community'), SITE_ORIGIN)).toBe(
-      `${SITE_ORIGIN}/share/community.jpg?v=2`,
-    )
-  })
+describe('a card LinkedIn kept a small copy of gets a new address', () => {
+  /*
+   * Post Inspector, 2026-10-07/08: LinkedIn stored some cards from its FIRST fetch at 160 or 480 px
+   * wide and showed them stretched and blurry, although every file is 1200 x 630 (LinkedIn help
+   * a521928: at least 1200 x 627, under 5 MB). Inspecting again never replaced the copy; a new
+   * address did: /community went from `shrink_160` to `shrink_1280_800` once it was `?v=2`.
+   */
+  const REFETCHED = {
+    '/community': 2,
+    '/press': 2,
+    '/faq': 2,
+    '/products': 2,
+    '/': 2,
+    '/custom-teamwear-manufacturer': 2,
+    '/policies/equal-opportunity': 2,
+  }
 
-  it('every other card keeps its plain address, so nothing else is fetched again', () => {
-    expect(shareImageUrl(shareCardFor('/careers'), SITE_ORIGIN)).toBe(
-      `${SITE_ORIGIN}/share/careers.jpg`,
-    )
+  for (const [path, version] of Object.entries(REFETCHED)) {
+    it(`${path}: ?v=${version}, so LinkedIn fetches the full-size file again`, () => {
+      expect(shareImageUrl(shareCardFor(path), SITE_ORIGIN)).toBe(
+        `${SITE_ORIGIN}/share/${shareCardFor(path).file}?v=${version}`,
+      )
+    })
+  }
+
+  it('the cards LinkedIn stored at full size keep their plain address, so they are not fetched again', () => {
+    for (const path of ['/careers', '/policies', '/glossary', '/journal']) {
+      expect(shareImageUrl(shareCardFor(path), SITE_ORIGIN), path).toBe(
+        `${SITE_ORIGIN}/share/${shareCardFor(path).file}`,
+      )
+    }
   })
 })
