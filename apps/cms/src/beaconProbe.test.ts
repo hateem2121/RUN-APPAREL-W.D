@@ -50,7 +50,7 @@ describe('hasBeaconTag', () => {
       'utf8',
     )
     expect(hasBeaconTag(viewer)).toBe(true)
-    expect(hasBeaconTag(`<script type="module">${beaconLoader('abc')}</script>`)).toBe(true)
+    expect(hasBeaconTag(`<script>${beaconLoader('abc')}</script>`)).toBe(true)
   })
 
   it('refuses a loader that points at a look-alike host', () => {
@@ -58,6 +58,6 @@ describe('hasBeaconTag', () => {
       'static.cloudflareinsights',
       'staticXcloudflareinsights',
     )
-    expect(hasBeaconTag(`<script type="module">${fake}</script>`)).toBe(false)
+    expect(hasBeaconTag(`<script>${fake}</script>`)).toBe(false)
   })
 })

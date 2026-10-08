@@ -59,7 +59,6 @@ export function Analytics() {
    */
   return (
     <script
-      type="module"
       // biome-ignore lint/security/noDangerouslySetInnerHtml: the loader is a fixed string from `beaconLoader`, with the server's own token passed through encodeURIComponent and JSON.stringify; no visitor input reaches it.
       dangerouslySetInnerHTML={{ __html: beaconLoader(token) }}
     />

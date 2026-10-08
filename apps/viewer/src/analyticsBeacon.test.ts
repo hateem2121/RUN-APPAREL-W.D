@@ -16,7 +16,9 @@ const TOKEN = '17250268831a423ea902fe766fa5feed'
 
 describe('the garment page’s beacon', () => {
   it('is the shared loader, character for character', () => {
-    expect(html).toContain(`<script type="module">${beaconLoader(TOKEN)}</script>`)
+    // A classic script: Vite bundles an inline `type="module"` script out of the page (measured
+    // on the build of 2026-10-08), and the beacon probe reads the page.
+    expect(html).toContain(`<script>${beaconLoader(TOKEN)}</script>`)
   })
 
   it('is no longer a plain script tag that every browser, robots included, would run', () => {

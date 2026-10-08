@@ -14,6 +14,10 @@
  * inline script at build (`apps/viewer/scripts/csp.mjs`), so the loader needs nothing new from
  * either policy; the beacon it adds is admitted by its host, as before.
  *
+ * ⚠️ A CLASSIC SCRIPT, NOT `type="module"`: Vite moves an inline module script in `index.html`
+ * into the bundle (measured on the build of 2026-10-08), out of the page, where it starts later
+ * and the beacon probe cannot see it. The beacon the loader adds is still a module.
+ *
  * ⚠️ TWO COPIES, ONE SOURCE. The website renders `beaconLoader(token)`; the garment page's
  * `index.html` is static, so it carries the same string typed out, and
  * `apps/viewer/src/analyticsBeacon.test.ts` fails the moment the two differ.
