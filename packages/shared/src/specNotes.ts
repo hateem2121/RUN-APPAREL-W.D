@@ -66,6 +66,8 @@ export const FIT_NOTES: Record<string, string> = {
   'ergonomic athletic fit': 'An athletic fit shaped around how the body moves.',
   'aero race fit': 'Very close and smooth, to cut wind drag at race speed.',
   'race fit': 'Very close to the body, so nothing flaps or holds you back.',
+  // R-SPS (lounge set; the owner approved its six lines on 2026-10-08)
+  'tailored lounge fit': 'Relaxed enough to lounge in, cut neatly enough to wear out.',
 }
 
 const DWR = 'A durable water-repellent (DWR) coating that makes rain bead up and roll off.'
@@ -272,6 +274,13 @@ export const FEATURE_NOTES: Record<string, string> = {
   'moisture management': 'Moves sweat away from the skin, to keep you dry.',
   'four-way stretch': 'Stretches across and along the fabric, so it moves every way you do.',
   'quick-dry handle': 'A smooth feel that dries fast.',
+  // R-SPS (lounge set; the owner approved these words on 2026-10-08)
+  'micro rib fleece': 'A soft knit with fine raised lines that adds texture and warmth.',
+  'structured quarter-zip polo collar':
+    'A polo collar that holds its shape, with a quarter-length zip at the neck.',
+  'wide-leg flow pants': 'Pants cut wide from hip to hem that move loosely as you walk.',
+  'elastic high-rise waist': 'A stretchy waistband that sits high and stays put.',
+  'premium ribbed trim': 'Stretchy ribbed edging that holds the shape.',
 }
 
 /**
