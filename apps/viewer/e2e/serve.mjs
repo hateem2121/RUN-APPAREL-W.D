@@ -112,10 +112,18 @@ function sendBody(req, res, body, ext) {
  * after each deploy.
  */
 function stripBeacon(html) {
-  return html.replace(
-    /<script[^>]*static\.cloudflareinsights\.com[^>]*>\s*<\/script>/gi,
-    '<!-- cf beacon omitted: e2e runs offline -->',
-  )
+  return html
+    .replace(
+      /<script[^>]*static\.cloudflareinsights\.com[^>]*>\s*<\/script>/gi,
+      '<!-- cf beacon omitted: e2e runs offline -->',
+    )
+    .replace(
+      // Since 2026-10-08 the beacon is added by an inline loader (packages/shared/src/
+      // analyticsBeacon.ts). It already skips an automated browser, but two suites lift
+      // `navigator.webdriver` on purpose, so it goes too. Its body holds no `<`.
+      /<script[^>]*>[^<]*static\.cloudflareinsights\.com[^<]*<\/script>/gi,
+      '<!-- cf beacon loader omitted: e2e runs offline -->',
+    )
 }
 
 const MIME = {

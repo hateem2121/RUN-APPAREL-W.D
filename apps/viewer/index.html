@@ -185,11 +185,11 @@
          type=module: scripts/csp.mjs. Token is a public site tag, not a secret.
          The wear-run.com site's since the domain move (2026-09-28): Cloudflare drops a
          visit whose page is not on the token's own domain (docs/CLOUDFLARE-SETUP.md 11.9). -->
-    <script
-      type="module"
-      src="https://static.cloudflareinsights.com/beacon.min.js"
-      data-cf-beacon='{"token": "17250268831a423ea902fe766fa5feed"}'
-    ></script>
+    <!-- Since 2026-10-08 a loader adds the beacon only for a browser that is not automated
+         (packages/shared/src/analyticsBeacon.ts; the token goes in the address, Cloudflare's form
+         for a script-added beacon). It is beaconLoader('17250268831a423ea902fe766fa5feed'),
+         character for character: src/analyticsBeacon.test.ts fails if the two differ. -->
+    <script type="module">if(!navigator.webdriver&&!/HeadlessChrome|Chrome-Lighthouse/.test(navigator.userAgent)){const b=document.createElement('script');b.type='module';b.src="https://static.cloudflareinsights.com/beacon.min.js?token=17250268831a423ea902fe766fa5feed";document.head.append(b)}</script>
   </head>
   <body>
     <!--

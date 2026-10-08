@@ -23,13 +23,19 @@ import { escapeRegExp } from '../apps/cms/regexEscape.mjs'
 export const PAGES = ['https://wear-run.com/', 'https://wear-run.com/products/rxps/wine']
 export const BEACON_SRC = 'static.cloudflareinsights.com/beacon.min.js'
 
-/** Pure: does this (whole-body) HTML contain a beacon `<script src>` tag? */
+/**
+ * Pure: does this (whole-body) HTML carry the beacon, as a `<script src>` tag or, since
+ * 2026-10-08, as the inline loader that adds it for a browser that is not automated
+ * (`packages/shared/src/analyticsBeacon.ts`)?
+ */
 export function hasBeaconTag(html) {
   // Escaped: an unescaped `.` matched any character, so a look-alike host passed
   // (GitHub code scan, js/incomplete-hostname-regexp, 2026-10-01).
-  return new RegExp(`<script[^>]*\\ssrc=["'][^"']*${escapeRegExp(BEACON_SRC)}[^"']*["']`, 'i').test(
-    html,
-  )
+  const host = escapeRegExp(BEACON_SRC)
+  const tag = new RegExp(`<script[^>]*\\ssrc=["'][^"']*${host}[^"']*["']`, 'i')
+  // The loader's whole body holds no `<`, so `[^<]*` keeps the match inside one script.
+  const loader = new RegExp(`<script[^>]*>[^<]*["']https://${host}\\?token=[^<]*</script>`, 'i')
+  return tag.test(html) || loader.test(html)
 }
 
 async function main() {

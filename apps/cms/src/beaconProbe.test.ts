@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { beaconLoader } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { hasBeaconTag } from '../../../scripts/beacon-probe.mjs'
 
@@ -34,5 +37,27 @@ describe('hasBeaconTag', () => {
 
   it('is false when no beacon script is present', () => {
     expect(hasBeaconTag('<script src="/assets/index.js"></script>')).toBe(false)
+  })
+
+  /*
+   * Since 2026-10-08 both sites add the beacon from an inline loader that skips automated
+   * browsers (packages/shared/src/analyticsBeacon.ts). The probe must still see it, on the
+   * garment page's real file and in what the website renders.
+   */
+  it('finds the inline loader, in the garment page and as the website renders it', () => {
+    const viewer = readFileSync(
+      join(import.meta.dirname, '..', '..', 'viewer', 'index.html'),
+      'utf8',
+    )
+    expect(hasBeaconTag(viewer)).toBe(true)
+    expect(hasBeaconTag(`<script type="module">${beaconLoader('abc')}</script>`)).toBe(true)
+  })
+
+  it('refuses a loader that points at a look-alike host', () => {
+    const fake = beaconLoader('abc').replace(
+      'static.cloudflareinsights',
+      'staticXcloudflareinsights',
+    )
+    expect(hasBeaconTag(`<script type="module">${fake}</script>`)).toBe(false)
   })
 })

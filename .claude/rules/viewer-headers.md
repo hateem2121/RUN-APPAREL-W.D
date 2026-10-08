@@ -99,8 +99,10 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
 - **A build-time CSP cannot cover an edge-injected script — by construction.**
   `apps/viewer/scripts/csp.mjs` hashes the inline scripts present in the *built*
   `dist/index.html`; anything Cloudflare injects at the edge arrives after those
-  hashes exist. This is why the beacon is embedded as a `<script src>` (no hash
-  needed) rather than left to Automatic Setup. A manual embed POSTs to
+  hashes exist. This is why the beacon is embedded by our own HTML rather than left to
+  Automatic Setup: a `<script src>` (no hash needed) until 2026-10-08, and since then an
+  inline loader that skips automated browsers, hashed like any inline script
+  (`packages/shared/src/analyticsBeacon.ts`). A manual embed POSTs to
   `cloudflareinsights.com` while automatic setup posts to your own origin, so those
   two `connect-src` entries are not interchangeable. The policy is a pure function
   in `apps/viewer/scripts/csp.mjs` with tests; `apps/viewer/scripts/gen-headers.mjs`

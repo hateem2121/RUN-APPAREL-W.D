@@ -1,3 +1,5 @@
+import { beaconLoader } from '@run-apparel/shared'
+
 /**
  * Cloudflare Web Analytics.
  *
@@ -49,13 +51,17 @@ export function Analytics() {
   const token = process.env.CF_ANALYTICS_TOKEN?.trim()
   if (!token) return null
 
+  /*
+   * ⚠️ A LOADER, NOT THE `<script src>` ITSELF, SINCE 2026-10-08: it adds the beacon only when
+   * the browser is not automated, because a quarter of the week's visits were headless robots
+   * (`analyticsBeacon.ts` in the shared package has the count and the rule). The nonce is still
+   * stamped outside React, on this script as on every other.
+   */
   return (
     <script
-      defer
-      src="https://static.cloudflareinsights.com/beacon.min.js"
-      // The attribute Cloudflare's beacon reads. JSON.stringify rather than a template
-      // string so a malformed token cannot produce malformed JSON.
-      data-cf-beacon={JSON.stringify({ token })}
+      type="module"
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: the loader is a fixed string from `beaconLoader`, with the server's own token passed through encodeURIComponent and JSON.stringify; no visitor input reaches it.
+      dangerouslySetInnerHTML={{ __html: beaconLoader(token) }}
     />
   )
 }
