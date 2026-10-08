@@ -56,6 +56,8 @@ const GUIDES_3 = '2026-09-30T22:15:50+05:00'
 /** The polish build (#128): photos and tables in six guides, the order steps in one. */
 const POLISH = '2026-10-05T14:20:27+05:00'
 /** The policies, careers and community pages (#141), and careers' form the same evening (#143). */
+/** The reference garments joined the 3D, printing and fabrics guides (findability audit). */
+const GARMENT_LINKS = '2026-10-08T16:26:29+05:00'
 const POLICIES_LIVE = '2026-10-07T12:40:02+05:00'
 const CAREERS_FORM = '2026-10-07T19:11:24+05:00'
 
@@ -66,19 +68,24 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     POLISH,
     'acb37f283da5',
   ),
-  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, GUIDES_1, 'c5a3d665ec8d'),
+  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, GARMENT_LINKS, '9afd7f827218'),
   '/guides/minimum-order-and-samples': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
     POLISH,
     '8043a7303169',
   ),
-  '/guides/garment-printing-methods': byline(AUTHORS.production, GUIDES_2, POLISH, '670bcc44ff34'),
+  '/guides/garment-printing-methods': byline(
+    AUTHORS.production,
+    GUIDES_2,
+    GARMENT_LINKS,
+    '2c13092c7170',
+  ),
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
     GUIDES_2,
-    POLISH,
-    '05b94bb9453e',
+    GARMENT_LINKS,
+    'e5d99bfe8009',
   ),
   '/guides/private-label-packaging': byline(AUTHORS.merchandiser, GUIDES_2, POLISH, '52c935d60b2d'),
   '/guides/shipping-and-import-duties': byline(

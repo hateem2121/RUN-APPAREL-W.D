@@ -12,7 +12,8 @@ import { POLICIES } from './policies'
  *
  * ⚠️ THE FINGERPRINTS ARE THE ONES MEASURED ON 2026-10-08 by rebuilding every earlier version of
  * these pages. A guide's covers what a visitor reads: its title, description, headline, lede and
- * sections, and the home page's order steps when it draws them. A policy's and careers' cover the
+ * sections, the home page's order steps when it draws them, and the garments it links (added
+ * 2026-10-08: absent on a guide with none, so the measured fingerprints of the others hold). A policy's and careers' cover the
  * whole page entry but its address. Change how they are computed and every date is wrong.
  */
 const sha = (value: unknown) =>
@@ -27,6 +28,8 @@ const guideWords = (guide: Guide) =>
     lede: guide.lede,
     sections: guide.sections,
     orderSteps: JSON.stringify(guide.sections).includes('"orderSteps"') ? ORDER_PHASES : undefined,
+    // The reference garments a guide links are part of what it shows (2026-10-08).
+    garments: guide.garments,
   })
 
 const pageWords = ({ path: _path, ...visible }: { path: string }) => sha(visible)

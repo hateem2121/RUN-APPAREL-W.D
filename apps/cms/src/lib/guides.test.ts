@@ -6,7 +6,7 @@ import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import { FACTS } from './companyFacts'
 import { FACTORY_PHOTOS } from './factoryPhotos'
-import { GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt } from './guides'
+import { GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import { buildLlmsTxt } from './llmsTxt'
 import { sitemapFor } from './searchVisibility'
@@ -333,5 +333,52 @@ describe('the shipping guide (owner, 2026-09-30)', () => {
       'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
     )
     expect(words).toContain('FOB, CFR and CIF are used for sea freight.')
+  })
+})
+
+/**
+ * The owner's choices of 2026-10-08: reference garments under three guides, each following a real
+ * section, and 2–3 guides to read next after every guide.
+ */
+describe('garments and read-next links (2026-10-08)', () => {
+  it('links garments from the 3D, printing and fabrics guides only, each after a real section', () => {
+    const withGarments = GUIDES.filter((guide) => guide.garments).map((guide) => guide.path)
+    expect(withGarments).toEqual([
+      '/guides/3d-garment-reference',
+      '/guides/garment-printing-methods',
+      '/guides/sportswear-fabrics-and-weights',
+    ])
+    for (const guide of GUIDES) {
+      if (!guide.garments) continue
+      const headings = guide.sections.map((section) => section.heading)
+      expect(headings, guide.path).toContain(guide.garments.after)
+      const slugs = guide.garments.picks.map((pick) => pick.slug)
+      expect(slugs.length, guide.path).toBe(3)
+      expect(new Set(slugs).size, guide.path).toBe(slugs.length)
+      for (const slug of slugs) expect(slug, guide.path).toMatch(/^[a-z0-9-]+$/)
+    }
+  })
+
+  it('names what each printing and fabrics pick shows; the 3D picks show the garment itself', () => {
+    for (const path of [
+      '/guides/garment-printing-methods',
+      '/guides/sportswear-fabrics-and-weights',
+    ]) {
+      for (const pick of guideAt(path).garments?.picks ?? []) expect(pick.shows, path).toBeTruthy()
+    }
+    for (const pick of guideAt('/guides/3d-garment-reference').garments?.picks ?? []) {
+      expect(pick.shows).toBeUndefined()
+    }
+  })
+
+  it('gives every guide 2 or 3 other real guides to read next, and no other page any', () => {
+    expect(Object.keys(READ_NEXT).sort()).toEqual(GUIDES.map((guide) => guide.path).sort())
+    for (const [path, next] of Object.entries(READ_NEXT)) {
+      expect(next.length, path).toBeGreaterThanOrEqual(2)
+      expect(next.length, path).toBeLessThanOrEqual(3)
+      expect(next, path).not.toContain(path)
+      expect(new Set(next).size, path).toBe(next.length)
+      for (const target of next) expect(() => guideAt(target), `${path} → ${target}`).not.toThrow()
+    }
   })
 })

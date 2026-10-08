@@ -56,6 +56,20 @@ export type GuideSection = {
   blocks: readonly GuideBlock[]
 }
 
+/**
+ * Reference garments whose own published words show a guide's subject (the owner's picks,
+ * 2026-10-08): each pick names the method or fabric its garment's page states, in `shows`. Drawn
+ * after the section headed `after`, linked to the garment's default colour; a garment the
+ * catalogue no longer holds is left out, never linked dead. They also give the garment pages
+ * links from pages Google already reads (findability audit: 208 addresses not indexed).
+ */
+export type GuideGarments = {
+  readonly heading: string
+  /** The `heading` of the section this list follows. `guides.test.ts` checks it exists. */
+  readonly after: string
+  readonly picks: readonly { readonly slug: string; readonly shows?: string }[]
+}
+
 export type Guide = {
   /** Root-relative, under `/guides/`. Public: a sent link must keep working. */
   readonly path: string
@@ -67,6 +81,7 @@ export type Guide = {
   readonly headingAccent: string
   readonly lede: string
   readonly sections: readonly GuideSection[]
+  readonly garments?: GuideGarments
 }
 
 const fact = (prefix: string): string =>
@@ -182,6 +197,12 @@ export const GUIDES: readonly Guide[] = [
         blocks: [{ kind: 'text', text: 'No. It is available on request.' }],
       },
     ],
+    // One garment from three ranges, under the first step's own words (owner, 2026-10-08).
+    garments: {
+      heading: 'Turn one now',
+      after: 'How to use one',
+      picks: [{ slug: 'rxps' }, { slug: 'r-ect' }, { slug: 'r-pps' }],
+    },
   },
   {
     path: '/guides/minimum-order-and-samples',
@@ -336,6 +357,21 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
     ],
+    /*
+     * Three methods, each named on its garment's own page (owner's picks, 2026-10-08): "a tonal
+     * abstract geometric sublimation across the main body", "single jersey recycled polyester with
+     * screen printing", "silicone printing, so the graphics keep sharp edges" (silicone is one of
+     * the special inks above).
+     */
+    garments: {
+      heading: 'Seen on our reference garments',
+      after: 'Which method for your garment',
+      picks: [
+        { slug: 'r-vpj', shows: 'Sublimation' },
+        { slug: 'r-mrp', shows: 'Screen printing' },
+        { slug: 'r-au', shows: 'Special inks (silicone)' },
+      ],
+    },
   },
   {
     path: '/guides/sportswear-fabrics-and-weights',
@@ -441,6 +477,19 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
     ],
+    /*
+     * Three of the ten fabrics, each named on its garment's own page (owner's picks, 2026-10-08):
+     * "a recycled interlock knit", "a brushed thermal fleece interior", "stretch waffle knit".
+     */
+    garments: {
+      heading: 'Seen on our reference garments',
+      after: 'Ten common fabrics',
+      picks: [
+        { slug: 'r-ttp', shows: 'Interlock' },
+        { slug: 'r-csp', shows: 'Fleece' },
+        { slug: 'r-afp', shows: 'Waffle' },
+      ],
+    },
   },
   {
     path: '/guides/private-label-packaging',
@@ -581,6 +630,46 @@ export const GUIDES: readonly Guide[] = [
     ],
   },
 ]
+
+/**
+ * What to read after each guide (owner, 2026-10-08: "2–3 with reasons"), replacing the list of every
+ * other guide with no reason. The reason drawn under each is that guide's own approved
+ * `description`, so the links add no new claim. `guides.test.ts` checks each is a real guide.
+ */
+export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
+  '/guides/how-a-private-label-order-works': [
+    '/guides/minimum-order-and-samples',
+    '/guides/shipping-and-import-duties',
+    '/guides/3d-garment-reference',
+  ],
+  '/guides/3d-garment-reference': [
+    '/guides/garment-printing-methods',
+    '/guides/how-a-private-label-order-works',
+  ],
+  '/guides/minimum-order-and-samples': [
+    '/guides/how-a-private-label-order-works',
+    '/guides/private-label-packaging',
+    '/guides/shipping-and-import-duties',
+  ],
+  '/guides/garment-printing-methods': [
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/3d-garment-reference',
+    '/guides/minimum-order-and-samples',
+  ],
+  '/guides/sportswear-fabrics-and-weights': [
+    '/guides/garment-printing-methods',
+    '/guides/minimum-order-and-samples',
+  ],
+  '/guides/private-label-packaging': [
+    '/guides/shipping-and-import-duties',
+    '/guides/how-a-private-label-order-works',
+  ],
+  '/guides/shipping-and-import-duties': [
+    '/guides/private-label-packaging',
+    '/guides/how-a-private-label-order-works',
+    '/guides/minimum-order-and-samples',
+  ],
+}
 
 /** Every address the guides answer on: the index, then each guide. */
 export const GUIDE_PATHS: readonly string[] = [

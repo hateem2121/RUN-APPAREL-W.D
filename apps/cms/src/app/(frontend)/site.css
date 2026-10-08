@@ -3173,6 +3173,17 @@ a.contact-block__value:active {
   list-style: none;
 }
 
+/*
+ * A line under a link in those lists (2026-10-08): the reason to read a guide next (its own
+ * description), or a reference garment's type and what its page names. The link above keeps its
+ * own 44px row; this line is words, not a target.
+ */
+.see-also__why {
+  margin: 0 0 12px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
 /* The links at the end of a guide are drawn the same way (`.see-also__list`, polish X22). */
 .legal__toc a,
 .see-also__list a {

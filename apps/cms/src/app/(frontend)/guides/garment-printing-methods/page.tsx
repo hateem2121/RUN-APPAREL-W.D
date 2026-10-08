@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { GuidePage } from '../../../../components/site/GuidePage'
+import { getProductCards } from '../../../../lib/content'
 import { guideAt } from '../../../../lib/guides'
 import { buildMetadata } from '../../../../lib/seo'
 
@@ -21,6 +22,8 @@ export const metadata: Metadata = buildMetadata({
   path: PATH,
 })
 
-export default function PrintingGuidePage() {
-  return <GuidePage guide={guideAt(PATH)} />
+// The live catalogue, for the reference garments this guide links (2026-10-08). It never throws:
+// with no catalogue the links are simply not drawn.
+export default async function PrintingGuidePage() {
+  return <GuidePage guide={guideAt(PATH)} cards={await getProductCards()} />
 }

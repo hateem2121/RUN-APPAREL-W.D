@@ -1,10 +1,20 @@
+import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import { FAQ_INDEX, faqTopicAt, faqTopicForGuide } from '../../lib/faqs'
 import { GLOSSARY_INDEX } from '../../lib/glossary'
 import Link from 'next/link'
+import { Fragment } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
 import { FAMILY_PAGE_ACTION, familyPageFor } from '../../lib/familyPages'
-import { GUIDES, GUIDES_INDEX, type Guide, type GuideBlock } from '../../lib/guides'
+import {
+  GUIDES_INDEX,
+  type Guide,
+  type GuideBlock,
+  type GuideGarments,
+  guideAt,
+  READ_NEXT,
+} from '../../lib/guides'
+import type { ProductCard } from '../../lib/projectPublic'
 import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
 import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
@@ -97,7 +107,7 @@ function SectionPhoto({ slug }: { slug: string }) {
   return <FactoryFigure photo={photo} {...factoryPhotoImage(photo)} sizes={HALF_COLUMN_SIZES} />
 }
 
-/** One group of links at the end of a page, under its own heading. */
+/** One group of links at the end of a page, under its own heading; `why` is drawn under a link. */
 function LinkGroup({
   id,
   title,
@@ -107,7 +117,7 @@ function LinkGroup({
   id: string
   title: string
   level: 'h2' | 'h3'
-  links: readonly { href: string; name: string }[]
+  links: readonly { href: string; name: string; why?: string }[]
 }) {
   const Heading = level
   return (
@@ -119,10 +129,56 @@ function LinkGroup({
         {links.map((link) => (
           <li key={link.href}>
             <Link href={link.href}>{link.name}</Link>
+            {link.why ? <p className="see-also__why">{link.why}</p> : null}
           </li>
         ))}
       </ul>
     </div>
+  )
+}
+
+/**
+ * The reference garments that show this guide's subject (`GuideGarments`, guides.ts; the owner's
+ * picks, 2026-10-08): each garment's name linked to its default colour, and under it its type and
+ * what its page names. Drawn as the end links are (`.see-also__list`, 44px rows). Plain anchors:
+ * the viewer Worker draws garment pages, not Next (`LinkList` in ArticleParts.tsx says why). A
+ * garment the catalogue no longer holds is left out; with none left, nothing is drawn.
+ */
+function GuideGarmentsSection({
+  garments,
+  cards,
+}: {
+  garments: GuideGarments
+  cards: readonly ProductCard[]
+}) {
+  const links = garments.picks.flatMap((pick) => {
+    const card = cards.find((entry) => entry.slug === pick.slug)
+    if (!card?.defaultColourSlug) return []
+    return [
+      {
+        href: buildViewerPath(card.slug, card.defaultColourSlug, GARMENT_PATH_PREFIX),
+        name: card.productName,
+        detail: [card.garmentType, pick.shows].filter(Boolean).join(' · '),
+      },
+    ]
+  })
+  if (links.length === 0) return null
+  return (
+    <section className="site-section" data-site-reveal>
+      <div className="site-container prose prose--guide spread">
+        <h2 className="display display--section">{garments.heading}</h2>
+        <div className="spread__body">
+          <ul className="see-also__list">
+            {links.map((link) => (
+              <li key={link.href}>
+                <a href={link.href}>{link.name}</a>
+                {link.detail ? <p className="see-also__why">{link.detail}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -165,12 +221,16 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
     { href: FAQ_INDEX.path, name: 'All questions' },
     { href: GLOSSARY_INDEX.path, name: GLOSSARY_INDEX.title },
   ]
-  const otherGuides = [
-    ...GUIDES.filter((guide) => guide.path !== current).map((guide) => ({
-      href: guide.path,
-      name: guide.title,
-    })),
-    ...(current === GUIDES_INDEX.path ? [] : [{ href: GUIDES_INDEX.path, name: 'All guides' }]),
+  /*
+   * 2–3 guides to read next, each with its own approved description as the reason (owner,
+   * 2026-10-08), where every other guide used to be listed with none. `READ_NEXT` says which.
+   */
+  const readNext = [
+    ...(READ_NEXT[current] ?? []).map((path) => {
+      const next = guideAt(path)
+      return { href: next.path, name: next.title, why: next.description }
+    }),
+    { href: GUIDES_INDEX.path, name: 'All guides' },
   ]
   return (
     <nav className="see-also" aria-labelledby="more-to-read">
@@ -178,7 +238,7 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
         More to read
       </p>
       <div className="see-also__groups">
-        <LinkGroup id="more-guides" title="Buyer guides" level="h3" links={otherGuides} />
+        <LinkGroup id="read-next" title="Read next" level="h3" links={readNext} />
         <LinkGroup id="more-families" title="What we make" level="h3" links={buyerPages} />
         <LinkGroup id="more-answers" title="Answers" level="h3" links={answers} />
       </div>
@@ -186,7 +246,11 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
   )
 }
 
-export function GuidePage({ guide }: { guide: Guide }) {
+/**
+ * `cards` is the live catalogue, for the guides that link reference garments (the 3D, printing
+ * and fabrics guides' routes read it); without it those links are simply not drawn.
+ */
+export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonly ProductCard[] }) {
   return (
     <>
       <JsonLd data={guideBreadcrumbJsonLd(guide)} />
@@ -214,37 +278,44 @@ export function GuidePage({ guide }: { guide: Guide }) {
           it comes between the heading and the words, as the markup has it. */}
       {guide.sections.map((section) => {
         const heading = <h2 className="display display--section">{section.heading}</h2>
+        const garments =
+          guide.garments?.after === section.heading ? (
+            <GuideGarmentsSection garments={guide.garments} cards={cards} />
+          ) : null
         return (
-          <section className="site-section" data-site-reveal key={section.heading}>
-            <div className="site-container prose prose--guide spread">
-              {section.photo ? (
-                <div className="spread__head">
-                  {heading}
-                  <SectionPhoto slug={section.photo} />
+          <Fragment key={section.heading}>
+            <section className="site-section" data-site-reveal>
+              <div className="site-container prose prose--guide spread">
+                {section.photo ? (
+                  <div className="spread__head">
+                    {heading}
+                    <SectionPhoto slug={section.photo} />
+                  </div>
+                ) : (
+                  heading
+                )}
+                <div className="spread__body">
+                  {section.blocks.map((block) => (
+                    <Block
+                      key={
+                        block.kind === 'orderSteps'
+                          ? 'order-steps'
+                          : block.kind === 'table'
+                            ? block.caption
+                            : block.kind === 'list'
+                              ? block.items[0]
+                              : 'title' in block
+                                ? block.title
+                                : block.text
+                      }
+                      block={block}
+                    />
+                  ))}
                 </div>
-              ) : (
-                heading
-              )}
-              <div className="spread__body">
-                {section.blocks.map((block) => (
-                  <Block
-                    key={
-                      block.kind === 'orderSteps'
-                        ? 'order-steps'
-                        : block.kind === 'table'
-                          ? block.caption
-                          : block.kind === 'list'
-                            ? block.items[0]
-                            : 'title' in block
-                              ? block.title
-                              : block.text
-                    }
-                    block={block}
-                  />
-                ))}
               </div>
-            </div>
-          </section>
+            </section>
+            {garments}
+          </Fragment>
         )
       })}
 

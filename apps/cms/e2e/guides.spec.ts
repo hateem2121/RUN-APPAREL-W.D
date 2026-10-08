@@ -175,13 +175,15 @@ test.describe('X22 — the end of a guide: three labelled groups', () => {
   test('at 1440px side by side, every link 44px tall', async ({ page }) => {
     await open(page, PRINTING, 1440)
     const end = await endGroups(page)
-    expect(end.titles).toEqual(['Buyer guides', 'What we make', 'Answers'])
+    // "Read next" since 2026-10-08: 2–3 guides with reasons, where every other guide was listed.
+    expect(end.titles).toEqual(['Read next', 'What we make', 'Answers'])
     const [guides, families, answers] = end.boxes
     expect(Math.abs((guides?.top ?? 0) - (families?.top ?? 99))).toBeLessThanOrEqual(0.5)
     expect(Math.abs((families?.top ?? 0) - (answers?.top ?? 99))).toBeLessThanOrEqual(0.5)
     expect((families?.left ?? 0) - (guides?.right ?? 0)).toBeGreaterThanOrEqual(63.5)
     expect((answers?.left ?? 0) - (families?.right ?? 0)).toBeGreaterThanOrEqual(63.5)
-    expect(end.links).toBeGreaterThanOrEqual(14)
+    // 3 to read next + all guides, 4 ranges, 3 answers; garment links come on top where seeded.
+    expect(end.links).toBeGreaterThanOrEqual(11)
     expect(end.small).toEqual([])
   })
 
