@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { POLICY_ACTION, POLICY_CLOSING, type Policy } from '../../lib/policies'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { Breadcrumb } from './Breadcrumb'
+import { Byline } from './Byline'
 import { Block } from './GuidePage'
 import { JsonLd } from './JsonLd'
 import { OnThisPage } from './OnThisPage'
@@ -40,7 +41,9 @@ export function PolicyPage({ policy }: { policy: Policy }) {
             {policy.heading} <span className="serif-accent">{policy.headingAccent}</span>
           </h1>
           <p className="site-lede">{policy.lede}</p>
-          <p className="subhead">Last reviewed: {policy.lastReviewed}</p>
+          {/* "Written by HR, RUN APPAREL" beside the date the owner approved the words (2026-10-08;
+              the date was a line of its own before). `bylines.test.ts` holds it to lastReviewed. */}
+          <Byline path={policy.path} dateLabel="Last reviewed" />
         </div>
       </section>
 

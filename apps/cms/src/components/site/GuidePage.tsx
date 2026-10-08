@@ -5,7 +5,8 @@ import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
 import { FAMILY_PAGE_ACTION, familyPageFor } from '../../lib/familyPages'
 import { GUIDES, GUIDES_INDEX, type Guide, type GuideBlock } from '../../lib/guides'
-import { guideBreadcrumbJsonLd } from '../../lib/structuredData'
+import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
+import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
 import { OrderSteps } from './OrderSteps'
@@ -189,6 +190,9 @@ export function GuidePage({ guide }: { guide: Guide }) {
   return (
     <>
       <JsonLd data={guideBreadcrumbJsonLd(guide)} />
+      {/* Who wrote it and when its words last changed, as Article data (findability audit,
+          2026-10-08); the same facts as the byline under the lede, from `bylines.ts`. */}
+      <JsonLd data={guideArticleJsonLd(guide)} />
 
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
@@ -200,6 +204,7 @@ export function GuidePage({ guide }: { guide: Guide }) {
             {guide.heading} <span className="serif-accent">{guide.headingAccent}</span>
           </h1>
           <p className="site-lede">{guide.lede}</p>
+          <Byline path={guide.path} />
         </div>
       </section>
 

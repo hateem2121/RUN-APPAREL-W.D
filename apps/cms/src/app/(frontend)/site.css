@@ -7301,7 +7301,8 @@ a.contact-block__value:active {
 }
 
 .journal-facts dt,
-.case-facts dt {
+.case-facts dt,
+.page-byline dt {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
@@ -7310,9 +7311,22 @@ a.contact-block__value:active {
 }
 
 .journal-facts dd,
-.case-facts dd {
+.case-facts dd,
+.page-byline dd {
   margin: 4px 0 0;
   color: var(--heading);
+}
+
+/*
+ * Who wrote a guide, a policy or the careers page, and when its words last changed (findability
+ * audit, 2026-10-08; `Byline.tsx`): the Journal's labels above, set in one row under the lede and
+ * wrapping onto two on a phone.
+ */
+.page-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+  margin: 24px 0 0;
 }
 
 .journal-body > :first-child {

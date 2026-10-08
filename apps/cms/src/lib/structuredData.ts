@@ -2,7 +2,8 @@ import { formatPhoneForDisplay, normalizeWhatsAppNumber, POSTAL_ADDRESS } from '
 import { CALL_NUMBER, LEGAL_NAME, PARENT_COMPANY } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
-import { shareCardFor, shareImageUrl } from './shareImages'
+import { bylineFor } from './bylines'
+import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
 
 /**
  * JSON-LD builders for the public marketing site.
@@ -288,7 +289,6 @@ type ArticleInput = {
   datePublished: string
   dateModified: string
   author: { name: string; url?: string | null } | null
-  companyName: string
 }
 
 /**
@@ -328,7 +328,8 @@ function articleData(type: 'BlogPosting' | 'Article', article: ArticleInput) {
       : {
           '@type': 'Organization',
           '@id': `${SITE_ORIGIN}/#organization`,
-          name: article.companyName,
+          // The Organization node's own name (2026-10-08): one `@id`, one name.
+          name: SITE_NAME,
           url: SITE_ORIGIN,
         },
     publisher: { '@id': `${SITE_ORIGIN}/#organization` },
@@ -343,6 +344,30 @@ export function blogPostingJsonLd(post: ArticleInput) {
 /** One case study (Task 5.3): the post's shape as an `Article`, part of no blog. */
 export function articleJsonLd(article: ArticleInput) {
   return articleData('Article', article)
+}
+
+/**
+ * A buyer guide as an `Article` (findability audit, 2026-10-08), from the facts its byline prints
+ * (`bylines.ts`): first published, last changed, and who wrote it. Google's Article guide (updated
+ * 2026-09-08) puts only a name in `author.name` and a job in `jobTitle`; a byline that is a role
+ * ("Merchandiser, RUN APPAREL") names no person, so that guide's author is the company itself.
+ * The picture is the guide's own share card.
+ */
+export function guideArticleJsonLd(guide: { path: string; title: string; description: string }) {
+  const byline = bylineFor(guide.path)
+  return articleJsonLd({
+    path: guide.path,
+    headline: guide.title,
+    description: guide.description,
+    image: {
+      url: shareImageUrl(shareCardFor(guide.path), SITE_ORIGIN),
+      width: SHARE_IMAGE.width,
+      height: SHARE_IMAGE.height,
+    },
+    datePublished: byline?.published ?? '',
+    dateModified: byline?.changed.on ?? '',
+    author: byline?.author.kind === 'person' ? { name: byline.author.name } : null,
+  })
 }
 
 /**

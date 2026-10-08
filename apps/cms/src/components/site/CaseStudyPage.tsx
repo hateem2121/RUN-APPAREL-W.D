@@ -132,13 +132,7 @@ function CaseStudyCard({ study, lead }: { study: CaseStudyView; lead: boolean })
  * long), the photos, then the story in three parts side by side on a wide screen, the client's
  * words when they agreed, and the garments it was made of.
  */
-export function CaseStudyPage({
-  study,
-  companyName,
-}: {
-  study: CaseStudyView
-  companyName: string
-}) {
+export function CaseStudyPage({ study }: { study: CaseStudyView }) {
   const trail = [
     { name: CASE_STUDIES_HUB.title, path: CASE_STUDIES_PATH },
     { name: study.title, path: study.path },
@@ -161,7 +155,6 @@ export function CaseStudyPage({
           datePublished: study.publishedAt,
           dateModified: study.updatedAt,
           author: null,
-          companyName,
         })}
       />
 

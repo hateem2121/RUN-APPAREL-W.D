@@ -1,3 +1,4 @@
+import { BYLINES } from './bylines'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // `vi.hoisted`, not a bare `const`: vi.mock's factory is hoisted above module scope, so
@@ -193,7 +194,8 @@ describe('what the switch does', () => {
       { slug: 'a', colours: [{ slug: 'x' }] },
       { slug: 'b', updatedAt: null, colours: [{ slug: 'x' }] },
       { slug: 'c', updatedAt: 'not a date', colours: [{ slug: 'x' }] },
-    ])
+    ]).filter((e) => isGarment(e.url))
+    expect(entries).toHaveLength(3)
     for (const entry of entries) expect(entry).not.toHaveProperty('lastModified')
   })
 
@@ -272,5 +274,28 @@ describe('the Journal and case studies in the sitemap', () => {
         caseStudies: [],
       }),
     ).toEqual([])
+  })
+})
+
+/**
+ * 2026-10-08: the guides, the policies and the careers page state when their words last changed,
+ * from their bylines (`bylines.ts`, kept true by `bylines.test.ts`). The hubs and the other code
+ * pages still state no date, rather than one nobody keeps.
+ */
+describe('the dated website pages', () => {
+  const entries = sitemapFor('visible', 'https://wear-run.com')
+  const at = (path: string) => entries.find((entry) => entry.url === `https://wear-run.com${path}`)
+
+  it('date every guide, policy and careers by the last change to their words', () => {
+    for (const [path, byline] of Object.entries(BYLINES)) {
+      expect(at(path)?.lastModified, path).toEqual(new Date(byline.changed.on))
+    }
+  })
+
+  it('leave the hubs and the other pages undated', () => {
+    for (const path of ['', '/guides', '/policies', '/community', '/contact', '/privacy']) {
+      expect(at(path), path).toBeDefined()
+      expect(at(path), path).not.toHaveProperty('lastModified')
+    }
   })
 })

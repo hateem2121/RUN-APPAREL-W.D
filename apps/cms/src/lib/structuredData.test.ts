@@ -2,9 +2,12 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
+import { BYLINES } from './bylines'
 import { CALL_NUMBER, PARENT_COMPANY } from './companyFacts'
+import { GUIDES } from './guides'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
 import { GARMENT_PAGES, SITE_NAME, SITE_ORIGIN } from './seo'
+import { shareCardFor, shareImageUrl } from './shareImages'
 import {
   articleJsonLd,
   blogJsonLd,
@@ -13,6 +16,7 @@ import {
   caseStudiesJsonLd,
   contactPageJsonLd,
   formatAddress,
+  guideArticleJsonLd,
   organizationJsonLd,
   POSTAL_ADDRESS,
   productListJsonLd,
@@ -386,7 +390,6 @@ describe('the Journal and case-study data', () => {
     image,
     datePublished: '2026-10-08T09:00:00.000Z',
     dateModified: '2026-10-09T10:00:00.000Z',
-    companyName: 'RUN APPAREL',
   }
 
   it('the hub is a Blog listing its posts by address', () => {
@@ -412,7 +415,7 @@ describe('the Journal and case-study data', () => {
       datePublished: post.datePublished,
       dateModified: post.dateModified,
       image: [{ '@type': 'ImageObject', ...image }],
-      author: { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization` },
+      author: { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: SITE_NAME },
       isPartOf: { '@id': `${SITE_ORIGIN}/journal#blog` },
     })
   })
@@ -462,5 +465,46 @@ describe('the Journal and case-study data', () => {
       articleJsonLd({ ...post, author: null }),
     ])
     expect(all).not.toMatch(/"Product"|foundingDate/)
+  })
+})
+
+/**
+ * The buyer guides as Articles (findability audit, 2026-10-08), from the facts their bylines print
+ * (`bylines.ts`). Google's Article guide (updated 2026-09-08): only a name in `author.name`, a
+ * Person for a person and an Organization for an organisation. A role names no person, so a
+ * guide signed by a role is the company's.
+ */
+describe('a buyer guide’s Article data', () => {
+  const guide = (path: string) => {
+    const found = GUIDES.find((entry) => entry.path === path)
+    if (!found) throw new Error(path)
+    return found
+  }
+
+  it('is by the person when the byline names one', () => {
+    const data = guideArticleJsonLd(guide('/guides/3d-garment-reference'))
+    expect(data.author).toEqual({ '@type': 'Person', name: 'M. Hateem Jamshaid' })
+  })
+
+  it('is the company’s when the byline is a role, never a role written as a name', () => {
+    const data = guideArticleJsonLd(guide('/guides/minimum-order-and-samples'))
+    expect(data.author).toEqual({
+      '@type': 'Organization',
+      '@id': `${SITE_ORIGIN}/#organization`,
+      name: SITE_NAME,
+      url: SITE_ORIGIN,
+    })
+    expect(JSON.stringify(data)).not.toContain('Merchandiser')
+  })
+
+  it('dates and pictures every guide from its byline and its own share card', () => {
+    for (const entry of GUIDES) {
+      const data = guideArticleJsonLd(entry)
+      expect(data['@type']).toBe('Article')
+      expect(data.headline).toBe(entry.title)
+      expect(data.datePublished).toBe(BYLINES[entry.path]?.published)
+      expect(data.dateModified).toBe(BYLINES[entry.path]?.changed.on)
+      expect(data.image?.[0]?.url).toBe(shareImageUrl(shareCardFor(entry.path), SITE_ORIGIN))
+    }
   })
 })
