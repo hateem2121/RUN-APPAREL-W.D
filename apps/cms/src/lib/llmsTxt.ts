@@ -1,3 +1,4 @@
+import { TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
@@ -85,8 +86,11 @@ export function buildLlmsTxt(siteOrigin: string): string {
   /*
    * The Journal and the case studies (2026-10-07, E9): named from day one, as in the sitemap
    * (owner: "Show them right away"; both hubs are indexable while empty).
+   *
+   * ⚠️ WORDED TO BE TRUE WHILE THE HUB IS EMPTY (findability audit, 2026-10-08). It said "orders
+   * we have made: …", a promise of stories an AI reader then went looking for and did not find.
    */
-  const caseStudies = `- [${CASE_STUDIES_HUB.title}](${siteOrigin}${CASE_STUDIES_PATH}) — orders we have made: what, for whom, how many and how long.\n`
+  const caseStudies = `- [${CASE_STUDIES_HUB.title}](${siteOrigin}${CASE_STUDIES_PATH}) — written-up orders: what we made, for whom, how many and how long, added as each is published.\n`
   const journal = `\n## Journal\n\n- [${JOURNAL_HUB.title}](${siteOrigin}${JOURNAL_PATH}) — ${JOURNAL_HUB.description}\n`
 
   return `# RUN APPAREL
@@ -123,8 +127,8 @@ ${CERTIFICATION}
 
 - [Home](${siteOrigin}) — what the company makes, the numbers above, and how to start.
 - [Full Technical Compendium](${siteOrigin}/llms-full.txt) — complete manufacturing operations, all buyer guides, order workflow, and reference garment specifications.
-- [Products](${siteOrigin}/products) — every reference garment, filterable by family. Each card
-  links to that garment's 3D page.
+- [Products](${siteOrigin}/products) — every reference garment, grouped by family, with a link to
+  jump to each family. Each card links to that garment's 3D page.
 ${buyerPages}
 ${guides}
 ${companyPages}
@@ -159,8 +163,10 @@ Every garment page, in every colorway, is listed in this site's [sitemap](${site
 
 ## Notes for crawlers
 
-[robots.txt](${siteOrigin}/robots.txt) allows all user agents, AI crawlers included, and
-names them explicitly. The admin panel and the REST API are the only paths disallowed;
-both require authentication in any case.
+[robots.txt](${siteOrigin}/robots.txt) welcomes search engines and the AI assistants that answer
+people's questions, and names the AI ones explicitly. It refuses the crawl to the
+${TRAINING_ONLY_UAS.length} crawlers that only gather training data (${TRAINING_ONLY_UAS.join(', ')}); each
+has a sibling that answers questions and stays welcome. The admin panel and the REST API are
+disallowed to everyone; both require authentication in any case.
 `
 }

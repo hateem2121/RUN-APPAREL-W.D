@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { llmsTxtProblems } from '../../../../scripts/copy-rules.mjs'
+import { TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { familyHref } from './familyPages'
@@ -174,5 +175,29 @@ describe('the Journal and the case studies', () => {
     expect(text).toContain(`](${SITE}/journal)`)
     expect(text).toContain(`](${SITE}/case-studies)`)
     expect(llmsTxtProblems(text)).toEqual([])
+  })
+})
+
+/**
+ * Three sentences the findability audit of 2026-10-08 found untrue, read against the live site
+ * that day: /products has jump links to each family but filters nothing; the case-studies hub
+ * is empty; and robots.txt refuses the training-only crawlers while this file said it allowed
+ * every user agent. An AI reader quotes llms.txt as the site's own word, so each is pinned.
+ */
+describe('says only what the site does (findability audit, 2026-10-08)', () => {
+  it('does not call the product list filterable', () => {
+    expect(text).not.toMatch(/filterable/i)
+    expect(text).toContain('grouped by family')
+  })
+
+  it('does not promise case studies that are not published', () => {
+    expect(text).not.toContain('orders we have made')
+    expect(text).toContain('added as each is published')
+  })
+
+  it('names every crawler robots.txt refuses, from the same list robots.txt is built from', () => {
+    expect(text).not.toMatch(/allows all user agents/i)
+    expect(text).toContain(`${TRAINING_ONLY_UAS.length} crawlers that only gather training data`)
+    expect(text).toContain(TRAINING_ONLY_UAS.join(', '))
   })
 })
