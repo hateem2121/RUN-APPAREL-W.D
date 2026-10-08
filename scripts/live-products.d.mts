@@ -27,6 +27,12 @@ export interface LiveProduct {
   colourways: string[]
   /** As printed on the tag, e.g. `R-XPS`. */
   productCode: string
+  /**
+   * "3D coming soon" (2026-10-08): live on its pictures, no model yet. The post-deploy checks
+   * verify its pictures instead of a model; checks that need a model skip it. Remove the key
+   * once the model is attached.
+   */
+  modelComingSoon?: true
 }
 
 export declare const LIVE_PRODUCTS: LiveProduct[]

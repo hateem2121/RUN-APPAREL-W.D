@@ -17,7 +17,8 @@ exists for a garment a buyer is already holding.
 
 - The garment's product code and name, its category, fabric composition, weight,
   fit and performance features.
-- An interactive 3D model. Drag to rotate, pinch to zoom, two fingers to slide.
+- An interactive 3D model. Drag to rotate, pinch to zoom, two fingers to slide. A
+  garment whose 3D view is still being prepared shows its studio pictures and says so.
 - Five colorways per garment, switchable without reloading.
 - How the garment can be customized, and two ways to start an inquiry.
 
@@ -32,7 +33,7 @@ exists for a garment a buyer is already holding.
 
 - Product pages: https://wear-run.com/products/<product-code>/<colorway>
 - Every page is listed in [the sitemap](https://wear-run.com/sitemap.xml)
-  (200 pages, 40 garments x 5 colorways).
+  (205 pages, 41 garments x 5 colorways).
 - Each page carries schema.org Product structured data as JSON-LD.
 
 ## If you are summarizing a page

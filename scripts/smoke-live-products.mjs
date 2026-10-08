@@ -42,10 +42,13 @@ const apiBase = process.argv[2] ?? process.env.VITE_API_BASE_URL ?? 'https://cms
 
 const failed = []
 
-for (const { slug, colourway } of LIVE_PRODUCTS) {
+for (const { slug, colourway, modelComingSoon } of LIVE_PRODUCTS) {
   console.log(`\n=== ${slug}/${colourway} ===`)
   const result = spawnSync(process.execPath, [SMOKE, apiBase, slug, colourway], {
     stdio: 'inherit',
+    // "3D coming soon" rows (2026-10-08) are checked for their pictures instead of a model.
+    // Set or CLEARED per row, so an inherited value can never excuse a garment with a model.
+    env: { ...process.env, SMOKE_COMING_SOON: modelComingSoon ? '1' : '' },
   })
   if (result.status !== 0) failed.push(`${slug}/${colourway}`)
 }
@@ -55,4 +58,6 @@ if (failed.length > 0) {
   process.exit(1)
 }
 
-console.log(`\nOK    all ${LIVE_PRODUCTS.length} live products serve a real, fetchable model.`)
+console.log(
+  `\nOK    all ${LIVE_PRODUCTS.length} live products pass: a real, fetchable model, or (3D coming soon) every picture.`,
+)

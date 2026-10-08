@@ -107,7 +107,7 @@ describe('OWNER_EXCEPTIONS', () => {
   // The owner looked at all nine flagged posters on 2026-09-29 (pictures, and a gentler
   // re-encode beside each) and kept every one: the bytes carry knit texture and all-over print.
   it('records the six products the owner reviewed on 2026-09-29, each with a ceiling', () => {
-    expect(OWNER_EXCEPTIONS.slice(1).map((row) => [row.product, row.maxRatio])).toEqual([
+    expect(OWNER_EXCEPTIONS.slice(1, 7).map((row) => [row.product, row.maxRatio])).toEqual([
       ['r-csp', 3],
       ['r-ifs', 2.5],
       ['r-xmp', 2.5],
@@ -115,7 +115,16 @@ describe('OWNER_EXCEPTIONS', () => {
       ['r-asb', 2.5],
       ['r-pps', 2.5],
     ])
-    for (const row of OWNER_EXCEPTIONS.slice(1)) expect(row.reason).toMatch(/2026-09-29/)
+    for (const row of OWNER_EXCEPTIONS.slice(1, 7)) expect(row.reason).toMatch(/2026-09-29/)
+  })
+
+  // 2026-10-08: Structure Polo Set's posters are brightened CLO renders (live as "3D coming
+  // soon"); the owner chose quality 75 over quality 50, which cleared 2x by smoothing the knit.
+  it('records the Structure Polo exception the owner chose on 2026-10-08, and nothing after it', () => {
+    expect(OWNER_EXCEPTIONS.slice(7).map((row) => [row.product, row.maxRatio])).toEqual([
+      ['r-sps', 3],
+    ])
+    expect(OWNER_EXCEPTIONS[7]?.reason).toMatch(/2026-10-08/)
   })
 
   it('FLAG_AT is 2', () => {

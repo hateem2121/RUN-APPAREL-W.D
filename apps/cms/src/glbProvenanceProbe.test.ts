@@ -7,7 +7,9 @@ import {
   judgeModelSizes,
   modelUrlsFromPayload,
   probe,
+  TARGETS,
 } from '../../../scripts/glb-provenance-probe.mjs'
+import { LIVE_PRODUCTS } from '../../../scripts/live-products.mjs'
 
 /**
  * Tests for the live GLB provenance probe (SE-16).
@@ -425,5 +427,19 @@ describe('evaluate — leftovers and the edge cache (IM-10)', () => {
     const result = evaluate([{ ...ok, jsonChunk: chunk, cache: ['HIT', 'HIT'] }])
     expect(result.ok).toBe(false)
     expect(result.failures.join(' ')).toContain('globalMap')
+  })
+})
+
+describe('which live garments the probe reads', () => {
+  it('reads every live garment with a model, and skips only "3D coming soon" rows (2026-10-08)', () => {
+    const soon = LIVE_PRODUCTS.filter((p) => p.modelComingSoon).map((p) => p.slug)
+    expect(soon).toEqual(['r-sps'])
+    expect(TARGETS.map((t) => t.slug).sort()).toEqual(
+      LIVE_PRODUCTS.filter((p) => !p.modelComingSoon)
+        .map((p) => p.slug)
+        .sort(),
+    )
+    // NEGATIVE CONTROL: nothing with a model is dropped — the list minus exactly one row.
+    expect(TARGETS).toHaveLength(LIVE_PRODUCTS.length - 1)
   })
 })

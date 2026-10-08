@@ -61,6 +61,8 @@ export const GARMENT_TYPES = {
   'r-pps': "Men's Sherpa Fleece Jacket",
   'r-prs': 'Quarter-Zip Running Shirt',
   'r-snp': 'Neoprene Wetsuit',
+  // Owner-approved 2026-10-08 with the garment's page text (live as "3D coming soon").
+  'r-sps': "Women's Polo Lounge Set",
   'r-srs': 'Raglan Soccer Tee',
   'r-taz': "Men's Half-Zip Polo Shirt",
   'r-ttp': "Women's Tennis Dress",

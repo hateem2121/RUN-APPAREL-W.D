@@ -1816,6 +1816,36 @@ Afterwards, `node scripts/poster-sizes.mjs` should exit 0 with 5 excepted and 0
 flagged. `apps/cms/src/shrinkPostersGently.test.ts` pins every settings/bytes/sha256
 triple above.
 
+## Publishing a garment before its 3D file ("3D coming soon")
+
+**When you need this:** a garment should go online now, but its CLO export cannot be used yet.
+First used 2026-10-08 for Structure Polo Set, whose export holds one look and no colour links
+(`docs/CLO-EXPORT-CHECKLIST.md`, item 1).
+
+Tick **3D coming soon (publish with pictures only)** on the garment's "3D file" tab
+(`modelComingSoon`, `apps/cms/src/collections/Products.ts`). While it is ticked AND no model is
+attached, the publish gate asks for a photo on every colour instead of a 3D file
+(`apps/cms/src/collections/publishGating.ts`), and the garment page shows the colour's HD picture
+with "The 3D view of this garment is coming soon…" instead of the "not available" text, and
+reports no fault (`apps/viewer/src/components/Stage.tsx`). Attach a model and every 3D check
+applies again, ticked or not.
+
+1. Give the colour rows the CLO colour names (`Colorway A`, `Colorway 1`, …) as their
+   "Which colour in your CLO file is this?" answer, so the future file maps onto them.
+2. Photos and HD pictures: the studio renders, brightened to the model where one exists (the
+   2026-10-08 method: one linear-light exposure for all five colours), uploaded with
+   `scripts/upload-posters.mjs` and attached as renders with their `-screen` copies.
+3. Add the row to `scripts/live-products.mjs` with `modelComingSoon: true`. The post-deploy check
+   then demands every picture instead of a model (`scripts/smoke-viewer-payload.mjs`), and
+   `scripts/glb-provenance-probe.mjs` skips the row.
+4. After the change deploys, tick the box and publish.
+
+**When the 3D arrives:** run `scripts/process-local.mjs` (it only makes the Media file for a live
+garment), check it beside the pictures, then `scripts/swap-live-model.mjs`, which refuses a file
+whose colour names differ from the rows. Then untick the box, remove `modelComingSoon` from the
+row (the smoke check prints a reminder once a model is there), and re-make the posters from the
+3D as for any garment.
+
 ## Re-processing a garment (the Retry tick-box)
 
 **When you need this:** the pipeline was fixed and you want the fix applied to a

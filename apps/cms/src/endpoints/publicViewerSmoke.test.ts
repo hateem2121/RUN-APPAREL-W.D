@@ -64,14 +64,46 @@ afterEach(async () => {
 async function startOrigin({
   getStatus,
   glbBytes,
+  comingSoon,
 }: {
   getStatus: number
   /** The model's size as the garment data declares it (polish F12); absent if unset. */
   glbBytes?: number
+  /**
+   * A garment with NO model ("3D coming soon", 2026-10-08): `flag` is what the payload says,
+   * `pictures` how many of its two colourways carry a picture (served at /poster.webp).
+   */
+  comingSoon?: { flag: boolean; pictures: number }
 }): Promise<number> {
   server = createServer((req, res) => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname
     const port = (server!.address() as { port: number }).port
+
+    if (path.startsWith('/api/public/viewer/') && comingSoon) {
+      const picture = { url: `http://127.0.0.1:${port}/poster.webp` }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      return res.end(
+        JSON.stringify({
+          product: {
+            productCode: 'N003',
+            productName: 'Test Polo Set',
+            variantMode: 'single-glb-variants',
+            glbUrl: null,
+            ...(comingSoon.flag ? { modelComingSoon: true } : {}),
+          },
+          colourways: [
+            { slug: 'sage', poster: comingSoon.pictures >= 1 ? picture : null },
+            { slug: 'lilac', poster: comingSoon.pictures >= 2 ? picture : null },
+          ],
+          selectedColourway: { slug: 'sage' },
+        }),
+      )
+    }
+
+    if (path === '/poster.webp') {
+      res.writeHead(200, { 'content-type': 'image/webp' })
+      return res.end(Buffer.alloc(512))
+    }
 
     if (path.startsWith('/api/public/viewer/')) {
       res.writeHead(200, { 'content-type': 'application/json' })
@@ -114,12 +146,20 @@ async function startOrigin({
   return (server.address() as { port: number }).port
 }
 
-async function runSmoke(port: number, { browserGet }: { browserGet: boolean }) {
+async function runSmoke(
+  port: number,
+  { browserGet, listSaysComingSoon = false }: { browserGet: boolean; listSaysComingSoon?: boolean },
+) {
   const child = spawn(
     process.execPath,
     [SMOKE_SCRIPT, `http://127.0.0.1:${port}`, 'n001', 'wine'],
     {
-      env: { ...process.env, SMOKE_BROWSER_GET: browserGet ? '1' : '' },
+      env: {
+        ...process.env,
+        SMOKE_BROWSER_GET: browserGet ? '1' : '',
+        // What smoke-live-products.mjs passes for a `modelComingSoon` row of live-products.mjs.
+        SMOKE_COMING_SOON: listSaysComingSoon ? '1' : '',
+      },
     },
   )
   let output = ''
@@ -180,5 +220,40 @@ describe('post-deploy smoke test — the size behind the download percentage (F1
     const { code, output } = await runSmoke(port, { browserGet: false })
     expect(code).toBe(0)
     expect(output).toContain('28271780 in the data, the same as the file')
+  }, 30_000)
+})
+
+/*
+ * "3D coming soon" (owner decision 2026-10-08): a garment live on its pictures while its 3D file
+ * is redone. The LIST (live-products.mjs) decides that a garment may have no model — never the
+ * payload — so a stray tick in the CMS cannot turn a garment that lost its model green.
+ */
+describe('post-deploy smoke test — 3D coming soon', () => {
+  it('passes a model-less garment the list AND the payload call coming soon, with every picture', async () => {
+    const port = await startOrigin({ getStatus: 200, comingSoon: { flag: true, pictures: 2 } })
+    const { code, output } = await runSmoke(port, { browserGet: true, listSaysComingSoon: true })
+    expect(code, output).toBe(0)
+    expect(output).toContain('3D coming soon: every colourway serves its picture')
+  }, 30_000)
+
+  it('NEGATIVE CONTROL: the same garment fails when the list does not say coming soon', async () => {
+    const port = await startOrigin({ getStatus: 200, comingSoon: { flag: true, pictures: 2 } })
+    const { code, output } = await runSmoke(port, { browserGet: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('the product has no glbUrl')
+  }, 30_000)
+
+  it('fails when the list says coming soon but the payload has neither a model nor the flag', async () => {
+    const port = await startOrigin({ getStatus: 200, comingSoon: { flag: false, pictures: 2 } })
+    const { code, output } = await runSmoke(port, { browserGet: true, listSaysComingSoon: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('The 3D view is not available')
+  }, 30_000)
+
+  it('fails a coming-soon garment with a colour that has no picture: there is nothing else to show', async () => {
+    const port = await startOrigin({ getStatus: 200, comingSoon: { flag: true, pictures: 1 } })
+    const { code, output } = await runSmoke(port, { browserGet: true, listSaysComingSoon: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('1 colourway(s) have no picture')
   }, 30_000)
 })
