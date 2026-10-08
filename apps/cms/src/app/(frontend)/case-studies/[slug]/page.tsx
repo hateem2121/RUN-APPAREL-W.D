@@ -38,6 +38,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CaseStudyRoute({ params }: Props) {
   const study = await load((await params).slug)
-  const settings = await getSiteSettings()
-  return <CaseStudyPage study={study} companyName={settings.companyName} />
+  return <CaseStudyPage study={study} />
 }

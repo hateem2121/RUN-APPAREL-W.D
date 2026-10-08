@@ -25,7 +25,12 @@ export const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_ORIGIN ?? 'https://wear
  */
 export const GARMENT_PAGES = `${SITE_ORIGIN}${GARMENT_PATH_PREFIX}`
 
-const SITE_NAME = 'RUN APPAREL'
+/**
+ * The site's name, as `og:site_name`, the home page's `<title>` and (since 2026-10-08) the
+ * WebSite and Organization structured data all give it. Google's site-name guide (updated
+ * 2025-12-10) reads those together and asks for one short, common name rather than "Ltd".
+ */
+export const SITE_NAME = 'RUN APPAREL'
 
 /**
  * The social preview card each page shares (polish X14): its page type's own, from

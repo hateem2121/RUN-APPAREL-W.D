@@ -5,6 +5,7 @@ import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
 import { deriveSlug } from '../fields/deriveSlug'
 import { keptPagesAfterChange, keptPagesAfterDelete } from '../lib/contentVersion'
+import { pingIndexNowForGarment } from '../lib/garmentIndexNow'
 import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 import { GARMENT_PAGES } from '../lib/seo'
 import type { CatalogueDefault } from '../payload-types'
@@ -257,7 +258,9 @@ export const Products: CollectionConfig = {
       },
     ],
     // Every product change reaches the website's kept pages (pageCache.mjs, polish X15).
-    afterChange: [keptPagesAfterChange],
+    // The garment's pages to IndexNow on every save of a live garment, and on its unpublish
+    // (2026-10-08; `lib/garmentIndexNow.ts`).
+    afterChange: [keptPagesAfterChange, pingIndexNowForGarment],
     afterDelete: [keptPagesAfterDelete],
   },
   fields: [

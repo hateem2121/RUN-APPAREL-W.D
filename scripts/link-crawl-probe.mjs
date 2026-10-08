@@ -64,12 +64,16 @@ const CRAWLABLE_HOSTS = new Set([
 const PINNED_WHATSAPP_NUMBER = DEFAULT_SITE_SETTINGS.whatsappNumber.replace(/[^\d]/g, '')
 
 /** Where the crawl starts. Every one of these is itself an entry point a visitor or crawler reaches. */
-// One site since the domain move (2026-09-28): its sitemap lists every garment page too.
-// The old viewer host's sitemap stays up for search engines to find the 301s, but crawling
-// it here would fetch every garment twice through a redirect and prove nothing new.
+// One site since the domain move (2026-09-28). The old viewer host's sitemap stays up for
+// search engines to find the 301s, but crawling it here would fetch every garment twice
+// through a redirect and prove nothing new.
+// ⚠️ /products IS A SEED SINCE 2026-10-08, when the sitemap went to one entry per garment (its
+// default colour). It links every colour page (200 that day), so the other colours are still
+// fetched one level out, as they were while the sitemap listed them all.
 export const SEEDS = [
   'https://wear-run.com/',
   'https://wear-run.com/sitemap.xml',
+  'https://wear-run.com/products',
   'https://wear-run.com/llms.txt',
 ]
 

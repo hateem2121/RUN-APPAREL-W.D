@@ -9,6 +9,7 @@ import {
 } from '../../lib/companyPages'
 import { factoryPhotoImage } from '../../lib/factoryPhotos'
 import { breadcrumbTrailJsonLd, formatAddress } from '../../lib/structuredData'
+import { Byline } from './Byline'
 import { CompanyClosing } from './CompanyPage'
 import { factoryPhoto, Heading, listOf, SplitHero, sectionIn, sentences } from './CompanyParts'
 import { FactoryFigure } from './FactoryFigure'
@@ -57,6 +58,7 @@ export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
         page={page}
         trail={trail}
         photoSlug={CAREERS_HERO_PHOTO}
+        byline={<Byline path={page.path} />}
         action={
           // The section's own heading as the link's words: no new label.
           <a className="btn btn--ghost" href="#apply">

@@ -1,6 +1,7 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata, MetadataRoute } from 'next'
+import { bylineFor } from './bylines'
 import { FAMILY_PAGES } from './familyPages'
 import { GUIDE_PATHS } from './guides'
 import { COMPANY_PATHS } from './companyPages'
@@ -59,18 +60,30 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  * crawlers the moment it is published — the hand-kept viewer sitemap it replaces had
  * silently missed 45 of 55 garment pages once (2026-09-04).
  *
- * ⚠️ `lastModified` IS THE DATABASE'S OWN DATE OR NOTHING (2026-09-30). This file used to
- * say "no `lastModified`: a date nobody updates is worse than none", and that still holds
- * for the five site pages, which are code and have no honest date. A garment does: the
+ * ⚠️ `lastModified` IS A MEASURED DATE OR NOTHING (2026-09-30). This file used to say "no
+ * `lastModified`: a date nobody updates is worse than none", and that still holds for the pages
+ * with no honest date. The guides, policies and careers have one since 2026-10-08: the time
+ * their words last changed, from `bylines.ts`, whose test fails when the words move without
+ * it. A garment's is the database's own: the
  * product's `updatedAt`, which Payload moves on every save. Google reads `lastmod` to decide
  * what to fetch again and ignores `changefreq` and `priority` outright, so until this day
  * the sitemap said nothing Google uses about 205 pages. A missing or unreadable date emits
  * no field, never "now".
  *
- * ⚠️ EACH COLOUR LISTS ITS OWN PICTURE. A garment page draws its picture with JavaScript,
- * so its raw HTML holds no `<img>` (measured 2026-09-30: 0 on /products/rxps/wine). An
- * image entry is how Google Images finds it. Only an absolute https address is listed, and
- * a colour with no picture lists none rather than borrowing another colour's.
+ * ⚠️ ONE ENTRY PER GARMENT SINCE 2026-10-08, AT ITS DEFAULT COLOUR (owner: "list 40
+ * garments"). Search Console that day: 208 addresses "Discovered – currently not indexed",
+ * most of them colour pages that differ from their siblings by one word. Google's sitemap
+ * guide (updated 2026-07-08): "choose the URL you prefer and include that in the sitemap
+ * instead of all URLs that lead to the same content". The other colours keep working, stay
+ * their own canonical, and stay linked: /products links all 200 and each garment page's robot
+ * copy links its colours (both measured that day). The default colour is the first addressable
+ * row (`ProductCard.defaultColourSlug`), so this follows row order and never reorders it.
+ *
+ * ⚠️ EVERY COLOUR'S PICTURE RIDES ON THAT ONE ENTRY. A garment page draws its picture with
+ * JavaScript, so its raw HTML holds no `<img>` (measured 2026-09-30: 0 on
+ * /products/rxps/wine). An image entry is how Google Images finds it, and a page may carry up
+ * to 1,000 (Google's image-sitemap guide, updated 2025-12-10). Only an absolute https address
+ * is listed, and a colour with no picture adds none.
  *
  * ⚠️ A NEW PUBLIC PAGE MUST BE ADDED HERE OR IT IS NEVER OFFERED TO A CRAWLER, and
  * nothing about that is visible: the page works, every test passes, and it is simply
@@ -83,6 +96,8 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  */
 export interface SitemapGarment {
   slug: string
+  /** The first addressable colour, in row order; absent → the first listed colour. */
+  defaultColourSlug?: string
   /** The product's `updatedAt` as the database wrote it. Absent or unreadable: no date. */
   updatedAt?: string | null
   colours: ReadonlyArray<{ slug: string; image?: { url: string } | null }>
@@ -98,6 +113,15 @@ export interface SitemapGarment {
  */
 function isListablePicture(url: string): boolean {
   return url.startsWith('https://') && !/[&<>"'\s]/.test(url)
+}
+
+/**
+ * A page's `lastModified` from its byline (2026-10-08): the time its words last changed, which
+ * `bylines.test.ts` keeps true. A page with no byline (an index, the home page) states none.
+ */
+function wordsChanged(path: string): { lastModified?: Date } {
+  const changed = realDate(bylineFor(path)?.changed.on)
+  return changed ? { lastModified: changed } : {}
 }
 
 function realDate(value: string | null | undefined): Date | null {
@@ -161,6 +185,7 @@ export function sitemapFor(
       url: `${origin}${path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
+      ...wordsChanged(path),
     })),
     // The policies hub and the approved policies (2026-10-07), from the list that holds
     // their words, so an approved policy is offered to crawlers in the same change.
@@ -168,12 +193,14 @@ export function sitemapFor(
       url: `${origin}${path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
+      ...wordsChanged(path),
     })),
     // The company pages — careers and community (2026-10-07), same reasoning.
     ...COMPANY_PATHS.map((path) => ({
       url: `${origin}${path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
+      ...wordsChanged(path),
     })),
     // The FAQ and the glossary (2026-10-07), from the lists that hold their words.
     ...[...FAQ_PATHS, GLOSSARY_INDEX.path].map((path) => ({
@@ -187,17 +214,21 @@ export function sitemapFor(
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },
     ...garments.flatMap((garment) => {
+      const colour = garment.defaultColourSlug || garment.colours[0]?.slug
+      if (!colour) return []
       const changed = realDate(garment.updatedAt)
-      return garment.colours.map((colour) => {
-        const picture = colour.image?.url ?? ''
-        return {
-          url: `${origin}${buildViewerPath(garment.slug, colour.slug, GARMENT_PATH_PREFIX)}`,
+      const pictures = [
+        ...new Set(garment.colours.map((each) => each.image?.url ?? '').filter(isListablePicture)),
+      ]
+      return [
+        {
+          url: `${origin}${buildViewerPath(garment.slug, colour, GARMENT_PATH_PREFIX)}`,
           changeFrequency: 'monthly' as const,
           priority: 0.7,
           ...(changed ? { lastModified: changed } : {}),
-          ...(isListablePicture(picture) ? { images: [picture] } : {}),
-        }
-      })
+          ...(pictures.length > 0 ? { images: pictures } : {}),
+        },
+      ]
     }),
   ]
 }

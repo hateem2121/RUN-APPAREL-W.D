@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES } from './familyPages'
-import { GUIDES } from './guides'
+import { authorName, BYLINES } from './bylines'
+import { GUIDES, guideAt } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import { buildLlmsFullTxt } from './llmsFullTxt'
 import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
@@ -164,5 +165,29 @@ describe('the FAQ and the glossary, whole (2026-10-07, PLAN.md E9)', () => {
   it('defines every glossary term as the page does', () => {
     for (const term of GLOSSARY_TERMS)
       expect(text).toContain(`**${term.name}**: ${term.definition}`)
+  })
+})
+
+/**
+ * 2026-10-08: each guide carries its byline, as the page does, and the country comparison its
+ * official sources as links (`bylines.ts`, `guides.ts`).
+ */
+describe('guide bylines and sources in llms-full.txt', () => {
+  const full = buildLlmsFullTxt('https://wear-run.com', [])
+
+  it('names who wrote each guide and the day its words last changed', () => {
+    for (const guide of GUIDES) {
+      const byline = BYLINES[guide.path]
+      expect(byline, guide.path).toBeDefined()
+      expect(full).toContain(
+        `URL: https://wear-run.com${guide.path}\nWritten by: ${authorName(byline!.author)} · last checked ${byline!.changed.on.slice(0, 10)}`,
+      )
+    }
+  })
+
+  it('links every source the comparison guide quotes', () => {
+    for (const source of guideAt('/guides/pakistan-vs-china-vs-turkey').sources ?? []) {
+      expect(full).toContain(`- [${source.name}](${source.url})`)
+    }
   })
 })

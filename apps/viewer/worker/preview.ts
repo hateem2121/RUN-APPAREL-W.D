@@ -258,7 +258,7 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
     description: buildDescription(payload),
     url,
     image,
-    jsonLd: buildProductJsonLd(payload, { url, image }),
+    jsonLd: buildProductJsonLd(payload, { url, image, origin, prefix }),
     breadcrumbJsonLd:
       prefix === GARMENT_PATH_PREFIX ? buildBreadcrumbJsonLd(payload, { origin, url }) : null,
     bodyHtml: buildCrawlerBody(payload, { origin, prefix, image }),
@@ -451,6 +451,14 @@ function buildBreadcrumbJsonLd(
  * a garment in search results that nobody chose. Everything else emitted here is a value
  * the CMS actually holds.
  *
+ * ⚠️ A `ProductGroup` SINCE 2026-10-08 (findability audit). Each colour is its own page, so
+ * Google's variants guide (updated 2026-09-08) for multi-page sites applies: every colour page
+ * repeats the whole group (`productGroupID`, `variesBy: color`), carries ITS colour in full as
+ * one variant, and lists every other colour by its `url` alone. Until then each colour page
+ * claimed to be an unrelated Product, five near-copies of one garment with nothing tying them.
+ * The group holds what all colours share (name, code, description, fabric, brand); the variant
+ * holds what is this colour's (colour, picture, 3D file) and the D10 offer below, unchanged.
+ *
  * ⚠️ ESCAPING IS NOT OPTIONAL. All of these strings are CMS-authored, so a product
  * description containing `</script>` would otherwise close the block and inject
  * whatever followed into the document. `<` is escaped to its unicode form, which
@@ -461,7 +469,12 @@ function buildBreadcrumbJsonLd(
  */
 export function buildProductJsonLd(
   payload: ViewerApiSuccess,
-  context: { url: string; image: PreviewImage | null },
+  context: {
+    url: string
+    image: PreviewImage | null
+    origin: string
+    prefix: '' | typeof GARMENT_PATH_PREFIX
+  },
 ): string {
   const p = payload.product
   const selected = payload.selectedColourway
@@ -482,27 +495,36 @@ export function buildProductJsonLd(
   }
   addSpec('Colorways available', String(payload.colourways.length))
 
+  // What every colour shares: the group (Google: "productGroupID" is the group's identifier).
   const data: Record<string, unknown> = {
     '@context': 'https://schema.org',
-    '@type': 'Product',
+    '@type': 'ProductGroup',
     name: p.productName,
-    url: context.url,
+    productGroupID: p.productCode.trim() || p.slug,
+    variesBy: ['https://schema.org/color'],
     brand: {
       '@type': 'Brand',
       name: payload.siteSettings.temporaryWordmark || payload.siteSettings.companyName,
     },
   }
-  if (p.productCode.trim()) data.sku = p.productCode.trim()
   if (p.category.trim()) data.category = p.category.trim()
   if (p.shortDescription.trim()) data.description = p.shortDescription.trim()
   if (p.fabricComposition.trim()) data.material = p.fabricComposition.trim()
-  if (selected.displayName.trim()) data.color = selected.displayName.trim()
-  if (context.image) data.image = context.image.url
   if (specs.length > 0) data.additionalProperty = specs
+
+  // What is this colour's: the variant this page shows, in full.
+  const colour = selected.displayName.trim()
+  const variant: Record<string, unknown> = {
+    '@type': 'Product',
+    name: colour ? `${p.productName} — ${colour}` : p.productName,
+    url: context.url,
+  }
+  if (colour) variant.color = colour
+  if (context.image) variant.image = context.image.url
 
   const glbUrl = (selected.glbUrl || p.glbUrl || '').trim()
   if (glbUrl) {
-    data.subjectOf = {
+    variant.subjectOf = {
       '@type': '3DModel',
       name: `${p.productName} 3D Digital Reference`,
       encoding: [
@@ -521,12 +543,23 @@ export function buildProductJsonLd(
    * absent price is still an invitation for a validator, or a downstream aggregator, to
    * render "from —".
    */
-  data.offers = {
+  variant.offers = {
     '@type': 'Offer',
     url: context.url,
     availability: 'https://schema.org/MadeToOrder',
     businessFunction: 'http://purl.org/goodrelations/v1#Sell',
   }
+
+  // Every other colour by its page alone, as the guide's multi-page example does.
+  data.hasVariant = [
+    variant,
+    ...payload.colourways
+      .filter((other) => other.slug !== selected.slug)
+      .map((other) => ({
+        '@type': 'Product',
+        url: `${context.origin}${buildViewerPath(p.slug, other.slug, context.prefix)}`,
+      })),
+  ]
 
   return JSON.stringify(data).replace(/</g, '\\u003c')
 }

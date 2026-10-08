@@ -65,10 +65,11 @@ const cardWords = (card: ShareCard) => [card.label, card.heading, card.accent].j
 describe('every website page shares a picture of its own type (X14, Q11)', () => {
   it('the home page, products, contact, each category page, the guides index, each guide, the policies hub, each policy, careers and community: one each', () => {
     const files = OWN_PICTURE.map((path) => shareCardFor(path).file)
-    // 1 home + products + contact + 4 category + guides index + 7 guides + policies hub
+    // 1 home + products + contact + 4 category + guides index + 9 guides + policies hub
     // + 7 policies + careers + community + press + the FAQ hub + 5 FAQ topics + the glossary
-    // + the Journal's and the case studies' hubs.
-    expect(OWN_PICTURE).toHaveLength(35)
+    // + the Journal's and the case studies' hubs. (9 guides since 2026-10-08: the cost guide
+    // and the country comparison.)
+    expect(OWN_PICTURE).toHaveLength(37)
     expect(new Set(files).size, 'two page types share a picture').toBe(OWN_PICTURE.length)
   })
 

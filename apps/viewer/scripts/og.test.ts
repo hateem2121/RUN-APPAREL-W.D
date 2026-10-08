@@ -138,7 +138,15 @@ describe('link preview (Open Graph) tags', () => {
     // ever adds a preview that needs an inline script, this catches it here
     // instead of as a CSP violation on the live site.
     const inlineScripts = html.match(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/gi) ?? []
-    expect(inlineScripts).toHaveLength(1) // the theme bootstrap, and only that
+    // The theme bootstrap, and since 2026-10-08 the analytics beacon's loader
+    // (packages/shared/src/analyticsBeacon.ts): both hashed by csp.mjs, and nothing else.
+    expect(inlineScripts).toHaveLength(2)
+    expect(inlineScripts.filter((script) => script.includes('theme-color'))).toHaveLength(1)
+    // Told apart by how the loader starts, not by a host in its text (CodeQL reads a host
+    // `includes` as URL sanitization); `src/analyticsBeacon.test.ts` ties the whole string.
+    expect(
+      inlineScripts.filter((script) => /^<script>if\(!navigator\.webdriver/.test(script)),
+    ).toHaveLength(1)
   })
 })
 
