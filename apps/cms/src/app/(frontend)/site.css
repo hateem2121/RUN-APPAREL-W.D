@@ -7336,7 +7336,7 @@ a.contact-block__value:active {
 .page-byline {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 40px;
+  gap: 12px 24px;
   margin: 24px 0 0;
 }
 
