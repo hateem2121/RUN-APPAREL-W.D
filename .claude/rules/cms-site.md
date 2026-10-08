@@ -89,6 +89,14 @@ secret when the environment has none. To reproduce CI here, move `.env` and `.de
 aside and run with `CI=1`. And `/api/media` answers **403** to anonymous requests since
 main narrowed `Media.read` — the catch-all test expects that, not 200.
 
+🟡 **MEASURE A LOADING CHANGE OVER HTTP/2, AND REPORT THE LARGEST PAINT TOO (2026-10-08).**
+`next start` speaks HTTP/1.1, so Chrome caps it at 6 connections and slow-3G emulation queues
+the scripts behind extra stylesheets. Splitting the site's CSS into 9 files measured home first
+paint 3.50 → 1.93 s that way. Behind a local HTTP/2 front (as Cloudflare serves the site) it was
+3.83 → 3.40 s, and the hero picture, the home page's largest paint, came 0.84 s LATER: Chrome's
+emulation shares bandwidth evenly per request, so more files take bandwidth from the picture.
+Not shipped (owner, 2026-10-08).
+
 ## The public site footer
 
 Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
