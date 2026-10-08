@@ -281,19 +281,32 @@ export async function sendIndexNow(
 export const pingIndexNowWhenPublished =
   (basePath: string): CollectionAfterChangeHook =>
   async ({ doc, req }) => {
-    try {
-      const urls = indexNowUrls(basePath, doc as Doc, SITE_ORIGIN)
-      if (urls.length === 0) return doc
-      const context = await getCloudflareContext({ async: true }).catch(() => null)
-      const env = context?.env as Record<string, unknown> | undefined
-      const requestHost = req.headers?.get?.('host') ?? null
-      if (!context?.ctx || !shouldPingIndexNow({ ...pickEnv(env), requestHost })) return doc
-      context.ctx.waitUntil(sendIndexNow(urls))
-    } catch (error) {
-      void reportCaught('indexnow.publish', error)
-    }
+    await pingIndexNowFromLiveAdmin(indexNowUrls(basePath, doc as Doc, SITE_ORIGIN), req, 'publish')
     return doc
   }
+
+/**
+ * Hand `urls` to IndexNow after the save, from the live admin only (`shouldPingIndexNow`), on the
+ * Worker's `waitUntil` so the owner's save never waits on a search engine. Shared since
+ * 2026-10-08 by the Journal and case-study hook above and the garment hook
+ * (`garmentIndexNow.ts`), so the "only from the live admin" rule lives in one place. Never throws.
+ */
+export async function pingIndexNowFromLiveAdmin(
+  urls: readonly string[],
+  req: { headers?: { get?: (name: string) => string | null } },
+  where: string,
+): Promise<void> {
+  try {
+    if (urls.length === 0) return
+    const context = await getCloudflareContext({ async: true }).catch(() => null)
+    const env = context?.env as Record<string, unknown> | undefined
+    const requestHost = req.headers?.get?.('host') ?? null
+    if (!context?.ctx || !shouldPingIndexNow({ ...pickEnv(env), requestHost })) return
+    context.ctx.waitUntil(sendIndexNow(urls))
+  } catch (error) {
+    void reportCaught(`indexnow.${where}`, error)
+  }
+}
 
 const pickEnv = (env: Record<string, unknown> | undefined) => ({
   siteIndexing: env?.SITE_INDEXING,
