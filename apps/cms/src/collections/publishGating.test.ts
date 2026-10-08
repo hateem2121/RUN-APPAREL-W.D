@@ -565,3 +565,83 @@ describe('a colourway label must name the garment it belongs to', () => {
     )
   })
 })
+
+/**
+ * "3D coming soon" (owner decision 2026-10-08): Structure Polo Set goes live on its CLO
+ * renders while its CLO export is redone. Every case that lets a model-less garment through
+ * is paired with one proving the same garment is refused without the box, or once a model
+ * is attached — a relaxed gate with no negative control is how N001 went live empty.
+ */
+describe('3D coming soon', () => {
+  const soon = (o: Partial<PublishGateInput> = {}) =>
+    input({ glbAsset: null, variantsVerified: false, modelComingSoon: true, ...o })
+
+  it('publishes a model-less garment whose every colour has a photo', () => {
+    expect(collectPublishProblems(soon(), [cw(), cw({ displayName: 'Sand' })])).toEqual([])
+  })
+
+  it('NEGATIVE CONTROL: the same garment without the box is refused for its missing 3D file', () => {
+    const problems = collectPublishProblems(soon({ modelComingSoon: false }), [cw()])
+    expect(problems.join(' ')).toMatch(/no finished 3D file yet/)
+  })
+
+  it('only a real `true` counts — a stray value is not a tick', () => {
+    expect(
+      collectPublishProblems(soon({ modelComingSoon: 'true' }), [cw()]).length,
+    ).toBeGreaterThan(0)
+    expect(collectPublishProblems(soon({ modelComingSoon: 1 }), [cw()]).length).toBeGreaterThan(0)
+  })
+
+  it('names every switched-on colour with no photo, because the photo is the page', () => {
+    const problems = collectPublishProblems(soon(), [
+      cw({ displayName: 'Sand', hasPoster: false }),
+      cw({ displayName: 'Olive' }),
+      cw({ displayName: 'Rust', hasPoster: false, active: false }),
+    ])
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('“Sand”')
+    expect(problems[0]).not.toContain('Rust')
+    expect(problems[0]).not.toContain('Olive')
+  })
+
+  it('still demands a name and a web address word on each colour', () => {
+    const problems = collectPublishProblems(soon(), [cw({ hasDisplayName: false, hasSlug: false })])
+    expect(problems.join(' ')).toMatch(/no colour name/)
+    expect(problems.join(' ')).toMatch(/no web address word/)
+  })
+
+  it('stops counting the moment a model is attached: every 3D check runs again', () => {
+    // A ticked box must never wave an unmatched or damaged model through.
+    const unmatched = collectPublishProblems(soon({ glbAsset: 10 }), [cw({ variantId: '' })])
+    expect(unmatched.join(' ')).toMatch(/no colour picked from your CLO file/)
+    const damaged = collectPublishProblems(
+      soon({ glbAsset: 10, variantsVerified: true, artworkVerdict: 'damaged' }),
+      [cw()],
+    )
+    expect(damaged.length).toBeGreaterThan(0)
+  })
+
+  it('works the same in separate-file mode: no colour with a file means pictures only', () => {
+    const mode = { variantMode: 'separate-glb-per-colour' }
+    expect(collectPublishProblems(soon(mode), [cw()])).toEqual([])
+    // ...and one colour with a file puts the whole product back under the 3D rules.
+    const problems = collectPublishProblems(soon(mode), [
+      cw({ hasOwnGlb: true }),
+      cw({ displayName: 'Sand' }),
+    ])
+    expect(problems.join(' ')).toMatch(/“Sand” is missing one/)
+  })
+
+  it('re-runs the gate when only the box changes, so unticking a live model-less garment is caught', () => {
+    expect(GATED_FIELDS).toContain('modelComingSoon')
+    expect(
+      changesAnything(GATED_FIELDS, { modelComingSoon: false }, { modelComingSoon: true }),
+    ).toBe(true)
+  })
+
+  it('leaves a draft alone', () => {
+    expect(collectPublishProblems(soon({ status: 'draft' }), [cw({ hasPoster: false })])).toEqual(
+      [],
+    )
+  })
+})

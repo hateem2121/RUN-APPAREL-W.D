@@ -1,3 +1,4 @@
+import { BYLINES } from './bylines'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // `vi.hoisted`, not a bare `const`: vi.mock's factory is hoisted above module scope, so
@@ -84,6 +85,8 @@ describe('what the switch does', () => {
       'https://wear-run.com/guides/sportswear-fabrics-and-weights',
       'https://wear-run.com/guides/private-label-packaging',
       'https://wear-run.com/guides/shipping-and-import-duties',
+      'https://wear-run.com/guides/cost-to-start-an-activewear-brand',
+      'https://wear-run.com/guides/pakistan-vs-china-vs-turkey',
       'https://wear-run.com/policies',
       'https://wear-run.com/policies/workplace-conduct',
       'https://wear-run.com/policies/health-and-safety',
@@ -113,15 +116,17 @@ describe('what the switch does', () => {
   /**
    * THE GARMENTS JOINED THE SITEMAP ON 2026-09-28, when they moved onto the site's own
    * host at /products/<product>/<colour>. Until then they lived on viewer.wear-run.help,
-   * and a sitemap may only speak for the host that serves it. One entry per colour, in the
-   * catalogue's own order — each colour page is its own canonical URL (the viewer Worker
-   * writes it) — and never the colourless /products/<product>, which is the default
-   * colour's page under a second address.
+   * and a sitemap may only speak for the host that serves it.
+   *
+   * ONE ENTRY PER GARMENT SINCE 2026-10-08 (owner: "list 40 garments"), at its default colour —
+   * the first addressable row — and never the colourless /products/<product>, which is the
+   * default colour's page under a second address. The other colours stay their own canonical
+   * pages and stay linked; they are just not offered twice as often as the garment itself.
    */
-  it('lists every colour of every garment when visible, and none when hidden', () => {
+  it('lists each garment once, at its default colour, when visible, and none when hidden', () => {
     const garments = [
-      { slug: 'rxps', colours: [{ slug: 'wine' }, { slug: 'navy' }] },
-      { slug: 'r-xmp', colours: [{ slug: 'black' }] },
+      { slug: 'rxps', defaultColourSlug: 'wine', colours: [{ slug: 'wine' }, { slug: 'navy' }] },
+      { slug: 'r-xmp', colours: [{ slug: 'black' }, { slug: 'olive' }] },
     ]
     expect(sitemapFor('hidden', 'https://wear-run.com', garments)).toEqual([])
     expect(
@@ -130,9 +135,16 @@ describe('what the switch does', () => {
         .filter(isGarment),
     ).toEqual([
       'https://wear-run.com/products/rxps/wine',
-      'https://wear-run.com/products/rxps/navy',
       'https://wear-run.com/products/r-xmp/black',
     ])
+  })
+
+  it('follows the default colour it is given, and lists a garment with no colour not at all', () => {
+    const entries = sitemapFor('visible', 'https://wear-run.com', [
+      { slug: 'rxps', defaultColourSlug: 'navy', colours: [{ slug: 'navy' }, { slug: 'wine' }] },
+      { slug: 'empty', colours: [] },
+    ]).filter((e) => isGarment(e.url))
+    expect(entries.map((e) => e.url)).toEqual(['https://wear-run.com/products/rxps/navy'])
   })
 
   /*
@@ -141,7 +153,7 @@ describe('what the switch does', () => {
    * it finds a picture the page only draws with JavaScript, which is every garment picture.
    * Measured live that day: 205 garment pages listed, 0 dates, 0 pictures.
    */
-  it('gives each garment colour its own picture and the date the garment last changed', () => {
+  it('carries every colour’s picture on the garment’s one entry, and the date it last changed', () => {
     const garments = [
       {
         slug: 'rxps',
@@ -149,17 +161,28 @@ describe('what the switch does', () => {
         colours: [
           { slug: 'wine', image: { url: 'https://media.wear-run.com/rxps-wine-render.webp' } },
           { slug: 'navy', image: null },
+          { slug: 'lime', image: { url: 'https://media.wear-run.com/rxps-lime-render.webp' } },
+          { slug: 'blush', image: { url: 'https://media.wear-run.com/rxps-wine-render.webp' } },
         ],
       },
     ]
-    const [wine, navy] = sitemapFor('visible', 'https://wear-run.com', garments).filter((e) =>
+    const entries = sitemapFor('visible', 'https://wear-run.com', garments).filter((e) =>
       isGarment(e.url),
     )
-    expect(wine?.images).toEqual(['https://media.wear-run.com/rxps-wine-render.webp'])
-    expect(wine?.lastModified).toEqual(new Date('2026-09-28T10:15:00.000Z'))
-    // A colour with no picture lists none, rather than borrowing another colour's.
-    expect(navy).not.toHaveProperty('images')
-    expect(navy?.lastModified).toEqual(new Date('2026-09-28T10:15:00.000Z'))
+    expect(entries).toHaveLength(1)
+    // A colour with no picture adds none, and a picture two colours share is listed once.
+    expect(entries[0]?.images).toEqual([
+      'https://media.wear-run.com/rxps-wine-render.webp',
+      'https://media.wear-run.com/rxps-lime-render.webp',
+    ])
+    expect(entries[0]?.lastModified).toEqual(new Date('2026-09-28T10:15:00.000Z'))
+  })
+
+  it('lists no picture field at all when no colour has one', () => {
+    const [entry] = sitemapFor('visible', 'https://wear-run.com', [
+      { slug: 'rxps', colours: [{ slug: 'wine', image: null }, { slug: 'navy' }] },
+    ]).filter((e) => isGarment(e.url))
+    expect(entry).not.toHaveProperty('images')
   })
 
   /*
@@ -173,7 +196,8 @@ describe('what the switch does', () => {
       { slug: 'a', colours: [{ slug: 'x' }] },
       { slug: 'b', updatedAt: null, colours: [{ slug: 'x' }] },
       { slug: 'c', updatedAt: 'not a date', colours: [{ slug: 'x' }] },
-    ])
+    ]).filter((e) => isGarment(e.url))
+    expect(entries).toHaveLength(3)
     for (const entry of entries) expect(entry).not.toHaveProperty('lastModified')
   })
 
@@ -252,5 +276,28 @@ describe('the Journal and case studies in the sitemap', () => {
         caseStudies: [],
       }),
     ).toEqual([])
+  })
+})
+
+/**
+ * 2026-10-08: the guides, the policies and the careers page state when their words last changed,
+ * from their bylines (`bylines.ts`, kept true by `bylines.test.ts`). The hubs and the other code
+ * pages still state no date, rather than one nobody keeps.
+ */
+describe('the dated website pages', () => {
+  const entries = sitemapFor('visible', 'https://wear-run.com')
+  const at = (path: string) => entries.find((entry) => entry.url === `https://wear-run.com${path}`)
+
+  it('date every guide, policy and careers by the last change to their words', () => {
+    for (const [path, byline] of Object.entries(BYLINES)) {
+      expect(at(path)?.lastModified, path).toEqual(new Date(byline.changed.on))
+    }
+  })
+
+  it('leave the hubs and the other pages undated', () => {
+    for (const path of ['', '/guides', '/policies', '/community', '/contact', '/privacy']) {
+      expect(at(path), path).toBeDefined()
+      expect(at(path), path).not.toHaveProperty('lastModified')
+    }
   })
 })

@@ -1816,6 +1816,36 @@ Afterwards, `node scripts/poster-sizes.mjs` should exit 0 with 5 excepted and 0
 flagged. `apps/cms/src/shrinkPostersGently.test.ts` pins every settings/bytes/sha256
 triple above.
 
+## Publishing a garment before its 3D file ("3D coming soon")
+
+**When you need this:** a garment should go online now, but its CLO export cannot be used yet.
+First used 2026-10-08 for Structure Polo Set, whose export holds one look and no colour links
+(`docs/CLO-EXPORT-CHECKLIST.md`, item 1).
+
+Tick **3D coming soon (publish with pictures only)** on the garment's "3D file" tab
+(`modelComingSoon`, `apps/cms/src/collections/Products.ts`). While it is ticked AND no model is
+attached, the publish gate asks for a photo on every colour instead of a 3D file
+(`apps/cms/src/collections/publishGating.ts`), and the garment page shows the colour's HD picture
+with "The 3D view of this garment is coming soon…" instead of the "not available" text, and
+reports no fault (`apps/viewer/src/components/Stage.tsx`). Attach a model and every 3D check
+applies again, ticked or not.
+
+1. Give the colour rows the CLO colour names (`Colorway A`, `Colorway 1`, …) as their
+   "Which colour in your CLO file is this?" answer, so the future file maps onto them.
+2. Photos and HD pictures: the studio renders, brightened to the model where one exists (the
+   2026-10-08 method: one linear-light exposure for all five colours), uploaded with
+   `scripts/upload-posters.mjs` and attached as renders with their `-screen` copies.
+3. Add the row to `scripts/live-products.mjs` with `modelComingSoon: true`. The post-deploy check
+   then demands every picture instead of a model (`scripts/smoke-viewer-payload.mjs`), and
+   `scripts/glb-provenance-probe.mjs` skips the row.
+4. After the change deploys, tick the box and publish.
+
+**When the 3D arrives:** run `scripts/process-local.mjs` (it only makes the Media file for a live
+garment), check it beside the pictures, then `scripts/swap-live-model.mjs`, which refuses a file
+whose colour names differ from the rows. Then untick the box, remove `modelComingSoon` from the
+row (the smoke check prints a reminder once a model is there), and re-make the posters from the
+3D as for any garment.
+
 ## Re-processing a garment (the Retry tick-box)
 
 **When you need this:** the pipeline was fixed and you want the fix applied to a
@@ -2411,6 +2441,77 @@ delete a post's picture from the post, not from Media.
 
 The tables come from `apps/cms/src/migrations/20261007_160000_journal_case_studies.ts`,
 hand-written from `payload generate:db-schema` like the job applications' migration.
+
+### Findability: robots, the sitemap, bylines and labels (since 2026-10-08)
+
+From the 8 October findability audit (kept privately). Each part has a test that fails the way
+the site would.
+
+**Which robots get a garment page's plain copy.** The list is `CRAWLER` in
+`apps/viewer/worker/crawlerAgents.ts`. Until that day it matched "bot", "crawler" and "spider",
+so the AI helpers that fetch a page because a person asked (Claude-User, Perplexity-User,
+ChatGPT-User and others whose names hold none of those words) got the 16-word loading shell. To
+add a robot, add its name to `AI_CRAWLER_UAS` in `apps/cms/htmlLimitedBots.mjs`;
+`apps/cms/src/viewerCrawlerAgents.test.ts` fails until `CRAWLER` matches it too. Take a name only
+from the vendor's own page: the owner chose to wait for DeepSeek and xAI to publish theirs.
+
+**The sitemap lists each garment once.** `sitemapFor` in `apps/cms/src/lib/searchVisibility.ts`
+lists a garment at its default colour (`defaultColourSlug`, else the first colour row) with a
+picture of every colour, not one entry per colour: Google had left 208 colour pages "Discovered –
+currently not indexed". Every colour page still answers, names itself as canonical and is linked
+from `/products` and from its garment's other colours, so none is orphaned. A website page's
+`lastmod` is its byline date (next paragraph), never the build time.
+
+**Bylines and "Last checked" dates.** Guides, policies and careers say who wrote them and when
+their words last changed: `apps/cms/src/lib/bylines.ts`, drawn by
+`apps/cms/src/components/site/Byline.tsx`. The dates were measured, not remembered.
+`apps/cms/src/lib/bylines.test.ts` keeps a fingerprint of each page's words, so after any change
+to a guide's or policy's text it fails and prints the new fingerprint. Then set that page's
+`changed.on` to the time the change goes live (with `+05:00`) and paste the new fingerprint; a
+policy's `lastReviewed` must be the same day. Never update the fingerprint alone: the date is
+what readers and Google see.
+
+**What the labels tell Google.**
+
+- A garment page labels its colours as one `ProductGroup` (`buildProductJsonLd` in
+  `apps/viewer/worker/preview.ts`): the shown colour in full, the others by address. Its offer
+  stays "made to order" with no price (decision D10), so Search Console's missing-price warning
+  is expected, not a fault.
+- The site name is `SITE_NAME` (`apps/cms/src/lib/seo.ts`); the legal name `LEGAL_NAME` and the
+  second phone `CALL_NUMBER` are in `apps/cms/src/lib/companyFacts.ts`, and
+  `apps/cms/src/lib/structuredData.ts` reads all three. The `sameAs` list of profiles is the
+  CMS's **Settings → Social links** (the footer's "Elsewhere"), so a profile added there reaches
+  Google with no code change. A chat link (wa.me) is not a profile and is left out.
+
+**Test robots do not count as visitors.** Cloudflare's visit counter starts from a small script
+that skips automated browsers (`beaconLoader` in `packages/shared/src/analyticsBeacon.ts`). The
+garment page's `apps/viewer/index.html` carries the same script typed out, and
+`apps/viewer/src/analyticsBeacon.test.ts` fails when the two differ. It must stay a classic
+script: Vite moves an inline `type="module"` script out of the page, where
+`scripts/beacon-probe.mjs` cannot see the counter.
+
+**The garment page's HTML carries no developer notes.** The viewer build strips HTML comments
+from `index.html` (`apps/viewer/scripts/htmlComments.mjs`): 19,603 bytes became 7,664. Nothing in
+the Worker uses a comment as a marker; keep it that way.
+
+**Bing hears when a garment changes.** Saving a garment in the live admin sends its colour pages
+and `/products` to IndexNow (`apps/cms/src/lib/garmentIndexNow.ts`, the same sender as the
+Journal's in `apps/cms/src/lib/journalHooks.ts`). A save from a local server never does.
+
+**The scanner rule.** A Cloudflare custom rule on the wear-run.com zone, "Block secret-file
+probes" (Security → WAF → Custom rules, the third rule), refuses paths no real page uses:
+`.env`, `/.git`, `/wp-admin`, `phpinfo` and the like, on `wear-run.com`, `www.`, `assets.` and
+`media.` only, never the email project's hosts. It matches anywhere in a path, so ⚠️ **never name
+a file with `.env` in it**. The 3D lighting file is `/env/studio-soft.hdr` (`ENVIRONMENT_IMAGE` in
+`apps/viewer/src/components/stageConfig.ts`, no dot before `env`) and answered 200 on 8 October.
+
+**Two speed findings, so nobody repeats them.** The home headline's font swap had moved the page
+(0.153 in Google's mobile test); its stand-in faces are now sized to its words (`.hero-home` in
+`apps/cms/src/app/(frontend)/site.css`, checked by `apps/cms/e2e/fontSwap.spec.ts`). A garment
+page's 13-second "total blocking time" in Google's test is mostly that test machine having no
+graphics chip: measured on the live page with the processor slowed four times, 4,259 ms drawing 3D
+in software and 449 ms with a graphics chip. Starting the 3D later only moves that work, and
+unpacking the model on helper threads measured no gain, so neither shipped.
 
 ### Why only crawlers get the rewrite
 

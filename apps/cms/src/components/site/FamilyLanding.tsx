@@ -13,6 +13,15 @@ import { JsonLd } from './JsonLd'
 const ORDER_GUIDE = guideAt('/guides/how-a-private-label-order-works')
 
 /**
+ * The two guides every range shares beside it (owner, 2026-10-08): how a design goes on and what
+ * it is knitted from, each with its own approved description as the reason to open it.
+ */
+const RANGE_GUIDES = [
+  guideAt('/guides/garment-printing-methods'),
+  guideAt('/guides/sportswear-fabrics-and-weights'),
+]
+
+/**
  * A buyer page: one product family, written for the words a buyer searches (2026-09-30).
  *
  * Every word comes from `lib/familyPages.ts`, which the owner approved; this file only
@@ -156,6 +165,14 @@ export function FamilyLanding({
                 {ORDER_GUIDE.title}
               </Link>
             </div>
+            <ul className="see-also__list">
+              {RANGE_GUIDES.map((guide) => (
+                <li key={guide.path}>
+                  <Link href={guide.path}>{guide.title}</Link>
+                  <p className="see-also__why">{guide.description}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>

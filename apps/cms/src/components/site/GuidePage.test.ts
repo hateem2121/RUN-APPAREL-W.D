@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { FAMILIES } from '../../lib/families'
 import { familyPageFor } from '../../lib/familyPages'
 import { FACTORY_PHOTOS, factoryPhotoWidths } from '../../lib/factoryPhotos'
-import { type Guide, GUIDES, GUIDES_INDEX, guideAt } from '../../lib/guides'
+import { type Guide, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from '../../lib/guides'
+import type { ProductCard } from '../../lib/projectPublic'
 import { HALF_COLUMN_SIZES } from './FactoryFigure'
 import { GuidePage } from './GuidePage'
 
@@ -19,7 +20,8 @@ import { GuidePage } from './GuidePage'
  * is `e2e/guides.spec.ts`.
  */
 
-const render = (guide: Guide) => renderToStaticMarkup(createElement(GuidePage, { guide }))
+const render = (guide: Guide, cards: readonly ProductCard[] = []) =>
+  renderToStaticMarkup(createElement(GuidePage, { guide, cards }))
 
 /** Markup text as a reader gets it: React escapes "&" and the apostrophe. */
 const text = (html: string) =>
@@ -166,13 +168,11 @@ describe('the end of a guide: three labelled groups, every link kept (polish X22
     const problems: string[] = []
     if (end.chips) problems.push('still drawn as filter chips')
     const titles = end.groups.map((group) => group.title)
-    if (titles.join(' | ') !== 'Buyer guides | What we make | Answers') {
+    if (titles.join(' | ') !== 'Read next | What we make | Answers') {
       problems.push(`groups "${titles.join(' | ')}"`)
     }
-    const guides = [
-      ...GUIDES.filter((entry) => entry.path !== guide.path).map((entry) => entry.path),
-      GUIDES_INDEX.path,
-    ]
+    // 2–3 guides with reasons, then all of them (owner, 2026-10-08), where every guide was listed.
+    const guides = [...(READ_NEXT[guide.path] ?? []), GUIDES_INDEX.path]
     if (end.groups[0]?.hrefs.join(' ') !== guides.join(' ')) {
       problems.push(`the guides group links ${end.groups[0]?.hrefs.join(' ')}`)
     }
@@ -211,5 +211,76 @@ describe('the end of a guide: three labelled groups, every link kept (polish X22
     const problems = problemsWith(guide, old)
     expect(problems).toContain('still drawn as filter chips')
     expect(problems).toContain('groups ""')
+  })
+})
+
+/**
+ * 2026-10-08: each "Read next" guide carries its own approved description as the reason, and the
+ * 3D, printing and fabrics guides link reference garments from the live catalogue, by plain
+ * anchors to each garment's default colour; a garment the catalogue does not hold is left out.
+ */
+describe('read-next reasons and reference garments (2026-10-08)', () => {
+  const card = (slug: string, over: Partial<ProductCard> = {}): ProductCard =>
+    ({
+      slug,
+      productName: `NAME ${slug}`,
+      productCode: slug.toUpperCase(),
+      category: 'Sportswear',
+      garmentType: `Type ${slug}`,
+      shortDescription: '',
+      posterUrl: null,
+      posterAlt: '',
+      defaultColourSlug: 'wine',
+      colourNames: ['Wine'],
+      colours: [],
+      updatedAt: null,
+      ...over,
+    }) as ProductCard
+
+  it('draws each read-next guide’s own description under its link', () => {
+    const guide = guideAt('/guides/minimum-order-and-samples')
+    const words = text(render(guide))
+    for (const path of READ_NEXT[guide.path] ?? []) {
+      expect(words).toContain(guideAt(path).description)
+    }
+  })
+
+  it('links each pick the catalogue holds, to its default colour, with its type and what it shows', () => {
+    const guide = guideAt('/guides/garment-printing-methods')
+    const html = render(guide, [card('r-vpj'), card('r-au', { defaultColourSlug: 'bone' })])
+    const section = sectionOf(html, 'Seen on our reference garments')
+    expect(section).toContain('href="/products/r-vpj/wine"')
+    expect(section).toContain('href="/products/r-au/bone"')
+    expect(text(section)).toContain('Type r-vpj · Sublimation')
+    // Not in the catalogue: left out, never linked dead.
+    expect(section).not.toContain('r-mrp')
+  })
+
+  it('draws no garment section at all when none of its picks is in the catalogue', () => {
+    const html = render(guideAt('/guides/garment-printing-methods'), [card('someone-else')])
+    expect(html).not.toContain('Seen on our reference garments')
+  })
+
+  it('puts the garments right after the section the guide names', () => {
+    const guide = guideAt('/guides/3d-garment-reference')
+    const html = render(guide, [card('rxps'), card('r-ect'), card('r-pps')])
+    const order = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/g)].map((m) => text(m[1] ?? ''))
+    expect(order.indexOf('Turn one now')).toBe(order.indexOf('How to use one') + 1)
+  })
+})
+
+describe('the comparison guide’s sources (2026-10-08)', () => {
+  it('draws every source as a link out, with its date under it', () => {
+    const guide = guideAt('/guides/pakistan-vs-china-vs-turkey')
+    const section = sectionOf(render(guide), 'Sources')
+    for (const source of guide.sources ?? []) {
+      expect(section).toContain(`href="${source.url.replace(/&/g, '&amp;')}"`)
+      expect(section).toContain(`dateTime="${source.date}"`)
+    }
+    expect(text(section)).toContain('Read October 8, 2026')
+  })
+
+  it('draws no Sources section on a guide that quotes none', () => {
+    expect(render(guideAt('/guides/minimum-order-and-samples'))).not.toContain('>Sources<')
   })
 })

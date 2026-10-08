@@ -251,7 +251,7 @@ describe('the case-study hub', () => {
 
 describe('a case study', () => {
   it('has one h1, its facts, Article data, and plain links to the garment pages', () => {
-    const page = html(createElement(CaseStudyPage, { study, companyName: 'RUN APPAREL' }))
+    const page = html(createElement(CaseStudyPage, { study }))
     expect(page.match(/<h1/g)).toHaveLength(1)
     expect(page).toContain('<dt>What was made</dt><dd>Jerseys</dd>')
     expect(page).toContain('"@type":"Article"')
@@ -259,9 +259,7 @@ describe('a case study', () => {
   })
 
   it('shows the client’s name beside "For whom" only when permitted (the projection decides)', () => {
-    const named = html(
-      createElement(CaseStudyPage, { study: { ...study, clientName: 'A Club' }, companyName: 'x' }),
-    )
+    const named = html(createElement(CaseStudyPage, { study: { ...study, clientName: 'A Club' } }))
     expect(named).toContain('<dd>A Club, a club in the UK</dd>')
   })
 })

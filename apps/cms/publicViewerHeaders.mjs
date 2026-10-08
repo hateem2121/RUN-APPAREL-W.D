@@ -100,6 +100,9 @@ export const GUIDE_PAGE_SOURCES = [
   '/guides/sportswear-fabrics-and-weights',
   '/guides/private-label-packaging',
   '/guides/shipping-and-import-duties',
+  // The cost guide and the country comparison (owner's approval, 2026-10-08).
+  '/guides/cost-to-start-an-activewear-brand',
+  '/guides/pakistan-vs-china-vs-turkey',
 ]
 
 /**

@@ -5,6 +5,7 @@ import { cameraFields } from '../fields/camera'
 import { colourwaysField } from '../fields/colourways'
 import { deriveSlug } from '../fields/deriveSlug'
 import { keptPagesAfterChange, keptPagesAfterDelete } from '../lib/contentVersion'
+import { pingIndexNowForGarment } from '../lib/garmentIndexNow'
 import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 import { GARMENT_PAGES } from '../lib/seo'
 import type { CatalogueDefault } from '../payload-types'
@@ -245,6 +246,7 @@ export const Products: CollectionConfig = {
               variantMode: resolved.variantMode,
               glbAsset: resolved.glbAsset,
               variantsVerified: data.variantsVerified,
+              modelComingSoon: resolved.modelComingSoon,
               ...artwork,
             },
             colourways,
@@ -256,7 +258,9 @@ export const Products: CollectionConfig = {
       },
     ],
     // Every product change reaches the website's kept pages (pageCache.mjs, polish X15).
-    afterChange: [keptPagesAfterChange],
+    // The garment's pages to IndexNow on every save of a live garment, and on its unpublish
+    // (2026-10-08; `lib/garmentIndexNow.ts`).
+    afterChange: [keptPagesAfterChange, pingIndexNowForGarment],
     afterDelete: [keptPagesAfterDelete],
   },
   fields: [
@@ -569,6 +573,22 @@ export const Products: CollectionConfig = {
           description:
             'Upload your CLO export here. Big files and messy names are fine — it is shrunk automatically.',
           fields: [
+            {
+              // Owner decision 2026-10-08: Structure Polo Set goes live on its CLO renders while
+              // its CLO export is redone (the 12 Sep file has 0 colour links). Ticked, the publish
+              // gate stops asking for a finished 3D file and asks for a picture on every colour
+              // instead (publishGating.ts), and the garment page shows that picture with a
+              // "coming soon" note rather than its "3D is not available" failure text. A model,
+              // once attached, is still shown: the box only changes what happens WITHOUT one.
+              name: 'modelComingSoon',
+              type: 'checkbox',
+              defaultValue: false,
+              label: '3D coming soon (publish with pictures only)',
+              admin: {
+                description:
+                  'Tick this to put the garment online before its 3D file is ready. Every colour then needs a photo, and the page shows that photo with a “3D view coming soon” note. Untick it once the finished 3D file is picked below.',
+              },
+            },
             {
               name: 'rawUploads',
               type: 'join',

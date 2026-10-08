@@ -245,6 +245,23 @@ describe('buildPreview — description', () => {
     expect(bare).toBe('Shown in Wine. See all 3 colorways in 3D.')
   })
 
+  it('promises no 3D for a garment marked "3D coming soon" (2026-10-08)', () => {
+    const soon = payload({ product: { glbUrl: null, glbBytes: null, modelComingSoon: true } })
+    const description = build(soon).description
+    expect(description).toContain('See all 3 colorways. 3D view coming soon.')
+    expect(description).not.toContain('in 3D')
+    // NEGATIVE CONTROL: without the flag the same payload keeps today's wording.
+    expect(build(payload({})).description).toContain('See all 3 colorways in 3D.')
+    const one = colourway()
+    const single = payload({
+      product: { glbUrl: null, glbBytes: null, modelComingSoon: true },
+      colourways: [one],
+      selectedColourway: one,
+    })
+    expect(build(single).description).toContain('3D view coming soon.')
+    expect(build(single).description).not.toMatch(/rotate and zoom/i)
+  })
+
   it('says "this reference" rather than "all 1 colourways"', () => {
     const one = colourway()
     expect(build(payload({ colourways: [one], selectedColourway: one })).description).toContain(
@@ -643,6 +660,8 @@ describe('schema.org Product JSON-LD', () => {
    * result on purpose.
    */
   const parse = (p: ReturnType<typeof buildPreview>) => JSON.parse(p.jsonLd)
+  /** This page's own colour: the first variant, the only one given in full (2026-10-08). */
+  const shown = (data: { hasVariant: Array<Record<string, unknown>> }) => data.hasVariant[0] ?? {}
 
   it('describes the garment with the values the CMS actually holds', () => {
     const data = parse(
@@ -657,18 +676,24 @@ describe('schema.org Product JSON-LD', () => {
       ),
     )
 
+    // The garment, as the group every colour belongs to …
     expect(data['@context']).toBe('https://schema.org')
-    expect(data['@type']).toBe('Product')
+    expect(data['@type']).toBe('ProductGroup')
     expect(data.name).toBe('Velocity Performance Skinsuit')
-    expect(data.sku).toBe('N001')
+    expect(data.productGroupID).toBe('N001')
+    expect(data.variesBy).toEqual(['https://schema.org/color'])
     expect(data.category).toBe('Sportswear')
     expect(data.description).toBe('A four-way stretch skinsuit.')
     expect(data.material).toBe('80% recycled polyester / 20% elastane')
-    expect(data.color).toBe('Wine')
     expect(data.brand).toEqual({ '@type': 'Brand', name: 'RUN' })
-    expect(data.url).toBe(`${ORIGIN}/n001/wine`)
-    expect(data.image).toBe(`${ORIGIN}/og/n001/wine.jpg`)
-    expect(data.subjectOf).toEqual({
+    // … and this page's colour, in full.
+    const variant = shown(data)
+    expect(variant['@type']).toBe('Product')
+    expect(variant.name).toBe('Velocity Performance Skinsuit — Wine')
+    expect(variant.color).toBe('Wine')
+    expect(variant.url).toBe(`${ORIGIN}/n001/wine`)
+    expect(variant.image).toBe(`${ORIGIN}/og/n001/wine.jpg`)
+    expect(variant.subjectOf).toEqual({
       '@type': '3DModel',
       name: 'Velocity Performance Skinsuit 3D Digital Reference',
       encoding: [
@@ -705,6 +730,7 @@ describe('schema.org Product JSON-LD', () => {
       ),
     )
     expect(data).not.toHaveProperty('subjectOf')
+    expect(shown(data)).not.toHaveProperty('subjectOf')
   })
 
   it('declares made-to-order, because silence is not the same as no price', () => {
@@ -715,13 +741,14 @@ describe('schema.org Product JSON-LD', () => {
      * the next test; what it got wrong was treating "no price" as "say nothing".
      * `MadeToOrder` and `Sell` are facts about this business, not inventions.
      */
-    const data = parse(buildPreview(payload({}), { origin: ORIGIN, cards: CARDS })) as {
-      offers?: Record<string, unknown>
-    }
-    expect(data.offers).toBeDefined()
-    expect(data.offers?.['@type']).toBe('Offer')
-    expect(data.offers?.availability).toBe('https://schema.org/MadeToOrder')
-    expect(data.offers?.businessFunction).toBe('http://purl.org/goodrelations/v1#Sell')
+    // On this page's colour since 2026-10-08 (ProductGroup); the group itself offers nothing.
+    const data = parse(buildPreview(payload({}), { origin: ORIGIN, cards: CARDS }))
+    const offers = shown(data).offers as Record<string, unknown> | undefined
+    expect(data).not.toHaveProperty('offers')
+    expect(offers).toBeDefined()
+    expect(offers?.['@type']).toBe('Offer')
+    expect(offers?.availability).toBe('https://schema.org/MadeToOrder')
+    expect(offers?.businessFunction).toBe('http://purl.org/goodrelations/v1#Sell')
   })
 
   it('states no price ANYWHERE in the block, which is the failure worth guarding', () => {
@@ -771,7 +798,7 @@ describe('schema.org Product JSON-LD', () => {
     expect(names).toEqual(['Colorways available'])
     // …and the fields that always exist are still there.
     expect(data.name).toBe('Velocity Performance Skinsuit')
-    expect(data.url).toBe(`${ORIGIN}/n001/wine`)
+    expect(shown(data).url).toBe(`${ORIGIN}/n001/wine`)
   })
 
   it('escapes < so CMS text cannot break out of the script block', () => {
@@ -808,8 +835,37 @@ describe('schema.org Product JSON-LD', () => {
         cards: CARDS,
       }),
     )
-    expect(data.color).toBe('Lime')
-    expect(data.url).toBe(`${ORIGIN}/n001/lime`)
+    expect(shown(data).color).toBe('Lime')
+    expect(shown(data).url).toBe(`${ORIGIN}/n001/lime`)
+  })
+
+  /*
+   * 2026-10-08: Google's variants guide (updated 2026-09-08), multi-page sites: each colour page
+   * repeats the group, gives its own colour in full, and lists every other colour by URL only.
+   */
+  it('lists every other colour by its own page, and this colour once, in full', () => {
+    const colourways = [
+      colourway({ displayName: 'Wine', slug: 'wine' }),
+      colourway({ displayName: 'Lime', slug: 'lime', sequence: 2, isDefault: false }),
+      colourway({ displayName: 'Navy', slug: 'navy', sequence: 3, isDefault: false }),
+    ]
+    const data = parse(
+      buildPreview(payload({ colourways, selectedColourway: colourways[1]! }), {
+        origin: 'https://wear-run.com',
+        cards: CARDS,
+        prefix: '/products',
+      }),
+    )
+    const variants = data.hasVariant as Array<Record<string, unknown>>
+    expect(variants.map((v) => v.url)).toEqual([
+      'https://wear-run.com/products/n001/lime',
+      'https://wear-run.com/products/n001/wine',
+      'https://wear-run.com/products/n001/navy',
+    ])
+    // The others carry only their address: a page describes what it shows.
+    for (const other of variants.slice(1))
+      expect(Object.keys(other).sort()).toEqual(['@type', 'url'])
+    expect(variants[0]?.offers).toBeDefined()
   })
 })
 

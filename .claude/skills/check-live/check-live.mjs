@@ -154,7 +154,7 @@ async function probeModelPrivacy(url) {
   }
 }
 
-for (const { slug, colourway } of PRODUCTS) {
+for (const { slug, colourway, modelComingSoon } of PRODUCTS) {
   console.log(`\n=== ${slug} ===`)
 
   let payload
@@ -183,7 +183,12 @@ for (const { slug, colourway } of PRODUCTS) {
     )
   }
 
-  if (typeof product.glbUrl !== 'string' || product.glbUrl.length === 0) {
+  const noModel = typeof product.glbUrl !== 'string' || product.glbUrl.length === 0
+  if (noModel && modelComingSoon && product.modelComingSoon === true) {
+    // "3D coming soon" (2026-10-08): the LIST allows no model and the payload agrees, so the
+    // page shows its pictures with a calm note. The poster below is still fetched.
+    ok('3D coming soon — no model, by the list and by the payload')
+  } else if (noModel) {
     fail('no glbUrl on the product — there is nothing for the viewer to render')
   } else {
     await probeAsset(product.glbUrl, 'model')

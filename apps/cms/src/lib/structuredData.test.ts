@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { PARENT_COMPANY } from './companyFacts'
+import { BYLINES } from './bylines'
+import { CALL_NUMBER, PARENT_COMPANY } from './companyFacts'
+import { GUIDES } from './guides'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
-import { GARMENT_PAGES, SITE_ORIGIN } from './seo'
+import { GARMENT_PAGES, SITE_NAME, SITE_ORIGIN } from './seo'
+import { shareCardFor, shareImageUrl } from './shareImages'
 import {
   articleJsonLd,
   blogJsonLd,
@@ -11,6 +16,7 @@ import {
   caseStudiesJsonLd,
   contactPageJsonLd,
   formatAddress,
+  guideArticleJsonLd,
   organizationJsonLd,
   POSTAL_ADDRESS,
   productListJsonLd,
@@ -64,9 +70,25 @@ describe('organisation', () => {
 
   it('omits sameAs entirely rather than emitting an empty array', () => {
     // An empty sameAs is a claim that the company has no other presence anywhere, which
-    // is not what an unset WhatsApp number means.
-    expect(organizationJsonLd(settings({ whatsappNumber: '' }))).not.toHaveProperty('sameAs')
-    expect(organizationJsonLd(settings()).sameAs?.[0]).toMatch(/^https:\/\/wa\.me\/\d+$/)
+    // is not what an empty footer list means.
+    expect(organizationJsonLd(settings())).not.toHaveProperty('sameAs')
+  })
+
+  /*
+   * 2026-10-08: Google's Organization guide (updated 2026-09-08) defines sameAs as a page on
+   * another website with more about the company. A wa.me chat link is not one; the number is
+   * in `telephone` instead.
+   */
+  it('never lists the WhatsApp chat link as a profile', () => {
+    const org = organizationJsonLd(
+      settings({
+        footer: {
+          ...EMPTY_FOOTER,
+          socialLinks: [{ label: 'LinkedIn', url: 'https://www.linkedin.com/company/x' }],
+        },
+      }),
+    )
+    expect(JSON.stringify(org.sameAs)).not.toContain('wa.me')
   })
 
   /*
@@ -75,7 +97,7 @@ describe('organisation', () => {
    * how a search engine ties the website to the company's other profiles. They come from
    * the one list the footer prints (`footer.socialLinks`), so the two cannot disagree.
    */
-  it('names every profile the footer links, after WhatsApp and without repeats', () => {
+  it('names every profile the footer links, in order and without repeats', () => {
     const org = organizationJsonLd(
       settings({
         footer: {
@@ -92,7 +114,6 @@ describe('organisation', () => {
       }),
     )
     expect(org.sameAs).toEqual([
-      expect.stringMatching(/^https:\/\/wa\.me\/\d+$/),
       'https://www.linkedin.com/company/run-apparel-pvt-ltd',
       'https://www.instagram.com/run_apparel_',
     ])
@@ -123,6 +144,53 @@ describe('organisation', () => {
     expect(org.areaServed).toBe('Worldwide')
   })
 
+  /*
+   * Owner, 2026-10-08: the site's name, the registered name, and the short form the pages print.
+   * Google's Organization guide asks for the same name and alternateName as the site name.
+   */
+  it('is named as the site is, with the registered name and the short form beside it', () => {
+    const org = organizationJsonLd(settings({ companyName: 'RUN APPAREL (PVT) LTD' }))
+    expect(org.name).toBe('RUN APPAREL')
+    expect(org.name).toBe(SITE_NAME)
+    expect(org.legalName).toBe('RUN APPAREL (PRIVATE) LIMITED')
+    expect(org.alternateName).toEqual(['RUN APPAREL (PVT) LTD', 'RUN APPAREL (PRIVATE) LIMITED'])
+    expect(websiteJsonLd(settings({ companyName: 'RUN APPAREL (PVT) LTD' })).alternateName).toEqual(
+      org.alternateName,
+    )
+  })
+
+  it('never repeats the site name as an alternate name', () => {
+    const org = organizationJsonLd(settings({ companyName: 'RUN APPAREL' }))
+    expect(org.alternateName).toEqual(['RUN APPAREL (PRIVATE) LIMITED'])
+  })
+
+  /*
+   * Both numbers, and only numbers the Contact page shows: Google's structured-data policy
+   * (updated 2026-07-10) says not to mark up what a visitor cannot see.
+   */
+  it('gives both phone numbers, the WhatsApp one first', () => {
+    const org = organizationJsonLd(settings({ whatsappNumber: '+92 336 1777313' }))
+    expect(org.telephone).toEqual(['+92 336 1777313', CALL_NUMBER])
+    expect(CALL_NUMBER).toBe('+92 305 6161313')
+  })
+
+  it('drops the WhatsApp number when the CMS has none, and keeps the call line', () => {
+    expect(organizationJsonLd(settings({ whatsappNumber: '' })).telephone).toEqual([CALL_NUMBER])
+  })
+
+  it('claims no number the Contact page does not show', () => {
+    // The call line is a constant the page must render; the WhatsApp number is the CMS value
+    // the page renders through formatPhoneForDisplay. Remove either from the page and the
+    // structured data would describe a number nobody can see.
+    const page = readFileSync(
+      fileURLToPath(new URL('../app/(frontend)/contact/page.tsx', import.meta.url)),
+      'utf8',
+    )
+    expect(page).toContain('{CALL_NUMBER}')
+    expect(page).toContain('href={telHref(CALL_NUMBER)}')
+    expect(page).toContain('{formatPhoneForDisplay(settings.whatsappNumber)}')
+  })
+
   it('states the address in parts, from the same constant the page renders', () => {
     const org = organizationJsonLd(settings())
     expect(org.address.addressLocality).toBe(POSTAL_ADDRESS.locality)
@@ -134,10 +202,10 @@ describe('organisation', () => {
 })
 
 describe('the website (FI-10)', () => {
-  it('is a WebSite node for the home page, named after the company', () => {
+  it('is a WebSite node for the home page, named as the title and og:site_name name it', () => {
     const site = websiteJsonLd(settings())
     expect(site['@type']).toBe('WebSite')
-    expect(site.name).toBe(settings().companyName)
+    expect(site.name).toBe(SITE_NAME)
     expect(site.url).toBe(`${SITE_ORIGIN}/`)
     expect(site['@id']).toBe(`${SITE_ORIGIN}/#website`)
   })
@@ -191,7 +259,7 @@ describe('serialisation safety', () => {
     expect(rendered).not.toContain('</script>')
     expect(rendered).not.toContain('<img')
     // and it is still valid JSON that round-trips to the original value
-    expect(JSON.parse(rendered).name).toBe('</script><img src=x onerror=1>')
+    expect(JSON.parse(rendered).alternateName[0]).toBe('</script><img src=x onerror=1>')
   })
 })
 
@@ -322,7 +390,6 @@ describe('the Journal and case-study data', () => {
     image,
     datePublished: '2026-10-08T09:00:00.000Z',
     dateModified: '2026-10-09T10:00:00.000Z',
-    companyName: 'RUN APPAREL',
   }
 
   it('the hub is a Blog listing its posts by address', () => {
@@ -348,7 +415,7 @@ describe('the Journal and case-study data', () => {
       datePublished: post.datePublished,
       dateModified: post.dateModified,
       image: [{ '@type': 'ImageObject', ...image }],
-      author: { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization` },
+      author: { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: SITE_NAME },
       isPartOf: { '@id': `${SITE_ORIGIN}/journal#blog` },
     })
   })
@@ -398,5 +465,46 @@ describe('the Journal and case-study data', () => {
       articleJsonLd({ ...post, author: null }),
     ])
     expect(all).not.toMatch(/"Product"|foundingDate/)
+  })
+})
+
+/**
+ * The buyer guides as Articles (findability audit, 2026-10-08), from the facts their bylines print
+ * (`bylines.ts`). Google's Article guide (updated 2026-09-08): only a name in `author.name`, a
+ * Person for a person and an Organization for an organisation. A role names no person, so a
+ * guide signed by a role is the company's.
+ */
+describe('a buyer guide’s Article data', () => {
+  const guide = (path: string) => {
+    const found = GUIDES.find((entry) => entry.path === path)
+    if (!found) throw new Error(path)
+    return found
+  }
+
+  it('is by the person when the byline names one', () => {
+    const data = guideArticleJsonLd(guide('/guides/3d-garment-reference'))
+    expect(data.author).toEqual({ '@type': 'Person', name: 'M. Hateem Jamshaid' })
+  })
+
+  it('is the company’s when the byline is a role, never a role written as a name', () => {
+    const data = guideArticleJsonLd(guide('/guides/minimum-order-and-samples'))
+    expect(data.author).toEqual({
+      '@type': 'Organization',
+      '@id': `${SITE_ORIGIN}/#organization`,
+      name: SITE_NAME,
+      url: SITE_ORIGIN,
+    })
+    expect(JSON.stringify(data)).not.toContain('Merchandiser')
+  })
+
+  it('dates and pictures every guide from its byline and its own share card', () => {
+    for (const entry of GUIDES) {
+      const data = guideArticleJsonLd(entry)
+      expect(data['@type']).toBe('Article')
+      expect(data.headline).toBe(entry.title)
+      expect(data.datePublished).toBe(BYLINES[entry.path]?.published)
+      expect(data.dateModified).toBe(BYLINES[entry.path]?.changed.on)
+      expect(data.image?.[0]?.url).toBe(shareImageUrl(shareCardFor(entry.path), SITE_ORIGIN))
+    }
   })
 })

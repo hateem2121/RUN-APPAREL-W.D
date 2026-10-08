@@ -86,6 +86,15 @@ export const LOAD_NOTICE =
   'The colors, fabric and specifications on this page are correct, ' +
   'and you can still send an inquiry below.'
 /**
+ * "3D coming soon" (owner decision 2026-10-08): the garment is live on its studio pictures
+ * while its 3D file is redone. LOAD_NOTICE's shape — what is happening, what is still true,
+ * what to do — but nothing here is broken, so it says "coming soon", never "not available".
+ */
+export const COMING_SOON_NOTICE =
+  'The 3D view of this garment is coming soon. ' +
+  'The picture, colors, fabric and specifications on this page are correct, ' +
+  'and you can send an inquiry below.'
+/**
  * A download that answered and then stopped sending, three times running (issue #41). The owner chose the button
  * label; the rest follows NN/g's error-message guidelines and LOAD_NOTICE's own shape: what happened, what to do,
  * and what on the page is still true.

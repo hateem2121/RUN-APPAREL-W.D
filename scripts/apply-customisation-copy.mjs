@@ -76,7 +76,8 @@ const ONLY = onlyAt === -1 ? null : args[onlyAt + 1]
  * never re-run. Raise it in the same change that publishes a garment.
  */
 // 16 -> 40 on 2026-09-28: the 24 garments processed on the owner's Mac (sections 17-40).
-const EXPECTED_PRODUCTS = 40
+// 40 -> 41 on 2026-10-08: Structure Polo Set (section 41), live as "3D coming soon".
+const EXPECTED_PRODUCTS = 41
 const EXPECTED_STEPS = 4
 
 /** `| a | b | c |` -> ['a','b','c'], with escaped pipes preserved. */

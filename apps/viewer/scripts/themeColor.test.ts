@@ -90,8 +90,16 @@ describe('theme-color', () => {
     // same tag to a browser and were invisible to the old literal, which means a
     // second inline block could have been added without this count moving
     // (CodeQL js/bad-tag-filter).
-    const inlineScripts = [...html.matchAll(/<script\s*>/gi)]
-    expect(inlineScripts, 'a second inline script would add a second CSP hash').toHaveLength(1)
+    // TWO since 2026-10-08: this one, and the analytics beacon's loader (classic, so Vite keeps
+    // it in the page; packages/shared/src/analyticsBeacon.ts), which gen-headers hashes as it
+    // hashes this. The sync still belongs in the THEME script, never a third.
+    const blocks = [...html.matchAll(/<script\s*>([\s\S]*?)<\/script\s*>/gi)].map((m) => m[1] ?? '')
+    expect(blocks, 'a third inline script would add a third CSP hash').toHaveLength(2)
+    // The loader is told apart by how it starts, not by a host in its text (CodeQL reads a
+    // host `includes` as URL sanitization); `src/analyticsBeacon.test.ts` ties the whole string.
+    const theme = blocks.filter((body) => !body.startsWith('if(!navigator.webdriver'))
+    expect(theme, 'exactly one inline script is the theme script').toHaveLength(1)
+    expect(theme[0]).toContain('meta[name="theme-color"]')
     expect(html).toContain('meta[name="theme-color"]')
     // The script's own copies of the colours, light then dark, page then phone (VA-50) —
     // the same values as the tags, so an explicit choice paints what the OS would have.

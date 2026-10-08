@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { stripHtmlComments } from './scripts/htmlComments.mjs'
 // @ts-expect-error — plain .mjs, as scripts/csp.mjs is. Every decision it makes is
 // a pure function with tests in scripts/sw.test.ts; this plugin is only the I/O.
 import { serviceWorkerSource, serviceWorkerVersion, shellFromBundle } from './scripts/sw.mjs'
@@ -91,6 +92,20 @@ export default defineConfig({
             })),
           }
         },
+      },
+    },
+    /**
+     * Drop the developer notes from the built `index.html` (2026-10-08): 7,974 of its 19,603
+     * bytes on the live page were `<!-- … -->` explanations. They stay in the source.
+     * `scripts/htmlComments.mjs` has the measurement and why nothing depends on them; the
+     * inline scripts' CSP hashes are computed afterwards, from this output (`gen-headers.mjs`).
+     */
+    {
+      name: 'run-strip-html-comments',
+      apply: 'build' as const,
+      transformIndexHtml: {
+        order: 'post' as const,
+        handler: (html: string) => stripHtmlComments(html),
       },
     },
     // Absent entirely without a token, so a local or PR build is byte-identical to

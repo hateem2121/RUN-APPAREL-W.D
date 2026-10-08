@@ -36,7 +36,6 @@ export function JournalPost({ post, companyName }: { post: JournalPostView; comp
           datePublished: post.publishedAt,
           dateModified: post.updatedAt,
           author: post.author ? { name: post.author.name, url: post.author.url } : null,
-          companyName,
         })}
       />
 

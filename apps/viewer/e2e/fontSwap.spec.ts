@@ -59,6 +59,8 @@ const HEADLINES: Readonly<Record<string, string>> = {
   // Added 2026-09-28, as the CMS stores them (the public API serves productName unchanged).
   'r-srs': 'SHORT RAGLAN SLEEVE',
   'r-snp': 'SCUBA-NECK PERFORMANCE',
+  // Live as "3D coming soon" from 2026-10-08: the headline wraps the same with or without 3D.
+  'r-sps': 'STRUCTURE POLO SET',
   'r-pps': 'PRO-PILE SHERPA JACKET',
   'r-prs': 'PACEZIP RUNNING SHIRT',
   'r-hfj': 'HYDRA-FIT JERSEY',

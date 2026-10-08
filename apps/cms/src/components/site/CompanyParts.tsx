@@ -57,11 +57,14 @@ export function SplitHero({
   trail,
   photoSlug,
   action,
+  byline,
 }: {
   page: CompanyPage
   trail: { name: string; path: string }[]
   photoSlug: string
   action?: ReactNode
+  /** Who wrote the page and when (`Byline.tsx`), under the lede; careers has one, community not. */
+  byline?: ReactNode
 }) {
   const photo = factoryPhoto(photoSlug)
   const image = factoryPhotoImage(photo)
@@ -82,6 +85,7 @@ export function SplitHero({
             {page.heading} <span className="serif-accent">{page.headingAccent}</span>
           </h1>
           <p className="site-lede">{page.lede}</p>
+          {byline}
           {action ? <div className="site-actions">{action}</div> : null}
         </div>
         <figure className="split-hero__photo">

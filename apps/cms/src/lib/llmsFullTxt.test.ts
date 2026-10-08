@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES } from './familyPages'
-import { GUIDES } from './guides'
+import { authorName, BYLINES } from './bylines'
+import { GUIDES, guideAt } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import { buildLlmsFullTxt } from './llmsFullTxt'
 import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
@@ -28,6 +29,31 @@ const SAMPLE_PRODUCTS: ProductCard[] = [
     colourNames: ['Wine', 'Midnight Navy', 'Emerald Green'],
     colours: [],
     updatedAt: '2026-10-01T12:00:00Z',
+    // Every live garment has a model (getProductCards reads at depth 1, so it is populated).
+    model: {
+      url: 'https://media.wear-run.com/rxps-2026-09-28-optimized.glb',
+      variantId: 'Colorway 2',
+      variants: { wine: 'Colorway 2' },
+      camera: { orbit: '0deg 82deg 105%', target: 'auto auto auto', fieldOfView: '30deg' },
+    },
+  },
+  {
+    // "3D coming soon" (2026-10-08): live on its pictures, no model yet.
+    slug: 'r-sps',
+    productName: 'STRUCTURE POLO SET',
+    productCode: 'R-SPS',
+    category: 'Casual Wear',
+    garmentType: '',
+    shortDescription: '',
+    fabricComposition: '',
+    gsm: '',
+    garmentFit: '',
+    posterUrl: 'https://media.wear-run.com/r-sps-sand-poster.webp',
+    posterAlt: 'STRUCTURE POLO SET in Sand',
+    defaultColourSlug: 'sand',
+    colourNames: ['Sand'],
+    colours: [],
+    updatedAt: '2026-10-08T12:00:00Z',
     model: null,
   },
 ]
@@ -36,6 +62,15 @@ const textWithoutProducts = buildLlmsFullTxt(SITE, [])
 const textWithProducts = buildLlmsFullTxt(SITE, SAMPLE_PRODUCTS)
 
 describe('buildLlmsFullTxt', () => {
+  it('calls a garment with a model interactive 3D, and one without "3D view coming soon"', () => {
+    expect(textWithProducts).toContain(`- **Interactive 3D URL:** ${SITE}/products/rxps/wine`)
+    expect(textWithProducts).toContain(
+      `- **Product page (3D view coming soon):** ${SITE}/products/r-sps/sand`,
+    )
+    // NEGATIVE CONTROL: the model-less garment is never called interactive 3D.
+    expect(textWithProducts).not.toContain(`Interactive 3D URL:** ${SITE}/products/r-sps`)
+  })
+
   describe('confirmed operational facts and company lineage', () => {
     for (const fact of FACTS) {
       it(`states ${fact.label} (${fact.value})`, () => {
@@ -130,5 +165,29 @@ describe('the FAQ and the glossary, whole (2026-10-07, PLAN.md E9)', () => {
   it('defines every glossary term as the page does', () => {
     for (const term of GLOSSARY_TERMS)
       expect(text).toContain(`**${term.name}**: ${term.definition}`)
+  })
+})
+
+/**
+ * 2026-10-08: each guide carries its byline, as the page does, and the country comparison its
+ * official sources as links (`bylines.ts`, `guides.ts`).
+ */
+describe('guide bylines and sources in llms-full.txt', () => {
+  const full = buildLlmsFullTxt('https://wear-run.com', [])
+
+  it('names who wrote each guide and the day its words last changed', () => {
+    for (const guide of GUIDES) {
+      const byline = BYLINES[guide.path]
+      expect(byline, guide.path).toBeDefined()
+      expect(full).toContain(
+        `URL: https://wear-run.com${guide.path}\nWritten by: ${authorName(byline!.author)} · last checked ${byline!.changed.on.slice(0, 10)}`,
+      )
+    }
+  })
+
+  it('links every source the comparison guide quotes', () => {
+    for (const source of guideAt('/guides/pakistan-vs-china-vs-turkey').sources ?? []) {
+      expect(full).toContain(`- [${source.name}](${source.url})`)
+    }
   })
 })

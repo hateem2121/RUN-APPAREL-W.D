@@ -314,6 +314,17 @@ export const LIVE_PRODUCTS = [
     colourways: ['plum', 'blush', 'terracotta', 'sand', 'powder-blue'],
     productCode: 'R-CVN',
   },
+  {
+    // "3D coming soon" (owner decision 2026-10-08): live on its five CLO renders while its CLO
+    // export is redone — the 12 Sep file holds one look and no colour links. The gates check
+    // its pictures instead of a model (smoke-viewer-payload.mjs). Slugs chosen by the owner
+    // the same day from the renders, brightened to the file's own green.
+    slug: 'r-sps',
+    colourway: 'sage',
+    colourways: ['sage', 'lilac', 'sand', 'blush', 'powder-blue'],
+    productCode: 'R-SPS',
+    modelComingSoon: true,
+  },
 ]
 
 /**

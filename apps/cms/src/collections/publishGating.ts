@@ -32,6 +32,11 @@ export interface PublishGateInput {
   artworkVerdict?: string | null
   /** Free text. Any non-blank value lets a `'damaged'` model publish anyway. */
   artworkOverrideReason?: unknown
+  /**
+   * "3D coming soon (publish with pictures only)" (owner decision 2026-10-08). Counts only
+   * while NO model is attached — see `collectPublishProblems`.
+   */
+  modelComingSoon?: unknown
 }
 
 /** One colour of the product, flattened to just what the gate cares about. */
@@ -69,7 +74,14 @@ const text = (value: unknown): string => (typeof value === 'string' ? value.trim
  * leaves all of them untouched cannot make the product any more or less
  * publishable, so re-running the gate on it achieves nothing.
  */
-export const GATED_FIELDS = ['status', 'variantMode', 'glbAsset', 'colourways'] as const
+export const GATED_FIELDS = [
+  'status',
+  'variantMode',
+  'glbAsset',
+  'colourways',
+  // Unticking it on a live garment with no model must meet the 3D-file check at once.
+  'modelComingSoon',
+] as const
 
 /**
  * Did a LIVE product just lose its verified colour mapping?
@@ -293,6 +305,26 @@ export function collectPublishProblems(
     problems.push(
       `${list(wrongAlt)} ${wrongAlt.length === 1 ? 'has a photo description that names' : 'have photo descriptions that name'} a different product. Update ${wrongAlt.length === 1 ? 'it' : 'them'} on the Colours tab so the description matches this product's name.`,
     )
+  }
+
+  // ── "3D coming soon" (owner decision 2026-10-08) ───────────────────────────
+  // With the box ticked and NO model anywhere, the picture is the page: every colour on show
+  // needs one, and the 3D checks below (file, colour links, artwork) have nothing to judge.
+  // The moment a model is attached the box stops counting and every check below runs again,
+  // so it can never wave a damaged or unmatched model through. This is the one way a garment
+  // goes live without a model on purpose; Stage.tsx shows it as "coming soon", not an error.
+  const hasAnyModel =
+    input.variantMode === 'separate-glb-per-colour'
+      ? active.some((c) => c.hasOwnGlb)
+      : isSet(input.glbAsset)
+  if (input.modelComingSoon === true && !hasAnyModel) {
+    const noPicture = active.filter((c) => !c.hasPoster).map((c) => c.displayName)
+    if (noPicture.length > 0) {
+      problems.push(
+        `“3D coming soon” is ticked, so the photo is all a visitor sees. ${list(noPicture)} ${noPicture.length === 1 ? 'has' : 'have'} no photo. Add “Photo of this colour” on the Colours tab, or switch the colour off.`,
+      )
+    }
+    return problems
   }
 
   if (input.variantMode === 'separate-glb-per-colour') {
