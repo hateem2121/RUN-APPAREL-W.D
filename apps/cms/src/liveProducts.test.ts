@@ -66,6 +66,8 @@ describe('live products', () => {
         'r-wsa',
         'r-ifs',
         'r-cvn',
+        // 40 -> 41 on 2026-10-08: Structure Polo Set, live as "3D coming soon".
+        'r-sps',
       ].sort(),
     )
   })

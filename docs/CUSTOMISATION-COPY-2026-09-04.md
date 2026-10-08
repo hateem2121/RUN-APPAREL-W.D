@@ -867,6 +867,27 @@ are left out. The 50-piece fact appears in every intro, worded differently each 
 
 ---
 
+## 41. STRUCTURE POLO SET — `r-sps` (R-SPS)
+
+*Owner-approved 2026-10-08, with the garment type "Women's Polo Lounge Set". Live as "3D coming
+soon" until its CLO export is redone.*
+
+**Intro**
+
+> A lounge co-ord is judged on how the waffle knit holds its shape and how the wide-leg pants
+> fall once they are worn in. We manufacture custom lounge sets for lifestyle and travel brands —
+> send a tech pack, a reference piece or a mood board and we develop it into a production-ready
+> set. A first test order can be as few as 50 pieces.
+
+| # | Title | Body |
+|---|---|---|
+| 1 | START WHERE YOU ARE | A sketch, a set you want bettered, or a description of where it will be worn — remote work, travel, off-duty. The polo collar and the width of the leg define this set, and a photograph of the look you want settles both faster than a spec sheet. |
+| 2 | LOCK THE SPECIFICATION | We fix the waffle-knit cotton blend at 220–270 GSM in a 65% cotton / 30% polyester / 5% spandex blend, the tailored lounge fit, the structured quarter-zip polo collar and the elastic high-rise waist. The boxy cropped top and the wide-leg flow pants are cut to your proportions, not to one house block. |
+| 3 | ADD YOUR BRAND | Tonal high-density branding sits raised on the waffle knit rather than sinking into its texture. Placement is set against the panels before printing, so a mark never breaks across a seam. |
+| 4 | SAMPLE, APPROVE, PRODUCE | A development set is worn and washed, not just measured. Top length and leg width are the usual corrections; you approve a reference sample and production is manufactured to that approved standard. |
+
+---
+
 ## Garment fit values — owner-confirmed 2026-09-04
 
 Four products had an empty `garmentFit`, so the `[ FIT ]` annotation on the stage

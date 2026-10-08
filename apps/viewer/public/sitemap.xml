@@ -843,4 +843,24 @@
     <loc>https://viewer.wear-run.help/r-cvn/powder-blue</loc>
     <changefreq>monthly</changefreq>
   </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-sps/sage</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-sps/lilac</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-sps/sand</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-sps/blush</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/r-sps/powder-blue</loc>
+    <changefreq>monthly</changefreq>
+  </url>
 </urlset>

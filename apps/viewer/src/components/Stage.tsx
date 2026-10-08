@@ -29,6 +29,7 @@ import { SpecGroups } from './SpecGroups'
 import { type CameraView, StageControls } from './StageControls'
 import {
   applyAdaptivePan,
+  COMING_SOON_NOTICE,
   DISABLE_TAP,
   DRACO_DECODER_URL,
   ENVIRONMENT_IMAGE,
@@ -117,6 +118,7 @@ export function Stage({
   const modelLoaded = isLive(phase)
   const swapping = isSwapping(phase)
   const stalled = phase.kind === 'poster' && phase.reason === 'stalled'
+  const comingSoon = phase.kind === 'poster' && phase.reason === 'coming-soon'
   // App.tsx keeps the garment's facts out of the corners while there is no garment (polish D10).
   useEffect(() => {
     onFallbackChange?.(fallback)
@@ -209,6 +211,12 @@ export function Stage({
     // green. It is exactly the state N001 was in, and the only signal was a human
     // noticing the garment never spun.
     if (!glbUrl) {
+      // "3D coming soon" (2026-10-08): no model on purpose, so no alarm. The API sends the
+      // flag only while no model exists, so this can never hide a model that went missing.
+      if (product.modelComingSoon === true) {
+        dispatchPhase({ type: 'load-failed', reason: 'coming-soon' })
+        return
+      }
       dispatchPhase({ type: 'load-failed', reason: 'no-model' })
       diagnostic('model-missing', {
         product: product.productCode,
@@ -979,6 +987,9 @@ export function Stage({
    * download is a failing connection, and the full render is 0.5-1.2 MB.
    */
   const fallbackPicture = fallback ? (!savesData() && selected.renderScreen) || placeholder : null
+  // The sentence under that picture: a garment with no 3D on purpose says "coming soon"
+  // (2026-10-08); everything else says what failed.
+  const failureNotice = comingSoon ? COMING_SOON_NOTICE : stalled ? STALL_NOTICE : LOAD_NOTICE
 
   /*
    * POLISH F14: ON PAPER THE WINDOW HOLDS THE CHOSEN COLOUR'S PICTURE, NOT THE 3D. A browser
@@ -1466,9 +1477,9 @@ export function Stage({
             <p
               className="stage__error"
               role="status"
-              hidden={!(notice ?? (fallback ? (stalled ? STALL_NOTICE : LOAD_NOTICE) : null))}
+              hidden={!(notice ?? (fallback ? failureNotice : null))}
             >
-              {notice ?? (fallback ? (stalled ? STALL_NOTICE : LOAD_NOTICE) : '')}
+              {notice ?? (fallback ? failureNotice : '')}
             </p>
             {/*
             TRY 3D AGAIN — issue #41, the owner's label. Only after a stall: every

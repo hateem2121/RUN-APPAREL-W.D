@@ -99,6 +99,14 @@ export interface ViewerProduct {
    * existed has none, and the page then shows the download without a percentage, as before.
    */
   glbBytes: number | null
+  /**
+   * "3D coming soon (publish with pictures only)" (owner decision 2026-10-08): the garment is
+   * live on its pictures while its 3D file is redone, so a missing `glbUrl` is expected, not a
+   * fault. Sent only while there IS no model (projectViewer.ts), so a model attached before the
+   * box is unticked still shows. OPTIONAL: an answer cached before the field existed has none,
+   * and missing reads as "not coming soon".
+   */
+  modelComingSoon?: boolean
   posterFallback: ViewerMediaAsset | null
   fabricComposition: string
   gsm: string

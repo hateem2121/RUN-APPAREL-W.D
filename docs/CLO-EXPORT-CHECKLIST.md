@@ -18,7 +18,10 @@ In CLO's Colorway editor, check that each colourway really changes the fabric co
 - **Why:** the website reads each colour out of the file. If the colourways all point
   at the same fabric, all five buttons show the same garment.
 - **Seen on:** *Matrix-Puff Jacket* and *Structure Polo Set* — five colourways each, but
-  no fabric attached to any of them. Both stay drafts until they are re-exported.
+  no fabric attached to any of them. Matrix-Puff stays a draft until it is re-exported.
+  Structure Polo's re-export of 2026-10-08 had the same fault (31 materials, one per panel,
+  0 colour links), so it went live as "3D coming soon" on its studio pictures (RUNBOOK,
+  "Publishing a garment before its 3D file"); the 3D is added once an export carries the links.
 
 ### 2. Turn OFF "Diffuse Color Combined on Texture"
 

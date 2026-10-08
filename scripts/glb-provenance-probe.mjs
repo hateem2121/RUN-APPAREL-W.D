@@ -203,8 +203,12 @@ const CHUNK_JSON = 0x4e4f534a // 'JSON'
 const HEADER_BYTES = 12
 const CHUNK_HEADER_BYTES = 8
 
-/** Every live product's default colourway, resolved from LIVE_PRODUCTS — never hardcoded. */
-export const TARGETS = LIVE_PRODUCTS.map((p) => ({
+/**
+ * Every live product's default colourway, resolved from LIVE_PRODUCTS — never hardcoded.
+ * A "3D coming soon" row (2026-10-08) has no model to read on purpose; smoke-viewer-payload.mjs
+ * checks its pictures instead. Its key comes back here the day the flag is removed.
+ */
+export const TARGETS = LIVE_PRODUCTS.filter((p) => !p.modelComingSoon).map((p) => ({
   key: `${p.slug}/${p.colourway}`,
   slug: p.slug,
   colourway: p.colourway,

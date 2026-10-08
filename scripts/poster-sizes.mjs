@@ -112,6 +112,16 @@ export const OWNER_EXCEPTIONS = [
     reason: `${REVIEWED_2026_09_29}already trimmed 2026-09-17 (2.12×)`,
   },
   { product: 'r-pps', maxRatio: 2.5, reason: `${REVIEWED_2026_09_29}fleece texture (peach 2.10×)` },
+  /*
+   * 2026-10-08: Structure Polo Set's posters are its brightened CLO studio renders (it is live as
+   * "3D coming soon"), so they carry the waffle knit a 3D poster smooths away. Quality 50 would
+   * clear 2× and visibly smooth the knit; the owner chose quality 75 with this ceiling.
+   */
+  {
+    product: 'r-sps',
+    maxRatio: 3,
+    reason: 'owner chose quality 75 on 2026-10-08: waffle-knit texture (2.28–2.67×)',
+  },
 ]
 
 /**

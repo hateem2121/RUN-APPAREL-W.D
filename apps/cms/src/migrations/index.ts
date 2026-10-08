@@ -22,6 +22,7 @@ import * as migration_20260930_160000_product_garment_type from './20260930_1600
 import * as migration_20261002_120000_add_web_vitals_inp from './20261002_120000_add_web_vitals_inp'
 import * as migration_20261004_150000_colourway_render_screen from './20261004_150000_colourway_render_screen'
 import * as migration_20261005_120000_footer_tab_one_name from './20261005_120000_footer_tab_one_name'
+import * as migration_20261008_150000_product_model_coming_soon from './20261008_150000_product_model_coming_soon'
 import * as migration_20261007_140000_job_applications from './20261007_140000_job_applications'
 import * as migration_20261007_160000_journal_case_studies from './20261007_160000_journal_case_studies'
 
@@ -145,6 +146,11 @@ export const migrations = [
     up: migration_20261005_120000_footer_tab_one_name.up,
     down: migration_20261005_120000_footer_tab_one_name.down,
     name: '20261005_120000_footer_tab_one_name',
+  },
+  {
+    up: migration_20261008_150000_product_model_coming_soon.up,
+    down: migration_20261008_150000_product_model_coming_soon.down,
+    name: '20261008_150000_product_model_coming_soon',
   },
   {
     up: migration_20261007_140000_job_applications.up,

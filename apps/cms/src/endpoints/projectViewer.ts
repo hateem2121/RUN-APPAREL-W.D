@@ -220,6 +220,13 @@ export function buildViewerResponse(
       variantMode: separateMode ? 'separate-glb-per-colour' : 'single-glb-variants',
       glbUrl: separateMode ? null : (toMediaAsset(product.glbAsset, origin)?.url ?? null),
       glbBytes: separateMode ? null : mediaBytes(product.glbAsset),
+      // True only while the box is ticked AND no model exists (the gate's own rule,
+      // publishGating.ts): once a model is attached the page shows it, box or no box.
+      modelComingSoon:
+        product.modelComingSoon === true &&
+        (separateMode
+          ? !colourways.some((c) => c.glbUrl)
+          : !toMediaAsset(product.glbAsset, origin)?.url),
       posterFallback: toMediaAsset(product.posterFallback, origin),
       ...specFields,
       // The page's four fact groups with the glossary's notes (polish D10). Built here, not in

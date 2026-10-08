@@ -338,6 +338,14 @@ const PRODUCTS = {
       'bonded shoulder seams and a dropped back hem that stays put at speed.',
   },
   n002: { productCode: 'N002', productName: 'Sample Without Model', hasGlb: false },
+  // n002's state ON PURPOSE: "3D coming soon" ticked (owner decision 2026-10-08, Structure Polo
+  // Set). The pair lets one test prove the calm note here AND the alarm still firing on n002.
+  n003: {
+    productCode: 'N003',
+    productName: 'Sample Coming Soon',
+    hasGlb: false,
+    modelComingSoon: true,
+  },
   // A printed layer under a band 2.5 mm in front of it (tools/asset-pipeline/src/placeholders.ts
   // → buildCoverFixture), with the print nudge the pipeline writes today and with the -8/-8
   // that hid the Minecut waistband. covered-print-webgl.spec.ts renders both (2026-09-27).
@@ -422,6 +430,9 @@ function viewerPayload(origin, colourSlug, productSlug = 'n001') {
       // arrive gzipped with no `content-length`, like this server's (below), and this is the
       // total the percentage is drawn from. Read off the real file so it can never drift.
       glbBytes: meta.hasGlb ? fixtureBytes(meta.glbFile ?? 'n001.glb') : null,
+      // Only n003 sends it, as projectViewer.ts does only while the box is ticked and no model
+      // exists; every other product answers WITHOUT the key, as an older cached answer does.
+      ...(meta.modelComingSoon ? { modelComingSoon: true } : {}),
       posterFallback: fallback.poster,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',

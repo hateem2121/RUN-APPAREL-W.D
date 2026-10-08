@@ -152,7 +152,28 @@ const separateMode = product.variantMode === 'separate-glb-per-colour'
 const selected = payload.selectedColourway ?? colourways[0]
 const modelUrl = separateMode ? selected?.glbUrl : product.glbUrl
 
-if (!modelUrl) {
+// "3D coming soon" (owner decision 2026-10-08): a garment live on its pictures while its 3D
+// file is redone. Whether that is ALLOWED comes from the committed list (live-products.mjs
+// `modelComingSoon`, passed in by smoke-live-products.mjs), never from the payload: a stray
+// tick in the CMS must not turn a garment that LOST its model green. Here the pictures are
+// the page, so a colourway without one fails (below) instead of warning.
+const expectComingSoon = process.env.SMOKE_COMING_SOON === '1'
+if (expectComingSoon && modelUrl) {
+  console.log(
+    '  3D        NOTE: the model has arrived — remove `modelComingSoon` from this row in scripts/live-products.mjs',
+  )
+}
+if (expectComingSoon && !modelUrl) {
+  if (product.modelComingSoon === true) {
+    console.log(
+      '  3D        coming soon, by the list and by the payload: the pictures are the page',
+    )
+  } else {
+    fail(
+      'scripts/live-products.mjs marks this garment "3D coming soon", but the payload neither has a model nor says modelComingSoon — the page shows "The 3D view is not available"',
+    )
+  }
+} else if (!modelUrl) {
   fail(
     separateMode
       ? `variantMode is "separate-glb-per-colour" and colourway "${selected?.slug}" has no glbUrl — the viewer reports colourway-has-no-glb`
@@ -316,9 +337,15 @@ if (!modelUrl) {
   const withPoster = colourways.filter((c) => c?.poster?.url)
   console.log(`  posters   ${withPoster.length} of ${colourways.length} colourways carry one`)
   if (withPoster.length < colourways.length) {
-    console.log(
-      `  posters   WARN: ${colourways.length - withPoster.length} colourway(s) have no poster — the stage stays empty while their model downloads`,
-    )
+    const missing = colourways.length - withPoster.length
+    if (expectComingSoon && !modelUrl) {
+      // No model: the picture is the whole garment, so a missing one is an empty page.
+      fail(`${missing} colourway(s) have no picture, and this garment has no 3D to show instead`)
+    } else {
+      console.log(
+        `  posters   WARN: ${missing} colourway(s) have no poster — the stage stays empty while their model downloads`,
+      )
+    }
   }
   for (const c of withPoster) {
     try {
@@ -386,4 +413,8 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log('OK    the viewer payload serves a real, fetchable model.')
+console.log(
+  expectComingSoon && !modelUrl
+    ? 'OK    3D coming soon: every colourway serves its picture.'
+    : 'OK    the viewer payload serves a real, fetchable model.',
+)

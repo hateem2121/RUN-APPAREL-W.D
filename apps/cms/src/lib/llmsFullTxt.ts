@@ -71,7 +71,9 @@ function renderProducts(products: ProductCard[], siteOrigin: string): string {
       const lines = [
         `### ${product.productCode || product.slug.toUpperCase()} — ${product.productName}`,
         `- **Category:** ${product.category}${product.garmentType ? ` · ${product.garmentType}` : ''}`,
-        `- **Interactive 3D URL:** ${siteOrigin}/products/${product.slug}/${product.defaultColourSlug}`,
+        // A garment live on its pictures while its 3D file is redone ("3D coming soon",
+        // 2026-10-08) has no model, and must not be described to an AI as interactive 3D.
+        `- **${product.model ? 'Interactive 3D URL' : 'Product page (3D view coming soon)'}:** ${siteOrigin}/products/${product.slug}/${product.defaultColourSlug}`,
       ]
       if (product.shortDescription) lines.push(`- **Description:** ${product.shortDescription}`)
       if (product.fabricComposition)
