@@ -783,6 +783,8 @@ export interface JournalPost {
     | '/guides/sportswear-fabrics-and-weights'
     | '/guides/private-label-packaging'
     | '/guides/shipping-and-import-duties'
+    | '/guides/cost-to-start-an-activewear-brand'
+    | '/guides/pakistan-vs-china-vs-turkey'
     | '/custom-teamwear-manufacturer'
     | '/custom-activewear-manufacturer'
     | '/custom-outerwear-manufacturer'
