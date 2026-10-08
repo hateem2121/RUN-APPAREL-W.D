@@ -344,6 +344,8 @@ describe('buildViewerResponse', () => {
         'glbUrl',
         // The model's size (polish F12): a number about a public file, for the percentage.
         'glbBytes',
+        // "3D coming soon" (2026-10-08): a public yes/no the garment page words its note by.
+        'modelComingSoon',
         'posterFallback',
         'fabricComposition',
         'gsm',
@@ -499,6 +501,27 @@ describe('buildViewerResponse', () => {
       )!
       expect(body.product.glbBytes, JSON.stringify(glbAsset)).toBeNull()
     }
+  })
+
+  it('"3D coming soon" is sent only while the box is ticked AND there is no model (2026-10-08)', () => {
+    const soon = (o: Record<string, unknown>, rows = [colourway({ glbAsset: null })]) =>
+      buildViewerResponse(product(o), rows, {}, origin, null, deps)!.product.modelComingSoon
+    // Ticked, no model: the page is pictures only, on purpose.
+    expect(soon({ modelComingSoon: true, glbAsset: null })).toBe(true)
+    // NEGATIVE CONTROLS: a model attached before the box is unticked still shows; an
+    // unticked or never-saved box is today's behaviour; only a real `true` counts.
+    expect(soon({ modelComingSoon: true })).toBe(false)
+    expect(soon({ modelComingSoon: false, glbAsset: null })).toBe(false)
+    expect(soon({ glbAsset: null })).toBe(false)
+    expect(soon({ modelComingSoon: 1, glbAsset: null })).toBe(false)
+    // Separate-file mode: one colour with its own file means there IS a model.
+    const separate = {
+      variantMode: 'separate-glb-per-colour',
+      modelComingSoon: true,
+      glbAsset: null,
+    }
+    expect(soon(separate, [colourway({ glbAsset: null })])).toBe(true)
+    expect(soon(separate, [colourway()])).toBe(false)
   })
 
   it('separate-glb: product.glbUrl null, colourway.glbUrl set', () => {

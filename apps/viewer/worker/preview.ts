@@ -151,8 +151,14 @@ function buildDescription(payload: ViewerApiSuccess): string {
   // longest pages, and the page's structured data still carries it.
   const specs = [p.garmentFit.trim(), fabric].filter(Boolean).join(' · ')
   const count = payload.colourways.length
-  const tail =
-    count > 1 ? `See all ${count} colorways in 3D.` : 'Rotate and zoom this reference in 3D.'
+  // "3D coming soon" (2026-10-08): a page with no model must not promise one in a link preview.
+  const tail = p.modelComingSoon
+    ? count > 1
+      ? `See all ${count} colorways. 3D view coming soon.`
+      : '3D view coming soon.'
+    : count > 1
+      ? `See all ${count} colorways in 3D.`
+      : 'Rotate and zoom this reference in 3D.'
   // "Shown in Wine." rather than prefixing the specs: the specs are what a trade
   // buyer scans for, and pushing them behind the colour buries the useful half.
   const shown = colour ? `Shown in ${colour}.` : ''

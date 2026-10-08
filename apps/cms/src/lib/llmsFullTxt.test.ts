@@ -28,6 +28,31 @@ const SAMPLE_PRODUCTS: ProductCard[] = [
     colourNames: ['Wine', 'Midnight Navy', 'Emerald Green'],
     colours: [],
     updatedAt: '2026-10-01T12:00:00Z',
+    // Every live garment has a model (getProductCards reads at depth 1, so it is populated).
+    model: {
+      url: 'https://media.wear-run.com/rxps-2026-09-28-optimized.glb',
+      variantId: 'Colorway 2',
+      variants: { wine: 'Colorway 2' },
+      camera: { orbit: '0deg 82deg 105%', target: 'auto auto auto', fieldOfView: '30deg' },
+    },
+  },
+  {
+    // "3D coming soon" (2026-10-08): live on its pictures, no model yet.
+    slug: 'r-sps',
+    productName: 'STRUCTURE POLO SET',
+    productCode: 'R-SPS',
+    category: 'Casual Wear',
+    garmentType: '',
+    shortDescription: '',
+    fabricComposition: '',
+    gsm: '',
+    garmentFit: '',
+    posterUrl: 'https://media.wear-run.com/r-sps-sand-poster.webp',
+    posterAlt: 'STRUCTURE POLO SET in Sand',
+    defaultColourSlug: 'sand',
+    colourNames: ['Sand'],
+    colours: [],
+    updatedAt: '2026-10-08T12:00:00Z',
     model: null,
   },
 ]
@@ -36,6 +61,15 @@ const textWithoutProducts = buildLlmsFullTxt(SITE, [])
 const textWithProducts = buildLlmsFullTxt(SITE, SAMPLE_PRODUCTS)
 
 describe('buildLlmsFullTxt', () => {
+  it('calls a garment with a model interactive 3D, and one without "3D view coming soon"', () => {
+    expect(textWithProducts).toContain(`- **Interactive 3D URL:** ${SITE}/products/rxps/wine`)
+    expect(textWithProducts).toContain(
+      `- **Product page (3D view coming soon):** ${SITE}/products/r-sps/sand`,
+    )
+    // NEGATIVE CONTROL: the model-less garment is never called interactive 3D.
+    expect(textWithProducts).not.toContain(`Interactive 3D URL:** ${SITE}/products/r-sps`)
+  })
+
   describe('confirmed operational facts and company lineage', () => {
     for (const fact of FACTS) {
       it(`states ${fact.label} (${fact.value})`, () => {

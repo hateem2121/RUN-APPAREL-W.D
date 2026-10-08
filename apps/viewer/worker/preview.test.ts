@@ -245,6 +245,23 @@ describe('buildPreview — description', () => {
     expect(bare).toBe('Shown in Wine. See all 3 colorways in 3D.')
   })
 
+  it('promises no 3D for a garment marked "3D coming soon" (2026-10-08)', () => {
+    const soon = payload({ product: { glbUrl: null, glbBytes: null, modelComingSoon: true } })
+    const description = build(soon).description
+    expect(description).toContain('See all 3 colorways. 3D view coming soon.')
+    expect(description).not.toContain('in 3D')
+    // NEGATIVE CONTROL: without the flag the same payload keeps today's wording.
+    expect(build(payload({})).description).toContain('See all 3 colorways in 3D.')
+    const one = colourway()
+    const single = payload({
+      product: { glbUrl: null, glbBytes: null, modelComingSoon: true },
+      colourways: [one],
+      selectedColourway: one,
+    })
+    expect(build(single).description).toContain('3D view coming soon.')
+    expect(build(single).description).not.toMatch(/rotate and zoom/i)
+  })
+
   it('says "this reference" rather than "all 1 colourways"', () => {
     const one = colourway()
     expect(build(payload({ colourways: [one], selectedColourway: one })).description).toContain(

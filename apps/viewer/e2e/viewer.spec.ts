@@ -190,6 +190,37 @@ test.describe('RUN APPAREL 3D viewer', () => {
     expect(diagnostics.join('\n')).toContain('[viewer:model-missing]')
   })
 
+  // "3D coming soon" (owner decision 2026-10-08, Structure Polo Set): the SAME state as n002 —
+  // published, no 3D file — but on purpose. The picture is the page, the note says "coming
+  // soon" rather than "not available", and nothing reports a fault. The test above is this
+  // one's negative control: one fixture flag apart, it must still raise the alarm.
+  test('a garment marked "3D coming soon" shows its picture, a calm note and no alarm', async ({
+    page,
+  }) => {
+    const diagnostics: string[] = []
+    page.on('console', (msg) => {
+      if (msg.text().includes('[viewer:')) diagnostics.push(msg.text())
+    })
+
+    await page.goto('/n003/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(/Sample Coming Soon/i)
+    await expect(page.locator('model-viewer')).toHaveCount(0)
+    // The colour's studio picture, screen-sized copy, IS the garment.
+    const picture = page.locator('.stage__picture')
+    await expect(picture).toBeVisible()
+    await expect(picture).toHaveAttribute('src', /n001-wine-screen\.png$/)
+    await expect
+      .poll(() => picture.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBeGreaterThan(0)
+    const notice = page.locator('.stage__error')
+    await expect(notice).toHaveText(
+      'The 3D view of this garment is coming soon. The picture, colors, fabric and specifications on this page are correct, and you can send an inquiry below.',
+    )
+    await expect(page.locator('.stage').getByText(/not available/i)).toHaveCount(0)
+    await expect(page.locator('.contact').getByRole('link', { name: /email us/i })).toBeVisible()
+    expect(diagnostics.join('\n')).not.toContain('model-missing')
+  })
+
   test('unknown product shows branded unavailable state', async ({ page }) => {
     await page.goto('/zzz9/none')
     await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toBeVisible()

@@ -25,6 +25,11 @@ export type PosterReason =
   | 'load-failed'
   /** The download answered and then stopped sending, three times running (issue #41). The one retryable reason. */
   | 'stalled'
+  /**
+   * No model ON PURPOSE: the garment is live on its pictures while its 3D file is redone
+   * ("3D coming soon", owner decision 2026-10-08). Not a fault, so it reports nothing.
+   */
+  | 'coming-soon'
 
 export type StagePhase =
   /** Downloading and decoding. The readout is showing real bytes. */

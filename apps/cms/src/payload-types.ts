@@ -411,6 +411,10 @@ export interface Product {
   category: 'Sportswear' | 'Teamwear & Uniforms' | 'Casual Wear' | 'Outerwear' | 'Sports Accessories';
   colourways?: ProductColourway;
   /**
+   * Tick this to put the garment online before its 3D file is ready. Every colour then needs a photo, and the page shows that photo with a “3D view coming soon” note. Untick it once the finished 3D file is picked below.
+   */
+  modelComingSoon?: boolean | null;
+  /**
    * Upload your raw CLO export here. Watch the Status column: Queued → Processing → Ready to review. Then pick the finished file below.
    */
   rawUploads?: {
@@ -1113,6 +1117,7 @@ export interface ProductsSelect<T extends boolean = true> {
   slug?: T;
   category?: T;
   colourways?: T | ProductColourwaySelect<T>;
+  modelComingSoon?: T;
   rawUploads?: T;
   variantMode?: T;
   glbAsset?: T;
