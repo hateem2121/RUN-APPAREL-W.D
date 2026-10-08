@@ -111,3 +111,26 @@ export const LEAD_TIME =
 
 /** The parent company, named as `CERTIFICATION` and `ABOUT` already name it. */
 export const PARENT_COMPANY = 'DURUS INDUSTRIES'
+
+/**
+ * The registered name, in full (owner, 2026-10-08: "our full legal name is RUN APPAREL (PRIVATE)
+ * LIMITED"). The pages print its usual short form, the CMS `companyName` "RUN APPAREL (PVT) LTD";
+ * the structured data names both, so a search engine reads them as one company.
+ */
+export const LEGAL_NAME = 'RUN APPAREL (PRIVATE) LIMITED'
+
+/**
+ * The second number, for a call. The first is the CMS `whatsappNumber`.
+ *
+ * The owner asked for both numbers in the company's structured data (2026-10-08), and then for
+ * this one to be shown on /contact first, because Google's structured-data policy (updated
+ * 2026-07-10) says not to mark up anything a visitor cannot see. A constant for now: a CMS field
+ * needs a D1 migration, and one for another change was in progress that day. Move it into
+ * `SiteSettings` with the next migration, so the owner can edit it.
+ */
+export const CALL_NUMBER = '+92 305 6161313'
+
+/** `tel:` link for a number written with spaces, as `CALL_NUMBER` is. */
+export function telHref(number: string): string {
+  return `tel:${number.replace(/[^\d+]/g, '')}`
+}

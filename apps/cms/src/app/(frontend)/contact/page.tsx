@@ -1,6 +1,7 @@
 import { askedGarment, formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { resolveAskedGarment } from '../../../lib/askAboutGarment'
+import { CALL_NUMBER, telHref } from '../../../lib/companyFacts'
 import { getProductCards, getSiteSettings } from '../../../lib/content'
 import { CONTACT_HERO_PHOTO, contactHeroSrc, HERO_PHOTO } from '../../../lib/factoryPhotos'
 import { COUNTRIES } from '../../../lib/dialCodes'
@@ -520,6 +521,15 @@ export default async function ContactPage({
                 {formatPhoneForDisplay(settings.whatsappNumber)}
               </a>
               <p className="contact-block__note">Fastest for a quick question.</p>
+            </div>
+            {/* Owner, 2026-10-08: the second number is shown here, then named in the structured
+                data, which may only state what a visitor can see (companyFacts.ts). */}
+            <div className="contact-block">
+              <p className="field-label">[ Call ]</p>
+              <a className="contact-block__value" href={telHref(CALL_NUMBER)}>
+                {CALL_NUMBER}
+              </a>
+              <p className="contact-block__note">To talk to us directly.</p>
             </div>
             <div className="contact-block">
               <p className="field-label">[ Address ]</p>

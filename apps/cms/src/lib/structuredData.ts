@@ -1,7 +1,7 @@
-import { normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
-import { PARENT_COMPANY } from './companyFacts'
+import { formatPhoneForDisplay, normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
+import { CALL_NUMBER, LEGAL_NAME, PARENT_COMPANY } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
-import { SITE_ORIGIN, GARMENT_PAGES } from './seo'
+import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
 import { shareCardFor, shareImageUrl } from './shareImages'
 
 /**
@@ -31,6 +31,19 @@ import { shareCardFor, shareImageUrl } from './shareImages'
 export { formatAddress, POSTAL_ADDRESS } from '@run-apparel/shared'
 
 /**
+ * The company's other names, for both the Organization and the WebSite node: Google's
+ * Organization guide asks for "the same name and alternateName that you're using for your site
+ * name". The short form the pages print (CMS `companyName`) first, then the registered name;
+ * neither is repeated, and neither is the site name itself.
+ */
+function alternateNames(settings: PublicSiteSettings): { alternateName?: string[] } {
+  const names = [settings.companyName.trim(), LEGAL_NAME].filter(
+    (name, index, all) => name !== '' && name !== SITE_NAME && all.indexOf(name) === index,
+  )
+  return names.length > 0 ? { alternateName: names } : {}
+}
+
+/**
  * The organisation itself — rendered on every page via the layout.
  *
  * `@id` is a stable identifier so the ItemList and ContactPage below can point at this
@@ -38,25 +51,46 @@ export { formatAddress, POSTAL_ADDRESS } from '@run-apparel/shared'
  * and a crawler has no reason to treat them as one entity.
  */
 export function organizationJsonLd(settings: PublicSiteSettings) {
-  const sameAs: string[] = []
-  const whatsapp = normalizeWhatsAppNumber(settings.whatsappNumber)
-  if (whatsapp) sameAs.push(`https://wa.me/${whatsapp}`)
   /*
    * The company's other profiles, from the ONE list the footer prints ("Elsewhere"), so
    * the page and its structured data cannot name different places. Measured live
    * 2026-09-30: the footer linked LinkedIn and Instagram while `sameAs` held only
    * WhatsApp, and `sameAs` is how a search engine ties this site to those profiles.
    * `projectFooter` has already kept only `https://` addresses.
+   *
+   * ⚠️ NO `wa.me` LINK SINCE 2026-10-08. Google's Organization guide (updated 2026-09-08)
+   * defines `sameAs` as "a page on another website with additional information about your
+   * organization"; a WhatsApp chat link is a way to send a message, not such a page. The
+   * number itself is in `telephone` below.
    */
+  const sameAs: string[] = []
   for (const link of settings.footer.socialLinks) {
     if (!sameAs.includes(link.url)) sameAs.push(link.url)
   }
+
+  /*
+   * Both numbers the Contact page shows (owner, 2026-10-08): the WhatsApp one from the CMS and
+   * the call line from `companyFacts.ts`. Only numbers a visitor can see — Google's policy
+   * (updated 2026-07-10) is not to mark up what a visitor cannot.
+   */
+  const whatsapp = normalizeWhatsAppNumber(settings.whatsappNumber)
+  const telephone = [
+    ...(whatsapp ? [formatPhoneForDisplay(settings.whatsappNumber)] : []),
+    CALL_NUMBER,
+  ]
 
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     '@id': `${SITE_ORIGIN}/#organization`,
-    name: settings.companyName,
+    /*
+     * The site's name, as Google's Organization guide asks ("use the same name and
+     * alternateName that you're using for your site name"), the full registered name as
+     * `legalName`, and the short form the pages print as `alternateName` (owner, 2026-10-08).
+     */
+    name: SITE_NAME,
+    legalName: LEGAL_NAME,
+    ...alternateNames(settings),
     url: SITE_ORIGIN,
     // The logo field is the owner's upload when set, and the shipped mark otherwise —
     // the same precedence the browser tab icon uses.
@@ -64,6 +98,7 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
     // The home page's share picture (polish X14): `og-default.png` showed the old address.
     image: shareImageUrl(shareCardFor('/'), SITE_ORIGIN),
     email: settings.email,
+    telephone,
     address: {
       '@type': 'PostalAddress',
       streetAddress: POSTAL_ADDRESS.street,
@@ -116,7 +151,11 @@ export function websiteJsonLd(settings: PublicSiteSettings) {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     '@id': `${SITE_ORIGIN}/#website`,
-    name: settings.companyName,
+    // "RUN APPAREL", as the home page's <title> and og:site_name say it. Until 2026-10-08 this
+    // was the CMS company name, "RUN APPAREL (PVT) LTD", so the three disagreed; Google's
+    // site-name guide (updated 2025-12-10) reads them together and prefers the short name.
+    name: SITE_NAME,
+    ...alternateNames(settings),
     url: `${SITE_ORIGIN}/`,
     publisher: { '@id': `${SITE_ORIGIN}/#organization` },
   }
@@ -335,7 +374,7 @@ export function contactPageJsonLd(settings: PublicSiteSettings) {
     mainEntity: {
       '@id': `${SITE_ORIGIN}/#organization`,
       '@type': 'Organization',
-      name: settings.companyName,
+      name: SITE_NAME,
       email: settings.email,
     },
   }
