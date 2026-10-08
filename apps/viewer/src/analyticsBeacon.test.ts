@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { runInNewContext } from 'node:vm'
 import { BEACON_SRC, beaconLoader } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 
@@ -27,44 +26,18 @@ describe('the garment page’s beacon', () => {
   })
 })
 
-/**
- * The loader, run as a browser would run it: in a fresh context holding only a fake `navigator`
- * and `document`, recording what it adds to the head.
+/*
+ * What the loader DOES (a person gets the beacon; webdriver, HeadlessChrome and Lighthouse do
+ * not) is run in a browser, on the built page under its own policy: `e2e/beaconLoader.spec.ts`.
+ * It was run here in `node:vm` first, which CodeQL reports as hard-coded data interpreted as
+ * code (PR #152); a browser is also the instrument that sees the policy.
  */
-type Added = { type?: string; src?: string }
-
-function run(loader: string, navigator: { webdriver?: boolean; userAgent: string }): Added[] {
-  const added: Added[] = []
-  const document = {
-    createElement: () => ({}) as Added,
-    head: { append: (node: Added) => added.push(node) },
-  }
-  runInNewContext(loader, { navigator, document })
-  return added
-}
-
-const PERSON =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
-
-describe('the beacon loader, run', () => {
-  const loader = beaconLoader(TOKEN)
-
-  it('adds the beacon for a person, with the token in the address, as a module', () => {
-    expect(run(loader, { webdriver: false, userAgent: PERSON })).toEqual([
-      { type: 'module', src: `${BEACON_SRC}?token=${TOKEN}` },
-    ])
-  })
-
-  it('adds nothing for an automated browser: webdriver, HeadlessChrome or Lighthouse', () => {
-    expect(run(loader, { webdriver: true, userAgent: PERSON })).toEqual([])
-    expect(run(loader, { userAgent: PERSON.replace('Chrome/141', 'HeadlessChrome/141') })).toEqual(
-      [],
-    )
-    expect(run(loader, { userAgent: `${PERSON} Chrome-Lighthouse` })).toEqual([])
-  })
-
-  it('keeps a hostile token inside the address', () => {
-    const [added] = run(beaconLoader('x";alert(1);"</script>'), { userAgent: PERSON })
-    expect(added?.src).toBe(`${BEACON_SRC}?token=${encodeURIComponent('x";alert(1);"</script>')}`)
+describe('the beacon loader, as text', () => {
+  it('keeps a hostile token inside one string, with no way to close its script', () => {
+    const hostile = 'x";alert(1);"</script>'
+    const loader = beaconLoader(hostile)
+    expect(loader).toContain(JSON.stringify(`${BEACON_SRC}?token=${encodeURIComponent(hostile)}`))
+    expect(loader).not.toContain('<')
+    expect(loader).not.toContain('alert(1);"')
   })
 })

@@ -95,7 +95,9 @@ describe('theme-color', () => {
     // hashes this. The sync still belongs in the THEME script, never a third.
     const blocks = [...html.matchAll(/<script\s*>([\s\S]*?)<\/script\s*>/gi)].map((m) => m[1] ?? '')
     expect(blocks, 'a third inline script would add a third CSP hash').toHaveLength(2)
-    const theme = blocks.filter((body) => !body.includes('static.cloudflareinsights.com'))
+    // The loader is told apart by how it starts, not by a host in its text (CodeQL reads a
+    // host `includes` as URL sanitization); `src/analyticsBeacon.test.ts` ties the whole string.
+    const theme = blocks.filter((body) => !body.startsWith('if(!navigator.webdriver'))
     expect(theme, 'exactly one inline script is the theme script').toHaveLength(1)
     expect(theme[0]).toContain('meta[name="theme-color"]')
     expect(html).toContain('meta[name="theme-color"]')

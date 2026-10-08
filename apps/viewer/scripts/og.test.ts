@@ -142,8 +142,10 @@ describe('link preview (Open Graph) tags', () => {
     // (packages/shared/src/analyticsBeacon.ts): both hashed by csp.mjs, and nothing else.
     expect(inlineScripts).toHaveLength(2)
     expect(inlineScripts.filter((script) => script.includes('theme-color'))).toHaveLength(1)
+    // Told apart by how the loader starts, not by a host in its text (CodeQL reads a host
+    // `includes` as URL sanitization); `src/analyticsBeacon.test.ts` ties the whole string.
     expect(
-      inlineScripts.filter((script) => script.includes('static.cloudflareinsights.com')),
+      inlineScripts.filter((script) => /^<script>if\(!navigator\.webdriver/.test(script)),
     ).toHaveLength(1)
   })
 })
