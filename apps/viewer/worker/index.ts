@@ -6,6 +6,7 @@ import {
 } from '@run-apparel/shared'
 import { CMS_API_ORIGIN, withApiPreload } from './apiPreload'
 import { withCompression } from './compression'
+import { CRAWLER } from './crawlerAgents'
 import { applyCrawlerCacheHeaders } from './crawlerCacheHeaders'
 import { withDocumentIsolation } from './documentHeaders'
 import { withNoTransform } from './noTransform'
@@ -88,32 +89,11 @@ interface Env {
  * through to index.html's generic card, which is exactly what every link showed
  * before this file existed. The failure mode of a miss is "no worse than
  * yesterday", never a broken page.
+ *
+ * ⚠️ EXCEPT FOR AN AI AGENT. A link unfurler that misses still shows a card; an AI agent that
+ * misses gets the 16-word "Loading" shell and has nothing to quote (2026-10-08). The list
+ * lives in `crawlerAgents.ts` so it can be tested.
  */
-const CRAWLER = new RegExp(
-  [
-    // Almost every major crawler self-identifies with "bot": Googlebot, bingbot,
-    // Twitterbot, LinkedInBot, Slackbot-LinkExpanding, Discordbot, TelegramBot,
-    // Applebot (iMessage), redditbot, Pinterestbot, Applebot-Extended.
-    'bot',
-    'crawler',
-    'spider',
-    // The ones that do not.
-    'facebookexternalhit',
-    'facebookcatalog',
-    'whatsapp',
-    'skypeuripreview',
-    'vkshare',
-    'iframely',
-    'embedly',
-    'cardyb', // Bluesky
-    'mastodon',
-    'slack-imgproxy',
-    'google-inspectiontool',
-    'link preview',
-    'linkpreview',
-  ].join('|'),
-  'i',
-)
 
 /** Cache lifetime for a crawled payload, in seconds. Matches the CMS's own s-maxage. */
 const PREVIEW_CACHE_SECONDS = 60
