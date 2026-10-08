@@ -4,7 +4,8 @@ import { searchVisibility, sitemapFor } from '../lib/searchVisibility'
 import { SITE_ORIGIN } from '../lib/seo'
 
 /**
- * `/sitemap.xml` for the whole site: its own pages, then every garment colour.
+ * `/sitemap.xml` for the whole site: its own pages, then each garment once, at its default
+ * colour, with every colour's picture (since 2026-10-08; `sitemapFor` says why).
  *
  * ⚠️ THE GARMENTS JOINED ON 2026-09-28, when they moved from viewer.wear-run.help onto
  * this host at `/products/<product>/<colour>` (a sitemap may only speak for the host that

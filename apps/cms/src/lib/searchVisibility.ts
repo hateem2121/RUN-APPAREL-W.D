@@ -67,10 +67,20 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  * the sitemap said nothing Google uses about 205 pages. A missing or unreadable date emits
  * no field, never "now".
  *
- * ⚠️ EACH COLOUR LISTS ITS OWN PICTURE. A garment page draws its picture with JavaScript,
- * so its raw HTML holds no `<img>` (measured 2026-09-30: 0 on /products/rxps/wine). An
- * image entry is how Google Images finds it. Only an absolute https address is listed, and
- * a colour with no picture lists none rather than borrowing another colour's.
+ * ⚠️ ONE ENTRY PER GARMENT SINCE 2026-10-08, AT ITS DEFAULT COLOUR (owner: "list 40
+ * garments"). Search Console that day: 208 addresses "Discovered – currently not indexed",
+ * most of them colour pages that differ from their siblings by one word. Google's sitemap
+ * guide (updated 2026-07-08): "choose the URL you prefer and include that in the sitemap
+ * instead of all URLs that lead to the same content". The other colours keep working, stay
+ * their own canonical, and stay linked: /products links all 200 and each garment page's robot
+ * copy links its colours (both measured that day). The default colour is the first addressable
+ * row (`ProductCard.defaultColourSlug`), so this follows row order and never reorders it.
+ *
+ * ⚠️ EVERY COLOUR'S PICTURE RIDES ON THAT ONE ENTRY. A garment page draws its picture with
+ * JavaScript, so its raw HTML holds no `<img>` (measured 2026-09-30: 0 on
+ * /products/rxps/wine). An image entry is how Google Images finds it, and a page may carry up
+ * to 1,000 (Google's image-sitemap guide, updated 2025-12-10). Only an absolute https address
+ * is listed, and a colour with no picture adds none.
  *
  * ⚠️ A NEW PUBLIC PAGE MUST BE ADDED HERE OR IT IS NEVER OFFERED TO A CRAWLER, and
  * nothing about that is visible: the page works, every test passes, and it is simply
@@ -83,6 +93,8 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  */
 export interface SitemapGarment {
   slug: string
+  /** The first addressable colour, in row order; absent → the first listed colour. */
+  defaultColourSlug?: string
   /** The product's `updatedAt` as the database wrote it. Absent or unreadable: no date. */
   updatedAt?: string | null
   colours: ReadonlyArray<{ slug: string; image?: { url: string } | null }>
@@ -187,17 +199,21 @@ export function sitemapFor(
     { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },
     ...garments.flatMap((garment) => {
+      const colour = garment.defaultColourSlug || garment.colours[0]?.slug
+      if (!colour) return []
       const changed = realDate(garment.updatedAt)
-      return garment.colours.map((colour) => {
-        const picture = colour.image?.url ?? ''
-        return {
-          url: `${origin}${buildViewerPath(garment.slug, colour.slug, GARMENT_PATH_PREFIX)}`,
+      const pictures = [
+        ...new Set(garment.colours.map((each) => each.image?.url ?? '').filter(isListablePicture)),
+      ]
+      return [
+        {
+          url: `${origin}${buildViewerPath(garment.slug, colour, GARMENT_PATH_PREFIX)}`,
           changeFrequency: 'monthly' as const,
           priority: 0.7,
           ...(changed ? { lastModified: changed } : {}),
-          ...(isListablePicture(picture) ? { images: [picture] } : {}),
-        }
-      })
+          ...(pictures.length > 0 ? { images: pictures } : {}),
+        },
+      ]
     }),
   ]
 }

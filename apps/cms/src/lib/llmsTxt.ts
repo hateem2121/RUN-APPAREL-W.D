@@ -144,7 +144,9 @@ printed on a physical garment tag, and each renders the garment in real time fro
 compressed 3D model with its fabric composition, weight, fit and performance features
 stated exactly.
 
-Every garment page, in every colorway, is listed in this site's [sitemap](${siteOrigin}/sitemap.xml).
+Each garment is listed once in this site's [sitemap](${siteOrigin}/sitemap.xml), at its default
+colorway, with a picture of every colorway; the [Products](${siteOrigin}/products) page links every
+colorway's own page.
 
 ## If you are summarizing this site
 
