@@ -2442,6 +2442,77 @@ delete a post's picture from the post, not from Media.
 The tables come from `apps/cms/src/migrations/20261007_160000_journal_case_studies.ts`,
 hand-written from `payload generate:db-schema` like the job applications' migration.
 
+### Findability: robots, the sitemap, bylines and labels (since 2026-10-08)
+
+From the 8 October findability audit (kept privately). Each part has a test that fails the way
+the site would.
+
+**Which robots get a garment page's plain copy.** The list is `CRAWLER` in
+`apps/viewer/worker/crawlerAgents.ts`. Until that day it matched "bot", "crawler" and "spider",
+so the AI helpers that fetch a page because a person asked (Claude-User, Perplexity-User,
+ChatGPT-User and others whose names hold none of those words) got the 16-word loading shell. To
+add a robot, add its name to `AI_CRAWLER_UAS` in `apps/cms/htmlLimitedBots.mjs`;
+`apps/cms/src/viewerCrawlerAgents.test.ts` fails until `CRAWLER` matches it too. Take a name only
+from the vendor's own page: the owner chose to wait for DeepSeek and xAI to publish theirs.
+
+**The sitemap lists each garment once.** `sitemapFor` in `apps/cms/src/lib/searchVisibility.ts`
+lists a garment at its default colour (`defaultColourSlug`, else the first colour row) with a
+picture of every colour, not one entry per colour: Google had left 208 colour pages "Discovered –
+currently not indexed". Every colour page still answers, names itself as canonical and is linked
+from `/products` and from its garment's other colours, so none is orphaned. A website page's
+`lastmod` is its byline date (next paragraph), never the build time.
+
+**Bylines and "Last checked" dates.** Guides, policies and careers say who wrote them and when
+their words last changed: `apps/cms/src/lib/bylines.ts`, drawn by
+`apps/cms/src/components/site/Byline.tsx`. The dates were measured, not remembered.
+`apps/cms/src/lib/bylines.test.ts` keeps a fingerprint of each page's words, so after any change
+to a guide's or policy's text it fails and prints the new fingerprint. Then set that page's
+`changed.on` to the time the change goes live (with `+05:00`) and paste the new fingerprint; a
+policy's `lastReviewed` must be the same day. Never update the fingerprint alone: the date is
+what readers and Google see.
+
+**What the labels tell Google.**
+
+- A garment page labels its colours as one `ProductGroup` (`buildProductJsonLd` in
+  `apps/viewer/worker/preview.ts`): the shown colour in full, the others by address. Its offer
+  stays "made to order" with no price (decision D10), so Search Console's missing-price warning
+  is expected, not a fault.
+- The site name is `SITE_NAME` (`apps/cms/src/lib/seo.ts`); the legal name `LEGAL_NAME` and the
+  second phone `CALL_NUMBER` are in `apps/cms/src/lib/companyFacts.ts`, and
+  `apps/cms/src/lib/structuredData.ts` reads all three. The `sameAs` list of profiles is the
+  CMS's **Settings → Social links** (the footer's "Elsewhere"), so a profile added there reaches
+  Google with no code change. A chat link (wa.me) is not a profile and is left out.
+
+**Test robots do not count as visitors.** Cloudflare's visit counter starts from a small script
+that skips automated browsers (`beaconLoader` in `packages/shared/src/analyticsBeacon.ts`). The
+garment page's `apps/viewer/index.html` carries the same script typed out, and
+`apps/viewer/src/analyticsBeacon.test.ts` fails when the two differ. It must stay a classic
+script: Vite moves an inline `type="module"` script out of the page, where
+`scripts/beacon-probe.mjs` cannot see the counter.
+
+**The garment page's HTML carries no developer notes.** The viewer build strips HTML comments
+from `index.html` (`apps/viewer/scripts/htmlComments.mjs`): 19,603 bytes became 7,664. Nothing in
+the Worker uses a comment as a marker; keep it that way.
+
+**Bing hears when a garment changes.** Saving a garment in the live admin sends its colour pages
+and `/products` to IndexNow (`apps/cms/src/lib/garmentIndexNow.ts`, the same sender as the
+Journal's in `apps/cms/src/lib/journalHooks.ts`). A save from a local server never does.
+
+**The scanner rule.** A Cloudflare custom rule on the wear-run.com zone, "Block secret-file
+probes" (Security → WAF → Custom rules, the third rule), refuses paths no real page uses:
+`.env`, `/.git`, `/wp-admin`, `phpinfo` and the like, on `wear-run.com`, `www.`, `assets.` and
+`media.` only, never the email project's hosts. It matches anywhere in a path, so ⚠️ **never name
+a file with `.env` in it**. The 3D lighting file is `/env/studio-soft.hdr` (`ENVIRONMENT_IMAGE` in
+`apps/viewer/src/components/stageConfig.ts`, no dot before `env`) and answered 200 on 8 October.
+
+**Two speed findings, so nobody repeats them.** The home headline's font swap had moved the page
+(0.153 in Google's mobile test); its stand-in faces are now sized to its words (`.hero-home` in
+`apps/cms/src/app/(frontend)/site.css`, checked by `apps/cms/e2e/fontSwap.spec.ts`). A garment
+page's 13-second "total blocking time" in Google's test is mostly that test machine having no
+graphics chip: measured on the live page with the processor slowed four times, 4,259 ms drawing 3D
+in software and 449 ms with a graphics chip. Starting the 3D later only moves that work, and
+unpacking the model on helper threads measured no gain, so neither shipped.
+
 ### Why only crawlers get the rewrite
 
 Measured 2026-08-08, warm connection, five requests each:
