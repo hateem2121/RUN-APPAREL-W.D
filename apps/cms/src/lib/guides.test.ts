@@ -382,3 +382,27 @@ describe('garments and read-next links (2026-10-08)', () => {
     }
   })
 })
+
+/**
+ * The country comparison quotes official pages only (owner, 2026-10-08: "cited public data"), each
+ * listed under "Sources" with its date. A source on any other host, or with no date, fails here.
+ */
+describe('a guide’s sources (2026-10-08)', () => {
+  const OFFICIAL = /^https:\/\/(?:[a-z0-9-]+\.)*(?:europa\.eu|gov\.uk)\//
+
+  it('lists only official EU and UK government pages, each dated', () => {
+    const quoting = GUIDES.filter((guide) => guide.sources)
+    expect(quoting.map((guide) => guide.path)).toEqual(['/guides/pakistan-vs-china-vs-turkey'])
+    for (const source of quoting.flatMap((guide) => guide.sources ?? [])) {
+      expect(source.url, source.name).toMatch(OFFICIAL)
+      expect(source.date, source.name).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(Date.parse(source.date), source.name).not.toBeGreaterThan(Date.now())
+      expect(['read', 'published', 'updated']).toContain(source.kind)
+    }
+  })
+
+  it('NEGATIVE CONTROL: a source on another host is refused', () => {
+    expect('https://www.example.com/report').not.toMatch(OFFICIAL)
+    expect('https://europa.eu.example.com/x').not.toMatch(OFFICIAL)
+  })
+})

@@ -1,4 +1,4 @@
-import { FACTS } from './companyFacts'
+import { FACTS, LEAD_TIME } from './companyFacts'
 
 /**
  * The buyer guides: short pages that answer one question a buyer asks before writing in.
@@ -70,6 +70,18 @@ export type GuideGarments = {
   readonly picks: readonly { readonly slug: string; readonly shows?: string }[]
 }
 
+/**
+ * An official page a guide quotes (2026-10-08, the country comparison): drawn as a link under
+ * "Sources" so a reader and an AI tool can check each claim. `date` is ISO; `kind` says what it
+ * is: the day we read an undated page, or the page's own published or updated date.
+ */
+export type GuideSource = {
+  readonly name: string
+  readonly url: string
+  readonly date: string
+  readonly kind: 'read' | 'published' | 'updated'
+}
+
 export type Guide = {
   /** Root-relative, under `/guides/`. Public: a sent link must keep working. */
   readonly path: string
@@ -82,6 +94,7 @@ export type Guide = {
   readonly lede: string
   readonly sections: readonly GuideSection[]
   readonly garments?: GuideGarments
+  readonly sources?: readonly GuideSource[]
 }
 
 const fact = (prefix: string): string =>
@@ -629,6 +642,243 @@ export const GUIDES: readonly Guide[] = [
       },
     ],
   },
+  /*
+   * ⚠️ THE NEXT TWO WERE APPROVED BY THE OWNER ON 2026-10-08, sentence by sentence, from a page
+   * that tagged each one: their own words from the pages named in the comments, official sources
+   * read that day, or new wording they approved. The cost guide states NO price (decision D10:
+   * every price is quoted per order). The comparison states nothing about another country that an
+   * official source does not, and each source is listed on the page with its date.
+   */
+  {
+    path: '/guides/cost-to-start-an-activewear-brand',
+    title: 'What It Costs to Start an Activewear Brand',
+    description: `What a first private label order is made of: ${MINIMUM} pieces per style, a sample credited back, printing, packaging, shipping and import duty, each quoted.`,
+    heading: 'What it costs to start',
+    headingAccent: 'an activewear brand.',
+    lede: 'A first order costs the sum of a few parts: the pieces, the sample, the printing, the packaging and the shipping. Each one is quoted in writing for your inquiry, and the quote is free. This guide says what each part depends on.',
+    sections: [
+      {
+        heading: 'The smallest first order',
+        blocks: [
+          {
+            kind: 'text',
+            // The minimum order guide's words.
+            text: `${MINIMUM} pieces per style. The same building, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand.`,
+          },
+        ],
+      },
+      {
+        heading: 'The sample',
+        blocks: [
+          {
+            kind: 'list',
+            // The minimum order guide's list.
+            items: [
+              `Made in ${SAMPLE_DAYS} working days.`,
+              'The fee is credited back against your bulk order.',
+              'Bulk production starts only after you approve it.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'What your quote is built from',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Your quote is free, and it commits you to nothing. It states the fabric, the trims, the sizes and the price.',
+          },
+          {
+            kind: 'point',
+            title: 'The fabric',
+            // The fabrics guide's "Made to your spec", shortened.
+            text: 'Its structure, weight, blend and properties. Tell us what you need, and the fabric is made to match.',
+          },
+          {
+            kind: 'point',
+            title: 'The printing',
+            // The printing guide's words.
+            text: 'It depends on the fabric, the design and the quantity. Send us your artwork with your inquiry, and the method is stated in your quote.',
+          },
+          {
+            kind: 'point',
+            title: 'The packaging',
+            // The packaging guide's words, joined.
+            text: 'Labels, tags, bags and cartons under your own brand, packed the way you want. There is no set minimum for custom packaging, and it is quoted with your order.',
+          },
+        ],
+      },
+      {
+        heading: 'Shipping and import duty',
+        blocks: [
+          {
+            kind: 'text',
+            // The shipping guide's words.
+            text: 'The shipping method, terms and cost are stated in your quote. Under EXW, FOB, CFR and CIF, you pay the import duty and tax when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
+          },
+        ],
+      },
+      {
+        heading: 'When it arrives',
+        blocks: [{ kind: 'text', text: LEAD_TIME }],
+      },
+      {
+        heading: 'See it before a sample is cut',
+        blocks: [
+          {
+            kind: 'text',
+            // The 3D guide's words.
+            text: 'A 3D reference lets you and your team check the construction, the fit and where the artwork sits before a sample is cut. We can build one of your garment on request.',
+          },
+        ],
+      },
+      {
+        heading: 'What is quoted per order',
+        blocks: [
+          {
+            kind: 'text',
+            // The terms page's sentence, word for word.
+            text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    path: '/guides/pakistan-vs-china-vs-turkey',
+    title: 'Pakistan vs China vs Turkey for Sportswear',
+    description:
+      'Making sportswear in Pakistan, China or Türkiye: what you pay at the EU and UK border, from official sources, and the questions to ask any factory.',
+    heading: 'Pakistan, China or Türkiye,',
+    headingAccent: 'side by side.',
+    lede: "We make sportswear in Sialkot, Pakistan, so read this knowing that. What it says about each country's trade terms comes from official sources, named with the date we read them. What it says about us is what our own pages say.",
+    sections: [
+      {
+        heading: 'Bringing it into the European Union',
+        blocks: [
+          {
+            kind: 'point',
+            title: 'From Pakistan',
+            // Source 1.
+            text: "More than 85% of Pakistan's exports, including textiles and clothing, enter the EU duty and quota free under the EU's GSP+ scheme.",
+          },
+          {
+            kind: 'text',
+            // Source 2.
+            text: "The EU's renewed scheme applies from 1 January 2027. Countries in GSP+ today must reapply, and keep their preferences until the end of 2028 while they do.",
+          },
+          {
+            kind: 'point',
+            title: 'From Türkiye',
+            // Source 3.
+            text: 'Türkiye and the EU are in a customs union that removed tariffs on all industrial goods between them.',
+          },
+          {
+            kind: 'point',
+            title: 'From China',
+            // Source 4: Delegated Regulation 1421/2013, recital 7 and Article 2.
+            text: "China has been outside the EU's GSP preferences since 1 January 2015, when the EU removed it from the list of beneficiary countries.",
+          },
+        ],
+      },
+      {
+        heading: 'Bringing it into the United Kingdom',
+        blocks: [
+          {
+            kind: 'point',
+            title: 'From Pakistan',
+            // Source 5.
+            text: "Pakistan is in the Enhanced Preferences tier of the UK's Developing Countries Trading Scheme, which gives 0% import tariffs on 92% of product lines.",
+          },
+          {
+            kind: 'point',
+            title: 'From Türkiye',
+            // Source 6. No line for China: no official UK page was found to quote (2026-10-08).
+            text: "Goods that meet the UK–Turkey trade agreement's rules of origin trade at its preferential tariff rates.",
+          },
+        ],
+      },
+      {
+        heading: 'Anywhere else',
+        blocks: [
+          {
+            kind: 'text',
+            text: "The duty depends on your country and the garment's tariff code. Ask your customs broker for the rate at your border before you order.",
+          },
+        ],
+      },
+      {
+        heading: 'What to ask any factory',
+        blocks: [
+          // The questions are new wording; each answer is the site's own.
+          {
+            kind: 'point',
+            title: 'What is the minimum per style?',
+            text: `Ours is ${MINIMUM} pieces per style.`,
+          },
+          {
+            kind: 'point',
+            title: 'How long does a sample take, and is its fee credited back?',
+            text: `Ours takes ${SAMPLE_DAYS} working days, and the fee is credited back against your bulk order.`,
+          },
+          {
+            kind: 'point',
+            title: 'Is the printing done in the same building?',
+            text: 'We do all seven common methods inside our own building.',
+          },
+          {
+            kind: 'point',
+            title: 'Can I see the garment before a sample is cut?',
+            text: 'We can build a 3D reference of your garment on request.',
+          },
+          { kind: 'point', title: 'When will the order arrive?', text: LEAD_TIME },
+          {
+            kind: 'point',
+            title: 'Whose name is each certificate in?',
+            text: 'Our pages name the holder of each one.',
+          },
+        ],
+      },
+    ],
+    sources: [
+      {
+        name: 'European Commission: EU trade relations with Pakistan',
+        url: 'https://policy.trade.ec.europa.eu/eu-trade-relationships-country-and-region/countries-and-regions/pakistan_en',
+        date: '2026-10-08',
+        kind: 'read',
+      },
+      {
+        name: "European Commission, Access2Markets: The EU's renewed GSP scheme, key updates for 2027",
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/news/eus-renewed-gsp-scheme-key-updates-2027',
+        date: '2026-08-11',
+        kind: 'published',
+      },
+      {
+        name: 'European Commission: EU trade relations with Türkiye',
+        url: 'https://policy.trade.ec.europa.eu/eu-trade-relationships-country-and-region/countries-and-regions/turkiye_en',
+        date: '2026-10-08',
+        kind: 'read',
+      },
+      {
+        name: 'EUR-Lex: Commission Delegated Regulation (EU) No 1421/2013, recital 7 and Article 2',
+        url: 'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32013R1421',
+        date: '2026-10-08',
+        kind: 'read',
+      },
+      {
+        name: 'GOV.UK: Preference tiers under the Developing Countries Trading Scheme',
+        url: 'https://www.gov.uk/guidance/preference-tiers-under-the-developing-countries-trading-scheme',
+        date: '2023-06-19',
+        kind: 'published',
+      },
+      {
+        name: 'GOV.UK: Trade with Turkey',
+        url: 'https://www.gov.uk/guidance/summary-of-the-uk-turkey-trade-agreement',
+        date: '2022-11-21',
+        kind: 'updated',
+      },
+    ],
+  },
 ]
 
 /**
@@ -668,6 +918,16 @@ export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
     '/guides/private-label-packaging',
     '/guides/how-a-private-label-order-works',
     '/guides/minimum-order-and-samples',
+  ],
+  '/guides/cost-to-start-an-activewear-brand': [
+    '/guides/minimum-order-and-samples',
+    '/guides/how-a-private-label-order-works',
+    '/guides/shipping-and-import-duties',
+  ],
+  '/guides/pakistan-vs-china-vs-turkey': [
+    '/guides/shipping-and-import-duties',
+    '/guides/minimum-order-and-samples',
+    '/guides/how-a-private-label-order-works',
   ],
 }
 

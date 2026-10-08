@@ -484,11 +484,14 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
   '/faq/orders-and-samples': [
     '/guides/minimum-order-and-samples',
     '/guides/how-a-private-label-order-works',
+    // The two guides of 2026-10-08, each beside the questions it answers.
+    '/guides/cost-to-start-an-activewear-brand',
   ],
   '/faq/quality-and-certifications': ['/guides/how-a-private-label-order-works'],
   '/faq/shipping-and-importing': [
     '/guides/shipping-and-import-duties',
     '/guides/private-label-packaging',
+    '/guides/pakistan-vs-china-vs-turkey',
   ],
   '/faq/fabrics-and-printing': [
     '/guides/sportswear-fabrics-and-weights',

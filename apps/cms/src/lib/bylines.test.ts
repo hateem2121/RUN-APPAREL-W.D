@@ -28,8 +28,10 @@ const guideWords = (guide: Guide) =>
     lede: guide.lede,
     sections: guide.sections,
     orderSteps: JSON.stringify(guide.sections).includes('"orderSteps"') ? ORDER_PHASES : undefined,
-    // The reference garments a guide links are part of what it shows (2026-10-08).
+    // The reference garments a guide links, and the sources it quotes, are part of what it
+    // shows (2026-10-08).
     garments: guide.garments,
+    sources: guide.sources,
   })
 
 const pageWords = ({ path: _path, ...visible }: { path: string }) => sha(visible)
@@ -69,6 +71,8 @@ describe('bylines', () => {
     expect(by('/guides/garment-printing-methods')).toBe('Production in-charge, RUN APPAREL')
     expect(by('/guides/sportswear-fabrics-and-weights')).toBe('Production in-charge, RUN APPAREL')
     expect(by('/guides/3d-garment-reference')).toBe('M. Hateem Jamshaid')
+    expect(by('/guides/cost-to-start-an-activewear-brand')).toBe('M. Hateem Jamshaid')
+    expect(by('/guides/pakistan-vs-china-vs-turkey')).toBe('M. Hateem Jamshaid')
     expect(BYLINES['/guides/3d-garment-reference']?.author).toEqual(AUTHORS.hateem)
     for (const policy of POLICIES) expect(by(policy.path)).toBe('HR, RUN APPAREL')
     expect(by('/careers')).toBe('HR, RUN APPAREL')

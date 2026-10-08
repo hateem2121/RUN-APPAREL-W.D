@@ -11,9 +11,11 @@ import {
   type Guide,
   type GuideBlock,
   type GuideGarments,
+  type GuideSource,
   guideAt,
   READ_NEXT,
 } from '../../lib/guides'
+import { formatPostDate } from '../../lib/journal'
 import type { ProductCard } from '../../lib/projectPublic'
 import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
 import { Byline } from './Byline'
@@ -202,6 +204,39 @@ function GuideGarmentsSection({
  * the navigation itself, named by its own `h2` (the cards above it are `h2`s), with no "More to
  * read" over it: four buyer pages are not reading.
  */
+/** How a source's date reads under it: "Read October 8, 2026", "Published August 11, 2026". */
+const SOURCE_DATE = { read: 'Read', published: 'Published', updated: 'Updated' } as const
+
+/**
+ * The official pages a guide quotes (2026-10-08, the country comparison), each a plain link out
+ * with its date under it, so a reader and an AI tool can check every claim. Drawn as the end links
+ * are (`.see-also__list`, 44px rows).
+ */
+function GuideSources({ sources }: { sources: readonly GuideSource[] }) {
+  return (
+    <section className="site-section" data-site-reveal>
+      <div className="site-container prose prose--guide spread">
+        <h2 className="display display--section">Sources</h2>
+        <div className="spread__body">
+          <ol className="see-also__list">
+            {sources.map((source) => (
+              <li key={source.url}>
+                <a href={source.url} rel="noopener">
+                  {source.name}
+                </a>
+                <p className="see-also__why">
+                  {SOURCE_DATE[source.kind]}{' '}
+                  <time dateTime={source.date}>{formatPostDate(source.date)}</time>
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export function GuideLinks({ current, guides = true }: { current: string; guides?: boolean }) {
   const buyerPages = FAMILIES.flatMap((family) => {
     const page = familyPageFor(family)
@@ -318,6 +353,8 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
           </Fragment>
         )
       })}
+
+      {guide.sources ? <GuideSources sources={guide.sources} /> : null}
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">

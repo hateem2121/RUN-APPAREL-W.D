@@ -268,3 +268,19 @@ describe('read-next reasons and reference garments (2026-10-08)', () => {
     expect(order.indexOf('Turn one now')).toBe(order.indexOf('How to use one') + 1)
   })
 })
+
+describe('the comparison guide’s sources (2026-10-08)', () => {
+  it('draws every source as a link out, with its date under it', () => {
+    const guide = guideAt('/guides/pakistan-vs-china-vs-turkey')
+    const section = sectionOf(render(guide), 'Sources')
+    for (const source of guide.sources ?? []) {
+      expect(section).toContain(`href="${source.url.replace(/&/g, '&amp;')}"`)
+      expect(section).toContain(`dateTime="${source.date}"`)
+    }
+    expect(text(section)).toContain('Read October 8, 2026')
+  })
+
+  it('draws no Sources section on a guide that quotes none', () => {
+    expect(render(guideAt('/guides/minimum-order-and-samples'))).not.toContain('>Sources<')
+  })
+})

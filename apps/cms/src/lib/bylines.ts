@@ -8,8 +8,8 @@
  * page more when it says who wrote it and when. Until this day the guides said none of it.
  *
  * WHO (owner, 2026-10-08): orders, minimums and samples, packaging, and shipping by the
- * merchandiser; printing and fabrics by the production in-charge; the 3D reference by M. Hateem
- * Jamshaid; the policies and careers by HR. A role is printed as the owner wrote it. In
+ * merchandiser; printing and fabrics by the production in-charge; the 3D reference, the cost guide
+ * and the country comparison by M. Hateem Jamshaid; the policies and careers by HR. A role is printed as the owner wrote it. In
  * structured data a role is not a person's name, so those pages are the company's
  * (`guideArticleJsonLd` in `structuredData.ts`).
  *
@@ -58,6 +58,8 @@ const POLISH = '2026-10-05T14:20:27+05:00'
 /** The policies, careers and community pages (#141), and careers' form the same evening (#143). */
 /** The reference garments joined the 3D, printing and fabrics guides (findability audit). */
 const GARMENT_LINKS = '2026-10-08T16:26:29+05:00'
+/** The cost guide and the country comparison, approved by the owner (findability audit). */
+const NEW_GUIDES = '2026-10-08T16:38:58+05:00'
 const POLICIES_LIVE = '2026-10-07T12:40:02+05:00'
 const CAREERS_FORM = '2026-10-07T19:11:24+05:00'
 
@@ -93,6 +95,18 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     GUIDES_3,
     POLISH,
     'f070ac50da5f',
+  ),
+  '/guides/cost-to-start-an-activewear-brand': byline(
+    AUTHORS.hateem,
+    NEW_GUIDES,
+    NEW_GUIDES,
+    '893186b29350',
+  ),
+  '/guides/pakistan-vs-china-vs-turkey': byline(
+    AUTHORS.hateem,
+    NEW_GUIDES,
+    NEW_GUIDES,
+    '9f8abc07a243',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, '6da51606a09c'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, '9e4eaa8e29d7'),
