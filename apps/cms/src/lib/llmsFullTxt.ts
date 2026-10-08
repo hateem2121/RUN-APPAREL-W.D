@@ -3,6 +3,7 @@ import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
 import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
 import { GLOSSARY_CATEGORIES, termsIn } from './glossary'
+import { authorName, bylineFor } from './bylines'
 import { GUIDES, type Guide, type GuideBlock } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import type { ProductCard } from './projectPublic'
@@ -47,12 +48,24 @@ function renderGuide(guide: Guide, siteOrigin: string): string {
     })
     .join('\n\n')
 
+  // Who wrote it and when its words last changed, as the page shows them (2026-10-08, `bylines.ts`),
+  // and the official pages it quotes, as links an answer engine can cite.
+  const byline = bylineFor(guide.path)
+  const writtenBy = byline
+    ? `\nWritten by: ${authorName(byline.author)} · last checked ${byline.changed.on.slice(0, 10)}`
+    : ''
+  const sources = guide.sources?.length
+    ? `\n\n### Sources\n\n${guide.sources
+        .map((source) => `- [${source.name}](${source.url}) (${source.kind} ${source.date})`)
+        .join('\n')}`
+    : ''
+
   return `## Guide: ${guide.title}
-URL: ${siteOrigin}${guide.path}
+URL: ${siteOrigin}${guide.path}${writtenBy}
 
 > ${guide.lede}
 
-${sections}`
+${sections}${sources}`
 }
 
 /**
