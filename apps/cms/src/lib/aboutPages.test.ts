@@ -103,3 +103,22 @@ describe('every photo and link the pages name exists', () => {
     for (const href of links) expect(known.has(href), href).toBe(true)
   })
 })
+
+/**
+ * The headline as drawn: the plain words, then the one serif-accent word. The accent is part of
+ * the sentence, never a repeat of its last word — the first build drew "Inside the factory
+ * factory" on the page and on its share card (caught in the picture check, 2026-10-09).
+ */
+describe('each headline reads its approved words once', () => {
+  const drawn = (words: string, accent: string) => `${words} ${accent}`.toLowerCase()
+
+  it('/about: "Since 1889 still running"', () => {
+    const { partLeft, partRight, accent } = ABOUT_PAGE.hero
+    expect(drawn(`${partLeft} ${partRight}`, accent)).toBe('since 1889 still running')
+  })
+
+  it('/inside-the-factory: "Inside the factory"', () => {
+    const { heading, accent } = FACTORY_PAGE.hero
+    expect(drawn(heading, accent)).toBe('inside the factory')
+  })
+})

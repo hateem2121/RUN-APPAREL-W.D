@@ -68,6 +68,8 @@ const POLICIES_LIVE = '2026-10-07T12:40:02+05:00'
 const CAREERS_FORM = '2026-10-07T19:11:24+05:00'
 /** The commit that shipped the about and factory pages' approved words (869bb57). */
 const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
+/** The factory headline's doubled accent word removed ("Inside the factory factory"). */
+const FACTORY_HEADLINE = '2026-10-09T13:22:38+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -75,7 +77,7 @@ const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
   '/about': 'e20c171297da',
-  '/inside-the-factory': 'da572f4b5a26',
+  '/inside-the-factory': '7df081814110',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
@@ -147,7 +149,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    ABOUT_FACTORY_WORDS,
+    FACTORY_HEADLINE,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }

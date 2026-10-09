@@ -199,7 +199,8 @@ export const FACTORY_PAGE = {
   label:
     `[ ${POSTAL_ADDRESS.street} · ${POSTAL_ADDRESS.locality} · ${COUNTRY_NAME} ]`.toUpperCase(),
   hero: {
-    heading: 'Inside the factory',
+    /** The words before the accent; the page draws `heading` + `accent` as one headline. */
+    heading: 'Inside the',
     accent: 'factory',
     subtitle:
       'Every order moves through five stages, and each stage has its own checkpoint. This is how private label sportswear gets made.',
