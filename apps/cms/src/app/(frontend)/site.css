@@ -8689,3 +8689,61 @@ a.contact-block__value:active {
   height: auto;
   object-fit: contain;
 }
+
+/*
+ * ------------------------------------------------ the /about preloader (BUILD 8.4)
+ *
+ * `AboutPreloader.tsx`. Hidden unless the pre-paint script marked <html> with `data-preload`, so no
+ * JavaScript, reduced motion and every visit the owner's rule leaves out (2026-10-09) never see it.
+ * The curtain lifts over `--slow` on `--ease-out-expo` (BUILD 8.4): at once when the counter calls
+ * it (`lifting`), or ON ITS OWN at 2.2 s if the counter's script is late or never runs (`on`, the
+ * fallback's delay). The year moves by its number, never by fading (the axe trap at `site-reveal`).
+ */
+@keyframes preloader-lift {
+  to {
+    translate: 0 -100%;
+  }
+}
+
+.preloader {
+  display: none;
+}
+
+html[data-preload] .preloader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-preloader);
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+}
+
+html[data-preload="on"] .preloader {
+  animation: preloader-lift var(--slow) var(--ease-out-expo) both;
+  /* A delay, not a duration: BUILD 8.4's ceiling, `PRELOADER_CEILING_MS` in lib/preloader.ts
+     (preloader.test.ts holds the two equal). */
+  animation-delay: 2200ms;
+}
+
+html[data-preload="lifting"] .preloader {
+  animation: preloader-lift var(--slow) var(--ease-out-expo) both;
+}
+
+.preloader__year {
+  margin: 0;
+  color: var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A visitor who turns reduced motion on mid-visit, and paper, never get the curtain. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-preload] .preloader {
+    display: none;
+  }
+}
+
+@media print {
+  html[data-preload] .preloader {
+    display: none;
+  }
+}

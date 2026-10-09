@@ -453,3 +453,84 @@ test.describe('the factory photo viewer', () => {
     expect(await scrollY(), 'the page stayed held after the viewer closed').toBeGreaterThan(start)
   })
 })
+
+/**
+ * The /about preloader (BUILD 8.4; the owner's rule of 2026-10-09: "No saving: arriving from
+ * outside"). Automation never sees it unless a test lifts `navigator.webdriver`, as these do.
+ */
+test.describe('the /about preloader', () => {
+  const liftWebdriver = (page: import('@playwright/test').Page) =>
+    page.addInitScript(`Object.defineProperty(Navigator.prototype, 'webdriver', {
+      get: () => false,
+      configurable: true,
+    })`)
+  const mark = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => document.documentElement.getAttribute('data-preload'))
+  const covering = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const overlay = document.querySelector('.preloader') as HTMLElement
+      const box = overlay.getBoundingClientRect()
+      return getComputedStyle(overlay).display !== 'none' && box.bottom > 1
+    })
+
+  test('shows on an arrival from outside, lands on this year, and is gone by 2.2 s and the curtain', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await liftWebdriver(page)
+    const started = Date.now()
+    await page.goto('/about', { referer: 'https://www.google.com/' })
+    expect(await covering(page), 'no curtain on a visit from a search').toBe(true)
+    await expect(page.locator('.preloader')).toHaveAttribute('aria-hidden', 'true')
+    // The year the counter shows as the curtain starts to lift.
+    await expect.poll(() => mark(page), { timeout: 4000 }).not.toBe('on')
+    const landed = await page.locator('.preloader__year').textContent()
+    expect(landed).toBe(String(new Date().getFullYear()))
+    // 2.2 s ceiling + the --slow curtain (0.8 s), and a margin for a busy machine.
+    await expect.poll(() => covering(page), { timeout: 4000 }).toBe(false)
+    expect(Date.now() - started).toBeLessThan(6000)
+    // `animationend` can land a frame after the curtain has left the screen (WebKit, measured).
+    await expect
+      .poll(() => mark(page), { message: 'the mark stayed after the curtain', timeout: 1000 })
+      .toBeNull()
+    const stored = await page.evaluate(() => [localStorage.length, sessionStorage.length])
+    expect(stored, 'the preloader stored something').toEqual([0, 0])
+  })
+
+  test('never on a reload, nor from another page of the site', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await liftWebdriver(page)
+    await page.goto('/about', { referer: 'https://www.google.com/' })
+    await expect.poll(() => covering(page), { timeout: 5000 }).toBe(false)
+    await page.reload()
+    expect(await mark(page), 'shown again on a reload').toBeNull()
+    expect(await covering(page)).toBe(false)
+    const origin = new URL(page.url()).origin
+    await page.goto('/about', { referer: `${origin}/products` })
+    expect(await mark(page), 'shown arriving from the site itself').toBeNull()
+  })
+
+  test('never under reduced motion, nor under automation', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await liftWebdriver(page)
+    await page.goto('/about', { referer: 'https://www.google.com/' })
+    expect(await mark(page)).toBeNull()
+    expect(await covering(page)).toBe(false)
+    const plain = await page.context().newPage()
+    await plain.emulateMedia({ reducedMotion: 'no-preference' })
+    await plain.goto('/about', { referer: 'https://www.google.com/' })
+    expect(await mark(plain), 'shown to an automated browser').toBeNull()
+  })
+
+  test('never without JavaScript', async ({ browser }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      reducedMotion: 'no-preference',
+    })
+    const page = await context.newPage()
+    await page.goto('/about', { referer: 'https://www.google.com/' })
+    const display = await page.locator('.preloader').evaluate((e) => getComputedStyle(e).display)
+    expect(display).toBe('none')
+    await context.close()
+  })
+})

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { CSSProperties } from 'react'
+import { AboutPreloader } from './AboutPreloader'
 import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { Breadcrumb } from './Breadcrumb'
@@ -37,6 +38,8 @@ export function AboutPage() {
 
   return (
     <>
+      {/* First on the page: its script decides before anything below can paint (BUILD 8.4). */}
+      <AboutPreloader />
       <JsonLd data={aboutPageJsonLd(page)} />
       <JsonLd data={breadcrumbTrailJsonLd(trail)} />
 
