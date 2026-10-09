@@ -119,6 +119,10 @@ export const SITE_FOOTER_MADE: readonly { href: string; label: string }[] = Obje
  * and Press (2026-10-07). A group with fewer than two live links is not drawn.
  */
 export const SITE_FOOTER_COMPANY: readonly { href: string; label: string }[] = [
+  // The about and factory pages lead the group (the about-factory build, 2026-10-09; the
+  // owner approved the words and order, and saw the footer drawn before this was committed).
+  { href: '/about', label: 'About' },
+  { href: '/inside-the-factory', label: 'Inside the factory' },
   { href: '/careers', label: 'Careers' },
   { href: '/community', label: 'Community' },
   { href: '/policies', label: 'Policies' },
