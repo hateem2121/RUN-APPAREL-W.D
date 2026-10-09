@@ -67,7 +67,7 @@ export const ABOUT_PAGE = {
   description: `The OEM/ODM apparel division of ${PARENT_COMPANY} — private label sportswear from Sialkot, Pakistan, made by a family manufacturing and exporting since ${FAMILY_SINCE}.`,
   hero: {
     partLeft: 'SINCE 1889',
-    partRight: 'STILL RUNNING',
+    partRight: 'STILL',
     /** The one serif-accent word, lowercase italic as the accent always is. */
     accent: 'running',
     subtitle: `Private label sportswear from Sialkot, Pakistan. The family behind it has made and exported from this city since ${FAMILY_SINCE}.`,

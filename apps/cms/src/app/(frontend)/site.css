@@ -7568,3 +7568,326 @@ a.contact-block__value:active {
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
+
+/*
+ * The about and factory pages (the about-factory build, 2026-10-09). These are the STILL
+ * layouts: complete in the server's HTML, no script, and what reduced motion, Firefox, no
+ * JavaScript and print keep. The scroll-expanding hero, the horizontal timeline, the pinned
+ * walkthrough and the gallery's wipes arrive with the motion phase, inside the site's motion
+ * guards (`prefers-reduced-motion: no-preference` and the scroll-timeline `@supports`), and
+ * they layer onto this markup — a browser without them sees exactly this page.
+ */
+
+/* The /about hero: the two-part headline over the building, on the photo hero's ink wash. */
+.about-hero .site-container {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.about-hero__heading {
+  margin: 0;
+}
+
+.about-hero__part {
+  display: inline-block;
+}
+
+.about-hero__subtitle {
+  margin: 0;
+  max-width: var(--site-measure);
+}
+
+/* The quick answer and the categories: one lead paragraph each, at the measure. */
+.about-lead {
+  margin: 0;
+  max-width: var(--site-measure);
+}
+
+/* The mission, word for word, drawn as the quote it is (owner, 2026-10-09). */
+.about-mission {
+  margin: 0;
+  padding-block: 20px;
+  border-block: 1px solid var(--line);
+}
+
+.about-mission p {
+  margin: 0;
+  color: var(--heading);
+  font-family: var(--font-serif);
+  font-size: var(--text-card-title);
+  max-width: var(--site-measure);
+}
+
+/* The timeline: a vertical list in time order at every width (the horizontal track is the
+   motion phase's; the markup is always this `<ol>`). */
+.about-timeline {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 20px;
+}
+
+.about-timeline__entry {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.about-timeline__year {
+  margin: 0;
+  color: var(--muted);
+}
+
+.about-timeline__title {
+  margin: 0;
+  font-size: var(--text-lead);
+  color: var(--heading);
+}
+
+.about-timeline__entry p:last-child {
+  margin: 0;
+  max-width: var(--site-measure);
+}
+
+@media (width >= 900px) {
+  .about-timeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 24px;
+  }
+}
+
+/* The people: the name card beside the three department cards. */
+.about-people {
+  display: grid;
+  gap: 12px;
+  margin-block-start: 24px;
+}
+
+.about-people__card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.about-people__card h3 {
+  margin: 0;
+}
+
+.about-people__card p {
+  margin: 0;
+}
+
+.about-people__card--name h3 {
+  font-size: var(--text-lead);
+}
+
+.about-people__role {
+  font-size: var(--text-lead);
+  color: var(--heading);
+}
+
+@media (width >= 900px) {
+  .about-people {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* The facts table: a `<dl>` of ruled rows, the term in the label register. */
+.about-table {
+  margin: 24px 0 0;
+  display: grid;
+}
+
+.about-table__row {
+  display: grid;
+  gap: 4px;
+  border-block-start: 1px solid var(--line);
+  padding-block: 12px;
+}
+
+.about-table__term {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  color: var(--muted);
+}
+
+.about-table__detail {
+  margin: 0;
+  max-width: var(--site-measure);
+}
+
+@media (width >= 900px) {
+  .about-table__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 24px;
+  }
+}
+
+/* The certificate lines, the same `[data-facts]` the policies hub marks. */
+.about-cert {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  max-width: var(--site-measure);
+}
+
+.about-cert__promise {
+  margin: 14px 0 0;
+  max-width: var(--site-measure);
+}
+
+/* The factory page. The hero is the split hero's own classes; these are its stages, gallery
+   and the "How we run it" band. */
+.factory-stages {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 24px;
+}
+
+.factory-stage {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.factory-stage__words {
+  display: grid;
+  gap: 8px;
+}
+
+.factory-stage__title {
+  margin: 0;
+  font-size: var(--text-lead);
+  color: var(--heading);
+}
+
+.factory-stage__words p {
+  margin: 0;
+  max-width: var(--site-measure);
+}
+
+/* The checkpoint is text either way (8.2): the badge, in the read register. */
+.factory-stage__badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  color: var(--heading);
+}
+
+.factory-stage__photos {
+  display: grid;
+  gap: 12px;
+}
+
+.factory-stage__photos .photo-figure {
+  margin: 0;
+}
+
+/* Stage 3's drawn panel (no cutting photo yet, owner 2026-10-09): the blueprint grid, framed. */
+.factory-panel {
+  display: block;
+  aspect-ratio: 8 / 5;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+@media (width >= 900px) {
+  .factory-stage {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+}
+
+.factory-stages__close {
+  margin-block-start: 24px;
+}
+
+/* The gallery: each set a heading and its photos; wide files span the row, tall files pair. */
+.factory-gallery__set {
+  margin-block-start: 32px;
+  display: grid;
+  gap: 12px;
+}
+
+.factory-gallery__label {
+  margin: 0;
+  font-size: var(--text-lead);
+  color: var(--heading);
+}
+
+.factory-gallery__photos {
+  display: grid;
+  gap: 12px;
+}
+
+.factory-gallery__photos .photo-figure {
+  margin: 0;
+}
+
+@media (width >= 900px) {
+  .factory-gallery__photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* "How we run it": the stat and the policy's lines beside the roof. */
+.factory-run {
+  display: grid;
+  gap: 24px;
+}
+
+.factory-run__words {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.factory-run__words p,
+.factory-run__words h2,
+.factory-run__words .label {
+  margin: 0;
+}
+
+.factory-run__stat {
+  margin: 0;
+}
+
+.factory-run__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  max-width: var(--site-measure);
+}
+
+.factory-run__photo .photo-figure {
+  margin: 0;
+}
+
+@media (width >= 900px) {
+  .factory-run {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+}
