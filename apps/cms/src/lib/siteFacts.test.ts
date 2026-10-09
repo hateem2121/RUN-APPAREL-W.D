@@ -27,7 +27,8 @@ const COPY_MODULES: Record<string, object> = {
 
 const FORBIDDEN: ReadonlyArray<readonly [string, RegExp]> = [
   ['a founding date for 1889', /founded\b[^.]*1889/i],
-  ['a year count ("135 years")', /\b1[3-9]\d[- ]years?\b/i],
+  // "+" in the separator class since 2026-10-09: "135+ years" slipped past "135 years".
+  ['a year count ("135+ years")', /\b1[3-9]\d[- +] ?years?\b/i],
   ['"SMETA-certified"', /SMETA[- ]certified/i],
   ['"BSCI certified"', /BSCI certif/i],
   ['"certified factory"', /certified factory/i],
@@ -71,8 +72,10 @@ describe('the site-wide copy guard', () => {
   it('THE CONTROL — the matchers fire on the claims they forbid', () => {
     // Without this the loop above would pass on any regex that never matches, and on a
     // walker that collected nothing. One planted string carries every forbidden claim.
+    // "135+ years" (not "135 years") since 2026-10-09: the v1.0 copy deck wrote it that way
+    // and the old separator class missed the plus — the exact gap the owner's build brief named.
     const planted =
-      'Founded in 1889, with 135 years behind us: our SMETA-certified, BSCI certified ' +
+      'Founded in 1889, with 135+ years behind us: our SMETA-certified, BSCI certified ' +
       'factory runs a 21–45 day schedule, printing on fibre with colour, organisation ' +
       'chart in hand, in GOTS-certified garments. 【turn0search1】'
     for (const [what, pattern] of FORBIDDEN) {
