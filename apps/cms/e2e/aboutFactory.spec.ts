@@ -39,7 +39,7 @@ test.describe('the factory page', () => {
 })
 
 /**
- * The /about hero (BUILD 8.3). Where the engine has scroll timelines with ranges and motion is
+ * The /about hero. Where the engine has scroll timelines with ranges and motion is
  * allowed, it is a 250svh section whose stage sticks while the building opens from a card; anywhere
  * else (Firefox in October 2026, reduced motion, a screen under 700px tall) it is the still photo
  * hero. Each check below can fail the way the first build did: the timeline began 84px early (the
@@ -174,7 +174,7 @@ test.describe('the /about hero', () => {
 })
 
 /**
- * The timeline, the walkthrough and the word rows (BUILD 8.2), measured where they move and where
+ * The timeline, the walkthrough and the word rows, measured where they move and where
  * they must hold still. The timeline's travel is CSS arithmetic (`100cqw - 100%`), so the check is
  * that its LAST entry ends at the stage's right edge, which a wrong travel misses at any width.
  */
@@ -331,7 +331,7 @@ for (const path of ['/about', '/inside-the-factory']) {
 }
 
 /**
- * The gallery's photo viewer (BUILD 8.5). base-ui 1.8.0 sets no `aria-modal`, so the trap and the
+ * The gallery's photo viewer. base-ui 1.8.0 sets no `aria-modal`, so the trap and the
  * hidden page are proved here, not assumed; and the page behind is proved still with the smooth
  * scroll RUNNING (webdriver lifted), because base-ui's overflow lock alone does not stop Lenis
  * (packages/shared/src/pageHold.ts) — the same proof as the garment pages' hd-image.spec.ts.
@@ -455,7 +455,7 @@ test.describe('the factory photo viewer', () => {
 })
 
 /**
- * The /about preloader (BUILD 8.4; the owner's rule of 2026-10-09: "No saving: arriving from
+ * The /about preloader (the owner's rule of 2026-10-09: "No saving: arriving from
  * outside"). Automation never sees it unless a test lifts `navigator.webdriver`, as these do.
  */
 test.describe('the /about preloader', () => {

@@ -134,7 +134,7 @@ export function FactoryPage() {
         <div className="site-container">
           <h2 className="display display--section">{page.walkthrough.heading}</h2>
           {/*
-           * The walkthrough (BUILD 8.2). An `<ol>` in order at every width. On a wide screen with
+           * The walkthrough. An `<ol>` in order at every width. On a wide screen with
            * the site's motion allowed, each stage holds the screen while its photos stay pinned
            * and its words pass, the checkpoint lands like a stamp, and the rail beside the list
            * fills 01 to 05 (site.css, "the walkthrough holds each stage"). The wrapper owns the

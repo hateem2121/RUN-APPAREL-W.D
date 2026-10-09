@@ -13,7 +13,7 @@ function showpieceMs(): number {
 }
 
 /**
- * The preloader's year, rolling from 1889 to this year (BUILD 8.4). It does nothing unless the
+ * The preloader's year, rolling from 1889 to this year. It does nothing unless the
  * pre-paint script marked <html> (`data-preload="on"`), so reduced motion, automation and every
  * visit the owner's rule leaves out see only the server's "1889" inside a hidden overlay.
  *

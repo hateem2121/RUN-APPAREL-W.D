@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { counterText, indexFromScroll, photosToLoad, stepIndex, viewerTitle } from './photoViewer'
 
 /**
- * The factory gallery's photo viewer (BUILD 8.5): the arithmetic the island runs, kept here so it is
+ * The factory gallery's photo viewer: the arithmetic the island runs, kept here so it is
  * measured by the coverage floors and cannot drift between the counter, the name and the strip.
  */
 describe('the photo viewer', () => {

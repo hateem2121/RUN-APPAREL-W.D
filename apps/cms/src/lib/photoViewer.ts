@@ -1,5 +1,5 @@
 /**
- * The arithmetic of the factory gallery's photo viewer (BUILD 8.5, the about-factory build,
+ * The arithmetic of the factory gallery's photo viewer (the about-factory build,
  * 2026-10-09). `FactoryPhotoViewer.tsx` draws; this decides which photo is on screen, what the
  * counter and the dialog's name say, and which photos are loaded. Kept out of the island so the
  * coverage floors measure it, and so the counter and the name cannot disagree.

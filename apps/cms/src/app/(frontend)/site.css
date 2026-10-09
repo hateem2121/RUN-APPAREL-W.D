@@ -7604,7 +7604,7 @@ a.contact-block__value:active {
 }
 
 /*
- * ------------------------------------------------ the /about hero expands (BUILD 8.3)
+ * ------------------------------------------------ the /about hero expands
  *
  * The section grows to 250svh and its stage sticks for the 150svh between: the building opens from
  * a 4:5 card in the middle of the page's own ground to 90vw x 75svh, the picture settles from 1.12
@@ -7678,7 +7678,7 @@ a.contact-block__value:active {
     .about-hero {
       --about-card-w: clamp(240px, 32vmin, 420px);
       /* How far the words slide: past the edge on a phone, where a line is nearly the screen wide
-         (80vw left the subtitle's last letters on screen at 390px); 80vw from 900px, as BUILD 8.3. */
+         (80vw left the subtitle's last letters on screen at 390px); 80vw from 900px. */
       --about-away: 105vw;
       color-scheme: inherit;
       --bg: inherit;
@@ -7931,7 +7931,7 @@ a.contact-block__value:active {
 }
 
 /*
- * ------------------------------------------------ the timeline runs sideways (BUILD 8.2)
+ * ------------------------------------------------ the timeline runs sideways
  *
  * From 900px wide and 700px tall, with motion allowed and scroll timelines with ranges: the section
  * grows to 300svh, its stage sticks, the `<ol>` lies down as one row and moves left by exactly its
@@ -8296,7 +8296,7 @@ a.contact-block__value:active {
 }
 
 /*
- * ------------------------------------------------ the about and factory pages' motion (BUILD 8)
+ * ------------------------------------------------ the about and factory pages' motion
  *
  * The site's own motion system (D36): scroll-driven CSS, inside `prefers-reduced-motion:
  * no-preference` and `@supports` for timelines WITH ranges, exactly as `card-rise` above. Outside
@@ -8365,7 +8365,7 @@ a.contact-block__value:active {
 }
 
 /*
- * The gallery's deeper drift (BUILD 8.2: scale 1.15). ⚠️ ±7%, NOT THE BRIEF'S ±8%: scaled 1.15 a
+ * The gallery's deeper drift (scale 1.15). ⚠️ ±7%, NOT THE BRIEF'S ±8%: scaled 1.15 a
  * picture overhangs its frame by 7.5% a side, and `translate` percentages are of the unscaled box,
  * so 8% would open a 0.5% strip of empty frame at each end of the drift.
  */
@@ -8416,7 +8416,7 @@ a.contact-block__value:active {
   }
 }
 
-/* A fine pointer brings a gallery photo up a little, and from grey into colour (BUILD 8.2). The
+/* A fine pointer brings a gallery photo up a little, and from grey into colour. The
    frame scales, not the picture, which the drift already scales. */
 @media (hover: hover) and (pointer: fine) {
   .factory-gallery__photos .photo-figure__frame {
@@ -8460,7 +8460,7 @@ a.contact-block__value:active {
 }
 
 /*
- * ------------------------------------------------ the walkthrough holds each stage (BUILD 8.2)
+ * ------------------------------------------------ the walkthrough holds each stage
  *
  * From 900px wide and 700px tall, with motion allowed and scroll timelines with ranges: each stage
  * holds 80svh, its photos stay pinned beside its words (`position: sticky` inside the stage), the
@@ -8470,7 +8470,7 @@ a.contact-block__value:active {
  *
  * The rail runs on the wrapper's own timeline (`--factory-walk`); a named view timeline reaches its
  * descendants, so no `timeline-scope` is needed (MDN has no support data for it, Oct 2026). The
- * stamp's rest at -3deg is the stamp's look; the checkpoint is text either way (BUILD 8.2).
+ * stamp's rest at -3deg is the stamp's look; the checkpoint is text either way.
  */
 @keyframes factory-walk-fill {
   from {
@@ -8572,7 +8572,7 @@ a.contact-block__value:active {
 }
 
 /*
- * ------------------------------------------------ the factory gallery's photo viewer (BUILD 8.5)
+ * ------------------------------------------------ the factory gallery's photo viewer
  *
  * `FactoryPhotoViewer.tsx`. Each gallery photo is a link to its largest file; the viewer opens it
  * full screen over the page's own ground, in both themes, as the garment pages' HD picture does
@@ -8691,11 +8691,11 @@ a.contact-block__value:active {
 }
 
 /*
- * ------------------------------------------------ the /about preloader (BUILD 8.4)
+ * ------------------------------------------------ the /about preloader
  *
  * `AboutPreloader.tsx`. Hidden unless the pre-paint script marked <html> with `data-preload`, so no
  * JavaScript, reduced motion and every visit the owner's rule leaves out (2026-10-09) never see it.
- * The curtain lifts over `--slow` on `--ease-out-expo` (BUILD 8.4): at once when the counter calls
+ * The curtain lifts over `--slow` on `--ease-out-expo`: at once when the counter calls
  * it (`lifting`), or ON ITS OWN at 2.2 s if the counter's script is late or never runs (`on`, the
  * fallback's delay). The year moves by its number, never by fading (the axe trap at `site-reveal`).
  */
@@ -8720,7 +8720,7 @@ html[data-preload] .preloader {
 
 html[data-preload="on"] .preloader {
   animation: preloader-lift var(--slow) var(--ease-out-expo) both;
-  /* A delay, not a duration: BUILD 8.4's ceiling, `PRELOADER_CEILING_MS` in lib/preloader.ts
+  /* A delay, not a duration: the 2.2 s ceiling, `PRELOADER_CEILING_MS` in lib/preloader.ts
      (preloader.test.ts holds the two equal). */
   animation-delay: 2200ms;
 }

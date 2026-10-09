@@ -38,13 +38,13 @@ export function AboutPage() {
 
   return (
     <>
-      {/* First on the page: its script decides before anything below can paint (BUILD 8.4). */}
+      {/* First on the page: its script decides before anything below can paint. */}
       <AboutPreloader />
       <JsonLd data={aboutPageJsonLd(page)} />
       <JsonLd data={breadcrumbTrailJsonLd(trail)} />
 
       {/*
-       * The scroll-expanding hero (BUILD 8.3). Still, this is the photo hero below; inside the
+       * The scroll-expanding hero. Still, this is the photo hero below; inside the
        * site's motion guards (site.css, "The /about hero expands"), the section grows tall and
        * `.about-hero__stage` sticks while the photo opens from a card to the screen and the two
        * halves of the headline slide away. The ghost "1889" is drawn, not written: an SVG, hidden
@@ -108,7 +108,7 @@ export function AboutPage() {
 
       {/*
        * The byline sits directly under the opening paragraph, as on the guides, policies and
-       * careers (BUILD 9.8, approved with the words). It was in the hero at first; there it did not
+       * careers (approved with the words). It was in the hero at first; there it did not
        * fit beside the card on a phone's sticky screen.
        */}
       <section className="site-section" data-site-reveal>
@@ -154,7 +154,7 @@ export function AboutPage() {
       <Marquee words={page.marquee} joiner="·" />
 
       {/*
-       * The timeline (BUILD 8.2). An `<ol>` in time order at every width. On a wide screen with
+       * The timeline. An `<ol>` in time order at every width. On a wide screen with
        * the site's motion allowed, the section grows tall and `.about-timeline__stage` sticks while
        * the list moves left as a track, a line drawing under it (site.css, "the timeline runs
        * sideways"); anywhere else it is this vertical list.

@@ -1,5 +1,5 @@
 /**
- * A decorative row of words that shifts sideways while the visitor scrolls (BUILD 8.2, the about
+ * A decorative row of words that shifts sideways while the visitor scrolls (the about
  * and factory pages' M1 and FM1, 2026-10-09). A server component: the row is drawn still, and
  * `.marquee` in site.css moves it only on a scroll timeline, inside the site's motion guards, so it
  * never moves on its own (WCAG 2.2.2 needs no pause button for that).

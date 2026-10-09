@@ -20,7 +20,7 @@ export type ViewerPhoto = {
 }
 
 /**
- * The factory gallery's photo viewer (BUILD 8.5, the about-factory build, 2026-10-09).
+ * The factory gallery's photo viewer (the about-factory build, 2026-10-09).
  *
  * ⚠️ THE GALLERY WORKS WITHOUT THIS. Each photo is a plain link to its largest file
  * (`a[data-gallery-index]`, FactoryPage.tsx), the site's rule for islands. Once this mounts it

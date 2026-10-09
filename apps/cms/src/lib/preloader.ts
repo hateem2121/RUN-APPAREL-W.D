@@ -1,5 +1,5 @@
 /**
- * The /about preloader (BUILD 8.4, the about-factory build, 2026-10-09): a counter from 1889 to this
+ * The /about preloader (the about-factory build, 2026-10-09): a counter from 1889 to this
  * year on the page's ground, lifted like a curtain once the hero photo is ready.
  *
  * ⚠️ WHO SEES IT, DECIDED BEFORE THE FIRST PAINT, AND NOTHING IS STORED (owner, 2026-10-09: "No
@@ -19,10 +19,10 @@ import { FAMILY_SINCE } from './press'
 export const PRELOADER_BOOT_SCRIPT =
   "(()=>{try{if(navigator.webdriver)return;if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;var n=performance.getEntriesByType('navigation')[0];if(n&&n.type!=='navigate')return;var r=document.referrer;if(r){try{if(new URL(r).host===location.host)return}catch(e){}}document.documentElement.setAttribute('data-preload','on')}catch(e){}})()"
 
-/** The curtain never lifts before this, so the counter is seen, not flashed (BUILD 8.4). */
+/** The curtain never lifts before this, so the counter is seen, not flashed. */
 export const PRELOADER_FLOOR_MS = 800
 
-/** And never later than this, however slow the photo (BUILD 8.4); the CSS fallback lifts here too. */
+/** And never later than this, however slow the photo; the CSS fallback lifts here too. */
 export const PRELOADER_CEILING_MS = 2200
 
 /**
@@ -41,12 +41,12 @@ export function preloaderLiftAt({
   return Math.min(PRELOADER_CEILING_MS, Math.max(PRELOADER_FLOOR_MS, showpiece, ready))
 }
 
-/** Where the counter starts: the year in `LINEAGE`, never typed here (BUILD 5: facts from constants). */
+/** Where the counter starts: the year in `LINEAGE`, never typed here (facts come from constants). */
 const FROM_YEAR = Number(FAMILY_SINCE)
 
 /**
  * The year the counter shows `elapsed` ms in, landing on `to` exactly when the curtain lifts, so it
- * never stalls on the final year while it waits (BUILD 8.4). Ease-out (fast, then settling into
+ * never stalls on the final year while it waits. Ease-out (fast, then settling into
  * the year), the shape of the site's `--ease-out-expo`, as the count-up rolls.
  */
 export function counterYear({

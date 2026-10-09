@@ -2,7 +2,7 @@ import { PRELOADER_BOOT_SCRIPT } from '../../lib/preloader'
 import { PreloaderCounter } from './PreloaderCounter'
 
 /**
- * The /about preloader (BUILD 8.4; lib/preloader.ts has who sees it and why nothing is stored).
+ * The /about preloader (lib/preloader.ts has who sees it and why nothing is stored).
  *
  * ⚠️ ORDER IS THE MECHANISM. The constant script comes first and marks <html> before the overlay
  * below is parsed, so the overlay is never painted for a visitor who should not see it: it is

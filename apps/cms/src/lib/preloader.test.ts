@@ -10,7 +10,7 @@ import {
 } from './preloader'
 
 /**
- * The /about preloader's decision (BUILD 8.4, as the owner ruled on 2026-10-09: "No saving:
+ * The /about preloader's decision (as the owner ruled on 2026-10-09: "No saving:
  * arriving from outside"). The pre-paint script is run here against stand-in browsers, so each
  * reason it must stay hidden is proved, and so is the one case that shows it.
  */
