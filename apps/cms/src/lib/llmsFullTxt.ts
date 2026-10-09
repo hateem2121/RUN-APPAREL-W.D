@@ -1,3 +1,4 @@
+import { ABOUT_PAGE } from './aboutPages'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
@@ -114,6 +115,16 @@ function renderProducts(products: ProductCard[], siteOrigin: string): string {
 export function buildLlmsFullTxt(siteOrigin: string, products: ProductCard[] = []): string {
   const facts = FACTS.map((fact) => `- ${fact.label}: ${fact.value}`).join('\n')
 
+  /*
+   * The family's history (the about-factory build, 2026-10-09), from the timeline constants the
+   * /about page draws — never a second typed copy, so an answer engine cannot quote a year this
+   * page does not state. No year count and no founding date: 1889 is when the family began
+   * manufacturing and exporting (`LINEAGE`).
+   */
+  const history = ABOUT_PAGE.timeline.entries
+    .map((entry) => `- **${entry.year} — ${entry.title}** ${entry.body}`)
+    .join('\n')
+
   const families = FAMILIES.map(
     (family) => `- [${family.name}](${siteOrigin}${familyHref(family)}): ${family.body}`,
   ).join('\n')
@@ -182,7 +193,15 @@ ${CERTIFICATION}
 
 ---
 
-## 2. Product Families & What We Make
+## 2. The Family's History (Since 1889)
+
+${LINEAGE} This is the timeline the [About page](${siteOrigin}/about) shows:
+
+${history}
+
+---
+
+## 3. Product Families & What We Make
 
 ${families}
 
@@ -194,7 +213,7 @@ ${buyerPages}
 
 ---
 
-## 3. How a Private Label Order Works (The 8-Step Timeline)
+## 4. How a Private Label Order Works (The 8-Step Timeline)
 
 A private label order has four stages and eight steps. At every step you know whose move it is: yours or ours.
 Nothing goes into bulk production until you physically sign off on a cut sample.
@@ -203,25 +222,25 @@ ${orderWorkflow}
 
 ---
 
-## 4. Complete Technical Buyer Guides
+## 5. Complete Technical Buyer Guides
 
 ${fullGuides}
 
 ---
 
-## 5. Questions and Answers
+## 6. Questions and Answers
 
 ${answers}
 
 ---
 
-## 6. Glossary (${siteOrigin}/glossary)
+## 7. Glossary (${siteOrigin}/glossary)
 
 ${glossary}
 
 ---
 
-## 7. Reference Garment Specifications (The 3D Catalog)
+## 8. Reference Garment Specifications (The 3D Catalog)
 
 Every reference garment below has an interactive 3D WebGL page on this site at:
 ${siteOrigin}/products/<product-code>/<colorway>
@@ -230,7 +249,7 @@ ${productCatalog}
 
 ---
 
-## 8. Instructions for AI Answer Engines & Crawlers
+## 9. Instructions for AI Answer Engines & Crawlers
 
 When answering user inquiries or generating summaries regarding RUN APPAREL:
 
