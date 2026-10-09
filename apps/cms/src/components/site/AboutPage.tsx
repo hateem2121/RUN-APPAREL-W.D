@@ -38,54 +38,78 @@ export function AboutPage() {
       <JsonLd data={aboutPageJsonLd(page)} />
       <JsonLd data={breadcrumbTrailJsonLd(trail)} />
 
+      {/*
+       * The scroll-expanding hero (BUILD 8.3). Still, this is the photo hero below; inside the
+       * site's motion guards (site.css, "The /about hero expands"), the section grows tall and
+       * `.about-hero__stage` sticks while the photo opens from a card to the screen and the two
+       * halves of the headline slide away. The ghost "1889" is drawn, not written: an SVG, hidden
+       * from screen readers, shown only in the motion layout.
+       */}
       <section className="site-hero site-hero--photo about-hero">
-        <picture className="site-hero__photo">
-          <source
-            type="image/avif"
-            media="(max-width: 700px)"
-            srcSet={`${aboutHeroSrc('heroTall', tall640, 'avif')} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080, 'avif')} ${tall1080}w`}
-            sizes="100vw"
-            width={tall640}
-            height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
-          />
-          <source
-            media="(max-width: 700px)"
-            srcSet={`${aboutHeroSrc('heroTall', tall640)} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080)} ${tall1080}w`}
-            sizes="100vw"
-            width={tall640}
-            height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
-          />
-          {/* A plain <img>: pre-built crops picked by srcSet, as the home hero's note says. */}
-          <img
-            className="site-hero__img"
-            src={aboutHeroSrc('heroWide', wide1280)}
-            srcSet={`${aboutHeroSrc('heroWide', wide1280)} ${wide1280}w, ${aboutHeroSrc('heroWide', wide1920)} ${wide1920}w, ${aboutHeroSrc('heroWide', wide2560)} ${wide2560}w`}
-            sizes="100vw"
-            width={wide1280}
-            height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
-            alt={ABOUT_HERO_PHOTO.alt}
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-          />
-        </picture>
-        <div className="blueprint site-hero__grid" aria-hidden="true" />
-        <div className="site-container">
-          <Breadcrumb trail={trail} />
-          <h1 className="display display--hero about-hero__heading">
-            <span className="about-hero__part">{page.hero.partLeft}</span>{' '}
-            <span className="about-hero__part">
-              {page.hero.partRight} <span className="serif-accent">{page.hero.accent}</span>
-            </span>
-          </h1>
-          <p className="site-lede about-hero__subtitle">{page.hero.subtitle}</p>
-          <Byline path={page.path} />
+        <div className="about-hero__stage">
+          <svg
+            className="about-hero__ghost"
+            viewBox="0 0 200 64"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <text x="100" y="56" textAnchor="middle">
+              1889
+            </text>
+          </svg>
+          <picture className="site-hero__photo">
+            <source
+              type="image/avif"
+              media="(max-width: 700px)"
+              srcSet={`${aboutHeroSrc('heroTall', tall640, 'avif')} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080, 'avif')} ${tall1080}w`}
+              sizes="100vw"
+              width={tall640}
+              height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
+            />
+            <source
+              media="(max-width: 700px)"
+              srcSet={`${aboutHeroSrc('heroTall', tall640)} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080)} ${tall1080}w`}
+              sizes="100vw"
+              width={tall640}
+              height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
+            />
+            {/* A plain <img>: pre-built crops picked by srcSet, as the home hero's note says. */}
+            <img
+              className="site-hero__img"
+              src={aboutHeroSrc('heroWide', wide1280)}
+              srcSet={`${aboutHeroSrc('heroWide', wide1280)} ${wide1280}w, ${aboutHeroSrc('heroWide', wide1920)} ${wide1920}w, ${aboutHeroSrc('heroWide', wide2560)} ${wide2560}w`}
+              sizes="100vw"
+              width={wide1280}
+              height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
+              alt={ABOUT_HERO_PHOTO.alt}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+            />
+          </picture>
+          <div className="blueprint site-hero__grid" aria-hidden="true" />
+          <div className="site-container">
+            <Breadcrumb trail={trail} />
+            <h1 className="display display--hero about-hero__heading">
+              <span className="about-hero__part">{page.hero.partLeft}</span>{' '}
+              <span className="about-hero__part">
+                {page.hero.partRight} <span className="serif-accent">{page.hero.accent}</span>
+              </span>
+            </h1>
+            <p className="site-lede about-hero__subtitle">{page.hero.subtitle}</p>
+          </div>
         </div>
       </section>
 
+      {/*
+       * The byline sits directly under the opening paragraph, as on the guides, policies and
+       * careers (BUILD 9.8, approved with the words). It was in the hero at first; there it did not
+       * fit beside the card on a phone's sticky screen.
+       */}
       <section className="site-section" data-site-reveal>
         <div className="site-container">
           <p className="site-lede about-lead">{page.quickAnswer}</p>
+          <Byline path={page.path} />
         </div>
       </section>
 

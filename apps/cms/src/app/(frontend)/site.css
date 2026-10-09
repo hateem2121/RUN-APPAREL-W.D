@@ -7598,6 +7598,269 @@ a.contact-block__value:active {
   max-width: var(--site-measure);
 }
 
+/* The ghost "1889" belongs to the motion layout only; the still hero is unchanged without it. */
+.about-hero__ghost {
+  display: none;
+}
+
+/*
+ * ------------------------------------------------ the /about hero expands (BUILD 8.3)
+ *
+ * The section grows to 250svh and its stage sticks for the 150svh between: the building opens from
+ * a 4:5 card in the middle of the page's own ground to 90vw x 75svh, the picture settles from 1.12
+ * to 1 inside it, and the headline's two halves (with the crumbs and the subtitle) slide out
+ * sideways, gone by 60% of the way. Then the section scrolls away as any other.
+ *
+ * ⚠️ ONLY WHERE IT CAN WORK, AS EVERY SCROLL EFFECT HERE (`card-rise`): `screen`, motion allowed,
+ * and scroll timelines WITH ranges. Reduced motion, Firefox (no scroll timelines, Oct 2026) and
+ * print keep the still photo hero above. Scripting is not needed: this is CSS, as `site-reveal` is.
+ * ⚠️ AND A SCREEN AT LEAST 700px TALL. A 320x568 phone cannot hold the crumbs, the headline, the
+ * card and the subtitle in one sticky screen; the stage would cut the subtitle off. It keeps the
+ * still hero.
+ *
+ * ⚠️ `overflow: clip`, NOT `hidden`, ON THE SECTION. `.site-hero` is `overflow: hidden`, which makes
+ * it a scroll container, and a sticky child sticks to its nearest scroll container: the stage would
+ * never stick. `clip` clips the same and is no scroll container.
+ *
+ * ⚠️ NO TEXT OVER THE PHOTO IN THIS LAYOUT, SO THE PAGE'S OWN COLOURS. The words sit on the ground
+ * beside the card and are gone before the card reaches them, so the photo hero's dark tokens are
+ * handed back to the page (the same reset print uses, above) and the wash comes off the picture.
+ * Text moves by `translate` only, never opacity (the axe contrast trap at `site-reveal`).
+ *
+ * The timeline is the section's own (`view-timeline: --about-hero`); its `contain` range is exactly
+ * the sticky stretch, from the section's top at the screen's top to its bottom at the screen's
+ * bottom. Movement that only tracks the scroll is `linear` (D36).
+ */
+@keyframes about-hero-open {
+  from {
+    clip-path: inset(
+      calc(50% - var(--about-card-w) * 0.625) calc(50% - var(--about-card-w) / 2) round
+        var(--radius-card)
+    );
+  }
+  to {
+    clip-path: inset(12.5% 5% round var(--radius-card));
+  }
+}
+
+@keyframes about-hero-settle {
+  from {
+    scale: 1.12;
+  }
+  to {
+    scale: 1;
+  }
+}
+
+@keyframes about-hero-away-start {
+  to {
+    translate: calc(-1 * var(--about-away)) 0;
+  }
+}
+
+@keyframes about-hero-away-end {
+  to {
+    translate: var(--about-away) 0;
+  }
+}
+
+@keyframes about-hero-ghost {
+  from {
+    translate: 0 6svh;
+  }
+  to {
+    translate: 0 -6svh;
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) and (min-height: 700px) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .about-hero {
+      --about-card-w: clamp(240px, 32vmin, 420px);
+      /* How far the words slide: past the edge on a phone, where a line is nearly the screen wide
+         (80vw left the subtitle's last letters on screen at 390px); 80vw from 900px, as BUILD 8.3. */
+      --about-away: 105vw;
+      color-scheme: inherit;
+      --bg: inherit;
+      --text: inherit;
+      --muted: inherit;
+      --grid: inherit;
+      --line: inherit;
+      --line-control: inherit;
+      --label-bg: inherit;
+      --label-text: inherit;
+      --btn-primary-bg: inherit;
+      --btn-primary-text: inherit;
+      --headline: inherit;
+      --heading: inherit;
+      --serif-accent: inherit;
+      --dimension: inherit;
+      --focus-ring: inherit;
+      height: 250svh;
+      padding-block: 0;
+      overflow: clip;
+      view-timeline: --about-hero;
+      /* `auto` takes the page's scroll-padding (the fixed bar's 84px clearance), which started the
+         timeline 84px before the top: at scroll 0 the card was 6% open (measured 2026-10-09). */
+      view-timeline-inset: 0;
+    }
+
+    .about-hero__stage {
+      position: sticky;
+      top: 0;
+      height: 100svh;
+      overflow: clip;
+    }
+
+    .about-hero__ghost {
+      display: block;
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: min(150vw, 200svh);
+      height: auto;
+      z-index: var(--z-hero-grid);
+      fill: color-mix(in srgb, var(--text) 4%, transparent);
+      font-family: var(--font-display);
+      font-weight: 800;
+      animation: about-hero-ghost var(--slow) linear both;
+      animation-timeline: --about-hero;
+      animation-range: contain 0% contain 100%;
+    }
+
+    .about-hero .site-hero__photo {
+      animation: about-hero-open var(--slow) linear both;
+      animation-timeline: --about-hero;
+      animation-range: contain 0% contain 100%;
+    }
+
+    .about-hero .site-hero__photo::after {
+      opacity: 0;
+    }
+
+    .about-hero .site-hero__img {
+      animation: about-hero-settle var(--slow) linear both;
+      animation-timeline: --about-hero;
+      animation-range: contain 0% contain 100%;
+    }
+
+    /*
+     * SYMMETRIC ROWS, so the card's row is the middle of the screen, where the card is: equal
+     * `1fr` rows above and below. The crumbs top the first; the subtitle tops the last. (The
+     * byline is under the opening paragraph, below this section.)
+     */
+    .about-hero .site-container {
+      position: absolute;
+      inset: 0;
+      /* The same top and bottom, or the grid's middle row is not the screen's middle, where the
+         card is (it sat 30px low at 390x844 with 24px under). */
+      padding-block: var(--notch-clearance);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: 1fr auto calc(var(--about-card-w) * 1.25) auto 1fr;
+      justify-items: center;
+      row-gap: 12px;
+      text-align: center;
+    }
+
+    .about-hero .crumbs {
+      grid-row: 1;
+      align-self: start;
+      justify-self: start;
+    }
+
+    /* On a phone the halves sit over and under the card: the heading takes rows 2-4 as its own. */
+    .about-hero__heading {
+      grid-row: 2 / 5;
+      display: grid;
+      grid-template-rows: subgrid;
+      justify-items: center;
+    }
+
+    .about-hero__part:first-child {
+      grid-row: 1;
+      align-self: end;
+    }
+
+    .about-hero__part:last-child {
+      grid-row: 3;
+      align-self: start;
+    }
+
+    /* Named column too: with the byline once beside it in row 5, auto-placement (which never
+       shares a cell) opened a new column that took the whole width (measured: 0px and 338px). */
+    .about-hero__subtitle {
+      grid-row: 5;
+      grid-column: 1;
+      align-self: start;
+    }
+
+    .about-hero .crumbs,
+    .about-hero__part:first-child {
+      /* `linear`, as everything that only tracks the scroll: on a scroll timeline an ease-out
+         front-loads the travel, and the words were 560px gone at a tenth of the way (measured). */
+      animation: about-hero-away-start var(--slow) linear both;
+      animation-timeline: --about-hero;
+      animation-range: contain 0% contain 60%;
+    }
+
+    .about-hero__part:last-child,
+    .about-hero__subtitle {
+      animation: about-hero-away-end var(--slow) linear both;
+      animation-timeline: --about-hero;
+      animation-range: contain 0% contain 60%;
+    }
+
+    /* From 900px the halves sit either side of the card, the subtitle under the right. */
+    @media (width >= 900px) {
+      .about-hero {
+        --about-away: 80vw;
+      }
+
+      .about-hero .site-container {
+        grid-template-columns: minmax(0, 1fr) var(--about-card-w) minmax(0, 1fr);
+        grid-template-rows: 1fr auto 1fr;
+        column-gap: 24px;
+        justify-items: stretch;
+        text-align: start;
+      }
+
+      .about-hero .crumbs {
+        grid-column: 1 / -1;
+      }
+
+      .about-hero__heading {
+        grid-row: 2;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        grid-template-rows: auto;
+        align-items: center;
+      }
+
+      .about-hero__part:first-child {
+        grid-row: 1;
+        grid-column: 1;
+        align-self: center;
+        justify-self: end;
+        text-align: end;
+      }
+
+      .about-hero__part:last-child {
+        grid-row: 1;
+        grid-column: 3;
+        align-self: center;
+        justify-self: start;
+      }
+
+      .about-hero__subtitle {
+        grid-row: 3;
+        grid-column: 3;
+        align-self: start;
+      }
+    }
+  }
+}
+
 /* The quick answer and the categories: one lead paragraph each, at the measure. */
 .about-lead {
   margin: 0;

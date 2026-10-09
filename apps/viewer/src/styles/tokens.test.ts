@@ -1485,6 +1485,10 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         // ...and on paper they go light like every page (VA-04, found 2026-10-02 when the film made
         // /products a photo hero): their re-declared dark colours were out of the paper rule's reach.
         'site.css .order-step: light',
+        // The /about hero's motion layout (BUILD 8.3, 2026-10-09): its words sit on the page's own
+        // ground, so the photo hero's forced dark is handed back. `inherit`, not `light dark`: the
+        // tokens are `light-dark()`, and only `inherit` also follows a theme the toggle forced.
+        'site.css .about-hero: inherit',
       ].sort(),
     )
   })
