@@ -4,6 +4,7 @@ import { Byline } from './Byline'
 import { Breadcrumb } from './Breadcrumb'
 import { factoryPhoto } from './CompanyParts'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
+import { FactoryPhotoViewer, type ViewerPhoto } from './FactoryPhotoViewer'
 import { JsonLd } from './JsonLd'
 import { Marquee } from './Marquee'
 import { FACTORY_PAGE } from '../../lib/aboutPages'
@@ -39,19 +40,33 @@ const [wide1280, wide1920, wide2560] = HERO_PHOTO.widths.heroWide
 
 /** The photos the gallery shows, as the page's structured data names them (largest file). */
 function galleryJsonLdPhotos(): FactoryPagePhoto[] {
-  return FACTORY_PAGE.gallery.sets.flatMap((set) =>
-    set.photos.map((slug) => {
-      const photo = factoryPhoto(slug)
-      const width = factoryPhotoWidths(photo)[factoryPhotoWidths(photo).length - 1] ?? 0
-      return {
-        src: factoryPhotoSrc(photo, width),
-        width,
-        height: Math.round(width / FACTORY_PHOTO_ASPECT[photo.shape]),
-        alt: photo.alt,
-      }
-    }),
-  )
+  return GALLERY.map(({ largest, photo }) => ({ ...largest, alt: photo.alt }))
 }
+
+/**
+ * The gallery's photos in order across its sets, each with its largest file: the address its link
+ * opens without JavaScript, the photo the viewer shows, and what the structured data names. One
+ * list, so the link's index, the viewer's "3 / 9" and the structured data cannot disagree.
+ */
+const GALLERY = FACTORY_PAGE.gallery.sets.flatMap((set) =>
+  set.photos.map((slug) => {
+    const photo = factoryPhoto(slug)
+    const width = factoryPhotoWidths(photo)[factoryPhotoWidths(photo).length - 1] ?? 0
+    const largest = {
+      src: factoryPhotoSrc(photo, width),
+      width,
+      height: Math.round(width / FACTORY_PHOTO_ASPECT[photo.shape]),
+    }
+    return { slug, photo, largest }
+  }),
+)
+
+/** What the viewer needs of each: every width to choose from, the largest as its fallback. */
+const VIEWER_PHOTOS: ViewerPhoto[] = GALLERY.map(({ photo, largest }) => ({
+  ...largest,
+  srcSet: factoryPhotoImage(photo).srcSet,
+  alt: photo.alt,
+}))
 
 export function FactoryPage() {
   const page = FACTORY_PAGE
@@ -177,19 +192,29 @@ export function FactoryPage() {
               <h3 className="factory-gallery__label">{set.label}</h3>
               <div className="factory-gallery__photos">
                 {set.photos.map((slug) => {
-                  const photo = factoryPhoto(slug)
+                  const at = GALLERY.findIndex((entry) => entry.slug === slug)
+                  const entry = GALLERY[at]
+                  if (!entry) return null
                   return (
-                    <FactoryFigure
+                    // Without JavaScript, a link to the largest file; with it, the viewer.
+                    <a
+                      className="factory-gallery__open"
+                      href={entry.largest.src}
+                      data-gallery-index={at}
                       key={slug}
-                      photo={photo}
-                      {...factoryPhotoImage(photo)}
-                      sizes={HALF_COLUMN_SIZES}
-                    />
+                    >
+                      <FactoryFigure
+                        photo={entry.photo}
+                        {...factoryPhotoImage(entry.photo)}
+                        sizes={HALF_COLUMN_SIZES}
+                      />
+                    </a>
                   )
                 })}
               </div>
             </div>
           ))}
+          <FactoryPhotoViewer photos={VIEWER_PHOTOS} />
         </div>
       </section>
 

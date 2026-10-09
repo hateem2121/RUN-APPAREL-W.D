@@ -102,11 +102,14 @@ export default defineConfig({
      * engine every iPhone draws with, which until Safari 17 changed how tables were read.
      * `careersForm` joined 2026-10-07 (Phase 2): its "Something else" box opens through `:has()`,
      * as the sport filter does, and an applicant on an iPhone applies in this engine.
+     * `aboutFactory` joined 2026-10-09 (the about-factory build): the /about hero, the timeline
+     * and the walkthrough are sticky sections on named scroll timelines with ranges (Safari 26),
+     * and the photo viewer's swipe is a scroll-snap strip, all of it an iPhone visit.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

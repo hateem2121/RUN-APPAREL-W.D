@@ -214,6 +214,9 @@ importers:
 
   apps/cms:
     dependencies:
+      '@base-ui/react':
+        specifier: 1.8.0
+        version: 1.8.0(@date-fns/tz@1.2.0)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@fontsource-variable/archivo':
         specifier: 5.3.0
         version: 5.3.0

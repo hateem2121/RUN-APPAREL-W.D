@@ -121,7 +121,9 @@ test.describe('the /about hero', () => {
       expect(top.cardWidth, 'the card is not closed at the top').toBeCloseTo(card, -1)
       expect(top.partsOnScreen, 'the headline is not all on screen at the top').toBe(true)
       // `none` or `0px`, depending on the engine: unmoved either way.
-      expect(top.partsTranslate.map((value) => Number.parseFloat(value) || 0)).toEqual([0, 0])
+      // WebKit reports a resting value as ±0.000073px, Chromium as 0px: unmoved, both.
+      for (const value of top.partsTranslate)
+        expect(Number.parseFloat(value) || 0).toBeCloseTo(0, 1)
       // A tenth of the way: the words have barely moved (linear, not flung).
       await heroAt(page, 0.1)
       await page.waitForTimeout(150)
@@ -177,16 +179,20 @@ test.describe('the /about hero', () => {
  * that its LAST entry ends at the stage's right edge, which a wrong travel misses at any width.
  */
 async function scrollThrough(page: import('@playwright/test').Page, selector: string, f: number) {
-  await page.evaluate(
-    ([sel, fraction]) => {
-      const element = document.querySelector(sel as string) as HTMLElement
-      const top = element.getBoundingClientRect().top + scrollY
-      const run = element.getBoundingClientRect().height - innerHeight
-      scrollTo(0, Math.round(top + run * (fraction as number)))
-    },
-    [selector, f] as const,
-  )
-  await page.waitForTimeout(200)
+  // Twice: measured before the scroll, a section still rising in (`site-reveal`, 24px down) put
+  // the first scroll 24px past its start; measured again once it has risen, the second lands.
+  for (let pass = 0; pass < 2; pass += 1) {
+    await page.evaluate(
+      ([sel, fraction]) => {
+        const element = document.querySelector(sel as string) as HTMLElement
+        const top = element.getBoundingClientRect().top + scrollY
+        const run = element.getBoundingClientRect().height - innerHeight
+        scrollTo(0, Math.round(top + run * (fraction as number)))
+      },
+      [selector, f] as const,
+    )
+    await page.waitForTimeout(200)
+  }
 }
 
 const timelinesRun = (page: import('@playwright/test').Page) =>
@@ -323,3 +329,127 @@ for (const path of ['/about', '/inside-the-factory']) {
     })
   }
 }
+
+/**
+ * The gallery's photo viewer (BUILD 8.5). base-ui 1.8.0 sets no `aria-modal`, so the trap and the
+ * hidden page are proved here, not assumed; and the page behind is proved still with the smooth
+ * scroll RUNNING (webdriver lifted), because base-ui's overflow lock alone does not stop Lenis
+ * (packages/shared/src/pageHold.ts) — the same proof as the garment pages' hd-image.spec.ts.
+ */
+test.describe('the factory photo viewer', () => {
+  const links = (page: import('@playwright/test').Page) => page.locator('a[data-gallery-index]')
+
+  test('without JavaScript each photo is a link to a real, larger file', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false })
+    const page = await context.newPage()
+    await page.goto('/inside-the-factory')
+    const hrefs = await links(page).evaluateAll((all) =>
+      all.map((a) => (a as HTMLAnchorElement).getAttribute('href') ?? ''),
+    )
+    expect(hrefs.length, 'no gallery links were drawn').toBeGreaterThan(3)
+    for (const href of hrefs) {
+      const response = await page.request.get(href)
+      expect(response.status(), href).toBe(200)
+      expect(response.headers()['content-type'], href).toMatch(/^image\//)
+    }
+    await context.close()
+  })
+
+  test('opens on the photo pressed, steps with the keys, counts, and gives focus back', async ({
+    page,
+  }) => {
+    await page.goto('/inside-the-factory')
+    const count = await links(page).count()
+    const third = links(page).nth(2)
+    await third.scrollIntoViewIfNeeded()
+    await third.click()
+    await expect(page.getByRole('dialog', { name: `Factory photo 3 of ${count}` })).toBeVisible()
+    // Followed by role from here: its name moves with the photo ("4 of …").
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.locator('.photo-viewer__count')).toHaveText(`3 / ${count}`)
+    await expect(dialog.locator('.photo-viewer__count')).toHaveAttribute('aria-live', 'polite')
+    await page.keyboard.press('ArrowRight')
+    await expect(dialog.locator('.photo-viewer__count')).toHaveText(`4 / ${count}`)
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('ArrowLeft')
+    await expect(dialog.locator('.photo-viewer__count')).toHaveText(`2 / ${count}`)
+    // Only the photo on screen and its neighbours are asked for.
+    expect(await dialog.locator('.photo-viewer__img').count()).toBeLessThanOrEqual(3)
+    for (const button of await dialog.locator('.photo-viewer__button').all()) {
+      const box = await button.boundingBox()
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(third, 'focus did not come back to the photo that opened it').toBeFocused()
+  })
+
+  test('keeps Tab inside, and hides the page behind from the accessibility tree', async ({
+    page,
+  }) => {
+    await page.goto('/inside-the-factory')
+    await links(page).first().click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    for (let press = 0; press < 8; press += 1) {
+      await page.keyboard.press('Tab')
+      // base-ui wraps focus through an invisible guard beside the popup, for a moment: wait for
+      // focus to settle. One that really escaped stays out, and this fails.
+      await expect
+        .poll(
+          () => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null),
+          { message: `Tab ${press + 1} left the viewer`, timeout: 1000 },
+        )
+        .toBe(true)
+    }
+    await expect(page.getByRole('heading', { name: /Walk the floor/i })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('heading', { name: /Walk the floor/i })).toHaveCount(1)
+  })
+
+  test('a swipe is the strip scrolling, and the counter follows it', async ({ page }) => {
+    await page.goto('/inside-the-factory')
+    const count = await links(page).count()
+    await links(page).first().click()
+    const strip = page.locator('.photo-viewer__strip')
+    await expect(strip).toBeVisible()
+    expect(await strip.evaluate((e) => getComputedStyle(e).scrollSnapType)).toContain('mandatory')
+    await strip.evaluate((e) => e.scrollTo({ left: 2 * e.clientWidth, behavior: 'instant' }))
+    await expect(page.locator('.photo-viewer__count')).toHaveText(`3 / ${count}`)
+  })
+
+  test('a wheel over the open viewer leaves the page behind where it was', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'a phone has no wheel')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(`Object.defineProperty(Navigator.prototype, 'webdriver', {
+      get: () => false,
+      configurable: true,
+    })`)
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/inside-the-factory')
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
+        message: 'Lenis never started, so this would pass with the lock deleted',
+        timeout: 10_000,
+      })
+      .toBe(true)
+    const scrollY = () => page.evaluate(() => Math.round(window.scrollY + document.body.scrollTop))
+    await links(page).first().scrollIntoViewIfNeeded()
+    await page.waitForTimeout(1500)
+    await links(page).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    const start = await scrollY()
+    await page.mouse.move(640, 450)
+    await page.mouse.wheel(0, 1200)
+    await page.waitForTimeout(1500)
+    expect(await scrollY(), 'the page slid behind the open viewer').toBe(start)
+    await page.keyboard.press('Escape')
+    await page.mouse.wheel(0, 600)
+    await page.waitForTimeout(1500)
+    expect(await scrollY(), 'the page stayed held after the viewer closed').toBeGreaterThan(start)
+  })
+})

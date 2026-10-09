@@ -8020,7 +8020,10 @@ a.contact-block__value:active {
     .about-timeline {
       display: flex;
       gap: var(--tl-gap);
-      width: max-content;
+      /* The exact width, not `max-content`: WebKit sums the entries' TEXT for a flex row's
+         max-content (3,373px at 1440 where Chromium summed the bases, 2,680), so `100%` was too
+         wide and the track stopped 692px short of its edge (measured 2026-10-09). */
+      width: calc(var(--tl-count, 1) * var(--tl-entry) + (var(--tl-count, 1) - 1) * var(--tl-gap));
       animation: about-timeline-travel var(--slow) linear both;
       animation-timeline: --about-timeline;
       animation-range: contain 0% contain 100%;
@@ -8566,4 +8569,123 @@ a.contact-block__value:active {
   .factory-stage__photos .photo-figure {
     animation: none;
   }
+}
+
+/*
+ * ------------------------------------------------ the factory gallery's photo viewer (BUILD 8.5)
+ *
+ * `FactoryPhotoViewer.tsx`. Each gallery photo is a link to its largest file; the viewer opens it
+ * full screen over the page's own ground, in both themes, as the garment pages' HD picture does
+ * (`apps/viewer/src/styles/hd-image.css`, whose tokens these copy). Its states are base-ui's
+ * `data-starting-style` / `data-ending-style`, never `data-open` (publicSite.test.ts).
+ * ⚠️ ONLY THE BACKDROP FADES. The popup holds the counter, and text never fades on this site (the
+ * axe contrast trap at `site-reveal`), so it arrives at once over the fading ground.
+ */
+.factory-gallery__open {
+  display: block;
+  color: inherit;
+  border-radius: var(--radius-card);
+}
+
+.factory-gallery__open:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.photo-viewer__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: var(--bg);
+  transition: opacity var(--ui) var(--ease);
+}
+
+.photo-viewer__backdrop[data-starting-style],
+.photo-viewer__backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.photo-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.photo-viewer__bar,
+.photo-viewer__steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 16px;
+}
+
+.photo-viewer__bar {
+  border-bottom: 1px solid var(--line);
+}
+
+.photo-viewer__steps {
+  justify-content: center;
+  border-top: 1px solid var(--line);
+}
+
+.photo-viewer__count {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  font-variant-numeric: tabular-nums;
+}
+
+.photo-viewer__button {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.photo-viewer__button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The browser's own swipe: one photo a screen, snapping, with no scrollbar drawn. */
+.photo-viewer__strip {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.photo-viewer__slide {
+  flex: 0 0 100%;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.photo-viewer__img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
