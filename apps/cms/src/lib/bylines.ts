@@ -66,7 +66,7 @@ const GARMENT_LINKS = '2026-10-08T16:26:29+05:00'
 const NEW_GUIDES = '2026-10-08T16:38:58+05:00'
 const POLICIES_LIVE = '2026-10-07T12:40:02+05:00'
 const CAREERS_FORM = '2026-10-07T19:11:24+05:00'
-/** The commit that shipped the about and factory pages' approved words (869bb57). */
+/** The commit that shipped the about and factory pages' approved words (092a086). */
 const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
 /** The factory headline's doubled accent word removed ("Inside the factory factory"). */
 const FACTORY_HEADLINE = '2026-10-09T13:22:38+05:00'
@@ -138,7 +138,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/policies/quality': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e442ac2701ef'),
   '/policies/environmental': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, '91196555a7a8'),
   '/careers': byline(AUTHORS.hr, POLICIES_LIVE, CAREERS_FORM, '04917a5d247d'),
-  // The about and factory pages: the commit that shipped their approved words (869bb57), and
+  // The about and factory pages: the commit that shipped their approved words (092a086), and
   // its time. The fingerprint is `bylines.test.ts`'s of the words at that moment.
   '/about': byline(
     AUTHORS.contentTeam,
