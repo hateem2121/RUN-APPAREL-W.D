@@ -13,8 +13,14 @@ export const POSTAL_ADDRESS = {
   country: 'PK',
 } as const
 
+/**
+ * The country's full name. `POSTAL_ADDRESS.country` is the ISO code a postal address and the
+ * structured data want; a line a person reads (the factory page's mono label) spells it out.
+ */
+export const COUNTRY_NAME = 'Pakistan'
+
 /** The same address as one line, for display. */
 export function formatAddress(): string {
   const { street, locality, postalCode } = POSTAL_ADDRESS
-  return `${street}, ${locality}, ${postalCode}, Pakistan`
+  return `${street}, ${locality}, ${postalCode}, ${COUNTRY_NAME}`
 }

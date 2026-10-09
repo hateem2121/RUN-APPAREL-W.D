@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as aboutPages from './aboutPages'
 import * as caseStudies from './caseStudies'
 import * as companyPages from './companyPages'
 import * as journal from './journal'
@@ -21,6 +22,7 @@ import * as policies from './policies'
 const COPY_MODULES: Record<string, object> = {
   'policies.ts': policies,
   'companyPages.ts': companyPages,
+  'aboutPages.ts': aboutPages,
   'journal.ts': journal,
   'caseStudies.ts': caseStudies,
 }
