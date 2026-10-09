@@ -57,6 +57,9 @@ export const SOURCE_FILE_PATHS = {
   'apps/cms/src/lib/press.ts': ['/press'],
   'apps/cms/src/lib/faqs.ts': FAQ_PAGE_SOURCES,
   'apps/cms/src/lib/glossary.ts': GLOSSARY_PAGE_SOURCES,
+  // The about and factory pages' words (the about-factory build, 2026-10-09); the paths are
+  // the list that holds them in `publicViewerHeaders.mjs`, spread from `COMPANY_PATHS`.
+  'apps/cms/src/lib/aboutPages.ts': COMPANY_PAGE_SOURCES,
 }
 
 /**

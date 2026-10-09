@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { llmsTxtProblems } from '../../../../scripts/copy-rules.mjs'
 import { TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
+import { ABOUT_PAGE, FACTORY_PAGE } from './aboutPages'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { familyHref } from './familyPages'
@@ -199,5 +200,16 @@ describe('says only what the site does (findability audit, 2026-10-08)', () => {
     expect(text).not.toMatch(/allows all user agents/i)
     expect(text).toContain(`${TRAINING_ONLY_UAS.length} crawlers that only gather training data`)
     expect(text).toContain(TRAINING_ONLY_UAS.join(', '))
+  })
+
+  // The about and factory pages (the about-factory build, 2026-10-09): each line is built from the
+  // page's own title and description, in the file's `- [Title](url) — description` format.
+  it('names the about and factory pages in the Company section, in the list format', () => {
+    for (const page of [ABOUT_PAGE, FACTORY_PAGE]) {
+      expect(text).toContain(`- [${page.title}](${SITE}${page.path}) — ${page.description}`)
+      expect(text, `${page.path} fell back to a bare line`).not.toContain(
+        `- [${page.path}](${SITE}${page.path})`,
+      )
+    }
   })
 })

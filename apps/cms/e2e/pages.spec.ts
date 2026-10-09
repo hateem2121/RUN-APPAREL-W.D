@@ -120,6 +120,13 @@ const PAGES = [
   { path: '/careers', name: 'careers page', heading: /Join a family/i },
   { path: '/community', name: 'community page', heading: /Steady work/i },
   { path: '/press', name: 'press page', heading: /For journalists/i },
+  // The about and factory pages (the about-factory build, 2026-10-09).
+  { path: '/about', name: 'about page', heading: /SINCE 1889/i },
+  {
+    path: '/inside-the-factory',
+    name: 'factory page',
+    heading: /Inside the factory/i,
+  },
   // The FAQ and the glossary (2026-10-07).
   { path: '/faq', name: 'FAQ hub', heading: /Questions/i },
   { path: '/faq/orders-and-samples', name: 'FAQ: orders and samples', heading: /Orders/i },

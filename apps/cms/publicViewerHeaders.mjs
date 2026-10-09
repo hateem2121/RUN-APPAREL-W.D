@@ -123,9 +123,16 @@ export const POLICY_PAGE_SOURCES = [
 
 /**
  * The company pages (2026-10-07): careers and community, in `COMPANY_PATHS`' order. Held to
- * `src/lib/companyPages.ts` by `companyPages.test.ts`. Phase 5 adds `/press`.
+ * `src/lib/companyPages.ts` by `companyPages.test.ts`. Phase 5 adds `/press`. The about and
+ * factory pages joined on 2026-10-09 (the about-factory build); their words are `aboutPages.ts`.
  */
-export const COMPANY_PAGE_SOURCES = ['/careers', '/community', '/press']
+export const COMPANY_PAGE_SOURCES = [
+  '/careers',
+  '/community',
+  '/press',
+  '/about',
+  '/inside-the-factory',
+]
 
 /**
  * The FAQ hub and its topic pages (2026-10-07), in `FAQ_PATHS`' order. Held to

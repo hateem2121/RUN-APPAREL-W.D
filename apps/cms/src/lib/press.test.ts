@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LINEAGE } from './companyFacts'
+import { FACTS, LINEAGE } from './companyFacts'
 import { FACTORY_PHOTOS } from './factoryPhotos'
 import { FAMILY_SINCE, MEDIA_EMAIL, PRESS_FACTS, PRESS_PHOTOS, pressPhotoDownload } from './press'
 
@@ -16,8 +16,17 @@ describe('the press page’s facts', () => {
     for (const row of PRESS_FACTS) {
       expect(row.value.trim(), row.label).not.toBe('')
       // `About ` with nothing after it is a blank too.
-      expect(row.value, row.label).not.toMatch(/^About\s*$|^\s*pieces|^\s*sq ft|^\s*working/)
+      expect(row.value, row.label).not.toMatch(
+        /^About\s*$|^\s*pieces|^\s*sq f[et]|^\s*sq m|^\s*working/,
+      )
     }
+  })
+
+  it('states the floor area in sq m, from FACTS (owner, 2026-10-09)', () => {
+    const roof = PRESS_FACTS.find((row) => row.label === 'Under roof')
+    const floor = FACTS.find((fact) => fact.value === '193,000')?.value
+    expect(roof?.value).toBe(`${floor} sq m`)
+    expect(roof?.value).not.toMatch(/sq\.?\s*ft/i)
   })
 
   it('the family year is read from LINEAGE, never typed twice', () => {

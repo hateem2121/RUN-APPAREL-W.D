@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { siteRedirects, siteRewrites } from '../siteHostRules.mjs'
+import { escapeRegExp } from '../regexEscape.mjs'
+import { SITE_HOST, siteRedirects, siteRewrites } from '../siteHostRules.mjs'
 
 /**
  * The host rules, read back from the BUILD.
@@ -39,6 +40,52 @@ describe('the build carries every host rule', () => {
     const built = manifest.redirects.filter((r) => r.has?.some((h) => h.type === 'host'))
     expect(built.map(describeRule).sort()).toEqual(siteRedirects().map(describeRule).sort())
     for (const rule of built) expect(rule.statusCode, describeRule(rule)).toBe(308)
+  })
+
+  /*
+   * The /factory forward (the about-factory build, 2026-10-09) is EXACT PATH: the factory photos
+   * really live at /factory/<file>.webp, and a rule that caught them would answer a photo request
+   * with a page. Judged on the BUILT regexes, which are what the server runs.
+   */
+  const PHOTO = '/factory/exterior-640.webp'
+  // Only the site host's rules: the other hostnames forward EVERY path to the same path on the
+  // site (`/:path*`), which is right for /factory and its photos alike.
+  const SITE_HOST_CONDITION = `^${escapeRegExp(SITE_HOST)}$`
+  const redirectsCatching = <Rule extends HostRule & { regex: string }>(
+    rules: Rule[],
+    path: string,
+  ) =>
+    rules.filter(
+      (rule) =>
+        rule.has?.some((h) => h.type === 'host' && h.value === SITE_HOST_CONDITION) &&
+        new RegExp(rule.regex).test(path),
+    )
+
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(
+    'forwards /factory, and leaves the factory photo files alone',
+    () => {
+      expect(existsSync(join(CMS_ROOT, 'public', PHOTO)), `${PHOTO} is not a real file`).toBe(true)
+      const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
+        redirects: (HostRule & { regex: string; statusCode?: number })[]
+      }
+      const forward = redirectsCatching(manifest.redirects, '/factory')
+      expect(forward.map(describeRule)).toEqual([
+        '^wear-run\\.com$ /factory -> https://wear-run.com/inside-the-factory',
+      ])
+      expect(redirectsCatching(manifest.redirects, PHOTO).map(describeRule)).toEqual([])
+    },
+  )
+
+  // NEGATIVE CONTROL: the same rule written as a prefix (`/factory/:path*`) catches the photo.
+  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('sees the fault: a prefix rule takes the photo', () => {
+    const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
+      redirects: (HostRule & { regex: string })[]
+    }
+    const exact = manifest.redirects.find((rule) => rule.source === '/factory')
+    if (!exact) throw new Error('no built /factory rule to plant a fault in')
+    // Next compiles `/factory/:path*` to this shape (path-to-regexp's optional repeat).
+    const prefix = { ...exact, regex: '^/factory(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$' }
+    expect(redirectsCatching([prefix], PHOTO)).toHaveLength(1)
   })
 
   it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(

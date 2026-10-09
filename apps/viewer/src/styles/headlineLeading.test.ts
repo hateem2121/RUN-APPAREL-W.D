@@ -81,6 +81,7 @@ describe('the rule (packages/ui/src/base.css)', () => {
       'apps/viewer/src/styles/page.css',
       'apps/viewer/src/styles/hd-image.css',
       'apps/cms/src/app/(frontend)/site.css',
+      'apps/cms/src/app/(frontend)/about-factory.css',
       'packages/ui/src/footer.css',
       'packages/ui/src/footer-prompt.css',
       'packages/ui/src/notch.css',

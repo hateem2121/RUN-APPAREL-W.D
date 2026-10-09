@@ -4,10 +4,16 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
-import { CONTACT_HERO_SOURCES, HERO_SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import {
+  ABOUT_HERO_SOURCES,
+  CONTACT_HERO_SOURCES,
+  HERO_SOURCES,
+} from '../../../scripts/build-factory-photos.mjs'
 import { AboutSection } from './components/site/AboutSection'
 import { OrderSteps } from './components/site/OrderSteps'
 import {
+  ABOUT_HERO_PHOTO,
+  aboutHeroSrc,
   CONTACT_HERO_PHOTO,
   contactHeroSrc,
   FACTORY_PHOTO_ASPECT,
@@ -94,10 +100,17 @@ describe('the factory photos (OI-3)', () => {
           contactHeroSrc(shape, width).slice('/factory/'.length),
         ),
       ),
+      // The /about hero's crops (the about-factory build, 2026-10-09).
+      ...HERO_SHAPES.flatMap((shape) =>
+        ABOUT_HERO_PHOTO.widths[shape].map((width) =>
+          aboutHeroSrc(shape, width).slice('/factory/'.length),
+        ),
+      ),
       // The phone crops' AVIF twins, which both pages offer first (2026-09-29).
       ...HERO_PHOTO.widths.heroTall.flatMap((width) => [
         heroPhotoSrc('heroTall', width, 'avif').slice('/factory/'.length),
         contactHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
+        aboutHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
       ]),
     ])
     expect(readdirSync(DIR).filter((file) => !named.has(file))).toEqual([])
@@ -140,7 +153,9 @@ describe('the factory photos (OI-3)', () => {
           .filter((width) => width > box.width)
           .map((width) => `${source.slug}-${width}: the original's crop is ${box.width}px wide`)
       })
-    expect(tooWide([...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES])).toEqual([])
+    expect(
+      tooWide([...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES, ...ABOUT_HERO_SOURCES]),
+    ).toEqual([])
     // NEGATIVE CONTROL: the tagging floor's 1,280px original cannot give the wide shape's 1,600.
     const tagging = SOURCES.find((source) => source.slug === 'tagging')
     expect(tagging?.original).toEqual([1280, 896])
@@ -246,6 +261,53 @@ describe('the factory photos (OI-3)', () => {
       'contact-hero-wide-1280.webp',
       'contact-hero-tall-640.webp',
       'contact-hero-tall-1080.webp',
+    ]) {
+      expect(readFileSync(join(DIR, file)).byteLength, file).toBeLessThanOrEqual(180 * 1024)
+    }
+  })
+
+  /*
+   * The /about hero (the about-factory build, 2026-10-09): the building, in the home hero's two
+   * crops. The exterior original is 3555x2000, so the 16:9 crop is the whole frame and the
+   * widest file is no upscale.
+   */
+  it('every about hero file the page names exists at its declared size', () => {
+    const wrong: string[] = []
+    for (const shape of HERO_SHAPES) {
+      for (const width of ABOUT_HERO_PHOTO.widths[shape]) {
+        const file = aboutHeroSrc(shape, width).slice('/factory/'.length)
+        let size: { width: number; height: number }
+        try {
+          size = webpSize(readFileSync(join(DIR, file)))
+        } catch (error) {
+          wrong.push(`${file}: ${error instanceof Error ? error.message : String(error)}`)
+          continue
+        }
+        const height = Math.round(width / HERO_PHOTO.aspect[shape])
+        if (size.width !== width || size.height !== height) {
+          wrong.push(
+            `${file} is ${size.width}x${size.height}, the page reserves ${width}x${height}`,
+          )
+        }
+      }
+    }
+    expect(wrong, 'rebuild with scripts/build-factory-photos.mjs').toEqual([])
+  })
+
+  it('the build script writes the about hero at the widths the page declares, never upscaled', () => {
+    for (const shape of HERO_SHAPES) {
+      const source = ABOUT_HERO_SOURCES.find((entry) => entry.shape === shape)
+      expect(source, shape).toBeDefined()
+      expect(source?.widths ?? SHAPES[shape].widths).toEqual([...ABOUT_HERO_PHOTO.widths[shape]])
+      expect(Math.max(...ABOUT_HERO_PHOTO.widths[shape])).toBeLessThanOrEqual(3555)
+    }
+  })
+
+  it('the about hero files a first visit downloads stay small', () => {
+    for (const file of [
+      'about-hero-wide-1280.webp',
+      'about-hero-tall-640.webp',
+      'about-hero-tall-1080.webp',
     ]) {
       expect(readFileSync(join(DIR, file)).byteLength, file).toBeLessThanOrEqual(180 * 1024)
     }
@@ -396,6 +458,7 @@ describe('phone heroes come in AVIF too', () => {
       for (const [avif, webp] of [
         [heroPhotoSrc('heroTall', w, 'avif'), heroPhotoSrc('heroTall', w)],
         [contactHeroSrc('heroTall', w, 'avif'), contactHeroSrc('heroTall', w)],
+        [aboutHeroSrc('heroTall', w, 'avif'), aboutHeroSrc('heroTall', w)],
       ]) {
         const a = join(DIR, (avif ?? '').slice('/factory/'.length))
         const b = join(DIR, (webp ?? '').slice('/factory/'.length))

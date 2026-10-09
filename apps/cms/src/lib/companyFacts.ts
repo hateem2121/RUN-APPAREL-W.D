@@ -28,13 +28,25 @@ export const FACTS: CompanyFact[] = [
   { value: '50', label: 'Minimum order, per style' },
   { value: '7', label: 'Working days to a sample' },
   { value: '200', label: 'People at the works' },
-  { value: '193,000', label: 'Sq ft under roof' },
+  // The unit was "Sq ft" until the owner confirmed on 2026-10-09 that the figure is square
+  // METERS; the value is unchanged. `/llms.txt` and the press page read this label.
+  { value: '193,000', label: 'Sq m under roof' },
 ]
 /*
  * ⚠️ "21–45 days, approved sample to shipment" WAS HERE UNTIL 2026-09-29, and was removed by
  * the owner: "days may vary order to order". A fixed window is a promise every order has to
  * keep; the quote states the real one. `companyFacts.test.ts` refuses it coming back.
  */
+
+/**
+ * The production figures the owner's copy deck added (2026-10-08) for the about and factory
+ * pages: the people cards and the facts band on /about import them, and nothing retypes the
+ * numbers. Beside `FACTS`, not inside it — the home page's №05 band and `/llms.txt`'s facts
+ * list keep their five numbers.
+ */
+export const PRECISION_MACHINES: CompanyFact = { value: '200+', label: 'Precision machines' }
+
+export const CUTTING_LINES: CompanyFact = { value: '3', label: 'Cutting lines' }
 
 /**
  * Where we ship. Owner, 2026-09-29, replacing the named regions of 2026-09-07 ("Europe, North

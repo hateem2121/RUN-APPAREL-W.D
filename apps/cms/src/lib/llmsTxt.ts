@@ -1,4 +1,5 @@
 import { TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
+import { ABOUT_PAGE, FACTORY_PAGE } from './aboutPages'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
@@ -62,11 +63,14 @@ export function buildLlmsTxt(siteOrigin: string): string {
     (guide) => `- [${guide.title}](${siteOrigin}${guide.path}) — a buyer guide.`,
   ).join('\n')
   // The company pages (2026-10-07): the policies hub, each APPROVED policy, and careers and
-  // community and press, from the lists that hold their words (PLAN.md E9).
+  // community and press, from the lists that hold their words (PLAN.md E9). The about and
+  // factory pages joined on 2026-10-09; their words are `aboutPages.ts`'s.
   const companyLines: Record<string, string> = {
     '/careers': `- [Careers at RUN APPAREL](${siteOrigin}/careers) — what we offer, and how to apply.`,
     '/community': `- [Community](${siteOrigin}/community) — the works in Sialkot, and the people the policies serve.`,
     '/press': `- [Press](${siteOrigin}/press) — ${PRESS_PAGE.description}`,
+    '/about': `- [${ABOUT_PAGE.title}](${siteOrigin}/about) — ${ABOUT_PAGE.description}`,
+    '/inside-the-factory': `- [${FACTORY_PAGE.title}](${siteOrigin}/inside-the-factory) — ${FACTORY_PAGE.description}`,
   }
   const companyPages = [
     `- [${POLICIES_INDEX.title}](${siteOrigin}${POLICIES_INDEX.path}) — the policies hub.`,

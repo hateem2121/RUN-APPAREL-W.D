@@ -9,12 +9,14 @@ import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './proje
 import { GARMENT_PAGES, SITE_NAME, SITE_ORIGIN } from './seo'
 import { shareCardFor, shareImageUrl } from './shareImages'
 import {
+  aboutPageJsonLd,
   articleJsonLd,
   blogJsonLd,
   blogPostingJsonLd,
   breadcrumbTrailJsonLd,
   caseStudiesJsonLd,
   contactPageJsonLd,
+  factoryPageJsonLd,
   formatAddress,
   guideArticleJsonLd,
   organizationJsonLd,
@@ -506,5 +508,65 @@ describe('a buyer guide’s Article data', () => {
       expect(data.dateModified).toBe(BYLINES[entry.path]?.changed.on)
       expect(data.image?.[0]?.url).toBe(shareImageUrl(shareCardFor(entry.path), SITE_ORIGIN))
     }
+  })
+})
+
+/*
+ * The about-factory build (2026-10-09): the two new pages' own nodes. They point at the
+ * organization the layout already emits on every page, by `@id` — never a second Organization —
+ * and neither states a `foundingDate` (1889 is the family's start in manufacturing, not this
+ * legal entity's founding, and machine-readable form is where a wrong claim travels furthest).
+ */
+describe('the about and factory pages’ structured data', () => {
+  const page = { title: 'About us', description: 'The about page.', path: '/about' }
+
+  it('/about is an AboutPage about the existing organization and website, by @id', () => {
+    const data = aboutPageJsonLd(page)
+    expect(data['@type']).toBe('AboutPage')
+    expect(data['@id']).toBe(`${SITE_ORIGIN}/about#page`)
+    expect(data.url).toBe(`${SITE_ORIGIN}/about`)
+    expect(data.about).toEqual({ '@id': `${SITE_ORIGIN}/#organization` })
+    expect(data.mainEntity).toEqual({ '@id': `${SITE_ORIGIN}/#organization` })
+    expect(data.isPartOf).toEqual({ '@id': `${SITE_ORIGIN}/#website` })
+  })
+
+  it('/inside-the-factory is a WebPage whose images are the photos it shows', () => {
+    const photos = [
+      {
+        src: '/factory/stitching-1600.webp',
+        width: 1600,
+        height: 1000,
+        alt: 'The stitching floor.',
+      },
+      { src: '/factory/lab-1600.webp', width: 1600, height: 1000, alt: 'The testing lab.' },
+    ]
+    const data = factoryPageJsonLd(
+      {
+        title: 'Inside the factory',
+        description: 'The factory page.',
+        path: '/inside-the-factory',
+      },
+      photos,
+    )
+    expect(data['@type']).toBe('WebPage')
+    expect(data.about).toEqual({ '@id': `${SITE_ORIGIN}/#organization` })
+    expect(data.primaryImageOfPage).toEqual({
+      '@type': 'ImageObject',
+      url: `${SITE_ORIGIN}/factory/stitching-1600.webp`,
+      width: 1600,
+      height: 1000,
+      description: 'The stitching floor.',
+    })
+    expect(data.image).toHaveLength(2)
+  })
+
+  it('claims no founding date and declares no second organization', () => {
+    for (const data of [aboutPageJsonLd(page), factoryPageJsonLd(page, [])]) {
+      const text = JSON.stringify(data)
+      expect(text).not.toContain('foundingDate')
+      expect(text).not.toContain('"@type":"Organization"')
+    }
+    // CONTROL: a founding date in the block is caught, not passed.
+    expect(JSON.stringify({ foundingDate: '1889' })).toContain('foundingDate')
   })
 })

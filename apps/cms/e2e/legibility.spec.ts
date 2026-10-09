@@ -178,9 +178,12 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
           // names (SEDEX, SMETA, OEKO-TEX, the SECP), which the syllable count reads as hard words;
           // the home page shows the same lines in `.facts-grid`, skipped above for the same reason.
           // With them the hub scored 48.9 ease; without them 64.7. Its own sentences still count.
+          // `[data-quote]` (2026-10-09, owner's choice): /about's mission sentence stays word for
+          // word as the owner wrote it — it fails the grade on its own density, and rewording the
+          // owner's sentence was not on the table. The rest of the page still counts.
           if (
             el.closest(
-              '.product-card, .filter-bar, .facts-grid, .legal__toc, .faq-layout__index, [data-facts]',
+              '.product-card, .filter-bar, .facts-grid, .legal__toc, .faq-layout__index, [data-facts], [data-quote]',
             )
           ) {
             continue
@@ -192,6 +195,11 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
           ) {
             continue
           }
+          // A list item that holds paragraphs is read through them, once (owner's choice,
+          // 2026-10-09). `main p, main li` matched the item AND its paragraphs, so a stage of the
+          // factory walkthrough counted twice, the second time as one run-on sentence with no full
+          // stop ("01 Pre-Production & Planning We talk…"): ease 47.9 counted so, 60.0 counted once.
+          if (el.tagName === 'LI' && el.querySelector('p')) continue
           const value = ((el as HTMLElement).innerText ?? '').trim()
           if (value.split(/\s+/).length < 5) continue
           parts.push(value)

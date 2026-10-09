@@ -25,6 +25,13 @@ describe('the "Who we are" section', () => {
     expect(own).not.toMatch(/\btrade|trader/i)
   })
 
+  // The owner, 2026-10-09: the 1889 label says "Manufacturing since", LINEAGE's own verb, where
+  // it said "Making clothes since" (the family made footballs before clothes).
+  it('labels 1889 with the lineage verb, manufacturing', () => {
+    expect(LINEAGE).toMatch(/\bmanufacturing\b/)
+    expect(ABOUT.points.find((point) => point.value === '1889')?.label).toBe('Manufacturing since')
+  })
+
   it('names the parent company as the building it shares, not as a certificate', () => {
     const text = JSON.stringify(ABOUT)
     expect(text).toContain('DURUS INDUSTRIES')

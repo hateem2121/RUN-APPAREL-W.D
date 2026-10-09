@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { AUTHORS, BYLINES, authorName } from './bylines'
+import { ABOUT_PAGE, FACTORY_PAGE } from './aboutPages'
 import { CAREERS_PAGE } from './companyPages'
 import { GUIDES, type Guide } from './guides'
 import { ORDER_PHASES } from './orderProcess'
@@ -40,6 +41,10 @@ const PAGES: ReadonlyArray<{ path: string; words: string }> = [
   ...GUIDES.map((guide) => ({ path: guide.path, words: guideWords(guide) })),
   ...POLICIES.map((policy) => ({ path: policy.path, words: pageWords(policy) })),
   { path: CAREERS_PAGE.path, words: pageWords(CAREERS_PAGE) },
+  // The about and factory pages (the about-factory build, 2026-10-09): what a visitor reads of
+  // them is the pages' whole entry, minus the path.
+  { path: ABOUT_PAGE.path, words: pageWords(ABOUT_PAGE) },
+  { path: FACTORY_PAGE.path, words: pageWords(FACTORY_PAGE) },
 ]
 
 describe('bylines', () => {
@@ -76,6 +81,8 @@ describe('bylines', () => {
     expect(BYLINES['/guides/3d-garment-reference']?.author).toEqual(AUTHORS.hateem)
     for (const policy of POLICIES) expect(by(policy.path)).toBe('HR, RUN APPAREL')
     expect(by('/careers')).toBe('HR, RUN APPAREL')
+    expect(by('/about')).toBe('Content Team, RUN APPAREL')
+    expect(by('/inside-the-factory')).toBe('Content Team, RUN APPAREL')
   })
 
   it('dates every page in ISO 8601 with its zone, published first, never in the future', () => {

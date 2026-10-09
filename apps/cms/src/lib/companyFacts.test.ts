@@ -4,9 +4,11 @@ import {
   CERTIFICATION,
   CERTIFICATION_LINES,
   CERTIFICATION_PROMISE,
+  CUTTING_LINES,
   FACTS,
   LEAD_TIME,
   PARENT_COMPANY,
+  PRECISION_MACHINES,
   SHIPS_TO,
 } from './companyFacts'
 
@@ -23,6 +25,37 @@ describe('the published company facts', () => {
   it('say the company ships worldwide rather than listing regions', () => {
     expect(SHIPS_TO).toMatch(/^Worldwide/)
     expect(SHIPS_TO).not.toMatch(/Europe|America|Oceania/)
+  })
+})
+
+/**
+ * The floor-area unit (owner, 2026-10-09): 193,000 is SQUARE METERS. The label said "Sq ft"
+ * from the first facts list until that correction; a buyer checking the figure against the
+ * building would have found it wrong by an order of magnitude.
+ */
+describe('the floor area is stated in sq m', () => {
+  it('labels the floor area "Sq m under roof", and no label says sq ft', () => {
+    const floor = FACTS.find((fact) => fact.value === '193,000')
+    expect(floor?.label).toBe('Sq m under roof')
+    expect(FACTS.map((fact) => fact.label).join(' ')).not.toMatch(/sq\.?\s*ft/i)
+  })
+})
+
+/**
+ * The production figures the owner's copy deck added (2026-10-08) for the two new pages.
+ * They live BESIDE `FACTS`, not inside it: `FACTS` is the home page's №05 band and
+ * `/llms.txt`'s facts list, and neither gains a number from this change.
+ */
+describe('the production figures for the about and factory pages', () => {
+  it("state the deck's values, as constants the pages import", () => {
+    expect(PRECISION_MACHINES).toEqual({ value: '200+', label: 'Precision machines' })
+    expect(CUTTING_LINES).toEqual({ value: '3', label: 'Cutting lines' })
+  })
+
+  it('are not added to FACTS (the home page and llms.txt keep their five numbers)', () => {
+    expect(FACTS).not.toContain(PRECISION_MACHINES)
+    expect(FACTS).not.toContain(CUTTING_LINES)
+    expect(FACTS).toHaveLength(5)
   })
 })
 

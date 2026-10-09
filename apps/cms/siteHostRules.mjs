@@ -119,6 +119,19 @@ const onHost = (host) => [{ type: 'host', value: hostPattern(host) }]
 
 export function siteRedirects() {
   return [
+    /*
+     * The /factory forward (the about-factory build, 2026-10-09). The address was typed
+     * (Cloudflare logs, 5–8 Oct 2026) and the page it meant is /inside-the-factory. EXACT PATH
+     * ONLY — /factory/<file>.webp is a factory photo's real address, and a prefix rule would
+     * forward it to a page instead of the file. Host-conditioned like every rule here, so the
+     * other hostnames' own forwards are untouched.
+     */
+    {
+      source: '/factory',
+      has: onHost(SITE_HOST),
+      destination: `https://${SITE_HOST}/inside-the-factory`,
+      permanent: true,
+    },
     ...HANDED_BACK_TO_HELP.map((source) => ({
       source,
       has: onHost(SITE_HOST),

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ABOUT_PAGE } from './aboutPages'
 import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES } from './familyPages'
@@ -189,5 +190,34 @@ describe('guide bylines and sources in llms-full.txt', () => {
     for (const source of guideAt('/guides/pakistan-vs-china-vs-turkey').sources ?? []) {
       expect(full).toContain(`- [${source.name}](${source.url})`)
     }
+  })
+})
+
+/**
+ * The family's history (the about-factory build, 2026-10-09): the /about timeline, from the same
+ * constants, so an answer engine quotes only what the page states — and never a founding date or
+ * a year count (BUILD rule: 1889 is when the family began manufacturing and exporting).
+ */
+describe("the family's history in llms-full.txt", () => {
+  const full = buildLlmsFullTxt('https://wear-run.com', [])
+  const history =
+    full.split("## 2. The Family's History (Since 1889)")[1]?.split('\n---\n')[0] ?? ''
+
+  it('opens with the lineage words and lists every timeline entry the page shows', () => {
+    expect(history, 'no history section was found, so nothing was measured').not.toBe('')
+    expect(history).toContain(LINEAGE)
+    for (const entry of ABOUT_PAGE.timeline.entries) {
+      expect(history).toContain(`- **${entry.year} — ${entry.title}** ${entry.body}`)
+    }
+  })
+
+  it('never says founded, and never counts the years', () => {
+    expect(history).not.toMatch(/\bfounded\b|\bfounding\b/i)
+    expect(history).not.toMatch(/\b1[3-9]\d\+? ?years?\b|over a century/i)
+  })
+
+  it('keeps the sections numbered 1 to 9 in order', () => {
+    const numbers = [...full.matchAll(/^## (\d+)\. /gm)].map((match) => Number(match[1]))
+    expect(numbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
   })
 })

@@ -22,6 +22,8 @@ export interface PageCopy {
   headings: string[]
   body: string
   decoded: string[]
+  /** The text of each `[data-quote]` element: only the buzzword check skips it. */
+  quoted: string[]
 }
 export declare function readCopyInPage(): PageCopy
 

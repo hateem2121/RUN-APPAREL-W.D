@@ -11,7 +11,8 @@ import {
   PUBLIC_PAGE_SOURCES,
   sourceMatches,
 } from '../publicViewerHeaders.mjs'
-import { CMS_PUBLIC_PATHS } from '../siteHostRules.mjs'
+import { escapeRegExp } from '../regexEscape.mjs'
+import { CMS_PUBLIC_PATHS, SITE_HOST, siteRedirects } from '../siteHostRules.mjs'
 import { CASE_STUDIES_PATH } from './lib/caseStudies'
 import { COMPANY_PATHS } from './lib/companyPages'
 import { FAQ_PATHS } from './lib/faqs'
@@ -109,4 +110,27 @@ describe('every new page is wired everywhere a public page must be', () => {
       expect(existsSync(join(FRONTEND, path.slice(1), 'page.tsx')), 'no route folder').toBe(true)
     })
   }
+
+  /*
+   * The /factory forward (the about-factory build, 2026-10-09): the page's old address, typed
+   * enough to show in Cloudflare's logs. The photo FILES at /factory/<file>.webp are real
+   * addresses on the site — a prefix rule would take them to a page.
+   */
+  describe('the /factory redirect', () => {
+    const rule = siteRedirects().find((entry) => entry.source === '/factory')
+
+    it('forwards /factory to /inside-the-factory, permanently, on the site host', () => {
+      expect(rule).toEqual({
+        source: '/factory',
+        has: [{ type: 'host', value: `^${escapeRegExp(SITE_HOST)}$` }],
+        destination: 'https://wear-run.com/inside-the-factory',
+        permanent: true,
+      })
+    })
+
+    it('is exact-path only: the pattern does not match a factory photo file', () => {
+      expect(sourceMatches('/factory', '/factory')).toBe(true)
+      expect(sourceMatches('/factory', '/factory/exterior-640.webp')).toBe(false)
+    })
+  })
 })

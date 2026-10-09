@@ -49,6 +49,20 @@ const PLAIN_MEANING: Readonly<Record<string, readonly string[]>> = {
   '/community': ['next-generation', 'next-gen'],
 }
 
+// NEGATIVE CONTROL for the quote skip: it removes the quote and nothing else, so the same word
+// planted in /about's own prose is still caught.
+test('the buzzword check skips only the quoted mission', async ({ page }) => {
+  await page.goto('/about')
+  const copy = await page.evaluate(readCopyInPage)
+  expect(copy.quoted, 'no quote was found, so the skip was not tested').toHaveLength(1)
+  expect(findBuzzwords(copy.quoted[0] ?? ''), 'the quote no longer holds the word').toContain(
+    'empower',
+  )
+  const planted = `${copy.body}\nWe empower every team.`
+  const unquoted = copy.quoted.reduce((text, quote) => text.split(quote).join(' '), planted)
+  expect(findBuzzwords(unquoted)).toEqual(['empower'])
+})
+
 for (const path of PAGES) {
   test(`copy rules hold on ${path}`, async ({ page }) => {
     await page.goto(path)
@@ -61,8 +75,11 @@ for (const path of PAGES) {
       copy.headings.flatMap((heading) => findEmoji(heading)),
       'emoji in a heading (CT-01)',
     ).toEqual([])
+    // The owner's quoted mission (`[data-quote]`) is kept word for word, so it is the one text
+    // this check skips (owner, 2026-10-09). Removed by plain string, never a RegExp.
+    const unquoted = copy.quoted.reduce((text, quote) => text.split(quote).join(' '), copy.body)
     expect(
-      findBuzzwords(copy.body, { allow: [...(PLAIN_MEANING[path] ?? [])] }),
+      findBuzzwords(unquoted, { allow: [...(PLAIN_MEANING[path] ?? [])] }),
       'buzzwords in the copy (CT-03)',
     ).toEqual([])
     expect(
@@ -98,10 +115,11 @@ test.describe('the 1889 wording and the confirmed numbers on the home page (CT-0
  * CLOTHES SINCE", so in order it said "1889, making clothes since". The label is now first in the
  * MARKUP and above the year on screen, with the same words; the neighbour ("One" over "Building,
  * first stitch to sealed bag") keeps its order. Both are measured because they must agree: an
- * `order` in CSS would draw the label first and leave a screen reader on the old order.
+ * `order` in CSS would draw the label first and leave a screen reader on the old order. The label's
+ * verb became "Manufacturing since" on 2026-10-09 (owner), to match `LINEAGE`.
  */
 for (const width of [390, 1280]) {
-  test(`№01 reads "Making clothes since 1889", and its other figure as it did, at ${width}px`, async ({
+  test(`№01 reads "Manufacturing since 1889", and its other figure as it did, at ${width}px`, async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -129,7 +147,7 @@ for (const width of [390, 1280]) {
       await read(0),
       'the 1889 figure does not read label first, in markup and on screen',
     ).toEqual({
-      words: ['Making clothes since', '1889'],
+      words: ['Manufacturing since', '1889'],
       markup: ['label', 'value'],
       firstIsAbove: true,
     })

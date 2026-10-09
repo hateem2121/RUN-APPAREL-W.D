@@ -28,6 +28,9 @@ const PAGES = [
   '/terms',
   ...FAMILY_PAGE_SOURCES,
   ...GUIDE_PAGE_SOURCES,
+  // The about and factory pages (the about-factory build, 2026-10-09).
+  '/about',
+  '/inside-the-factory',
 ] as const
 
 async function load(page: Page, path: string) {

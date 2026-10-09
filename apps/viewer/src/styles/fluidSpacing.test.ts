@@ -23,6 +23,8 @@ const SHEETS = [
   'packages/ui/src/footer.css',
   'packages/ui/src/footer-prompt.css',
   'apps/cms/src/app/(frontend)/site.css',
+  // The about and factory pages' own sheet (2026-10-09, D36): site.css by another name.
+  'apps/cms/src/app/(frontend)/about-factory.css',
   'apps/viewer/src/styles/page.css',
 ]
 

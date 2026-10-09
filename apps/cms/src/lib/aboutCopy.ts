@@ -28,9 +28,10 @@ export const ABOUT = {
     'printing, stitching, checking and packing of your order all happen under one roof, with ' +
     'one team answerable for it.',
   // Only what is this section's own: №05 shows the headcount and floor area two sections
-  // later, and saying them twice made both weaker (2026-09-29).
+  // later, and saying them twice made both weaker (2026-09-29). The label's word changed
+  // 2026-10-09 (owner): "Manufacturing since" matches `LINEAGE`'s own verb.
   points: [
-    { value: '1889', label: 'Making clothes since', labelFirst: true },
+    { value: '1889', label: 'Manufacturing since', labelFirst: true },
     { value: 'One', label: 'Building, first stitch to sealed bag' },
   ] satisfies AboutPoint[],
 } as const

@@ -13,7 +13,8 @@ import { AboutSection } from './AboutSection'
  * first, in the markup (so a screen reader reads it too), with the same words. Its neighbour, "One"
  * over "Building, first stitch to sealed bag", reads naturally and keeps its order.
  *
- * The drawn half (the label above the figure on screen) is `e2e/copy.spec.ts`.
+ * The drawn half (the label above the figure on screen) is `e2e/copy.spec.ts`. The label's verb
+ * became "Manufacturing since" on 2026-10-09 (owner), to match `LINEAGE`.
  */
 
 const SITE_CSS = readFileSync(
@@ -46,7 +47,7 @@ function problemsWith(html: string): string[] {
   return problems
 }
 
-describe('№01 reads "Making clothes since 1889", not "1889, making clothes since" (VA-58)', () => {
+describe('№01 reads "Manufacturing since 1889", not "1889, making clothes since" (VA-58)', () => {
   const html = renderToStaticMarkup(createElement(AboutSection))
 
   it('puts the 1889 label before the year in the markup, and leaves the other figure as it was', () => {
@@ -54,7 +55,7 @@ describe('№01 reads "Making clothes since 1889", not "1889, making clothes sin
       ABOUT.points.length,
     )
     expect(groupsIn(html)).toEqual([
-      ['Making clothes since', '1889'],
+      ['Manufacturing since', '1889'],
       ['One', 'Building, first stitch to sealed bag'],
     ])
     expect(problemsWith(html)).toEqual([])
@@ -62,7 +63,7 @@ describe('№01 reads "Making clothes since 1889", not "1889, making clothes sin
 
   it('keeps the same words, and marks only the first figure label-first', () => {
     expect(ABOUT.points.map((point) => point.label)).toEqual([
-      'Making clothes since',
+      'Manufacturing since',
       'Building, first stitch to sealed bag',
     ])
     expect(ABOUT.points.map((point) => point.value)).toEqual(['1889', 'One'])
@@ -83,12 +84,40 @@ describe('№01 reads "Making clothes since 1889", not "1889, making clothes sin
   // NEGATIVE CONTROL: the old order, and a label that has lost its words, are both caught.
   it('sees the fault: the figure first, as it was', () => {
     const old = html.replace(
-      /<dt class="fact__label">Making clothes since<\/dt><dd class="fact__value display display--section">1889<\/dd>/,
-      '<dt class="fact__value display display--section">1889</dt><dd class="fact__label">Making clothes since</dd>',
+      /<dt class="fact__label">Manufacturing since<\/dt><dd class="fact__value display display--section">1889<\/dd>/,
+      '<dt class="fact__value display display--section">1889</dt><dd class="fact__label">Manufacturing since</dd>',
     )
     expect(old, 'the planted markup did not land, so this control proves nothing').not.toBe(html)
     expect(problemsWith(old)).toEqual([
-      '"Making clothes since" reads 1889 then Making clothes since, not Making clothes since then 1889',
+      '"Manufacturing since" reads 1889 then Manufacturing since, not Manufacturing since then 1889',
     ])
+  })
+})
+
+/** Every link in the section, as `class|href|words`. */
+function linksIn(html: string): string[] {
+  return [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map((link) => {
+    const attrs = link[1] ?? ''
+    const words = stripUntilStable(link[2] ?? '', /<[^>]*>/g, '').trim()
+    return `${/class="([^"]*)"/.exec(attrs)?.[1] ?? ''}|${/href="([^"]*)"/.exec(attrs)?.[1] ?? ''}|${words}`
+  })
+}
+
+/**
+ * The /about page's way in from the home page (the about-factory build, 2026-10-09): "Our story →"
+ * in №01, as a SECONDARY link — the home page keeps one primary button per screen.
+ */
+describe('№01 links to the about page', () => {
+  const html = renderToStaticMarkup(createElement(AboutSection))
+
+  it('has one "Our story" link to /about, in the ghost style', () => {
+    expect(linksIn(html)).toEqual(['btn btn--ghost|/about|Our story →'])
+  })
+
+  // NEGATIVE CONTROL: a primary button in its place is caught.
+  it('sees the fault: the link drawn as a primary button', () => {
+    const planted = html.replace('btn btn--ghost', 'btn btn--primary')
+    expect(planted, 'the planted class did not land').not.toBe(html)
+    expect(linksIn(planted)).not.toEqual(['btn btn--ghost|/about|Our story →'])
   })
 })

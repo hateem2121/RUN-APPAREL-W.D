@@ -220,6 +220,30 @@ export function contactHeroSrc(
   return `/factory/${CONTACT_HERO_FILE[shape]}-${width}.${format}`
 }
 
+/**
+ * The /about hero (the about-factory build, 2026-10-09): the building, in the home hero's two
+ * crops. The original is 3555x2000, so the 16:9 crop is the whole frame and its widest file is
+ * no upscale; the 4:5 crop is the 1600x2000 centre.
+ */
+export const ABOUT_HERO_PHOTO = {
+  alt: 'A red-brick factory building with wide steps in front, under a cloudy sky.',
+  widths: { heroWide: [1280, 1920, 2560], heroTall: [640, 1080] },
+} as const satisfies { alt: string; widths: Record<HeroShape, readonly number[]> }
+
+const ABOUT_HERO_FILE: Record<HeroShape, string> = {
+  heroWide: 'about-hero-wide',
+  heroTall: 'about-hero-tall',
+}
+
+/** `/factory/about-hero-wide-<width>.webp` or `…-tall-<width>.webp`; the tall crops in `.avif` too. */
+export function aboutHeroSrc(
+  shape: HeroShape,
+  width: number,
+  format: 'webp' | 'avif' = 'webp',
+): string {
+  return `/factory/${ABOUT_HERO_FILE[shape]}-${width}.${format}`
+}
+
 /** `/factory/<slug>-<width>.webp`, the path `public/` serves it at. */
 export function factoryPhotoSrc(photo: FactoryPhoto, width: number): string {
   return `/factory/${photo.slug}-${width}.webp`

@@ -1,3 +1,4 @@
+import { ABOUT_PAGE, FACTORY_PAGE } from './aboutPages'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
 import { CONTACT_HERO_PHOTO } from './factoryPhotos'
 import { CAREERS_PAGE, COMMUNITY_PAGE, PRESS_PAGE } from './companyPages'
@@ -255,6 +256,25 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
       PRESS_PAGE.eyebrow,
       PRESS_PAGE.heading,
       PRESS_PAGE.headingAccent,
+    ),
+  ],
+  // The about and factory pages (the about-factory build, 2026-10-09), words from their own lists.
+  [
+    ABOUT_PAGE.path,
+    wordsCard(
+      fileFor(ABOUT_PAGE.path),
+      '[ About ]',
+      ABOUT_PAGE.hero.partLeft,
+      `${ABOUT_PAGE.hero.partRight} ${ABOUT_PAGE.hero.accent}.`.toLowerCase(),
+    ),
+  ],
+  [
+    FACTORY_PAGE.path,
+    wordsCard(
+      fileFor(FACTORY_PAGE.path),
+      '[ Inside the factory ]',
+      FACTORY_PAGE.hero.heading,
+      FACTORY_PAGE.hero.accent,
     ),
   ],
   // The FAQ and the glossary (2026-10-07), words from their own lists.

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { ABOUT, type AboutPoint } from '../../lib/aboutCopy'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
@@ -45,6 +46,13 @@ export function AboutSection() {
               ),
             )}
           </dl>
+          {/* The about page's way in (the about-factory build, 2026-10-09): a secondary link, the
+              section keeping its one primary button ("Start a conversation" in the hero). */}
+          <div className="site-actions">
+            <Link className="btn btn--ghost" href="/about">
+              Our story <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
         <div className="about__photos">
           {PHOTOS.map((photo) => (

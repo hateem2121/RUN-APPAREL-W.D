@@ -199,6 +199,18 @@
   .footer-block--standards {
     grid-column: auto;
   }
+
+  /*
+   * The Company group in two short columns (owner's choice, 2026-10-09). About and Inside the
+   * factory made it seven 44px rows, the tallest group by three: the slab measured 930px at
+   * 1440x900, past the one-screen slab (LA-13), and the quiet band shrank to 24px (DS-09's floor
+   * is 48). Two columns give it four rows, as the other groups have. Learn wears the Company
+   * class for print, so it is left out. The links stay in reading order in the markup.
+   */
+  .footer-block--company:not(.footer-block--learn) ul {
+    grid-template-columns: repeat(2, max-content);
+    column-gap: 24px;
+  }
 }
 
 @supports (width: round(1px, 2px)) {

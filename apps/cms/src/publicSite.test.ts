@@ -60,7 +60,9 @@ const code = (...parts: string[]) => stripComments(read(...parts))
  * paragraph explaining why interpolate-size is NOT used. Third time that shape of
  * false positive appeared here — the fix is always to read the code, not the prose.
  */
-const css = () => stripComments(read(FRONTEND, 'site.css'))
+// With the about and factory pages' own sheet (2026-10-09, D36): the site's rules hold there too.
+const css = () =>
+  stripComments(read(FRONTEND, 'site.css')) + stripComments(read(FRONTEND, 'about-factory.css'))
 
 /** The bar's stylesheet — shared with the 3D viewer since 2026-09-24 — comments blanked. */
 const barCss = () =>
