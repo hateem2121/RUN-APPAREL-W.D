@@ -431,3 +431,62 @@ export function definedTermSetJsonLd(
     })),
   }
 }
+
+/*
+ * The about-factory build (2026-10-09): the two new pages' own nodes. Both point at the
+ * organization the layout's `organizationJsonLd` already emits on every page, by `@id` — never a
+ * second Organization — and neither states a `foundingDate`: 1889 is the family's start in
+ * manufacturing, not this legal entity's founding, and machine-readable form is the one place a
+ * wrong claim travels furthest.
+ */
+
+/** /about, as an `AboutPage` about the existing organization node. */
+export function aboutPageJsonLd(page: { title: string; description: string; path: string }) {
+  const url = `${SITE_ORIGIN}${page.path}`
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    '@id': `${url}#page`,
+    url,
+    name: page.title,
+    description: page.description,
+    about: { '@id': `${SITE_ORIGIN}/#organization` },
+    mainEntity: { '@id': `${SITE_ORIGIN}/#organization` },
+    isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+  }
+}
+
+/** One photo the factory page shows, as an `ImageObject` whose description is its alt text. */
+export type FactoryPagePhoto = {
+  /** Root-relative, as the page's `<img>` names it. */
+  readonly src: string
+  readonly width: number
+  readonly height: number
+  readonly alt: string
+}
+
+/** /inside-the-factory, a `WebPage` about the organization with the photos it shows. */
+export function factoryPageJsonLd(
+  page: { title: string; description: string; path: string },
+  photos: readonly FactoryPagePhoto[],
+) {
+  const url = `${SITE_ORIGIN}${page.path}`
+  const image = photos.map((photo) => ({
+    '@type': 'ImageObject',
+    url: `${SITE_ORIGIN}${photo.src}`,
+    width: photo.width,
+    height: photo.height,
+    description: photo.alt,
+  }))
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${url}#page`,
+    url,
+    name: page.title,
+    description: page.description,
+    about: { '@id': `${SITE_ORIGIN}/#organization` },
+    ...(image.length > 0 ? { primaryImageOfPage: image[0], image } : {}),
+    isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+  }
+}
