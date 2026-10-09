@@ -52,16 +52,20 @@ export function AboutPage() {
        */}
       <section className="site-hero site-hero--photo about-hero">
         <div className="about-hero__stage">
-          <svg
-            className="about-hero__ghost"
-            viewBox="0 0 200 64"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <text x="100" y="56" textAnchor="middle">
-              1889
-            </text>
-          </svg>
+          {/* The wrapper moves, never the SVG: moving the <svg> itself re-laid out its <text> on
+              every frame of the scroll (86 layouts in a Chrome trace, 2026-10-09). */}
+          <div className="about-hero__ghost" aria-hidden="true">
+            <svg
+              className="about-hero__ghost-art"
+              viewBox="0 0 200 64"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <text x="100" y="56" textAnchor="middle">
+                1889
+              </text>
+            </svg>
+          </div>
           <picture className="site-hero__photo">
             <source
               type="image/avif"

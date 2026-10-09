@@ -156,19 +156,22 @@
     }
 
     .about-hero__ghost {
-      display: block;
+      display: grid;
+      place-items: center;
       position: absolute;
       inset: 0;
-      margin: auto;
-      width: min(150vw, 200svh);
-      height: auto;
       z-index: var(--z-hero-grid);
-      fill: color-mix(in srgb, var(--text) 4%, transparent);
-      font-family: var(--font-display);
-      font-weight: 800;
       animation: about-hero-ghost var(--slow) linear both;
       animation-timeline: --about-hero;
       animation-range: contain 0% contain 100%;
+    }
+
+    .about-hero__ghost-art {
+      width: min(150vw, 200svh);
+      height: auto;
+      fill: color-mix(in srgb, var(--text) 4%, transparent);
+      font-family: var(--font-display);
+      font-weight: 800;
     }
 
     .about-hero .site-hero__photo {
