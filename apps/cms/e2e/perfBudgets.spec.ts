@@ -12,7 +12,7 @@ import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.m
  * through `context.route()`, and these fetch only this server's own HTML anyway.
  */
 
-const PAGES = ['/', '/products', '/contact'] as const
+const PAGES = ['/', '/products', '/contact', '/about', '/inside-the-factory'] as const
 
 /**
  * PF-16 — render-blocking count and preload discipline.

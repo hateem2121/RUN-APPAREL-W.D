@@ -178,9 +178,12 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
           // names (SEDEX, SMETA, OEKO-TEX, the SECP), which the syllable count reads as hard words;
           // the home page shows the same lines in `.facts-grid`, skipped above for the same reason.
           // With them the hub scored 48.9 ease; without them 64.7. Its own sentences still count.
+          // `[data-quote]` (2026-10-09, owner's choice): /about's mission sentence stays word for
+          // word as the owner wrote it — it fails the grade on its own density, and rewording the
+          // owner's sentence was not on the table. The rest of the page still counts.
           if (
             el.closest(
-              '.product-card, .filter-bar, .facts-grid, .legal__toc, .faq-layout__index, [data-facts]',
+              '.product-card, .filter-bar, .facts-grid, .legal__toc, .faq-layout__index, [data-facts], [data-quote]',
             )
           ) {
             continue

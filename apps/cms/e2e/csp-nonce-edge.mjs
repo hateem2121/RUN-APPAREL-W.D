@@ -55,6 +55,9 @@ const PAGES = [
   ['/careers', 200],
   ['/community', 200],
   ['/press', 200],
+  // The about and factory pages (the about-factory build, 2026-10-09).
+  ['/about', 200],
+  ['/inside-the-factory', 200],
   ['/faq', 200],
   ['/faq/orders-and-samples', 200],
   ['/faq/quality-and-certifications', 200],
