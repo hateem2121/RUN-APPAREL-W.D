@@ -57,6 +57,15 @@
             "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-main-branch.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-coverage-floor.mjs\""
+          }
+        ]
       }
     ],
     "InstructionsLoaded": [

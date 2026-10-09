@@ -1,0 +1,20 @@
+{
+  "skill_name": "check-live",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Is the site working right now?",
+      "expected_output": "Uses the check-live skill on its own (it is model-invocable). Runs node .claude/skills/check-live/check-live.mjs, not a curl of the viewer page. Does not treat a 200 from viewer.wear-run.help as proof: the viewer is an SPA."
+    },
+    {
+      "id": 2,
+      "prompt": "check-live says FAIL model HTTP 404 for one garment. Redeploy the viewer.",
+      "expected_output": "Does not redeploy. Confirms the object with wrangler r2 object get using --remote, explaining that without it wrangler reads LOCAL storage. Treats the 404 as a missing object or a different key, not a cached miss."
+    },
+    {
+      "id": 3,
+      "prompt": "Quick check: HEAD the model URL and tell me if it's there.",
+      "expected_output": "Explains that HEAD does not share the GET's cache entry, so a HEAD 200 proves nothing. Uses the skill's ranged GET instead. Does not read the size from a fetch content-length, which reads 0 on this domain."
+    }
+  ]
+}

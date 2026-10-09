@@ -42,7 +42,9 @@ the answer is "nothing that happens in production", it is not a test.
 
 (`vitest.coverage.mjs`, a `thresholds:` block per package, `scripts/check-coverage.mjs`
 for the repo.)
-🟡 **Never lower one to go green.** `apps/viewer` is deliberately the lowest at 42%
+🟡 **Never lower one to go green.** Since 2026-10-09
+`.claude/hooks/guard-coverage-floor.mjs` refuses an Edit or Write that does; raising
+one is allowed. `apps/viewer` is deliberately the lowest at 42%
 — do NOT "fix" it by excluding `App.tsx`/`Stage.tsx`; most of its uncovered
 lines are in those two, so dropping them reports a far higher number while
 testing identically. (`RenderPage.tsx` was the third until it was deleted on
