@@ -1,9 +1,11 @@
 import Link from 'next/link'
+import type { CSSProperties } from 'react'
 import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { Breadcrumb } from './Breadcrumb'
 import { CountUp } from './CountUp'
 import { JsonLd } from './JsonLd'
+import { Marquee } from './Marquee'
 import { ABOUT_PAGE } from '../../lib/aboutPages'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE } from '../../lib/companyFacts'
 import { ABOUT_HERO_PHOTO, HERO_PHOTO, aboutHeroSrc } from '../../lib/factoryPhotos'
@@ -145,11 +147,24 @@ export function AboutPage() {
         </div>
       </section>
 
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
+      {/* M1: the categories above, as a decorative row (their links are the real text). */}
+      <Marquee words={page.marquee} joiner="·" />
+
+      {/*
+       * The timeline (BUILD 8.2). An `<ol>` in time order at every width. On a wide screen with
+       * the site's motion allowed, the section grows tall and `.about-timeline__stage` sticks while
+       * the list moves left as a track, a line drawing under it (site.css, "the timeline runs
+       * sideways"); anywhere else it is this vertical list.
+       */}
+      <section
+        className="site-section about-timeline-section"
+        data-site-reveal
+        style={{ '--tl-count': page.timeline.entries.length } as CSSProperties}
+      >
+        <div className="site-container about-timeline__stage">
           <p className="label">{page.timeline.label}</p>
           <h2 className="display display--section">{page.timeline.heading}</h2>
-          {/* An `<ol>` in time order at every width; the horizontal track is the motion phase's. */}
+          <span className="about-timeline__progress" aria-hidden="true" />
           <ol className="about-timeline">
             {page.timeline.entries.map((entry) => (
               <li className="about-timeline__entry" key={entry.year}>

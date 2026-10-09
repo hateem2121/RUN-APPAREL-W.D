@@ -7925,6 +7925,128 @@ a.contact-block__value:active {
   }
 }
 
+/* The drawn line under the sideways timeline belongs to the motion layout only. */
+.about-timeline__progress {
+  display: none;
+}
+
+/*
+ * ------------------------------------------------ the timeline runs sideways (BUILD 8.2)
+ *
+ * From 900px wide and 700px tall, with motion allowed and scroll timelines with ranges: the section
+ * grows to 300svh, its stage sticks, the `<ol>` lies down as one row and moves left by exactly its
+ * overflow, a line draws under it, and each year runs at 0.85 of the track's speed. Phones, reduced
+ * motion, Firefox and print keep the vertical list above. The `<ol>` stays in time order.
+ *
+ * ⚠️ THE TRAVEL IS `100cqw - 100%`, NO NUMBER TYPED. The stage is a size container, so `100cqw` is
+ * its width, and a `translate` percentage is the list's own width: their difference is how far the
+ * last entry has to come to end at the stage's right edge, at any screen width.
+ * ⚠️ AND THE YEARS' 0.85: each year slides forward 15% of that travel against its entry, so the
+ * same `calc` is written out from the entry width and gap (`--tl-entry`, `--tl-gap`) and the
+ * number of entries, which `AboutPage.tsx` passes as `--tl-count` from the words module.
+ * ⚠️ `view-timeline-inset: 0`, as the hero: `auto` takes the page's scroll-padding and starts
+ * the run 84px early.
+ */
+@keyframes about-timeline-travel {
+  to {
+    translate: calc(100cqw - 100%) 0;
+  }
+}
+
+/* `--tl-count` comes from the page's inline style; the `1` only keeps the declaration valid. */
+@keyframes about-timeline-year {
+  to {
+    translate: calc(
+        0.15 *
+        (var(--tl-count, 1) * var(--tl-entry) + (var(--tl-count, 1) - 1) * var(--tl-gap) - 100cqw)
+      )
+      0;
+  }
+}
+
+@keyframes about-timeline-draw {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) and (width >= 900px) and (
+    min-height: 700px
+  ) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .about-timeline-section {
+      --tl-entry: clamp(280px, 30vw, 420px);
+      --tl-gap: 32px;
+      height: 300svh;
+      padding-block: 0;
+      view-timeline: --about-timeline;
+      view-timeline-inset: 0;
+    }
+
+    .about-timeline__stage {
+      position: sticky;
+      top: 0;
+      height: 100svh;
+      padding-block: var(--notch-clearance) 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      /* `flex-start`: a column flex stretches its children, and the label chip ran the full width. */
+      align-items: flex-start;
+      container-type: inline-size;
+      overflow-x: clip;
+    }
+
+    .about-timeline__stage > .label,
+    .about-timeline__stage > h2 {
+      margin-block: 0 12px;
+    }
+
+    .about-timeline__progress {
+      display: block;
+      align-self: stretch;
+      height: 2px;
+      margin-block: 12px 0;
+      background: var(--heading);
+      transform-origin: left center;
+      animation: about-timeline-draw var(--slow) linear both;
+      animation-timeline: --about-timeline;
+      animation-range: contain 0% contain 100%;
+    }
+
+    .about-timeline {
+      display: flex;
+      gap: var(--tl-gap);
+      width: max-content;
+      animation: about-timeline-travel var(--slow) linear both;
+      animation-timeline: --about-timeline;
+      animation-range: contain 0% contain 100%;
+    }
+
+    .about-timeline__entry {
+      flex: 0 0 var(--tl-entry);
+      max-width: none;
+    }
+
+    .about-timeline__year {
+      animation: about-timeline-year var(--slow) linear both;
+      animation-timeline: --about-timeline;
+      animation-range: contain 0% contain 100%;
+    }
+  }
+}
+
+@media print {
+  .about-timeline,
+  .about-timeline__year,
+  .about-timeline__progress {
+    animation: none;
+  }
+}
+
 /* The people: the name card beside the three department cards. */
 .about-people {
   display: grid;
@@ -8167,5 +8289,281 @@ a.contact-block__value:active {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 24px;
     align-items: start;
+  }
+}
+
+/*
+ * ------------------------------------------------ the about and factory pages' motion (BUILD 8)
+ *
+ * The site's own motion system (D36): scroll-driven CSS, inside `prefers-reduced-motion:
+ * no-preference` and `@supports` for timelines WITH ranges, exactly as `card-rise` above. Outside
+ * those guards (reduced motion, Firefox in October 2026, print) every block below is the still,
+ * complete layout. Text moves by `translate` only (the axe contrast trap at `site-reveal`); opacity
+ * changes only on pictures. Movement that only tracks the scroll is `linear` (D36).
+ */
+
+/* The decorative word rows (M1, FM1; `Marquee.tsx`): drawn still, shifted sideways by the scroll. */
+.marquee {
+  overflow: clip;
+  padding-block: 24px;
+  border-block: 1px solid var(--line);
+}
+
+.marquee__track {
+  display: flex;
+  width: max-content;
+  margin: 0;
+  white-space: nowrap;
+  color: var(--heading);
+}
+
+.marquee__run {
+  padding-inline-end: 0.5em;
+}
+
+/* The story's paragraphs rise into place, as the cards do (`card-rise`), a little slower. */
+@keyframes about-story-rise {
+  from {
+    translate: 0 var(--reveal-y);
+  }
+  to {
+    translate: none;
+  }
+}
+
+/* One run of four: the track moves a quarter of its length, so the next run is always behind it. */
+@keyframes marquee-shift {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: -25% 0;
+  }
+}
+
+/* The factory hero's photo settles from 1.12 to 1 as the page scrolls away from it. */
+@keyframes factory-hero-settle {
+  from {
+    scale: 1.12;
+  }
+  to {
+    scale: 1;
+  }
+}
+
+/* A portrait gallery frame opens from the side; a wide one keeps the site's bottom-up wipe. */
+@keyframes photo-wipe-side {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/*
+ * The gallery's deeper drift (BUILD 8.2: scale 1.15). ⚠️ ±7%, NOT THE BRIEF'S ±8%: scaled 1.15 a
+ * picture overhangs its frame by 7.5% a side, and `translate` percentages are of the unscaled box,
+ * so 8% would open a 0.5% strip of empty frame at each end of the drift.
+ */
+@keyframes gallery-drift {
+  from {
+    translate: 0 -7%;
+  }
+  to {
+    translate: 0 7%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .about-lead,
+    .about-mission p {
+      animation: about-story-rise var(--slow) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+
+    .marquee__track {
+      animation: marquee-shift var(--slow) linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+
+    .factory-hero picture {
+      display: block;
+      overflow: clip;
+      border-radius: var(--radius-card);
+    }
+
+    .factory-hero .split-hero__img {
+      animation: factory-hero-settle var(--slow) linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+
+    .factory-gallery__photos .photo-figure__frame--single.photo-wipe {
+      animation-name: photo-wipe-side;
+    }
+
+    .factory-gallery__photos .photo-parallax {
+      scale: 1.15;
+      animation-name: gallery-drift;
+    }
+  }
+}
+
+/* A fine pointer brings a gallery photo up a little, and from grey into colour (BUILD 8.2). The
+   frame scales, not the picture, which the drift already scales. */
+@media (hover: hover) and (pointer: fine) {
+  .factory-gallery__photos .photo-figure__frame {
+    transition: scale var(--ui) var(--ease);
+  }
+
+  .factory-gallery__photos .photo-figure__img {
+    filter: grayscale(1);
+    transition: filter var(--ui) var(--ease);
+  }
+
+  .factory-gallery__photos .photo-figure:hover .photo-figure__frame {
+    scale: 1.03;
+  }
+
+  .factory-gallery__photos .photo-figure:hover .photo-figure__img {
+    filter: none;
+  }
+}
+
+@media print {
+  .marquee {
+    display: none;
+  }
+
+  .about-lead,
+  .about-mission p,
+  .marquee__track,
+  .factory-hero .split-hero__img {
+    animation: none;
+  }
+}
+
+/* The walkthrough's rail belongs to the motion layout only. */
+.factory-walk {
+  position: relative;
+}
+
+.factory-walk__rail {
+  display: none;
+}
+
+/*
+ * ------------------------------------------------ the walkthrough holds each stage (BUILD 8.2)
+ *
+ * From 900px wide and 700px tall, with motion allowed and scroll timelines with ranges: each stage
+ * holds 80svh, its photos stay pinned beside its words (`position: sticky` inside the stage), the
+ * words rise in, the photos fade in (opacity on the pictures only), the checkpoint lands like a
+ * stamp, and a rail beside the list fills from 01 to 05 as the walkthrough passes. Phones, reduced
+ * motion, Firefox and print keep the stacked stages above; the `<ol>` and its words never change.
+ *
+ * The rail runs on the wrapper's own timeline (`--factory-walk`); a named view timeline reaches its
+ * descendants, so no `timeline-scope` is needed (MDN has no support data for it, Oct 2026). The
+ * stamp's rest at -3deg is the stamp's look; the checkpoint is text either way (BUILD 8.2).
+ */
+@keyframes factory-walk-fill {
+  from {
+    scale: 1 0;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+@keyframes factory-stamp {
+  from {
+    scale: 1.6;
+    rotate: -8deg;
+  }
+  to {
+    scale: 1;
+    rotate: -3deg;
+  }
+}
+
+@keyframes factory-photo-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) and (width >= 900px) and (
+    min-height: 700px
+  ) {
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .factory-walk {
+      padding-inline-start: 32px;
+      view-timeline: --factory-walk;
+      view-timeline-inset: 0;
+    }
+
+    .factory-walk__rail {
+      display: block;
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: 0;
+      width: 2px;
+      background: var(--line);
+    }
+
+    .factory-walk__rail::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--heading);
+      transform-origin: center top;
+      animation: factory-walk-fill var(--slow) linear both;
+      animation-timeline: --factory-walk;
+      animation-range: contain 0% contain 100%;
+    }
+
+    .factory-stage {
+      min-height: 80svh;
+    }
+
+    .factory-stage__photos {
+      position: sticky;
+      top: var(--notch-clearance);
+    }
+
+    .factory-stage__words {
+      animation: about-story-rise var(--slow) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+
+    .factory-stage__badge {
+      justify-self: start;
+      transform-origin: left center;
+      animation: factory-stamp var(--settle) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 40% entry 100%;
+    }
+
+    .factory-stage__photos .photo-figure {
+      animation: factory-photo-in var(--settle) var(--ease-out-expo) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+  }
+}
+
+@media print {
+  .factory-walk__rail::after,
+  .factory-stage__words,
+  .factory-stage__badge,
+  .factory-stage__photos .photo-figure {
+    animation: none;
   }
 }

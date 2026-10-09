@@ -170,3 +170,156 @@ test.describe('the /about hero', () => {
     expect(byline.y).toBeGreaterThan(lead.y + lead.height - 1)
   })
 })
+
+/**
+ * The timeline, the walkthrough and the word rows (BUILD 8.2), measured where they move and where
+ * they must hold still. The timeline's travel is CSS arithmetic (`100cqw - 100%`), so the check is
+ * that its LAST entry ends at the stage's right edge, which a wrong travel misses at any width.
+ */
+async function scrollThrough(page: import('@playwright/test').Page, selector: string, f: number) {
+  await page.evaluate(
+    ([sel, fraction]) => {
+      const element = document.querySelector(sel as string) as HTMLElement
+      const top = element.getBoundingClientRect().top + scrollY
+      const run = element.getBoundingClientRect().height - innerHeight
+      scrollTo(0, Math.round(top + run * (fraction as number)))
+    },
+    [selector, f] as const,
+  )
+  await page.waitForTimeout(200)
+}
+
+const timelinesRun = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => CSS.supports('(animation-timeline: view()) and (animation-range: entry)'))
+
+test.describe('the /about timeline', () => {
+  test('runs sideways on a wide screen, its last entry ending at the stage edge', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/about')
+    const entries = page.locator('.about-timeline__entry')
+    if (!(await timelinesRun(page))) {
+      // Firefox: the vertical list, every entry left-aligned in its column.
+      const lefts = await entries.evaluateAll((all) =>
+        all.map((e) => e.getBoundingClientRect().left),
+      )
+      expect(new Set(lefts.map(Math.round)).size).toBeLessThanOrEqual(2)
+      return
+    }
+    await scrollThrough(page, '.about-timeline-section', 0)
+    const firstLeft = await entries.first().evaluate((e) => e.getBoundingClientRect().left)
+    const stage = await page.locator('.about-timeline__stage').evaluate((e) => {
+      const box = e.getBoundingClientRect()
+      const style = getComputedStyle(e)
+      return {
+        left: box.left + Number.parseFloat(style.paddingLeft),
+        right: box.right - Number.parseFloat(style.paddingRight),
+      }
+    })
+    expect(
+      Math.abs(firstLeft - stage.left),
+      'the track did not start at the stage edge',
+    ).toBeLessThan(24)
+    await scrollThrough(page, '.about-timeline-section', 1)
+    await page.waitForTimeout(150)
+    const lastRight = await entries.last().evaluate((e) => e.getBoundingClientRect().right)
+    expect(
+      Math.abs(lastRight - stage.right),
+      'the last entry does not end at the edge',
+    ).toBeLessThan(4)
+    const sideways = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(sideways).toBeLessThanOrEqual(0)
+  })
+
+  for (const [label, width, motion] of [
+    ['under reduced motion', 1440, 'reduce'],
+    ['on a phone', 390, 'no-preference'],
+  ] as const) {
+    test(`is the vertical list ${label}`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: motion })
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/about')
+      const section = await page
+        .locator('.about-timeline-section')
+        .evaluate((e) => e.getBoundingClientRect().height / innerHeight)
+      expect(section, 'the timeline section is still the tall motion one').toBeLessThan(2.5)
+      expect(
+        await page.locator('.about-timeline').evaluate((e) => getComputedStyle(e).display),
+      ).toBe('grid')
+    })
+  }
+})
+
+test.describe('the factory walkthrough and the word rows', () => {
+  test('a checkpoint lands as a tilted stamp where motion runs, and stays flat under reduced motion', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/inside-the-factory')
+    const badge = page.locator('.factory-stage__badge').nth(2)
+    await badge.scrollIntoViewIfNeeded()
+    await page.evaluate(() => scrollBy(0, -200))
+    await page.waitForTimeout(300)
+    const rotate = await badge.evaluate((e) => getComputedStyle(e).rotate)
+    if (await timelinesRun(page)) expect(rotate).toBe('-3deg')
+    else expect(rotate).toBe('none')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.reload()
+    expect(
+      await page
+        .locator('.factory-stage__badge')
+        .nth(2)
+        .evaluate((e) => getComputedStyle(e).rotate),
+    ).toBe('none')
+    expect(
+      await page.locator('.factory-walk__rail').evaluate((e) => getComputedStyle(e).display),
+    ).toBe('none')
+  })
+
+  test('the word rows are hidden from screen readers and move only with the scroll', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/about')
+    const marquee = page.locator('.marquee')
+    await expect(marquee).toHaveAttribute('aria-hidden', 'true')
+    const track = page.locator('.marquee__track')
+    await marquee.scrollIntoViewIfNeeded()
+    // The row's sideways offset in px: `none` reads as 0.
+    const at = () => track.evaluate((e) => Number.parseFloat(getComputedStyle(e).translate) || 0)
+    // A scroll timeline catches up on the next frames: read only once the scroll has settled
+    // (read at once, it gave 0 and then -12.5px, which looked like movement on its own).
+    await page.waitForTimeout(400)
+    const first = await at()
+    await page.waitForTimeout(1200)
+    expect(await at(), 'the row moved while nobody scrolled').toBeCloseTo(first, 0)
+    if (await timelinesRun(page)) {
+      await page.evaluate(() => scrollBy(0, 300))
+      await page.waitForTimeout(200)
+      expect(await at(), 'the row did not move with the scroll').toBeLessThan(first - 1)
+    }
+  })
+})
+
+for (const path of ['/about', '/inside-the-factory']) {
+  for (const width of [320, 900, 1440]) {
+    test(`${path} never scrolls sideways at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(path)
+      const h = await page.evaluate(() => document.documentElement.scrollHeight)
+      for (let y = 0; y < h; y += 900) {
+        await page.evaluate((top) => scrollTo(0, top), y)
+        const sideways = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        )
+        expect(sideways, `at ${y}px down`).toBeLessThanOrEqual(0)
+      }
+    })
+  }
+}

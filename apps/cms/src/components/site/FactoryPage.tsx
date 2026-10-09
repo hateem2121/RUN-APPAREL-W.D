@@ -5,6 +5,7 @@ import { Breadcrumb } from './Breadcrumb'
 import { factoryPhoto } from './CompanyParts'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
+import { Marquee } from './Marquee'
 import { FACTORY_PAGE } from '../../lib/aboutPages'
 import {
   FACTORY_PHOTO_ASPECT,
@@ -117,44 +118,56 @@ export function FactoryPage() {
       <section className="site-section" data-site-reveal>
         <div className="site-container">
           <h2 className="display display--section">{page.walkthrough.heading}</h2>
-          {/* An `<ol>` in order at every width; the sticky track is the motion phase's. */}
-          <ol className="factory-stages">
-            {page.walkthrough.stages.map((stage, index) => (
-              <li className="factory-stage" key={stage.title}>
-                <div className="factory-stage__words">
-                  <p className="section-number">0{index + 1}</p>
-                  <h3 className="factory-stage__title">{stage.title}</h3>
-                  <p>{stage.body}</p>
-                  <p className="factory-stage__badge">{stage.badge}</p>
-                </div>
-                <div className="factory-stage__photos">
-                  {stage.photos.length > 0 ? (
-                    stage.photos.map((slug) => {
-                      const photo = factoryPhoto(slug)
-                      return (
-                        <FactoryFigure
-                          key={slug}
-                          photo={photo}
-                          {...factoryPhotoImage(photo)}
-                          sizes={HALF_COLUMN_SIZES}
-                        />
-                      )
-                    })
-                  ) : (
-                    // Stage 3 has no cutting photo yet (owner, 2026-10-09): a drawn panel, the
-                    // blueprint grid with corner marks, until one arrives.
-                    <span className="factory-panel" aria-hidden="true" />
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
+          {/*
+           * The walkthrough (BUILD 8.2). An `<ol>` in order at every width. On a wide screen with
+           * the site's motion allowed, each stage holds the screen while its photos stay pinned
+           * and its words pass, the checkpoint lands like a stamp, and the rail beside the list
+           * fills 01 to 05 (site.css, "the walkthrough holds each stage"). The wrapper owns the
+           * rail's timeline, which its descendants reach without `timeline-scope`.
+           */}
+          <div className="factory-walk">
+            <span className="factory-walk__rail" aria-hidden="true" />
+            <ol className="factory-stages">
+              {page.walkthrough.stages.map((stage, index) => (
+                <li className="factory-stage" key={stage.title}>
+                  <div className="factory-stage__words">
+                    <p className="section-number">0{index + 1}</p>
+                    <h3 className="factory-stage__title">{stage.title}</h3>
+                    <p>{stage.body}</p>
+                    <p className="factory-stage__badge">{stage.badge}</p>
+                  </div>
+                  <div className="factory-stage__photos">
+                    {stage.photos.length > 0 ? (
+                      stage.photos.map((slug) => {
+                        const photo = factoryPhoto(slug)
+                        return (
+                          <FactoryFigure
+                            key={slug}
+                            photo={photo}
+                            {...factoryPhotoImage(photo)}
+                            sizes={HALF_COLUMN_SIZES}
+                          />
+                        )
+                      })
+                    ) : (
+                      // Stage 3 has no cutting photo yet (owner, 2026-10-09): a drawn panel, the
+                      // blueprint grid with corner marks, until one arrives.
+                      <span className="factory-panel" aria-hidden="true" />
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
           <p className="site-lede factory-stages__close">
             {page.walkthrough.close.text}{' '}
             <Link href={page.walkthrough.close.href}>{page.walkthrough.close.linkName}</Link>.
           </p>
         </div>
       </section>
+
+      {/* FM1: the five stages, as a decorative row (the stage list above is the real text). */}
+      <Marquee words={page.marquee} joiner="→" />
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
