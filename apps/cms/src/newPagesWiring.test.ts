@@ -11,6 +11,7 @@ import {
   PUBLIC_PAGE_SOURCES,
   sourceMatches,
 } from '../publicViewerHeaders.mjs'
+import { escapeRegExp } from '../regexEscape.mjs'
 import { CMS_PUBLIC_PATHS, SITE_HOST, siteRedirects } from '../siteHostRules.mjs'
 import { CASE_STUDIES_PATH } from './lib/caseStudies'
 import { COMPANY_PATHS } from './lib/companyPages'
@@ -121,7 +122,7 @@ describe('every new page is wired everywhere a public page must be', () => {
     it('forwards /factory to /inside-the-factory, permanently, on the site host', () => {
       expect(rule).toEqual({
         source: '/factory',
-        has: [{ type: 'host', value: `^${SITE_HOST.replace(/\./g, '\\.')}$` }],
+        has: [{ type: 'host', value: `^${escapeRegExp(SITE_HOST)}$` }],
         destination: 'https://wear-run.com/inside-the-factory',
         permanent: true,
       })

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { escapeRegExp } from '../regexEscape.mjs'
 import { SITE_HOST, siteRedirects, siteRewrites } from '../siteHostRules.mjs'
 
 /**
@@ -49,7 +50,7 @@ describe('the build carries every host rule', () => {
   const PHOTO = '/factory/exterior-640.webp'
   // Only the site host's rules: the other hostnames forward EVERY path to the same path on the
   // site (`/:path*`), which is right for /factory and its photos alike.
-  const SITE_HOST_CONDITION = `^${SITE_HOST.replace(/\./g, '\\.')}$`
+  const SITE_HOST_CONDITION = `^${escapeRegExp(SITE_HOST)}$`
   const redirectsCatching = <Rule extends HostRule & { regex: string }>(
     rules: Rule[],
     path: string,
