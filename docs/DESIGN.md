@@ -1320,7 +1320,8 @@ place as they scroll in, as the sections already do (`site-reveal`). `@keyframes
 
 ### The about and factory pages move with the scroll (2026-10-09, D36)
 
-All of it is CSS in `apps/cms/src/app/(frontend)/site.css` under the `card-rise` guards, and the
+All of it is CSS in `apps/cms/src/app/(frontend)/about-factory.css` (their own sheet, so every other
+page keeps D35's single file) under the `card-rise` guards, and the
 larger layouts also need a screen at least 700px tall. Firefox, reduced motion, print and short
 screens get the still layouts, which are complete pages. Text moves by `translate`, never fades.
 Movement that only follows the scroll is `linear` (D36). Tests: `apps/cms/e2e/aboutFactory.spec.ts`,

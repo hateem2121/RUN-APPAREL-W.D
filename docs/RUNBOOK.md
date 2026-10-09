@@ -2377,9 +2377,12 @@ above covers them. `/factory` forwards to `/inside-the-factory` on the site's ho
   plain visit stores nothing and `apps/cms/e2e/headers.spec.ts` holds it). It is the FIRST thing
   cut if a speed check fails. Its inline script needs the edge nonce:
   `node e2e/csp-nonce-edge.mjs` covers `/about`.
-- **The motion.** Every scroll effect on both pages is CSS in `site.css` behind the site's guards
-  (DESIGN.md §5, "The about and factory pages move with the scroll"); Firefox, reduced motion,
-  print and a screen under 700px tall get the still layouts. `aboutFactory.spec.ts` is in WebKit's
+- **The motion.** Every scroll effect on both pages is CSS behind the site's guards, in
+  `apps/cms/src/app/(frontend)/about-factory.css` — their own sheet, imported by the two
+  `page.tsx` files only, because added to `site.css` they made the build split the site's one
+  stylesheet in two on every page (D35, D36). DESIGN.md §5, "The about and factory pages move with
+  the scroll", has the patterns. Firefox, reduced motion, print and a screen under 700px tall get
+  the still layouts. `aboutFactory.spec.ts` is in WebKit's
   file list in `apps/cms/playwright.config.ts`, because the sticky sections and scroll timelines
   are where engines differ: WebKit found the sideways timeline's width wrong when Chromium had it
   right.

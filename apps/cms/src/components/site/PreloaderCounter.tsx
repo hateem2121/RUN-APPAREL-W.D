@@ -19,7 +19,7 @@ function showpieceMs(): number {
  *
  * The race (lib/preloader.ts): the curtain lifts at the count-up's length when the hero photo is
  * ready early, when it has decoded if later, and never later than 2.2 s; the year lands exactly at
- * the lift, so it never stalls. Then `data-preload="lifting"` runs the curtain (site.css) and its
+ * the lift, so it never stalls. Then `data-preload="lifting"` runs the curtain (about-factory.css) and its
  * end removes the mark, so a later visit to /about within the site shows nothing.
  */
 export function PreloaderCounter() {

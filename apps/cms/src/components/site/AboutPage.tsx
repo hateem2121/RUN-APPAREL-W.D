@@ -45,7 +45,7 @@ export function AboutPage() {
 
       {/*
        * The scroll-expanding hero. Still, this is the photo hero below; inside the
-       * site's motion guards (site.css, "The /about hero expands"), the section grows tall and
+       * site's motion guards (about-factory.css, "The /about hero expands"), the section grows tall and
        * `.about-hero__stage` sticks while the photo opens from a card to the screen and the two
        * halves of the headline slide away. The ghost "1889" is drawn, not written: an SVG, hidden
        * from screen readers, shown only in the motion layout.
@@ -156,7 +156,7 @@ export function AboutPage() {
       {/*
        * The timeline. An `<ol>` in time order at every width. On a wide screen with
        * the site's motion allowed, the section grows tall and `.about-timeline__stage` sticks while
-       * the list moves left as a track, a line drawing under it (site.css, "the timeline runs
+       * the list moves left as a track, a line drawing under it (about-factory.css, "the timeline runs
        * sideways"); anywhere else it is this vertical list.
        */}
       <section

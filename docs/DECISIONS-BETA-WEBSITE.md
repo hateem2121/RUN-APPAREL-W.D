@@ -965,6 +965,11 @@ the existing guards, no animation library.**
   outside the site, so it needs no memory of having shown, and a plain visit still keeps nothing on
   the device (`apps/cms/e2e/headers.spec.ts`). It is the first thing cut if a speed check fails.
 - **The byline sits under the opening paragraph** on /about, as on the guides, policies and careers.
+- **Their styles are a sheet of their own** (`apps/cms/src/app/(frontend)/about-factory.css`, owner,
+  2026-10-09), imported by the two pages only. Added to `site.css` they took the built sheet from
+  127 KB to 143 KB minified, and Turbopack's default CSS chunking (Next 16.3.8) split it into two
+  files on every page, against D35; `turbopackChunking.maxMergeChunkSize` did not bring it back and
+  the `graph` strategy is newer than 16.3.8. Every other page keeps D35's one file, the size it was.
 
 **Guards:** `apps/cms/e2e/aboutFactory.spec.ts` (in WebKit's file list as well as Chromium's and
 Firefox's), `apps/cms/src/lib/preloader.test.ts`, `apps/cms/src/lib/photoViewer.test.ts`,

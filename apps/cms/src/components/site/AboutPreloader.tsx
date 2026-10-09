@@ -11,7 +11,7 @@ import { PreloaderCounter } from './PreloaderCounter'
  *
  * The overlay is decoration, so it is out of the accessibility tree and `inert`, and the skip link
  * sits above it (`--z-skip-link` beats `--z-preloader`). If the counter's script never runs, CSS
- * lifts the curtain on its own at 2.2 s (site.css, "the /about preloader").
+ * lifts the curtain on its own at 2.2 s (about-factory.css, "the /about preloader").
  */
 export function AboutPreloader() {
   return (

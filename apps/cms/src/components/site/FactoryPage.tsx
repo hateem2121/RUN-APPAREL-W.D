@@ -137,7 +137,7 @@ export function FactoryPage() {
            * The walkthrough. An `<ol>` in order at every width. On a wide screen with
            * the site's motion allowed, each stage holds the screen while its photos stay pinned
            * and its words pass, the checkpoint lands like a stamp, and the rail beside the list
-           * fills 01 to 05 (site.css, "the walkthrough holds each stage"). The wrapper owns the
+           * fills 01 to 05 (about-factory.css, "the walkthrough holds each stage"). The wrapper owns the
            * rail's timeline, which its descendants reach without `timeline-scope`.
            */}
           <div className="factory-walk">

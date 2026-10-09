@@ -1,7 +1,7 @@
 /**
  * A decorative row of words that shifts sideways while the visitor scrolls (the about
  * and factory pages' M1 and FM1, 2026-10-09). A server component: the row is drawn still, and
- * `.marquee` in site.css moves it only on a scroll timeline, inside the site's motion guards, so it
+ * `.marquee` in about-factory.css moves it only on a scroll timeline, inside the site's motion guards, so it
  * never moves on its own (WCAG 2.2.2 needs no pause button for that).
  *
  * ⚠️ HIDDEN FROM SCREEN READERS, AND NEVER THE ONLY PLACE THE WORDS ARE. The same words are real
