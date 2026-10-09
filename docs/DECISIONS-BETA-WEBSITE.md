@@ -933,6 +933,43 @@ merge.**
 **Guard:** `scripts/check-cms-worker-size.mjs` in `verify` fails over 80% of the limit
 (`apps/cms/src/cmsWorkerSize.test.ts`, with the incident's bundle as its negative control).
 
+### D36 · The about and factory pages, moving with the scroll in the site's own motion system
+
+**Decision: `/about` and `/inside-the-factory` are code pages like careers and press, every word
+approved by the owner on 2026-10-09, and their motion is this site's own — scroll-driven CSS behind
+the existing guards, no animation library.**
+
+- **The pages.** Words in `apps/cms/src/lib/aboutPages.ts`, registered through `COMPANY_PATHS`;
+  `/factory` forwards to `/inside-the-factory`, exact path only (the photos live under `/factory/`).
+  The footer's Company group gains About and Inside the factory, in two short columns from 1280px
+  so the slab stays one screen (owner's choice from pictures of the real footer, 2026-10-09; the
+  garment pages' stylesheet budget rose 112 B for it, `lighthouserc.json`).
+- **The floor area is 193,000 sq m, not sq ft** (owner, 2026-10-09): `FACTS`, the press page and
+  `/llms.txt` say so.
+- **Motion, under D8.** Every effect sits inside `prefers-reduced-motion: no-preference` and
+  `@supports` for scroll timelines WITH ranges, as `card-rise` does; the larger layouts also need a
+  screen at least 700px tall. Text moves by `translate` only; opacity changes only on pictures.
+  Two additions to D8's rules: **movement that only tracks the scroll is `linear`** (the hero's
+  card, the timeline's track, the word rows, the drifts) — an ease-out on a scroll timeline
+  front-loads the travel, and the hero's words were 560px gone a tenth of the way in; and **the
+  preloader's counter is the second use of `--showpiece`**, after the count-up it copies.
+- **base-ui joins `apps/cms`** at the viewer's exact version (1.8.0) for the factory gallery's photo
+  viewer, the use `docs/DECISION-UI-LIBRARIES.md` reserves it for. It keeps base-ui's own page lock
+  rather than adding `holdPage`, because the smooth scroll already reads that lock and a second one
+  can leave the page held.
+- **The mission quote.** /about's mission sentence stays word for word, in `[data-quote]`, which
+  the readability test and the buzzword check skip (owner, 2026-10-09). The readability test also
+  reads a list item that holds paragraphs through those paragraphs, once (owner, same day): it had
+  counted the factory's stages twice, once as a run-on line with no full stop.
+- **The preloader stores nothing** (owner, 2026-10-09). It shows only to a visitor arriving from
+  outside the site, so it needs no memory of having shown, and a plain visit still keeps nothing on
+  the device (`apps/cms/e2e/headers.spec.ts`). It is the first thing cut if a speed check fails.
+- **The byline sits under the opening paragraph** on /about, as on the guides, policies and careers.
+
+**Guards:** `apps/cms/e2e/aboutFactory.spec.ts` (in WebKit's file list as well as Chromium's and
+Firefox's), `apps/cms/src/lib/preloader.test.ts`, `apps/cms/src/lib/photoViewer.test.ts`,
+`apps/cms/src/hostRulesManifest.test.ts`.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

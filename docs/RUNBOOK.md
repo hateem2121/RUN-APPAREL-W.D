@@ -2353,6 +2353,37 @@ buyers' address everywhere else. The section names each service, so changing a s
 changing these words, with the owner's approval; `apps/cms/e2e/privacy.spec.ts` holds its place, its anchor and the right-to-object
 paragraph word for word.
 
+**The about and factory pages (since 2026-10-09).** `/about` and `/inside-the-factory` are company
+pages too: their words are in `apps/cms/src/lib/aboutPages.ts` (the owner approved every word on
+2026-10-09; the numbers are `companyFacts.ts` constants, and the timeline's first year is
+`FAMILY_SINCE`), they join `COMPANY_PATHS` through `ABOUT_FACTORY_PATHS`, and so every registration
+above covers them. `/factory` forwards to `/inside-the-factory` on the site's host, exact path only
+(`apps/cms/siteHostRules.mjs`), because the factory photos really live at `/factory/<file>.webp`;
+`apps/cms/src/hostRulesManifest.test.ts` proves it on the BUILT manifest. Four things are their own:
+- **The mission quote.** /about's mission sentence is the owner's, word for word, inside
+  `<blockquote data-quote>`; the readability test (`apps/cms/e2e/legibility.spec.ts`) and the
+  buzzword check (`apps/cms/e2e/copy.spec.ts`, through `quoted` in `scripts/copy-rules.mjs`) skip
+  that element and nothing else (owner, 2026-10-09). Every other sentence is still held to them.
+- **The photo viewer.** Each gallery photo on the factory page is a plain link to its largest
+  file, and `apps/cms/src/components/site/FactoryPhotoViewer.tsx` (base-ui's Dialog, as the
+  garment pages' HD picture) opens it full screen once scripts run. It uses base-ui's own page
+  lock, not `holdPage` as well: the smooth scroll already reads that lock (`pageHeld`), and a
+  second lock can leave the page held after closing. `apps/cms/e2e/aboutFactory.spec.ts` proves
+  the trap, the hidden page and the still page, in three engines.
+- **The preloader.** `/about` opens on a counter from 1889 to this year only for a visitor arriving
+  from OUTSIDE the site (a search, another site, a typed address) — never on a reload, from the
+  site's own pages, under reduced motion or automation, or without JavaScript — and it stores
+  nothing (`apps/cms/src/lib/preloader.ts`; owner, 2026-10-09, because the privacy page promises a
+  plain visit stores nothing and `apps/cms/e2e/headers.spec.ts` holds it). It is the FIRST thing
+  cut if a speed check fails. Its inline script needs the edge nonce:
+  `node e2e/csp-nonce-edge.mjs` covers `/about`.
+- **The motion.** Every scroll effect on both pages is CSS in `site.css` behind the site's guards
+  (DESIGN.md §5, "The about and factory pages move with the scroll"); Firefox, reduced motion,
+  print and a screen under 700px tall get the still layouts. `aboutFactory.spec.ts` is in WebKit's
+  file list in `apps/cms/playwright.config.ts`, because the sticky sections and scroll timelines
+  are where engines differ: WebKit found the sideways timeline's width wrong when Chromium had it
+  right.
+
 🟡 **A footer picture taken locally must show the real footer.** On 2026-10-07 the owner approved
 a picture of the new group that had no Capacity, Standards or Elsewhere blocks: `next start`
 without `PAYLOAD_LOCAL_D1=1` cannot reach the local D1, so every read falls back to defaults

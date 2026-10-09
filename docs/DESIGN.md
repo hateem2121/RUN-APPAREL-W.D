@@ -1318,6 +1318,43 @@ place as they scroll in, as the sections already do (`site-reveal`). `@keyframes
 - **Tests:** `apps/cms/e2e/motion.spec.ts` (a card is lowered while it enters and in place once on
   screen, on `/products` and `/`; under reduced motion no card moves), proven both ways.
 
+### The about and factory pages move with the scroll (2026-10-09, D36)
+
+All of it is CSS in `apps/cms/src/app/(frontend)/site.css` under the `card-rise` guards, and the
+larger layouts also need a screen at least 700px tall. Firefox, reduced motion, print and short
+screens get the still layouts, which are complete pages. Text moves by `translate`, never fades.
+Movement that only follows the scroll is `linear` (D36). Tests: `apps/cms/e2e/aboutFactory.spec.ts`,
+in Chromium, Firefox and WebKit.
+
+- **The expanding hero (/about).** The section grows to 250svh and its stage sticks; the photo opens
+  from a 4:5 card (`clamp(240px, 32vmin, 420px)`) to 90vw x 75svh by `clip-path`, settling from 1.12
+  to 1, while the headline's halves slide out either side, gone by 60%. ⚠️ Three things measured:
+  the section must be `overflow: clip`, because `.site-hero`'s `hidden` makes it a scroll container
+  and the stage would never stick; `view-timeline-inset: 0`, because `auto` takes the page's
+  scroll-padding (the bar's clearance) and started the run 84px early; and its tokens are handed
+  back with `color-scheme: inherit`, because the photo hero forces dark and the words sit on the
+  page's ground here.
+- **The sideways timeline (/about, from 900px).** The `<ol>` lies down as a track in a sticky stage
+  that is a size container, and moves left by `calc(100cqw - 100%)`, so its last entry ends at the
+  stage's edge at any width; the years run at 0.85 of its speed and a line draws under it. ⚠️ The
+  track has an exact width, never `max-content`: WebKit sums the entries' text for a flex row's
+  max-content, and the track stopped 692px short.
+- **The walkthrough (/inside-the-factory, from 900px).** Each stage holds 80svh with its photos
+  pinned (`position: sticky` inside the stage), the photos fade in, the checkpoint lands like a
+  stamp (scale 1.6 to 1, -8deg to -3deg, `--settle` on `--ease-out-expo`, no overshoot) and a rail
+  beside the list fills. The rail runs on the wrapper's named view timeline, which reaches its
+  descendants without `timeline-scope`.
+- **The word rows** (`Marquee.tsx`) are decorative and hidden from screen readers; they shift only
+  with the scroll, so nothing moves on its own for longer than 5 seconds (WCAG 2.2.2).
+- **The photo viewer** (`FactoryPhotoViewer.tsx`). Each gallery photo is a link to its largest file;
+  with scripts, base-ui's Dialog opens it full screen. Swiping is a scroll-snap strip (the browser's
+  own), arrows and ← → step, a polite counter says "3 / 8", and only the photo and its neighbours
+  load. Only the backdrop fades.
+- **The preloader** (`AboutPreloader.tsx`). A counter from 1889 to this year on the page's ground,
+  for a visitor arriving from outside only, lifted like a curtain over `--slow` once the hero photo
+  is ready (never before 0.8 s, never after 2.2 s; CSS lifts it at 2.2 s if the script is late). It
+  is hidden in CSS unless the pre-paint script marks `<html>`, and stores nothing.
+
 ---
 
 ## 6. Spacing
