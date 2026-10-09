@@ -7762,6 +7762,10 @@ a.contact-block__value:active {
 }
 
 .factory-stage {
+  /* `max-width: none`: the `p, li` cap above (34.362em) held each stage row to 584px at 1440px,
+     two 280px columns in the left half of the page (measured 2026-10-09). Its paragraphs keep
+     the cap. */
+  max-width: none;
   border-block-start: 1px solid var(--line);
   padding-block-start: 20px;
   display: grid;
@@ -7818,6 +7822,12 @@ a.contact-block__value:active {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 24px;
     align-items: start;
+  }
+
+  /* A stage with several photos pairs them (stage 5 has four: one column made a tower four
+     photos tall); a stage with one keeps it full width, because auto-fit drops the empty track. */
+  .factory-stage__photos {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   }
 }
 
