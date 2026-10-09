@@ -7616,7 +7616,10 @@ a.contact-block__value:active {
   color: var(--heading);
   font-family: var(--font-serif);
   font-size: var(--text-card-title);
-  max-width: var(--site-measure);
+  /* The guides' 28.635em, not the site measure: the serif sets more letters to the em, and at
+     31.5em the quote ran 81 characters a line at 768px (FA-C-52's limit is 75; measured
+     2026-10-09). */
+  max-width: 28.635em;
 }
 
 /* The timeline: a vertical list in time order at every width (the horizontal track is the
@@ -7681,6 +7684,8 @@ a.contact-block__value:active {
 
 .about-people__card p {
   margin: 0;
+  /* One card spans the column below 900px: uncapped, the HR line ran 76 characters (FA-C-52). */
+  max-width: var(--site-measure);
 }
 
 .about-people__card--name h3 {
