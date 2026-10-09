@@ -35,6 +35,16 @@ export declare const CONTACT_HERO_SOURCES: {
   focus: [number, number]
 }[]
 
+/** The /about hero: the home hero's shapes and widths, from the 3555x2000 exterior (no upscale). */
+export declare const ABOUT_HERO_SOURCES: {
+  slug: string
+  file: string
+  original: [number, number]
+  shape: 'heroWide' | 'heroTall'
+  widths?: number[]
+  focus: [number, number]
+}[]
+
 export declare function cropBox(
   width: number,
   height: number,
