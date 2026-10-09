@@ -137,9 +137,9 @@ describe('the counter keeps pace with the lift', () => {
 })
 
 describe("the CSS fallback lifts at the script's ceiling", () => {
-  it('site.css delays the fallback curtain by exactly PRELOADER_CEILING_MS', () => {
+  it('about-factory.css delays the fallback curtain by exactly PRELOADER_CEILING_MS', () => {
     const css = readFileSync(
-      join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'),
+      join(import.meta.dirname, '..', 'app', '(frontend)', 'about-factory.css'),
       'utf8',
     )
     const rule = /html\[data-preload="on"\] \.preloader \{([^}]*)\}/.exec(css)?.[1] ?? ''

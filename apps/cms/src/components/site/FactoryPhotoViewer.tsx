@@ -130,7 +130,17 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
           <Dialog.Description className="visually-hidden">
             Swipe, or use the left and right arrow keys or the buttons, to see the other photos.
           </Dialog.Description>
-          <div className="photo-viewer__strip" ref={setStrip} onScroll={onScroll}>
+          {/* A scroll area a keyboard can reach and a screen reader can name (axe:
+              scrollable-region-focusable, found with the viewer open, 2026-10-09). */}
+          <div
+            className="photo-viewer__strip"
+            ref={setStrip}
+            onScroll={onScroll}
+            role="group"
+            aria-label="Factory photos"
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll area must take focus so a keyboard can scroll it (WCAG 2.1.1)
+            tabIndex={0}
+          >
             {photos.map((photo, at) => (
               <div className="photo-viewer__slide" key={photo.src}>
                 {load.has(at) ? (

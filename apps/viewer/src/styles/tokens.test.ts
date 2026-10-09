@@ -1488,7 +1488,7 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         // The /about hero's motion layout (2026-10-09): its words sit on the page's own
         // ground, so the photo hero's forced dark is handed back. `inherit`, not `light dark`: the
         // tokens are `light-dark()`, and only `inherit` also follows a theme the toggle forced.
-        'site.css .about-hero: inherit',
+        'about-factory.css .about-hero: inherit',
       ].sort(),
     )
   })

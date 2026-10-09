@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { FactoryPage as FactoryLayout } from '../../../components/site/FactoryPage'
 import { FACTORY_PAGE } from '../../../lib/aboutPages'
 import { buildMetadata } from '../../../lib/seo'
+// This page's own styles, loaded only here (about-factory.css says why: D35, measured).
+import '../about-factory.css'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'

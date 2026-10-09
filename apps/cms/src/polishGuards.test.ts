@@ -28,7 +28,10 @@ const css = (...parts: string[]) =>
 const BASE = css('packages', 'ui', 'src', 'base.css')
 const TOKENS = css('packages', 'ui', 'src', 'tokens.css')
 const NOTCH = css('packages', 'ui', 'src', 'notch.css')
-const SITE = css('apps', 'cms', 'src', 'app', '(frontend)', 'site.css')
+// The about and factory pages' own sheet (2026-10-09, D36) is held to the same rules as site.css.
+const SITE =
+  css('apps', 'cms', 'src', 'app', '(frontend)', 'site.css') +
+  css('apps', 'cms', 'src', 'app', '(frontend)', 'about-factory.css')
 
 interface Rule {
   /** The headers of the at-rules this rule sits inside, outermost first. */

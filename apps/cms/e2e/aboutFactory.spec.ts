@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -532,5 +533,43 @@ test.describe('the /about preloader', () => {
     const display = await page.locator('.preloader').evaluate((e) => getComputedStyle(e).display)
     expect(display).toBe('none')
     await context.close()
+  })
+})
+
+/**
+ * Accessibility beyond `pages.spec.ts`'s light-theme pass: the dark theme (text on the page's
+ * ground and on the photo hero's wash in both themes) and the photo viewer open, with the tags the
+ * rest of the site uses.
+ */
+test.describe('no automated accessibility violations', () => {
+  const axe = (page: import('@playwright/test').Page) =>
+    new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const named = (results: Awaited<ReturnType<typeof axe>>) =>
+    results.violations.map((v) => `${v.id} (${v.nodes.length})`)
+
+  for (const path of ['/about', '/inside-the-factory']) {
+    test(`${path} in the dark theme`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: 'dark' })
+      await page.goto(path)
+      expect(named(await axe(page))).toEqual([])
+    })
+  }
+
+  test('the factory photo viewer, open', async ({ page }) => {
+    await page.goto('/inside-the-factory')
+    await page.locator('a[data-gallery-index]').first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    /*
+     * base-ui's focus guards are left out, and nothing else. In WebKit with VoiceOver they carry
+     * `role="button"` with no name ON PURPOSE: VoiceOver's virtual cursor fires `onFocus` only on
+     * focusable or button elements there, and "setting role=button lets the focus trap catch the
+     * cursor" (@base-ui/react 1.8.0, utils/FocusGuard.js). axe calls that aria-command-name; it is
+     * how the viewer keeps a VoiceOver user inside it (found in WebKit, 2026-10-09).
+     */
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .exclude('[data-base-ui-focus-guard]')
+      .analyze()
+    expect(named(results)).toEqual([])
   })
 })
