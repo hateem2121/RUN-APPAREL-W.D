@@ -91,6 +91,29 @@ export const CONTACT_HERO_SOURCES = [
   },
 ]
 
+/**
+ * The /about hero's two crops of the building (the about-factory build, 2026-10-09; Appendix B:
+ * the exterior is the PROPOSED hero, the owner picks at the picture check). The original is
+ * 3555x2000, so the 16:9 crop is the whole frame and the widest file is no upscale; the 4:5 crop
+ * is the 1600x2000 centre, for the compact card a phone shows.
+ */
+export const ABOUT_HERO_SOURCES = [
+  {
+    slug: 'about-hero-wide',
+    file: 'factory exterior image.png',
+    original: [3555, 2000],
+    shape: 'heroWide',
+    focus: [0.5, 0.5],
+  },
+  {
+    slug: 'about-hero-tall',
+    file: 'factory exterior image.png',
+    original: [3555, 2000],
+    shape: 'heroTall',
+    focus: [0.5, 0.5],
+  },
+]
+
 /*
  * Two originals are narrower than their shape's widest file, so they list their own `widths`
  * (polish X16): the tagging floor (1280x896, an 8:5 crop 1,280 wide, so no 1,600) and packing
@@ -200,7 +223,12 @@ async function main() {
   )
   const out = resolve(import.meta.dirname, '../apps/cms/public/factory')
   mkdirSync(out, { recursive: true })
-  for (const source of [...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES]) {
+  for (const source of [
+    ...SOURCES,
+    ...HERO_SOURCES,
+    ...CONTACT_HERO_SOURCES,
+    ...ABOUT_HERO_SOURCES,
+  ]) {
     const shape = SHAPES[source.shape]
     const { width, height } = await sharp(join(from, source.file)).metadata()
     // A different original makes the recorded size, and every width checked against it, untrue.
