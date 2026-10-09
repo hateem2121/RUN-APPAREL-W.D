@@ -39,6 +39,16 @@ export const FACTS: CompanyFact[] = [
  */
 
 /**
+ * The production figures the owner's copy deck added (2026-10-08) for the about and factory
+ * pages: the people cards and the facts band on /about import them, and nothing retypes the
+ * numbers. Beside `FACTS`, not inside it — the home page's №05 band and `/llms.txt`'s facts
+ * list keep their five numbers.
+ */
+export const PRECISION_MACHINES: CompanyFact = { value: '200+', label: 'Precision machines' }
+
+export const CUTTING_LINES: CompanyFact = { value: '3', label: 'Cutting lines' }
+
+/**
  * Where we ship. Owner, 2026-09-29, replacing the named regions of 2026-09-07 ("Europe, North
  * and South America, and Oceania"): "customers can be new and from anywhere", so a list of
  * regions told a buyer outside it that they were not served.
