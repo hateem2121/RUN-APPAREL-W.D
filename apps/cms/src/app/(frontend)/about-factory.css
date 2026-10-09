@@ -1120,19 +1120,23 @@
 }
 
 .photo-viewer__slide {
+  position: relative;
   flex: 0 0 100%;
-  display: grid;
-  place-items: center;
-  padding: 12px;
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
 
+/*
+ * ⚠️ THE PHOTO FILLS ITS SLIDE'S BOX AND IS CONTAINED IN IT, never sized by `max-height: 100%`. A
+ * percentage max-height inside a stretched flex item does not resolve, so a tall photo on a wide
+ * screen grew past the strip and was cut off below the shoulders (seen 2026-10-09; the browser
+ * test measures the drawn photo now). Placed 12px in from each edge, as the slide's padding was.
+ */
 .photo-viewer__img {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  position: absolute;
+  inset: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
   object-fit: contain;
 }
 

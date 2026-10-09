@@ -409,6 +409,56 @@ test.describe('the factory photo viewer', () => {
     await expect(page.getByRole('heading', { name: /Walk the floor/i })).toHaveCount(1)
   })
 
+  /*
+   * The whole photo, never cropped. A tall (4:5) photo on a wide screen grew past the strip and
+   * was cut off below the shoulders (seen in the final pictures, 2026-10-09): a percentage
+   * max-height inside a stretched flex item does not resolve. Measured here on the photo actually
+   * drawn, with object-fit taken into account.
+   */
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+  ] as const) {
+    test(`shows each photo whole, inside the strip, at ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/inside-the-factory')
+      const count = await links(page).count()
+      for (const at of [0, 2]) {
+        await links(page).nth(at).scrollIntoViewIfNeeded()
+        await links(page).nth(at).click()
+        await expect(page.locator('.photo-viewer__count')).toHaveText(`${at + 1} / ${count}`)
+        const fit = await page
+          .locator('.photo-viewer__img')
+          .nth(at === 0 ? 0 : 1)
+          .evaluate((img) => {
+            const image = img as HTMLImageElement
+            const strip = image.closest('.photo-viewer__strip') as HTMLElement
+            const box = image.getBoundingClientRect()
+            const frame = strip.getBoundingClientRect()
+            // The picture drawn inside the box: object-fit contain letterboxes it.
+            const scale =
+              getComputedStyle(image).objectFit === 'contain'
+                ? Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight)
+                : box.width / image.naturalWidth
+            const drawnHeight = image.naturalHeight * scale
+            const drawnTop = box.top + (box.height - drawnHeight) / 2
+            return {
+              loaded: image.naturalWidth > 0,
+              inside: drawnTop >= frame.top - 1 && drawnTop + drawnHeight <= frame.bottom + 1,
+              boxInside: box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1,
+            }
+          })
+        expect(fit.loaded, 'the photo had not loaded, so nothing was measured').toBe(true)
+        expect(fit, `photo ${at + 1} is cut off`).toEqual({
+          loaded: true,
+          inside: true,
+          boxInside: true,
+        })
+        await page.keyboard.press('Escape')
+      }
+    })
+  }
+
   test('a swipe is the strip scrolling, and the counter follows it', async ({ page }) => {
     await page.goto('/inside-the-factory')
     const count = await links(page).count()
