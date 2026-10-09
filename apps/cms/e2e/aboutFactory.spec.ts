@@ -386,6 +386,61 @@ test.describe('the factory photo viewer', () => {
     await expect(third, 'focus did not come back to the photo that opened it').toBeFocused()
   })
 
+  /*
+   * While the strip slides to the next photo, the counter says that photo and nothing else. The
+   * slide's own scroll events once set it back to the photo being left for half the slide
+   * ("3 / 8", "4 / 8", "3 / 8": PR #154's WebKit job, 2026-10-09), so a second key press in that
+   * moment stepped from the wrong photo, and a screen reader heard the count bounce.
+   */
+  test('the counter never goes back to the photo being left while the strip slides', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/inside-the-factory')
+    const count = await links(page).count()
+    const third = links(page).nth(2)
+    await third.scrollIntoViewIfNeeded()
+    await third.click()
+    const counter = page.getByRole('dialog').locator('.photo-viewer__count')
+    await expect(counter).toHaveText(`3 / ${count}`)
+    await page.keyboard.press('ArrowRight')
+    await expect(counter).toHaveText(`4 / ${count}`)
+    // Wait for that slide to land, then record every value the counter takes during the next one.
+    await expect
+      .poll(() =>
+        page
+          .locator('.photo-viewer__strip')
+          .evaluate((strip) => Math.abs(strip.scrollLeft - 3 * strip.clientWidth)),
+      )
+      .toBeLessThan(2)
+    await counter.evaluate((el) => {
+      const seen: string[] = []
+      ;(window as unknown as { seenCounts: string[] }).seenCounts = seen
+      new MutationObserver(() => seen.push(el.textContent ?? '')).observe(el, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      })
+    })
+    await page.keyboard.press('ArrowLeft')
+    // The slide moved through the half-way point: the instrument had something to see.
+    await expect
+      .poll(() =>
+        page
+          .locator('.photo-viewer__strip')
+          .evaluate((strip) => Math.abs(strip.scrollLeft - 2 * strip.clientWidth)),
+      )
+      .toBeLessThan(2)
+    const seen = await page.evaluate(
+      () => (window as unknown as { seenCounts: string[] }).seenCounts,
+    )
+    expect([...new Set(seen)], 'the counter went back mid-slide').toEqual([`3 / ${count}`])
+    // A press during a slide steps from the photo it is going to, not the one it is passing.
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('ArrowLeft')
+    await expect(counter).toHaveText(`1 / ${count}`)
+  })
+
   test('keeps Tab inside, and hides the page behind from the accessibility tree', async ({
     page,
   }) => {

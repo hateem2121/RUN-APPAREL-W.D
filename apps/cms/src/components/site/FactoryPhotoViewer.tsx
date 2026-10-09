@@ -74,11 +74,23 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
     strip.scrollTo({ left: startAt.current * strip.clientWidth, behavior: 'instant' })
   }, [strip])
 
+  /*
+   * ⚠️ THE PHOTO A SLIDE IS GOING TO. A key or button slides the strip smoothly, and the slide's
+   * own scroll events read the photo it is passing: for half the slide the counter said the photo
+   * being left ("3 / 8", "4 / 8", "3 / 8"), a second press in that moment stepped from the wrong
+   * photo, and a screen reader heard the count bounce (PR #154's WebKit job, 2026-10-09). So the
+   * scroll is ignored until the strip arrives — or until the visitor takes over with a finger, a
+   * wheel or a pointer. Not `scrollend`: Baseline only since December 2025 (MDN), older iPhones lack it.
+   */
+  const heading = useRef<number | null>(null)
+
   const goTo = useCallback(
     (next: number) => {
       if (!strip) return
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-      strip.scrollTo({ left: next * strip.clientWidth, behavior: reduce ? 'instant' : 'smooth' })
+      const left = next * strip.clientWidth
+      heading.current = Math.abs(strip.scrollLeft - left) < 2 ? null : next
+      strip.scrollTo({ left, behavior: reduce ? 'instant' : 'smooth' })
       setIndex(next)
     },
     [strip],
@@ -86,7 +98,15 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
 
   const onScroll = () => {
     if (!strip) return
+    if (heading.current !== null) {
+      if (Math.abs(strip.scrollLeft - heading.current * strip.clientWidth) >= 2) return
+      heading.current = null
+    }
     setIndex(indexFromScroll(strip.scrollLeft, strip.clientWidth, count))
+  }
+
+  const takeOver = () => {
+    heading.current = null
   }
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -136,6 +156,9 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
             className="photo-viewer__strip"
             ref={setStrip}
             onScroll={onScroll}
+            onPointerDown={takeOver}
+            onTouchStart={takeOver}
+            onWheel={takeOver}
             role="group"
             aria-label="Factory photos"
             // biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll area must take focus so a keyboard can scroll it (WCAG 2.1.1)
