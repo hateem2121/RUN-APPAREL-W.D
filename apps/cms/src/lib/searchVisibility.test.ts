@@ -98,6 +98,9 @@ describe('what the switch does', () => {
       'https://wear-run.com/careers',
       'https://wear-run.com/community',
       'https://wear-run.com/press',
+      // The about and factory pages (the about-factory build, 2026-10-09), in `COMPANY_PATHS`' order.
+      'https://wear-run.com/about',
+      'https://wear-run.com/inside-the-factory',
       'https://wear-run.com/faq',
       'https://wear-run.com/faq/orders-and-samples',
       'https://wear-run.com/faq/quality-and-certifications',

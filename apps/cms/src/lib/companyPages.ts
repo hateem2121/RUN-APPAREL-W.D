@@ -1,3 +1,4 @@
+import { ABOUT_FACTORY_PATHS } from './aboutPages'
 import { CERTIFICATION_LINES, LINEAGE } from './companyFacts'
 import type { GuideBlock } from './guides'
 
@@ -288,4 +289,7 @@ export const COMPANY_PATHS: readonly string[] = [
   CAREERS_PAGE.path,
   COMMUNITY_PAGE.path,
   PRESS_PAGE.path,
+  // The about and factory pages (the about-factory build, 2026-10-09); their words are in
+  // `aboutPages.ts`, which does not fit this file's `CompanyPage` shape.
+  ...ABOUT_FACTORY_PATHS,
 ]

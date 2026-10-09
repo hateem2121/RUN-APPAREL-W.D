@@ -30,6 +30,13 @@ const ORIGIN = 'https://wear-run.com'
 const BRAND_SUFFIX = ' — RUN APPAREL'
 const PAGES = [CAREERS_PAGE, COMMUNITY_PAGE, PRESS_PAGE]
 
+/*
+ * The about and factory pages (the about-factory build, 2026-10-09) are wired through
+ * `COMPANY_PATHS` like these three, but their words are `aboutPages.ts`'s (a timeline, five
+ * stages and gallery sets do not fit `CompanyPage`'s section blocks), and `aboutPages.test.ts`
+ * holds those words. `newPagesWiring.test.ts` walks COMPANY_PATHS across every registration.
+ */
+
 describe('every company page is wired everywhere a public page must be', () => {
   it('the page list and the header list name the same addresses, in the same order', () => {
     expect(COMPANY_PATHS).toEqual(COMPANY_PAGE_SOURCES)
