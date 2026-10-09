@@ -195,6 +195,11 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
           ) {
             continue
           }
+          // A list item that holds paragraphs is read through them, once (owner's choice,
+          // 2026-10-09). `main p, main li` matched the item AND its paragraphs, so a stage of the
+          // factory walkthrough counted twice, the second time as one run-on sentence with no full
+          // stop ("01 Pre-Production & Planning We talk…"): ease 47.9 counted so, 60.0 counted once.
+          if (el.tagName === 'LI' && el.querySelector('p')) continue
           const value = ((el as HTMLElement).innerText ?? '').trim()
           if (value.split(/\s+/).length < 5) continue
           parts.push(value)
