@@ -160,6 +160,10 @@ export function readCopyInPage() {
     ),
     body: document.body.innerText,
     decoded,
+    // A sentence the owner chose to keep word for word, quoted on the page as `[data-quote]`
+    // (/about's mission, 2026-10-09). Only the buzzword check skips it (owner's choice that day);
+    // the spelling and every other rule still read it.
+    quoted: [...document.querySelectorAll('[data-quote]')].map((el) => el.innerText.trim()),
   }
 }
 
