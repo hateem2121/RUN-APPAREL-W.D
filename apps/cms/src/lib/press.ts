@@ -56,7 +56,8 @@ export const PRESS_FACTS: readonly { label: string; value: string }[] = [
   { label: 'Parent company', value: 'DURUS INDUSTRIES' },
   { label: 'People', value: `About ${fact('People')}` },
   { label: 'Capacity', value: `${fact('Pieces per month')} pieces a month` },
-  { label: 'Under roof', value: `${fact('Sq ft')} sq ft` },
+  // sq m since 2026-10-09 (owner): the FACTS entry's unit was corrected the same day.
+  { label: 'Under roof', value: `${fact('Sq m')} sq m` },
   { label: 'Minimum order', value: `${fact('Minimum')} pieces per style` },
   { label: 'Sample', value: `${fact('Working days')} working days` },
   { label: 'Lead time', value: LEAD_TIME },

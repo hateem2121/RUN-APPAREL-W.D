@@ -26,6 +26,19 @@ describe('the published company facts', () => {
   })
 })
 
+/**
+ * The floor-area unit (owner, 2026-10-09): 193,000 is SQUARE METERS. The label said "Sq ft"
+ * from the first facts list until that correction; a buyer checking the figure against the
+ * building would have found it wrong by an order of magnitude.
+ */
+describe('the floor area is stated in sq m', () => {
+  it('labels the floor area "Sq m under roof", and no label says sq ft', () => {
+    const floor = FACTS.find((fact) => fact.value === '193,000')
+    expect(floor?.label).toBe('Sq m under roof')
+    expect(FACTS.map((fact) => fact.label).join(' ')).not.toMatch(/sq\.?\s*ft/i)
+  })
+})
+
 /** The marks `lines` name that `paragraph` does not, by their names. */
 const unbacked = (paragraph: string, lines: readonly string[]) =>
   lines
