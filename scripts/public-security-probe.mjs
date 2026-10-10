@@ -131,6 +131,9 @@ export const TARGETS = [
     '/journal',
     '/case-studies',
     '/press',
+    // The about and factory pages, live since #154 (2026-10-10).
+    '/about',
+    '/inside-the-factory',
     '/',
   ].map((pathname, i, all) => ({
     name: i === all.length - 1 ? 'site / again' : `site ${pathname}`,
@@ -194,6 +197,16 @@ export const TARGETS = [
     kind: 'host-redirect',
     expectStatus: 301,
     expectLocation: 'https://wear-run.com/products/rxps/wine',
+  },
+  // The typed address of the factory page (siteHostRules.mjs). PLAIN, no query, on purpose: that
+  // is the request the stored page cache draws from a clean copy, and the one that answered 404
+  // live after #154 while /factory?x=1 forwarded (2026-10-10; pageCache.mjs, KEPT_RENDER_HEADERS).
+  {
+    name: 'site /factory -> the factory page',
+    url: 'https://wear-run.com/factory',
+    kind: 'host-redirect',
+    expectStatus: 308,
+    expectLocation: 'https://wear-run.com/inside-the-factory',
   },
   // Both answer the SITE's branded 404, never Payload's real admin or a raw API response —
   // the host-rule rewrite working. "Page not found" is the branded page's own <title>.

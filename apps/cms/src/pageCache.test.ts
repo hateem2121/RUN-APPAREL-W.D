@@ -21,6 +21,7 @@ import {
   wholePage,
 } from '../pageCache.mjs'
 import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
+import { hostPattern, siteRedirects } from '../siteHostRules.mjs'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
 import { SiteSettings } from './globals/SiteSettings'
@@ -114,6 +115,41 @@ describe('the request a kept page is drawn from', () => {
 
   it('its fixed user agent gets the crawler page shape, as every visitor does', () => {
     expect(new RegExp(HTML_LIMITED_BOTS).test(KEPT_RENDER_HEADERS['user-agent'])).toBe(true)
+  })
+
+  /*
+   * ⚠️ THE SITE'S FORWARDS ARE TESTED AGAINST THE HOST HEADER, and a Request made in code has
+   * none. Live after #154 (2026-10-10): plain https://wear-run.com/factory answered 404 while
+   * /factory?x=1, /factory/ and the same address with a Range header forwarded — every one of
+   * those skips this clean request. OpenNext builds its headers from the request's headers only
+   * (@opennextjs/aws 4.1.4, dist/overrides/converters/edge.js) and tests a `has: host` rule as
+   * `new RegExp(value).test(headers.host)` (dist/core/routing/matcher.js), so with no host the
+   * forward never matched and the page fell through to the 404. This is that test.
+   */
+  const openNextHostMatch = (value: string, headers: Record<string, string>) =>
+    headers.host !== '' && new RegExp(value).test(headers.host as string)
+  const siteHostForwards = siteRedirects().filter((rule) =>
+    rule.has?.some((h) => h.type === 'host' && h.value === hostPattern(SITE_HOST)),
+  )
+
+  it('carries the host every one of the site’s forwards is tested against', () => {
+    expect(siteHostForwards.map((rule) => rule.source)).toContain('/factory')
+    const headers = Object.fromEntries(keptRenderRequest(crafted).headers)
+    for (const rule of siteHostForwards) {
+      expect(openNextHostMatch(rule.has?.[0]?.value ?? '', headers), rule.source).toBe(true)
+    }
+  })
+
+  // NEGATIVE CONTROL: the clean request as it was before the fix — no host — matches none.
+  it('sees the fault: without a host, no forward on the site matches', () => {
+    const before = Object.fromEntries(
+      new Request(`https://${SITE_HOST}/factory`, {
+        headers: { accept: 'text/html', 'user-agent': 'RUN APPAREL page cache' },
+      }).headers,
+    )
+    for (const rule of siteHostForwards) {
+      expect(openNextHostMatch(rule.has?.[0]?.value ?? '', before), rule.source).toBe(false)
+    }
   })
 })
 

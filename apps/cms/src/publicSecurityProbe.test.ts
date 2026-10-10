@@ -170,6 +170,7 @@ describe('TARGETS', () => {
     expect([...new Set(urls.map((u) => u.pathname))].sort()).toEqual([
       '/',
       '/.well-known/security.txt',
+      '/about',
       '/admin',
       '/api/products',
       '/careers',
@@ -180,6 +181,7 @@ describe('TARGETS', () => {
       '/custom-outerwear-manufacturer',
       '/custom-teamwear-manufacturer',
       '/definitely-not-a-page',
+      '/factory',
       '/faq',
       '/faq/fabrics-and-printing',
       '/faq/orders-and-samples',
@@ -195,6 +197,7 @@ describe('TARGETS', () => {
       '/guides/private-label-packaging',
       '/guides/shipping-and-import-duties',
       '/guides/sportswear-fabrics-and-weights',
+      '/inside-the-factory',
       '/journal',
       '/policies',
       '/policies/environmental',
@@ -214,12 +217,12 @@ describe('TARGETS', () => {
     ])
   })
 
-  it('has exactly one robots-txt-parity, seven host-redirect and one dns-txt target', () => {
+  it('has exactly one robots-txt-parity, eight host-redirect and one dns-txt target', () => {
     const kinds = (TARGETS as { kind: string }[]).map((t) => t.kind)
     expect(kinds.filter((k) => k === 'robots-txt-parity')).toHaveLength(1)
     // Four until the domain move (2026-09-28) added the two old site addresses and the
-    // printed QR tag.
-    expect(kinds.filter((k) => k === 'host-redirect')).toHaveLength(7)
+    // printed QR tag; eight since the plain /factory forward (2026-10-10).
+    expect(kinds.filter((k) => k === 'host-redirect')).toHaveLength(8)
     expect(kinds.filter((k) => k === 'dns-txt')).toHaveLength(1)
   })
 
@@ -435,6 +438,9 @@ describe('the script guard, seen from outside (SE-04)', () => {
         '/journal',
         '/case-studies',
         '/press',
+        // The about and factory pages, after #154 went live (2026-10-10).
+        '/about',
+        '/inside-the-factory',
         '/privacy',
         '/private-label-casual-wear-manufacturer',
         '/products',

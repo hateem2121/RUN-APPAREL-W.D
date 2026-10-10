@@ -526,6 +526,12 @@
   font-size: var(--text-lead);
 }
 
+/* The role chip fits its word: the card is a grid, which stretches its children, so "LEADERSHIP"
+   ran the card's width (312px of chip for 88px of text on a phone, live 2026-10-10). */
+.about-people__card .label {
+  justify-self: start;
+}
+
 .about-people__role {
   font-size: var(--text-lead);
   color: var(--heading);

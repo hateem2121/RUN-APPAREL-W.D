@@ -261,6 +261,34 @@ test.describe('the /about timeline', () => {
   }
 })
 
+/*
+ * The name card's role tag is a chip that fits its word, as every label chip on the site does. The
+ * card is a grid, which stretches its children, so on a phone "LEADERSHIP" ran the card's whole
+ * width (seen on the live page in iPhone Safari, 2026-10-10). Measured on the text itself.
+ */
+test.describe('the /about people', () => {
+  for (const width of [390, 1440]) {
+    test(`the role tag fits its word at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/about')
+      const fit = await page.locator('.about-people__card--name .label').evaluate((chip) => {
+        const style = getComputedStyle(chip)
+        const range = document.createRange()
+        range.selectNodeContents(chip)
+        const text = range.getBoundingClientRect().width
+        const padding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight)
+        return {
+          chip: chip.getBoundingClientRect().width,
+          wanted: text + padding,
+          card: (chip.parentElement as HTMLElement).clientWidth,
+        }
+      })
+      expect(fit.wanted, 'nothing was measured').toBeGreaterThan(20)
+      expect(fit.chip, `chip ${fit.chip}px in a ${fit.card}px card`).toBeLessThan(fit.wanted + 2)
+    })
+  }
+})
+
 test.describe('the factory walkthrough and the word rows', () => {
   test('a checkpoint lands as a tilted stamp where motion runs, and stays flat under reduced motion', async ({
     page,
