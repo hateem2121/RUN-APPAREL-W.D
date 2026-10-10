@@ -201,12 +201,15 @@ export const TARGETS = [
   // The typed address of the factory page (siteHostRules.mjs). PLAIN, no query, on purpose: that
   // is the request the stored page cache draws from a clean copy, and the one that answered 404
   // live after #154 while /factory?x=1 forwarded (2026-10-10; pageCache.mjs, KEPT_RENDER_HEADERS).
+  // ⚠️ THE LOCATION IS A PATH, not the full address: Next writes a forward to its own host as
+  // `location: /inside-the-factory` (measured live after #155, which this line then failed), and
+  // only a forward to ANOTHER host, as the ones above, carries `https://…`. Browsers resolve both.
   {
     name: 'site /factory -> the factory page',
     url: 'https://wear-run.com/factory',
     kind: 'host-redirect',
     expectStatus: 308,
-    expectLocation: 'https://wear-run.com/inside-the-factory',
+    expectLocation: '/inside-the-factory',
   },
   // Both answer the SITE's branded 404, never Payload's real admin or a raw API response —
   // the host-rule rewrite working. "Page not found" is the branded page's own <title>.
