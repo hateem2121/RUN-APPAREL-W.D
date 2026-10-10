@@ -94,9 +94,15 @@ export function keepablePageRequest(request) {
  * drawing gets a fixed request instead: the same address, and only what every visitor's copy is
  * drawn with. The user agent is fixed because HTML_LIMITED_BOTS ('.*') gives every agent the
  * crawler's page shape (src/pageCache.test.ts pins both).
+ *
+ * ⚠️ AND THE HOST, because the site's forwards are matched against the Host header and a Request
+ * made in code has none (2026-10-10: plain wear-run.com/factory answered 404 live while every
+ * variant that skipped this request forwarded; OpenNext reads only the request's own headers).
+ * It is the same for every visitor: keepablePageRequest keeps nothing on another host.
  */
 export const KEPT_RENDER_HEADERS = Object.freeze({
   accept: 'text/html',
+  host: SITE_HOST,
   'user-agent': 'RUN APPAREL page cache',
 })
 
