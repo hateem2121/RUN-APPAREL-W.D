@@ -137,6 +137,10 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   🟡 A page that will be kept is drawn from a CLEAN request (`keptRenderRequest`): none of the
   visitor's headers reach Next, because one visitor's `x-middleware-prefetch: 1` drew an empty
   200 (probe, 2026-10-04). Do not pass the visitor's request through "for the logs".
+  🟡 It DOES carry the site's host (`host: SITE_HOST` in `apps/cms/pageCache.mjs`): the site's forwards are matched
+  on the Host header, a Request made in code has none, and plain `/factory` answered 404 live
+  until that was added (2026-10-10). In `opennextjs-cloudflare preview` a page drawn this way
+  names `page-cache` in its Server-Timing header.
   🟡 Since 2026-10-07 the garment data (`GET /api/public/viewer/*` on `cms.wear-run.help`) is
   kept the same way (`viewerApiCache.mjs`; 4.0–4.5 s uncached that day). Its CORS headers are
   NEVER kept and are worked out for each request, because the Cache API ignores `Vary`.
