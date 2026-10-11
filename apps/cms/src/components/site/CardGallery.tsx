@@ -1,7 +1,15 @@
 'use client'
 
-import { type CSSProperties, type ReactNode, useRef, useState } from 'react'
-import { afterScroll, colourHref, slideAt, slidesToLoad, stepColour } from '../../lib/cardGallery'
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
+import {
+  afterScroll,
+  colourHref,
+  REST_FRAMES,
+  restingTarget,
+  slideAt,
+  slidesToLoad,
+  stepColour,
+} from '../../lib/cardGallery'
 import { cardImage } from '../../lib/cardImage'
 import type { CardColour } from '../../lib/projectPublic'
 import { ProductPoster } from './ProductPoster'
@@ -113,7 +121,47 @@ export function CardGallery({
     if (strip.current?.contains(event.target as Node)) heading.current = null
   }
 
-  /** The strip moved; `rested` once the browser reports it has come to rest (`scrollend`). */
+  /**
+   * Whether the strip's last move was the gallery settling it onto a picture (`restingTarget`):
+   * the rest after it is never corrected again, so a strip the browser will not snap where it is
+   * asked can never start a loop of corrections.
+   */
+  const settling = useRef(false)
+
+  /**
+   * The gallery's own rest signal for a glide it started: `REST_FRAMES` frames in a row with the
+   * strip still, beside `scrollend`.
+   *
+   * ⚠️ `scrollend` DOES NOT ALWAYS COME (11 Oct 2026). "Next" then "previous" 8ms apart stopped
+   * Chromium 153's strip 2px into the second picture, and no `scrollend` followed, in 6 of 6
+   * tries, though the strip had moved; Firefox 155 left it 7–14px in WITH one. A frame count, not a
+   * timer: a busy page that pauses the strip pauses the frames too, so a stalled glide never reads
+   * as a rest. It stops as soon as the glide is no longer ours (`heading` changed: a finger, the
+   * wheel, a key or another press).
+   */
+  const watcher = useRef(0)
+  const watchRest = (target: number) => {
+    cancelAnimationFrame(watcher.current)
+    const from = strip.current?.scrollLeft ?? 0
+    let last = from
+    let still = 0
+    const tick = () => {
+      const el = strip.current
+      if (!el || heading.current !== target) return
+      still = el.scrollLeft === last ? still + 1 : 0
+      last = el.scrollLeft
+      // A glide the browser has not started yet is not a rest: still counts only once the strip
+      // has moved or already stands where it was sent, or after `REST_FRAMES` × 5 without either.
+      const settled =
+        el.scrollLeft !== from || Math.abs(el.scrollLeft - target * el.clientWidth) <= 1
+      if (still >= (settled ? REST_FRAMES : REST_FRAMES * 5)) follow(true)
+      else watcher.current = requestAnimationFrame(tick)
+    }
+    watcher.current = requestAnimationFrame(tick)
+  }
+  useEffect(() => () => cancelAnimationFrame(watcher.current), [])
+
+  /** The strip moved; `rested` once it has come to rest (`scrollend`, or `watchRest`). */
   const follow = (rested: boolean) => {
     const el = strip.current
     if (!el) return
@@ -123,17 +171,33 @@ export function CardGallery({
       restsReported: 'onscrollend' in window,
     })
     heading.current = next.heading
+    if (rested) {
+      const settle = settling.current
+        ? null
+        : restingTarget(el.scrollLeft, el.getBoundingClientRect().width, colours.length)
+      settling.current = settle !== null
+      if (settle !== null) {
+        // Settling onto the picture it shows: a glide of our own, so none of its passing is shown.
+        heading.current = settle
+        el.scrollTo({ left: settle * el.clientWidth, behavior: glide() })
+        watchRest(settle)
+      }
+    }
     if (next.show === null) return
     setActive(next.show)
     want(next.show)
   }
 
+  /** A smooth glide, or an instant move when the visitor asks for reduced motion. */
+  const glide = (): ScrollBehavior =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+
   const show = (target: number) => {
     const el = strip.current
     if (!el) return
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     heading.current = target
-    el.scrollTo({ left: target * el.clientWidth, behavior: still ? 'auto' : 'smooth' })
+    el.scrollTo({ left: target * el.clientWidth, behavior: glide() })
+    watchRest(target)
     setActive(target)
     want(target)
   }

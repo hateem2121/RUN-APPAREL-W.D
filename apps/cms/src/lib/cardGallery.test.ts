@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { afterScroll, colourHref, slideAt, slidesToLoad, stepColour } from './cardGallery'
+import {
+  afterScroll,
+  colourHref,
+  restingTarget,
+  slideAt,
+  slidesToLoad,
+  stepColour,
+} from './cardGallery'
 
 describe('slideAt', () => {
   it('reads the slide from the scroll position', () => {
@@ -99,6 +106,43 @@ describe('afterScroll', () => {
     const unreported = { rested: false, restsReported: false }
     expect(afterScroll(1, 1, unreported)).toEqual({ heading: null, show: 1 })
     expect(afterScroll(1, 0, unreported)).toEqual({ heading: 1, show: null })
+  })
+})
+
+describe('restingTarget', () => {
+  it('leaves a strip that rests on a picture alone', () => {
+    expect(restingTarget(0, 366, 5)).toBeNull()
+    expect(restingTarget(732, 366, 5)).toBeNull()
+  })
+
+  // Firefox 155, 11 Oct 2026: "next" then "previous" 8ms apart left the strip 2–8px into the
+  // second picture, at rest, on a mandatory snap strip.
+  it('names the picture to settle on when the strip rests between two', () => {
+    expect(restingTarget(7, 366, 5)).toBe(0)
+    expect(restingTarget(373, 366, 5)).toBe(1)
+    expect(restingTarget(360, 366, 5)).toBe(1)
+  })
+
+  it('allows a pixel either way, so rounding never starts a correction', () => {
+    expect(restingTarget(366.9, 366, 5)).toBeNull()
+    expect(restingTarget(365.1, 366, 5)).toBeNull()
+  })
+
+  // A card 365.6px wide reports clientWidth 366; measured in slides of 366 the fifth picture
+  // would read 1.6px off for ever, and every correction would start another.
+  it('measures against the strip’s real, fractional width', () => {
+    expect(restingTarget(1462, 365.6, 5)).toBeNull()
+    expect(restingTarget(1462.4, 365.6, 5)).toBeNull()
+  })
+
+  it('reads a right-to-left strip by its distance from the start', () => {
+    expect(restingTarget(-7, 366, 5)).toBe(0)
+    expect(restingTarget(-366, 366, 5)).toBeNull()
+  })
+
+  it('does nothing for a strip with no width or no pictures', () => {
+    expect(restingTarget(7, 0, 5)).toBeNull()
+    expect(restingTarget(7, 366, 0)).toBeNull()
   })
 })
 

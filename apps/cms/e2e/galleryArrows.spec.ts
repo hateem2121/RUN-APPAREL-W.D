@@ -113,6 +113,66 @@ test('"previous" twice during a "next" glide ends on the last colour, and the pi
 })
 
 /*
+ * ⚠️ TWO PRESSES INSIDE ONE FRAME MUST STILL LEAVE THE STRIP ON A COLOR (11 Oct 2026). "Next" sends
+ * a smooth scroll; "previous" 8ms later sends one back to 0, where the page still reads the strip
+ * while the compositor has already carried it a few pixels. CSSOM View aborts the first glide and
+ * performs the second, which goes nowhere: Firefox 155 left the strip 2–14px into the next picture
+ * (Mozilla bug 1959811, `scroll-behavior: smooth` with `x mandatory` and `scroll-snap-stop: always`
+ * "stuck"), and Chromium 153 left it 2px in and sent no `scrollend` at all. CSS Scroll Snap 1 says
+ * a mandatory strip must rest on a snap position whenever nothing is scrolling it, so the gallery
+ * finishes the move (`restingTarget`, and `REST_FRAMES` where no `scrollend` comes).
+ *
+ * What would have to break for this to fail: the gallery not correcting a strip that rests between
+ * two pictures, in either engine. Both presses are the page's own `click()`, 8ms apart with the page
+ * free in between. Measured 11 Oct (scratchpad sweeps): 13 of 16 Firefox tries 8ms apart and 6 of 6
+ * Chromium ones stranded; in the same task, or with the main thread held instead, the page's reading
+ * and the strip stay in step and nothing strands, so neither is used here.
+ */
+test('two presses inside one frame leave the strip resting on a color, with the dot', async ({
+  page,
+}, testInfo) => {
+  const cards = await open(page)
+  const stranded: string[] = []
+  for (let index = 0; index < 6; index++) {
+    const card = cards.nth(index)
+    await card.scrollIntoViewIfNeeded()
+    const rest = await card.evaluate(async (element, gap) => {
+      const strip = element.querySelector<HTMLElement>('.card-gallery')
+      const next = element.querySelector<HTMLButtonElement>('.card-gallery__arrow--next')
+      const previous = element.querySelector<HTMLButtonElement>('.card-gallery__arrow--prev')
+      if (!strip || !next || !previous) throw new Error('the card has no strip or no arrows')
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      next.click()
+      await new Promise((resolve) => setTimeout(resolve, gap))
+      previous.click()
+      // At rest: 20 frames without movement, after at least one second (any correction included).
+      // Not `scrollend` alone: an engine that never moves the strip sends none (MDN, scrollend).
+      const began = performance.now()
+      let last = Number.NaN
+      let still = 0
+      while (performance.now() - began < 4000) {
+        await frame()
+        still = strip.scrollLeft === last ? still + 1 : 0
+        last = strip.scrollLeft
+        if (still >= 20 && performance.now() - began > 1000) break
+      }
+      return { left: strip.scrollLeft, slide: strip.clientWidth }
+    }, 8)
+    const off = Math.abs(rest.left - Math.round(rest.left / rest.slide) * rest.slide)
+    if (off > 1)
+      stranded.push(`card ${index + 1}: ${Math.round(rest.left)}px, ${off.toFixed(1)}px off`)
+    await expect
+      .poll(() => showing(card), { message: `card ${index + 1}` })
+      .toEqual({
+        dot: Math.round(rest.left / rest.slide),
+        picture: Math.round(rest.left / rest.slide),
+      })
+  }
+  testInfo.annotations.push({ type: 'stranded', description: stranded.join('; ') || 'none' })
+  expect(stranded, 'the strip came to rest between two pictures').toEqual([])
+})
+
+/*
  * The glide must END, or the dots would stop following the strip after an arrow is pressed: a
  * finger, the wheel or a key releases it at once (`handOver`), but nothing else does. This scrolls
  * the strip as a script would, with none of the three, once the glide has come to rest.

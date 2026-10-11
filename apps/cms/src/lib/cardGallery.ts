@@ -63,6 +63,42 @@ export function afterScroll(
   return { heading, show: null }
 }
 
+/**
+ * How many frames in a row a strip must stand still before a glide the gallery started counts as
+ * at rest when the browser sends no `scrollend` (Chromium 153 sent none in 6 of 6 strands,
+ * 11 Oct 2026). 12 frames found every rest in Chromium, Firefox and WebKit in that day's probe
+ * (18 tries each, presses 0, 8 and 16ms apart), and a gliding strip moves on every frame, so none
+ * was a glide caught mid-way.
+ */
+export const REST_FRAMES = 12
+
+/**
+ * Where a strip that has come to rest BETWEEN two pictures should settle: the picture it shows
+ * (`slideAt`), or null when it already rests on one, within a pixel either way.
+ *
+ * ⚠️ FIREFOX AND CHROMIUM CAN LEAVE A MANDATORY SNAP STRIP BETWEEN TWO PICTURES (11 Oct 2026).
+ * "Next" then "previous" 8ms apart: the compositor had glided the strip a few pixels while the
+ * page still read 0, so "previous" asked for 0, the position the page thought it was at. CSSOM View
+ * aborts the first glide; the second went nowhere. Firefox 155 rested 2–14px into the second
+ * picture (13 of 16 tries at 8ms; Mozilla bug 1959811 reports the family); Chromium 153 rested
+ * 2px in, 6 of 6, and sent no `scrollend` (hence `REST_FRAMES`). WebKit 26.6 never did. CSS Scroll Snap
+ * 1 says a mandatory strip "is required to be snapped to a snap position when there are no active
+ * scrolling operations", so the gallery finishes the move when the browser does not.
+ *
+ * `slideWidth` must be the strip's real width, fractions included (`getBoundingClientRect`): a card
+ * 365.6px wide reports `clientWidth` 366, and measured in slides of 366 the fifth picture would read
+ * 1.6px off for ever, so every correction would start another.
+ */
+export function restingTarget(
+  scrollLeft: number,
+  slideWidth: number,
+  count: number,
+): number | null {
+  if (count <= 0 || !(slideWidth > 0) || !Number.isFinite(scrollLeft)) return null
+  const at = slideAt(scrollLeft, slideWidth, count)
+  return Math.abs(Math.abs(scrollLeft) - at * slideWidth) > 1 ? at : null
+}
+
 /** One colour's garment page, `<GARMENT_PAGES>/<product>/<colour>` — the address printed on the QR tags. */
 export function colourHref(garmentPages: string, productSlug: string, colourSlug: string): string {
   return `${garmentPages}/${productSlug}/${colourSlug}`
