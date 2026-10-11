@@ -1083,6 +1083,8 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
   const PAGES = [
     ['home', join(FRONTEND, 'page.tsx')],
     ['products', join(FRONTEND, 'products', 'page.tsx')],
+    // The products page's groups, drawn by ProductGroup since 2026-10-11 (their count is there).
+    ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'ProductGroup.tsx')],
     ['contact', join(FRONTEND, 'contact', 'page.tsx')],
     ['privacy', join(FRONTEND, 'privacy', 'page.tsx')],
     ['terms', join(FRONTEND, 'terms', 'page.tsx')],
