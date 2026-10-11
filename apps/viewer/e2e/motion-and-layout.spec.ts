@@ -169,11 +169,20 @@ function contactOnScreen() {
     ...document.querySelectorAll('.contact-rail a, .action-bar a, .stage__contact a'),
   ]
   const persistent = controls.filter(inView)
+  // Which bar, which kind of link and its width (the check above needs width > 0), never the
+  // address or number: these messages land in public CI logs. Exact host, not a substring.
   const describe = (a: Element) => {
     const r = a.getBoundingClientRect()
     const cs = getComputedStyle(a)
-    const kind = a.getAttribute('href')?.split(':')[0] ?? '(no href)'
-    return `${kind} x=${Math.round(r.left)} y=${Math.round(r.top)}-${Math.round(r.bottom)} ${cs.display}/${cs.visibility}`
+    const link = new URL(a.getAttribute('href') ?? '', window.location.href)
+    const kind =
+      link.protocol === 'mailto:'
+        ? 'email'
+        : link.hostname === 'wa.me'
+          ? 'whatsapp'
+          : link.protocol.slice(0, -1)
+    const bar = ['contact-rail', 'action-bar', 'stage__contact'].find((box) => a.closest(`.${box}`))
+    return `${bar ?? '?'} ${kind} x=${Math.round(r.left)} w=${Math.round(r.width)} y=${Math.round(r.top)}-${Math.round(r.bottom)} ${cs.display}/${cs.visibility}`
   }
   return {
     listed: (document.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
