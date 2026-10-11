@@ -90,9 +90,19 @@ describe('llms.txt spells the American way — owner decision 2026-09-04', () =>
  */
 const PAGE_TYPES = ['BreadcrumbList']
 
-/** "schema.org Product structured data" or "schema.org/Product" → ['Product']. */
-const namedTypes = (source: string) =>
-  [...source.matchAll(/schema\.org[\s/]+([A-Z]\w*)/g)].map((match) => match[1] ?? '')
+/**
+ * "schema.org Product structured data" or "schema.org/Product" → ['Product']: the word after each
+ * "schema.org". Words, not one pattern: a pattern that spells the host reads to CodeQL as a URL
+ * check with no anchor (js/regex/missing-regexp-anchor, alert 90, 2026-10-11), and this checks no
+ * URL.
+ */
+const namedTypes = (source: string) => {
+  const words = source.split(/[^\w.-]+/)
+  return words.flatMap((word, index) => {
+    const type = /^[A-Z]\w*/.exec(words[index + 1] ?? '')?.[0]
+    return word === 'schema.org' && type ? [type] : []
+  })
+}
 
 describe('llms.txt names only the structured data the pages carry (D38)', () => {
   it('names no schema.org type that a garment page does not carry', () => {
