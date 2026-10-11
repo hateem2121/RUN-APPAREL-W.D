@@ -1,5 +1,5 @@
 import { ABOUT_FACTORY_PATHS } from './aboutPages'
-import { CERTIFICATION_LINES, LINEAGE } from './companyFacts'
+import { CERTIFICATION_LINES, LINEAGE, WHAT_WE_MAKE } from './companyFacts'
 import type { GuideBlock } from './guides'
 
 /**
@@ -261,7 +261,8 @@ export const PRESS_PAGE: CompanyPage = {
         { kind: 'text', text: LINEAGE },
         {
           kind: 'text',
-          text: 'It makes team wear, active wear, casual wear, outerwear and sports accessories to order, inside the building of its parent company, DURUS INDUSTRIES: cutting, printing, stitching, checking and packing under one roof.',
+          // The families in the words every profile uses (`WHAT_WE_MAKE`, owner 2026-10-11).
+          text: `It makes ${WHAT_WE_MAKE} to order, inside the building of its parent company, DURUS INDUSTRIES: cutting, printing, stitching, checking and packing under one roof.`,
         },
         { kind: 'list', items: CERTIFICATION_LINES },
       ],

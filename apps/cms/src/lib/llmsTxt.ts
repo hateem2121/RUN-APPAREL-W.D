@@ -1,7 +1,7 @@
 import { TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
 import { ABOUT_PAGE, FACTORY_PAGE } from './aboutPages'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
-import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
+import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
 import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
 import { COMPANY_PATHS, PRESS_PAGE } from './companyPages'
 import { FAMILIES } from './families'
@@ -97,12 +97,12 @@ export function buildLlmsTxt(siteOrigin: string): string {
   const caseStudies = `- [${CASE_STUDIES_HUB.title}](${siteOrigin}${CASE_STUDIES_PATH}) — written-up orders: what we made, for whom, how many and how long, added as each is published.\n`
   const journal = `\n## Journal\n\n- [${JOURNAL_HUB.title}](${siteOrigin}${JOURNAL_PATH}) — ${JOURNAL_HUB.description}\n`
 
+  // The summary opens with the phrase every profile opens with (`WHAT_WE_ARE`, owner 2026-10-11).
   return `# RUN APPAREL
 
-> A private label apparel manufacturer in Sialkot, Pakistan, making team wear, active
-> wear, casual wear, outerwear and sports accessories to order for brands, teams and
-> organizations. Reference garments have a 3D page a buyer can turn, zoom and inspect
-> before ordering.
+> RUN APPAREL is a ${WHAT_WE_ARE}, making ${WHAT_WE_MAKE} to order
+> for brands, teams and organizations. Reference garments have a 3D page a buyer can turn,
+> zoom and inspect before ordering.
 
 ${LINEAGE}
 

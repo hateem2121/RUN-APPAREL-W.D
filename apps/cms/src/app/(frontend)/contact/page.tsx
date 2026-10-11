@@ -12,6 +12,7 @@ import {
   SUBJECT_OTHER_LABEL,
   SUBJECTS,
 } from '../../../lib/inquiryForm'
+import { CONTACT_DESCRIPTION } from '../../../lib/pageDescriptions'
 import { buildMetadata } from '../../../lib/seo'
 import { contactPageJsonLd, formatAddress } from '../../../lib/structuredData'
 import { ContactGlobe } from '../../../components/site/ContactGlobe'
@@ -24,8 +25,7 @@ export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = buildMetadata({
   title: 'Contact',
-  description:
-    'Get in touch with RUN APPAREL — a private label apparel manufacturer in Sialkot, Pakistan. We reply within 24 hours.',
+  description: CONTACT_DESCRIPTION,
   path: '/contact',
 })
 

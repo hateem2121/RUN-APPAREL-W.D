@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FACTS } from '../../lib/companyFacts'
+import { FACTS, WHAT_WE_ARE, WHAT_WE_MAKE } from '../../lib/companyFacts'
 import { HERO_PHOTO, heroPhotoSrc } from '../../lib/factoryPhotos'
 
 /**
@@ -70,9 +70,9 @@ export function HomeHero() {
         <h1 className="display display--hero hero-home">
           Made to order. <span className="serif-accent">Made&nbsp;properly.</span>
         </h1>
+        {/* The definition every profile opens with (owner, 2026-10-11); `HomeHero.test.ts` holds it. */}
         <p className="site-lede">
-          RUN APPAREL is a private label manufacturer in Sialkot — team wear, active wear, casual
-          wear, outerwear and sports accessories, made to order for the brands, teams and
+          RUN APPAREL is a {WHAT_WE_ARE} — {WHAT_WE_MAKE}, made to order for the brands, teams and
           organizations that never look back.
         </p>
         <div className="site-actions">
