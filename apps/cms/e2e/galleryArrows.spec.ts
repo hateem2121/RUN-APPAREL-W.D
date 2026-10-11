@@ -127,12 +127,17 @@ test('"previous" twice during a "next" glide ends on the last colour, and the pi
  * free in between. Measured 11 Oct (scratchpad sweeps): 13 of 16 Firefox tries 8ms apart and 6 of 6
  * Chromium ones stranded; in the same task, or with the main thread held instead, the page's reading
  * and the strip stay in step and nothing strands, so neither is used here.
+ *
+ * WebKit 26.6 never strands, so there it passes with nothing to correct; so can a machine whose
+ * timing keeps the two presses in step. The "corrected" note says how many cards were really
+ * tested (review of 11 Oct 2026).
  */
 test('two presses inside one frame leave the strip resting on a color, with the dot', async ({
   page,
 }, testInfo) => {
   const cards = await open(page)
   const stranded: string[] = []
+  let corrections = 0
   for (let index = 0; index < 6; index++) {
     const card = cards.nth(index)
     await card.scrollIntoViewIfNeeded()
@@ -147,17 +152,26 @@ test('two presses inside one frame leave the strip resting on a color, with the 
       previous.click()
       // At rest: 20 frames without movement, after at least one second (any correction included).
       // Not `scrollend` alone: an engine that never moves the strip sends none (MDN, scrollend).
+      // The strip's real width, fractions included: `clientWidth` rounds (`restingTarget`).
+      const slide = strip.getBoundingClientRect().width
+      const offSnap = (left: number) => Math.abs(left - Math.round(left / slide) * slide) > 1
       const began = performance.now()
       let last = Number.NaN
       let still = 0
+      // A correction: the strip stood still between two pictures, then moved again.
+      let stranded = false
+      let corrected = false
       while (performance.now() - began < 4000) {
         await frame()
         still = strip.scrollLeft === last ? still + 1 : 0
+        if (still === 0 && stranded) corrected = true
+        if (still >= 1 && offSnap(strip.scrollLeft)) stranded = true
         last = strip.scrollLeft
         if (still >= 20 && performance.now() - began > 1000) break
       }
-      return { left: strip.scrollLeft, slide: strip.clientWidth }
+      return { left: strip.scrollLeft, slide, corrected }
     }, 8)
+    if (rest.corrected) corrections++
     const off = Math.abs(rest.left - Math.round(rest.left / rest.slide) * rest.slide)
     if (off > 1)
       stranded.push(`card ${index + 1}: ${Math.round(rest.left)}px, ${off.toFixed(1)}px off`)
@@ -169,6 +183,8 @@ test('two presses inside one frame leave the strip resting on a color, with the 
       })
   }
   testInfo.annotations.push({ type: 'stranded', description: stranded.join('; ') || 'none' })
+  // A green run where nothing stranded tested nothing; this says which kind of green it was.
+  testInfo.annotations.push({ type: 'corrected', description: `${corrections} of 6` })
   expect(stranded, 'the strip came to rest between two pictures').toEqual([])
 })
 

@@ -129,6 +129,14 @@ export function CardGallery({
   const settling = useRef(false)
 
   /**
+   * One slide's width, fractions included. `clientWidth` rounds: a card 365.6px wide reports 366,
+   * and reading positions in one width while `restingTarget` reads them in the other left the fifth
+   * picture 1.6px "off", so a press on it waited the long rest instead of 12 frames (review, 11 Oct
+   * 2026). Every read here uses this one.
+   */
+  const slideWidth = (el: HTMLElement) => el.getBoundingClientRect().width
+
+  /**
    * The gallery's own rest signal for a glide it started: `REST_FRAMES` frames in a row with the
    * strip still, beside `scrollend`.
    *
@@ -153,7 +161,7 @@ export function CardGallery({
       // A glide the browser has not started yet is not a rest: still counts only once the strip
       // has moved or already stands where it was sent, or after `REST_FRAMES` × 5 without either.
       const settled =
-        el.scrollLeft !== from || Math.abs(el.scrollLeft - target * el.clientWidth) <= 1
+        el.scrollLeft !== from || Math.abs(el.scrollLeft - target * slideWidth(el)) <= 1
       if (still >= (settled ? REST_FRAMES : REST_FRAMES * 5)) follow(true)
       else watcher.current = requestAnimationFrame(tick)
     }
@@ -165,7 +173,7 @@ export function CardGallery({
   const follow = (rested: boolean) => {
     const el = strip.current
     if (!el) return
-    const at = slideAt(el.scrollLeft, el.clientWidth, colours.length)
+    const at = slideAt(el.scrollLeft, slideWidth(el), colours.length)
     const next = afterScroll(heading.current, at, {
       rested,
       restsReported: 'onscrollend' in window,
@@ -174,12 +182,12 @@ export function CardGallery({
     if (rested) {
       const settle = settling.current
         ? null
-        : restingTarget(el.scrollLeft, el.getBoundingClientRect().width, colours.length)
+        : restingTarget(el.scrollLeft, slideWidth(el), colours.length)
       settling.current = settle !== null
       if (settle !== null) {
         // Settling onto the picture it shows: a glide of our own, so none of its passing is shown.
         heading.current = settle
-        el.scrollTo({ left: settle * el.clientWidth, behavior: glide() })
+        el.scrollTo({ left: settle * slideWidth(el), behavior: glide() })
         watchRest(settle)
       }
     }
@@ -196,7 +204,10 @@ export function CardGallery({
     const el = strip.current
     if (!el) return
     heading.current = target
-    el.scrollTo({ left: target * el.clientWidth, behavior: glide() })
+    // A press is a new glide, not the settling one: its own rest may be corrected again (review,
+    // 11 Oct 2026: a dot pressed while a correction ran skipped the correction it needed).
+    settling.current = false
+    el.scrollTo({ left: target * slideWidth(el), behavior: glide() })
     watchRest(target)
     setActive(target)
     want(target)
