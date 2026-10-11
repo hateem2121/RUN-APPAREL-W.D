@@ -699,6 +699,31 @@ describe('no product label for crawlers (D38)', () => {
       .filter((key) => /price/i.test(key))
     expect(priceKeys, 'a price reached the structured data').toEqual([])
   })
+
+  /*
+   * The two tests above read the preview object, and a crawler's page is more than that: `index.ts`
+   * appends the `<head>` blocks with HTMLRewriter, which Vitest cannot run, and index.html is the
+   * page every visitor gets. A product block typed into either would pass them, so this reads both
+   * sources and the page's own words (review of 2026-10-11). With this, the blocks read above are
+   * every block the page carries, and the no-price test covers the whole page.
+   */
+  it('index.ts appends one block, the breadcrumbs; index.html and the words carry none', () => {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const worker = readFileSync(join(here, 'index.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+    const appended = [...worker.matchAll(/application\/ld\+json">\$\{([^}]*)\}/g)].map(
+      (match) => match[1],
+    )
+    expect(appended, 'the blocks index.ts appends').toEqual(['preview.breadcrumbJsonLd'])
+    expect(worker.match(/application\/ld\+json/g) ?? [], 'a block built another way').toHaveLength(
+      1,
+    )
+    const page = stripComments(readFileSync(join(here, '..', 'index.html'), 'utf8'))
+    expect(page).not.toMatch(/ld\+json/i)
+    const preview = buildPreview(payload({}), { origin: ORIGIN, cards: CARDS, prefix: '/products' })
+    expect(preview.bodyHtml).not.toMatch(/ld\+json/i)
+  })
 })
 
 /**
