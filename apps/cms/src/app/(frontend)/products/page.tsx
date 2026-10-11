@@ -1,18 +1,13 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { permanentRedirect } from 'next/navigation'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
+import { ProductGroup } from '../../../components/site/ProductGroup'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { TicketDismiss } from '../../../components/site/TicketDismiss'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES } from '../../../lib/families'
-import {
-  FAMILY_SOON,
-  familyFilterForward,
-  familyIsSoon,
-  familyPageFor,
-} from '../../../lib/familyPages'
+import { familyFilterForward, familyIsSoon, familyPageFor } from '../../../lib/familyPages'
 import { PRODUCTS_DESCRIPTION } from '../../../lib/pageDescriptions'
 import { buildMetadata } from '../../../lib/seo'
 import { preconnectHost } from '../../../lib/posterHost'
@@ -183,61 +178,14 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               </nav>
 
               {groups.map(({ family: entry, page, products, soon, start }) => (
-                <section
+                <ProductGroup
                   key={entry.slug}
-                  id={entry.slug}
-                  className="gallery-group"
-                  aria-labelledby={`${entry.slug}-heading`}
-                >
-                  <div className="gallery-group__head">
-                    {/* The heading opens the family's own page, its only list (Q25). */}
-                    <h2
-                      id={`${entry.slug}-heading`}
-                      className="display display--section gallery-group__title"
-                    >
-                      {page ? (
-                        <Link className="gallery-group__link" href={page.path}>
-                          {entry.name}
-                          {/* The no-break space keeps the arrow beside the last word. */}
-                          <span aria-hidden="true">&nbsp;&rarr;</span>
-                        </Link>
-                      ) : (
-                        entry.name
-                      )}
-                    </h2>
-                    {soon ? (
-                      // No page and no garments yet: the owner's words for this family (Q21).
-                      <p className="gallery-group__soon">
-                        <span className="label">{FAMILY_SOON.label}</span>
-                        <Link className="gallery-group__ask" href={FAMILY_SOON.href}>
-                          {FAMILY_SOON.ask}
-                          <span aria-hidden="true">&rarr;</span>
-                        </Link>
-                      </p>
-                    ) : (
-                      <p className="result-count">
-                        {products.length} reference{products.length === 1 ? '' : 's'}
-                      </p>
-                    )}
-                  </div>
-                  {products.length > 0 ? (
-                    <ul className="product-grid">
-                      {products.map((product, index) => (
-                        <ProductCardItem
-                          key={product.slug}
-                          product={product}
-                          index={start + index}
-                          heading="h3"
-                        />
-                      ))}
-                    </ul>
-                  ) : page ? (
-                    <p className="site-empty">
-                      No 3D references in {entry.name} yet — the garments exist, the references are
-                      still being built. Email us and we will send what we have.
-                    </p>
-                  ) : null}
-                </section>
+                  entry={entry}
+                  page={page}
+                  products={products}
+                  soon={soon}
+                  start={start}
+                />
               ))}
 
               {unnamed.length > 0 ? (

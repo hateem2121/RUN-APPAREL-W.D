@@ -183,32 +183,34 @@ test.describe('the chips jump to their group (polish S8)', () => {
   })
 })
 
-test.describe('the groups after the first are drawn as they near the screen (polish S9)', () => {
-  test('the first group at once, the others deferred, and a Tab still walks into them', async ({
-    page,
-  }) => {
+/**
+ * Polish S9 (5 Oct) drew each group after the first only as it neared the screen. It was withdrawn
+ * on 11 Oct 2026: its 1,200px stand-in let an undrawn group's cards lie on the next group's (site.css;
+ * `productsGroups.spec.ts` holds every group to its own box). What S9's guard also held stays: a Tab
+ * walks from one group into the next.
+ */
+test.describe('every group is drawn at once, and a Tab walks from one into the next', () => {
+  test('no group is deferred, and a Tab crosses the boundary', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 })
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/products')
     const groups = await page.evaluate(() =>
       [...document.querySelectorAll('section.gallery-group')].map((group) => ({
-        id: group.id,
         visibility: getComputedStyle(group).contentVisibility,
-        // `contentVisibilityAuto`: false while the group is skipped, which proves it is deferred.
+        // `contentVisibilityAuto`: false while a group is skipped, true once it is drawn.
         drawn: (group.querySelector('h2') as HTMLElement).checkVisibility({
           contentVisibilityAuto: true,
         }),
       })),
     )
-    expect(groups.map((group) => group.visibility)).toEqual([
-      'visible',
-      ...FAMILIES.slice(1).map(() => 'auto'),
-    ])
-    expect(groups[0]?.drawn, 'the first group is not drawn on the first screen').toBe(true)
-    expect(groups.at(-1)?.drawn, 'the last group was drawn before it neared the screen').toBe(false)
+    expect(groups.map((group) => group.visibility)).toEqual(FAMILIES.map(() => 'visible'))
+    expect(
+      groups.map((group) => group.drawn),
+      'a group was left undrawn',
+    ).toEqual(FAMILIES.map(() => true))
 
-    // The guide's check: sequential keyboard reach across the boundary into a deferred group.
-    // From the first group's last stop, link or colour dot.
+    // Sequential keyboard reach across the boundary, from the first group's last stop (a link or a
+    // colour dot) into the second group.
     await page.locator('section.gallery-group').first().locator('a[href], button').last().focus()
     await page.keyboard.press('Tab')
     expect(

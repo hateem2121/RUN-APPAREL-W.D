@@ -3076,28 +3076,19 @@ a.contact-block__value:active {
  * page and no garments yet, shows "[ soon ]" and the way to ask instead (Q21).
  */
 /*
- * ⚠️ EVERY GROUP AFTER THE FIRST IS DRAWN ONLY AS IT NEARS THE SCREEN (polish S9, Q28; web-guidance
- * "defer-rendering-heavy-content", index of 4 September 2026). The page holds every garment (D1),
- * 40 cards with their pictures and dots, and a browser laid all of them out before the first
- * screen showed. `content-visibility: auto` skips a group's layout and paint until it is near;
- * its words and links stay in the page, for find-in-page, a screen reader and a crawler alike.
- * Not on the first group: it is on the first screen, where skipping only delays it. The size
- * stands in for a group not yet drawn, so the scrollbar does not jump, and `auto` keeps a group's
- * real size once it has been drawn. Baseline since 15 September 2025 (Safari 26); an older browser
- * draws every group, as before. `e2e/oneListPerFamily.spec.ts` holds a Tab moving into a group
- * that has not been drawn.
+ * ⚠️ EVERY GROUP IS DRAWN, ON PURPOSE (11 Oct 2026). Polish S9 (5 Oct) skipped drawing each group
+ * after the first until it neared the screen (`content-visibility: auto`) and stood it in at
+ * 1,200px. On a 412px phone Teamwear is 3,446px, so while it was undrawn its cards spilled 2,246px
+ * past that stand-in and lay on the next group's. Lighthouse's touch-target audit measures the page
+ * unscrolled, and it failed /products on a phone in every live run from 5 to 11 October. A phone's
+ * page also grew 2,246px as Teamwear was drawn: the very jump the stand-in was there to prevent.
+ * Drawing everything cost nothing measurable on the live page on 11 Oct (Lighthouse 13.5.0, phone,
+ * five runs each). The median score was 0.99 either way, and blocking time went from 9ms to 3ms.
+ * Largest paint was 1,581 against 1,770ms, but the single runs overlapped (1,446-1,851 against
+ * 1,565-2,579). `e2e/productsGroups.spec.ts` holds every group to its own box.
  */
 .gallery-group + .gallery-group {
   margin-block-start: 64px;
-  content-visibility: auto;
-  contain-intrinsic-size: auto none auto 1200px;
-}
-
-/* Paper has no screen to near: every group prints. */
-@media print {
-  .gallery-group + .gallery-group {
-    content-visibility: visible;
-  }
 }
 
 .gallery-group__head {
