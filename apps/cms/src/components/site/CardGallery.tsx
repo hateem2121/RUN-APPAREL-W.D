@@ -1,7 +1,7 @@
 'use client'
 
 import { type CSSProperties, type ReactNode, useRef, useState } from 'react'
-import { colourHref, slideAt, slidesToLoad } from '../../lib/cardGallery'
+import { afterScroll, colourHref, slideAt, slidesToLoad, stepColour } from '../../lib/cardGallery'
 import { cardImage } from '../../lib/cardImage'
 import type { CardColour } from '../../lib/projectPublic'
 import { ProductPoster } from './ProductPoster'
@@ -94,7 +94,7 @@ export function CardGallery({
   const href = colourHref(garmentPages, productSlug, showing?.slug ?? '')
 
   /**
-   * The colour a dot or an arrow is gliding the strip to, until it lands.
+   * The colour a dot or an arrow is gliding the strip to, until the strip comes to rest.
    *
    * ⚠️ WITHOUT IT, TWO QUICK ARROW PRESSES LOST THEIR PLACE (VA-30, caught by the browser test
    * 2026-10-02). A smooth scroll reports every slide it crosses, so mid-glide `active` read the
@@ -102,6 +102,10 @@ export function CardGallery({
    * second colour landed on the first instead of wrapping to the last. So while a glide is on
    * its way the passing slides are not shown, and a press counts from the destination. A
    * finger, the wheel or a key takes over at once (`handOver`): the glide is no longer ours.
+   *
+   * ⚠️ AND IT LASTS UNTIL THE STRIP RESTS (`onScrollEnd`), NOT UNTIL IT FIRST READS ITS COLOUR
+   * (11 Oct 2026, CI run 38142934506): a glide sent somewhere new keeps its speed, so it can read
+   * its destination on the way OUT. `afterScroll` in `lib/cardGallery.ts` has the measurements.
    */
   const heading = useRef<number | null>(null)
   /** Hand the strip back to the visitor — only for input ON the strip, never an arrow's press. */
@@ -109,16 +113,19 @@ export function CardGallery({
     if (strip.current?.contains(event.target as Node)) heading.current = null
   }
 
-  const onScroll = () => {
+  /** The strip moved; `rested` once the browser reports it has come to rest (`scrollend`). */
+  const follow = (rested: boolean) => {
     const el = strip.current
     if (!el) return
     const at = slideAt(el.scrollLeft, el.clientWidth, colours.length)
-    if (heading.current !== null) {
-      if (at !== heading.current) return
-      heading.current = null
-    }
-    setActive(at)
-    want(at)
+    const next = afterScroll(heading.current, at, {
+      rested,
+      restsReported: 'onscrollend' in window,
+    })
+    heading.current = next.heading
+    if (next.show === null) return
+    setActive(next.show)
+    want(next.show)
   }
 
   const show = (target: number) => {
@@ -131,8 +138,7 @@ export function CardGallery({
     want(target)
   }
   /** One colour on, either way, round from the last to the first, counted from where it is going. */
-  const step = (by: number) =>
-    show(((heading.current ?? active) + by + colours.length) % colours.length)
+  const step = (by: number) => show(stepColour(heading.current, active, by, colours.length))
 
   return (
     <>
@@ -151,7 +157,12 @@ export function CardGallery({
         onKeyDown={handOver}
         onFocus={engage}
       >
-        <div className="card-gallery" ref={strip} onScroll={onScroll}>
+        <div
+          className="card-gallery"
+          ref={strip}
+          onScroll={() => follow(false)}
+          onScrollEnd={() => follow(true)}
+        >
           {colours.map((colour, slide) => (
             <a
               key={colour.slug}
