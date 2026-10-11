@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client'
+import { FamilyChips } from '../../src/components/site/FamilyChips'
 import { FamilyGroup } from '../../src/components/site/FamilyGroup'
 import { FAMILIES } from '../../src/lib/families'
 import { familyIsSoon, familyPageFor } from '../../src/lib/familyPages'
@@ -7,8 +8,8 @@ import { LIVE_GROUPS } from './productsGroups'
 
 /*
  * /products' five groups as they stood live on 11 Oct 2026 (`productsGroups.ts`), drawn by the
- * page's own `FamilyGroup`. Teamwear, second, is the one that spilled: each group after the first
- * stood in at 1,200px, and its 19 cards on a phone take 3,446px.
+ * page's own `FamilyChips` and `FamilyGroup`. Teamwear, second, is the one that spilled: each group
+ * after the first stood in at 1,200px, and its 19 cards on a phone take 3,446px.
  *
  * Every garment carries five colours, as most live ones do, so each card draws its row of dots. No
  * pictures: a card then draws its placeholder in the same box.
@@ -53,5 +54,12 @@ const groups = LIVE_GROUPS.map(([slug, names]) => {
 
 const root = document.getElementById('root')
 if (root) {
-  createRoot(root).render(groups.map((group) => <FamilyGroup key={group.entry.slug} {...group} />))
+  createRoot(root).render(
+    <>
+      <FamilyChips groups={groups.map(({ entry, products }) => ({ family: entry, products }))} />
+      {groups.map((group) => (
+        <FamilyGroup key={group.entry.slug} {...group} />
+      ))}
+    </>,
+  )
 }
