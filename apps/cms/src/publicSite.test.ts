@@ -360,6 +360,9 @@ describe('copy rules', () => {
     ['home', join(FRONTEND, 'page.tsx')],
     ['contact', join(FRONTEND, 'contact', 'page.tsx')],
     ['products', join(FRONTEND, 'products', 'page.tsx')],
+    // The products page draws its groups through ProductGroup since 2026-10-11, so their words
+    // are there; reading page.tsx alone passed with "Shop now" planted in the group.
+    ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'ProductGroup.tsx')],
   ] as const
 
   for (const [name, path] of PAGES) {
@@ -518,6 +521,8 @@ describe('the notch', () => {
       [FRONTEND, 'page.tsx'],
       [FRONTEND, 'contact', 'page.tsx'],
       [FRONTEND, 'products', 'page.tsx'],
+      // The products page's groups, drawn by ProductGroup since 2026-10-11.
+      [CMS_ROOT, 'src', 'components', 'site', 'ProductGroup.tsx'],
       [CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx'],
       [CMS_ROOT, 'src', 'components', 'site', 'SiteFooter.tsx'],
     ]
