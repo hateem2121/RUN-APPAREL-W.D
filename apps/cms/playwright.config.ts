@@ -105,11 +105,13 @@ export default defineConfig({
      * `aboutFactory` joined 2026-10-09 (the about-factory build): the /about hero, the timeline
      * and the walkthrough are sticky sections on named scroll timelines with ranges (Safari 26),
      * and the photo viewer's swipe is a scroll-snap strip, all of it an iPhone visit.
+     * `productsGroups` joined 2026-10-11: a group drawn late by `content-visibility` (Safari 18+)
+     * spilled over the next group on a phone, and an iPhone opens /products in this engine.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

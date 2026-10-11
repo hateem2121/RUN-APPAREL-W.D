@@ -92,7 +92,8 @@ describe('a family says "[ soon ]" only with no page and no garment', () => {
     for (const file of ['app/(frontend)/page.tsx', 'app/(frontend)/products/page.tsx']) {
       expect(code(file), file).toMatch(/familyIsSoon\(/)
     }
-    const words = [code('app/(frontend)/products/page.tsx'), code('components/site/FamilyCard.tsx')]
+    // The products page draws its groups through FamilyGroup since 2026-10-11, so the words are there.
+    const words = [code('components/site/FamilyGroup.tsx'), code('components/site/FamilyCard.tsx')]
     for (const source of words) {
       expect(source).toMatch(/\bFAMILY_SOON\.label\b/)
       expect(source).toMatch(/\bFAMILY_SOON\.ask\b/)

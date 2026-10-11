@@ -253,14 +253,11 @@ function applyPreview(response: Response, preview: Preview): Response {
         el.append(
           `<meta property="og:url" content="${attr(preview.url)}" />` +
             `<link rel="canonical" href="${attr(preview.url)}" />` +
-            // schema.org Product, so a crawler that runs no JavaScript learns what
-            // this page IS and not merely how its link should look. See
-            // buildProductJsonLd for why there is no `offers` and how the CMS
-            // strings are escaped. APPENDED, never overwriting a tag in
-            // index.html: there is no ld+json block there to match, and an
-            // HTMLRewriter selector that matches nothing is a silent no-op.
-            `<script type="application/ld+json">${preview.jsonLd}</script>` +
-            // Home › Products › category › garment, on the website only (preview.ts).
+            // No schema.org Product block since D38 (2026-10-11): without a price it could earn
+            // no rich result and drew Search Console errors on every garment (preview.ts says
+            // more). Home › Products › category › garment, on the website only (preview.ts).
+            // APPENDED, never overwriting a tag in index.html: there is no ld+json block there to
+            // match, and an HTMLRewriter selector that matches nothing is a silent no-op.
             (preview.breadcrumbJsonLd
               ? `<script type="application/ld+json">${preview.breadcrumbJsonLd}</script>`
               : ''),

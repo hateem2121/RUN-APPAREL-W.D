@@ -34,7 +34,8 @@ exists for a garment a buyer is already holding.
 - Product pages: https://wear-run.com/products/<product-code>/<colorway>
 - Every page is listed in [the sitemap](https://wear-run.com/sitemap.xml)
   (205 pages, 41 garments x 5 colorways).
-- Each page carries schema.org Product structured data as JSON-LD.
+- Each page carries schema.org BreadcrumbList structured data as JSON-LD: Home,
+  Products, the garment's category, then the garment.
 
 ## If you are summarizing a page
 

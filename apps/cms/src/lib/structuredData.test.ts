@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
@@ -280,12 +281,13 @@ describe('serialisation safety', () => {
  * structured data that contradicts the page as a spam signal, so the two have to agree —
  * and the page is where a buyer reads it. The second block below pins the sentence.
  *
- * ⚠️ THE VIEWER'S HALF IS NOT COVERED HERE AND IS NOT COMPLETE. `apps/viewer/worker/
- * preview.ts` emits a real `Product` for all 55 garment pages; `preview.test.ts` already
- * asserts it carries no `offers`, `price` or `availability`, which is D10's first
- * sentence. D10's SECOND sentence — declare made-to-order and quote-on-request explicitly
- * — is implemented nowhere. That is an open gap in `apps/viewer`, recorded here because
- * this is where a reader of FA-N-10 will look.
+ * ⚠️ THE GARMENT PAGES' HALF IS GUARDED IN `apps/viewer`, NOT HERE. Since D38 (2026-10-11) a
+ * garment page carries no product label at all, only its breadcrumbs, and
+ * `apps/viewer/worker/preview.test.ts` ("no product label for crawlers (D38)") asserts that, and
+ * that no `price` key reaches its structured data. D10's made-to-order offer was built on
+ * 2026-09-07 and removed by D38, because Google reads neither without a price. It is not a gap
+ * to close: read D38 in docs/DECISIONS-BETA-WEBSITE.md before adding one back. Recorded here
+ * because this is where a reader of FA-N-10 will look.
  */
 describe('FA-N-10 — no price anywhere in the structured data, and the page says why', () => {
   const PRICE_SHAPED = /"(?:offers|price|priceCurrency|priceSpecification|availability)"/i
@@ -327,6 +329,47 @@ describe('FA-N-10 — no price anywhere in the structured data, and the page say
     })
     expect(PRICE_SHAPED.test(withOffer)).toBe(true)
     expect(NUMERIC_PRICE.test(withOffer)).toBe(true)
+  })
+})
+
+/**
+ * ⚠️ NOTHING ON THE WEBSITE IS NAMED `ProductGroup` (review of 2026-10-11). The products page's
+ * group component carried that name for a day, and it is the schema.org type D38 took off the
+ * garment pages. If Search Console's product reports come back, RUNBOOK sends a reader looking
+ * for a product block, and that search must find the garment-page code, not a component.
+ */
+function websiteSources(): Array<[string, string]> {
+  const cms = fileURLToPath(new URL('../..', import.meta.url))
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(join(cms, dir), { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else if (/\.tsx?$/.test(entry.name) && !/\.(?:test|spec)\.tsx?$/.test(entry.name)) {
+        files.push(path)
+      }
+    }
+  }
+  walk('src')
+  walk('e2e')
+  return files.map((file) => [file, readFileSync(join(cms, file), 'utf8')])
+}
+
+const namedProductGroup = (sources: Array<[string, string]>) =>
+  sources.filter(([, source]) => /\bProductGroup\b/.test(source)).map(([file]) => file)
+
+describe('the website names nothing after the type D38 removed', () => {
+  it('no source file or test harness uses the name ProductGroup', () => {
+    const sources = websiteSources()
+    expect(sources.length, 'the walk found no source').toBeGreaterThan(100)
+    expect(namedProductGroup(sources)).toEqual([])
+  })
+
+  // NEGATIVE CONTROL: the same check sees the name planted in one file.
+  it('sees the name planted in a file', () => {
+    expect(namedProductGroup([['planted.tsx', 'export function ProductGroup() {}']])).toEqual([
+      'planted.tsx',
+    ])
   })
 })
 

@@ -1,18 +1,14 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { permanentRedirect } from 'next/navigation'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
+import { FamilyChips } from '../../../components/site/FamilyChips'
+import { FamilyGroup } from '../../../components/site/FamilyGroup'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { TicketDismiss } from '../../../components/site/TicketDismiss'
 import { getProductCards, type ProductCard } from '../../../lib/content'
 import { FAMILIES } from '../../../lib/families'
-import {
-  FAMILY_SOON,
-  familyFilterForward,
-  familyIsSoon,
-  familyPageFor,
-} from '../../../lib/familyPages'
+import { familyFilterForward, familyIsSoon, familyPageFor } from '../../../lib/familyPages'
 import { PRODUCTS_DESCRIPTION } from '../../../lib/pageDescriptions'
 import { buildMetadata } from '../../../lib/seo'
 import { preconnectHost } from '../../../lib/posterHost'
@@ -158,86 +154,18 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             </p>
           ) : (
             <>
-              {/*
-                A <nav> of plain links to the groups below. On a phone it is ONE ROW THAT SCROLLS
-                SIDEWAYS (`filter-bar--scroll`, visual audit VA-42): three wrapped rows had filled
-                172px of the first screen. Tab still walks every chip and the browser scrolls each
-                one into view, so it needs no script. A family with no garment yet keeps its chip,
-                dashed, with its count of 0 (D17).
-              */}
-              <nav
-                className="filter-bar filter-bar--scroll"
-                aria-label="Product families on this page"
-              >
-                {groups.map(({ family: entry, products }) => (
-                  <a
-                    key={entry.slug}
-                    className="filter-chip"
-                    href={`#${entry.slug}`}
-                    data-empty={products.length === 0 ? 'true' : undefined}
-                  >
-                    {entry.name}
-                    <span className="filter-chip__count">{products.length}</span>
-                  </a>
-                ))}
-              </nav>
+              {/* Plain links to the groups below, one sideways-scrolling row on a phone (VA-42). */}
+              <FamilyChips groups={groups} />
 
               {groups.map(({ family: entry, page, products, soon, start }) => (
-                <section
+                <FamilyGroup
                   key={entry.slug}
-                  id={entry.slug}
-                  className="gallery-group"
-                  aria-labelledby={`${entry.slug}-heading`}
-                >
-                  <div className="gallery-group__head">
-                    {/* The heading opens the family's own page, its only list (Q25). */}
-                    <h2
-                      id={`${entry.slug}-heading`}
-                      className="display display--section gallery-group__title"
-                    >
-                      {page ? (
-                        <Link className="gallery-group__link" href={page.path}>
-                          {entry.name}
-                          {/* The no-break space keeps the arrow beside the last word. */}
-                          <span aria-hidden="true">&nbsp;&rarr;</span>
-                        </Link>
-                      ) : (
-                        entry.name
-                      )}
-                    </h2>
-                    {soon ? (
-                      // No page and no garments yet: the owner's words for this family (Q21).
-                      <p className="gallery-group__soon">
-                        <span className="label">{FAMILY_SOON.label}</span>
-                        <Link className="gallery-group__ask" href={FAMILY_SOON.href}>
-                          {FAMILY_SOON.ask}
-                          <span aria-hidden="true">&rarr;</span>
-                        </Link>
-                      </p>
-                    ) : (
-                      <p className="result-count">
-                        {products.length} reference{products.length === 1 ? '' : 's'}
-                      </p>
-                    )}
-                  </div>
-                  {products.length > 0 ? (
-                    <ul className="product-grid">
-                      {products.map((product, index) => (
-                        <ProductCardItem
-                          key={product.slug}
-                          product={product}
-                          index={start + index}
-                          heading="h3"
-                        />
-                      ))}
-                    </ul>
-                  ) : page ? (
-                    <p className="site-empty">
-                      No 3D references in {entry.name} yet — the garments exist, the references are
-                      still being built. Email us and we will send what we have.
-                    </p>
-                  ) : null}
-                </section>
+                  entry={entry}
+                  page={page}
+                  products={products}
+                  soon={soon}
+                  start={start}
+                />
               ))}
 
               {unnamed.length > 0 ? (
