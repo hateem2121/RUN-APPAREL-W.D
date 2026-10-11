@@ -133,8 +133,15 @@ export function CardGallery({
    * and reading positions in one width while `restingTarget` reads them in the other left the fifth
    * picture 1.6px "off", so a press on it waited the long rest instead of 12 frames (review, 11 Oct
    * 2026). Every read here uses this one.
+   *
+   * THE LAYOUT WIDTH, NOT `getBoundingClientRect()`: that one follows transforms, and a press on the
+   * card's words scales the whole card to 0.97 (`.product-card:active`, site.css), so a rest read
+   * mid-press saw the strip 3% narrow and asked for a scroll 11px short of the second picture
+   * (second review, 12 Oct 2026). Measured the same day, the mandatory snap pulled that request back
+   * onto the picture in all three engines, so nothing showed; this reads the width the snap points
+   * are laid out in. The strip has no padding or border, so its computed width is the slide.
    */
-  const slideWidth = (el: HTMLElement) => el.getBoundingClientRect().width
+  const slideWidth = (el: HTMLElement) => Number.parseFloat(getComputedStyle(el).width)
 
   /**
    * The gallery's own rest signal for a glide it started: `REST_FRAMES` frames in a row with the

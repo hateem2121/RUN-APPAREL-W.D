@@ -85,9 +85,10 @@ export const REST_FRAMES = 12
  * 1 says a mandatory strip "is required to be snapped to a snap position when there are no active
  * scrolling operations", so the gallery finishes the move when the browser does not.
  *
- * `slideWidth` must be the strip's real width, fractions included (`getBoundingClientRect`): a card
- * 365.6px wide reports `clientWidth` 366, and measured in slides of 366 the fifth picture would read
- * 1.6px off for ever, so every correction would start another.
+ * `slideWidth` must be the strip's real layout width, fractions included (its computed width, which
+ * no press-scale transform touches): a card 365.6px wide reports `clientWidth` 366, and measured in
+ * slides of 366 the fifth picture would read 1.6px off for ever, so every correction would start
+ * another.
  */
 export function restingTarget(
   scrollLeft: number,

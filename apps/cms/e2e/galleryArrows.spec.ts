@@ -152,13 +152,16 @@ test('two presses inside one frame leave the strip resting on a color, with the 
       previous.click()
       // At rest: 20 frames without movement, after at least one second (any correction included).
       // Not `scrollend` alone: an engine that never moves the strip sends none (MDN, scrollend).
-      // The strip's real width, fractions included: `clientWidth` rounds (`restingTarget`).
-      const slide = strip.getBoundingClientRect().width
+      // The strip's layout width, fractions included: `clientWidth` rounds (`restingTarget`).
+      const slide = Number.parseFloat(getComputedStyle(strip).width)
       const offSnap = (left: number) => Math.abs(left - Math.round(left / slide) * slide) > 1
       const began = performance.now()
       let last = Number.NaN
       let still = 0
-      // A correction: the strip stood still between two pictures, then moved again.
+      // A correction: the strip stood still between two pictures, then moved again. One still frame
+      // is enough because Firefox starts the correction on `scrollend` at once (with 3 it read 0–1
+      // of 6 against 13 of 16 strands measured), and a glide's slow tail is not counted: with the
+      // correction planted off this read 0 of 6 in every Chromium and Firefox run (12 Oct 2026).
       let stranded = false
       let corrected = false
       while (performance.now() - began < 4000) {
