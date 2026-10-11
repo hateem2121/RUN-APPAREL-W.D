@@ -1,3 +1,4 @@
+import { WHAT_WE_ARE } from '../../lib/companyFacts'
 import { PRESS_PAGE } from '../../lib/companyPages'
 import { factoryPhotoImage } from '../../lib/factoryPhotos'
 import { formatPostDate } from '../../lib/journal'
@@ -76,7 +77,7 @@ export function PressPage({
             <Heading id={about.id}>{about.heading}</Heading>
             <div className="company-head__words">
               <p className="site-lede">
-                {companyName} is a private label apparel manufacturer in Sialkot, Pakistan.
+                {companyName} is a {WHAT_WE_ARE}.
               </p>
               {sentences(about).map((text) => (
                 <p className="site-lede" key={text}>

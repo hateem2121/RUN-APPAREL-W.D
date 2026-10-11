@@ -125,6 +125,20 @@ export const LEAD_TIME =
 export const PARENT_COMPANY = 'DURUS INDUSTRIES'
 
 /**
+ * What the company is, in the phrase every profile opens with (owner, 2026-10-11, question tool:
+ * the description kit's wording, for the website as well). Google's Organization data, /llms.txt,
+ * /llms-full.txt, the contact page's description, the press page and the home hero all read it.
+ * The findability audit of 2026-10-08 found the company described five different ways online, and
+ * an AI answer repeats whichever one it read, so the site says it once. The home page's search
+ * description keeps its own wording without Sialkot (owner, 2026-09-16, kept on 2026-10-11).
+ * `companyFacts.test.ts`, `HomeHero.test.ts` and `PressPage.test.ts` hold every reader to it.
+ */
+export const WHAT_WE_ARE = 'private label sportswear manufacturer in Sialkot, Pakistan'
+
+/** The five product families in the same words: "teamwear" and "activewear", one word each. */
+export const WHAT_WE_MAKE = 'teamwear, activewear, casual wear, outerwear and sports accessories'
+
+/**
  * The registered name, in full (owner, 2026-10-08: "our full legal name is RUN APPAREL (PRIVATE)
  * LIMITED"). The pages print its usual short form, the CMS `companyName` "RUN APPAREL (PVT) LTD";
  * the structured data names both, so a search engine reads them as one company.

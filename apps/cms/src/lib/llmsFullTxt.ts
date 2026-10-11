@@ -1,5 +1,5 @@
 import { ABOUT_PAGE } from './aboutPages'
-import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO } from './companyFacts'
+import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
 import { FAMILIES } from './families'
 import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
 import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
@@ -170,10 +170,9 @@ ${page.questions.map((q) => `  - *Q: ${q.question}* -> A: ${q.answer}`).join('\n
 
   return `# RUN APPAREL — Complete Technical & Manufacturing Compendium
 
-> A B2B private label apparel manufacturer in Sialkot, Pakistan, making team wear, active
-> wear, casual wear, outerwear and sports accessories to order for international brands, teams
-> and organizations. Reference garments have an interactive 3D page a buyer can turn, zoom and
-> inspect in real time before sampling.
+> RUN APPAREL is a B2B ${WHAT_WE_ARE}, making ${WHAT_WE_MAKE} to order
+> for international brands, teams and organizations. Reference garments have an interactive 3D
+> page a buyer can turn, zoom and inspect in real time before sampling.
 
 ${LINEAGE}
 

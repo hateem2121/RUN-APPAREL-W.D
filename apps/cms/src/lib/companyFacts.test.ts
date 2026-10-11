@@ -1,4 +1,4 @@
-import { logosFor, STANDARDS_LOGOS } from '@run-apparel/shared'
+import { DEFAULT_SITE_SETTINGS, logosFor, STANDARDS_LOGOS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import {
   CERTIFICATION,
@@ -10,7 +10,16 @@ import {
   PARENT_COMPANY,
   PRECISION_MACHINES,
   SHIPS_TO,
+  WHAT_WE_ARE,
+  WHAT_WE_MAKE,
 } from './companyFacts'
+import { PRESS_PAGE } from './companyPages'
+import { buildLlmsFullTxt } from './llmsFullTxt'
+import { buildLlmsTxt } from './llmsTxt'
+import { CONTACT_DESCRIPTION } from './pageDescriptions'
+import { EMPTY_FOOTER, type PublicSiteSettings } from './projectPublic'
+import { SITE_NAME } from './seo'
+import { organizationJsonLd } from './structuredData'
 
 /**
  * The owner's review of 2026-09-29: shipment time "may vary order to order", so no fixed
@@ -137,5 +146,86 @@ describe('the lead time and the parent company', () => {
   it('name the parent company the certification paragraph names', () => {
     expect(PARENT_COMPANY).toBe('DURUS INDUSTRIES')
     expect(CERTIFICATION).toContain(PARENT_COMPANY)
+  })
+})
+
+/**
+ * ONE DEFINITION, WHEREVER THE SITE SUMMARIZES ITSELF (owner, 2026-10-11, question tool). Every
+ * profile now opens "RUN APPAREL is a private label sportswear manufacturer in Sialkot,
+ * Pakistan", and the owner chose to make the website's own summaries say the same. The
+ * findability audit of 2026-10-08 found the company described five different ways online, and an
+ * AI answer repeats whichever one it read; a second, hand-typed phrase on the site drifts the same
+ * way. So the phrase is `WHAT_WE_ARE` and each reader is held to it here. The home hero and the
+ * press page's first sentence are rendered in their own tests, and the home description keeps its
+ * own wording (no Sialkot, the owner's choice) in `pageDescriptions.test.ts`.
+ */
+const OLD_WORDING = [
+  /private label apparel manufacturer/i,
+  /private label manufacturer in Sialkot/i,
+  /\bteam wear\b/i,
+  /\bactive wear\b/i,
+]
+
+/** The old phrases a text still carries, by pattern. */
+const oldWordingIn = (text: string) =>
+  OLD_WORDING.filter((pattern) => pattern.test(text)).map((pattern) => pattern.source)
+
+describe('one definition of the company, wherever the site summarizes itself', () => {
+  const settings: PublicSiteSettings = {
+    ...DEFAULT_SITE_SETTINGS,
+    logoUrl: null,
+    logoMimeType: null,
+    footer: EMPTY_FOOTER,
+  }
+  const pressAbout = (PRESS_PAGE.sections.find((section) => section.id === 'about')?.blocks ?? [])
+    .map((block) => (block.kind === 'text' ? block.text : ''))
+    .join(' ')
+  const READERS: [string, string, string][] = [
+    [
+      'the Organization data',
+      String(organizationJsonLd(settings).description),
+      `${SITE_NAME} is a ${WHAT_WE_ARE}.`,
+    ],
+    [
+      '/llms.txt',
+      buildLlmsTxt('https://wear-run.com'),
+      `> ${SITE_NAME} is a ${WHAT_WE_ARE}, making ${WHAT_WE_MAKE}`,
+    ],
+    [
+      '/llms-full.txt',
+      buildLlmsFullTxt('https://wear-run.com', []),
+      `> ${SITE_NAME} is a B2B ${WHAT_WE_ARE}, making ${WHAT_WE_MAKE}`,
+    ],
+    ['the contact page description', CONTACT_DESCRIPTION, `${SITE_NAME}, a ${WHAT_WE_ARE}.`],
+    ['the press page About text', pressAbout, `It makes ${WHAT_WE_MAKE} to order`],
+  ]
+
+  it('is the phrase every profile opens with', () => {
+    expect(WHAT_WE_ARE).toBe('private label sportswear manufacturer in Sialkot, Pakistan')
+    expect(WHAT_WE_MAKE).toBe('teamwear, activewear, casual wear, outerwear and sports accessories')
+  })
+
+  it.each(READERS)('%s says it', (_reader, text, said) => {
+    expect(text).toContain(said)
+  })
+
+  it.each(READERS)('%s no longer carries the old wording', (_reader, text) => {
+    expect(oldWordingIn(text)).toEqual([])
+  })
+
+  it('opens the Organization data, which still names every family', () => {
+    const description = String(organizationJsonLd(settings).description)
+    expect(description.startsWith(`${SITE_NAME} is a ${WHAT_WE_ARE}.`)).toBe(true)
+    expect(description.toLowerCase()).toContain(WHAT_WE_MAKE)
+  })
+
+  // NEGATIVE CONTROL: the old summaries are caught, phrase by phrase.
+  it('sees the fault: the old wording is reported', () => {
+    const oldSummary =
+      'A private label apparel manufacturer in Sialkot, Pakistan, making team wear, active wear'
+    expect(oldWordingIn(oldSummary)).toHaveLength(3)
+    expect(oldWordingIn('RUN APPAREL is a private label manufacturer in Sialkot — team')).toEqual([
+      'private label manufacturer in Sialkot',
+    ])
   })
 })

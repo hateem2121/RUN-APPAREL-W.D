@@ -1,9 +1,13 @@
+import { WHAT_WE_ARE } from './companyFacts'
+
 /**
  * The search descriptions of the marketing site's own pages.
  *
  * ⚠️ WORDED BY THE OWNER, 2026-09-16, chosen from options. Do not rephrase without asking.
  * The home text was chosen as "the first option, but remove Sialkot"; the products text as
- * offered.
+ * offered. REWORDED BY THE OWNER 2026-10-11 (question tool): the home text now opens the way
+ * every profile does ("RUN APPAREL is a private label sportswear manufacturer"), still without
+ * Sialkot, and the contact text moved here from its page.
  *
  * ⚠️ 160 CHARACTERS IS THE CEILING. Search results show about that much of a description.
  * Measured live 2026-09-16, the home page's ran 296 and the products page's 186, so both
@@ -17,7 +21,13 @@
 export const MAX_PAGE_DESCRIPTION = 160
 
 export const HOME_DESCRIPTION =
-  'Private label sportswear, teamwear, uniforms, casual wear, outerwear and sports accessories. Made to order in Pakistan, since 1889. 50-piece minimum.'
+  'RUN APPAREL is a private label sportswear manufacturer in Pakistan: teamwear, uniforms, casual wear, outerwear and sports accessories, from 50 pieces per style.'
+
+/**
+ * The contact page's description, moved here from its page on 2026-10-11 so the length and copy
+ * rules hold it too. It names the company with `WHAT_WE_ARE`, the phrase every profile opens with.
+ */
+export const CONTACT_DESCRIPTION = `Get in touch with RUN APPAREL, a ${WHAT_WE_ARE}. We reply within 24 hours.`
 
 /**
  * The products page's description. It had a variant for each family filter until polish S3

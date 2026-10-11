@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it, vi } from 'vitest'
-import { FACTS } from '../../lib/companyFacts'
+import { FACTS, WHAT_WE_ARE, WHAT_WE_MAKE } from '../../lib/companyFacts'
 import { HomeHero } from './HomeHero'
 
 vi.mock('next/link', () => ({
@@ -50,5 +50,30 @@ describe('the home hero label, split in two halves', () => {
     const noSpaces = `[ Private label manufacturer since 1889<span class="label__dot">·</span><span class="label__tail">Start from ${minimum} pieces per style ]</span>`
     expect(textOf(noDot)).not.toBe(SAID)
     expect(textOf(noSpaces)).not.toBe(SAID)
+  })
+})
+
+/**
+ * The lede (owner, 2026-10-11, question tool): it opens with the definition every profile opens
+ * with (`WHAT_WE_ARE`, `companyFacts.ts`), because Google showed this paragraph as the home page's
+ * summary that day and it called the company "a private label manufacturer in Sialkot" in words
+ * no profile used. The ending is the owner's line and stays.
+ */
+const ledeMarkup = (html: string) => /<p class="site-lede">(.*?)<\/p>/s.exec(html)?.[1] ?? ''
+
+describe('the home hero lede', () => {
+  const html = renderToStaticMarkup(createElement(HomeHero))
+  const SAYS = `RUN APPAREL is a ${WHAT_WE_ARE} — ${WHAT_WE_MAKE}, made to order for the brands, teams and organizations that never look back.`
+
+  it('opens with the definition every profile opens with, and keeps its ending', () => {
+    expect(textOf(ledeMarkup(html))).toBe(SAYS)
+  })
+
+  // NEGATIVE CONTROL: the lede as it read before 2026-10-11 is caught by the same extraction.
+  it('sees the fault: the old lede does not pass', () => {
+    const before =
+      '<p class="site-lede">RUN APPAREL is a private label manufacturer in Sialkot — team wear, active wear, casual wear, outerwear and sports accessories, made to order for the brands, teams and organizations that never look back.</p>'
+    expect(textOf(ledeMarkup(before))).not.toBe('')
+    expect(textOf(ledeMarkup(before))).not.toBe(SAYS)
   })
 })

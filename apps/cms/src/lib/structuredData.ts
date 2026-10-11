@@ -1,5 +1,5 @@
 import { formatPhoneForDisplay, normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
-import { CALL_NUMBER, LEGAL_NAME, PARENT_COMPANY } from './companyFacts'
+import { CALL_NUMBER, LEGAL_NAME, PARENT_COMPANY, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
 import { bylineFor } from './bylines'
@@ -37,6 +37,9 @@ export { formatAddress, POSTAL_ADDRESS } from '@run-apparel/shared'
  * name". The short form the pages print (CMS `companyName`) first, then the registered name;
  * neither is repeated, and neither is the site name itself.
  */
+/** A phrase that starts a sentence, with its first letter capitalized. */
+const capitalized = (phrase: string): string => phrase.charAt(0).toUpperCase() + phrase.slice(1)
+
 function alternateNames(settings: PublicSiteSettings): { alternateName?: string[] } {
   const names = [settings.companyName.trim(), LEGAL_NAME].filter(
     (name, index, all) => name !== '' && name !== SITE_NAME && all.indexOf(name) === index,
@@ -123,12 +126,14 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
      * confirmed that day a 3D reference is available ON REQUEST, not part of every order. And
      * `areaServed` listed four regions until the owner said buyers "can be new and from
      * anywhere". `structuredData.test.ts` pins both.
+     *
+     * REWORDED 2026-10-11 (owner): it opens with `WHAT_WE_ARE`, the phrase every profile opens
+     * with, and names the families as `WHAT_WE_MAKE` does (`companyFacts.test.ts`).
      */
     description:
-      'Private label apparel manufacturer in Sialkot, Pakistan. Team wear, active wear, ' +
-      'casual wear, outerwear and sports accessories, made to order from 50 pieces per ' +
-      'style, with capacity for 100,000 pieces a month. A 3D reference a customer can turn ' +
-      'and inspect before a sample is cut is available on request.',
+      `${SITE_NAME} is a ${WHAT_WE_ARE}. ${capitalized(WHAT_WE_MAKE)}, made to order from 50 ` +
+      'pieces per style, with capacity for 100,000 pieces a month. A 3D reference a customer ' +
+      'can turn and inspect before a sample is cut is available on request.',
     numberOfEmployees: { '@type': 'QuantitativeValue', value: 200 },
     areaServed: 'Worldwide',
     // The parent company, as the site already states in words (CERTIFICATION, ABOUT). Google's
