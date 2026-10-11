@@ -50,9 +50,11 @@ targets are honest intentions, not a contractual SLA.
 
 **In scope**
 
-- `viewer.wear-run.help` — the public 3D viewer
+- `wear-run.com` — the website, including every garment's 3D page under `/products/`
 - `cms.wear-run.help` — the Payload admin and the public read-only API
-- `media.wear-run.help` — the R2 media domain
+- `media.wear-run.com` and `media.wear-run.help` — the R2 media domains
+- `wear-run.help` and `viewer.wear-run.help` — old addresses that forward to `wear-run.com`
+  (printed QR tags still carry them)
 - Anything in this repository: the Workers, the shrink container, the asset
   pipeline, and the CI/CD workflows
 
@@ -62,8 +64,8 @@ targets are honest intentions, not a contractual SLA.
   `https://catalogue.wear-run.help/`, `https://profile.wear-run.help/` or the same two
   addresses on `wear-run.com` answering **404** without a valid link. This is [by design](CLAUDE.md): decided 2026-09-11 and live from
   the merge that deploys it, the catalogue and company profile open only from a private
-  link whose code is a Worker secret (`infra/apex-404/`). The apex itself is the
-  marketing site, and every QR deep link uses the `viewer.` subdomain. None of these is
+  link whose code is a Worker secret (`infra/apex-404/`). The site itself is
+  `wear-run.com`; printed QR tags use `viewer.wear-run.help`, which forwards there. None of these is
   an outage or a vulnerability, and neither is guessing a link's words: they keep out
   accidental visitors and search engines by design. Any way to reach a document's pages,
   pictures or PDF **without** its words is in scope.
@@ -119,10 +121,9 @@ Reported here so you do not spend time re-discovering it:
 
 ## Handling of personal data
 
-The 3D viewer collects no personal data and sets no tracking cookies. Buyer
-enquiries are handed off to the visitor's own email or WhatsApp client — the
-viewer never receives the message. The CMS stores staff accounts (email +
-password hash) and product content only.
+What the website and the garment pages collect, why, and for how long is set out in the
+privacy notice, [wear-run.com/privacy](https://wear-run.com/privacy), which is kept current,
+so this file does not repeat it. The CMS also holds the staff accounts (email + password hash).
 
 The private catalogue and company profile links are different: opening one records
 the day and time, an approximate location, its time zone and the network, the
@@ -132,7 +133,7 @@ downloaded the file — in the website's own database, admins only. No IP addres
 no cookie are stored. Counting different people uses a code built from the
 connection and a secret that is replaced and deleted every day, so it cannot be
 traced back to a visitor or linked across days. Records are kept 12 months, then
-deleted automatically. See [wear-run.help/privacy](https://wear-run.help/privacy).
+deleted automatically. See [wear-run.com/privacy](https://wear-run.com/privacy).
 
 A D1 database export contains password hashes and is therefore never committed;
 `backups/` is gitignored. See [docs/BACKUP-RESTORE.md](docs/BACKUP-RESTORE.md).

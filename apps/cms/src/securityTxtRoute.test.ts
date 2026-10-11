@@ -7,7 +7,9 @@ import { GET, dynamic } from './app/.well-known/security.txt/route'
 /**
  * The site's `/.well-known/security.txt` (decided 2026-09-18, live from the merge that
  * deploys it). The route returns the shared text; the build proved Next registers a
- * dot-folder route (`○ /.well-known/security.txt`, prerendered byte-identical, 613 bytes).
+ * dot-folder route (`○ /.well-known/security.txt`, prerendered byte-identical). No byte count:
+ * it changes whenever the text does (613, then 616 on 2026-10-11), and the first test below
+ * already holds the bytes to the shared text's.
  */
 describe('/.well-known/security.txt on the site', () => {
   it('is the one shared text, as plain UTF-8, cached for an hour', async () => {
