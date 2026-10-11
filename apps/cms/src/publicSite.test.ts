@@ -360,9 +360,10 @@ describe('copy rules', () => {
     ['home', join(FRONTEND, 'page.tsx')],
     ['contact', join(FRONTEND, 'contact', 'page.tsx')],
     ['products', join(FRONTEND, 'products', 'page.tsx')],
-    // The products page draws its groups through FamilyGroup since 2026-10-11, so their words
-    // are there; reading page.tsx alone passed with "Shop now" planted in the group.
+    // The products page draws its groups and chips through FamilyGroup and FamilyChips since
+    // 2026-10-11, so their words are there; reading page.tsx alone passed with "Shop now" planted.
     ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx')],
+    ['products chips', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyChips.tsx')],
   ] as const
 
   for (const [name, path] of PAGES) {
@@ -521,8 +522,9 @@ describe('the notch', () => {
       [FRONTEND, 'page.tsx'],
       [FRONTEND, 'contact', 'page.tsx'],
       [FRONTEND, 'products', 'page.tsx'],
-      // The products page's groups, drawn by FamilyGroup since 2026-10-11.
+      // The products page's groups and chips, drawn by FamilyGroup and FamilyChips since 2026-10-11.
       [CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx'],
+      [CMS_ROOT, 'src', 'components', 'site', 'FamilyChips.tsx'],
       [CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx'],
       [CMS_ROOT, 'src', 'components', 'site', 'SiteFooter.tsx'],
     ]
@@ -1088,8 +1090,10 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
   const PAGES = [
     ['home', join(FRONTEND, 'page.tsx')],
     ['products', join(FRONTEND, 'products', 'page.tsx')],
-    // The products page's groups, drawn by FamilyGroup since 2026-10-11 (their count is there).
+    // The products page's groups and chips, drawn by FamilyGroup and FamilyChips since 2026-10-11
+    // (the group's count is there).
     ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx')],
+    ['products chips', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyChips.tsx')],
     ['contact', join(FRONTEND, 'contact', 'page.tsx')],
     ['privacy', join(FRONTEND, 'privacy', 'page.tsx')],
     ['terms', join(FRONTEND, 'terms', 'page.tsx')],

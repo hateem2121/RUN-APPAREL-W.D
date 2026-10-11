@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { permanentRedirect } from 'next/navigation'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
+import { FamilyChips } from '../../../components/site/FamilyChips'
 import { FamilyGroup } from '../../../components/site/FamilyGroup'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { TicketDismiss } from '../../../components/site/TicketDismiss'
@@ -153,29 +154,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             </p>
           ) : (
             <>
-              {/*
-                A <nav> of plain links to the groups below. On a phone it is ONE ROW THAT SCROLLS
-                SIDEWAYS (`filter-bar--scroll`, visual audit VA-42): three wrapped rows had filled
-                172px of the first screen. Tab still walks every chip and the browser scrolls each
-                one into view, so it needs no script. A family with no garment yet keeps its chip,
-                dashed, with its count of 0 (D17).
-              */}
-              <nav
-                className="filter-bar filter-bar--scroll"
-                aria-label="Product families on this page"
-              >
-                {groups.map(({ family: entry, products }) => (
-                  <a
-                    key={entry.slug}
-                    className="filter-chip"
-                    href={`#${entry.slug}`}
-                    data-empty={products.length === 0 ? 'true' : undefined}
-                  >
-                    {entry.name}
-                    <span className="filter-chip__count">{products.length}</span>
-                  </a>
-                ))}
-              </nav>
+              {/* Plain links to the groups below, one sideways-scrolling row on a phone (VA-42). */}
+              <FamilyChips groups={groups} />
 
               {groups.map(({ family: entry, page, products, soon, start }) => (
                 <FamilyGroup
