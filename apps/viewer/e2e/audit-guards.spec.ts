@@ -1754,38 +1754,6 @@ test.describe('FRONT/BACK/SIDE each move the camera and settle (MO-14)', () => {
  * `dispatchEvent(new KeyboardEvent(...))` — the same trusted-input requirement
  * `apps/viewer/CLAUDE.md` documents for pointer/wheel gestures applies to keyboard too.
  */
-/**
- * AC-14's own press must reach the garment, and the loading readout once took it (11 Oct 2026).
- * `.stage__loading` sits over the middle of the stage until the next render after the model
- * loads; under load that render came late, and the test's click at the canvas centre landed on
- * `span.stage__loading-title`, so the browser focused the nearest focusable box, the colour panel
- * (`tabIndex={-1}`), and `<model-viewer>` never saw the press: 2 of 40 in full local runs, 1 of 50
- * at a load average of 68–89. A visitor pressing the garment in that moment met the same.
- *
- * Held deterministically here: the model never arrives, so the readout stays, and the question
- * is what a press at the stage's centre hits (`elementFromPoint` skips what takes no press).
- */
-test('a press on the middle of the stage is never taken by the loading readout (AC-14)', async ({
-  page,
-  browserName,
-}) => {
-  await page.route('**/fixtures/n001.glb', () => {})
-  await page.goto('/n001/wine')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  const fallback = await stageFallsBack(page)
-  test.skip(fallback, `${browserName}: no WebGL here, so no download and no readout`)
-  await expect(page.locator('.stage__loading'), 'the readout this asks about').toBeVisible()
-  const hit = await page.evaluate(() => {
-    const box = document.querySelector('.stage__canvas')?.getBoundingClientRect()
-    if (!box) return 'no .stage__canvas'
-    const at = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
-    return at?.closest('.stage__loading')
-      ? `the readout (${at.tagName.toLowerCase()}.${at.className})`
-      : 'not the readout'
-  })
-  expect(hit, 'a press on the garment lands on the loading readout').toBe('not the readout')
-})
-
 test.describe('an arrow key rotates the garment, on every colourway this fixture serves (AC-14)', () => {
   for (const slug of ['wine', 'blush', 'butter', 'lime', 'black']) {
     test(`${slug}: ArrowLeft moves the camera`, async ({ page, browserName }) => {

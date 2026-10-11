@@ -1552,7 +1552,7 @@ model-viewer.stage__model {
   /* A readout, never a control (it holds no button; TRY 3D AGAIN lives in .stage__failure).
      It sits on the middle of the garment until the render after the model loads, and a press
      there landed on its text, so the colour panel took focus and the garment never turned
-     (AC-14, 11 Oct 2026: 2 of 40 under load). `audit-guards.spec.ts` holds it on screen. */
+     (AC-14, 11 Oct 2026: 2 of 40 under load). `loading-readout-webgl.spec.ts` holds it on screen. */
   pointer-events: none;
 }
 
