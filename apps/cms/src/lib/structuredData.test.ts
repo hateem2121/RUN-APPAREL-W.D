@@ -280,12 +280,13 @@ describe('serialisation safety', () => {
  * structured data that contradicts the page as a spam signal, so the two have to agree —
  * and the page is where a buyer reads it. The second block below pins the sentence.
  *
- * ⚠️ THE VIEWER'S HALF IS NOT COVERED HERE AND IS NOT COMPLETE. `apps/viewer/worker/
- * preview.ts` emits a real `Product` for all 55 garment pages; `preview.test.ts` already
- * asserts it carries no `offers`, `price` or `availability`, which is D10's first
- * sentence. D10's SECOND sentence — declare made-to-order and quote-on-request explicitly
- * — is implemented nowhere. That is an open gap in `apps/viewer`, recorded here because
- * this is where a reader of FA-N-10 will look.
+ * ⚠️ THE GARMENT PAGES' HALF IS GUARDED IN `apps/viewer`, NOT HERE. Since D38 (2026-10-11) a
+ * garment page carries no product label at all, only its breadcrumbs, and
+ * `apps/viewer/worker/preview.test.ts` ("no product label for crawlers (D38)") asserts that, and
+ * that no `price` key reaches its structured data. D10's made-to-order offer was built on
+ * 2026-09-07 and removed by D38, because Google reads neither without a price. It is not a gap
+ * to close: read D38 in docs/DECISIONS-BETA-WEBSITE.md before adding one back. Recorded here
+ * because this is where a reader of FA-N-10 will look.
  */
 describe('FA-N-10 — no price anywhere in the structured data, and the page says why', () => {
   const PRICE_SHAPED = /"(?:offers|price|priceCurrency|priceSpecification|availability)"/i

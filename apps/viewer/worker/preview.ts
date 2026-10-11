@@ -274,8 +274,8 @@ function esc(value: string): string {
  * head was complete and the body held no heading, no picture and no sentence, because this
  * is a single-page app and every visible word is drawn by JavaScript. Google renders
  * JavaScript, but later and not always; Bing renders little; the AI answer engines that
- * robots.txt invites render none. The Product JSON-LD says what the page IS; this is what
- * it SAYS.
+ * robots.txt invites render none. The title and description say what the page IS; this is
+ * what it SAYS.
  *
  * ⚠️ ONLY WHAT THE LOADED PAGE SHOWS. Text served to a robot and not to a visitor is
  * cloaking, which search engines penalise. Every line here is printed by the page itself:

@@ -1,6 +1,7 @@
 /**
- * The real `ProductGroup`, the real stylesheets and three of /products' families on a page of
- * their own, the 19 live Teamwear garments among them (11 Oct 2026).
+ * The real `ProductGroup`, the three stylesheets that lay a group out (tokens.css, base.css and
+ * site.css) and all five of /products' families on a page of their own, with the live counts
+ * of 11 Oct 2026 (the 19 Teamwear garments among them).
  *
  * ⚠️ WHY A HARNESS AND NOT /products. The defect this exists for needs a group after the first
  * that is longer than its 1,200px stand-in, and this suite's database holds one garment, a

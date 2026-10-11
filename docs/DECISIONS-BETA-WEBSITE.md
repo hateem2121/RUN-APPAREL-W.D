@@ -239,15 +239,18 @@ publish, and inventing one to satisfy a search engine is not an option. The
 correct expression of "price on application" is a declared availability and
 business function rather than a number.
 
-**Guard:** `apps/viewer/worker/preview.test.ts` asserts the offer is present and
-says `MadeToOrder`, and — separately — that the WHOLE serialised block matches
-neither `"price…": <digit>` nor `"priceCurrency"` nor `"priceSpecification"`. The
-second assertion is the one that matters: the failure worth guarding is a number
+**Guard:** since D38 (2026-10-11), `apps/viewer/worker/preview.test.ts` → "no product
+label for crawlers (D38)": no key containing `price` may reach any structured-data
+block a garment page carries. Until D38 the same file asserted the offer said
+`MadeToOrder`, and — separately — that the WHOLE serialised block matched neither
+`"price…": <digit>` nor `"priceCurrency"` nor `"priceSpecification"`. The second
+assertion was the one that mattered: the failure worth guarding is a number
 appearing beside a garment in a search result that nobody chose, and it could
 arrive as `price`, `lowPrice`, `highPrice` or one level down inside a
 `priceSpecification` a later edit adds. Checking one property would pass while any
-of the others shipped. Negative control observed: with `price: '49.99'` injected,
-it fails and names the block.
+of the others shipped, which is why D38's test matches every key containing
+`price`. Negative control observed: with `price: '49.99'` injected, the old test
+failed and named the block.
 
 ⚠️ **The second sentence of this decision went unimplemented for a day, and the
 code argued the opposite in prose.** `buildProductJsonLd` carried "NO `offers`,
@@ -1053,15 +1056,21 @@ D10's made-to-order offer was a true statement that Google cannot read:
 - **No penalty either way.** Google's page describes missing fields only as making a page
   ineligible for the rich result. RUNBOOK already called the warning expected. What changes is
   that Search Console stops reporting it, and the owner stops getting the emails.
-- **Nothing a buyer or a reading machine needs goes.** The fabric, weight, fit, colours and 3D
-  model are in the page's words (`buildCrawlerBody`), which every robot gets. Lighthouse's
-  agentic-browsing audits read no product markup (Lighthouse 13.5.0's default config).
+- **Nothing a buyer or a reading machine needs goes.** The fabric, weight, fit and colours are in
+  the page's words (`buildCrawlerBody`), which every robot gets. The one thing no robot-visible
+  output carries any more is the link to the 3D model file, which the label held;
+  `apps/viewer/public/llms.txt` already tells AI readers that file is a rendering input, not a
+  document. Lighthouse's agentic-browsing audits read no product markup (Lighthouse 13.5.0's
+  default config).
 
 **Guard:** `apps/viewer/worker/preview.test.ts` → "no product label for crawlers (D38)". It
 requires that a garment page carry breadcrumbs at most, never a Product, ProductGroup or Offer,
 and that no `price` key reach the structured data (D10). It failed on the old block. The
 breadcrumb block now carries the escaping test the product block had, proven with a planted
-fault.
+fault. It also reads `apps/viewer/worker/index.ts` and `apps/viewer/index.html`: the Worker
+appends one block, the breadcrumbs, and the static page carries none, so a block typed into
+either fails it too (the Worker file from before D38 does). `apps/viewer/src/llmsTxt.test.ts`
+holds llms.txt to the same list; the branch's review found it still describing the label.
 
 ## Closed since
 

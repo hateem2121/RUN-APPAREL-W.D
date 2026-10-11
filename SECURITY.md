@@ -65,7 +65,7 @@ targets are honest intentions, not a contractual SLA.
   addresses on `wear-run.com` answering **404** without a valid link. This is [by design](CLAUDE.md): decided 2026-09-11 and live from
   the merge that deploys it, the catalogue and company profile open only from a private
   link whose code is a Worker secret (`infra/apex-404/`). The site itself is
-  `wear-run.com`; printed QR tags use `viewer.wear-run.help`, which forwards there. None of these is
+  `wear-run.com`, and the old addresses that printed QR tags carry forward there. None of these is
   an outage or a vulnerability, and neither is guessing a link's words: they keep out
   accidental visitors and search engines by design. Any way to reach a document's pages,
   pictures or PDF **without** its words is in scope.
