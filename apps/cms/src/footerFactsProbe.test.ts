@@ -118,13 +118,16 @@ describe('missingFacts', () => {
     ])
   })
 
-  it('derives what it checks from the approved facts, 11 shown lines today', () => {
+  it('derives what it checks from the approved facts, 15 shown lines today', () => {
     const want = expectedFacts()
     // 12 until 2026-10-06: the owner's 2026-09-29 additions took it 10 → 12, then
     // polish X23 started rendering the two "Suppliers:" rows as ONE merged line and
     // the probe derived its expectations through the same standardsLines — so 4
     // stored rows show as 3 lines (3 capacity + hours… 9 text + 2 hrefs = 11).
-    expect(want.text.length + want.hrefs.length).toBe(11)
+    // 11 until 2026-10-11: the script's socialLinks caught up with the CMS (Google Maps
+    // and Crunchbase, added there 2026-10-08), so each brings a label and an href:
+    // 11 text + 4 hrefs = 15. The live probe read all 15 on wear-run.com that day.
+    expect(want.text.length + want.hrefs.length).toBe(15)
   })
 
   it('treats 403 and 429 as inconclusive, a real error as an answer', () => {
