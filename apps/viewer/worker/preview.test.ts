@@ -651,221 +651,53 @@ describe('the tags index.ts rewrites still exist in index.html', () => {
   })
 })
 
-describe('schema.org Product JSON-LD', () => {
-  /**
-   * This is the only machine-readable description of the product that a crawler
-   * which runs no JavaScript ever sees — `<div id="root">` is empty in the served
-   * HTML. Every failure here is silent: the page renders perfectly and the
-   * structured data is wrong, absent, or malformed, and nobody inspects a rich
-   * result on purpose.
-   */
-  const parse = (p: ReturnType<typeof buildPreview>) => JSON.parse(p.jsonLd)
-  /** This page's own colour: the first variant, the only one given in full (2026-10-08). */
-  const shown = (data: { hasVariant: Array<Record<string, unknown>> }) => data.hasVariant[0] ?? {}
+/**
+ * ⚠️ NO PRODUCT LABEL FOR CRAWLERS (D38, owner 2026-10-11). Until then a garment page called itself
+ * a schema.org ProductGroup, its colour a Product with an `Offer` that had no price (D10). Google
+ * uses Product markup only to show a price or a rating and needs one of them (product snippets and
+ * merchant listings, docs read 2026-10-11), so Search Console reported 2 errors and 7 warnings on
+ * every garment (rxps/wine, crawled 2026-09-30) and the label earned nothing. A crawler still gets
+ * the breadcrumbs (below) and the page's own words (`buildCrawlerBody`, above).
+ */
+describe('no product label for crawlers (D38)', () => {
+  /** Every structured-data block the preview carries, parsed. */
+  const blocks = (preview: ReturnType<typeof buildPreview>) =>
+    Object.entries(preview)
+      .filter(([key, value]) => /jsonld/i.test(key) && typeof value === 'string')
+      .map(([, value]) => JSON.parse(value as string) as unknown)
+  /** Every key anywhere in a parsed block. */
+  const keys = (value: unknown): string[] =>
+    value && typeof value === 'object'
+      ? Object.entries(value).flatMap(([key, inner]) => [key, ...keys(inner)])
+      : []
+  /** Every `@type` anywhere in a parsed block. */
+  const types = (value: unknown): string[] =>
+    value && typeof value === 'object'
+      ? Object.entries(value).flatMap(([key, inner]) =>
+          key === '@type' ? [String(inner)] : types(inner),
+        )
+      : []
 
-  it('describes the garment with the values the CMS actually holds', () => {
-    const data = parse(
-      buildPreview(
-        payload({
-          product: {
-            shortDescription: 'A four-way stretch skinsuit.',
-            performanceFeatures: ['Moisture management', 'Four-way stretch'],
-          },
-        }),
-        { origin: ORIGIN, cards: CARDS },
-      ),
-    )
+  it.each([
+    ['the website', '/products', ['BreadcrumbList', 'ListItem']],
+    ['the old viewer host', '', []],
+  ] as const)(
+    '%s: breadcrumbs at most, never a Product, ProductGroup or Offer',
+    (_host, prefix, expected) => {
+      const preview = buildPreview(payload({}), { origin: ORIGIN, cards: CARDS, prefix })
+      expect(Object.keys(preview).filter((key) => /jsonld/i.test(key))).toEqual([
+        'breadcrumbJsonLd',
+      ])
+      expect([...new Set(blocks(preview).flatMap(types))].sort()).toEqual([...expected])
+    },
+  )
 
-    // The garment, as the group every colour belongs to …
-    expect(data['@context']).toBe('https://schema.org')
-    expect(data['@type']).toBe('ProductGroup')
-    expect(data.name).toBe('Velocity Performance Skinsuit')
-    expect(data.productGroupID).toBe('N001')
-    expect(data.variesBy).toEqual(['https://schema.org/color'])
-    expect(data.category).toBe('Sportswear')
-    expect(data.description).toBe('A four-way stretch skinsuit.')
-    expect(data.material).toBe('80% recycled polyester / 20% elastane')
-    expect(data.brand).toEqual({ '@type': 'Brand', name: 'RUN' })
-    // … and this page's colour, in full.
-    const variant = shown(data)
-    expect(variant['@type']).toBe('Product')
-    expect(variant.name).toBe('Velocity Performance Skinsuit — Wine')
-    expect(variant.color).toBe('Wine')
-    expect(variant.url).toBe(`${ORIGIN}/n001/wine`)
-    expect(variant.image).toBe(`${ORIGIN}/og/n001/wine.jpg`)
-    expect(variant.subjectOf).toEqual({
-      '@type': '3DModel',
-      name: 'Velocity Performance Skinsuit 3D Digital Reference',
-      encoding: [
-        {
-          '@type': 'MediaObject',
-          contentUrl: 'https://media.wear-run.help/cycling-all-colours-optimized-4.glb',
-          encodingFormat: 'model/gltf-binary',
-        },
-      ],
-    })
-
-    const specs = Object.fromEntries(
-      (data.additionalProperty as Array<{ name: string; value: string }>).map((s) => [
-        s.name,
-        s.value,
-      ]),
-    )
-    expect(specs.Weight).toBe('160 GSM')
-    expect(specs.Fit).toBe('Race fit')
-    expect(specs['Performance features']).toBe('Moisture management, Four-way stretch')
-    expect(specs['Colorways available']).toBe('3')
-  })
-
-  it('omits subjectOf 3DModel when no glbUrl is available', () => {
-    const only = colourway({ glbUrl: null })
-    const data = parse(
-      buildPreview(
-        payload({
-          product: { glbUrl: null },
-          colourways: [only],
-          selectedColourway: only,
-        }),
-        { origin: ORIGIN, cards: CARDS },
-      ),
-    )
-    expect(data).not.toHaveProperty('subjectOf')
-    expect(shown(data)).not.toHaveProperty('subjectOf')
-  })
-
-  it('declares made-to-order, because silence is not the same as no price', () => {
-    /*
-     * Owner decision 2026-09-07 (D10). This asserted `data.offers` was UNDEFINED until
-     * then, on the reasoning that Google's Product docs want a price and inventing one
-     * would put a false claim on 55 public URLs. That reasoning survives intact and is
-     * the next test; what it got wrong was treating "no price" as "say nothing".
-     * `MadeToOrder` and `Sell` are facts about this business, not inventions.
-     */
-    // On this page's colour since 2026-10-08 (ProductGroup); the group itself offers nothing.
-    const data = parse(buildPreview(payload({}), { origin: ORIGIN, cards: CARDS }))
-    const offers = shown(data).offers as Record<string, unknown> | undefined
-    expect(data).not.toHaveProperty('offers')
-    expect(offers).toBeDefined()
-    expect(offers?.['@type']).toBe('Offer')
-    expect(offers?.availability).toBe('https://schema.org/MadeToOrder')
-    expect(offers?.businessFunction).toBe('http://purl.org/goodrelations/v1#Sell')
-  })
-
-  it('states no price ANYWHERE in the block, which is the failure worth guarding', () => {
-    /*
-     * ⚠️ ASSERTED OVER THE WHOLE SERIALISED BLOCK, NOT OVER `offers.price`. The thing
-     * that must never happen is a number appearing beside a garment in a search result
-     * that nobody chose — and it could arrive as `price`, `lowPrice`, `highPrice` or
-     * inside a `priceSpecification` a later edit adds one level down. Checking one
-     * property would pass while any of the others shipped.
-     */
-    const raw = buildPreview(payload({}), { origin: ORIGIN, cards: CARDS })
-    const block = JSON.stringify(parse(raw))
-    expect(block, 'a price reached the structured data').not.toMatch(
-      /"(?:price|lowPrice|highPrice|minPrice|maxPrice)"\s*:\s*"?\d/,
-    )
-    expect(block, 'a currency reached the structured data').not.toMatch(/"priceCurrency"/)
-    expect(block).not.toMatch(/"priceSpecification"/)
-  })
-
-  it('omits an empty field rather than emitting an empty string', () => {
-    // "" is a claim that the value is blank. Absence says nothing, which is what
-    // an unfilled CMS field actually means. Ten of eleven live products had empty
-    // customisation fields on 2026-09-04, so partly-filled records are the norm.
-    const data = parse(
-      buildPreview(
-        payload({
-          product: {
-            shortDescription: '   ',
-            // NOT category: it is a closed union (ProductCategory) with no empty
-            // member, so a blank one is unrepresentable and asserting it would be
-            // testing a state that cannot occur. The runtime guard in
-            // buildProductJsonLd stays anyway — the payload crosses a network
-            // boundary and TypeScript does not validate what actually arrives.
-            garmentFit: '',
-            fabricComposition: '',
-            gsm: '',
-            performanceFeatures: [],
-          },
-        }),
-        { origin: ORIGIN, cards: CARDS },
-      ),
-    )
-    expect(data).not.toHaveProperty('description')
-    expect(data).not.toHaveProperty('material')
-    expect(data.category).toBe('Sportswear')
-    const names = (data.additionalProperty as Array<{ name: string }>).map((s) => s.name)
-    expect(names).toEqual(['Colorways available'])
-    // …and the fields that always exist are still there.
-    expect(data.name).toBe('Velocity Performance Skinsuit')
-    expect(shown(data).url).toBe(`${ORIGIN}/n001/wine`)
-  })
-
-  it('escapes < so CMS text cannot break out of the script block', () => {
-    const hostile = 'Ends here.</script><script>alert(1)</script>'
-    const preview = buildPreview(payload({ product: { shortDescription: hostile } }), {
-      origin: ORIGIN,
-      cards: CARDS,
-    })
-
-    // The literal sequence must not survive into the emitted string …
-    expect(preview.jsonLd).not.toContain('</script>')
-    expect(preview.jsonLd).not.toContain('<script')
-    expect(preview.jsonLd).toContain('\\u003c/script>')
-    // … while the VALUE round-trips intact, so escaping has not corrupted content.
-    expect(parse(preview).description).toBe(hostile)
-
-    // NEGATIVE CONTROL: prove the assertion can fail. Without the escape in
-    // buildProductJsonLd, JSON.stringify alone leaves `</script>` verbatim — it is
-    // a legal JSON string — and the block would close early on a live page.
-    expect(JSON.stringify({ description: hostile })).toContain('</script>')
-  })
-
-  it('describes the colourway that will LOAD, not the one that was requested', () => {
-    // A QR tag pointing at a retired colour resolves to the default. Structured
-    // data naming the requested colour would advertise a page nobody can reach —
-    // the same reason `url` uses selectedColourway.
-    const colourways = [
-      colourway({ displayName: 'Wine', slug: 'wine' }),
-      colourway({ displayName: 'Lime', slug: 'lime', sequence: 2, isDefault: false }),
-    ]
-    const data = parse(
-      buildPreview(payload({ colourways, selectedColourway: colourways[1]! }), {
-        origin: ORIGIN,
-        cards: CARDS,
-      }),
-    )
-    expect(shown(data).color).toBe('Lime')
-    expect(shown(data).url).toBe(`${ORIGIN}/n001/lime`)
-  })
-
-  /*
-   * 2026-10-08: Google's variants guide (updated 2026-09-08), multi-page sites: each colour page
-   * repeats the group, gives its own colour in full, and lists every other colour by URL only.
-   */
-  it('lists every other colour by its own page, and this colour once, in full', () => {
-    const colourways = [
-      colourway({ displayName: 'Wine', slug: 'wine' }),
-      colourway({ displayName: 'Lime', slug: 'lime', sequence: 2, isDefault: false }),
-      colourway({ displayName: 'Navy', slug: 'navy', sequence: 3, isDefault: false }),
-    ]
-    const data = parse(
-      buildPreview(payload({ colourways, selectedColourway: colourways[1]! }), {
-        origin: 'https://wear-run.com',
-        cards: CARDS,
-        prefix: '/products',
-      }),
-    )
-    const variants = data.hasVariant as Array<Record<string, unknown>>
-    expect(variants.map((v) => v.url)).toEqual([
-      'https://wear-run.com/products/n001/lime',
-      'https://wear-run.com/products/n001/wine',
-      'https://wear-run.com/products/n001/navy',
-    ])
-    // The others carry only their address: a page describes what it shows.
-    for (const other of variants.slice(1))
-      expect(Object.keys(other).sort()).toEqual(['@type', 'url'])
-    expect(variants[0]?.offers).toBeDefined()
+  it('states no price anywhere in the structured data (D10 stands)', () => {
+    const preview = buildPreview(payload({}), { origin: ORIGIN, cards: CARDS, prefix: '/products' })
+    const priceKeys = blocks(preview)
+      .flatMap(keys)
+      .filter((key) => /price/i.test(key))
+    expect(priceKeys, 'a price reached the structured data').toEqual([])
   })
 })
 
@@ -896,6 +728,21 @@ describe('buildPreview — breadcrumbs on the website', () => {
       [3, 'Sportswear', `${SITE}/custom-activewear-manufacturer`],
       [4, 'Velocity Performance Skinsuit', preview.url],
     ])
+  })
+
+  /*
+   * Moved here with D38 (2026-10-11), when the product block it used to guard went: CMS text is in
+   * this block too, and a `</script>` in a garment's name would close the tag on the live page and
+   * run whatever followed.
+   */
+  it('escapes < so a garment name cannot break out of the script block', () => {
+    const hostile = 'Tee</script><script>alert(1)</script>'
+    const block = onSite(payload({ product: { productName: hostile } })).breadcrumbJsonLd ?? ''
+    expect(block).not.toContain('</script>')
+    expect(block).not.toContain('<script')
+    expect(block).toContain('\\u003c/script>')
+    // … while the name round-trips intact, so escaping has not corrupted it.
+    expect(JSON.parse(block).itemListElement.at(-1).name).toBe(hostile)
   })
 
   it('sends each category to its own page, and one with no page to the family filter', () => {

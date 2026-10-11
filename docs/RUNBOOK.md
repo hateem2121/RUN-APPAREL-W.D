@@ -2507,10 +2507,11 @@ what readers and Google see.
 
 **What the labels tell Google.**
 
-- A garment page labels its colours as one `ProductGroup` (`buildProductJsonLd` in
-  `apps/viewer/worker/preview.ts`): the shown colour in full, the others by address. Its offer
-  stays "made to order" with no price (decision D10), so Search Console's missing-price warning
-  is expected, not a fault.
+- A garment page carries NO product label (decision D38, 11 Oct 2026). Without a price Google could
+  show no rich result for it, and Search Console reported errors on every garment. It keeps its
+  breadcrumbs (`buildBreadcrumbJsonLd` in `apps/viewer/worker/preview.ts`). If Search Console's
+  "Merchant listings" or "Product snippets" issues come back, something added a product block
+  again: read D38 before keeping it. Never a price (D10).
 - The site name is `SITE_NAME` (`apps/cms/src/lib/seo.ts`); the legal name `LEGAL_NAME` and the
   second phone `CALL_NUMBER` are in `apps/cms/src/lib/companyFacts.ts`, and
   `apps/cms/src/lib/structuredData.ts` reads all three. The `sameAs` list of profiles is the

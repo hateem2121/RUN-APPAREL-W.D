@@ -70,12 +70,6 @@ export interface Preview {
   url: string
   image: PreviewImage | null
   /**
-   * schema.org Product as a ready-to-embed JSON string. Built here, not in
-   * index.ts, so the decision stays in the pure half that vitest can reach —
-   * `applyPreview` receives only a Preview and never sees the payload.
-   */
-  jsonLd: string
-  /**
    * schema.org BreadcrumbList, on the website's garment folder only (null on the old
    * viewer host, which only forwards). See buildBreadcrumbJsonLd.
    */
@@ -242,7 +236,7 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
   // a retired colour resolves to the default one, and the preview has to
   // describe the page that will actually load — otherwise the canonical URL
   // advertises a colourway that 404s at the API and the card names a colour the
-  // visitor will never see. The JSON-LD reuses both values for the same reason:
+  // visitor will never see. The breadcrumbs reuse the URL for the same reason:
   // structured data must describe the page that loads, not the one requested.
   const url = `${origin}${buildViewerPath(payload.product.slug, payload.selectedColourway.slug, prefix)}`
   const image = pickImage(payload, origin, cards)
@@ -258,7 +252,6 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
     description: buildDescription(payload),
     url,
     image,
-    jsonLd: buildProductJsonLd(payload, { url, image, origin, prefix }),
     breadcrumbJsonLd:
       prefix === GARMENT_PATH_PREFIX ? buildBreadcrumbJsonLd(payload, { origin, url }) : null,
     bodyHtml: buildCrawlerBody(payload, { origin, prefix, image }),
@@ -415,151 +408,15 @@ function buildBreadcrumbJsonLd(
   return JSON.stringify(data).replace(/</g, '\\u003c')
 }
 
-/**
- * schema.org Product data for this garment, as a JSON string ready to embed.
- *
- * WHY THIS EXISTS. This viewer is a single-page app: `<div id="root">` is empty
- * in the served HTML and every word a visitor reads is written by JavaScript. A
- * crawler that does not execute JS therefore sees a page with no product on it,
- * which is most of what indexes these URLs. The Open Graph tags above fix how a
- * link LOOKS when shared; they say nothing about what the page IS. This does.
- *
- * It rides the crawler path deliberately, alongside og:url and canonical. The
- * measurement that justifies that path applies unchanged: the static HTML is
- * 0.106-0.155s to first byte and the CMS payload 0.56-0.72s, so building this for
- * every visitor would slow every QR scan to fix something no visitor can see.
- * `CRAWLER` matches on 'bot', which covers Googlebot.
- *
- * ⚠️ AN `offers` WITH NO PRICE, AND THE ABSENCE OF A PRICE IS THE POINT.
- *
- * This said "NO `offers`, DELIBERATELY" until 2026-09-07, on the reasoning that Google's
- * Product documentation wants an offer with a price, this catalogue has none, and
- * inventing a price or a currency to satisfy a validator would put a false claim in
- * machine-readable form on 55 public URLs. **Every word of that still holds** and is why
- * there is no `price`, no `priceCurrency` and no number of any kind below.
- *
- * What it got wrong is treating "no price" as "say nothing". schema.org has two terms
- * for exactly this situation, and both are facts about this business rather than
- * inventions: `availability: MadeToOrder` and `businessFunction: Sell`. Saying nothing
- * leaves a crawler to infer availability from silence; saying made-to-order states the
- * true answer to the question it is asking. Owner decision 2026-09-07 (D10), taken with
- * the price risk put to them explicitly.
- *
- * ⚠️ SO THE TEST FOR THIS IS A NEGATIVE ONE. `preview.test.ts` asserts that the whole
- * serialised block matches neither `"price…": <digit>` nor `"priceCurrency"` — because
- * the failure mode worth guarding is not a missing offer, it is a number appearing beside
- * a garment in search results that nobody chose. Everything else emitted here is a value
- * the CMS actually holds.
- *
- * ⚠️ A `ProductGroup` SINCE 2026-10-08 (findability audit). Each colour is its own page, so
- * Google's variants guide (updated 2026-09-08) for multi-page sites applies: every colour page
- * repeats the whole group (`productGroupID`, `variesBy: color`), carries ITS colour in full as
- * one variant, and lists every other colour by its `url` alone. Until then each colour page
- * claimed to be an unrelated Product, five near-copies of one garment with nothing tying them.
- * The group holds what all colours share (name, code, description, fabric, brand); the variant
- * holds what is this colour's (colour, picture, 3D file) and the D10 offer below, unchanged.
- *
- * ⚠️ ESCAPING IS NOT OPTIONAL. All of these strings are CMS-authored, so a product
- * description containing `</script>` would otherwise close the block and inject
- * whatever followed into the document. `<` is escaped to its unicode form, which
- * is valid inside a JSON string and inert inside a script element. The CSP here is
- * hash-based with no `unsafe-inline` for scripts, so a `<script type=
- * "application/ld+json">` block is NOT executable script and needs no hash — but
- * that is a reason to escape properly, not a reason to skip it.
+/*
+ * ⚠️ NO PRODUCT LABEL, ON PURPOSE (D38, owner 2026-10-11). Until then `buildProductJsonLd` described
+ * each garment as a schema.org ProductGroup, and its colour as a Product with an `Offer` that said
+ * made-to-order and gave no price (D10). Google uses Product markup only to show a price or a
+ * rating, and needs one of them. Product snippets want a review, a rating or an offer with a price.
+ * Merchant listings are "Only pages where a shopper can purchase a product", with a price above
+ * zero. `MadeToOrder` is on neither list of availability values (both docs read 2026-10-11). So the
+ * label could never earn a rich result, and Search Console reported 2 errors and 7 warnings on every
+ * garment (rxps/wine, crawled 2026-09-30). A crawler still gets the breadcrumbs above, the page's
+ * own words (buildCrawlerBody), its title, its description and its picture. Never a price,
+ * whatever is added here next (D10).
  */
-export function buildProductJsonLd(
-  payload: ViewerApiSuccess,
-  context: {
-    url: string
-    image: PreviewImage | null
-    origin: string
-    prefix: '' | typeof GARMENT_PATH_PREFIX
-  },
-): string {
-  const p = payload.product
-  const selected = payload.selectedColourway
-
-  // Only what the CMS actually holds. Every field is dropped when empty rather
-  // than emitted as "" — an empty string is a claim that the value is blank,
-  // where absence correctly says nothing at all.
-  const specs: Array<{ '@type': 'PropertyValue'; name: string; value: string }> = []
-  const addSpec = (name: string, value: string) => {
-    const trimmed = value.trim()
-    if (trimmed) specs.push({ '@type': 'PropertyValue', name, value: trimmed })
-  }
-  addSpec('Fabric composition', p.fabricComposition)
-  addSpec('Weight', p.gsm)
-  addSpec('Fit', p.garmentFit)
-  if (p.performanceFeatures.length > 0) {
-    addSpec('Performance features', p.performanceFeatures.join(', '))
-  }
-  addSpec('Colorways available', String(payload.colourways.length))
-
-  // What every colour shares: the group (Google: "productGroupID" is the group's identifier).
-  const data: Record<string, unknown> = {
-    '@context': 'https://schema.org',
-    '@type': 'ProductGroup',
-    name: p.productName,
-    productGroupID: p.productCode.trim() || p.slug,
-    variesBy: ['https://schema.org/color'],
-    brand: {
-      '@type': 'Brand',
-      name: payload.siteSettings.temporaryWordmark || payload.siteSettings.companyName,
-    },
-  }
-  if (p.category.trim()) data.category = p.category.trim()
-  if (p.shortDescription.trim()) data.description = p.shortDescription.trim()
-  if (p.fabricComposition.trim()) data.material = p.fabricComposition.trim()
-  if (specs.length > 0) data.additionalProperty = specs
-
-  // What is this colour's: the variant this page shows, in full.
-  const colour = selected.displayName.trim()
-  const variant: Record<string, unknown> = {
-    '@type': 'Product',
-    name: colour ? `${p.productName} — ${colour}` : p.productName,
-    url: context.url,
-  }
-  if (colour) variant.color = colour
-  if (context.image) variant.image = context.image.url
-
-  const glbUrl = (selected.glbUrl || p.glbUrl || '').trim()
-  if (glbUrl) {
-    variant.subjectOf = {
-      '@type': '3DModel',
-      name: `${p.productName} 3D Digital Reference`,
-      encoding: [
-        {
-          '@type': 'MediaObject',
-          contentUrl: glbUrl,
-          encodingFormat: 'model/gltf-binary',
-        },
-      ],
-    }
-  }
-
-  /*
-   * Made to order, sold, quoted per enquiry — see the warning above. No `price`, no
-   * `priceCurrency`, and deliberately no `priceSpecification`: a `Specification` with an
-   * absent price is still an invitation for a validator, or a downstream aggregator, to
-   * render "from —".
-   */
-  variant.offers = {
-    '@type': 'Offer',
-    url: context.url,
-    availability: 'https://schema.org/MadeToOrder',
-    businessFunction: 'http://purl.org/goodrelations/v1#Sell',
-  }
-
-  // Every other colour by its page alone, as the guide's multi-page example does.
-  data.hasVariant = [
-    variant,
-    ...payload.colourways
-      .filter((other) => other.slug !== selected.slug)
-      .map((other) => ({
-        '@type': 'Product',
-        url: `${context.origin}${buildViewerPath(p.slug, other.slug, context.prefix)}`,
-      })),
-  ]
-
-  return JSON.stringify(data).replace(/</g, '\\u003c')
-}

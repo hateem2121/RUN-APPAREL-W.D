@@ -258,6 +258,9 @@ but it is not what D10 says. Put to the owner again on 2026-09-07 with the price
 risk stated plainly, and the answer was unchanged: declare made-to-order, no
 numbers. Implemented that day.
 
+**Amended by D38 (2026-10-11):** the made-to-order offer and the product label are gone,
+because Google reads neither without a price. The no-price rule stands and keeps its guard.
+
 ### D11 · Two sitemaps stay, and point at each other — `FA-N-13`
 
 **Decision: keep one sitemap per host. Cross-reference them.**
@@ -1024,6 +1027,41 @@ guarded UPDATE; `apps/cms/src/lib/inquiry.test.ts` pins where the form's notific
 `packages/shared/src/securityTxt.test.ts`,
 `apps/cms/src/lib/press.test.ts`, `apps/cms/e2e/press.spec.ts` and
 `apps/cms/e2e/privacy.spec.ts` hold the other addresses.
+
+## 2026-10-11, later — what the garment pages tell search engines
+
+### D38 · Garment pages carry no product label for search engines — amends D10
+
+**Decision: a garment page no longer labels itself a schema.org `ProductGroup` or `Product` with
+an `Offer`. Its breadcrumbs, words, title, description and picture stay. D10's first sentence
+stands: no price, ever. Owner, 2026-10-11 (question tool), after Search Console's "Merchant
+listings" and "Product snippets" emails.**
+
+D10's made-to-order offer was a true statement that Google cannot read:
+
+- **Both rich results need a price, a review or a rating, and these pages have none.** Product
+  snippets need a review, an aggregate rating or an offer with a price. Merchant listings are
+  "Only pages where a shopper can purchase a product", with a price above zero. `MadeToOrder` is
+  on neither list of availability values. (Google Search Central, product-snippet page updated
+  2026-09-08 and merchant-listing page, both read 2026-10-11.)
+- **So the label earned nothing and reported errors on every garment.** URL inspection of
+  `/products/rxps/wine` (crawled 2026-09-30) showed, for product snippets, ERROR "Either "price"
+  or "priceSpecification.price" should be specified" plus four warnings, and for merchant
+  listings, ERROR "Either "price" or "priceSpecification" should be specified" plus three
+  warnings. Google's Rich Results Test on the live page on 11 Oct: 3 items, the product snippet
+  and the merchant listing invalid, the breadcrumbs valid.
+- **No penalty either way.** Google's page describes missing fields only as making a page
+  ineligible for the rich result. RUNBOOK already called the warning expected. What changes is
+  that Search Console stops reporting it, and the owner stops getting the emails.
+- **Nothing a buyer or a reading machine needs goes.** The fabric, weight, fit, colours and 3D
+  model are in the page's words (`buildCrawlerBody`), which every robot gets. Lighthouse's
+  agentic-browsing audits read no product markup (Lighthouse 13.5.0's default config).
+
+**Guard:** `apps/viewer/worker/preview.test.ts` → "no product label for crawlers (D38)". It
+requires that a garment page carry breadcrumbs at most, never a Product, ProductGroup or Offer,
+and that no `price` key reach the structured data (D10). It failed on the old block. The
+breadcrumb block now carries the escaping test the product block had, proven with a planted
+fault.
 
 ## Closed since
 
