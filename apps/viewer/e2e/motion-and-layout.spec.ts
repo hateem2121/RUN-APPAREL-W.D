@@ -151,6 +151,12 @@ function serveGarment(
  * RUNS IN THE PAGE. Whether an email AND a WhatsApp control are wholly on screen, unscrolled —
  * LA-11's own measure — and whether each colour's own name is drawn (`listed`: VA-32's list
  * until polish D8, the names under the dots since).
+ *
+ * ⚠️ `evidence` SAYS WHAT WAS ON SCREEN, because once this failed with nothing to go on
+ * (11 Oct 2026). In Firefox at 1024x620 it failed 3 times in 20 with "no email control on screen"
+ * while WhatsApp was on screen, then passed 90 times in a row, and the traces were gone. Email and
+ * WhatsApp share one wrapping row, Email first, so a column pushed too tall would have lost
+ * WhatsApp first: the failure did not fit the obvious cause. The next one names its own.
  */
 function contactOnScreen() {
   const inView = (el: Element) => {
@@ -159,14 +165,35 @@ function contactOnScreen() {
     if (cs.display === 'none' || cs.visibility === 'hidden') return false
     return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight
   }
-  const persistent = [
+  const controls = [
     ...document.querySelectorAll('.contact-rail a, .action-bar a, .stage__contact a'),
-  ].filter(inView)
+  ]
+  const persistent = controls.filter(inView)
+  const describe = (a: Element) => {
+    const r = a.getBoundingClientRect()
+    const cs = getComputedStyle(a)
+    const kind = a.getAttribute('href')?.split(':')[0] ?? '(no href)'
+    return `${kind} x=${Math.round(r.left)} y=${Math.round(r.top)}-${Math.round(r.bottom)} ${cs.display}/${cs.visibility}`
+  }
   return {
     listed: (document.querySelector('.colourway-tab__label')?.getClientRects().length ?? 0) > 0,
     email: persistent.some((a) => a.getAttribute('href')?.startsWith('mailto:')),
     whatsapp: persistent.some((a) => a.getAttribute('href')?.includes('wa.me')),
+    evidence: `scrollY=${window.scrollY} innerHeight=${window.innerHeight} fonts=${document.fonts.status} [${controls.map(describe).join('; ')}]`,
   }
+}
+
+/**
+ * Wait for the settled page: fonts in, then two frames for the layout's own writes (its
+ * ResizeObservers). The sibling "the pinned bars never cover content" measured a fallback-font
+ * difference straight after the heading appeared (2026-09-25), and a visitor reads the settled page.
+ */
+async function settled(page: Page) {
+  await page.evaluate(() =>
+    document.fonts.ready.then(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    ),
+  )
 }
 
 const VIEWPORTS = [
@@ -3169,13 +3196,14 @@ test.describe('the colourway rail survives the catalogue, not just the fixture',
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await settled(page)
       const seen = await page.evaluate(contactOnScreen)
       const at = `${width}x${height}`
       if (seen.listed !== named) {
         gaps.push(`${at}: the names are ${seen.listed ? '' : 'not '}under the dots`)
       }
-      if (!seen.email) gaps.push(`${at}: no email control on screen`)
-      if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen`)
+      if (!seen.email) gaps.push(`${at}: no email control on screen (${seen.evidence})`)
+      if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen (${seen.evidence})`)
     }
     expect(gaps).toEqual([])
   })
@@ -3228,14 +3256,15 @@ test.describe('the longest copy never pushes the contact buttons off screen (D8)
       await page.setViewportSize({ width, height })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await settled(page)
       const inAside = (await page.locator('.stage__aside h1').count()) === 1
       const seen = await page.evaluate(contactOnScreen)
       const at = `${width}x${height}`
       if (inAside !== beside) {
         gaps.push(`${at}: the description is ${inAside ? 'beside' : 'under'} the garment`)
       }
-      if (!seen.email) gaps.push(`${at}: no email control on screen`)
-      if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen`)
+      if (!seen.email) gaps.push(`${at}: no email control on screen (${seen.evidence})`)
+      if (!seen.whatsapp) gaps.push(`${at}: no WhatsApp control on screen (${seen.evidence})`)
     }
     expect(gaps).toEqual([])
   })
