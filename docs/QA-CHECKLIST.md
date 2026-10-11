@@ -75,7 +75,7 @@ throttled "Slow 4G" network profile.
 
 ## Contact
 
-- [ ] EMAIL US opens a draft to partner@wear-run.com with subject `Product Enquiry — <Product> / <Colour>` and the full template body
+- [ ] EMAIL US opens a draft to inquiry@wear-run.com with subject `Product Inquiry — <Product> / <Colour>` and the full template body
 - [ ] WHATSAPP US opens wa.me/923361777313 with the same pre-filled text (desktop → WhatsApp Web, mobile → app)
 - [ ] Microcopy telling the prospect to complete the open fields is visible
 - [ ] Mobile bottom bar never covers the 3D controls; desktop rail appears only after scrolling past the stage

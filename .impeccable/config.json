@@ -43,6 +43,13 @@
         "files": ["apps/cms/src/familyHeroPicture.test.ts"],
         "createdAt": "2026-10-04T22:49:28.168Z",
         "reason": "Claude, 2026-10-05: test code, not UI; the match is a regex that finds the hero's <img> in server-rendered markup, and this Vitest file renders no image"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["apps/cms/src/components/site/SiteFooter.test.ts"],
+        "createdAt": "2026-10-11T08:29:42.714Z",
+        "reason": "Claude, 2026-10-11: lines 139 and 156 are the regex /<img [^>]*>/g that counts the footer's five rendered logos in a unit test; no image is drawn from this file"
       }
     ]
   }

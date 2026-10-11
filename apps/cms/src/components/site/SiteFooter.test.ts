@@ -34,8 +34,9 @@ describe('SiteFooter', () => {
 
   it('on the Contact page the tab links to the email instead — the visitor is already there', () => {
     route.path = '/contact'
-    const out = html(base)
-    expect(out).toContain('class="site-footer__tab" href="mailto:partner@wear-run.com"')
+    // Not the default address: a tab that ignored the CMS and drew the default would pass with it.
+    const out = html({ ...base, email: 'sales@example.com' })
+    expect(out).toContain('class="site-footer__tab" href="mailto:sales@example.com"')
     expect(out).not.toContain('site-footer__tab" href="/contact"')
     route.path = '/'
   })

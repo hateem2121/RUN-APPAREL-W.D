@@ -17,7 +17,7 @@ import {
 
 const content = (footer: Partial<FooterSettings> = {}) => ({
   footer: { ...EMPTY_FOOTER, ...footer },
-  email: 'partner@wear-run.com',
+  email: 'inquiry@wear-run.com',
   whatsappNumber: '+923361777313',
   legalLine: '© RUN APPAREL (PVT) LTD',
   footerLine: 'RUN THE EXTRA MILE.',

@@ -32,11 +32,11 @@ import { POLICIES, POLICIES_INDEX } from './policies'
  * catch it. `llmsTxt.test.ts` asserts every fact, family and origin appears, so a change
  * to the page's figures that misses this file fails rather than diverges.
  *
- * ⚠️ NO CONTACT ADDRESS IS EMBEDDED, DELIBERATELY. Every mailto on this site currently
- * points at a `wear-run.com` address that is still on the owner's checklist to confirm
- * (audit FA-Q-07). Repeating an unconfirmed address into a file whose whole purpose is to
- * be quoted back verbatim would multiply the error; `/contact` is the single place it
- * lives, and the pointer stays correct whatever the answer turns out to be.
+ * ⚠️ NO CONTACT ADDRESS IS EMBEDDED, DELIBERATELY. The buyers' address is one CMS field
+ * (Settings → Email), and it has changed: confirmed as partner@ (audit FA-Q-07), then
+ * inquiry@ from 2026-10-11 (owner). A copy in a file whose whole purpose is to be quoted
+ * back verbatim would go stale with nothing to catch it; `/contact` is the single place it
+ * lives, and the pointer stays correct whatever the address is.
  *
  * ⚠️ IT IS SERVED WHILE THE SITE IS `SITE_INDEXING=hidden`, and that is not a
  * contradiction. `noindex` asks a search engine to keep pages out of RESULTS; this file

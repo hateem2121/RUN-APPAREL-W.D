@@ -46,10 +46,12 @@ test.describe('the press page', () => {
     }
   })
 
-  test('the media contact is a working mail link', async ({ page }) => {
+  test('the media contact is a working mail link to press@ (owner, 2026-10-11)', async ({
+    page,
+  }) => {
     await page.goto('/press')
     await expect(
-      page.locator('#media-contact ~ * a[href="mailto:media@wear-run.com"]'),
+      page.locator('#media-contact ~ * a[href="mailto:press@wear-run.com"]'),
     ).toHaveCount(1)
   })
 })

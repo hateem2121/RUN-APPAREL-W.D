@@ -49,8 +49,8 @@ describe('buildEnquiryBody', () => {
 
 describe('buildMailtoUrl', () => {
   it('encodes subject and body', () => {
-    const url = buildMailtoUrl('partner@wear-run.com', ctx)
-    expect(url.startsWith('mailto:partner@wear-run.com?subject=')).toBe(true)
+    const url = buildMailtoUrl('inquiry@wear-run.com', ctx)
+    expect(url.startsWith('mailto:inquiry@wear-run.com?subject=')).toBe(true)
     expect(url).toContain(encodeURIComponent('Product Inquiry — Velocity Performance Tee / Navy'))
     expect(url).toContain('&body=')
     expect(url).not.toContain('\n')

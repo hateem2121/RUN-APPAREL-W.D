@@ -44,7 +44,7 @@ Check each of these and tell me if any is wrong:
 | Claim | Where it appears |
 |---|---|
 | `13 Km Daska Road, Sialkot, 51040, Pakistan` | Contact page, and the structured data on every page |
-| `partner@wear-run.com` | Contact page, home page, footer |
+| `inquiry@wear-run.com` (your choice, 11 Oct; partner@ before) | Contact page, home page, footer, garment pages |
 | `+923361777313` | Contact page, footer, WhatsApp links |
 | `RUN APPAREL (PVT) LTD` | Footer, and the structured data |
 | ~~**"EST. LINEAGE 1889"**~~ — **answered 2026-09-07**, being reworded | Home page headline strip |

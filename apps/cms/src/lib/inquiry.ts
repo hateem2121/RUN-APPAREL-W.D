@@ -24,6 +24,8 @@
  * real rather than anticipated.
  */
 
+import { mergeSiteSettings } from './projectPublic'
+
 export const MAX_LENGTHS = {
   name: 120,
   company: 160,
@@ -183,4 +185,15 @@ export function formatInquiryEmail(
 export function inquirySubject(value: InquiryInput): string {
   const who = value.company || value.name
   return `Inquiry — ${who}${value.subject ? ` — ${value.subject}` : ''}`.slice(0, 160)
+}
+
+/**
+ * Where the notification goes: the address the site shows, read through `mergeSiteSettings`
+ * (`projectPublic.ts`) as the footer and the contact page read it, so the two cannot differ. That
+ * is the Site Settings email (inquiry@ since 2026-10-11, owner), trimmed, or `DEFAULT_SITE_SETTINGS`
+ * when the settings cannot be read. The route used to type its own 'partner@wear-run.com' beside
+ * that default, a copy that goes stale the day the address changes.
+ */
+export function inquiryRecipient(settings: Record<string, unknown> | null): string {
+  return mergeSiteSettings(settings).email
 }

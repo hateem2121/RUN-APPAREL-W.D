@@ -13,15 +13,15 @@
 | The site is down or broken | [Open a "site broken" issue](https://github.com/hateem2121/RUN-APPAREL-W.D/issues/new/choose) |
 | I found a security problem | [Tell us privately](SECURITY.md). **Never** in a public issue. |
 | I want to change the code | [Contributing](CONTRIBUTING.md) |
-| Anything else | Email **team@wear-run.com** |
+| Anything else | Email **info@wear-run.com** |
 
 ```mermaid
 flowchart TB
   A["❓ I need help"] --> B{"Is it a security problem?"}
-  B -- Yes --> C["🔒 Email team@wear-run.com<br/>subject: SECURITY"]
+  B -- Yes --> C["🔒 Email security@wear-run.com<br/>subject: SECURITY"]
   B -- No --> D{"Is it in the picture guide?"}
   D -- Yes --> E["📖 Read the guide page"]
-  D -- No --> F["✉️ Email team@wear-run.com"]
+  D -- No --> F["✉️ Email info@wear-run.com"]
 ```
 
 ## ⏱️ When will I hear back?

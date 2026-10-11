@@ -263,7 +263,7 @@ const COLOURWAYS = [
 
 const siteSettings = {
   companyName: 'RUN APPAREL (PVT) LTD',
-  email: 'partner@wear-run.com',
+  email: 'inquiry@wear-run.com',
   whatsappNumber: '+923361777313',
   catalogueUrl: 'https://wear-run.help/catalogue',
   temporaryWordmark: 'RUN APPAREL',

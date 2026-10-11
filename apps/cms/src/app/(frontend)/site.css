@@ -3664,7 +3664,7 @@ a.contact-block__value:active {
 
   /*
    * ⚠️ EXPANDED ONLY WHERE THE TEXT IS NOT ALREADY THE ADDRESS. The contact page prints
-   * `partner@wear-run.com (mailto:partner@wear-run.com)` if this is applied blindly, and
+   * `inquiry@wear-run.com (mailto:inquiry@wear-run.com)` if this is applied blindly, and
    * the footer does the same. `:not()` on the two classes whose visible text IS the
    * destination keeps the expansion where it earns its space — a "Browse the references"
    * button that prints as nothing but its label.

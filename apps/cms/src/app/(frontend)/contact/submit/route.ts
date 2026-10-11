@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import {
   type InquiryEmailExtras,
   type InquiryInput,
+  inquiryRecipient,
   inquirySubject,
   formatInquiryEmail,
   isHoneypotTripped,
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const settings = await getPayload({ config })
     .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
     .catch(() => null)
-  const to = (settings as { email?: string } | null)?.email || 'partner@wear-run.com'
+  const to = inquiryRecipient(settings as Record<string, unknown> | null)
   const outcome = await notify(result.value, receivedAt, to, {
     files: stored.saved.map((file) => ({ name: file.name, size: formatBytes(file.size) })),
     filesError: stored.filesError,

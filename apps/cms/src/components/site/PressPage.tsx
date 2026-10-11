@@ -3,7 +3,7 @@ import { factoryPhotoImage } from '../../lib/factoryPhotos'
 import { formatPostDate } from '../../lib/journal'
 import type { JournalPostView } from '../../lib/journalPublic'
 import {
-  MEDIA_EMAIL,
+  PRESS_EMAIL,
   PRESS_FACTS,
   PRESS_HERO_PHOTO,
   PRESS_PHOTO_USAGE,
@@ -171,8 +171,8 @@ export function PressPage({
           <Heading id={contact.id}>{contact.heading}</Heading>
           <div className="section-head__words">
             <p className="site-lede">
-              <a className="prose__link" href={`mailto:${MEDIA_EMAIL}`}>
-                {MEDIA_EMAIL}
+              <a className="prose__link" href={`mailto:${PRESS_EMAIL}`}>
+                {PRESS_EMAIL}
               </a>
             </p>
             {sentences(contact).map((text) => (

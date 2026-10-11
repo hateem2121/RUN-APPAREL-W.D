@@ -9,7 +9,9 @@ import type { ViewerSiteSettings } from './types.ts'
  */
 export const DEFAULT_SITE_SETTINGS: ViewerSiteSettings = {
   companyName: 'RUN APPAREL (PVT) LTD',
-  email: 'partner@wear-run.com',
+  // inquiry@ since 2026-10-11 (owner; partner@ before). Every address the site shows is an alias
+  // of team@, so mail that came from the website is told apart; buyers write to this one.
+  email: 'inquiry@wear-run.com',
   whatsappNumber: '+923361777313',
   catalogueUrl: 'https://wear-run.help/catalogue',
   temporaryWordmark: 'RUN APPAREL',

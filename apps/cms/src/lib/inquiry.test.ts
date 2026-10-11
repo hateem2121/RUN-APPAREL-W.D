@@ -3,6 +3,7 @@ import {
   inquirySubject,
   formatInquiryEmail,
   HONEYPOT_FIELD,
+  inquiryRecipient,
   isHoneypotTripped,
   MAX_LENGTHS,
   SUBJECT_OTHER,
@@ -280,5 +281,28 @@ describe('the notification email', () => {
     expect(inquirySubject(good)).toBe('Inquiry — Northfield Athletic')
     expect(inquirySubject({ ...good, company: '' })).toBe('Inquiry — Dana Okafor')
     expect(inquirySubject({ ...good, company: 'z'.repeat(400) }).length).toBeLessThanOrEqual(160)
+  })
+})
+
+/*
+ * Where the form's notification goes. The break this catches is a fallback that drifts: until
+ * 2026-10-11 the route typed its own 'partner@wear-run.com' beside the shared default, so when the
+ * Site Settings read failed, a buyer's message was announced to an address the site no longer
+ * shows.
+ */
+describe('inquiryRecipient', () => {
+  it('is the email the owner set in the CMS', () => {
+    expect(inquiryRecipient({ email: 'sales@example.com' })).toBe('sales@example.com')
+  })
+
+  it('is inquiry@wear-run.com when the settings cannot be read or hold no email (owner, 2026-10-11)', () => {
+    expect(inquiryRecipient(null)).toBe('inquiry@wear-run.com')
+    expect(inquiryRecipient({})).toBe('inquiry@wear-run.com')
+    expect(inquiryRecipient({ email: '' })).toBe('inquiry@wear-run.com')
+  })
+
+  it('is exactly the address the site shows, trimmed as `mergeSiteSettings` trims it', () => {
+    expect(inquiryRecipient({ email: '  sales@example.com ' })).toBe('sales@example.com')
+    expect(inquiryRecipient({ email: '   ' })).toBe('inquiry@wear-run.com')
   })
 })

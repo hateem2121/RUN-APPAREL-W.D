@@ -25,6 +25,7 @@ import * as migration_20261005_120000_footer_tab_one_name from './20261005_12000
 import * as migration_20261008_150000_product_model_coming_soon from './20261008_150000_product_model_coming_soon'
 import * as migration_20261007_140000_job_applications from './20261007_140000_job_applications'
 import * as migration_20261007_160000_journal_case_studies from './20261007_160000_journal_case_studies'
+import * as migration_20261011_120000_site_email_inquiry from './20261011_120000_site_email_inquiry'
 
 export const migrations = [
   {
@@ -161,5 +162,10 @@ export const migrations = [
     up: migration_20261007_160000_journal_case_studies.up,
     down: migration_20261007_160000_journal_case_studies.down,
     name: '20261007_160000_journal_case_studies',
+  },
+  {
+    up: migration_20261011_120000_site_email_inquiry.up,
+    down: migration_20261011_120000_site_email_inquiry.down,
+    name: '20261011_120000_site_email_inquiry',
   },
 ];
