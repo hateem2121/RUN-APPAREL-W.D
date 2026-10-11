@@ -75,9 +75,18 @@ export const FOOTER_FACTS = {
     { name: 'Suppliers: amfori BSCI audits' },
     { name: 'Group: registered with the SECP' },
   ],
+  // Kept equal to the CMS list, because --apply REPLACES the whole array: with only the first
+  // two rows here, a re-run on 2026-10-11 would have deleted Google Maps and Crunchbase from
+  // the footer and from the Organization `sameAs`. Read back from the CMS that day. Facebook
+  // was removed the same day by owner decision (the page's login was lost), so it stays out.
   socialLinks: [
     { label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel-pvt-ltd' },
     { label: 'Instagram', url: 'https://www.instagram.com/run_apparel_' },
+    { label: 'Google Maps', url: 'https://www.google.com/maps?cid=4820576127932193003' },
+    {
+      label: 'Crunchbase',
+      url: 'https://www.crunchbase.com/organization/run-apparel-private-limited',
+    },
   ],
 }
 
