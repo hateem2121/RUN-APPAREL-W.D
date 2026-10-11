@@ -22,7 +22,8 @@ findings below are what it argues from.
 
 > **Executed 2026-10-11.** The owner chose Option A for Task 4 and inline execution. The rulings
 > made during the work, where it departed from these steps, are listed in the pull request that
-> adds this file.
+> adds this file. After the review the group component was renamed `FamilyGroup` (it was
+> `ProductGroup`, the schema.org type Task 4 removes), and Task 1's steps below use the new name.
 
 ## What was found (measured 11 Oct 2026)
 
@@ -138,12 +139,12 @@ D10's first sentence (never a price) stands under every option.
 - Create: `apps/cms/e2e/productsGroupsHarness.ts` (pattern: `apps/cms/e2e/sportFilterHarness.ts`)
 - Create: `apps/cms/e2e/productsGroups.spec.ts`
 - Modify: `apps/cms/src/app/(frontend)/products/page.tsx:185-235`, moving the group `<section>`
-  into `apps/cms/src/components/site/ProductGroup.tsx` so the page and the harness draw the SAME
+  into `apps/cms/src/components/site/FamilyGroup.tsx` so the page and the harness draw the SAME
   markup
 
 **Interfaces:**
 - Produces:
-  `ProductGroup(props: { entry: Family; page: FamilyPage | null; products: ProductCard[]; soon: boolean; start: number }): JSX.Element`,
+  `FamilyGroup(props: { entry: Family; page: FamilyPage | null; products: ProductCard[]; soon: boolean; start: number }): JSX.Element`,
   with the types page.tsx already passes.
 
 - [ ] **Step 1: Measure the three variants on the live page.** This is a throwaway script,
@@ -166,9 +167,9 @@ D10's first sentence (never a price) stands under every option.
   **Choose A1 (noDeferral)** if its median performance is within 0.02 of `shipped` and
   `target-size` is 1. Otherwise **A2 (galleryDeferral)** on the same test. If neither passes,
   stop and report to the owner.
-- [ ] **Step 2: Write the failing guard.** Move the group markup into `ProductGroup.tsx` (a move,
-  no change in output; `page.tsx` maps groups to `<ProductGroup …/>`). The harness bundles three
-  `ProductGroup`s with the real stylesheets, the way `sportFilterHarness.ts` does:
+- [ ] **Step 2: Write the failing guard.** Move the group markup into `FamilyGroup.tsx` (a move,
+  no change in output; `page.tsx` maps groups to `<FamilyGroup …/>`). The harness bundles three
+  `FamilyGroup`s with the real stylesheets, the way `sportFilterHarness.ts` does:
   - Sportswear with 4 cards;
   - Teamwear with the 19 `LIVE_TEAMWEAR` garments;
   - Casual Wear with 7 cards.

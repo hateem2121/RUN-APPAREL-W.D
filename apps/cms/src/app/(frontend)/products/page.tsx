@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { permanentRedirect } from 'next/navigation'
 import { JsonLd } from '../../../components/site/JsonLd'
 import { ProductCardItem } from '../../../components/site/ProductCardItem'
-import { ProductGroup } from '../../../components/site/ProductGroup'
+import { FamilyGroup } from '../../../components/site/FamilyGroup'
 import { ProductsFilmHero } from '../../../components/site/ProductsFilm'
 import { TicketDismiss } from '../../../components/site/TicketDismiss'
 import { getProductCards, type ProductCard } from '../../../lib/content'
@@ -178,7 +178,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               </nav>
 
               {groups.map(({ family: entry, page, products, soon, start }) => (
-                <ProductGroup
+                <FamilyGroup
                   key={entry.slug}
                   entry={entry}
                   page={page}

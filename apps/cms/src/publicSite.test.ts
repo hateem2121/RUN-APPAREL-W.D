@@ -360,9 +360,9 @@ describe('copy rules', () => {
     ['home', join(FRONTEND, 'page.tsx')],
     ['contact', join(FRONTEND, 'contact', 'page.tsx')],
     ['products', join(FRONTEND, 'products', 'page.tsx')],
-    // The products page draws its groups through ProductGroup since 2026-10-11, so their words
+    // The products page draws its groups through FamilyGroup since 2026-10-11, so their words
     // are there; reading page.tsx alone passed with "Shop now" planted in the group.
-    ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'ProductGroup.tsx')],
+    ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx')],
   ] as const
 
   for (const [name, path] of PAGES) {
@@ -521,8 +521,8 @@ describe('the notch', () => {
       [FRONTEND, 'page.tsx'],
       [FRONTEND, 'contact', 'page.tsx'],
       [FRONTEND, 'products', 'page.tsx'],
-      // The products page's groups, drawn by ProductGroup since 2026-10-11.
-      [CMS_ROOT, 'src', 'components', 'site', 'ProductGroup.tsx'],
+      // The products page's groups, drawn by FamilyGroup since 2026-10-11.
+      [CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx'],
       [CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx'],
       [CMS_ROOT, 'src', 'components', 'site', 'SiteFooter.tsx'],
     ]
@@ -1088,8 +1088,8 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
   const PAGES = [
     ['home', join(FRONTEND, 'page.tsx')],
     ['products', join(FRONTEND, 'products', 'page.tsx')],
-    // The products page's groups, drawn by ProductGroup since 2026-10-11 (their count is there).
-    ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'ProductGroup.tsx')],
+    // The products page's groups, drawn by FamilyGroup since 2026-10-11 (their count is there).
+    ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx')],
     ['contact', join(FRONTEND, 'contact', 'page.tsx')],
     ['privacy', join(FRONTEND, 'privacy', 'page.tsx')],
     ['terms', join(FRONTEND, 'terms', 'page.tsx')],

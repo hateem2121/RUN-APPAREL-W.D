@@ -1,5 +1,5 @@
 /**
- * The real `ProductGroup`, the three stylesheets that lay a group out (tokens.css, base.css and
+ * The real `FamilyGroup`, the three stylesheets that lay a group out (tokens.css, base.css and
  * site.css) and all five of /products' families on a page of their own, with the live counts
  * of 11 Oct 2026 (the 19 Teamwear garments among them).
  *

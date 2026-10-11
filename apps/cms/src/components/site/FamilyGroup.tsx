@@ -4,7 +4,7 @@ import { FAMILY_SOON, type FamilyPage } from '../../lib/familyPages'
 import type { ProductCard } from '../../lib/projectPublic'
 import { ProductCardItem } from './ProductCardItem'
 
-type ProductGroupProps = {
+type FamilyGroupProps = {
   entry: Family
   page: FamilyPage | null
   products: ProductCard[]
@@ -22,7 +22,7 @@ type ProductGroupProps = {
  * `e2e/productsGroupsHarness.ts` draws this component with the 19 live Teamwear garments and the
  * real stylesheets, and `e2e/productsGroups.spec.ts` measures it.
  */
-export function ProductGroup({ entry, page, products, soon, start }: ProductGroupProps) {
+export function FamilyGroup({ entry, page, products, soon, start }: FamilyGroupProps) {
   return (
     <section id={entry.slug} className="gallery-group" aria-labelledby={`${entry.slug}-heading`}>
       <div className="gallery-group__head">
