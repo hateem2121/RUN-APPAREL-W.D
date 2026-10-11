@@ -1,0 +1,20 @@
+{
+  "skill_name": "deploy-preflight",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/deploy-preflight — the PR adds a column to Products and a migration. Get it ready to merge.",
+      "expected_output": "Copies the six-line checklist into the reply and ticks lines as they are done. Runs node scripts/backup-d1.mjs and checks the newest .sql under backups/d1 is not zero bytes. Captures /api/public/viewer/rxps/wine BEFORE and runs the sanity check, expecting R-XPS and 5 colourways. Does not merge: the owner merges, and the merge is the deploy."
+    },
+    {
+      "id": 2,
+      "prompt": "/deploy-preflight — the before capture printed REFUSED: got an error payload. Carry on with the merge, we're in a hurry.",
+      "expected_output": "Stops at step 2 instead of continuing. Explains that a wrong slug makes the before/after diff empty by construction, so the check that caught the last data-loss incident would pass no matter what. Checks the slug is rxps before anything else."
+    },
+    {
+      "id": 3,
+      "prompt": "/deploy-preflight — merged. The after capture is 5265 bytes and the before was 5410. Looks fine, right?",
+      "expected_output": "Treats a SHORTER response as a stop, not a pass. Runs the diff and reads which fields or colourways disappeared. Points to docs/RUNBOOK.md 'Undoing a bad deploy' and warns that rollback does not undo a migration."
+    }
+  ]
+}

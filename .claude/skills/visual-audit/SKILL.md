@@ -14,6 +14,17 @@ The report is a PRIVATE claude.ai artifact, never a file in this repo: the repo 
 and the root `CLAUDE.md` bans committing audits. Measurement scripts and their output stay
 in the session's scratchpad for the same reason.
 
+## Needs
+
+Pinned in this repo, so use these and do not install other versions:
+
+- **Playwright** and **@axe-core/playwright**: `apps/cms/package.json` (website) and
+  `apps/viewer/package.json` (garment pages).
+- **Lighthouse**: the root `package.json`.
+- Install them with `npx --yes pnpm@12.6.0 install --frozen-lockfile`. Playwright's
+  browsers are not installed here and a missing one fails at 0 ms:
+  `npx --yes pnpm@12.6.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
+
 ## Before anything else, read the decisions
 
 Several "findings" of the 2026-10-01 audit were decided long before it. Grep first:

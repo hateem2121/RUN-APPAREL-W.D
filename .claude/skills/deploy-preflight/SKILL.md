@@ -12,6 +12,21 @@ model-invocable — see the frontmatter.
 Merging to `main` runs the pre-deploy D1 migrate and deploys CMS + viewer. There is
 no separate "deploy" button to reconsider at; the merge *is* the deploy.
 
+Copy this checklist into your reply and tick each line as it is done, so a skipped step
+shows:
+
+```
+- [ ] 1. D1 backup written, and not zero bytes
+- [ ] 2. BEFORE capture of rxps/wine, sanity check printed R-XPS and 5 colourways
+- [ ] 3. lint, typecheck, test, build green (+ shrink container, + eval:artwork if needed)
+- [ ] 4. Owner merged; run conclusion is success
+- [ ] 5. AFTER capture diffed against BEFORE: empty diff
+- [ ] 6. Any changed model URL fetched with a plain GET: 200
+```
+
+If step 2's check fails, stop: fix the capture before anything else. If step 5's diff
+is not empty, stop and read Rollback below; do not tick it.
+
 ## Why the before/after capture is the whole point
 
 The migration logs said success during the last data-loss incident. What caught it

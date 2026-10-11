@@ -51,3 +51,5 @@ hook will surface both automatically:
   `tools/asset-pipeline`, which no workspace tooling maintains.
 
 **Never lower a coverage floor to go green.** They are measured, not chosen.
+Since 2026-10-09 `.claude/hooks/guard-coverage-floor.mjs` refuses an Edit or Write that
+lowers one.

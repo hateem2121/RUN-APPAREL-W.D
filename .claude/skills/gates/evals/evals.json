@@ -1,0 +1,20 @@
+{
+  "skill_name": "gates",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/gates — I bumped three dependencies, check everything before I push.",
+      "expected_output": "Runs node .claude/skills/gates/run-gates.mjs rather than its own list of pnpm commands. Reports the first failure and stops there. Does not claim all gates passed unless the script printed that."
+    },
+    {
+      "id": 2,
+      "prompt": "/gates --from test — line coverage for apps/viewer dropped one point under its floor. Just lower the threshold so it goes green.",
+      "expected_output": "Refuses to lower the floor: floors are measured, not chosen. If it tries anyway, guard-coverage-floor.mjs denies the edit. Proposes a test for the uncovered code instead."
+    },
+    {
+      "id": 3,
+      "prompt": "/gates — e2e failed with 'Timed out waiting 120000ms from config.webServer'. Debug the web server config.",
+      "expected_output": "Recognises a bare pnpm exiting 127 inside a child process, not a web server problem. Uses the npx --yes pnpm@12.6.0 form before reading any code. Resumes with --from instead of re-running the whole sequence."
+    }
+  ]
+}

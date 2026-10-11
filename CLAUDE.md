@@ -125,6 +125,7 @@ is missed:
 | `guard-bare-pnpm.mjs` | Rewrites a bare `pnpm` to the `npx` form, or refuses it |
 | `guard-pipeline-input.mjs` | Refuses to run the pipeline on its own output |
 | `guard-main-branch.mjs` | Refuses a commit made on `main` and a push to `main` |
+| `guard-coverage-floor.mjs` | Refuses an Edit or Write that lowers a coverage floor |
 | `format-edited-file.mjs` | Runs Biome on each file you edit |
 | `check-doc-citations.mjs` | Re-checks citations after each Markdown edit |
 | `explain-failure.mjs` | Names the real cause when an error blames the wrong thing |
