@@ -469,6 +469,75 @@ test.describe('the factory photo viewer', () => {
     await expect(counter).toHaveText(`1 / ${count}`)
   })
 
+  /*
+   * A slide the browser cancels. Firefox 157 put the strip back on the photo it was leaving while a
+   * key's slide was under way: the next photo's <img> joined the strip, the strip reached 2,595px
+   * and was back at 2,560 57ms later, with no scroll of ours (probe, 2026-10-12: 1 of 30, and 1–2 of
+   * 10 in the test above). CSS Scroll Snap 1 §4.1.3 asks for that re-snap after a layout change.
+   * The viewer kept waiting for the slide, so the counter said "4 / 8" over photo 3 and the next
+   * press stepped from the wrong photo. Here the cancel is made on purpose, in every engine: a
+   * smooth slide on the strip is followed, 30ms in, by an instant scroll back to where it set off
+   * (CSSOM View: a new scroll aborts a smooth one), which ends where Firefox's re-snap did.
+   */
+  const cancelSlides = (page: import('@playwright/test').Page, times: number) =>
+    page.locator('.photo-viewer__strip').evaluate((strip, times) => {
+      const counts = window as unknown as { slidesCancelled: number }
+      counts.slidesCancelled = 0
+      const scrollTo = strip.scrollTo.bind(strip) as (options: ScrollToOptions) => void
+      strip.scrollTo = ((options: ScrollToOptions) => {
+        const from = strip.scrollLeft
+        scrollTo(options)
+        if (options.behavior !== 'smooth' || counts.slidesCancelled >= times) return
+        counts.slidesCancelled += 1
+        setTimeout(() => scrollTo({ left: from, behavior: 'instant' }), 30)
+      }) as typeof strip.scrollTo
+    }, times)
+  const slidesCancelled = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => (window as unknown as { slidesCancelled: number }).slidesCancelled)
+
+  const openThird = async (page: import('@playwright/test').Page) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.goto('/inside-the-factory')
+    const count = await links(page).count()
+    await links(page).nth(2).scrollIntoViewIfNeeded()
+    await links(page).nth(2).click()
+    const counter = page.getByRole('dialog').locator('.photo-viewer__count')
+    await expect(counter).toHaveText(`3 / ${count}`)
+    return { count, counter, strip: page.locator('.photo-viewer__strip') }
+  }
+
+  test('a slide the browser cancels is finished, on the photo the counter names', async ({
+    page,
+  }) => {
+    const { count, counter, strip } = await openThird(page)
+    await cancelSlides(page, 1)
+    await page.keyboard.press('ArrowRight')
+    await expect(counter).toHaveText(`4 / ${count}`)
+    await expect
+      .poll(() => strip.evaluate((s) => Math.abs(s.scrollLeft - 3 * s.clientWidth)), {
+        message: 'the cancelled slide was never finished: the counter names a photo not shown',
+      })
+      .toBeLessThan(2)
+    await expect(counter).toHaveText(`4 / ${count}`)
+    expect(await slidesCancelled(page), 'the slide was not cancelled, so nothing was tested').toBe(
+      1,
+    )
+  })
+
+  test('when the browser cancels every slide, the counter names the photo shown', async ({
+    page,
+  }) => {
+    const { count, counter, strip } = await openThird(page)
+    await cancelSlides(page, Number.POSITIVE_INFINITY)
+    await page.keyboard.press('ArrowRight')
+    // One more try, then the viewer stops asking and follows the strip: it never loops.
+    await expect(counter, 'the counter names a photo not shown').toHaveText(`3 / ${count}`)
+    expect(await strip.evaluate((s) => Math.abs(s.scrollLeft - 2 * s.clientWidth))).toBeLessThan(2)
+    await page.waitForTimeout(1000)
+    expect(await slidesCancelled(page), 'the viewer kept asking for the slide').toBe(2)
+    await expect(counter).toHaveText(`3 / ${count}`)
+  })
+
   test('keeps Tab inside, and hides the page behind from the accessibility tree', async ({
     page,
   }) => {
@@ -510,28 +579,39 @@ test.describe('the factory photo viewer', () => {
         await links(page).nth(at).scrollIntoViewIfNeeded()
         await links(page).nth(at).click()
         await expect(page.locator('.photo-viewer__count')).toHaveText(`${at + 1} / ${count}`)
-        const fit = await page
-          .locator('.photo-viewer__img')
-          .nth(at === 0 ? 0 : 1)
-          .evaluate((img) => {
-            const image = img as HTMLImageElement
-            const strip = image.closest('.photo-viewer__strip') as HTMLElement
-            const box = image.getBoundingClientRect()
-            const frame = strip.getBoundingClientRect()
-            // The picture drawn inside the box: object-fit contain letterboxes it.
-            const scale =
-              getComputedStyle(image).objectFit === 'contain'
-                ? Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight)
-                : box.width / image.naturalWidth
-            const drawnHeight = image.naturalHeight * scale
-            const drawnTop = box.top + (box.height - drawnHeight) / 2
-            return {
-              loaded: image.naturalWidth > 0,
-              inside: drawnTop >= frame.top - 1 && drawnTop + drawnHeight <= frame.bottom + 1,
-              boxInside: box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1,
-            }
-          })
-        expect(fit.loaded, 'the photo had not loaded, so nothing was measured').toBe(true)
+        const photo = page.locator('.photo-viewer__img').nth(at === 0 ? 0 : 1)
+        // The viewer adds a photo's <img> when it opens, so when the counter changes the photo has
+        // not even chosen its file yet: it arrived 25–35 ms later in 12 of 12 tries, on Chromium 153
+        // and 156 alike (2026-10-12). A one-shot read raced that; on Playwright 1.64 it lost 5 of
+        // 10. Wait for the photo, so a photo that never arrives still fails, by name.
+        await expect
+          .poll(
+            () =>
+              photo.evaluate(
+                (img) =>
+                  (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0,
+              ),
+            { message: `photo ${at + 1} never loaded, so nothing was measured` },
+          )
+          .toBe(true)
+        const fit = await photo.evaluate((img) => {
+          const image = img as HTMLImageElement
+          const strip = image.closest('.photo-viewer__strip') as HTMLElement
+          const box = image.getBoundingClientRect()
+          const frame = strip.getBoundingClientRect()
+          // The picture drawn inside the box: object-fit contain letterboxes it.
+          const scale =
+            getComputedStyle(image).objectFit === 'contain'
+              ? Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight)
+              : box.width / image.naturalWidth
+          const drawnHeight = image.naturalHeight * scale
+          const drawnTop = box.top + (box.height - drawnHeight) / 2
+          return {
+            loaded: image.naturalWidth > 0,
+            inside: drawnTop >= frame.top - 1 && drawnTop + drawnHeight <= frame.bottom + 1,
+            boxInside: box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1,
+          }
+        })
         expect(fit, `photo ${at + 1} is cut off`).toEqual({
           loaded: true,
           inside: true,

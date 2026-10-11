@@ -2,7 +2,9 @@
 
 import { Dialog } from '@base-ui/react/dialog'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { REST_FRAMES } from '../../lib/cardGallery'
 import {
+  afterSlideRest,
   counterText,
   indexFromScroll,
   photosToLoad,
@@ -84,16 +86,67 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
    */
   const heading = useRef<number | null>(null)
 
-  const goTo = useCallback(
-    (next: number) => {
+  /*
+   * ⚠️ AND THE SLIDE CAN BE CANCELLED. Waiting for the strip to arrive trusted it to arrive: Firefox
+   * 157 put it back on the photo it was leaving mid-slide (`afterSlideRest` says why), and the
+   * counter said the next photo for good. So the viewer watches each slide it starts until the
+   * strip stands still for `REST_FRAMES` frames (the products strip's rest signal, CardGallery.tsx:
+   * frames, not a timer, and not `scrollend`, as above), then lets `afterSlideRest` decide. It stops
+   * once the slide is no longer ours: arrived (`onScroll` cleared `heading`), another press, or the
+   * visitor taking over.
+   */
+  const watcher = useRef(0)
+  useEffect(() => () => cancelAnimationFrame(watcher.current), [])
+
+  const slide = useCallback(
+    (next: number, retried: boolean) => {
       if (!strip) return
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
       const left = next * strip.clientWidth
       heading.current = Math.abs(strip.scrollLeft - left) < 2 ? null : next
       strip.scrollTo({ left, behavior: reduce ? 'instant' : 'smooth' })
+      cancelAnimationFrame(watcher.current)
+      if (heading.current === null) return
+      const from = strip.scrollLeft
+      let last = from
+      let moved = false
+      let still = 0
+      const tick = () => {
+        if (heading.current !== next) return
+        moved ||= strip.scrollLeft !== from
+        still = strip.scrollLeft === last ? still + 1 : 0
+        last = strip.scrollLeft
+        // A slide the browser has not started yet is not a rest: wait longer until it has moved.
+        if (still < (moved ? REST_FRAMES : REST_FRAMES * 5)) {
+          watcher.current = requestAnimationFrame(tick)
+          return
+        }
+        const rest = afterSlideRest(next, strip.scrollLeft, strip.clientWidth, count, retried)
+        if (rest.retry) {
+          slide(next, true)
+          return
+        }
+        heading.current = null
+        setIndex(rest.index)
+        // Given up, the strip can still rest off the photo it shows: Chromium 156 left it 8px off
+        // after a cancelled slide (2026-10-12), as it strands the products strip (cardGallery.ts,
+        // `restingTarget`). An instant move onto that photo, which no slide can cancel.
+        const onPhoto = rest.index * strip.clientWidth
+        if (Math.abs(strip.scrollLeft - onPhoto) > 1) {
+          strip.scrollTo({ left: onPhoto, behavior: 'instant' })
+        }
+      }
+      watcher.current = requestAnimationFrame(tick)
+    },
+    [strip, count],
+  )
+
+  const goTo = useCallback(
+    (next: number) => {
+      slide(next, false)
       setIndex(next)
     },
-    [strip],
+    [slide],
   )
 
   const onScroll = () => {

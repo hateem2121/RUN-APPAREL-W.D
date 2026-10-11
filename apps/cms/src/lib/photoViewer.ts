@@ -29,6 +29,30 @@ export function indexFromScroll(scrollLeft: number, slideWidth: number, count: n
   return Math.min(count - 1, Math.max(0, Math.round(scrollLeft / slideWidth)))
 }
 
+/**
+ * What the viewer does once a slide it started has come to rest: done (it is where it was sent),
+ * ask once more, or give up and name the photo on screen. `retried` is whether this rest follows
+ * the one more try.
+ *
+ * ⚠️ A BROWSER CAN CANCEL THE SLIDE (2026-10-12). Firefox 157 put the strip back on the photo it
+ * was leaving mid-slide, after the next photo's <img> joined the strip (CSS Scroll Snap 1 §4.1.3
+ * re-snaps after a layout change), and the viewer, still waiting for the slide, said "4 / 8" over
+ * photo 3. Chromium 156, with the slide cancelled on purpose, rested 8px off any photo. One more
+ * try finishes what the visitor asked for; a second cancel means the browser will not go there, and
+ * the counter must not name a photo the visitor cannot see, so it follows the strip. Never a loop.
+ */
+export function afterSlideRest(
+  heading: number,
+  scrollLeft: number,
+  slideWidth: number,
+  count: number,
+  retried: boolean,
+): { retry: boolean; index: number } {
+  if (Math.abs(scrollLeft - heading * slideWidth) < 2) return { retry: false, index: heading }
+  if (!retried) return { retry: true, index: heading }
+  return { retry: false, index: indexFromScroll(scrollLeft, slideWidth, count) }
+}
+
 /** The photo on screen and its neighbours either side: the only ones whose files are asked for. */
 export function photosToLoad(index: number, count: number): Set<number> {
   return new Set([stepIndex(index, -1, count), index, stepIndex(index, 1, count)])

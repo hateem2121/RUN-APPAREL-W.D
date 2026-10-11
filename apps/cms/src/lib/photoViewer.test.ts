@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { counterText, indexFromScroll, photosToLoad, stepIndex, viewerTitle } from './photoViewer'
+import {
+  afterSlideRest,
+  counterText,
+  indexFromScroll,
+  photosToLoad,
+  stepIndex,
+  viewerTitle,
+} from './photoViewer'
 
 /**
  * The factory gallery's photo viewer: the arithmetic the island runs, kept here so it is
@@ -28,6 +35,23 @@ describe('the photo viewer', () => {
     expect(indexFromScroll(-40, 800, 9)).toBe(0)
     // A strip not laid out yet (0 wide) is on its first photo, not NaN.
     expect(indexFromScroll(0, 0, 9)).toBe(0)
+  })
+
+  it('a slide at rest where it was sent is done; the counter already names that photo', () => {
+    expect(afterSlideRest(3, 3 * 1280, 1280, 8, false)).toEqual({ retry: false, index: 3 })
+    // Within the 2px the viewer's scroll handler already counts as arrived.
+    expect(afterSlideRest(3, 3 * 1280 - 1, 1280, 8, false)).toEqual({ retry: false, index: 3 })
+  })
+
+  it('a slide the browser cancelled is asked for once more (Firefox 157 re-snapped, 2026-10-12)', () => {
+    // Back on the photo it left, and 8px off any photo (Chromium 156, the same day).
+    expect(afterSlideRest(3, 2 * 1280, 1280, 8, false)).toEqual({ retry: true, index: 3 })
+    expect(afterSlideRest(3, 2 * 1280 + 8, 1280, 8, false)).toEqual({ retry: true, index: 3 })
+  })
+
+  it('a second cancelled slide is not asked for again: the counter follows the photo shown', () => {
+    expect(afterSlideRest(3, 2 * 1280, 1280, 8, true)).toEqual({ retry: false, index: 2 })
+    expect(afterSlideRest(3, 2 * 1280 + 8, 1280, 8, true)).toEqual({ retry: false, index: 2 })
   })
 
   it('loads only the photo on screen and its two neighbours', () => {
