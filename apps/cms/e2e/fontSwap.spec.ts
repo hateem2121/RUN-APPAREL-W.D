@@ -445,11 +445,12 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
         () => false,
       ),
     )
+    // The site-wide stack as site.css has it, with no plain "Archivo" (12 Oct 2026, site.css).
     await page.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const style = document.createElement('style')
         style.textContent =
-          '.hero-home{--font-display:"Archivo Variable","Archivo","Archivo Display Fallback",system-ui,sans-serif;--font-serif:"Instrument Serif","Instrument Serif Fallback","Instrument Serif Fallback Liberation",Georgia,serif}'
+          '.hero-home{--font-display:"Archivo Variable","Archivo Display Fallback",system-ui,sans-serif;--font-serif:"Instrument Serif","Instrument Serif Fallback","Instrument Serif Fallback Liberation",Georgia,serif}'
         document.head.append(style)
       })
     })
