@@ -245,7 +245,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const settings = await getPayload({ config })
     .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
     .catch(() => null)
-  const to = inquiryRecipient(settings as { email?: string } | null)
+  const to = inquiryRecipient(settings as Record<string, unknown> | null)
   const outcome = await notify(result.value, receivedAt, to, {
     files: stored.saved.map((file) => ({ name: file.name, size: formatBytes(file.size) })),
     filesError: stored.filesError,

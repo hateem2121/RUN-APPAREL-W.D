@@ -998,6 +998,12 @@ owner chose each one on 11 Oct 2026.**
   and where the form's notifications go. The code default
   (`packages/shared/src/defaults.ts`) shows on the error and 404 pages and whenever the CMS
   cannot be read. The contact page keeps its "[ Partnerships ]" label (owner).
+- **The saved box moves with the deploy**, by a guarded UPDATE
+  (`apps/cms/src/migrations/20261011_120000_site_email_inquiry.ts`), as the footer tab's name
+  did on 5 Oct: partner@ becomes inquiry@, and an address typed in the admin is left alone. The
+  owner chose this over editing the admin after the deploy, so no page shows partner@ in between.
+  The form's notification goes to exactly the address the site shows (`inquiryRecipient` reads
+  it through `mergeSiteSettings`).
 - **press@, not media@,** on the press page (`PRESS_EMAIL` in `apps/cms/src/lib/press.ts`).
   media@ still arrives, but no page shows it.
 - **security@ in security.txt** on every host (`packages/shared/src/securityTxt.ts`): RFC 9116
@@ -1009,12 +1015,13 @@ owner chose each one on 11 Oct 2026.**
 - **Left as they are, on purpose:** the addresses the form emails are sent FROM
   (`inquiries@` and `noreply@wear-run.help`, never shown to a visitor; a new sending domain
   needs its own DNS records), the CMS logins, the D1 column's own SQL default (still partner@,
-  because changing a column default rebuilds the table, and the live value is the one saved in
-  the admin), and dated records of what was true before.
+  because changing a column default rebuilds the table), and dated records of what was true
+  before.
 
 **Guards:** `apps/cms/src/globals/SiteSettings.test.ts` holds the CMS defaults to
-`DEFAULT_SITE_SETTINGS`; `apps/cms/src/lib/inquiry.test.ts` pins where the form's notification
-goes when the settings cannot be read; `packages/shared/src/securityTxt.test.ts`,
+`DEFAULT_SITE_SETTINGS`; `apps/cms/src/migrationReplay/siteEmailInquiry.test.ts` holds the
+guarded UPDATE; `apps/cms/src/lib/inquiry.test.ts` pins where the form's notification goes;
+`packages/shared/src/securityTxt.test.ts`,
 `apps/cms/src/lib/press.test.ts`, `apps/cms/e2e/press.spec.ts` and
 `apps/cms/e2e/privacy.spec.ts` hold the other addresses.
 

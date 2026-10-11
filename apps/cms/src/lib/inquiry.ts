@@ -24,7 +24,7 @@
  * real rather than anticipated.
  */
 
-import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
+import { mergeSiteSettings } from './projectPublic'
 
 export const MAX_LENGTHS = {
   name: 120,
@@ -188,11 +188,12 @@ export function inquirySubject(value: InquiryInput): string {
 }
 
 /**
- * Where the notification goes: the Site Settings email (inquiry@ since 2026-10-11, owner), or
- * the shared default when the settings cannot be read. The default is `DEFAULT_SITE_SETTINGS`,
- * never typed again here: the route kept its own 'partner@wear-run.com' beside it, a copy that
- * goes stale the day the address changes.
+ * Where the notification goes: the address the site shows, read through `mergeSiteSettings`
+ * (`projectPublic.ts`) as the footer and the contact page read it, so the two cannot differ. That
+ * is the Site Settings email (inquiry@ since 2026-10-11, owner), trimmed, or `DEFAULT_SITE_SETTINGS`
+ * when the settings cannot be read. The route used to type its own 'partner@wear-run.com' beside
+ * that default, a copy that goes stale the day the address changes.
  */
-export function inquiryRecipient(settings: { email?: string | null } | null): string {
-  return settings?.email || DEFAULT_SITE_SETTINGS.email
+export function inquiryRecipient(settings: Record<string, unknown> | null): string {
+  return mergeSiteSettings(settings).email
 }

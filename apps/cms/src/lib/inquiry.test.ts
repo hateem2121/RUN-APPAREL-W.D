@@ -300,4 +300,9 @@ describe('inquiryRecipient', () => {
     expect(inquiryRecipient({})).toBe('inquiry@wear-run.com')
     expect(inquiryRecipient({ email: '' })).toBe('inquiry@wear-run.com')
   })
+
+  it('is exactly the address the site shows, trimmed as `mergeSiteSettings` trims it', () => {
+    expect(inquiryRecipient({ email: '  sales@example.com ' })).toBe('sales@example.com')
+    expect(inquiryRecipient({ email: '   ' })).toBe('inquiry@wear-run.com')
+  })
 })

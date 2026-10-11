@@ -48,9 +48,9 @@ export const SiteSettings: GlobalConfig = {
       type: 'email',
       required: true,
       // inquiry@ since 2026-10-11 (owner; partner@ before), with `DEFAULT_SITE_SETTINGS`, which
-      // `SiteSettings.test.ts` holds it to. Only the default, like `ctaLabel`'s below: the column's
-      // own SQL default is still partner@ (20260720_185735_initial), because changing a column
-      // default on D1 rebuilds the table, and the live value is the one saved in the admin.
+      // `SiteSettings.test.ts` holds it to. The SAVED value moves with it, by the guarded UPDATE in
+      // 20261011_120000_site_email_inquiry, as `ctaLabel`'s did. The column's own SQL default stays
+      // partner@ (20260720_185735_initial): changing a column default on D1 rebuilds the table.
       defaultValue: 'inquiry@wear-run.com',
     },
     {
