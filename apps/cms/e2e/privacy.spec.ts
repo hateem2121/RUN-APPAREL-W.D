@@ -73,7 +73,8 @@ test.describe('privacy page — when we write to you first', () => {
     await page.goto('/privacy')
     const rights = page.locator('h2#your-rights + p')
     await expect(rights.locator('a[href="mailto:privacy@wear-run.com"]')).toHaveCount(1)
-    await expect(rights).not.toContainText('partner@wear-run.com')
+    // Not the buyers' address, the Site Settings email (inquiry@ since 2026-10-11).
+    await expect(rights).not.toContainText('inquiry@wear-run.com')
     const main = page.locator('main')
     for (const fact of [
       'Apollo (apollo.io)',

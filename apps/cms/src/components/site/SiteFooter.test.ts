@@ -35,7 +35,7 @@ describe('SiteFooter', () => {
   it('on the Contact page the tab links to the email instead — the visitor is already there', () => {
     route.path = '/contact'
     const out = html(base)
-    expect(out).toContain('class="site-footer__tab" href="mailto:partner@wear-run.com"')
+    expect(out).toContain('class="site-footer__tab" href="mailto:inquiry@wear-run.com"')
     expect(out).not.toContain('site-footer__tab" href="/contact"')
     route.path = '/'
   })

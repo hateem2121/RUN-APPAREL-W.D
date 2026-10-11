@@ -869,13 +869,13 @@ Decided 2026-09-18, live from the merge that deploys it: every host answers
 `/.well-known/security.txt` (RFC 9116) with one shared text,
 `packages/shared/src/securityTxt.ts` — the documents Worker, the site (wear-run.help and
 cms.; www. redirects to the apex copy) and the viewer all import it. Security reports go to
-`team@wear-run.com`, which SECURITY.md names too.
+`security@wear-run.com` (an alias of team@, since 2026-10-11), which SECURITY.md names too.
 
 Its `Expires` must stay less than a year ahead. `scripts/public-security-probe.mjs` reads
 every host's live copy every 6 hours (uptime.yml) and **fails 30 days before the date**, opening an
 uptime alert. To renew:
 
-1. Confirm `team@wear-run.com` still reaches someone.
+1. Confirm `security@wear-run.com` still reaches someone.
 2. In `packages/shared/src/securityTxt.ts`, set `SECURITY_TXT_REVIEWED` to today and
    `SECURITY_TXT_EXPIRES` to at most a year later. The unit test refuses anything further.
    The current date matches wear-run.com's own security.txt, run by the email-signature
@@ -2340,16 +2340,16 @@ states (`FACTS`, `LEAD_TIME`, the guides) or one of `OWNER_FIGURES` (the owner's
 and `glossary.test.ts` holds each term to `APPROVED_AS_WRITTEN`. The press page offers every
 photo in `apps/cms/src/lib/factoryPhotos.ts` for download, on the owner's word that the people
 in them agreed to press use, so a new photo showing a person needs that consent before it is
-added there. Journalists write to media@wear-run.com (`MEDIA_EMAIL`, an alias on the owner's
-mailbox); the page's "News" band appears only once a Journal post in the "Company news" topic
+added there. Journalists write to press@wear-run.com (`PRESS_EMAIL`, an alias on the owner's
+mailbox; media@ until 2026-10-11); the page's "News" band appears only once a Journal post in the "Company news" topic
 is published.
 
 **The privacy page's "When we write to you first" (`/privacy#outreach`).** It describes the
 owner's own emails to businesses that have not written first: the sources, the services that
 handle the addresses, two years' keep and the do-not-contact list. Every sentence is the
 owner's (DECISIONS-BETA-WEBSITE, D33). Data requests go to privacy@wear-run.com
-(`PRIVACY_EMAIL` in `apps/cms/src/app/(frontend)/privacy/page.tsx`); `partner@` stays the
-buyers' address everywhere else. The section names each service, so changing a service means
+(`PRIVACY_EMAIL` in `apps/cms/src/app/(frontend)/privacy/page.tsx`); `inquiry@`, the Site
+Settings email (partner@ until 2026-10-11), is the buyers' address everywhere else. The section names each service, so changing a service means
 changing these words, with the owner's approval; `apps/cms/e2e/privacy.spec.ts` holds its place, its anchor and the right-to-object
 paragraph word for word.
 

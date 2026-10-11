@@ -19,13 +19,18 @@
  * follows it (`checks/tasks/securitytxt.py`, read 2026-09-18).
  */
 
-export const SECURITY_TXT_CONTACT = 'mailto:team@wear-run.com'
+/**
+ * security@ since 2026-10-11 (owner; team@ before): RFC 9116 §2.5.3 points to RFC 2142's SECURITY
+ * mailbox. Like every address the site shows it is an alias of team@, so a report that came
+ * through this file is told apart from other mail.
+ */
+export const SECURITY_TXT_CONTACT = 'mailto:security@wear-run.com'
 
 /** At most a year after SECURITY_TXT_REVIEWED. The test pins that relationship. */
 export const SECURITY_TXT_EXPIRES = '2027-09-01T00:00:00.000Z'
 
-/** The day a person last confirmed the contact still reaches someone. */
-export const SECURITY_TXT_REVIEWED = '2026-09-18'
+/** The day a person last confirmed the contact still reaches someone: the owner set up security@. */
+export const SECURITY_TXT_REVIEWED = '2026-10-11'
 
 export const SECURITY_TXT_POLICY = 'https://github.com/hateem2121/RUN-APPAREL-W.D/security/policy'
 

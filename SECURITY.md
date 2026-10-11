@@ -2,7 +2,7 @@
 
 > **In short.** These are plain words. The full policy below is what counts.
 >
-> 🔍 Found a way to break in, or a leak? Email **team@wear-run.com** with `SECURITY` in the subject line.
+> 🔍 Found a way to break in, or a leak? Email **security@wear-run.com** with `SECURITY` in the subject line.
 >
 > 🚫 **Do not** open a public GitHub issue. Everyone can read those.
 >
@@ -12,18 +12,19 @@
 
 ```mermaid
 flowchart TB
-  A["🔍 You find a security problem"] --> B["✉️ Email team@wear-run.com<br/>subject: SECURITY"]
+  A["🔍 You find a security problem"] --> B["✉️ Email security@wear-run.com<br/>subject: SECURITY"]
   B --> C["📨 We reply within 3 working days"]
   C --> D["🛠️ We fix it and thank you"]
 ```
 
 ## Reporting a vulnerability
 
-**Email `team@wear-run.com` with `SECURITY` in the subject line.**
+**Email `security@wear-run.com` with `SECURITY` in the subject line.**
 
 The same address is in `/.well-known/security.txt` (RFC 9116) on every host — owner
-decision 2026-09-18, so a researcher sees one address wherever they look.
-`partner@wear-run.com` is the company's public enquiry address, not for security reports.
+decision 2026-09-18, so a researcher sees one address wherever they look. It is security@
+since 2026-10-11 (team@ before).
+`inquiry@wear-run.com` is the company's public enquiry address, not for security reports.
 
 Please do **not** open a GitHub issue for a security problem. Issues in this
 repository are used by the automated monitors (`uptime.yml`, `heartbeat.yml`,

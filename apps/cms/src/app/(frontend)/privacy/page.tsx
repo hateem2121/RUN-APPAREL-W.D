@@ -90,8 +90,8 @@ const SECTIONS = [
 
 /**
  * Where data requests and "stop emailing me" go (owner, 2026-10-07; the mailbox exists and
- * reaches the owner). Only this page uses it: the footer and the contact page keep partner@, the
- * Site Settings email.
+ * reaches the owner). Only this page uses it: the footer and the contact page show the Site
+ * Settings email, inquiry@ since 2026-10-11 (partner@ before).
  */
 const PRIVACY_EMAIL = 'privacy@wear-run.com'
 

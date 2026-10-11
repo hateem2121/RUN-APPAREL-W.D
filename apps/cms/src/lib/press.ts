@@ -14,10 +14,11 @@ import {
  */
 
 /**
- * Where journalists write (owner, 2026-10-07: "media@wear-run.com (will make alias)"). Not the
- * Site Settings email, which is partner@ and stays the buyers' address.
+ * Where journalists write: press@ since 2026-10-11 (owner), media@ before (2026-10-07, "will make
+ * alias"). Both are aliases of team@, and media@ still arrives, but only press@ is shown. Not the
+ * Site Settings email, which is inquiry@ and is the buyers' address.
  */
-export const MEDIA_EMAIL = 'media@wear-run.com'
+export const PRESS_EMAIL = 'press@wear-run.com'
 
 /** The press page's hero photo: the showroom, with the RUN APPAREL wall behind the garments. */
 export const PRESS_HERO_PHOTO = 'showroom'

@@ -295,6 +295,9 @@ record. The mail domain and the web domain differ on purpose.
 site footer, the viewer's enquiry links, the shared defaults and the CMS setting —
 so the two domains cannot drift apart in one place only.
 
+**Amended by D37 (2026-10-11):** the site shows inquiry@wear-run.com now, an alias of team@;
+partner@ is shown nowhere.
+
 ### D14 · "EST. LINEAGE 1889" is reworded, not removed — `FA-I-12`
 
 **Owner's statement, 2026-09-07:** *"Our family start manufacturing and exporting
@@ -880,6 +883,9 @@ privacy@wear-run.com; partner@ stays the buyers' address.**
 "On this page" link and jump, the objection paragraph word for word, and the privacy@ link
 under "Your rights".
 
+**Amended by D37 (2026-10-11):** the buyers' address is inquiry@, not partner@; data requests
+still go to privacy@.
+
 ### D34 · The Learn pages, the hubs and the press page
 
 **Decision: the FAQ (with "Working with us"), the glossary, the Journal, case studies and a
@@ -902,6 +908,8 @@ Policies, Case studies, Press) are now complete.
 
 **Guard:** `faqs.test.ts`, `glossary.test.ts`, `press.test.ts` and `companyPages.test.ts`;
 `apps/cms/e2e/pages.spec.ts` and `legibility.spec.ts` load every page.
+
+**Amended by D37 (2026-10-11):** journalists write to press@, not media@.
 
 ### D35 · The website's CSS is one cached file again — reverses RO-08's inlined CSS
 
@@ -974,6 +982,41 @@ the existing guards, no animation library.**
 **Guards:** `apps/cms/e2e/aboutFactory.spec.ts` (in WebKit's file list as well as Chromium's and
 Firefox's), `apps/cms/src/lib/preloader.test.ts`, `apps/cms/src/lib/photoViewer.test.ts`,
 `apps/cms/src/hostRulesManifest.test.ts`.
+
+## 2026-10-11 — the addresses the site shows
+
+### D37 · Every address the site shows is an alias of team@ — amends D13, D33 and D34
+
+**Decision: the website shows only aliases of team@wear-run.com, so mail that came from the site
+is told apart from the rest. Buyers write to inquiry@wear-run.com, and the contact form's
+messages arrive there too; journalists write to press@; data requests still go to privacy@ (D33)
+and applications to hr@ (D32); security reports go to security@. partner@ is shown nowhere. The
+owner chose each one on 11 Oct 2026.**
+
+- **inquiry@ is the Site Settings email**, still one CMS box (Settings → Email): the footer on
+  every page, the contact page, the "Email" buttons, the garment pages, Google's company data,
+  and where the form's notifications go. The code default
+  (`packages/shared/src/defaults.ts`) shows on the error and 404 pages and whenever the CMS
+  cannot be read. The contact page keeps its "[ Partnerships ]" label (owner).
+- **press@, not media@,** on the press page (`PRESS_EMAIL` in `apps/cms/src/lib/press.ts`).
+  media@ still arrives, but no page shows it.
+- **security@ in security.txt** on every host (`packages/shared/src/securityTxt.ts`): RFC 9116
+  §2.5.3 points to RFC 2142's SECURITY mailbox. SECURITY.md names it too.
+- **The GitHub pages changed as well** (owner's choice): the licence's "Enquiries" line and its
+  picture say inquiry@; README, CONTRIBUTING, SUPPORT, the code of conduct and the "When
+  something looks wrong" guide say info@, with SUPPORT's security route on security@; the
+  outreach template's signature (`docs/BUYER-JOURNEY-PROTOCOL.md`) says inquiry@.
+- **Left as they are, on purpose:** the addresses the form emails are sent FROM
+  (`inquiries@` and `noreply@wear-run.help`, never shown to a visitor; a new sending domain
+  needs its own DNS records), the CMS logins, the D1 column's own SQL default (still partner@,
+  because changing a column default rebuilds the table, and the live value is the one saved in
+  the admin), and dated records of what was true before.
+
+**Guards:** `apps/cms/src/globals/SiteSettings.test.ts` holds the CMS defaults to
+`DEFAULT_SITE_SETTINGS`; `apps/cms/src/lib/inquiry.test.ts` pins where the form's notification
+goes when the settings cannot be read; `packages/shared/src/securityTxt.test.ts`,
+`apps/cms/src/lib/press.test.ts`, `apps/cms/e2e/press.spec.ts` and
+`apps/cms/e2e/privacy.spec.ts` hold the other addresses.
 
 ## Closed since
 

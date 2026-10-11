@@ -6,7 +6,7 @@
 ## 🙋 Who can help
 
 - **Anyone** can report a problem. Open an issue and pick the form that fits.
-- **To change the code**, email team@wear-run.com first. The code is not open source (see [LICENSE](LICENSE)).
+- **To change the code**, email info@wear-run.com first. The code is not open source (see [LICENSE](LICENSE)).
 - **Security problems** go by private email only. See [SECURITY.md](SECURITY.md).
 
 ## ✍️ How we name commits

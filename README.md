@@ -89,7 +89,7 @@ A few packages wait on purpose, each until something outside our control changes
 
 ## 🆘 Help, 🔒 security, 📜 licence, 🤝 conduct
 
-- 🆘 **Need help?** See [SUPPORT.md](SUPPORT.md), or email team@wear-run.com.
+- 🆘 **Need help?** See [SUPPORT.md](SUPPORT.md), or email info@wear-run.com.
 - 🔒 **Found a security problem?** Email privately. [SECURITY.md](SECURITY.md) explains how. Never open a public issue for it.
 - 📜 **Licence:** this code is not open source. You may read it and fork it on GitHub. See [LICENSE](LICENSE).
 - 🤝 **Conduct:** be kind and honest. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

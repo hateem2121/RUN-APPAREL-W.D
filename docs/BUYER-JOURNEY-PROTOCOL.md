@@ -156,7 +156,7 @@ it up there.
 
 Hateem Jamshaid
 Business Development Director | RUN APPAREL (PVT) LTD
-team@wear-run.com | wear-run.com | wear-run.com/catalogue
+inquiry@wear-run.com | wear-run.com | wear-run.com/catalogue
 
 ---
 

@@ -10,11 +10,11 @@
 >
 > 🛟 If someone makes you feel unsafe, tell us. We will listen.
 >
-> ✉️ Email **team@wear-run.com** with `CONDUCT` in the subject line. We reply within 24 hours.
+> ✉️ Email **info@wear-run.com** with `CONDUCT` in the subject line. We reply within 24 hours.
 
 ```mermaid
 flowchart TB
-  A["😟 You see a problem"] --> B["✉️ Email team@wear-run.com<br/>subject: CONDUCT"]
+  A["😟 You see a problem"] --> B["✉️ Email info@wear-run.com<br/>subject: CONDUCT"]
   B --> C["👀 We read it and reply<br/>within 24 hours"]
   C --> D["🤝 We work out a fair fix"]
 ```
@@ -69,7 +69,7 @@ We agree to restrict the following behaviors in our community. Instances, threat
 
 Tensions can occur between community members even when they are trying their best to collaborate. Not every conflict represents a code of conduct violation, and this Code of Conduct reinforces encouraged behaviors and norms that can help avoid conflicts and minimize harm.
 
-When an incident does occur, it is important to report it promptly. To report a possible violation, **email team@wear-run.com with `CONDUCT` in the subject line.**
+When an incident does occur, it is important to report it promptly. To report a possible violation, **email info@wear-run.com with `CONDUCT` in the subject line.**
 
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing witnesses and other participants. Community Moderators will keep investigation and enforcement actions as transparent as possible while prioritizing safety and confidentiality. In order to honor these values, enforcement actions are carried out in private with the involved parties, but communicating to the whole community may be part of a mutually agreed upon resolution.
 

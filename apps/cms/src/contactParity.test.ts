@@ -75,10 +75,11 @@ const colourway = (o: Record<string, unknown> = {}) => ({
 })
 
 /** A realistic, fully-populated site-settings document — the shape Payload's
- * `required: true` fields guarantee production always has. */
+ * `required: true` fields guarantee production always has. Its email and number are NOT the
+ * defaults (inquiry@, +92 336…), so a projection that fell back instead of reading it fails. */
 const settingsDoc = {
   companyName: 'RUN APPAREL (PVT) LTD',
-  email: 'partner@wear-run.help',
+  email: 'info@wear-run.com',
   whatsappNumber: '+923001234567',
   catalogueUrl: 'https://wear-run.help/catalogue',
   temporaryWordmark: 'RUN APPAREL',

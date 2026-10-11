@@ -14,7 +14,7 @@ flowchart TB
   D -- Yes --> E["Upload again with Detail: Highest quality"]
   D -- No --> F{"Is a logo see-through or gone?"}
   F -- Yes --> G["Tell the developer. Detail will not fix it."]
-  F -- No --> H["Email team@wear-run.com with a screenshot"]
+  F -- No --> H["Email info@wear-run.com with a screenshot"]
 ```
 
 ## 📋 What the Report might say
@@ -37,7 +37,7 @@ Zoom right in on each printed logo.
 ![The live viewer on a phone, with the wine skin-suit and its printed logo on the chest](../images/viewer-phone-light.png)
 
 If the site does not open at all, it may be down.
-Email **team@wear-run.com** and say which link you opened.
+Email **info@wear-run.com** and say which link you opened.
 
 ## 🏷️ An old QR tag shows a different colour
 

@@ -24,6 +24,8 @@
  * real rather than anticipated.
  */
 
+import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
+
 export const MAX_LENGTHS = {
   name: 120,
   company: 160,
@@ -183,4 +185,14 @@ export function formatInquiryEmail(
 export function inquirySubject(value: InquiryInput): string {
   const who = value.company || value.name
   return `Inquiry — ${who}${value.subject ? ` — ${value.subject}` : ''}`.slice(0, 160)
+}
+
+/**
+ * Where the notification goes: the Site Settings email (inquiry@ since 2026-10-11, owner), or
+ * the shared default when the settings cannot be read. The default is `DEFAULT_SITE_SETTINGS`,
+ * never typed again here: the route kept its own 'partner@wear-run.com' beside it, a copy that
+ * goes stale the day the address changes.
+ */
+export function inquiryRecipient(settings: { email?: string | null } | null): string {
+  return settings?.email || DEFAULT_SITE_SETTINGS.email
 }

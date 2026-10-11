@@ -26,9 +26,9 @@ describe('extractLinks — pure, no network', () => {
   })
 
   it('finds mailto: and wa.me links', () => {
-    const html = `<a href="mailto:partner@wear-run.com">Email</a><a href="https://wa.me/923361777313">WhatsApp</a>`
+    const html = `<a href="mailto:inquiry@wear-run.com">Email</a><a href="https://wa.me/923361777313">WhatsApp</a>`
     const links = extractLinks(html, 'https://wear-run.help/')
-    expect(links).toContain('mailto:partner@wear-run.com')
+    expect(links).toContain('mailto:inquiry@wear-run.com')
     expect(links).toContain('https://wa.me/923361777313')
   })
 
@@ -174,7 +174,7 @@ describe('evaluate — negative controls', () => {
 
   it('passes a well-formed mailto: address with no network request', () => {
     const result = evaluate({
-      links: [link({ kind: 'mailto', url: 'mailto:partner@wear-run.com', status: undefined })],
+      links: [link({ kind: 'mailto', url: 'mailto:inquiry@wear-run.com', status: undefined })],
       mixedContent: [],
     })
     expect(result.ok).toBe(true)

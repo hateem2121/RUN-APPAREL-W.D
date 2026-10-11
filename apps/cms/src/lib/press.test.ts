@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FACTS, LINEAGE } from './companyFacts'
 import { FACTORY_PHOTOS } from './factoryPhotos'
-import { FAMILY_SINCE, MEDIA_EMAIL, PRESS_FACTS, PRESS_PHOTOS, pressPhotoDownload } from './press'
+import { FAMILY_SINCE, PRESS_EMAIL, PRESS_FACTS, PRESS_PHOTOS, pressPhotoDownload } from './press'
 
 /**
  * The press page's facts and downloads (PLAN.md D8). What would have to go wrong for a journalist
@@ -38,8 +38,8 @@ describe('the press page’s facts', () => {
     expect(PRESS_FACTS.map((row) => row.label.toLowerCase())).not.toContain('founded')
   })
 
-  it('the media address is the alias the owner named', () => {
-    expect(MEDIA_EMAIL).toBe('media@wear-run.com')
+  it('the press address is the alias the owner named (2026-10-11: press@, no longer media@)', () => {
+    expect(PRESS_EMAIL).toBe('press@wear-run.com')
   })
 })
 

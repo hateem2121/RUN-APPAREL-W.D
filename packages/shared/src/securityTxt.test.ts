@@ -19,7 +19,9 @@ const DAY = 86_400_000
  */
 describe('the security.txt every host serves', () => {
   it('names the contact the owner chose, exactly once', () => {
-    expect(SECURITY_TXT_CONTACT).toBe('mailto:team@wear-run.com')
+    // security@ since 2026-10-11 (owner): an alias of team@, so mail that came from here is told
+    // apart from mail that did not.
+    expect(SECURITY_TXT_CONTACT).toBe('mailto:security@wear-run.com')
     expect(SECURITY_TXT.match(/^Contact: /gm)).toHaveLength(1)
     expect(SECURITY_TXT).toContain(`Contact: ${SECURITY_TXT_CONTACT}\n`)
   })
