@@ -80,3 +80,29 @@ describe('llms.txt spells the American way — owner decision 2026-09-04', () =>
     expect(findBritishSpellings(text())).toEqual([])
   })
 })
+
+/**
+ * ⚠️ IT STILL SAID "Each page carries schema.org Product structured data" AFTER D38 (2026-10-11)
+ * took that label off every garment page. The branch's review found it; no test did. AI readers
+ * quote this file as the site's own word, so it may name only the structured data a page really
+ * carries: its breadcrumbs. `worker/preview.test.ts` → "no product label for crawlers (D38)" pins
+ * the same list on the pages' side.
+ */
+const PAGE_TYPES = ['BreadcrumbList']
+
+/** "schema.org Product structured data" or "schema.org/Product" → ['Product']. */
+const namedTypes = (source: string) =>
+  [...source.matchAll(/schema\.org[\s/]+([A-Z]\w*)/g)].map((match) => match[1] ?? '')
+
+describe('llms.txt names only the structured data the pages carry (D38)', () => {
+  it('names no schema.org type that a garment page does not carry', () => {
+    expect(namedTypes(text()).filter((type) => !PAGE_TYPES.includes(type))).toEqual([])
+  })
+
+  it('the type reader can fail — negative control', () => {
+    // The sentence as it stood until D38, and the same type written as an address.
+    const stale = 'Each page carries schema.org Product structured data as JSON-LD.'
+    expect(namedTypes(stale)).toEqual(['Product'])
+    expect(namedTypes('see https://schema.org/ProductGroup')).toEqual(['ProductGroup'])
+  })
+})
