@@ -59,8 +59,10 @@ Every page sends that header, and it makes Playwright's Firefox driver lose a na
 (microsoft/playwright#42731): `page.goto` times out waiting for "load" on a page that has
 finished loading. That hit 25 of 40 CI runs; the retry hid it until PR #17 failed on it.
 `e2e/firefoxPrefs.mjs` has the mechanism and the numbers, and `src/firefoxPrefs.test.ts`
-pins it. Keep it until `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck on a
-newer Playwright.
+pins it. 🟡 **Playwright 1.64.0 fixed the hang (0 of 800 stuck, 2026-10-12), and the
+workaround is STILL needed:** with COOP on, Firefox drops a test's dark scheme and 2x screen on
+every COOP page (400 of 400), and four Firefox tests failed on it. Keep it until
+`node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck AND 0 emulation lost.
 
 🟡 **`next start` NEVER RUNS `worker.mjs`, THE SCRIPT GUARD (SE-04, 2026-09-18).** This suite
 therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never

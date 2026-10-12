@@ -312,11 +312,16 @@
  * The three stacks, with each fallback inserted AFTER the real face and BEFORE the
  * generic one, so the webfont still wins the moment it arrives (since polish D11 body text too;
  * only the four headlines below keep "Archivo Optional").
+ *
+ * ⚠️ NO PLAIN "Archivo" IN ANY STACK (12 Oct 2026). That name has no @font-face here, so it reached a
+ * copy INSTALLED on the device: on a Mac that had one, 21 tests in e2e/fontSwap.spec.ts failed every
+ * run, the late text drawn in the installed static face instead of the measured stand-in. A name
+ * the site defines with @font-face shadows an installed copy; a bare one does not.
  */
 :root {
-  --font-display: "Archivo Variable", "Archivo", "Archivo Display Fallback", system-ui, sans-serif;
-  --font-body: "Archivo Variable", "Archivo", "Archivo Fallback", system-ui, sans-serif;
-  --font-wordmark: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
+  --font-display: "Archivo Variable", "Archivo Display Fallback", system-ui, sans-serif;
+  --font-body: "Archivo Variable", "Archivo Fallback", system-ui, sans-serif;
+  --font-wordmark: "Archivo Variable", "Archivo Card Fallback", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif", "Instrument Serif Fallback", "Instrument Serif Fallback Liberation",
     Georgia, serif;
@@ -473,16 +478,14 @@
 }
 
 .hero-products {
-  --font-display:
-    "Archivo Variable", "Archivo", "Archivo Display Fallback Products", system-ui, sans-serif;
+  --font-display: "Archivo Variable", "Archivo Display Fallback Products", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif", "Instrument Serif Fallback Products",
     "Instrument Serif Fallback Products Liberation", Georgia, serif;
 }
 
 .hero-home {
-  --font-display:
-    "Archivo Variable", "Archivo", "Archivo Display Fallback Home", system-ui, sans-serif;
+  --font-display: "Archivo Variable", "Archivo Display Fallback Home", system-ui, sans-serif;
   --font-serif:
     "Instrument Serif", "Instrument Serif Fallback Home",
     "Instrument Serif Fallback Home Liberation", Georgia, serif;
@@ -1640,7 +1643,7 @@ html {
 
 .product-card__name {
   /* Its own stand-in: see "Archivo Card Fallback" at the top of this file. */
-  font-family: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
+  font-family: "Archivo Variable", "Archivo Card Fallback", system-ui, sans-serif;
   font-weight: 700;
   font-size: var(--text-card-title);
   /* Its own token, not the wordmark's and not the fluid display one — see
@@ -4267,7 +4270,7 @@ a.contact-block__value:active {
 .family-card__title {
   margin: 0;
   /* The card title's face and stand-in (`.product-card__name`), in capitals, as the version 2 demo. */
-  font-family: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
+  font-family: "Archivo Variable", "Archivo Card Fallback", system-ui, sans-serif;
   font-weight: 700;
   font-size: var(--text-card-title);
   letter-spacing: var(--tracking-card-title);
@@ -4492,7 +4495,7 @@ a.contact-block__value:active {
   }
 
   .family-card__stub-name {
-    font-family: "Archivo Variable", "Archivo", "Archivo Card Fallback", system-ui, sans-serif;
+    font-family: "Archivo Variable", "Archivo Card Fallback", system-ui, sans-serif;
     font-weight: 700;
     font-size: var(--text-sm);
     letter-spacing: var(--tracking-card-title);

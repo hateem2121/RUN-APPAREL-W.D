@@ -59,8 +59,10 @@ export default defineConfig({
      *
      * ⚠️ It runs with Cross-Origin-Opener-Policy OFF, because that header makes
      * Playwright's Firefox driver lose `page.goto`'s navigation (microsoft/playwright#42731).
-     * It hung a navigation in 25 of 40 CI runs. `e2e/firefoxPrefs.mjs` has the measurements,
-     * and says when to remove it.
+     * It hung a navigation in 25 of 40 CI runs. Playwright 1.64.0 fixed that, but with COOP on
+     * Firefox still drops the context's dark scheme and 2x screen on every COOP page (400 of
+     * 400, 2026-10-12), so it stays off. `e2e/firefoxPrefs.mjs` has the measurements, and says
+     * when to remove it.
      */
     {
       name: 'firefox',
@@ -107,11 +109,13 @@ export default defineConfig({
      * and the photo viewer's swipe is a scroll-snap strip, all of it an iPhone visit.
      * `productsGroups` joined 2026-10-11: a group drawn late by `content-visibility` (Safari 18+)
      * spilled over the next group on a phone, and an iPhone opens /products in this engine.
+     * `galleryArrows` the same day (VA-30): a smooth scroll sent somewhere new mid-glide, which each
+     * engine carries on its own way, and the arrows a Mac's pointer gets in Safari.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|galleryArrows)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

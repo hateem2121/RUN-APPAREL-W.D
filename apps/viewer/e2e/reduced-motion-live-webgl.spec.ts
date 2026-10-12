@@ -29,11 +29,24 @@ test('the camera damping follows reduced motion turned on and off mid-visit (VA-
   // The instrument: with motion allowed it is the library's tuned 50 (CAMERA_DECAY_MS).
   expect(await page.evaluate(DECAY), 'not the camera damping the stage is built with').toBe('50')
 
+  /*
+   * Both waits use the `webgl` project's measured `expect` limit (playwright.config.ts), not a
+   * fixed 5 s. Measured 11 Oct 2026 on this Mac: the page saw the change at once (`matchMedia` true
+   * right after `emulateMedia`), and the attribute followed after 1.3–6.7 s in 10 of 10 runs at load
+   * averages 39–69, behind SwiftShader's main-thread work; the fixed 5 s failed 6 of 10 at 62–97
+   * while never missing the change. Planted, a stage that never follows the setting fails in 15 s.
+   *
+   * ⚠️ WHAT THIS CANNOT SEE (measured the same day): the VA-20 bug ITSELF, the stage reading the
+   * setting once while rendering. Here the stage re-renders on its own within 0.9–2.1 s of the change
+   * (loading and camera state), and each render reads the new value, so that plant passed 2 of 2.
+   * The live page the audit saw had settled and did not re-render. The hook's subscription is
+   * guarded by `src/lib/usePrefersReducedMotion.test.tsx` (planted, 3 of 5 fail); the stage's use
+   * of the hook has no test that can fail.
+   */
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect
     .poll(() => page.evaluate(DECAY), {
       message: 'the camera still eases as if motion were allowed after it was turned off',
-      timeout: 5_000,
     })
     .toBe('1')
 
@@ -41,7 +54,6 @@ test('the camera damping follows reduced motion turned on and off mid-visit (VA-
   await expect
     .poll(() => page.evaluate(DECAY), {
       message: 'the camera stayed at reduced motion after it was turned back on',
-      timeout: 5_000,
     })
     .toBe('50')
 })

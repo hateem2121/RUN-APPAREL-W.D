@@ -1,7 +1,15 @@
 'use client'
 
-import { type CSSProperties, type ReactNode, useRef, useState } from 'react'
-import { colourHref, slideAt, slidesToLoad } from '../../lib/cardGallery'
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
+import {
+  afterScroll,
+  colourHref,
+  REST_FRAMES,
+  restingTarget,
+  slideAt,
+  slidesToLoad,
+  stepColour,
+} from '../../lib/cardGallery'
 import { cardImage } from '../../lib/cardImage'
 import type { CardColour } from '../../lib/projectPublic'
 import { ProductPoster } from './ProductPoster'
@@ -94,7 +102,7 @@ export function CardGallery({
   const href = colourHref(garmentPages, productSlug, showing?.slug ?? '')
 
   /**
-   * The colour a dot or an arrow is gliding the strip to, until it lands.
+   * The colour a dot or an arrow is gliding the strip to, until the strip comes to rest.
    *
    * ⚠️ WITHOUT IT, TWO QUICK ARROW PRESSES LOST THEIR PLACE (VA-30, caught by the browser test
    * 2026-10-02). A smooth scroll reports every slide it crosses, so mid-glide `active` read the
@@ -102,6 +110,10 @@ export function CardGallery({
    * second colour landed on the first instead of wrapping to the last. So while a glide is on
    * its way the passing slides are not shown, and a press counts from the destination. A
    * finger, the wheel or a key takes over at once (`handOver`): the glide is no longer ours.
+   *
+   * ⚠️ AND IT LASTS UNTIL THE STRIP RESTS (`onScrollEnd`), NOT UNTIL IT FIRST READS ITS COLOUR
+   * (11 Oct 2026, CI run 38142934506): a glide sent somewhere new keeps its speed, so it can read
+   * its destination on the way OUT. `afterScroll` in `lib/cardGallery.ts` has the measurements.
    */
   const heading = useRef<number | null>(null)
   /** Hand the strip back to the visitor — only for input ON the strip, never an arrow's press. */
@@ -109,30 +121,106 @@ export function CardGallery({
     if (strip.current?.contains(event.target as Node)) heading.current = null
   }
 
-  const onScroll = () => {
+  /**
+   * Whether the strip's last move was the gallery settling it onto a picture (`restingTarget`):
+   * the rest after it is never corrected again, so a strip the browser will not snap where it is
+   * asked can never start a loop of corrections.
+   */
+  const settling = useRef(false)
+
+  /**
+   * One slide's width, fractions included. `clientWidth` rounds: a card 365.6px wide reports 366,
+   * and reading positions in one width while `restingTarget` reads them in the other left the fifth
+   * picture 1.6px "off", so a press on it waited the long rest instead of 12 frames (review, 11 Oct
+   * 2026). Every read here uses this one.
+   *
+   * THE LAYOUT WIDTH, NOT `getBoundingClientRect()`: that one follows transforms, and a press on the
+   * card's words scales the whole card to 0.97 (`.product-card:active`, site.css), so a rest read
+   * mid-press saw the strip 3% narrow and asked for a scroll 11px short of the second picture
+   * (second review, 12 Oct 2026). Measured the same day, the mandatory snap pulled that request back
+   * onto the picture in all three engines, so nothing showed; this reads the width the snap points
+   * are laid out in. The strip has no padding or border, so its computed width is the slide.
+   */
+  const slideWidth = (el: HTMLElement) => Number.parseFloat(getComputedStyle(el).width)
+
+  /**
+   * The gallery's own rest signal for a glide it started: `REST_FRAMES` frames in a row with the
+   * strip still, beside `scrollend`.
+   *
+   * ⚠️ `scrollend` DOES NOT ALWAYS COME (11 Oct 2026). "Next" then "previous" 8ms apart stopped
+   * Chromium 153's strip 2px into the second picture, and no `scrollend` followed, in 6 of 6
+   * tries, though the strip had moved; Firefox 155 left it 7–14px in WITH one. A frame count, not a
+   * timer: a busy page that pauses the strip pauses the frames too, so a stalled glide never reads
+   * as a rest. It stops as soon as the glide is no longer ours (`heading` changed: a finger, the
+   * wheel, a key or another press).
+   */
+  const watcher = useRef(0)
+  const watchRest = (target: number) => {
+    cancelAnimationFrame(watcher.current)
+    const from = strip.current?.scrollLeft ?? 0
+    let last = from
+    let still = 0
+    const tick = () => {
+      const el = strip.current
+      if (!el || heading.current !== target) return
+      still = el.scrollLeft === last ? still + 1 : 0
+      last = el.scrollLeft
+      // A glide the browser has not started yet is not a rest: still counts only once the strip
+      // has moved or already stands where it was sent, or after `REST_FRAMES` × 5 without either.
+      const settled =
+        el.scrollLeft !== from || Math.abs(el.scrollLeft - target * slideWidth(el)) <= 1
+      if (still >= (settled ? REST_FRAMES : REST_FRAMES * 5)) follow(true)
+      else watcher.current = requestAnimationFrame(tick)
+    }
+    watcher.current = requestAnimationFrame(tick)
+  }
+  useEffect(() => () => cancelAnimationFrame(watcher.current), [])
+
+  /** The strip moved; `rested` once it has come to rest (`scrollend`, or `watchRest`). */
+  const follow = (rested: boolean) => {
     const el = strip.current
     if (!el) return
-    const at = slideAt(el.scrollLeft, el.clientWidth, colours.length)
-    if (heading.current !== null) {
-      if (at !== heading.current) return
-      heading.current = null
+    const at = slideAt(el.scrollLeft, slideWidth(el), colours.length)
+    const next = afterScroll(heading.current, at, {
+      rested,
+      restsReported: 'onscrollend' in window,
+    })
+    heading.current = next.heading
+    if (rested) {
+      const settle = settling.current
+        ? null
+        : restingTarget(el.scrollLeft, slideWidth(el), colours.length)
+      settling.current = settle !== null
+      if (settle !== null) {
+        // Settling onto the picture it shows: a glide of our own, so none of its passing is shown.
+        heading.current = settle
+        el.scrollTo({ left: settle * slideWidth(el), behavior: glide() })
+        watchRest(settle)
+      }
     }
-    setActive(at)
-    want(at)
+    if (next.show === null) return
+    setActive(next.show)
+    want(next.show)
   }
+
+  /** A smooth glide, or an instant move when the visitor asks for reduced motion. */
+  const glide = (): ScrollBehavior =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 
   const show = (target: number) => {
     const el = strip.current
     if (!el) return
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     heading.current = target
-    el.scrollTo({ left: target * el.clientWidth, behavior: still ? 'auto' : 'smooth' })
+    // A press is a new glide, not the settling one: its own rest may be corrected again (review,
+    // 11 Oct 2026: a dot pressed while a correction ran skipped the correction it needed).
+    settling.current = false
+    el.scrollTo({ left: target * slideWidth(el), behavior: glide() })
+    watchRest(target)
     setActive(target)
     want(target)
   }
   /** One colour on, either way, round from the last to the first, counted from where it is going. */
-  const step = (by: number) =>
-    show(((heading.current ?? active) + by + colours.length) % colours.length)
+  const step = (by: number) => show(stepColour(heading.current, active, by, colours.length))
 
   return (
     <>
@@ -151,7 +239,12 @@ export function CardGallery({
         onKeyDown={handOver}
         onFocus={engage}
       >
-        <div className="card-gallery" ref={strip} onScroll={onScroll}>
+        <div
+          className="card-gallery"
+          ref={strip}
+          onScroll={() => follow(false)}
+          onScrollEnd={() => follow(true)}
+        >
           {colours.map((colour, slide) => (
             <a
               key={colour.slug}

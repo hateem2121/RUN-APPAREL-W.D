@@ -411,7 +411,7 @@ jobs:
     # Viewer 2/3 took 16.5 min in that run, and is now the longest.
     timeout-minutes: 30
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      image: mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f
     strategy:
       # Every shard reports, so one failure never hides another's.
       fail-fast: false
@@ -1052,7 +1052,7 @@ jobs:
     # (From 2026-09-08 to 2026-09-10 a self-hosted runner built FROM this image carried
     # the pin in its Dockerfile instead; that runner is retired.)
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      image: mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

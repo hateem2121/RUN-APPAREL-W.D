@@ -35,9 +35,17 @@
  * `/*` block of `_headers`, which carries no COOP, and it hit no such timeout in the
  * same 40 runs. It will need it if that fixture ever sends COOP on a page.
  *
- * REMOVE THIS ONLY WHEN a Playwright release carries the upstream fix, AND
- * `node e2e/firefox-coop-hang.mjs --prefs=none` then shows 0 stuck. Guarded by
- * `src/firefoxPrefs.test.ts`.
+ * ⚠️ AND A SECOND REASON, FOUND WHEN 1.64.0 FIXED THE FIRST (2026-10-12). Playwright 1.64.0
+ * carries the fix for #42731: 0 of 800 navigations stuck with COOP on (1.63.0: 33). But with
+ * COOP on, Firefox drops the context's emulated settings on every COOP page: a context asking for
+ * a dark scheme and a 2x screen got a light 1x page, 400 of 400 (and 5 of 5 on 1.63.0). Four of
+ * this suite's Firefox tests failed on exactly that (print, theme switch and phone menu in dark
+ * mode; the order timeline's 2x photos), and any test that asks for dark or 2x without checking
+ * would quietly measure the wrong page. With this preference: 0 of 400 lost.
+ *
+ * REMOVE THIS ONLY WHEN `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck AND 0
+ * emulation lost (it checks both since 2026-10-12), and the `firefox` project then passes in
+ * full. Guarded by `src/firefoxPrefs.test.ts`.
  */
 export const FIREFOX_USER_PREFS = {
   'browser.tabs.remote.useCrossOriginOpenerPolicy': false,

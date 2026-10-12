@@ -11,7 +11,7 @@ import { expect, type Page, test } from './offlineMedia'
  * ⚠️ THE PICTURES ARE MADE IN CI'S OWN IMAGE, AND ONLY COMPARED THERE. Playwright's docs
  * (read 2026-10-01): rendering differs by OS, version and hardware, so a picture made on
  * this Mac would fail in CI on font smoothing alone. The references are the `-linux` files
- * next to this spec, made inside `mcr.microsoft.com/playwright:v1.63.0-noble` — the image
+ * next to this spec, made inside `mcr.microsoft.com/playwright:v1.64.0-noble` — the image
  * ci.yml pins by digest. On any other platform the test SKIPS, saying so; to update the
  * pictures, run it in that image with `--update-snapshots` (docs/RUNBOOK.md has the steps).
  *

@@ -303,24 +303,40 @@ test.describe('the product gallery', () => {
      * in ~200 tries in CI's image. If it does, the failure carries every mouse event the page saw and
      * where the strip was, so the next reader can tell a click the browser never sent from one the
      * gallery ignored.
+     *
+     * ⚠️ AND, SINCE 11 OCT 2026, WHAT THE GALLERY SAW: every scroll and `scrollend` of THIS card's
+     * strip and every change of its pressed dot. CI run 38142934506 failed here with only the
+     * strip's position at each click, and finding that the glide ended on a reading taken on its
+     * way out took a day of probes. The strip is the tested card's own: `document.querySelector`
+     * found the page's FIRST strip, which is this card's only while the seed holds one garment.
      */
-    await page.evaluate(() => {
+    await card.evaluate((element) => {
       const log: string[] = []
       ;(window as unknown as { va30: string[] }).va30 = log
       const t0 = performance.now()
-      const strip = document.querySelector('.card-gallery')
+      const at = () => `${Math.round(performance.now() - t0)}ms`
+      const strip = element.querySelector<HTMLElement>('.card-gallery')
+      const position = () => `strip=${Math.round(strip?.scrollLeft ?? -1)}`
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
         document.addEventListener(
           type,
           (event) => {
-            const at = (event.target as Element).closest('button, a')
+            const on = (event.target as Element).closest('button, a')
             log.push(
-              `${Math.round(performance.now() - t0)}ms ${type} on ${at?.getAttribute('aria-label') ?? at?.className ?? (event.target as Element).nodeName} strip=${Math.round(strip?.scrollLeft ?? -1)}`,
+              `${at()} ${type} on ${on?.getAttribute('aria-label') ?? on?.className ?? (event.target as Element).nodeName} ${position()}`,
             )
           },
           true,
         )
       }
+      for (const type of ['scroll', 'scrollend']) {
+        strip?.addEventListener(type, () => log.push(`${at()} ${type} ${position()}`))
+      }
+      const dots = [...element.querySelectorAll('.card-gallery__dot')]
+      new MutationObserver(() => {
+        const pressed = dots.findIndex((dot) => dot.getAttribute('aria-pressed') === 'true')
+        log.push(`${at()} dot ${pressed} pressed ${position()}`)
+      }).observe(element, { subtree: true, attributeFilter: ['aria-pressed'] })
     })
     const recorded = async () =>
       (await page.evaluate(() => (window as unknown as { va30: string[] }).va30)).join('\n')

@@ -379,8 +379,10 @@
   --site-max: 1180px;
   --site-gutter: clamp(20px, 5vw, 64px);
 
-  --font-display: "Archivo Variable", "Archivo", system-ui, sans-serif;
-  --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
+  /* No plain "Archivo": with no @font-face of that name it reaches a copy installed on the device
+     (12 Oct 2026, apps/cms/src/app/(frontend)/site.css has the measurement). */
+  --font-display: "Archivo Variable", system-ui, sans-serif;
+  --font-body: "Archivo Variable", system-ui, sans-serif;
   /* The bar's wordmark (notch.css): the display face, which the website gives its own stand-in. */
   --font-wordmark: var(--font-display);
   --font-serif: "Instrument Serif", Georgia, serif;

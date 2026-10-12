@@ -1,14 +1,22 @@
 /**
- * Counts Firefox navigations that never resolve on this site's pages
- * (microsoft/playwright#42731). The negative control for `e2e/firefoxPrefs.mjs`, and
- * the check to run before removing it.
+ * Counts the two ways Playwright's Firefox goes wrong on this site's pages, which all send
+ * `Cross-Origin-Opener-Policy`: navigations that never resolve (microsoft/playwright#42731), and
+ * pages that lose the context's emulated settings (a dark system, a 2x screen). The negative
+ * control for `e2e/firefoxPrefs.mjs`, and the check to run before removing it.
  *
- *   node e2e/firefox-coop-hang.mjs --prefs=none    # Firefox's default: expect stuck > 0
- *   node e2e/firefox-coop-hang.mjs --prefs=suite   # the suite's preferences: expect 0
+ *   node e2e/firefox-coop-hang.mjs --prefs=none    # Firefox's default: COOP on
+ *   node e2e/firefox-coop-hang.mjs --prefs=suite   # the suite's preferences: expect 0 and 0
  *
  * Needs this suite's server already running (`CMS_E2E_PORT=4174 node e2e/serve.mjs`
  * from apps/cms, after a build). Optional: `--trials=400 --concurrency=4`.
- * Exits 1 if any navigation stuck, 0 if none did, and 2 if it could not run.
+ * Exits 1 if any navigation stuck or lost its emulation, 0 if none did, and 2 if it could not run.
+ *
+ * MEASURED 2026-10-12, two alternating pairs of 400 per arm, `--prefs=none`: stuck 33 of 800 on
+ * Playwright 1.63.0, 0 of 800 on 1.64.0 (its fix for #42731). But a fresh context asking for a
+ * dark scheme and a 2x screen got a light 1x page on every COOP page: 400 of 400 on 1.64.0 (5 of
+ * 5 on 1.63.0 too, in a smaller probe), and 0 of 400 lost with `--prefs=suite`. With COOP on, four of the site's Firefox tests failed on exactly
+ * that (dark mode in print, theme switch and phone menu; 2x photos in the order timeline). No
+ * upstream issue named it that day.
  *
  * ⚠️ WHY IT DOES NOT USE THE TEST RUNNER. The test runner did not reproduce the hang on
  * a Mac: 0 in 700 Firefox tests, measured 2026-09-18. CI's slower runner hung about one
@@ -59,13 +67,30 @@ console.log(
 
 let started = 0
 const stuck = []
+const lost = []
 async function worker() {
   while (started < trials) {
     const path = PAGES[started++ % PAGES.length]
-    const context = await browser.newContext()
+    // The settings the suite's tests ask for: on a COOP page Firefox dropped both (see above).
+    const context = await browser.newContext({ colorScheme: 'dark', deviceScaleFactor: 2 })
     const page = await context.newPage()
     try {
       await page.goto(ORIGIN + path, { timeout: GOTO_TIMEOUT_MS })
+      // Raced like the stuck check below (review, 2026-10-12): a lost execution context hangs or
+      // throws here too, and either must count as stuck, not stall or kill the run.
+      const sees = await Promise.race([
+        page
+          .evaluate(() => ({
+            dark: matchMedia('(prefers-color-scheme: dark)').matches,
+            ratio: devicePixelRatio,
+          }))
+          .catch(() => 'evaluate failed'),
+        new Promise((resolve) => setTimeout(() => resolve('evaluate hung'), 3_000)),
+      ])
+      if (typeof sees === 'string') stuck.push(`${path} (after load: ${sees})`)
+      else if (!sees.dark || sees.ratio !== 2) {
+        lost.push(`${path} (page sees: ${JSON.stringify(sees)})`)
+      }
     } catch (error) {
       if (!String(error).includes('Timeout')) throw error
       // The bug's signature: the page itself finished loading. An evaluate can hang too,
@@ -83,5 +108,8 @@ await Promise.all(Array.from({ length: concurrency }, worker))
 await browser.close()
 
 for (const line of stuck) console.log(`  stuck: ${line}`)
-console.log(`RESULT prefs=${prefsArm} navigations=${trials} stuck=${stuck.length}`)
-process.exit(stuck.length > 0 ? 1 : 0)
+for (const line of lost.slice(0, 5)) console.log(`  emulation lost: ${line}`)
+console.log(
+  `RESULT prefs=${prefsArm} navigations=${trials} stuck=${stuck.length} emulationLost=${lost.length}`,
+)
+process.exit(stuck.length + lost.length > 0 ? 1 : 0)

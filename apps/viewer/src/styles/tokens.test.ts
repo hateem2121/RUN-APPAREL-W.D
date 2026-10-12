@@ -1697,7 +1697,9 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for lab
    * (docs/DESIGN.md §3). The fonts an AI-generated page reaches for by default are named
    * separately so a failure says what went wrong, not just that something did.
    */
-  const BRAND = ['Archivo Variable', 'Archivo', 'Instrument Serif', 'IBM Plex Mono']
+  // Not plain "Archivo": with no @font-face of that name it reaches a copy installed on the device,
+  // drawn while the web font loads (TY-02, 12 Oct 2026; packages/ui/src/tokens.css says more).
+  const BRAND = ['Archivo Variable', 'Instrument Serif', 'IBM Plex Mono']
   /** Brand faces a stylesheet declares itself, and the only package each may load files from. */
   const BRAND_FILES: Record<string, RegExp> = {
     'IBM Plex Mono': /^\s*url\("@fontsource\/ibm-plex-mono\/files\/ibm-plex-mono-[\w-]+\.woff2"\)/,

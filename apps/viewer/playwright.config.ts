@@ -159,6 +159,18 @@ export default defineConfig({
        * raise this again without measuring which of the two it is.
        */
       timeout: 120_000,
+      /**
+       * ⚠️ AND A LONGER `expect` WAIT, ALSO A MEASUREMENT (11 Oct 2026). Under these SwiftShader
+       * flags three.js spends ~2.6 s of main thread in the model-viewer chunk before
+       * `<model-viewer>` enters the page (CPU profile: two functions, 1,516 + 1,105 ms); plain
+       * headless Chromium 153 does the same in ~80 ms, so this is the harness's cost, never a
+       * visitor's. Measured on this Mac: the element arrived at 2.5–2.7 s idle and at 3.9 s at a
+       * load average of 36, where `reduced-motion-live-webgl.spec.ts` missed the default 5 s in 2
+       * of 8 full-suite runs. 15 s covers the loaded reading with the margin the note above gives a
+       * GitHub runner ("several times slower"); a stage that never mounts still fails, in 15 s.
+       * Whether lighter flags can drop the cost itself is a separate question (owner, 11 Oct).
+       */
+      expect: { timeout: 15_000 },
       // Stays FILE-parallel, as the whole suite was until 2026-09-29: two of these
       // software-rendered tests at once on one runner's CPU is the contention the 30 s
       // coin-flip above describes. The other projects went test-parallel (see the top).

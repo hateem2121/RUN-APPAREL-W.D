@@ -144,7 +144,7 @@ polish X5, 2026-10-04; until then the labels used each device's own monospace). 
 
 | Token | Stack |
 |---|---|
-| `--font-display` / `--font-body` | `'Archivo Variable', 'Archivo', system-ui, sans-serif` |
+| `--font-display` / `--font-body` | `'Archivo Variable', system-ui, sans-serif` (never plain `'Archivo'`: it reaches a copy installed on the device, TY-02) |
 | `--font-serif` | `'Instrument Serif', Georgia, serif` |
 | `--font-mono` | `'IBM Plex Mono'`, two local stand-ins sized to it, then `ui-monospace, 'SF Mono', Menlo, …` |
 
