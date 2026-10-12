@@ -524,6 +524,23 @@ test.describe('the factory photo viewer', () => {
     )
   })
 
+  test('a slide cut short by closing the viewer never names a photo in the next opening', async ({
+    page,
+  }) => {
+    // Review, 12 Oct 2026: the slide's watcher outlived an Escape and, when it came to rest on the
+    // closed strip, set the counter of the viewer opened next.
+    const { count, counter } = await openThird(page)
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await links(page).nth(5).scrollIntoViewIfNeeded()
+    await links(page).nth(5).click()
+    await expect(counter).toHaveText(`6 / ${count}`)
+    // Longer than the watcher's slowest rest (60 frames), so a stale one has had its chance.
+    await page.waitForTimeout(1500)
+    await expect(counter, 'the closed slide set this opening').toHaveText(`6 / ${count}`)
+  })
+
   test('when the browser cancels every slide, the counter names the photo shown', async ({
     page,
   }) => {

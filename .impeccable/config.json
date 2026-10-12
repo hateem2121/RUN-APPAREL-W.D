@@ -50,6 +50,13 @@
         "files": ["apps/cms/src/components/site/SiteFooter.test.ts"],
         "createdAt": "2026-10-11T08:29:42.714Z",
         "reason": "Claude, 2026-10-11: lines 139 and 156 are the regex /<img [^>]*>/g that counts the footer's five rendered logos in a unit test; no image is drawn from this file"
+      },
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": ["apps/viewer/src/styles/tokens.test.ts"],
+        "createdAt": "2026-10-12T04:58:09.210Z",
+        "reason": "Claude, 2026-10-12: line 1538 is test VC-02, which FORBIDS background-clip:text in CSS and JSX; the match is that rule's own regex, and this Vitest file draws no text"
       }
     ]
   }

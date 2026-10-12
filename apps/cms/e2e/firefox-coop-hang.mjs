@@ -76,11 +76,21 @@ async function worker() {
     const page = await context.newPage()
     try {
       await page.goto(ORIGIN + path, { timeout: GOTO_TIMEOUT_MS })
-      const sees = await page.evaluate(() => ({
-        dark: matchMedia('(prefers-color-scheme: dark)').matches,
-        ratio: devicePixelRatio,
-      }))
-      if (!sees.dark || sees.ratio !== 2) lost.push(`${path} (page sees: ${JSON.stringify(sees)})`)
+      // Raced like the stuck check below (review, 2026-10-12): a lost execution context hangs or
+      // throws here too, and either must count as stuck, not stall or kill the run.
+      const sees = await Promise.race([
+        page
+          .evaluate(() => ({
+            dark: matchMedia('(prefers-color-scheme: dark)').matches,
+            ratio: devicePixelRatio,
+          }))
+          .catch(() => 'evaluate failed'),
+        new Promise((resolve) => setTimeout(() => resolve('evaluate hung'), 3_000)),
+      ])
+      if (typeof sees === 'string') stuck.push(`${path} (after load: ${sees})`)
+      else if (!sees.dark || sees.ratio !== 2) {
+        lost.push(`${path} (page sees: ${JSON.stringify(sees)})`)
+      }
     } catch (error) {
       if (!String(error).includes('Timeout')) throw error
       // The bug's signature: the page itself finished loading. An evaluate can hang too,

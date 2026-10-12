@@ -365,7 +365,7 @@ test.describe('PF-03 — the layout-shift score while the fonts swap in', () => 
           document.addEventListener('DOMContentLoaded', () => {
             const style = document.createElement('style')
             style.textContent =
-              '.hero-notfound{--font-display:"Archivo Variable","Archivo","Archivo Display Fallback",system-ui,sans-serif;--font-serif:"Instrument Serif","Instrument Serif Fallback",Georgia,serif}'
+              '.hero-notfound{--font-display:"Archivo Variable","Archivo Display Fallback",system-ui,sans-serif;--font-serif:"Instrument Serif","Instrument Serif Fallback",Georgia,serif}'
             document.head.append(style)
           })
         })

@@ -70,12 +70,6 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
     return () => document.removeEventListener('click', onPress)
   }, [count])
 
-  // Opened on a photo: put the strip there at once, without a slide.
-  useEffect(() => {
-    if (!strip) return
-    strip.scrollTo({ left: startAt.current * strip.clientWidth, behavior: 'instant' })
-  }, [strip])
-
   /*
    * ⚠️ THE PHOTO A SLIDE IS GOING TO. A key or button slides the strip smoothly, and the slide's
    * own scroll events read the photo it is passing: for half the slide the counter said the photo
@@ -97,6 +91,16 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
    */
   const watcher = useRef(0)
   useEffect(() => () => cancelAnimationFrame(watcher.current), [])
+  // Opened on a photo: put the strip there at once, without a slide. And a strip that closes or
+  // opens is a new strip, so no slide of the old one carries over: a watcher that outlived an
+  // Escape came to rest on the closed strip and set the counter of the viewer opened next (review,
+  // 12 Oct 2026), and a stale `heading` made that opening ignore its own strip.
+  useEffect(() => {
+    cancelAnimationFrame(watcher.current)
+    heading.current = null
+    if (!strip) return
+    strip.scrollTo({ left: startAt.current * strip.clientWidth, behavior: 'instant' })
+  }, [strip])
 
   const slide = useCallback(
     (next: number, retried: boolean) => {
