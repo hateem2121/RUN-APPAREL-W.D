@@ -487,18 +487,29 @@ test.describe('the factory photo viewer', () => {
       strip.scrollTo = ((options: ScrollToOptions) => {
         const from = strip.scrollLeft
         scrollTo(options)
-        if (options.behavior !== 'smooth' || counts.slidesCancelled >= times) return
-        counts.slidesCancelled += 1
+        if (options.behavior !== 'smooth') return
         // INVESTIGATION-TEMP: when the planted cancel runs, and what the strip reads around it.
         const rec = (window as unknown as { __rec?: string[] }).__rec
-        rec?.push(`${Math.round(performance.now())} cancel scheduled from=${from}`)
-        setTimeout(() => {
+        // Mid-slide, as Firefox's re-snap was: only once the strip has moved. A scroll back to
+        // where it still stands cancelled nothing on CI's slower runners: the slide set off anyway
+        // and landed on the next photo (main run 38208752263; 10 of 30 copies on the draft).
+        let frames = 0
+        const cancelOnceMoving = () => {
+          if (counts.slidesCancelled >= times) return
+          if (Math.abs(strip.scrollLeft - from) < 2) {
+            frames += 1
+            if (frames < 120) requestAnimationFrame(cancelOnceMoving)
+            else rec?.push(`${Math.round(performance.now())} cancel: the slide never moved`)
+            return
+          }
+          counts.slidesCancelled += 1
           rec?.push(
             `${Math.round(performance.now())} cancel fires at=${strip.scrollLeft} to=${from}`,
           )
           scrollTo({ left: from, behavior: 'instant' })
           rec?.push(`${Math.round(performance.now())} cancel done at=${strip.scrollLeft}`)
-        }, 30)
+        }
+        requestAnimationFrame(cancelOnceMoving)
       }) as typeof strip.scrollTo
     }, times)
 
@@ -620,6 +631,16 @@ test.describe('the factory photo viewer', () => {
     await links(page).nth(2).click()
     const counter = page.getByRole('dialog').locator('.photo-viewer__count')
     await expect(counter).toHaveText(`3 / ${count}`)
+    // The keys are the viewer's only once focus is inside it: a key pressed before went to the
+    // page behind on CI's WebKit, and no slide started (draft #164, 12 Oct 2026).
+    await expect
+      .poll(
+        () => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null),
+        {
+          message: 'focus never moved into the viewer',
+        },
+      )
+      .toBe(true)
     return { count, counter, strip: page.locator('.photo-viewer__strip') }
   }
 
