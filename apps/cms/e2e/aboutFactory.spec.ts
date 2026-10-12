@@ -475,9 +475,14 @@ test.describe('the factory photo viewer', () => {
    * and was back at 2,560 57ms later, with no scroll of ours (probe, 2026-10-12: 1 of 30, and 1–2 of
    * 10 in the test above). CSS Scroll Snap 1 §4.1.3 asks for that re-snap after a layout change.
    * The viewer kept waiting for the slide, so the counter said "4 / 8" over photo 3 and the next
-   * press stepped from the wrong photo. Here the cancel is made on purpose, in every engine: a
-   * smooth slide on the strip is followed, 30ms in, by an instant scroll back to where it set off
-   * (CSSOM View: a new scroll aborts a smooth one), which ends where Firefox's re-snap did.
+   * press stepped from the wrong photo. Here the cancel is made on purpose, in every engine: once a
+   * smooth slide on the strip has MOVED, an instant scroll puts it back where it set off (CSSOM
+   * View: a new scroll aborts a smooth one), which ends where Firefox's re-snap did.
+   * ⚠️ ONLY ONCE IT HAS MOVED, as Firefox's re-snap was (2,595px in). The first version fired 30ms
+   * in, by the clock: on CI's slower runners the slide had not moved yet, so it scrolled the strip
+   * to where it already stood, and the slide set off anyway and landed on the next photo. The viewer
+   * was right ("4 / 8" on photo 4) and the test failed: main's run 38208752263, and 10 of 30
+   * recorded copies on the investigation draft (#164, 12 Oct 2026). A cancel counts only once done.
    */
   const cancelSlides = (page: import('@playwright/test').Page, times: number) =>
     page.locator('.photo-viewer__strip').evaluate((strip, times) => {
@@ -487,9 +492,21 @@ test.describe('the factory photo viewer', () => {
       strip.scrollTo = ((options: ScrollToOptions) => {
         const from = strip.scrollLeft
         scrollTo(options)
-        if (options.behavior !== 'smooth' || counts.slidesCancelled >= times) return
-        counts.slidesCancelled += 1
-        setTimeout(() => scrollTo({ left: from, behavior: 'instant' }), 30)
+        if (options.behavior !== 'smooth') return
+        // Checked each frame for up to 120 frames; a slide that never moves is not cancelled, and
+        // the test's count of cancels then says so.
+        let frames = 0
+        const cancelOnceMoving = () => {
+          if (counts.slidesCancelled >= times) return
+          if (Math.abs(strip.scrollLeft - from) < 2) {
+            frames += 1
+            if (frames < 120) requestAnimationFrame(cancelOnceMoving)
+            return
+          }
+          counts.slidesCancelled += 1
+          scrollTo({ left: from, behavior: 'instant' })
+        }
+        requestAnimationFrame(cancelOnceMoving)
       }) as typeof strip.scrollTo
     }, times)
   const slidesCancelled = (page: import('@playwright/test').Page) =>
@@ -503,6 +520,16 @@ test.describe('the factory photo viewer', () => {
     await links(page).nth(2).click()
     const counter = page.getByRole('dialog').locator('.photo-viewer__count')
     await expect(counter).toHaveText(`3 / ${count}`)
+    // The keys are the viewer's only once focus is inside it: on CI's WebKit a key pressed before
+    // went to the page behind, and no slide started (investigation draft #164, 12 Oct 2026).
+    await expect
+      .poll(
+        () => page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null),
+        {
+          message: 'focus never moved into the viewer',
+        },
+      )
+      .toBe(true)
     return { count, counter, strip: page.locator('.photo-viewer__strip') }
   }
 
