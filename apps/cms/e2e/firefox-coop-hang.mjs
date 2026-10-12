@@ -16,7 +16,7 @@
  * dark scheme and a 2x screen got a light 1x page on every COOP page: 400 of 400 on 1.64.0 (5 of
  * 5 on 1.63.0 too, in a smaller probe), and 0 of 400 lost with `--prefs=suite`. With COOP on, four of the site's Firefox tests failed on exactly
  * that (dark mode in print, theme switch and phone menu; 2x photos in the order timeline). No
- * upstream issue named it that day.
+ * upstream issue named it that day, so it was reported as microsoft/playwright#43287.
  *
  * ⚠️ WHY IT DOES NOT USE THE TEST RUNNER. The test runner did not reproduce the hang on
  * a Mac: 0 in 700 Firefox tests, measured 2026-09-18. CI's slower runner hung about one

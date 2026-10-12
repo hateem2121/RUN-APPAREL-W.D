@@ -41,7 +41,8 @@
  * a dark scheme and a 2x screen got a light 1x page, 400 of 400 (and 5 of 5 on 1.63.0). Four of
  * this suite's Firefox tests failed on exactly that (print, theme switch and phone menu in dark
  * mode; the order timeline's 2x photos), and any test that asks for dark or 2x without checking
- * would quietly measure the wrong page. With this preference: 0 of 400 lost.
+ * would quietly measure the wrong page. With this preference: 0 of 400 lost. Reported upstream
+ * the same day, with a one-file reproduction: microsoft/playwright#43287.
  *
  * REMOVE THIS ONLY WHEN `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck AND 0
  * emulation lost (it checks both since 2026-10-12), and the `firefox` project then passes in

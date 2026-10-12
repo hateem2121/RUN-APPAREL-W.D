@@ -168,7 +168,9 @@ export default defineConfig({
        * load average of 36, where `reduced-motion-live-webgl.spec.ts` missed the default 5 s in 2
        * of 8 full-suite runs. 15 s covers the loaded reading with the margin the note above gives a
        * GitHub runner ("several times slower"); a stage that never mounts still fails, in 15 s.
-       * Whether lighter flags can drop the cost itself is a separate question (owner, 11 Oct).
+       * The lighter switches below (12 Oct) dropped that cost to ~80 ms. Both limits stay as they
+       * are (owner, 12 Oct): a limit costs nothing on a green run, and lowering one needs its own
+       * measurement under the new switches, not "it is faster now".
        */
       expect: { timeout: 15_000 },
       // Stays FILE-parallel, as the whole suite was until 2026-09-29: two of these
@@ -179,11 +181,28 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         launchOptions: {
           ...baseLaunch,
-          args: [
-            '--enable-unsafe-swiftshader',
-            '--use-angle=swiftshader',
-            '--ignore-gpu-blocklist',
-          ],
+          /**
+           * ⚠️ SOFTWARE 3D FOR WEBGL ONLY, NOT FOR THE WHOLE BROWSER (12 Oct 2026).
+           *
+           * These were `--enable-unsafe-swiftshader --use-angle=swiftshader --ignore-gpu-blocklist`.
+           * `--use-angle=swiftshader` makes SwiftShader the browser's whole OpenGL ES driver, so
+           * every paint of the page went through software 3D too. Chromium's own page
+           * (chromium.googlesource.com/chromium/src/+/main/docs/gpu/swiftshader.md, read 12 Oct)
+           * gives the WebGL-only mode used here; both report the same renderer ("SwiftShader
+           * driver"), so the garment is drawn by the same engine.
+           *
+           * Measured 12 Oct, Playwright 1.64.0, the 24 tests of this project 3 times each:
+           *   CI's image (v1.64.0-noble, 4 CPUs like a GitHub runner): 204 s → 94 s, and the old
+           *     switches timed out once in 72 (placeholder-webgl, LIVE-10); 72 of 72 passed now.
+           *   This Mac: 85 s → 72 s. `<model-viewer>` enters the page at ~80 ms instead of ~2.1 s,
+           *     and the model loads at ~1.0 s instead of ~2.4 s.
+           * With WebGL switched off (`--disable-webgl`), 21 of the 24 fail in both places, so a
+           * switch that loses 3D cannot pass quietly (webgl.spec.ts also fails on no context).
+           *
+           * Not "no switches", though it measured the same: Chromium is removing the silent
+           * SwiftShader fallback that bare headless relies on, and these switches opt in by name.
+           */
+          args: ['--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader'],
         },
       },
     },
