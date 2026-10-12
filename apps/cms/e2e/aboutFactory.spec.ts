@@ -489,14 +489,131 @@ test.describe('the factory photo viewer', () => {
         scrollTo(options)
         if (options.behavior !== 'smooth' || counts.slidesCancelled >= times) return
         counts.slidesCancelled += 1
-        setTimeout(() => scrollTo({ left: from, behavior: 'instant' }), 30)
+        // INVESTIGATION-TEMP: when the planted cancel runs, and what the strip reads around it.
+        const rec = (window as unknown as { __rec?: string[] }).__rec
+        rec?.push(`${Math.round(performance.now())} cancel scheduled from=${from}`)
+        setTimeout(() => {
+          rec?.push(
+            `${Math.round(performance.now())} cancel fires at=${strip.scrollLeft} to=${from}`,
+          )
+          scrollTo({ left: from, behavior: 'instant' })
+          rec?.push(`${Math.round(performance.now())} cancel done at=${strip.scrollLeft}`)
+        }, 30)
       }) as typeof strip.scrollTo
     }, times)
+
+  /*
+   * INVESTIGATION-TEMP (branch investigate/factory-cancel-ci-2026-10-12, never merged): on main's CI
+   * run 38208752263 the "cancels every slide" test ended with the strip on photo 4 and "4 / 8" —
+   * the viewer right, the planted cancel not holding — and it never reproduced locally (start
+   * timing, Linux Firefox in CI's image, slow photos, CPU load). This records, inside the page, every
+   * scroll, scrollend, scrollTo on the strip, photo added and loaded, counter change and key, plus the
+   * strip's position on each frame for 3 s after the key, and prints it into the CI log.
+   */
+  const installRecorder = (page: import('@playwright/test').Page) =>
+    page.addInitScript(() => {
+      const rec: string[] = []
+      ;(window as unknown as { __rec: string[] }).__rec = rec
+      const at = () => Math.round(performance.now())
+      const proto = Element.prototype.scrollTo
+      Element.prototype.scrollTo = function (this: Element, ...args: unknown[]) {
+        if (this.classList?.contains('photo-viewer__strip')) {
+          rec.push(`${at()} scrollTo ${JSON.stringify(args[0])} at=${Math.round(this.scrollLeft)}`)
+        }
+        return (proto as (...a: unknown[]) => void).apply(this, args)
+      } as typeof Element.prototype.scrollTo
+      let strips = 0
+      new MutationObserver((records) => {
+        for (const r of records) {
+          if (r.type === 'characterData' || r.type === 'childList') {
+            const count =
+              (r.target as Element).parentElement?.closest?.('.photo-viewer__count') ??
+              ((r.target as Element).classList?.contains?.('photo-viewer__count') ? r.target : null)
+            if (count) rec.push(`${at()} counter "${(count as Element).textContent}"`)
+          }
+          for (const n of r.addedNodes) {
+            if (!(n instanceof Element)) continue
+            const strip = n.matches('.photo-viewer__strip')
+              ? n
+              : n.querySelector('.photo-viewer__strip')
+            if (strip && !(strip as unknown as { __rec?: boolean }).__rec) {
+              ;(strip as unknown as { __rec: boolean }).__rec = true
+              strips += 1
+              rec.push(
+                `${at()} strip #${strips} mounted at=${Math.round(strip.scrollLeft)} width=${strip.clientWidth}`,
+              )
+              strip.addEventListener('scroll', () =>
+                rec.push(`${at()} scroll ${Math.round(strip.scrollLeft)}`),
+              )
+              strip.addEventListener('scrollend', () =>
+                rec.push(`${at()} scrollend ${Math.round(strip.scrollLeft)}`),
+              )
+            }
+            const imgs = n.matches('img.photo-viewer__img')
+              ? [n]
+              : [...n.querySelectorAll('img.photo-viewer__img')]
+            for (const img of imgs) {
+              const slide = [...(img.closest('.photo-viewer__strip')?.children ?? [])].indexOf(
+                img.parentElement as Element,
+              )
+              rec.push(
+                `${at()} img added slide=${slide} complete=${(img as HTMLImageElement).complete}`,
+              )
+              img.addEventListener('load', () => rec.push(`${at()} img loaded slide=${slide}`))
+            }
+          }
+        }
+      }).observe(document, { childList: true, subtree: true, characterData: true })
+      document.addEventListener(
+        'keydown',
+        (e) => {
+          rec.push(`${at()} key ${e.key}`)
+          const strip = document.querySelector('.photo-viewer__strip')
+          if (!strip) return
+          let last = -1
+          const until = at() + 3000
+          const frame = () => {
+            const left = Math.round(strip.scrollLeft)
+            if (left !== last) rec.push(`${at()} frame ${left}`)
+            last = left
+            if (at() < until) requestAnimationFrame(frame)
+          }
+          requestAnimationFrame(frame)
+        },
+        true,
+      )
+    })
+  const dumpRecorder = async (
+    page: import('@playwright/test').Page,
+    testInfo: import('@playwright/test').TestInfo,
+    outcome: string,
+  ) => {
+    const rec = await page
+      .evaluate(() => (window as unknown as { __rec?: string[] }).__rec ?? [])
+      .catch(() => ['(page gone)'])
+    const text = rec.join('\n')
+    console.log(`[factory-cancel-rec] ${testInfo.title} ${outcome}\n${text}`)
+    await testInfo.attach('factory-cancel-timeline', { body: text, contentType: 'text/plain' })
+  }
+  const recorded = async (
+    page: import('@playwright/test').Page,
+    testInfo: import('@playwright/test').TestInfo,
+    body: () => Promise<void>,
+  ) => {
+    try {
+      await body()
+      await dumpRecorder(page, testInfo, 'passed')
+    } catch (error) {
+      await dumpRecorder(page, testInfo, 'FAILED')
+      throw error
+    }
+  }
   const slidesCancelled = (page: import('@playwright/test').Page) =>
     page.evaluate(() => (window as unknown as { slidesCancelled: number }).slidesCancelled)
 
   const openThird = async (page: import('@playwright/test').Page) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await installRecorder(page) // INVESTIGATION-TEMP
     await page.goto('/inside-the-factory')
     const count = await links(page).count()
     await links(page).nth(2).scrollIntoViewIfNeeded()
@@ -506,23 +623,29 @@ test.describe('the factory photo viewer', () => {
     return { count, counter, strip: page.locator('.photo-viewer__strip') }
   }
 
-  test('a slide the browser cancels is finished, on the photo the counter names', async ({
-    page,
-  }) => {
-    const { count, counter, strip } = await openThird(page)
-    await cancelSlides(page, 1)
-    await page.keyboard.press('ArrowRight')
-    await expect(counter).toHaveText(`4 / ${count}`)
-    await expect
-      .poll(() => strip.evaluate((s) => Math.abs(s.scrollLeft - 3 * s.clientWidth)), {
-        message: 'the cancelled slide was never finished: the counter names a photo not shown',
+  // INVESTIGATION-TEMP: three copies, recorded.
+  for (const copy of [1, 2, 3]) {
+    test(`a slide the browser cancels is finished, on the photo the counter names (copy ${copy})`, async ({
+      page,
+    }, testInfo) => {
+      await recorded(page, testInfo, async () => {
+        const { count, counter, strip } = await openThird(page)
+        await cancelSlides(page, 1)
+        await page.keyboard.press('ArrowRight')
+        await expect(counter).toHaveText(`4 / ${count}`)
+        await expect
+          .poll(() => strip.evaluate((s) => Math.abs(s.scrollLeft - 3 * s.clientWidth)), {
+            message: 'the cancelled slide was never finished: the counter names a photo not shown',
+          })
+          .toBeLessThan(2)
+        await expect(counter).toHaveText(`4 / ${count}`)
+        expect(
+          await slidesCancelled(page),
+          'the slide was not cancelled, so nothing was tested',
+        ).toBe(1)
       })
-      .toBeLessThan(2)
-    await expect(counter).toHaveText(`4 / ${count}`)
-    expect(await slidesCancelled(page), 'the slide was not cancelled, so nothing was tested').toBe(
-      1,
-    )
-  })
+    })
+  }
 
   test('a slide cut short by closing the viewer never names a photo in the next opening', async ({
     page,
@@ -541,19 +664,26 @@ test.describe('the factory photo viewer', () => {
     await expect(counter, 'the closed slide set this opening').toHaveText(`6 / ${count}`)
   })
 
-  test('when the browser cancels every slide, the counter names the photo shown', async ({
-    page,
-  }) => {
-    const { count, counter, strip } = await openThird(page)
-    await cancelSlides(page, Number.POSITIVE_INFINITY)
-    await page.keyboard.press('ArrowRight')
-    // One more try, then the viewer stops asking and follows the strip: it never loops.
-    await expect(counter, 'the counter names a photo not shown').toHaveText(`3 / ${count}`)
-    expect(await strip.evaluate((s) => Math.abs(s.scrollLeft - 2 * s.clientWidth))).toBeLessThan(2)
-    await page.waitForTimeout(1000)
-    expect(await slidesCancelled(page), 'the viewer kept asking for the slide').toBe(2)
-    await expect(counter).toHaveText(`3 / ${count}`)
-  })
+  // INVESTIGATION-TEMP: six copies, recorded.
+  for (const copy of [1, 2, 3, 4, 5, 6]) {
+    test(`when the browser cancels every slide, the counter names the photo shown (copy ${copy})`, async ({
+      page,
+    }, testInfo) => {
+      await recorded(page, testInfo, async () => {
+        const { count, counter, strip } = await openThird(page)
+        await cancelSlides(page, Number.POSITIVE_INFINITY)
+        await page.keyboard.press('ArrowRight')
+        // One more try, then the viewer stops asking and follows the strip: it never loops.
+        await expect(counter, 'the counter names a photo not shown').toHaveText(`3 / ${count}`)
+        expect(
+          await strip.evaluate((s) => Math.abs(s.scrollLeft - 2 * s.clientWidth)),
+        ).toBeLessThan(2)
+        await page.waitForTimeout(1000)
+        expect(await slidesCancelled(page), 'the viewer kept asking for the slide').toBe(2)
+        await expect(counter).toHaveText(`3 / ${count}`)
+      })
+    })
+  }
 
   test('keeps Tab inside, and hides the page behind from the accessibility tree', async ({
     page,
