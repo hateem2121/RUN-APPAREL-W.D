@@ -100,12 +100,13 @@ jobs:
       #     id "github"), not a personal token; no "install"/"postinstall" script. Zero
       #     advisories from either the npm bulk endpoint or OSV.dev. Depends on exactly two
       #     packages, both small and well-known: debug@^4.4.3, plist@^4.0.0.
-      #   playwright@1.63.0 — published 2026-09-04 (19 days old), the registry's "latest"
-      #     dist-tag. Same provenance shape (SLSA v1, GitHub Actions OIDC publisher); no
-      #     install/postinstall script — browser binaries are fetched by the explicit
-      #     `playwright install` step below, never automatically. Zero advisories from
+      #   playwright@1.64.0 — published 2026-10-07 (re-checked 2026-10-12, 5 days old), the
+      #     registry's "latest" dist-tag. Same provenance shape (SLSA v1, GitHub Actions OIDC
+      #     publisher); no install/postinstall script — browser binaries are fetched by the
+      #     explicit `playwright install` step below, never automatically. Zero advisories from
       #     either source. Depends on exactly one package: playwright-core, pinned to the
-      #     identical 1.63.0 version (no version drift between the two).
+      #     identical 1.64.0 version (no version drift between the two). (1.63.0 until
+      #     2026-10-12, moved with the workspace's @playwright/test.)
       #   @guidepup/setup@0.25.3 — published 2026-09-08 (15 days old). Same provenance
       #     shape; zero advisories from either source. No install/postinstall/preinstall
       #     script in its OWN package.json — checked against the downloaded tarball
@@ -125,7 +126,7 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund --ignore-scripts \
             --prefix "${RUNNER_TEMP}/guidepup-deps" \
-            @guidepup/guidepup@0.34.0 @guidepup/setup@0.25.3 playwright@1.63.0
+            @guidepup/guidepup@0.34.0 @guidepup/setup@0.25.3 playwright@1.64.0
 
       # Enables VoiceOver to be scripted and pre-approves the calling process for
       # Accessibility, on a headless runner with no human to click "Allow".

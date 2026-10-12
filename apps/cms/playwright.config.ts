@@ -59,8 +59,10 @@ export default defineConfig({
      *
      * ⚠️ It runs with Cross-Origin-Opener-Policy OFF, because that header makes
      * Playwright's Firefox driver lose `page.goto`'s navigation (microsoft/playwright#42731).
-     * It hung a navigation in 25 of 40 CI runs. `e2e/firefoxPrefs.mjs` has the measurements,
-     * and says when to remove it.
+     * It hung a navigation in 25 of 40 CI runs. Playwright 1.64.0 fixed that, but with COOP on
+     * Firefox still drops the context's dark scheme and 2x screen on every COOP page (400 of
+     * 400, 2026-10-12), so it stays off. `e2e/firefoxPrefs.mjs` has the measurements, and says
+     * when to remove it.
      */
     {
       name: 'firefox',
