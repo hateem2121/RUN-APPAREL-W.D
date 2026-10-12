@@ -664,8 +664,8 @@ test.describe('the factory photo viewer', () => {
     await expect(counter, 'the closed slide set this opening').toHaveText(`6 / ${count}`)
   })
 
-  // INVESTIGATION-TEMP: six copies, recorded.
-  for (const copy of [1, 2, 3, 4, 5, 6]) {
+  // INVESTIGATION-TEMP: thirty copies, recorded (0 of 6 failed on the first CI run; main failed ~1 in 30).
+  for (const copy of Array.from({ length: 30 }, (_, at) => at + 1)) {
     test(`when the browser cancels every slide, the counter names the photo shown (copy ${copy})`, async ({
       page,
     }, testInfo) => {
