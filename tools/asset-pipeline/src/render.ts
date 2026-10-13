@@ -45,9 +45,11 @@ import {
  * customer sees (HR-3). `instruments: false` exists ONLY as the negative control
  * that proves the difference; it is the old, blind page.
  *
- * The swiftshader launch flags are the ones already proven in
- * apps/viewer/playwright.config.ts, so this gets a real WebGL context on a CI
- * box with no GPU.
+ * The swiftshader launch flags give a real WebGL context on a CI box with no GPU.
+ * ⚠️ THEY ARE NO LONGER THE VIEWER'S (2026-10-12): apps/viewer/playwright.config.ts
+ * moved to Chromium's WebGL-only mode that day, which halved its 3D tests. The same
+ * mode was measured here and deliberately NOT adopted; the launch in `renderViews`
+ * says why.
  */
 
 const require = createRequire(import.meta.url)
@@ -387,8 +389,17 @@ export async function renderViews(
     ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
       : {}),
-    // Software WebGL — the same flags the viewer's own webgl e2e project uses,
-    // so this runs on a CI box with no GPU.
+    // Software WebGL, so this runs on a CI box with no GPU. Here SwiftShader is the
+    // whole browser's GL driver, NOT the WebGL-only mode the viewer's tests use since
+    // 2026-10-12 (`--use-gl=angle --use-angle=swiftshader-webgl`). Measured that day,
+    // these flags vs that mode, on a Mac and in CI's Playwright 1.64.0 image: every
+    // eval:artwork and eval:artwork:real number identical, 0 changed pixels in all 109
+    // compared pictures (renders of 4 garments in both lightings, posters, eval frames;
+    // the same flags run twice also differ by 0), and NO faster: eval:artwork took
+    // ~55 s either way in the image, and one render took 8.0 s here vs 10.5 s. This
+    // page is almost all canvas, so there is no page painting to save, which is what
+    // made the viewer's tests faster. Change these only with a new pixel comparison:
+    // these renders are the judge of the printed artwork.
     args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
   })
 
