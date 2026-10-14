@@ -21,7 +21,13 @@
 # said Dependabot did. A bump changes the system libraries sharp links against, so look at
 # a rendered garment print before merging one. Do not unpin it to make an update easier.
 #
-# PINNED-ON: 2026-09-26
+# Last print check, 2026-10-14 (0e0ff40 -> d6aa754): the 15 textures of the live rxps model,
+# re-encoded with texture-artwork.ts's artwork WebP settings in both images, decoded to
+# byte-identical pixels (sharp 0.35.5 ships its own libvips 8.18.7 / libwebp 1.6.0, the same
+# in both); quality 94 as the control changed all 15. The wordmark fixture alone was blind
+# to it: its colour is flat and its alpha lossless.
+#
+# PINNED-ON: 2026-10-14
 # ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
 # the pin is older than the refresh window. Base images are rebuilt mainly to pick up
 # operating-system security fixes, so pinning is correct and never refreshing is not —
