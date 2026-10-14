@@ -60,12 +60,14 @@ the gates.
 > rather than measured. **Query the platform, not the CI history:**
 >
 > ```bash
-> pnpm --filter @run-apparel/shrink exec wrangler containers list
+> node scripts/shrink-image-moved.mjs current --name run-apparel-viewer-shrink-shrinkcontainer
 > ```
 >
-> The workflow's last step prints exactly that, so a green run now carries its own
-> proof the *image* moved and not just the Worker script — compare `LAST MODIFIED`
-> against the run's own timestamp printed just above it.
+> That prints the image digest the container runs, from `wrangler containers info`.
+> The deploy prints the digest before and after, so a green run carries its own proof
+> the *image* moved and not just the Worker script. ⚠️ Do not judge it by `LAST MODIFIED`
+> in `wrangler containers list`: on 2026-10-14 that column lagged a deploy by 3.5 minutes,
+> then did not move at all for one (issues #177, #179).
 >
 > **The token this needs** (recorded because it took a live failure to work out,
 > and Cloudflare documents none of it). There is no permission template for

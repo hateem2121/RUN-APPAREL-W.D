@@ -62,7 +62,6 @@ jobs:
       #   google-chrome the `lighthouse` job and lighthouse-live.yml
       #   shellcheck    actionlint only shell-checks `run:` blocks when it is on PATH, so
       #                 without it the lint below gets WEAKER and stays green
-      #   GNU date -d   deploy-shrink's "did the container image move" drift check
       #   unzip         takes the zizmor binary out of its wheel, below
       # Same image as the deploy and scheduled jobs, so this job is their canary too.
       - name: Runner image has the tools the workflows rely on
@@ -78,10 +77,6 @@ jobs:
               missing=1
             fi
           done
-          if ! date -u -d '2026-01-02T03:04:05Z' +%s >/dev/null 2>&1; then
-            echo "::error::'date -d' is not GNU date on this image; deploy-shrink's drift check parses with it"
-            missing=1
-          fi
           exit "$missing"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1895,11 +1890,21 @@ jobs:
           cache: ''
           package-manager-cache: false
       - run: pnpm install --frozen-lockfile
-      # Captured BEFORE the deploy: the drift check at the end compares the image's LAST
-      # MODIFIED against it. Recorded afterwards, every image would look older than the run.
-      - name: Record time before deploy
+      # Captured BEFORE the deploy: the drift check at the end compares the image the
+      # container runs afterwards with this one (scripts/shrink-image-moved.mjs says why the
+      # image and not a timestamp). It never fails the job: a failed read here leaves `image`
+      # empty, and the drift check then fails BY NAME after the deploy instead of blocking it.
+      - name: Record the container image before deploy
         id: t0
-        run: echo "epoch=$(date -u +%s)" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          code=0
+          image=$(node scripts/shrink-image-moved.mjs current --name run-apparel-viewer-shrink-shrinkcontainer) || code=$?
+          echo "Image before this deploy: ${image:-not read (exit $code)}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
       # `run: |`, NOT a plain scalar: a plain YAML scalar folds newlines into SPACES, so the
       # trailing `\` would reach bash as an escaped space (written that way once, 2026-08-31).
       - name: Deploy shrink worker + container image
@@ -1957,55 +1962,76 @@ jobs:
       # PROOF THE IMAGE MOVED, not just the Worker script. On 2026-07-27 a pipeline fix
       # shipped while the container kept running a three-day-old image. Until 2026-08-30
       # this printed a table and exited 0 whatever it said; it now fails when the image
-      # is older than this run. GNU `date -d` (`verify`'s first step asserts it exists).
-      # ⚠️ IT READS THIS CONTAINER'S ROW, AND IT WAITS (2026-10-14, issue #177). On 727174aa it
-      # read the table once, a minute before Cloudflare moved the row's stamp to 06:44:26Z, and
-      # failed a good deploy; it also took the newest stamp of EVERY container on the account,
-      # another project's included. scripts/shrink-image-moved.mjs reads only this row
-      # (apps/cms/src/shrinkImageMoved.test.ts, controls both ways). 9 reads 20 s apart = 3 min,
-      # under the step's 6-minute limit.
-      # ⚠️ GITHUB RUNS THIS UNDER `bash -e` (issue #179, 1734cac9). A bare `node … ; verdict=$?`
-      # ended the step on the first `old`, so the loop never retried and a good deploy failed
-      # again; an exit 2 failed too instead of warning. Capture with `|| verdict=$?` and keep
-      # every `&&` out of the loop. The test runs this block under `bash -e`.
+      # did not change, or changed and went back.
+      # ⚠️ IT COMPARES THE IMAGE DIGEST, NOT A TIMESTAMP (2026-10-14, issues #177 and #179):
+      # `containers list`'s LAST MODIFIED does not follow a deploy, and three good deploys
+      # failed on it. scripts/shrink-image-moved.mjs reads this container's own record and
+      # prints its digest. The first loop gives Cloudflare up to 3 minutes to show the new
+      # image; the read 4 minutes later catches the old one being put back, as happened
+      # between 08:03 and 09:11 that day (the first deploy's swap was undone).
+      # ⚠️ GITHUB RUNS THIS UNDER `bash -e` (issue #179): every exit code is captured with
+      # `|| code=$?`, and no `&&` list is left in it. apps/cms/src/shrinkImageMoved.test.ts runs
+      # this block under `bash -e` against stub wrangler reads.
       - name: Assert the container image actually moved (drift check)
-        timeout-minutes: 6
+        timeout-minutes: 10
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          BEFORE: ${{ steps.t0.outputs.epoch }}
+          IMAGE_BEFORE: ${{ steps.t0.outputs.image }}
+          BEFORE_CODE: ${{ steps.t0.outputs.code }}
         run: |
           set -uo pipefail
-          echo "This run started: $(date -u -d "@$BEFORE" +%Y-%m-%dT%H:%M:%SZ)"
-          verdict=3
+          name=run-apparel-viewer-shrink-shrinkcontainer
+          read_image() {
+            code=0
+            image=$(node scripts/shrink-image-moved.mjs current --name "$name") || code=$?
+          }
+          if [ "$BEFORE_CODE" = "2" ]; then
+            echo "::warning::$name had no image before this deploy (a first deploy?) — drift NOT verified."
+            exit 0
+          fi
+          if [ -z "$IMAGE_BEFORE" ]; then
+            echo "::error::the image before this deploy could not be read (exit $BEFORE_CODE), so the drift was NOT verified. See the 'Record the container image before deploy' step."
+            exit 1
+          fi
+          echo "Image before this deploy: $IMAGE_BEFORE"
+          moved=""
           for attempt in 1 2 3 4 5 6 7 8 9; do
-            # A failed READ is not a stale image and never a pass: retry it, and if it never
-            # succeeds the step fails below with the wrangler output, not a drift verdict.
-            if ! out=$(pnpm --filter @run-apparel/shrink exec wrangler containers list 2>&1); then
-              verdict=3
-              if [ "$attempt" -lt 9 ]; then sleep 20; fi
-              continue
-            fi
-            verdict=0
-            printf '%s\n' "$out" | node scripts/shrink-image-moved.mjs --name run-apparel-viewer-shrink-shrinkcontainer --before "$BEFORE" || verdict=$?
-            if [ "$verdict" -eq 0 ]; then
-              echo "Image is newer than the start of this run — the deploy moved it (read $attempt)."
+            read_image
+            if [ "$code" -eq 2 ]; then
+              echo "::warning::$name or its image is missing from wrangler's record — drift NOT verified. Fix scripts/shrink-image-moved.mjs."
               exit 0
             fi
-            if [ "$verdict" -eq 2 ]; then
-              echo "$out"
-              echo "::warning::could not find this container's LAST MODIFIED in \`wrangler containers list\` — drift NOT verified. Check the table above by hand and fix scripts/shrink-image-moved.mjs."
-              exit 0
+            if [ "$code" -eq 0 ] && [ "$image" != "$IMAGE_BEFORE" ]; then
+              moved=$image
+              echo "Image after this deploy: $moved (read $attempt) — the deploy moved it."
+              break
             fi
             if [ "$attempt" -lt 9 ]; then sleep 20; fi
           done
-          echo "$out"
-          if [ "$verdict" -eq 3 ]; then
-            echo "::error::\`wrangler containers list\` failed on all 9 reads, so the drift was NOT verified. The output of the last read is above."
+          if [ -z "$moved" ]; then
+            if [ "$code" -eq 3 ]; then
+              echo "::error::wrangler failed on all 9 reads, so the drift was NOT verified."
+              exit 1
+            fi
+            echo "::error::The container image did NOT move: still $IMAGE_BEFORE. The Worker script deployed but the image that actually processes garments is the one from before this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
             exit 1
           fi
-          echo "::error::The container image did NOT move. The Worker script deployed but the image that actually processes garments is older than this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
-          exit 1
+          sleep 240
+          read_image
+          if [ "$code" -ne 0 ]; then
+            echo "::warning::could not re-read the image 4 minutes later — a swap back was NOT checked."
+            exit 0
+          fi
+          if [ "$image" = "$IMAGE_BEFORE" ]; then
+            echo "::error::The container image went BACK to $IMAGE_BEFORE within 4 minutes of moving to $moved. Garments are processed by the old image. Read the rollout in the Cloudflare dashboard (Containers) before re-deploying."
+            exit 1
+          fi
+          if [ "$image" != "$moved" ]; then
+            echo "::warning::the image changed again, to $image, within 4 minutes (another deploy?)."
+            exit 0
+          fi
+          echo "Still $moved 4 minutes later."
       # ALERT ON A FAILED SHRINK DEPLOY — new on 2026-09-29; deploy-shrink.yml never had
       # one, so a failed image push was a red tick in the Actions tab and nothing else.
       # Same shape as the `deploy` job's alert above, and deliberately not a rollback.
