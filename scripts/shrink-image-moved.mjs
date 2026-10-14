@@ -10,9 +10,12 @@
  * 10e88123 it still said 08:07:29 nine minutes after `wrangler containers info` showed the new
  * image (updated_at 09:11:57). Three good deploys failed on it. The application record from
  * `containers info` names the exact image (`configuration.image`, a sha256 digest), so before and
- * after can be compared directly, and an image put back afterwards shows as the old digest, which
- * no timestamp can tell apart from a deploy. Something did put the old image back between 08:03
- * and 09:11 that day: 10e88123's deploy replaced f686a27f, not 1734cac9's da9c0c00.
+ * after can be compared directly, and an image put back afterwards would show as the old digest,
+ * which no timestamp can tell apart from a deploy.
+ * ⚠️ DO NOT READ "BEFORE" OFF `wrangler deploy`'s DIFF. Its `-` line is stale too: at 09:36 it
+ * named da9c0c00 as the image being replaced while `containers info` had read 07a77237 at 09:20,
+ * and the record went from version 92 to 93 with that one deploy, so nothing had put an image
+ * back in between. That diff looked like a swap-back and was not one.
  *
  * The row is named `<worker name>-<container class_name in lower case>` (from
  * apps/shrink/wrangler.jsonc); `shrinkImageMoved.test.ts` derives it from that file. The table also

@@ -1967,8 +1967,8 @@ jobs:
       # `containers list`'s LAST MODIFIED does not follow a deploy, and three good deploys
       # failed on it. scripts/shrink-image-moved.mjs reads this container's own record and
       # prints its digest. The first loop gives Cloudflare up to 3 minutes to show the new
-      # image; the read 4 minutes later catches the old one being put back, as happened
-      # between 08:03 and 09:11 that day (the first deploy's swap was undone).
+      # image; the read 4 minutes later would catch the old one being put back (none has been
+      # seen: wrangler's own deploy diff names a stale "before", see the script).
       # ⚠️ GITHUB RUNS THIS UNDER `bash -e` (issue #179): every exit code is captured with
       # `|| code=$?`, and no `&&` list is left in it. apps/cms/src/shrinkImageMoved.test.ts runs
       # this block under `bash -e` against stub wrangler reads.

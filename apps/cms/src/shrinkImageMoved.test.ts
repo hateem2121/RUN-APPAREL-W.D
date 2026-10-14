@@ -17,7 +17,7 @@ const SCRIPT = join(ROOT, 'scripts', 'shrink-image-moved.mjs')
 const NAME = 'run-apparel-viewer-shrink-shrinkcontainer'
 const OUR_ID = 'a03e733d-5495-48b5-9f97-33bf5ee5cf6b'
 const OTHER_ID = 'a035ce80-5b53-4103-99ac-d46893049b90'
-// The digests of 2026-10-14: f686a27f was put back after 1734cac9's deploy set da9c0c00.
+// Real digests of 2026-10-14: 727174aa's image, then 1734cac9's, then 10e88123's.
 const OLD = `sha256:f686a27f6e0d29a456c7293b7ec2ee5dc43a3349182fead2e3bdd8b6ed90ae9a`
 const NEW = `sha256:da9c0c004121f6a83c5636790e77aef9c01dc1d4d30db9c2419bf4f235133476`
 const THIRD = `sha256:07a7723763ecdddeeef01e79ca5011f2b9fda435bafdc5663af3004896eae6e5`
@@ -252,7 +252,7 @@ describe('ci.yml: the drift check after the deploy, under bash -e', { timeout: 3
     expect(r.status).toBe(1)
   })
 
-  it('fails when the old image is put back after the deploy (1734cac9: da9c0c00 back to f686a27f)', () => {
+  it('fails when the old image is put back after the deploy', () => {
     const r = drift(['new', 'old'])
     expect(r.out).toContain('went BACK')
     expect(r.status).toBe(1)
