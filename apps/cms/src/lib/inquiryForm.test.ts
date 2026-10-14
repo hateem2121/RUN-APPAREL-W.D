@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  announcedQuarter,
   fieldError,
   inquiryAdminUrl,
   inquiryNotice,
@@ -13,6 +14,11 @@ import {
   SUBJECT_OTHER_LABEL,
   SUBJECTS,
   SUMMARY_HEADING,
+  UPLOAD_DROPPED,
+  UPLOAD_FINISHING,
+  UPLOAD_UNCONFIRMED,
+  uploadPercent,
+  uploadProgressLabel,
 } from './inquiryForm'
 import { MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
 
@@ -188,5 +194,29 @@ describe('pickedFileProblem — the picker checks what a file really is before i
   it('says nothing about a real PDF, or about no files at all', async () => {
     expect(await pickedFileProblem([pdf])).toBeNull()
     expect(await pickedFileProblem([])).toBeNull()
+  })
+})
+
+describe("the upload's words (U1–U4)", () => {
+  it('says how much has gone, in the sizes the file picker uses', () => {
+    expect(uploadProgressLabel(5.6 * MB, 12.4 * MB)).toBe('Sending 5.6 MB of 12.4 MB (45%)')
+    expect(uploadProgressLabel(300 * 1024, 12.4 * MB)).toBe('Sending 300 KB of 12.4 MB (2%)')
+  })
+
+  it('never reads past 100% or below 0%, and copes with an unknown total', () => {
+    expect(uploadPercent(1010, 1000)).toBe(100)
+    expect(uploadPercent(-5, 1000)).toBe(0)
+    expect(uploadPercent(10, 0)).toBe(0)
+  })
+
+  it('tells a screen reader only each quarter', () => {
+    expect([0, 24, 25, 49, 74, 99, 100].map(announcedQuarter)).toEqual([0, 0, 25, 25, 50, 75, 100])
+  })
+
+  it('never invites a second copy once the files have arrived', () => {
+    expect(UPLOAD_FINISHING).toBe('Files received. Finishing…')
+    expect(UPLOAD_DROPPED).toContain('nothing was sent')
+    expect(UPLOAD_UNCONFIRMED).toContain('before sending again')
+    expect(UPLOAD_UNCONFIRMED).not.toMatch(/press Send again/)
   })
 })
