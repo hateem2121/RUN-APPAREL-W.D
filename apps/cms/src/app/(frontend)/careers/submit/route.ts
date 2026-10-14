@@ -1,5 +1,5 @@
 import config from '@payload-config'
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import {
   APPLICATIONS_TO,
@@ -13,6 +13,7 @@ import {
 } from '../../../../lib/application'
 import { checkApplicationFiles } from '../../../../lib/applicationFileTypes'
 import { checkApplicationRate } from '../../../../lib/applicationRate'
+import { formResult } from '../../../../lib/formResult'
 import { type CheckedFile, formatBytes } from '../../../../lib/inquiryFiles'
 
 export const dynamic = 'force-dynamic'
@@ -48,10 +49,8 @@ const back = (
   params: string,
   anchor: 'application-done' | 'application-problem',
 ) =>
-  NextResponse.redirect(new URL(`/careers${params}#${anchor}`, request.url), {
-    // 303: the browser must follow with GET, or a refresh re-posts the form.
-    status: 303,
-  })
+  // A 303 for a plain post; the address as data for the page's own upload (`lib/formResult.ts`).
+  formResult(request, new URL(`/careers${params}#${anchor}`, request.url))
 const sent = (request: NextRequest) => back(request, '?sent=1', 'application-done')
 const refused = (request: NextRequest, params: string) =>
   back(request, params, 'application-problem')

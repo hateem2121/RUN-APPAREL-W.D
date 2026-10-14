@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       # RUNNER IMAGE FACTS, EARLY, SO A MISSING TOOL FAILS BY NAME. Every job here names
@@ -540,7 +540,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -622,7 +622,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -764,7 +764,7 @@ jobs:
       contents: read
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -893,7 +893,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1195,7 +1195,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1406,7 +1406,7 @@ jobs:
         # that caused the 2026-08-28 apex drift. So `wrangler versions list` was a
         # column of UUIDs, and the only readable entry was the accident.
         # `--message` is a documented `wrangler deploy` flag (verified against
-        # `wrangler@4.143.0 deploy --help`), and opennextjs-cloudflare forwards its
+        # `wrangler@4.148.0 deploy --help`), and opennextjs-cloudflare forwards its
         # positional args straight through (`...args.wranglerArgs` in
         # dist/cli/commands/deploy.js). Changes no behaviour; makes a rollback
         # readable under pressure. Audit 2026-08-30 PM, finding L1-03.
@@ -1675,8 +1675,8 @@ jobs:
             echo "If this deploy is wrong, roll back the affected Worker:"
             echo
             echo '```bash'
-            echo "npx wrangler@4.143.0 versions list --name run-apparel-viewer-site"
-            echo "npx wrangler@4.143.0 rollback --name run-apparel-viewer-site -m 'why'"
+            echo "npx wrangler@4.148.0 versions list --name run-apparel-viewer-site"
+            echo "npx wrangler@4.148.0 rollback --name run-apparel-viewer-site -m 'why'"
             echo '```'
             echo
             echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-viewer-shrink\` (processing only) · \`run-apparel-apex-404\` (apex catalogue + profile PDFs)"
@@ -1755,7 +1755,7 @@ jobs:
       shrink: ${{ steps.paths.outputs.shrink }}
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1786,7 +1786,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1880,7 +1880,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1958,30 +1958,54 @@ jobs:
       # shipped while the container kept running a three-day-old image. Until 2026-08-30
       # this printed a table and exited 0 whatever it said; it now fails when the image
       # is older than this run. GNU `date -d` (`verify`'s first step asserts it exists).
+      # ⚠️ IT READS THIS CONTAINER'S ROW, AND IT WAITS (2026-10-14, issue #177). On 727174aa it
+      # read the table once, a minute before Cloudflare moved the row's stamp to 06:44:26Z, and
+      # failed a good deploy; it also took the newest stamp of EVERY container on the account,
+      # another project's included. scripts/shrink-image-moved.mjs reads only this row
+      # (apps/cms/src/shrinkImageMoved.test.ts, controls both ways). 9 reads 20 s apart = 3 min,
+      # under the step's 6-minute limit.
+      # ⚠️ GITHUB RUNS THIS UNDER `bash -e` (issue #179, 1734cac9). A bare `node … ; verdict=$?`
+      # ended the step on the first `old`, so the loop never retried and a good deploy failed
+      # again; an exit 2 failed too instead of warning. Capture with `|| verdict=$?` and keep
+      # every `&&` out of the loop. The test runs this block under `bash -e`.
       - name: Assert the container image actually moved (drift check)
+        timeout-minutes: 6
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           BEFORE: ${{ steps.t0.outputs.epoch }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           echo "This run started: $(date -u -d "@$BEFORE" +%Y-%m-%dT%H:%M:%SZ)"
-          out=$(pnpm --filter @run-apparel/shrink exec wrangler containers list 2>&1)
+          verdict=3
+          for attempt in 1 2 3 4 5 6 7 8 9; do
+            # A failed READ is not a stale image and never a pass: retry it, and if it never
+            # succeeds the step fails below with the wrangler output, not a drift verdict.
+            if ! out=$(pnpm --filter @run-apparel/shrink exec wrangler containers list 2>&1); then
+              verdict=3
+              if [ "$attempt" -lt 9 ]; then sleep 20; fi
+              continue
+            fi
+            verdict=0
+            printf '%s\n' "$out" | node scripts/shrink-image-moved.mjs --name run-apparel-viewer-shrink-shrinkcontainer --before "$BEFORE" || verdict=$?
+            if [ "$verdict" -eq 0 ]; then
+              echo "Image is newer than the start of this run — the deploy moved it (read $attempt)."
+              exit 0
+            fi
+            if [ "$verdict" -eq 2 ]; then
+              echo "$out"
+              echo "::warning::could not find this container's LAST MODIFIED in \`wrangler containers list\` — drift NOT verified. Check the table above by hand and fix scripts/shrink-image-moved.mjs."
+              exit 0
+            fi
+            if [ "$attempt" -lt 9 ]; then sleep 20; fi
+          done
           echo "$out"
-          # LAST MODIFIED is an ISO-8601 stamp. If the format ever changes, `modified` is
-          # empty and the check WARNS rather than failing a good deploy on a parse.
-          modified=$(printf '%s\n' "$out" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]+' | sort -r | head -1 || true)
-          if [ -z "$modified" ]; then
-            echo "::warning::could not parse a LAST MODIFIED timestamp from \`wrangler containers list\` — drift NOT verified. Check the table above by hand and fix this parser."
-            exit 0
-          fi
-          modified_epoch=$(date -u -d "$modified" +%s)
-          echo "Image last modified: $modified"
-          if [ "$modified_epoch" -lt "$BEFORE" ]; then
-            echo "::error::The container image did NOT move. The Worker script deployed but the image that actually processes garments is older than this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
+          if [ "$verdict" -eq 3 ]; then
+            echo "::error::\`wrangler containers list\` failed on all 9 reads, so the drift was NOT verified. The output of the last read is above."
             exit 1
           fi
-          echo "Image is newer than the start of this run — the deploy moved it."
+          echo "::error::The container image did NOT move. The Worker script deployed but the image that actually processes garments is older than this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
+          exit 1
       # ALERT ON A FAILED SHRINK DEPLOY — new on 2026-09-29; deploy-shrink.yml never had
       # one, so a failed image push was a red tick in the Actions tab and nothing else.
       # Same shape as the `deploy` job's alert above, and deliberately not a rollback.

@@ -3635,6 +3635,49 @@ a.contact-block__value:active {
   border-inline-start-color: var(--danger);
 }
 
+/*
+ * The upload's progress under Send (2026-10-14; `InquiryFormEnhancer.tsx` draws it). A buyer on a
+ * phone watched "Sending…" for about 100 seconds with nothing moving while two tech packs went
+ * (PostHog replay, 2026-10-08). If the connection drops, the same box takes `.form-notice--bad`,
+ * so a failed send looks like every other refusal on the form.
+ *
+ * ⚠️ `[hidden]` IS RESTATED because `display: grid` would otherwise beat the attribute.
+ */
+.form-progress {
+  display: grid;
+  gap: 8px;
+  margin-block-start: 16px;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.form-progress[hidden],
+.form-progress__bar[hidden] {
+  display: none;
+}
+
+.form-progress__bar {
+  inline-size: 100%;
+  block-size: 6px;
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.form-progress__bar::-webkit-progress-bar {
+  background: var(--line);
+}
+
+.form-progress__bar::-webkit-progress-value {
+  background: var(--text);
+}
+
+.form-progress__bar::-moz-progress-bar {
+  background: var(--text);
+}
+
 /* ------------------------------------------------------------ print (FA-M-52) */
 
 /*

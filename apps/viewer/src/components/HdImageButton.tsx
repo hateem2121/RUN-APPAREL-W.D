@@ -129,11 +129,21 @@ export function HdImageButton({
         onFocus={switches ? warmWindow : warmFull}
         onClick={() => (switches ? onShownChange?.(!shown) : openFull())}
       >
+        {/*
+          ⚠️ EACH LABEL CARRIES ITS OWN `key`, OR A TRANSLATED PAGE CRASHES ON THE TAP. Without
+          them React kept the one <span> and swapped the words inside it, removing the English
+          text nodes one by one — but a browser's translation had already replaced those nodes, so
+          the browser threw NotFoundError and the error boundary showed "This reference is no
+          longer live" in place of the garment (Spanish Safari, PostHog replay 2026-10-08;
+          facebook/react#11538). With a new key React removes the whole <span>, which is still
+          the button's child however its words were translated. `e2e/hd-image.spec.ts` plants a
+          translation and taps both ways.
+        */}
         {switches && shown ? (
           <>
             <CubeIcon />
             {/* "3D" alone below 22rem; the name is "View in 3D" either way (VA-09). */}
-            <span>
+            <span key="view-in-3d">
               <span className="hd-image-btn__more">{'VIEW IN '}</span>3D
             </span>
           </>
@@ -152,7 +162,7 @@ export function HdImageButton({
                 already sets `white-space: nowrap` (page.css), which is what keeps the two words on
                 one line, so the no-break space was never doing that job. The space is a JS string so
                 it is not trimmed as the edge of a JSX line. */}
-            <span>
+            <span key="hd-image">
               HD<span className="hd-image-btn__more">{' IMAGE'}</span>
             </span>
           </>

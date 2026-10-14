@@ -412,6 +412,103 @@ test.describe('the inquiry form', () => {
     ).toBe(1)
   })
 
+  /*
+   * THE UPLOAD'S PROGRESS (2026-10-14). A buyer on a phone watched "Sending…" for about 100
+   * seconds while two tech packs went (PostHog replay, 2026-10-08). With files attached the page
+   * sends the form itself and shows a bar; these hold the server's answer so the bar can be read.
+   */
+  const techPack = () => ({
+    name: 'tech-pack.pdf',
+    mimeType: 'application/pdf',
+    // A real PDF's ends — `%PDF-` first, `xref` and `%%EOF` in the last 1,024 bytes, as the byte
+    // check and Payload both demand (`lib/inquiryFiles.ts`) — 1.5 MB, so the bar has work to show.
+    buffer: Buffer.concat([
+      Buffer.from('%PDF-1.7\n'),
+      Buffer.alloc(1_500_000, 0x20),
+      Buffer.from('\nxref\n%%EOF\n'),
+    ]),
+  })
+
+  test('with files attached, a bar shows the upload and the thank-you still lands', async ({
+    page,
+  }, testInfo) => {
+    await page.setExtraHTTPHeaders({ 'cf-connecting-ip': ownAddress(testInfo.project.name) })
+    await page.goto('/contact')
+    await fillRequired(page)
+    const form = page.locator('.inquiry-form')
+    await form.locator('[name="files"]').setInputFiles(techPack())
+    await expect(form.getByText('tech-pack.pdf', { exact: true })).toBeVisible()
+    await expect(form.getByText(/is not a kind we accept/)).toHaveCount(0)
+
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const asked: string[] = []
+    await page.route('**/contact/submit', async (route) => {
+      asked.push(route.request().headers()['x-form-progress'] ?? 'none')
+      await held
+      await route.continue()
+    })
+    await form.getByRole('button', { name: /^send inquiry$/i }).click()
+
+    const box = form.locator('.form-progress')
+    await expect(box, 'no progress shown while the files go').toBeVisible()
+    await expect(box).toContainText(/Sending [\d.]+ [KM]B of 1\.4 MB \(\d+%\)|Files received/)
+    await expect(box.getByRole('status')).toHaveText(/Sending|Files received/)
+    await expect(box.locator('progress')).toHaveJSProperty('max', 100)
+    expect(asked, 'the page did not ask for the address as data').toEqual(['1'])
+
+    release()
+    const done = page.locator('.inquiry-done')
+    await expect(done).toBeVisible()
+    await expect(done).toBeFocused()
+    await expect(page).toHaveURL(/\/contact#inquiry$/)
+  })
+
+  test('if no answer comes back after the files arrive, the page does not invite a second copy', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    await fillRequired(page)
+    const form = page.locator('.inquiry-form')
+    await form.locator('[name="files"]').setInputFiles(techPack())
+    await page.route('**/contact/submit', (route) =>
+      route.fulfill({ status: 502, contentType: 'text/html', body: 'Bad gateway' }),
+    )
+    const send = form.getByRole('button', { name: /^send inquiry$/i })
+    await send.click()
+
+    const box = form.locator('.form-progress')
+    await expect(box).toHaveClass(/form-notice--bad/)
+    await expect(box).toContainText('Email us to check before sending again.')
+    await expect(box.locator('progress')).toBeHidden()
+    // Usable again, and nothing typed is lost.
+    await expect(send).toHaveText('Send inquiry')
+    await expect(send).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(form.locator('[name="message"]')).toHaveValue('400 training tops.')
+    await expect(page).toHaveURL(/\/contact$/)
+  })
+
+  test('if the connection drops, the page says so and the form can be sent again', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    await fillRequired(page)
+    const form = page.locator('.inquiry-form')
+    await form.locator('[name="files"]').setInputFiles(techPack())
+    await page.route('**/contact/submit', (route) => route.abort('connectionreset'))
+    const send = form.getByRole('button', { name: /^send inquiry$/i })
+    await send.click()
+
+    const box = form.locator('.form-progress')
+    await expect(box).toHaveClass(/form-notice--bad/)
+    // Which sentence depends on whether the engine reported the upload finished before the drop.
+    await expect(box).toContainText(/nothing was sent|before sending again/)
+    await expect(send).toHaveText('Send inquiry')
+    await expect(form.locator('[name="message"]')).toHaveValue('400 training tops.')
+  })
+
   /**
    * A tripped honeypot is answered with the SAME thank-you a person sees. Telling a bot it
    * was detected is how the next version of it learns to skip the field.

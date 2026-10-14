@@ -37,6 +37,48 @@ export const SUBJECT_OTHER_LABEL = 'Something else…'
 export const SUMMARY_HEADING = 'Check these before sending:'
 /** W7, the Send button while the inquiry is on its way. */
 export const SENDING_LABEL = 'Sending…'
+
+/*
+ * THE UPLOAD'S WORDS (U1–U4, approved by the owner 2026-10-14 from screenshots). A buyer on a phone sent
+ * two tech packs (over 12 MB) and watched "Sending…" for about 100 seconds with nothing moving
+ * (PostHog replay, 2026-10-08). NN/g (Progress Indicators, 2014): past 10 seconds show how much is
+ * done, because people who see nothing assume the press did not register and press again or leave.
+ */
+
+/**
+ * The header the form's own script sends when it posts the form itself to show progress; the
+ * routes then answer with the result's address as data (`formResult.ts`, which is server-only, so
+ * the name lives here where the page can import it).
+ */
+export const PROGRESS_HEADER = 'x-form-progress'
+
+/** U1, under Send while the files go: "Sending 5.6 MB of 12.4 MB (45%)". */
+export function uploadProgressLabel(loaded: number, total: number): string {
+  return `Sending ${formatBytes(loaded)} of ${formatBytes(total)} (${uploadPercent(loaded, total)}%)`
+}
+/** Whole percent done, 0–100, never more (a browser can report a few bytes past the total). */
+export function uploadPercent(loaded: number, total: number): number {
+  if (total <= 0) return 0
+  return Math.min(100, Math.max(0, Math.floor((loaded / total) * 100)))
+}
+/**
+ * The quarter a screen reader is told about (0, 25, 50, 75, 100): the line is a live region, and
+ * a browser reports progress many times a second, which would be read out without pause.
+ */
+export function announcedQuarter(percent: number): number {
+  return Math.floor(percent / 25) * 25
+}
+/** U2, once every byte has arrived and the server is storing them. */
+export const UPLOAD_FINISHING = 'Files received. Finishing…'
+/** U3, the connection dropped before the upload finished: the server cannot have stored it. */
+export const UPLOAD_DROPPED =
+  'The connection dropped before your files arrived, so nothing was sent. Check your connection and press Send again.'
+/**
+ * U4, the upload finished but no answer came back: it may well be stored, so do not invite a
+ * second copy.
+ */
+export const UPLOAD_UNCONFIRMED =
+  'Your files reached us, but the connection dropped before we could confirm. Email us to check before sending again.'
 /**
  * W8, the heading of the confirmation that replaces the form: "Got it." with a tick that draws
  * itself, as the owner tried it in the report's D7 v2 (3 Oct; it was "Inquiry received.").

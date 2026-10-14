@@ -362,6 +362,37 @@ test.describe('HD IMAGE shows the picture in the 3D window (D9)', () => {
     await expect(fullButton(page)).toHaveCount(0)
   })
 
+  /*
+   * ⚠️ A TRANSLATED PAGE CRASHED HERE (PostHog replay, 2026-10-08). A buyer's iPhone had Safari
+   * translate the page into Spanish ("HD IMAGEN"); the tap swapped the label's words, React went to
+   * remove the English text node the translation had already replaced, the browser threw
+   * NotFoundError ("The object can not be found here.") and the error boundary took the garment
+   * away (facebook/react#11538). This plants what a browser's translation does — every text node in
+   * the button swapped for a new one — and taps both ways.
+   */
+  test('a page the browser has translated still switches both ways', async ({ page }) => {
+    await openReady(page, 'wine')
+    test.skip(await stageFallsBack(page), 'no 3D here: the window is the picture already')
+    const translate = (button: ReturnType<typeof hdButton>) =>
+      button.evaluate((el) => {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+        const words: Text[] = []
+        while (walker.nextNode()) words.push(walker.currentNode as Text)
+        for (const word of words) word.replaceWith(document.createTextNode(`${word.data}·es`))
+        return words.length
+      })
+
+    expect(await translate(hdButton(page)), 'the planted translation changed nothing').toBe(2)
+    await hdButton(page).click()
+    await expect(picture(page), 'the switch crashed the page').toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    expect(await translate(view3d(page)), 'the planted translation changed nothing').toBe(2)
+    await view3d(page).click()
+    await expect(picture(page)).toHaveCount(0)
+    await expect(hdButton(page), 'the way back crashed the page').toBeVisible()
+  })
+
   test('with motion allowed, the switch runs as a view transition and still lands', async ({
     page,
   }) => {

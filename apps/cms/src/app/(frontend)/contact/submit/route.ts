@@ -1,5 +1,5 @@
 import config from '@payload-config'
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import {
   type InquiryEmailExtras,
@@ -10,6 +10,7 @@ import {
   isHoneypotTripped,
   validateInquiry,
 } from '../../../../lib/inquiry'
+import { formResult } from '../../../../lib/formResult'
 import { type CheckedFile, checkFiles, formatBytes } from '../../../../lib/inquiryFiles'
 import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
@@ -71,11 +72,9 @@ const FROM = process.env.INQUIRY_FROM?.trim() || 'inquiries@wear-run.help'
  * result panels are focusable (`tabIndex={-1}`, `InquiryOutcome.tsx`), so with the anchor on them
  * the browser itself moves focus there, with scripting off as well.
  */
+// A 303 for a plain post; the address as data for the page's own upload (`lib/formResult.ts`).
 const back = (request: NextRequest, params: string, anchor: 'inquiry-done' | 'inquiry-problem') =>
-  NextResponse.redirect(new URL(`/contact${params}#${anchor}`, request.url), {
-    // 303: the browser must follow with GET, or a refresh re-posts the form.
-    status: 303,
-  })
+  formResult(request, new URL(`/contact${params}#${anchor}`, request.url))
 const sent = (request: NextRequest) => back(request, '?sent=1', 'inquiry-done')
 const refused = (request: NextRequest, params: string) => back(request, params, 'inquiry-problem')
 
