@@ -161,6 +161,25 @@ one. Measured from the installed `package.json` files on 2026-09-26.
 To re-check either: `npm view payload peerDependencies.graphql` and
 `npm view @google/model-viewer peerDependencies.three`, against the newest versions.
 
+## `next` held below 16.4 — the CMS Worker will not build with it (2026-10-14)
+
+Not a declared range this time: `@opennextjs/cloudflare` declares `next: >=15.5.27 <16 || >=16.3.8`,
+which admits 16.4. Its release notes name 16.3.8 as the newest required version (1.20.8,
+2026-10-02) and no release up to 1.20.11 (2026-10-13) mentions 16.4. Measured on Dependabot's
+PR #173 with `opennextjs-cloudflare build` and `scripts/check-cms-worker-size.mjs`:
+
+| next | OpenNext | wrangler | handler.mjs | Miniflare in it | dry run |
+| --- | --- | --- | --- | --- | --- |
+| 16.3.8 (main) | 1.20.6 | 4.143.0 | 30,721,252 B | 0 | 43,290 KiB |
+| 16.4.0 | 1.20.9 | 4.143.0 | 44,952,572 B | 186 mentions | fails: `Could not resolve "sqlite"`, `import()` with attributes |
+| 16.4.0 | 1.20.9 | 4.148.0 | — | — | fails the same way |
+| 16.3.8 | 1.20.9 | 4.143.0 | 30,717,499 B | 0 | 43,296 KiB |
+
+OpenNext 1.20.11 + wrangler 4.148.0 could not be tried that day: it was younger than
+`minimumReleaseAge` (1 day). Release the hold (the `next` ignore in `.github/dependabot.yml`)
+when an OpenNext release names Next 16.4, and only after `opennextjs-cloudflare build` on it
+shows no Miniflare in `handler.mjs` and a dry-run size within a few KiB of the row above.
+
 ---
 
 ## A package we patch: `@google/model-viewer` 4.3.1 (2026-10-02)
