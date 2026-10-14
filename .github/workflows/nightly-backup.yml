@@ -213,7 +213,7 @@ jobs:
             echo "locked $dump -> $dump.age ($(wc -c < "$dump.age") bytes)"
           done
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: d1-backup-${{ github.run_id }}
@@ -297,7 +297,7 @@ jobs:
           fi
           tar -C backups -cf - r2 | age -R "$recipients" -o backups/r2-mirror.tar.age
           echo "locked backups/r2 -> backups/r2-mirror.tar.age ($(wc -c < backups/r2-mirror.tar.age) bytes)"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         # L2-12, 2026-08-31: always(), matching the D1 upload above and for the same
         # reason written there. A PARTLY-failed mirror is the run whose output is most
         # worth keeping — it says which objects made it and which did not. Discarding
