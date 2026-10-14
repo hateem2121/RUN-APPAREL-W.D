@@ -1,53 +1,72 @@
 #!/usr/bin/env node
 /**
- * Did the shrink container's image move during this deploy? ci.yml's `deploy-shrink` job
- * pipes `wrangler containers list` into this after `wrangler deploy`, and retries it.
+ * Which image does the shrink container run? ci.yml's `deploy-shrink` job asks this BEFORE
+ * `wrangler deploy` and again after it, and fails when the image did not change, or changed and
+ * then went back.
  *
- * WHY A SCRIPT. The check was inline shell until 2026-10-14 and had two faults, both seen on
- * the deploy of 727174aa (issue #177, a false alarm):
- *   1. It took the NEWEST "LAST MODIFIED" in the whole table. The account holds another
- *      project's container too, so a fresh image there could pass a stale one here, and a
- *      stale one there told it nothing either way. It now reads this container's own row.
- *   2. It read the table once, straight after the deploy. Cloudflare updated the row's
- *      timestamp to 06:44:26Z about a minute after the read, so a good deploy failed. The
- *      workflow now retries while this answers `old`.
+ * WHY THE IMAGE AND NOT A TIMESTAMP (2026-10-14, issues #177 and #179). Until then the check read
+ * the LAST MODIFIED column of `wrangler containers list`, and that column does not follow a
+ * deploy: on 1734cac9 it moved to 08:07:29, 3.5 minutes after wrangler swapped the image, and on
+ * 10e88123 it still said 08:07:29 nine minutes after `wrangler containers info` showed the new
+ * image (updated_at 09:11:57). Three good deploys failed on it. The application record from
+ * `containers info` names the exact image (`configuration.image`, a sha256 digest), so before and
+ * after can be compared directly, and an image put back afterwards would show as the old digest,
+ * which no timestamp can tell apart from a deploy.
+ * ⚠️ DO NOT READ "BEFORE" OFF `wrangler deploy`'s DIFF. Its `-` line is stale too: at 09:36 it
+ * named da9c0c00 as the image being replaced while `containers info` had read 07a77237 at 09:20,
+ * and the record went from version 92 to 93 with that one deploy, so nothing had put an image
+ * back in between. That diff looked like a swap-back and was not one.
  *
  * The row is named `<worker name>-<container class_name in lower case>` (from
- * apps/shrink/wrangler.jsonc); `shrinkImageMoved.test.ts` derives it from that file.
+ * apps/shrink/wrangler.jsonc); `shrinkImageMoved.test.ts` derives it from that file. The table also
+ * lists another project's container: only this row is read.
  *
- * Usage: wrangler containers list | node scripts/shrink-image-moved.mjs --name <row> --before <epoch>
- * Exit 0 = moved, 1 = older than this run, 2 = row or timestamp not found (the workflow warns).
+ * Usage: node scripts/shrink-image-moved.mjs current --name <row>
+ * Prints the digest (`sha256:…`, never the registry path, which carries the account ID).
+ * Exit 0 = printed, 2 = the row or its image was not found, 3 = a wrangler read failed.
  */
-import { readFileSync, realpathSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 
 /** The NAME column of `wrangler containers list` for a Worker's container class. */
 export function containerRowName(workerName, className) {
   return `${workerName}-${className.toLowerCase()}`
 }
 
-/**
- * This container's LAST MODIFIED, in epoch seconds, or null when its row or stamp is absent.
- * Cloudflare prints nanoseconds (`2026-10-14T06:44:26.468999936Z`); Date.parse needs at most
- * milliseconds, so the fraction is cut to three digits first.
- */
-export function lastModifiedEpoch(table, name) {
+/** The ID cell of this container's row in `wrangler containers list`, or null. */
+export function rowId(table, name) {
   for (const line of table.split('\n')) {
     const cells = line.split('│').map((cell) => cell.trim())
     if (!cells.includes(name)) continue
-    const stamp = line.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?Z?/)
-    if (!stamp) return null
-    const fraction = stamp[2] ? stamp[2].slice(0, 4) : ''
-    const ms = Date.parse(`${stamp[1]}${fraction}Z`)
-    return Number.isNaN(ms) ? null : Math.floor(ms / 1000)
+    return (
+      cells.find((cell) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(cell),
+      ) ?? null
+    )
   }
   return null
 }
 
-/** `moved` when the row changed at or after the run began, `old` before it, `unknown` if unread. */
-export function imageVerdict(table, name, beforeEpoch) {
-  const modified = lastModifiedEpoch(table, name)
-  if (modified === null) return { verdict: 'unknown', modified }
-  return { verdict: modified >= beforeEpoch ? 'moved' : 'old', modified }
+/** The image digest in `wrangler containers info <id>` output, or null. */
+export function imageDigest(info) {
+  const start = info.indexOf('{')
+  const end = info.lastIndexOf('}')
+  if (start === -1 || end < start) return null
+  let record
+  try {
+    record = JSON.parse(info.slice(start, end + 1))
+  } catch {
+    return null
+  }
+  const image = record?.configuration?.image
+  if (typeof image !== 'string') return null
+  return image.match(/@(sha256:[0-9a-f]{64})$/)?.[1] ?? null
+}
+
+function wrangler(...args) {
+  return spawnSync('pnpm', ['--filter', '@run-apparel/shrink', 'exec', 'wrangler', ...args], {
+    encoding: 'utf8',
+  })
 }
 
 function arg(flag) {
@@ -57,15 +76,29 @@ function arg(flag) {
 
 if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   const name = arg('--name')
-  const before = Number(arg('--before'))
-  if (!name || !Number.isFinite(before)) {
-    console.error('usage: … | node scripts/shrink-image-moved.mjs --name <row> --before <epoch>')
+  if (process.argv[2] !== 'current' || !name) {
+    console.error('usage: node scripts/shrink-image-moved.mjs current --name <row>')
     process.exit(2)
   }
-  const { verdict, modified } = imageVerdict(readFileSync(0, 'utf8'), name, before)
-  const when = modified === null ? 'not found' : new Date(modified * 1000).toISOString()
-  console.log(
-    `${name}: last modified ${when}; run began ${new Date(before * 1000).toISOString()} → ${verdict}`,
-  )
-  process.exit(verdict === 'moved' ? 0 : verdict === 'old' ? 1 : 2)
+  const list = wrangler('containers', 'list')
+  if (list.status !== 0) {
+    console.error(`wrangler containers list failed:\n${list.stdout}${list.stderr}`)
+    process.exit(3)
+  }
+  const id = rowId(list.stdout, name)
+  if (!id) {
+    console.error(`no row named ${name} in wrangler containers list:\n${list.stdout}`)
+    process.exit(2)
+  }
+  const info = wrangler('containers', 'info', id)
+  if (info.status !== 0) {
+    console.error(`wrangler containers info failed:\n${info.stdout}${info.stderr}`)
+    process.exit(3)
+  }
+  const digest = imageDigest(info.stdout)
+  if (!digest) {
+    console.error(`no image digest in wrangler containers info ${id}`)
+    process.exit(2)
+  }
+  console.log(digest)
 }

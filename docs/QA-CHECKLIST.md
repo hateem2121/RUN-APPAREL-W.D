@@ -98,8 +98,10 @@ Full guide: [FIRST-GARMENT-UPLOAD.md](FIRST-GARMENT-UPLOAD.md).
 - [ ] A deliberately bad upload (a `.txt` renamed `.glb`, or a filename containing
       `?`) is rejected with a **real message**, never "Something went wrong."
 - [ ] `wrangler tail run-apparel-viewer-shrink` shows **no `Exceeded memory limit`**
-- [ ] Container image is current: `wrangler containers list` → `LAST MODIFIED` is
-      at or after the last commit touching `apps/shrink` or `tools/asset-pipeline`
+- [ ] Container image is current: the last `deploy-shrink` run after a commit touching
+      `apps/shrink` or `tools/asset-pipeline` printed a new image digest and "Still … 4 minutes
+      later" (by hand: `node scripts/shrink-image-moved.mjs current --name
+      run-apparel-viewer-shrink-shrinkcontainer`; not `LAST MODIFIED`, which lags — RUNBOOK)
 - [ ] **The colour names came from the file, not from memory.** On the Colours tab
       each option in "Which colour in your CLO file is this?" shows a swatch and a
       suggested name. Check the swatch matches the row it sits under — on

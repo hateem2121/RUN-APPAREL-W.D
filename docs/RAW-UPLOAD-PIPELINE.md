@@ -118,9 +118,10 @@ Cloudflare Container, and a raw file can never reach customers.
 > 2026-07-27: the logo-tearing `--simplify` fix shipped to `main` while the
 > container kept running the 2026-07-24 image, because the workflow that would
 > have caught up was already failing and nothing said so at a glance. The workflow
-> now ends by printing `wrangler containers list` next to the run's own timestamp,
-> so a green run carries its own proof the image actually moved. Verify by hand
-> the same way — compare `LAST MODIFIED` against the commit date.
+> now records the container's image digest before the deploy and fails unless it
+> changed and stayed changed, so a green run carries its own proof the image actually
+> moved. Verify by hand with `node scripts/shrink-image-moved.mjs current --name
+> run-apparel-viewer-shrink-shrinkcontainer` (RUNBOOK says why not `LAST MODIFIED`).
 >
 > **What no longer needs a redeploy:** the decimation settings. They are chosen
 > per upload from the raw-upload **Detail** field and passed to the container in
