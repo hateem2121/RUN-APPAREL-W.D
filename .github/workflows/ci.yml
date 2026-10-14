@@ -1964,6 +1964,10 @@ jobs:
       # another project's included. scripts/shrink-image-moved.mjs reads only this row
       # (apps/cms/src/shrinkImageMoved.test.ts, controls both ways). 9 reads 20 s apart = 3 min,
       # under the step's 6-minute limit.
+      # ⚠️ GITHUB RUNS THIS UNDER `bash -e` (issue #179, 1734cac9). A bare `node … ; verdict=$?`
+      # ended the step on the first `old`, so the loop never retried and a good deploy failed
+      # again; an exit 2 failed too instead of warning. Capture with `|| verdict=$?` and keep
+      # every `&&` out of the loop. The test runs this block under `bash -e`.
       - name: Assert the container image actually moved (drift check)
         timeout-minutes: 6
         env:
@@ -1979,11 +1983,11 @@ jobs:
             # succeeds the step fails below with the wrangler output, not a drift verdict.
             if ! out=$(pnpm --filter @run-apparel/shrink exec wrangler containers list 2>&1); then
               verdict=3
-              [ "$attempt" -lt 9 ] && sleep 20
+              if [ "$attempt" -lt 9 ]; then sleep 20; fi
               continue
             fi
-            printf '%s\n' "$out" | node scripts/shrink-image-moved.mjs --name run-apparel-viewer-shrink-shrinkcontainer --before "$BEFORE"
-            verdict=$?
+            verdict=0
+            printf '%s\n' "$out" | node scripts/shrink-image-moved.mjs --name run-apparel-viewer-shrink-shrinkcontainer --before "$BEFORE" || verdict=$?
             if [ "$verdict" -eq 0 ]; then
               echo "Image is newer than the start of this run — the deploy moved it (read $attempt)."
               exit 0
@@ -1993,7 +1997,7 @@ jobs:
               echo "::warning::could not find this container's LAST MODIFIED in \`wrangler containers list\` — drift NOT verified. Check the table above by hand and fix scripts/shrink-image-moved.mjs."
               exit 0
             fi
-            [ "$attempt" -lt 9 ] && sleep 20
+            if [ "$attempt" -lt 9 ]; then sleep 20; fi
           done
           echo "$out"
           if [ "$verdict" -eq 3 ]; then
