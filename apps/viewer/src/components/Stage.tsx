@@ -23,6 +23,7 @@ import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { usePrinting } from '../lib/usePrinting'
+import { LoadingTitle } from './LoadingTitle'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { HdImageButton } from './HdImageButton'
 import { SpecGroups } from './SpecGroups'
@@ -1389,15 +1390,7 @@ export function Stage({
           */}
           {loading && !showHd && (
             <div className="stage__loading" aria-hidden="true">
-              <span className="stage__loading-title">
-                {/* "3D MODEL", not "REFERENCE". The live region below already
-                    said "the interactive 3D model" while this line said
-                    "REFERENCE", so the sighted and the screen-reader visitor
-                    were given different names for the same 23-second event —
-                    and "reference" is also what the whole page calls itself. */}
-                {load.phase === 'preparing' ? 'PREPARING 3D MODEL…' : 'LOADING 3D MODEL'}
-                {load.percent !== null && ` · ${load.percent}%`}
-              </span>
+              <LoadingTitle phase={load.phase} percent={load.percent} />
               {/*
                 ⚠️ THE SWEEP IS OMITTED UNDER REDUCED MOTION, NOT COLLAPSED, and the
                 preloader next door already learned this the hard way.
