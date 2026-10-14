@@ -21,14 +21,20 @@
 # said Dependabot did. A bump changes the system libraries sharp links against, so look at
 # a rendered garment print before merging one. Do not unpin it to make an update easier.
 #
-# PINNED-ON: 2026-09-26
+# Last print check, 2026-10-14 (0e0ff40 -> d6aa754): the 15 textures of the live rxps model,
+# re-encoded with texture-artwork.ts's artwork WebP settings in both images, decoded to
+# byte-identical pixels (sharp 0.35.5 ships its own libvips 8.18.7 / libwebp 1.6.0, the same
+# in both); quality 94 as the control changed all 15. The wordmark fixture alone was blind
+# to it: its colour is flat and its alpha lossless.
+#
+# PINNED-ON: 2026-10-14
 # ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
 # the pin is older than the refresh window. Base images are rebuilt mainly to pick up
 # operating-system security fixes, so pinning is correct and never refreshing is not —
 # and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
 # pull request as the digest (Dependabot moves only the digest), or the gate is measuring
 # a lie.
-FROM node:24-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+FROM node:24-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 
 WORKDIR /app
 
