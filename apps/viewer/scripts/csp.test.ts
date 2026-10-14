@@ -154,6 +154,7 @@ describe('buildCsp — third-party allow-list (PF-15)', () => {
     'https://assets.apollo.io',
     'https://us-assets.i.posthog.com',
     'https://us.i.posthog.com',
+    'https://www.google.com',
     'https://www.googletagmanager.com',
   ]
 

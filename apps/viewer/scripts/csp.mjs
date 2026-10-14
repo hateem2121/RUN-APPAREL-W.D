@@ -61,7 +61,7 @@ const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsi
 const TRACKER_SCRIPT =
   'https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com'
 const TRACKER_CONNECT =
-  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com'
+  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com'
 const TRACKER_IMG = 'https://*.google-analytics.com https://*.googletagmanager.com'
 
 /**

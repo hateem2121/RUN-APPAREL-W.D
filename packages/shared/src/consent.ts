@@ -52,7 +52,11 @@ const POSTHOG_SCRIPT = 'https://us-assets.i.posthog.com/static/array.js'
  * list, so the two cannot drift apart.
  *
  * Google's are the ones its own CSP guide for Analytics 4 names; regional collection uses
- * sub-hosts, hence the wildcards. Apollo's were read out of its script on 2026-09-30:
+ * sub-hosts, hence the wildcards. ⚠️ Plus `www.google.com`, EXACTLY: GA4 began sending some
+ * hits to `www.google.com/g/collect`, and the garment page refused one on 2026-10-13 (Sentry
+ * VIEWER-F). The guide (updated 2026-09-18) says `*.google.com`; that would also admit
+ * `docs.google.com`, where a Google Form could receive data an injected script sent it, so
+ * the policy names the one host GA4 used (`consent.test.ts`). Apollo's were read out of its script on 2026-09-30:
  * loaded from `assets.apollo.io`, reporting to `aplo-evnt.com`.
  *
  * ⚠️ `d-code.liadm.com` IS LEFT OUT DELIBERATELY. Apollo's script loads it (LiveIntent)
@@ -84,6 +88,7 @@ export const TRACKER_CSP = {
     'https://*.google-analytics.com',
     'https://*.analytics.google.com',
     'https://*.googletagmanager.com',
+    'https://www.google.com',
     'https://aplo-evnt.com',
     'https://us.i.posthog.com',
     'https://us-assets.i.posthog.com',
