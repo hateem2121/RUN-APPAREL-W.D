@@ -96,6 +96,14 @@ updates:
       - dependency-name: graphql
         update-types:
           - version-update:semver-major
+      # Next 16.4 breaks the CMS Worker build on @opennextjs/cloudflare 1.20.9 (2026-10-14,
+      # PR #173): the bundle gains Miniflare (handler.mjs 30.7 -> 45.0 MB) and wrangler's
+      # esbuild refuses it ("Could not resolve sqlite", an import() with attributes). 16.3.8
+      # with the same other updates builds at 43,296 KiB. docs/DEPENDENCY-HOLDS.md says
+      # when to release it.
+      - dependency-name: next
+        versions:
+          - ">=16.4.0"
 
   # The shrink container's own packages (apps/shrink/container), since 2026-10-03: the one
   # package list Dependabot did not reach. It is not a pnpm workspace member and keeps its
