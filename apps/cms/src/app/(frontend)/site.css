@@ -7434,14 +7434,30 @@ a.contact-block__value:active {
 
 /*
  * Who wrote a guide, a policy or the careers page, and when its words last changed (findability
- * audit, 2026-10-08; `Byline.tsx`): the Journal's labels above, set in one row under the lede and
- * wrapping onto two on a phone.
+ * audit, 2026-10-08; `Byline.tsx`): the Journal's labels above, set in one row under the lede.
+ *
+ * ⚠️ ON A PHONE IT IS ALWAYS ONE ITEM PER ROW, NEVER "WRAP IF IT DOES NOT FIT" (owner, 2026-10-14).
+ * Wrapping let the FONT decide the row count, and the row count moved the page: at 412px the
+ * column is 372px, the two items measured 226 + 24 + 120 = 370px in the stand-in faces (one row)
+ * and 231 + 24 + 125 = 380px in Archivo (two rows), so the byline grew 49 -> 110px when the
+ * webfont arrived and pushed the first section down (Lighthouse CLS 0.133 on four guides; 1 run in
+ * 6 in CI's Linux image, 6 in 6 on a Mac with the brand fonts installed). A proportional stand-in
+ * matches only on average, and each phone brings its own, so no size-adjust could promise those
+ * 8px. Stacked, the row count is 2 in any font. From 560px up the one row has at least 71px to
+ * spare, about seven times the 10px the two fonts differ by (measured on six pages at 560-1440px;
+ * the least is /inside-the-factory at 900px, where its column narrows to 450px).
  */
 .page-byline {
   display: flex;
   flex-wrap: wrap;
   gap: 12px 24px;
   margin: 24px 0 0;
+}
+
+@media (max-width: 559px) {
+  .page-byline {
+    flex-direction: column;
+  }
 }
 
 .journal-body > :first-child {
