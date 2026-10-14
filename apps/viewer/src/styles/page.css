@@ -3380,3 +3380,38 @@ summary.spec-item__row:focus-visible {
     break-inside: avoid;
   }
 }
+
+/* ── The offline line under "Reload Page" (ReloadPageButton.tsx) ──────── */
+/* Empty while online, and still mounted so a screen reader hears it change. */
+.reload-page__offline {
+  margin: 0;
+  font-size: var(--text-note);
+  color: var(--muted);
+}
+
+/* ── The full-screen picture did not load (HdImageButton.tsx, 2026-10-14) ── */
+/* Where the full-screen view would have been: over the page, above the action bar, at the
+   dialog's own layer, because it stands in for the dialog. `.notice` gives it its look. */
+.hd-image-failed {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--action-bar-h) + 16px);
+  z-index: var(--z-dialog);
+  max-width: 560px;
+  margin: 0 auto;
+  /* The label on its own line: beside the words, a 390px phone set "[ NOTE ]" on three. */
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hd-image-failed__body {
+  display: grid;
+  gap: 12px;
+}
+
+.hd-image-failed__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

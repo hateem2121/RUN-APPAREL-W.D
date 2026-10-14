@@ -1,10 +1,16 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { diagnostic } from '../lib/diagnostic'
-import { UnavailableState } from './States'
+import { CrashedState } from './States'
 
 /**
- * Catch a render-time throw and show the branded unavailable state instead of a
- * blank page.
+ * Catch a render-time throw and show the branded crash screen (`CrashedState`) instead
+ * of a blank page.
+ *
+ * ⚠️ NOT `UnavailableState`, THE 404 SCREEN, which this drew until 2026-10-14. On 8 Oct
+ * 2026 a translated page crashed on HD IMAGE and a buyer holding the garment read "This
+ * reference is no longer live" (`CrashedState` has the story). A crash says nothing about
+ * whether the garment is published; only the API's 404 does, and `App.tsx` keeps that
+ * screen for it.
  *
  * ⚠️ THIS MUST REPORT, OR IT MAKES THINGS WORSE. React re-throws an UNCAUGHT
  * render error to `window.onerror`, which `lib/telemetry.ts` already listens for —
@@ -23,8 +29,10 @@ import { UnavailableState } from './States'
  *
  * NO AUTO-RESET, deliberately. Retrying a render that just threw invites a loop
  * that burns the device's battery and fills the Events table with the same row;
- * `UnavailableState` offers both contact routes, so a visitor is never stranded.
- * Recovery is a page load.
+ * `CrashedState` offers both contact routes, so a visitor is never stranded.
+ * Recovery is a page load — since 2026-10-14 a "Reload Page" button the visitor taps,
+ * never one the page presses for them (`ReloadPageButton` says why it is a reload and
+ * not a re-draw, and why it waits while the device is offline).
  *
  * ⚠️ This said "already offers the catalogue and both contact routes" until
  * 2026-09-05, and the catalogue button was removed on 2026-09-04 — so the safety
@@ -72,7 +80,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.failed) {
       return (
         <div className="page">
-          <UnavailableState />
+          <CrashedState />
         </div>
       )
     }

@@ -2,7 +2,7 @@ import { DEFAULT_SITE_SETTINGS, type ViewerSiteSettings } from '@run-apparel/sha
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RetiredNotice, UnavailableState, UnreachableState } from './States'
+import { CrashedState, RetiredNotice, UnavailableState, UnreachableState } from './States'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 /**
@@ -247,5 +247,67 @@ describe('UnreachableState', () => {
 
     act(() => root.render(<div />))
     expect(robotsMetas()).toHaveLength(0)
+  })
+})
+
+/**
+ * The crash screen (2026-10-14). Its sentence is asserted in ErrorBoundary.test.tsx, where
+ * a real throw draws it; this pins the parts a crash must not lose and the button's two
+ * states, because offline the button must not hand the visitor the browser's error page.
+ */
+describe('CrashedState', () => {
+  const setOnline = (value: boolean) => {
+    Object.defineProperty(window.navigator, 'onLine', { get: () => value, configurable: true })
+    act(() => {
+      window.dispatchEvent(new Event(value ? 'online' : 'offline'))
+    })
+  }
+
+  afterEach(() => setOnline(true))
+
+  it('adds noindex while shown and removes it after', () => {
+    render(<CrashedState />)
+    expect(robotsMetas()).toHaveLength(1)
+    act(() => root.render(<div />))
+    expect(robotsMetas()).toHaveLength(0)
+  })
+
+  it('has one primary action, the reload, and a tap reloads', () => {
+    const reload = vi.fn()
+    render(<CrashedState reload={reload} />)
+
+    expect(host.querySelectorAll('.btn--primary')).toHaveLength(1)
+    const button = host.querySelector<HTMLButtonElement>('button.btn--primary')
+    expect(button?.disabled).toBe(false)
+    act(() => button?.click())
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not reload while offline, says why, and comes back with the signal', () => {
+    const reload = vi.fn()
+    render(<CrashedState reload={reload} />)
+
+    setOnline(false)
+    const button = host.querySelector<HTMLButtonElement>('button.btn--primary')
+    expect(button?.disabled).toBe(true)
+    expect(button?.textContent).toBe('Waiting for Connection…')
+    const note = host.querySelector('[role="status"]')
+    expect(note?.textContent).toContain('This device is offline')
+    act(() => button?.click())
+    expect(reload).not.toHaveBeenCalled()
+
+    // Back online: usable again, and it still waits for a tap rather than reloading itself.
+    setOnline(true)
+    expect(button?.disabled).toBe(false)
+    expect(button?.textContent).toBe('Reload Page')
+    expect(note?.textContent).toBe('')
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it('names a page error in the enquiry, not a dead QR tag', () => {
+    render(<CrashedState />)
+    const mailto = host.querySelector<HTMLAnchorElement>('a[href^="mailto:"]')?.href ?? ''
+    expect(decodeURIComponent(mailto)).toContain('Page error — reference not shown')
+    expect(decodeURIComponent(mailto)).not.toContain('QR reference unavailable')
   })
 })

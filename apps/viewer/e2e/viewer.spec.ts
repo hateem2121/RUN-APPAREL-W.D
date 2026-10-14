@@ -224,6 +224,10 @@ test.describe('RUN APPAREL 3D viewer', () => {
   test('unknown product shows branded unavailable state', async ({ page }) => {
     await page.goto('/zzz9/none')
     await expect(page.getByText('[ REFERENCE UNAVAILABLE ]')).toBeVisible()
+    // The one screen that may say this, because the API said 404. A crash has its own
+    // screen since 2026-10-14 (CrashedState), and must not have taken this one's words.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/no longer live/i)
+    await expect(page.getByText('[ PAGE ERROR ]')).toHaveCount(0)
     // The catalogue button was removed here on 2026-09-04 (owner decision). This
     // asserts the removal rather than merely dropping the old assertion, because
     // `catalogueUrl` is still in the payload and still in this component's props:

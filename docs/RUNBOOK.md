@@ -1140,6 +1140,8 @@ What the events mean:
 | `render3d-unavailable` | The device or Data Saver refused 3D up front | Nothing — the poster fallback is working as intended |
 | `viewer-load-failed` | The product's details never reached the page — a server error or the visitor's connection | Look up that minute in the CMS Worker's logs; a 200 there means the visitor's side failed |
 | `render-scale-degraded` | A slow device drew the 3D at lower sharpness (model-viewer's own GPU throttling) | Nothing, unless many **browsers** report it on one product |
+| `react-render-error` | A part of the garment page crashed while drawing; the buyer saw "This page ran into a problem" with a Reload Page button | Read the message; the same one from many **browsers** is a bug in the viewer's code, one browser alone is often a translation or browser add-on |
+| `hd-image-load-failed` | The full-screen HD picture's code did not download (or the full-screen view crashed — the message says which); the garment page stayed, with a note offering a reload | Nothing for one download failure; many in the hour after a deploy means pages left open across it. A crash message from many **browsers** is a bug |
 
 **Read the `browsers` column before the count.** On 2026-09-10 one scripted audit
 of ours wrote 371 of the week's 385 rows, and a count on its own read like an
@@ -1184,8 +1186,11 @@ and de-duplicated on the first 100 characters. Enough to know something broke,
 not enough to find it. Read weekly by `diagnostics-digest.yml`.
 
 **2. React render errors → `ErrorBoundary`.** A component that throws now shows
-the branded unavailable state instead of a blank page, and reports through the
-same `diagnostic()` seam as `react-render-error`. ⚠️ The reporting is not
+the branded crash screen ("This page ran into a problem", `CrashedState` in
+`apps/viewer/src/components/States.tsx`) instead of a blank page, and reports through the
+same `diagnostic()` seam as `react-render-error`. Until 2026-10-14 it showed the 404
+screen, "This reference is no longer live", which told a buyer on a translated page
+that a live garment was discontinued (8 Oct 2026). ⚠️ The reporting is not
 optional decoration: React re-throws an *uncaught* render error to
 `window.onerror`, so a boundary that stayed silent would trade a white screen for
 a white screen nobody hears about. Pinned by `ErrorBoundary.test.tsx`.
