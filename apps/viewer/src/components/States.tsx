@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { track } from '../lib/analytics'
 import type { ViewerFetchFailure } from '../lib/api'
 import { SITE_PRODUCTS_URL } from '../lib/siteLinks'
+import { OfflineReloadNote, ReloadPageButton, useOnline } from './ReloadPageButton'
 import { headingWithAccent } from './SerifAccent'
 
 // `LoadingScreen` lived here until 2026-08-03 with zero references anywhere in
@@ -85,9 +86,13 @@ export function UnreachableState({
           : 'Nothing has been discontinued: we could not reach the reference just now. Please try again in a moment.'}
       </p>
       {/*
-        ⚠️ A <button>, NOT A RELOAD LINK. `location.reload()` would throw away the
-        precached shell and, offline, would replace a working page with the
-        browser's own error page. This re-runs the fetch and nothing else.
+        ⚠️ A <button>, NOT A RELOAD LINK. Offline, `location.reload()` can replace a
+        working page with the browser's own error page: the service worker's offline
+        copy (`scripts/sw.mjs`) catches it only once installed, which a first visit or
+        a private window never reaches (corrected 2026-10-14; this said the reload
+        always lost the shell). This re-runs the fetch and nothing else, which is all
+        a failed fetch needs. A crash needs a real reload; `ReloadPageButton` does
+        that, and waits while offline.
       */}
       <div className="unavailable__actions">
         <button
@@ -116,6 +121,91 @@ export function UnreachableState({
           WhatsApp Us
         </a>
       </div>
+    </main>
+  )
+}
+
+/**
+ * The screen for a crash: a part of the page threw while drawing, and `ErrorBoundary`
+ * caught it (2026-10-14).
+ *
+ * ⚠️ THE CRASH USED TO PRINT "THIS REFERENCE IS NO LONGER LIVE". On 8 Oct 2026 a buyer in
+ * Spain, on an iPhone with Safari translating the page, tapped HD IMAGE; React crashed on
+ * the translated text (facebook/react#11538, PostHog replay) and `ErrorBoundary` drew
+ * `UnavailableState`, the 404 screen, so a buyer holding the garment was told it was
+ * discontinued. That crash was fixed in #181, but any other crash would have printed the
+ * same false sentence, because the boundary had only the 404 screen to show. This is the
+ * same mistake `UnreachableState` was written to stop for a failed download (2026-09-07).
+ *
+ * The words are the owner's choice (option A, 2026-10-14), written to GOV.UK's "There is a
+ * problem with the service" pattern and NN/g's error-message guidelines: say plainly what
+ * happened, no error codes, no "technical difficulties", do not blame the visitor, and give
+ * one clear next step. The sentence says the garment is fine before it says anything else,
+ * because that is the question a buyer holding it is asking.
+ *
+ * `noindex` for the same reason as the other two screens: a crawler that hits a crash must
+ * not keep this page as the garment's content.
+ *
+ * ONE PRIMARY: Reload Page, the only thing that mends a crash (`ReloadPageButton` explains
+ * why it is a real reload). Email and WhatsApp stay, so a visitor whose crash repeats on
+ * every load still has a way to reach us. No "Browse in 3D": nothing here was removed, so
+ * sending the visitor to other garments answers a question they did not ask.
+ */
+export function CrashedState({
+  settings,
+  reload,
+}: {
+  settings?: ViewerSiteSettings
+  /** For the test, which cannot reload jsdom. */
+  reload?: () => void
+}) {
+  const site = settings ?? DEFAULT_SITE_SETTINGS
+  const online = useOnline()
+
+  useEffect(() => {
+    const meta = document.createElement('meta')
+    meta.name = 'robots'
+    meta.content = 'noindex'
+    document.head.appendChild(meta)
+    return () => meta.remove()
+  }, [])
+
+  // The pre-filled enquiry names a crash, so the team does not read it as a dead QR tag
+  // (owner's choice, 2026-10-14).
+  const enquiry = {
+    productName: 'a product reference from your catalog',
+    productCode: 'Page error — reference not shown',
+    colourName: 'N/A',
+  }
+
+  return (
+    <main className="unavailable blueprint">
+      <span className="label">[ PAGE ERROR ]</span>
+      <h1 className="display display--hero">{headingWithAccent('This page ran into a problem')}</h1>
+      <p style={{ color: 'var(--muted)' }}>
+        Nothing has been discontinued: the garment is still here, but this page stopped working.
+        Reload the page to see it again, or tell our team and we will send you the reference.
+      </p>
+      <div className="unavailable__actions">
+        <ReloadPageButton online={online} reload={reload} />
+        <a
+          className="btn btn--ghost"
+          href={buildMailtoUrl(site.email, enquiry)}
+          onClick={() => track('email_clicked')}
+        >
+          Email Us
+        </a>
+        <a
+          className="btn btn--ghost"
+          href={buildWhatsAppUrl(site.whatsappNumber, enquiry)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => track('whatsapp_clicked')}
+        >
+          WhatsApp Us
+        </a>
+      </div>
+      <OfflineReloadNote online={online} className="reload-page__offline" />
     </main>
   )
 }

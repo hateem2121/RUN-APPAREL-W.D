@@ -1,6 +1,8 @@
 import type { ViewerColourway } from '@run-apparel/shared'
-import { lazy, Suspense, useCallback, useRef, useState } from 'react'
+import { Component, lazy, type ReactNode, Suspense, useCallback, useRef, useState } from 'react'
 import { track } from '../lib/analytics'
+import { diagnostic } from '../lib/diagnostic'
+import { OfflineReloadNote, ReloadPageButton, useOnline } from './ReloadPageButton'
 
 /*
  * The dialog is a DYNAMIC import, so base-ui and the zoom code never reach the entry
@@ -10,6 +12,66 @@ import { track } from '../lib/analytics'
  */
 const loadDialog = () => import('./HdImageDialog')
 const HdImageDialog = lazy(loadDialog)
+
+/**
+ * Catches the full-screen view's code failing to arrive, so the garment page stays.
+ *
+ * ⚠️ WITHOUT THIS, A FAILED DOWNLOAD WAS A "NO LONGER LIVE" PAGE. Measured 2026-10-14 in
+ * Chromium (e2e/hd-image.spec.ts now plants it): with `HdImageDialog`'s file refused by the
+ * network, FULL SCREEN made `lazy()` throw, the throw reached the page-wide `ErrorBoundary`,
+ * and the whole garment page was replaced by "This reference is no longer live" — the same
+ * false sentence as the 8 Oct 2026 translated-page crash. Patchy mobile data does it, and so
+ * does a page left open across a deploy, whose old file names no longer exist.
+ *
+ * It reports, for the reason `ErrorBoundary` gives: a caught error no longer reaches
+ * `window.onerror`, so a boundary that stayed silent would hide the failure.
+ *
+ * It also catches a CRASH inside the full-screen view, not only a download that failed,
+ * and that is deliberate: either way the garment page is fine and the view is not, and the
+ * note's words are true of both. The report's `reason` tells them apart (a download reads
+ * "Failed to fetch dynamically imported module", or "Importing a module script failed" in
+ * Safari), so read it before treating a row as a network problem.
+ */
+class DialogLoadBoundary extends Component<{ children: ReactNode; onFailed: () => void }> {
+  override state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  override componentDidCatch(error: Error): void {
+    diagnostic('hd-image-load-failed', { reason: error.message || String(error) })
+    this.props.onFailed()
+  }
+
+  override render(): ReactNode {
+    return this.state.failed ? null : this.props.children
+  }
+}
+
+/**
+ * The note shown in place of the full-screen view when its code did not arrive. Only a
+ * reload can fetch that code again (`ReloadPageButton`), so it offers one, and a way to
+ * close the note and go on with the garment, which is all still here.
+ */
+function DialogFailedNote({ onClose }: { onClose: () => void }) {
+  const online = useOnline()
+  return (
+    <div className="notice hd-image-failed" role="alert">
+      <span className="label">[ NOTE ]</span>
+      <div className="hd-image-failed__body">
+        <span>The full-screen picture did not load. Reload the page to try again.</span>
+        <div className="hd-image-failed__actions">
+          <ReloadPageButton online={online} className="btn btn--primary" />
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <OfflineReloadNote online={online} className="reload-page__offline" />
+      </div>
+    </div>
+  )
+}
 
 interface HdImageButtonProps {
   productName: string
@@ -65,6 +127,10 @@ export function HdImageButton({
   const [open, setOpen] = useState(false)
   // Mounted on first open and kept, so the closing transition has an element to run on.
   const [mounted, setMounted] = useState(false)
+  // The view's code failed to arrive; the same address will fail again until a reload
+  // (`ReloadPageButton`), so later taps show the note instead of trying.
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [noteShown, setNoteShown] = useState(false)
   const switchRef = useRef<HTMLButtonElement | null>(null)
   const fullRef = useRef<HTMLButtonElement | null>(null)
   const warmed = useRef(new Set<string>())
@@ -79,7 +145,9 @@ export function HdImageButton({
 
   /** Intent for the full-screen view: its chunk and the full render. */
   const warmFull = useCallback(() => {
-    void loadDialog()
+    // Caught here and reported by `DialogLoadBoundary` when a tap actually needs the view:
+    // a warm-up that failed on a hover is not something the visitor saw.
+    loadDialog().catch(() => {})
     preload(render?.url)
   }, [preload, render])
 
@@ -89,6 +157,10 @@ export function HdImageButton({
   if (!render) return null
 
   const openFull = () => {
+    if (loadFailed) {
+      setNoteShown(true)
+      return
+    }
     warmFull()
     setMounted(true)
     setOpen(true)
@@ -168,18 +240,36 @@ export function HdImageButton({
           </>
         )}
       </button>
-      {mounted && (
-        <Suspense fallback={null}>
-          <HdImageDialog
-            open={open}
-            onOpenChange={setOpen}
-            productName={productName}
-            colourways={colourways}
-            selected={selected}
-            onSelectColourway={onSelectColourway}
-            returnFocusTo={switches ? fullRef : switchRef}
-          />
-        </Suspense>
+      {mounted && !loadFailed && (
+        <DialogLoadBoundary
+          onFailed={() => {
+            setLoadFailed(true)
+            setNoteShown(true)
+            setOpen(false)
+          }}
+        >
+          <Suspense fallback={null}>
+            <HdImageDialog
+              open={open}
+              onOpenChange={setOpen}
+              productName={productName}
+              colourways={colourways}
+              selected={selected}
+              onSelectColourway={onSelectColourway}
+              returnFocusTo={switches ? fullRef : switchRef}
+            />
+          </Suspense>
+        </DialogLoadBoundary>
+      )}
+      {noteShown && (
+        <DialogFailedNote
+          onClose={() => {
+            setNoteShown(false)
+            // Back to the button that opened it, as the dialog does, or focus falls to <body>.
+            const from = switches && shown ? fullRef : switchRef
+            from.current?.focus({ preventScroll: true })
+          }}
+        />
       )}
     </>
   )

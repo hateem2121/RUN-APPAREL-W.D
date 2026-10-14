@@ -86,7 +86,7 @@ document.body.appendChild(grain)
 
 // ErrorBoundary sits INSIDE StrictMode but OUTSIDE App, so a throw anywhere in the
 // tree — including the lazily-imported polish layer and <Stage> — lands on the
-// branded unavailable state rather than an empty <div id="root">. Placing it
+// branded crash screen rather than an empty <div id="root">. Placing it
 // outside StrictMode would also work; inside keeps the double-invoke checks
 // applying to the fallback too.
 root.render(

@@ -525,3 +525,63 @@ test('without 3D the screen-sized HD copy stands in for the poster, but not unde
   await expect(page.locator('.stage__error:not([hidden])')).toBeVisible()
   await expect(page.locator('.stage__picture')).toHaveAttribute('src', /-poster\.webp$/)
 })
+
+/**
+ * The full-screen view's code refused by the network (2026-10-14).
+ *
+ * ⚠️ MEASURED BEFORE THE FIX: this exact plant replaced the whole garment page with "This
+ * reference is no longer live" — `lazy()` threw, and the page-wide ErrorBoundary drew the 404
+ * screen. Patchy mobile data does it, and so does a page left open across a deploy. Since then
+ * the button's own boundary catches it, the garment stays, and a note offers the reload that
+ * is the only thing able to fetch that code again.
+ *
+ * ⚠️ THE SERVICE WORKER IS BLOCKED FOR THIS TEST, OR THE PLANT IS NOT PLANTED. The worker
+ * fetches `/assets/` itself (scripts/sw.mjs), and a `page.route` never sees that request: a
+ * Chromium probe logged it, blocked nothing, and passed against the broken code. Chromium's
+ * `context.route` does reach the worker's requests; WebKit's and Firefox's do not (measured
+ * 2026-10-14: both opened the full-screen view with the "refused" file). The worker never
+ * stores this file (dynamic imports are not precached), so with it out of the way the page
+ * meets the failure exactly as a phone with no signal does. `refused` below is the proof.
+ */
+test.describe(() => {
+  test.use({ serviceWorkers: 'block' })
+
+  test('a full-screen view whose code never arrives leaves the garment where it was', async ({
+    page,
+    context,
+  }) => {
+    const reports: string[] = []
+    page.on('console', (message) => {
+      if (message.text().includes('hd-image-load-failed')) reports.push(message.text())
+    })
+    let refused = 0
+    await context.route(/\/assets\/HdImageDialog-[^/]*\.js$/, (route) => {
+      refused++
+      return route.abort('internetdisconnected')
+    })
+
+    await openReady(page)
+    const heading = await page.getByRole('heading', { level: 1 }).textContent()
+    const opener = await openFull(page)
+
+    const note = page.getByRole('alert').filter({ hasText: 'The full-screen picture did not load' })
+    await expect(note).toBeVisible()
+    expect(
+      refused,
+      'the plant must actually refuse the file, or this passes vacuously',
+    ).toBeGreaterThan(0)
+    // The garment page is still the garment page.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading ?? '')
+    await expect(page.getByText(/no longer live|no longer show here/i)).toHaveCount(0)
+    await expect(page.getByText('[ PAGE ERROR ]')).toHaveCount(0)
+    await expect(note.getByRole('button', { name: 'Reload Page' })).toBeEnabled()
+    expect(reports, 'the failure is reported, not swallowed').toHaveLength(1)
+
+    // Close goes back to the button, and a second tap shows the note again rather than nothing.
+    await note.getByRole('button', { name: 'Close' }).click()
+    await expect(note).toHaveCount(0)
+    await expect(opener).toBeFocused()
+    await opener.click()
+    await expect(note).toBeVisible()
+  })
+})
