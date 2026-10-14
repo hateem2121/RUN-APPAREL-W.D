@@ -213,7 +213,7 @@ export const PUBLIC_PAGE_CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://media.wear-run.com https://media.wear-run.help https://*.google-analytics.com https://*.googletagmanager.com",
   "font-src 'self'",
-  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com",
+  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

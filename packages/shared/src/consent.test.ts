@@ -361,6 +361,22 @@ describe('the hosts the security policy must admit', () => {
     ])
   })
 
+  /*
+   * Google Analytics 4 began sending some hits to `https://www.google.com/g/collect`, and the
+   * garment page's policy refused one on 2026-10-13 (Sentry VIEWER-F: a `user_engagement` hit
+   * from /products/r-asb/petrol, lost). Google's CSP guide (updated 2026-09-18) now lists
+   * `*.google.com` for Analytics without ads. The policy names the one host GA4 used, not the
+   * wildcard: `*.google.com` would also admit `docs.google.com`, where a Google Form could
+   * receive whatever an injected script sent it. A move to another host is refused and
+   * reported to Sentry, the way this one was.
+   */
+  it('admits www.google.com for GA4 hits, and no wider Google host', () => {
+    expect(TRACKER_CSP.connect).toContain('https://www.google.com')
+    const all = [...TRACKER_CSP.script, ...TRACKER_CSP.connect, ...TRACKER_CSP.img].join(' ')
+    expect(all).not.toMatch(/\*\.google\.com/)
+    expect(TRACKER_CSP.script).not.toContain('https://www.google.com')
+  })
+
   it('never uses a bare wildcard or a scheme-only source', () => {
     for (const host of [...TRACKER_CSP.script, ...TRACKER_CSP.connect, ...TRACKER_CSP.img]) {
       expect(host).toMatch(/^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+$/)
