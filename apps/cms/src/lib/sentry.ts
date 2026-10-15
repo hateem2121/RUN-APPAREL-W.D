@@ -229,6 +229,8 @@ export interface BuildEventOptions {
   release?: string
   timestampSeconds?: number
   id?: string
+  /** Which hook sent it. Payload's own errors arrive through `afterError`, not Next's hook. */
+  logger?: string
 }
 
 /** The Sentry event body, before it is wrapped in an envelope. */
@@ -275,7 +277,7 @@ export function buildEvent(options: BuildEventOptions): Record<string, unknown> 
     timestamp: options.timestampSeconds ?? Math.floor(Date.now() / 1000),
     platform: 'javascript',
     level: 'error',
-    logger: 'cms.onRequestError',
+    logger: options.logger ?? 'cms.onRequestError',
     environment: options.environment ?? 'production',
     ...(options.release ? { release: options.release } : {}),
     server_name: 'run-apparel-viewer-cms',
