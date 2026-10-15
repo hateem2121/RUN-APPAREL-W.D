@@ -84,7 +84,9 @@ export function summarizeModelLoadRate(rows, { today, cutoff }) {
     )
   } else {
     for (const r of flagged) {
-      const pct = ((Number(r.models) / Number(r.loads)) * 100).toFixed(0)
+      // ONE DECIMAL, never whole numbers: issue #5's digest of 2026-10-12 printed
+      // "11/13 (85%) — below 85%", because 84.6% rounds UP to the threshold it falls under.
+      const pct = ((Number(r.models) / Number(r.loads)) * 100).toFixed(1)
       const smallSample =
         Number(r.loads) < LOW_VOLUME_LOADS ? ' (small sample — read as a hint, not a verdict)' : ''
       lines.push(

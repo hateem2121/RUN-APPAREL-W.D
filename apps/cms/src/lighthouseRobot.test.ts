@@ -2,7 +2,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { userAgents as lighthouseUserAgents } from 'lighthouse/core/config/constants.js'
 import { DEFAULT_PRODUCT } from '../../../scripts/live-products.mjs'
+import { CRAWLER } from '../../viewer/worker/crawlerAgents'
 import {
   CATEGORIES,
   classifyRun,
@@ -12,13 +14,16 @@ import {
   FORM_FACTORS,
   judgePage,
   LIGHTHOUSE_VERSION,
+  lighthouseArgs,
   measuringMachine,
   median,
   PAGES,
   PERFORMANCE_FLOORS,
   type Run,
+  ROBOT_UA_MARK,
   readReport,
   readRun,
+  robotUserAgent,
 } from '../../../scripts/lighthouse-robot.mjs'
 
 /**
@@ -561,5 +566,38 @@ describe('readReport', () => {
     const lhr = { categories: { performance: { score: 0.9, auditRefs: [] } }, audits: {} }
     writeFileSync(file, JSON.stringify(lhr))
     expect(readReport(file)).toEqual(readRun(lhr))
+  })
+})
+
+/**
+ * Issue #5's digest of 2026-10-12: 317 of its rows ("render-scale-degraded R-XPS, 2 browsers")
+ * and both rxps/wine "viewer-load-failed" rows of 6 Oct came from THIS robot. Lighthouse 13 sends
+ * a plain phone or Mac label (`core/config/constants.js`), so the events intake took its visits
+ * for a buyer's. The robot now adds our own tag, which the intake already drops.
+ */
+describe('the robot names itself on the live site', () => {
+  it.each(['mobile', 'desktop'] as const)(
+    'a %s run sends Lighthouse’s own label plus our tag',
+    (formFactor) => {
+      const ua = robotUserAgent(formFactor)
+      // Lighthouse's label first, unchanged: the page sees the same device it always measured.
+      expect(ua.startsWith(lighthouseUserAgents[formFactor])).toBe(true)
+      expect(ua.endsWith(` ${ROBOT_UA_MARK}`)).toBe(true)
+      expect(ROBOT_UA_MARK.startsWith('run-apparel-')).toBe(true)
+
+      const args = lighthouseArgs('https://wear-run.com/', formFactor, '/tmp/x.json')
+      expect(args).toContain(`--emulatedUserAgent=${ua}`)
+      expect(args.includes('--preset=desktop')).toBe(formFactor === 'desktop')
+    },
+  )
+
+  /*
+   * The viewer Worker serves crawlers a different, server-drawn copy (apps/viewer/worker/
+   * crawlerAgents.ts). A tag it matched would make the robot measure a page no buyer sees.
+   */
+  it('is not mistaken for a search crawler by the garment pages', () => {
+    for (const formFactor of ['mobile', 'desktop'] as const) {
+      expect(CRAWLER.test(robotUserAgent(formFactor))).toBe(false)
+    }
   })
 })

@@ -59,6 +59,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { userAgents } from 'lighthouse/core/config/constants.js'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 
 export const LIGHTHOUSE_VERSION = '13.5.0'
@@ -412,6 +413,37 @@ function parseArgs(argv) {
  */
 const LIGHTHOUSE_BIN = fileURLToPath(new URL('../node_modules/.bin/lighthouse', import.meta.url))
 
+/**
+ * The tag every tool of ours carries when it touches production (apps/cms/src/endpoints/
+ * events.ts drops `run-apparel-` rows; the weekly digest leaves them out too).
+ *
+ * ⚠️ THIS ROBOT WROTE MOST OF A WEEKLY DIGEST WITHOUT IT. Lighthouse 13 sends a plain phone or
+ * Mac label (`core/config/constants.js`: "moto g power (2022)" and "Intel Mac OS X 10_15_7"),
+ * which real browsers send too, so its visits to rxps/wine were stored as a buyer's: 317 of
+ * the "render-scale-degraded R-XPS" rows in issue #5's digest of 2026-10-12, reported as
+ * "2 browsers", and both rxps/wine "viewer-load-failed" rows of 6 Oct (read from D1,
+ * 2026-10-15, `rows_written: 0`). The tag is APPENDED to Lighthouse's own label, so the page
+ * still sees the device it always measured (Lighthouse swaps the real Chrome version into
+ * it either way, `matchHostUAVersion` in `core/lib/emulation.js`).
+ */
+export const ROBOT_UA_MARK = 'run-apparel-lighthouse/1.0'
+
+/** Lighthouse's own label for this form factor, with our tag on the end. */
+export function robotUserAgent(formFactor) {
+  return `${formFactor === 'desktop' ? userAgents.desktop : userAgents.mobile} ${ROBOT_UA_MARK}`
+}
+
+/** The command line for one run. Separate from `runLighthouse` so a test can read it. */
+export function lighthouseArgs(url, formFactor, file, ci = Boolean(process.env.CI)) {
+  const args = [url]
+  if (formFactor === 'desktop') args.push('--preset=desktop')
+  args.push(`--emulatedUserAgent=${robotUserAgent(formFactor)}`)
+  // `--no-sandbox` only on CI, where the existing lighthouse job already needs it.
+  const chrome = `--headless=new --no-first-run${ci ? ' --no-sandbox' : ''}`
+  args.push('--output=json', `--output-path=${file}`, '--quiet', `--chrome-flags=${chrome}`)
+  return args
+}
+
 function runLighthouse(url, formFactor, file) {
   if (!existsSync(LIGHTHOUSE_BIN)) {
     throw new Error(
@@ -419,11 +451,7 @@ function runLighthouse(url, formFactor, file) {
         'It is a pinned devDependency on purpose, and this robot will not fetch it with npx.',
     )
   }
-  const args = [url]
-  if (formFactor === 'desktop') args.push('--preset=desktop')
-  // `--no-sandbox` only on CI, where the existing lighthouse job already needs it.
-  const chrome = `--headless=new --no-first-run${process.env.CI ? ' --no-sandbox' : ''}`
-  args.push('--output=json', `--output-path=${file}`, '--quiet', `--chrome-flags=${chrome}`)
+  const args = lighthouseArgs(url, formFactor, file)
   const result = spawnSync(LIGHTHOUSE_BIN, args, {
     stdio: ['ignore', 'ignore', 'pipe'],
     encoding: 'utf8',

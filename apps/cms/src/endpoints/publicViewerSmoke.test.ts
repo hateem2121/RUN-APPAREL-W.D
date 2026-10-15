@@ -65,8 +65,14 @@ async function startOrigin({
   getStatus,
   glbBytes,
   comingSoon,
+  apiFailures = [],
+  apiCalls,
 }: {
   getStatus: number
+  /** Statuses the garment API answers with first, one per call, before the real payload. */
+  apiFailures?: number[]
+  /** Counts the garment API calls, for asserting how many asks there were. */
+  apiCalls?: { n: number }
   /** The model's size as the garment data declares it (polish F12); absent if unset. */
   glbBytes?: number
   /**
@@ -78,6 +84,16 @@ async function startOrigin({
   server = createServer((req, res) => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname
     const port = (server!.address() as { port: number }).port
+
+    if (path.startsWith('/api/public/viewer/')) {
+      const call = apiCalls ? apiCalls.n++ : 0
+      const failure = apiFailures[call]
+      if (failure !== undefined) {
+        // Payload's own 500 body for an error it does not make public (routeError).
+        res.writeHead(failure, { 'content-type': 'application/json' })
+        return res.end(JSON.stringify({ errors: [{ message: 'Something went wrong.' }] }))
+      }
+    }
 
     if (path.startsWith('/api/public/viewer/') && comingSoon) {
       const picture = { url: `http://127.0.0.1:${port}/poster.webp` }
@@ -159,6 +175,8 @@ async function runSmoke(
         SMOKE_BROWSER_GET: browserGet ? '1' : '',
         // What smoke-live-products.mjs passes for a `modelComingSoon` row of live-products.mjs.
         SMOKE_COMING_SOON: listSaysComingSoon ? '1' : '',
+        // The 5 s pause before asking again after a 5xx, shortened so a test takes no time.
+        SMOKE_API_RETRY_MS: '50',
       },
     },
   )
@@ -199,6 +217,43 @@ describe('post-deploy smoke test — cached 404', () => {
 
     expect(code).toBe(0)
     expect(output).toContain('bare GET 200')
+  }, 30_000)
+})
+
+/*
+ * Issue #189 (2026-10-14 17:20 UTC): the garment API answered 500 for r-xmp/wine and
+ * r-afp/petrol, two seconds apart, because D1 failed on Cloudflare's side; the next request
+ * succeeded 0.8 s later. Every other check in that run passed, and the uptime job opened an
+ * outage issue. The health check beside it already asks three times (`curl --retry 2`).
+ */
+describe('post-deploy smoke test — one more ask after a server error (#189)', () => {
+  it('passes when one 500 is followed by the payload, and says it had to ask twice', async () => {
+    const apiCalls = { n: 0 }
+    const port = await startOrigin({ getStatus: 200, apiFailures: [500], apiCalls })
+    const { code, output } = await runSmoke(port, { browserGet: true })
+    expect(code, output).toBe(0)
+    expect(apiCalls.n).toBe(2)
+    // Still visible in the job's log and summary, so a blip is never silent.
+    expect(output).toContain('::warning::the viewer endpoint answered HTTP 500')
+    expect(output).toContain('serves a real, fetchable model')
+  }, 30_000)
+
+  it('still fails when the second ask is a 500 too: a real outage fails every ask', async () => {
+    const apiCalls = { n: 0 }
+    const port = await startOrigin({ getStatus: 200, apiFailures: [500, 500, 500], apiCalls })
+    const { code, output } = await runSmoke(port, { browserGet: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('the viewer endpoint did not return JSON: HTTP 500')
+    expect(apiCalls.n, 'one more ask, not a loop').toBe(2)
+  }, 30_000)
+
+  it('does not ask again after a 404: that is an answer about the garment', async () => {
+    const apiCalls = { n: 0 }
+    const port = await startOrigin({ getStatus: 200, apiFailures: [404], apiCalls })
+    const { code, output } = await runSmoke(port, { browserGet: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('HTTP 404')
+    expect(apiCalls.n).toBe(1)
   }, 30_000)
 })
 
