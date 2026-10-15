@@ -1150,7 +1150,12 @@ out two things on purpose: user-agents carrying `run-apparel-` (every tool of ou
 names itself that, and `apps/cms/src/endpoints/events.ts` also drops them at
 intake) and the `ResizeObserver loop…` browser notice, which Sentry already
 ignores. `apps/cms/src/diagnosticsDigest.test.ts` runs the digest's own SQL
-against SQLite. Rows named `server` or `network` are `viewer-load-failed` stored
+against SQLite. ⚠️ The Lighthouse robot (`scripts/lighthouse-robot.mjs`) names itself
+`run-apparel-lighthouse/1.0` only since 2026-10-15. Before that it sent Lighthouse's
+plain labels, a "moto g power (2022)" phone and an "Intel Mac OS X 10_15_7" Mac, and
+317 of the 2026-10-12 digest's rows were its visits to rxps/wine, read as "2 browsers".
+Rows older than that keep those labels; real browsers send the same two strings, so
+they cannot be filtered out afterwards. Rows named `server` or `network` are `viewer-load-failed` stored
 under the wrong name, from 2026-09-07 until that fix shipped.
 
 ### Page speed from real visits — the same Monday issue
@@ -1399,6 +1404,14 @@ is already open, **comments on it**.
 1. `curl -i https://cms.wear-run.help/api/health` — 200 `{"ok":true}` = recovered.
 2. If down: Cloudflare dashboard → Workers & Pages → `run-apparel-viewer-cms` →
    Logs (Workers Observability is enabled), and `wrangler tail` for live logs.
+   Since 2026-10-15 every 5xx the CMS API answers also reaches Sentry, logger
+   `cms.afterError` (`apps/cms/src/lib/reportServerError.ts`). Until then a Payload
+   500 was only in that log: issue #189's two 500s were `D1_ERROR: internal error`,
+   Cloudflare's database failing for about two seconds, and Sentry held nothing.
+   The garment check asks the API once more, 5 s later, before a 5xx counts
+   (`scripts/smoke-viewer-payload.mjs`), so a single blip shows as a `::warning::`
+   in the run, not an issue; the buyer's page also asks once more after 2–2.5 s
+   (`apps/viewer/src/lib/api.ts`).
 3. Check the latest CI deploy didn't fail a migration (see above).
 4. Once healthy, **close the `outage` issue.** Still worth doing — a closed issue
    keeps the history readable and makes the next alert a fresh issue rather than a

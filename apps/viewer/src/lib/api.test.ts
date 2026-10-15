@@ -1,7 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchViewerData } from './api'
+import { fetchViewerData, SERVER_RETRY_DELAY_MS, SERVER_RETRY_JITTER_MS } from './api'
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
+
+/** Runs a fetch to the end under fake timers, through the pause before a 5xx retry. */
+async function settled<T>(promise: Promise<T>): Promise<T> {
+  promise.catch(() => {})
+  await vi.advanceTimersByTimeAsync(SERVER_RETRY_DELAY_MS + SERVER_RETRY_JITTER_MS)
+  return promise
+}
 
 describe('fetchViewerData', () => {
   it('returns the JSON payload on success', async () => {
@@ -25,9 +35,9 @@ describe('fetchViewerData', () => {
   it('throws on other non-ok statuses', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+      vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({}) }),
     )
-    await expect(fetchViewerData('x', 'y')).rejects.toThrow(/500/)
+    await expect(fetchViewerData('x', 'y')).rejects.toThrow(/400/)
   })
 
   it('URL-encodes the slugs into the request path', async () => {
@@ -99,11 +109,76 @@ describe('fetchViewerData — timeout and retry', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('does NOT retry a 5xx — re-asking cannot change it, and doubles the load', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+  it('does NOT retry a 4xx other than 404 — the request itself is wrong', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({}) })
     vi.stubGlobal('fetch', fetchMock)
-    await expect(fetchViewerData('rxps', 'wine')).rejects.toThrow(/503/)
+    await expect(fetchViewerData('rxps', 'wine')).rejects.toThrow(/400/)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * Issue #189, 2026-10-14 17:20 UTC: the CMS answered 500 for r-xmp/wine and r-afp/petrol,
+ * two seconds apart, because D1 failed on Cloudflare's side (`D1_ERROR: internal error`). A
+ * request 0.8 s after the last error succeeded. Until then a 5xx was never retried here
+ * ("re-asking cannot change it"), so a buyer scanning during those seconds got the
+ * unavailable screen for a garment that was fine.
+ */
+describe('fetchViewerData — one retry after a server error', () => {
+  const failing = (status: number) => ({ ok: false, status, json: async () => ({}) })
+  const ok = { ok: true, status: 200, json: async () => ({ ok: true }) }
+
+  it('asks once more after a pause, and the garment arrives', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn().mockResolvedValueOnce(failing(500)).mockResolvedValueOnce(ok)
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = fetchViewerData('r-xmp', 'wine')
+
+    // Not at once: the 14 Oct failure lasted seconds, and an immediate retry lands inside it.
+    await vi.advanceTimersByTimeAsync(SERVER_RETRY_DELAY_MS - 1)
+    expect(fetchMock, 'retried before the pause was over').toHaveBeenCalledTimes(1)
+
+    await expect(settled(pending)).resolves.toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([500, 502, 503, 504])(
+    'retries a %i once, then gives up as a server failure',
+    async (status) => {
+      vi.useFakeTimers()
+      const fetchMock = vi.fn().mockResolvedValue(failing(status))
+      vi.stubGlobal('fetch', fetchMock)
+      await expect(settled(fetchViewerData('rxps', 'wine'))).rejects.toMatchObject({
+        name: 'ViewerFetchError',
+        kind: 'server',
+        message: expect.stringContaining(String(status)),
+      })
+      // Bounded: two attempts in all, shared with the transport retry, never a loop.
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('shares ONE retry with transport failures: a 500 then a timeout stops there', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(failing(500))
+      .mockRejectedValueOnce(new DOMException('The operation timed out.', 'TimeoutError'))
+      .mockResolvedValue(ok)
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(settled(fetchViewerData('rxps', 'wine'))).rejects.toThrow(/timed out/i)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('pauses within the stated window, never longer', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(Math, 'random').mockReturnValue(0.999)
+    const fetchMock = vi.fn().mockResolvedValueOnce(failing(500)).mockResolvedValueOnce(ok)
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = fetchViewerData('rxps', 'wine')
+    await vi.advanceTimersByTimeAsync(SERVER_RETRY_DELAY_MS + SERVER_RETRY_JITTER_MS)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await expect(pending).resolves.toEqual({ ok: true })
   })
 })
 
@@ -202,11 +277,12 @@ describe('fetchViewerData — why it failed', () => {
   const onLine = (value: boolean) => vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(value)
 
   it('labels a 5xx as a server failure', async () => {
+    vi.useFakeTimers()
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
     )
-    await expect(fetchViewerData('rxps', 'wine')).rejects.toMatchObject({
+    await expect(settled(fetchViewerData('rxps', 'wine'))).rejects.toMatchObject({
       name: 'ViewerFetchError',
       kind: 'server',
     })

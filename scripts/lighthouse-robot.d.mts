@@ -11,6 +11,14 @@ export declare const CATEGORIES: string[]
 export declare const PAGES: { name: string; url: string }[]
 export declare const INCONCLUSIVE_STATUSES: Set<number>
 export declare const EXPECTED_BELOW_ONE: Record<string, string[]>
+export declare const ROBOT_UA_MARK: string
+export declare function robotUserAgent(formFactor: string): string
+export declare function lighthouseArgs(
+  url: string,
+  formFactor: string,
+  file: string,
+  ci?: boolean,
+): string[]
 
 export type MeasuringMachine = 'local' | 'github-runner'
 export declare const PERFORMANCE_FLOORS: Record<MeasuringMachine, Record<string, number>>

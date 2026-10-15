@@ -29,6 +29,7 @@ import { publicViewerDefaultColourEndpoint, publicViewerEndpoint } from './endpo
 import { BuildProcess } from './globals/BuildProcess'
 import { CatalogueDefaults } from './globals/CatalogueDefaults'
 import { SiteSettings } from './globals/SiteSettings'
+import { reportServerErrors } from './lib/reportServerError'
 
 const CMS_TRUSTED = {
   admin: 'https://cms.wear-run.help',
@@ -201,6 +202,11 @@ export default buildConfig({
     eventsEndpoint,
     pipelinePlanEndpoint,
   ],
+  // Payload answers its own errors, so Next's onRequestError never sees a REST 500; this is
+  // the only door to Sentry for them (issue #189, lib/reportServerError.ts).
+  hooks: {
+    afterError: [reportServerErrors],
+  },
   cors: allowedOrigins,
   csrf: csrfOrigins,
   editor: lexicalEditor(),

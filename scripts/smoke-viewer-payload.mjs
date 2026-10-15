@@ -28,6 +28,8 @@
  *                           GET, no HEAD, no Range. Costs one extra request, so
  *                           it is opt-in and set only on the post-deploy path.
  *                           See "the cached 404" below.
+ *   SMOKE_API_RETRY_MS      the pause before asking the API again after a 5xx
+ *                           (default 5000; see getJson, issue #189)
  */
 
 import { DEFAULT_PRODUCT } from './live-products.mjs'
@@ -96,15 +98,43 @@ const fail = (msg) => failures.push(msg)
  */
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
 
+/**
+ * A 5xx is asked ONCE more, 5 s later, before it counts as a failure (issue #189).
+ *
+ * On 2026-10-14 at 17:20:55 and 17:20:57 UTC the API answered 500 for r-xmp/wine and
+ * r-afp/petrol because D1 failed on Cloudflare's side (`D1_ERROR: internal error`, the CMS
+ * Worker's log); a request 0.8 s later succeeded and every other check in that run passed,
+ * yet uptime.yml opened an outage issue. Its health curl already asks three times for the
+ * same reason (`--retry 2`). A real outage still fails both asks, and the first 500 is
+ * printed as a `::warning::` so a blip stays visible in the job summary. Since the same
+ * day the CMS also sends every 5xx to Sentry (apps/cms/src/lib/reportServerError.ts), so
+ * the reason is recorded whether or not this check catches it.
+ *
+ * A 4xx is never asked again: it is an answer about the garment, not a failure to answer.
+ * `SMOKE_API_RETRY_MS` exists only so publicViewerSmoke.test.ts does not wait 5 s.
+ */
+const API_RETRY_MS = Number(process.env.SMOKE_API_RETRY_MS || 5000)
+
 async function getJson(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-  if (INCONCLUSIVE_STATUSES.has(res.status)) {
-    const err = new Error(`HTTP ${res.status} ${res.statusText}`)
-    err.inconclusive = true
-    throw err
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+    if (INCONCLUSIVE_STATUSES.has(res.status)) {
+      const err = new Error(`HTTP ${res.status} ${res.statusText}`)
+      err.inconclusive = true
+      throw err
+    }
+    if (res.status >= 500 && attempt === 1) {
+      await res.body?.cancel()
+      console.log(
+        `::warning::the viewer endpoint answered HTTP ${res.status} ${res.statusText} for ` +
+          `${url}; asking once more in ${API_RETRY_MS / 1000} s before calling it a failure.`,
+      )
+      await new Promise((resolve) => setTimeout(resolve, API_RETRY_MS))
+      continue
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+    return res.json()
   }
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
-  return res.json()
 }
 
 const endpoint = `${API_BASE}/api/public/viewer/${PRODUCT}/${COLOUR}`

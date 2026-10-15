@@ -449,7 +449,7 @@ describe('model load rate — the summary and threshold logic (RO-11)', () => {
       WINDOW,
     )
     expect(flagged).toEqual([{ day: '2026-09-21', loads: 10, models: 5 }])
-    expect(summary).toContain('2026-09-21: 5/10 (50%)')
+    expect(summary).toContain('2026-09-21: 5/10 (50.0%)')
     expect(summary).not.toContain('2026-09-22')
     expect(summary).not.toContain(WINDOW.today)
   })
@@ -515,6 +515,22 @@ describe('model load rate — the summary and threshold logic (RO-11)', () => {
     expect(summarizeModelLoadRate([], WINDOW).fullDays).toBe(0)
   })
 
+  /**
+   * REAL DATA: the digest posted to issue #5 on 2026-10-12 read
+   * "2026-10-10: 11/13 (85%) — below 85%". 11/13 is 84.6%, rounded up to the threshold it is
+   * flagged for falling under, so the line contradicted itself (owner chose one decimal,
+   * 2026-10-15).
+   */
+  it('never prints a flagged day at the threshold: 11/13 reads 84.6%, not 85%', () => {
+    const { flagged, summary } = summarizeModelLoadRate(
+      [{ day: '2026-10-10', loads: 13, models: 11 }],
+      { today: '2026-10-12', cutoff: '2026-10-05' },
+    )
+    expect(flagged).toHaveLength(1)
+    expect(summary).toContain('2026-10-10: 11/13 (84.6%) — below 85%')
+    expect(summary).not.toContain('(85%)')
+  })
+
   it('the 85% threshold is exported, not a magic number duplicated in tests', () => {
     expect(FLAG_BELOW).toBe(0.85)
   })
@@ -531,7 +547,7 @@ describe('model load rate — the summary and threshold logic (RO-11)', () => {
       today: '2026-09-23',
       cutoff: '2026-09-16',
     })
-    expect(summary).toContain('2026-09-21: 1/2 (50%)')
+    expect(summary).toContain('2026-09-21: 1/2 (50.0%)')
     expect(summary).toContain('small sample')
   })
 

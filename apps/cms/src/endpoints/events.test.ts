@@ -1,6 +1,8 @@
 import { VIEWER_ANALYTICS_EVENTS } from '@run-apparel/shared'
+import { userAgents as lighthouseUserAgents } from 'lighthouse/core/config/constants.js'
 import type { PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
+import { robotUserAgent } from '../../../../scripts/lighthouse-robot.mjs'
 import { Events } from '../collections/Events'
 import { MAX_CLS, MAX_EVENT_BATCH, MAX_LCP_MS, eventsEndpoint, sanitizeEvents } from './events'
 import { MAX_EVENTS_PER_IP } from './eventsRateLimit'
@@ -182,12 +184,36 @@ describe('POST /api/public/events', () => {
    * production names itself `run-apparel-…` (scripts/perf-probe.mjs,
    * scripts/apex-probe.mjs, the browser audit), so that tag is the filter.
    */
-  it.each(['Mozilla/5.0 (compatible) run-apparel-audit/1.0', 'run-apparel-perf-probe'])(
-    'drops everything from one of our own tools (%s)',
-    async (ua) => {
+  it.each([
+    'Mozilla/5.0 (compatible) run-apparel-audit/1.0',
+    'run-apparel-perf-probe',
+    // The Lighthouse robot since issue #5 (2026-10-15): 317 rows of that week's digest were its.
+    robotUserAgent('mobile'),
+    robotUserAgent('desktop'),
+  ])('drops everything from one of our own tools (%s)', async (ua) => {
+    const { req, create } = makeReq({
+      ip: '203.0.113.14',
+      ua,
+      body: JSON.stringify([
+        { type: 'diagnostic', event: 'render-scale-degraded', message: 'GPU throttling' },
+      ]),
+    })
+    const res = await handler(req)
+
+    expect(res.status).toBe(204)
+    expect(create, 'a check we ran ourselves must not read as a visitor').not.toHaveBeenCalled()
+  })
+
+  /*
+   * NEGATIVE CONTROL for the robot's tag above: Lighthouse's own label, which it sent until
+   * 2026-10-15, is a real phone's and must stay a visitor. Only the tag tells them apart.
+   */
+  it.each(['mobile', 'desktop'] as const)(
+    'keeps Lighthouse’s plain %s label, which real browsers send too',
+    async (formFactor) => {
       const { req, create } = makeReq({
-        ip: '203.0.113.14',
-        ua,
+        ip: '203.0.113.15',
+        ua: lighthouseUserAgents[formFactor],
         body: JSON.stringify([
           { type: 'diagnostic', event: 'render-scale-degraded', message: 'GPU throttling' },
         ]),
@@ -195,7 +221,7 @@ describe('POST /api/public/events', () => {
       const res = await handler(req)
 
       expect(res.status).toBe(204)
-      expect(create, 'a check we ran ourselves must not read as a visitor').not.toHaveBeenCalled()
+      expect(create).toHaveBeenCalledTimes(1)
     },
   )
 

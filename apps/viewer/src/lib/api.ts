@@ -28,19 +28,40 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.hel
 const REQUEST_TIMEOUT_MS = 8000
 
 /**
- * A transport failure gets exactly one more go.
+ * A failed request gets exactly one more go: a transport failure, or a 5xx answer.
  *
  * One retry, not three: the common mobile case is a single dropped connection, and
  * every extra attempt is another `REQUEST_TIMEOUT_MS` the visitor spends watching
- * the preloader. Worst case is now ~16s and bounded, against unbounded before.
+ * the preloader. A server that never answers still ends at 16s (RO-04, api.test.ts).
  *
- * ⚠️ ONLY transport failures are retried. An HTTP *response* — including a 404 and
- * including a 5xx — is an answer, and re-asking cannot change it; retrying a 5xx
- * would just double the load on a CMS that is already struggling. A 404 in
- * particular is a legitimate, meaningful answer here (unknown product), and
- * retrying it would delay the "reference unavailable" screen for no reason.
+ * ⚠️ A 5xx IS RETRIED SINCE 2026-10-15, AND THIS NOTE USED TO SAY IT COULD NOT HELP.
+ * It said a 5xx "is an answer, and re-asking cannot change it". Issue #189 measured the
+ * opposite: on 2026-10-14 the CMS answered 500 for r-xmp/wine at 17:20:55 and for
+ * r-afp/petrol at 17:20:57 UTC because D1 failed on Cloudflare's side
+ * (`D1_ERROR: internal error; reference = …`, the CMS Worker's own log), and a request
+ * 0.8s after the second error succeeded. Cloudflare's own advice for such errors is to
+ * retry (developers.cloudflare.com/d1/observability/debug-d1/, read 2026-10-15). The
+ * load worry stays true for a long outage, which is why it is ONE retry, after a pause.
+ *
+ * A 404 is still never retried: it is a legitimate, meaningful answer here (unknown
+ * product), and retrying it would delay the "reference unavailable" screen for no
+ * reason. Nor is any other 4xx: the request itself is wrong, and asking again cannot fix it.
  */
 const RETRY_ATTEMPTS = 1
+
+/**
+ * How long to wait before asking again after a 5xx: 2.0–2.5s.
+ *
+ * Not at once: the 14 Oct database errors spanned 3.4s (17:20:53.7 to 17:20:57.1), so an
+ * immediate retry lands inside the same failure. Up to 0.5s of random spread, the
+ * "backoff with jitter" Cloudflare recommends (d1/best-practices/retry-queries/), keeps
+ * every page that failed in the same second from asking again in the same second. A buyer
+ * waits this long only when the alternative was the unavailable screen.
+ */
+export const SERVER_RETRY_DELAY_MS = 2000
+export const SERVER_RETRY_JITTER_MS = 500
+
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 /**
  * Why the payload could not be fetched — and it matters because the viewer used to
@@ -120,6 +141,12 @@ export async function fetchViewerData(
     } catch (error) {
       // Timeout, offline, DNS, CORS preflight failure — no response exists.
       lastError = error
+      continue
+    }
+    if (res.status >= 500 && attempt < RETRY_ATTEMPTS) {
+      // The failed answer's body is never read; release it rather than hold the connection.
+      void res.body?.cancel().catch(() => {})
+      await pause(SERVER_RETRY_DELAY_MS + Math.random() * SERVER_RETRY_JITTER_MS)
       continue
     }
     if (!res.ok && res.status !== 404) {

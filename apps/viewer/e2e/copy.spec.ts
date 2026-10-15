@@ -81,16 +81,24 @@ test.describe('copy rules on every screen a QR scan can land on', () => {
     )
   })
 
-  test('the product failed to load', async ({ page }) => {
-    await page.route(API, (route) =>
-      route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
-    )
-    await page.goto('/n001/wine')
-    await expect(page.getByText('[ TEMPORARILY UNAVAILABLE ]')).toBeVisible()
-    const copy = await expectCopyRules(page)
-    expect(copy.decoded.join('\n'), 'the pre-filled email was not read').toContain(
-      'QR reference unavailable',
-    )
+  // The service worker is blocked for the reason viewer.spec.ts gives at "when the CMS answers
+  // with a server error": the page asks again after 2.0–2.5 s, once the worker has claimed the
+  // page, and WebKit then stops routing, so the second ask would reach the real fixture.
+  test.describe('when the CMS answers with a server error', () => {
+    test.use({ serviceWorkers: 'block' })
+
+    test('the product failed to load', async ({ page }) => {
+      await page.route(API, (route) =>
+        route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
+      )
+      await page.goto('/n001/wine')
+      // 10 s: the page asks once more 2.0–2.5 s after a 500 before it shows this (issue #189).
+      await expect(page.getByText('[ TEMPORARILY UNAVAILABLE ]')).toBeVisible({ timeout: 10_000 })
+      const copy = await expectCopyRules(page)
+      expect(copy.decoded.join('\n'), 'the pre-filled email was not read').toContain(
+        'QR reference unavailable',
+      )
+    })
   })
 })
 

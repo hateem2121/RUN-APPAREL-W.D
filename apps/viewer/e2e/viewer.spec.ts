@@ -376,21 +376,68 @@ test.describe('the payload failed, the garment did not', () => {
   const API = '**/api/public/viewer/**'
   const RETIRED = /no longer live|no longer show here/i
 
-  test('a 500 offers a retry, and the retry actually recovers', async ({ page }) => {
-    let failing = true
-    await page.route(API, async (route) => {
-      if (!failing) return route.continue()
-      return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+  /*
+   * ⚠️ THE SERVICE WORKER IS BLOCKED HERE, AND THE PAGE ASKING AGAIN IS WHY. The second ask
+   * comes 2.0–2.5 s after the first (src/lib/api.ts), by which time the offline worker has
+   * claimed the page, and from then on WebKit stops passing ANY request to `page.route`
+   * (measured in fontSwap.spec.ts, 2026-09-23). Measured again 2026-10-15: in WebKit and
+   * mobile Safari the retry reached the fixture server unrouted, so a "permanent" 500 drew
+   * the garment and the route counted 1 ask, while Chromium and Firefox counted 2. Blocking
+   * the worker changes nothing the API sees: it never answers the garment data
+   * (apps/viewer/scripts/sw.mjs answers only /assets/, /meshopt_decoder.js and /env/, and in
+   * production the data is on another origin).
+   */
+  test.describe('when the CMS answers with a server error', () => {
+    test.use({ serviceWorkers: 'block' })
+
+    test('a 500 offers a retry, and the retry actually recovers', async ({ page }) => {
+      let failing = true
+      await page.route(API, async (route) => {
+        if (!failing) return route.continue()
+        return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+      })
+
+      await page.goto('/n001/wine')
+      // 10 s, not the default 5: the page asks once more 2.0–2.5 s after a 500 (src/lib/api.ts,
+      // issue #189) before it shows this screen.
+      await expect(page.getByText('[ TEMPORARILY UNAVAILABLE ]')).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText(RETIRED)).toHaveCount(0)
+
+      // Recovery, end to end: the same page, no reload, the garment arrives.
+      failing = false
+      await page.getByRole('button', { name: /try again/i }).click()
+      await expect(page.getByRole('heading', { name: /velocity performance tee/i })).toBeVisible()
     })
 
-    await page.goto('/n001/wine')
-    await expect(page.getByText('[ TEMPORARILY UNAVAILABLE ]')).toBeVisible()
-    await expect(page.getByText(RETIRED)).toHaveCount(0)
+    /*
+     * Issue #189: on 2026-10-14 the CMS answered 500 for two garments for about two seconds
+     * (a D1 failure on Cloudflare's side), and a request 0.8 s later succeeded. A buyer
+     * scanning then should get the garment, not the unavailable screen.
+     */
+    test('one 500 and then an answer: the garment arrives and the error screen never shows', async ({
+      page,
+    }) => {
+      let calls = 0
+      await page.route(API, async (route) => {
+        calls += 1
+        if (calls === 1) {
+          return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+        }
+        return route.continue()
+      })
 
-    // Recovery, end to end: the same page, no reload, the garment arrives.
-    failing = false
-    await page.getByRole('button', { name: /try again/i }).click()
-    await expect(page.getByRole('heading', { name: /velocity performance tee/i })).toBeVisible()
+      await page.goto('/n001/wine')
+      await expect.poll(() => calls, { message: 'the page never asked' }).toBeGreaterThan(0)
+      // Inside the pause before the second ask: the buyer is still on the loading screen.
+      await page.waitForTimeout(1_000)
+      await expect(page.getByText('[ TEMPORARILY UNAVAILABLE ]')).toHaveCount(0)
+
+      await expect(page.getByRole('heading', { name: /velocity performance tee/i })).toBeVisible({
+        timeout: 10_000,
+      })
+      await expect(page.getByText('[ TEMPORARILY UNAVAILABLE ]')).toHaveCount(0)
+      expect(calls, 'one retry, not a loop').toBe(2)
+    })
   })
 
   test('an offline device is told it is offline, not that the garment is gone', async ({
