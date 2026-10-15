@@ -131,6 +131,21 @@ export function scrubPath(path: string | undefined): string {
   return q === -1 ? path : path.slice(0, q)
 }
 
+/**
+ * Cut a failed query's VALUES out of an error message.
+ *
+ * Drizzle words every database failure as `Failed query: <sql>\nparams: <values>`
+ * (drizzle-orm's `errors.js`). The SQL carries placeholders, but the values are whatever was
+ * being written: a buyer's email on an enquiry, a password hash on a login. Since 2026-10-15
+ * every REST 5xx reaches Sentry (reportServerError.ts), and the security review of that
+ * change flagged this. The statement stays, because it says which table failed, and so does
+ * D1's own reason, which arrives as a separate `cause`.
+ */
+export function scrubMessage(message: string): string {
+  const at = message.indexOf('\nparams: ')
+  return at === -1 ? message : `${message.slice(0, at)}\nparams: [redacted]`
+}
+
 /** 32 lowercase hex characters, the id format Sentry requires. */
 export function eventId(random: () => number = Math.random): string {
   let out = ''
@@ -237,7 +252,7 @@ export interface BuildEventOptions {
 export function buildEvent(options: BuildEventOptions): Record<string, unknown> {
   const { error, request, context } = options
   const isError = error instanceof Error
-  const value = isError ? error.message : String(error)
+  const value = scrubMessage(isError ? error.message : String(error))
   // React replaces the thrown value during Server Component rendering, so the
   // `digest` is sometimes the only thing tying an event to the real fault. Next's
   // own documentation calls this out.
@@ -260,7 +275,7 @@ export function buildEvent(options: BuildEventOptions): Record<string, unknown> 
     const causeFrames = parseStack(cause instanceof Error ? cause.stack : undefined)
     causes.unshift({
       type: cause instanceof Error ? cause.name : 'Error',
-      value: cause instanceof Error ? cause.message : String(cause),
+      value: scrubMessage(cause instanceof Error ? cause.message : String(cause)),
       ...(causeFrames.length ? { stacktrace: { frames: causeFrames } } : {}),
     })
     cause = cause instanceof Error ? cause.cause : undefined

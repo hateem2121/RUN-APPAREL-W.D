@@ -196,6 +196,31 @@ describe('buildEvent', () => {
     ])
   })
 
+  /*
+   * Drizzle's message is `Failed query: <sql>\nparams: <values>` (drizzle-orm errors.js).
+   * The SQL holds placeholders; the VALUES are what was being written: a buyer's email on an
+   * enquiry, a password hash and salt on a login. Flagged by the security review of the
+   * afterError hook (2026-10-15), which made every REST 5xx reach this function.
+   */
+  it('cuts a failed query’s values out of every message, its causes included', () => {
+    const d1 = new Error('D1_ERROR: internal error; reference = ttkook9lnlnea7glqj58a60r')
+    const failed = new Error(
+      'Failed query: update "users" set "hash" = ?, "salt" = ? where "users"."id" = ?\n' +
+        'params: $argon2id$v=19$m=65536$c2VjcmV0,9f3ab1c2salt,2',
+      { cause: d1 },
+    )
+    const wrapped = new Error('could not save the user', { cause: failed })
+    for (const error of [failed, wrapped, `${failed.message}`]) {
+      const sent = JSON.stringify(buildEvent({ error }))
+      expect(sent).not.toContain('argon2id')
+      expect(sent).not.toContain('9f3ab1c2salt')
+      // What is left is still enough to act on: the statement, and D1's own reason.
+      expect(sent).toContain('Failed query: update \\"users\\" set')
+      expect(sent).toContain('params: [redacted]')
+    }
+    expect(JSON.stringify(buildEvent({ error: failed }))).toContain('D1_ERROR: internal error')
+  })
+
   it('stops following a cause chain that loops back on itself', () => {
     const a = new Error('a')
     const b = new Error('b', { cause: a })
