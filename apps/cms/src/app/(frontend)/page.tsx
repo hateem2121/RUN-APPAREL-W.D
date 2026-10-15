@@ -150,7 +150,7 @@ export default async function HomePage() {
             </div>
             <p className="site-lede">
               One standard means one factory, one set of hands and one set of tolerances — every
-              family below is cut, stitched and finished on the same floor, to the same
+              family below is cut, stitched and finished on the same site, to the same
               specification, whether it is a hundred pieces or a hundred thousand.
             </p>
           </div>

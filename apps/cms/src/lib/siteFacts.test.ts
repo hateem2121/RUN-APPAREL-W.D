@@ -1,9 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as aboutCopy from './aboutCopy'
 import * as aboutPages from './aboutPages'
 import * as caseStudies from './caseStudies'
 import * as companyPages from './companyPages'
+import * as faqs from './faqs'
+import * as guides from './guides'
 import * as journal from './journal'
+import * as orderProcess from './orderProcess'
 import * as policies from './policies'
 
 /**
@@ -82,6 +86,60 @@ describe('the site-wide copy guard', () => {
       'chart in hand, in GOTS-certified garments. 【turn0search1】'
     for (const [what, pattern] of FORBIDDEN) {
       expect(planted, `a matcher no longer fires: ${what}`).toMatch(pattern)
+    }
+  })
+})
+
+/**
+ * SIX BUILDINGS ON ONE SITE, NOT ONE BUILDING (owner, 2026-10-15). The works are 193,000 sq m under
+ * roof across six buildings. Until that day 13 lines across the home page, the FAQ, the guides and
+ * the company pages said "one building", "under one roof" or "the same floor", and 11 more spoke of
+ * "our building" as if there were one; the home page's aerial photo showed the other buildings
+ * beside the claim. "The same building from above" (the solar photo's description) stays: it IS
+ * the building in the photo before it, so `factoryPhotos.ts` is not read here.
+ */
+const BUILDING_MODULES: Record<string, object> = {
+  'aboutCopy.ts': aboutCopy,
+  'aboutPages.ts': aboutPages,
+  'companyPages.ts': companyPages,
+  'faqs.ts': faqs,
+  'guides.ts': guides,
+  'orderProcess.ts': orderProcess,
+  'policies.ts': policies,
+}
+
+const ONE_BUILDING =
+  /\b(?:one|single|same) building\b|\bunder one roof\b|\bsame floor\b|\bour (?:own )?building\b|\bin the building\b/i
+
+/** The home page's own words live in its JSX, not in a module, so its source is read instead. */
+const HOME_SOURCE = readFileSync(new URL('../app/(frontend)/page.tsx', import.meta.url), 'utf8')
+
+describe('six buildings on one site (owner, 2026-10-15)', () => {
+  it('no page calls the works one building', () => {
+    for (const [name, mod] of Object.entries(BUILDING_MODULES)) {
+      expect(stringsOf(mod).join(' '), `${name} calls the works one building`).not.toMatch(
+        ONE_BUILDING,
+      )
+    }
+    expect(HOME_SOURCE, 'the home page calls the works one building').not.toMatch(ONE_BUILDING)
+  })
+
+  it('THE CONTROL — the walker reads the new words, and the matcher fires on every old form', () => {
+    // A walker that collected nothing would pass the loop above, so it must find the new lines.
+    const words = Object.values(BUILDING_MODULES).flatMap(stringsOf).join(' ')
+    expect(words).toContain('Buildings, first stitch to sealed bag')
+    expect(words).toContain('Cut, stitched and finished on one site in Pakistan.')
+    expect(HOME_SOURCE).toContain('finished on the same site')
+    for (const old of [
+      'Cut, stitched and finished in one building in Pakistan.',
+      'all happen under one roof',
+      'finished on the same floor',
+      'The same building, the same team',
+      'We do all seven common methods inside our own building.',
+      'it applies to everyone in the building.',
+      'You collect the goods from our building.',
+    ]) {
+      expect(old, `the matcher misses "${old}"`).toMatch(ONE_BUILDING)
     }
   })
 })

@@ -1072,6 +1072,26 @@ appends one block, the breadcrumbs, and the static page carries none, so a block
 either fails it too (the Worker file from before D38 does). `apps/viewer/src/llmsTxt.test.ts`
 holds llms.txt to the same list; the branch's review found it still describing the label.
 
+## 2026-10-15 — what the works are
+
+### D39 · Six buildings on one site, never "one building"
+
+**Decision: the works are six buildings on one site, with 193,000 sq m under roof (the floor
+area, not the land). No page says "one building", "under one roof", "the same floor" or "our
+building". Owner, 2026-10-15 (question tool), with every new line approved word for word.**
+
+Until that day the home page's №01 printed "ONE — Building, first stitch to sealed bag" beside an
+aerial photo that shows the other buildings, and the same claim sat in the FAQ, the guides, the
+order steps and the company pages. The new words say "on one site" or "on the same site" where a
+sentence was about the work happening in one place, and "our works" where it only named the
+place; the two lines beside a building photo say "our buildings", because those words must name
+their photo (polish X22, C-8). The order steps still say "Pakistan", not "Sialkot" (the owner's
+rule of 2026-09-29, kept). "The same building from above", the solar photo's description, stays:
+it is the building in the photo before it. "200 people at the works" counts everyone on the site.
+
+**Guard:** `apps/cms/src/lib/siteFacts.test.ts` → "six buildings on one site", which reads every
+copy module and the home page's source, with a planted-line control run both ways.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

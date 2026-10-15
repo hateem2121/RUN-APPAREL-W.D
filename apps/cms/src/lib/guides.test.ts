@@ -184,7 +184,7 @@ describe("the three guides built from the owner's own facts (2026-09-30)", () =>
       'Embroidery',
       'Special inks',
     ])
-    expect(everyWord(guide)).toContain('inside our own building')
+    expect(everyWord(guide)).toContain('on the same site')
   })
 
   // Left out by the owner's choice: no test report stands behind the sheets' figures, the
@@ -269,7 +269,7 @@ describe('a guide shows a factory photo only beside words that name it (polish X
       'confirmed against a physical sample',
     ],
     ['/guides/private-label-packaging', 'Where it happens', 'tagging', 'Tagging'],
-    ['/guides/shipping-and-import-duties', 'The price terms we quote', 'exterior', 'our building'],
+    ['/guides/shipping-and-import-duties', 'The price terms we quote', 'exterior', 'our buildings'],
   ] as const
 
   const shown = GUIDES.flatMap((guide) =>

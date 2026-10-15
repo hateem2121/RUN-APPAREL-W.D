@@ -10,7 +10,7 @@ import type { GuideBlock } from './guides'
  * complaints committee exists (2026-10-07).
  *
  * ⚠️ EVERY POLICY IS A PLAIN-ENGLISH SUMMARY of a policy that belongs to both RUN APPAREL and
- * DURUS INDUSTRIES (one building). A page ends on the site's "Ask us about a policy" secondary
+ * DURUS INDUSTRIES (one site, six buildings). A page ends on the site's "Ask us about a policy" secondary
  * link, never a new primary button. No standard's name or logo appears on a policy page; the
  * certificate wording lives on the hub, word for word from `CERTIFICATION_LINES`.
  *
@@ -66,6 +66,8 @@ const list = (...items: readonly string[]): GuideBlock => ({ kind: 'list', items
 
 /** The review date every page below was approved on (the owner, 2026-10-07). */
 const APPROVED = '2026-10-07'
+/** "Our building" became "our works" in three policies: the works are six buildings (owner, 2026-10-15). */
+const SIX_BUILDINGS_APPROVED = '2026-10-15'
 
 export const POLICIES: readonly Policy[] = [
   {
@@ -75,8 +77,8 @@ export const POLICIES: readonly Policy[] = [
       'How we treat each other at work: the rules of the floor, what happens when one is broken, and how a concern reaches the HR office.',
     heading: 'How we treat each other,',
     headingAccent: 'on the floor.',
-    lede: 'This policy covers how we treat each other at work, and it applies to everyone in our building.',
-    lastReviewed: APPROVED,
+    lede: 'This policy covers how we treat each other at work, and it applies to everyone at our works.',
+    lastReviewed: SIX_BUILDINGS_APPROVED,
     group: 'workplace',
     sections: [
       section('commit', [
@@ -107,8 +109,8 @@ export const POLICIES: readonly Policy[] = [
       'Safety gear where the work needs it, safety training and fire drills every 6 months, marked fire exits, and every accident on record.',
     heading: 'Safe work,',
     headingAccent: 'every day.',
-    lede: 'This policy covers how we keep the works safe, and it applies to everyone in the building.',
-    lastReviewed: APPROVED,
+    lede: 'This policy covers how we keep the works safe, and it applies to everyone at the works.',
+    lastReviewed: SIX_BUILDINGS_APPROVED,
     group: 'workplace',
     sections: [
       section('commit', [
@@ -304,18 +306,18 @@ export const POLICIES: readonly Policy[] = [
     path: '/policies/environmental',
     title: 'Environmental',
     description:
-      'Solar power for about 80% of the factory’s electricity, scraps recycled or reused, and few chemicals and little waste water in our building.',
+      'Solar power for about 80% of the factory’s electricity, scraps recycled or reused, and few chemicals and little waste water at our works.',
     heading: 'What we use,',
     headingAccent: 'and what we save.',
     lede: 'This policy covers how we use energy and materials at the works.',
-    lastReviewed: APPROVED,
+    lastReviewed: SIX_BUILDINGS_APPROVED,
     group: 'production',
     sections: [
       section('commit', [
         list(
           'Solar panels on the roof give about 80% of the factory’s electricity.',
           'Fabric scraps are sold to recyclers, or reused for small items and padding.',
-          'Very few chemicals are used in our building, because dyeing and finishing are done by our fabric suppliers.',
+          'Very few chemicals are used at our works, because dyeing and finishing are done by our fabric suppliers.',
           'There is little waste water, because there is no dyeing on site.',
         ),
       ]),
@@ -326,7 +328,7 @@ export const POLICIES: readonly Policy[] = [
         },
         {
           kind: 'text',
-          text: 'Dyeing and finishing happen at our fabric suppliers, so our building uses very few chemicals and produces little waste water.',
+          text: 'Dyeing and finishing happen at our fabric suppliers, so our works use very few chemicals and produce little waste water.',
         },
       ]),
       section('concerns', [
@@ -347,10 +349,10 @@ export const POLICIES_INDEX = {
   path: '/policies',
   title: 'Policies',
   description:
-    'The policies that govern how RUN APPAREL treats its people, makes garments and runs the business, practiced daily in our building in Sialkot.',
+    'The policies that govern how RUN APPAREL treats its people, makes garments and runs the business, practiced daily at our works in Sialkot.',
   heading: 'How we work,',
   headingAccent: 'in writing.',
-  lede: 'A factory should be able to show its rules, not just claim them. These policies govern how we treat our people, make our garments and run our business. Each one is practiced daily in our building in Sialkot.',
+  lede: 'A factory should be able to show its rules, not just claim them. These policies govern how we treat our people, make our garments and run our business. Each one is practiced daily at our works in Sialkot.',
   /** The owner's certificate lines, word for word, and no logos (PLAN.md D1). */
   standards: CERTIFICATION_LINES,
   standardsPromise: CERTIFICATION_PROMISE,

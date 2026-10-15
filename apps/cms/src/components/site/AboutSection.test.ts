@@ -10,8 +10,8 @@ import { AboutSection } from './AboutSection'
 /**
  * VA-58 (visual audit 2026-10-02, owner's decision): №01's first figure read "1889" over "MAKING
  * CLOTHES SINCE", so in reading order it said "1889, making clothes since". Its label now comes
- * first, in the markup (so a screen reader reads it too), with the same words. Its neighbour, "One"
- * over "Building, first stitch to sealed bag", reads naturally and keeps its order.
+ * first, in the markup (so a screen reader reads it too), with the same words. Its neighbour, "Six"
+ * over "Buildings, first stitch to sealed bag", reads naturally and keeps its order.
  *
  * The drawn half (the label above the figure on screen) is `e2e/copy.spec.ts`. The label's verb
  * became "Manufacturing since" on 2026-10-09 (owner), to match `LINEAGE`.
@@ -56,7 +56,7 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
     )
     expect(groupsIn(html)).toEqual([
       ['Manufacturing since', '1889'],
-      ['One', 'Building, first stitch to sealed bag'],
+      ['Six', 'Buildings, first stitch to sealed bag'],
     ])
     expect(problemsWith(html)).toEqual([])
   })
@@ -64,9 +64,9 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
   it('keeps the same words, and marks only the first figure label-first', () => {
     expect(ABOUT.points.map((point) => point.label)).toEqual([
       'Manufacturing since',
-      'Building, first stitch to sealed bag',
+      'Buildings, first stitch to sealed bag',
     ])
-    expect(ABOUT.points.map((point) => point.value)).toEqual(['1889', 'One'])
+    expect(ABOUT.points.map((point) => point.value)).toEqual(['1889', 'Six'])
     expect(ABOUT.points.map((point) => 'labelFirst' in point)).toEqual([true, false])
   })
 

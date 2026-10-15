@@ -113,7 +113,7 @@ test.describe('the 1889 wording and the confirmed numbers on the home page (CT-0
 /**
  * VA-58 (visual audit 2026-10-02, the owner's decision): №01's first figure read "1889" over "MAKING
  * CLOTHES SINCE", so in order it said "1889, making clothes since". The label is now first in the
- * MARKUP and above the year on screen, with the same words; the neighbour ("One" over "Building,
+ * MARKUP and above the year on screen, with the same words; the neighbour ("Six" over "Buildings,
  * first stitch to sealed bag") keeps its order. Both are measured because they must agree: an
  * `order` in CSS would draw the label first and leave a screen reader on the old order. The label's
  * verb became "Manufacturing since" on 2026-10-09 (owner), to match `LINEAGE`.
@@ -152,7 +152,7 @@ for (const width of [390, 1280]) {
       firstIsAbove: true,
     })
     expect(await read(1), 'the second figure changed its order').toEqual({
-      words: ['One', 'Building, first stitch to sealed bag'],
+      words: ['Six', 'Buildings, first stitch to sealed bag'],
       markup: ['value', 'label'],
       firstIsAbove: true,
     })

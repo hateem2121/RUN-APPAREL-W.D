@@ -16,8 +16,8 @@
  * WAS the layout of the strip, and `factoryPhotos.test.ts` once checked that no row had a hole.
  *
  * ⚠️ THE BUILDING IS NAMED IN ITS CAPTION (the owner's ruling on these photos). Its sign reads DURUS;
- * DURUS INDUSTRIES is the parent company and RUN APPAREL produces in the same building,
- * which the certification line on this page already says in the same words.
+ * DURUS INDUSTRIES is the parent company and RUN APPAREL produces on its site (six buildings,
+ * owner 2026-10-15), which the certification line on this page already says ("the same facility").
  *
  * `alt` says what is in the picture; `caption` says what it is. Neither repeats the other.
  * ⚠️ NO CAPTION IS SHOWN SINCE 2026-10-05 (the owner: "remove all the image names"): the photo

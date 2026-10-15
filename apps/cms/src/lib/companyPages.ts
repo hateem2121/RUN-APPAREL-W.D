@@ -159,7 +159,7 @@ export const CAREERS_PAGE: CompanyPage = {
       blocks: [
         {
           kind: 'text',
-          text: 'The factory floor is where the work in the policies happens: cutting, printing, sewing, checking and packing, in one building.',
+          text: 'The factory floor is where the work in the policies happens: cutting, printing, sewing, checking and packing, on one site in Sialkot.',
         },
       ],
     },
@@ -176,14 +176,14 @@ export const COMMUNITY_PAGE: CompanyPage = {
   path: '/community',
   title: 'Community',
   description:
-    'Steady, dignified work is the most important thing RUN APPAREL does for Sialkot — the people, the training and the help in hard times, in one building.',
+    'Steady, dignified work is the most important thing RUN APPAREL does for Sialkot — the people, the training and the help in hard times.',
   eyebrow: '[ Community ]',
   heading: 'Steady work, honest craft,',
   headingAccent: 'since 1889.',
   // "is a" is tied with a non-breaking space (the owner's words unchanged): untied, "is" ended a
   // 76-character line at the site measure, one over FA-C-52's 75 (apps/cms/e2e/legibility.spec.ts,
   // 2026-10-07); tied, the longest line is 73 at 768, 1180 and 1440px.
-  lede: `Our building sits among the people of Sialkot. Steady, dignified work is the most important thing we do for Sialkot. Their children see that craft is\u00a0a career, not a last resort. ${LINEAGE}`,
+  lede: `Our works sit among the people of Sialkot. Steady, dignified work is the most important thing we do for Sialkot. Their children see that craft is\u00a0a career, not a last resort. ${LINEAGE}`,
   sections: [
     {
       id: 'work',
@@ -228,7 +228,7 @@ export const COMMUNITY_PAGE: CompanyPage = {
       blocks: [
         {
           kind: 'text',
-          text: 'Our building in Sialkot — the works the policies above are practiced in.',
+          text: 'Our buildings in Sialkot — the works the policies above are practiced in.',
         },
       ],
     },
@@ -262,7 +262,7 @@ export const PRESS_PAGE: CompanyPage = {
         {
           kind: 'text',
           // The families in the words every profile uses (`WHAT_WE_MAKE`, owner 2026-10-11).
-          text: `It makes ${WHAT_WE_MAKE} to order, inside the building of its parent company, DURUS INDUSTRIES: cutting, printing, stitching, checking and packing under one roof.`,
+          text: `It makes ${WHAT_WE_MAKE} to order on the site of its parent company, DURUS INDUSTRIES: six buildings in Sialkot, where all cutting, printing, stitching, checking and packing happen.`,
         },
         { kind: 'list', items: CERTIFICATION_LINES },
       ],

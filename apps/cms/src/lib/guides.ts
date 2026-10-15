@@ -232,7 +232,7 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: `${MINIMUM} pieces per style. The same building, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand. Capacity is ${CAPACITY} pieces per month.`,
+            text: `${MINIMUM} pieces per style. The same site, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand. Capacity is ${CAPACITY} pieces per month.`,
           },
         ],
       },
@@ -282,10 +282,10 @@ export const GUIDES: readonly Guide[] = [
     path: '/guides/garment-printing-methods',
     title: 'Garment Printing Methods, Explained',
     description:
-      'Seven ways to put a design on a garment, all done in our own building: screen print, sublimation, DTF, DTG, heat transfer, embroidery and special inks.',
+      'Seven ways to put a design on a garment, all done on site: screen print, sublimation, DTF, DTG, heat transfer, embroidery and special inks.',
     heading: 'Garment printing methods,',
     headingAccent: 'explained.',
-    lede: 'There are seven common ways to put a design on a garment. We do all seven inside our own building. This guide says what each one is and what it suits.',
+    lede: 'There are seven common ways to put a design on a garment. We do all seven on the same site. This guide says what each one is and what it suits.',
     sections: [
       {
         heading: 'The seven methods',
@@ -542,7 +542,7 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'Tagging, the final check and packing happen in the same building as the rest of your order.',
+            text: 'Tagging, the final check and packing happen on the same site as the rest of your order.',
           },
         ],
       },
@@ -592,13 +592,13 @@ export const GUIDES: readonly Guide[] = [
       },
       {
         heading: 'The price terms we quote',
-        // EXW: "You collect the goods from our building." The building (polish X22).
+        // EXW: "You collect the goods from our buildings." One of them, in the photo (polish X22).
         photo: 'exterior',
         blocks: [
           {
             kind: 'point',
             title: 'EXW (Ex Works)',
-            text: 'You collect the goods from our building. You pay the freight, the insurance, and the import duty and tax.',
+            text: 'You collect the goods from our buildings. You pay the freight, the insurance, and the import duty and tax.',
           },
           {
             kind: 'point',
@@ -663,7 +663,7 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             // The minimum order guide's words.
-            text: `${MINIMUM} pieces per style. The same building, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand.`,
+            text: `${MINIMUM} pieces per style. The same site, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand.`,
           },
         ],
       },
@@ -823,8 +823,8 @@ export const GUIDES: readonly Guide[] = [
           },
           {
             kind: 'point',
-            title: 'Is the printing done in the same building?',
-            text: 'We do all seven common methods inside our own building.',
+            title: 'Is the printing done on the same site?',
+            text: 'We do all seven common methods on the same site.',
           },
           {
             kind: 'point',

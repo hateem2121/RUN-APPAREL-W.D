@@ -243,7 +243,7 @@ export const FACTORY_PAGE = {
     ] as const satisfies readonly Stage[],
     /** After the stages, the site keeps telling the order one way (D23, X21): the guide's steps. */
     close: {
-      text: 'These five stages happen inside one building. The steps you take as a buyer, from first message to shipment, are in',
+      text: 'These five stages happen on one site, across six buildings. The steps you take as a buyer, from first message to shipment, are in',
       linkName: 'How a private label order works',
       href: '/guides/how-a-private-label-order-works',
     },
