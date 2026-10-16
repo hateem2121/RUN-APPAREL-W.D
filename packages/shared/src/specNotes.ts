@@ -138,7 +138,10 @@ export const FEATURE_NOTES: Record<string, string> = {
   'elastic waist': 'A stretchy waistband that is easy to pull on and stays put.',
   'wrinkle-resistant fabric': 'Fabric that resists creasing, so it looks neat after travel.',
   'screen print': SCREEN,
-  'soft-touch tech fleece': 'A smooth, soft fleece that stays light and warm.',
+  // No "light" since 2026-10-15 (owner): the hoodie that wears this fleece is 340–380 GSM, which the
+  // weight note itself calls "heavy and thick". It was "stays light and warm" beside a CMS figure of
+  // 140–180, copied from the printed catalogue's page 53, which had the weight wrong.
+  'soft-touch tech fleece': 'A smooth, soft fleece that stays warm.',
   'structured raglan paneling': 'Diagonal sleeve seams that shape the shoulders and let arms move.',
   'wide bell sleeves': 'Sleeves that flare wider toward the wrist.',
   'oversized hood construction': 'A big, roomy hood for a relaxed look.',
