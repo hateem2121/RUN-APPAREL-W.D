@@ -1,7 +1,16 @@
 'use client'
 
-import { type CSSProperties, type ReactNode, useState } from 'react'
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react'
 import type { CardColour, LiveModel } from '../../lib/projectPublic'
+import { pillPaint } from '../../lib/proofShowcase'
 import { LiveGarment } from './LiveGarment'
 import { ProductPoster } from './ProductPoster'
 
@@ -16,41 +25,47 @@ export type ProofProduct = {
   model: LiveModel | null
 }
 
+/** The garment's own details, read from its CMS record (D43): a heading and labelled rows. */
+export type ProofDetails = {
+  /** "Women's Crop Hoodie": the garment's plain type, `''` when none is typed. */
+  type: string
+  rows: readonly (readonly [label: string, value: string])[]
+}
+
 /**
- * №03, the showcase (polish D2, 2026-10-05; the report's recommendation, built without a design stop
- * by the owner's answer Q32): the garment large on one side; on the other the words, three points on
- * what a visitor can do with a 3D reference, and colour dots that change the garment.
+ * №03, the showcase (polish D2, 2026-10-05; rebuilt as D43, owner, 2026-10-15/16): the words, the
+ * garment large beside them, its colours as a row of pills, its details from the CMS, and the way to
+ * every garment.
  *
- * ⚠️ ONE CHOICE, THREE PLACES. A dot changes the live model's variant (`LiveGarment`), the still
+ * ⚠️ ONE CHOICE, THREE PLACES. A colour changes the live model's variant (`LiveGarment`), the still
  * picture under it, and the link that opens the garment's page, so a visitor who clicks through lands
  * on the colour they were looking at, as a gallery card's link follows its showing colour. Without
- * WebGL, or before the model arrives, the still alone answers the dot.
+ * WebGL, or before the model arrives, the still alone answers the colour.
  *
- * ⚠️ THE DOTS ARE ON THE WORDS' SIDE, AS THE REPORT DREW THEM, AND THAT IS ALSO WHY THEY CAN BE BUTTONS:
- * under the garment they would sit inside its link, and a button inside a link is not allowed. They are
- * the gallery cards' dots (`.card-gallery__dot`: a 44px button, the colour painted in, a ring on the
- * chosen one), with the colour's name beside them, spoken as it changes.
- *
- * The garment's own figure is what the page had before (the still, the caption, "Opens the 3D viewer",
- * the live model laid over the still); `page.tsx` has the history of each part.
+ * ⚠️ THE ORDER IS THE PHONE'S READING ORDER (D43): the words, the garment, then its colours, its
+ * details and the button. From 900px the garment stands on the right and the rest is laid out on the
+ * left by grid areas (site.css), so the colours read after the garment they change, at every width.
+ * They are outside the garment's link on purpose: a button inside a link is not allowed.
  */
 export function ProofShowcase({
   product,
+  details,
   garmentPages,
   actions,
   cue,
   children,
 }: {
   product: ProofProduct | null
+  details: ProofDetails | null
   garmentPages: string
-  /** The button under the words, after the dots. */
+  /** The button and the count beside it, after the details. */
   actions: ReactNode
   /**
    * "Opens the 3D viewer", drawn by the page that hands over the garment pages' address, so the
    * caption and the link it explains are counted in one file (`publicSite.test.ts`, XS-09).
    */
   cue: ReactNode
-  /** The words: the number, the heading, the lede and the three points, drawn by the server. */
+  /** The words: the number, the heading, the lede and the points, drawn by the server. */
   children: ReactNode
 }) {
   const [chosen, setChosen] = useState(0)
@@ -70,30 +85,7 @@ export function ProofShowcase({
 
   return (
     <>
-      <div className="proof__copy">
-        {children}
-        {product && colours.length > 1 ? (
-          <div className="proof__colours" role="group" aria-label={`${product.productName} colors`}>
-            <span className="proof__colours-name" aria-live="polite">
-              {colour?.name}
-            </span>
-            <span className="card-gallery__pick">
-              {colours.map((each, index) => (
-                <button
-                  key={each.slug}
-                  type="button"
-                  className="card-gallery__dot"
-                  aria-label={`Show ${each.name}`}
-                  aria-pressed={index === chosen}
-                  onClick={() => setChosen(index)}
-                  style={each.swatch ? ({ '--swatch': each.swatch } as CSSProperties) : undefined}
-                />
-              ))}
-            </span>
-          </div>
-        ) : null}
-        {actions}
-      </div>
+      <div className="proof__copy">{children}</div>
       {product ? (
         <figure className="proof__figure">
           <a className="proof__link" href={`${garmentPages}/${product.slug}/${colour?.slug ?? ''}`}>
@@ -116,6 +108,173 @@ export function ProofShowcase({
           {live ? <LiveGarment model={live} label={label} variant={variant} /> : null}
         </figure>
       ) : null}
+      {product && colours.length > 1 ? (
+        <ColourPills colours={colours} chosen={chosen} onChoose={setChosen} />
+      ) : null}
+      {product && details && details.rows.length > 0 ? (
+        <div className="proof__details">
+          <p className="proof__label">
+            {details.type ? `This reference · ${details.type}` : 'This reference'}
+          </p>
+          <dl className="proof__specs">
+            {details.rows.map(([name, value]) => (
+              <div key={name}>
+                <dt>{name}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+      <div className="proof__actions">{actions}</div>
     </>
+  )
+}
+
+/** A dot's width until the row says otherwise (`--pill-dot`), and the room between two buttons. */
+const DOT = 44
+const GAP = 8
+
+/**
+ * The colours as a row of round buttons; the chosen one grows into a pill with its name (D43, the
+ * owner's "growing pill", 2026-10-15). A radio group (WAI-ARIA APG, "Radio Group", read 2026-10-16):
+ * Tab lands on the chosen colour, the arrows move and choose, wrapping at the ends, Space chooses.
+ *
+ * ⚠️ THE ROW MOVES BY `translate` (the options page measured 3 layout passes a change, against 199 for
+ * a view transition). Each button is measured at its full width; an unchosen one is its dot, and the
+ * chosen one takes its width while a `clip-path` grows it from the dot (site.css). Nothing outside the
+ * row moves. A new font, a resized row or a renamed colour re-measures.
+ *
+ * ⚠️ A NAME THAT WOULD RUN OFF A PHONE WRAPS INSIDE ITS PILL. On a phone the dots are 36px wide (the
+ * owner, 2026-10-16; `--pill-dot`), and the pill is held to the room they leave it, where a long
+ * name takes up to three lines. Before the measure, and with scripting off, the row is a plain wrapping
+ * row of the same buttons (`:not([data-measured])` in site.css).
+ */
+function ColourPills({
+  colours,
+  chosen,
+  onChoose,
+}: {
+  colours: readonly CardColour[]
+  chosen: number
+  onChoose: (index: number) => void
+}) {
+  const titleId = useId()
+  const row = useRef<HTMLDivElement>(null)
+  const buttons = useRef<(HTMLButtonElement | null)[]>([])
+  // Each button's full width (dot and name on one line), and the row's width.
+  const [natural, setNatural] = useState<number[] | null>(null)
+  const [room, setRoom] = useState(0)
+  const [dot, setDot] = useState(DOT)
+
+  useEffect(() => {
+    const element = row.current
+    if (!element) return
+    let alive = true
+    const measure = () => {
+      if (!alive) return
+      // Each at its full width, its name drawn whole and nothing waiting on a transition (site.css).
+      const widths = buttons.current.map((button) => {
+        if (!button) return DOT
+        const { width: before, transition } = button.style
+        button.dataset.measuring = ''
+        button.style.transition = 'none'
+        button.style.width = 'max-content'
+        const width = Math.ceil(button.getBoundingClientRect().width)
+        button.style.width = before
+        button.style.transition = transition
+        delete button.dataset.measuring
+        return width
+      })
+      // Unchanged widths are not set again, so a name that wraps cannot measure itself in a loop.
+      setNatural((current) => (current && current.join() === widths.join() ? current : widths))
+      setRoom(element.getBoundingClientRect().width)
+      setDot(Number.parseFloat(getComputedStyle(element).getPropertyValue('--pill-dot')) || DOT)
+    }
+    measure()
+    // The mono face arriving late widens every name; measure again once it is in.
+    document.fonts?.ready.then(measure, () => undefined)
+    /*
+     * And whenever the row or a name changes size: a narrower screen leaves a pill less room, and a
+     * browser translating the page rewrites the names (PostHog's replays caught translation on this
+     * site, 2026-10-14), so a name measured in English would hold a German one to its width.
+     */
+    const resize = new ResizeObserver(measure)
+    resize.observe(element)
+    for (const button of buttons.current) {
+      const name = button?.querySelector('span')
+      if (name) resize.observe(name)
+    }
+    return () => {
+      alive = false
+      resize.disconnect()
+    }
+  }, [])
+
+  // The widest a pill may be: the row less every other dot and gap.
+  const most = Math.max(dot, room - (colours.length - 1) * (dot + GAP))
+  const widths = natural?.map((width) => Math.min(width, most)) ?? null
+  let x = 0
+  const places = colours.map((_, index) => {
+    const place = x
+    x += (index === chosen ? (widths?.[index] ?? dot) : dot) + GAP
+    return place
+  })
+
+  const move = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
+    if (!step) return
+    event.preventDefault()
+    const next = (index + step + colours.length) % colours.length
+    onChoose(next)
+    buttons.current[next]?.focus()
+  }
+
+  return (
+    <div className="proof__pick">
+      <p className="proof__label" id={titleId}>
+        Colors
+      </p>
+      <div
+        className="proof__pills"
+        ref={row}
+        role="radiogroup"
+        aria-labelledby={titleId}
+        data-measured={widths ? '' : undefined}
+      >
+        {colours.map((each, index) => {
+          const paint = pillPaint(each.swatch)
+          const style = {
+            '--swatch': each.swatch ?? 'transparent',
+            '--pill-text': paint.text,
+            ...(widths
+              ? { '--pill': `${widths[index]}px`, translate: `${places[index]}px 0` }
+              : {}),
+          } as CSSProperties
+          return (
+            <button
+              key={each.slug}
+              ref={(element) => {
+                buttons.current[index] = element
+              }}
+              type="button"
+              role="radio"
+              aria-checked={index === chosen}
+              tabIndex={index === chosen ? 0 : -1}
+              className="proof__pill"
+              data-surface={paint.surface}
+              // Held narrower than its name on one line: the name wraps (three lines fit in 44px).
+              data-wrap={(widths?.[index] ?? 0) < (natural?.[index] ?? 0) ? '' : undefined}
+              onClick={() => onChoose(index)}
+              onKeyDown={(event) => move(event, index)}
+              style={style}
+            >
+              <i aria-hidden="true" />
+              <span>{each.name}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

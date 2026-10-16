@@ -1152,6 +1152,101 @@ hero's dark token set, and its print rule.
 which reads the wash back from the page and checks every word over white at three widths in both
 themes, with C's 35% wash as its planted fault.
 
+### D42 · №04 is four full-screen stage cards, two steps to a card — amends D23
+
+**Decision: "How an order works" draws its eight steps as four cards, one per stage, each the
+screen's full width and height. The stage is named once, in a pill ("Stage 1 · Talk"); each half of
+a card is one step over the photo of the room it happens in, with its number and whose move it is
+at the top and its title and two lines at the foot. The heading and its line sit in the page's
+column above the cards. The order guide draws the same four cards. Owner, 2026-10-15 (option A3),
+words 2026-10-15/16, built section approved as shown.**
+
+Until then eight half-width cards passed on the right while the heading stayed on the left (polish
+D4). Each step gains a second, smaller line, and every one is a line the site already states
+elsewhere (an FAQ answer, the factory page, the packaging guide), approved word for word; two keep
+their source's hedge, "typically" and "no set minimum" (owner, 2026-10-16). Step 4 is "Approval".
+Step 2 no longer gives the minimum, because the hero does and the page says nothing twice; bulk
+production reads its lead time from `LEAD_TIME`. "Start with step 1", the button after the cards,
+went (owner, 2026-10-16): the hero's "Start a conversation" and the ask under №05 lead to the same
+form. The photos are the site's own, so on a sharp full screen a half asks up to 2,560 px of a
+1,200–1,600 px file; the owner chose them knowing they would be soft there (no new originals).
+
+The cards stop under one another as the page scrolls, with no animation, for someone who allows
+motion and only on a screen tall enough for the fullest card: 40rem from 900px wide, 50rem below
+it. Measured in the build, the fullest card needs 666px at 360px wide, 626px at 375–390px, 601px
+at 768px and at most 408px from 900px; a 360x780 phone was 1px short under 48rem. Below the line,
+and for reduced motion and print, the cards are a plain list. The step text keeps the steps'
+50-character measure, the smaller line included (FA-C-52).
+
+**Guard:** `apps/cms/src/orderTimelinePhotos.test.ts` (four stages, their numbering, eight photos
+and the stack's guard), `apps/cms/src/lib/orderProcess.test.ts` (the words, `LEAD_TIME`, no
+minimum), `apps/cms/src/factoryPhotos.test.ts` (which photos may fall short, and by how much), and
+`apps/cms/e2e/orderTimeline.spec.ts` in all three browsers: every step's words inside its card at
+nine screen sizes, the plain list on four short ones, and every line's contrast read from the
+pixels behind it, with the washes removed as its planted fault.
+
+### D43 · №03 shows the Capsule Core Hoodie, its colours as a growing pill, and its own details
+
+**Decision: №03 "See it before it exists" shows the Capsule Core Hoodie (`r-cch`), not the first
+garment in the gallery's order. Its colours are a row of round buttons, the chosen one a pill in its
+own colour with its name. Under them, the hoodie's details read from its CMS record: its type, fabric,
+weight, fit and what it is built with. The sentence ends "…on request, before a sample is cut.", two of
+the three points stay ("Share a link" went), "3D" keeps its capitals in the heading, and the button is
+"Browse in 3D" with the live count beside it ("41 garments"). Owner, 2026-10-15 (option A and the
+hoodie), the button 2026-10-16.**
+
+The first garment was the X-Milo Pro Bib, which №02's Teamwear card also shows. If the hoodie is ever
+retired, the section falls back to the first garment with a poster rather than going empty. The pill
+is measured once and moved by `translate`, with a `clip-path` showing only the dot until it is chosen:
+3 layout passes a change on the options page, against 199 for a view transition. On a phone the order
+is the words, the garment, its colours, its details and the button, so the colours come after the
+garment they change. Three things the options page did not show, handled in the build: a long name
+wraps inside its pill rather than running off a 360px phone; the keyboard ring is drawn inside the
+pill, which its own clip would otherwise cut; and a mid-tone colour that neither ink can reach 4.5:1
+on gets an ink pill with paper words (the hoodie's five all clear it, the closest at 4.75:1). On a
+phone the dots are 36px wide, still 44px tall, as the gallery's phone dots are (owner, 2026-10-16),
+because five 44px dots left a 360px phone's pill about 52px for "Black Cherry / Cranberry"; a long
+name takes up to three lines in its pill. The
+pills are a radio group (WAI-ARIA APG): Tab lands on the chosen colour, the arrows move and choose.
+
+**Guard:** `apps/cms/src/lib/proofShowcase.test.ts` (the garment, the count's wording, each pill's
+contrast with a mid grey as the planted fault) and `apps/cms/e2e/proofShowcase.spec.ts` (the order,
+the radio group and its keys, a 27-character name at 360px held inside its pill, axe in both themes), with
+`e2e/liveGarment.spec.ts` for the live model's colour.
+
+### D44 · №02's cards open beside the picture, on another colour, with each family's list from the CMS — amends polish D3
+
+**Decision: the five family cards keep one link each and open as before (a resting pointer or the
+keyboard, now from 1440px where a pointer can hover; open all the time everywhere else), but an opened
+card's words slide out beside its picture instead of the row being laid out again. The picture turns
+to another colour of the same garment (the Sports Bra to blush, the Pro Bib to mint, the Active Zip to
+teal, the Windbreaker to fuchsia), the line under it names the garment, and the colour's name sits
+over the garment's colour dots. Each card shows its family's list: what Sportswear and Teamwear are
+made for, what the other three have in the range, the first six and "+ N more". Owner, 2026-10-15
+(option C2, its lists, and "nothing said twice").**
+
+Until then an opened card widened and its neighbours' grid tracks moved, 599 layout passes an opening
+on the options page against 2–4 now: every card keeps its box, the cards move by `transform` (each
+already rises into place by `translate`), and the words' sheet is revealed by `clip-path`. The words
+themselves are not clipped, because the title's link stretches over the whole card from inside them.
+The card no longer gives the minimum (the hero does), and its second picture is silent to a screen
+reader (the first already names the garment). The lists live in Site Settings, one array per family,
+so they change without a release; the owner asked Claude to keep them up to date through the API. They
+arrive by migration `20261016_150000_family_lists` (five new leaf tables, no rebuild) and are written
+into the live CMS after the deploy, after a D1 backup. A phone and a tablet keep the sideways card,
+with no dots; one column now up to 900px (it was 560), because a two-up card's words would be about
+145px wide. The row begins at 1440px, not 1180 (owner, 2026-10-16): beside a 4:5 picture an opened
+card's words were up to 79px too tall below that, so a laptop narrower than 1440px gets the tablet's
+two-up open cards. The tickets' notches and tear line went with C2's picture.
+
+**Guard:** `apps/cms/src/components/site/FamilyCard.test.ts` (one link, nothing said twice, six and
+"+ N more", the dots), `apps/cms/src/lib/families.test.ts` (each family's list field exists in Site
+Settings; the colour an opened card shows), `apps/cms/src/lib/projectPublic.test.ts` (the lists as
+read), `apps/cms/src/migrationReplay/replay.test.ts`, and `apps/cms/e2e/familyTickets.spec.ts` in all
+three browsers: an opening leaves every card's box alone, the words fit beside the picture at 1440
+and 1920px, a 1280px laptop gets the two-up cards, no sideways scroll, the keyboard ring in pixels,
+and axe in both themes.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

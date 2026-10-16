@@ -1,7 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FAMILIES, FAMILY_PHOTOS, familyBySlug, familyPictures } from './families'
+import {
+  FAMILIES,
+  FAMILY_OPEN_COLOUR,
+  FAMILY_PHOTOS,
+  familyBySlug,
+  familyGarments,
+  familyPictures,
+} from './families'
 import type { ProductCard } from './projectPublic'
 
 /**
@@ -151,5 +158,94 @@ describe('familyPictures', () => {
 
   it('matches the category exactly, as the gallery filter does (negative control)', () => {
     expect(familyPictures([card({ category: 'sportswear' })]).sportswear).toBeNull()
+  })
+})
+
+/*
+ * D44: each family's list lives in the Site Settings group `familyLists`, under the field its
+ * `listField` names. A misspelt field fails nothing and shows nothing: the card simply has no list,
+ * the same silent shape as the category guard above, so this reads the global's source the same way.
+ */
+describe('each family names its list field in Site Settings (D44)', () => {
+  const source = readFileSync(join(import.meta.dirname, '..', 'globals', 'SiteSettings.ts'), 'utf8')
+  const group = source.slice(source.indexOf("name: 'familyLists'"))
+  const fields = [
+    ...group
+      .slice(0, group.indexOf("name: 'inquiryTemplate'"))
+      .matchAll(/name: '(\w+)',\s*type: 'array'/g),
+  ].map((match) => match[1])
+
+  it('one array per family, in the families’ order', () => {
+    expect(fields).toEqual(FAMILIES.map((family) => family.listField))
+  })
+
+  it('the two families listed by use say "Made for"; the three listed by kind, "In the range"', () => {
+    expect(FAMILIES.map((family) => [family.slug, family.listLabel])).toEqual([
+      ['sportswear', 'Made for'],
+      ['teamwear-uniforms', 'Made for'],
+      ['casual-wear', 'In the range'],
+      ['outerwear', 'In the range'],
+      ['sports-accessories', 'In the range'],
+    ])
+  })
+})
+
+describe('familyGarments: the garment an opened card shows, in another colour (D44)', () => {
+  const colour = (slug: string, image = true) => ({
+    slug,
+    name: `${slug} name`,
+    swatch: `#${slug.length.toString().padStart(6, '0')}`,
+    image: image
+      ? { url: `https://media.example/${slug}.webp`, alt: `${slug} alt`, kind: 'render' as const }
+      : null,
+  })
+  const card = (over: Partial<ProductCard>): ProductCard => ({
+    slug: 'r-xmp',
+    productName: 'X-Milo Pro Bib',
+    productCode: 'R-XMP',
+    category: 'Teamwear & Uniforms',
+    garmentType: '',
+    shortDescription: '',
+    posterUrl: null,
+    posterAlt: '',
+    defaultColourSlug: 'wine',
+    colourNames: [],
+    colours: [colour('wine'), colour('olive'), colour('lavender'), colour('white'), colour('mint')],
+    model: null,
+    updatedAt: null,
+    ...over,
+  })
+
+  it('opens on the owner’s colour for the garment, naming it and marking its dot', () => {
+    const bib = familyGarments([card({})])['teamwear-uniforms']
+    expect(FAMILY_OPEN_COLOUR['r-xmp']).toBe('mint')
+    expect(bib).toEqual({
+      name: 'X-Milo Pro Bib',
+      open: { url: 'https://media.example/mint.webp', alt: 'mint alt', colourName: 'mint name' },
+      swatches: ['#000004', '#000005', '#000008', '#000005', '#000004'],
+      shown: 4,
+    })
+  })
+
+  // The owner's colour gone, or a garment the list does not name: its first other colour with a picture.
+  it('falls back to the first other colour with a picture', () => {
+    const noMint = familyGarments([
+      card({ colours: [colour('wine'), colour('olive', false), colour('white')] }),
+    ])
+    expect(noMint['teamwear-uniforms']?.open.colourName).toBe('white name')
+    expect(noMint['teamwear-uniforms']?.shown).toBe(2)
+    const other = familyGarments([card({ slug: 'r-new' })])
+    expect(other['teamwear-uniforms']?.shown).toBe(1)
+  })
+
+  // NEGATIVE CONTROL: one colour, or none other with a picture, opens on the picture it shows.
+  it('is null for a garment with no other colour to show, and for a family with no garment', () => {
+    expect(familyGarments([card({ colours: [colour('wine')] })])['teamwear-uniforms']).toBeNull()
+    expect(
+      familyGarments([card({ colours: [colour('wine'), colour('mint', false)] })])[
+        'teamwear-uniforms'
+      ],
+    ).toBeNull()
+    expect(familyGarments([card({})]).outerwear).toBeNull()
   })
 })

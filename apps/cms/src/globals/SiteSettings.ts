@@ -247,6 +247,60 @@ export const SiteSettings: GlobalConfig = {
         { name: 'url', type: 'text', required: true, validate: validateHttps },
       ],
     },
+    /*
+     * The lists on the home page's five family cards (D44, owner, 2026-10-15): what Sportswear and
+     * Teamwear are MADE FOR (uses and sports), and what the other three have IN THE RANGE. A card shows
+     * the first six and "+ N more", which opens the family's page. Kept here, not in the code, so a
+     * list changes without a release; the owner asked Claude to keep them up to date through the API.
+     * One array per family, so each is its own short list in the admin, in the order the card shows.
+     * An empty list shows none on the card. Five leaf tables, 20261016_150000_family_lists.
+     */
+    {
+      name: 'familyLists',
+      type: 'group',
+      label: 'What we make (home page lists)',
+      admin: {
+        description:
+          'The short list on each family card on the home page, in order. The card shows the first six and "+ N more".',
+      },
+      fields: [
+        {
+          name: 'sportswear',
+          type: 'array',
+          label: 'Sportswear — made for',
+          labels: { singular: 'Use', plural: 'Uses' },
+          fields: [{ name: 'name', type: 'text', required: true, maxLength: 40 }],
+        },
+        {
+          name: 'teamwearUniforms',
+          type: 'array',
+          label: 'Teamwear & Uniforms — made for',
+          labels: { singular: 'Sport', plural: 'Sports' },
+          fields: [{ name: 'name', type: 'text', required: true, maxLength: 40 }],
+        },
+        {
+          name: 'casualWear',
+          type: 'array',
+          label: 'Casual Wear — in the range',
+          labels: { singular: 'Kind', plural: 'Kinds' },
+          fields: [{ name: 'name', type: 'text', required: true, maxLength: 40 }],
+        },
+        {
+          name: 'outerwear',
+          type: 'array',
+          label: 'Outerwear — in the range',
+          labels: { singular: 'Kind', plural: 'Kinds' },
+          fields: [{ name: 'name', type: 'text', required: true, maxLength: 40 }],
+        },
+        {
+          name: 'sportsAccessories',
+          type: 'array',
+          label: 'Sports Accessories — in the range',
+          labels: { singular: 'Kind', plural: 'Kinds' },
+          fields: [{ name: 'name', type: 'text', required: true, maxLength: 40 }],
+        },
+      ],
+    },
     {
       name: 'inquiryTemplate',
       type: 'group',

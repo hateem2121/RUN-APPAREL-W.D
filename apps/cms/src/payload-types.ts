@@ -1517,6 +1517,41 @@ export interface SiteSetting {
       }[]
     | null;
   /**
+   * The short list on each family card on the home page, in order. The card shows the first six and "+ N more".
+   */
+  familyLists?: {
+    sportswear?:
+      | {
+          name: string;
+          id?: string | null;
+        }[]
+      | null;
+    teamwearUniforms?:
+      | {
+          name: string;
+          id?: string | null;
+        }[]
+      | null;
+    casualWear?:
+      | {
+          name: string;
+          id?: string | null;
+        }[]
+      | null;
+    outerwear?:
+      | {
+          name: string;
+          id?: string | null;
+        }[]
+      | null;
+    sportsAccessories?:
+      | {
+          name: string;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  /**
    * Reference copy of the enquiry template the viewer generates for email/WhatsApp. Tokens: [Product Name], [Product Code], [Colour].
    */
   inquiryTemplate?: {
@@ -1626,6 +1661,40 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         label?: T;
         url?: T;
         id?: T;
+      };
+  familyLists?:
+    | T
+    | {
+        sportswear?:
+          | T
+          | {
+              name?: T;
+              id?: T;
+            };
+        teamwearUniforms?:
+          | T
+          | {
+              name?: T;
+              id?: T;
+            };
+        casualWear?:
+          | T
+          | {
+              name?: T;
+              id?: T;
+            };
+        outerwear?:
+          | T
+          | {
+              name?: T;
+              id?: T;
+            };
+        sportsAccessories?:
+          | T
+          | {
+              name?: T;
+              id?: T;
+            };
       };
   inquiryTemplate?:
     | T

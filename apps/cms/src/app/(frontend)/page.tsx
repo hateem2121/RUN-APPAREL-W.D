@@ -7,14 +7,19 @@ import { FamilyCard } from '../../components/site/FamilyCard'
 import { HomeHero } from '../../components/site/HomeHero'
 import { JsonLd } from '../../components/site/JsonLd'
 import { OrderTimeline } from '../../components/site/OrderTimeline'
-import { type ProofProduct, ProofShowcase } from '../../components/site/ProofShowcase'
+import {
+  type ProofDetails,
+  type ProofProduct,
+  ProofShowcase,
+} from '../../components/site/ProofShowcase'
 import { TicketDismiss } from '../../components/site/TicketDismiss'
 import { ViewerCue } from '../../components/site/ViewerCue'
 import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
-import { FAMILIES, familyPictures } from '../../lib/families'
+import { FAMILIES, familyGarments, familyPictures } from '../../lib/families'
 import { familyIsSoon } from '../../lib/familyPages'
 import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
+import { garmentCount, pickProofGarment } from '../../lib/proofShowcase'
 import { buildMetadata, GARMENT_PAGES } from '../../lib/seo'
 import { websiteJsonLd } from '../../lib/structuredData'
 
@@ -73,7 +78,8 @@ export const metadata: Metadata = {
  * approved line now says in their words, so the tail went rather than saying it twice.
  *
  * Since polish D2 (2026-10-05) the figure is drawn by `ProofShowcase`, beside the words and their
- * colour dots, which change it; this picks the garment and passes on only what it needs.
+ * colour dots, which change it; this picks the garment and passes on only what it needs. Since D43
+ * (owner, 2026-10-15) the garment is the Capsule Core Hoodie (`lib/proofShowcase.ts`).
  */
 function proofProduct(product: ProductCard | null): ProofProduct | null {
   if (!product?.posterUrl) return null
@@ -86,6 +92,22 @@ function proofProduct(product: ProductCard | null): ProofProduct | null {
     colours: product.colours,
     model: product.model,
   }
+}
+
+/**
+ * The garment's details under its colours (D43, the owner's "hoodie details", approved 2026-10-15),
+ * each read from its CMS record and left out when the record has none. The labels are the options
+ * page's, word for word; the features are joined as they were shown there.
+ */
+function proofDetails(product: ProductCard | null): ProofDetails | null {
+  if (!product) return null
+  const rows: [string, string][] = [
+    ['Fabric', product.fabricComposition ?? ''],
+    ['Weight', product.gsm ?? ''],
+    ['Fit', product.garmentFit ?? ''],
+    ['Built with', (product.performanceFeatures ?? []).join(' · ')],
+  ]
+  return { type: product.garmentType, rows: rows.filter(([, value]) => value) }
 }
 
 /** A point's icon: the site's line drawing, 1.6 wide, round ends (the "Drag to turn" hint's). */
@@ -115,8 +137,9 @@ export default async function HomePage() {
    * than throwing — a database wobble costs this section, not the page.
    */
   const [settings, products] = await Promise.all([getSiteSettings(), getProductCards()])
-  const proof = products.find((product) => product.posterUrl) ?? null
+  const proof = pickProofGarment(products)
   const pictures = familyPictures(products)
+  const garments = familyGarments(products)
   return (
     <>
       <JsonLd data={websiteJsonLd(settings)} />
@@ -160,13 +183,16 @@ export default async function HomePage() {
             Products, so the grid treats it as a composition rather than an unknown list.
           */}
           <ul className="family-grid">
-            {FAMILIES.map((family) => {
+            {FAMILIES.map((family, index) => {
               const count = products.filter((product) => product.category === family.name).length
               return (
                 <FamilyCard
                   key={family.slug}
                   family={family}
                   picture={pictures[family.slug] ?? null}
+                  garment={garments[family.slug] ?? null}
+                  list={settings.familyLists[family.slug] ?? []}
+                  index={index}
                   soon={familyIsSoon(family, count)}
                   count={count}
                 />
@@ -182,35 +208,48 @@ export default async function HomePage() {
         <div className="site-container proof">
           <ProofShowcase
             product={proofProduct(proof)}
+            details={proofDetails(proof)}
             garmentPages={GARMENT_PAGES}
             cue={<ViewerCue />}
             actions={
+              /*
+                "Browse in 3D" is the hero's name for the same link (X20: one name per destination,
+                WCAG 3.2.4), so the count stands beside it rather than in it (owner, 2026-10-16),
+                read from the same list the gallery shows.
+              */
               <div className="site-actions">
                 <Link className="btn btn--primary" href="/products">
                   Browse in 3D
                 </Link>
+                {products.length > 0 ? (
+                  <span className="proof__count">{garmentCount(products.length)}</span>
+                ) : null}
               </div>
             }
           >
             <p className="section-number">№03 — See it before it exists</p>
+            {/* "3D" keeps its capitals inside the lower-casing accent (owner, D43). */}
             <h2 className="display display--section">
-              Every reference, <span className="serif-accent">in&nbsp;3D.</span>
+              Every reference,{' '}
+              <span className="serif-accent">
+                in&nbsp;<span className="serif-accent__as-written">3D</span>.
+              </span>
             </h2>
             {/*
               ⚠️ "ON REQUEST", AND THAT IS THE OWNER'S CORRECTION OF 2026-09-29. This said "Each
               garment we develop gets a 3D reference"; the owner confirmed that day a 3D
-              reference is NOT part of every order, and chose this wording.
+              reference is NOT part of every order, and chose this wording. Since D43 (2026-10-15)
+              the sentence ends at "before a sample is cut": the two points below show what a
+              visitor can do, so it no longer lists the verbs as well.
             */}
             <p className="site-lede">
-              We can build a 3D reference of your garment on request — turn it, inspect the print
-              and share it before a sample is cut.
+              We can build a 3D reference of your garment on request, before a sample is cut.
             </p>
             {/*
-              The lede's three verbs, each shown (polish D2; new words for the owner's approval at
-              the end, written only from what the site already says): the garment here turns under a
-              drag ("Drag to turn", LiveGarment.tsx); a garment's 3D page zooms ("Drag to rotate, use
-              scroll or pinch to zoom", the viewer's Stage.tsx); each colour has its own address on the
-              site (`/products/<garment>/<colour>`, the one a printed QR tag opens).
+              Two things a visitor can do (polish D2, written only from what the site already says):
+              the garment here turns under a drag ("Drag to turn", LiveGarment.tsx); a garment's 3D
+              page zooms ("Drag to rotate, use scroll or pinch to zoom", the viewer's Stage.tsx). A
+              third, "Share a link", went with D43: the owner found it sounded like software.
             */}
             <ul className="proof__points">
               <li className="proof__point">
@@ -229,16 +268,6 @@ export default async function HomePage() {
                 </PointIcon>
                 <p>
                   <b>Zoom into the print.</b> On its 3D page, scroll or pinch to look closer.
-                </p>
-              </li>
-              <li className="proof__point">
-                <PointIcon>
-                  <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
-                  <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
-                </PointIcon>
-                <p>
-                  <b>Share a link.</b> Each color has its own address, to send before a sample is
-                  cut.
                 </p>
               </li>
             </ul>

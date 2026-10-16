@@ -20,6 +20,7 @@ const base: PublicSiteSettings = {
   logoUrl: null,
   logoMimeType: null,
   footer: EMPTY_FOOTER,
+  familyLists: {},
 }
 const html = (settings: PublicSiteSettings) =>
   renderToStaticMarkup(createElement(SiteFooter, { settings }))

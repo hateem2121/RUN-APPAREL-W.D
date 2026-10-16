@@ -31,6 +31,7 @@ const settings = (over: Partial<PublicSiteSettings> = {}): PublicSiteSettings =>
   logoUrl: null,
   logoMimeType: null,
   footer: EMPTY_FOOTER,
+  familyLists: {},
   ...over,
 })
 

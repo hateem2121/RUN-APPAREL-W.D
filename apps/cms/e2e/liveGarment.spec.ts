@@ -152,12 +152,13 @@ test.describe('№03 — the live 3D garment', () => {
           (document.querySelector('.live-garment model-viewer') as { variantName?: string } | null)
             ?.variantName ?? null,
       )
-    const dots = page.locator('.proof__colours .card-gallery__dot')
-    expect(await dots.count(), 'the seeded garment has five colours').toBe(5)
+    const pills = page.locator('.proof__pill')
+    expect(await pills.count(), 'the seeded garment has five colours').toBe(5)
     // The control: it starts on the default colour's variant.
     await expect.poll(variant).toBe('N001-WINE')
-    await dots.nth(2).click()
-    await expect(dots.nth(2)).toHaveAttribute('aria-pressed', 'true')
+    // On its dot, as a person clicks it: an unchosen pill's box is wider than the dot it shows (D43).
+    await pills.nth(2).click({ position: { x: 22, y: 22 } })
+    await expect(pills.nth(2)).toHaveAttribute('aria-checked', 'true')
     await expect.poll(variant).toBe('N001-BUTTER')
     await expect(page.locator('.proof__link')).toHaveAttribute('href', /\/products\/[^/]+\/butter$/)
   })

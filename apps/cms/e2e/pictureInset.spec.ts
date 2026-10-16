@@ -189,34 +189,43 @@ test.describe('the home family tickets keep a margin around the garment (VA-55, 
     }
   }
 
-  // The tallest box there is: an opened ticket's picture at 1180px, the narrowest row (179 x 380).
+  /*
+   * An opened card (D44) keeps its picture box and shows ANOTHER COLOUR in it: that second picture
+   * keeps the same margin, at 1440px, where the row begins (the owner, 2026-10-16). Until D44 an opened
+   * ticket's picture grew to the ticket's full height, the tallest box on the page (179 x 380).
+   */
   for (const shape of SHAPES) {
-    test(`an opened ticket at 1180px: ${shape.name} sits 6% or more from every edge`, async ({
+    test(`an opened card at 1440px: its other colour, ${shape.name}, sits 6% or more from every edge`, async ({
       page,
     }) => {
-      await page.setViewportSize({ width: 1180, height: 900 })
+      await page.setViewportSize({ width: 1440, height: 900 })
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.goto('/')
-      // The first: CI's one garment is a Sportswear one, so this ticket has a picture everywhere.
+      // The first: CI's one garment is a Sportswear one, so this card has a picture everywhere.
       const first = page.locator('.family-grid > .family-card').first()
-      await first.hover()
-      // Open: its picture is the full height of the ticket.
+      if ((await first.locator('.family-card__img--open').count()) === 0) {
+        if (process.env.CI) throw new Error('the seeded garment has no second colour to show')
+        test.skip(true, 'no garment with a second colour in this local database')
+      }
+      // A mouse, as a person moves it: Playwright's own hover refuses, because the link covers it.
+      await first.scrollIntoViewIfNeeded()
+      const picture = await first.locator('.family-card__media').boundingBox()
+      if (!picture) throw new Error('no picture')
+      await page.mouse.move(picture.x + picture.width / 2, picture.y + picture.height / 2)
+      // Open: the other colour on show.
       await expect
         .poll(() =>
-          first.evaluate((card) => {
-            const media = card.querySelector('.family-card__media')?.getBoundingClientRect()
-            return media ? Math.round(media.height) : 0
-          }),
+          first.locator('.family-card__img--open').evaluate((img) => getComputedStyle(img).opacity),
         )
-        .toBeGreaterThan(360)
+        .toBe('1')
       expectInset(
         await drawnMargins(
           page,
-          '.family-card:hover .family-card__img',
+          '.family-card:hover .family-card__img--open',
           '.family-card__media',
           shape,
         ),
-        `an opened ticket, ${shape.name}`,
+        `an opened card, ${shape.name}`,
       )
     })
   }
