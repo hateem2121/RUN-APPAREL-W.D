@@ -3563,12 +3563,26 @@ a.contact-block__value:active {
   }
 }
 
+/*
+ * ⚠️ `overflow-anchor: none` WHERE THE RISE RUNS — OR WEBKIT MOVES THE PAGE ON ITS OWN. Measured
+ * 2026-10-16 in CI's WebKit (Playwright 1.64, Linux) at 1280x720 on the home page: scrolled straight
+ * to the footer, the page sat at 7254 and 70–690ms later jumped back to 7230 — 24px, `--reveal-y`
+ * exactly — 7 runs out of 7, with the page height unchanged. WebKit's scroll anchoring picked a node
+ * inside №05 as the anchor and "corrected" for the section's rise settling, which the spec forbids
+ * (a `transform` change on the anchor's path suppresses the adjustment, CSS Scroll Anchoring §2.2.2).
+ * The footer's "Cookies" link was under the pointer before the jump and below it after, so
+ * `e2e/consent.spec.ts` failed in 2 runs of 3 (and twice on PR #195). This rule, or the rise turned
+ * off, each held 7254 twice out of twice. The Mac's WebKit (3 runs) and the live site before PR #195
+ * (2 runs, where only 56px of №05 shows above the footer) did not jump. Scoped to the rising sections
+ * while they rise: reduced motion and a browser without the timeline keep the anchoring.
+ */
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
     [data-site-reveal] {
       animation: site-reveal var(--settle) var(--ease-out-expo) both;
       animation-timeline: view();
       animation-range: entry 0% entry 60%;
+      overflow-anchor: none;
     }
   }
 }

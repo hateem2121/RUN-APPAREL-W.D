@@ -691,6 +691,42 @@ test.describe('MO-17 — the site reveals by rising alone', () => {
       'transform',
     ])
   })
+
+  /*
+   * ⚠️ A RISING SECTION IS NEVER THE SCROLL ANCHOR WHILE IT RISES (site.css, measured 2026-10-16).
+   * CI's WebKit anchored on №05 and "corrected" for its rise settling, moving the page 24px on its
+   * own, after the footer's "Cookies" link was already under the pointer. `e2e/consent.spec.ts` is
+   * the WebKit test that caught it, 2 runs in 3; this one holds the cure in every engine, and keeps
+   * it off where nothing rises, so reduced motion and Firefox keep the browser's anchoring.
+   */
+  test('a rising section is never the scroll anchor while it rises, and only then', async ({
+    page,
+    browserName,
+  }) => {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      await page.emulateMedia({ reducedMotion })
+      await page.goto('/')
+      const sections = await page.locator('[data-site-reveal]').evaluateAll((all) =>
+        all.map((section) => {
+          const style = getComputedStyle(section)
+          return { rises: style.animationName === 'site-reveal', anchor: style.overflowAnchor }
+        }),
+      )
+      expect(sections, 'the home page reveals a different number of sections').toHaveLength(5)
+      for (const [index, { rises, anchor }] of sections.entries()) {
+        expect(anchor, `section ${index + 1} (${reducedMotion}): rises=${rises}`).toBe(
+          rises ? 'none' : 'auto',
+        )
+      }
+      // Not vacuous: Chromium runs the rise, so the first pass checks the rule itself.
+      if (reducedMotion === 'reduce' || browserName === 'chromium') {
+        expect(
+          sections.every(({ rises }) => rises === (reducedMotion === 'no-preference')),
+          `the rise ${reducedMotion === 'reduce' ? 'runs under reduced motion' : 'does not run in Chromium'}`,
+        ).toBe(true)
+      }
+    }
+  })
 })
 
 /**
