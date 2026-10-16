@@ -225,7 +225,8 @@ test.describe('a buyer page is its family’s list, and copies nothing (polish S
       page: browser,
     }) => {
       await browser.goto(page.path)
-      await expect(browser.locator('.facts-grid, .works-slab, .about__photos')).toHaveCount(0)
+      // `.about-ground`: №01's factory photo since D41 (2026-10-16); `.about__photos` until then.
+      await expect(browser.locator('.facts-grid, .works-slab, .about-ground')).toHaveCount(0)
       await expect(
         browser.getByRole('heading', { level: 2, name: page.stepsHeading }),
       ).toBeVisible()

@@ -359,8 +359,15 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     ),
   ]
 
-  /** The photo files narrower than their shape asks, because the original is: slug → its widest. */
-  const ORIGINAL_LIMITS = { tagging: 1200, packing: 1200 }
+  /**
+   * The photo files narrower than a sharp screen asks, slug → its widest. Two because the original
+   * is. And since D41 (2026-10-16) the roof photo, as №01's ground: it spans the screen (`100vw`),
+   * so a 2x laptop asks up to 2,880 px, but it shows through 70–90% ink (site.css `.about-ground`),
+   * where a 1,600 px file's softness cannot be seen, and a wider one would roughly triple its
+   * 122 KB for nothing a visitor sees. Its original (3,500 px) is the owner's and not in the
+   * repository, so a wider file is a decision, not an oversight.
+   */
+  const ORIGINAL_LIMITS = { tagging: 1200, packing: 1200, 'solar-roof': 1600 }
 
   type Picture = { slug: string; srcset: string; sizes: string }
 
@@ -392,9 +399,12 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     sizes: attr(tag, 'sizes'),
   }))
 
-  it('reads all ten photos off the page, each with its widths and its hint', () => {
+  // Nine since D41 (2026-10-16): the front of the building is drawn by the factory page's gallery.
+  it('reads all nine photos off the page, each with its widths and its hint', () => {
     expect(pictures.map((picture) => picture.slug).sort()).toEqual(
-      FACTORY_PHOTOS.map((photo) => photo.slug).sort(),
+      FACTORY_PHOTOS.map((photo) => photo.slug)
+        .filter((slug) => slug !== 'exterior')
+        .sort(),
     )
     for (const picture of pictures) {
       expect(picture.srcset, picture.slug).toMatch(/ \d+w$/)
@@ -402,7 +412,7 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     }
   })
 
-  it('leaves only the two photos whose originals hold no more, each at its widest file', () => {
+  it('leaves only the photos listed above short, each at its widest file', () => {
     const misses = shortfalls(pictures)
     const said = misses.map(
       (miss) => `${miss.slug} at ${miss.screen}: asks ${miss.asks}, gets ${miss.gets}`,
