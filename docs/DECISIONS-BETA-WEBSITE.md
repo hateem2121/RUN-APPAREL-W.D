@@ -1123,6 +1123,35 @@ amendment).
 under the slab, and the home footer's shape, each with a control run both ways), and
 `apps/cms/e2e/worksSlab.spec.ts` and `footer.spec.ts` in all three browsers.
 
+### D41 · №01 stands on the roof photo, and says the year once
+
+**Decision: №01 "Who we are" sets its words and figures on the aerial photo of the works' solar
+roof, under a dark wash: the words on the left, four figures on the right (1889, six buildings,
+193,000 sq m under roof, about 80% of the electricity from the solar roof). The heading ends "for
+generations." and №01's lineage sentence drops its year; the hero and the first figure say 1889.
+Owner, 2026-10-15 (option C), words and figures 2026-10-16, built section approved as shown.**
+
+The front of the building, which stood beside the roof photo, left the home page (the "Inside the
+factory" gallery keeps it). The shared lineage sentence keeps its year, because the press page
+reads 1889 out of it and the careers and community pages quote it whole; №01 has its own,
+"…without a break since it began". 193,000 is also one of №05's figures: the owner chose to show it
+in both, after being told it would repeat. The floor area and the solar share count up; the year
+and "Six" do not. "Our story →" stays. The figures are off-white, not the lime of C's picture: X25
+keeps lime for the big title, the buttons, the accent words and №05's featured figure, and the
+owner chose off-white after seeing both side by side (2026-10-16). The accent "for generations." is
+lime in both themes, as the hero's title is, because the section is dark in both.
+
+The wash is 90% ink across the words' half and 70% at the right edge, where C's picture had 35%:
+small text needs 4.5:1 over the brightest pixel a photo can put under it, and at 35% the labels
+would be 1.80:1 over white. The section number keeps the site's muted grey, which nothing may
+restyle, so the ground under it is darker instead (88% on a phone). The section borrows the photo
+hero's dark token set, and its print rule.
+
+**Guard:** `apps/cms/src/lib/aboutCopy.test.ts` and `apps/cms/src/components/site/AboutSection.test.ts`
+(the words, the four figures and their order, one photo), and `apps/cms/e2e/aboutGround.spec.ts`,
+which reads the wash back from the page and checks every word over white at three widths in both
+themes, with C's 35% wash as its planted fault.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

@@ -45,9 +45,11 @@ export const LINEAGE_HERE =
 export const ABOUT = {
   // Not "A family trade" — the owner, 2026-09-29: it "may let people think that we are
   // traders". A maker is the claim; `aboutCopy.test.ts` holds it. "for generations." replaced
-  // "since 1889." on 2026-10-16 (owner): the year is the first figure's, a few lines below.
+  // "since 1889." on 2026-10-16 (owner): the year is the first figure's, a few lines below. Tied
+  // with a non-breaking space: at 320px Firefox broke the line before "generations.", which the
+  // headline guard refuses (`e2e/composition.spec.ts`, TY-12/13).
   heading: 'A family of makers,',
-  accent: 'for generations.',
+  accent: 'for generations.',
   lede: `RUN APPAREL makes private label clothing in Sialkot, Pakistan. ${LINEAGE_HERE}`,
   // "company’s six" is tied with a non-breaking space (the owner’s words unchanged): untied,
   // "buildings" ended a 76-character line at 768 and 1440px, one over FA-C-52’s 75

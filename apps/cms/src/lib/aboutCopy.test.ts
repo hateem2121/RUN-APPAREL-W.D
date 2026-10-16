@@ -23,7 +23,8 @@ describe('the "Who we are" section', () => {
   it('says 1889 once, as the first figure, and not in the heading or the words', () => {
     const words = [ABOUT.heading, ABOUT.accent, ABOUT.lede, ABOUT.body].join(' ')
     expect(words).not.toContain('1889')
-    expect(ABOUT.accent).toBe('for generations.')
+    // Tied, so a narrow screen never leaves "generations." alone on the last line (TY-12/13).
+    expect(ABOUT.accent).toBe('for generations.')
     expect(ABOUT.points[0]).toEqual({
       value: '1889',
       label: 'Manufacturing since',

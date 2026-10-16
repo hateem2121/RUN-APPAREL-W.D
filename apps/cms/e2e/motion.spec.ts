@@ -750,14 +750,17 @@ test.describe('№05 — the numbers count up, and only when they may', () => {
  * The scroll motion (owner, 2026-09-29): the photos wipe open and drift.
  * What would have to break: motion for someone who asked for none, or a photo left half-clipped
  * once it is on screen — which is how a scroll animation turns into missing content.
- * The photos measured are №01's two (`.about`): the factory strip they were first measured on went
- * with VA-29 (2026-10-02), and the order timeline's eight, and its drawn line, with polish D4
- * (2026-10-05), whose stacking cards `e2e/orderTimeline.spec.ts` measures.
+ * The photos measured are a guide's (`FactoryFigure`, the same frame the site uses everywhere):
+ * the factory strip they were first measured on went with VA-29 (2026-10-02), the order timeline's
+ * eight with polish D4 (2026-10-05), and №01's two with D41 (2026-10-16), when its roof photo became
+ * the section's ground.
  */
+const PHOTO_PAGE = '/guides/minimum-order-and-samples'
+
 test.describe('scroll motion — the photos open and drift', () => {
   const targets = {
-    '.about .photo-wipe': 'photo-wipe',
-    '.about .photo-parallax': 'photo-drift',
+    '.photo-figure .photo-wipe': 'photo-wipe',
+    '.photo-figure .photo-parallax': 'photo-drift',
   } as const
 
   const names = (page: Page) =>
@@ -772,7 +775,7 @@ test.describe('scroll motion — the photos open and drift', () => {
 
   test('with motion allowed, each is attached to the scroll', async ({ page, browserName }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
-    await page.goto('/')
+    await page.goto(PHOTO_PAGE)
     const supported = await page.evaluate(() => CSS.supports('animation-timeline: view()'))
     test.skip(
       !supported,
@@ -783,14 +786,14 @@ test.describe('scroll motion — the photos open and drift', () => {
 
   test('under reduced motion none of them runs', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await page.goto('/')
+    await page.goto(PHOTO_PAGE)
     expect(await names(page)).toEqual(['none', 'none'])
   })
 
   test('a photo scrolled into view is fully open, whatever the engine', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
-    await page.goto('/')
-    const frame = page.locator('.about .photo-wipe').first()
+    await page.goto(PHOTO_PAGE)
+    const frame = page.locator('.photo-figure .photo-wipe').first()
     await frame.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     // "Fully open" is `none` or an inset whose every edge is zero — Chromium writes the
     // animation's end as `inset(0px 0px 0%)`.

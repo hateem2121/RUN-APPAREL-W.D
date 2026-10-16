@@ -126,7 +126,8 @@ for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/')
     const facts = page.locator('.about__points .fact')
-    await expect(facts, 'the №01 figures were not found, so nothing was measured').toHaveCount(2)
+    // Four since D41 (owner, 2026-10-16): 193,000 and "About 80%" joined, figure first like "Six".
+    await expect(facts, 'the №01 figures were not found, so nothing was measured').toHaveCount(4)
     const read = (index: number) =>
       facts.nth(index).evaluate((fact) => {
         const [first, second] = [...fact.children] as HTMLElement[]
@@ -153,6 +154,16 @@ for (const width of [390, 1280]) {
     })
     expect(await read(1), 'the second figure changed its order').toEqual({
       words: ['Six', 'Buildings, first stitch to sealed bag'],
+      markup: ['value', 'label'],
+      firstIsAbove: true,
+    })
+    expect(await read(2), 'the floor area changed its order').toEqual({
+      words: ['193,000', 'Sq m under roof'],
+      markup: ['value', 'label'],
+      firstIsAbove: true,
+    })
+    expect(await read(3), 'the solar share changed its order').toEqual({
+      words: ['About 80%', 'Of our electricity, from the solar roof'],
       markup: ['value', 'label'],
       firstIsAbove: true,
     })

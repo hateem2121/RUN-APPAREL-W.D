@@ -4242,7 +4242,7 @@ a.contact-block__value:active {
  * ⚠️ THE WASH IS 70% INK AT THE LEAST, WHERE C'S PICTURE HAD 35% ON THE RIGHT. The figures and
  * their labels sit in the right half, and a label is 12px text, so it needs 4.5:1 over the
  * brightest pixel the photo could put under it. Worst case white: 0.7 × #1c1f18 + 0.3 × white =
- * rgb(96, 98, 93), on which `--text` (#ecebe4) is 5.16:1 and the volt figures 4.85:1; at 35% the
+ * rgb(96, 98, 93), on which `--text` (#ecebe4) is 5.16:1, labels and figures alike; at 35% the
  * text would be 1.80:1 (computed with scripts/contrast-rules.mjs, 2026-10-16). The words and labels
  * read `--text`, as the hero's lede does. The section number keeps `--muted`, which the site must
  * never restyle (`publicSite.test.ts`), so the ground under it is darker instead: 88% on a phone
@@ -4282,13 +4282,12 @@ a.contact-block__value:active {
   position: relative;
 }
 
+/* The figures keep the heading colour, off-white here, as X25 has every figure but №05's featured
+   one (owner, 2026-10-16, choosing between lime and off-white side by side): on this section the
+   lime is the accent words' alone. */
 .about-ground .site-lede,
 .about-ground .fact__label {
   color: var(--text);
-}
-
-.about-ground .fact__value {
-  color: var(--dimension);
 }
 
 @media (min-width: 900px) {
