@@ -3979,7 +3979,8 @@ a.contact-block__value:active {
  * AA. axe cannot compute contrast over an image, so the arithmetic is the check.
  */
 .site-hero--photo,
-.order-step {
+.order-step,
+.about-ground {
   color-scheme: dark;
   /* The dark halves of tokens.css's pairs, re-declared here (see above). */
   --bg: #1c1f18;
@@ -4051,7 +4052,8 @@ a.contact-block__value:active {
  */
 @media print {
   .site-hero--photo,
-  .order-step {
+  .order-step,
+  .about-ground {
     color-scheme: light;
     --bg: inherit;
     --text: inherit;
@@ -4070,7 +4072,8 @@ a.contact-block__value:active {
     --focus-ring: inherit;
   }
 
-  .site-hero__photo {
+  .site-hero__photo,
+  .about-ground__photo {
     display: none;
   }
 }
@@ -4120,9 +4123,80 @@ a.contact-block__value:active {
   margin: 24px 0 0;
 }
 
-.about__photos {
-  display: grid;
-  gap: 24px;
+/*
+ * ⚠️ №01 ON THE AERIAL PHOTO (owner, option C, 2026-10-15/16; D41). The roof photo fills the
+ * section under a dark wash; the words take the left half and the four figures the right, centred
+ * on each other. The section is in the photo hero's dark token set (above), for the same reason.
+ *
+ * ⚠️ THE WASH IS 70% INK AT THE LEAST, WHERE C'S PICTURE HAD 35% ON THE RIGHT. The figures and
+ * their labels sit in the right half, and a label is 12px text, so it needs 4.5:1 over the
+ * brightest pixel the photo could put under it. Worst case white: 0.7 × #1c1f18 + 0.3 × white =
+ * rgb(96, 98, 93), on which `--text` (#ecebe4) is 5.16:1 and the volt figures 4.85:1; at 35% the
+ * text would be 1.80:1 (computed with scripts/contrast-rules.mjs, 2026-10-16). The words and labels
+ * read `--text`, as the hero's lede does. The section number keeps `--muted`, which the site must
+ * never restyle (`publicSite.test.ts`), so the ground under it is darker instead: 88% on a phone
+ * (`--muted` 4.64:1 over white; 84% gave 4.03) and a flat 90% across the left half from 900px
+ * (4.98:1), flat because on a 2,560px screen the words start a quarter of the way in, where a
+ * gradient would already have thinned. axe cannot compute contrast over an image, so the
+ * arithmetic is the check, and `e2e/aboutGround.spec.ts` reads the wash's stops back from the page.
+ */
+.about-ground {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.about-ground__photo {
+  position: absolute;
+  inset: 0;
+}
+
+.about-ground__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 40%;
+}
+
+.about-ground__photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+/* Positioned, so the words paint over the photo that comes before them. */
+.about-ground .site-container {
+  position: relative;
+}
+
+.about-ground .site-lede,
+.about-ground .fact__label {
+  color: var(--text);
+}
+
+.about-ground .fact__value {
+  color: var(--dimension);
+}
+
+@media (min-width: 900px) {
+  .about-ground__photo::after {
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--bg) 90%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 90%, transparent) 50%,
+      color-mix(in srgb, var(--bg) 70%, transparent) 100%
+    );
+  }
+
+  .about-ground .about {
+    align-items: center;
+  }
+
+  .about-ground .about__points {
+    margin: 0;
+  }
 }
 
 /* ------------------------------------------------ a factory photo inside a section */
