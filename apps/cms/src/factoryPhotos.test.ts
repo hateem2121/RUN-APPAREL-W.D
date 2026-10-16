@@ -24,6 +24,7 @@ import {
   HERO_SHAPES,
   heroPhotoSrc,
 } from './lib/factoryPhotos'
+import { ORDER_PHASES } from './lib/orderProcess'
 import { hintAt, pickedWidth } from './sizesAt'
 
 /**
@@ -337,7 +338,14 @@ describe('the factory photos (OI-3)', () => {
  * D4 the steps are cards up to 704 px wide, and the 4:5 files stopped at 800 px, so a 2x screen at
  * 1,920 px stretched them 1.76 times (1,408 px asked, 800 given). A bigger file may only come from a
  * bigger original: two originals are narrower than their shape's largest file (`ORIGINAL_LIMITS`),
- * and those two photos are the only ones still short, each by what its original lacks.
+ * and those two photos were the only ones short, each by what its original lacks.
+ *
+ * ⚠️ SINCE D42 (2026-10-16) EVERY STEP PHOTO IS HALF OF A FULL-SCREEN CARD, so a sharp laptop asks
+ * up to 2,560 px of a file whose widest is 1,200–1,600. The owner chose the site's own photos for
+ * the cards knowing that (options page, 2026-10-15: "soft on a 2x full screen"; no new originals).
+ * So a step photo may fall short, but only while it is handed its WIDEST file, and never by more
+ * than 2,560 against 1,200 (2.13 times): a width taken away, or a narrower file, still fails here.
+ * №01's photos may not fall short at all.
  *
  * The check reads the page's own markup (№01 and №04, as the server sends them) and picks a file
  * the way both engines do: the smallest whose density reaches the screen's, else the largest
@@ -361,6 +369,14 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
 
   /** The photo files narrower than their shape asks, because the original is: slug → its widest. */
   const ORIGINAL_LIMITS = { tagging: 1200, packing: 1200 }
+  /** The eight step photos (D42): each may fall short on a big sharp screen, at its widest file. */
+  const STEP_PHOTOS = new Set(
+    ORDER_PHASES.flatMap((phase) => phase.steps.map((step) => step.photo)),
+  )
+  const widestOf = (slug: string) => {
+    const photo = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
+    return photo ? Math.max(...factoryPhotoWidths(photo)) : 0
+  }
 
   type Picture = { slug: string; srcset: string; sizes: string }
 
@@ -402,25 +418,34 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     }
   })
 
-  it('leaves only the two photos whose originals hold no more, each at its widest file', () => {
+  it('leaves only the step photos short, each at its widest file, and №01 never', () => {
     const misses = shortfalls(pictures)
     const said = misses.map(
       (miss) => `${miss.slug} at ${miss.screen}: asks ${miss.asks}, gets ${miss.gets}`,
     )
-    expect([...new Set(misses.map((miss) => miss.slug))].sort(), said.join('\n')).toEqual(
-      Object.keys(ORIGINAL_LIMITS).sort(),
-    )
+    expect(
+      misses.filter((miss) => !STEP_PHOTOS.has(miss.slug)),
+      `a photo that is not a step's falls short:\n${said.join('\n')}`,
+    ).toEqual([])
     for (const miss of misses) {
-      expect(miss.gets, said.join('\n')).toBe(
-        ORIGINAL_LIMITS[miss.slug as keyof typeof ORIGINAL_LIMITS],
+      const widest =
+        ORIGINAL_LIMITS[miss.slug as keyof typeof ORIGINAL_LIMITS] ?? widestOf(miss.slug)
+      expect(miss.gets, `${miss.slug} at ${miss.screen} is not handed its widest file`).toBe(widest)
+      expect(miss.asks / miss.gets, `${miss.slug} at ${miss.screen}`).toBeLessThanOrEqual(
+        2560 / 1200,
       )
     }
+    // Not vacuous: the cards really are wider than their files on a big sharp screen.
+    expect(misses.map((miss) => miss.screen)).toContain('2560@2x')
   })
 
-  // NEGATIVE CONTROL, both ways: the files №04 offered until X16 are short on a 2x computer, and
-  // the widths a tall photo is offered now are not.
+  // NEGATIVE CONTROL, both ways, on the half-page card №04 drew from X16 to D42 (its own hint): the
+  // files it offered until X16 are short on a 2x computer, and the widths a tall photo has are not.
   it('sees a photo stretched on a sharp screen, and none when the widths reach', () => {
-    const sizes = pictures.find((picture) => picture.slug === 'inspection')?.sizes ?? ''
+    const sizes =
+      '(max-width: 399px) calc(100vw - 40px), (max-width: 899px) calc(90vw + 2px), ' +
+      '(max-width: 1279px) calc(45vw - 31px), (max-width: 1439px) calc(50vw - 96px), ' +
+      '(max-width: 1919px) 624px, 704px'
     const before = shortfalls([
       { slug: 'before', srcset: 'a-400.webp 400w, a-800.webp 800w', sizes },
     ])

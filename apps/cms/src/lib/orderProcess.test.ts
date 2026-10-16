@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FACTS } from './companyFacts'
+import { FACTS, LEAD_TIME } from './companyFacts'
 import { FACTORY_PHOTOS } from './factoryPhotos'
 import { ORDER_PHASES } from './orderProcess'
 
@@ -24,11 +24,17 @@ describe('the order steps', () => {
   })
 
   it('quotes the home page numbers rather than a second copy of them', () => {
-    for (const prefix of ['Working days', 'Minimum']) {
-      const value = fact(prefix)
-      expect(value, prefix).toBeTruthy()
-      expect(text).toContain(value)
-    }
+    const days = fact('Working days')
+    expect(days).toBeTruthy()
+    expect(text).toContain(days)
+    expect(text).toContain(LEAD_TIME)
+  })
+
+  // The hero states the minimum; since D42 (owner, 2026-10-16) step 2 no longer repeats it, and
+  // only the size split's own line names "a style's minimum", without the number.
+  it('leaves the minimum to the hero', () => {
+    expect(text).not.toContain(`Minimum ${fact('Minimum')}`)
+    expect(text).not.toMatch(new RegExp(`\\b${fact('Minimum')} pieces`))
   })
 
   /*

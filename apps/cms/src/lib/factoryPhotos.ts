@@ -83,7 +83,9 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
   {
     slug: 'solar-roof',
     shape: 'wide',
-    alt: 'The same building from above, its roof covered in solar panels.',
+    // Its own words since 2026-10-16: "The same building from above" read only after the front of
+    // the building, and the community and factory pages show this photo first or alone.
+    alt: 'The works from above, the roof covered in solar panels.',
     caption: 'Solar panels across the roof',
   },
   {

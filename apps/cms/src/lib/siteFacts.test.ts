@@ -95,8 +95,9 @@ describe('the site-wide copy guard', () => {
  * roof across six buildings. Until that day 13 lines across the home page, the FAQ, the guides and
  * the company pages said "one building", "under one roof" or "the same floor", and 11 more spoke of
  * "our building" as if there were one; the home page's aerial photo showed the other buildings
- * beside the claim. "The same building from above" (the solar photo's description) stays: it IS
- * the building in the photo before it, so `factoryPhotos.ts` is not read here.
+ * beside the claim. `factoryPhotos.ts` is not read here: the solar photo was described as "the same
+ * building from above", the building in the photo before it, until 2026-10-16, when it got words of
+ * its own because no page showed it after that photo any more.
  */
 const BUILDING_MODULES: Record<string, object> = {
   'aboutCopy.ts': aboutCopy,
@@ -128,7 +129,9 @@ describe('six buildings on one site (owner, 2026-10-15)', () => {
     // A walker that collected nothing would pass the loop above, so it must find the new lines.
     const words = Object.values(BUILDING_MODULES).flatMap(stringsOf).join(' ')
     expect(words).toContain('Buildings, first stitch to sealed bag')
-    expect(words).toContain('Cut, stitched and finished on one site in Pakistan.')
+    // Step 5's "Cut, stitched and finished on one site in Pakistan." gave way to the lead time with
+    // D42 (owner, 2026-10-16); the factory page's close says the same of all five stages.
+    expect(words).toContain('These five stages happen on one site, across six buildings.')
     expect(HOME_SOURCE).toContain('finished on the same site')
     for (const old of [
       'Cut, stitched and finished in one building in Pakistan.',

@@ -544,7 +544,7 @@ p:where(
   .label,
   .family-card__meta,
   .family-card__types,
-  .order-step__tag,
+  .order-stage__name,
   .field-label,
   .footer-eyebrow,
   .footer-dim,
@@ -644,6 +644,8 @@ html {
   --text-lead: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
   /* The glossary's A–Z row, held under the menu bar and over the terms as they scroll. */
   --z-sticky-index: 2;
+  /* №04's stage name ("Stage 1 · Talk"), over its card's two step photos, inside the card (D42). */
+  --z-stage-name: 1;
   /* `--site-max` and `--site-gutter` moved to packages/ui/src/tokens.css on 2026-10-02 (VA-31): the
      footer that lines up with them is drawn on the garment pages too. The website's width steps
      sit just before `.site-container`, below (polish D1). */
@@ -4919,98 +4921,135 @@ a.contact-block__value:active {
   scale: 0.98;
 }
 
-/* ------------------------------------------------ №04 how an order works: the order steps (D4) */
+/* ------------------------------------------------ №04 how an order works: the stage cards (D42) */
 
 /*
- * ⚠️ EIGHT PHOTO CARDS THAT STACK AS THE PAGE SCROLLS (polish D4, the owner's answer Q14 of
- * 2026-10-03: "B, stacking photo cards"). Each step is a card over its own room's photo
- * (`OrderSteps.tsx`). Each card stops 8px below the one before, the next slides up over it, and
- * the covered card sinks back and darkens, like cards being dealt. The SAME cards are the order
- * guide's "The eight steps" (Q41), so the two places cannot word the steps differently (X21).
- * Until 2026-10-05 this was a timeline: rows of words beside square photos, and a drawn line.
+ * ⚠️ FOUR FULL-SCREEN STAGE CARDS, TWO STEPS TO A CARD (owner, option A3, 2026-10-15; D42). Each
+ * card is one stage, named once in a volt pill; each half is one step over the photo of its room
+ * (`OrderSteps.tsx`). From 900px the halves sit side by side, below it one above the other. Each
+ * card stops 8px below the one before, and the next slides up over it; nothing animates (the
+ * option's own words). The SAME cards are the order guide's "The eight steps" (Q41, confirmed for
+ * the four cards on 2026-10-16), so the two places cannot word the steps differently (X21).
  *
- * From 900px the heading and its words stay on the left while the cards pass on the right: the
- * half №01's photos take, because the photo files stopped at 1200px (wide) and 800px (tall); since
- * polish X16 they reach 1600px and 1536px, which is what a 2x screen asks for this half (up to 704px
- * wide). On the guide the section heading does the same beside its cards (`.spread`).
- */
-@media (min-width: 900px) {
-  .order-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 64px;
-    align-items: start;
-  }
-
-  /* Its grid area runs the whole height of the cards and the button, so it can stay that long. */
-  .order-layout__head {
-    grid-row: 1 / span 2;
-    position: sticky;
-    top: var(--notch-clearance);
-  }
-
-  .order-layout > .order-steps,
-  .order-layout__actions {
-    grid-column: 2;
-  }
-
-  .spread:has(> .spread__body > .order-steps) > .display {
-    position: sticky;
-    top: var(--notch-clearance);
-  }
-}
-
-/*
- * `--step-h` is a card's height and `--step-gap` the room between two cards in the list; the
- * stack's arithmetic below reads both. In rem, so a reader's larger text gets a taller card and
- * the words still fit (`e2e/orderTimeline.spec.ts` sets 200% text); a card whose words need more
- * than this still grows (`min-block-size`) rather than cut them.
+ * Eight half-width cards that sank back and darkened as the next covered them until D42 (polish
+ * D4), and a timeline of rows before that.
  *
- * On a phone 16.875rem (270px), 20rem until polish X8 (2026-10-05, the owner's "shorter cards"): 50px
- * less a card, 400px less on the phone home page (10,295px to 9,895px at 390x844 in CI's image;
- * 9,819px once the photo labels went the same day). The fullest card's words ("Your quote") need
- * 193px at 390px, so at least 61px of its photo still shows, and about 100px on the others.
+ * The cards are the screen's whole width, outside the page's column (`OrderTimeline.tsx`), and
+ * their words keep the column's edge: `--stage-edge` is where the column's content starts, the
+ * gutter on a narrow screen and the gutter plus the margin beside `--site-max` on a wide one. In
+ * `cqi`, the list's own width: a custom property is worked out where it is USED, so `100%` there
+ * meant the step's half, and the words sat 160px off the heading's edge at 1920px (measured).
+ *
+ * `--stage-h` is a card's height: the screen under the bar, less room for the three cards before
+ * it to show 8px each and 8px below, so the fourth card's foot is still on the screen when it stops.
+ * svh, the screen with the browser's bars shown, so a phone's bar sliding in hides nothing.
  */
-.order-steps {
-  --step-h: 16.875rem;
-  --step-gap: 24px;
+.order-stages {
+  --stage-h: calc(100svh - var(--notch-clearance) - 4 * 8px);
+  --stage-edge: max(var(--site-gutter), calc((100cqi - var(--site-max)) / 2 + var(--site-gutter)));
+  container-type: inline-size;
   display: grid;
-  row-gap: var(--step-gap);
+  row-gap: 24px;
   margin: 24px 0 0;
   padding: 0;
   list-style: none;
 }
 
-@media (min-width: 560px) {
-  .order-steps {
-    --step-h: 23.75rem;
-  }
+/* `max-width: none`: base.css caps every `li` at 60ch. */
+.order-stages > .order-stage {
+  position: relative;
+  min-block-size: var(--stage-h);
+  max-width: none;
+  background: var(--ink);
 }
 
-@media (min-width: 900px) {
-  .order-layout > .order-steps {
-    margin-block-start: 0;
-  }
+.order-stage__name {
+  position: absolute;
+  z-index: var(--z-stage-name);
+  top: 18px;
+  left: var(--stage-edge);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--volt);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-wide);
+  text-transform: uppercase;
+}
+
+.order-stage__steps {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  min-block-size: inherit;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /*
- * ⚠️ THE CARD IS DARK IN BOTH THEMES: it takes the photo hero's own tokens (the block that starts
- * "THE HERO IS DARK IN BOTH THEMES" above names this selector too), and for the same reason its
- * words are `--text`, never `--muted`. `max-width: none` because base.css caps every `li` at 60ch,
- * and a guide's prose caps them again (`.prose--guide li`), which this beats on specificity.
+ * ⚠️ THE STEP IS DARK IN BOTH THEMES: it takes the photo hero's own tokens (the block that starts
+ * "THE HERO IS DARK IN BOTH THEMES" above names `.order-step`), and for the same reason its words
+ * are `--text`, never `--muted`.
+ *
+ * The number and whose move it is at the top, the words at the foot, and the photo showing in the
+ * row between (at least 16px of it).
  */
-.order-steps > .order-step {
+.order-stage__steps > .order-step {
+  --pad-start: var(--stage-edge);
+  --pad-end: var(--stage-edge);
   position: relative;
   isolation: isolate;
   display: grid;
-  min-block-size: var(--step-h);
+  grid-template-rows: auto minmax(16px, 1fr) auto;
   max-width: none;
+  padding: 18px var(--pad-end) 0 var(--pad-start);
   overflow: clip;
-  border-radius: var(--radius-card);
-  background: var(--bg);
 }
 
-/* Behind the words: the picture's own `focus` (lib/factoryPhotos.ts) is its `object-position`. */
+/* Under the stage's pill, on the first step: the pill's 18px, its height and 18px under it. */
+.order-stage__steps > .order-step:first-child {
+  padding-block-start: 64px;
+}
+
+.order-stage__steps > .order-step + .order-step {
+  border-block-start: 1px solid var(--line);
+}
+
+/*
+ * From 900px the halves sit side by side, and both share the card's three rows (subgrid), so the
+ * taller words set the row and the other half's title starts level with its neighbour's: the two
+ * titles read as one line (measured on the options page, 2026-10-15).
+ */
+@media (min-width: 900px) {
+  .order-stage__steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto minmax(16px, 1fr) auto;
+  }
+
+  /* Each half keeps the column's edge on its outer side and the gutter on its inner one. */
+  .order-stage__steps > .order-step {
+    --pad-end: var(--site-gutter);
+    grid-row: 1 / -1;
+    grid-template-rows: subgrid;
+    padding-block-start: 64px;
+  }
+
+  /* Two classes: the plain rule further down would win otherwise. */
+  .order-step .order-step__words {
+    --fade: 64px;
+  }
+
+  .order-stage__steps > .order-step + .order-step {
+    --pad-start: var(--site-gutter);
+    --pad-end: var(--stage-edge);
+    border-block-start: 0;
+    border-inline-start: 1px solid var(--line);
+  }
+}
+
+/* Behind everything: the picture's own `focus` (lib/factoryPhotos.ts) is its `object-position`. */
 .order-step__photo {
   position: absolute;
   inset: 0;
@@ -5021,29 +5060,81 @@ a.contact-block__value:active {
 }
 
 /*
- * ⚠️ THE WASH IS 80% INK AT THE LEAST, the photo hero's rule and arithmetic: over the whitest pixel
- * a photo could have, `--text` is about 7:1 and the volt about 6.8:1 (both 4.5:1 or better). It is
- * the words' own background, so it covers the card wherever words can be, with the hero's faint
- * grid over it. `e2e/orderTimeline.spec.ts` measures every line against the real pixels behind it,
- * and again over a white picture.
- *
- * The number and the stage on top, the words at the foot, and the photo showing in the row
- * between (at least 16px of it, and the room a card has to spare on a wider screen).
+ * The number's ground: the photo darkened at the top, so the volt figure is at least 4.85:1 over the
+ * whitest pixel a photo could have (70% ink: 0.7 × #1c1f18 + 0.3 × white = rgb(96, 98, 93)), and
+ * clear to the middle, where the photo is meant to be seen. The 70% holds over the whole top row:
+ * the first step's pill room (64px) and the number at its largest (4.5rem, `.display--hero`'s cap).
+ * It stopped at 64px in the first build, and over a white photo the number measured 2.14:1 there.
+ * Painted after the photo, at its layer.
+ */
+.order-step::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hero-grid);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg) 70%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 70%, transparent) calc(64px + 4.5rem),
+    transparent max(40%, calc(64px + 4.5rem + 64px))
+  );
+  pointer-events: none;
+}
+
+.order-step__top {
+  display: flex;
+  flex-wrap: wrap;
+  grid-row: 1;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The hero's number size, in the volt: the step's place in the order, for the eye. */
+.order-step .order-step__number {
+  color: var(--dimension);
+  line-height: 1;
+}
+
+/* Whose move it is, on its own dark ground so it reads on any photo: "You" ringed in the volt. */
+.order-step__actor {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.order-step__actor--You {
+  border-color: var(--dimension);
+}
+
+/*
+ * ⚠️ THE WORDS SIT ON 80% INK AT THE LEAST, the photo hero's rule and arithmetic: over the whitest
+ * pixel a photo could have, `--text` is about 7:1. The words' own ground fades in from the photo
+ * over the `--fade` above them (64px, 24px on a phone, where a card's height is scarcest), so it
+ * starts at 80% exactly where the title does, and deepens to 90% at the card's foot. `e2e/orderTimeline.spec.ts` measures every line against the real pixels
+ * behind it, and again over a white picture.
  */
 .order-step__words {
+  --fade: 24px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(16px, 1fr) auto auto;
-  column-gap: 12px;
-  padding: 20px;
+  grid-row: 3;
+  align-content: start;
+  gap: 8px;
+  margin-inline: calc(-1 * var(--pad-start)) calc(-1 * var(--pad-end));
+  padding: var(--fade) var(--pad-end) 24px var(--pad-start);
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px),
     linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--bg) 80%, transparent) 0%,
-      color-mix(in srgb, var(--bg) 80%, transparent) 50%,
-      color-mix(in srgb, var(--bg) 88%, transparent) 100%
+      transparent 0,
+      color-mix(in srgb, var(--bg) 80%, transparent) var(--fade),
+      color-mix(in srgb, var(--bg) 90%, transparent) 100%
     );
   background-size:
     26px 26px,
@@ -5051,167 +5142,87 @@ a.contact-block__value:active {
     auto;
 }
 
-/* The section's own number size (`.display--section`, as №05's figures), in the volt. */
-.order-step .order-step__number {
-  grid-column: 1;
-  grid-row: 1;
-  color: var(--dimension);
-}
-
-/* The stage, then whose move it is: "You" is ringed in the volt, so a buyer can scan for their turns. */
-.order-step .order-step__tag {
-  display: flex;
-  flex-wrap: wrap;
-  grid-column: 2;
-  grid-row: 1;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-}
-
-.order-step__phase {
-  color: var(--dimension);
-}
-
-.order-step__actor {
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  color: var(--text);
-}
-
-.order-step__actor--You {
-  border-color: var(--dimension);
-}
-
 .order-step .order-step__title {
-  grid-column: 1 / -1;
-  grid-row: 3;
   margin: 0;
-  font-size: var(--text-card-title);
-  letter-spacing: var(--tracking-card-title);
-  line-height: 1.1;
 }
 
-/* 28.635em is 50ch of Archivo, the timeline's measure (CI counted 77 characters a line at 55ch). */
-.order-step .order-step__body {
-  grid-column: 1 / -1;
-  grid-row: 4;
+/*
+ * 28.635em is 50ch of Archivo, the steps' measure since the timeline (CI counted 77 a line at 55ch).
+ * The smaller second line keeps it too: at `p`'s 34.362em it ran 77–82 characters at 768px and at
+ * 1440px (FA-C-52, 2026-10-16). In em, so it narrows with the smaller size. Up to 412px wide a step is
+ * already narrower than this (372px at 412).
+ */
+.order-step .order-step__body,
+.order-step .order-step__detail {
   max-width: 28.635em;
-  margin: 6px 0 0;
-  font-size: var(--text-sm);
+  margin: 0;
   color: var(--text);
 }
 
-/* The shade a covered card sinks into; nothing at rest. It holds no words, so animating its
-   opacity does not set the axe contrast trap the entrance motion records (`site-reveal`). */
-.order-steps > .order-step::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--ink);
-  opacity: 0;
-  pointer-events: none;
+.order-step .order-step__detail {
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 899px) {
+  .order-step .order-step__body {
+    font-size: var(--text-sm);
+  }
+
+  .order-step .order-step__detail {
+    font-size: var(--text-xs);
+  }
 }
 
 /*
  * ⚠️ THE STACK, ONLY FOR SOMEONE WHO ALLOWS MOTION, AND ONLY ON A SCREEN TALL ENOUGH TO HOLD IT.
- * Under reduced motion the cards are a plain list (the report's D4: "reduce motion shows the steps
- * without movement"). And a card that stops where its foot is below the screen hides its words for
- * good, because the next card covers it from the foot up: a phone held sideways is 390px tall
- * against a stopped card's 86px + 56px + 380px. 40rem (640px at the default text size) is the
- * shortest screen the whole stack fits on with room to spare; rem in a media query follows the
- * reader's text size, as the cards' rem heights do.
+ * Under reduced motion the cards are a plain list, as the eight were (polish D4). And a card that
+ * stops with its foot below the screen hides its words for good, because the next card covers it
+ * from the foot up, so the stack needs the fullest card to fit. Measured in the build (2026-10-16,
+ * cards with nothing forcing their height): the fullest needs 666px at 360px wide, 626px at 375–390px, 601px at
+ * 768px and at most 408px from 900px, and a screen gives it its height less the bar's clearance
+ * (84px) and 32px. So from 900px a 40rem screen (640px) holds the stack, and below 900px it takes
+ * 50rem (800px; 782px would be the bare minimum, and a phone's own bars can take some of it from
+ * `svh`): a 390 × 844 phone stacks, a 360 × 780 or 375 × 667 one is a list. rem in a media query follows the
+ * reader's text size, so larger text turns the stack off before it could hide anything. Here, and
+ * only here, a card is exactly the screen's height.
  *
  * Card i stops at the bar's clearance plus 8px for each card before it, so each card's top edge
- * stays in sight under the next.
- *
- * ⚠️ THE LAST CARD'S ROOM TO STOP IS AN EMPTY ROW OF THE LIST, NOT A MARGIN. A stopped card may not
- * leave its list, margin and all, so a margin under the last card took away exactly the room it
- * was meant to give: the eighth card never stopped (measured 2026-10-05). `::after` is one more
- * row, 24px after the gap, so the finished stack holds for 48px of scroll before it moves away.
+ * stays in sight under the next. The last card's room to stop is an empty row of the list, not a
+ * margin: a stopped card may not leave its list, margin and all (measured 2026-10-05).
  */
-@media screen and (prefers-reduced-motion: no-preference) and (min-height: 40rem) {
-  .order-steps > .order-step {
+@media screen and (prefers-reduced-motion: no-preference) and (min-width: 900px) and (
+    min-height: 40rem
+  ),
+  screen and (prefers-reduced-motion: no-preference) and (min-height: 50rem) {
+  .order-stages > .order-stage {
     position: sticky;
     top: calc(var(--notch-clearance) + var(--i) * 8px);
-    transform-origin: 50% 0;
+    block-size: var(--stage-h);
   }
 
-  .order-steps::after {
+  .order-stages::after {
     content: "";
     block-size: 24px;
   }
-
-  /*
-   * ⚠️ THE SINK RUNS ON THE LIST'S OWN SCROLL TIMELINE, AND THE ARITHMETIC IS THE STACK'S.
-   * `exit-crossing 0` is the list's top reaching the bar's clearance (`view-timeline-inset`), and
-   * a length after it is that many pixels of scroll later (CSS Scroll-driven Animations, editor's
-   * draft of 25 Sep 2026, §3.1). Card i stops at i × (H + M − 8px) of scroll, the next card touches
-   * its foot M later, and stops H − 8px after that, exactly covering it: so the sink runs from
-   * i × (H + M − 8px) + M to (i + 1) × (H + M − 8px). The list is the timeline because it never
-   * stops itself; a stopped card's position would hold still while the scroll moved on.
-   *
-   * Only where the browser has scroll timelines AND animation ranges (a browser with the first and
-   * not the second would run the sink over the whole page): in Firefox the cards stack without
-   * sinking, which is the progressive enhancement the web-guidance index recommends for a
-   * decorative effect (no script fallback). Transform and opacity only, so it stays on the
-   * compositor.
-   */
-  @supports ((animation-timeline: view()) and (animation-range: 0% 100%)) {
-    .order-steps {
-      view-timeline: --order-steps block;
-      view-timeline-inset: var(--notch-clearance) 0px;
-    }
-
-    .order-steps > .order-step:not(:last-child),
-    .order-steps > .order-step:not(:last-child)::after {
-      animation: order-step-sink var(--slow) linear both;
-      animation-timeline: --order-steps;
-      animation-range: exit-crossing
-        calc(var(--i) * (var(--step-h) + var(--step-gap) - 8px) + var(--step-gap)) exit-crossing
-        calc((var(--i) + 1) * (var(--step-h) + var(--step-gap) - 8px));
-    }
-
-    .order-steps > .order-step:not(:last-child)::after {
-      animation-name: order-step-shade;
-    }
-  }
 }
 
-@keyframes order-step-sink {
-  from {
-    scale: 1;
-  }
-  to {
-    scale: 0.94;
-  }
-}
-
-@keyframes order-step-shade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.55;
-  }
-}
-
-/* On paper: the list (the stack is for screens only), without photos or shade, in the page's own
-   colours (the photo hero's print rule names this card too). */
+/* On paper: the list (the stack is for screens only), without photos or washes, in the page's own
+   colours (the photo hero's print rule names the step too). */
 @media print {
-  .order-steps > .order-step {
+  .order-stages > .order-stage {
     border: 1px solid var(--line);
+    background: none;
     break-inside: avoid;
   }
 
+  .order-stage__name {
+    position: static;
+    display: inline-block;
+    margin: 12px 0 0 12px;
+  }
+
   .order-step__photo,
-  .order-steps > .order-step::after {
+  .order-step::after {
     display: none;
   }
 
