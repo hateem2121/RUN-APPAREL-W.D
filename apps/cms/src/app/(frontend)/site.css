@@ -2673,7 +2673,7 @@ a.contact-block__value:active {
   margin-inline-start: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
-  /* Normal letters (visual audit VA-44, owner's choice 2026-10-02): "Building, first stitch to sealed bag" is a sentence, 36 capitals. */
+  /* Normal letters (visual audit VA-44, owner's choice 2026-10-02): "Buildings, first stitch to sealed bag" is a sentence, 37 capitals. */
   color: var(--muted);
 }
 

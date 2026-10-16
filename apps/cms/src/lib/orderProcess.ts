@@ -85,7 +85,7 @@ export const ORDER_PHASES: readonly OrderPhase[] = [
         actor: 'We',
         title: 'Bulk production',
         photo: 'stitching',
-        body: 'Cut, stitched and finished in one building in Pakistan.',
+        body: 'Cut, stitched and finished on one site in Pakistan.',
       },
       {
         actor: 'We',

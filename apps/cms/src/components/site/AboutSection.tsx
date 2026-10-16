@@ -12,7 +12,7 @@ import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
  * and the year its description, so the DOM, the screen and a screen reader all say "Making clothes
  * since 1889". It is the markup order that changes, never a CSS reordering: `order` or
  * `column-reverse` would leave a screen reader reading the old order (WCAG 1.3.2, technique C27).
- * The neighbour ("One", "Building, first stitch to sealed bag") reads naturally and keeps its order.
+ * The neighbour ("Six", "Buildings, first stitch to sealed bag") reads naturally and keeps its order.
  * These figures are plain text; the count-up island belongs to №05's numbers (`CountUp.tsx`).
  */
 const POINTS: readonly AboutPoint[] = ABOUT.points

@@ -57,19 +57,20 @@ const byline = (author: Author, published: string, on: string, words: string): B
 const GUIDES_1 = '2026-09-30T20:06:49+05:00'
 const GUIDES_2 = '2026-09-30T20:43:00+05:00'
 const GUIDES_3 = '2026-09-30T22:15:50+05:00'
-/** The polish build (#128): photos and tables in six guides, the order steps in one. */
-const POLISH = '2026-10-05T14:20:27+05:00'
-/** The policies, careers and community pages (#141), and careers' form the same evening (#143). */
 /** The reference garments joined the 3D, printing and fabrics guides (findability audit). */
 const GARMENT_LINKS = '2026-10-08T16:26:29+05:00'
 /** The cost guide and the country comparison, approved by the owner (findability audit). */
 const NEW_GUIDES = '2026-10-08T16:38:58+05:00'
+/** The policies, careers and community pages (#141). */
 const POLICIES_LIVE = '2026-10-07T12:40:02+05:00'
-const CAREERS_FORM = '2026-10-07T19:11:24+05:00'
 /** The commit that shipped the about and factory pages' approved words (092a086). */
 const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
-/** The factory headline's doubled accent word removed ("Inside the factory factory"). */
-const FACTORY_HEADLINE = '2026-10-09T13:22:38+05:00'
+/**
+ * "One building" corrected to six buildings on one site, every word approved by the owner. It
+ * replaced the dates of the polish build (#128), careers' form (#143) and the factory headline's fix
+ * on every page it touched, so those three constants went with it.
+ */
+const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -77,28 +78,28 @@ const FACTORY_HEADLINE = '2026-10-09T13:22:38+05:00'
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
   '/about': 'e20c171297da',
-  '/inside-the-factory': '7df081814110',
+  '/inside-the-factory': '6dbbda2a5dae',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-a-private-label-order-works': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    POLISH,
-    'acb37f283da5',
+    SIX_BUILDINGS,
+    '61ebaa6bc0c5',
   ),
   '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, GARMENT_LINKS, '9afd7f827218'),
   '/guides/minimum-order-and-samples': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    POLISH,
-    '8043a7303169',
+    SIX_BUILDINGS,
+    '69202031e4bb',
   ),
   '/guides/garment-printing-methods': byline(
     AUTHORS.production,
     GUIDES_2,
-    GARMENT_LINKS,
-    '2c13092c7170',
+    SIX_BUILDINGS,
+    '14f01dcef536',
   ),
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
@@ -106,27 +107,32 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     GARMENT_LINKS,
     'e5d99bfe8009',
   ),
-  '/guides/private-label-packaging': byline(AUTHORS.merchandiser, GUIDES_2, POLISH, '52c935d60b2d'),
+  '/guides/private-label-packaging': byline(
+    AUTHORS.merchandiser,
+    GUIDES_2,
+    SIX_BUILDINGS,
+    '2fc3ab65674b',
+  ),
   '/guides/shipping-and-import-duties': byline(
     AUTHORS.merchandiser,
     GUIDES_3,
-    POLISH,
-    'f070ac50da5f',
+    SIX_BUILDINGS,
+    'e4a623dd5ca7',
   ),
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    NEW_GUIDES,
-    '893186b29350',
+    SIX_BUILDINGS,
+    'bf7e9d7b6282',
   ),
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    NEW_GUIDES,
-    '9f8abc07a243',
+    SIX_BUILDINGS,
+    '4534a342ef7d',
   ),
-  '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, '6da51606a09c'),
-  '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, '9e4eaa8e29d7'),
+  '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
+  '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),
   '/policies/health-and-vaccination': byline(
     AUTHORS.hr,
     POLICIES_LIVE,
@@ -136,8 +142,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/policies/equal-opportunity': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'f7b578a1207f'),
   '/policies/labor-rights': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e7040ea909d2'),
   '/policies/quality': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e442ac2701ef'),
-  '/policies/environmental': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, '91196555a7a8'),
-  '/careers': byline(AUTHORS.hr, POLICIES_LIVE, CAREERS_FORM, '04917a5d247d'),
+  '/policies/environmental': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, '2192f91d468f'),
+  '/careers': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, '77747b8b8d27'),
   // The about and factory pages: the commit that shipped their approved words (092a086), and
   // its time. The fingerprint is `bylines.test.ts`'s of the words at that moment.
   '/about': byline(
@@ -149,7 +155,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    FACTORY_HEADLINE,
+    SIX_BUILDINGS,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }

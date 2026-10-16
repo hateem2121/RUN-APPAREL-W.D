@@ -105,7 +105,7 @@ const ORDERS: FaqTopic = {
       id: 'minimum-order',
       question: 'What is RUN APPAREL’s minimum order?',
       answer: `RUN APPAREL’s minimum order is ${MINIMUM} pieces per style.`,
-      detail: `The same building, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand. Capacity is ${CAPACITY} pieces per month.`,
+      detail: `The same site, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand. Capacity is ${CAPACITY} pieces per month.`,
       source: 'minimum-order guide, FACTS',
     },
     {
@@ -281,7 +281,7 @@ const SHIPPING: FaqTopic = {
       question: 'Which price terms (Incoterms) do you quote?',
       answer: 'EXW, FOB, CFR, CIF and DDP. FOB, CFR and CIF are used for sea freight.',
       detail:
-        'EXW: you collect the goods from our building. FOB: we load the goods onto the ship at the port in Pakistan. CFR and CIF: we pay the sea freight to your port, and under CIF the insurance too. DDP: we deliver to your door with the import duty and tax already paid. These terms follow the International Chamber of Commerce rules, called Incoterms.',
+        'EXW: you collect the goods from our works. FOB: we load the goods onto the ship at the port in Pakistan. CFR and CIF: we pay the sea freight to your port, and under CIF the insurance too. DDP: we deliver to your door with the import duty and tax already paid. These terms follow the International Chamber of Commerce rules, called Incoterms.',
       source: 'shipping guide',
     },
     {
@@ -331,7 +331,7 @@ const FABRICS: FaqTopic = {
   path: '/faq/fabrics-and-printing',
   title: 'FAQ: Fabrics and Printing',
   description:
-    'The fabrics RUN APPAREL works with, what GSM means, the seven printing methods in its own building, and how to choose a fabric for your garment.',
+    'The fabrics RUN APPAREL works with, what GSM means, the seven printing methods done on site, and how to choose a fabric for your garment.',
   heading: 'Fabrics',
   headingAccent: 'and printing.',
   entries: [
@@ -354,7 +354,7 @@ const FABRICS: FaqTopic = {
       id: 'printing-methods',
       question: 'Which printing methods do you offer?',
       answer:
-        'Seven, all inside our own building: screen printing, sublimation, DTF, DTG, heat transfer vinyl, embroidery and special inks.',
+        'Seven, all on the same site: screen printing, sublimation, DTF, DTG, heat transfer vinyl, embroidery and special inks.',
       source: 'printing guide',
     },
     {
@@ -374,7 +374,7 @@ const FABRICS: FaqTopic = {
     {
       id: 'embroidery',
       question: 'Do you do embroidery?',
-      answer: 'Yes, in our own building. Embroidery suits logos and badges.',
+      answer: 'Yes, on the same site. Embroidery suits logos and badges.',
       source: 'printing guide',
     },
     {
