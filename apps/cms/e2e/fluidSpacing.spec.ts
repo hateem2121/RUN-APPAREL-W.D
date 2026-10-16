@@ -17,7 +17,8 @@ const MEASURED: { path: string; selector: string; property: string }[] = [
   { path: '/', selector: '.site-container', property: 'padding-left' },
   { path: '/', selector: '.site-section', property: 'padding-top' },
   { path: '/', selector: '.site-section', property: 'padding-bottom' },
-  { path: '/', selector: '.footer-cta', property: 'padding-top' },
+  // The footer's question is not on the home page since 2026-10-16; /products still draws it.
+  { path: '/products', selector: '.footer-cta', property: 'padding-top' },
   { path: '/', selector: '.footer-facts', property: 'padding-bottom' },
   // A plain hero (the home and products heroes are photo heroes with rules of their own).
   { path: '/privacy', selector: '.site-hero', property: 'padding-bottom' },

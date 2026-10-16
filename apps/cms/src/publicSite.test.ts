@@ -1118,7 +1118,11 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
     }
     // The negative control: if the regex stopped matching, `offenders` would be empty
     // and this gate would pass while reading nothing at all.
-    expect(numbered, 'no numbered section markers found — the matcher is broken').toBeGreaterThan(3)
+    // Three in these files since the owner merged №06 into №05 (2026-10-16): №02, №03 and №05.
+    expect(
+      numbered,
+      'no numbered section markers found — the matcher is broken',
+    ).toBeGreaterThanOrEqual(3)
     expect(
       offenders,
       'these use `.section-number` for something that is not a section number. Use ' +

@@ -6,8 +6,9 @@ import { EMPTY_FOOTER, type PublicSiteSettings } from '../../lib/projectPublic'
 import { SiteFooter } from './SiteFooter'
 
 // `usePathname` needs the app router; outside Next it is mocked, and the path is a
-// hoisted mutable so each case can choose the page it renders on.
-const route = vi.hoisted(() => ({ path: '/' }))
+// hoisted mutable so each case can choose the page it renders on. The default is a page that
+// draws the footer's question: since 2026-10-16 the home page leaves it out (its own test, below).
+const route = vi.hoisted(() => ({ path: '/products' }))
 vi.mock('next/navigation', () => ({ usePathname: () => route.path }))
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children: unknown }) =>
@@ -25,7 +26,7 @@ const html = (settings: PublicSiteSettings) =>
 
 describe('SiteFooter', () => {
   it('renders the tab as a real link to Contact, label and arrow in separate spans', () => {
-    route.path = '/'
+    route.path = '/products'
     const out = html(base)
     expect(out).toContain('class="site-footer__tab" href="/contact"')
     expect(out).toContain('site-footer__tab-label">Start a conversation<')
@@ -38,7 +39,7 @@ describe('SiteFooter', () => {
     const out = html({ ...base, email: 'sales@example.com' })
     expect(out).toContain('class="site-footer__tab" href="mailto:sales@example.com"')
     expect(out).not.toContain('site-footer__tab" href="/contact"')
-    route.path = '/'
+    route.path = '/products'
   })
 
   it('sets the last word of the question in the serif accent', () => {
@@ -207,5 +208,36 @@ describe('SiteFooter', () => {
     expect(legal).toContain('href="/privacy#cookies">Cookies</a>')
     expect(legal.indexOf('>Privacy<')).toBeLessThan(legal.indexOf('>Cookies<'))
     expect(legal.indexOf('>Cookies<')).toBeLessThan(legal.indexOf('>Terms<'))
+    route.path = '/products'
+  })
+})
+
+/*
+ * The home page's footer has no question (owner, 2026-10-16): the page's №05 already ends on one
+ * ask, with the works' clock beside it (FooterPromptGate.tsx). It takes the garment pages' shape
+ * (`.site-footer--no-prompt`). What would have to break: the question, its tab or its clock back on
+ * the home page, or gone from another page with it. Both pages are rendered, so neither half passes
+ * on an empty footer.
+ */
+describe('SiteFooter on the home page', () => {
+  it('leaves out the tab, the question and its clock, in the garment pages’ shape', () => {
+    route.path = '/'
+    const home = html(base)
+    route.path = '/products'
+    const other = html(base)
+    for (const part of [
+      'site-footer__tab',
+      'footer-cta',
+      'footer-q',
+      'footer-clock',
+      'footer-grow',
+    ]) {
+      expect(home, `the home page still draws ${part}`).not.toContain(part)
+      expect(other, `another page lost ${part}`).toContain(part)
+    }
+    expect(home).toContain('class="site-footer site-footer--no-prompt"')
+    expect(other).toContain('class="site-footer"')
+    // Everything else stays: the contact block and the legal row are the site's reference.
+    for (const kept of ['footer-block--contact', 'footer-legal']) expect(home).toContain(kept)
   })
 })

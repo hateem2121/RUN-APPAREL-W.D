@@ -273,6 +273,36 @@ test.describe('one footer on both hosts (VA-31)', () => {
       }),
     )
   })
+
+  /*
+   * The home page's footer has no question since 2026-10-16 (owner: its №05 now ends the page on
+   * one ask, with the works' clock beside it). It is then exactly the garment pages' footer, the
+   * same `{ prompt: false }` template, so the two hosts still draw one footer. The page with the
+   * question is checked above against the full template, so neither passes on the other's shape.
+   */
+  test("on the home page it is the garment pages' footer, with no question", async ({
+    page,
+    request,
+  }) => {
+    const answer = await request.get('/api/public/viewer/n001/wine')
+    expect(answer.status()).toBe(200)
+    const { siteSettings } = await answer.json()
+    await page.goto('/')
+    await expect(page.locator('footer.site-footer')).toHaveClass(/site-footer--no-prompt/)
+    await expect(page.locator('.site-footer__tab, .footer-cta, .footer-q')).toHaveCount(0)
+    await expect(page.locator('footer.site-footer')).toMatchAriaSnapshot(
+      siteFooterAriaSnapshot(
+        {
+          footer: siteSettings.footer,
+          email: siteSettings.email,
+          whatsappNumber: siteSettings.whatsappNumber,
+          legalLine: siteSettings.legalLine,
+          footerLine: siteSettings.footerLine,
+        },
+        { prompt: false },
+      ),
+    )
+  })
 })
 
 test.describe('the cursor and the glow', () => {
@@ -518,7 +548,8 @@ test.describe('touch', () => {
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false })
   test('every route out still renders, the clock is honest, no cursor', async ({ page }) => {
-    await page.goto('/')
+    // Not the home page: since 2026-10-16 its footer has no tab (its №05 asks instead).
+    await page.goto('/products')
     await expect(page.locator('.site-footer__tab')).toHaveAttribute('href', '/contact')
     // on Contact the tab points at the email — in the HTML, not added by a script
     await page.goto('/contact')
