@@ -27,6 +27,18 @@ export type Family = {
   readonly name: string
   /** The homepage card's one-line description. */
   readonly body: string
+  /** Its list's field in the Site Settings group `familyLists` (D44, `globals/SiteSettings.ts`). */
+  readonly listField:
+    | 'sportswear'
+    | 'teamwearUniforms'
+    | 'casualWear'
+    | 'outerwear'
+    | 'sportsAccessories'
+  /**
+   * The words over the card's list (D44, owner, 2026-10-15): the two families listed by USE or sport
+   * say what they are made for; the three listed by kind say what is in the range.
+   */
+  readonly listLabel: 'Made for' | 'In the range'
 }
 
 export const FAMILIES: readonly Family[] = [
@@ -34,26 +46,36 @@ export const FAMILIES: readonly Family[] = [
     slug: 'sportswear',
     name: 'Sportswear',
     body: 'Performance kit built for training loads and race days.',
+    listField: 'sportswear',
+    listLabel: 'Made for',
   },
   {
     slug: 'teamwear-uniforms',
     name: 'Teamwear & Uniforms',
     body: 'Squad kit, staff uniforms and matching sets at scale.',
+    listField: 'teamwearUniforms',
+    listLabel: 'Made for',
   },
   {
     slug: 'casual-wear',
     name: 'Casual Wear',
     body: 'Everyday pieces in the same construction standard.',
+    listField: 'casualWear',
+    listLabel: 'In the range',
   },
   {
     slug: 'outerwear',
     name: 'Outerwear',
     body: 'Weather layers engineered for movement, not just cover.',
+    listField: 'outerwear',
+    listLabel: 'In the range',
   },
   {
     slug: 'sports-accessories',
     name: 'Sports Accessories',
     body: 'The supporting pieces that finish a program.',
+    listField: 'sportsAccessories',
+    listLabel: 'In the range',
   },
 ]
 
@@ -99,6 +121,62 @@ export const FAMILY_PHOTOS: Readonly<Record<string, FamilyPicture>> = {
  * ⚠️ `category === name`, EXACTLY, for the same reason the gallery filter uses it — see the
  * warning at the top of this file.
  */
+/**
+ * The colour an opened family card shows of its garment (D44, owner, 2026-10-15): ANOTHER COLOUR OF
+ * THE SAME GARMENT, so opening the card shows something new rather than the picture it already had.
+ * The owner chose each one on the options page; the slugs were read off the public API on 2026-10-16.
+ */
+export const FAMILY_OPEN_COLOUR: Readonly<Record<string, string>> = {
+  'r-asb': 'blush',
+  'r-xmp': 'mint',
+  'r-taz': 'teal',
+  'r-atw': 'fuchsia',
+}
+
+/** What an opened family card shows of the garment in its picture (D44). */
+export type FamilyGarment = {
+  /** "X-Milo Pro Bib": under the picture once the card is open, in place of the family's name. */
+  name: string
+  /** The other colour's picture, and its name, which sits over the dots. */
+  open: { url: string; alt: string; colourName: string }
+  /** Every colour of the garment, in row order, for the dots; `shown` is the one in the picture. */
+  swatches: readonly (string | null)[]
+  shown: number
+}
+
+/**
+ * The garment each family card shows, as `familyPictures` picks it (the family's first product), with
+ * the colour it opens on: the owner's choice (`FAMILY_OPEN_COLOUR`), else its first other colour with
+ * a picture of its own. `null` when the family has no garment or no second colour with a picture: the
+ * card then opens on the picture it already shows, and draws no dots.
+ */
+export function familyGarments(
+  cards: readonly ProductCard[],
+): Record<string, FamilyGarment | null> {
+  const garments: Record<string, FamilyGarment | null> = {}
+  for (const family of FAMILIES) {
+    const card = cards.find((entry) => entry.category === family.name)
+    const colours = card?.colours ?? []
+    const chosen = colours.findIndex(
+      (colour, index) =>
+        index > 0 && colour.slug === FAMILY_OPEN_COLOUR[card?.slug ?? ''] && colour.image,
+    )
+    const shown =
+      chosen > 0 ? chosen : colours.findIndex((colour, index) => index > 0 && colour.image)
+    const colour = colours[shown]
+    garments[family.slug] =
+      card && colour?.image
+        ? {
+            name: card.productName,
+            open: { url: colour.image.url, alt: colour.image.alt, colourName: colour.name },
+            swatches: colours.map((each) => each.swatch),
+            shown,
+          }
+        : null
+  }
+  return garments
+}
+
 export function familyPictures(
   cards: readonly ProductCard[],
 ): Record<string, FamilyPicture | null> {

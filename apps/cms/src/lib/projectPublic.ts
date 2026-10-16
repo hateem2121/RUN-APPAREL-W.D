@@ -6,6 +6,7 @@ import {
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { isAddressableColourway } from './colourwayAccess'
+import { FAMILIES } from './families'
 import { onSiteMedia } from './siteMedia'
 
 /**
@@ -42,6 +43,11 @@ export interface PublicSiteSettings extends ViewerSiteSettings {
    * garment pages joined it (VA-31), because an API answer cached before then has none.
    */
   footer: FooterSettings
+  /**
+   * Each family card's list on the home page (D44), by family slug, in the CMS's order; a family
+   * with none is absent. Read from the `familyLists` group (`globals/SiteSettings.ts`).
+   */
+  familyLists: Readonly<Record<string, readonly string[]>>
 }
 
 /**
@@ -56,6 +62,30 @@ export const FALLBACK_SITE_SETTINGS: PublicSiteSettings = {
   logoUrl: null,
   logoMimeType: null,
   footer: EMPTY_FOOTER,
+  // No list rather than a typed copy of the CMS's: an outage shows the cards without one.
+  familyLists: {},
+}
+
+/**
+ * The `familyLists` group (D44): each family's array of `{ name }` rows, by the family's slug. Blank
+ * rows are dropped; a family whose list is empty is left out, and its card shows none.
+ */
+export function projectFamilyLists(
+  doc: Record<string, unknown> | null | undefined,
+): Record<string, string[]> {
+  const group =
+    doc?.familyLists && typeof doc.familyLists === 'object'
+      ? (doc.familyLists as Record<string, unknown>)
+      : {}
+  const lists: Record<string, string[]> = {}
+  for (const family of FAMILIES) {
+    const rows = group[family.listField]
+    const names = (Array.isArray(rows) ? rows : [])
+      .map((row) => text((row as { name?: unknown } | null)?.name))
+      .filter(Boolean)
+    if (names.length > 0) lists[family.slug] = names
+  }
+  return lists
 }
 
 const DAY_INDEX: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 }
@@ -118,6 +148,11 @@ export interface ProductCard {
   fabricComposition?: string
   gsm?: string
   garmentFit?: string
+  /**
+   * The product's "Special features", one short phrase each, in row order; `[]` when none. №03 lists
+   * them under its garment (D43), read as `endpoints/projectViewer.ts` reads them for the viewer.
+   */
+  performanceFeatures?: string[]
   /** Poster for the card. `null` renders the drawn placeholder, never a broken image. */
   posterUrl: string | null
   posterAlt: string
@@ -202,6 +237,7 @@ export function mergeSiteSettings(
     footerLine: pick('footerLine'),
     legalLine: pick('legalLine'),
     footer: projectFooter(doc),
+    familyLists: projectFamilyLists(doc),
   }
 }
 
@@ -249,6 +285,12 @@ export function toProductCard(
     fabricComposition: text(product.fabricComposition),
     gsm: text(product.gsm),
     garmentFit: text(product.garmentFit),
+    performanceFeatures: (Array.isArray(product.performanceFeatures)
+      ? product.performanceFeatures
+      : []
+    )
+      .map((row) => text((row as { feature?: unknown } | null)?.feature))
+      .filter(Boolean),
     posterUrl: poster.url,
     posterAlt: poster.alt || `${productName} — 3D product reference`,
     defaultColourSlug: text(colourways[0]?.slug),

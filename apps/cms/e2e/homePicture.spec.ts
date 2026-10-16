@@ -122,7 +122,7 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
     ).toEqual(['/world-map.svg', ...Array(6).fill('/standards/')])
 
     const timeline = await page
-      .locator('.order-steps img')
+      .locator('.order-stages img')
       .evaluateAll((images) => images.map((img) => img.getAttribute('src') ?? ''))
     expect(
       timeline,

@@ -50,7 +50,8 @@ async function lineLengths(page: import('@playwright/test').Page) {
       const text = el.textContent ?? ''
       if (text.trim().length < 40) continue
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
-      const lines = new Map<number, string>()
+      const blocks = [...el.querySelectorAll('p, li')]
+      const lines = new Map<string, string>()
       let node = walker.nextNode()
       while (node) {
         /*
@@ -80,13 +81,20 @@ async function lineLengths(page: import('@playwright/test').Page) {
           const rect = range.getBoundingClientRect()
           if (rect.width === 0 && rect.height === 0) continue
           if (strip && (rect.right <= strip.left || rect.left >= strip.right)) continue
-          const key = Math.round(rect.top)
+          /*
+           * ⚠️ A LINE BELONGS TO ONE BLOCK (2026-10-16). A №04 stage card is an `li` holding two
+           * steps side by side, and their lines share heights: counted as one, the left and right
+           * steps made 101- and 109-character "lines" at 1180px that no reader meets, while each
+           * step, measured on its own, kept under 75. So a line is keyed by the nearest `p` or `li`
+           * around its text as well as its height; text straight in `el` is keyed by `el`.
+           */
+          const key = `${Math.round(rect.top)}|${blocks.indexOf(parent?.closest('p, li') ?? el)}`
           lines.set(key, (lines.get(key) ?? '') + value[i])
         }
         node = walker.nextNode()
       }
       const counts = [...lines.entries()]
-        .sort((a, b) => a[0] - b[0])
+        .sort((a, b) => Number.parseInt(a[0], 10) - Number.parseInt(b[0], 10))
         .map(([, line]) => line.replace(/\s+$/, '').length)
       // The LAST line of a block is a ragged end, not a measure of the column.
       const full = counts.slice(0, -1)

@@ -52,7 +52,10 @@ test.describe('№03 — a large garment, and words that weigh the same (D2)', (
         .evaluate((element) => element.getBoundingClientRect().width)
       const figure = await box(page, '.proof__figure')
       const frame = await box(page, '.proof__frame')
-      const copy = await box(page, '.proof__copy')
+      // The words' half since D43: the words, the colours, the details and the button, top to foot.
+      const top = await box(page, '.proof__copy')
+      const foot = await box(page, '.proof__actions')
+      const copy = { top: top.top, height: foot.top + foot.height - top.top }
       // Half the row less the gap, or 64% of the screen's height, whichever is less.
       const expected = Math.min((container - 64) / 2, 0.64 * height)
       expect(
@@ -72,29 +75,42 @@ test.describe('№03 — a large garment, and words that weigh the same (D2)', (
     })
   }
 
-  test('three points, each with its icon and its words', async ({ page }) => {
+  // Two since D43: "Share a link" went (the owner: it sounded like software).
+  test('two points, each with its icon and its words', async ({ page }) => {
     await openHome(page, 1440, 900)
     const points = page.locator('.proof__copy .proof__point')
-    await expect(points).toHaveCount(3)
+    await expect(points).toHaveCount(2)
     for (const point of await points.all()) {
       await expect(point.locator('svg')).toHaveCount(1)
       await expect(point).toHaveText(/\w{3,}.*\w{3,}/)
     }
   })
 
-  test('on a phone the points and the dots come before the garment, with no sideways scroll', async ({
+  test('on a phone: the words, the garment, then its colours, details and button, with no sideways scroll', async ({
     page,
   }) => {
     await openHome(page, 390, 844)
     const points = await box(page, '.proof__points')
-    const dots = await box(page, '.proof__colours')
     const frame = await box(page, '.proof__frame')
+    const pills = await box(page, '.proof__pills')
+    const details = await box(page, '.proof__details')
+    const actions = await box(page, '.proof__actions')
     expect(points.top + points.height).toBeLessThanOrEqual(frame.top)
-    expect(dots.top + dots.height).toBeLessThanOrEqual(frame.top)
-    for (const dot of await page.locator('.proof__colours .card-gallery__dot').all()) {
-      const size = await dot.boundingBox()
-      expect(size?.height ?? 0, 'a dot is under 44px tall').toBeGreaterThanOrEqual(43.95)
-      expect(size?.width ?? 0, 'a dot is under 24px wide').toBeGreaterThanOrEqual(23.95)
+    expect(frame.top + frame.height).toBeLessThanOrEqual(pills.top)
+    expect(pills.top + pills.height).toBeLessThanOrEqual(details.top)
+    expect(details.top + details.height).toBeLessThanOrEqual(actions.top)
+    for (const pill of await page.locator('.proof__pill').all()) {
+      const size = await pill.boundingBox()
+      expect(size?.height ?? 0, 'a colour is under 44px tall').toBeGreaterThanOrEqual(43.95)
+      // 36px wide on a phone, as the gallery's phone dots (the owner, 2026-10-16), and 44px tall.
+      expect(size?.width ?? 0, 'a colour is under 36px wide').toBeGreaterThanOrEqual(35.95)
+      // And its dot whole inside it: a 32px dot in the 36px button was cut by its clip (2026-10-16).
+      const dot = await pill.locator('i').boundingBox()
+      if (!size || !dot) throw new Error('no dot')
+      expect(dot.x, 'a dot starts outside its button').toBeGreaterThanOrEqual(size.x - 0.5)
+      expect(dot.x + dot.width, 'a dot runs past its button').toBeLessThanOrEqual(
+        size.x + size.width + 0.5,
+      )
     }
     expect(
       await page.evaluate(
@@ -102,34 +118,63 @@ test.describe('№03 — a large garment, and words that weigh the same (D2)', (
       ),
     ).toBeLessThanOrEqual(0)
   })
-})
 
-test.describe('№03 — the colour dots (D2)', () => {
-  test('a dot changes the garment’s picture, its name and its link, and is the one pressed', async ({
+  test('the details are the garment’s own, under its colours, and the count stands beside the button', async ({
     page,
   }) => {
     await openHome(page, 1440, 900)
-    const dots = page.locator('.proof__colours .card-gallery__dot')
-    const count = await dots.count()
-    if (count < 2) test.skip(true, 'the garment here has one colour')
-    // Clicks need React: wait for it to own a dot.
-    await page.waitForFunction(() => {
-      const dot = document.querySelector('.proof__colours .card-gallery__dot')
-      return !!dot && Object.keys(dot).some((key) => key.startsWith('__reactProps'))
-    })
-    await expect(dots.first()).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.proof__details .proof__label')).toHaveText(/^This reference/)
+    await expect(page.locator('.proof__specs dt')).not.toHaveCount(0)
+    await expect(page.locator('.proof__actions .btn')).toHaveText('Browse in 3D')
+    await expect(page.locator('.proof__count')).toHaveText(/^\d[\d,]* garments?$/)
+    const button = await box(page, '.proof__actions .btn')
+    const count = await box(page, '.proof__count')
+    expect(count.left, 'the count is not beside the button').toBeGreaterThan(
+      button.left + button.width,
+    )
+  })
+})
+
+/** The pills, once React owns them and they have been measured (`data-measured`). */
+async function pillsReady(page: Page) {
+  const pills = page.locator('.proof__pill')
+  if ((await pills.count()) < 2) test.skip(true, 'the garment here has one colour')
+  await page.waitForSelector('.proof__pills[data-measured]')
+  await page.waitForFunction(() => {
+    const pill = document.querySelector('.proof__pill')
+    return !!pill && Object.keys(pill).some((key) => key.startsWith('__reactProps'))
+  })
+  return pills
+}
+
+test.describe('№03 — the colours, a growing pill (D43)', () => {
+  test('a colour changes the garment’s picture and its link, and is the one chosen, named', async ({
+    page,
+  }) => {
+    await openHome(page, 1440, 900)
+    const pills = await pillsReady(page)
+    const count = await pills.count()
+    await expect(page.locator('.proof__pills')).toHaveAttribute('role', 'radiogroup')
+    await expect(pills.first()).toHaveAttribute('aria-checked', 'true')
     const before = {
       href: await page.locator('.proof__link').getAttribute('href'),
       src: await page.locator('.proof__frame img').first().getAttribute('src'),
-      name: await page.locator('.proof__colours-name').textContent(),
     }
-    const target = dots.nth(count - 1)
-    const label = (await target.getAttribute('aria-label')) ?? ''
-    await target.click()
-    await expect(target).toHaveAttribute('aria-pressed', 'true')
-    await expect(dots.first()).toHaveAttribute('aria-pressed', 'false')
-    // The name shown is the dot's colour ("Show Black" → "Black").
-    await expect(page.locator('.proof__colours-name')).toHaveText(label.replace(/^Show /, ''))
+    const target = pills.nth(count - 1)
+    // On its dot, as a person clicks it: an unchosen pill's box is wider than the dot it shows.
+    await target.click({ position: { x: 22, y: 22 } })
+    await expect(target).toHaveAttribute('aria-checked', 'true')
+    await expect(pills.first()).toHaveAttribute('aria-checked', 'false')
+    // Its name shows on the pill, and only the chosen one's.
+    await expect
+      .poll(() => target.locator('span').evaluate((name) => getComputedStyle(name).opacity))
+      .toBe('1')
+    expect(
+      await pills
+        .first()
+        .locator('span')
+        .evaluate((name) => getComputedStyle(name).opacity),
+    ).toBe('0')
     const href = await page.locator('.proof__link').getAttribute('href')
     expect(href, 'the link stayed on the first colour').not.toBe(before.href)
     expect(href).toMatch(/^https:\/\/[^/]+\/products\/[^/]+\/[^/]+$/)
@@ -141,48 +186,77 @@ test.describe('№03 — the colour dots (D2)', () => {
           .evaluate((element) => element.getAttribute('src') ?? element.className),
       )
       .not.toBe(before.src)
-    expect(before.name).not.toBe(label.replace(/^Show /, ''))
+  })
+
+  // WAI-ARIA APG, "Radio Group" (read 2026-10-16): Tab lands on the chosen one; the arrows move and
+  // choose, wrapping at the ends.
+  test('the keyboard: the arrows move and choose, wrapping at both ends', async ({ page }) => {
+    await openHome(page, 1440, 900)
+    const pills = await pillsReady(page)
+    const count = await pills.count()
+    await pills.first().focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(pills.nth(count - 1)).toBeFocused()
+    await expect(pills.nth(count - 1)).toHaveAttribute('aria-checked', 'true')
+    await page.keyboard.press('ArrowRight')
+    await expect(pills.first()).toBeFocused()
+    await expect(pills.first()).toHaveAttribute('aria-checked', 'true')
+    // Only the chosen one is in the tab order.
+    expect(
+      await pills.evaluateAll((all) => all.map((pill) => (pill as HTMLElement).tabIndex)),
+    ).toEqual(Array.from({ length: count }, (_, index) => (index === 0 ? 0 : -1)))
   })
 
   /*
-   * Polish N1 renames every colour (2026-10-05, the owner's second list that evening), up to 27
-   * characters ("Podium Lilac / Night Indigo") where the seed's are one short word. The live
-   * skinsuit's run Claret Red, Rosette Pink, Lemon Squash…: while the name shared the dots' row,
-   * choosing one pushed the dots sideways, out from under the pointer that chose it. The name
-   * now sits on its own line above them, as on an opened product ticket and a phone's garment
-   * page; here the name is written in by the test, so the seed's short words cannot hide this.
+   * Polish N1's names run up to 27 characters ("Podium Lilac / Night Indigo") where the seed's are one
+   * short word, and the hoodie's longest is "Black Cherry / Cranberry". Written in by the test, so the
+   * seed's short words cannot hide it: the row stays inside its column, the pill holds its name in at
+   * most three lines in its 44px (the owner, 2026-10-16, with 36px dots on a phone), and the dots
+   * after it keep clear of it.
    */
-  for (const [width, height] of [
-    [390, 844],
-    [1440, 900],
+  // The hoodie's own longest on the narrowest phone; the catalogue's longest from 390px, where a
+  // 27-character name in a 360px phone's pill took four lines in Firefox (2026-10-16).
+  for (const [width, height, colour] of [
+    [360, 780, 'Black Cherry / Cranberry'],
+    [390, 844, 'Podium Lilac / Night Indigo'],
+    [1440, 900, 'Podium Lilac / Night Indigo'],
   ] as const) {
-    test(`at ${width}px the dots stay put whatever the chosen colour is called (N1)`, async ({
-      page,
-    }) => {
+    test(`at ${width}px "${colour}" stays inside the column, in its pill`, async ({ page }) => {
       await openHome(page, width, height)
-      if ((await page.locator('.proof__colours-name').count()) === 0)
-        test.skip(true, 'the garment here has one colour')
-      const readWith = (name: string) =>
-        page.evaluate((text) => {
-          const label = document.querySelector('.proof__colours-name') as HTMLElement | null
-          if (!label) throw new Error('no colour name')
-          label.textContent = text
-          const lineHeight = Number.parseFloat(getComputedStyle(label).lineHeight)
-          return {
-            dots: [...document.querySelectorAll('.proof__colours .card-gallery__dot')].map(
-              (dot) => {
-                const { left, top } = dot.getBoundingClientRect()
-                return [Math.round(left), Math.round(top)]
-              },
-            ),
-            lines: Math.round(label.getBoundingClientRect().height / lineHeight),
-          }
-        }, name)
-      const short = await readWith('Ivy')
-      const long = await readWith('Podium Lilac / Night Indigo')
-      expect(short.dots.length, 'no dots to measure').toBeGreaterThan(1)
-      expect(long.dots, 'the dots moved when the name grew').toEqual(short.dots)
-      expect(long.lines, 'the longest name took more than one line').toBe(1)
+      await pillsReady(page)
+      await page.evaluate((text) => {
+        const name = document.querySelector('.proof__pill[aria-checked="true"] span')
+        if (name) name.textContent = text
+      }, colour)
+      const row = await box(page, '.proof__pills')
+      // Polled: the pills measure the new name and move after it is written in.
+      await expect
+        .poll(() =>
+          page.evaluate((edge) => {
+            const problems: string[] = []
+            const pills = [...document.querySelectorAll('.proof__pill')].map((pill) =>
+              pill.getBoundingClientRect(),
+            )
+            for (const [index, pill] of pills.entries()) {
+              if (pill.right > edge + 1) problems.push(`pill ${index + 1} past the column`)
+              const before = pills[index - 1]
+              if (before && pill.left < before.right + 4)
+                problems.push(`pills ${index} and ${index + 1} overlap`)
+            }
+            const chosen = document.querySelector('.proof__pill[aria-checked="true"]')
+            const name = chosen?.querySelector('span')
+            if (!chosen || !name) return ['no chosen pill']
+            const box = chosen.getBoundingClientRect()
+            const words = name.getBoundingClientRect()
+            const lines = words.height / Number.parseFloat(getComputedStyle(name).lineHeight)
+            if (Math.round(lines) > 3) problems.push(`the name takes ${Math.round(lines)} lines`)
+            if (words.bottom > box.bottom + 0.5 || words.right > box.right + 0.5)
+              problems.push('the name runs out of its pill')
+            if (Math.round(box.height) !== 44) problems.push(`the pill is ${box.height}px tall`)
+            return problems
+          }, row.left + row.width),
+        )
+        .toEqual([])
     })
   }
 

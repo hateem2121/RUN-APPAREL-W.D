@@ -32,6 +32,9 @@ const paragraph = (text: string) => ({
   children: [{ type: 'text', text, detail: 0, format: 0, mode: 'normal', style: '', version: 1 }],
 })
 
+/** A Site Settings list, as its array field stores it: one `{ name }` row each. */
+const names = (...list: string[]) => list.map((name) => ({ name }))
+
 const lexical = (texts: string[]) => ({
   root: {
     type: 'root',
@@ -112,6 +115,52 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
       temporaryWordmark: 'RUN APPAREL',
       footerLine: 'RUN THE EXTRA MILE.',
       legalLine: '© RUN APPAREL (PVT) LTD',
+      // The home page's family lists as the owner approved them (D44, 2026-10-15), so the browser
+      // suites see a list longer than six ("+ 6 more"), one exactly at it, and shorter ones.
+      familyLists: {
+        sportswear: names(
+          'Gym & training',
+          'Running',
+          'Yoga & pilates',
+          'Athleisure',
+          'Outdoor & hiking',
+          'Combat sports',
+        ),
+        teamwearUniforms: names(
+          'Soccer',
+          'American football',
+          'Tennis and pickleball',
+          'Cycling',
+          'Training',
+          'Water sports',
+          'Basketball',
+          'Rugby',
+          'Cricket',
+          'Baseball',
+          'Volleyball',
+          'Hockey',
+        ),
+        casualWear: names(
+          'Hoodies & sweatshirts',
+          'Tracksuits & joggers',
+          'Polos & T-shirts',
+          'Shorts',
+          'Loungewear sets',
+        ),
+        outerwear: names(
+          'Windbreakers',
+          'Puffers',
+          'Leather',
+          'Fleece',
+          'Softshell',
+          'Rain jackets',
+          'Gilets & vests',
+          'Bomber & track jackets',
+          'Parkas',
+          'Varsity jackets',
+        ),
+        sportsAccessories: names('Bags & backpacks', 'Caps & headwear', 'Socks', 'Gloves'),
+      },
     },
   })
 

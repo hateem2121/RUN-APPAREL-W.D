@@ -61,6 +61,7 @@ const settings: PublicSiteSettings = {
   logoUrl: null,
   logoMimeType: null,
   footer: EMPTY_FOOTER,
+  familyLists: {},
 }
 
 const landing = (page: (typeof FAMILY_PAGES)[number], products: ProductCard[]) =>

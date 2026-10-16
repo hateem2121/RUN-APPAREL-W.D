@@ -176,6 +176,7 @@ describe('one definition of the company, wherever the site summarizes itself', (
     logoUrl: null,
     logoMimeType: null,
     footer: EMPTY_FOOTER,
+    familyLists: {},
   }
   const pressAbout = (PRESS_PAGE.sections.find((section) => section.id === 'about')?.blocks ?? [])
     .map((block) => (block.kind === 'text' ? block.text : ''))

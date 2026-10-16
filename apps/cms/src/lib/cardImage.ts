@@ -54,21 +54,25 @@ export const CARD_SIZES =
   '(max-width: 1439px) calc(28.67vw - 50px), (max-width: 1919px) 267px, 237px'
 
 /**
- * How wide a family ticket's picture on the home page draws (polish D3; `.family-card` in site.css),
- * in the page widths of polish D1. Sideways, it is 40% of the card: one card a row below 560 px
- * (`0.4 x (100vw - two gutters)`, asked as `40vw - 16px`), two from 560 px (`0.2 x (the column -
- * a 24 px gap)`: `18vw - 4px` while the gutters are 5vw, to 1,279; `20vw - 30px` in the screen less
+ * How wide a family card's picture on the home page draws (polish D3, D44; `.family-card` in
+ * site.css), in the page widths of polish D1. Sideways, it is 40% of the card: one card a row below
+ * 900 px (`0.4 x (100vw - two gutters)`: `40vw - 16px` while the gutters are 20 px, to 399; `36vw`
+ * while they are 5vw, rounded to 2 px, so `36vw + 2px`, to 899), two from 900 px (`0.2 x (the column
+ * - a 24 px gap)`: `18vw - 4px` while the gutters are 5vw, to 1,279; `20vw - 30px` in the screen less
  * 128 px of gutters, to 1,439; 257.6 in the 1,312 px column; 289.6 in the 1,472 px one). The fifth,
  * which spans both columns, keeps the others' picture width, so this is its hint too. In the row of
- * five (a pointer that can hover, from 1,180 px) a closed card's picture is the whole card, `(the
- * column - four 12 px gaps) / 5`, which those same numbers cover within a few pixels (and an opened
- * card's is smaller, 44% of a wider card). Only a hint: the picture it picks is one of the three
- * card sizes above, the only ones the wear-run.com firewall rule lets through. Here, not in
- * `FamilyCard.tsx`, so a browser test can import it without the component's Next imports.
+ * five (a pointer that can hover, from 1,440 px) a card's picture is the whole card, `(the column -
+ * four 16 px gaps) / 5`, a few pixels LESS than a touch screen's two-up card at the same width, so
+ * the two-up numbers are the hint for both (measured 2026-10-16: 247.6 against 256.8 at 1,440; 279.6
+ * against 288.8 at 1,920). An opened card's picture keeps its size (D44). Only a hint: the picture
+ * it picks is one of the three card sizes above, the only ones the wear-run.com firewall rule lets
+ * through. Here, not in `FamilyCard.tsx`, so a browser test can import it without the component's
+ * Next imports.
  */
 export const FAMILY_SIZES =
-  '(max-width: 559px) calc(40vw - 16px), (max-width: 1279px) calc(18vw - 4px), ' +
-  '(max-width: 1439px) calc(20vw - 30px), (max-width: 1919px) 258px, 290px'
+  '(max-width: 399px) calc(40vw - 16px), (max-width: 899px) calc(36vw + 2px), ' +
+  '(max-width: 1279px) calc(18vw - 4px), (max-width: 1439px) calc(20vw - 30px), ' +
+  '(max-width: 1919px) 258px, 290px'
 
 export function cardImage(url: string): { src: string; srcSet?: string; sizes?: string } {
   return resizedCardImage(url, CARD_SIZES)

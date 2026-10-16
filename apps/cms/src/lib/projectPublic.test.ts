@@ -1,6 +1,13 @@
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { EMPTY_FOOTER, mergeSiteSettings, projectFooter, toProductCard } from './projectPublic'
+import {
+  EMPTY_FOOTER,
+  FALLBACK_SITE_SETTINGS,
+  mergeSiteSettings,
+  projectFamilyLists,
+  projectFooter,
+  toProductCard,
+} from './projectPublic'
 import { ADMIN_MEDIA_ORIGIN, SITE_MEDIA_ORIGIN as SITE_MEDIA } from './siteMedia'
 
 describe('mergeSiteSettings', () => {
@@ -547,5 +554,51 @@ describe('projectFooter', () => {
     expect(merged.footer.ctaLabel).toBe('Talk to us')
     // The viewer API returns ViewerSiteSettings; nothing footer-shaped may leak into it.
     expect(Object.keys(merged)).not.toContain('certifications')
+  })
+})
+
+/*
+ * D44: the home page's family lists come from the Site Settings group `familyLists`, one array of
+ * `{ name }` rows per family. What would have to break: a list read in the wrong order, a blank row
+ * drawn as an empty chip, an empty list drawn as a label with nothing under it, or a database outage
+ * that throws instead of showing the cards without lists.
+ */
+describe('projectFamilyLists (D44)', () => {
+  const rows = (...names: string[]) => names.map((name, index) => ({ id: `r${index}`, name }))
+
+  it('reads each family’s list by its slug, in the CMS’s order', () => {
+    expect(
+      projectFamilyLists({
+        familyLists: {
+          sportswear: rows('Gym & training', 'Running'),
+          teamwearUniforms: rows('Soccer', 'American football', 'Hockey'),
+        },
+      }),
+    ).toEqual({
+      sportswear: ['Gym & training', 'Running'],
+      'teamwear-uniforms': ['Soccer', 'American football', 'Hockey'],
+    })
+  })
+
+  it('drops blank rows and leaves out a family whose list is empty', () => {
+    expect(
+      projectFamilyLists({
+        familyLists: { outerwear: [{ name: '  ' }, { name: 'Puffers' }, null], casualWear: [] },
+      }),
+    ).toEqual({ outerwear: ['Puffers'] })
+  })
+
+  it('a global saved before the lists existed, or none at all, gives no lists', () => {
+    expect(projectFamilyLists({})).toEqual({})
+    expect(projectFamilyLists(null)).toEqual({})
+    expect(mergeSiteSettings(null).familyLists).toEqual({})
+    expect(FALLBACK_SITE_SETTINGS.familyLists).toEqual({})
+  })
+
+  it('reaches the page through mergeSiteSettings', () => {
+    expect(
+      mergeSiteSettings({ familyLists: { sportsAccessories: rows('Socks', 'Gloves') } })
+        .familyLists,
+    ).toEqual({ 'sports-accessories': ['Socks', 'Gloves'] })
   })
 })

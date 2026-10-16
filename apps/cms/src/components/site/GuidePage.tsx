@@ -317,6 +317,20 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
           guide.garments?.after === section.heading ? (
             <GuideGarmentsSection garments={guide.garments} cards={cards} />
           ) : null
+        // The order steps are four full-screen cards (D42; the owner chose the guide's to match the
+        // home page's, 2026-10-16): the heading in the column, the cards the screen's width under
+        // it, as №04 draws them. `guides.test.ts` holds the steps alone in their section.
+        if (section.blocks.length === 1 && section.blocks[0]?.kind === 'orderSteps') {
+          return (
+            <Fragment key={section.heading}>
+              <section className="site-section order-section" data-site-reveal>
+                <div className="site-container prose prose--guide">{heading}</div>
+                <OrderSteps />
+              </section>
+              {garments}
+            </Fragment>
+          )
+        }
         return (
           <Fragment key={section.heading}>
             <section className="site-section" data-site-reveal>

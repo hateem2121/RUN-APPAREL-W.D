@@ -543,8 +543,8 @@ li {
 p:where(
   .label,
   .family-card__meta,
-  .family-card__types,
-  .order-step__tag,
+  .family-card__label,
+  .order-stage__name,
   .field-label,
   .footer-eyebrow,
   .footer-dim,
@@ -644,6 +644,11 @@ html {
   --text-lead: clamp(1.25rem, 1.2vw + 0.85rem, 1.75rem);
   /* The glossary's A–Z row, held under the menu bar and over the terms as they scroll. */
   --z-sticky-index: 2;
+  /* №04's stage name ("Stage 1 · Talk"), over its card's two step photos, inside the card (D42). */
+  --z-stage-name: 1;
+  /* №02's opened card over the cards it pushed aside, and its words' sheet under its own words (D44). */
+  --z-card-open: 1;
+  --z-card-sheet: -1;
   /* `--site-max` and `--site-gutter` moved to packages/ui/src/tokens.css on 2026-10-02 (VA-31): the
      footer that lines up with them is drawn on the garment pages too. The website's width steps
      sit just before `.site-container`, below (polish D1). */
@@ -2494,9 +2499,11 @@ a.contact-block__value:active {
  *
  * The count is fixed and known — it mirrors the `category` options on Products — so it
  * is treated as a composition rather than as an unknown list. Every state is complete:
- * one column of sideways tickets below 560, two columns with the fifth spanning both above,
- * and, where a pointer can hover from 1180px, all five in a row that opens one at a time
- * (polish D3; "The family tickets" below has the cards themselves).
+ * one column of sideways cards below 900, two columns with the fifth spanning both above,
+ * and, where a pointer can hover from 1440px, all five in a row that opens one at a time
+ * (polish D3; D44; "The family cards" below has the cards themselves). One column up to 900px
+ * since D44 (it was 560): a sideways card's words now hold the family's list as well, and at
+ * 560px a two-up card's words would be about 145px wide.
  */
 .family-grid {
   display: grid;
@@ -2507,7 +2514,7 @@ a.contact-block__value:active {
   list-style: none;
 }
 
-@media (min-width: 560px) {
+@media (min-width: 900px) {
   .family-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px;
@@ -2516,22 +2523,37 @@ a.contact-block__value:active {
   /* The fifth spans both columns, its picture as wide as the others' (a column less half the gap,
      40% of it), so the pictures line up and one `sizes` hint fits all five (FAMILY_SIZES). */
   .family-grid > li:last-child {
-    --ticket-seam: calc((100% - 24px) * 0.2);
     grid-column: 1 / -1;
+    grid-template-columns: calc((100% - 24px) * 0.2) minmax(0, 1fr);
   }
 }
 
 /*
  * The row of five, only where a pointer can hover: a touch screen this wide (a tablet on its
- * side) keeps the sideways tickets above, which say everything without being opened. 380px tall:
- * at 1180px each closed card is 203px wide and its picture 243px tall, and an opened card's words
- * fit in 380px with the longest types line on four lines (measured in e2e/familyTickets.spec.ts).
+ * side) keeps the sideways cards above, which say everything without being opened. The grid is
+ * the container the cards measure their own width in (`--card-w`, "The family cards" below).
+ *
+ * ⚠️ FROM 1440px, NOT 1180 (the owner, 2026-10-16). An opened card's words sit beside its 4:5 picture,
+ * and below 1440px they were taller than it: by 79px at 1180 and 26px at 1280 in Chromium, and too
+ * tall at both in Firefox and WebKit (measured 2026-10-16). A laptop narrower than that gets the sideways cards, two
+ * columns, as a tablet does, which say everything without being opened.
  */
-@media (min-width: 1180px) and (hover: hover) and (pointer: fine) {
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  /*
+   * ⚠️ `overflow-x: clip`: every card's sheet lies beside it even while closed, unseen, and the fifth's
+   * reached past the page's edge, so the page scrolled sideways (180–236px, measured 2026-10-16, while
+   * the words sat there too). An opened card, wherever it is, ends exactly at the row's edge.
+   */
   .family-grid {
-    display: flex;
-    gap: 12px;
-    block-size: 380px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    overflow-x: clip;
+    container-type: inline-size;
+  }
+
+  .family-grid > li:last-child {
+    grid-column: auto;
+    grid-template-columns: 100%;
   }
 }
 
@@ -3875,13 +3897,13 @@ a.contact-block__value:active {
 }
 
 /*
- * №02's proof — one still garment beside the 3D claim (audit FA-A-04).
+ * №03's proof — one garment beside the 3D claim (audit FA-A-04; D43).
  *
- * ⚠️ ONE COLUMN UNTIL 900px, AND THE PICTURE COMES SECOND IN BOTH ORDERS. On a phone the
- * argument has to be read before the evidence means anything, and `.proof__copy` is
- * first in the DOM, so no `order` juggling is needed and the tab order matches the
- * reading order at every width. 900px is the same breakpoint `.facts-notes` uses; a new
- * one would be a third number describing the same idea.
+ * ⚠️ ONE COLUMN UNTIL 900px, IN THE ORDER OF THE MARKUP: the words, the garment, its colours, its
+ * details, the button (D43, the owner's phone picture, 2026-10-15). On a phone the argument is read
+ * before the evidence, and the colours come after the garment they change. No `order` juggling, so
+ * the tab order matches the reading order at every width. 900px is the same breakpoint
+ * `.facts-notes` uses; a new one would be a third number describing the same idea.
  */
 .proof {
   display: grid;
@@ -3904,15 +3926,47 @@ a.contact-block__value:active {
  * tall picture. Big empty corner under the button" (the report, D2). Now it is half the row less the
  * gap, but never wider than 64% of the screen's height, so its 4:5 frame fits a 1440x760 laptop's
  * screen under the bar (486px wide, 608 tall there; 576 by 720 at 1440x900; 691 by 864 at
- * 1920x1080). The words' half is level with it (`center`) and holds the three points and the colour
- * dots, so the two weigh the same. The column is sized, not the figure, so the figure still fills its
- * column (`e2e/composition.spec.ts`) and the live garment laid over it keeps its box.
+ * 1920x1080). The words' half is level with it and holds the points, the colours, the details and
+ * the button, so the two weigh the same. The column is sized, not the figure, so the figure still
+ * fills its column (`e2e/composition.spec.ts`) and the live garment laid over it keeps its box.
+ *
+ * Since D43 the left half is four grid areas under one another, centred on the garment by an empty
+ * `1fr` row above and below them (the options page's layout, 2026-10-15), because the garment, which
+ * spans every row, sits between the words and the colours in the markup.
  */
 @media (min-width: 900px) {
   .proof {
     grid-template-columns: minmax(0, 1fr) min(calc((100% - 64px) / 2), 64svh);
-    gap: 64px;
-    align-items: center;
+    grid-template-rows: 1fr auto auto auto auto 1fr;
+    grid-template-areas:
+      ". figure"
+      "copy figure"
+      "pick figure"
+      "details figure"
+      "actions figure"
+      ". figure";
+    column-gap: 64px;
+  }
+
+  .proof__copy {
+    grid-area: copy;
+  }
+
+  .proof > .proof__figure {
+    grid-area: figure;
+    align-self: center;
+  }
+
+  .proof__pick {
+    grid-area: pick;
+  }
+
+  .proof__details {
+    grid-area: details;
+  }
+
+  .proof__actions {
+    grid-area: actions;
   }
 }
 
@@ -3949,35 +4003,252 @@ a.contact-block__value:active {
   color: var(--heading);
 }
 
-/*
- * The colour dots, the gallery cards' own (`.card-gallery__dot`), with the colour's name on its own
- * line above them, as on an opened product ticket and a phone's garment page. Until polish N1 the
- * name shared the dots' row, and a longer name pushed the dots sideways as it was chosen (the
- * renamed skinsuit's run Puck to Golden Goal); the line above holds up to "Podium Lilac / Night
- * Indigo", the longest name, 27 characters, at 390px (e2e/proofShowcase.spec.ts).
- */
-.proof__colours {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin-block-start: 24px;
-}
-
-/* Full 44px buttons on every screen: there is room here that a phone's ticket does not have. */
-.proof__colours .card-gallery__dot {
-  flex: none;
-  inline-size: var(--target-min);
-  max-inline-size: none;
-}
-
-.proof__colours-name {
-  flex-basis: 100%;
+/* "Colors" and "This reference · …": the mono labels over the pills and the details (D43). */
+.proof__label {
+  margin: 0 0 10px;
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/*
+ * ⚠️ THE GROWING PILL (D43, owner, 2026-10-15): each colour a 44px round button, the chosen one a
+ * pill in its own colour with its name. `ProofShowcase.tsx` measures each button once at its full
+ * width and sets `--pill` and a `translate`; every button then KEEPS that width and a `clip-path`
+ * shows only its dot until it is chosen, so a change moves the row by `translate` and lays nothing
+ * out (3 layout passes a change on the options page, 2026-10-15). Before that measure, and with
+ * scripting off, the same buttons are a plain wrapping row (`:not([data-measured])`), the chosen one
+ * already showing its name, so the switch moves nothing a visitor can see.
+ */
+.proof__pills {
+  /* A dot's width: 44px, and 36px on a phone (below). `ProofShowcase.tsx` reads it to place the row. */
+  --pill-dot: var(--target-min);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/*
+ * ⚠️ ON A PHONE THE DOTS ARE 36px WIDE, STILL 44px TALL (the owner, 2026-10-16), as the gallery's
+ * phone dots are (VA-42), so the chosen pill has room for its name: five 44px dots left it about 52px
+ * of text on a 360px phone, and "Black Cherry / Cranberry", the hoodie's own, ran out of its pill. A
+ * long name may take three short lines (three of 12px at 1.2 fill the 44px).
+ */
+@media (max-width: 559px) {
+  .proof__pills {
+    --pill-dot: 36px;
+  }
+}
+
+.proof__pills[data-measured] {
+  position: relative;
+  display: block;
+  block-size: var(--target-min);
+}
+
+.proof__pill {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--pill-text, var(--paper));
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.proof__pill[aria-checked="true"] {
+  inline-size: auto;
+  background: var(--swatch, transparent);
+}
+
+/* A mid-tone no ink reads on at 4.5:1 (`pillPaint`): the pill is ink, and the dot shows the colour. */
+.proof__pill[data-surface="ink"][aria-checked="true"] {
+  background: var(--ink);
+}
+
+/*
+ * ⚠️ AN UNCHOSEN PILL IS ITS DOT, 44px (36px ON A PHONE), AND ITS NAME HAS NO WIDTH. Kept at its full width under the
+ * clip, the last pills' boxes and names lay past a 320px phone's edge, and the page scrolled 37px
+ * sideways (measured 2026-10-16). The name stays in the page, so it still names the button. The clip
+ * is written against the pill's own width (`100%`), so a pill given its width grows from its dot,
+ * and one losing it keeps the width until its clip has closed (`inline-size` waits `--ui`).
+ */
+.proof__pills[data-measured] .proof__pill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--pill-dot);
+  overflow: visible;
+  clip-path: inset(0 calc(100% - var(--pill-dot)) 0 0 round calc(var(--target-min) / 2));
+  /* The width steps at the END of a short wait after the clip has closed, so the pill shrinks whole. */
+  transition:
+    clip-path var(--ui) var(--ease),
+    translate var(--ui) var(--ease),
+    background-color var(--ui) var(--ease),
+    inline-size var(--instant) step-end var(--ui);
+}
+
+/* The width steps at the START, so the clip grows the pill from its dot. */
+.proof__pills[data-measured] .proof__pill[aria-checked="true"] {
+  inline-size: var(--pill, var(--pill-dot));
+  clip-path: inset(0 round calc(var(--target-min) / 2));
+  transition:
+    clip-path var(--ui) var(--ease),
+    translate var(--ui) var(--ease),
+    background-color var(--ui) var(--ease),
+    inline-size var(--instant) step-start;
+}
+
+.proof__pill:not([aria-checked="true"]):not([data-measuring]) span {
+  inline-size: 0;
+  padding-inline-end: 0;
+  overflow: hidden;
+}
+
+/* The dot: the gallery dots' ring (`.card-gallery__dot::before`), 32px inside the 44px button. */
+.proof__pill i {
+  flex: none;
+  inline-size: 32px;
+  block-size: 32px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pill);
+  background: var(--swatch, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 55%, transparent);
+}
+
+.proof__pill[aria-checked="true"] i {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--paper) 55%, transparent);
+}
+
+/*
+ * The phone's narrower dot (above), after the rules it changes, which it outranks only by coming
+ * later: written beside `--pill-dot` it lost to them, and the dots stayed 32px and were cut (2026-10-16).
+ * 28px, so the dot sits whole inside its 36px button.
+ */
+@media (max-width: 559px) {
+  .proof__pill {
+    padding-inline-start: 4px;
+  }
+
+  .proof__pill i {
+    inline-size: 28px;
+    block-size: 28px;
+  }
+}
+
+.proof__pill span {
+  padding-inline-end: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  line-height: 1.2;
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--ui) var(--ease);
+}
+
+.proof__pill[aria-checked="true"] span {
+  opacity: 1;
+  transition-delay: var(--instant);
+}
+
+/* Held to the room the other dots leave it (a long name on a small phone): up to three lines. */
+.proof__pill[data-wrap] span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * ⚠️ THE FOCUS RING IS DRAWN INSIDE THE PILL. The `clip-path` that shapes it also clips anything
+ * outside its edge, base.css's ring at a 2px offset included, so the ring sits 2px inside: ink with a
+ * paper edge, which reads on any colour the pill can be. Focus is always on the chosen colour (the
+ * arrows move and choose), the one pill the clip leaves whole.
+ */
+.proof__pill:focus-visible {
+  outline-color: var(--ink);
+  outline-offset: -4px;
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 2px var(--paper);
+}
+
+/*
+ * Forced colours repaint every swatch to one system colour, so the dots get an edge and the chosen
+ * pill a ring in `Highlight`, inside its clip, as the gallery dots get one (VA-08 above).
+ */
+@media (forced-colors: active) {
+  .proof__pill i {
+    border-color: CanvasText;
+  }
+
+  .proof__pill[aria-checked="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+/* The garment's details from its CMS record (D43), under the colours. */
+.proof__details {
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--line);
+}
+
+.proof__specs {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.proof__specs > div {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr);
+  gap: 12px;
+}
+
+.proof__specs dt {
+  padding-block-start: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.proof__specs dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+/* The grid's gap already sits above the button. */
+.proof__actions .site-actions {
+  align-items: center;
+  margin-block-start: 0;
+}
+
+/* "41 garments", read live beside "Browse in 3D" (owner, 2026-10-16). */
+.proof__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-snug);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* "3D" keeps its capitals inside the lower-casing accent (D43). */
+.serif-accent__as-written {
+  text-transform: none;
 }
 
 /*
@@ -4361,103 +4632,71 @@ a.contact-block__value:active {
   margin-block-start: 24px;
 }
 
-/* ------------------------------------------------ №02 the family tickets (polish D3, M1, F1) */
+/* ------------------------------------------------ №02 the family cards (polish D3, M1, F1; D44) */
 
 /*
- * ⚠️ EACH FAMILY IS A TICKET (polish D3, the owner's version 2 of 3 October 2026; M1, the owner's
- * answer Q3). Two halves and a tear line between them, with a notch where the tear line meets each
- * edge. `FamilyCard.tsx` has the markup and why the title is the card's one link.
+ * ⚠️ EACH FAMILY IS A CARD THAT OPENS (polish D3, the owner's version 2 of 3 October 2026; rebuilt as
+ * D44, the owner's option C2 of 15 October 2026). `FamilyCard.tsx` has the markup and why the title
+ * is the card's one link.
  *
- * SIDEWAYS EVERYWHERE BUT THE ROW: picture on the left, the words on the right, the notches on the
- * top and bottom edge (M1). A phone, a tablet and a touch screen of any width see this, and it says
- * everything without being opened. The card's own width decides how much (container queries,
- * Baseline since 14 February 2023; web-guidance "size-aware-styling", index of 4 September 2026):
- * the description joins once there is room for it.
+ * SIDEWAYS EVERYWHERE BUT THE ROW: picture on the left, the words on the right (M1). A phone, a
+ * tablet and a touch screen of any width see this, and it says everything without being opened: the
+ * count, the name, the description, the family's list and the way in. It keeps its first colour and
+ * draws no dots (C2's phone, "the same order, without colour dots").
  *
- * THE ROW (1180px and wider, a pointer that can hover; below): closed, the picture sits over a stub
- * with the name and the count, and the notches are on the sides at the fold. A card opens when the
- * pointer rests on it for `--instant` (so a pointer crossing the row opens nothing), or at once when
- * the keyboard reaches it: it widens, the picture moves left, the words arrive `--stagger` apart,
- * the notches move to the new seam, and its neighbours' pictures fade back. It closes the moment the
- * pointer leaves, and on Escape (`TicketDismiss.tsx`). Its grid's tracks move rather than anything
- * being positioned on top, so the title's stretched link covers the whole card in every state.
+ * THE ROW (1440px and wider, a pointer that can hover; below): closed, a picture and, under it, the
+ * name and the count. A card opens when the pointer rests on it for `--instant` (so a pointer crossing
+ * the row opens nothing), or at once when the keyboard reaches it, and closes the moment the pointer
+ * leaves, or on Escape (`TicketDismiss.tsx`). Opening, its words slide out beside the picture, the
+ * picture turns to another colour of the same garment, the line under it names the garment, and the
+ * other cards step back.
  *
- * ⚠️ THE KEYBOARD RING IS DRAWN INSIDE THE CARD (F1). The card clips what lies outside it (its
- * rounded corners, its notches), and a ring drawn 2px outside, as everywhere else, lost 3 or 4 of
- * its 4px; on a product card's picture none of it showed (W3C "Understanding 2.4.7 Focus Visible",
- * updated 6 September 2026, failure F78). Here the whole card wears it, 4px inside its edge.
+ * ⚠️ NOTHING IS LAID OUT WHEN A CARD OPENS (C2: 2–4 layout passes an opening, against 599 when the
+ * cards' widths and grid tracks moved, measured on the options page, 2026-10-15). Every box keeps its
+ * size; the cards move by `transform` and the words' sheet is revealed by `clip-path`. The arithmetic
+ * is fixed by the shape: five cards of width W, the open one 2.2W with its words, so the other four
+ * share 2.8W and each is drawn at 0.7. A card at place i (from 0) moves left by 0.3W for each card
+ * before it, and right by 1.5W more if it comes after the open one. `--card` is set on each card by
+ * `FamilyCard.tsx`; `--open` is found below with `:has()`.
  *
- * The notches are a mask (Baseline since 7 December 2023). Their sizes are registered properties so
- * they glide (Baseline since 9 July 2024; web-guidance "interactive-content-reveal"); a browser
- * without `@property` moves them at once. `overflow: clip`, not `hidden`: a focused link in a part
- * not yet open would otherwise scroll the card's insides.
+ * ⚠️ `transform`, NOT `translate`: each card already rises into place by `translate` as it scrolls in
+ * (`card-rise`, below), and an animation outranks a declaration of the same property. The two compose.
+ *
+ * ⚠️ THE WORDS ARE NOT CLIPPED, ONLY THEIR SHEET. The title's link stretches over the whole card from
+ * inside the words (`::after`), and a `clip-path` clips its descendants' painting and pointer, so a
+ * clipped words box would have taken the card's link off the picture. The sheet (its border and paper)
+ * is revealed by `clip-path`; the words over it fade in, and while closed they let the pointer through
+ * to the cards beside them.
+ *
+ * ⚠️ THE KEYBOARD RING IS DRAWN INSIDE THE CARD (F1, W3C "Understanding 2.4.7 Focus Visible", failure
+ * F78): the stretched `::after` wears it, 4px inside its edge.
  */
-@property --ticket-end-notch {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0.01px;
-}
-
-@property --ticket-side-notch {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0.01px;
-}
-
 .family-card {
-  /* Where the picture meets the words, across the card; and, in the row, where the stub begins. */
-  --ticket-seam: 40%;
-  --ticket-fold: 64%;
-  --ticket-end-notch: 10px;
-  --ticket-side-notch: 0.01px;
   position: relative;
   display: grid;
-  grid-template-columns: var(--ticket-seam) minmax(0, 1fr);
+  grid-template-columns: 40% minmax(0, 1fr);
   min-block-size: 152px;
-  /* A list item, so base.css capped it at 60 characters: a spanning or opened ticket is wider. */
+  /* A list item, so base.css capped it at 60 characters: a sideways card is wider. */
   max-inline-size: none;
   padding: 0;
   overflow: clip;
-  container-type: inline-size;
-  mask:
-    radial-gradient(
-      circle var(--ticket-end-notch) at var(--ticket-seam) 0,
-      transparent 98%,
-      var(--ink)
-    ),
-    radial-gradient(
-      circle var(--ticket-end-notch) at var(--ticket-seam) 100%,
-      transparent 98%,
-      var(--ink)
-    ),
-    radial-gradient(
-      circle var(--ticket-side-notch) at 0 var(--ticket-fold),
-      transparent 98%,
-      var(--ink)
-    ),
-    radial-gradient(
-      circle var(--ticket-side-notch) at 100% var(--ticket-fold),
-      transparent 98%,
-      var(--ink)
-    );
-  mask-composite: intersect;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
   transition: scale var(--instant) var(--ease);
 }
 
-/* The tear line between picture and words, top to bottom. */
-.family-card::before {
-  content: "";
-  position: absolute;
-  inset-block: 16px;
-  inset-inline-start: var(--ticket-seam);
-  border-inline-start: 1px dashed var(--line);
-  pointer-events: none;
+/* The picture and the line under it; positioned for its placeholder and its second picture. */
+.family-card__face {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-block-size: 0;
 }
 
 .family-card__media {
   position: relative;
   display: block;
-  grid-area: 1 / 1;
   min-block-size: 0;
   overflow: clip;
   background: var(--bg);
@@ -4466,11 +4705,8 @@ a.contact-block__value:active {
 /*
  * ⚠️ THE MARGIN BY POSITION, NOT PADDING (VA-55's 7%, polish D3). Percentage padding is measured
  * against the box's WIDTH on every side, so the shared rule's `x 1.25` gives an even margin only in a
- * 4:5 box, and a ticket's picture box is any shape: a sideways ticket with three lines of kinds is
- * 139 x 204 px, where a 2:3 render came 5.97% from the top. A position's top and bottom are measured
- * against the HEIGHT, so `inset: 7%` keeps every edge at 7% whatever the box. Nothing moves or grows
- * the picture when the card opens: the demo's 5% step forward took the margin to 4.5%
- * (`e2e/pictureInset.spec.ts` measured both).
+ * 4:5 box, and a sideways card's picture box is any shape. A position's top and bottom are measured
+ * against the HEIGHT, so `inset: 7%` keeps every edge at 7% whatever the box (`e2e/pictureInset.spec.ts`).
  */
 .family-card__img {
   position: absolute;
@@ -4481,25 +4717,26 @@ a.contact-block__value:active {
   object-fit: contain;
 }
 
-/* The closed stub of the row; sideways, the words beside the picture say the same. */
-.family-card__stub {
+/* The other colour: only the row's opened card shows it. */
+.family-card__img--open {
+  opacity: 0;
+}
+
+/* Under the picture, in the row only: the name and count closed, the garment open. */
+.family-card__under {
   display: none;
 }
 
+/* The words: beside the picture sideways, and the sheet that slides out in the row. */
 .family-card__more {
-  grid-area: 1 / 2;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-inline-size: 0;
   padding: 14px 16px;
 }
 
 .family-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 8px;
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
@@ -4530,22 +4767,22 @@ a.contact-block__value:active {
 }
 
 /*
- * ⚠️ NOTHING BETWEEN THE LINK AND THE CARD MAY BE POSITIONED OR MOVED: the stretched `::after` covers
- * its containing block, and a `translate` on the title made the title that block (the row's lines
- * slid in by it), so a click on the picture went nowhere (e2e/familyTickets.spec.ts found it).
+ * ⚠️ NOTHING BETWEEN THE LINK AND THE CARD MAY BE POSITIONED, MOVED OR CLIPPED: the stretched `::after`
+ * covers its containing block, the card. A `translate` on the title made the title that block (the
+ * row's lines slid in by it), so a click on the picture went nowhere (e2e/familyTickets.spec.ts found
+ * it); a clip on the words would hide the same click (above).
  */
 .family-card__link::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: calc(var(--radius-panel) - 1px);
+  pointer-events: auto;
 }
 
 /*
  * F1: the ring, 4px inside the card's edge, drawn by the stretched `::after`: it covers the whole
- * card and is painted last. Drawn on the card itself, the picture half (positioned, for its
- * placeholder) painted over it, and the ring showed round the words only (measured in pixels).
- * The title's own ring would be a second one.
+ * card and is painted last. The title's own ring would be a second one.
  */
 .family-card__link:focus-visible {
   outline: none;
@@ -4556,36 +4793,6 @@ a.contact-block__value:active {
   outline-offset: -4px;
 }
 
-/*
- * Positioned for its dot, so it would sit over the title's stretched link: clicks pass through.
- * ⚠️ A BORDER, NOT A BACKGROUND (2026-10-05): `--line` is translucent ink, and a 1px-tall background
- * over 100px wide read as a see-through surface to `e2e/motion.spec.ts` (FA-H-08, "nothing translucent to
- * reduce"). The border draws the same hairline.
- */
-.family-card__line {
-  position: relative;
-  display: none;
-  block-size: 0;
-  margin-block: 4px;
-  border-block-start: 1px solid var(--line);
-  pointer-events: none;
-}
-
-/*
- * The dot that slides along the line as the card opens (the owner's example, 27 July 2026). Its box
- * is measured from under the 1px border, so −4px centres the 7px dot on it.
- */
-.family-card__line i {
-  position: absolute;
-  inset-block-start: -4px;
-  inset-inline-start: 4%;
-  inline-size: 7px;
-  block-size: 7px;
-  border-radius: 50%;
-  background: var(--text);
-  transition: inset-inline-start var(--slow) var(--ease);
-}
-
 .family-card__desc {
   margin: 0;
   font-size: var(--text-note);
@@ -4593,70 +4800,85 @@ a.contact-block__value:active {
   color: var(--muted);
 }
 
-.family-card__types {
-  margin: 0;
+/* "Made for" / "In the range", and the colour's name over the dots. */
+.family-card__label {
+  margin: 4px 0 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
-  line-height: 1.4;
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The family's list (D44): the first six as chips, then "+ N more", which the card's link opens. */
+.family-card__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.family-card__list > li {
+  max-inline-size: none;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  line-height: 1.2;
   color: var(--text);
 }
 
-/* The stub's count, long where the card has room for it and short where it would wrap. */
-.family-card__count-short {
+.family-card__list > .family-card__list-more {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* The garment's colours, the one in the picture ringed: the row's opened card only. */
+.family-card__colour {
   display: none;
 }
 
-@container (max-width: 199px) {
-  .family-card__count-long {
-    display: none;
-  }
+.family-card__dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
 
-  .family-card__count-short {
-    display: inline;
-  }
+.family-card__dots i {
+  inline-size: 14px;
+  block-size: 14px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pill);
+  background: var(--swatch, transparent);
+}
+
+.family-card__dots i.is-shown {
+  outline: 2px solid var(--headline);
+  outline-offset: 2px;
 }
 
 .family-card__cue {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-block-start: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-chip);
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps-snug);
   text-transform: uppercase;
-  color: var(--dimension);
+  color: var(--text);
 }
 
 .family-card__cue b {
   display: inline-block;
   font-weight: inherit;
   transition: translate var(--ui) var(--ease);
-}
-
-/*
- * Sideways, the count and the description are hidden from sight but not from a screen reader,
- * which reads the card's words whether or not they are on show (`.visually-hidden`'s technique).
- */
-.family-card__meta,
-.family-card__desc {
-  position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* A wide sideways card (the fifth, spanning a tablet's two columns) has room for its description. */
-@container (min-width: 520px) {
-  .family-card__desc {
-    position: static;
-    inline-size: auto;
-    block-size: auto;
-    overflow: visible;
-    clip-path: none;
-    white-space: normal;
-  }
 }
 
 .family-card:has(.family-card__link:active) {
@@ -4670,69 +4892,97 @@ a.contact-block__value:active {
 }
 
 /*
- * ⚠️ THE ROW. Closed: the picture over the stub (tracks `100% 0%` across, the fold down), notches
- * on the sides at the fold, a tear line across. Open: the tracks become the seam (`44% 56%`) and the
- * full height, the notches move to the top and bottom at the seam. `--ticket-wait` is the pause
- * before opening, nothing before closing (the asymmetry the version 2 demo set); a keyboard opens
- * at once. Reduced motion collapses every duration and delay (base.css), so the card simply opens.
+ * ⚠️ THE ROW. The card is its picture (`--card-w` wide); the words sit in a second column 1.2 times
+ * as wide that overflows it, tucked 14px under the picture's rounded edge, and are revealed in place.
+ * `--open` is the opened card's place; `.family-grid` is the container the widths are measured in.
  */
-@media (min-width: 1180px) and (hover: hover) and (pointer: fine) {
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  .family-grid:has(
+    > .family-card:nth-child(1):hover:not([data-dismissed]),
+    > .family-card:nth-child(1):not([data-dismissed]) .family-card__link:focus-visible
+  ) {
+    --open: 0;
+  }
+
+  .family-grid:has(
+    > .family-card:nth-child(2):hover:not([data-dismissed]),
+    > .family-card:nth-child(2):not([data-dismissed]) .family-card__link:focus-visible
+  ) {
+    --open: 1;
+  }
+
+  .family-grid:has(
+    > .family-card:nth-child(3):hover:not([data-dismissed]),
+    > .family-card:nth-child(3):not([data-dismissed]) .family-card__link:focus-visible
+  ) {
+    --open: 2;
+  }
+
+  .family-grid:has(
+    > .family-card:nth-child(4):hover:not([data-dismissed]),
+    > .family-card:nth-child(4):not([data-dismissed]) .family-card__link:focus-visible
+  ) {
+    --open: 3;
+  }
+
+  .family-grid:has(
+    > .family-card:nth-child(5):hover:not([data-dismissed]),
+    > .family-card:nth-child(5):not([data-dismissed]) .family-card__link:focus-visible
+  ) {
+    --open: 4;
+  }
+
   .family-card {
-    --ticket-seam: 44%;
-    --ticket-end-notch: 0.01px;
-    --ticket-side-notch: 11px;
-    --ticket-wait: 0s;
-    flex: 1 1 0;
-    min-inline-size: 0;
+    --card-w: calc((100cqi - 4 * 16px) / 5);
+    grid-template-columns: 100%;
+    align-self: start;
+    isolation: isolate;
     min-block-size: 0;
-    /* Percentages at both ends, so the tracks glide (`fr` and `%` do not interpolate). */
-    grid-template-columns: 100% 0%;
-    grid-template-rows: var(--ticket-fold) calc(100% - var(--ticket-fold));
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    transform-origin: left center;
     transition:
-      flex-grow var(--settle) var(--ease) var(--ticket-wait),
-      grid-template-columns var(--settle) var(--ease) var(--ticket-wait),
-      grid-template-rows var(--settle) var(--ease) var(--ticket-wait),
-      --ticket-side-notch var(--fast) var(--ease) var(--ticket-wait),
-      --ticket-end-notch var(--ui) var(--ease) calc(var(--ticket-wait) + var(--fast)),
+      transform var(--ui) var(--ease),
       scale var(--instant) var(--ease);
   }
 
-  /* In the row the fifth is one of five: the seam the two-column layout gave it is taken back. */
-  .family-grid > li:last-child {
-    --ticket-seam: 44%;
-  }
-
-  /* The tear line across, at the fold; the one top to bottom waits for the card to open. */
-  .family-card::before {
-    opacity: 0;
-    transition: opacity var(--fast) var(--ease);
-  }
-
-  .family-card::after {
-    content: "";
-    position: absolute;
-    inset-inline: 16px;
-    inset-block-start: var(--ticket-fold);
-    border-block-start: 1px dashed var(--line);
-    pointer-events: none;
-    transition: opacity var(--fast) var(--ease) var(--ticket-wait);
+  .family-card__face {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    overflow: clip;
+    background: var(--surface);
   }
 
   .family-card__media {
+    aspect-ratio: 4 / 5;
     transition:
       opacity var(--ui) var(--ease),
       filter var(--ui) var(--ease);
   }
 
-  .family-card__stub {
-    grid-area: 2 / 1;
+  .family-card__img {
+    transition: opacity var(--ui) var(--ease);
+  }
+
+  .family-card__under {
     display: grid;
-    align-content: space-between;
-    gap: 6px;
-    min-block-size: 0;
-    padding: 16px;
-    overflow: clip;
-    transition: opacity var(--fast) var(--ease) var(--ticket-wait);
+    align-items: center;
+    block-size: 58px;
+    padding: 0 16px;
+  }
+
+  .family-card__under > * {
+    grid-area: 1 / 1;
+    transition: opacity var(--fast) var(--ease);
+  }
+
+  .family-card__stub {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
   }
 
   .family-card__stub-name {
@@ -4750,128 +5000,163 @@ a.contact-block__value:active {
     font-family: var(--font-mono);
     font-size: var(--text-mono-lg);
     letter-spacing: var(--tracking-caps-snug);
+    white-space: nowrap;
     color: var(--muted);
   }
 
+  .family-card__garment {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-lg);
+    letter-spacing: var(--tracking-caps-snug);
+    text-transform: uppercase;
+    color: var(--text);
+    opacity: 0;
+  }
+
   /*
-   * Closed, the words wait unseen inside the ticket, over the picture: in the empty second track
-   * they would lie past the ticket's edge, and the fifth's past the screen's at 24px text
-   * (composition.spec.ts). Opened, they take the second track, while still unseen.
+   * The words' sheet is the card's own `::before`, beside the picture and tucked 14px under its rounded
+   * edge: a sibling of the words, so its `clip-path` reaches none of their links. ⚠️ `z-index: -1`
+   * inside the card (`isolation`): a `clip-path` lifts a box into the layer painted over the words, and
+   * the sheet covered every word but the cue's arrow (found in the first build's pictures, 2026-10-16).
+   */
+  .family-card::before {
+    content: "";
+    position: absolute;
+    z-index: var(--z-card-sheet);
+    inset-block: 0;
+    inset-inline-start: calc(100% - 14px);
+    inline-size: calc(120% + 14px);
+    border: 1px solid var(--line);
+    border-inline-start: 0;
+    border-radius: 0 var(--radius-panel) var(--radius-panel) 0;
+    background: var(--surface);
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path var(--ui) var(--ease);
+  }
+
+  /*
+   * ⚠️ THE WORDS WAIT BEHIND THEIR OWN PICTURE, CENTRED, AND SLIDE OUT (2026-10-16). Out of the flow, so
+   * no card is wider for them; 1.2 cards wide, beside the sheet once open. Closed they sit behind the
+   * picture, overhanging each side by a tenth of a card and 7px, less than the page's gutter at every
+   * width the row is drawn: beside a closed fifth card they lay past the screen's edge (197px at
+   * 1280px), unseen but text all the same (`e2e/composition.spec.ts` counts text a clip hides). They are
+   * the containing block of the title's stretched `::after`, which is sized to the picture while
+   * closed and to the picture and the words once open, below.
    */
   .family-card__more {
-    grid-area: 1 / 1 / 3 / 2;
-    gap: 10px;
-    padding: 20px 18px 18px 22px;
-    overflow: clip;
-  }
-
-  /* In the row every line is drawn, and arrives as the card opens. */
-  .family-card__meta,
-  .family-card__desc {
-    position: static;
-    inline-size: auto;
-    block-size: auto;
-    overflow: visible;
-    clip-path: none;
-    white-space: normal;
-  }
-
-  .family-card__line {
-    display: block;
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: calc(100% - 14px);
+    inline-size: calc(120% + 14px);
+    gap: 8px;
+    padding: 18px 18px 18px calc(18px + 14px);
+    translate: calc(7px - 1.1 * var(--card-w)) 0;
+    transition: translate var(--ui) var(--ease);
   }
 
   .family-card__more > * {
     opacity: 0;
-    transition:
-      opacity var(--fast) var(--ease),
-      translate var(--settle) var(--ease);
+    pointer-events: none;
+    transition: opacity var(--fast) var(--ease);
   }
 
-  /* Every line rises as it arrives but the title, which only fades: see `.family-card__link::after`. */
-  .family-card__more > :not(.family-card__title) {
-    translate: 0 8px;
+  .family-card__link::after {
+    inset-inline: calc(0.1 * var(--card-w) + 7px);
   }
 
-  .family-card__more > :nth-child(2) {
-    --i: 1;
+  .family-card__colour {
+    display: grid;
+    gap: 6px;
   }
 
-  .family-card__more > :nth-child(3) {
-    --i: 2;
+  .family-card__colour .family-card__label {
+    margin: 0;
   }
 
-  .family-card__more > :nth-child(4) {
-    --i: 3;
-  }
-
-  .family-card__more > :nth-child(5) {
-    --i: 4;
-  }
-
-  .family-card__more > :nth-child(6) {
-    --i: 5;
-  }
-
-  /* Open: on a resting pointer, or at once for the keyboard; never once Escape has closed it. */
+  /* Open: the card in place, its sheet and words shown, the other colour, the garment's name. */
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed]) {
-    --ticket-wait: var(--instant);
-    --ticket-end-notch: 11px;
-    --ticket-side-notch: 0.01px;
-    flex-grow: 2.7;
-    grid-template-columns: var(--ticket-seam) calc(100% - var(--ticket-seam));
-    grid-template-rows: 100% 0%;
+    z-index: var(--z-card-open);
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::before {
+    clip-path: inset(0);
+    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__more {
-    grid-area: 1 / 2 / 3 / 3;
-  }
-
-  .family-card:has(.family-card__link:focus-visible):not([data-dismissed]) {
-    --ticket-wait: 0s;
-  }
-
-  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::before {
-    opacity: 1;
-    transition-delay: calc(var(--ticket-wait) + var(--fast));
-  }
-
-  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::after,
-  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
-    .family-card__stub {
-    opacity: 0;
+    translate: none;
+    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__more
     > * {
     opacity: 1;
-    /* `none`, not `0 0`: any other value is still a transform, and the title must carry none. */
-    translate: none;
-    transition-delay: calc(var(--ticket-wait) + var(--instant) + var(--i, 0) * var(--stagger));
+    pointer-events: auto;
+    transition-delay: calc(var(--instant) + var(--ui));
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
-    .family-card__line
-    i {
-    inset-inline-start: 62%;
-    transition-delay: calc(var(--ticket-wait) + var(--fast));
+    .family-card__link::after {
+    inset-inline: calc(14px - var(--card-w)) 0;
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__img--open,
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__garment {
+    opacity: 1;
+    transition-delay: var(--instant);
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__img:has(+ .family-card__img--open),
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__stub:has(+ .family-card__garment) {
+    opacity: 0;
+    transition-delay: var(--instant);
   }
 
   /*
-   * The neighbours step back: their PICTURES fade, their words keep full contrast (the version 2
-   * demo faded whole cards, which took their names under 4.5:1 while one was open).
+   * The others step back: drawn at 0.7, and moved to make room (the arithmetic above), and their
+   * PICTURES fade, their words keep full contrast (the version 2 demo faded whole cards, which took
+   * their names under 4.5:1 while one was open). One `:has()` may not hold another, so the focused
+   * card is found through its link.
    */
-  /* (One `:has()` may not hold another, so the focused card is found through its link.) */
+  .family-grid:has(
+    .family-card:hover:not([data-dismissed]),
+    .family-card:not([data-dismissed]) .family-card__link:focus-visible
+  ) > .family-card {
+    --after: clamp(0, var(--card, 0) - var(--open), 1);
+    transform: translateX(calc(var(--card-w) * (var(--after) * 1.5 - var(--card, 0) * 0.3)))
+      scale(0.7);
+    transition-delay: var(--instant);
+  }
+
   .family-grid:has(
       .family-card:hover:not([data-dismissed]),
       .family-card:not([data-dismissed]) .family-card__link:focus-visible
     )
-    .family-card:not(:hover):not(:has(.family-card__link:focus-visible))
+    > .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed]) {
+    transform: translateX(calc(var(--card-w) * var(--card, 0) * -0.3));
+  }
+
+  .family-grid:has(
+      .family-card:hover:not([data-dismissed]),
+      .family-card:not([data-dismissed]) .family-card__link:focus-visible
+    )
+    > .family-card:not(:hover):not(:has(.family-card__link:focus-visible))
     .family-card__media {
     opacity: 0.62;
     filter: saturate(0.55);
     transition-delay: var(--instant);
+  }
+
+  /* A keyboard opens at once: the pause is for a pointer crossing the row. */
+  .family-grid:has(.family-card__link:focus-visible) > .family-card,
+  .family-grid:has(.family-card__link:focus-visible) .family-card * {
+    transition-delay: 0s;
   }
 }
 
@@ -5006,98 +5291,135 @@ a.contact-block__value:active {
   scale: 0.98;
 }
 
-/* ------------------------------------------------ №04 how an order works: the order steps (D4) */
+/* ------------------------------------------------ №04 how an order works: the stage cards (D42) */
 
 /*
- * ⚠️ EIGHT PHOTO CARDS THAT STACK AS THE PAGE SCROLLS (polish D4, the owner's answer Q14 of
- * 2026-10-03: "B, stacking photo cards"). Each step is a card over its own room's photo
- * (`OrderSteps.tsx`). Each card stops 8px below the one before, the next slides up over it, and
- * the covered card sinks back and darkens, like cards being dealt. The SAME cards are the order
- * guide's "The eight steps" (Q41), so the two places cannot word the steps differently (X21).
- * Until 2026-10-05 this was a timeline: rows of words beside square photos, and a drawn line.
+ * ⚠️ FOUR FULL-SCREEN STAGE CARDS, TWO STEPS TO A CARD (owner, option A3, 2026-10-15; D42). Each
+ * card is one stage, named once in a volt pill; each half is one step over the photo of its room
+ * (`OrderSteps.tsx`). From 900px the halves sit side by side, below it one above the other. Each
+ * card stops 8px below the one before, and the next slides up over it; nothing animates (the
+ * option's own words). The SAME cards are the order guide's "The eight steps" (Q41, confirmed for
+ * the four cards on 2026-10-16), so the two places cannot word the steps differently (X21).
  *
- * From 900px the heading and its words stay on the left while the cards pass on the right: the
- * half №01's photos take, because the photo files stopped at 1200px (wide) and 800px (tall); since
- * polish X16 they reach 1600px and 1536px, which is what a 2x screen asks for this half (up to 704px
- * wide). On the guide the section heading does the same beside its cards (`.spread`).
- */
-@media (min-width: 900px) {
-  .order-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 64px;
-    align-items: start;
-  }
-
-  /* Its grid area runs the whole height of the cards and the button, so it can stay that long. */
-  .order-layout__head {
-    grid-row: 1 / span 2;
-    position: sticky;
-    top: var(--notch-clearance);
-  }
-
-  .order-layout > .order-steps,
-  .order-layout__actions {
-    grid-column: 2;
-  }
-
-  .spread:has(> .spread__body > .order-steps) > .display {
-    position: sticky;
-    top: var(--notch-clearance);
-  }
-}
-
-/*
- * `--step-h` is a card's height and `--step-gap` the room between two cards in the list; the
- * stack's arithmetic below reads both. In rem, so a reader's larger text gets a taller card and
- * the words still fit (`e2e/orderTimeline.spec.ts` sets 200% text); a card whose words need more
- * than this still grows (`min-block-size`) rather than cut them.
+ * Eight half-width cards that sank back and darkened as the next covered them until D42 (polish
+ * D4), and a timeline of rows before that.
  *
- * On a phone 16.875rem (270px), 20rem until polish X8 (2026-10-05, the owner's "shorter cards"): 50px
- * less a card, 400px less on the phone home page (10,295px to 9,895px at 390x844 in CI's image;
- * 9,819px once the photo labels went the same day). The fullest card's words ("Your quote") need
- * 193px at 390px, so at least 61px of its photo still shows, and about 100px on the others.
+ * The cards are the screen's whole width, outside the page's column (`OrderTimeline.tsx`), and
+ * their words keep the column's edge: `--stage-edge` is where the column's content starts, the
+ * gutter on a narrow screen and the gutter plus the margin beside `--site-max` on a wide one. In
+ * `cqi`, the list's own width: a custom property is worked out where it is USED, so `100%` there
+ * meant the step's half, and the words sat 160px off the heading's edge at 1920px (measured).
+ *
+ * `--stage-h` is a card's height: the screen under the bar, less room for the three cards before
+ * it to show 8px each and 8px below, so the fourth card's foot is still on the screen when it stops.
+ * svh, the screen with the browser's bars shown, so a phone's bar sliding in hides nothing.
  */
-.order-steps {
-  --step-h: 16.875rem;
-  --step-gap: 24px;
+.order-stages {
+  --stage-h: calc(100svh - var(--notch-clearance) - 4 * 8px);
+  --stage-edge: max(var(--site-gutter), calc((100cqi - var(--site-max)) / 2 + var(--site-gutter)));
+  container-type: inline-size;
   display: grid;
-  row-gap: var(--step-gap);
+  row-gap: 24px;
   margin: 24px 0 0;
   padding: 0;
   list-style: none;
 }
 
-@media (min-width: 560px) {
-  .order-steps {
-    --step-h: 23.75rem;
-  }
+/* `max-width: none`: base.css caps every `li` at 60ch. */
+.order-stages > .order-stage {
+  position: relative;
+  min-block-size: var(--stage-h);
+  max-width: none;
+  background: var(--ink);
 }
 
-@media (min-width: 900px) {
-  .order-layout > .order-steps {
-    margin-block-start: 0;
-  }
+.order-stage__name {
+  position: absolute;
+  z-index: var(--z-stage-name);
+  top: 18px;
+  left: var(--stage-edge);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--volt);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-wide);
+  text-transform: uppercase;
+}
+
+.order-stage__steps {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  min-block-size: inherit;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /*
- * ⚠️ THE CARD IS DARK IN BOTH THEMES: it takes the photo hero's own tokens (the block that starts
- * "THE HERO IS DARK IN BOTH THEMES" above names this selector too), and for the same reason its
- * words are `--text`, never `--muted`. `max-width: none` because base.css caps every `li` at 60ch,
- * and a guide's prose caps them again (`.prose--guide li`), which this beats on specificity.
+ * ⚠️ THE STEP IS DARK IN BOTH THEMES: it takes the photo hero's own tokens (the block that starts
+ * "THE HERO IS DARK IN BOTH THEMES" above names `.order-step`), and for the same reason its words
+ * are `--text`, never `--muted`.
+ *
+ * The number and whose move it is at the top, the words at the foot, and the photo showing in the
+ * row between (at least 16px of it).
  */
-.order-steps > .order-step {
+.order-stage__steps > .order-step {
+  --pad-start: var(--stage-edge);
+  --pad-end: var(--stage-edge);
   position: relative;
   isolation: isolate;
   display: grid;
-  min-block-size: var(--step-h);
+  grid-template-rows: auto minmax(16px, 1fr) auto;
   max-width: none;
+  padding: 18px var(--pad-end) 0 var(--pad-start);
   overflow: clip;
-  border-radius: var(--radius-card);
-  background: var(--bg);
 }
 
-/* Behind the words: the picture's own `focus` (lib/factoryPhotos.ts) is its `object-position`. */
+/* Under the stage's pill, on the first step: the pill's 18px, its height and 18px under it. */
+.order-stage__steps > .order-step:first-child {
+  padding-block-start: 64px;
+}
+
+.order-stage__steps > .order-step + .order-step {
+  border-block-start: 1px solid var(--line);
+}
+
+/*
+ * From 900px the halves sit side by side, and both share the card's three rows (subgrid), so the
+ * taller words set the row and the other half's title starts level with its neighbour's: the two
+ * titles read as one line (measured on the options page, 2026-10-15).
+ */
+@media (min-width: 900px) {
+  .order-stage__steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto minmax(16px, 1fr) auto;
+  }
+
+  /* Each half keeps the column's edge on its outer side and the gutter on its inner one. */
+  .order-stage__steps > .order-step {
+    --pad-end: var(--site-gutter);
+    grid-row: 1 / -1;
+    grid-template-rows: subgrid;
+    padding-block-start: 64px;
+  }
+
+  /* Two classes: the plain rule further down would win otherwise. */
+  .order-step .order-step__words {
+    --fade: 64px;
+  }
+
+  .order-stage__steps > .order-step + .order-step {
+    --pad-start: var(--site-gutter);
+    --pad-end: var(--stage-edge);
+    border-block-start: 0;
+    border-inline-start: 1px solid var(--line);
+  }
+}
+
+/* Behind everything: the picture's own `focus` (lib/factoryPhotos.ts) is its `object-position`. */
 .order-step__photo {
   position: absolute;
   inset: 0;
@@ -5108,29 +5430,81 @@ a.contact-block__value:active {
 }
 
 /*
- * ⚠️ THE WASH IS 80% INK AT THE LEAST, the photo hero's rule and arithmetic: over the whitest pixel
- * a photo could have, `--text` is about 7:1 and the volt about 6.8:1 (both 4.5:1 or better). It is
- * the words' own background, so it covers the card wherever words can be, with the hero's faint
- * grid over it. `e2e/orderTimeline.spec.ts` measures every line against the real pixels behind it,
- * and again over a white picture.
- *
- * The number and the stage on top, the words at the foot, and the photo showing in the row
- * between (at least 16px of it, and the room a card has to spare on a wider screen).
+ * The number's ground: the photo darkened at the top, so the volt figure is at least 4.85:1 over the
+ * whitest pixel a photo could have (70% ink: 0.7 × #1c1f18 + 0.3 × white = rgb(96, 98, 93)), and
+ * clear to the middle, where the photo is meant to be seen. The 70% holds over the whole top row:
+ * the first step's pill room (64px) and the number at its largest (4.5rem, `.display--hero`'s cap).
+ * It stopped at 64px in the first build, and over a white photo the number measured 2.14:1 there.
+ * Painted after the photo, at its layer.
+ */
+.order-step::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hero-grid);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg) 70%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 70%, transparent) calc(64px + 4.5rem),
+    transparent max(40%, calc(64px + 4.5rem + 64px))
+  );
+  pointer-events: none;
+}
+
+.order-step__top {
+  display: flex;
+  flex-wrap: wrap;
+  grid-row: 1;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The hero's number size, in the volt: the step's place in the order, for the eye. */
+.order-step .order-step__number {
+  color: var(--dimension);
+  line-height: 1;
+}
+
+/* Whose move it is, on its own dark ground so it reads on any photo: "You" ringed in the volt. */
+.order-step__actor {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.order-step__actor--You {
+  border-color: var(--dimension);
+}
+
+/*
+ * ⚠️ THE WORDS SIT ON 80% INK AT THE LEAST, the photo hero's rule and arithmetic: over the whitest
+ * pixel a photo could have, `--text` is about 7:1. The words' own ground fades in from the photo
+ * over the `--fade` above them (64px, 24px on a phone, where a card's height is scarcest), so it
+ * starts at 80% exactly where the title does, and deepens to 90% at the card's foot. `e2e/orderTimeline.spec.ts` measures every line against the real pixels
+ * behind it, and again over a white picture.
  */
 .order-step__words {
+  --fade: 24px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(16px, 1fr) auto auto;
-  column-gap: 12px;
-  padding: 20px;
+  grid-row: 3;
+  align-content: start;
+  gap: 8px;
+  margin-inline: calc(-1 * var(--pad-start)) calc(-1 * var(--pad-end));
+  padding: var(--fade) var(--pad-end) 24px var(--pad-start);
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px),
     linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--bg) 80%, transparent) 0%,
-      color-mix(in srgb, var(--bg) 80%, transparent) 50%,
-      color-mix(in srgb, var(--bg) 88%, transparent) 100%
+      transparent 0,
+      color-mix(in srgb, var(--bg) 80%, transparent) var(--fade),
+      color-mix(in srgb, var(--bg) 90%, transparent) 100%
     );
   background-size:
     26px 26px,
@@ -5138,167 +5512,87 @@ a.contact-block__value:active {
     auto;
 }
 
-/* The section's own number size (`.display--section`, as №05's figures), in the volt. */
-.order-step .order-step__number {
-  grid-column: 1;
-  grid-row: 1;
-  color: var(--dimension);
-}
-
-/* The stage, then whose move it is: "You" is ringed in the volt, so a buyer can scan for their turns. */
-.order-step .order-step__tag {
-  display: flex;
-  flex-wrap: wrap;
-  grid-column: 2;
-  grid-row: 1;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-lg);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-}
-
-.order-step__phase {
-  color: var(--dimension);
-}
-
-.order-step__actor {
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  color: var(--text);
-}
-
-.order-step__actor--You {
-  border-color: var(--dimension);
-}
-
 .order-step .order-step__title {
-  grid-column: 1 / -1;
-  grid-row: 3;
   margin: 0;
-  font-size: var(--text-card-title);
-  letter-spacing: var(--tracking-card-title);
-  line-height: 1.1;
 }
 
-/* 28.635em is 50ch of Archivo, the timeline's measure (CI counted 77 characters a line at 55ch). */
-.order-step .order-step__body {
-  grid-column: 1 / -1;
-  grid-row: 4;
+/*
+ * 28.635em is 50ch of Archivo, the steps' measure since the timeline (CI counted 77 a line at 55ch).
+ * The smaller second line keeps it too: at `p`'s 34.362em it ran 77–82 characters at 768px and at
+ * 1440px (FA-C-52, 2026-10-16). In em, so it narrows with the smaller size. Up to 412px wide a step is
+ * already narrower than this (372px at 412).
+ */
+.order-step .order-step__body,
+.order-step .order-step__detail {
   max-width: 28.635em;
-  margin: 6px 0 0;
-  font-size: var(--text-sm);
+  margin: 0;
   color: var(--text);
 }
 
-/* The shade a covered card sinks into; nothing at rest. It holds no words, so animating its
-   opacity does not set the axe contrast trap the entrance motion records (`site-reveal`). */
-.order-steps > .order-step::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--ink);
-  opacity: 0;
-  pointer-events: none;
+.order-step .order-step__detail {
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 899px) {
+  .order-step .order-step__body {
+    font-size: var(--text-sm);
+  }
+
+  .order-step .order-step__detail {
+    font-size: var(--text-xs);
+  }
 }
 
 /*
  * ⚠️ THE STACK, ONLY FOR SOMEONE WHO ALLOWS MOTION, AND ONLY ON A SCREEN TALL ENOUGH TO HOLD IT.
- * Under reduced motion the cards are a plain list (the report's D4: "reduce motion shows the steps
- * without movement"). And a card that stops where its foot is below the screen hides its words for
- * good, because the next card covers it from the foot up: a phone held sideways is 390px tall
- * against a stopped card's 86px + 56px + 380px. 40rem (640px at the default text size) is the
- * shortest screen the whole stack fits on with room to spare; rem in a media query follows the
- * reader's text size, as the cards' rem heights do.
+ * Under reduced motion the cards are a plain list, as the eight were (polish D4). And a card that
+ * stops with its foot below the screen hides its words for good, because the next card covers it
+ * from the foot up, so the stack needs the fullest card to fit. Measured in the build (2026-10-16,
+ * cards with nothing forcing their height): the fullest needs 666px at 360px wide, 626px at 375–390px, 601px at
+ * 768px and at most 408px from 900px, and a screen gives it its height less the bar's clearance
+ * (84px) and 32px. So from 900px a 40rem screen (640px) holds the stack, and below 900px it takes
+ * 50rem (800px; 782px would be the bare minimum, and a phone's own bars can take some of it from
+ * `svh`): a 390 × 844 phone stacks, a 360 × 780 or 375 × 667 one is a list. rem in a media query follows the
+ * reader's text size, so larger text turns the stack off before it could hide anything. Here, and
+ * only here, a card is exactly the screen's height.
  *
  * Card i stops at the bar's clearance plus 8px for each card before it, so each card's top edge
- * stays in sight under the next.
- *
- * ⚠️ THE LAST CARD'S ROOM TO STOP IS AN EMPTY ROW OF THE LIST, NOT A MARGIN. A stopped card may not
- * leave its list, margin and all, so a margin under the last card took away exactly the room it
- * was meant to give: the eighth card never stopped (measured 2026-10-05). `::after` is one more
- * row, 24px after the gap, so the finished stack holds for 48px of scroll before it moves away.
+ * stays in sight under the next. The last card's room to stop is an empty row of the list, not a
+ * margin: a stopped card may not leave its list, margin and all (measured 2026-10-05).
  */
-@media screen and (prefers-reduced-motion: no-preference) and (min-height: 40rem) {
-  .order-steps > .order-step {
+@media screen and (prefers-reduced-motion: no-preference) and (min-width: 900px) and (
+    min-height: 40rem
+  ),
+  screen and (prefers-reduced-motion: no-preference) and (min-height: 50rem) {
+  .order-stages > .order-stage {
     position: sticky;
     top: calc(var(--notch-clearance) + var(--i) * 8px);
-    transform-origin: 50% 0;
+    block-size: var(--stage-h);
   }
 
-  .order-steps::after {
+  .order-stages::after {
     content: "";
     block-size: 24px;
   }
-
-  /*
-   * ⚠️ THE SINK RUNS ON THE LIST'S OWN SCROLL TIMELINE, AND THE ARITHMETIC IS THE STACK'S.
-   * `exit-crossing 0` is the list's top reaching the bar's clearance (`view-timeline-inset`), and
-   * a length after it is that many pixels of scroll later (CSS Scroll-driven Animations, editor's
-   * draft of 25 Sep 2026, §3.1). Card i stops at i × (H + M − 8px) of scroll, the next card touches
-   * its foot M later, and stops H − 8px after that, exactly covering it: so the sink runs from
-   * i × (H + M − 8px) + M to (i + 1) × (H + M − 8px). The list is the timeline because it never
-   * stops itself; a stopped card's position would hold still while the scroll moved on.
-   *
-   * Only where the browser has scroll timelines AND animation ranges (a browser with the first and
-   * not the second would run the sink over the whole page): in Firefox the cards stack without
-   * sinking, which is the progressive enhancement the web-guidance index recommends for a
-   * decorative effect (no script fallback). Transform and opacity only, so it stays on the
-   * compositor.
-   */
-  @supports ((animation-timeline: view()) and (animation-range: 0% 100%)) {
-    .order-steps {
-      view-timeline: --order-steps block;
-      view-timeline-inset: var(--notch-clearance) 0px;
-    }
-
-    .order-steps > .order-step:not(:last-child),
-    .order-steps > .order-step:not(:last-child)::after {
-      animation: order-step-sink var(--slow) linear both;
-      animation-timeline: --order-steps;
-      animation-range: exit-crossing
-        calc(var(--i) * (var(--step-h) + var(--step-gap) - 8px) + var(--step-gap)) exit-crossing
-        calc((var(--i) + 1) * (var(--step-h) + var(--step-gap) - 8px));
-    }
-
-    .order-steps > .order-step:not(:last-child)::after {
-      animation-name: order-step-shade;
-    }
-  }
 }
 
-@keyframes order-step-sink {
-  from {
-    scale: 1;
-  }
-  to {
-    scale: 0.94;
-  }
-}
-
-@keyframes order-step-shade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.55;
-  }
-}
-
-/* On paper: the list (the stack is for screens only), without photos or shade, in the page's own
-   colours (the photo hero's print rule names this card too). */
+/* On paper: the list (the stack is for screens only), without photos or washes, in the page's own
+   colours (the photo hero's print rule names the step too). */
 @media print {
-  .order-steps > .order-step {
+  .order-stages > .order-stage {
     border: 1px solid var(--line);
+    background: none;
     break-inside: avoid;
   }
 
+  .order-stage__name {
+    position: static;
+    display: inline-block;
+    margin: 12px 0 0 12px;
+  }
+
   .order-step__photo,
-  .order-steps > .order-step::after {
+  .order-step::after {
     display: none;
   }
 

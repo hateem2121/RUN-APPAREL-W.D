@@ -47,18 +47,22 @@ describe('FamilyCard draws a card-sized picture', () => {
 })
 
 /** A family's card as the home page draws it: `familyIsSoon` and the count from a garment count. */
-const cardOf = (slug: string, garments: number) => {
+const cardOf = (
+  slug: string,
+  garments: number,
+  extra: Partial<ComponentProps<typeof FamilyCard>> = {},
+) => {
   const family = FAMILIES.find((entry) => entry.slug === slug)
   if (!family) throw new Error(`no family ${slug}`)
   const soon = familyIsSoon(family, garments)
   return renderToStaticMarkup(
-    createElement(FamilyCard, { family, picture: null, soon, count: garments }),
+    createElement(FamilyCard, { family, picture: null, soon, count: garments, ...extra }),
   )
 }
 
 /**
  * Markup's text: tags out, the one entity these cards write, `&` (Teamwear & Uniforms), and every
- * space as one plain space (`\s` takes in the no-break spaces that hold a "/" to its kind).
+ * space as one plain space.
  */
 const words = (markup: string) =>
   // Tags out until none is left (one pass can join two halves into a new tag: the code scan, PR #128).
@@ -73,59 +77,123 @@ const linksOf = (html: string) =>
     text: words(match[2] ?? ''),
   }))
 
-/**
- * The text of the element with this class, to its own closing tag (a `<p>` holding `<span>`s ends at
- * `</p>`). An element of the same tag inside it would end it early: these cards nest none that way
- * but the count's, whose two forms are read by their own classes.
- */
+/** The text of the element with this class, to its own closing tag. */
 const textOf = (html: string, className: string) =>
   words(html.match(new RegExp(`<(\\w+) class="${className}"[^>]*>(.*?)</\\1>`))?.[2] ?? '')
 
-/*
- * Polish D3 (the owner's version 2 of 3 October): each family is a ticket. One link, the title's,
- * stretched over the card; a stub the eye reads closed and a screen reader skips (its words are in
- * the opened half); the opened half's count, minimum, description, kinds and way in.
- */
-describe('a family ticket (polish D3)', () => {
-  const html = cardOf('teamwear-uniforms', 19)
+/** Each list item's words, in order. */
+const itemsOf = (html: string) =>
+  [
+    ...(html.match(/<ul class="family-card__list">(.*?)<\/ul>/)?.[1] ?? '').matchAll(
+      /<li[^>]*>(.*?)<\/li>/g,
+    ),
+  ].map((match) => words(match[1] ?? ''))
 
-  it('has one link, named for the family, to the family’s page', () => {
+const TEAMWEAR_LIST = [
+  'Soccer',
+  'American football',
+  'Tennis and pickleball',
+  'Cycling',
+  'Training',
+  'Water sports',
+  'Basketball',
+  'Rugby',
+  'Cricket',
+  'Baseball',
+  'Volleyball',
+  'Hockey',
+]
+
+const BIB = {
+  name: 'X-Milo Pro Bib',
+  open: {
+    url: 'https://media.wear-run.com/r-xmp-mint-render.webp',
+    alt: 'The bib in mint',
+    colourName: 'Croquet Mint / Deep End',
+  },
+  swatches: ['#7E0922', '#55543F', null, '#DDE0E3', '#7FCBBD'],
+  shown: 4,
+}
+
+/*
+ * D44, the owner's option C2 (2026-10-15): the card opens beside its picture. One link, the title's,
+ * stretched over the card; a line under the picture the eye reads closed and a screen reader skips;
+ * the words: the count, the name, the description, the family's list, the colours and the way in.
+ */
+describe('a family card (D44)', () => {
+  const html = cardOf('teamwear-uniforms', 19, {
+    list: TEAMWEAR_LIST,
+    garment: BIB,
+    picture: {
+      url: 'https://media.wear-run.com/r-xmp-wine-render.webp',
+      alt: 'The bib in claret red',
+    },
+  })
+
+  it('has one link, named for the family, to the family’s page: "+ 6 more" is not a second one', () => {
     expect(linksOf(html)).toEqual([
       { href: '/custom-teamwear-manufacturer', text: 'Teamwear & Uniforms' },
     ])
     expect(html).toMatch(/<h3 class="family-card__title"><a class="family-card__link"/)
   })
 
-  it('a stub of name and count that a screen reader skips', () => {
-    expect(html).toMatch(/<span class="family-card__stub" aria-hidden="true">/)
+  it('under the picture, the name and count closed and the garment open, all skipped by a screen reader', () => {
+    expect(html).toMatch(/<span class="family-card__under" aria-hidden="true">/)
     expect(textOf(html, 'family-card__stub-name')).toBe('Teamwear & Uniforms')
-    // Two forms, the card's width choosing one (site.css), so a narrow card never wraps its count.
-    expect(textOf(html, 'family-card__count-long')).toBe('[ 19 references ]')
-    expect(textOf(html, 'family-card__count-short')).toBe('[ 19 refs ]')
+    expect(textOf(html, 'family-card__count')).toBe('[ 19 refs ]')
+    expect(textOf(html, 'family-card__garment')).toBe('X-Milo Pro Bib')
   })
 
-  it('the opened half: the count and the minimum, the description, four kinds, the way in', () => {
-    expect(html).toMatch(
-      /<p class="family-card__meta"><span>\[ 19 refs \]<\/span><span>From 50 pcs<\/span><\/p>/,
-    )
+  it('the words: the count, the description, the list label, six of the list and "+ 6 more", the way in', () => {
+    expect(textOf(html, 'family-card__meta')).toBe('19 references')
     expect(textOf(html, 'family-card__desc')).toBe(
       'Squad kit, staff uniforms and matching sets at scale.',
     )
-    // The Teamwear page's own groups, in the owner's words, the first four.
-    expect(textOf(html, 'family-card__types')).toBe(
-      'Soccer / American football / Tennis and pickleball / Cycling',
-    )
+    expect(html).toContain('<p class="family-card__label">Made for</p>')
+    expect(itemsOf(html)).toEqual([...TEAMWEAR_LIST.slice(0, 6), '+ 6 more'])
     expect(html).toMatch(
       /<span class="family-card__cue" aria-hidden="true">View the range <b>→<\/b><\/span>/,
     )
   })
 
+  // The owner's rule, 2026-10-15: nothing said twice. The hero states the minimum; the second
+  // picture is the same garment, already named by the first.
+  it('says no minimum, and its second picture is silent', () => {
+    expect(words(html)).not.toMatch(/From \d+ pcs|pieces per style/)
+    expect(html).toMatch(/<img class="family-card__img family-card__img--open"[^>]* alt=""/)
+  })
+
+  it('the colours: the shown colour named over its dots, every dot, the shown one marked', () => {
+    expect(html).toMatch(/<div class="family-card__colour" aria-hidden="true">/)
+    expect(textOf(html, 'family-card__colour')).toBe('Croquet Mint / Deep End')
+    const dots = [...html.matchAll(/<i( class="is-shown")?( style="[^"]*")?><\/i>/g)]
+    expect(dots).toHaveLength(5)
+    expect(dots.map((dot) => !!dot[1])).toEqual([false, false, false, false, true])
+    // A colour with no swatch draws an empty dot rather than a wrong colour.
+    expect(dots[2]?.[2]).toBeUndefined()
+  })
+
+  it('a list of six or fewer has no "+ more"; no list draws no label and no list', () => {
+    const six = cardOf('sportswear', 1, { list: TEAMWEAR_LIST.slice(0, 6) })
+    expect(itemsOf(six)).toEqual(TEAMWEAR_LIST.slice(0, 6))
+    const none = cardOf('sportswear', 1)
+    expect(none).not.toContain('family-card__list')
+    expect(none).not.toContain('family-card__label')
+    expect(none).not.toContain('family-card__colour')
+  })
+
   it('counts one garment as one, and shows no count for a family with a page and none on show', () => {
-    expect(textOf(cardOf('outerwear', 1), 'family-card__count-long')).toBe('[ 1 reference ]')
-    expect(textOf(cardOf('outerwear', 1), 'family-card__count-short')).toBe('[ 1 ref ]')
+    expect(textOf(cardOf('outerwear', 1), 'family-card__meta')).toBe('1 reference')
+    expect(textOf(cardOf('outerwear', 1), 'family-card__count')).toBe('[ 1 ref ]')
     const empty = cardOf('outerwear', 0)
     expect(empty).not.toContain('family-card__count')
-    expect(empty).toMatch(/<p class="family-card__meta"><span>From 50 pcs<\/span><\/p>/)
+    expect(empty).not.toContain('family-card__meta')
+  })
+
+  it('carries its place in the row, which an opened card moves the others by (site.css)', () => {
+    expect(cardOf('casual-wear', 5, { index: 2 })).toMatch(
+      /<li class="family-card" style="--card:2"/,
+    )
   })
 })
 
@@ -136,18 +204,17 @@ describe('a family ticket (polish D3)', () => {
  */
 describe('a family with nothing to show: its card says "[ soon ]" and goes to Contact (polish F8)', () => {
   it('Sports Accessories opens Contact, says "[ soon ]", and its link names where it goes', () => {
-    const html = cardOf('sports-accessories', 0)
+    const html = cardOf('sports-accessories', 0, { list: ['Bags & backpacks', 'Socks'] })
     // The link's words are its name: "Ask what we make" is in them, hidden from sight, or a screen
     // reader would hear "Sports Accessories" and land on Contact (WCAG 2.4.4).
     expect(linksOf(html)).toEqual([
       { href: '/contact', text: 'Sports Accessories. Ask what we make' },
     ])
-    expect(textOf(html, 'family-card__count-long')).toBe('[ soon ]')
-    expect(textOf(html, 'family-card__count-short')).toBe('[ soon ]')
-    expect(html).toContain('<span>[ soon ]</span>')
+    expect(textOf(html, 'family-card__count')).toBe('[ soon ]')
+    expect(textOf(html, 'family-card__meta')).toBe('[ soon ]')
     expect(html).toMatch(/aria-hidden="true">Ask what we make <b>→<\/b>/)
-    // Nothing claimed that the site has not said: no kinds for a family with no page.
-    expect(html).not.toContain('family-card__types')
+    // Its list is the owner's (D44): what the family will hold.
+    expect(itemsOf(html)).toEqual(['Bags & backpacks', 'Socks'])
   })
 
   // NEGATIVE CONTROL: a family with a page opens it, says nothing of "soon", and keeps its cue,
@@ -172,6 +239,6 @@ describe('a family with nothing to show: its card says "[ soon ]" and goes to Co
       { href: '/products#sports-accessories', text: 'Sports Accessories' },
     ])
     expect(html).not.toContain('[ soon ]')
-    expect(textOf(html, 'family-card__count-long')).toBe('[ 1 reference ]')
+    expect(textOf(html, 'family-card__meta')).toBe('1 reference')
   })
 })

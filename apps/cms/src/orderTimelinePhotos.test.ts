@@ -45,7 +45,8 @@ const CHOSEN = [
   ['Send what you have', 'showroom'],
   ['Your quote', 'lab'],
   ['Your sample', 'screen-printing'],
-  ['You approve', 'inspection'],
+  // "Approval" since 2026-10-15 (owner); "You approve" until then.
+  ['Approval', 'inspection'],
   ['Bulk production', 'stitching'],
   ['Checked', 'final-check'],
   ['Packed and shipped', 'packing'],
@@ -108,14 +109,42 @@ describe('every step of the timeline has its own photo (VA-29)', () => {
   })
 })
 
-describe('what the order steps draw (D4)', () => {
+describe('what the order steps draw (D42: four stage cards, two steps each)', () => {
   const figures = imgTags(stepsHtml)
   const cards = stepsHtml.split(/<li class="order-step"/).slice(1)
+  const stages = stepsHtml.split(/<li class="order-stage"/).slice(1)
 
-  it('is one ordered list of eight cards, and the home page draws exactly that list', () => {
-    expect(stepsHtml.startsWith('<ol class="order-steps"')).toBe(true)
+  /*
+   * Four stages, each an ordered list of its two steps numbered on from the last (`start`), so a
+   * screen reader hears "Stage 2 · Develop" and then step 3. What would have to break: a stage
+   * with its steps numbered from 1 again, a step outside its stage, or the home page drawing a
+   * list of its own.
+   */
+  it('is a list of four stages, each a list of its two steps numbered on, and the home page draws exactly that', () => {
+    expect(stepsHtml.startsWith('<ol class="order-stages"')).toBe(true)
+    expect(stages).toHaveLength(4)
     expect(cards).toHaveLength(8)
+    expect(
+      [...stepsHtml.matchAll(/<ol class="order-stage__steps" start="(\d+)"/g)].map((m) => m[1]),
+    ).toEqual(['1', '3', '5', '7'])
+    for (const [index, stage] of stages.entries()) {
+      expect(stage.split(/<li class="order-step"/).length - 1, `stage ${index + 1}`).toBe(2)
+    }
     expect(timelineHtml).toContain(stepsHtml)
+  })
+
+  // "Start with step 1" went with D42 (owner, 2026-10-16): the hero's button and №05's ask lead
+  // to the same form.
+  it('ends on the cards, with no button of its own', () => {
+    expect(timelineHtml).not.toContain('Start with step 1')
+    expect(timelineHtml).not.toMatch(/<a\b/)
+  })
+
+  it('gives every step its two lines, the second the smaller', () => {
+    for (const step of steps) {
+      expect(stepsHtml).toContain(`<p class="order-step__body">${step.body}</p>`)
+      expect(stepsHtml).toContain(`<p class="order-step__detail">${step.detail}</p>`)
+    }
   })
 
   it('draws eight pictures, in step order, each with its own alt text', () => {
@@ -179,9 +208,9 @@ describe('what the order steps draw (D4)', () => {
     }
   })
 
-  it('marks every card with its stage and whose move it is (decision D23), and numbers it for the eye only', () => {
-    const phases = [...stepsHtml.matchAll(/order-step__phase">([^<]*)</g)].map((match) => match[1])
-    expect(phases).toEqual(ORDER_PHASES.flatMap((phase) => phase.steps.map(() => phase.name)))
+  it('names each stage once, marks whose move each step is (decision D23), and numbers it for the eye only', () => {
+    const names = [...stepsHtml.matchAll(/order-stage__name">([^<]*)</g)].map((match) => match[1])
+    expect(names).toEqual(ORDER_PHASES.map((phase, index) => `Stage ${index + 1} · ${phase.name}`))
     const actors = [...stepsHtml.matchAll(/order-step__actor order-step__actor--(\w+)">(\w+)</g)]
     expect(actors.map((match) => match[1])).toEqual(steps.map((step) => step.actor))
     expect(actors.map((match) => match[2])).toEqual(steps.map((step) => step.actor))
@@ -277,30 +306,26 @@ describe('the factory strip is gone, and the numbering closed up (VA-29)', () =>
   })
 })
 
-describe('the cards, in the stylesheet (D4)', () => {
+describe('the cards, in the stylesheet (D42)', () => {
   it('no longer cuts anything to the timeline’s square', () => {
     expect(SITE_CSS).not.toContain('.photo-figure__frame--square')
     expect(SITE_CSS).not.toMatch(/\.timeline__/)
   })
 
   /*
-   * The stack stops cards only for someone who allows motion, and the sink runs only where the
-   * browser has scroll timelines AND animation ranges (a browser with the first but not the
-   * second would run the sink over the whole page). Both are measured in a browser; this pins
-   * where the rules sit, so a later edit cannot lift one out of its guard unnoticed.
+   * The stack stops cards only for someone who allows motion, and only on a screen tall enough
+   * for the fullest card (site.css measures why: 40rem from 900px, 50rem below it). Nothing
+   * animates since D42: the eight cards' sink and shade went with them. Both are measured in a
+   * browser; this pins where the rules sit, so a later edit cannot lift one out of its guard.
    */
-  it('stops and sinks the cards only inside their guards', () => {
-    const motion =
-      /@media screen and \(prefers-reduced-motion: no-preference\) and \(min-height: 40rem\) \{([\s\S]*?)\n\}/g
-    const blocks = [...SITE_CSS.matchAll(motion)].map((match) => match[1] ?? '')
-    const own = blocks.find((block) => block.includes('.order-step {')) ?? ''
+  it('stops the cards only inside their guard, and animates nothing', () => {
+    const guard =
+      /@media screen and \(prefers-reduced-motion: no-preference\) and \(min-width: 900px\) and \(\s*min-height: 40rem\s*\),\s*screen and \(prefers-reduced-motion: no-preference\) and \(min-height: 50rem\) \{([\s\S]*?)\n\}/
+    const own = SITE_CSS.match(guard)?.[1] ?? ''
+    expect(own, 'the stack’s guard is not where this test looks').toMatch(/\.order-stage \{/)
     expect(own).toMatch(/position:\s*sticky/)
-    expect(own).toMatch(
-      /@supports \(\(animation-timeline: view\(\)\) and \(animation-range: 0% 100%\)\)/,
-    )
-    expect(own).toMatch(/animation-timeline:\s*--order-steps/)
     const outside = SITE_CSS.replace(own, '')
-    expect(outside).not.toMatch(/\.order-step\b[^{]*\{[^}]*position:\s*sticky/)
-    expect(outside).not.toMatch(/animation-timeline:\s*--order-steps/)
+    expect(outside).not.toMatch(/\.order-stage\b[^{]*\{[^}]*position:\s*sticky/)
+    expect(SITE_CSS).not.toMatch(/order-step-sink|order-step-shade|--order-steps/)
   })
 })
