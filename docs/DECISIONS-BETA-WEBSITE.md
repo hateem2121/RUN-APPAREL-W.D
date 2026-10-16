@@ -596,6 +596,9 @@ three ways; the buyer pages' own list went with polish S4). With motion allowed 
 the sink, and reduced motion, short screens and paper get a plain list. **Guard:** the same two
 files, rewritten for the cards (`orderTimeline.spec.ts` runs in three engines).
 
+**Amended 2026-10-16 (D40): №06 "Talk to us" merged into №05, so the home page runs hero →
+№01 … №05 and ends on the works and their one ask.** **Guard:** the same LA-01 test, now №01–№05.
+
 ### D24 · The home page's garment turns in real 3D — reverses the 2026-09-07 still
 
 **Decision: live 3D on scroll. Owner, 2026-09-29.** The owner asked for "more innovative and
@@ -692,6 +695,10 @@ negative control).
 
 **Amended 2026-10-05 (polish D4):** the order timeline's drawn line went with the timeline (D23's
 amendment of that date), so two motions use `--showpiece`: the count-up and the globe's arcs.
+
+**Amended 2026-10-16 (D40):** a third use, the №05 map pin's breathing ring, a loop like the 3D
+button's glow (base.css `.btn--action-glow`), by scale and fade alone and off under reduced motion
+(`e2e/worksSlab.spec.ts`).
 
 ## 2026-10-04 — the polish audit: one page per job
 
@@ -1091,6 +1098,30 @@ it is the building in the photo before it. "200 people at the works" counts ever
 
 **Guard:** `apps/cms/src/lib/siteFacts.test.ts` → "six buildings on one site", which reads every
 copy module and the home page's source, with a planted-line control run both ways.
+
+### D40 · One closing section: №06 joins №05, and the home footer asks nothing — amends D23
+
+**Decision: the home page ends on one section, №05 "The works": its five figures, its lede and its
+dark slab (where we ship | certification) exactly as before, then one slim row under the slab that
+holds the page's one closing ask. №06 "Talk to us" is gone into that row, and on the home page alone
+the footer leaves out its question, tab and clock, as the garment pages' footer does. Owner,
+2026-10-15/16.**
+
+The owner's rule from 2026-10-15 is that a page says nothing twice. №06 repeated №04's step 01 ("a
+sketch is enough", "we reply within 24 hours") and the footer's contact block (its email and
+WhatsApp buttons), and the footer's question asked a third time a screen later. A first build put
+the ask in the slab's certification half and cut №05 to four figures; the owner kept the
+certification half, the five figures and the full lede instead (2026-10-16: "I did like the
+previous"), and chose a row under the slab for the ask. The row is №06's heading, the works' live
+clock under it, "Start a conversation" (the hero's name for the same button: polish X20, and WCAG
+3.2.4 holds within a page, so action names are the one thing the no-repeat rule lets repeat; owner,
+2026-10-16) and "Or book a call" to the owner's booking page. It has no line of its own, because
+the lede above already says "ask and we will put it in writing". The map's pin breathes (D26's
+amendment).
+
+**Guard:** `apps/cms/src/components/site/FactsBento.test.ts` and `SiteFooter.test.ts` (the row
+under the slab, and the home footer's shape, each with a control run both ways), and
+`apps/cms/e2e/worksSlab.spec.ts` and `footer.spec.ts` in all three browsers.
 
 ## Closed since
 

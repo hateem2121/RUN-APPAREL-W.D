@@ -2801,6 +2801,41 @@ a.contact-block__value:active {
   outline-offset: 3px;
 }
 
+/*
+ * ⚠️ THE WORKS BREATHE (owner, 2026-10-16): one ring grows from the pin and fades, on a loop at the
+ * showpiece speed (D26), the site's second loop after the 3D button's glow (base.css
+ * `.btn--action-glow`). Scale and opacity only, so it costs no layout: measured 0 layout passes in
+ * 3 seconds of it running, against 0 with it paused. None under reduced motion, where base.css
+ * also stops every animation.
+ */
+.ship-map__pin::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 1px solid var(--volt);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ship-map-breathe var(--showpiece) var(--ease) infinite;
+}
+
+@keyframes ship-map-breathe {
+  from {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ship-map__pin::after {
+    animation: none;
+  }
+}
+
 .ship-map__name {
   position: absolute;
   left: 16px;
@@ -2858,6 +2893,82 @@ a.contact-block__value:active {
 @media (forced-colors: active) {
   .ship-map {
     display: none;
+  }
+}
+
+/*
+ * ⚠️ THE HOME PAGE'S ONE CLOSING ASK: A SLIM ROW UNDER THE SLAB (owner, 2026-10-16). №06's heading
+ * with the works' live clock under it, and the two ways to reach a person beside them: the page's
+ * own buttons on the page's own ground, as №06 had them. The owner chose a row under the slab over
+ * a third part of it. From 900px the words take the left and the buttons the right; on a phone
+ * they stack.
+ */
+.works-ask {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px 24px;
+  align-items: center;
+  margin-block-start: 24px;
+}
+
+@media (min-width: 900px) {
+  .works-ask {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.works-ask__words {
+  display: grid;
+  gap: 12px;
+}
+
+.works-ask__heading {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.works-ask__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The live clock: the light says open or closed, and so do the words beside it. */
+.works-clock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.works-clock b {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.works-clock__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+/* `--dimension`, not volt: volt on paper is too faint to read as a light (deep olive here, volt in
+   dark mode, as the lead figure is). */
+.works-clock__dot[data-state="open"] {
+  background: var(--dimension);
+}
+
+@media (forced-colors: active) {
+  .works-clock__dot {
+    background: CanvasText;
   }
 }
 

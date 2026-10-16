@@ -68,6 +68,8 @@ export const metadata: Metadata = buildMetadata({
  * 2026-09-07; a solicitor should review it before it carries any weight. Visit-records
  * wording approved by the owner 2026-09-15. The form's new details, attached files and Resend
  * (the notification email's carrier, unnamed until then) approved by the owner 2026-09-29.
+ * Booking a call through Apollo (the home page's "Or book a call", D40), both sentences approved
+ * word for word by the owner 2026-10-16: a booking reaches Apollo whatever the cookie answer.
  */
 /**
  * The notice's parts, each a real heading since polish X4 (2026-10-04): they were small code-style
@@ -190,7 +192,9 @@ export default async function PrivacyPage() {
               order if we go on to work together. An inquiry sent through this site can also include
               your job title, country, phone number, a subject and any files you attach. Attached
               files are stored privately with Cloudflare, never at a public address, and only our
-              team can open them.
+              team can open them. If you book a call through our booking page, what you enter there
+              is collected by Apollo, a service based in the United States, which passes it to us so
+              that we can hold the call.
             </p>
 
             {/*
@@ -316,9 +320,9 @@ export default async function PrivacyPage() {
             <p>
               Cloudflare, Sentry and Resend (which delivers our inquiry notifications to us) process
               data outside Pakistan, including in the United States and the European Union, under
-              their standard contractual protections. So do Google, Apollo and PostHog, if you
-              accepted the cookie question. We do not sell your data and we do not share it for
-              advertising.
+              their standard contractual protections. So do Google and PostHog if you accepted the
+              cookie question, and Apollo if you accepted it or booked a call through it. We do not
+              sell your data and we do not share it for advertising.
             </p>
 
             {heading('your-rights')}

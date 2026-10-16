@@ -164,7 +164,8 @@ test.describe('FA-D-04 — the two carved shapes read as one system', () => {
   for (const width of [390, 768, 1280, 1920]) {
     test(`both are on the viewport centre at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 })
-      await page.goto('/')
+      // A page whose footer has its tab: the home page's has none since 2026-10-16.
+      await page.goto('/products')
       await settle(page)
       const centres = await page.evaluate(() => {
         const centre = (selector: string) => {
@@ -336,7 +337,8 @@ test.describe('FA-R-09 / FA-H-12 — the footer tab reserves its arrow and never
    */
   test('its width, its fillets and its arrow all behave on hover', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
-    await page.goto('/')
+    // A page whose footer has its tab: the home page's has none since 2026-10-16.
+    await page.goto('/products')
     await settle(page)
     const tab = page.locator('.site-footer__tab')
     await tab.scrollIntoViewIfNeeded()
@@ -1628,8 +1630,9 @@ test.describe('LA-01 — the home page section order is locked', () => {
   // D23 (owner, 2026-09-29): who we are → what we make → 3D → how an order works → the
   // numbers → talk to us. Credibility still leads, which is what D6 protected. The factory strip
   // that sat before "talk to us" as №06 was removed on 2026-10-02 (visual audit VA-29, the
-  // owner's choice), and "talk to us" took its number, so the sequence stops at №06.
-  test('hero first, then №01 through №06 in DOM order', async ({ page }) => {
+  // owner's choice), and "talk to us" took its number; on 2026-10-16 the owner merged "talk to us"
+  // into the numbers (D40), so the sequence stops at №05.
+  test('hero first, then №01 through №05 in DOM order', async ({ page }) => {
     await page.goto('/')
     await settle(page)
 
@@ -1650,7 +1653,6 @@ test.describe('LA-01 — the home page section order is locked', () => {
       '№03',
       '№04',
       '№05',
-      '№06',
     ])
   })
 })
@@ -1689,8 +1691,9 @@ test.describe('LA-02 — home-page input facts (an honest proxy, not a judgement
     // Everything else is recorded (annotation above), not graded — LA-02 is an input
     // fact for other areas' work (LA-12's column context, the owner's home-page
     // question), not a pass/fail judgement in itself.
-    // Hero + №01–№06: №07 went when the factory strip was removed (2026-10-02, VA-29).
-    expect(facts.sectionCount, 'home page rendered without its 7 sections').toBe(7)
+    // Hero + №01–№05: №07 went with the factory strip (2026-10-02, VA-29), and №06 merged into
+    // №05 (2026-10-16, D40).
+    expect(facts.sectionCount, 'home page rendered without its 6 sections').toBe(6)
     expect(facts.words, 'home page rendered almost no text').toBeGreaterThan(50)
   })
 

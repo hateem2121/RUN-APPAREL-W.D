@@ -680,13 +680,16 @@ test.describe('D4 — every card holds its words, and they read over the photos'
 })
 
 test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is drawn twice', () => {
-  test('there is no such heading, grid or lightbox, and "Talk to us" is №06', async ({ page }) => {
+  test('there is no such heading, grid or lightbox, and the works close the page as №05', async ({
+    page,
+  }) => {
     await open(page, 1440, 900)
     await expect(page.getByRole('heading', { name: /inside the factory/i })).toHaveCount(0)
     await expect(page.locator('.factory-grid, .factory-tile, .lightbox')).toHaveCount(0)
     const labels = await page.locator('.section-number').allTextContents()
     expect(labels.join('\n')).not.toMatch(/inside the factory/i)
-    expect(labels.at(-1)).toBe('№06 — Talk to us')
+    // "Talk to us" was №06 until the owner merged it into №05 (2026-10-16).
+    expect(labels.at(-1)).toBe('№05 — The works')
   })
 
   test('each factory photo is on the home page once: №01 draws two, №04 draws eight', async ({
