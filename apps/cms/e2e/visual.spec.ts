@@ -21,7 +21,8 @@ import { expect, type Page, test } from './offlineMedia'
  * What would change between two runs, and how each is held still:
  * - the globe, the live 3D garment, the count-up and the cursor do nothing under
  *   `navigator.webdriver` (the site's rule), so their server-drawn state is what is shot;
- * - the footer clock shows the real time: masked;
+ * - the footer clock shows the real time: masked; so does №05's clock line (D40), whole, since
+ *   its light and its "open now" or "opens at" follow the time too;
  * - `font-display: optional` may skip a font on a cold first load: the page is loaded
  *   twice, so the second load has the fonts cached, then `document.fonts.ready`;
  * - lazy images below the fold would load or not by timing: forced eager and decoded;
@@ -66,7 +67,7 @@ test.describe('whole pages match their reference pictures', () => {
         const name = `${path === '/' ? 'home' : path.slice(1)}-${size.width}.png`
         await expect(page).toHaveScreenshot(name, {
           fullPage: true,
-          mask: [page.locator('.footer-clock__time')],
+          mask: [page.locator('.footer-clock__time'), page.locator('.works-clock')],
           // Anti-aliasing only: a real change moves far more than 0.2% of the page.
           maxDiffPixelRatio: 0.002,
           // A full page at 390 wide is a tall capture; the default 5s ran out on the home page.

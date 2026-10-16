@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './offlineMedia'
-import { parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
+import { contrastOf, parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
 import { type LatLon, parseCoordinates } from '../src/lib/globe'
 import { mapPoint } from '../src/lib/worldMap'
 
@@ -12,6 +12,9 @@ import { mapPoint } from '../src/lib/worldMap'
  * the world, dotted, with the works pinned, and the certification half the footer's marks beside
  * one line per holder. The marks are the bodies' reversed artwork, off-white for a dark ground, so
  * the slab is dark in both themes.
+ *
+ * Since the owner merged №06 "Talk to us" into №05 (2026-10-16, D40), a slim row under the slab
+ * holds the home page's one closing ask (`.works-ask`), and the pin breathes.
  */
 
 const settle = async (page: Page, width: number, scheme: 'light' | 'dark' = 'light') => {
@@ -192,5 +195,172 @@ test.describe('X7 — №05 ends in one slab: where we ship | certification', ()
     })
     expect(overflow.page, 'the page scrolls sideways').toBe(0)
     expect(overflow.slab, 'the slab runs past the screen').toBeLessThanOrEqual(0)
+  })
+
+  /*
+   * The pin breathes (owner, 2026-10-16), by scale and fade alone, and never for someone who asked
+   * for less motion. What would have to break: the loop running under reduced motion, or its
+   * keyframes reaching for a property that costs a layout pass. The control plants a second
+   * `ship-map-breathe` that animates `width`, and the same reading must see it.
+   */
+  test('the pin breathes by scale and fade alone, and not under reduced motion', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/')
+    const ring = () =>
+      page.evaluate(() => {
+        const pin = document.createElement('span')
+        pin.className = 'ship-map__pin'
+        document.querySelector('.ship-map')?.append(pin)
+        const name = getComputedStyle(pin, '::after').animationName
+        pin.remove()
+        return name
+      })
+    const keyframeProperties = () =>
+      page.evaluate(() => {
+        const properties = new Set<string>()
+        const walk = (rules: CSSRuleList) => {
+          for (const rule of rules) {
+            if (rule instanceof CSSKeyframesRule && rule.name === 'ship-map-breathe') {
+              for (const frame of rule.cssRules) {
+                const style = (frame as CSSKeyframeRule).style
+                for (let i = 0; i < style.length; i++) properties.add(style.item(i))
+              }
+            } else if ('cssRules' in rule) {
+              walk((rule as CSSGroupingRule).cssRules)
+            }
+          }
+        }
+        for (const sheet of document.styleSheets) {
+          try {
+            walk(sheet.cssRules)
+          } catch {
+            // a cross-origin sheet: not ours
+          }
+        }
+        return [...properties].sort()
+      })
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    expect(await ring()).toBe('ship-map-breathe')
+    expect(await keyframeProperties()).toEqual(['opacity', 'transform'])
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    expect(await ring()).toBe('none')
+
+    // NEGATIVE CONTROL: a breath that animates width is seen.
+    await page.addStyleTag({
+      content: '@keyframes ship-map-breathe { to { width: 40px; } }',
+    })
+    expect(await keyframeProperties()).toContain('width')
+  })
+})
+
+/** The row's parts: their boxes, the slab's, and the colours of each against the ground under it. */
+const askRow = (page: Page) =>
+  page.evaluate(() => {
+    const box = (selector: string) => {
+      const rect = document.querySelector(selector)?.getBoundingClientRect()
+      return rect
+        ? { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right }
+        : null
+    }
+    // The row has no ground of its own: the first painted ancestor's is the one the words sit on.
+    const ground = (selector: string) => {
+      for (let el = document.querySelector(selector); el; el = el.parentElement) {
+        const colour = getComputedStyle(el).backgroundColor
+        if (colour !== 'rgba(0, 0, 0, 0)' && colour !== 'transparent') return colour
+      }
+      return getComputedStyle(document.documentElement).backgroundColor
+    }
+    const colour = (selector: string) => {
+      const el = document.querySelector(selector)
+      return el ? getComputedStyle(el).color : ''
+    }
+    const link = (selector: string) => {
+      const el = document.querySelector(selector)
+      return { text: el?.textContent?.trim() ?? '', href: el?.getAttribute('href') ?? '' }
+    }
+    return {
+      slab: box('.works-slab'),
+      words: box('.works-ask__words'),
+      actions: box('.works-ask__actions'),
+      ground: ground('.works-ask'),
+      heading: colour('.works-ask__heading'),
+      clock: colour('.works-clock'),
+      button: link('.works-ask .btn--primary'),
+      call: link('.works-ask .btn--ghost'),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }
+  })
+
+test.describe('D40 — under the slab, one slim row holds the home page’s closing ask', () => {
+  test('on a computer the words take the left and the buttons the right, under the slab', async ({
+    page,
+  }) => {
+    await settle(page, 1280)
+    const row = await askRow(page)
+    expect(row.slab && row.words && row.actions, 'no slab, or no row').toBeTruthy()
+    if (!row.slab || !row.words || !row.actions) return
+    expect(row.words.top, 'the row is not under the slab').toBeGreaterThanOrEqual(row.slab.bottom)
+    expect(row.actions.left, 'the buttons are not beside the words').toBeGreaterThanOrEqual(
+      row.words.right,
+    )
+    expect(row.actions.right, 'the row runs past the slab').toBeLessThanOrEqual(row.slab.right + 1)
+    expect(row.button).toEqual({ text: 'Start a conversation', href: '/contact#inquiry' })
+    expect(row.call.text).toMatch(/^Or book a call/)
+    expect(row.call.href).toBe('https://wear-run.com/meeting')
+
+    // NEGATIVE CONTROL: put inside the slab, the row is no longer under it.
+    await page.evaluate(() => {
+      const ask = document.querySelector('.works-ask')
+      if (ask) document.querySelector('.works-slab')?.prepend(ask)
+    })
+    const inside = await askRow(page)
+    expect(inside.words && inside.slab && inside.words.top < inside.slab.bottom).toBe(true)
+  })
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: the heading and the clock read on the page's own ground`, async ({ page }) => {
+      await settle(page, 1280, scheme)
+      const row = await askRow(page)
+      expect(contrastOf(row.heading, row.ground), 'the heading').toBeGreaterThanOrEqual(4.5)
+      expect(contrastOf(row.clock, row.ground), 'the clock').toBeGreaterThanOrEqual(4.5)
+
+      // NEGATIVE CONTROL: a heading in the page's wash is caught. Polled, as the slab's control is:
+      // measured in Chromium, the planted colour read as the old ink straight after the tag landed
+      // and as the wash 1.5 s later.
+      await page.addStyleTag({ content: '.works-ask__heading { color: var(--wash) !important; }' })
+      await expect
+        .poll(async () => {
+          const washed = await askRow(page)
+          return contrastOf(washed.heading, washed.ground)
+        })
+        .toBeLessThan(4.5)
+    })
+  }
+
+  /*
+   * The works' live clock moved from the footer's question into the row (2026-10-16). It is honest
+   * before it hydrates ("--:--", tested in FactsBento.test.ts) and reads the real time once it has;
+   * this suite's database holds no opening hours, so no open or closed light is drawn.
+   */
+  test("the row's clock reads the works' time once it runs", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/')
+    await expect(page.locator('.works-clock')).toHaveText(/Local time\s*\d\d:\d\d PKT/)
+  })
+
+  test('on a phone the buttons come under the words, and nothing runs past the screen', async ({
+    page,
+  }) => {
+    await settle(page, 390)
+    const row = await askRow(page)
+    expect(row.words && row.actions).toBeTruthy()
+    if (!row.words || !row.actions) return
+    expect(row.actions.top, 'the buttons are not under the words').toBeGreaterThanOrEqual(
+      row.words.bottom - 1,
+    )
+    expect(row.overflow, 'the page scrolls sideways').toBe(0)
   })
 })

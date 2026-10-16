@@ -1,4 +1,3 @@
-import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -125,18 +124,19 @@ export default async function HomePage() {
 
       {/*
         ⚠️ THE ORDER IS DECISION D23 (owner, 2026-09-29), WHICH AMENDS D6: who we are → what we
-        make → the 3D → how an order works → the numbers → talk to us. D6's point survives —
+        make → the 3D → how an order works → the numbers, ending in the ask. D6's point survives —
         credibility still comes before capability — and `e2e/composition.spec.ts` (LA-01) pins
-        the №01–№06 order so the next reorder is a decision, not a drift.
+        the №01–№05 order so the next reorder is a decision, not a drift.
 
         ⚠️ A SEVENTH SECTION, "INSIDE THE FACTORY", SAT BETWEEN THE NUMBERS AND TALK TO US UNTIL
         2026-10-02. The owner removed it (visual audit VA-29 with VA-34, their choice): its ten
         photos repeated the eight in №04 and the two in №01, so every room it showed was already
-        pictured, and the closing section took its number (№06) so the sequence has no gap.
+        pictured, and the closing section took its number (№06). On 2026-10-16 the owner merged
+        that closing section into №05 (D40), so the sequence ends at №05, still with no gap.
 
         ⚠️ `№` ALONE — NOT `N°` AND NOT `N№` (FA-Q-08, FA-Q-51). The numero sign already means
         "number"; measured present in `--font-mono` at the same advance as "0" and "N". Two
-        digits, because there are six sections and `006` implies a scale that does not exist.
+        digits, because there are five sections and `005` implies a scale that does not exist.
       */}
       <AboutSection />
 
@@ -262,37 +262,17 @@ export default async function HomePage() {
               will put it in writing.
             </p>
           </div>
-          <FactsBento worksCoordinates={settings.footer.worksCoordinates} />
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container section-head">
-          <div className="section-head__title">
-            <p className="section-number">№06 — Talk to us</p>
-            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-          </div>
-          <div className="section-head__words">
-            <p className="site-lede">
-              Send the styles, quantities and specs you have — a sketch is enough to start. We reply
-              within 24 hours.
-            </p>
-            <div className="site-actions">
-              <Link className="btn btn--primary" href="/contact#inquiry">
-                Start a conversation
-              </Link>
-              <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
-                Email {settings.email}
-              </a>
-              <a
-                className="btn btn--ghost"
-                href={`https://wa.me/${normalizeWhatsAppNumber(settings.whatsappNumber)}`}
-                rel="noopener"
-              >
-                WhatsApp
-              </a>
-            </div>
-          </div>
+          {/*
+            ⚠️ №06 "TALK TO US" IS PART OF №05 SINCE 2026-10-16 (owner). Its heading and its "Start a
+            conversation" are the row under the slab; its line said "a sketch is enough" and "we
+            reply within 24 hours", which №04's step 01 says, and its email and WhatsApp buttons are
+            the footer's contact block, the site's reference on every page. So the page ends here,
+            on one ask.
+          */}
+          <FactsBento
+            worksCoordinates={settings.footer.worksCoordinates}
+            hours={settings.footer.capacity.hours}
+          />
         </div>
       </section>
     </>
