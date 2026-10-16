@@ -345,7 +345,7 @@ describe('the factory photos (OI-3)', () => {
  * the cards knowing that (options page, 2026-10-15: "soft on a 2x full screen"; no new originals).
  * So a step photo may fall short, but only while it is handed its WIDEST file, and never by more
  * than 2,560 against 1,200 (2.13 times): a width taken away, or a narrower file, still fails here.
- * №01's photos may not fall short at all.
+ * Outside №04 only №01's ground may fall short, at its 1,600 px file, under its ink (D41, below).
  *
  * The check reads the page's own markup (№01 and №04, as the server sends them) and picks a file
  * the way both engines do: the smallest whose density reaches the screen's, else the largest
@@ -367,8 +367,17 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     ),
   ]
 
-  /** The photo files narrower than their shape asks, because the original is: slug → its widest. */
-  const ORIGINAL_LIMITS = { tagging: 1200, packing: 1200 }
+  /**
+   * The photo files narrower than a sharp screen asks, slug → its widest. Two because the original
+   * is. And since D41 (2026-10-16) the roof photo, as №01's ground: it spans the screen (`100vw`),
+   * so a 2x laptop asks up to 2,880 px, but it shows through 70–90% ink (site.css `.about-ground`),
+   * where a 1,600 px file's softness cannot be seen, and a wider one would roughly triple its
+   * 122 KB for nothing a visitor sees. Its original (3,500 px) is the owner's and not in the
+   * repository, so a wider file is a decision, not an oversight.
+   */
+  const ORIGINAL_LIMITS = { tagging: 1200, packing: 1200, 'solar-roof': 1600 }
+  /** №01's ground (D41): the one photo outside №04 that may fall short, under its ink. */
+  const GROUND = 'solar-roof'
   /** The eight step photos (D42): each may fall short on a big sharp screen, at its widest file. */
   const STEP_PHOTOS = new Set(
     ORDER_PHASES.flatMap((phase) => phase.steps.map((step) => step.photo)),
@@ -408,9 +417,12 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     sizes: attr(tag, 'sizes'),
   }))
 
-  it('reads all ten photos off the page, each with its widths and its hint', () => {
+  // Nine since D41 (2026-10-16): the front of the building is drawn by the factory page's gallery.
+  it('reads all nine photos off the page, each with its widths and its hint', () => {
     expect(pictures.map((picture) => picture.slug).sort()).toEqual(
-      FACTORY_PHOTOS.map((photo) => photo.slug).sort(),
+      FACTORY_PHOTOS.map((photo) => photo.slug)
+        .filter((slug) => slug !== 'exterior')
+        .sort(),
     )
     for (const picture of pictures) {
       expect(picture.srcset, picture.slug).toMatch(/ \d+w$/)
@@ -418,19 +430,21 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     }
   })
 
-  it('leaves only the step photos short, each at its widest file, and №01 never', () => {
+  it('leaves only the step photos and №01’s ground short, each at its widest file', () => {
     const misses = shortfalls(pictures)
     const said = misses.map(
       (miss) => `${miss.slug} at ${miss.screen}: asks ${miss.asks}, gets ${miss.gets}`,
     )
     expect(
-      misses.filter((miss) => !STEP_PHOTOS.has(miss.slug)),
-      `a photo that is not a step's falls short:\n${said.join('\n')}`,
+      misses.filter((miss) => !STEP_PHOTOS.has(miss.slug) && miss.slug !== GROUND),
+      `a photo that is neither a step's nor №01's ground falls short:\n${said.join('\n')}`,
     ).toEqual([])
     for (const miss of misses) {
       const widest =
         ORIGINAL_LIMITS[miss.slug as keyof typeof ORIGINAL_LIMITS] ?? widestOf(miss.slug)
       expect(miss.gets, `${miss.slug} at ${miss.screen} is not handed its widest file`).toBe(widest)
+      // The ground shows through 70–90% ink (above); a step photo is never more than 2.13 times short.
+      if (miss.slug === GROUND) continue
       expect(miss.asks / miss.gets, `${miss.slug} at ${miss.screen}`).toBeLessThanOrEqual(
         2560 / 1200,
       )

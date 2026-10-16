@@ -1479,12 +1479,12 @@ describe('CO-06 — both surfaces declare the colour schemes they support', () =
         // The site's photo hero (owner, 2026-09-29): text on a photograph's ink in BOTH themes.
         // It shared this rule with the photo lightbox until 2026-10-02, when the lightbox went
         // with the factory strip (visual audit VA-29). Since polish D4 (2026-10-05) it shares it
-        // with the order steps' photo cards, and the scanner names the selector nearest the brace,
-        // `.order-step`.
-        'site.css .order-step: dark',
+        // with the order steps' photo cards, and since D41 (2026-10-16) with №01 on its roof photo;
+        // the scanner names the selector nearest the brace, `.about-ground`.
+        'site.css .about-ground: dark',
         // ...and on paper they go light like every page (VA-04, found 2026-10-02 when the film made
         // /products a photo hero): their re-declared dark colours were out of the paper rule's reach.
-        'site.css .order-step: light',
+        'site.css .about-ground: light',
         // The /about hero's motion layout (2026-10-09): its words sit on the page's own
         // ground, so the photo hero's forced dark is handed back. `inherit`, not `light dark`: the
         // tokens are `light-dark()`, and only `inherit` also follows a theme the toggle forced.

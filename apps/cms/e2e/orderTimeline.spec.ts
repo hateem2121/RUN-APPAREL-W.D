@@ -749,7 +749,9 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
     expect(labels.at(-1)).toBe('№05 — The works')
   })
 
-  test('each factory photo is on the home page once: №01 draws two, №04 draws eight', async ({
+  // №01 draws one since D41 (2026-10-16): the roof, as its ground. The front of the building is
+  // the "Inside the factory" gallery's (src/orderTimelinePhotos.test.ts proves it is still drawn).
+  test('each factory photo is on the home page once: №01 draws one, №04 draws eight', async ({
     page,
   }) => {
     await open(page, 1440, 900)
@@ -761,7 +763,9 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
         .map((src) => src.replace(/^\/factory\/(.+)-\d+\.webp$/, '$1')),
     )
     expect(slugs.sort(), 'a factory photo is missing, or drawn twice').toEqual(
-      FACTORY_PHOTOS.map((photo) => photo.slug).sort(),
+      FACTORY_PHOTOS.map((photo) => photo.slug)
+        .filter((slug) => slug !== 'exterior')
+        .sort(),
     )
   })
 })

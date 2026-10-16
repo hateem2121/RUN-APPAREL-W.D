@@ -284,8 +284,11 @@ test.describe('FA-H-09 — a request for more contrast is answered', () => {
     })
     return page.evaluate(() => {
       // A SECTION's lede, not the hero's: since 2026-09-29 the hero lede is full-strength text
-      // on its ink-washed photo, not secondary text on the page background this measures.
-      const lede = document.querySelector('.site-section .site-lede') as HTMLElement
+      // on its ink-washed photo, not secondary text on the page background this measures. Nor
+      // №01's, on its own photo since D41 (2026-10-16): the first lede on the page's ground is №02's.
+      const lede = document.querySelector(
+        '.site-section:not(.about-ground) .site-lede',
+      ) as HTMLElement
       const nav = document.querySelector('.nav-link') as HTMLElement
       const bar = document.querySelector('.notch') as HTMLElement
       return {
@@ -510,8 +513,11 @@ test.describe('CO-01 / CO-04 / CO-02 / CR-03 — text and control edges clear th
     await page.goto('/')
     const selection = await page.evaluate(() => {
       // A SECTION's lede, not the hero's: since 2026-09-29 the hero lede is full-strength text
-      // on its ink-washed photo, not secondary text on the page background this measures.
-      const lede = document.querySelector('.site-section .site-lede') as HTMLElement
+      // on its ink-washed photo, not secondary text on the page background this measures. Nor
+      // №01's, on its own photo since D41 (2026-10-16): the first lede on the page's ground is №02's.
+      const lede = document.querySelector(
+        '.site-section:not(.about-ground) .site-lede',
+      ) as HTMLElement
       const chosen = getComputedStyle(lede, '::selection')
       // Resolve the tokens through a real element, so the assertion follows tokens.css.
       const swatch = document.createElement('span')

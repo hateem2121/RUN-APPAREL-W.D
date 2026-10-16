@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it } from 'vitest'
 import { ABOUT } from '../../lib/aboutCopy'
-import { AboutSection } from './AboutSection'
+import { AboutSection, GROUND_ALT } from './AboutSection'
 
 /**
  * VA-58 (visual audit 2026-10-02, owner's decision): №01's first figure read "1889" over "MAKING
@@ -37,7 +37,9 @@ function problemsWith(html: string): string[] {
   const problems: string[] = []
   const groups = groupsIn(html)
   for (const point of ABOUT.points) {
-    const wanted = 'labelFirst' in point ? [point.label, point.value] : [point.value, point.label]
+    // What the figure says on the page: its plain-text prefix ("About"), then the value.
+    const figure = 'prefix' in point ? `${point.prefix} ${point.value}` : point.value
+    const wanted = 'labelFirst' in point ? [point.label, figure] : [figure, point.label]
     const found = groups.find((group) => group.includes(point.label))
     if (!found) problems.push(`"${point.label}" is not on the page`)
     else if (found.join('|') !== wanted.join('|')) {
@@ -57,6 +59,8 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
     expect(groupsIn(html)).toEqual([
       ['Manufacturing since', '1889'],
       ['Six', 'Buildings, first stitch to sealed bag'],
+      ['193,000', 'Sq m under roof'],
+      ['About 80%', 'Of our electricity, from the solar roof'],
     ])
     expect(problemsWith(html)).toEqual([])
   })
@@ -65,9 +69,11 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
     expect(ABOUT.points.map((point) => point.label)).toEqual([
       'Manufacturing since',
       'Buildings, first stitch to sealed bag',
+      'Sq m under roof',
+      'Of our electricity, from the solar roof',
     ])
-    expect(ABOUT.points.map((point) => point.value)).toEqual(['1889', 'Six'])
-    expect(ABOUT.points.map((point) => 'labelFirst' in point)).toEqual([true, false])
+    expect(ABOUT.points.map((point) => point.value)).toEqual(['1889', 'Six', '193,000', '80%'])
+    expect(ABOUT.points.map((point) => 'labelFirst' in point)).toEqual([true, false, false, false])
   })
 
   it('gets the order from the markup, never from CSS, which a screen reader would not follow', () => {
@@ -91,6 +97,47 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
     expect(problemsWith(old)).toEqual([
       '"Manufacturing since" reads 1889 then Manufacturing since, not Manufacturing since then 1889',
     ])
+  })
+})
+
+/**
+ * Option C (owner, 2026-10-15/16; D41): the roof photo is the section's ground, with words of its
+ * own, and the front of the building is no longer drawn here. Only the quantities count up.
+ */
+/** Each photo in the section, as `class|the photo's name|alt`. */
+function photosIn(html: string): string[] {
+  return [...html.matchAll(/<img\b([^>]*)>/g)].map((img) => {
+    const attrs = img[1] ?? ''
+    const name = /src="\/factory\/([a-z-]+?)-\d+\./.exec(attrs)?.[1] ?? '?'
+    return `${/class="([^"]*)"/.exec(attrs)?.[1] ?? ''}|${name}|${/alt="([^"]*)"/.exec(attrs)?.[1] ?? ''}`
+  })
+}
+
+describe('№01 stands on the roof photo', () => {
+  const html = renderToStaticMarkup(createElement(AboutSection))
+  const ROOF_ONLY = [`about-ground__img|solar-roof|${GROUND_ALT}`]
+
+  it('draws one photo, the roof, as the ground, described in its own words', () => {
+    expect(photosIn(html)).toEqual(ROOF_ONLY)
+    expect(GROUND_ALT).not.toMatch(/same building/i)
+    expect(html).toMatch(/<section class="site-section about-ground"/)
+  })
+
+  it('counts up 193,000 and 80% and nothing else', () => {
+    const counted = [...html.matchAll(/<span class="count-up"[^>]*>([^<]*)<\/span>/g)].map(
+      (match) => match[1],
+    )
+    expect(counted).toEqual(['193,000', '80%'])
+  })
+
+  // NEGATIVE CONTROL: the front photo back beside the roof is caught.
+  it('sees the fault: the front of the building drawn again', () => {
+    const planted = html.replace(
+      '</section>',
+      '<img class="photo-figure__img" src="/factory/exterior-640.webp" alt="A red-brick factory building"></section>',
+    )
+    expect(planted, 'the planted photo did not land').not.toBe(html)
+    expect(photosIn(planted)).not.toEqual(ROOF_ONLY)
   })
 })
 

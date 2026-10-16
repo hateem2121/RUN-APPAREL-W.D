@@ -1,5 +1,6 @@
 import { expect, type Page, test } from './offlineMedia'
 import { parseCssColour, relativeLuminance, toHex } from '../../../scripts/contrast-rules.mjs'
+import { ABOUT } from '../src/lib/aboutCopy'
 
 /**
  * Polish X25 (2026-10-05): in dark mode lime is kept for the page's big title and the buttons.
@@ -146,11 +147,19 @@ test.describe('X25 — in dark mode only the big title and the buttons are lime'
     expect(colours(m.buttons)).toEqual(m.buttons.map(({ text }) => `${INK} ${text}`))
 
     // The home page's photo hero is dark in both themes, so its title stays lime in light mode;
-    // the accent words and the featured figure below it are olive.
+    // so does №01, on its roof photo since D41 (2026-10-16), so its accent stays lime too. The
+    // accent words and the featured figure on the page's own ground are olive.
     await page.goto('/')
     const home = await read(page)
     expect(colours(home.titles)).toEqual([`${VOLT} ${home.titles[0]?.text}`])
-    expect(colours(home.accents)).toEqual(home.accents.map(({ text }) => `${VOLT_DEEP} ${text}`))
+    const onPhoto = (text: string) => text.replace(/\s/g, ' ') === ABOUT.accent.replace(/\s/g, ' ')
+    expect(
+      home.accents.filter(({ text }) => onPhoto(text)),
+      'no accent on №01',
+    ).toHaveLength(1)
+    expect(colours(home.accents)).toEqual(
+      home.accents.map(({ text }) => `${onPhoto(text) ? VOLT : VOLT_DEEP} ${text}`),
+    )
     expect(colours(home.feature)).toEqual([`${VOLT_DEEP} ${home.feature[0]?.text}`])
   })
 })

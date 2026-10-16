@@ -1,6 +1,7 @@
 /**
  * A fact's value, split into the numbers the count-up animates and the text between them.
- * `'100,000'` → one number; `'21–45'` → two numbers around an en dash. Anything else is
+ * `'100,000'` → one number; `'21–45'` → two numbers around an en dash; `'80%'` → a number and
+ * its percent sign, kept as text (№01's solar figure, owner 2026-10-16). Anything else is
  * `null`, and the caller shows the value as the plain text it already is — a count-up must
  * never be the reason a figure reads NaN.
  */
@@ -9,7 +10,9 @@ export type FactPart = { n: number } | { sep: string }
 const NUMBER = /^\d{1,3}(?:,\d{3})*$|^\d+$/
 
 export function parseFactValue(value: string): FactPart[] | null {
-  const pieces = value.trim().split(/(–)/)
+  const trimmed = value.trim()
+  const percent = trimmed.endsWith('%')
+  const pieces = (percent ? trimmed.slice(0, -1) : trimmed).split(/(–)/)
   if (pieces.length === 0 || pieces[0] === '') return null
   const parts: FactPart[] = []
   for (const piece of pieces) {
@@ -22,5 +25,6 @@ export function parseFactValue(value: string): FactPart[] | null {
     if (!Number.isFinite(n)) return null
     parts.push({ n })
   }
+  if (percent) parts.push({ sep: '%' })
   return parts
 }
