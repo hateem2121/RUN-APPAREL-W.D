@@ -229,7 +229,11 @@ describe('Footer', () => {
       '/standards/gots.svg',
       CLIMATE_COMMITMENT.logo.src,
     ])
-    expect(byText('LinkedIn')?.getAttribute('href')).toBe('https://www.linkedin.com/company/x')
+    // A new tab, and it says so, seen ("↗") and heard (owner, 2026-10-17; W3C G201).
+    const linkedIn = byText('LinkedIn ↗ (opens in a new tab)')
+    expect(linkedIn?.getAttribute('href')).toBe('https://www.linkedin.com/company/x')
+    expect(linkedIn?.getAttribute('target')).toBe('_blank')
+    expect(linkedIn?.getAttribute('rel')).toBe('noopener')
   })
 
   it('draws the default footer from an API answer cached before the footer joined it', () => {

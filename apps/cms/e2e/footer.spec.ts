@@ -19,7 +19,8 @@ const SLAB = '.site-footer__slab'
  * 2026-10-17). The one-screen and quiet-band tests below passed for weeks on an empty footer while
  * the live one, with its Capacity, Standards, Elsewhere and six marks, measured 1,052–1,146px on a
  * 900px screen. `fixtures/live-footer-facts-2026-10-17.html` is wear-run.com's `.footer-facts` that
- * day (public text, as the site prints it); this build's own climate-commitment line and badge are
+ * day (public text, as the site prints it; its four Elsewhere links since given this build's new-tab
+ * mark and words); this build's own climate-commitment line and badge are
  * put back after it, as the build draws them. Refresh the file when the owner changes the facts.
  */
 async function withLiveFacts(page: Page) {

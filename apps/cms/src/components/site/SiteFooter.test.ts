@@ -87,7 +87,10 @@ describe('SiteFooter', () => {
     expect(out).not.toContain('Lead time')
     expect(out).toContain('>Parent: SEDEX-registered, SMETA-audited<')
     expect(out).toContain('>Suppliers: OEKO-TEX, GOTS, GRS<')
-    expect(out).toContain('href="https://www.linkedin.com/company/run-apparel" rel="noopener"')
+    // A new tab, and it says so, seen ("↗") and heard (owner, 2026-10-17; W3C G201).
+    expect(out).toContain(
+      'href="https://www.linkedin.com/company/run-apparel" target="_blank" rel="noopener">LinkedIn<span aria-hidden="true"> ↗</span><span class="visually-hidden"> (opens in a new tab)</span>',
+    )
     expect(out).toContain('32.49° N · 74.52° E')
   })
 

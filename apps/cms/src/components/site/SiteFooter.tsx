@@ -198,8 +198,11 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 <ul>
                   {f.socialLinks.map((link) => (
                     <li key={link.url}>
-                      <a href={link.url} rel="noopener">
+                      <a href={link.url} target="_blank" rel="noopener">
                         {link.label}
+                        {/* A new tab, seen and heard (owner, 2026-10-17; W3C G201). */}
+                        <span aria-hidden="true"> ↗</span>
+                        <span className="visually-hidden"> {words.newTab}</span>
                       </a>
                     </li>
                   ))}

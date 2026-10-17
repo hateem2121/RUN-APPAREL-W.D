@@ -80,6 +80,11 @@ export const SITE_FOOTER_WORDS = {
   clockZone: 'PKT',
   openNow: 'Open now',
   marks: 'Marks of the standards above',
+  /**
+   * Said after each "Elsewhere" link, which opens in a new tab (owner, 2026-10-17). W3C's G201
+   * (updated 18 May 2026) asks for a warning both seen and heard: the links also show "↗".
+   */
+  newTab: '(opens in a new tab)',
 } as const
 
 /**
@@ -266,7 +271,7 @@ export function siteFooterAriaSnapshot(
     add(1, 'list:')
     for (const link of footer.socialLinks) {
       add(2, 'listitem:')
-      add(3, `link ${q(link.label)}`)
+      add(3, `link ${q(`${link.label} ${words.newTab}`)}`)
     }
   }
   const capacity = capacityLines(footer.capacity)
