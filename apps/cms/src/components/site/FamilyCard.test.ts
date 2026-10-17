@@ -199,19 +199,19 @@ describe('a family card (D44)', () => {
 
 /*
  * Polish F8, the owner's answer Q21 (2026-10-04): Sports Accessories has no garments and no page,
- * and its card opened an empty list. It keeps its card, says "[ soon ]" and goes to Contact as
+ * and its card opened an empty list. It keeps its card, says "[ ask us ]" and goes to Contact as
  * "Ask what we make →".
  */
-describe('a family with nothing to show: its card says "[ soon ]" and goes to Contact (polish F8)', () => {
-  it('Sports Accessories opens Contact, says "[ soon ]", and its link names where it goes', () => {
+describe('a family with nothing to show: its card says "[ ask us ]" and goes to Contact (polish F8)', () => {
+  it('Sports Accessories opens Contact, says "[ ask us ]", and its link names where it goes', () => {
     const html = cardOf('sports-accessories', 0, { list: ['Bags & backpacks', 'Socks'] })
     // The link's words are its name: "Ask what we make" is in them, hidden from sight, or a screen
     // reader would hear "Sports Accessories" and land on Contact (WCAG 2.4.4).
     expect(linksOf(html)).toEqual([
       { href: '/contact', text: 'Sports Accessories. Ask what we make' },
     ])
-    expect(textOf(html, 'family-card__count')).toBe('[ soon ]')
-    expect(textOf(html, 'family-card__meta')).toBe('[ soon ]')
+    expect(textOf(html, 'family-card__count')).toBe('[ ask us ]')
+    expect(textOf(html, 'family-card__meta')).toBe('[ ask us ]')
     expect(html).toMatch(/aria-hidden="true">Ask what we make <b>→<\/b>/)
     // Its list is the owner's (D44): what the family will hold.
     expect(itemsOf(html)).toEqual(['Bags & backpacks', 'Socks'])
@@ -219,7 +219,7 @@ describe('a family with nothing to show: its card says "[ soon ]" and goes to Co
 
   // NEGATIVE CONTROL: a family with a page opens it, says nothing of "soon", and keeps its cue,
   // even with no garment (CI's database holds one).
-  it('a family with a page opens that page, with no "[ soon ]"', () => {
+  it('a family with a page opens that page, with no "[ ask us ]"', () => {
     const withPage = FAMILIES.filter((family) => familyPageFor(family))
     expect(withPage).toHaveLength(4)
     for (const family of withPage) {
@@ -227,18 +227,18 @@ describe('a family with nothing to show: its card says "[ soon ]" and goes to Co
       expect(linksOf(html), family.slug).toEqual([
         { href: familyPageFor(family)?.path, text: family.name },
       ])
-      expect(html, family.slug).not.toContain('[ soon ]')
+      expect(html, family.slug).not.toContain('[ ask us ]')
       expect(html, family.slug).toMatch(/aria-hidden="true">View the range <b>→/)
     }
   })
 
   // Once a garment of it is published, "soon" would sit over a garment on show.
-  it('Sports Accessories with a garment opens its group, with no "[ soon ]"', () => {
+  it('Sports Accessories with a garment opens its group, with no "[ ask us ]"', () => {
     const html = cardOf('sports-accessories', 1)
     expect(linksOf(html)).toEqual([
       { href: '/products#sports-accessories', text: 'Sports Accessories' },
     ])
-    expect(html).not.toContain('[ soon ]')
+    expect(html).not.toContain('[ ask us ]')
     expect(textOf(html, 'family-card__meta')).toBe('1 reference')
   })
 })

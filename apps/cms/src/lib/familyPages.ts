@@ -14,7 +14,7 @@ import { FAMILIES, type Family, familyBySlug } from './families'
  * ⚠️ THE OWNER APPROVES EVERY PAGE'S WORDS BEFORE IT IS BUILT. Teamwear, Sportswear,
  * Outerwear and Casual Wear were approved on 2026-09-30. Sports Accessories has no garments,
  * so it has no page. A family with no entry here simply has no page yet: while it has no garments
- * either, its home-page card and its group on the products page say "[ soon ]" and lead to Contact
+ * either, its home-page card and its group on the products page say "[ ask us ]" and lead to Contact
  * (`familyIsSoon`), and its links elsewhere open that group (`familyHref`). Do not add an entry
  * from a draft.
  *
@@ -240,20 +240,21 @@ export function familyOf(page: FamilyPage): Family {
  * two linked to each other (visual audit VA-33). The buyer page is the ONLY list of its family now;
  * the products page shows every family under its own heading, which links here; and the filter's
  * addresses forward (`familyFilterForward`). Sports Accessories has no page, so its link is its
- * group on the products page, where "[ soon ]" leads to Contact (Q21).
+ * group on the products page, where "[ ask us ]" leads to Contact (Q21).
  */
 export function familyHref(family: Family): string {
   return familyPageFor(family)?.path ?? `/products#${family.slug}`
 }
 
 /**
- * What a family with nothing to show says, in the owner's words (Q21, 2026-10-04): it is coming,
- * and a buyer can ask about it now. Its group on the products page and its card on the home page
+ * What a family with nothing to show says, in the owner's words: "[ ask us ]" since 2026-10-17
+ * (home page audit, Q13: these are made today, only their 3D pages are missing), "[ soon ]" from
+ * Q21 (2026-10-04) until then, which read as "not made yet" beside a real backpack photo. Its group on the products page and its card on the home page
  * both read these (polish F8), so the two cannot drift apart. The card goes straight to Contact:
  * its group holds no garments, and a buyer who clicked a picture of backpacks met an empty list.
  */
 export const FAMILY_SOON = {
-  label: '[ soon ]',
+  label: '[ ask us ]',
   ask: 'Ask what we make',
   href: '/contact',
 } as const
@@ -269,7 +270,7 @@ export function familyTypes(family: Family): readonly string[] {
 }
 
 /**
- * Whether a family says "[ soon ]": no page AND no garment yet (today, Sports Accessories). Once a
+ * Whether a family says "[ ask us ]": no page AND no garment yet (today, Sports Accessories). Once a
  * garment of it is published, its group lists it and its card opens that group, page or not; a
  * "soon" over a garment on show would be wrong.
  */
