@@ -19,7 +19,8 @@ vi.mock('next/link', () => ({
  */
 const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value ?? ''
 // In normal letters since 2026-10-02 (visual audit VA-44, the owner's choice): same words, same order.
-const SAID = `[ Private label manufacturer since 1889 · Start from ${minimum} pieces per style ]`
+// "Family-run since 1889" since 2026-10-17 (owner, D45): 1889 is the family's year, not the company's.
+const SAID = `[ Family-run since 1889 · Start from ${minimum} pieces per style ]`
 
 const labelMarkup = (html: string) => /<p class="label">(.*?)<\/p>/s.exec(html)?.[1] ?? ''
 const textOf = (markup: string) => stripUntilStable(markup, /<[^>]*>/g, '')
@@ -39,15 +40,13 @@ describe('the home hero label, split in two halves', () => {
       `<span class="label__tail">Start from ${minimum} pieces per style ]</span>`,
     )
     // Two halves, and the dot between them: the first half stops at 1889, with no space of its own.
-    expect(
-      markup.startsWith('[ Private label manufacturer since 1889<span class="label__dot">'),
-    ).toBe(true)
+    expect(markup.startsWith('[ Family-run since 1889<span class="label__dot">')).toBe(true)
   })
 
   // NEGATIVE CONTROL: a split that loses the dot, or its spaces, is not the same sentence.
   it('sees the fault: a split that drops the dot or a space no longer says it', () => {
-    const noDot = `[ Private label manufacturer since 1889<span class="label__dot"></span><span class="label__tail">Start from ${minimum} pieces per style ]</span>`
-    const noSpaces = `[ Private label manufacturer since 1889<span class="label__dot">·</span><span class="label__tail">Start from ${minimum} pieces per style ]</span>`
+    const noDot = `[ Family-run since 1889<span class="label__dot"></span><span class="label__tail">Start from ${minimum} pieces per style ]</span>`
+    const noSpaces = `[ Family-run since 1889<span class="label__dot">·</span><span class="label__tail">Start from ${minimum} pieces per style ]</span>`
     expect(textOf(noDot)).not.toBe(SAID)
     expect(textOf(noSpaces)).not.toBe(SAID)
   })

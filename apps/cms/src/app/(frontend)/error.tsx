@@ -27,7 +27,7 @@ export default function SiteError({ reset }: { error: Error; reset: () => void }
             Try again
           </button>
           <Link className="btn btn--ghost" href="/products">
-            Browse in 3D
+            See products in 3D
           </Link>
         </div>
         <p className="site-lede">

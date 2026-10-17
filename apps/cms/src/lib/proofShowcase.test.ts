@@ -36,7 +36,7 @@ describe('pickProofGarment', () => {
 })
 
 describe('garmentCount', () => {
-  it('reads as the owner asked, beside "Browse in 3D": "41 garments", and "1 garment"', () => {
+  it('reads as the owner asked, beside "See products in 3D": "41 garments", and "1 garment"', () => {
     expect(garmentCount(41)).toBe('41 garments')
     expect(garmentCount(1)).toBe('1 garment')
     expect(garmentCount(1200)).toBe('1,200 garments')

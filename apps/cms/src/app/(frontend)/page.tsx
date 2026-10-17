@@ -213,13 +213,13 @@ export default async function HomePage() {
             cue={<ViewerCue />}
             actions={
               /*
-                "Browse in 3D" is the hero's name for the same link (X20: one name per destination,
+                "See products in 3D" is the hero's name for the same link (X20: one name per destination,
                 WCAG 3.2.4), so the count stands beside it rather than in it (owner, 2026-10-16),
                 read from the same list the gallery shows.
               */
               <div className="site-actions">
                 <Link className="btn btn--primary" href="/products">
-                  Browse in 3D
+                  See products in 3D
                 </Link>
                 {products.length > 0 ? (
                   <span className="proof__count">{garmentCount(products.length)}</span>

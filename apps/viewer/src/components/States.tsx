@@ -148,7 +148,7 @@ export function UnreachableState({
  *
  * ONE PRIMARY: Reload Page, the only thing that mends a crash (`ReloadPageButton` explains
  * why it is a real reload). Email and WhatsApp stay, so a visitor whose crash repeats on
- * every load still has a way to reach us. No "Browse in 3D": nothing here was removed, so
+ * every load still has a way to reach us. No "See products in 3D": nothing here was removed, so
  * sending the visitor to other garments answers a question they did not ask.
  */
 export function CrashedState({
@@ -295,7 +295,7 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
         </a>
         {/* The site's one name for the way to the 3D garments (polish X20, the owner's answer Q40). */}
         <a className="btn btn--ghost" href={SITE_PRODUCTS_URL}>
-          Browse in 3D
+          See products in 3D
         </a>
       </div>
     </main>

@@ -147,7 +147,8 @@ describe('UnavailableState', () => {
       (a.getAttribute('href') ?? '').includes('/products'),
     )
     expect(browse?.getAttribute('href')).toBe('https://wear-run.com/products')
-    expect(browse?.textContent).toMatch(/browse/i)
+    // The website's one name for this page (D45, 2026-10-17; "Browse in 3D" until then).
+    expect(browse?.textContent?.trim()).toBe('See products in 3D')
     // …and it did not smuggle the catalogue back in under a different label.
     expect(browse?.getAttribute('href')).not.toContain('catalogue')
   })

@@ -804,7 +804,7 @@ test.describe('VA-43 — a hero label never leaves its last words alone', () => 
   }) => {
     const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value
     // In normal letters since 2026-10-02 (visual audit VA-44, the owner's choice).
-    const first = '[ Private label manufacturer since 1889'
+    const first = '[ Family-run since 1889'
     const second = `Start from ${minimum} pieces per style ]`
     for (const width of [360, 390, 414, 639]) {
       await page.setViewportSize({ width, height: 844 })

@@ -366,8 +366,9 @@ test.describe('FA-P-02 / FA-W-04 — the pages work with scripting off', () => {
     )
 
     // and a link out of the home page navigates for real: the hero's way to the 3D garments, named
-    // "Browse in 3D" since polish X20 ("See the 3D references" until then)
-    await page.locator('.site-hero a.btn', { hasText: /^Browse in 3D$/ }).click()
+    // "See products in 3D" since 2026-10-17 (D45; "Browse in 3D" from polish X20, "See the 3D
+    // references" before that)
+    await page.locator('.site-hero a.btn', { hasText: /^See products in 3D$/ }).click()
     await expect(page).toHaveURL(/\/products$/)
     await expect(page.locator('h1')).toHaveCount(1)
   })
