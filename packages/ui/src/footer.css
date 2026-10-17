@@ -533,9 +533,21 @@
  * simulator). So on a phone body's colour is transparent and its paper is an IMAGE layer: the page
  * paints exactly as before, and the colour WebKit adds up is html's alone. `html body` so this wins
  * over base.css's `body` rule whichever file loads last.
+ *
+ * ⚠️ AND IT IS THE FOOTER'S COLOUR ONLY WHILE THE FOOTER IS ON SCREEN (home page audit,
+ * 2026-10-17: "a blank bar at the bottom of Safari on iPhone"). iOS 26 Safari also tints the strip
+ * behind its bottom bar from this colour (Ben Frain, "iOS26 Safari theme-color tab tinting with
+ * fixed position elements"; Apple Developer Forums thread 801239), so a page read mid-way, on its
+ * pale ground, had a dark band under the bar. `watchFooterInView` (packages/shared) marks the page
+ * while any of the footer is on screen, which is when the footer is what lies at the screen's foot;
+ * before that the colour is the page's own paper. Without scripting it stays paper.
  */
 @media (width < 720px) and (hover: none) {
   html {
+    background-color: var(--bg);
+  }
+
+  html[data-footer-in-view] {
     background-color: light-dark(var(--ink), var(--raised));
   }
 
@@ -544,8 +556,6 @@
     background-image: linear-gradient(var(--bg), var(--bg));
   }
 }
-
-/* ------------------------------------------------------------ print (FA-M-52) */
 
 /*
  * ⚠️ THE FOOTER TAKES FOUR COLUMNS FROM A TABLET (2026-10-07). With the Learn group a seventh block,
@@ -651,6 +661,8 @@
     margin-inline: auto;
   }
 }
+
+/* ------------------------------------------------------------ print (FA-M-52) */
 
 /*
  * ⚠️ PRESSING Cmd-P LOST EVERY WAY OF CONTACTING THE COMPANY, and the rest of the page

@@ -686,28 +686,40 @@ test.describe('the room kept for the cookie question (VA-25, polish M2)', () => 
 
   test.describe('on a touch phone', () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
-    test("the canvas a bounce shows below the page is the footer's colour too", async ({
+    test("the colour beyond the page is the page's paper, and the footer's once the footer is on screen", async ({
       page,
       browserName,
     }) => {
       test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
       await page.goto('/')
-      const look = await page.evaluate(() => ({
-        touch: matchMedia('(hover: none)').matches,
-        canvas: getComputedStyle(document.documentElement).backgroundColor,
-        page: getComputedStyle(document.body).backgroundColor,
-        footer: getComputedStyle(document.querySelector('.site-footer__slab') as HTMLElement)
-          .backgroundColor,
-      }))
+      const look = await page.evaluate(() => {
+        const probe = document.createElement('div')
+        probe.style.background = 'var(--bg)'
+        document.body.append(probe)
+        const paper = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return {
+          touch: matchMedia('(hover: none)').matches,
+          paper,
+          footer: getComputedStyle(document.querySelector('.site-footer__slab') as HTMLElement)
+            .backgroundColor,
+        }
+      })
       expect(look.touch, 'the emulated phone reports hover — this test measures nothing').toBe(true)
-      // Polled: the root's background has a 500ms colour transition for theme changes, and
-      // WebKit runs it once as the page loads (measured 2026-10-01: ink at 0.75 alpha at load,
-      // solid 500ms later). The settled colour is what a bounce shows.
-      await expect
-        .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor))
-        .toBe(look.footer)
-      // NEGATIVE CONTROL: the page itself keeps its paper; only the canvas beyond it changed.
-      expect(look.page).not.toBe(look.footer)
+      // The control: the two colours differ, so the readings below can tell them apart.
+      expect(look.paper).not.toBe(look.footer)
+      // Polled: the root's background has a 500ms colour transition for theme changes.
+      const canvas = () =>
+        page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)
+      // Mid-page the colour behind Safari's bar is the page's own paper (home page audit, 2026-10-17:
+      // it was the footer's all the time, a dark band under the bar on a pale page)...
+      await expect.poll(canvas).toBe(look.paper)
+      // ...the footer's once the footer is on screen, at the page's end, where a bounce shows it...
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await expect.poll(canvas).toBe(look.footer)
+      // ...and the paper again on the way back up.
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await expect.poll(canvas).toBe(look.paper)
     })
 
     /*

@@ -8,6 +8,7 @@ import {
   markBox,
   marksFor,
   normalizeWhatsAppNumber,
+  watchFooterInView,
   SITE_FOOTER_COMPANY,
   SITE_FOOTER_LEARN,
   SITE_FOOTER_LINKS,
@@ -16,7 +17,7 @@ import {
   standardsLines,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { track } from '../lib/analytics'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { FooterGlow, FooterWordmark } from './FooterLive'
@@ -53,6 +54,9 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   const capacity = capacityLines(f.capacity)
   const marks = marksFor(f.certifications)
   const words = SITE_FOOTER_WORDS
+  // A phone's colour beyond the page is the footer's only while the footer is on screen
+  // (packages/ui/src/footer.css says why; the website's FooterInView.tsx does the same).
+  useEffect(() => watchFooterInView(document), [])
 
   return (
     <footer className="site-footer">

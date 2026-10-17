@@ -19,6 +19,7 @@ import { formatAddress } from '../../lib/structuredData'
 import { ConsentLink } from './ConsentLink'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
+import { FooterInView } from './FooterInView'
 import { FooterTab } from './FooterTab'
 import { FooterWordmark } from './FooterWordmark'
 
@@ -81,6 +82,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 
   return (
     <footer className="site-footer">
+      <FooterInView />
       <FooterTab label={f.ctaLabel} email={settings.email} />
 
       <div className="site-footer__slab">
