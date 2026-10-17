@@ -769,8 +769,9 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
     expect(labels.at(-1)).toBe('№05 — The works')
   })
 
-  // №01 draws one since D41 (2026-10-16): the roof, as its ground. The front of the building is
-  // the "Inside the factory" gallery's (src/orderTimelinePhotos.test.ts proves it is still drawn).
+  // №01 draws one since D41 (2026-10-16): the roof, as its ground. Since 2026-10-17 №04's step 05
+  // draws the front of the building, so the one left out is the stitching floor: the hero shows it
+  // (its own `hero-` crops), and the owner chose not to show it twice (Q12).
   test('each factory photo is on the home page once: №01 draws one, №04 draws eight', async ({
     page,
   }) => {
@@ -784,7 +785,7 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
     )
     expect(slugs.sort(), 'a factory photo is missing, or drawn twice').toEqual(
       FACTORY_PHOTOS.map((photo) => photo.slug)
-        .filter((slug) => slug !== 'exterior')
+        .filter((slug) => slug !== 'stitching')
         .sort(),
     )
   })

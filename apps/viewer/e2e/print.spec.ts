@@ -237,6 +237,9 @@ test.describe('one clean sheet per garment (polish F14)', () => {
     // NEGATIVE CONTROL: on a phone's screen the bar and the colour dots are there.
     await expect(page.locator('.action-bar')).toBeVisible()
     await expect(page.locator('.colourways')).toBeVisible()
+    // ...and the footer's tab and question, which load lazily (FooterPrompt.tsx).
+    await expect(page.locator('.site-footer__tab')).toHaveCount(1)
+    await expect(page.locator('.footer-cta')).toHaveCount(1)
 
     await page.emulateMedia({ media: 'print' })
     for (const selector of [
@@ -250,8 +253,10 @@ test.describe('one clean sheet per garment (polish F14)', () => {
     ]) {
       await expect(page.locator(selector).first(), selector).toBeHidden()
     }
-    // The footer's question is not on a garment page at all since polish Q42 (2026-10-04).
-    await expect(page.locator('.footer-cta, .site-footer__tab')).toHaveCount(0)
+    // The footer's question and tab are on a garment page's screen again since 2026-10-17 (the
+    // owner, Q11), and stay off its paper: a spec sheet, one sheet long (F14).
+    await expect(page.locator('.footer-cta')).toBeHidden()
+    await expect(page.locator('.site-footer__tab')).toBeHidden()
     // The grid layer over the footer printed as an opaque white sheet (Chromium, A4 and Letter).
     const cover = await page
       .locator('.site-footer__slab')
