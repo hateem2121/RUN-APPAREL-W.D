@@ -15,8 +15,13 @@ import { OrderSteps } from './OrderSteps'
  */
 export function OrderTimeline() {
   return (
-    <section className="site-section order-section" data-site-reveal>
-      <div className="site-container">
+    <section className="site-section order-section">
+      {/*
+       * ⚠️ THE HEADING RISES IN, NOT THE SECTION (home page audit, 2026-10-17). On the section, the
+       * 24px rise still ran while the first card was stopped, and a stopped card moves with a moved
+       * ancestor, so the card drifted under the bar. As №01's (`AboutSection.tsx`).
+       */}
+      <div className="site-container" data-site-reveal>
         {/* The heading beside its line from 900px (`.section-head`, polish D1), as №02's is. */}
         <div className="section-head">
           <div className="section-head__title">

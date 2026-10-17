@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { ORDER_PHASES } from '../../lib/orderProcess'
+import { OrderStagesList } from './OrderStagesList'
 
 /**
  * The order steps as four full-screen stage cards, two steps to a card (owner, option A3,
@@ -26,7 +27,8 @@ import { ORDER_PHASES } from '../../lib/orderProcess'
  * order cannot disagree for a keyboard.
  *
  * A server component: the cards are complete with scripting off, and the stacking is CSS that a
- * browser without it skips (a plain list of the same four cards).
+ * browser without it skips (a plain list of the same four cards). Only the list is a client
+ * component (`OrderStagesList`), to tell the stack each card's height.
  */
 const PHOTOS = new Map(FACTORY_PHOTOS.map((photo) => [photo.slug, photo]))
 
@@ -45,7 +47,7 @@ const STAGES = ORDER_PHASES.map((phase, stage) => {
 
 export function OrderSteps() {
   return (
-    <ol className="order-stages">
+    <OrderStagesList>
       {STAGES.map((phase, stage) => {
         const first = phase.first
         return (
@@ -101,6 +103,6 @@ export function OrderSteps() {
           </li>
         )
       })}
-    </ol>
+    </OrderStagesList>
   )
 }

@@ -5359,12 +5359,20 @@ a.contact-block__value:active {
  * `cqi`, the list's own width: a custom property is worked out where it is USED, so `100%` there
  * meant the step's half, and the words sat 160px off the heading's edge at 1920px (measured).
  *
- * `--stage-h` is a card's height: the screen under the bar, less room for the three cards before
- * it to show 8px each and 8px below, so the fourth card's foot is still on the screen when it stops.
- * svh, the screen with the browser's bars shown, so a phone's bar sliding in hides nothing.
+ * ⚠️ THE CARDS MEET THE BAR AND REACH THE SCREEN'S FOOT (home page audit, 2026-10-17, the owner's
+ * option (a)). `--stage-top` is the bar's foot once it has condensed (`notch-condense`: 4px of
+ * padding, 52px at one row), since the bar has always condensed by the time №04 is on screen. Until
+ * this the cards stopped at `--notch-clearance` (84px: the bar plus 24px of air), and a card was
+ * that much less 32px tall, so a pale strip of about 30px showed under the bar and up to 32px under
+ * the card, at every computer size from 1280 to 3440 wide (measured). Where the bar never condenses
+ * (no scroll timeline), it is the bar's own height.
+ *
+ * `--stage-h` is the first card's height: the screen under the bar. svh, the screen with the
+ * browser's bars shown, so a phone's bar sliding in hides nothing.
  */
 .order-stages {
-  --stage-h: calc(100svh - var(--notch-clearance) - 4 * 8px);
+  --stage-top: calc(var(--notch-h) - 2 * (var(--notch-pad-y) - 4px));
+  --stage-h: calc(100svh - var(--stage-top));
   --stage-edge: max(var(--site-gutter), calc((100cqi - var(--site-max)) / 2 + var(--site-gutter)));
   container-type: inline-size;
   display: grid;
@@ -5592,36 +5600,46 @@ a.contact-block__value:active {
   }
 }
 
+@supports not (animation-timeline: scroll()) {
+  .order-stages {
+    --stage-top: var(--notch-h);
+  }
+}
+
 /*
- * ⚠️ THE STACK, ONLY FOR SOMEONE WHO ALLOWS MOTION, AND ONLY ON A SCREEN TALL ENOUGH TO HOLD IT.
- * Under reduced motion the cards are a plain list, as the eight were (polish D4). And a card that
- * stops with its foot below the screen hides its words for good, because the next card covers it
- * from the foot up, so the stack needs the fullest card to fit. Measured in the build (2026-10-16,
- * cards with nothing forcing their height): the fullest needs 666px at 360px wide, 626px at 375–390px, 601px at
- * 768px and at most 408px from 900px, and a screen gives it its height less the bar's clearance
- * (84px) and 32px. So from 900px a 40rem screen (640px) holds the stack, and below 900px it takes
- * 50rem (800px; 782px would be the bare minimum, and a phone's own bars can take some of it from
- * `svh`): a 390 × 844 phone stacks, a 360 × 780 or 375 × 667 one is a list. rem in a media query follows the
- * reader's text size, so larger text turns the stack off before it could hide anything. Here, and
- * only here, a card is exactly the screen's height.
+ * ⚠️ THE STACK, FOR SOMEONE WHO ALLOWS MOTION, ON EVERY SCREEN (the owner, 2026-10-17: "stack on
+ * all phones"). Under reduced motion the cards are a plain list, as the eight were (polish D4).
  *
- * Card i stops at the bar's clearance plus 8px for each card before it, so each card's top edge
- * stays in sight under the next. The last card's room to stop is an empty row of the list, not a
- * margin: a stopped card may not leave its list, margin and all (measured 2026-10-05).
+ * Card i stops 8px below the card before it, so each card's top edge stays in sight under the
+ * next, and is the screen's height less its stop, so every card's foot is the screen's foot.
+ *
+ * ⚠️ A CARD TALLER THAN THAT SCROLLS UNTIL ITS FOOT SHOWS, THEN STOPS (the owner's "scroll, then
+ * stop"). A card that stops with its foot below the screen hides its last words for good, because
+ * the next card covers it from the foot up. The fullest card needs 626px at 375–390px wide and 666px
+ * at 360px (measured 2026-10-16), more than an iPhone in Safari has under the bar, so until this the
+ * stack was off below an 800px screen and no iPhone stacked (#197). Now its height may grow, and
+ * `--stage-fit`, the height `OrderStagesList.tsx` measures, moves its stop up to `100svh` less it.
+ * Without scripting, `--stage-fit` is unset and the card stops under the bar.
+ *
+ * ⚠️ EACH CARD RESTS A THIRD OF A SCREEN (the owner, 2026-10-17). The gap between cards is the
+ * scroll over which a stopped card is wholly on the screen before the next one's edge comes up
+ * over its foot. It was 24px, and at 1440 × 900 the next card covered the last line a buyer was
+ * still reading (home page audit, 2026-10-17). The last card's rest is the empty row after it, not
+ * a margin: a stopped card may not leave its list, margin and all (measured 2026-10-05).
  */
-@media screen and (prefers-reduced-motion: no-preference) and (min-width: 900px) and (
-    min-height: 40rem
-  ),
-  screen and (prefers-reduced-motion: no-preference) and (min-height: 50rem) {
+@media screen and (prefers-reduced-motion: no-preference) {
+  .order-stages {
+    row-gap: calc(100svh / 3);
+  }
+
   .order-stages > .order-stage {
     position: sticky;
-    top: calc(var(--notch-clearance) + var(--i) * 8px);
-    block-size: var(--stage-h);
+    top: min(calc(var(--stage-top) + var(--i) * 8px), calc(100svh - var(--stage-fit, 0px)));
+    min-block-size: calc(100svh - var(--stage-top) - var(--i) * 8px);
   }
 
   .order-stages::after {
     content: "";
-    block-size: 24px;
   }
 }
 
