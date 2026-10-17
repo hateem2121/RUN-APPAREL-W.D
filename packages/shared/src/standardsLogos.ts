@@ -171,3 +171,30 @@ export function marksFor(entries: readonly string[]): StandardLogo[] {
   }
   return [...bySlug.values()]
 }
+
+/**
+ * ⚠️ RUN APPAREL'S OWN CLIMATE COMMITMENT, NOT A CERTIFICATE, AND NOT AN ENTRY FROM THE CMS (owner,
+ * 2026-10-17). The company made the SME Climate Hub's commitment (net zero before 2050, signed
+ * 12 October 2026; the Hub's public list shows it), and the Hub's own dashboard names the website
+ * footer as a place to show it. Every other mark is a parent's or a supplier's and is drawn only when
+ * a CMS entry names it; this one is the company's own, so both footers always draw it: its line
+ * last in "Standards", and its badge last in the row of marks, a link to the company's row in the
+ * Hub's public list, where a buyer can check it. Drawn at its own size, 107 × 44, not the marks'
+ * one area (`markBox`): there it came out 56 × 23, its words unreadable and, as a link, under the
+ * 44px a control here must be.
+ *
+ * ⚠️ "COMMITTED", NEVER "CERTIFIED" (owner, 2026-10-17): a commitment is a promise to act, and the
+ * Hub reviews no one. ⚠️ THE BADGE IS FOR ONE YEAR ("Committed 2026"). The Hub keeps a company
+ * committed only while it reports each year; the 2027 badge replaces this file and its year.
+ */
+export const CLIMATE_COMMITMENT = {
+  line: 'SME Climate Hub: Committed',
+  href: 'https://smeclimatehub.org/our-smes/?search=RUN+APPAREL',
+  logo: {
+    slug: 'sme-climate-hub',
+    src: '/standards/sme-climate-hub-committed-2026.svg',
+    width: 107,
+    height: 44,
+    alt: 'SME Climate Hub Committed 2026',
+  },
+} as const satisfies { line: string; href: string; logo: StandardLogo }

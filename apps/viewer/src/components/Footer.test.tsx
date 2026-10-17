@@ -1,4 +1,5 @@
 import {
+  CLIMATE_COMMITMENT,
   CONSENT_OPEN_EVENT,
   DEFAULT_SITE_SETTINGS,
   EMPTY_FOOTER,
@@ -183,8 +184,15 @@ describe('Footer', () => {
   it('draws no claim block for a blank claim, and each claim block once it is set', () => {
     render(<Footer settings={settings} />)
     // "What we make" and "Company" (2026-10-07) are not claims: they are there with nothing set.
-    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn'])
-    expect(host.querySelector('.footer-marks')).toBeNull()
+    // Standards always: the company's own climate commitment (owner, 2026-10-17).
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn', 'Standards'])
+    // ... and the marks row holds only its badge, a link to where a buyer can check it.
+    expect(
+      [...host.querySelectorAll<HTMLImageElement>('.footer-marks img')].map((img) => img.alt),
+    ).toEqual([CLIMATE_COMMITMENT.logo.alt])
+    expect(host.querySelector('.footer-marks a')?.getAttribute('href')).toBe(
+      CLIMATE_COMMITMENT.href,
+    )
 
     render(
       <Footer
@@ -215,10 +223,11 @@ describe('Footer', () => {
     expect(host.textContent).toContain('32.4945° N, 74.5229° E')
     // The marks follow from the entry's words, in the order named, from the website's files.
     const marks = [...host.querySelectorAll<HTMLImageElement>('.footer-marks img')]
-    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', 'GOTS'])
+    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', 'GOTS', CLIMATE_COMMITMENT.logo.alt])
     expect(marks.map((img) => img.getAttribute('src'))).toEqual([
       '/standards/oeko-tex.svg',
       '/standards/gots.svg',
+      CLIMATE_COMMITMENT.logo.src,
     ])
     expect(byText('LinkedIn')?.getAttribute('href')).toBe('https://www.linkedin.com/company/x')
   })
@@ -227,7 +236,7 @@ describe('Footer', () => {
     const { footer: _dropped, ...older } = settings
     render(<Footer settings={older} />)
     // The facts with no claim (no capacity, standards or links), and the legal row.
-    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn'])
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn', 'Standards'])
     expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
   })
 

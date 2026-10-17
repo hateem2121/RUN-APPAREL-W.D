@@ -7744,6 +7744,110 @@ a.contact-block__value:active {
 }
 
 /*
+ * ⚠️ ONE SCREEN WITH THE REAL FACTS, NOT WITH AN EMPTY DATABASE (home page audit, 2026-10-17; the
+ * owner: "fit every size"). The rules above were measured on CI's empty footer, and the live one,
+ * with its Capacity, Standards, Elsewhere and six marks, measured 1,052–1,146px on a 900px screen
+ * at every width from 768 to 1920 while the tests passed. Measured with the live facts and the
+ * climate commitment, these bring it to exactly 900px at every width from 768 to 2560:
+ *
+ * - A line that is not a link (an address, a capacity or a standard) is a line of text, not a 44px
+ *   touch row: the floor is for controls. The text lines keep 4px between them.
+ * - Less air above the question and around the facts, and the legal row's lines closer.
+ * - From 1280px, Standards takes two columns (its lines no longer wrap) and the marks take the
+ *   last two, beside it, instead of a row of their own.
+ * - On a tablet, Company runs down two rows, the question is smaller, and the legal row's two
+ *   lines of text take the snug spacing its links already have, so it is one line, not "Terms"
+ *   alone on a second.
+ * - From 1500px the outline wordmark stops growing (1500px wide): it is fitted to its box's width,
+ *   and at 1920 it stood 163px tall where it stands 122px at 1440.
+ *
+ * Website only, as the four columns: the garment pages' footer has no one-screen rule.
+ */
+.footer-block li:not(:has(a)) {
+  min-height: 0;
+}
+
+.footer-block li:not(:has(a)) + li:not(:has(a)) {
+  margin-block-start: 4px;
+}
+
+.footer-block h3 {
+  margin-block-end: 8px;
+}
+
+.footer-cta {
+  padding-block-start: clamp(32px, 4vw, 56px);
+}
+
+.footer-facts {
+  row-gap: 16px;
+  padding-block: 16px clamp(16px, 2vw, 32px);
+}
+
+.footer-legal {
+  row-gap: 0;
+  padding-block: 8px 12px;
+}
+
+@supports (width: round(1px, 2px)) {
+  .footer-cta {
+    padding-block-start: round(clamp(32px, 4vw, 56px), 2px);
+  }
+
+  .footer-facts {
+    padding-block-end: round(clamp(16px, 2vw, 32px), 2px);
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1279px) {
+  .footer-block--company:not(.footer-block--learn) {
+    grid-row: span 2;
+  }
+
+  .footer-block--standards {
+    grid-column: auto;
+  }
+
+  .footer-q {
+    font-size: clamp(27px, 2.8vw, 52px);
+  }
+
+  /* After the `@supports` rule above, so it wins there too. */
+  .footer-cta {
+    padding-block-start: 24px;
+  }
+
+  .footer-facts {
+    row-gap: 12px;
+    padding-block-start: 12px;
+  }
+
+  .footer-legal {
+    column-gap: 10px;
+    letter-spacing: var(--tracking-caps-snug);
+  }
+}
+
+@media (min-width: 1280px) {
+  .footer-block--standards {
+    grid-column: span 2;
+  }
+
+  .footer-marks {
+    grid-column: 4 / -1;
+    grid-row: 2;
+    align-self: end;
+  }
+}
+
+@media (min-width: 1500px) {
+  .footer-mark {
+    inline-size: 1500px;
+    margin-inline: auto;
+  }
+}
+
+/*
  * ------------------------------------------------ the Journal and the case studies (2026-10-07)
  *
  * JournalIndex.tsx, JournalPost.tsx, CaseStudyPage.tsx. Only tokens and the documented spacing

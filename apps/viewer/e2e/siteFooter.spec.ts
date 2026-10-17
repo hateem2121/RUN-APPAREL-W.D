@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
+import { CLIMATE_COMMITMENT } from '../../../packages/shared/src/standardsLogos'
 import { DEFAULT_SITE_SETTINGS } from '../../../packages/shared/src/defaults'
 import {
   EMPTY_FOOTER,
@@ -121,9 +122,11 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     await expect(footer(page)).toMatchAriaSnapshot(
       siteFooterAriaSnapshot(content(CLAIMS), { prompt: false }),
     )
-    // Every mark arrived and decodes: the files are the website's, by the same path.
+    // Every mark arrived and decodes: the files are the website's, by the same path. Four bodies'
+    // marks, then the company's own climate commitment badge (owner, 2026-10-17).
     const marks = footer(page).locator('.footer-marks img')
-    await expect(marks).toHaveCount(4)
+    await expect(marks).toHaveCount(5)
+    await expect(marks.last()).toHaveAttribute('src', CLIMATE_COMMITMENT.logo.src)
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     for (const img of await marks.all()) {
       const name = await img.getAttribute('alt')
@@ -146,12 +149,15 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     ).toHaveCount(1)
     // One area for every mark, not one height (X23): Sedex is a wide wordmark, OEKO-TEX a tall
     // label, and at one 32px height their areas were 3,804 and 726 square pixels.
-    const areas = await marks.evaluateAll((all) =>
-      all.map((img) => {
-        const box = img.getBoundingClientRect()
-        return Math.round(box.width * box.height)
-      }),
-    )
+    // The badge is a link, drawn 44px tall for the touch floor, so it is not held to the area.
+    const areas = await footer(page)
+      .locator('.footer-marks > img')
+      .evaluateAll((all) =>
+        all.map((img) => {
+          const box = img.getBoundingClientRect()
+          return Math.round(box.width * box.height)
+        }),
+      )
     for (const area of areas) expect(Math.abs(area - 36 * 36) / (36 * 36)).toBeLessThan(0.06)
   })
 

@@ -2,7 +2,14 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 // The table moved to @run-apparel/shared on 2026-10-02 (VA-31); the files it names stay here.
-import { logosFor, MARK_AREA, markBox, marksFor, STANDARDS_LOGOS } from '@run-apparel/shared'
+import {
+  CLIMATE_COMMITMENT,
+  logosFor,
+  MARK_AREA,
+  markBox,
+  marksFor,
+  STANDARDS_LOGOS,
+} from '@run-apparel/shared'
 
 const PUBLIC_DIR = join(import.meta.dirname, '..', '..', 'public')
 
@@ -190,6 +197,29 @@ describe('the logo files', () => {
     // Found first: a rule that moved away would otherwise pass the next line by being empty.
     expect(rule, '.footer-logo is not in the footer stylesheet').not.toBe('')
     expect(rule).not.toMatch(/background/)
+  })
+
+  /*
+   * The company's own climate commitment (owner, 2026-10-17): its badge is the Hub's artwork, kept
+   * in its own colours (white lettering on its teal), so it is not held to the on-dark rule above.
+   * It must be the file and size the record says, plain paths with no style, text or picture inside
+   * it, and say "Committed", never "Certified".
+   */
+  it('the climate commitment badge is its file, at its size, plain paths, and says Committed', () => {
+    const { logo, line, href } = CLIMATE_COMMITMENT
+    const file = join(PUBLIC_DIR, logo.src)
+    expect(existsSync(file), `${file} is missing`).toBe(true)
+    const svg = readFileSync(file, 'utf8')
+    expect(svgSize(svg)).toEqual({ width: logo.width, height: logo.height })
+    expect(svg).not.toMatch(/<style|<text|<image|class=/)
+    expect(svg.length).toBeLessThan(24 * 1024)
+    for (const words of [line, logo.alt]) {
+      expect(words).toMatch(/Committed/)
+      expect(words).not.toMatch(/certif/i)
+    }
+    expect(href).toBe('https://smeclimatehub.org/our-smes/?search=RUN+APPAREL')
+    // Not in the allow-list: no CMS entry draws it, and no entry can draw it twice.
+    expect(STANDARDS_LOGOS.map((entry) => entry.src)).not.toContain(logo.src)
   })
 
   // NEGATIVE CONTROL for the size check above: it must be able to fail. A record that

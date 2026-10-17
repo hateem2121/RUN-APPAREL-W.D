@@ -1300,10 +1300,23 @@ exception to the no-repeat rule. №04: the cards stopped 84px down under a 52px
 strips, and from #197 stacked only on screens 800px tall or more, so no iPhone in Safari stacked.
 The rest is the gap between cards, because the next card used to cover the last line being read.
 
+The SME Climate Hub badge (owner, 2026-10-17): the company made the Hub's commitment (net zero
+before 2050, signed 12 October 2026), so both footers end "Standards" with "SME Climate Hub:
+Committed" and the marks with the "Committed 2026" badge, a link to the company's row in the Hub's
+public list. "Committed", never "Certified". The badge is for one year; the 2027 one replaces it.
+
+The footer is one screen from 768px with the real facts (owner: "fit every size"). It had passed
+the one-screen tests on CI's empty footer while the live one measured 1,052–1,146px on a 900px
+screen. Plain-text lines are no longer 44px touch rows, Standards takes two columns and the marks
+sit beside it from 1280px, a tablet's question is smaller and its legal row one line, and the
+outline wordmark stops growing at 1500px. The tests now measure the live facts.
+
 **Guard:** `apps/cms/src/components/site/SiteFooter.test.ts` and `apps/cms/e2e/footer.spec.ts` (the
 home footer is the same footer), `apps/cms/e2e/orderTimeline.spec.ts` (13 sizes, three planted
 faults), `apps/cms/e2e/familyTickets.spec.ts` (no pause), and `apps/cms/e2e/liveGarment.spec.ts`
-(zoom after a click, the cross-fade).
+(zoom after a click, the cross-fade); `standardsLogos.test.ts`, `SiteFooter.test.ts`, the viewer's
+`Footer.test.tsx` and `e2e/siteFooter.spec.ts` (the badge); `footer.spec.ts` DS-09 and LA-13 with
+`e2e/fixtures/live-footer-facts-2026-10-17.html` (one screen with the live facts).
 
 ## Closed since
 

@@ -1,4 +1,4 @@
-import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
+import { CLIMATE_COMMITMENT, DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
@@ -46,12 +46,15 @@ describe('SiteFooter', () => {
     expect(html(base)).toContain('needs making <em>properly</em>?')
   })
 
-  it('renders NO claim block when the fields are empty', () => {
+  // Standards stays, holding only the company's own climate commitment (owner, 2026-10-17).
+  it('renders NO claim block from the CMS when the fields are empty', () => {
     const out = html(base)
     expect(out).not.toContain('footer-block--capacity')
-    expect(out).not.toContain('footer-block--standards')
     expect(out).not.toContain('footer-block--elsewhere')
     expect(out).toContain('footer-block--contact')
+    const standards = (out.split('footer-block--standards')[1] ?? '').split('</ul>')[0] ?? ''
+    expect(standards.match(/<li>/g)).toHaveLength(1)
+    expect(standards).toContain(`<li>${CLIMATE_COMMITMENT.line}</li>`)
     // and never a placeholder, dotted or otherwise
     expect(out).not.toMatch(/GOTS|Oeko|MOQ 50/)
   })
@@ -139,7 +142,7 @@ describe('SiteFooter', () => {
     expect(out.indexOf('footer-marks')).toBeGreaterThan(out.indexOf('footer-block--standards'))
     expect(out.match(/footer-marks/g)).toHaveLength(1)
     const imgs = row.match(/<img [^>]*>/g) ?? []
-    expect(imgs).toHaveLength(5)
+    expect(imgs).toHaveLength(6)
     for (const img of imgs) {
       expect(img).toContain('loading="lazy"')
       expect(img).toContain('decoding="async"')
@@ -148,19 +151,25 @@ describe('SiteFooter', () => {
       expect(img).toContain('class="footer-logo"')
     }
     // BSCI is text only (owner, 2026-09-29): named in the line, never drawn
+    // ... and the company's own climate commitment last (owner, 2026-10-17)
     expect(imgs.map((img) => img.match(/alt="([^"]*)"/)?.[1])).toEqual([
       'Sedex',
       'SMETA',
       'OEKO-TEX',
       'GOTS',
       'GRS',
+      CLIMATE_COMMITMENT.logo.alt,
     ])
-    expect(out.match(/<img [^>]*>/g)).toHaveLength(5)
+    expect(out.match(/<img [^>]*>/g)).toHaveLength(6)
     // the heading stays "Standards" beside real logos: SMETA is an audit, not a certificate
     expect(out).toContain('<h3>Standards</h3>')
     expect(out).not.toMatch(/certified/i)
-    // a picture is never a control: nothing in the row is a link, so the 44px floor never applies
-    expect(row).not.toContain('<a ')
+    // a body's mark is never a control. The one link is the company's own commitment, drawn at
+    // 44px tall, so the 44px floor holds for it.
+    expect(row.match(/<a /g)).toHaveLength(1)
+    expect(row).toContain('<a class="footer-commitment"')
+    expect(CLIMATE_COMMITMENT.logo.height).toBeGreaterThanOrEqual(44)
+    expect(row).toContain(`height="${CLIMATE_COMMITMENT.logo.height}"`)
   })
 
   // NEGATIVE CONTROL: an entry naming no body draws no picture. The company's own third
@@ -175,12 +184,16 @@ describe('SiteFooter', () => {
     })
     expect(out).toContain('>Program-specific standards on request<')
     expect(out).toContain('>Suppliers: GRSX<')
-    expect(out).not.toContain('<img')
-    expect(out).not.toContain('footer-marks')
+    // Only the company's own commitment badge, which no entry draws.
+    const pictures = out.match(/<img [^>]*>/g) ?? []
+    expect(pictures.map((img) => img.match(/src="([^"]*)"/)?.[1])).toEqual([
+      CLIMATE_COMMITMENT.logo.src,
+    ])
   })
 
-  it('draws no logo at all when there are no entries', () => {
-    expect(html(base)).not.toContain('/standards/')
+  it('draws no body’s logo at all when there are no entries', () => {
+    const drawn = html(base).match(/\/standards\/[^"]+/g) ?? []
+    expect(drawn).toEqual([CLIMATE_COMMITMENT.logo.src])
   })
 
   it('renders the wordmark twice, both decorative, from the same field as the top bar', () => {
@@ -209,6 +222,36 @@ describe('SiteFooter', () => {
     expect(legal.indexOf('>Privacy<')).toBeLessThan(legal.indexOf('>Cookies<'))
     expect(legal.indexOf('>Cookies<')).toBeLessThan(legal.indexOf('>Terms<'))
     route.path = '/products'
+  })
+})
+
+/*
+ * The company's own climate commitment (owner, 2026-10-17): its line last under Standards and its
+ * badge last in the row of marks, a link to the company's row in the Hub's list. Drawn whatever the
+ * CMS holds, so it is checked with no certifications at all, and with them after the CMS's lines.
+ */
+describe('SiteFooter and the climate commitment', () => {
+  const badgeLink = `<a class="footer-commitment" href="${CLIMATE_COMMITMENT.href.replace('&', '&amp;')}" rel="noopener"><img class="footer-logo" src="${CLIMATE_COMMITMENT.logo.src}"`
+
+  it('draws its line and its linked badge with nothing in the CMS', () => {
+    const out = html(base)
+    expect(out).toContain(`<li>${CLIMATE_COMMITMENT.line}</li>`)
+    expect(out).toContain(badgeLink)
+    expect(out).toContain(`alt="${CLIMATE_COMMITMENT.logo.alt}"`)
+  })
+
+  it('comes last: after the CMS lines and after the CMS marks', () => {
+    const out = html({
+      ...base,
+      footer: { ...EMPTY_FOOTER, certifications: ['Parent: SEDEX-registered, SMETA-audited'] },
+    })
+    const standards = out.split('footer-block--standards')[1] ?? ''
+    expect(standards.indexOf('SEDEX-registered')).toBeGreaterThan(0)
+    expect(standards.indexOf('SEDEX-registered')).toBeLessThan(
+      standards.indexOf(CLIMATE_COMMITMENT.line),
+    )
+    expect(out.indexOf('/standards/smeta.svg')).toBeGreaterThan(0)
+    expect(out.indexOf('/standards/smeta.svg')).toBeLessThan(out.indexOf(badgeLink))
   })
 })
 

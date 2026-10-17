@@ -1,4 +1,5 @@
 import {
+  CLIMATE_COMMITMENT,
   CONSENT_OPEN_EVENT,
   capacityLines,
   EMPTY_FOOTER,
@@ -159,38 +160,49 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
               </div>
             ) : null}
 
-            {f.certifications.length > 0 ? (
-              <div className="footer-block footer-block--standards">
-                <h3>{words.standards}</h3>
-                <ul>
-                  {standardsLines(f.certifications).map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
+            {/* Always drawn: the climate commitment's line is the company's own, not the CMS's. */}
+            <div className="footer-block footer-block--standards">
+              <h3>{words.standards}</h3>
+              <ul>
+                {standardsLines(f.certifications).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+                <li>{CLIMATE_COMMITMENT.line}</li>
+              </ul>
+            </div>
 
             {/*
               The marks are the website's files: this page is on the same address
               (wear-run.com), so `/standards/…` is served by the site, which the image policy
               already allows as 'self'.
             */}
-            {marks.length > 0 ? (
-              <div className="footer-marks" role="group" aria-label={words.marks}>
-                {marks.map((logo) => (
-                  <img
-                    key={logo.slug}
-                    className="footer-logo"
-                    src={logo.src}
-                    width={markBox(logo).width}
-                    height={markBox(logo).height}
-                    alt={logo.alt}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ))}
-              </div>
-            ) : null}
+            <div className="footer-marks" role="group" aria-label={words.marks}>
+              {marks.map((logo) => (
+                <img
+                  key={logo.slug}
+                  className="footer-logo"
+                  src={logo.src}
+                  width={markBox(logo).width}
+                  height={markBox(logo).height}
+                  alt={logo.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ))}
+              {/* The company's own climate commitment, last, a link to where a buyer can check it
+                  (`CLIMATE_COMMITMENT`, packages/shared/src/standardsLogos.ts). */}
+              <a className="footer-commitment" href={CLIMATE_COMMITMENT.href} rel="noopener">
+                <img
+                  className="footer-logo"
+                  src={CLIMATE_COMMITMENT.logo.src}
+                  width={CLIMATE_COMMITMENT.logo.width}
+                  height={CLIMATE_COMMITMENT.logo.height}
+                  alt={CLIMATE_COMMITMENT.logo.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </a>
+            </div>
           </div>
 
           <div className="footer-legal">

@@ -1,6 +1,7 @@
 import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
 import { SITE_FOOTER_MADE, siteFooterAriaSnapshot } from '../../../packages/shared/src/siteFooter'
-import { expect, test } from './offlineMedia'
+import { readFileSync } from 'node:fs'
+import { expect, type Page, test } from './offlineMedia'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
 /**
@@ -12,6 +13,31 @@ import { contrastOf } from '../../../scripts/contrast-rules.mjs'
  */
 
 const SLAB = '.site-footer__slab'
+
+/**
+ * ⚠️ THE FOOTER WITH THE LIVE SITE'S FACTS, NOT THIS SUITE'S EMPTY DATABASE (home page audit,
+ * 2026-10-17). The one-screen and quiet-band tests below passed for weeks on an empty footer while
+ * the live one, with its Capacity, Standards, Elsewhere and six marks, measured 1,052–1,146px on a
+ * 900px screen. `fixtures/live-footer-facts-2026-10-17.html` is wear-run.com's `.footer-facts` that
+ * day (public text, as the site prints it); this build's own climate-commitment line and badge are
+ * put back after it, as the build draws them. Refresh the file when the owner changes the facts.
+ */
+async function withLiveFacts(page: Page) {
+  const facts = readFileSync(
+    new URL('./fixtures/live-footer-facts-2026-10-17.html', import.meta.url),
+    'utf8',
+  )
+  await page.locator('.footer-facts').evaluate((el, html) => {
+    const ownLine = el.querySelector('.footer-block--standards li:last-child')?.outerHTML ?? ''
+    const ownBadge = el.querySelector('.footer-commitment')?.outerHTML ?? ''
+    el.innerHTML = html
+    el.querySelector('.footer-block--standards ul')?.insertAdjacentHTML('beforeend', ownLine)
+    el.querySelector('.footer-marks')?.insertAdjacentHTML('beforeend', ownBadge)
+  }, facts)
+  // The planted condition landed: the live footer's three claim blocks and all seven marks.
+  await expect(page.locator('.footer-block--capacity, .footer-block--elsewhere')).toHaveCount(2)
+  await expect(page.locator('.footer-marks img')).toHaveCount(7)
+}
 
 /** Playwright sets navigator.webdriver; the cursor honours it, as the viewer's does. */
 const liftAutomationGate = (context: { addInitScript: (fn: () => void) => Promise<void> }) =>
@@ -661,6 +687,7 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
   const FLOOR_PX = 48
   test('height stays within 48-323px across the documented width range', async ({ page }) => {
     await page.goto('/contact')
+    await withLiveFacts(page)
     for (const width of [768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       await page.evaluate(() => document.fonts.ready)
@@ -688,12 +715,14 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
  * carries `padding-block-start` for the tab seated above the slab's edge, per the
  * flipped-notch comment above), and it is a MIN-height, so this only holds while content
  * fits inside one screen — which is exactly what the `.footer-grow` tests above already
- * lock in place.
+ * lock in place. With the live facts (`withLiveFacts`), and at 1920, where the outline
+ * wordmark, fitted to the width, stood 163px tall until site.css stopped it growing at 1500px.
  */
 test.describe('LA-13 — the footer slab is one screen tall from 768px up', () => {
-  test('slab height equals the viewport height at 768, 1024, 1440', async ({ page }) => {
+  test('slab height equals the viewport height at 768, 1024, 1440, 1920', async ({ page }) => {
     await page.goto('/contact')
-    for (const width of [768, 1024, 1440]) {
+    await withLiveFacts(page)
+    for (const width of [768, 1024, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 })
       await page.evaluate(() => document.fonts.ready)
       const height = await page.locator(SLAB).evaluate((el) => el.getBoundingClientRect().height)

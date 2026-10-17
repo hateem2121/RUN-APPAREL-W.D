@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CATEGORY_PAGE_PATHS } from './categoryPages'
 import { CONSENT_COPY } from './consent'
 import { isOpenAt } from './footerHours'
+import { CLIMATE_COMMITMENT } from './standardsLogos'
 import {
   capacityLines,
   EMPTY_FOOTER,
@@ -124,9 +125,13 @@ describe('siteFooterAriaSnapshot', () => {
     expect(snapshot).toContain(`  - heading "${SITE_FOOTER_WORDS.contact}" [level=3]`)
     expect(snapshot).toContain('      - link "WhatsApp +92 336 1777313"')
     expect(snapshot).not.toContain(SITE_FOOTER_WORDS.capacity)
-    expect(snapshot).not.toContain(SITE_FOOTER_WORDS.standards)
     expect(snapshot).not.toContain(SITE_FOOTER_WORDS.elsewhere)
-    expect(snapshot).not.toContain('group')
+    // Standards and the marks stay with a blank database, holding only the company's own climate
+    // commitment (owner, 2026-10-17): its line, and its badge as a link.
+    expect(snapshot).toContain(`  - heading "${SITE_FOOTER_WORDS.standards}" [level=3]`)
+    expect(snapshot).toContain(`    - listitem: "${CLIMATE_COMMITMENT.line}"`)
+    expect(snapshot).toContain(`    - link "${CLIMATE_COMMITMENT.logo.alt}":`)
+    expect(snapshot.match(/ - img /g)).toHaveLength(1)
     // "What we make" is not a claim: it is there with a blank database too, after Contact.
     expect(snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.made}" [level=3]`)).toBeGreaterThan(
       snapshot.indexOf(`heading "${SITE_FOOTER_WORDS.contact}"`),

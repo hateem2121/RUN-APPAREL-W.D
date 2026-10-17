@@ -315,6 +315,27 @@
   display: block;
 }
 
+/*
+ * The company's own climate commitment, last in the row and a link (`CLIMATE_COMMITMENT`, owner
+ * 2026-10-17). On a phone it takes a row of its own: three marks a row left it alone under the
+ * six live ones anyway, and on its own it reads as the company's, not a supplier's.
+ */
+.footer-commitment {
+  display: block;
+  border-radius: var(--radius-pill);
+}
+
+@media (width < 720px) {
+  .footer-commitment {
+    grid-column: 1 / -1;
+  }
+}
+
+.footer-commitment:focus-visible {
+  outline: 2px solid var(--volt);
+  outline-offset: 4px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .footer-block a:hover {
     color: var(--volt);

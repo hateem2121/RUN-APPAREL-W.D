@@ -3,7 +3,7 @@ import { formatAddress } from './company.ts'
 import { CONSENT_COPY } from './consent.ts'
 import { formatPhoneForDisplay } from './contact.ts'
 import { DAY_LABEL, formatHours, nextOpening } from './footerHours.ts'
-import { marksFor } from './standardsLogos.ts'
+import { CLIMATE_COMMITMENT, marksFor } from './standardsLogos.ts'
 
 /**
  * The site footer's words, links and rules — ONCE, for the public site and the garment pages.
@@ -275,16 +275,15 @@ export function siteFooterAriaSnapshot(
     add(1, 'list:')
     for (const line of capacity) add(2, `listitem: ${q(line)}`)
   }
-  if (footer.certifications.length > 0) {
-    add(1, `heading ${q(words.standards)} [level=3]`)
-    add(1, 'list:')
-    for (const line of standardsLines(footer.certifications)) add(2, `listitem: ${q(line)}`)
-  }
-  const marks = marksFor(footer.certifications)
-  if (marks.length > 0) {
-    add(1, `group ${q(words.marks)}:`)
-    for (const mark of marks) add(2, `img ${q(mark.alt)}`)
-  }
+  // Always: the company's own climate commitment is a line and a mark whatever the CMS holds.
+  add(1, `heading ${q(words.standards)} [level=3]`)
+  add(1, 'list:')
+  for (const line of standardsLines(footer.certifications)) add(2, `listitem: ${q(line)}`)
+  add(2, `listitem: ${q(CLIMATE_COMMITMENT.line)}`)
+  add(1, `group ${q(words.marks)}:`)
+  for (const mark of marksFor(footer.certifications)) add(2, `img ${q(mark.alt)}`)
+  add(2, `link ${q(CLIMATE_COMMITMENT.logo.alt)}:`)
+  add(3, `img ${q(CLIMATE_COMMITMENT.logo.alt)}`)
 
   add(1, `text: ${q(`${content.legalLine} ${content.footerLine}`)}`)
   for (const link of SITE_FOOTER_LINKS) add(1, `link ${q(link.label)}`)
