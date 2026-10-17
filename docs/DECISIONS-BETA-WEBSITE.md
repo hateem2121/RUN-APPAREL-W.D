@@ -1311,6 +1311,12 @@ screen. Plain-text lines are no longer 44px touch rows, Standards takes two colu
 sit beside it from 1280px, a tablet's question is smaller and its legal row one line, and the
 outline wordmark stops growing at 1500px. The tests now measure the live facts.
 
+The website may load two stylesheets, the same two on every page (owner, 2026-10-17): Turbopack
+splits the shared stylesheet once it passes about 137 KB, and both are the layout's, so a second
+page still reads them from the cache. `e2e/firstPaint.spec.ts` allows at most two, the same set on
+every page. №04's stopped cards start at the screen's top edge with the menu bar floating over
+them, so no pale page shows beside the bar.
+
 **Guard:** `apps/cms/src/components/site/SiteFooter.test.ts` and `apps/cms/e2e/footer.spec.ts` (the
 home footer is the same footer), `apps/cms/e2e/orderTimeline.spec.ts` (13 sizes, three planted
 faults), `apps/cms/e2e/familyTickets.spec.ts` (no pause), and `apps/cms/e2e/liveGarment.spec.ts`

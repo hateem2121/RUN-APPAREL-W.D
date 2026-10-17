@@ -26,28 +26,41 @@ test.describe('RO-08 — first paint on slow 3G (site)', () => {
    * 99% of Cloudflare's size limit and broke the live site under load (next.config.mjs has
    * the measurements), so it is off. What first paint needs now is that the one blocking
    * download is the SAME hashed file on every page, so a buyer's second page reads it from
-   * the cache: a second sheet, or a per-page one, would be a regression this catches with no
-   * timing in it.
+   * the cache: a per-page sheet would be a regression this catches with no timing in it.
+   *
+   * ⚠️ AT MOST TWO, THE SAME TWO EVERYWHERE (owner, 2026-10-17). Turbopack splits the shared
+   * stylesheet into two once it passes about 137 KB: the old one-file build was 136,937 bytes,
+   * and 400 bytes of unused rules added to it alone gave 38,834 + 98,337 (measured 2026-10-17;
+   * Next's `cssChunking` page, updated 2026-07-15, documents no size option). Both files are the
+   * layout's, so every page links the same two and the second page still reads them from the
+   * cache; on the live HTTP/2 connection they arrive together, the same bytes as one. A third
+   * file, or a set that differs between pages, still fails here.
    */
-  test('every page links the same single stylesheet, a hashed file the browser can keep', async ({
+  test('every page links the same stylesheets (at most two), hashed files the browser can keep', async ({
     baseURL,
     request,
   }) => {
-    const sheets = new Set<string>()
+    const sets = new Set<string>()
     for (const path of PAGES) {
       const html = await (await request.get(`${baseURL}${path}`)).text()
       const links = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(
         (m) => m[1] ?? '',
       )
-      expect(links, `${path}: one render-blocking stylesheet, no more`).toHaveLength(1)
-      expect(links[0], `${path}: the sheet is a hashed build file`).toMatch(
-        /^\/_next\/static\/chunks\/[\w-]+\.css$/,
-      )
-      sheets.add(links[0] ?? '')
+      expect(links.length, `${path}: no render-blocking stylesheet`).toBeGreaterThan(0)
+      expect(
+        links.length,
+        `${path}: more than two render-blocking stylesheets`,
+      ).toBeLessThanOrEqual(2)
+      for (const link of links) {
+        expect(link, `${path}: a sheet is not a hashed build file`).toMatch(
+          /^\/_next\/static\/chunks\/[\w-]+\.css$/,
+        )
+      }
+      sets.add(links.join(' '))
     }
     expect(
-      [...sheets],
-      'every page shares one stylesheet, so the second page is cached',
+      [...sets],
+      'every page links the same stylesheets, so the second page is cached',
     ).toHaveLength(1)
   })
 
