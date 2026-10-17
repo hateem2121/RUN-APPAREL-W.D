@@ -20,6 +20,13 @@ import { CountUp } from './CountUp'
  * `column-reverse` would leave a screen reader reading the old order (WCAG 1.3.2, technique C27).
  * The other figures ("Six", "Buildings, first stitch to sealed bag") read naturally and keep theirs.
  * The floor area and the solar share count up (`AboutPoint.countUp`); the year and "Six" do not.
+ *
+ * ⚠️ THE WORDS RISE IN, NEVER THE GROUND (home page audit, 2026-10-17). `data-site-reveal` sat on
+ * the section itself, so the whole dark section started 24px low (`--reveal-y`) and slid up as it
+ * entered: the paper page showed through between the dark hero and this dark photo, a light band
+ * of up to 24px (measured on the live site: 24px on a 320x658 phone at load, 1.7px mid-rise on
+ * 390x844 and 1280x720). It was invisible while №01 was a paper section and appeared with D41.
+ * The rise now moves the container of words and figures; the photo stays put and meets the hero.
  */
 const POINTS: readonly AboutPoint[] = ABOUT.points
 const GROUND = FACTORY_PHOTOS.find((photo) => photo.slug === 'solar-roof')
@@ -42,7 +49,7 @@ function Figure({ point }: { point: AboutPoint }) {
 export function AboutSection() {
   const ground = GROUND ? factoryPhotoImage(GROUND) : null
   return (
-    <section className="site-section about-ground" data-site-reveal>
+    <section className="site-section about-ground">
       {ground ? (
         <div className="about-ground__photo">
           {/* biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the widths are pre-built files, picked by srcSet. */}
@@ -59,7 +66,7 @@ export function AboutSection() {
           />
         </div>
       ) : null}
-      <div className="site-container about">
+      <div className="site-container about" data-site-reveal>
         <div className="about__copy">
           <p className="section-number">№01 — Who we are</p>
           <h2 className="display display--section">

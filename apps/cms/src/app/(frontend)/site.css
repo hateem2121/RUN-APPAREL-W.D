@@ -4401,6 +4401,17 @@ a.contact-block__value:active {
   background: var(--bg);
 }
 
+/*
+ * ⚠️ NO HAIRLINE WHERE TWO DARK PHOTOS MEET (home page audit, 2026-10-17). `.site-hero`'s bottom
+ * border is `--line`, which this dark token set makes a light rgba(236,235,228,.18): drawn between
+ * the photo hero and №01's photo ground it was one row of pixels lighter than both photos (read off
+ * the live page at 1440x900, rgb(65,67,60) between (54,32,24) and (41,46,42)). Only where №01
+ * follows; on /contact, /about and /products the photo hero meets paper and keeps its rule.
+ */
+.site-hero--photo:has(+ .about-ground) {
+  border-bottom: 0;
+}
+
 .site-hero__photo {
   position: absolute;
   inset: 0;
