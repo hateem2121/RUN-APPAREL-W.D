@@ -5899,6 +5899,33 @@ a.contact-block__value:active {
 }
 
 /*
+ * The strips down each side that scroll the page on a touch screen (LiveGarment.tsx says why):
+ * over the garment's edges, a thumb wide, and nothing to see. A mouse screen has none, so every
+ * part of the garment turns it there.
+ */
+.live-garment__scroll {
+  display: none;
+  position: absolute;
+  inset-block: 0;
+  inline-size: var(--target-min);
+  touch-action: pan-y;
+}
+
+.live-garment__scroll--start {
+  inset-inline-start: 0;
+}
+
+.live-garment__scroll--end {
+  inset-inline-end: 0;
+}
+
+@media (pointer: coarse) {
+  .live-garment__scroll {
+    display: block;
+  }
+}
+
+/*
  * Zoom is on (a click on the garment, owner 2026-10-17; LiveGarment.tsx): the frame's own line turns
  * to the control line, so the visitor sees the garment is now theirs to zoom, and the page's wheel is
  * back the moment it goes.

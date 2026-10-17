@@ -472,3 +472,139 @@ test.describe('№03 — the live 3D garment', () => {
     await expect.poll(() => requested.length, { timeout: 15000 }).toBeGreaterThan(0)
   })
 })
+
+/*
+ * №03 on a phone, home page audit 2026-10-17 (owner: "leave a scroll strip"). The garment wins a
+ * swipe upright (`touch-action: none`, polish M3), so a visitor whose thumb landed on it to scroll
+ * turned it instead, and the page felt stuck. A strip down each side edge now scrolls the page;
+ * the middle still turns the garment, and "Drag to turn" sits there, clear of both strips.
+ * What would have to break: no strip, a strip that does not scroll, a strip narrower than a thumb,
+ * a strip on a mouse screen, or the garment losing its middle.
+ */
+test.describe('№03 on a touch phone: a strip down each side scrolls the page', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
+
+  test('the edges scroll, the middle turns, and the hint sits between them', async ({
+    page,
+    browserName,
+    context,
+  }) => {
+    test.skip(
+      browserName !== 'chromium',
+      'only Chromium emulates a touch phone with a coarse pointer',
+    )
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    await expect(page.locator('.live-garment model-viewer')).toHaveAttribute('touch-action', 'none')
+    const at = await page.locator('.live-garment').evaluate((layer) => {
+      const box = layer.getBoundingClientRect()
+      const y = box.top + box.height / 2
+      const hit = (x: number) => {
+        const el = document.elementFromPoint(x, y)
+        return {
+          strip: Boolean(el?.closest('.live-garment__scroll')),
+          garment: Boolean(el?.closest('model-viewer')),
+          touchAction: el ? getComputedStyle(el).touchAction : '',
+        }
+      }
+      const strips = [...layer.querySelectorAll('.live-garment__scroll')].map((strip) =>
+        strip.getBoundingClientRect(),
+      )
+      const hint = layer.querySelector('.live-garment__hint')?.getBoundingClientRect() ?? null
+      return {
+        left: hit(box.left + 6),
+        right: hit(box.right - 6),
+        // 35% across: inside the garment, clear of the strips and of model-viewer's own 8px pan dot,
+        // which sits at the exact centre and takes a touch there (live site too, measured 2026-10-17).
+        middle: hit(box.left + box.width * 0.35),
+        widths: strips.map((strip) => strip.width),
+        hintClear: hint
+          ? strips.every((strip) => hint.right <= strip.left || hint.left >= strip.right)
+          : null,
+        y,
+        left6: box.left + 6,
+      }
+    })
+    expect(at.left, 'the left edge is not a scroll strip').toMatchObject({
+      strip: true,
+      touchAction: 'pan-y',
+    })
+    expect(at.right, 'the right edge is not a scroll strip').toMatchObject({
+      strip: true,
+      touchAction: 'pan-y',
+    })
+    expect(at.middle, 'the middle no longer turns the garment').toMatchObject({
+      garment: true,
+      strip: false,
+    })
+    for (const width of at.widths)
+      expect(width, 'a strip is narrower than a thumb').toBeGreaterThanOrEqual(44)
+    expect(at.hintClear, '"Drag to turn" lies over a strip').toBe(true)
+
+    // A real finger drag (touch down, ten moves, up) from a strip scrolls the page; one from the
+    // middle does not, because the garment takes it (the control). Real touch events, not
+    // `synthesizeScrollGesture`: that sends a ready-made scroll past touch-action, and scrolled the
+    // page from the middle too (measured 2026-10-17), so it could not tell the two apart.
+    const cdp = await context.newCDPSession(page)
+    const drag = async (x: number, y: number) => {
+      const before = await page.evaluate(() => scrollY)
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: Math.round(x), y: Math.round(y) }],
+      })
+      for (let step = 1; step <= 10; step++) {
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [{ x: Math.round(x), y: Math.round(y - step * 25) }],
+        })
+        await page.waitForTimeout(16)
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      await page.waitForTimeout(500)
+      return (await page.evaluate(() => scrollY)) - before
+    }
+    expect(
+      await drag(at.left6, at.y),
+      'a drag from the strip did not scroll the page',
+    ).toBeGreaterThan(100)
+    await page
+      .locator('.live-garment')
+      .evaluate((layer) => layer.scrollIntoView({ block: 'center' }))
+    await page.waitForTimeout(300)
+    const middle = await page.locator('.live-garment').evaluate((layer) => {
+      const box = layer.getBoundingClientRect()
+      return { x: box.left + box.width * 0.35, y: box.top + box.height / 2 }
+    })
+    expect(await drag(middle.x, middle.y), 'a drag from the middle scrolled the page').toBeLessThan(
+      20,
+    )
+  })
+
+  test('a mouse screen has no strips: every part of the garment turns it', async ({
+    browser,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'paired with the phone case above')
+    const desk = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    try {
+      await serveModel(desk, true)
+      await openWithGarment(desk)
+      await desk.locator('.proof__figure').scrollIntoViewIfNeeded()
+      await expect(desk.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+        timeout: 30000,
+      })
+      const shown = await desk
+        .locator('.live-garment__scroll')
+        .evaluateAll(
+          (strips) => strips.filter((s) => getComputedStyle(s).display !== 'none').length,
+        )
+      expect(shown, 'a strip took the edge of the garment from a mouse').toBe(0)
+    } finally {
+      await desk.close()
+    }
+  })
+})

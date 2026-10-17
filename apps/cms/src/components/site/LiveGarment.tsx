@@ -39,6 +39,13 @@ import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
  * an upright tablet), so nobody is trapped on it. `lib/liveGarment.ts` has the measurements. Pan
  * is off — this is a showcase, and the link beneath opens the full viewer.
  *
+ * ⚠️ AND WHILE IT WINS, A STRIP DOWN EACH SIDE STILL SCROLLS THE PAGE (home page audit,
+ * 2026-10-17; the owner: "leave a scroll strip"). A thumb that landed on the garment to scroll the
+ * page turned it instead, and the page felt stuck. Each strip is 44px wide, lies over the
+ * garment's edge and lets the browser scroll (`touch-action: pan-y`): model-viewer 4.3.1 decides
+ * a touch on its own element (SmoothControls.ts), so a touch that starts on the strip never
+ * reaches it. On touch screens only (site.css), and gone while zoom is on, which wants every finger.
+ *
  * ⚠️ ZOOM WAITS FOR A CLICK (owner, 2026-10-17, after the home page audit: "you cannot zoom into
  * №03"). Zoom was off since PR #94 because a garment that zooms SWALLOWS the wheel and the pinch
  * (model-viewer's docs: `disable-zoom` has "the secondary effect of not swallowing mouse wheel
@@ -372,6 +379,12 @@ export function LiveGarment({
             reveal: 'auto',
           })
         : null}
+      {phase === 'shown' && !zoom && touchAction === 'none' ? (
+        <>
+          <span className="live-garment__scroll live-garment__scroll--start" aria-hidden="true" />
+          <span className="live-garment__scroll live-garment__scroll--end" aria-hidden="true" />
+        </>
+      ) : null}
       {fade ? (
         // The old colour, fading away over the new one (the header). Decorative: the model's own
         // label already names the garment.
