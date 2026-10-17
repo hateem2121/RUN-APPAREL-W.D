@@ -324,8 +324,13 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
         if (section.blocks.length === 1 && section.blocks[0]?.kind === 'orderSteps') {
           return (
             <Fragment key={section.heading}>
-              <section className="site-section order-section" data-site-reveal>
-                <div className="site-container prose prose--guide">{heading}</div>
+              {/* The heading rises in, not the section: a stopped card moves with a moved
+                  ancestor, so the whole section rising made the first stopped card drift (home
+                  page audit, 2026-10-17; as №04's, OrderTimeline.tsx). */}
+              <section className="site-section order-section">
+                <div className="site-container prose prose--guide" data-site-reveal>
+                  {heading}
+                </div>
                 <OrderSteps />
               </section>
               {garments}

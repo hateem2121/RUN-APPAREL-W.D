@@ -255,6 +255,44 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
   })
 })
 
+/*
+ * Home page audit, 2026-10-17: the section around the cards rose in on scroll, and a stopped card
+ * moves with a moved ancestor, so the first stopped card drifted under the bar. The heading rises
+ * instead, on the home page and on the guide. What would have to break: `data-site-reveal` back on
+ * the section, or on any element the cards sit inside.
+ */
+describe('nothing the stage cards sit in rises in on scroll', () => {
+  const wrappers = (html: string) => {
+    const at = html.indexOf('<ol class="order-stages"')
+    expect(at, 'the cards are not on the page').toBeGreaterThan(0)
+    // Every element opened before the cards and not yet closed is one they sit in.
+    const open: string[] = []
+    for (const tag of html.slice(0, at).matchAll(/<(\/?)([a-z0-9]+)([^>]*?)(\/?)>/g)) {
+      if (tag[4] === '/' || /^(img|br|hr|input|meta|link)$/.test(tag[2] ?? '')) continue
+      if (tag[1] === '/') open.pop()
+      else open.push(tag[3] ?? '')
+    }
+    return open
+  }
+
+  it('on the home page and on the guide', () => {
+    for (const [page, html] of [
+      ['home', timelineHtml],
+      ['guide', guideHtml],
+    ] as const) {
+      const around = wrappers(html)
+      expect(around.length, `${page}: no element around the cards`).toBeGreaterThan(0)
+      expect(
+        around.filter((attributes) => attributes.includes('data-site-reveal')),
+        `${page}: the cards sit inside an element that rises in`,
+      ).toEqual([])
+    }
+    // The control: the heading still rises in on both.
+    expect(timelineHtml).toMatch(/<div class="site-container" data-site-reveal/)
+    expect(guideHtml).toMatch(/<div class="site-container prose prose--guide" data-site-reveal/)
+  })
+})
+
 describe('the order guide draws the home page’s eight steps (Q41, X21)', () => {
   it('its "The eight steps" section is the order steps, with no steps of its own', () => {
     const section = ORDER_GUIDE.sections.find((entry) => entry.heading === 'The eight steps')
