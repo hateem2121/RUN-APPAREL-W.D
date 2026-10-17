@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatHours, isOpenAt, WORKS_TIME_ZONE, worksClock } from './footerHours'
+import { formatHours, isOpenAt, nextOpening, WORKS_TIME_ZONE, worksClock } from './footerHours'
 
 const MON_SAT = { firstDay: 1, lastDay: 6, open: '09:00', close: '18:00' }
 // Sialkot is UTC+5 all year. 2026-09-07 is a Monday.
@@ -42,5 +42,17 @@ describe('footerHours', () => {
   it('renders the works clock as HH:MM in Sialkot time', () => {
     expect(worksClock(at('2026-09-07T04:05:00Z'))).toBe('09:05')
     expect(worksClock(at('2026-09-07T19:00:00Z'))).toBe('00:00') // never "24:00"
+  })
+})
+
+describe('nextOpening (audit 2026-10-17)', () => {
+  const WORKS = { firstDay: 1, lastDay: 6, open: '08:00', close: '17:00' }
+  it('says today only while the opening is still ahead today, in Sialkot time', () => {
+    expect(nextOpening(WORKS, at('2026-10-19T02:59:00Z'))).toEqual({ day: 'Mon', daysAhead: 0 }) // Mon 07:59 PKT
+    expect(nextOpening(WORKS, at('2026-10-19T12:30:00Z'))).toEqual({ day: 'Tue', daysAhead: 1 }) // Mon 17:30 PKT
+  })
+  it('skips the days the works do not work', () => {
+    expect(nextOpening(WORKS, at('2026-10-17T13:00:00Z'))).toEqual({ day: 'Mon', daysAhead: 2 }) // Sat 18:00 PKT
+    expect(nextOpening(WORKS, at('2026-10-18T07:00:00Z'))).toEqual({ day: 'Mon', daysAhead: 1 }) // Sun 12:00 PKT
   })
 })

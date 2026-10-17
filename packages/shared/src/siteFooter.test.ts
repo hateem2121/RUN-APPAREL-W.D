@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { CATEGORY_PAGE_PATHS } from './categoryPages'
 import { CONSENT_COPY } from './consent'
+import { isOpenAt } from './footerHours'
 import {
   capacityLines,
   EMPTY_FOOTER,
   type FooterSettings,
   opensAt,
+  opensLabel,
   SITE_FOOTER_COMPANY,
   SITE_FOOTER_LEARN,
   SITE_FOOTER_LINKS,
@@ -189,5 +191,56 @@ describe('siteFooterAriaSnapshot', () => {
     )
     expect(withHours.test('Sialkot · HQ & works 11:34PKT Open now')).toBe(true)
     expect(withHours.test('Sialkot · HQ & works 19:02PKT Opens 09:00 PKT')).toBe(true)
+  })
+})
+
+// Audit 2026-10-17: the closed light said "Opens 08:00" at 18:00 on a Saturday and at noon on a
+// Sunday, though the works open on Monday. 2026-10-17 is a Saturday; Sialkot is UTC+5 all year.
+describe('the closed light names the day the works open (audit 2026-10-17)', () => {
+  const WORKS = { firstDay: 1, lastDay: 6, open: '08:00', close: '17:00' }
+  const label = (iso: string) => opensLabel(WORKS, new Date(iso))
+
+  it('names Monday when the works are shut for the weekend', () => {
+    expect(label('2026-10-17T13:00:00Z')).toBe('Opens Mon 08:00 PKT') // Saturday 18:00 PKT
+    expect(label('2026-10-18T07:00:00Z')).toBe('Opens Mon 08:00 PKT') // Sunday 12:00 PKT
+  })
+
+  it("keeps today's wording when the works open later today", () => {
+    expect(label('2026-10-19T02:59:00Z')).toBe('Opens 08:00 PKT') // Monday 07:59 PKT
+  })
+
+  it('names the next day after closing, and Saturday after Friday', () => {
+    expect(label('2026-10-16T12:00:00Z')).toBe('Opens Sat 08:00 PKT') // Friday 17:00 PKT: close is exclusive
+    expect(label('2026-10-20T12:30:00Z')).toBe('Opens Wed 08:00 PKT') // Tuesday 17:30 PKT
+  })
+
+  it("reads the day in Sialkot, not in the visitor's zone", () => {
+    // 00:30 PKT Monday is still Sunday 19:30 in UTC: the works open in 7.5 hours, so no day.
+    expect(label('2026-10-18T19:30:00Z')).toBe('Opens 08:00 PKT')
+    // 22:00 PKT Saturday is 17:00 UTC the same day, and 10:00 for a visitor in Los Angeles.
+    expect(label('2026-10-17T17:00:00Z')).toBe('Opens Mon 08:00 PKT')
+  })
+
+  it('follows the CMS days rather than assuming Mon-Sat', () => {
+    const MON_FRI = { ...WORKS, lastDay: 5 }
+    expect(opensLabel(MON_FRI, new Date('2026-10-16T12:00:00Z'))).toBe('Opens Mon 08:00 PKT') // Friday 17:00
+    const SAT_MON = { ...WORKS, firstDay: 6, lastDay: 1 } // Sat, Sun, Mon
+    expect(opensLabel(SAT_MON, new Date('2026-10-20T12:00:00Z'))).toBe('Opens Sat 08:00 PKT') // Tuesday 17:00
+    const MON_ONLY = { ...WORKS, firstDay: 1, lastDay: 1 }
+    expect(opensLabel(MON_ONLY, new Date('2026-10-19T12:30:00Z'))).toBe('Opens Mon 08:00 PKT') // after close: next week
+  })
+
+  it('shows no closed light at 08:00 Monday and 16:59 Saturday, and the accessible text accepts every wording', () => {
+    expect(isOpenAt(WORKS, new Date('2026-10-19T03:00:00Z'))).toBe(true) // Monday 08:00 PKT
+    expect(isOpenAt(WORKS, new Date('2026-10-17T11:59:00Z'))).toBe(true) // Saturday 16:59 PKT
+    const snapshot = siteFooterAriaSnapshot(
+      content({ capacity: { moq: '', leadTime: '', hours: WORKS } }),
+    )
+    const line = snapshot.split('\n').find((l) => l.includes('text: /^'))
+    const pattern = new RegExp(line?.replace(/^\s*- text: \/(.*)\/$/, '$1') ?? '(unreadable)')
+    for (const text of ['Opens 08:00 PKT', 'Opens Mon 08:00 PKT', 'Opens Sat 08:00 PKT']) {
+      expect(pattern.test(`Sialkot · HQ & works 18:00PKT ${text}`)).toBe(true)
+    }
+    expect(pattern.test('Sialkot · HQ & works 18:00PKT Opens Funday 08:00 PKT')).toBe(false)
   })
 })

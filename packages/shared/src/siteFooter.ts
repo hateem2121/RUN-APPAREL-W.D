@@ -2,7 +2,7 @@ import { CATEGORY_PAGE_PATHS } from './categoryPages.ts'
 import { formatAddress } from './company.ts'
 import { CONSENT_COPY } from './consent.ts'
 import { formatPhoneForDisplay } from './contact.ts'
-import { formatHours } from './footerHours.ts'
+import { DAY_LABEL, formatHours, nextOpening } from './footerHours.ts'
 import { marksFor } from './standardsLogos.ts'
 
 /**
@@ -82,9 +82,22 @@ export const SITE_FOOTER_WORDS = {
   marks: 'Marks of the standards above',
 } as const
 
-/** The closed light's words: "Opens 09:00 PKT". */
-export function opensAt(open: string): string {
-  return `Opens ${open} ${SITE_FOOTER_WORDS.clockZone}`
+/**
+ * The closed light's words: "Opens 09:00 PKT", or "Opens Mon 09:00 PKT" when `day` is given.
+ * The day is named only when the next opening is NOT later today (audit 2026-10-17: "Opens 08:00"
+ * was shown on a Sunday, when the works open on Monday).
+ */
+export function opensAt(open: string, day?: string): string {
+  return `Opens ${day ? `${day} ` : ''}${open} ${SITE_FOOTER_WORDS.clockZone}`
+}
+
+/**
+ * The closed light for `instant`: today's wording when the works open later today, otherwise the
+ * weekday of the next opening. The weekday is read in Sialkot time, never the visitor's.
+ */
+export function opensLabel(hours: FooterHours, instant: Date): string {
+  const next = nextOpening(hours, instant)
+  return opensAt(hours.open, next.daysAhead === 0 ? undefined : next.day)
 }
 
 /**
@@ -206,9 +219,10 @@ export function siteFooterAriaSnapshot(
     add(1, `heading ${q(footer.ctaQuestion)} [level=2]`)
     add(1, `paragraph: ${q(footer.ctaSubline)}`)
     add(1, `paragraph: ${q(footer.ctaPromise)}`)
-    // The light appears only once the clock has mounted, so it is optional even with hours.
+    // The light appears only once the clock has mounted, so it is optional even with hours. The
+    // closed light may name the weekday of the next opening (audit 2026-10-17), so that is optional.
     const status = footer.capacity.hours
-      ? `( ?(${words.openNow}|${opensAt(footer.capacity.hours.open)}))?`
+      ? `( ?(${words.openNow}|Opens( (${DAY_LABEL.join('|')}))? ${footer.capacity.hours.open} ${words.clockZone}))?`
       : ''
     add(1, `text: /^${words.clockCity} (--:--|\\d\\d:\\d\\d)${words.clockZone}${status}$/`)
   }
