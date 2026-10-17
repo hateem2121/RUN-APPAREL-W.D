@@ -125,7 +125,7 @@ test.describe('№03 — a large garment, and words that weigh the same (D2)', (
     await openHome(page, 1440, 900)
     await expect(page.locator('.proof__details .proof__label')).toHaveText(/^This reference/)
     await expect(page.locator('.proof__specs dt')).not.toHaveCount(0)
-    await expect(page.locator('.proof__actions .btn')).toHaveText('Browse in 3D')
+    await expect(page.locator('.proof__actions .btn')).toHaveText('See products in 3D')
     await expect(page.locator('.proof__count')).toHaveText(/^\d[\d,]* garments?$/)
     const button = await box(page, '.proof__actions .btn')
     const count = await box(page, '.proof__count')

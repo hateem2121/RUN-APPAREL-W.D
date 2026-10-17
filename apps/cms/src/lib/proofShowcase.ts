@@ -24,7 +24,7 @@ export function pickProofGarment<T extends { slug: string; posterUrl: string | n
   )
 }
 
-/** "41 garments", read live beside "Browse in 3D" (owner, 2026-10-16); "1 garment" in a test database. */
+/** "41 garments", read live beside "See products in 3D" (owner, 2026-10-16); "1 garment" in a test database. */
 export function garmentCount(count: number): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'garment' : 'garments'}`
 }

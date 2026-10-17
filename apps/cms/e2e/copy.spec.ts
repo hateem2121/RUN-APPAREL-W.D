@@ -179,8 +179,10 @@ for (const width of [390, 1280]) {
 const PRIMARY_LABELS = [
   // One name each since polish X20 (the owner's answers Q9 and Q40, 2026-10-03): the buyer pages'
   // "Get a free quote" became "Start a conversation", and "Browse the references" "Browse in 3D".
+  // "Browse in 3D" became "See products in 3D" on 2026-10-17 (owner, D45): the menu's name for the
+  // same page, and 4 of 5 first-glance readers could not say what "Browse in 3D" would show.
   /^Start a conversation$/,
-  /^Browse in 3D$/,
+  /^See products in 3D$/,
   /^Email \S+@\S+$/,
   /^Send inquiry$/,
   // The careers form's Send (owner, F23, 2026-10-07).
@@ -227,7 +229,7 @@ for (const viewport of [
  * the footer's tab with another name, or a button or chip to the 3D garments with another name.
  */
 const OLD_NAMES =
-  /^(?:Get a free quote|Start an inquiry|See the 3D references|Browse the references|See the garments in 3D|All products in 3D)$/
+  /^(?:Get a free quote|Start an inquiry|See the 3D references|Browse the references|See the garments in 3D|All products in 3D|Browse in 3D)$/
 
 test('X20 — the way to talk to us and the way to the 3D garments each have one name, on every page', async ({
   page,
@@ -273,7 +275,9 @@ test('X20 — the way to talk to us and the way to the 3D garments each have one
       }
       if (link.href === '/products' || link.href === '#garments') {
         browse++
-        expect(link.text, `${path}: a way to the 3D garments named otherwise`).toBe('Browse in 3D')
+        expect(link.text, `${path}: a way to the 3D garments named otherwise`).toBe(
+          'See products in 3D',
+        )
       }
     }
   }

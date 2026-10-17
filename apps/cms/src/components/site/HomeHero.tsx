@@ -17,6 +17,13 @@ import { HERO_PHOTO, heroPhotoSrc } from '../../lib/factoryPhotos'
  *
  * The label is the owner's choice of 2026-09-29, researched: a founding year signals quality,
  * and a low first order lowers the risk of asking — "since 1889" plus "start from 50".
+ *
+ * ⚠️ 1889 IS THE FAMILY'S YEAR, NOT THE COMPANY'S. "Private label manufacturer since 1889" until
+ * 2026-10-17 said the company itself was that old; the site's own records say the family began
+ * then and company names have changed (`LINEAGE`, `llmsTxt.ts`, and `structuredData.ts`, which
+ * leaves out a founding date for exactly this reason). Four of five first-glance readers that day
+ * found it odd, and it repeated "private label … manufacturer" from the sentence below. The owner
+ * chose "Family-run since 1889" (D45).
  */
 const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value ?? ''
 
@@ -63,7 +70,7 @@ export function HomeHero() {
           included, is exactly what it was: `HomeHero.test.ts` holds it.
         */}
         <p className="label">
-          [ Private label manufacturer since 1889<span className="label__dot"> · </span>
+          [ Family-run since 1889<span className="label__dot"> · </span>
           <span className="label__tail">Start from {minimum} pieces per style ]</span>
         </p>
         {/* `hero-home`: stand-in faces sized to these words, so the font swap moves nothing (site.css). */}
@@ -80,7 +87,7 @@ export function HomeHero() {
             Start a conversation
           </Link>
           <Link className="btn btn--ghost" href="/products">
-            Browse in 3D
+            See products in 3D
           </Link>
         </div>
       </div>

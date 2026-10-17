@@ -34,7 +34,7 @@ function linkName(path: string): string {
     return entry ? entry.question : topic.title
   }
   // The one name every link to the 3D garments has (polish X20, `e2e/copy.spec.ts`).
-  if (page === '/products') return 'Browse in 3D'
+  if (page === '/products') return 'See products in 3D'
   throw new Error(`GlossaryPage.tsx: no name for ${path}`)
 }
 

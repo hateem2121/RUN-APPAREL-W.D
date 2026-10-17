@@ -4237,7 +4237,7 @@ a.contact-block__value:active {
   margin-block-start: 0;
 }
 
-/* "41 garments", read live beside "Browse in 3D" (owner, 2026-10-16). */
+/* "41 garments", read live beside "See products in 3D" (owner, 2026-10-16). */
 .proof__count {
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);

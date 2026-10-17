@@ -1247,6 +1247,38 @@ three browsers: an opening leaves every card's box alone, the words fit beside t
 and 1920px, a 1280px laptop gets the two-up cards, no sideways scroll, the keyboard ring in pixels,
 and axe in both themes.
 
+## 2026-10-17 — the first-glance check
+
+### D45 · The hero says "Family-run since 1889", and the way to the 3D garments is "See products in 3D" — amends polish X20 (Q40)
+
+**Decision: the hero's label reads "[ Family-run since 1889 · Start from 50 pieces per style ]", and
+the site's one name for the way to the 3D garments is "See products in 3D", everywhere "Browse in 3D"
+was: the home hero and №03, the family pages, the FAQ, the glossary, the 404 and error pages, and the
+3D viewer's error screen. Owner, 2026-10-17, choosing between options drawn on the live phone screen.**
+
+The owner did not want a team test, so five helper agents each answered the six approved questions about
+the phone first screen: Haiku at low and medium thinking, Sonnet at high, extra-high and maximum. Every
+helper said its context already described the company; the owner chose to go on with that marked. All
+four scored questions passed at 5 of 5. Two things were named by four of the five: "since 1889" read
+oddly, and what "Browse in 3D" would show was unclear.
+
+The label had said "Private label manufacturer since 1889", which reads as the company itself being
+that old. The site's own records put 1889 on the family: `LINEAGE` ("company names have changed over
+that time"), `llmsTxt.ts`, and `structuredData.ts`, which leaves out a founding date for that reason. The
+old label also repeated "private label … manufacturer" from the sentence under it. "Family-run" is the
+owner's statement that the family runs the business today.
+
+The button follows "a link is a promise" (NN/g, "'Get Started' Stops Users", 2017, read 2026-10-17):
+the page it opens is headed "3D product references", and the menu already names it "Products". The
+name is still one name everywhere, which is X20's rule; only the wording of Q40 changed, so "Browse in
+3D" joins the retired names. "See garments in 3D" was the other option; it would have sat directly
+above №03's live count "41 garments" on a phone.
+
+**Guard:** `apps/cms/src/components/site/HomeHero.test.ts` (the label's words), `apps/cms/e2e/copy.spec.ts`
+(one name for the way to the 3D garments on every page, "Browse in 3D" among the retired names),
+`apps/cms/e2e/composition.spec.ts` (the label's two lines on a phone, one line from 40rem), and
+`apps/cms/e2e/proofShowcase.spec.ts` and `findability.spec.ts` for the two home buttons.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

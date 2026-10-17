@@ -270,7 +270,7 @@ export function FaqHubPage() {
           {
             id: 'faq-garments',
             title: 'What we make',
-            links: [{ href: '/products', name: 'Browse in 3D' }],
+            links: [{ href: '/products', name: 'See products in 3D' }],
           },
         ]}
       />
