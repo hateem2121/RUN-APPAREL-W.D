@@ -994,6 +994,13 @@
   .notch .theme-toggle:hover svg {
     transform: rotate(18deg);
   }
+
+  /* The menu button answers the pointer as the theme switch beside it does (home page audit,
+     2026-10-17: it had no hover look). */
+  .notch .notch__menu-btn:hover {
+    background: var(--notch-text);
+    color: var(--notch-bg);
+  }
 }
 
 /*

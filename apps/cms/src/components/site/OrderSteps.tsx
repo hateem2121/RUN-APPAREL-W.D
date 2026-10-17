@@ -59,7 +59,8 @@ export function OrderSteps() {
           >
             {/* One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces. */}
             <p className="order-stage__name">{`Stage ${stage + 1} · ${phase.name}`}</p>
-            <ol className="order-stage__steps" start={first}>
+            {/* biome-ignore lint/a11y/noRedundantRoles: iOS VoiceOver reads a list with `list-style: none` as plain text (WebKit bug 304137, December 2025), so the role is said again. */}
+            <ol className="order-stage__steps" role="list" start={first}>
               {phase.steps.map((step, index) => {
                 const number = first + index
                 const photo = PHOTOS.get(step.photo)
@@ -71,7 +72,17 @@ export function OrderSteps() {
                       <span className="order-step__number display display--hero" aria-hidden="true">
                         {String(number).padStart(2, '0')}
                       </span>
-                      <span className={`order-step__actor order-step__actor--${step.actor}`}>
+                      {/*
+                       * Said, not shown: "Step 3, our move" (home page audit, 2026-10-17). The
+                       * pill's bare "You" or "We" told a screen reader nothing about whose turn.
+                       */}
+                      <span className="visually-hidden">
+                        {`Step ${number}, ${step.actor === 'You' ? 'your move' : 'our move'}`}
+                      </span>
+                      <span
+                        className={`order-step__actor order-step__actor--${step.actor}`}
+                        aria-hidden="true"
+                      >
                         {step.actor}
                       </span>
                     </div>

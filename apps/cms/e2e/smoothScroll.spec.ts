@@ -92,7 +92,7 @@ test.describe('the site smooth-scrolls like the viewer (XS-06, OI-2)', () => {
     await expect.poll(() => scrollY(page), { timeout: 5_000 }).toBeGreaterThan(100)
   })
 
-  test('one wheel tick glides for the designed 1.1s, then stops (SC-05)', async ({ page }) => {
+  test('one wheel tick glides for the designed 0.8s, then stops (SC-05)', async ({ page }) => {
     await openAsHuman(page, '/products')
     const header = await page.locator('header').first().boundingBox()
     if (!header) throw new Error('no header to wheel over')
@@ -218,6 +218,42 @@ test.describe('the site smooth-scrolls like the viewer (XS-06, OI-2)', () => {
   })
 })
 
+/*
+ * Home page audit, 2026-10-17: a phone has no wheel, so it never downloads the library or runs its
+ * frame loop. A context with no fine pointer (Chromium's mobile emulation); the control is the
+ * describe above, where a fine pointer starts it.
+ */
+test.describe('a phone never starts the smooth scroll', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
+
+  test('no library, no frame loop', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'only Chromium emulates a phone with no fine pointer')
+    const bodies: string[] = []
+    page.on('response', async (response) => {
+      if (!/javascript/.test(response.headers()['content-type'] ?? '')) return
+      try {
+        bodies.push(await response.text())
+      } catch {
+        // an abandoned response has no body
+      }
+    })
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(asAHuman)
+    await page.goto('/products', { waitUntil: 'networkidle' })
+    // The planted condition: this is a screen with no fine pointer, and nothing else turned it off.
+    expect(await page.evaluate(() => matchMedia('(any-pointer: fine)').matches)).toBe(false)
+    expect(await page.evaluate(() => navigator.webdriver)).toBe(false)
+    await page.waitForTimeout(500)
+    expect(await page.evaluate(() => document.documentElement.classList.contains('lenis'))).toBe(
+      false,
+    )
+    expect(
+      bodies.filter((body) => body.includes('lenis-smooth')),
+      'a phone downloaded the smooth-scroll library',
+    ).toEqual([])
+  })
+})
+
 test.describe('touch stays the browser’s own scroll (XS-06)', () => {
   /*
    * ⚠️ THIS CASE CAN ONLY RUN WHERE THE BROWSER SCROLLS ON A SYNTHESIZED TOUCH. Measured
@@ -236,6 +272,19 @@ test.describe('touch stays the browser’s own scroll (XS-06)', () => {
     context,
   }) => {
     test.skip(browserName !== 'chromium', 'CDP synthesizes the touch gesture')
+    /*
+     * A TOUCH LAPTOP: a touch screen AND a trackpad or mouse, the one device with both a finger
+     * scroll and a wheel. Chromium's touch emulation reports no fine pointer at all, so since the
+     * phone guard (2026-10-17: no fine pointer, no smooth scroll) the layer never started here; a
+     * real touch laptop matches `(any-pointer: fine)`, so the page is told it does.
+     */
+    await page.addInitScript(() => {
+      const real = window.matchMedia.bind(window)
+      window.matchMedia = (query: string) =>
+        query === '(any-pointer: fine)'
+          ? ({ ...real(query), matches: true, media: query } as MediaQueryList)
+          : real(query)
+    })
     await openAsHuman(page, '/products')
     const watchGlide = () =>
       page.evaluate(() => {

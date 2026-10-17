@@ -1,4 +1,5 @@
 import {
+  closeMenuOnLeave,
   holdPageWhileOpen,
   markMenuClosing,
   SITE_MENU_ID,
@@ -61,6 +62,19 @@ export function Header({ wordmark }: HeaderProps) {
     })
     observer.observe(button)
     return () => observer.disconnect()
+  }, [])
+
+  /*
+   * ⚠️ TAB PAST THE LAST ITEM CLOSES THE MENU (home page audit, 2026-10-17; the owner: fix the
+   * garment pages too). A popover is not modal, so focus walked into the page behind while the
+   * menu stayed open over a held page. The same helper as the site's NavLinks.tsx, which says why
+   * each focus change does or does not close it (closeMenuOnLeave, packages/shared/src/siteBar.ts).
+   */
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    const button = document.querySelector<HTMLElement>(`[popovertarget="${SITE_MENU_ID}"]`)
+    if (!menu || !button || typeof menu.hidePopover !== 'function') return
+    return closeMenuOnLeave(menu, button, document)
   }, [])
 
   // The menu's exit is drawn only while it closes, never on a change of layout (VA-51).

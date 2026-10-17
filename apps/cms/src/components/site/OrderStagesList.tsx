@@ -38,7 +38,8 @@ export function OrderStagesList({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <ol className="order-stages" ref={list}>
+    // biome-ignore lint/a11y/noRedundantRoles: iOS VoiceOver reads a list with `list-style: none` as plain text (WebKit bug 304137, December 2025), so the role is said again.
+    <ol className="order-stages" ref={list} role="list">
       {children}
     </ol>
   )

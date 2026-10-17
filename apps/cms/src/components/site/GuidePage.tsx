@@ -30,8 +30,9 @@ import { OrderSteps } from './OrderSteps'
  * ⚠️ ONE PRIMARY BUTTON, at the end, in the buyer pages' words (`e2e/copy.spec.ts`, CT-08).
  * A guide is read top to bottom, so the way in comes after the answer, not before it.
  *
- * The closing heading and sentence are the home page's own (№06), so the guides add no
- * claim the site does not already make.
+ * The closing heading and sentence are the home page's own (its closing ask under №05,
+ * `FactsBento.tsx`; №06 until 2026-10-16), so the guides add no claim the site does not
+ * already make.
  */
 export function Block({ block }: { block: GuideBlock }) {
   // The home page's eight cards, not a copy (polish D4, the owner's answer Q41).

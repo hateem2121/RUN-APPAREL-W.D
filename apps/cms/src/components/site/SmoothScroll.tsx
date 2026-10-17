@@ -11,7 +11,8 @@ import { useEffect } from 'react'
  *
  * The SAME guards as `apps/viewer/src/polish/smooth-scroll.ts`, each with its own browser
  * test in `e2e/smoothScroll.spec.ts`:
- *   - gated BEFORE the import: automation and reduced motion never download the library;
+ *   - gated BEFORE the import: automation, reduced motion and a screen with no fine pointer (a
+ *     phone) never download the library;
  *   - `virtualScroll` accepts only a trusted wheel (the viewer's FA-F-12 predicate), and none
  *     while a pop-up holds the page (polish F2/F3: packages/shared/src/pageHold.ts);
  *   - keyboard, touch and the scrollbar stay the browser's — Lenis binds no key listener
@@ -39,6 +40,12 @@ export function SmoothScroll() {
   useEffect(() => {
     if (navigator.webdriver) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    /*
+     * Only a wheel glides, and a phone has none (home page audit, 2026-10-17): Lenis's frame loop
+     * (`autoRaf`) ran on every phone for nothing. `any-pointer`, not `pointer`: a touch laptop
+     * with a trackpad or mouse keeps its glide (MDN, "any-pointer", modified 20 April 2026).
+     */
+    if (!window.matchMedia('(any-pointer: fine)').matches) return
     let lenis: Lenis | null = null
     let cancelled = false
 

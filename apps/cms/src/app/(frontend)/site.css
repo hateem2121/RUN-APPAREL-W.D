@@ -4131,6 +4131,14 @@ a.contact-block__value:active {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--paper) 55%, transparent);
 }
 
+/* A dot under the pointer takes the chosen dot's ring, as a preview (home page audit, 2026-10-17:
+   the pills had no hover look of their own). */
+@media (hover: hover) and (pointer: fine) {
+  .proof__pill:hover i {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--paper) 55%, transparent);
+  }
+}
+
 /*
  * The phone's narrower dot (above), after the rules it changes, which it outranks only by coming
  * later: written beside `--pill-dot` it lost to them, and the dots stayed 32px and were cut (2026-10-16).
@@ -5748,9 +5756,10 @@ a.contact-block__value:active {
 
 /*
  * The ticket cards rise into place as they scroll in (polish MO4, 2026-10-05: "give the new cards
- * and steps the same scroll-linked feel"). The order steps already move with the scroll (their
- * sink, "the order steps" above); a rise on a card the stack holds in place would move a card whose
- * position that arithmetic sets exactly, so the steps take nothing more.
+ * and steps the same scroll-linked feel"). The order steps already move with the scroll (they
+ * stack, "№04 how an order works" above; the sink that once darkened them went with D42); a rise
+ * on a card the stack holds in place would move a card whose position that arithmetic sets
+ * exactly, so the steps take nothing more.
  *
  * The same contract as `site-reveal`: scroll-driven CSS and no script, so a browser without scroll
  * timelines (Firefox, 5 Oct 2026) and a page without JavaScript show every card in place; no

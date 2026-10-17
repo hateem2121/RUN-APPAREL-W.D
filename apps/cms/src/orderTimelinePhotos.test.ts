@@ -125,7 +125,9 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
     expect(stages).toHaveLength(4)
     expect(cards).toHaveLength(8)
     expect(
-      [...stepsHtml.matchAll(/<ol class="order-stage__steps" start="(\d+)"/g)].map((m) => m[1]),
+      [...stepsHtml.matchAll(/<ol class="order-stage__steps" role="list" start="(\d+)"/g)].map(
+        (m) => m[1],
+      ),
     ).toEqual(['1', '3', '5', '7'])
     for (const [index, stage] of stages.entries()) {
       expect(stage.split(/<li class="order-step"/).length - 1, `stage ${index + 1}`).toBe(2)
@@ -211,7 +213,12 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
   it('names each stage once, marks whose move each step is (decision D23), and numbers it for the eye only', () => {
     const names = [...stepsHtml.matchAll(/order-stage__name">([^<]*)</g)].map((match) => match[1])
     expect(names).toEqual(ORDER_PHASES.map((phase, index) => `Stage ${index + 1} · ${phase.name}`))
-    const actors = [...stepsHtml.matchAll(/order-step__actor order-step__actor--(\w+)">(\w+)</g)]
+    // The pill is for the eye; a screen reader hears the hidden words below instead.
+    const actors = [
+      ...stepsHtml.matchAll(
+        /order-step__actor order-step__actor--(\w+)" aria-hidden="true">(\w+)</g,
+      ),
+    ]
     expect(actors.map((match) => match[1])).toEqual(steps.map((step) => step.actor))
     expect(actors.map((match) => match[2])).toEqual(steps.map((step) => step.actor))
     const numbers = [
@@ -222,6 +229,29 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
     )
     // The drawn line went with the timeline it ran down (polish D4).
     expect(timelineHtml).not.toContain('timeline__line')
+  })
+
+  /*
+   * Home page audit, 2026-10-17: a screen reader heard a bare "You" or "We" beside each step, and
+   * iOS VoiceOver reads a list without bullets as plain text (WebKit bug 304137), so the order's
+   * steps were not a list there at all. Each step now says "Step 3, our move", and both lists say
+   * their role.
+   */
+  it('says each step and whose move it is to a screen reader, and both lists say they are lists', () => {
+    const said = [...stepsHtml.matchAll(/<span class="visually-hidden">([^<]*)</g)].map(
+      (match) => match[1],
+    )
+    expect(said).toEqual(
+      steps.map(
+        (step, index) => `Step ${index + 1}, ${step.actor === 'You' ? 'your move' : 'our move'}`,
+      ),
+    )
+    // Both kinds of mover appear, so the two wordings are each checked at least once.
+    expect(new Set(said.map((words) => words?.split(', ')[1]))).toEqual(
+      new Set(['your move', 'our move']),
+    )
+    expect(stepsHtml).toMatch(/<ol class="order-stages" role="list"/)
+    expect(stepsHtml.match(/<ol class="order-stage__steps" role="list"/g)).toHaveLength(4)
   })
 })
 
@@ -313,15 +343,19 @@ describe('the cards, in the stylesheet (D42)', () => {
   })
 
   /*
-   * The stack stops cards only for someone who allows motion, and only on a screen tall enough
-   * for the fullest card (site.css measures why: 40rem from 900px, 50rem below it). Nothing
-   * animates since D42: the eight cards' sink and shade went with them. Both are measured in a
-   * browser; this pins where the rules sit, so a later edit cannot lift one out of its guard.
+   * The stack stops cards only for someone who allows motion, on every screen since the home page
+   * audit (2026-10-17: "stack on all phones"; a card taller than the screen stops at its foot).
+   * Until then it also needed a screen 40rem tall from 900px and 50rem below it. Nothing animates
+   * since D42: the eight cards' sink and shade went with them. Both are measured in a browser; this
+   * pins where the rules sit, so a later edit cannot lift one out of its guard.
    */
   it('stops the cards only inside their guard, and animates nothing', () => {
-    const guard =
-      /@media screen and \(prefers-reduced-motion: no-preference\) and \(min-width: 900px\) and \(\s*min-height: 40rem\s*\),\s*screen and \(prefers-reduced-motion: no-preference\) and \(min-height: 50rem\) \{([\s\S]*?)\n\}/
-    const own = SITE_CSS.match(guard)?.[1] ?? ''
+    const guards = [
+      ...SITE_CSS.matchAll(
+        /@media screen and \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/g,
+      ),
+    ].map((match) => match[1] ?? '')
+    const own = guards.find((block) => block.includes('.order-stage {')) ?? ''
     expect(own, 'the stack’s guard is not where this test looks').toMatch(/\.order-stage \{/)
     expect(own).toMatch(/position:\s*sticky/)
     const outside = SITE_CSS.replace(own, '')
