@@ -56,9 +56,9 @@ export const BOOKING_URL = 'https://wear-run.com/meeting'
  * certification half on 2026-10-16, after a draft that put the ask in its place.
  *
  * ⚠️ UNDER THE SLAB, THE PAGE'S ONE CLOSING ASK (owner, 2026-10-16): №06's heading, its "Start a
- * conversation", a second way to reach a person (a call), and the works' live clock, which the
- * footer's own question carried until the home page left that question out
- * (FooterPromptGate.tsx). A slim row on the page's own ground, not a third part of the slab.
+ * conversation", a second way to reach a person (a call), and the works' live clock, as the
+ * footer's own question carries it (the owner kept both on 2026-10-17, D46). A slim row on the
+ * page's own ground, not a third part of the slab.
  *
  * ⚠️ THE PIN STANDS WHERE THE CMS SAYS THE WORKS ARE, OR NOWHERE: `worksCoordinates` is never
  * defaulted (`lib/globe.ts`, the contact globe's rule), so a blank or unreadable value draws the

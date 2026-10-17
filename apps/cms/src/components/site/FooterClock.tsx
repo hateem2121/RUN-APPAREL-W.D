@@ -57,9 +57,9 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
 }
 
 /**
- * The same clock as one line, for the home page's №05 (owner, 2026-10-16). The home page's footer
- * leaves out its question and so this clock with it; the clock moved up into the closing panel
- * beside "Start a conversation", rather than going. The panel's map already names Sialkot, so the
+ * The same clock as one line, for the home page's №05 (owner, 2026-10-16), beside "Start a
+ * conversation". The home page's footer left out its question and this clock with it until
+ * 2026-10-17, when the owner kept both (D46). The panel's map already names Sialkot, so the
  * line names the time instead ("Local time"), and says the zone once: "Opens 08:00", not
  * "Opens 08:00 PKT" after "10:30 PKT". Same honest placeholder until the client renders it.
  *

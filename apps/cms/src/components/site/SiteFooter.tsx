@@ -18,7 +18,6 @@ import { formatAddress } from '../../lib/structuredData'
 import { ConsentLink } from './ConsentLink'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
-import { FooterPrompt, FooterShell } from './FooterPromptGate'
 import { FooterTab } from './FooterTab'
 import { FooterWordmark } from './FooterWordmark'
 
@@ -78,10 +77,8 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
    */
 
   return (
-    <FooterShell>
-      <FooterPrompt>
-        <FooterTab label={f.ctaLabel} email={settings.email} />
-      </FooterPrompt>
+    <footer className="site-footer">
+      <FooterTab label={f.ctaLabel} email={settings.email} />
 
       <div className="site-footer__slab">
         <FooterGlow />
@@ -98,26 +95,28 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
           point of introducing it rather than padding the slab.
         */}
         <div className="site-footer__inner">
-          {/* Not on the home page, whose closing section asks instead (FooterPromptGate.tsx). */}
-          <FooterPrompt>
-            <div className="footer-cta">
-              <div>
-                <p className="footer-eyebrow">{words.eyebrow}</p>
-                <h2 className="footer-q">
-                  {q.head}
-                  <em>{q.last}</em>
-                  {q.tail}
-                </h2>
-                <p className="footer-derisk">{f.ctaSubline}</p>
-                <p className="footer-dim">{f.ctaPromise}</p>
-              </div>
-              <div className="footer-side">
-                <FooterClock hours={hours} />
-              </div>
+          {/*
+            ⚠️ ON EVERY WEBSITE PAGE, THE HOME PAGE INCLUDED (owner, 2026-10-17: "100% identical
+            across the whole website", and keep both: №05's closing ask stays too). From
+            2026-10-16 (#194) the home page left out this question, its tab and its clock.
+          */}
+          <div className="footer-cta">
+            <div>
+              <p className="footer-eyebrow">{words.eyebrow}</p>
+              <h2 className="footer-q">
+                {q.head}
+                <em>{q.last}</em>
+                {q.tail}
+              </h2>
+              <p className="footer-derisk">{f.ctaSubline}</p>
+              <p className="footer-dim">{f.ctaPromise}</p>
             </div>
+            <div className="footer-side">
+              <FooterClock hours={hours} />
+            </div>
+          </div>
 
-            <div className="footer-grow" />
-          </FooterPrompt>
+          <div className="footer-grow" />
 
           <div className="footer-facts">
             <div className="footer-block footer-block--contact">
@@ -301,6 +300,6 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 
         <FooterWordmark text={settings.temporaryWordmark} />
       </div>
-    </FooterShell>
+    </footer>
   )
 }

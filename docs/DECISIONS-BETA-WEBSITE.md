@@ -1107,6 +1107,9 @@ holds the page's one closing ask. №06 "Talk to us" is gone into that row, and 
 the footer leaves out its question, tab and clock, as the garment pages' footer does. Owner,
 2026-10-15/16.**
 
+**Amended by D46 (2026-10-17):** the home page's footer has its question, tab and clock again; the
+row under the slab stays.
+
 The owner's rule from 2026-10-15 is that a page says nothing twice. №06 repeated №04's step 01 ("a
 sketch is enough", "we reply within 24 hours") and the footer's contact block (its email and
 WhatsApp buttons), and the footer's question asked a third time a screen later. A first build put
@@ -1160,6 +1163,9 @@ a card is one step over the photo of the room it happens in, with its number and
 at the top and its title and two lines at the foot. The heading and its line sit in the page's
 column above the cards. The order guide draws the same four cards. Owner, 2026-10-15 (option A3),
 words 2026-10-15/16, built section approved as shown.**
+
+**Amended by D46 (2026-10-17):** the cards stop under the condensed bar, reach the screen's foot,
+rest a third of a screen each, and stack on every phone.
 
 Until then eight half-width cards passed on the right while the heading stayed on the left (polish
 D4). Each step gains a second, smaller line, and every one is a line the site already states
@@ -1278,6 +1284,26 @@ above №03's live count "41 garments" on a phone.
 (one name for the way to the 3D garments on every page, "Browse in 3D" among the retired names),
 `apps/cms/e2e/composition.spec.ts` (the label's two lines on a phone, one line from 40rem), and
 `apps/cms/e2e/proofShowcase.spec.ts` and `findability.spec.ts` for the two home buttons.
+
+### D46 · The home page audit's answers: the full footer again, №04 fills the screen and stacks on every phone, №03 zooms after a click — amends D40 and D42
+
+**Decision: the home page draws the website's one footer, question, tab and clock included, and
+№05's closing row stays too ("keep both"). №04's cards stop right under the condensed menu bar,
+reach the screen's foot, rest a third of a screen each, and stack on every screen that allows
+motion; a card taller than the screen scrolls until its last line shows, then stops. №02's cards
+open without the 120 ms pause. №03's garment zooms only after a click on it, and its colours
+cross-fade. The smooth scroll glides for 0.8 s. Owner, 2026-10-17, answering the home page audit.**
+
+The footer: the owner asked for it "100% identical across the whole website", and accepted that
+"Start a conversation" then shows three times on the home page and the works' clock twice, an
+exception to the no-repeat rule. №04: the cards stopped 84px down under a 52px bar, leaving pale
+strips, and from #197 stacked only on screens 800px tall or more, so no iPhone in Safari stacked.
+The rest is the gap between cards, because the next card used to cover the last line being read.
+
+**Guard:** `apps/cms/src/components/site/SiteFooter.test.ts` and `apps/cms/e2e/footer.spec.ts` (the
+home footer is the same footer), `apps/cms/e2e/orderTimeline.spec.ts` (13 sizes, three planted
+faults), `apps/cms/e2e/familyTickets.spec.ts` (no pause), and `apps/cms/e2e/liveGarment.spec.ts`
+(zoom after a click, the cross-fade).
 
 ## Closed since
 

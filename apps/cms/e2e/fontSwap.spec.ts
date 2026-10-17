@@ -565,8 +565,7 @@ test.describe('D11 — a body-text box held at its width cap is the same width i
   for (const [path, width, mustHold] of [
     // The order steps' words (polish D4): capped in a card the column's width at 768px, and in a
     // card the right half's width at 1440px (at 1024px that half leaves them under the cap).
-    // Since D40 (2026-10-16) the home footer has no question, so the footer's sub-line is read on
-    // /contact.
+    // The footer's sub-line is read on /contact (the home footer had none from D40 to D46).
     ['/', 768, ['p.site-lede', 'p.order-step__body']],
     ['/', 1440, ['p.order-step__body']],
     ['/contact', 1440, ['form.inquiry-form', 'p.contact-block__note', 'p.footer-derisk']],

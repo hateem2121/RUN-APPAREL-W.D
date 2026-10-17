@@ -17,7 +17,7 @@ const MEASURED: { path: string; selector: string; property: string }[] = [
   { path: '/', selector: '.site-container', property: 'padding-left' },
   { path: '/', selector: '.site-section', property: 'padding-top' },
   { path: '/', selector: '.site-section', property: 'padding-bottom' },
-  // The footer's question is not on the home page since 2026-10-16; /products still draws it.
+  // On /products: the home page's footer left its question out from 2026-10-16 to 2026-10-17.
   { path: '/products', selector: '.footer-cta', property: 'padding-top' },
   { path: '/', selector: '.footer-facts', property: 'padding-bottom' },
   // A plain hero (the home and products heroes are photo heroes with rules of their own).

@@ -6,8 +6,7 @@ import { EMPTY_FOOTER, type PublicSiteSettings } from '../../lib/projectPublic'
 import { SiteFooter } from './SiteFooter'
 
 // `usePathname` needs the app router; outside Next it is mocked, and the path is a
-// hoisted mutable so each case can choose the page it renders on. The default is a page that
-// draws the footer's question: since 2026-10-16 the home page leaves it out (its own test, below).
+// hoisted mutable so each case can choose the page it renders on (the tab reads it).
 const route = vi.hoisted(() => ({ path: '/products' }))
 vi.mock('next/navigation', () => ({ usePathname: () => route.path }))
 vi.mock('next/link', () => ({
@@ -214,31 +213,30 @@ describe('SiteFooter', () => {
 })
 
 /*
- * The home page's footer has no question (owner, 2026-10-16): the page's №05 already ends on one
- * ask, with the works' clock beside it (FooterPromptGate.tsx). It takes the garment pages' shape
- * (`.site-footer--no-prompt`). What would have to break: the question, its tab or its clock back on
- * the home page, or gone from another page with it. Both pages are rendered, so neither half passes
- * on an empty footer.
+ * The home page's footer is every website page's footer, question, tab and clock included (owner,
+ * 2026-10-17: "100% identical across the whole website"; №05's closing ask stays as well, "keep
+ * both"). From 2026-10-16 (#194) to then, the home page left the three out. What would have to
+ * break: anything drawn on one page's footer and not the other's. The parts are checked by name
+ * too, so two empty footers cannot pass as equal.
  */
 describe('SiteFooter on the home page', () => {
-  it('leaves out the tab, the question and its clock, in the garment pages’ shape', () => {
+  it('is the same footer as another page’s, the tab, the question and its clock included', () => {
     route.path = '/'
     const home = html(base)
     route.path = '/products'
     const other = html(base)
+    expect(home).toBe(other)
     for (const part of [
       'site-footer__tab',
       'footer-cta',
       'footer-q',
       'footer-clock',
       'footer-grow',
+      'footer-block--contact',
+      'footer-legal',
     ]) {
-      expect(home, `the home page still draws ${part}`).not.toContain(part)
-      expect(other, `another page lost ${part}`).toContain(part)
+      expect(home, `the home page's footer has no ${part}`).toContain(part)
     }
-    expect(home).toContain('class="site-footer site-footer--no-prompt"')
-    expect(other).toContain('class="site-footer"')
-    // Everything else stays: the contact block and the legal row are the site's reference.
-    for (const kept of ['footer-block--contact', 'footer-legal']) expect(home).toContain(kept)
+    expect(home).toContain('<footer class="site-footer">')
   })
 })
