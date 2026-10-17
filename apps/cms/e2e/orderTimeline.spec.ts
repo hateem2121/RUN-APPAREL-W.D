@@ -390,11 +390,13 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
         s.screen / 3 - 1,
       )
       for (let k = 0; k < 4; k++) {
-        const fits = (s.heights[k] ?? 0) <= s.screen - s.bar - 8 * k + 1
+        // A card that fits stops 8px below the one before, from the screen's top edge: the bar
+        // floats over it (no pale page beside the bar, the owner's rule, 2026-10-17).
+        const fits = (s.heights[k] ?? 0) <= s.screen - 8 * k + 1
         if (fits) {
           expect(
-            Math.abs((s.stops[k] ?? 0) - (s.bar + 8 * k)),
-            `card ${k + 1} does not stop under the bar, 8px below the one before`,
+            Math.abs((s.stops[k] ?? 0) - 8 * k),
+            `card ${k + 1} does not stop at the top edge, 8px below the one before`,
           ).toBeLessThanOrEqual(1)
         }
         // Just before the rest ends: card k is stopped, the next still 2px below the screen.
@@ -403,8 +405,9 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
           cards.map((card) => ({
             top: card.getBoundingClientRect().top,
             bottom: card.getBoundingClientRect().bottom,
+            // Each step's last line of text, not its box: the box ends at the card's foot, 24px below it.
             words: [...card.querySelectorAll('.order-step__words')].map(
-              (words) => words.getBoundingClientRect().bottom,
+              (words) => (words.lastElementChild ?? words).getBoundingClientRect().bottom,
             ),
           })),
         )
@@ -414,10 +417,15 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
             `with card ${k + 1} stopped, card ${j + 1} is not at its stop`,
           ).toBeLessThanOrEqual(1)
         }
+        // Down to the last pixel row: a card 1px short left that row pale (393 × 659, 2026-10-17).
         expect(
-          Math.abs((now[k]?.bottom ?? 0) - s.screen),
-          `card ${k + 1}'s foot is not the screen's foot`,
-        ).toBeLessThanOrEqual(1)
+          now[k]?.bottom ?? 0,
+          `card ${k + 1}'s foot is above the screen's foot`,
+        ).toBeGreaterThanOrEqual(s.screen)
+        expect(
+          now[k]?.bottom ?? 0,
+          `card ${k + 1}'s foot is past the screen's foot`,
+        ).toBeLessThanOrEqual(s.screen + 1)
         for (const bottom of now[k]?.words ?? []) {
           expect(bottom, `card ${k + 1}'s words run off the screen`).toBeLessThanOrEqual(
             s.screen + 0.5,
@@ -429,6 +437,29 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
             `card ${k + 2} covers card ${k + 1} before its rest is over`,
           ).toBeGreaterThanOrEqual(s.screen)
         }
+        // ⚠️ NO BLANK SPACE AT ANY EDGE (the owner, said many times; 2026-10-17). What a visitor
+        // sees at each corner, and beside the bar at its own height, under the bar itself: a card,
+        // never the page. The first build of this branch stopped the cards at the bar's foot and
+        // the pale page showed on both sides of the bar; this is the check that sees it.
+        const edges = await page.evaluate(() => {
+          const w = innerWidth
+          const h = innerHeight
+          const points: [string, number, number][] = [
+            ['top left', 2, 2],
+            ['top right', w - 3, 2],
+            ['beside the bar, left', 2, 40],
+            ['beside the bar, right', w - 3, 40],
+            ['bottom left', 2, h - 1],
+            ['bottom right', w - 3, h - 1],
+          ]
+          return points.flatMap(([where, x, y]) => {
+            const first = document.elementsFromPoint(x, y).find((el) => !el.closest('.notch-shell'))
+            return first?.closest('.order-stage')
+              ? []
+              : [`${where}: ${first?.className || first?.tagName}`]
+          })
+        })
+        expect(edges, `with card ${k + 1} stopped, the page shows at the screen's edge`).toEqual([])
       }
     })
   }

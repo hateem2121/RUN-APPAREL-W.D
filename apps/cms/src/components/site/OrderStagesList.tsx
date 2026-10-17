@@ -25,11 +25,14 @@ export function OrderStagesList({ children }: { children: ReactNode }) {
     if (!element) return
     const cards = [...element.querySelectorAll<HTMLElement>(':scope > .order-stage')]
     // Its border box: the card's own height, which `top` does not change, so nothing loops.
+    // ⚠️ ROUNDED DOWN, NEVER UP: the stop is the screen less this, so a height rounded up stopped
+    // the card up to 1px high and left the page's last pixel row pale under it (393 × 659,
+    // 2026-10-17; the owner's "no blank space"). Down, the part of a pixel goes past the edge.
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const height =
           entry.borderBoxSize[0]?.blockSize ?? entry.target.getBoundingClientRect().height
-        ;(entry.target as HTMLElement).style.setProperty('--stage-fit', `${Math.ceil(height)}px`)
+        ;(entry.target as HTMLElement).style.setProperty('--stage-fit', `${Math.floor(height)}px`)
       }
       element.dataset.stageFit = ''
     })

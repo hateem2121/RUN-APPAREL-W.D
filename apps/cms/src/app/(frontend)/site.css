@@ -5367,20 +5367,25 @@ a.contact-block__value:active {
  * `cqi`, the list's own width: a custom property is worked out where it is USED, so `100%` there
  * meant the step's half, and the words sat 160px off the heading's edge at 1920px (measured).
  *
- * ⚠️ THE CARDS MEET THE BAR AND REACH THE SCREEN'S FOOT (home page audit, 2026-10-17, the owner's
- * option (a)). `--stage-top` is the bar's foot once it has condensed (`notch-condense`: 4px of
- * padding, 52px at one row), since the bar has always condensed by the time №04 is on screen. Until
- * this the cards stopped at `--notch-clearance` (84px: the bar plus 24px of air), and a card was
- * that much less 32px tall, so a pale strip of about 30px showed under the bar and up to 32px under
- * the card, at every computer size from 1280 to 3440 wide (measured). Where the bar never condenses
- * (no scroll timeline), it is the bar's own height.
+ * ⚠️ A STOPPED CARD FILLS THE SCREEN, TOP EDGE TO FOOT, AND THE BAR FLOATS OVER IT (home page
+ * audit, 2026-10-17; the owner: no blank space, said many times). The bar is a notch in the
+ * middle of the top edge, not a band across it, so a card that stopped at the bar's foot left the
+ * pale page showing on both sides of the bar: about 30px of it until this branch (84px down), and
+ * still 52px in this branch's first build, which stopped the cards at the bar's foot. So a stopped
+ * card starts at the screen's top edge, and `--card-lead` (the bar's room) moves its pill, its
+ * numbers and its darkened top down by exactly the bar, where they were; the photo fills the rest.
+ * `--stage-top` is the bar's foot once it has condensed (`notch-condense`: 4px of padding, 52px
+ * at one row), since the bar has always condensed by the time №04 is on screen. Where the bar never
+ * condenses (no scroll timeline), it is the bar's own height.
  *
- * `--stage-h` is the first card's height: the screen under the bar. svh, the screen with the
+ * `--card-lead` is 0 in the plain list (reduced motion), where no card stops under the bar.
+ * `--stage-h` is the list's card height there: the screen under the bar. svh, the screen with the
  * browser's bars shown, so a phone's bar sliding in hides nothing.
  */
 .order-stages {
   --stage-top: calc(var(--notch-h) - 2 * (var(--notch-pad-y) - 4px));
   --stage-h: calc(100svh - var(--stage-top));
+  --card-lead: 0px;
   --stage-edge: max(var(--site-gutter), calc((100cqi - var(--site-max)) / 2 + var(--site-gutter)));
   container-type: inline-size;
   display: grid;
@@ -5401,7 +5406,7 @@ a.contact-block__value:active {
 .order-stage__name {
   position: absolute;
   z-index: var(--z-stage-name);
-  top: 18px;
+  top: calc(var(--card-lead) + 18px);
   left: var(--stage-edge);
   margin: 0;
   padding: 6px 12px;
@@ -5445,7 +5450,7 @@ a.contact-block__value:active {
 
 /* Under the stage's pill, on the first step: the pill's 18px, its height and 18px under it. */
 .order-stage__steps > .order-step:first-child {
-  padding-block-start: 64px;
+  padding-block-start: calc(var(--card-lead) + 64px);
 }
 
 .order-stage__steps > .order-step + .order-step {
@@ -5468,7 +5473,7 @@ a.contact-block__value:active {
     --pad-end: var(--site-gutter);
     grid-row: 1 / -1;
     grid-template-rows: subgrid;
-    padding-block-start: 64px;
+    padding-block-start: calc(var(--card-lead) + 64px);
   }
 
   /* Two classes: the plain rule further down would win otherwise. */
@@ -5510,8 +5515,8 @@ a.contact-block__value:active {
   background: linear-gradient(
     to bottom,
     color-mix(in srgb, var(--bg) 70%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 70%, transparent) calc(64px + 4.5rem),
-    transparent max(40%, calc(64px + 4.5rem + 64px))
+    color-mix(in srgb, var(--bg) 70%, transparent) calc(var(--card-lead) + 64px + 4.5rem),
+    transparent max(40%, calc(var(--card-lead) + 64px + 4.5rem + 64px))
   );
   pointer-events: none;
 }
@@ -5618,8 +5623,9 @@ a.contact-block__value:active {
  * ⚠️ THE STACK, FOR SOMEONE WHO ALLOWS MOTION, ON EVERY SCREEN (the owner, 2026-10-17: "stack on
  * all phones"). Under reduced motion the cards are a plain list, as the eight were (polish D4).
  *
- * Card i stops 8px below the card before it, so each card's top edge stays in sight under the
- * next, and is the screen's height less its stop, so every card's foot is the screen's foot.
+ * Card i stops 8px below the card before it, from the screen's top edge (the bar floats over the
+ * cards, above), so each card's top edge stays in sight under the next, and is the screen's height
+ * less its stop, so every card's foot is the screen's foot.
  *
  * ⚠️ A CARD TALLER THAN THAT SCROLLS UNTIL ITS FOOT SHOWS, THEN STOPS (the owner's "scroll, then
  * stop"). A card that stops with its foot below the screen hides its last words for good, because
@@ -5627,7 +5633,7 @@ a.contact-block__value:active {
  * at 360px (measured 2026-10-16), more than an iPhone in Safari has under the bar, so until this the
  * stack was off below an 800px screen and no iPhone stacked (#197). Now its height may grow, and
  * `--stage-fit`, the height `OrderStagesList.tsx` measures, moves its stop up to `100svh` less it.
- * Without scripting, `--stage-fit` is unset and the card stops under the bar.
+ * Without scripting, `--stage-fit` is unset and the card stops at its place at the top.
  *
  * ⚠️ EACH CARD RESTS A THIRD OF A SCREEN (the owner, 2026-10-17). The gap between cards is the
  * scroll over which a stopped card is wholly on the screen before the next one's edge comes up
@@ -5637,13 +5643,14 @@ a.contact-block__value:active {
  */
 @media screen and (prefers-reduced-motion: no-preference) {
   .order-stages {
+    --card-lead: var(--stage-top);
     row-gap: calc(100svh / 3);
   }
 
   .order-stages > .order-stage {
     position: sticky;
-    top: min(calc(var(--stage-top) + var(--i) * 8px), calc(100svh - var(--stage-fit, 0px)));
-    min-block-size: calc(100svh - var(--stage-top) - var(--i) * 8px);
+    top: min(calc(var(--i) * 8px), calc(100svh - var(--stage-fit, 0px)));
+    min-block-size: calc(100svh - var(--i) * 8px);
   }
 
   .order-stages::after {

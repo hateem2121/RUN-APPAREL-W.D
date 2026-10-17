@@ -732,6 +732,48 @@ test.describe('LA-13 — the footer slab is one screen tall from 768px up', () =
       ).toBeCloseTo(900, 0)
     }
   })
+
+  /*
+   * ⚠️ NO BLANK SPACE UNDER THE FOOTER (the owner, said many times; 2026-10-17). At the very end of
+   * the page, what a visitor sees at the screen's bottom edge, corners and middle, is the footer's
+   * slab, never the page behind it. Phones too: the slab is one screen only from 768px, so this is
+   * the check that a phone's last screen also ends on the footer.
+   */
+  test('at the end of the page the footer reaches the bottom edge, nothing under it', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    await withLiveFacts(page)
+    for (const [width, height] of [
+      [390, 844],
+      [768, 900],
+      [1024, 900],
+      [1440, 900],
+      [1920, 1080],
+    ] as const) {
+      await page.setViewportSize({ width, height })
+      await page.evaluate(() => document.fonts.ready)
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await page.evaluate(
+        () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+      )
+      const below = await page.evaluate(() => {
+        const w = innerWidth
+        const h = innerHeight
+        return (
+          [
+            ['bottom left', 2, h - 1],
+            ['bottom middle', w / 2, h - 1],
+            ['bottom right', w - 3, h - 1],
+          ] as const
+        ).flatMap(([where, x, y]) => {
+          const first = document.elementFromPoint(x, y)
+          return first?.closest('.site-footer__slab') ? [] : [`${where}: ${first?.tagName}`]
+        })
+      })
+      expect(below, `at ${width}px the page shows under the footer`).toEqual([])
+    }
+  })
 })
 
 /**
