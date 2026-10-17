@@ -2690,6 +2690,22 @@ a.contact-block__value:active {
   margin: 0;
 }
 
+/* The count-up: the final figure holds its room, the roll is drawn over it (CountUp.tsx says why). */
+.count-up {
+  position: relative;
+}
+
+.count-up__room {
+  visibility: hidden;
+}
+
+.count-up__roll {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  white-space: nowrap;
+}
+
 .fact__label {
   margin: 8px 0 0;
   margin-inline-start: 0;
