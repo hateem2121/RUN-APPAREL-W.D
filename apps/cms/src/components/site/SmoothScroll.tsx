@@ -16,11 +16,18 @@ import { useEffect } from 'react'
  *     while a pop-up holds the page (polish F2/F3: packages/shared/src/pageHold.ts);
  *   - keyboard, touch and the scrollbar stay the browser's — Lenis binds no key listener
  *     and `syncTouch` is off by default;
- *   - the glide lasts the viewer's 1.1 s with the viewer's ease-out, so one wheel tick
+ *   - the glide lasts the viewer's 0.8 s (1.1 s until 2026-10-17, owner) with the viewer's ease-out, so one wheel tick
  *     feels the same on both hosts. `src/auditGuards.test.ts` (FA-F-06 / XS-06) pins the pair.
  */
-export const SITE_SCROLL_DURATION_S = 1.1
+export const SITE_SCROLL_DURATION_S = 0.8
 export const siteScrollEasing = (t: number) => 1 - (1 - t) ** 3
+
+/**
+ * The attribute that keeps the wheel from the glide inside one element, so the element's own wheel
+ * use wins: №03's garment while its zoom is on (LiveGarment.tsx; owner, 2026-10-17). It is the
+ * library's own name for it, kept here so the library is named in this file only (auditGuards).
+ */
+export const KEEP_WHEEL_ATTRIBUTE = 'data-lenis-prevent-wheel'
 
 /**
  * Keys whose default action scrolls the page. The browser performs it, never Lenis — which

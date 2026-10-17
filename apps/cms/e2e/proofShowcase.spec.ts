@@ -188,6 +188,45 @@ test.describe('№03 — the colours, a growing pill (D43)', () => {
       .not.toBe(before.src)
   })
 
+  /*
+   * Home page audit, 2026-10-17: with the 3D off (this suite: automation), a pick threw the old
+   * picture away and the box stood empty for 0.4–1.2 s on the live site; and the first colour's
+   * picture was named "Olive / Sage" under a pill reading "Bay Leaf / Matcha". Every frame is read
+   * from the click until the change has settled: at least one loaded picture must be showing in each.
+   */
+  test('with the 3D off, a colour change never leaves the box empty, and the picture is named by its colour', async ({
+    page,
+  }) => {
+    await openHome(page, 1440, 900)
+    const pills = await pillsReady(page)
+    const firstName = (await pills.first().locator('span').textContent())?.trim() ?? ''
+    expect(await page.locator('.proof__frame img').first().getAttribute('alt')).toMatch(
+      new RegExp(` in ${firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+    )
+    await page.evaluate(() => {
+      const w = window as unknown as { __frames: number[]; __done: boolean }
+      w.__frames = []
+      w.__done = false
+      const start = performance.now()
+      const tick = () => {
+        const showing = [...document.querySelectorAll<HTMLImageElement>('.proof__frame > img')]
+          .filter((img) => img.complete && img.naturalWidth > 0)
+          .filter((img) => Number(getComputedStyle(img).opacity) > 0.05).length
+        w.__frames.push(showing)
+        if (performance.now() - start < 2000) requestAnimationFrame(tick)
+        else w.__done = true
+      }
+      requestAnimationFrame(tick)
+    })
+    await pills.nth((await pills.count()) - 1).click({ position: { x: 22, y: 22 } })
+    await page.waitForFunction(() => (window as unknown as { __done: boolean }).__done)
+    const frames = await page.evaluate(() => (window as unknown as { __frames: number[] }).__frames)
+    expect(frames.length, 'no frames were read').toBeGreaterThan(20)
+    expect(frames.filter((showing) => showing === 0).length, 'frames with an empty box').toBe(0)
+    // Settled: one picture, the new colour's.
+    await expect(page.locator('.proof__frame > img')).toHaveCount(1)
+  })
+
   // WAI-ARIA APG, "Radio Group" (read 2026-10-16): Tab lands on the chosen one; the arrows move and
   // choose, wrapping at the ends.
   test('the keyboard: the arrows move and choose, wrapping at both ends', async ({ page }) => {

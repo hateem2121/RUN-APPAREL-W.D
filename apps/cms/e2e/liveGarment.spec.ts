@@ -287,6 +287,170 @@ test.describe('№03 — the live 3D garment', () => {
     await expect.poll(() => requested.length, { timeout: 15000 }).toBeGreaterThan(0)
   })
 
+  /*
+   * The cross-fade (owner, 2026-10-17, after the home page audit). What would have to break: the
+   * colour swapped bare in one frame (no picture over it), a picture that never goes, or a blank
+   * picture (`toDataURL` is blank on this renderer; `toBlob` is not: pipeline-evals.md). A browser
+   * without WebGL (CI's Firefox) draws no frame to picture, so it simply swaps; that is asserted too.
+   */
+  test('a colour pick cross-fades: the old colour lies over the swap, then goes', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const draws = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
+    })
+    // Watch every frame for the picture over the garment, and read its pixels the first time.
+    await page.evaluate(() => {
+      const w = window as unknown as { __fade: { seen: number; opaque: number } }
+      w.__fade = { seen: 0, opaque: -1 }
+      const layer = document.querySelector('.live-garment') as Element
+      new MutationObserver(() => {
+        const picture = layer.querySelector<HTMLImageElement>('.live-garment__fade')
+        if (!picture || w.__fade.opaque >= 0) return
+        w.__fade.seen++
+        picture.decode().then(() => {
+          const canvas = document.createElement('canvas')
+          canvas.width = picture.naturalWidth
+          canvas.height = picture.naturalHeight
+          const context = canvas.getContext('2d') as CanvasRenderingContext2D
+          context.drawImage(picture, 0, 0)
+          const data = context.getImageData(0, 0, canvas.width, canvas.height).data
+          let opaque = 0
+          for (let i = 3; i < data.length; i += 64) if ((data[i] ?? 0) > 0) opaque++
+          w.__fade.opaque = opaque
+        })
+      }).observe(layer, { childList: true })
+    })
+    await page
+      .locator('.proof__pill')
+      .nth(2)
+      .click({ position: { x: 22, y: 22 } })
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (document.querySelector('.live-garment model-viewer') as { variantName?: string })
+              .variantName,
+        ),
+      )
+      .toBe('N001-BUTTER')
+    const fade = () =>
+      page.evaluate(
+        () => (window as unknown as { __fade: { seen: number; opaque: number } }).__fade,
+      )
+    if (draws) {
+      await expect.poll(async () => (await fade()).opaque, { timeout: 5000 }).toBeGreaterThan(0)
+    }
+    // Whatever happened, nothing is left over the garment once the change is done.
+    await expect(page.locator('.live-garment__fade')).toHaveCount(0, { timeout: 3000 })
+  })
+
+  test('under reduced motion a colour pick swaps with no picture over it', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    await page.evaluate(() => {
+      const w = window as unknown as { __faded: boolean }
+      w.__faded = false
+      new MutationObserver(() => {
+        if (document.querySelector('.live-garment__fade')) w.__faded = true
+      }).observe(document.querySelector('.live-garment') as Element, { childList: true })
+    })
+    await page
+      .locator('.proof__pill')
+      .nth(1)
+      .click({ position: { x: 22, y: 22 } })
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (document.querySelector('.live-garment model-viewer') as { variantName?: string })
+              .variantName,
+        ),
+      )
+      .not.toBe('N001-WINE')
+    expect(await page.evaluate(() => (window as unknown as { __faded: boolean }).__faded)).toBe(
+      false,
+    )
+  })
+
+  /*
+   * Zoom waits for a click (owner, 2026-10-17). What would have to break: a garment that swallows
+   * the wheel of a visitor scrolling past (why zoom was off since PR #94), a click that does not
+   * switch zoom on, a drag that does, or zoom left on after the pointer has gone. The wheel is a
+   * trusted one, so our smooth scroll sees it as a person's (SmoothScroll.tsx). CI's Firefox has no
+   * WebGL, so the camera's field of view is read only where a frame is drawn.
+   */
+  test('zoom waits for a click on the garment, and goes when the pointer leaves', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const layer = page.locator('.live-garment')
+    const model = page.locator('.live-garment model-viewer')
+    const centre = async () => {
+      const box = await model.boundingBox()
+      if (!box) throw new Error('the model has no box')
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    }
+    const scrolled = () => page.evaluate(() => Math.round(window.scrollY))
+
+    // Before a click: the wheel over the garment scrolls the page (the control for what follows).
+    let at = await centre()
+    await page.mouse.move(at.x, at.y)
+    await expect(model).toHaveAttribute('disable-zoom', '')
+    let before = await scrolled()
+    await page.mouse.wheel(0, 300)
+    await expect.poll(scrolled).not.toBe(before)
+
+    // A drag turns the garment and does NOT switch zoom on.
+    at = await centre()
+    await page.mouse.move(at.x, at.y)
+    await page.mouse.down()
+    await page.mouse.move(at.x + 60, at.y, { steps: 5 })
+    await page.mouse.up()
+    await expect(layer).not.toHaveAttribute('data-zoom')
+
+    // A click: zoom on, the wheel stays with the garment and the page holds still.
+    await page.mouse.click(at.x, at.y)
+    await expect(layer).toHaveAttribute('data-zoom', '')
+    await expect(model).not.toHaveAttribute('disable-zoom')
+    await page.waitForTimeout(1200)
+    before = await scrolled()
+    await page.mouse.wheel(0, -300)
+    await page.waitForTimeout(1200)
+    expect(await scrolled(), 'the page scrolled while zoom was on').toBe(before)
+
+    // The pointer leaves: zoom off, and the wheel is the page's again.
+    await page.mouse.move(8, 450)
+    await expect(layer).not.toHaveAttribute('data-zoom')
+    await expect(model).toHaveAttribute('disable-zoom', '')
+
+    // Escape switches it off too.
+    at = await centre()
+    await page.mouse.click(at.x, at.y)
+    await expect(layer).toHaveAttribute('data-zoom', '')
+    await page.keyboard.press('Escape')
+    await expect(layer).not.toHaveAttribute('data-zoom')
+  })
+
   test('on a data-saving connection nothing downloads until the visitor asks', async ({ page }) => {
     const requested: string[] = []
     page.on('request', (request) => {
