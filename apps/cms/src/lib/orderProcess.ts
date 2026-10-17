@@ -102,7 +102,9 @@ export const ORDER_PHASES: readonly OrderPhase[] = [
       {
         actor: 'We',
         title: 'Bulk production',
-        photo: 'stitching',
+        // The front of the works, not the stitching floor (owner, 2026-10-17): the hero shows the
+        // stitching floor, and a photo twice on one page breaks the owner's no-repeat rule.
+        photo: 'exterior',
         body: LEAD_TIME,
         detail: 'Seven printing methods in-house, from screen print and sublimation to embroidery.',
       },

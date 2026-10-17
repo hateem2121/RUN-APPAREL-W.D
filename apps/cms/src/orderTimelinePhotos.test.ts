@@ -7,7 +7,6 @@ import { AboutSection } from './components/site/AboutSection'
 import { GuidePage } from './components/site/GuidePage'
 import { OrderSteps } from './components/site/OrderSteps'
 import { OrderTimeline } from './components/site/OrderTimeline'
-import { FACTORY_PAGE } from './lib/aboutPages'
 import { FACTORY_PHOTOS, factoryPhotoWidths } from './lib/factoryPhotos'
 import { guideAt } from './lib/guides'
 import { ORDER_PHASES } from './lib/orderProcess'
@@ -47,7 +46,8 @@ const CHOSEN = [
   ['Your sample', 'screen-printing'],
   // "Approval" since 2026-10-15 (owner); "You approve" until then.
   ['Approval', 'inspection'],
-  ['Bulk production', 'stitching'],
+  // The front of the works since 2026-10-17 (owner): the hero already shows the stitching floor.
+  ['Bulk production', 'exterior'],
   ['Checked', 'final-check'],
   ['Packed and shipped', 'packing'],
   ['Your order arrives', 'tagging'],
@@ -289,14 +289,14 @@ describe('no photo appears twice on the home page (VA-34)', () => {
     expect(duplicates(slugs.filter((slug): slug is string => slug !== null))).toEqual([])
   })
 
-  it('uses every photo but the front of the building once, and the factory page keeps that one', () => {
+  // The stitching floor is the hero's photo, so №04 shows the front of the works instead (owner,
+  // 2026-10-17); until then the front of the building was the one left out.
+  it('uses every photo but the stitching floor once, and the hero keeps that one', () => {
     expect([...slugs].sort()).toEqual(
       FACTORY_PHOTOS.map((photo) => photo.slug)
-        .filter((slug) => slug !== 'exterior')
+        .filter((slug) => slug !== 'stitching')
         .sort(),
     )
-    // Not orphaned: "Inside the factory" draws it in its gallery ("The Building").
-    expect(FACTORY_PAGE.gallery.sets.flatMap((set) => set.photos)).toContain('exterior')
   })
 
   // NEGATIVE CONTROL, on a list of its own so it holds whatever the page draws: the check
