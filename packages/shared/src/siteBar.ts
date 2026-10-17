@@ -182,3 +182,101 @@ export function holdPageWhileOpen(menu: ToggleSource, page: HoldablePage): () =>
     release = null
   }
 }
+
+type MenuEventListener = (event: {
+  readonly target?: unknown
+  readonly relatedTarget?: unknown
+}) => void
+
+/** As much of the menu's button as `closeMenuOnLeave` touches. A plain HTMLElement satisfies it. */
+export interface MenuButtonLike {
+  contains(node: unknown): boolean
+  addEventListener(type: 'focusout', listener: MenuEventListener): void
+  removeEventListener(type: 'focusout', listener: MenuEventListener): void
+}
+
+/** As much of the phone menu as `closeMenuOnLeave` touches. A plain HTMLElement satisfies it. */
+export interface LeavableMenu {
+  contains(node: unknown): boolean
+  matches(selector: string): boolean
+  hidePopover(): void
+  addEventListener(type: 'click' | 'focusout', listener: MenuEventListener): void
+  removeEventListener(type: 'click' | 'focusout', listener: MenuEventListener): void
+}
+
+/**
+ * ⚠️ TWO WAYS THE PHONE MENU STAYED OPEN WHEN IT SHOULD HAVE CLOSED (live audit, Pixel 7
+ * emulation, 2026-10-17). Both close it with `hidePopover()`, so `beforetoggle` fires and
+ * `holdPageWhileOpen` releases the page and `markMenuClosing` draws the exit exactly as for a tap
+ * outside: no new close path can leave the page held.
+ *
+ * 1. A LINK TO THE PAGE YOU ARE ON. NavLinks closed the menu when `usePathname()` changed, and
+ *    tapping "Products" on /products changes nothing, so the menu stayed open over the page the
+ *    visitor had just chosen. A tap INSIDE a popover is not a tap outside it, so the browser
+ *    does not close it either. This closes on the activation of any link in the menu, whether
+ *    the path changes or not. It never calls `preventDefault`, so navigation, Next's prefetch
+ *    and its client-side route change run untouched.
+ *
+ * 2. TAB PAST THE LAST ITEM ("Dark mode"). A `popover="auto"` is not modal: the page behind is
+ *    neither inert nor hidden from Tab, so focus walked out of the menu into the page while the
+ *    menu stayed open over a held, dimmed page, and a keyboard user could not see what they
+ *    were focused on. MDN's popover pages (read 2026-10-17) list light dismiss as a click
+ *    outside, Escape and another popover opening: moving focus is not on the list. So when focus
+ *    leaves the menu (and its button) for something else on the page, close it.
+ *
+ * WHY `relatedTarget` MUST BE NON-NULL TO CLOSE. `focusout` carries the element that is
+ * RECEIVING focus, and null when focus goes to nothing: a tap on an empty patch of the page or
+ * on the menu's own padding, a click on non-focusable text, the window or tab losing focus, or
+ * focus leaving for the browser's own toolbar. Closing on null would close the menu when a
+ * visitor taps its padding, and again when they switch windows and back; and a tap on the page
+ * outside is already closed by the browser's own light dismiss, so there is nothing for us to
+ * add. A non-null target outside the menu is the case the browser does NOT handle: keyboard
+ * (or screen reader) focus moving to another control on the page.
+ *
+ * WHY THE CLOSE WAITS ONE TASK. During `focusout` the focus has not landed yet. A
+ * `hidePopover()` made at that moment can hand focus back to the button, the element focused
+ * before the menu opened, which would swallow the Tab and park focus on the button. A task
+ * later, focus is where the visitor sent it; the close runs only if it is still outside the
+ * menu and its button (Shift+Tab straight back into the menu cancels it).
+ *
+ * The button's own `focusout` counts too (Shift+Tab from the button to the wordmark leaves the
+ * menu and its button behind just the same). Focus moving between the button and the menu's
+ * items, which is how a keyboard visitor walks the list, never closes it. Returns the clean-up
+ * for a React effect.
+ */
+export function closeMenuOnLeave(
+  menu: LeavableMenu,
+  button: MenuButtonLike,
+  page: { readonly activeElement: unknown },
+): () => void {
+  const clock = globalThis as unknown as Timers
+  let timer: unknown
+  const within = (node: unknown) => node != null && (menu.contains(node) || button.contains(node))
+  const close = () => {
+    if (menu.matches(':popover-open')) menu.hidePopover()
+  }
+
+  const onClick: MenuEventListener = (event) => {
+    const target = event.target as { closest?: (selector: string) => unknown } | null
+    const link = typeof target?.closest === 'function' ? target.closest('a[href]') : null
+    if (link && menu.contains(link)) close()
+  }
+  const onFocusOut: MenuEventListener = (event) => {
+    const next = event.relatedTarget
+    if (next == null || within(next)) return
+    clock.clearTimeout(timer)
+    timer = clock.setTimeout(() => {
+      if (!within(page.activeElement)) close()
+    }, 0)
+  }
+
+  menu.addEventListener('click', onClick)
+  menu.addEventListener('focusout', onFocusOut)
+  button.addEventListener('focusout', onFocusOut)
+  return () => {
+    clock.clearTimeout(timer)
+    menu.removeEventListener('click', onClick)
+    menu.removeEventListener('focusout', onFocusOut)
+    button.removeEventListener('focusout', onFocusOut)
+  }
+}

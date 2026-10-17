@@ -5,8 +5,11 @@ import {
   findEmoji,
   findPlaceholders,
 } from '../../../scripts/copy-rules.mjs'
+import { type HoldablePage, pageHeld } from './pageHold'
 import {
   type ClosingMenu,
+  closeMenuOnLeave,
+  holdPageWhileOpen,
   MENU_CLOSING_MS,
   markMenuClosing,
   SITE_BAR_WORDMARK,
@@ -180,5 +183,220 @@ describe('markMenuClosing — the exit runs only while the menu closes (VA-51)',
     expect(listeners.size).toBe(0)
     toggle('closed')
     expect(menu.dataset.closing).toBeUndefined()
+  })
+})
+
+describe('closeMenuOnLeave — the menu closes when you tap the page you are on, and when focus leaves (audit 2026-10-17)', () => {
+  type Handler = (event: { target?: unknown; relatedTarget?: unknown }) => void
+  type ToggleHandler = (event: { readonly newState?: string }) => void
+
+  /**
+   * A stand-in for the open phone menu, its button and the page behind them. `hidePopover` fires
+   * `beforetoggle` with `newState: 'closed'` as the browser does, so the page hold is the real
+   * `holdPageWhileOpen` and the test sees whether a new close path lets it go.
+   */
+  function fakeBar() {
+    const link = { name: 'Products link' }
+    const darkMode = { name: 'Dark mode switch' }
+    const button = { name: 'Menu button' }
+    const pageLink = { name: 'a link in the page behind' }
+    const inMenu = new Set<unknown>([link, darkMode])
+    const handlers: Record<string, Handler[]> = {}
+    const toggles = new Set<ToggleHandler>()
+    const state = { open: true, active: darkMode as unknown }
+    const on = (owner: string) => (type: string, handler: Handler) => {
+      handlers[`${owner}:${type}`] = [...(handlers[`${owner}:${type}`] ?? []), handler]
+    }
+    const off = (owner: string) => (type: string, handler: Handler) => {
+      handlers[`${owner}:${type}`] = (handlers[`${owner}:${type}`] ?? []).filter(
+        (existing) => existing !== handler,
+      )
+    }
+    const hidePopover = vi.fn(() => {
+      state.open = false
+      for (const toggle of toggles) toggle({ newState: 'closed' })
+    })
+    const menu = {
+      contains: (node: unknown) => inMenu.has(node),
+      matches: (selector: string) => selector === ':popover-open' && state.open,
+      hidePopover,
+      addEventListener: (type: string, handler: Handler | ToggleHandler) => {
+        if (type === 'beforetoggle') toggles.add(handler as ToggleHandler)
+        else on('menu')(type, handler as Handler)
+      },
+      removeEventListener: (type: string, handler: Handler | ToggleHandler) => {
+        if (type === 'beforetoggle') toggles.delete(handler as ToggleHandler)
+        else off('menu')(type, handler as Handler)
+      },
+    }
+    const buttonNode = {
+      contains: (node: unknown) => node === button,
+      addEventListener: on('button'),
+      removeEventListener: off('button'),
+    }
+    const page = {
+      get activeElement() {
+        return state.active
+      },
+    }
+    const fire = (owner: string, type: string, event: object) => {
+      for (const handler of handlers[`${owner}:${type}`] ?? []) handler(event)
+    }
+    const count = () => Object.values(handlers).reduce((sum, list) => sum + list.length, 0)
+    return {
+      link,
+      darkMode,
+      button,
+      pageLink,
+      menu,
+      buttonNode,
+      page,
+      state,
+      fire,
+      count,
+      toggles,
+      hidePopover,
+    }
+  }
+
+  /** What a held page looks like to `pageHeld`: only <body>'s inline overflow is written. */
+  function heldPage() {
+    const body = { style: { overflowX: '', overflowY: '' } }
+    const page: HoldablePage = {
+      documentElement: {
+        style: { overflowX: '', overflowY: '', scrollbarGutter: '' },
+        clientWidth: 1280,
+      },
+      body,
+      defaultView: {
+        innerWidth: 1280,
+        CSS: { supports: () => true },
+        getComputedStyle: () => ({ overflowX: 'visible', overflowY: 'visible' }),
+      },
+    }
+    return page
+  }
+
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('closes on a tap on any link inside the menu, and leaves the navigation alone', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    const preventDefault = vi.fn()
+    // The path does not change here: nothing but the tap itself can close it (the bug).
+    bar.fire('menu', 'click', { target: { closest: () => bar.link }, preventDefault })
+    expect(
+      bar.hidePopover,
+      'a tap on the link to the page you are on left the menu open',
+    ).toHaveBeenCalledTimes(1)
+    expect(preventDefault, 'closing the menu must not cancel the navigation').not.toHaveBeenCalled()
+  })
+
+  it('a tap on the menu that is not on a link leaves it open (the switch, the padding)', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    bar.fire('menu', 'click', { target: { closest: () => null } })
+    // An anchor that is somehow outside the menu is not the menu's link.
+    bar.fire('menu', 'click', { target: { closest: () => bar.pageLink } })
+    bar.fire('menu', 'click', { target: null })
+    expect(bar.hidePopover).not.toHaveBeenCalled()
+  })
+
+  it('closes when Tab takes focus from the last item to the page, once focus has landed there', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    bar.state.active = bar.pageLink
+    bar.fire('menu', 'focusout', { relatedTarget: bar.pageLink })
+    // Not inside the event: hidePopover() there can hand focus back to the button and eat the Tab.
+    expect(bar.hidePopover).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(0)
+    expect(bar.hidePopover, 'focus left the menu and it stayed open').toHaveBeenCalledTimes(1)
+  })
+
+  it('does not close on a focusout that names no new element (a tap on padding, another window)', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    bar.state.active = null
+    bar.fire('menu', 'focusout', { relatedTarget: null })
+    bar.fire('menu', 'focusout', {})
+    vi.runAllTimers()
+    expect(bar.hidePopover).not.toHaveBeenCalled()
+  })
+
+  it('does not close while focus moves between the menu’s items and its button', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    bar.fire('menu', 'focusout', { relatedTarget: bar.darkMode })
+    bar.fire('menu', 'focusout', { relatedTarget: bar.button })
+    bar.fire('button', 'focusout', { relatedTarget: bar.link })
+    vi.runAllTimers()
+    expect(bar.hidePopover).not.toHaveBeenCalled()
+  })
+
+  it('closes when focus leaves from the button to the page (Shift+Tab to the wordmark)', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    bar.state.active = bar.pageLink
+    bar.fire('button', 'focusout', { relatedTarget: bar.pageLink })
+    vi.runAllTimers()
+    expect(bar.hidePopover).toHaveBeenCalledTimes(1)
+  })
+
+  it('stays open if focus is back inside by the time the task runs (Shift+Tab straight back)', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    bar.fire('menu', 'focusout', { relatedTarget: bar.pageLink })
+    bar.state.active = bar.darkMode
+    vi.runAllTimers()
+    expect(bar.hidePopover).not.toHaveBeenCalled()
+  })
+
+  it('never calls hidePopover on a menu that is already closed', () => {
+    const bar = fakeBar()
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    bar.state.open = false
+    bar.state.active = bar.pageLink
+    bar.fire('menu', 'focusout', { relatedTarget: bar.pageLink })
+    bar.fire('menu', 'click', { target: { closest: () => bar.link } })
+    vi.runAllTimers()
+    expect(bar.hidePopover).not.toHaveBeenCalled()
+  })
+
+  it('lets the page go on both new close paths (no stuck page)', () => {
+    // negative control first: the hold is real, so a page that is never released would show here
+    const bar = fakeBar()
+    const page = heldPage()
+    holdPageWhileOpen(bar.menu, page)
+    closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    const reopen = () => {
+      bar.state.open = true
+      for (const toggle of bar.toggles) toggle({ newState: 'open' })
+    }
+    reopen()
+    expect(pageHeld(page), 'the instrument cannot see a held page').toBe(true)
+    bar.fire('menu', 'click', { target: { closest: () => bar.link } })
+    expect(pageHeld(page), 'a tap on a link left the page held').toBe(false)
+
+    reopen()
+    expect(pageHeld(page)).toBe(true)
+    bar.state.active = bar.pageLink
+    bar.fire('menu', 'focusout', { relatedTarget: bar.pageLink })
+    vi.runAllTimers()
+    expect(pageHeld(page), 'leaving by focus left the page held').toBe(false)
+  })
+
+  it('the clean-up stops listening and cancels a close still waiting (negative control: it closes without)', () => {
+    const bar = fakeBar()
+    const stop = closeMenuOnLeave(bar.menu, bar.buttonNode, bar.page)
+    expect(bar.count()).toBe(3)
+    bar.state.active = bar.pageLink
+    bar.fire('menu', 'focusout', { relatedTarget: bar.pageLink })
+    stop()
+    expect(bar.count(), 'a listener outlived the clean-up').toBe(0)
+    vi.runAllTimers()
+    expect(bar.hidePopover, 'a pending close ran after the clean-up').not.toHaveBeenCalled()
+    bar.fire('menu', 'click', { target: { closest: () => bar.link } })
+    expect(bar.hidePopover).not.toHaveBeenCalled()
   })
 })
