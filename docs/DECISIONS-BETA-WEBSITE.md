@@ -1317,6 +1317,16 @@ page still reads them from the cache. `e2e/firstPaint.spec.ts` allows at most tw
 every page. №04's stopped cards start at the screen's top edge with the menu bar floating over
 them, so no pale page shows beside the bar.
 
+Further answers the same evening (owner, 2026-10-17): the garment pages draw the whole footer too,
+tab, question and clock, laid out identically, beside their own "Ask about this garment" (Q11; the
+prompt loads lazily, and the garment pages' style budget rose 14,000 -> 15,706 bytes by the two
+measured steps the owner approved); №04's step 05 shows the front of the works, so the hero's
+stitching floor is not shown twice (Q12); Sports Accessories says "[ ask us ]", as they are made
+today (Q13); the small repeats stay (Q14); the works' clock keeps Mon–Sat hours (Q15); the footer's
+social links open in a new tab and say so; on a phone a strip down each side of №03's garment
+scrolls the page; №05's figures count up without moving the page; and on a phone the colour behind
+Safari's bar is the page's paper, the footer's only while the footer is on screen.
+
 **Guard:** `apps/cms/src/components/site/SiteFooter.test.ts` and `apps/cms/e2e/footer.spec.ts` (the
 home footer is the same footer), `apps/cms/e2e/orderTimeline.spec.ts` (13 sizes, three planted
 faults), `apps/cms/e2e/familyTickets.spec.ts` (no pause), and `apps/cms/e2e/liveGarment.spec.ts`
