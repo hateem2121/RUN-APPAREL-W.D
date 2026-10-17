@@ -4756,8 +4756,14 @@ a.contact-block__value:active {
   object-fit: contain;
 }
 
-/* The other colour: only the row's opened card shows it. */
+/*
+ * The other colour: only the row's opened card shows it, so everywhere else it is not drawn at all.
+ * ⚠️ `display: none`, not only `opacity: 0` (home page audit, 2026-10-17): a lazy picture that is
+ * drawn, however transparent, is fetched, and a Pixel 7 downloaded all four (101 KB) for cards that
+ * never open on a phone. Not drawn, a lazy picture is never fetched; the row turns it back on below.
+ */
 .family-card__img--open {
+  display: none;
   opacity: 0;
 }
 
@@ -4936,6 +4942,11 @@ a.contact-block__value:active {
  * `--open` is the opened card's place; `.family-grid` is the container the widths are measured in.
  */
 @media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  /* The row is the one place a card opens, so the other colour is drawn here only (above). */
+  .family-card__img--open {
+    display: block;
+  }
+
   .family-grid:has(
     > .family-card:nth-child(1):hover:not([data-dismissed]),
     > .family-card:nth-child(1):not([data-dismissed]) .family-card__link:focus-visible
@@ -5112,20 +5123,29 @@ a.contact-block__value:active {
     margin: 0;
   }
 
-  /* Open: the card in place, its sheet and words shown, the other colour, the garment's name. */
+  /*
+   * Open: the card in place, its sheet and words shown, the other colour, the garment's name.
+   *
+   * ⚠️ NO PAUSE, AND THE STEPS OVERLAP (home page audit, 2026-10-17; owner chose "remove the pause").
+   * Opening waited `--instant` (120 ms, polish #128, "so a pointer crossing the row opens nothing"),
+   * then slid the sheet for `--ui` and only THEN faded the words in for `--fast`: the words were
+   * whole about 540 ms after the pointer arrived, while closing took about 220 ms, so the card felt
+   * stiff. Now the sheet, the words' slide and the other cards' step back start at once, and the
+   * words fade in a third of the way through the slide: whole after about 275 ms. The sheet keeps its
+   * `clip-path`: the audit measured no dropped frame opening a card, and a scaled sheet would stretch
+   * its rounded corners mid-move.
+   */
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed]) {
     z-index: var(--z-card-open);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::before {
     clip-path: inset(0);
-    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__more {
     translate: none;
-    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
@@ -5133,7 +5153,7 @@ a.contact-block__value:active {
     > * {
     opacity: 1;
     pointer-events: auto;
-    transition-delay: calc(var(--instant) + var(--ui));
+    transition-delay: calc(var(--ui) / 3);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
@@ -5146,7 +5166,6 @@ a.contact-block__value:active {
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__garment {
     opacity: 1;
-    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
@@ -5154,7 +5173,6 @@ a.contact-block__value:active {
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__stub:has(+ .family-card__garment) {
     opacity: 0;
-    transition-delay: var(--instant);
   }
 
   /*
@@ -5170,7 +5188,6 @@ a.contact-block__value:active {
     --after: clamp(0, var(--card, 0) - var(--open), 1);
     transform: translateX(calc(var(--card-w) * (var(--after) * 1.5 - var(--card, 0) * 0.3)))
       scale(0.7);
-    transition-delay: var(--instant);
   }
 
   .family-grid:has(
@@ -5189,13 +5206,6 @@ a.contact-block__value:active {
     .family-card__media {
     opacity: 0.62;
     filter: saturate(0.55);
-    transition-delay: var(--instant);
-  }
-
-  /* A keyboard opens at once: the pause is for a pointer crossing the row. */
-  .family-grid:has(.family-card__link:focus-visible) > .family-card,
-  .family-grid:has(.family-card__link:focus-visible) .family-card * {
-    transition-delay: 0s;
   }
 }
 
