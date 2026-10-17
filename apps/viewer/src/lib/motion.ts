@@ -71,5 +71,10 @@ export const HOVER_INTENT_MS = 90
  */
 export const CAMERA_DECAY_MS = 50
 
-/** Lenis smooth-scroll duration, in SECONDS — Lenis takes seconds, not ms. */
-export const SCROLL_DURATION_S = 1.1
+/**
+ * Lenis smooth-scroll duration, in SECONDS — Lenis takes seconds, not ms. 0.8 since 2026-10-17
+ * (owner, after the home page audit: "a little shorter and snappier everywhere"); 1.1 before, which
+ * the audit measured as a 0.94 s glide after one wheel tick on the live home page. The website
+ * glides the same (`SITE_SCROLL_DURATION_S`, pinned equal by apps/cms/src/auditGuards.test.ts).
+ */
+export const SCROLL_DURATION_S = 0.8

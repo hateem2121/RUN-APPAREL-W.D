@@ -2418,7 +2418,7 @@ test.describe('nothing above the fold outsizes the product name (DS-08)', () => 
 
 /**
  * SC-05 — one trusted wheel tick over the page settles when the design says it does
- * (SCROLL_DURATION_S, 1.1s; the "~47ms" this row was drafted with is not this page's glide). Uses `page.mouse.wheel()` — TRUSTED input, per
+ * (SCROLL_DURATION_S, 0.8s since 2026-10-17, 1.1s before; the "~47ms" this row was drafted with is not this page's glide). Uses `page.mouse.wheel()` — TRUSTED input, per
  * this repo's own rule that a synthetic `dispatchEvent(new WheelEvent(...))` is
  * refused by Lenis's own `virtualScroll: ({event}) => event.isTrusted` predicate
  * (FA-F-12, proven above) and would prove nothing here either.
@@ -2451,7 +2451,7 @@ test.describe('SC-05 — one wheel tick settles quickly', () => {
     // then find when it came within 1px of where it finished. Measured 2026-09-25: the
     // first draft polled over CDP every ~50ms and called two equal reads "settled", so
     // Lenis's eased sub-pixel tail and the polling's own latency read 2,218ms on one of
-    // two identical runs. The eased glide is BY DESIGN — SCROLL_DURATION_S is 1.1s in
+    // two identical runs. The eased glide is BY DESIGN — SCROLL_DURATION_S is 0.8s in
     // src/lib/motion.ts, cubic ease-out — so "quickly" means "ends when the design says",
     // not "tens of ms".
     await page.evaluate(() => {
