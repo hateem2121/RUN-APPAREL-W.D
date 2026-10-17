@@ -2,6 +2,8 @@
 import type { FOOTER_FACTS } from './apply-footer-facts.mjs'
 
 export declare const SITE_URL: string
+export declare const FOOTER_CLASS: string
+export declare function hasClass(tag: string, token: string): boolean
 export declare function isRefusal(status: number): boolean
 export declare function footerSection(html: string): string
 export declare function footerText(section: string): string

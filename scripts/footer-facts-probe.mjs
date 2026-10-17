@@ -28,12 +28,42 @@ export function isRefusal(status) {
   return status === 403 || status === 429
 }
 
-/** Pure: the `<footer class="site-footer">…</footer>` element, or '' if there is none. */
+/** The footer's class token, as `FooterShell` (components/site/FooterPromptGate.tsx) writes it. */
+export const FOOTER_CLASS = 'site-footer'
+
+/**
+ * Pure: whether a start tag's class attribute holds `token` as one of its classes.
+ *
+ * A class attribute is "a set of space-separated tokens" (HTML Standard §3.2.6, read
+ * 2026-10-17), so the test is membership, never the whole value.
+ */
+export function hasClass(tag, token) {
+  const match = /\sclass="([^"]*)"/.exec(tag)
+  return match?.[1].split(/\s+/).includes(token) === true
+}
+
+/**
+ * Pure: the `<footer class="… site-footer …">…</footer>` element, or '' if there is none.
+ *
+ * ⚠️ MATCH THE CLASS TOKEN, NOT THE ATTRIBUTE TEXT. Until 2026-10-17 this searched for the
+ * literal `<footer class="site-footer"`. On 2026-10-16 (PR #194) the home page's footer
+ * became `class="site-footer site-footer--no-prompt"`, the literal stopped matching, and the
+ * uptime robot reported "no footer" every run and opened outage issue #196 while all 15
+ * facts were on the page. Other pages still matched, so only the home page fell through.
+ */
 export function footerSection(html) {
-  const start = html.indexOf('<footer class="site-footer"')
-  if (start < 0) return ''
-  const end = html.indexOf('</footer>', start)
-  return end < 0 ? html.slice(start) : html.slice(start, end)
+  let from = 0
+  for (;;) {
+    const start = html.indexOf('<footer', from)
+    if (start < 0) return ''
+    const tagEnd = html.indexOf('>', start)
+    if (tagEnd < 0) return ''
+    if (hasClass(html.slice(start, tagEnd + 1), FOOTER_CLASS)) {
+      const end = html.indexOf('</footer>', tagEnd)
+      return end < 0 ? html.slice(start) : html.slice(start, end)
+    }
+    from = tagEnd + 1
+  }
 }
 
 /** Pure: the footer's visible text — React's `<!-- -->` text separators and tags removed. */

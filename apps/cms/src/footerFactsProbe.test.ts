@@ -1,12 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it, vi } from 'vitest'
 import { standardsLines } from '@run-apparel/shared'
 import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
 import {
   expectedFacts,
   footerText,
+  hasClass,
   isRefusal,
   missingFacts,
 } from '../../../scripts/footer-facts-probe.mjs'
+import { FooterShell } from './components/site/FooterPromptGate'
+
+// `FooterShell` reads the page from `usePathname`, which needs the app router; outside Next it
+// is mocked, with the path a hoisted mutable so each case chooses its page (as SiteFooter.test).
+const route = vi.hoisted(() => ({ path: '/about' }))
+vi.mock('next/navigation', () => ({ usePathname: () => route.path }))
 
 /**
  * CT-07 / CT-07b — the live footer-facts robot, fed planted pages before its live "all
@@ -118,6 +127,28 @@ describe('missingFacts', () => {
     ])
   })
 
+  it('reports a footer that lacks the class itself: a modifier or a look-alike is not it', () => {
+    // The negative control for the class-token match below: loosening it to "the text
+    // site-footer appears somewhere in the tag" would pass all three of these.
+    for (const tag of [
+      '<footer class="site-footer--no-prompt">',
+      '<footer class="not-site-footer">',
+      '<footer>',
+    ]) {
+      expect(missingFacts(page(footer().replace('<footer class="site-footer">', tag)))).toEqual([
+        'the page has no <footer class="site-footer">',
+      ])
+    }
+    expect(hasClass('<footer class="a  site-footer\tb">', 'site-footer')).toBe(true)
+  })
+
+  it('skips another footer element that comes before the site footer', () => {
+    // An article or card may carry its own <footer>; the facts are in the site's.
+    expect(missingFacts(page(`<footer class="card__foot">Read more</footer>${footer()}`))).toEqual(
+      [],
+    )
+  })
+
   it('derives what it checks from the approved facts, 15 shown lines today', () => {
     const want = expectedFacts()
     // 12 until 2026-10-06: the owner's 2026-09-29 additions took it 10 → 12, then
@@ -133,5 +164,33 @@ describe('missingFacts', () => {
   it('treats 403 and 429 as inconclusive, a real error as an answer', () => {
     expect([403, 429].map(isRefusal)).toEqual([true, true])
     expect([200, 404, 500].map(isRefusal)).toEqual([false, false, false])
+  })
+})
+
+/**
+ * The footer's opening tag comes from the component the site draws it with, never retyped:
+ * the fixture above wrote `<footer class="site-footer">`, so when the home page's footer
+ * gained a second class on 2026-10-16 (PR #194) every test here stayed green while the live
+ * robot reported "no footer" each run and opened outage issue #196.
+ */
+const shellTag = (path: string) => {
+  route.path = path
+  const out = renderToStaticMarkup(createElement(FooterShell, null, 'x'))
+  return out.slice(0, out.indexOf('>') + 1)
+}
+
+describe('footerSection finds the footer the site draws', () => {
+  it('on the home page, where the footer carries a second class', () => {
+    const home = shellTag('/')
+    // The planted condition landed: this is not the one-class tag the fixture was written with.
+    expect(home).not.toBe('<footer class="site-footer">')
+    expect(missingFacts(page(footer().replace('<footer class="site-footer">', home)))).toEqual([])
+  })
+
+  it('on every other page', () => {
+    for (const path of ['/about', '/products', '/contact']) {
+      const tag = shellTag(path)
+      expect(missingFacts(page(footer().replace('<footer class="site-footer">', tag)))).toEqual([])
+    }
   })
 })
