@@ -118,30 +118,10 @@
 }
 
 /*
- * A footer without its question and its tab: the garment pages' (polish Q42, owner 2026-10-04).
- * A garment page ends on its own one prompt, "Ask about this garment", so the footer drops the
- * tab, the question and the room each took: no space above the slab for a tab, no full screen of
- * slab for a question to stand in, and its first block starts where the question did.
+ * Every page draws the whole footer, tab, question and clock included (the owner, 2026-10-17, home
+ * page audit Q11). From polish Q42 (2026-10-04) until then the garment pages drew it without them,
+ * as `.site-footer--no-prompt`, whose rules stood here.
  */
-.site-footer--no-prompt {
-  padding-block-start: 0;
-}
-
-.site-footer--no-prompt .site-footer__inner {
-  padding-block-start: clamp(44px, 6vw, 84px);
-}
-
-@supports (width: round(1px, 2px)) {
-  .site-footer--no-prompt .site-footer__inner {
-    padding-block-start: round(clamp(44px, 6vw, 84px), 2px);
-  }
-}
-
-@media (min-width: 768px) {
-  .site-footer--no-prompt .site-footer__slab {
-    min-height: 0;
-  }
-}
 
 /* ── the facts, 2 × 2, bottom-right ────────────────────────────────────── */
 .footer-grow {
@@ -568,6 +548,111 @@
 /* ------------------------------------------------------------ print (FA-M-52) */
 
 /*
+ * ⚠️ THE FOOTER TAKES FOUR COLUMNS FROM A TABLET (2026-10-07). With the Learn group a seventh block,
+ * three columns put Learn alone on a new row, and the slab that must stay one screen tall from 768px
+ * (LA-13) ran 3px over at 1024px while its quiet band fell to 28px at 768 (D7; apps/cms/e2e/
+ * footer.spec.ts). Four columns set the link groups in one row and the claims in the next. Website
+ * only until 2026-10-17; every page since (the owner, Q11: the footer identical on every page).
+ */
+@media (min-width: 720px) and (max-width: 1279px) {
+  .footer-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/*
+ * ⚠️ ONE SCREEN WITH THE REAL FACTS, NOT WITH AN EMPTY DATABASE (home page audit, 2026-10-17; the
+ * owner: "fit every size"). The rules above were measured on CI's empty footer, and the live one,
+ * with its Capacity, Standards, Elsewhere and six marks, measured 1,052–1,146px on a 900px screen
+ * at every width from 768 to 1920 while the tests passed. Measured with the live facts and the
+ * climate commitment, these bring the website's to exactly 900px at every width from 768 to 2560
+ * (the question's own two rules are in footer-prompt.css):
+ *
+ * - A line that is not a link (an address, a capacity or a standard) is a line of text, not a 44px
+ *   touch row: the floor is for controls. The text lines keep 4px between them.
+ * - Less air around the facts, and the legal row's lines closer.
+ * - From 1280px, Standards takes two columns (its lines no longer wrap) and the marks take the
+ *   last two, beside it, instead of a row of their own.
+ * - On a tablet, Company runs down two rows, and the legal row's two lines of text take the snug
+ *   spacing its links already have, so it is one line, not "Terms" alone on a second.
+ * - From 1500px the outline wordmark stops growing (1500px wide): it is fitted to its box's width,
+ *   and at 1920 it stood 163px tall where it stands 122px at 1440.
+ *
+ * In the website's stylesheet until 2026-10-17; here since, so the garment pages draw the same.
+ */
+.footer-block li:not(:has(a)) {
+  min-height: 0;
+}
+
+.footer-block li:not(:has(a)) + li:not(:has(a)) {
+  margin-block-start: 4px;
+}
+
+.footer-block h3 {
+  margin-block-end: 8px;
+}
+
+/* A link with a mark after its words ("LinkedIn ↗"): the row is a flex box, which drops spaces. */
+.footer-block a {
+  column-gap: 6px;
+}
+
+.footer-facts {
+  row-gap: 16px;
+  padding-block: 16px clamp(16px, 2vw, 32px);
+}
+
+.footer-legal {
+  row-gap: 0;
+  padding-block: 8px 12px;
+}
+
+@supports (width: round(1px, 2px)) {
+  .footer-facts {
+    padding-block-end: round(clamp(16px, 2vw, 32px), 2px);
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1279px) {
+  .footer-block--company:not(.footer-block--learn) {
+    grid-row: span 2;
+  }
+
+  .footer-block--standards {
+    grid-column: auto;
+  }
+
+  .footer-facts {
+    row-gap: 12px;
+    padding-block-start: 12px;
+  }
+
+  .footer-legal {
+    column-gap: 10px;
+    letter-spacing: var(--tracking-caps-snug);
+  }
+}
+
+@media (min-width: 1280px) {
+  .footer-block--standards {
+    grid-column: span 2;
+  }
+
+  .footer-marks {
+    grid-column: 4 / -1;
+    grid-row: 2;
+    align-self: end;
+  }
+}
+
+@media (min-width: 1500px) {
+  .footer-mark {
+    inline-size: 1500px;
+    margin-inline: auto;
+  }
+}
+
+/*
  * ⚠️ PRESSING Cmd-P LOST EVERY WAY OF CONTACTING THE COMPANY, and the rest of the page
  * printed fine, which is what made it easy to miss.
  *
@@ -654,12 +739,6 @@
 
   .footer-facts {
     padding-block: 12px;
-  }
-
-  /* The garment pages' footer starts where its question would have (Q42); on paper the facts
-     follow the sheet straight on, as they do on the website's printed page. */
-  .site-footer--no-prompt .site-footer__inner {
-    padding-block-start: 0;
   }
 
   .footer-legal {

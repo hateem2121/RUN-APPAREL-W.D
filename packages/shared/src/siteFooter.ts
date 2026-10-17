@@ -204,21 +204,18 @@ export interface SiteFooterContent {
  * suites. Built from the same content the page was given, because the blocks are conditional.
  * The clock's time is the one live value, so it is a pattern.
  *
- * `prompt: false` is the garment pages' footer (polish Q42, owner 2026-10-04): no tab, no
- * question and no clock, because a garment page ends on its own one prompt, "Ask about this
- * garment" (the audit counted three prompts in a row there, X23). The website keeps all of them.
+ * One footer on every page, tab, question and clock included (the owner, 2026-10-17, home page
+ * audit Q11). Until then a `prompt: false` option described the garment pages' footer without
+ * them (polish Q42, 2026-10-04).
  */
-export function siteFooterAriaSnapshot(
-  content: SiteFooterContent,
-  { prompt = true }: { prompt?: boolean } = {},
-): string {
+export function siteFooterAriaSnapshot(content: SiteFooterContent): string {
   const q = JSON.stringify
   const { footer } = content
   const words = SITE_FOOTER_WORDS
   const lines = ['- contentinfo:', '  - /children: equal']
   const add = (depth: number, line: string) => lines.push(`${'  '.repeat(depth)}- ${line}`)
 
-  if (prompt) {
+  {
     add(1, `link ${q(footer.ctaLabel)}`)
     add(1, `paragraph: ${q(words.eyebrow)}`)
     add(1, `heading ${q(footer.ctaQuestion)} [level=2]`)

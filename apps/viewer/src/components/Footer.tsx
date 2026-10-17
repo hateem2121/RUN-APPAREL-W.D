@@ -16,6 +16,7 @@ import {
   standardsLines,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
+import { lazy, Suspense } from 'react'
 import { track } from '../lib/analytics'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { FooterGlow, FooterWordmark } from './FooterLive'
@@ -35,14 +36,16 @@ import { FooterGlow, FooterWordmark } from './FooterLive'
  * - every link is the site's full address, because another Worker draws this page;
  * - email and WhatsApp clicks are counted, as they were in the footer this replaced.
  *
- * And one that is the visitor's, by the owner's choice (polish Q42, 2026-10-04): NO TAB, NO
- * QUESTION. A garment page ends on its own one prompt, "Ask about this garment", in its contact
- * section; the audit counted three prompts in a row there ("Develop this with us", the "Start an
- * inquiry" tab, "Have a garment…?", X23). So the footer opens on the facts, without the tab, the
- * question, its clock or the full screen of slab the question stood in (`.site-footer--no-prompt`,
- * packages/ui/src/footer.css). Both suites still hold it to the website's template, without those
- * lines (`siteFooterAriaSnapshot(…, { prompt: false })`).
+ * ⚠️ THE TAB, THE QUESTION AND THE CLOCK TOO, SINCE 2026-10-17 (the owner, home page audit Q11:
+ * the footer the same on every page). From polish Q42 (2026-10-04) until then a garment page's
+ * footer left them out, because the page ends on its own "Ask about this garment"; the owner now
+ * keeps both. They load lazily with their own stylesheet (`FooterPrompt.tsx` says why), and both
+ * suites hold the footer to the website's full template.
  */
+const FooterTab = lazy(() => import('./FooterPrompt').then((m) => ({ default: m.FooterTab })))
+const FooterQuestion = lazy(() =>
+  import('./FooterPrompt').then((m) => ({ default: m.FooterQuestion })),
+)
 export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   // An API answer cached before the footer joined it (2026-10) has none: the copy's defaults,
   // and no claim — a claim never has a default.
@@ -52,11 +55,17 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   const words = SITE_FOOTER_WORDS
 
   return (
-    <footer className="site-footer site-footer--no-prompt">
+    <footer className="site-footer">
+      <Suspense fallback={null}>
+        <FooterTab label={f.ctaLabel} />
+      </Suspense>
       <div className="site-footer__slab">
         <FooterGlow />
 
         <div className="site-footer__inner">
+          <Suspense fallback={null}>
+            <FooterQuestion footer={f} />
+          </Suspense>
           <div className="footer-facts">
             {/*
               THE CONTACT DETAILS (audit FA-Q-09, 2026-09-07): this is the page someone lands on

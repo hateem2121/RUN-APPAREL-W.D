@@ -305,7 +305,7 @@ test.describe('one footer on both hosts (VA-31)', () => {
    * The home page's footer is the website's footer, question, tab and clock included (owner,
    * 2026-10-17: "100% identical across the whole website"; №05's closing ask stays too). From
    * 2026-10-16 (#194) it left those three out. The same full template as /products above, and the
-   * class without the garment pages' `--no-prompt`, so neither shape passes for the other.
+   * class without the short `--no-prompt` shape the garment pages had until 2026-10-17.
    */
   test('on the home page it is the same footer, with its question', async ({ page, request }) => {
     const answer = await request.get('/api/public/viewer/n001/wine')

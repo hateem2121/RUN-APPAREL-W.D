@@ -95,15 +95,23 @@ describe('Footer', () => {
     expect(byText('Guides')?.getAttribute('href')).toBe('https://wear-run.com/guides')
   })
 
-  // Polish Q42 (owner, 2026-10-04): a garment page ends on one prompt, "Ask about this garment",
-  // in its contact section. The footer's tab and question were the second and third (X23).
-  it('asks nothing: no "Start an inquiry" tab, no question, no clock beside it', () => {
+  // The footer the same on every page (owner, 2026-10-17, home page audit Q11): the garment pages
+  // draw the tab, the question and the clock too, beside their own "Ask about this garment". From
+  // polish Q42 (2026-10-04) until then they left all three out. They arrive lazily (FooterPrompt.tsx),
+  // so this waits for them, a few ticks at most.
+  it('asks as every website page does: the tab, the question and the clock', async () => {
     render(<Footer settings={settings} />)
-    expect(host.querySelector('footer')?.classList.contains('site-footer--no-prompt')).toBe(true)
-    expect(host.querySelector('.site-footer__tab')).toBeNull()
-    expect(host.querySelector('.footer-cta, .footer-q, .footer-clock')).toBeNull()
-    expect(host.textContent).not.toContain(EMPTY_FOOTER.ctaLabel)
-    expect(host.textContent).not.toContain(EMPTY_FOOTER.ctaQuestion)
+    for (let tick = 0; tick < 50 && !host.querySelector('.site-footer__tab'); tick++) {
+      await act(async () => {
+        await new Promise((done) => setTimeout(done, 10))
+      })
+    }
+    expect(host.querySelector('footer')?.className).toBe('site-footer')
+    const tab = host.querySelector('.site-footer__tab')
+    expect(tab?.getAttribute('href')).toBe(`${SITE_ORIGIN}/contact`)
+    expect(tab?.textContent).toContain(EMPTY_FOOTER.ctaLabel)
+    expect(host.querySelector('.footer-q')?.textContent).toBe(EMPTY_FOOTER.ctaQuestion)
+    expect(host.querySelector('.footer-clock')).not.toBeNull()
     // The routes stay: the facts still carry the email and WhatsApp.
     expect(headings()).toContain('Contact')
   })
