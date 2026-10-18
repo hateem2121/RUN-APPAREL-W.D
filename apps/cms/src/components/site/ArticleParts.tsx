@@ -4,8 +4,9 @@ import type { PublicImage } from '../../lib/journalPublic'
 
 /**
  * Pieces the Journal and the case studies share (PLAN.md E4). Every sentence here is one the
- * site already says: the closing block is `GuidePage.tsx`'s and the home page's №06, word for
- * word, and its one primary button is the buyer pages' (`e2e/copy.spec.ts`, CT-08).
+ * site already says: the closing block is `GuidePage.tsx`'s and the home page's closing ask (the
+ * row under №05, `FactsBento.tsx`; it was №06 until 2026-10-16), word for word, and its one
+ * primary button is the buyer pages' (`e2e/copy.spec.ts`, CT-08).
  */
 
 /** The site's closing block: "Tell us what you're making." and its one primary button. */

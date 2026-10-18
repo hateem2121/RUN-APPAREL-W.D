@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
+import { CLIMATE_COMMITMENT } from '../../../packages/shared/src/standardsLogos'
 import { DEFAULT_SITE_SETTINGS } from '../../../packages/shared/src/defaults'
 import {
   EMPTY_FOOTER,
@@ -16,9 +17,9 @@ import { parseCssColour, relativeLuminance } from '../../../scripts/contrast-rul
  * a block that drifts on either host fails on THAT host. WCAG 2.2 SC 3.2.6 Consistent Help asks
  * for contact details in the same order on every page of a site.
  *
- * Without its tab, question and clock since polish Q42 (owner, 2026-10-04): a garment page ends
- * on its own one prompt, "Ask about this garment" (`{ prompt: false }`). The contact details SC
- * 3.2.6 speaks of stay, in the same order as on the website.
+ * With its tab, question and clock again since 2026-10-17 (the owner, home page audit Q11: the
+ * footer the same on every page); from polish Q42 (2026-10-04) until then a garment page left
+ * them out. The contact details SC 3.2.6 speaks of are in the same order as on the website.
  */
 
 const API = '**/api/public/viewer/**'
@@ -80,9 +81,7 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
   }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(footer(page)).toMatchAriaSnapshot(
-      siteFooterAriaSnapshot(content(EMPTY_FOOTER), { prompt: false }),
-    )
+    await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(EMPTY_FOOTER)))
   })
 
   // VA-44 (the owner's choice, 2026-10-02): the address is in normal letters, and since polish X23
@@ -118,12 +117,12 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     await serveFooter(page, CLAIMS)
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(footer(page)).toMatchAriaSnapshot(
-      siteFooterAriaSnapshot(content(CLAIMS), { prompt: false }),
-    )
-    // Every mark arrived and decodes: the files are the website's, by the same path.
+    await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(CLAIMS)))
+    // Every mark arrived and decodes: the files are the website's, by the same path. Four bodies'
+    // marks, then the company's own climate commitment badge (owner, 2026-10-17).
     const marks = footer(page).locator('.footer-marks img')
-    await expect(marks).toHaveCount(4)
+    await expect(marks).toHaveCount(5)
+    await expect(marks.last()).toHaveAttribute('src', CLIMATE_COMMITMENT.logo.src)
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     for (const img of await marks.all()) {
       const name = await img.getAttribute('alt')
@@ -146,12 +145,15 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     ).toHaveCount(1)
     // One area for every mark, not one height (X23): Sedex is a wide wordmark, OEKO-TEX a tall
     // label, and at one 32px height their areas were 3,804 and 726 square pixels.
-    const areas = await marks.evaluateAll((all) =>
-      all.map((img) => {
-        const box = img.getBoundingClientRect()
-        return Math.round(box.width * box.height)
-      }),
-    )
+    // The badge is a link, drawn 44px tall for the touch floor, so it is not held to the area.
+    const areas = await footer(page)
+      .locator('.footer-marks > img')
+      .evaluateAll((all) =>
+        all.map((img) => {
+          const box = img.getBoundingClientRect()
+          return Math.round(box.width * box.height)
+        }),
+      )
     for (const area of areas) expect(Math.abs(area - 36 * 36) / (36 * 36)).toBeLessThan(0.06)
   })
 
@@ -194,31 +196,29 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
   })
 
   /*
-   * Polish Q42 (owner, 2026-10-04): no tab and no question on a garment page, so no room kept
-   * above the slab for a tab, no full screen of slab for a question to stand in, and the first
-   * block starts where the question did. Until then this asked for a one-screen slab with its tab
-   * straddling the top edge, which the website's footer still is (apps/cms/e2e/footer.spec.ts).
+   * The website's footer, whole (the owner, 2026-10-17, home page audit Q11): a one-screen dark slab
+   * with its volt tab seated on the top edge and the question inside, as apps/cms/e2e/footer.spec.ts
+   * holds the website's. From polish Q42 (2026-10-04) until then a garment page drew it without the
+   * tab and the question. The prompt and its stylesheet load lazily (FooterPrompt.tsx), so this waits
+   * for the tab, and checks it is STYLED: an unstyled tab would be a plain link above the slab.
    */
-  test("is the website's dark slab, without the tab or the screen its question stood in", async ({
+  test("is the website's dark slab, one screen tall, with its tab on the top edge", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.site-footer__tab')).toHaveCount(1)
+    await expect(page.locator('.footer-q')).toHaveCount(1)
     const geometry = await page.evaluate(() => {
-      const footer = document.querySelector('footer.site-footer') as HTMLElement
       const slab = document.querySelector('.site-footer__slab') as HTMLElement
-      const inner = document.querySelector('.site-footer__inner') as HTMLElement
+      const tab = document.querySelector('.site-footer__tab') as HTMLElement
       return {
         background: getComputedStyle(slab).backgroundColor,
-        tabs: document.querySelectorAll('.site-footer__tab').length,
-        roomAbove: slab.getBoundingClientRect().top - footer.getBoundingClientRect().top,
-        slabMinHeight: getComputedStyle(slab).minHeight,
-        firstBlockAt: Number.parseFloat(getComputedStyle(inner).paddingTop),
-        // Bottom-right answered the question at the top-left; with none, the facts start left.
-        factsFromLeft:
-          (document.querySelector('.footer-facts') as HTMLElement).getBoundingClientRect().left -
-          inner.getBoundingClientRect().left,
+        tabBackground: getComputedStyle(tab).backgroundColor,
+        tabFoot: tab.getBoundingClientRect().bottom,
+        slabTop: slab.getBoundingClientRect().top,
+        slabHeight: slab.getBoundingClientRect().height,
       }
     })
     // An unstyled footer (the shared stylesheet not loaded) is a transparent box on paper.
@@ -226,18 +226,13 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     const ground = parseCssColour(geometry.background)
     expect(ground.alpha, `slab background ${geometry.background}`).toBe(1)
     expect(relativeLuminance(ground.rgb)).toBeLessThan(0.05)
-    expect(geometry.tabs).toBe(0)
-    expect(geometry.roomAbove, 'room kept above the slab for a tab that is not there').toBe(0)
-    expect(geometry.slabMinHeight, 'a full screen of slab for a question that is not there').toBe(
-      '0px',
-    )
-    // The question's own top spacing, clamp(44px, 6vw, 84px): 76.8px at 1280px, rounded to 76.
-    expect(geometry.firstBlockAt).toBeGreaterThanOrEqual(44)
-    expect(geometry.firstBlockAt).toBeLessThanOrEqual(84)
+    // The tab's own sheet arrived: it is a filled shape, not a bare link.
+    expect(parseCssColour(geometry.tabBackground).alpha, 'the tab is unstyled').toBe(1)
     expect(
-      Math.abs(geometry.factsFromLeft),
-      'the facts sit right, under a question that is gone',
-    ).toBeLessThan(1)
+      Math.abs(geometry.tabFoot - geometry.slabTop),
+      'the tab is not seated on the slab top edge',
+    ).toBeLessThanOrEqual(1)
+    expect(geometry.slabHeight, 'the slab is not one screen tall').toBeGreaterThanOrEqual(799)
   })
 
   /*
@@ -384,26 +379,41 @@ test.describe('the room kept for the cookie question on the garment pages (VA-25
 
   test.describe('on a touch phone', () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
-    test("the canvas a bounce shows below the page is the footer's colour too", async ({
+    test("the colour beyond the page is the page's paper, and the footer's once the footer is on screen", async ({
       page,
       browserName,
     }) => {
       test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      const look = await page.evaluate(() => ({
-        touch: matchMedia('(hover: none)').matches,
-        page: getComputedStyle(document.body).backgroundColor,
-        footer: getComputedStyle(document.querySelector('.site-footer__slab') as HTMLElement)
-          .backgroundColor,
-      }))
+      const look = await page.evaluate(() => {
+        const probe = document.createElement('div')
+        probe.style.background = 'var(--bg)'
+        document.body.append(probe)
+        const paper = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return {
+          touch: matchMedia('(hover: none)').matches,
+          paper,
+          footer: getComputedStyle(document.querySelector('.site-footer__slab') as HTMLElement)
+            .backgroundColor,
+        }
+      })
       expect(look.touch, 'the emulated phone reports hover — this test measures nothing').toBe(true)
-      // Polled: the root's background may run its theme transition once as the page loads.
-      await expect
-        .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor))
-        .toBe(look.footer)
-      // NEGATIVE CONTROL: the page itself keeps its paper; only the canvas beyond it changed.
-      expect(look.page).not.toBe(look.footer)
+      // The control: the two colours differ, so the readings below can tell them apart.
+      expect(look.paper).not.toBe(look.footer)
+      // Polled: the root's background has a 500ms colour transition for theme changes.
+      const canvas = () =>
+        page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)
+      // Mid-page the colour behind Safari's bar is the page's own paper (home page audit, 2026-10-17:
+      // it was the footer's all the time, a dark band under the bar on a pale page)...
+      await expect.poll(canvas).toBe(look.paper)
+      // ...the footer's once the footer is on screen, at the page's end, where a bounce shows it...
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await expect.poll(canvas).toBe(look.footer)
+      // ...and the paper again on the way back up.
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await expect.poll(canvas).toBe(look.paper)
     })
 
     /*

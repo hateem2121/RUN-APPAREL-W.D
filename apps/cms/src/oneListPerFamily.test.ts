@@ -74,8 +74,8 @@ describe('a family’s one list', () => {
   })
 })
 
-// Polish F8 (Q21): "[ soon ]" and "Ask what we make →", on the products page and the home page alike.
-describe('a family says "[ soon ]" only with no page and no garment', () => {
+// Polish F8 (Q21): "[ ask us ]" and "Ask what we make →", on the products page and the home page alike.
+describe('a family says "[ ask us ]" only with no page and no garment', () => {
   it('Sports Accessories, today: no page, no garment', () => {
     expect(familyIsSoon(family('sports-accessories'), 0)).toBe(true)
   })

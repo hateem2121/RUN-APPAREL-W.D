@@ -111,11 +111,13 @@ export default defineConfig({
      * spilled over the next group on a phone, and an iPhone opens /products in this engine.
      * `galleryArrows` the same day (VA-30): a smooth scroll sent somewhere new mid-glide, which each
      * engine carries on its own way, and the arrows a Mac's pointer gets in Safari.
+     * `aboutGround` joined 2026-10-17 (home page audit): the light line between the hero and №01
+     * was reported on an iPhone, and the rise that opened it runs on a scroll timeline (Safari 26).
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|galleryArrows)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|galleryArrows|aboutGround)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

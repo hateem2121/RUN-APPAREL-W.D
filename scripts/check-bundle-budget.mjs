@@ -176,6 +176,19 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   and the growing card picture, MO3, about 0.1 KB of it); the related-garment cards now load
  *   their own sheet with their lazy chunk (RelatedCards-*.css, 641 B, new); the picture dialog's
  *   807 B is unchanged.
+ *   ⚠️ 2026-10-17, the home page audit (one PR). The owner asked for the website's whole footer on the
+ *   garment pages too (Q11) and approved raising this by the measured growth. The tab, the question and
+ *   the clock load LAZILY with their own sheet (FooterPrompt-*.css), so the sheet that holds a garment
+ *   page's first paint got smaller. Measured on this branch with and without the change, gzip level 9,
+ *   every .css file:
+ *       stylesheet    13,941 -> 15,407 B gzip  (+1,466)   budget 14,000 -> 15,466 (headroom 59)
+ *   Where it went: FooterPrompt-*.css 0 -> 1,540 (new, lazy); the main sheet 12,493 -> 12,419 (-74, the
+ *   garment pages' short-footer rules it no longer needs); the dialog's 807 and the cards' 641 unchanged.
+ *   Then the footer's one-screen fit moved from the website's own sheet into footer.css and
+ *   footer-prompt.css, so both hosts draw the identical footer (the owner approved the second raise):
+ *       stylesheet    15,407 -> 15,647 B gzip  (+240)    budget 15,466 -> 15,706 (headroom 59)
+ *   The main sheet 12,419 -> 12,605 (+186); FooterPrompt-*.css 1,540 -> 1,594 (+54). A garment
+ *   page's slow-3G first paint read 2,332 ms (median of 5) with and without the move.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -202,7 +215,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 14_000, note: 'CSS' },
+  stylesheet: { bytes: 15_706, note: 'CSS' },
 }
 
 /**

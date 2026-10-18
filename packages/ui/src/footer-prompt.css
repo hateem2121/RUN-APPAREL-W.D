@@ -3,12 +3,13 @@
  * status — for the WEBSITE only (polish D1, 2026-10-04).
  *
  * These rules sat in packages/ui/src/footer.css, which both hosts load, until the garment pages
- * stopped drawing the prompt (polish Q42: a garment page ends on "Ask about this garment",
- * `.site-footer--no-prompt`). From then they were bytes in the garment pages' render-blocking
- * stylesheet that styled nothing there, and that stylesheet decides a first paint held to 2,400ms
- * on slow 3G (apps/viewer/e2e/firstPaint.spec.ts): 37 more compressed bytes for D1 cost a whole
- * 150ms step there (measured 2026-10-04). Moved here word for word; only the website imports this
- * file, after footer.css (apps/cms/src/app/(frontend)/layout.tsx), so the cascade is unchanged.
+ * stopped drawing the prompt (polish Q42, 2026-10-04). From then they were bytes in the garment
+ * pages' render-blocking stylesheet, which decides a first paint held to 2,400ms on slow 3G
+ * (apps/viewer/e2e/firstPaint.spec.ts): 37 more compressed bytes for D1 cost a whole 150ms step
+ * there (measured 2026-10-04). The website imports this file after footer.css
+ * (apps/cms/src/app/(frontend)/layout.tsx). The garment pages draw the prompt again since
+ * 2026-10-17 (owner, Q11) and load this file LAZILY, with the prompt itself
+ * (apps/viewer/src/components/FooterPrompt.tsx), so it stays out of their first paint.
  *
  * ⚠️ THE PRINT BLOCK STAYS AT THE END OF THIS FILE, for footer.css's reason: a print rule above
  * the screen rule it overrides is silently dead.
@@ -383,6 +384,31 @@
   .site-footer__tab::before,
   .site-footer__tab::after {
     display: none;
+  }
+}
+
+/*
+ * The question's part of the one-screen fit (footer.css, "ONE SCREEN WITH THE REAL FACTS"; home page
+ * audit, 2026-10-17): less air above it, and on a tablet a smaller question with 24px above it.
+ */
+.footer-cta {
+  padding-block-start: clamp(32px, 4vw, 56px);
+}
+
+@supports (width: round(1px, 2px)) {
+  .footer-cta {
+    padding-block-start: round(clamp(32px, 4vw, 56px), 2px);
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1279px) {
+  .footer-q {
+    font-size: clamp(27px, 2.8vw, 52px);
+  }
+
+  /* After the `@supports` rule above, so it wins there too. */
+  .footer-cta {
+    padding-block-start: 24px;
   }
 }
 

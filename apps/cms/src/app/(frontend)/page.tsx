@@ -266,8 +266,11 @@ export default async function HomePage() {
                   <circle cx="10.5" cy="10.5" r="6" />
                   <path d="m15 15 5 5M8 10.5h5M10.5 8v5" />
                 </PointIcon>
+                {/* The owner's words, 2026-10-17, once zoom came to the home page's garment
+                    (LiveGarment.tsx: zoom waits for a click). */}
                 <p>
-                  <b>Zoom into the print.</b> On its 3D page, scroll or pinch to look closer.
+                  <b>Zoom into the print.</b> Click the garment, then scroll or pinch to look
+                  closer.
                 </p>
               </li>
             </ul>

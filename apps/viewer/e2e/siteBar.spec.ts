@@ -381,6 +381,58 @@ test.describe('the open phone menu holds the page and dims it (polish F3, X26) â
   })
 
   /*
+   * Home page audit, 2026-10-17 (the owner: fix the garment pages' menu too). A `popover="auto"`
+   * is not modal, so Tab off the theme switch (the last item) walked focus into the page behind
+   * while the menu stayed open over a held, dimmed page. The site's copy of this test, and why the
+   * close waits a task: apps/cms/e2e/navbar.spec.ts and closeMenuOnLeave in siteBar.ts. (The
+   * site's other close, a tap on the link to the page you are on, cannot happen here: every link
+   * in this menu opens a page of the website.)
+   */
+  test('Tab past the last item closes it and does not hold the page (audit 2026-10-17)', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName === 'webkit',
+      'WebKit leaves links and buttons out of the Tab order unless a Safari preference is on; Chromium and Firefox cover this',
+    )
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const open = page.locator(`#${SITE_MENU_ID}:popover-open`)
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).focus()
+    await page.keyboard.press('Enter')
+    await expect(open).toHaveCount(1)
+    await menuLanded(page)
+    const links = await page.locator(`#${SITE_MENU_ID} a`).count()
+    for (let step = 0; step < links + 1; step++) await page.keyboard.press('Tab')
+    await expect(
+      page.locator(`#${SITE_MENU_ID} button`),
+      'the walk did not end on the theme switch, the last item',
+    ).toBeFocused()
+    await expect(open, 'walking the list itself must not close it').toHaveCount(1)
+
+    await page.keyboard.press('Tab')
+    await expect(open, 'Tab out of the menu left it open').toHaveCount(0)
+    const focus = await page.evaluate(() => {
+      const active = document.activeElement
+      return {
+        tag: active?.tagName ?? '',
+        inMenu: Boolean(active?.closest('.notch__menu')),
+        onButton: Boolean(active?.closest('.notch__menu-btn')),
+      }
+    })
+    expect(focus.inMenu, 'focus is still inside the closed menu').toBe(false)
+    expect(focus.onButton, 'the close handed focus back to the button and ate the Tab').toBe(false)
+    expect(focus.tag, 'focus fell to nowhere').not.toBe('BODY')
+    const held = await page.evaluate(
+      () => document.documentElement.style.overflowY || document.body.style.overflowY,
+    )
+    expect(held, 'the page was left held after the menu closed').toBe('')
+  })
+
+  /*
    * Polish F5 (2026-10-04): the dot and ring rise above the open menu, which is in the browser's
    * top layer; the last element added there is drawn on top, so the order they arrive in is the
    * proof. The site's copy of this test also follows a link in the open menu.

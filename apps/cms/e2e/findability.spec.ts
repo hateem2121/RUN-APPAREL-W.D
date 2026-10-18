@@ -354,8 +354,8 @@ test.describe('FA-P-02 / FA-W-04 — the pages work with scripting off', () => {
   }
 
   test('the footer tab and the gallery are reachable without scripts', async ({ page }) => {
-    // The one call to action in the footer is a real link with a real href. Not on the home page,
-    // whose footer has no tab since 2026-10-16 (its №05 asks instead, in a real link too).
+    // The one call to action in the footer is a real link with a real href; the home page's №05
+    // asks in a real link too.
     await page.goto('/products')
     const tab = page.locator('.site-footer__tab')
     await expect(tab).toHaveAttribute('href', /\/contact$|^mailto:/)

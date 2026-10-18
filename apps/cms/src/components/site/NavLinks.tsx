@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  closeMenuOnLeave,
   holdPageWhileOpen,
   markMenuClosing,
   SITE_MENU_ID,
@@ -21,7 +22,7 @@ import { useEffect } from 'react'
  * with curl). The links are ordinary `<a href>` elements either way, and the menu that holds
  * them is the browser's own popover (SiteHeader.tsx), so nothing here hides anything.
  *
- * The two effects below only CLOSE the menu. If they never run, it stays open; nothing
+ * The effects below only CLOSE the menu. If they never run, it stays open; nothing
  * becomes unreachable.
  *
  * ⚠️ DO NOT MOVE THIS BACK INTO SiteHeader. The header would become a client component, and
@@ -47,6 +48,21 @@ export function NavLinks() {
       menu.hidePopover()
     }
   }, [pathname])
+
+  /*
+   * ⚠️ TWO CLOSES THE PATH EFFECT ABOVE CANNOT SEE (live audit, 2026-10-17): a tap on the link to
+   * the page you are already on changes no path, and Tab past the last item walks focus out of
+   * the menu into the page while it stays open. Why each one closes, and which focus changes do
+   * not: closeMenuOnLeave in packages/shared/src/siteBar.ts. It closes with `hidePopover()`, so
+   * the page hold and the exit drawn below follow on their own. Without script nothing changes:
+   * the link is a page load, and the menu is gone with it.
+   */
+  useEffect(() => {
+    const menu = document.getElementById(SITE_MENU_ID)
+    const button = document.querySelector<HTMLElement>(`[popovertarget="${SITE_MENU_ID}"]`)
+    if (!menu || !button || typeof menu.hidePopover !== 'function') return
+    return closeMenuOnLeave(menu, button, document)
+  }, [])
 
   /*
    * ⚠️ A MENU LEFT OPEN WHILE THE SCREEN WIDENS DRAWS AT THE TOP-LEFT CORNER. Measured

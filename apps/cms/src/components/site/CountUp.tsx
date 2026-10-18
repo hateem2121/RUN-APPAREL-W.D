@@ -22,6 +22,13 @@ import { type FactPart, parseFactValue } from '../../lib/factValue'
  * The digits roll for `--showpiece` (1400ms, D26) on `--ease-out-expo`, both read from the
  * tokens. A screen reader is given the final figure once, in visually hidden text, while the
  * rolling digits are hidden from it — otherwise it could announce a number mid-roll.
+ *
+ * ⚠️ THE FINAL FIGURE HOLDS ITS ROOM WHILE THE DIGITS ROLL OVER IT (home page audit, 2026-10-17).
+ * The roll starts at "0", one digit, and the rolling digits are a box of their own height, so the
+ * figure changed size as it counted and pushed №05's slab down: a layout shift of 0.057 on a
+ * 390px phone and 0.021 at 1440px (measured, Chromium). Reserving the space is web.dev's advice
+ * ("Optimize Cumulative Layout Shift", updated 7 February 2025). So the final figure stays,
+ * invisible, and holds exactly the box the server's text had; the roll is drawn on top of it.
  */
 function motionTokens(): { duration: number; easing: string } {
   const root = getComputedStyle(document.documentElement)
@@ -69,7 +76,10 @@ export function CountUp({ value }: { value: string }) {
   return (
     <span className="count-up" ref={ref}>
       <span className="visually-hidden">{value}</span>
-      <span aria-hidden="true">
+      <span className="count-up__room" aria-hidden="true">
+        {value}
+      </span>
+      <span className="count-up__roll" aria-hidden="true">
         {shown.map((part, index) =>
           'n' in part ? (
             <NumberFlow

@@ -1107,6 +1107,9 @@ holds the page's one closing ask. №06 "Talk to us" is gone into that row, and 
 the footer leaves out its question, tab and clock, as the garment pages' footer does. Owner,
 2026-10-15/16.**
 
+**Amended by D46 (2026-10-17):** the home page's footer has its question, tab and clock again; the
+row under the slab stays.
+
 The owner's rule from 2026-10-15 is that a page says nothing twice. №06 repeated №04's step 01 ("a
 sketch is enough", "we reply within 24 hours") and the footer's contact block (its email and
 WhatsApp buttons), and the footer's question asked a third time a screen later. A first build put
@@ -1160,6 +1163,9 @@ a card is one step over the photo of the room it happens in, with its number and
 at the top and its title and two lines at the foot. The heading and its line sit in the page's
 column above the cards. The order guide draws the same four cards. Owner, 2026-10-15 (option A3),
 words 2026-10-15/16, built section approved as shown.**
+
+**Amended by D46 (2026-10-17):** the cards stop under the condensed bar, reach the screen's foot,
+rest a third of a screen each, and stack on every phone.
 
 Until then eight half-width cards passed on the right while the heading stayed on the left (polish
 D4). Each step gains a second, smaller line, and every one is a line the site already states
@@ -1278,6 +1284,55 @@ above №03's live count "41 garments" on a phone.
 (one name for the way to the 3D garments on every page, "Browse in 3D" among the retired names),
 `apps/cms/e2e/composition.spec.ts` (the label's two lines on a phone, one line from 40rem), and
 `apps/cms/e2e/proofShowcase.spec.ts` and `findability.spec.ts` for the two home buttons.
+
+### D46 · The home page audit's answers: the full footer again, №04 fills the screen and stacks on every phone, №03 zooms after a click — amends D40 and D42
+
+**Decision: the home page draws the website's one footer, question, tab and clock included, and
+№05's closing row stays too ("keep both"). №04's cards stop right under the condensed menu bar,
+reach the screen's foot, rest a third of a screen each, and stack on every screen that allows
+motion; a card taller than the screen scrolls until its last line shows, then stops. №02's cards
+open without the 120 ms pause. №03's garment zooms only after a click on it, and its colours
+cross-fade. The smooth scroll glides for 0.8 s. Owner, 2026-10-17, answering the home page audit.**
+
+The footer: the owner asked for it "100% identical across the whole website", and accepted that
+"Start a conversation" then shows three times on the home page and the works' clock twice, an
+exception to the no-repeat rule. №04: the cards stopped 84px down under a 52px bar, leaving pale
+strips, and from #197 stacked only on screens 800px tall or more, so no iPhone in Safari stacked.
+The rest is the gap between cards, because the next card used to cover the last line being read.
+
+The SME Climate Hub badge (owner, 2026-10-17): the company made the Hub's commitment (net zero
+before 2050, signed 12 October 2026), so both footers end "Standards" with "SME Climate Hub:
+Committed" and the marks with the "Committed 2026" badge, a link to the company's row in the Hub's
+public list. "Committed", never "Certified". The badge is for one year; the 2027 one replaces it.
+
+The footer is one screen from 768px with the real facts (owner: "fit every size"). It had passed
+the one-screen tests on CI's empty footer while the live one measured 1,052–1,146px on a 900px
+screen. Plain-text lines are no longer 44px touch rows, Standards takes two columns and the marks
+sit beside it from 1280px, a tablet's question is smaller and its legal row one line, and the
+outline wordmark stops growing at 1500px. The tests now measure the live facts.
+
+The website may load two stylesheets, the same two on every page (owner, 2026-10-17): Turbopack
+splits the shared stylesheet once it passes about 137 KB, and both are the layout's, so a second
+page still reads them from the cache. `e2e/firstPaint.spec.ts` allows at most two, the same set on
+every page. №04's stopped cards start at the screen's top edge with the menu bar floating over
+them, so no pale page shows beside the bar.
+
+Further answers the same evening (owner, 2026-10-17): the garment pages draw the whole footer too,
+tab, question and clock, laid out identically, beside their own "Ask about this garment" (Q11; the
+prompt loads lazily, and the garment pages' style budget rose 14,000 -> 15,706 bytes by the two
+measured steps the owner approved); №04's step 05 shows the front of the works, so the hero's
+stitching floor is not shown twice (Q12); Sports Accessories says "[ ask us ]", as they are made
+today (Q13); the small repeats stay (Q14); the works' clock keeps Mon–Sat hours (Q15); the footer's
+social links open in a new tab and say so; on a phone a strip down each side of №03's garment
+scrolls the page; №05's figures count up without moving the page; and on a phone the colour behind
+Safari's bar is the page's paper, the footer's only while the footer is on screen.
+
+**Guard:** `apps/cms/src/components/site/SiteFooter.test.ts` and `apps/cms/e2e/footer.spec.ts` (the
+home footer is the same footer), `apps/cms/e2e/orderTimeline.spec.ts` (13 sizes, three planted
+faults), `apps/cms/e2e/familyTickets.spec.ts` (no pause), and `apps/cms/e2e/liveGarment.spec.ts`
+(zoom after a click, the cross-fade); `standardsLogos.test.ts`, `SiteFooter.test.ts`, the viewer's
+`Footer.test.tsx` and `e2e/siteFooter.spec.ts` (the badge); `footer.spec.ts` DS-09 and LA-13 with
+`e2e/fixtures/live-footer-facts-2026-10-17.html` (one screen with the live facts).
 
 ## Closed since
 

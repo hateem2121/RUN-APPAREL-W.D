@@ -1,4 +1,5 @@
 import {
+  CLIMATE_COMMITMENT,
   CONSENT_OPEN_EVENT,
   DEFAULT_SITE_SETTINGS,
   EMPTY_FOOTER,
@@ -94,15 +95,23 @@ describe('Footer', () => {
     expect(byText('Guides')?.getAttribute('href')).toBe('https://wear-run.com/guides')
   })
 
-  // Polish Q42 (owner, 2026-10-04): a garment page ends on one prompt, "Ask about this garment",
-  // in its contact section. The footer's tab and question were the second and third (X23).
-  it('asks nothing: no "Start an inquiry" tab, no question, no clock beside it', () => {
+  // The footer the same on every page (owner, 2026-10-17, home page audit Q11): the garment pages
+  // draw the tab, the question and the clock too, beside their own "Ask about this garment". From
+  // polish Q42 (2026-10-04) until then they left all three out. They arrive lazily (FooterPrompt.tsx),
+  // so this waits for them, a few ticks at most.
+  it('asks as every website page does: the tab, the question and the clock', async () => {
     render(<Footer settings={settings} />)
-    expect(host.querySelector('footer')?.classList.contains('site-footer--no-prompt')).toBe(true)
-    expect(host.querySelector('.site-footer__tab')).toBeNull()
-    expect(host.querySelector('.footer-cta, .footer-q, .footer-clock')).toBeNull()
-    expect(host.textContent).not.toContain(EMPTY_FOOTER.ctaLabel)
-    expect(host.textContent).not.toContain(EMPTY_FOOTER.ctaQuestion)
+    for (let tick = 0; tick < 50 && !host.querySelector('.site-footer__tab'); tick++) {
+      await act(async () => {
+        await new Promise((done) => setTimeout(done, 10))
+      })
+    }
+    expect(host.querySelector('footer')?.className).toBe('site-footer')
+    const tab = host.querySelector('.site-footer__tab')
+    expect(tab?.getAttribute('href')).toBe(`${SITE_ORIGIN}/contact`)
+    expect(tab?.textContent).toContain(EMPTY_FOOTER.ctaLabel)
+    expect(host.querySelector('.footer-q')?.textContent).toBe(EMPTY_FOOTER.ctaQuestion)
+    expect(host.querySelector('.footer-clock')).not.toBeNull()
     // The routes stay: the facts still carry the email and WhatsApp.
     expect(headings()).toContain('Contact')
   })
@@ -183,8 +192,15 @@ describe('Footer', () => {
   it('draws no claim block for a blank claim, and each claim block once it is set', () => {
     render(<Footer settings={settings} />)
     // "What we make" and "Company" (2026-10-07) are not claims: they are there with nothing set.
-    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn'])
-    expect(host.querySelector('.footer-marks')).toBeNull()
+    // Standards always: the company's own climate commitment (owner, 2026-10-17).
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn', 'Standards'])
+    // ... and the marks row holds only its badge, a link to where a buyer can check it.
+    expect(
+      [...host.querySelectorAll<HTMLImageElement>('.footer-marks img')].map((img) => img.alt),
+    ).toEqual([CLIMATE_COMMITMENT.logo.alt])
+    expect(host.querySelector('.footer-marks a')?.getAttribute('href')).toBe(
+      CLIMATE_COMMITMENT.href,
+    )
 
     render(
       <Footer
@@ -215,19 +231,24 @@ describe('Footer', () => {
     expect(host.textContent).toContain('32.4945° N, 74.5229° E')
     // The marks follow from the entry's words, in the order named, from the website's files.
     const marks = [...host.querySelectorAll<HTMLImageElement>('.footer-marks img')]
-    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', 'GOTS'])
+    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', 'GOTS', CLIMATE_COMMITMENT.logo.alt])
     expect(marks.map((img) => img.getAttribute('src'))).toEqual([
       '/standards/oeko-tex.svg',
       '/standards/gots.svg',
+      CLIMATE_COMMITMENT.logo.src,
     ])
-    expect(byText('LinkedIn')?.getAttribute('href')).toBe('https://www.linkedin.com/company/x')
+    // A new tab, and it says so, seen ("↗") and heard (owner, 2026-10-17; W3C G201).
+    const linkedIn = byText('LinkedIn ↗ (opens in a new tab)')
+    expect(linkedIn?.getAttribute('href')).toBe('https://www.linkedin.com/company/x')
+    expect(linkedIn?.getAttribute('target')).toBe('_blank')
+    expect(linkedIn?.getAttribute('rel')).toBe('noopener')
   })
 
   it('draws the default footer from an API answer cached before the footer joined it', () => {
     const { footer: _dropped, ...older } = settings
     render(<Footer settings={older} />)
     // The facts with no claim (no capacity, standards or links), and the legal row.
-    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn'])
+    expect(headings()).toEqual(['Contact', 'What we make', 'Company', 'Learn', 'Standards'])
     expect(host.textContent).toContain(DEFAULT_SITE_SETTINGS.legalLine)
   })
 

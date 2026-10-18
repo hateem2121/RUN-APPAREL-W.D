@@ -34,7 +34,7 @@ export const LIST_SHOWN = 6
  * not they are on show.
  *
  * ⚠️ A FAMILY WITH NOTHING TO SHOW GOES TO CONTACT (polish F8, the owner's answer Q21). Sports
- * Accessories has no garments and no page: its card says "[ soon ]" and opens Contact as "Ask what
+ * Accessories has no garments and no page: its card says "[ ask us ]" and opens Contact as "Ask what
  * we make →". Its link's name carries those words too, or a screen reader would hear "Sports
  * Accessories" and land on Contact (WCAG 2.2, "Understanding Link Purpose (In Context)", updated 18
  * May 2026).
@@ -63,7 +63,7 @@ export function FamilyCard({
   list?: readonly string[]
   /** The card's place in the row, from 0: an opened card moves the others by it (site.css). */
   index?: number
-  /** No page and no garment yet (`familyIsSoon`): "[ soon ]", and the card opens Contact. */
+  /** No page and no garment yet (`familyIsSoon`): "[ ask us ]", and the card opens Contact. */
   soon?: boolean
   /** How many of the family's garments the site shows. */
   count?: number

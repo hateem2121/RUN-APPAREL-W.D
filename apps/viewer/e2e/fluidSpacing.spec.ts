@@ -20,8 +20,8 @@ const AT: Record<number, { selector: string; property: string }[]> = {
     { selector: '.content', property: 'padding-top' },
     { selector: '.content', property: 'padding-left' },
     { selector: '.content', property: 'row-gap' },
-    // The footer's first block, where its question stood until polish Q42 (2026-10-04).
-    { selector: 'footer.site-footer--no-prompt .site-footer__inner', property: 'padding-top' },
+    // The footer's facts (footer.css, loaded with the page; the prompt's own sheet is lazy).
+    { selector: '.footer-facts', property: 'padding-bottom' },
   ],
   557: [
     { selector: '.stage__inner', property: 'padding-top' },

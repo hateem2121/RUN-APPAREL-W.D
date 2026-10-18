@@ -151,6 +151,85 @@ test.describe('D41 — №01 on the roof photo: every word reads over the bright
   })
 })
 
+/**
+ * The join between the photo hero and №01 (home page audit, 2026-10-17). Two things drew a light
+ * line there: the hero's bottom rule (light in the dark token set) and №01's whole section rising
+ * 24px as it entered, which uncovered the paper page between two dark photos — 24px on a 320x658
+ * phone at load. Read at load and at two points of the rise, with motion ON, since a reduced-motion
+ * run never rises and would pass on the old code.
+ */
+const joinGaps = async (page: Page) => {
+  const out: { at: string; gap: number; rule: string }[] = []
+  for (const share of [null, 0.8, 0.5] as const) {
+    if (share !== null) {
+      await page.evaluate((s) => {
+        const hero = document.querySelector('.site-hero') as HTMLElement
+        const bottom = hero.offsetTop + hero.offsetHeight
+        window.scrollTo({ top: Math.max(0, bottom - window.innerHeight * s), behavior: 'instant' })
+      }, share)
+      // Two frames for the scroll timeline to apply its new progress.
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      )
+    }
+    out.push(
+      await page.evaluate(
+        (at) => {
+          const hero = document.querySelector('.site-hero') as Element
+          const ground = document.querySelector('.about-ground') as Element
+          return {
+            at,
+            gap: ground.getBoundingClientRect().top - hero.getBoundingClientRect().bottom,
+            rule: getComputedStyle(hero).borderBottomWidth,
+          }
+        },
+        share === null ? 'load' : `hero bottom at ${share * 100}% of the screen`,
+      ),
+    )
+  }
+  return out
+}
+
+const openWithMotion = async (page: Page, width: number, height: number) => {
+  await page.setViewportSize({ width, height })
+  await page.goto('/')
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' })
+  await page.goto('/')
+  await page.evaluate(() => document.fonts.ready)
+}
+
+test.describe('№01 meets the hero: no light line, no gap', () => {
+  for (const [width, height] of [
+    [320, 658],
+    [390, 844],
+    [1280, 720],
+  ] as const) {
+    test(`${width}x${height}: the two photos touch at load and while №01 rises`, async ({
+      page,
+    }) => {
+      await openWithMotion(page, width, height)
+      const gaps = await joinGaps(page)
+      for (const read of gaps) {
+        expect(Math.abs(read.gap), `a ${read.gap.toFixed(2)}px gap at ${read.at}`).toBeLessThan(0.5)
+        expect(read.rule, `the hero still draws its bottom rule at ${read.at}`).toBe('0px')
+      }
+    })
+  }
+
+  // NEGATIVE CONTROL: the section rises again, as it did before. Only an engine that runs scroll
+  // timelines can rise at all (Firefox, 2026-10-17, does not), so the control needs one.
+  test('sees the fault: №01 rising as a whole opens a gap', async ({ page }) => {
+    await openWithMotion(page, 320, 658)
+    const rises = await page.evaluate(() => CSS.supports('animation-timeline: view()'))
+    test.skip(!rises, 'this engine runs no scroll timeline, so nothing rises')
+    await page.addStyleTag({
+      content:
+        '.about-ground { animation: site-reveal var(--settle) var(--ease-out-expo) both; animation-timeline: view(); animation-range: entry 0% entry 60%; }',
+    })
+    await expect.poll(async () => (await joinGaps(page))[0]?.gap ?? 0).toBeGreaterThan(1)
+  })
+})
+
 test.describe('D41 — №01 lays out on its photo', () => {
   test('on a computer the words take the left and the figures the right, on one photo', async ({
     page,

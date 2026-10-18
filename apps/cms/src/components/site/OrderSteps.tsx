@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { ORDER_PHASES } from '../../lib/orderProcess'
+import { OrderStagesList } from './OrderStagesList'
 
 /**
  * The order steps as four full-screen stage cards, two steps to a card (owner, option A3,
@@ -26,7 +27,8 @@ import { ORDER_PHASES } from '../../lib/orderProcess'
  * order cannot disagree for a keyboard.
  *
  * A server component: the cards are complete with scripting off, and the stacking is CSS that a
- * browser without it skips (a plain list of the same four cards).
+ * browser without it skips (a plain list of the same four cards). Only the list is a client
+ * component (`OrderStagesList`), to tell the stack each card's height.
  */
 const PHOTOS = new Map(FACTORY_PHOTOS.map((photo) => [photo.slug, photo]))
 
@@ -45,7 +47,7 @@ const STAGES = ORDER_PHASES.map((phase, stage) => {
 
 export function OrderSteps() {
   return (
-    <ol className="order-stages">
+    <OrderStagesList>
       {STAGES.map((phase, stage) => {
         const first = phase.first
         return (
@@ -57,7 +59,8 @@ export function OrderSteps() {
           >
             {/* One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces. */}
             <p className="order-stage__name">{`Stage ${stage + 1} · ${phase.name}`}</p>
-            <ol className="order-stage__steps" start={first}>
+            {/* biome-ignore lint/a11y/noRedundantRoles: iOS VoiceOver reads a list with `list-style: none` as plain text (WebKit bug 304137, December 2025), so the role is said again. */}
+            <ol className="order-stage__steps" role="list" start={first}>
               {phase.steps.map((step, index) => {
                 const number = first + index
                 const photo = PHOTOS.get(step.photo)
@@ -69,7 +72,17 @@ export function OrderSteps() {
                       <span className="order-step__number display display--hero" aria-hidden="true">
                         {String(number).padStart(2, '0')}
                       </span>
-                      <span className={`order-step__actor order-step__actor--${step.actor}`}>
+                      {/*
+                       * Said, not shown: "Step 3, our move" (home page audit, 2026-10-17). The
+                       * pill's bare "You" or "We" told a screen reader nothing about whose turn.
+                       */}
+                      <span className="visually-hidden">
+                        {`Step ${number}, ${step.actor === 'You' ? 'your move' : 'our move'}`}
+                      </span>
+                      <span
+                        className={`order-step__actor order-step__actor--${step.actor}`}
+                        aria-hidden="true"
+                      >
                         {step.actor}
                       </span>
                     </div>
@@ -101,6 +114,6 @@ export function OrderSteps() {
           </li>
         )
       })}
-    </ol>
+    </OrderStagesList>
   )
 }

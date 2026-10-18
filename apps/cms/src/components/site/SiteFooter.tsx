@@ -1,4 +1,5 @@
 import {
+  CLIMATE_COMMITMENT,
   capacityLines,
   formatPhoneForDisplay,
   markBox,
@@ -18,7 +19,7 @@ import { formatAddress } from '../../lib/structuredData'
 import { ConsentLink } from './ConsentLink'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
-import { FooterPrompt, FooterShell } from './FooterPromptGate'
+import { FooterInView } from './FooterInView'
 import { FooterTab } from './FooterTab'
 import { FooterWordmark } from './FooterWordmark'
 
@@ -38,7 +39,9 @@ import { FooterWordmark } from './FooterWordmark'
  *
  * ⚠️ EVERY CLAIM BLOCK IS CONDITIONAL. Capacity, Standards and Elsewhere render only
  * from real values; a blank claim renders no block and never an example. See the
- * comment above the footer fields in SiteSettings.ts.
+ * comment above the footer fields in SiteSettings.ts. The one exception is the company's own
+ * climate commitment (owner, 2026-10-17; `CLIMATE_COMMITMENT`): a real fact, held in code
+ * with its year's badge, so Standards always draws that line and the marks row its badge.
  *
  * ⚠️ THE GARMENT PAGES DRAW THIS FOOTER TOO (visual audit VA-31, 2026-10-02):
  * apps/viewer/src/components/Footer.tsx. The words, links and rules are shared
@@ -54,8 +57,8 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
   const marks = marksFor(f.certifications)
   const words = SITE_FOOTER_WORDS
   /*
-   * ⚠️ WITH BLANK CLAIMS THE FACTS AREA RENDERS ONLY CONTACT AND "WHAT WE MAKE", AND THAT IS THE
-   * CODE BEING RIGHT. (The live footer has all five, from the facts the owner supplied on
+   * ⚠️ WITH BLANK CLAIMS THE FACTS AREA RENDERS ONLY CONTACT, "WHAT WE MAKE" AND THE CLIMATE
+   * COMMITMENT, AND THAT IS THE CODE BEING RIGHT. (The live footer has all five, from the facts the owner supplied on
    * 2026-09-16, scripts/apply-footer-facts.mjs; a fresh database, CI's included, has none.)
    *
    * Audit FA-T-13 reads "a cursor-following footer light beside an empty fact block" — a
@@ -78,10 +81,9 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
    */
 
   return (
-    <FooterShell>
-      <FooterPrompt>
-        <FooterTab label={f.ctaLabel} email={settings.email} />
-      </FooterPrompt>
+    <footer className="site-footer">
+      <FooterInView />
+      <FooterTab label={f.ctaLabel} email={settings.email} />
 
       <div className="site-footer__slab">
         <FooterGlow />
@@ -98,26 +100,28 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
           point of introducing it rather than padding the slab.
         */}
         <div className="site-footer__inner">
-          {/* Not on the home page, whose closing section asks instead (FooterPromptGate.tsx). */}
-          <FooterPrompt>
-            <div className="footer-cta">
-              <div>
-                <p className="footer-eyebrow">{words.eyebrow}</p>
-                <h2 className="footer-q">
-                  {q.head}
-                  <em>{q.last}</em>
-                  {q.tail}
-                </h2>
-                <p className="footer-derisk">{f.ctaSubline}</p>
-                <p className="footer-dim">{f.ctaPromise}</p>
-              </div>
-              <div className="footer-side">
-                <FooterClock hours={hours} />
-              </div>
+          {/*
+            ⚠️ ON EVERY WEBSITE PAGE, THE HOME PAGE INCLUDED (owner, 2026-10-17: "100% identical
+            across the whole website", and keep both: №05's closing ask stays too). From
+            2026-10-16 (#194) the home page left out this question, its tab and its clock.
+          */}
+          <div className="footer-cta">
+            <div>
+              <p className="footer-eyebrow">{words.eyebrow}</p>
+              <h2 className="footer-q">
+                {q.head}
+                <em>{q.last}</em>
+                {q.tail}
+              </h2>
+              <p className="footer-derisk">{f.ctaSubline}</p>
+              <p className="footer-dim">{f.ctaPromise}</p>
             </div>
+            <div className="footer-side">
+              <FooterClock hours={hours} />
+            </div>
+          </div>
 
-            <div className="footer-grow" />
-          </FooterPrompt>
+          <div className="footer-grow" />
 
           <div className="footer-facts">
             <div className="footer-block footer-block--contact">
@@ -196,8 +200,11 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 <ul>
                   {f.socialLinks.map((link) => (
                     <li key={link.url}>
-                      <a href={link.url} rel="noopener">
+                      <a href={link.url} target="_blank" rel="noopener">
                         {link.label}
+                        {/* A new tab, seen and heard (owner, 2026-10-17; W3C G201). */}
+                        <span aria-hidden="true"> ↗</span>
+                        <span className="visually-hidden"> {words.newTab}</span>
                       </a>
                     </li>
                   ))}
@@ -233,43 +240,55 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
              * first choice, "Our supply chain standards", measured 199px — 2.9x the
              * widest heading there, and wrapping at 200% text.
              */}
-            {f.certifications.length > 0 ? (
-              <div className="footer-block footer-block--standards">
-                <h3>{words.standards}</h3>
-                <ul>
-                  {/*
-                   * ⚠️ THE TEXT LINE STAYS WITH THE MARKS (owner's ruling 2026-09-16, kept when
-                   * the owner chose real logos on 2026-09-29, D25). A logo alone says "certified";
-                   * the qualifier says who holds it — the parent, or the suppliers — and SMETA is
-                   * an audit, not a certificate. The marks themselves sit in one row under the
-                   * facts (`footer-marks` below).
-                   */}
-                  {/* Entries with the same holder share a line (X23: two began "Suppliers:"). */}
-                  {standardsLines(f.certifications).map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {marks.length > 0 ? (
-              <div className="footer-marks" role="group" aria-label={words.marks}>
-                {marks.map((logo) => (
-                  // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, and these are already-optimised SVGs of a few KB, which next/image would pass through unchanged (ProductPoster.tsx measures why).
-                  <img
-                    key={logo.slug}
-                    className="footer-logo"
-                    src={logo.src}
-                    // Drawn at one area, not one height (polish X23, `markBox`).
-                    width={markBox(logo).width}
-                    height={markBox(logo).height}
-                    alt={logo.alt}
-                    loading="lazy"
-                    decoding="async"
-                  />
+            {/* Always drawn: the climate commitment's line is the company's own, not the CMS's. */}
+            <div className="footer-block footer-block--standards">
+              <h3>{words.standards}</h3>
+              <ul>
+                {/*
+                 * ⚠️ THE TEXT LINE STAYS WITH THE MARKS (owner's ruling 2026-09-16, kept when
+                 * the owner chose real logos on 2026-09-29, D25). A logo alone says "certified";
+                 * the qualifier says who holds it — the parent, or the suppliers — and SMETA is
+                 * an audit, not a certificate. The marks themselves sit in one row under the
+                 * facts (`footer-marks` below).
+                 */}
+                {/* Entries with the same holder share a line (X23: two began "Suppliers:"). */}
+                {standardsLines(f.certifications).map((line) => (
+                  <li key={line}>{line}</li>
                 ))}
-              </div>
-            ) : null}
+                <li>{CLIMATE_COMMITMENT.line}</li>
+              </ul>
+            </div>
+
+            <div className="footer-marks" role="group" aria-label={words.marks}>
+              {marks.map((logo) => (
+                // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, and these are already-optimised SVGs of a few KB, which next/image would pass through unchanged (ProductPoster.tsx measures why).
+                <img
+                  key={logo.slug}
+                  className="footer-logo"
+                  src={logo.src}
+                  // Drawn at one area, not one height (polish X23, `markBox`).
+                  width={markBox(logo).width}
+                  height={markBox(logo).height}
+                  alt={logo.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ))}
+              {/* The company's own climate commitment, last, a link to where a buyer can check it
+                  (`CLIMATE_COMMITMENT`, packages/shared/src/standardsLogos.ts). */}
+              <a className="footer-commitment" href={CLIMATE_COMMITMENT.href} rel="noopener">
+                {/* biome-ignore lint/performance/noImgElement: as the marks above. */}
+                <img
+                  className="footer-logo"
+                  src={CLIMATE_COMMITMENT.logo.src}
+                  width={CLIMATE_COMMITMENT.logo.width}
+                  height={CLIMATE_COMMITMENT.logo.height}
+                  alt={CLIMATE_COMMITMENT.logo.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </a>
+            </div>
           </div>
 
           {/*
@@ -301,6 +320,6 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 
         <FooterWordmark text={settings.temporaryWordmark} />
       </div>
-    </FooterShell>
+    </footer>
   )
 }

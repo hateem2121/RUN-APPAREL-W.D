@@ -2690,6 +2690,22 @@ a.contact-block__value:active {
   margin: 0;
 }
 
+/* The count-up: the final figure holds its room, the roll is drawn over it (CountUp.tsx says why). */
+.count-up {
+  position: relative;
+}
+
+.count-up__room {
+  visibility: hidden;
+}
+
+.count-up__roll {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  white-space: nowrap;
+}
+
 .fact__label {
   margin: 8px 0 0;
   margin-inline-start: 0;
@@ -3209,7 +3225,7 @@ a.contact-block__value:active {
  * page, the only list of its garments (Q24). The jump bar above leads to each group, and a jump
  * lands its heading below the bar (`html { scroll-padding-top }`). A family's count sits beside
  * its heading where there is room and under it where there is not; Sports Accessories, with no
- * page and no garments yet, shows "[ soon ]" and the way to ask instead (Q21).
+ * page and no garments yet, shows "[ ask us ]" and the way to ask instead (Q21).
  */
 /*
  * ⚠️ EVERY GROUP IS DRAWN, ON PURPOSE (11 Oct 2026). Polish S9 (5 Oct) skipped drawing each group
@@ -4131,6 +4147,14 @@ a.contact-block__value:active {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--paper) 55%, transparent);
 }
 
+/* A dot under the pointer takes the chosen dot's ring, as a preview (home page audit, 2026-10-17:
+   the pills had no hover look of their own). */
+@media (hover: hover) and (pointer: fine) {
+  .proof__pill:hover i {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--paper) 55%, transparent);
+  }
+}
+
 /*
  * The phone's narrower dot (above), after the rules it changes, which it outranks only by coming
  * later: written beside `--pill-dot` it lost to them, and the dots stayed 32px and were cut (2026-10-16).
@@ -4285,6 +4309,34 @@ a.contact-block__value:active {
   border: 1px solid var(--line);
 }
 
+/*
+ * №03's colour change with the 3D off: the old picture stays underneath while the new one fades in
+ * over it (ProofShowcase.tsx, `useArrivingStill`; home page audit, 2026-10-17: the box stood empty
+ * for 0.4–1.2 s). The fade runs only while the model is not shown: an animation's opacity would win
+ * over the rule that hides the still under a shown model, and flash the picture behind the garment.
+ * Reduced motion makes it instant (base.css).
+ */
+.proof__frame > [data-still="leaving"] {
+  position: absolute;
+  inset: 0;
+}
+
+.proof__frame > [data-still="arriving"] {
+  position: relative;
+}
+
+.proof__figure:not(:has(.live-garment[data-phase="shown"]))
+  .proof__frame
+  > [data-still="arriving"] {
+  animation: proof-still-in var(--ui) var(--ease) both;
+}
+
+@keyframes proof-still-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .proof__caption {
   margin-block-start: 10px;
   font-family: var(--font-mono);
@@ -4399,6 +4451,17 @@ a.contact-block__value:active {
 
 .site-hero--photo {
   background: var(--bg);
+}
+
+/*
+ * ⚠️ NO HAIRLINE WHERE TWO DARK PHOTOS MEET (home page audit, 2026-10-17). `.site-hero`'s bottom
+ * border is `--line`, which this dark token set makes a light rgba(236,235,228,.18): drawn between
+ * the photo hero and №01's photo ground it was one row of pixels lighter than both photos (read off
+ * the live page at 1440x900, rgb(65,67,60) between (54,32,24) and (41,46,42)). Only where №01
+ * follows; on /contact, /about and /products the photo hero meets paper and keeps its rule.
+ */
+.site-hero--photo:has(+ .about-ground) {
+  border-bottom: 0;
 }
 
 .site-hero__photo {
@@ -4717,8 +4780,14 @@ a.contact-block__value:active {
   object-fit: contain;
 }
 
-/* The other colour: only the row's opened card shows it. */
+/*
+ * The other colour: only the row's opened card shows it, so everywhere else it is not drawn at all.
+ * ⚠️ `display: none`, not only `opacity: 0` (home page audit, 2026-10-17): a lazy picture that is
+ * drawn, however transparent, is fetched, and a Pixel 7 downloaded all four (101 KB) for cards that
+ * never open on a phone. Not drawn, a lazy picture is never fetched; the row turns it back on below.
+ */
 .family-card__img--open {
+  display: none;
   opacity: 0;
 }
 
@@ -4897,6 +4966,11 @@ a.contact-block__value:active {
  * `--open` is the opened card's place; `.family-grid` is the container the widths are measured in.
  */
 @media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  /* The row is the one place a card opens, so the other colour is drawn here only (above). */
+  .family-card__img--open {
+    display: block;
+  }
+
   .family-grid:has(
     > .family-card:nth-child(1):hover:not([data-dismissed]),
     > .family-card:nth-child(1):not([data-dismissed]) .family-card__link:focus-visible
@@ -5073,20 +5147,29 @@ a.contact-block__value:active {
     margin: 0;
   }
 
-  /* Open: the card in place, its sheet and words shown, the other colour, the garment's name. */
+  /*
+   * Open: the card in place, its sheet and words shown, the other colour, the garment's name.
+   *
+   * ⚠️ NO PAUSE, AND THE STEPS OVERLAP (home page audit, 2026-10-17; owner chose "remove the pause").
+   * Opening waited `--instant` (120 ms, polish #128, "so a pointer crossing the row opens nothing"),
+   * then slid the sheet for `--ui` and only THEN faded the words in for `--fast`: the words were
+   * whole about 540 ms after the pointer arrived, while closing took about 220 ms, so the card felt
+   * stiff. Now the sheet, the words' slide and the other cards' step back start at once, and the
+   * words fade in a third of the way through the slide: whole after about 275 ms. The sheet keeps its
+   * `clip-path`: the audit measured no dropped frame opening a card, and a scaled sheet would stretch
+   * its rounded corners mid-move.
+   */
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed]) {
     z-index: var(--z-card-open);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::before {
     clip-path: inset(0);
-    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__more {
     translate: none;
-    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
@@ -5094,7 +5177,7 @@ a.contact-block__value:active {
     > * {
     opacity: 1;
     pointer-events: auto;
-    transition-delay: calc(var(--instant) + var(--ui));
+    transition-delay: calc(var(--ui) / 3);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
@@ -5107,7 +5190,6 @@ a.contact-block__value:active {
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__garment {
     opacity: 1;
-    transition-delay: var(--instant);
   }
 
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
@@ -5115,7 +5197,6 @@ a.contact-block__value:active {
   .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
     .family-card__stub:has(+ .family-card__garment) {
     opacity: 0;
-    transition-delay: var(--instant);
   }
 
   /*
@@ -5131,7 +5212,6 @@ a.contact-block__value:active {
     --after: clamp(0, var(--card, 0) - var(--open), 1);
     transform: translateX(calc(var(--card-w) * (var(--after) * 1.5 - var(--card, 0) * 0.3)))
       scale(0.7);
-    transition-delay: var(--instant);
   }
 
   .family-grid:has(
@@ -5150,13 +5230,6 @@ a.contact-block__value:active {
     .family-card__media {
     opacity: 0.62;
     filter: saturate(0.55);
-    transition-delay: var(--instant);
-  }
-
-  /* A keyboard opens at once: the pause is for a pointer crossing the row. */
-  .family-grid:has(.family-card__link:focus-visible) > .family-card,
-  .family-grid:has(.family-card__link:focus-visible) .family-card * {
-    transition-delay: 0s;
   }
 }
 
@@ -5310,12 +5383,25 @@ a.contact-block__value:active {
  * `cqi`, the list's own width: a custom property is worked out where it is USED, so `100%` there
  * meant the step's half, and the words sat 160px off the heading's edge at 1920px (measured).
  *
- * `--stage-h` is a card's height: the screen under the bar, less room for the three cards before
- * it to show 8px each and 8px below, so the fourth card's foot is still on the screen when it stops.
- * svh, the screen with the browser's bars shown, so a phone's bar sliding in hides nothing.
+ * ⚠️ A STOPPED CARD FILLS THE SCREEN, TOP EDGE TO FOOT, AND THE BAR FLOATS OVER IT (home page
+ * audit, 2026-10-17; the owner: no blank space, said many times). The bar is a notch in the
+ * middle of the top edge, not a band across it, so a card that stopped at the bar's foot left the
+ * pale page showing on both sides of the bar: about 30px of it until this branch (84px down), and
+ * still 52px in this branch's first build, which stopped the cards at the bar's foot. So a stopped
+ * card starts at the screen's top edge, and `--card-lead` (the bar's room) moves its pill, its
+ * numbers and its darkened top down by exactly the bar, where they were; the photo fills the rest.
+ * `--stage-top` is the bar's foot once it has condensed (`notch-condense`: 4px of padding, 52px
+ * at one row), since the bar has always condensed by the time №04 is on screen. Where the bar never
+ * condenses (no scroll timeline), it is the bar's own height.
+ *
+ * `--card-lead` is 0 in the plain list (reduced motion), where no card stops under the bar.
+ * `--stage-h` is the list's card height there: the screen under the bar. svh, the screen with the
+ * browser's bars shown, so a phone's bar sliding in hides nothing.
  */
 .order-stages {
-  --stage-h: calc(100svh - var(--notch-clearance) - 4 * 8px);
+  --stage-top: calc(var(--notch-h) - 2 * (var(--notch-pad-y) - 4px));
+  --stage-h: calc(100svh - var(--stage-top));
+  --card-lead: 0px;
   --stage-edge: max(var(--site-gutter), calc((100cqi - var(--site-max)) / 2 + var(--site-gutter)));
   container-type: inline-size;
   display: grid;
@@ -5336,7 +5422,7 @@ a.contact-block__value:active {
 .order-stage__name {
   position: absolute;
   z-index: var(--z-stage-name);
-  top: 18px;
+  top: calc(var(--card-lead) + 18px);
   left: var(--stage-edge);
   margin: 0;
   padding: 6px 12px;
@@ -5380,7 +5466,7 @@ a.contact-block__value:active {
 
 /* Under the stage's pill, on the first step: the pill's 18px, its height and 18px under it. */
 .order-stage__steps > .order-step:first-child {
-  padding-block-start: 64px;
+  padding-block-start: calc(var(--card-lead) + 64px);
 }
 
 .order-stage__steps > .order-step + .order-step {
@@ -5403,7 +5489,7 @@ a.contact-block__value:active {
     --pad-end: var(--site-gutter);
     grid-row: 1 / -1;
     grid-template-rows: subgrid;
-    padding-block-start: 64px;
+    padding-block-start: calc(var(--card-lead) + 64px);
   }
 
   /* Two classes: the plain rule further down would win otherwise. */
@@ -5445,8 +5531,8 @@ a.contact-block__value:active {
   background: linear-gradient(
     to bottom,
     color-mix(in srgb, var(--bg) 70%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 70%, transparent) calc(64px + 4.5rem),
-    transparent max(40%, calc(64px + 4.5rem + 64px))
+    color-mix(in srgb, var(--bg) 70%, transparent) calc(var(--card-lead) + 64px + 4.5rem),
+    transparent max(40%, calc(var(--card-lead) + 64px + 4.5rem + 64px))
   );
   pointer-events: none;
 }
@@ -5543,36 +5629,48 @@ a.contact-block__value:active {
   }
 }
 
+@supports not (animation-timeline: scroll()) {
+  .order-stages {
+    --stage-top: var(--notch-h);
+  }
+}
+
 /*
- * ⚠️ THE STACK, ONLY FOR SOMEONE WHO ALLOWS MOTION, AND ONLY ON A SCREEN TALL ENOUGH TO HOLD IT.
- * Under reduced motion the cards are a plain list, as the eight were (polish D4). And a card that
- * stops with its foot below the screen hides its words for good, because the next card covers it
- * from the foot up, so the stack needs the fullest card to fit. Measured in the build (2026-10-16,
- * cards with nothing forcing their height): the fullest needs 666px at 360px wide, 626px at 375–390px, 601px at
- * 768px and at most 408px from 900px, and a screen gives it its height less the bar's clearance
- * (84px) and 32px. So from 900px a 40rem screen (640px) holds the stack, and below 900px it takes
- * 50rem (800px; 782px would be the bare minimum, and a phone's own bars can take some of it from
- * `svh`): a 390 × 844 phone stacks, a 360 × 780 or 375 × 667 one is a list. rem in a media query follows the
- * reader's text size, so larger text turns the stack off before it could hide anything. Here, and
- * only here, a card is exactly the screen's height.
+ * ⚠️ THE STACK, FOR SOMEONE WHO ALLOWS MOTION, ON EVERY SCREEN (the owner, 2026-10-17: "stack on
+ * all phones"). Under reduced motion the cards are a plain list, as the eight were (polish D4).
  *
- * Card i stops at the bar's clearance plus 8px for each card before it, so each card's top edge
- * stays in sight under the next. The last card's room to stop is an empty row of the list, not a
- * margin: a stopped card may not leave its list, margin and all (measured 2026-10-05).
+ * Card i stops 8px below the card before it, from the screen's top edge (the bar floats over the
+ * cards, above), so each card's top edge stays in sight under the next, and is the screen's height
+ * less its stop, so every card's foot is the screen's foot.
+ *
+ * ⚠️ A CARD TALLER THAN THAT SCROLLS UNTIL ITS FOOT SHOWS, THEN STOPS (the owner's "scroll, then
+ * stop"). A card that stops with its foot below the screen hides its last words for good, because
+ * the next card covers it from the foot up. The fullest card needs 626px at 375–390px wide and 666px
+ * at 360px (measured 2026-10-16), more than an iPhone in Safari has under the bar, so until this the
+ * stack was off below an 800px screen and no iPhone stacked (#197). Now its height may grow, and
+ * `--stage-fit`, the height `OrderStagesList.tsx` measures, moves its stop up to `100svh` less it.
+ * Without scripting, `--stage-fit` is unset and the card stops at its place at the top.
+ *
+ * ⚠️ EACH CARD RESTS A THIRD OF A SCREEN (the owner, 2026-10-17). The gap between cards is the
+ * scroll over which a stopped card is wholly on the screen before the next one's edge comes up
+ * over its foot. It was 24px, and at 1440 × 900 the next card covered the last line a buyer was
+ * still reading (home page audit, 2026-10-17). The last card's rest is the empty row after it, not
+ * a margin: a stopped card may not leave its list, margin and all (measured 2026-10-05).
  */
-@media screen and (prefers-reduced-motion: no-preference) and (min-width: 900px) and (
-    min-height: 40rem
-  ),
-  screen and (prefers-reduced-motion: no-preference) and (min-height: 50rem) {
+@media screen and (prefers-reduced-motion: no-preference) {
+  .order-stages {
+    --card-lead: var(--stage-top);
+    row-gap: calc(100svh / 3);
+  }
+
   .order-stages > .order-stage {
     position: sticky;
-    top: calc(var(--notch-clearance) + var(--i) * 8px);
-    block-size: var(--stage-h);
+    top: min(calc(var(--i) * 8px), calc(100svh - var(--stage-fit, 0px)));
+    min-block-size: calc(100svh - var(--i) * 8px);
   }
 
   .order-stages::after {
     content: "";
-    block-size: 24px;
   }
 }
 
@@ -5681,9 +5779,10 @@ a.contact-block__value:active {
 
 /*
  * The ticket cards rise into place as they scroll in (polish MO4, 2026-10-05: "give the new cards
- * and steps the same scroll-linked feel"). The order steps already move with the scroll (their
- * sink, "the order steps" above); a rise on a card the stack holds in place would move a card whose
- * position that arithmetic sets exactly, so the steps take nothing more.
+ * and steps the same scroll-linked feel"). The order steps already move with the scroll (they
+ * stack, "№04 how an order works" above; the sink that once darkened them went with D42); a rise
+ * on a card the stack holds in place would move a card whose position that arithmetic sets
+ * exactly, so the steps take nothing more.
  *
  * The same contract as `site-reveal`: scroll-driven CSS and no script, so a browser without scroll
  * timelines (Firefox, 5 Oct 2026) and a page without JavaScript show every card in place; no
@@ -5797,6 +5896,60 @@ a.contact-block__value:active {
   height: 100%;
   background: transparent;
   --progress-bar-color: var(--dimension);
+}
+
+/*
+ * The strips down each side that scroll the page on a touch screen (LiveGarment.tsx says why):
+ * over the garment's edges, a thumb wide, and nothing to see. A mouse screen has none, so every
+ * part of the garment turns it there.
+ */
+.live-garment__scroll {
+  display: none;
+  position: absolute;
+  inset-block: 0;
+  inline-size: var(--target-min);
+  touch-action: pan-y;
+}
+
+.live-garment__scroll--start {
+  inset-inline-start: 0;
+}
+
+.live-garment__scroll--end {
+  inset-inline-end: 0;
+}
+
+@media (pointer: coarse) {
+  .live-garment__scroll {
+    display: block;
+  }
+}
+
+/*
+ * Zoom is on (a click on the garment, owner 2026-10-17; LiveGarment.tsx): the frame's own line turns
+ * to the control line, so the visitor sees the garment is now theirs to zoom, and the page's wheel is
+ * back the moment it goes.
+ */
+.live-garment[data-zoom] {
+  outline: 1px solid var(--line-control);
+  outline-offset: -1px;
+}
+
+/*
+ * The old colour's picture over a colour change (LiveGarment.tsx, the cross-fade; owner, 2026-10-17):
+ * exactly the canvas's box, never in the way of a press, fading on `--ui`.
+ */
+.live-garment__fade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transition: opacity var(--ui) var(--ease);
+}
+
+.live-garment__fade[data-going] {
+  opacity: 0;
 }
 
 .live-garment__offer {
@@ -7636,18 +7789,10 @@ a.contact-block__value:active {
 }
 
 /*
- * ⚠️ THE WEBSITE'S FOOTER TAKES FOUR COLUMNS FROM A TABLET (2026-10-07). With the Learn group a
- * seventh block, three columns put Learn alone on a new row, and the slab that must stay one
- * screen tall from 768px (LA-13) ran 3px over at 1024px while its quiet band fell to 28px at 768
- * (D7 keeps it 100px or more; e2e/footer.spec.ts). Four columns set the link groups in one row and
- * the claims in the next. Website only: the garment pages' footer has no one-screen rule, and its
- * stylesheet sits at its budget.
+ * The footer's four tablet columns and its one-screen fit live in packages/ui/src/footer.css and
+ * footer-prompt.css since 2026-10-17 (the owner: the footer identical on every page, Q11); they
+ * were the website's only until then.
  */
-@media (min-width: 720px) and (max-width: 1279px) {
-  .footer-facts {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
 
 /*
  * ------------------------------------------------ the Journal and the case studies (2026-10-07)

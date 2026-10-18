@@ -90,17 +90,24 @@ test.describe('the row of five, from 1440px where a pointer can hover (D3; D44)'
     expect(await sideways(page), 'the closed cards’ words push the page sideways').toBe(0)
   })
 
-  test('a resting pointer opens one, after a pause; the others step back and their pictures fade', async ({
+  test('a resting pointer opens one at once; the others step back and their pictures fade', async ({
     page,
   }) => {
     await openRow(page, 1440, true)
     const second = cards(page).nth(1)
     await restOn(page, second)
     await expect.poll(() => isOpen(second)).toBe(true)
-    // The pause before opening, none before closing (the version 2 demo's asymmetry).
-    expect(await second.evaluate((card) => getComputedStyle(card).transitionDelay)).toContain(
+    // No pause before opening (home page audit, 2026-10-17; the owner removed polish #128's 120 ms):
+    // the card moves at once, and its words fade in a third of the way into the sheet's slide.
+    expect(await second.evaluate((card) => getComputedStyle(card).transitionDelay)).not.toContain(
       '0.12s',
     )
+    const wordsDelay = await second
+      .locator('.family-card__more > *')
+      .first()
+      .evaluate((words) => Number.parseFloat(getComputedStyle(words).transitionDelay))
+    expect(wordsDelay, 'the words wait for the whole slide again').toBeLessThan(0.1)
+    expect(wordsDelay, 'the words no longer overlap the slide').toBeGreaterThan(0)
     // The others are drawn at 0.7, their pictures faded, their names at full strength.
     const first = cards(page).first()
     await expect
@@ -215,9 +222,6 @@ test.describe('the row of five, from 1440px where a pointer can hover (D3; D44)'
     expect(await isOpen(second)).toBe(true)
     await page.mouse.move(2, 2)
     await expect.poll(() => isOpen(second)).toBe(false)
-    expect(await second.evaluate((card) => getComputedStyle(card).transitionDelay)).not.toContain(
-      '0.12s',
-    )
   })
 
   test('a click on the picture opens the family’s page: the title’s link covers the card', async ({
@@ -383,6 +387,47 @@ test.describe('everywhere else, the sideways card (M1; D44)', () => {
     await expect(first.locator('.family-card__desc')).toBeVisible()
     await expect(first.locator('.family-card__list')).toBeVisible()
     expect(await sideways(page)).toBe(0)
+  })
+
+  /*
+   * Home page audit, 2026-10-17: a Pixel 7 downloaded the four "other colour" pictures (101 KB) that
+   * only the row's opened card ever shows. Every request is watched from the first byte while the
+   * page is scrolled past the cards; none may be for an other-colour picture. The control: the row
+   * of five draws them (display: block, fetched once the row is in view), so this check can see one.
+   */
+  test('a phone never downloads the other-colour pictures; the row of five does', async ({
+    page,
+  }) => {
+    const requested: string[] = []
+    page.on('request', (request) => {
+      if (request.resourceType() === 'image') requested.push(request.url())
+    })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    // Every address a picture may be fetched from: the browser picks one size from `srcset`, and the
+    // first version of this check watched `src` alone, so it could not see the fetch it was for.
+    // Split on ", " only: the resize addresses carry bare commas (`fit=scale-down,width=400`), and
+    // `cardImage.ts` joins the sizes with a comma and a space.
+    const addresses = (images: HTMLImageElement[]) =>
+      images.flatMap((image) => [
+        image.getAttribute('src') ?? '',
+        ...(image.getAttribute('srcset') ?? '')
+          .split(/,\s+/)
+          .map((candidate) => candidate.trim().split(/\s+/)[0] ?? ''),
+      ])
+    const others = (await page.locator('.family-card__img--open').evaluateAll(addresses)).filter(
+      Boolean,
+    )
+    test.skip(others.length === 0, 'no family here shows a second colour')
+    await page.locator('.family-grid').scrollIntoViewIfNeeded()
+    await page.locator('.proof').scrollIntoViewIfNeeded()
+    await page.waitForTimeout(800)
+    const fetched = (address: string) => requested.some((url) => url.includes(address))
+    expect(others.filter(fetched), 'other-colour pictures fetched on a phone').toEqual([])
+
+    // The control, in the row of five, where they are drawn and so fetched.
+    await openRow(page, 1440, false)
+    await expect.poll(() => others.some(fetched), 'the row of five fetched none').toBe(true)
   })
 
   // Its own context: Firefox refuses a mobile one before a test could skip itself.

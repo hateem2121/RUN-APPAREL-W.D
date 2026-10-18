@@ -452,6 +452,86 @@ test.describe('the menu closes itself when the page moves on', () => {
     await expect(page.locator(OPEN), 'the menu stayed open over the next page').toHaveCount(0)
   })
 
+  test('a tap on the link to the page you are already on closes it (audit 2026-10-17)', async ({
+    page,
+  }) => {
+    /*
+     * ⚠️ WOULD FAIL ON THE CODE BEFORE THIS CHANGE. NavLinks closed the menu in an effect keyed
+     * on `usePathname()`, and "Products" on /products changes no path: the effect never ran,
+     * and a tap INSIDE a popover is not a tap outside it, so the menu stayed open over the page
+     * the visitor had just chosen (live, Pixel 7 emulation). The test above navigates, so it
+     * could not see this; this one must not.
+     */
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/products')
+    await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    await menuLanded(page)
+    await page.locator(`${MENU} a`, { hasText: 'Products' }).click()
+    await expect(page.locator(OPEN), 'a tap on the page you are on left the menu open').toHaveCount(
+      0,
+    )
+    await expect(page, 'the tap moved the visitor off the page it named').toHaveURL(/\/products$/)
+    // and the page is not left held behind a menu that is gone
+    const overflow = await page.evaluate(() => [
+      getComputedStyle(document.documentElement).overflowY,
+      getComputedStyle(document.body).overflowY,
+    ])
+    expect(overflow, 'the page was left held after the tap').not.toContain('hidden')
+  })
+
+  test('Tab past the last item closes it and does not hold the page (audit 2026-10-17)', async ({
+    page,
+    browserName,
+  }) => {
+    /*
+     * ⚠️ WOULD FAIL ON THE CODE BEFORE THIS CHANGE. A `popover="auto"` is not modal, so Tab off
+     * the theme switch (the last item) walked focus into the page behind while the menu stayed
+     * open over a held, dimmed page: the visitor was focused on something they could not see.
+     * Nothing closed it, because moving focus is not one of a popover's light-dismiss triggers.
+     * The end state is also checked for where focus went: a close made inside `focusout` can
+     * hand focus back to the button and swallow the Tab, and that would pass the first line.
+     */
+    test.skip(
+      browserName === 'webkit',
+      'WebKit leaves links and buttons out of the Tab order unless a Safari preference is on; Chromium and Firefox cover this',
+    )
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto('/')
+    const button = page.getByRole('button', { name: SITE_MENU_NAME, exact: true })
+    await button.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator(OPEN)).toHaveCount(1)
+    await menuLanded(page)
+    // The way a keyboard visitor gets here: down the list with Tab, to its last control.
+    const links = await page.locator(`${MENU} a`).count()
+    for (let step = 0; step < links + 1; step++) await page.keyboard.press('Tab')
+    await expect(
+      page.locator(`${MENU} button`),
+      'the walk did not end on the theme switch, the last item',
+    ).toBeFocused()
+    await expect(page.locator(OPEN), 'walking the list itself must not close it').toHaveCount(1)
+
+    await page.keyboard.press('Tab')
+    await expect(page.locator(OPEN), 'Tab out of the menu left it open').toHaveCount(0)
+    const focus = await page.evaluate(() => {
+      const active = document.activeElement
+      return {
+        tag: active?.tagName ?? '',
+        inMenu: Boolean(active?.closest('.notch__menu')),
+        onButton: Boolean(active?.closest('.notch__menu-btn')),
+      }
+    })
+    expect(focus.inMenu, 'focus is still inside the closed menu').toBe(false)
+    expect(focus.onButton, 'the close handed focus back to the button and ate the Tab').toBe(false)
+    expect(focus.tag, 'focus fell to nowhere').not.toBe('BODY')
+    const overflow = await page.evaluate(() => [
+      getComputedStyle(document.documentElement).overflowY,
+      getComputedStyle(document.body).overflowY,
+    ])
+    expect(overflow, 'the page was left held after the menu closed').not.toContain('hidden')
+  })
+
   /**
    * SC-11: the page is never left scroll-locked after the menu. The menu is the browser's
    * own popover and locks nothing today; this guards the visitor's side of it, so a later

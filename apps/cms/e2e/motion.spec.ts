@@ -778,8 +778,54 @@ test.describe('№05 — the numbers count up, and only when they may', () => {
     await expect(page.locator(`${feature} number-flow-react`)).toHaveCount(1, { timeout: 3000 })
     // A screen reader is told the final figure, never a digit mid-roll.
     await expect(page.locator(`${feature} .visually-hidden`)).toHaveText('100,000')
-    await expect(page.locator(`${feature} [aria-hidden="true"]`)).toHaveCount(1)
+    // The rolling digits and the room the final figure holds, both hidden from it.
+    await expect(page.locator(`${feature} > [aria-hidden="true"]`)).toHaveCount(2)
+    await expect(page.locator(`${feature} .count-up__room`)).toHaveText('100,000')
   })
+
+  /*
+   * Home page audit, 2026-10-17: as the figures rolled, they changed size and pushed №05's slab
+   * down, a layout shift of 0.057 on a phone. Every shift from the moment the figures are in view
+   * until the roll has ended is added up; the figures and the slab under them must not move.
+   */
+  for (const [width, height] of [
+    [390, 844],
+    [1440, 900],
+  ] as const) {
+    test(`at ${width}px the roll moves nothing on the page`, async ({ page, browserName }) => {
+      test.skip(browserName !== 'chromium', 'only Chromium reports layout shifts')
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false })
+      })
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+      await page.setViewportSize({ width, height })
+      await page.goto('/')
+      await page.evaluate(() => {
+        const w = window as unknown as { __shift: number }
+        w.__shift = 0
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as (PerformanceEntry & {
+            value: number
+            hadRecentInput: boolean
+            sources?: { node?: Node | null }[]
+          })[]) {
+            const inFacts = (entry.sources ?? []).some((source) =>
+              (source.node as Element | null)?.closest?.('.works-slab, .facts-grid, .fact'),
+            )
+            if (!entry.hadRecentInput && inFacts) w.__shift += entry.value
+          }
+        }).observe({ type: 'layout-shift' })
+      })
+      await page.evaluate(() =>
+        document.querySelector('.facts-grid')?.scrollIntoView({ block: 'center' }),
+      )
+      // The roll ran (the control), then its 1.4s ended.
+      await expect(page.locator(`${feature} number-flow-react`)).toHaveCount(1, { timeout: 3000 })
+      await page.waitForTimeout(2000)
+      const shift = await page.evaluate(() => (window as unknown as { __shift: number }).__shift)
+      expect(shift, 'the count-up moved the figures or the slab under them').toBeLessThan(0.001)
+    })
+  }
 })
 
 /**

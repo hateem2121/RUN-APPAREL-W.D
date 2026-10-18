@@ -7,7 +7,6 @@ import { AboutSection } from './components/site/AboutSection'
 import { GuidePage } from './components/site/GuidePage'
 import { OrderSteps } from './components/site/OrderSteps'
 import { OrderTimeline } from './components/site/OrderTimeline'
-import { FACTORY_PAGE } from './lib/aboutPages'
 import { FACTORY_PHOTOS, factoryPhotoWidths } from './lib/factoryPhotos'
 import { guideAt } from './lib/guides'
 import { ORDER_PHASES } from './lib/orderProcess'
@@ -47,7 +46,8 @@ const CHOSEN = [
   ['Your sample', 'screen-printing'],
   // "Approval" since 2026-10-15 (owner); "You approve" until then.
   ['Approval', 'inspection'],
-  ['Bulk production', 'stitching'],
+  // The front of the works since 2026-10-17 (owner): the hero already shows the stitching floor.
+  ['Bulk production', 'exterior'],
   ['Checked', 'final-check'],
   ['Packed and shipped', 'packing'],
   ['Your order arrives', 'tagging'],
@@ -125,7 +125,9 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
     expect(stages).toHaveLength(4)
     expect(cards).toHaveLength(8)
     expect(
-      [...stepsHtml.matchAll(/<ol class="order-stage__steps" start="(\d+)"/g)].map((m) => m[1]),
+      [...stepsHtml.matchAll(/<ol class="order-stage__steps" role="list" start="(\d+)"/g)].map(
+        (m) => m[1],
+      ),
     ).toEqual(['1', '3', '5', '7'])
     for (const [index, stage] of stages.entries()) {
       expect(stage.split(/<li class="order-step"/).length - 1, `stage ${index + 1}`).toBe(2)
@@ -211,7 +213,12 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
   it('names each stage once, marks whose move each step is (decision D23), and numbers it for the eye only', () => {
     const names = [...stepsHtml.matchAll(/order-stage__name">([^<]*)</g)].map((match) => match[1])
     expect(names).toEqual(ORDER_PHASES.map((phase, index) => `Stage ${index + 1} · ${phase.name}`))
-    const actors = [...stepsHtml.matchAll(/order-step__actor order-step__actor--(\w+)">(\w+)</g)]
+    // The pill is for the eye; a screen reader hears the hidden words below instead.
+    const actors = [
+      ...stepsHtml.matchAll(
+        /order-step__actor order-step__actor--(\w+)" aria-hidden="true">(\w+)</g,
+      ),
+    ]
     expect(actors.map((match) => match[1])).toEqual(steps.map((step) => step.actor))
     expect(actors.map((match) => match[2])).toEqual(steps.map((step) => step.actor))
     const numbers = [
@@ -222,6 +229,67 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
     )
     // The drawn line went with the timeline it ran down (polish D4).
     expect(timelineHtml).not.toContain('timeline__line')
+  })
+
+  /*
+   * Home page audit, 2026-10-17: a screen reader heard a bare "You" or "We" beside each step, and
+   * iOS VoiceOver reads a list without bullets as plain text (WebKit bug 304137), so the order's
+   * steps were not a list there at all. Each step now says "Step 3, our move", and both lists say
+   * their role.
+   */
+  it('says each step and whose move it is to a screen reader, and both lists say they are lists', () => {
+    const said = [...stepsHtml.matchAll(/<span class="visually-hidden">([^<]*)</g)].map(
+      (match) => match[1],
+    )
+    expect(said).toEqual(
+      steps.map(
+        (step, index) => `Step ${index + 1}, ${step.actor === 'You' ? 'your move' : 'our move'}`,
+      ),
+    )
+    // Both kinds of mover appear, so the two wordings are each checked at least once.
+    expect(new Set(said.map((words) => words?.split(', ')[1]))).toEqual(
+      new Set(['your move', 'our move']),
+    )
+    expect(stepsHtml).toMatch(/<ol class="order-stages" role="list"/)
+    expect(stepsHtml.match(/<ol class="order-stage__steps" role="list"/g)).toHaveLength(4)
+  })
+})
+
+/*
+ * Home page audit, 2026-10-17: the section around the cards rose in on scroll, and a stopped card
+ * moves with a moved ancestor, so the first stopped card drifted under the bar. The heading rises
+ * instead, on the home page and on the guide. What would have to break: `data-site-reveal` back on
+ * the section, or on any element the cards sit inside.
+ */
+describe('nothing the stage cards sit in rises in on scroll', () => {
+  const wrappers = (html: string) => {
+    const at = html.indexOf('<ol class="order-stages"')
+    expect(at, 'the cards are not on the page').toBeGreaterThan(0)
+    // Every element opened before the cards and not yet closed is one they sit in.
+    const open: string[] = []
+    for (const tag of html.slice(0, at).matchAll(/<(\/?)([a-z0-9]+)([^>]*?)(\/?)>/g)) {
+      if (tag[4] === '/' || /^(img|br|hr|input|meta|link)$/.test(tag[2] ?? '')) continue
+      if (tag[1] === '/') open.pop()
+      else open.push(tag[3] ?? '')
+    }
+    return open
+  }
+
+  it('on the home page and on the guide', () => {
+    for (const [page, html] of [
+      ['home', timelineHtml],
+      ['guide', guideHtml],
+    ] as const) {
+      const around = wrappers(html)
+      expect(around.length, `${page}: no element around the cards`).toBeGreaterThan(0)
+      expect(
+        around.filter((attributes) => attributes.includes('data-site-reveal')),
+        `${page}: the cards sit inside an element that rises in`,
+      ).toEqual([])
+    }
+    // The control: the heading still rises in on both.
+    expect(timelineHtml).toMatch(/<div class="site-container" data-site-reveal/)
+    expect(guideHtml).toMatch(/<div class="site-container prose prose--guide" data-site-reveal/)
   })
 })
 
@@ -259,14 +327,14 @@ describe('no photo appears twice on the home page (VA-34)', () => {
     expect(duplicates(slugs.filter((slug): slug is string => slug !== null))).toEqual([])
   })
 
-  it('uses every photo but the front of the building once, and the factory page keeps that one', () => {
+  // The stitching floor is the hero's photo, so №04 shows the front of the works instead (owner,
+  // 2026-10-17); until then the front of the building was the one left out.
+  it('uses every photo but the stitching floor once, and the hero keeps that one', () => {
     expect([...slugs].sort()).toEqual(
       FACTORY_PHOTOS.map((photo) => photo.slug)
-        .filter((slug) => slug !== 'exterior')
+        .filter((slug) => slug !== 'stitching')
         .sort(),
     )
-    // Not orphaned: "Inside the factory" draws it in its gallery ("The Building").
-    expect(FACTORY_PAGE.gallery.sets.flatMap((set) => set.photos)).toContain('exterior')
   })
 
   // NEGATIVE CONTROL, on a list of its own so it holds whatever the page draws: the check
@@ -313,15 +381,19 @@ describe('the cards, in the stylesheet (D42)', () => {
   })
 
   /*
-   * The stack stops cards only for someone who allows motion, and only on a screen tall enough
-   * for the fullest card (site.css measures why: 40rem from 900px, 50rem below it). Nothing
-   * animates since D42: the eight cards' sink and shade went with them. Both are measured in a
-   * browser; this pins where the rules sit, so a later edit cannot lift one out of its guard.
+   * The stack stops cards only for someone who allows motion, on every screen since the home page
+   * audit (2026-10-17: "stack on all phones"; a card taller than the screen stops at its foot).
+   * Until then it also needed a screen 40rem tall from 900px and 50rem below it. Nothing animates
+   * since D42: the eight cards' sink and shade went with them. Both are measured in a browser; this
+   * pins where the rules sit, so a later edit cannot lift one out of its guard.
    */
   it('stops the cards only inside their guard, and animates nothing', () => {
-    const guard =
-      /@media screen and \(prefers-reduced-motion: no-preference\) and \(min-width: 900px\) and \(\s*min-height: 40rem\s*\),\s*screen and \(prefers-reduced-motion: no-preference\) and \(min-height: 50rem\) \{([\s\S]*?)\n\}/
-    const own = SITE_CSS.match(guard)?.[1] ?? ''
+    const guards = [
+      ...SITE_CSS.matchAll(
+        /@media screen and \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/g,
+      ),
+    ].map((match) => match[1] ?? '')
+    const own = guards.find((block) => block.includes('.order-stage {')) ?? ''
     expect(own, 'the stack’s guard is not where this test looks').toMatch(/\.order-stage \{/)
     expect(own).toMatch(/position:\s*sticky/)
     const outside = SITE_CSS.replace(own, '')

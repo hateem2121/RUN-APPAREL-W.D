@@ -46,13 +46,16 @@ async function open(
 }
 
 /**
- * The stack's own numbers, read from the page: where the list starts, each card's stop, H and M.
- * ⚠️ READ ONCE THE SECTION HAS ARRIVED. Below the first screen the section is still moved down by
- * its entrance (`site-reveal`, a 24px transform), and a list top read there put every scroll in
- * this file 24px too far (measured 2026-10-05). So: scroll to just above the list, where the
- * entrance is over, and read the exact rectangle there.
+ * The stack's own numbers, read from the page: each card's place in the page, its stop and height,
+ * the gap between cards, the screen's height and the bar's foot.
+ * ⚠️ READ ONCE THE LIST HAS ARRIVED, just above it, where no card has stopped yet. An entrance
+ * still running moves what it is on (`site-reveal`, a 24px transform), and a list top read there
+ * once put every scroll in this file 24px too far (measured 2026-10-05).
+ * ⚠️ AND ONCE `OrderStagesList` HAS WRITTEN THE HEIGHTS (`data-stage-fit`): before, a card taller
+ * than the screen still stops under the bar.
  */
 async function stack(page: Page) {
+  await expect(page.locator('.order-stages[data-stage-fit]')).toHaveCount(1)
   await page.locator('.order-stages').evaluate((list) => {
     let top = 0
     for (let node: HTMLElement | null = list as HTMLElement; node; ) {
@@ -67,9 +70,11 @@ async function stack(page: Page) {
   return page.locator('.order-stages').evaluate((list) => {
     const cards = [...list.querySelectorAll<HTMLElement>(':scope > .order-stage')]
     return {
-      listTop: list.getBoundingClientRect().top + window.scrollY,
+      screen: window.innerHeight,
+      bar: document.querySelector('.notch')?.getBoundingClientRect().bottom ?? 0,
       gap: Number.parseFloat(getComputedStyle(list).rowGap),
-      heights: cards.map((card) => card.offsetHeight),
+      places: cards.map((card) => card.getBoundingClientRect().top + window.scrollY),
+      heights: cards.map((card) => card.getBoundingClientRect().height),
       stops: cards.map((card) => Number.parseFloat(getComputedStyle(card).top)),
       positions: cards.map((card) => getComputedStyle(card).position),
     }
@@ -79,11 +84,12 @@ async function stack(page: Page) {
 type Stack = Awaited<ReturnType<typeof stack>>
 
 /**
- * The scroll at which card `k` has stopped and the next is still `before` px short of touching it:
- * card k's place in the list is `k` cards of height H and gap M down from the list's top.
+ * The scroll at which card `k` has stopped and the next card's edge is still `before` px short of
+ * the screen's foot (which is card k's foot, once it has stopped): card k stops when its place
+ * reaches its stop, and the next one is a gap below its foot.
  */
 const settledAt = (s: Stack, k: number, before: number) =>
-  s.listTop + k * ((s.heights[0] ?? 0) + s.gap) - (s.stops[k] ?? 0) + (s.gap - before)
+  (s.places[k] ?? 0) - (s.stops[k] ?? 0) + (s.gap - before)
 
 async function scrollTo(page: Page, y: number) {
   await page.evaluate((top) => window.scrollTo({ top, behavior: 'instant' }), y)
@@ -347,56 +353,26 @@ test.describe('D42 — the layout', () => {
 })
 
 test.describe('D42 — the cards stack as the page scrolls', () => {
-  for (const [width, height] of [
-    [390, 844],
-    [1280, 720],
-    [1440, 900],
-  ] as const) {
-    test(`at ${width}x${height} each card stops 8px below the one before, fits the screen, and the next slides over it`, async ({
-      page,
-    }) => {
-      await open(page, width, height, { motion: 'no-preference' })
-      const s = await stack(page)
-      expect(s.positions.every((position) => position === 'sticky')).toBe(true)
-      const height0 = s.heights[0] ?? 0
-      expect(spread(s.heights), 'the cards are not one height').toBeLessThanOrEqual(1)
-      for (let k = 1; k < 4; k++) {
-        expect((s.stops[k] ?? 0) - (s.stops[k - 1] ?? 0), `card ${k + 1}'s stop`).toBeCloseTo(8, 1)
-      }
-      // Stopped, the last card's foot is still on the screen: none of its words is out of sight.
-      expect((s.stops[3] ?? 0) + height0, 'a stopped card runs off the screen').toBeLessThanOrEqual(
-        height,
-      )
-      for (let k = 0; k < 4; k++) {
-        await scrollTo(page, settledAt(s, k, s.gap / 2))
-        const now = await tops(page)
-        for (let j = 0; j <= k; j++) {
-          expect(
-            Math.abs((now[j] ?? 0) - (s.stops[j] ?? 0)),
-            `with card ${k + 1} stopped, card ${j + 1} is not at its stop`,
-          ).toBeLessThanOrEqual(1)
-        }
-        if (k < 3) {
-          // The next card is half a gap short of the one it is about to cover.
-          expect(
-            Math.abs((now[k + 1] ?? 0) - ((s.stops[k] ?? 0) + height0 + s.gap / 2)),
-            `card ${k + 2} is not arriving under card ${k + 1}`,
-          ).toBeLessThanOrEqual(1)
-        }
-      }
-    })
-  }
-
   /*
-   * ⚠️ A STOPPED CARD MUST HOLD ALL ITS WORDS. The stack runs only where the fullest card fits
-   * (site.css measures it); this walks the sizes either side of that line with motion allowed, and
-   * at each one where the cards stop, every step's words must end inside its card.
+   * ⚠️ EVERY SCREEN STACKS, AND A STOPPED CARD HOLDS ALL ITS WORDS ON THE SCREEN (home page audit,
+   * 2026-10-17: the owner's "stack on all phones" and "scroll, then stop"). Until then the stack ran
+   * only on a screen 800px tall or more, so no iPhone in Safari stacked while the robot's 390 × 844
+   * phone did. 393 × 659 is Playwright's iPhone 15 in Safari, 320 × 568 the first iPhone SE, and
+   * 844 × 390 a phone held sideways: on those the fullest card is taller than the screen.
+   *
+   * At each size, as each card stops: the cards before it are still at their stops; its foot is the
+   * screen's foot; a card that fits stops right under the bar's foot (no pale strip) and 8px below
+   * the one before; every line of its words is on the screen; and for the whole rest, a third of a
+   * screen, the next card has not come up over it.
    */
   for (const [width, height] of [
-    // 50rem exactly: the narrowest phone's fullest card (666px) with 18px to spare.
-    [360, 800],
+    [320, 568],
+    [360, 640],
+    [375, 667],
+    [393, 659],
     [390, 844],
     [412, 915],
+    [844, 390],
     [768, 1024],
     [900, 640],
     [1024, 640],
@@ -404,31 +380,94 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
     [1440, 900],
     [1920, 1080],
   ] as const) {
-    test(`at ${width}x${height}, where the cards stop, every step's words end inside its card`, async ({
+    test(`at ${width}x${height} each card stops with its foot on the screen's, rests, and only then is covered`, async ({
       page,
     }) => {
       await open(page, width, height, { motion: 'no-preference' })
-      const cut = await page.locator('.order-stages > .order-stage').evaluateAll((all) =>
-        all.flatMap((card) => {
-          if (getComputedStyle(card).position !== 'sticky') return ['the cards do not stop here']
-          const foot = card.getBoundingClientRect().bottom
-          return [...card.querySelectorAll('.order-step__words')].flatMap((words) =>
-            words.getBoundingClientRect().bottom > foot + 0.5
-              ? [
-                  `${words.querySelector('.order-step__title')?.textContent}: ${Math.round(words.getBoundingClientRect().bottom - foot)}px past the card`,
-                ]
-              : [],
-          )
-        }),
+      const s = await stack(page)
+      expect(s.positions.every((position) => position === 'sticky')).toBe(true)
+      expect(s.gap, 'the rest is shorter than a third of the screen').toBeGreaterThanOrEqual(
+        s.screen / 3 - 1,
       )
-      expect(cut).toEqual([])
+      for (let k = 0; k < 4; k++) {
+        // A card that fits stops 8px below the one before, from the screen's top edge: the bar
+        // floats over it (no pale page beside the bar, the owner's rule, 2026-10-17).
+        const fits = (s.heights[k] ?? 0) <= s.screen - 8 * k + 1
+        if (fits) {
+          expect(
+            Math.abs((s.stops[k] ?? 0) - 8 * k),
+            `card ${k + 1} does not stop at the top edge, 8px below the one before`,
+          ).toBeLessThanOrEqual(1)
+        }
+        // Just before the rest ends: card k is stopped, the next still 2px below the screen.
+        await scrollTo(page, settledAt(s, k, 2))
+        const now = await page.locator('.order-stages > .order-stage').evaluateAll((cards) =>
+          cards.map((card) => ({
+            top: card.getBoundingClientRect().top,
+            bottom: card.getBoundingClientRect().bottom,
+            // Each step's last line of text, not its box: the box ends at the card's foot, 24px below it.
+            words: [...card.querySelectorAll('.order-step__words')].map(
+              (words) => (words.lastElementChild ?? words).getBoundingClientRect().bottom,
+            ),
+          })),
+        )
+        for (let j = 0; j <= k; j++) {
+          expect(
+            Math.abs((now[j]?.top ?? 0) - (s.stops[j] ?? 0)),
+            `with card ${k + 1} stopped, card ${j + 1} is not at its stop`,
+          ).toBeLessThanOrEqual(1)
+        }
+        // Down to the last pixel row: a card 1px short left that row pale (393 × 659, 2026-10-17).
+        expect(
+          now[k]?.bottom ?? 0,
+          `card ${k + 1}'s foot is above the screen's foot`,
+        ).toBeGreaterThanOrEqual(s.screen)
+        expect(
+          now[k]?.bottom ?? 0,
+          `card ${k + 1}'s foot is past the screen's foot`,
+        ).toBeLessThanOrEqual(s.screen + 1)
+        for (const bottom of now[k]?.words ?? []) {
+          expect(bottom, `card ${k + 1}'s words run off the screen`).toBeLessThanOrEqual(
+            s.screen + 0.5,
+          )
+        }
+        if (k < 3) {
+          expect(
+            now[k + 1]?.top ?? 0,
+            `card ${k + 2} covers card ${k + 1} before its rest is over`,
+          ).toBeGreaterThanOrEqual(s.screen)
+        }
+        // ⚠️ NO BLANK SPACE AT ANY EDGE (the owner, said many times; 2026-10-17). What a visitor
+        // sees at each corner, and beside the bar at its own height, under the bar itself: a card,
+        // never the page. The first build of this branch stopped the cards at the bar's foot and
+        // the pale page showed on both sides of the bar; this is the check that sees it.
+        const edges = await page.evaluate(() => {
+          const w = innerWidth
+          const h = innerHeight
+          const points: [string, number, number][] = [
+            ['top left', 2, 2],
+            ['top right', w - 3, 2],
+            ['beside the bar, left', 2, 40],
+            ['beside the bar, right', w - 3, 40],
+            ['bottom left', 2, h - 1],
+            ['bottom right', w - 3, h - 1],
+          ]
+          return points.flatMap(([where, x, y]) => {
+            const first = document.elementsFromPoint(x, y).find((el) => !el.closest('.notch-shell'))
+            return first?.closest('.order-stage')
+              ? []
+              : [`${where}: ${first?.className || first?.tagName}`]
+          })
+        })
+        expect(edges, `with card ${k + 1} stopped, the page shows at the screen's edge`).toEqual([])
+      }
     })
   }
 
   test('nothing in the cards animates while they stack', async ({ page }) => {
     await open(page, 1440, 900, { motion: 'no-preference' })
     const s = await stack(page)
-    await scrollTo(page, settledAt(s, 1, 0) + (s.heights[0] ?? 0) / 2)
+    await scrollTo(page, settledAt(s, 1, 0) + (s.heights[1] ?? 0) / 2)
     const running = await page
       .locator('.order-stages')
       .evaluate((list) => list.getAnimations({ subtree: true }).length)
@@ -445,25 +484,6 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
       opacity: '1',
     })
   })
-
-  // A stopped card whose foot is below the screen would hide its words for good. Measured in the
-  // build (2026-10-16): a phone's fullest card needs 626px at 375–390px wide and 666px at 360px, so a
-  // 640px or 667px phone, a 360x780 one (1px short under the old 48rem line), and any phone held
-  // sideways, gets the list.
-  for (const [width, height] of [
-    [844, 390],
-    [375, 667],
-    [360, 640],
-    [360, 780],
-  ] as const) {
-    test(`at ${width}x${height}, too short for the fullest card, the cards are a plain list`, async ({
-      page,
-    }) => {
-      await open(page, width, height, { motion: 'no-preference' })
-      const s = await stack(page)
-      expect(s.positions.some((position) => position === 'sticky')).toBe(false)
-    })
-  }
 
   test('under reduced motion the cards are a plain list: none stops', async ({ page }) => {
     await open(page, 1440, 900)
@@ -749,8 +769,9 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
     expect(labels.at(-1)).toBe('№05 — The works')
   })
 
-  // №01 draws one since D41 (2026-10-16): the roof, as its ground. The front of the building is
-  // the "Inside the factory" gallery's (src/orderTimelinePhotos.test.ts proves it is still drawn).
+  // №01 draws one since D41 (2026-10-16): the roof, as its ground. Since 2026-10-17 №04's step 05
+  // draws the front of the building, so the one left out is the stitching floor: the hero shows it
+  // (its own `hero-` crops), and the owner chose not to show it twice (Q12).
   test('each factory photo is on the home page once: №01 draws one, №04 draws eight', async ({
     page,
   }) => {
@@ -764,7 +785,7 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
     )
     expect(slugs.sort(), 'a factory photo is missing, or drawn twice').toEqual(
       FACTORY_PHOTOS.map((photo) => photo.slug)
-        .filter((slug) => slug !== 'exterior')
+        .filter((slug) => slug !== 'stitching')
         .sort(),
     )
   })

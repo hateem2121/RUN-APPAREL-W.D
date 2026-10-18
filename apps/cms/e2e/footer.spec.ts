@@ -1,6 +1,7 @@
 import { FOOTER_FACTS } from '../../../scripts/apply-footer-facts.mjs'
 import { SITE_FOOTER_MADE, siteFooterAriaSnapshot } from '../../../packages/shared/src/siteFooter'
-import { expect, test } from './offlineMedia'
+import { readFileSync } from 'node:fs'
+import { expect, type Page, test } from './offlineMedia'
 import { contrastOf } from '../../../scripts/contrast-rules.mjs'
 
 /**
@@ -12,6 +13,32 @@ import { contrastOf } from '../../../scripts/contrast-rules.mjs'
  */
 
 const SLAB = '.site-footer__slab'
+
+/**
+ * ⚠️ THE FOOTER WITH THE LIVE SITE'S FACTS, NOT THIS SUITE'S EMPTY DATABASE (home page audit,
+ * 2026-10-17). The one-screen and quiet-band tests below passed for weeks on an empty footer while
+ * the live one, with its Capacity, Standards, Elsewhere and six marks, measured 1,052–1,146px on a
+ * 900px screen. `fixtures/live-footer-facts-2026-10-17.html` is wear-run.com's `.footer-facts` that
+ * day (public text, as the site prints it; its four Elsewhere links since given this build's new-tab
+ * mark and words); this build's own climate-commitment line and badge are
+ * put back after it, as the build draws them. Refresh the file when the owner changes the facts.
+ */
+async function withLiveFacts(page: Page) {
+  const facts = readFileSync(
+    new URL('./fixtures/live-footer-facts-2026-10-17.html', import.meta.url),
+    'utf8',
+  )
+  await page.locator('.footer-facts').evaluate((el, html) => {
+    const ownLine = el.querySelector('.footer-block--standards li:last-child')?.outerHTML ?? ''
+    const ownBadge = el.querySelector('.footer-commitment')?.outerHTML ?? ''
+    el.innerHTML = html
+    el.querySelector('.footer-block--standards ul')?.insertAdjacentHTML('beforeend', ownLine)
+    el.querySelector('.footer-marks')?.insertAdjacentHTML('beforeend', ownBadge)
+  }, facts)
+  // The planted condition landed: the live footer's three claim blocks and all seven marks.
+  await expect(page.locator('.footer-block--capacity, .footer-block--elsewhere')).toHaveCount(2)
+  await expect(page.locator('.footer-marks img')).toHaveCount(7)
+}
 
 /** Playwright sets navigator.webdriver; the cursor honours it, as the viewer's does. */
 const liftAutomationGate = (context: { addInitScript: (fn: () => void) => Promise<void> }) =>
@@ -275,32 +302,27 @@ test.describe('one footer on both hosts (VA-31)', () => {
   })
 
   /*
-   * The home page's footer has no question since 2026-10-16 (owner: its №05 now ends the page on
-   * one ask, with the works' clock beside it). It is then exactly the garment pages' footer, the
-   * same `{ prompt: false }` template, so the two hosts still draw one footer. The page with the
-   * question is checked above against the full template, so neither passes on the other's shape.
+   * The home page's footer is the website's footer, question, tab and clock included (owner,
+   * 2026-10-17: "100% identical across the whole website"; №05's closing ask stays too). From
+   * 2026-10-16 (#194) it left those three out. The same full template as /products above, and the
+   * class without the short `--no-prompt` shape the garment pages had until 2026-10-17.
    */
-  test("on the home page it is the garment pages' footer, with no question", async ({
-    page,
-    request,
-  }) => {
+  test('on the home page it is the same footer, with its question', async ({ page, request }) => {
     const answer = await request.get('/api/public/viewer/n001/wine')
     expect(answer.status()).toBe(200)
     const { siteSettings } = await answer.json()
     await page.goto('/')
-    await expect(page.locator('footer.site-footer')).toHaveClass(/site-footer--no-prompt/)
-    await expect(page.locator('.site-footer__tab, .footer-cta, .footer-q')).toHaveCount(0)
+    await expect(page.locator('footer.site-footer')).not.toHaveClass(/site-footer--no-prompt/)
+    await expect(page.locator('.site-footer__tab')).toHaveCount(1)
+    await expect(page.locator('.footer-q')).toHaveCount(1)
     await expect(page.locator('footer.site-footer')).toMatchAriaSnapshot(
-      siteFooterAriaSnapshot(
-        {
-          footer: siteSettings.footer,
-          email: siteSettings.email,
-          whatsappNumber: siteSettings.whatsappNumber,
-          legalLine: siteSettings.legalLine,
-          footerLine: siteSettings.footerLine,
-        },
-        { prompt: false },
-      ),
+      siteFooterAriaSnapshot({
+        footer: siteSettings.footer,
+        email: siteSettings.email,
+        whatsappNumber: siteSettings.whatsappNumber,
+        legalLine: siteSettings.legalLine,
+        footerLine: siteSettings.footerLine,
+      }),
     )
   })
 })
@@ -548,7 +570,7 @@ test.describe('touch', () => {
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false })
   test('every route out still renders, the clock is honest, no cursor', async ({ page }) => {
-    // Not the home page: since 2026-10-16 its footer has no tab (its №05 asks instead).
+    // /products: the home page's footer had no tab from 2026-10-16 to 2026-10-17 (D40, D46).
     await page.goto('/products')
     await expect(page.locator('.site-footer__tab')).toHaveAttribute('href', '/contact')
     // on Contact the tab points at the email — in the HTML, not added by a script
@@ -666,6 +688,7 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
   const FLOOR_PX = 48
   test('height stays within 48-323px across the documented width range', async ({ page }) => {
     await page.goto('/contact')
+    await withLiveFacts(page)
     for (const width of [768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       await page.evaluate(() => document.fonts.ready)
@@ -693,12 +716,14 @@ test.describe("the footer's quiet band stays inside D7's documented range (DS-09
  * carries `padding-block-start` for the tab seated above the slab's edge, per the
  * flipped-notch comment above), and it is a MIN-height, so this only holds while content
  * fits inside one screen — which is exactly what the `.footer-grow` tests above already
- * lock in place.
+ * lock in place. With the live facts (`withLiveFacts`), and at 1920, where the outline
+ * wordmark, fitted to the width, stood 163px tall until site.css stopped it growing at 1500px.
  */
 test.describe('LA-13 — the footer slab is one screen tall from 768px up', () => {
-  test('slab height equals the viewport height at 768, 1024, 1440', async ({ page }) => {
+  test('slab height equals the viewport height at 768, 1024, 1440, 1920', async ({ page }) => {
     await page.goto('/contact')
-    for (const width of [768, 1024, 1440]) {
+    await withLiveFacts(page)
+    for (const width of [768, 1024, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 })
       await page.evaluate(() => document.fonts.ready)
       const height = await page.locator(SLAB).evaluate((el) => el.getBoundingClientRect().height)
@@ -706,6 +731,48 @@ test.describe('LA-13 — the footer slab is one screen tall from 768px up', () =
         height,
         `.site-footer__slab is ${height}px at ${width}px, expected ~900px (100svh)`,
       ).toBeCloseTo(900, 0)
+    }
+  })
+
+  /*
+   * ⚠️ NO BLANK SPACE UNDER THE FOOTER (the owner, said many times; 2026-10-17). At the very end of
+   * the page, what a visitor sees at the screen's bottom edge, corners and middle, is the footer's
+   * slab, never the page behind it. Phones too: the slab is one screen only from 768px, so this is
+   * the check that a phone's last screen also ends on the footer.
+   */
+  test('at the end of the page the footer reaches the bottom edge, nothing under it', async ({
+    page,
+  }) => {
+    await page.goto('/contact')
+    await withLiveFacts(page)
+    for (const [width, height] of [
+      [390, 844],
+      [768, 900],
+      [1024, 900],
+      [1440, 900],
+      [1920, 1080],
+    ] as const) {
+      await page.setViewportSize({ width, height })
+      await page.evaluate(() => document.fonts.ready)
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await page.evaluate(
+        () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+      )
+      const below = await page.evaluate(() => {
+        const w = innerWidth
+        const h = innerHeight
+        return (
+          [
+            ['bottom left', 2, h - 1],
+            ['bottom middle', w / 2, h - 1],
+            ['bottom right', w - 3, h - 1],
+          ] as const
+        ).flatMap(([where, x, y]) => {
+          const first = document.elementFromPoint(x, y)
+          return first?.closest('.site-footer__slab') ? [] : [`${where}: ${first?.tagName}`]
+        })
+      })
+      expect(below, `at ${width}px the page shows under the footer`).toEqual([])
     }
   })
 })

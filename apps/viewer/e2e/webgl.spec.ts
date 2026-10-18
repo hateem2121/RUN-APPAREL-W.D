@@ -1131,6 +1131,69 @@ test('over the 3D model the dot and ring step aside for the grab hand (F4)', asy
 })
 
 /*
+ * The pan dot lets the pointer through (PR #200, 2026-10-18; stageConfig.ts PAN_TARGET_STYLE).
+ * model-viewer's own 8px dot hangs just below and right of the garment's exact centre, outside the
+ * layer its controls listen on, so a wheel over it scrolled the page 300px instead of zooming. What
+ * would have to break: the slot left to model-viewer's default, our dot taking the pointer, or the
+ * dot losing the look a buyer sees while panning. Measured on the build before the fix: 3 of these
+ * 9 points were `default-pan-target`, and the wheel moved the page 300px.
+ */
+test('a wheel at the very centre of the garment zooms it, and never scrolls the page', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/n001/wine')
+  const model = page.locator('model-viewer')
+  await expect(model, 'no 3D model, so this measures nothing').toBeVisible()
+  await expect
+    .poll(() => model.evaluate((element) => (element as unknown as { loaded: boolean }).loaded), {
+      timeout: 30000,
+    })
+    .toBe(true)
+
+  // Asked of model-viewer's own tree, a few pixels round the centre, so no pixel rounding decides.
+  const probe = await model.evaluate((element) => {
+    const box = element.getBoundingClientRect()
+    const cx = box.x + box.width / 2
+    const cy = box.y + box.height / 2
+    const hits = [-3, 0, 3].flatMap((dx) =>
+      [-3, 0, 3].map((dy) => {
+        const hit = element.shadowRoot?.elementFromPoint(cx + dx, cy + dy)
+        return hit ? hit.id || hit.className || hit.tagName : 'nothing'
+      }),
+    )
+    const dot = element.querySelector('[slot="pan-target"]')
+    const look = dot && getComputedStyle(dot)
+    return {
+      cx,
+      cy,
+      hits,
+      dot: look && {
+        width: dot.getBoundingClientRect().width,
+        border: look.borderTopWidth,
+        pointerEvents: look.pointerEvents,
+      },
+    }
+  })
+  expect(probe.hits, 'what lies round the centre of the garment').not.toContain(
+    'default-pan-target',
+  )
+  expect(probe.hits).not.toContain('nothing')
+  // Still the dot a buyer sees while panning: model-viewer's 6px with its 1px ring, 8px across.
+  expect(probe.dot).toEqual({ width: 8, border: '1px', pointerEvents: 'none' })
+
+  // The wheel itself, 3px below and right of the centre, where the old dot lay.
+  await page.mouse.move(probe.cx + 3, probe.cy + 3)
+  const before = await page.evaluate(() => Math.round(window.scrollY))
+  await page.mouse.wheel(0, 300)
+  await page.waitForTimeout(1200)
+  expect(
+    await page.evaluate(() => Math.round(window.scrollY)),
+    'the page scrolled under the garment',
+  ).toBe(before)
+})
+
+/*
  * Polish F12 (2026-10-04): the download's percentage came back. Production's models arrive
  * gzipped with no `content-length` (measured live that day), and this server sends none either,
  * so the only total left is the size in the garment data (`glbBytes`). Slowed through CDP to

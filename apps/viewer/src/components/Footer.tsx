@@ -1,4 +1,5 @@
 import {
+  CLIMATE_COMMITMENT,
   CONSENT_OPEN_EVENT,
   capacityLines,
   EMPTY_FOOTER,
@@ -7,6 +8,7 @@ import {
   markBox,
   marksFor,
   normalizeWhatsAppNumber,
+  watchFooterInView,
   SITE_FOOTER_COMPANY,
   SITE_FOOTER_LEARN,
   SITE_FOOTER_LINKS,
@@ -15,6 +17,7 @@ import {
   standardsLines,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
+import { lazy, Suspense, useEffect } from 'react'
 import { track } from '../lib/analytics'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { FooterGlow, FooterWordmark } from './FooterLive'
@@ -34,14 +37,16 @@ import { FooterGlow, FooterWordmark } from './FooterLive'
  * - every link is the site's full address, because another Worker draws this page;
  * - email and WhatsApp clicks are counted, as they were in the footer this replaced.
  *
- * And one that is the visitor's, by the owner's choice (polish Q42, 2026-10-04): NO TAB, NO
- * QUESTION. A garment page ends on its own one prompt, "Ask about this garment", in its contact
- * section; the audit counted three prompts in a row there ("Develop this with us", the "Start an
- * inquiry" tab, "Have a garment…?", X23). So the footer opens on the facts, without the tab, the
- * question, its clock or the full screen of slab the question stood in (`.site-footer--no-prompt`,
- * packages/ui/src/footer.css). Both suites still hold it to the website's template, without those
- * lines (`siteFooterAriaSnapshot(…, { prompt: false })`).
+ * ⚠️ THE TAB, THE QUESTION AND THE CLOCK TOO, SINCE 2026-10-17 (the owner, home page audit Q11:
+ * the footer the same on every page). From polish Q42 (2026-10-04) until then a garment page's
+ * footer left them out, because the page ends on its own "Ask about this garment"; the owner now
+ * keeps both. They load lazily with their own stylesheet (`FooterPrompt.tsx` says why), and both
+ * suites hold the footer to the website's full template.
  */
+const FooterTab = lazy(() => import('./FooterPrompt').then((m) => ({ default: m.FooterTab })))
+const FooterQuestion = lazy(() =>
+  import('./FooterPrompt').then((m) => ({ default: m.FooterQuestion })),
+)
 export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   // An API answer cached before the footer joined it (2026-10) has none: the copy's defaults,
   // and no claim — a claim never has a default.
@@ -49,13 +54,22 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   const capacity = capacityLines(f.capacity)
   const marks = marksFor(f.certifications)
   const words = SITE_FOOTER_WORDS
+  // A phone's colour beyond the page is the footer's only while the footer is on screen
+  // (packages/ui/src/footer.css says why; the website's FooterInView.tsx does the same).
+  useEffect(() => watchFooterInView(document), [])
 
   return (
-    <footer className="site-footer site-footer--no-prompt">
+    <footer className="site-footer">
+      <Suspense fallback={null}>
+        <FooterTab label={f.ctaLabel} />
+      </Suspense>
       <div className="site-footer__slab">
         <FooterGlow />
 
         <div className="site-footer__inner">
+          <Suspense fallback={null}>
+            <FooterQuestion footer={f} />
+          </Suspense>
           <div className="footer-facts">
             {/*
               THE CONTACT DETAILS (audit FA-Q-09, 2026-09-07): this is the page someone lands on
@@ -139,8 +153,11 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                 <ul>
                   {f.socialLinks.map((link) => (
                     <li key={link.url}>
-                      <a href={link.url} rel="noopener">
+                      <a href={link.url} target="_blank" rel="noopener">
                         {link.label}
+                        {/* A new tab, seen and heard (owner, 2026-10-17; W3C G201). */}
+                        <span aria-hidden="true"> ↗</span>
+                        <span className="visually-hidden"> {words.newTab}</span>
                       </a>
                     </li>
                   ))}
@@ -159,38 +176,49 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
               </div>
             ) : null}
 
-            {f.certifications.length > 0 ? (
-              <div className="footer-block footer-block--standards">
-                <h3>{words.standards}</h3>
-                <ul>
-                  {standardsLines(f.certifications).map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
+            {/* Always drawn: the climate commitment's line is the company's own, not the CMS's. */}
+            <div className="footer-block footer-block--standards">
+              <h3>{words.standards}</h3>
+              <ul>
+                {standardsLines(f.certifications).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+                <li>{CLIMATE_COMMITMENT.line}</li>
+              </ul>
+            </div>
 
             {/*
               The marks are the website's files: this page is on the same address
               (wear-run.com), so `/standards/…` is served by the site, which the image policy
               already allows as 'self'.
             */}
-            {marks.length > 0 ? (
-              <div className="footer-marks" role="group" aria-label={words.marks}>
-                {marks.map((logo) => (
-                  <img
-                    key={logo.slug}
-                    className="footer-logo"
-                    src={logo.src}
-                    width={markBox(logo).width}
-                    height={markBox(logo).height}
-                    alt={logo.alt}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ))}
-              </div>
-            ) : null}
+            <div className="footer-marks" role="group" aria-label={words.marks}>
+              {marks.map((logo) => (
+                <img
+                  key={logo.slug}
+                  className="footer-logo"
+                  src={logo.src}
+                  width={markBox(logo).width}
+                  height={markBox(logo).height}
+                  alt={logo.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ))}
+              {/* The company's own climate commitment, last, a link to where a buyer can check it
+                  (`CLIMATE_COMMITMENT`, packages/shared/src/standardsLogos.ts). */}
+              <a className="footer-commitment" href={CLIMATE_COMMITMENT.href} rel="noopener">
+                <img
+                  className="footer-logo"
+                  src={CLIMATE_COMMITMENT.logo.src}
+                  width={CLIMATE_COMMITMENT.logo.width}
+                  height={CLIMATE_COMMITMENT.logo.height}
+                  alt={CLIMATE_COMMITMENT.logo.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </a>
+            </div>
           </div>
 
           <div className="footer-legal">

@@ -1,4 +1,4 @@
-import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
+import { CLIMATE_COMMITMENT, DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
@@ -6,8 +6,7 @@ import { EMPTY_FOOTER, type PublicSiteSettings } from '../../lib/projectPublic'
 import { SiteFooter } from './SiteFooter'
 
 // `usePathname` needs the app router; outside Next it is mocked, and the path is a
-// hoisted mutable so each case can choose the page it renders on. The default is a page that
-// draws the footer's question: since 2026-10-16 the home page leaves it out (its own test, below).
+// hoisted mutable so each case can choose the page it renders on (the tab reads it).
 const route = vi.hoisted(() => ({ path: '/products' }))
 vi.mock('next/navigation', () => ({ usePathname: () => route.path }))
 vi.mock('next/link', () => ({
@@ -47,12 +46,15 @@ describe('SiteFooter', () => {
     expect(html(base)).toContain('needs making <em>properly</em>?')
   })
 
-  it('renders NO claim block when the fields are empty', () => {
+  // Standards stays, holding only the company's own climate commitment (owner, 2026-10-17).
+  it('renders NO claim block from the CMS when the fields are empty', () => {
     const out = html(base)
     expect(out).not.toContain('footer-block--capacity')
-    expect(out).not.toContain('footer-block--standards')
     expect(out).not.toContain('footer-block--elsewhere')
     expect(out).toContain('footer-block--contact')
+    const standards = (out.split('footer-block--standards')[1] ?? '').split('</ul>')[0] ?? ''
+    expect(standards.match(/<li>/g)).toHaveLength(1)
+    expect(standards).toContain(`<li>${CLIMATE_COMMITMENT.line}</li>`)
     // and never a placeholder, dotted or otherwise
     expect(out).not.toMatch(/GOTS|Oeko|MOQ 50/)
   })
@@ -85,7 +87,10 @@ describe('SiteFooter', () => {
     expect(out).not.toContain('Lead time')
     expect(out).toContain('>Parent: SEDEX-registered, SMETA-audited<')
     expect(out).toContain('>Suppliers: OEKO-TEX, GOTS, GRS<')
-    expect(out).toContain('href="https://www.linkedin.com/company/run-apparel" rel="noopener"')
+    // A new tab, and it says so, seen ("↗") and heard (owner, 2026-10-17; W3C G201).
+    expect(out).toContain(
+      'href="https://www.linkedin.com/company/run-apparel" target="_blank" rel="noopener">LinkedIn<span aria-hidden="true"> ↗</span><span class="visually-hidden"> (opens in a new tab)</span>',
+    )
     expect(out).toContain('32.49° N · 74.52° E')
   })
 
@@ -140,7 +145,7 @@ describe('SiteFooter', () => {
     expect(out.indexOf('footer-marks')).toBeGreaterThan(out.indexOf('footer-block--standards'))
     expect(out.match(/footer-marks/g)).toHaveLength(1)
     const imgs = row.match(/<img [^>]*>/g) ?? []
-    expect(imgs).toHaveLength(5)
+    expect(imgs).toHaveLength(6)
     for (const img of imgs) {
       expect(img).toContain('loading="lazy"')
       expect(img).toContain('decoding="async"')
@@ -149,19 +154,25 @@ describe('SiteFooter', () => {
       expect(img).toContain('class="footer-logo"')
     }
     // BSCI is text only (owner, 2026-09-29): named in the line, never drawn
+    // ... and the company's own climate commitment last (owner, 2026-10-17)
     expect(imgs.map((img) => img.match(/alt="([^"]*)"/)?.[1])).toEqual([
       'Sedex',
       'SMETA',
       'OEKO-TEX',
       'GOTS',
       'GRS',
+      CLIMATE_COMMITMENT.logo.alt,
     ])
-    expect(out.match(/<img [^>]*>/g)).toHaveLength(5)
+    expect(out.match(/<img [^>]*>/g)).toHaveLength(6)
     // the heading stays "Standards" beside real logos: SMETA is an audit, not a certificate
     expect(out).toContain('<h3>Standards</h3>')
     expect(out).not.toMatch(/certified/i)
-    // a picture is never a control: nothing in the row is a link, so the 44px floor never applies
-    expect(row).not.toContain('<a ')
+    // a body's mark is never a control. The one link is the company's own commitment, drawn at
+    // 44px tall, so the 44px floor holds for it.
+    expect(row.match(/<a /g)).toHaveLength(1)
+    expect(row).toContain('<a class="footer-commitment"')
+    expect(CLIMATE_COMMITMENT.logo.height).toBeGreaterThanOrEqual(44)
+    expect(row).toContain(`height="${CLIMATE_COMMITMENT.logo.height}"`)
   })
 
   // NEGATIVE CONTROL: an entry naming no body draws no picture. The company's own third
@@ -176,12 +187,16 @@ describe('SiteFooter', () => {
     })
     expect(out).toContain('>Program-specific standards on request<')
     expect(out).toContain('>Suppliers: GRSX<')
-    expect(out).not.toContain('<img')
-    expect(out).not.toContain('footer-marks')
+    // Only the company's own commitment badge, which no entry draws.
+    const pictures = out.match(/<img [^>]*>/g) ?? []
+    expect(pictures.map((img) => img.match(/src="([^"]*)"/)?.[1])).toEqual([
+      CLIMATE_COMMITMENT.logo.src,
+    ])
   })
 
-  it('draws no logo at all when there are no entries', () => {
-    expect(html(base)).not.toContain('/standards/')
+  it('draws no body’s logo at all when there are no entries', () => {
+    const drawn = html(base).match(/\/standards\/[^"]+/g) ?? []
+    expect(drawn).toEqual([CLIMATE_COMMITMENT.logo.src])
   })
 
   it('renders the wordmark twice, both decorative, from the same field as the top bar', () => {
@@ -214,31 +229,60 @@ describe('SiteFooter', () => {
 })
 
 /*
- * The home page's footer has no question (owner, 2026-10-16): the page's №05 already ends on one
- * ask, with the works' clock beside it (FooterPromptGate.tsx). It takes the garment pages' shape
- * (`.site-footer--no-prompt`). What would have to break: the question, its tab or its clock back on
- * the home page, or gone from another page with it. Both pages are rendered, so neither half passes
- * on an empty footer.
+ * The company's own climate commitment (owner, 2026-10-17): its line last under Standards and its
+ * badge last in the row of marks, a link to the company's row in the Hub's list. Drawn whatever the
+ * CMS holds, so it is checked with no certifications at all, and with them after the CMS's lines.
+ */
+describe('SiteFooter and the climate commitment', () => {
+  const badgeLink = `<a class="footer-commitment" href="${CLIMATE_COMMITMENT.href.replaceAll('&', '&amp;')}" rel="noopener"><img class="footer-logo" src="${CLIMATE_COMMITMENT.logo.src}"`
+
+  it('draws its line and its linked badge with nothing in the CMS', () => {
+    const out = html(base)
+    expect(out).toContain(`<li>${CLIMATE_COMMITMENT.line}</li>`)
+    expect(out).toContain(badgeLink)
+    expect(out).toContain(`alt="${CLIMATE_COMMITMENT.logo.alt}"`)
+  })
+
+  it('comes last: after the CMS lines and after the CMS marks', () => {
+    const out = html({
+      ...base,
+      footer: { ...EMPTY_FOOTER, certifications: ['Parent: SEDEX-registered, SMETA-audited'] },
+    })
+    const standards = out.split('footer-block--standards')[1] ?? ''
+    expect(standards.indexOf('SEDEX-registered')).toBeGreaterThan(0)
+    expect(standards.indexOf('SEDEX-registered')).toBeLessThan(
+      standards.indexOf(CLIMATE_COMMITMENT.line),
+    )
+    expect(out.indexOf('/standards/smeta.svg')).toBeGreaterThan(0)
+    expect(out.indexOf('/standards/smeta.svg')).toBeLessThan(out.indexOf(badgeLink))
+  })
+})
+
+/*
+ * The home page's footer is every website page's footer, question, tab and clock included (owner,
+ * 2026-10-17: "100% identical across the whole website"; №05's closing ask stays as well, "keep
+ * both"). From 2026-10-16 (#194) to then, the home page left the three out. What would have to
+ * break: anything drawn on one page's footer and not the other's. The parts are checked by name
+ * too, so two empty footers cannot pass as equal.
  */
 describe('SiteFooter on the home page', () => {
-  it('leaves out the tab, the question and its clock, in the garment pages’ shape', () => {
+  it('is the same footer as another page’s, the tab, the question and its clock included', () => {
     route.path = '/'
     const home = html(base)
     route.path = '/products'
     const other = html(base)
+    expect(home).toBe(other)
     for (const part of [
       'site-footer__tab',
       'footer-cta',
       'footer-q',
       'footer-clock',
       'footer-grow',
+      'footer-block--contact',
+      'footer-legal',
     ]) {
-      expect(home, `the home page still draws ${part}`).not.toContain(part)
-      expect(other, `another page lost ${part}`).toContain(part)
+      expect(home, `the home page's footer has no ${part}`).toContain(part)
     }
-    expect(home).toContain('class="site-footer site-footer--no-prompt"')
-    expect(other).toContain('class="site-footer"')
-    // Everything else stays: the contact block and the legal row are the site's reference.
-    for (const kept of ['footer-block--contact', 'footer-legal']) expect(home).toContain(kept)
+    expect(home).toContain('<footer class="site-footer">')
   })
 })

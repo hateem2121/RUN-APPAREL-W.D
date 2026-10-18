@@ -28,7 +28,7 @@ export function isRefusal(status) {
   return status === 403 || status === 429
 }
 
-/** The footer's class token, as `FooterShell` (components/site/FooterPromptGate.tsx) writes it. */
+/** The footer's class token, as `SiteFooter.tsx` writes it (the garment pages add a second). */
 export const FOOTER_CLASS = 'site-footer'
 
 /**

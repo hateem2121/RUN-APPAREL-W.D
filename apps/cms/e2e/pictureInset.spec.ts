@@ -166,15 +166,19 @@ async function openProducts(page: Page, width: number) {
  */
 test.describe('the home family tickets keep a margin around the garment (VA-55, D3)', () => {
   for (const width of [390, 900, 1440]) {
+    /*
+     * Below the row of five the other colour is not drawn at all (home page audit, 2026-10-17: a
+     * Pixel 7 downloaded four of them for cards that never open), so there is nothing of it to
+     * measure: a picture that is not drawn has no box, and read as running past every edge.
+     */
+    const drawn =
+      width < 1440 ? '.family-card__img:not(.family-card__img--open)' : '.family-card__img'
     test(`at ${width}px the pictures as served sit 6% or more from every edge of their box`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/')
-      expectInset(
-        await drawnMargins(page, '.family-card__img', '.family-card__media'),
-        'family card',
-      )
+      expectInset(await drawnMargins(page, drawn, '.family-card__media'), 'family card')
     })
 
     for (const shape of SHAPES) {
@@ -182,7 +186,7 @@ test.describe('the home family tickets keep a margin around the garment (VA-55, 
         await page.setViewportSize({ width, height: 900 })
         await page.goto('/')
         expectInset(
-          await drawnMargins(page, '.family-card__img', '.family-card__media', shape),
+          await drawnMargins(page, drawn, '.family-card__media', shape),
           `family card, ${shape.name}`,
         )
       })

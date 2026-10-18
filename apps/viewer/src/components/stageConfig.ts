@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { adaptivePanSensitivity, PAN_SENS_OUT, shouldWritePan } from '../lib/adaptive-pan'
 
 /**
@@ -256,6 +257,35 @@ export const DISABLE_TAP = true
  * above, and the high end exists because the garment is 56.6x bigger at full zoom.
  */
 export const PAN_SENSITIVITY = PAN_SENS_OUT
+
+/**
+ * The dot that marks where a two-finger pan is aimed: model-viewer's own, made to let the pointer
+ * through.
+ *
+ * ⚠️ model-viewer 4.3.1's `#default-pan-target` (template.js) is an 8px dot hung just below and
+ * right of the garment's exact centre, see-through until a pan shows it. See-through still takes
+ * the pointer, and it lies outside the layer the controls listen on, so a wheel over it reached no
+ * zoom and scrolled the page. Measured 2026-10-18 on `/n001/wine` at 1440x900: 3 of the 9 points
+ * within 3px of the centre were the dot, and a wheel there moved the page 300px where one 20px
+ * left moved it 0px. The website's №03 met it first, in CI (PR #200; `LiveGarment.tsx` there).
+ *
+ * №03 has panning off and simply empties the slot. Here a pan is how a buyer reaches an
+ * off-centre print (`PAN_SENSITIVITY`), so the owner kept the dot (2026-10-18, "Same dot, no
+ * catch"): this element fills model-viewer's `pan-target` slot with the default's exact look and
+ * `pointer-events: none`. Inline, because the garment page's stylesheet budget had 28 B left
+ * (scripts/check-bundle-budget.mjs) and the policy header allows inline style (scripts/csp.mjs).
+ * `content-box` because the site's base styles make every element `border-box`, which drew the
+ * ring inside the 6px (6px across, measured) where model-viewer's own, in its shadow tree, is 8px.
+ */
+export const PAN_TARGET_STYLE: CSSProperties = {
+  boxSizing: 'content-box',
+  width: 6,
+  height: 6,
+  borderRadius: 6,
+  border: '1px solid white',
+  boxShadow: '0px 0px 2px 1px rgba(0, 0, 0, 0.8)',
+  pointerEvents: 'none',
+}
 
 /**
  * Push the field-of-view-appropriate `panSensitivity` onto the element.

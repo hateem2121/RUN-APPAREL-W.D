@@ -10,6 +10,7 @@ import {
 } from '../../lib/render/camera-near-plane'
 import { applyDecalDepthBias, correlatedThreeMaterials } from '../../lib/render/decal-depth-bias'
 import { LIVE_RENDER } from '../../lib/render/liveRender'
+import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
 
 /**
  * №03's garment, turning in real 3D (owner, 2026-09-29: "Live 3D on scroll"; decision D24,
@@ -35,8 +36,41 @@ import { LIVE_RENDER } from '../../lib/render/liveRender'
  * ⚠️ THE GARMENT WINS A SWIPE ONLY WHERE THERE IS ROOM TO SCROLL PAST IT (polish M3, 2026-10-04).
  * `touch-action: none`, the garment pages' setting, while the frame fits within about two-thirds
  * of the screen's height (every upright phone); `pan-y` where it does not (a phone held sideways,
- * an upright tablet), so nobody is trapped on it. `lib/liveGarment.ts` has the measurements. Zoom
- * and pan are off — this is a showcase, and the link beneath opens the full viewer.
+ * an upright tablet), so nobody is trapped on it. `lib/liveGarment.ts` has the measurements. Pan
+ * is off — this is a showcase, and the link beneath opens the full viewer.
+ *
+ * ⚠️ AND WHILE IT WINS, A STRIP DOWN EACH SIDE STILL SCROLLS THE PAGE (home page audit,
+ * 2026-10-17; the owner: "leave a scroll strip"). A thumb that landed on the garment to scroll the
+ * page turned it instead, and the page felt stuck. Each strip is 44px wide, lies over the
+ * garment's edge and lets the browser scroll (`touch-action: pan-y`): model-viewer 4.3.1 decides
+ * a touch on its own element (SmoothControls.ts), so a touch that starts on the strip never
+ * reaches it. On touch screens only (site.css), and gone while zoom is on, which wants every finger.
+ *
+ * ⚠️ ZOOM WAITS FOR A CLICK (owner, 2026-10-17, after the home page audit: "you cannot zoom into
+ * №03"). Zoom was off since PR #94 because a garment that zooms SWALLOWS the wheel and the pinch
+ * (model-viewer's docs: `disable-zoom` has "the secondary effect of not swallowing mouse wheel
+ * events"), and a visitor scrolling down the page would be stopped on it. Now a click or tap on the
+ * garment (or Enter on it) switches zoom on, with the wheel kept from our smooth scroll
+ * (`KEEP_WHEEL_ATTRIBUTE`) and a one-finger drag kept for the garment; moving the pointer off
+ * it, pressing Escape, tapping elsewhere or scrolling it off the screen switches zoom off again, so
+ * the page scrolls as before. A drag never counts as the click.
+ *
+ * ⚠️ THE PAN TARGET IS REPLACED BY AN EMPTY ONE, OR THE GARMENT'S CENTRE SCROLLS THE PAGE (PR #200,
+ * 2026-10-18). model-viewer 4.3.1 draws an 8px dot, `#default-pan-target`, at the exact centre of
+ * the garment (template.js): see-through, but it still takes the pointer, and it lies outside the
+ * element its controls listen on. A wheel there, with zoom on, reached no zoom handler and scrolled
+ * the page 300px: CI's Chromium failed the zoom test so on two tries, and in CI's own Playwright
+ * image the wheel's innermost target was that dot in 1 try of 8 and the controls' layer in the 7
+ * that passed. Panning is off here, so the dot is never needed; an empty element in its
+ * `pan-target` slot takes its place and takes no pointer at all.
+ *
+ * ⚠️ A NEW COLOUR CROSS-FADES OVER THE OLD ONE (owner, 2026-10-17). model-viewer swaps a variant in
+ * one frame (21–28 ms after the pick on an M4 Pro, measured 2026-10-17; the 0.7–0.95 s an earlier
+ * robot run reported was its software renderer, not the site). Before the swap, a picture of the
+ * garment as it is (`toBlob`, which returns real pixels where `toDataURL` is blank:
+ * `.claude/rules/pipeline-evals.md`) is laid over the canvas; the new colour is applied under it,
+ * and the picture fades away on `--ui`. Under reduced motion, or if the picture cannot be taken,
+ * the colour simply changes.
  *
  * ⚠️ IT TURNS UNTIL TOUCHED, THEN STAYS STILL (polish F7, the owner's answer Q20). The first
  * press, drag or arrow key stops the turning for the rest of the visit: model-viewer's own
@@ -51,7 +85,18 @@ type ModelViewerElement = HTMLElement & {
   model?: { materials?: readonly { name?: string; isLoaded?: boolean }[] }
   getDimensions?: () => { x: number; y: number; z: number }
   getCameraOrbit?: () => { radius: number }
+  toBlob?: (options?: { mimeType?: string; idealAspect?: boolean }) => Promise<Blob>
 }
+
+/** The picture of the old colour laid over the garment while the new one is applied under it. */
+type Fade = { url: string; going: boolean }
+
+/** A press that moves further than this is a drag that turned the garment, not a click. */
+const CLICK_SLOP_PX = 6
+
+/** Wait for the browser to paint what React just drew: two frames. */
+const nextPaint = () =>
+  new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
 
 let libraryLoading: Promise<void> | null = null
 
@@ -89,6 +134,9 @@ export function LiveGarment({
   // The visitor has touched, dragged or keyed the garment: it stops turning for good (F7).
   const [touched, setTouched] = useState(false)
   const [touchAction, setTouchAction] = useState<'none' | 'pan-y'>('pan-y')
+  // Zoom is on only after a click on the garment (owner, 2026-10-17); see the header.
+  const [zoom, setZoom] = useState(false)
+  const [fade, setFade] = useState<Fade | null>(null)
   const layer = useRef<HTMLDivElement>(null)
   const reduced = useRef(false)
   const viewer = useRef<ModelViewerElement | null>(null)
@@ -98,12 +146,79 @@ export function LiveGarment({
 
   // A colour chosen once the model is up switches it in place: model-viewer 4.3.1 applies a
   // `variantName` set at any time, and fires `variant-applied`, which re-applies the depth bias.
+  // The old colour's picture lies over the swap and fades away (the cross-fade, see the header).
   useEffect(() => {
     const mv = viewer.current
     const name = variant ?? model.variantId
-    if (phase !== 'shown' || !mv || !name) return
-    if (mv.availableVariants?.includes(name)) mv.variantName = name
+    if (phase !== 'shown' || !mv || !name || !mv.availableVariants?.includes(name)) return
+    if (mv.variantName === name) return
+    let alive = true
+    let url: string | null = null
+    const swap = () => {
+      if (alive) mv.variantName = name
+    }
+    if (reduced.current || typeof mv.toBlob !== 'function') {
+      swap()
+      return () => {
+        alive = false
+      }
+    }
+    mv.toBlob({ mimeType: 'image/webp' })
+      .then(async (blob) => {
+        if (!alive) return
+        url = URL.createObjectURL(blob)
+        const picture = new Image()
+        picture.src = url
+        await picture.decode()
+        if (!alive) return
+        setFade({ url, going: false })
+        await nextPaint()
+        if (!alive) return
+        const applied = new Promise<void>((done) =>
+          mv.addEventListener('variant-applied', () => done(), { once: true }),
+        )
+        swap()
+        await applied
+        await nextPaint()
+        if (alive) setFade({ url, going: true })
+      })
+      .catch(swap)
+    return () => {
+      alive = false
+      // A newer pick, or the garment leaving: drop this pick's picture at once.
+      setFade(null)
+      if (url) URL.revokeObjectURL(url)
+    }
   }, [phase, variant, model.variantId])
+
+  /*
+   * Zoom off again when the garment leaves the screen, when a press lands anywhere else on the
+   * page, and on Escape (the pointer leaving is in `attach`, below, with the press that switches
+   * it on).
+   */
+  useEffect(() => {
+    if (!zoom) return
+    const element = layer.current
+    if (!element) return
+    const off = () => setZoom(false)
+    const pressElsewhere = (event: PointerEvent) => {
+      if (!element.contains(event.target as Node)) off()
+    }
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') off()
+    }
+    const away = new IntersectionObserver((entries) => {
+      if (entries.every((entry) => !entry.isIntersecting)) off()
+    })
+    away.observe(element)
+    document.addEventListener('pointerdown', pressElsewhere)
+    document.addEventListener('keydown', onEscape)
+    return () => {
+      away.disconnect()
+      document.removeEventListener('pointerdown', pressElsewhere)
+      document.removeEventListener('keydown', onEscape)
+    }
+  }, [zoom])
 
   // Re-decided whenever the frame or the screen changes size: turning a phone sideways is the case.
   useEffect(() => {
@@ -188,7 +303,26 @@ export function LiveGarment({
     }
     const onError = () => setPhase('failed')
     // A press is a touch even before it moves anything; the arrow keys report as a camera change.
-    const onPress = () => setTouched(true)
+    let pressedAt: { x: number; y: number } | null = null
+    const onPress = (event: PointerEvent) => {
+      setTouched(true)
+      pressedAt = { x: event.clientX, y: event.clientY }
+    }
+    // A click that did not turn the garment switches zoom on (the header).
+    const onClick = (event: MouseEvent) => {
+      const moved = pressedAt
+        ? Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y)
+        : 0
+      pressedAt = null
+      if (moved <= CLICK_SLOP_PX) setZoom(true)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') setZoom(true)
+    }
+    // A mouse leaving the garment hands the wheel back to the page; a finger never "leaves".
+    const onLeave = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse') setZoom(false)
+    }
     const onCameraChange = (event: Event) => {
       if ((event as CustomEvent<{ source?: string }>).detail?.source === 'user-interaction') {
         setTouched(true)
@@ -198,12 +332,18 @@ export function LiveGarment({
     mv.addEventListener('variant-applied', bias)
     mv.addEventListener('error', onError)
     mv.addEventListener('pointerdown', onPress)
+    mv.addEventListener('click', onClick)
+    mv.addEventListener('keydown', onKey)
+    mv.addEventListener('pointerleave', onLeave)
     mv.addEventListener('camera-change', onCameraChange)
     return () => {
       mv.removeEventListener('load', onLoad)
       mv.removeEventListener('variant-applied', bias)
       mv.removeEventListener('error', onError)
       mv.removeEventListener('pointerdown', onPress)
+      mv.removeEventListener('click', onClick)
+      mv.removeEventListener('keydown', onKey)
+      mv.removeEventListener('pointerleave', onLeave)
       mv.removeEventListener('camera-change', onCameraChange)
       viewer.current = null
     }
@@ -211,35 +351,70 @@ export function LiveGarment({
 
   const live = phase === 'loading' || phase === 'shown'
   return (
-    <div className="live-garment" ref={layer} data-phase={phase}>
+    <div
+      className="live-garment"
+      ref={layer}
+      data-phase={phase}
+      data-zoom={zoom ? '' : undefined}
+      // Our smooth scroll leaves the wheel to the garment while zoom is on (SmoothScroll.tsx).
+      {...(zoom ? { [KEEP_WHEEL_ATTRIBUTE]: '' } : {})}
+    >
       {live
-        ? createElement('model-viewer', {
-            ref: attach,
-            className: 'live-garment__model',
-            src: model.url,
-            alt: `${label} — a 3D model you can turn`,
-            'camera-controls': '',
-            'camera-orbit': model.camera.orbit,
-            'camera-target': model.camera.target,
-            'field-of-view': model.camera.fieldOfView,
-            'disable-zoom': '',
-            'disable-pan': '',
-            'disable-tap': '',
-            'interaction-prompt': 'none',
-            'touch-action': touchAction,
-            ...(reduced.current || touched
-              ? {}
-              : { 'auto-rotate': '', 'auto-rotate-delay': '0', 'rotation-per-second': '12deg' }),
-            'interpolation-decay': reduced.current ? 1 : LIVE_RENDER.cameraDecayMs,
-            'shadow-intensity': LIVE_RENDER.shadowIntensity,
-            'shadow-softness': LIVE_RENDER.shadowSoftness,
-            'environment-image': LIVE_RENDER.environmentImage,
-            'tone-mapping': LIVE_RENDER.toneMapping,
-            exposure: LIVE_RENDER.exposure,
-            loading: 'eager',
-            reveal: 'auto',
-          })
+        ? createElement(
+            'model-viewer',
+            {
+              ref: attach,
+              className: 'live-garment__model',
+              src: model.url,
+              alt: `${label} — a 3D model you can turn`,
+              'camera-controls': '',
+              'camera-orbit': model.camera.orbit,
+              'camera-target': model.camera.target,
+              'field-of-view': model.camera.fieldOfView,
+              ...(zoom ? {} : { 'disable-zoom': '' }),
+              'disable-pan': '',
+              'disable-tap': '',
+              'interaction-prompt': 'none',
+              // A pinch needs every finger once zoom is on; until then the page keeps its swipe.
+              'touch-action': zoom ? 'none' : touchAction,
+              ...(reduced.current || touched
+                ? {}
+                : { 'auto-rotate': '', 'auto-rotate-delay': '0', 'rotation-per-second': '12deg' }),
+              'interpolation-decay': reduced.current ? 1 : LIVE_RENDER.cameraDecayMs,
+              'shadow-intensity': LIVE_RENDER.shadowIntensity,
+              'shadow-softness': LIVE_RENDER.shadowSoftness,
+              'environment-image': LIVE_RENDER.environmentImage,
+              'tone-mapping': LIVE_RENDER.toneMapping,
+              exposure: LIVE_RENDER.exposure,
+              loading: 'eager',
+              reveal: 'auto',
+            },
+            // Empty, so the centre of the garment is the garment's own (the header).
+            createElement('span', { slot: 'pan-target' }),
+          )
         : null}
+      {phase === 'shown' && !zoom && touchAction === 'none' ? (
+        <>
+          <span className="live-garment__scroll live-garment__scroll--start" aria-hidden="true" />
+          <span className="live-garment__scroll live-garment__scroll--end" aria-hidden="true" />
+        </>
+      ) : null}
+      {fade ? (
+        // The old colour, fading away over the new one (the header). Decorative: the model's own
+        // label already names the garment.
+        // biome-ignore lint/performance/noImgElement: a blob: picture of the canvas, made in the browser a moment ago; next/image cannot serve it.
+        <img
+          className="live-garment__fade"
+          src={fade.url}
+          alt=""
+          aria-hidden="true"
+          data-going={fade.going ? '' : undefined}
+          onTransitionEnd={() => {
+            URL.revokeObjectURL(fade.url)
+            setFade(null)
+          }}
+        />
+      ) : null}
       {phase === 'shown' && !touched ? (
         // The garment pages' hint (`.stage__hint` in apps/viewer), in this page's words. Hidden from
         // screen readers as that one is: the model's own label already says it can be turned.

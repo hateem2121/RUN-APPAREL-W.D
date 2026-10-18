@@ -15,7 +15,7 @@ type FamilyGroupProps = {
 
 /**
  * One family's group on `/products`: the heading that opens the family's own page (Q25), its count
- * or the owner's "[ soon ]" words (Q21), and its garments.
+ * or the owner's "[ ask us ]" words (Q21), and its garments.
  *
  * ⚠️ ITS OWN FILE SO A TEST CAN DRAW IT (11 Oct 2026). CI's database holds no Teamwear garment, so
  * the page there never has a group long enough to show how the groups stack.

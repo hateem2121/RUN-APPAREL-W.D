@@ -417,11 +417,12 @@ describe('a sharp screen gets a file as wide as the picture asks (X16)', () => {
     sizes: attr(tag, 'sizes'),
   }))
 
-  // Nine since D41 (2026-10-16): the front of the building is drawn by the factory page's gallery.
+  // Nine since D41 (2026-10-16); since 2026-10-17 the stitching floor is the one left out (the
+  // hero shows it) and №04's step 05 draws the front of the building.
   it('reads all nine photos off the page, each with its widths and its hint', () => {
     expect(pictures.map((picture) => picture.slug).sort()).toEqual(
       FACTORY_PHOTOS.map((photo) => photo.slug)
-        .filter((slug) => slug !== 'exterior')
+        .filter((slug) => slug !== 'stitching')
         .sort(),
     )
     for (const picture of pictures) {

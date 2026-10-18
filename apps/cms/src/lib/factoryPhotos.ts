@@ -77,6 +77,9 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
   {
     slug: 'exterior',
     shape: 'wide',
+    // №04's step 05 since 2026-10-17 (owner: the hero already shows the stitching floor). The
+    // entrance and its glass tower stand at the middle of the file, measured on a 10% grid.
+    focus: [50, 50],
     alt: 'A red-brick factory building with wide steps in front, under a cloudy sky.',
     caption: 'The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces',
   },

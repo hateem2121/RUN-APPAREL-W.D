@@ -71,8 +71,8 @@ const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
  * on every page it touched, so those three constants went with it.
  */
 const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
-/** The order steps as four stage cards with a second line each (D42), every word approved by the owner. */
-const ORDER_STAGES = '2026-10-16T14:03:43+05:00'
+/** Step 05's photo became the front of the works (owner, home page audit 2026-10-17). */
+const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -87,8 +87,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-a-private-label-order-works': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    ORDER_STAGES,
-    'cb852fe13112',
+    STEP_FIVE_PHOTO,
+    'fba06078c80f',
   ),
   '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, GARMENT_LINKS, '9afd7f827218'),
   '/guides/minimum-order-and-samples': byline(

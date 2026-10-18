@@ -3,7 +3,7 @@
 import {
   type FooterHours,
   isOpenAt,
-  opensAt,
+  opensLabel,
   SITE_FOOTER_WORDS,
   worksClock,
 } from '@run-apparel/shared'
@@ -44,12 +44,12 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
           <small>{SITE_FOOTER_WORDS.clockZone}</small>
         </span>
       </span>
-      {open === null || !hours ? null : (
+      {open === null || !hours || !now ? null : (
         // `data-state`, NOT `data-open`: publicSite.test.ts forbids `data-open` in the
         // site's CSS so a state attribute can never hide the nav links again. This is a
         // status light, not a disclosure, and it does not need that name.
         <span className="footer-status" data-state={open ? 'open' : 'closed'}>
-          {open ? SITE_FOOTER_WORDS.openNow : opensAt(hours.open)}
+          {open ? SITE_FOOTER_WORDS.openNow : opensLabel(hours, now)}
         </span>
       )}
     </>
@@ -57,11 +57,16 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
 }
 
 /**
- * The same clock as one line, for the home page's №05 (owner, 2026-10-16). The home page's footer
- * leaves out its question and so this clock with it; the clock moved up into the closing panel
- * beside "Start a conversation", rather than going. The panel's map already names Sialkot, so the
+ * The same clock as one line, for the home page's №05 (owner, 2026-10-16), beside "Start a
+ * conversation". The home page's footer left out its question and this clock with it until
+ * 2026-10-17, when the owner kept both (D46). The panel's map already names Sialkot, so the
  * line names the time instead ("Local time"), and says the zone once: "Opens 08:00", not
  * "Opens 08:00 PKT" after "10:30 PKT". Same honest placeholder until the client renders it.
+ *
+ * Both lights name the weekday when the works are shut and the next opening is not later today
+ * ("Opens Mon 08:00"; audit 2026-10-17 found "Opens 08:00" on a Sunday). `opensLabel` reads the
+ * day in Sialkot time from `now`, which is null until the client mounts, so the server render
+ * and the first client render still draw no light and read no time.
  */
 export function WorksClockLine({ hours, label }: { hours: FooterHours | null; label: string }) {
   const now = useNow()
@@ -76,11 +81,11 @@ export function WorksClockLine({ hours, label }: { hours: FooterHours | null; la
       <span>
         {now ? worksClock(now) : '--:--'} {SITE_FOOTER_WORDS.clockZone}
       </span>
-      {open === null || !hours ? null : (
+      {open === null || !hours || !now ? null : (
         <span>
           {open
             ? SITE_FOOTER_WORDS.openNow
-            : opensAt(hours.open).replace(` ${SITE_FOOTER_WORDS.clockZone}`, '')}
+            : opensLabel(hours, now).replace(` ${SITE_FOOTER_WORDS.clockZone}`, '')}
         </span>
       )}
     </p>

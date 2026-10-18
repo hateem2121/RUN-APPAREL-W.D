@@ -75,13 +75,37 @@ export function ProofShowcase({
 
   // The first colour keeps the product's own poster (light, and what the gallery shows); another
   // colour shows its own picture, or the drawn placeholder where it has none.
-  const still =
+  /*
+   * ⚠️ THE POSTER'S WORDS ARE THE COLOUR'S NAME, NOT THE POSTER FILE'S (home page audit, 2026-10-17).
+   * The poster's own alt in the CMS still said "CAPSULE CORE HOODIE in Olive / Sage" while the
+   * colour, its renders and the pill all say "Bay Leaf / Matcha" (live API, read 2026-10-17), so a
+   * screen reader heard a colour the page never showed. Built from the colour as the colourway's
+   * own `altText` is, so the two can no longer drift.
+   */
+  const still: Still =
     chosen === 0 || !colour
-      ? { key: 'poster', src: product?.posterUrl ?? null, alt: product?.posterAlt ?? '' }
+      ? {
+          key: 'poster',
+          src: product?.posterUrl ?? null,
+          alt:
+            product && colour
+              ? `${product.productName} in ${colour.name}`
+              : (product?.posterAlt ?? ''),
+        }
       : { key: colour.slug, src: colour.image?.url ?? null, alt: colour.image?.alt ?? '' }
   const variant = colour && product?.model ? (product.model.variants[colour.slug] ?? null) : null
   // A colour the one model cannot switch to (a model per colour) shows its still instead.
   const live = product?.model && (chosen === 0 || variant) ? product.model : null
+  const { shown, leaving } = useArrivingStill(still)
+  // Fetch every colour's picture once the visitor reaches for the colours, so a pick has its picture.
+  const warmed = useRef(false)
+  const warm = () => {
+    if (warmed.current) return
+    warmed.current = true
+    for (const each of colours) {
+      if (each.image?.url) new Image().src = each.image.url
+    }
+  }
 
   return (
     <>
@@ -90,8 +114,18 @@ export function ProofShowcase({
         <figure className="proof__figure">
           <a className="proof__link" href={`${garmentPages}/${product.slug}/${colour?.slug ?? ''}`}>
             <span className="proof__frame">
-              {still.src ? (
-                <ProductPoster key={still.key} src={still.src} alt={still.alt} />
+              {/* The leaving picture keeps its key, so it stays the very element already drawn:
+                  remounted, Firefox drew no picture at all for a frame (measured 2026-10-17). */}
+              {leaving?.src ? (
+                <ProductPoster key={leaving.key} src={leaving.src} alt="" still="leaving" />
+              ) : null}
+              {shown.src ? (
+                <ProductPoster
+                  key={shown.key}
+                  src={shown.src}
+                  alt={shown.alt}
+                  still={leaving ? 'arriving' : undefined}
+                />
               ) : (
                 <span className="product-card__placeholder">[ 3D reference ]</span>
               )}
@@ -109,7 +143,7 @@ export function ProofShowcase({
         </figure>
       ) : null}
       {product && colours.length > 1 ? (
-        <ColourPills colours={colours} chosen={chosen} onChoose={setChosen} />
+        <ColourPills colours={colours} chosen={chosen} onChoose={setChosen} onReach={warm} />
       ) : null}
       {product && details && details.rows.length > 0 ? (
         <div className="proof__details">
@@ -129,6 +163,58 @@ export function ProofShowcase({
       <div className="proof__actions">{actions}</div>
     </>
   )
+}
+
+/** The picture under the garment: which, from where, and its words. */
+type Still = { key: string; src: string | null; alt: string }
+
+/** How long the arriving picture takes to fade in: `--ui` (tokens.css), plus a frame of slack. */
+const STILL_FADE_MS = 240
+
+/**
+ * ⚠️ A NEW COLOUR'S PICTURE ARRIVES OVER THE OLD ONE, NEVER OVER AN EMPTY BOX (home page audit,
+ * 2026-10-17). The still was keyed by colour, so a pick threw the old picture away and drew a new,
+ * lazy one: with the 3D off (data saver, 2G, a failed load), the box stood empty and white for
+ * 0.4–1.2 s on the live site. Now the old picture stays until the new one is fetched and decoded,
+ * then the new one fades in on top (site.css, `data-still`) and the old one goes. A picture that
+ * fails to load still arrives, and ProductPoster draws its placeholder.
+ */
+function useArrivingStill(still: Still): { shown: Still; leaving: Still | null } {
+  const [shown, setShown] = useState(still)
+  const [leaving, setLeaving] = useState<Still | null>(null)
+  const current = useRef(shown)
+  current.current = shown
+  const target = useRef(still)
+  target.current = still
+
+  useEffect(() => {
+    if (still.key === current.current.key) return
+    let alive = true
+    const arrive = () => {
+      if (!alive) return
+      setLeaving(current.current)
+      setShown(target.current)
+    }
+    if (!still.src) {
+      arrive()
+    } else {
+      const image = new Image()
+      image.src = still.src
+      image.decode().then(arrive, arrive)
+    }
+    return () => {
+      alive = false
+    }
+  }, [still.key, still.src])
+
+  // The old picture goes once the new one has faded in.
+  useEffect(() => {
+    if (!leaving) return
+    const timer = setTimeout(() => setLeaving(null), STILL_FADE_MS)
+    return () => clearTimeout(timer)
+  }, [leaving])
+
+  return { shown, leaving }
 }
 
 /** A dot's width until the row says otherwise (`--pill-dot`), and the room between two buttons. */
@@ -154,10 +240,13 @@ function ColourPills({
   colours,
   chosen,
   onChoose,
+  onReach,
 }: {
   colours: readonly CardColour[]
   chosen: number
   onChoose: (index: number) => void
+  /** The pointer or the keyboard has reached the colours: fetch their pictures now. */
+  onReach: () => void
 }) {
   const titleId = useId()
   const row = useRef<HTMLDivElement>(null)
@@ -166,6 +255,18 @@ function ColourPills({
   const [natural, setNatural] = useState<number[] | null>(null)
   const [room, setRoom] = useState(0)
   const [dot, setDot] = useState(DOT)
+
+  // A pointer over the row, or the keyboard arriving in it, fetches the colours' pictures.
+  useEffect(() => {
+    const element = row.current
+    if (!element) return
+    element.addEventListener('pointerenter', onReach)
+    element.addEventListener('focusin', onReach)
+    return () => {
+      element.removeEventListener('pointerenter', onReach)
+      element.removeEventListener('focusin', onReach)
+    }
+  }, [onReach])
 
   useEffect(() => {
     const element = row.current

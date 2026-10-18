@@ -87,12 +87,12 @@ test.describe('the products page shows every family under a heading that opens i
     }
   })
 
-  test('Sports Accessories says "[ soon ]" and how to ask, in the owner’s words (Q21)', async ({
+  test('Sports Accessories says "[ ask us ]" and how to ask, in the owner’s words (Q21, Q13)', async ({
     page,
   }) => {
     await page.goto('/products')
     const group = page.locator('#sports-accessories')
-    await expect(group.locator('.label')).toHaveText('[ soon ]')
+    await expect(group.locator('.label')).toHaveText('[ ask us ]')
     const ask = group.getByRole('link', { name: 'Ask what we make' })
     await expect(ask).toHaveAttribute('href', '/contact')
   })
@@ -109,7 +109,7 @@ test.describe('the products page shows every family under a heading that opens i
         .filter({ has: page.locator(`a.family-card__link[href="${href}"]`) })
     const accessories = cardOf('/contact')
     await expect(accessories).toHaveCount(1)
-    await expect(accessories.locator('.family-card__meta')).toContainText('[ soon ]')
+    await expect(accessories.locator('.family-card__meta')).toContainText('[ ask us ]')
     await expect(accessories.locator('.family-card__cue')).toContainText('Ask what we make')
     // The link's name must say where it goes (WCAG 2.4.4): "Ask what we make" is in it, out of
     // sight, while the other cards' "View the range" only repeats where their names lead.
@@ -117,11 +117,11 @@ test.describe('the products page shows every family under a heading that opens i
     // different spacing ("Accessories. Ask" or "Accessories . Ask").
     const link = page.getByRole('link', { name: /^Sports Accessories\W+Ask what we make$/ })
     await expect(link).toHaveAttribute('href', '/contact')
-    // CONTROL: every family with a page still opens it, and says nothing of "soon".
+    // CONTROL: every family with a page still opens it, and says nothing of "[ ask us ]".
     for (const { page: buyerPage } of WITH_A_PAGE) {
       const card = cardOf(buyerPage.path)
       await expect(card).toHaveCount(1)
-      await expect(card).not.toContainText('[ soon ]')
+      await expect(card).not.toContainText('[ ask us ]')
     }
   })
 

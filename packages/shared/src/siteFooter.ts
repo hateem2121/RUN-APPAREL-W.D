@@ -2,8 +2,8 @@ import { CATEGORY_PAGE_PATHS } from './categoryPages.ts'
 import { formatAddress } from './company.ts'
 import { CONSENT_COPY } from './consent.ts'
 import { formatPhoneForDisplay } from './contact.ts'
-import { formatHours } from './footerHours.ts'
-import { marksFor } from './standardsLogos.ts'
+import { DAY_LABEL, formatHours, nextOpening } from './footerHours.ts'
+import { CLIMATE_COMMITMENT, marksFor } from './standardsLogos.ts'
 
 /**
  * The site footer's words, links and rules — ONCE, for the public site and the garment pages.
@@ -80,11 +80,29 @@ export const SITE_FOOTER_WORDS = {
   clockZone: 'PKT',
   openNow: 'Open now',
   marks: 'Marks of the standards above',
+  /**
+   * Said after each "Elsewhere" link, which opens in a new tab (owner, 2026-10-17). W3C's G201
+   * (updated 18 May 2026) asks for a warning both seen and heard: the links also show "↗".
+   */
+  newTab: '(opens in a new tab)',
 } as const
 
-/** The closed light's words: "Opens 09:00 PKT". */
-export function opensAt(open: string): string {
-  return `Opens ${open} ${SITE_FOOTER_WORDS.clockZone}`
+/**
+ * The closed light's words: "Opens 09:00 PKT", or "Opens Mon 09:00 PKT" when `day` is given.
+ * The day is named only when the next opening is NOT later today (audit 2026-10-17: "Opens 08:00"
+ * was shown on a Sunday, when the works open on Monday).
+ */
+export function opensAt(open: string, day?: string): string {
+  return `Opens ${day ? `${day} ` : ''}${open} ${SITE_FOOTER_WORDS.clockZone}`
+}
+
+/**
+ * The closed light for `instant`: today's wording when the works open later today, otherwise the
+ * weekday of the next opening. The weekday is read in Sialkot time, never the visitor's.
+ */
+export function opensLabel(hours: FooterHours, instant: Date): string {
+  const next = nextOpening(hours, instant)
+  return opensAt(hours.open, next.daysAhead === 0 ? undefined : next.day)
 }
 
 /**
@@ -186,29 +204,27 @@ export interface SiteFooterContent {
  * suites. Built from the same content the page was given, because the blocks are conditional.
  * The clock's time is the one live value, so it is a pattern.
  *
- * `prompt: false` is the garment pages' footer (polish Q42, owner 2026-10-04): no tab, no
- * question and no clock, because a garment page ends on its own one prompt, "Ask about this
- * garment" (the audit counted three prompts in a row there, X23). The website keeps all of them.
+ * One footer on every page, tab, question and clock included (the owner, 2026-10-17, home page
+ * audit Q11). Until then a `prompt: false` option described the garment pages' footer without
+ * them (polish Q42, 2026-10-04).
  */
-export function siteFooterAriaSnapshot(
-  content: SiteFooterContent,
-  { prompt = true }: { prompt?: boolean } = {},
-): string {
+export function siteFooterAriaSnapshot(content: SiteFooterContent): string {
   const q = JSON.stringify
   const { footer } = content
   const words = SITE_FOOTER_WORDS
   const lines = ['- contentinfo:', '  - /children: equal']
   const add = (depth: number, line: string) => lines.push(`${'  '.repeat(depth)}- ${line}`)
 
-  if (prompt) {
+  {
     add(1, `link ${q(footer.ctaLabel)}`)
     add(1, `paragraph: ${q(words.eyebrow)}`)
     add(1, `heading ${q(footer.ctaQuestion)} [level=2]`)
     add(1, `paragraph: ${q(footer.ctaSubline)}`)
     add(1, `paragraph: ${q(footer.ctaPromise)}`)
-    // The light appears only once the clock has mounted, so it is optional even with hours.
+    // The light appears only once the clock has mounted, so it is optional even with hours. The
+    // closed light may name the weekday of the next opening (audit 2026-10-17), so that is optional.
     const status = footer.capacity.hours
-      ? `( ?(${words.openNow}|${opensAt(footer.capacity.hours.open)}))?`
+      ? `( ?(${words.openNow}|Opens( (${DAY_LABEL.join('|')}))? ${footer.capacity.hours.open} ${words.clockZone}))?`
       : ''
     add(1, `text: /^${words.clockCity} (--:--|\\d\\d:\\d\\d)${words.clockZone}${status}$/`)
   }
@@ -252,7 +268,7 @@ export function siteFooterAriaSnapshot(
     add(1, 'list:')
     for (const link of footer.socialLinks) {
       add(2, 'listitem:')
-      add(3, `link ${q(link.label)}`)
+      add(3, `link ${q(`${link.label} ${words.newTab}`)}`)
     }
   }
   const capacity = capacityLines(footer.capacity)
@@ -261,16 +277,15 @@ export function siteFooterAriaSnapshot(
     add(1, 'list:')
     for (const line of capacity) add(2, `listitem: ${q(line)}`)
   }
-  if (footer.certifications.length > 0) {
-    add(1, `heading ${q(words.standards)} [level=3]`)
-    add(1, 'list:')
-    for (const line of standardsLines(footer.certifications)) add(2, `listitem: ${q(line)}`)
-  }
-  const marks = marksFor(footer.certifications)
-  if (marks.length > 0) {
-    add(1, `group ${q(words.marks)}:`)
-    for (const mark of marks) add(2, `img ${q(mark.alt)}`)
-  }
+  // Always: the company's own climate commitment is a line and a mark whatever the CMS holds.
+  add(1, `heading ${q(words.standards)} [level=3]`)
+  add(1, 'list:')
+  for (const line of standardsLines(footer.certifications)) add(2, `listitem: ${q(line)}`)
+  add(2, `listitem: ${q(CLIMATE_COMMITMENT.line)}`)
+  add(1, `group ${q(words.marks)}:`)
+  for (const mark of marksFor(footer.certifications)) add(2, `img ${q(mark.alt)}`)
+  add(2, `link ${q(CLIMATE_COMMITMENT.logo.alt)}:`)
+  add(3, `img ${q(CLIMATE_COMMITMENT.logo.alt)}`)
 
   add(1, `text: ${q(`${content.legalLine} ${content.footerLine}`)}`)
   for (const link of SITE_FOOTER_LINKS) add(1, `link ${q(link.label)}`)
