@@ -82,9 +82,9 @@ describe('the first card picture is a resized one', () => {
 
 describe('a preconnect is found however the tag is written', () => {
   it('finds a preconnect written href-first', () => {
-    expect(extractPreconnectHosts('<link href="https://media.wear-run.com" rel="preconnect">')).toEqual([
-      MEDIA_HOST,
-    ])
+    expect(
+      extractPreconnectHosts('<link href="https://media.wear-run.com" rel="preconnect">'),
+    ).toEqual([MEDIA_HOST])
   })
 
   it('finds preconnect among several rel words, and ignores other links', () => {
@@ -117,7 +117,8 @@ describe('checkCardPicture', () => {
     const fetchImpl = async () => new Response(body, { status, headers })
     return { state, fetchImpl }
   }
-  const SRC = '/cdn-cgi/image/fit=scale-down,width=720/https://media.wear-run.com/r-xmp-wine-render.webp'
+  const SRC =
+    '/cdn-cgi/image/fit=scale-down,width=720/https://media.wear-run.com/r-xmp-wine-render.webp'
 
   it('cancels the body it does not read', async () => {
     const { state, fetchImpl } = picture(200, {
