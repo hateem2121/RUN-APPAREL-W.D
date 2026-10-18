@@ -56,6 +56,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -477,9 +478,44 @@ export function plannedRuns({ pages, formFactors, runs, warmUp }) {
   return plan
 }
 
-export function parseArgs(argv) {
+/**
+ * Chrome features the robot switches off on top of chrome-launcher's own list. EMPTY: a feature
+ * goes here only with the side-by-side evidence that it removes a measuring fault and changes
+ * nothing else (owner's decision, 2026-10-18), and comes out again once Chrome fixes the fault.
+ * For a test, name them with --extra-disabled-features=A,B or EXTRA_DISABLED_FEATURES.
+ */
+export const EXTRA_DISABLED_FEATURES = []
+
+const FEATURE_NAME = /^[A-Za-z0-9]+$/
+
+/** The features chrome-launcher (as Lighthouse installs it) already passes in --disable-features. */
+export function launcherDisabledFeatures() {
+  const require = createRequire(import.meta.resolve('lighthouse/package.json'))
+  const { Launcher } = require('chrome-launcher')
+  const flag = Launcher.defaultFlags().find((arg) => arg.startsWith('--disable-features='))
+  return flag ? flag.slice('--disable-features='.length).split(',').filter(Boolean) : []
+}
+
+export function parseArgs(argv, env = process.env) {
   const value = (name) => argv.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1]
   const list = (name) => value(name)?.split(',').filter(Boolean)
+  const named = (text) =>
+    String(text ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean)
+  const fromCli = named(value('extra-disabled-features'))
+  const fromEnv = named(env.EXTRA_DISABLED_FEATURES)
+  const extraDisabledFeatures = fromCli.length
+    ? fromCli
+    : fromEnv.length
+      ? fromEnv
+      : [...EXTRA_DISABLED_FEATURES]
+  for (const name of extraDisabledFeatures) {
+    // A dispatch input reaches Chrome's command line: only a bare feature name may.
+    if (!FEATURE_NAME.test(name))
+      throw new Error(`not a Chrome feature name: ${JSON.stringify(name)}`)
+  }
   const runs = Number(value('runs') ?? RUNS)
   if (!Number.isInteger(runs) || runs < 1)
     throw new Error(`--runs must be a whole number, got ${value('runs')}`)
@@ -493,6 +529,7 @@ export function parseArgs(argv) {
     formFactors: list('form-factors'),
     runs,
     warmUp,
+    extraDisabledFeatures,
     out: value('out'),
     from,
     report: argv.includes('--report'),
@@ -527,24 +564,37 @@ export function robotUserAgent(formFactor) {
 }
 
 /** The command line for one run. Separate from `runLighthouse` so a test can read it. */
-export function lighthouseArgs(url, formFactor, file, ci = Boolean(process.env.CI)) {
+export function lighthouseArgs(
+  url,
+  formFactor,
+  file,
+  ci = Boolean(process.env.CI),
+  extraDisabledFeatures = EXTRA_DISABLED_FEATURES,
+) {
   const args = [url]
   if (formFactor === 'desktop') args.push('--preset=desktop')
   args.push(`--emulatedUserAgent=${robotUserAgent(formFactor)}`)
   // `--no-sandbox` only on CI, where the existing lighthouse job already needs it.
-  const chrome = `--headless=new --no-first-run${ci ? ' --no-sandbox' : ''}`
+  let chrome = `--headless=new --no-first-run${ci ? ' --no-sandbox' : ''}`
+  const extra = extraDisabledFeatures.filter(Boolean)
+  if (extra.length) {
+    // The launcher's WHOLE list plus ours, in one flag: Chrome keeps one --disable-features
+    // value, so a bare `--disable-features=TreesInViz` would quietly turn RenderDocument and
+    // Translate back on and change two things at once.
+    chrome += ` --disable-features=${[...launcherDisabledFeatures(), ...extra].join(',')}`
+  }
   args.push('--output=json', `--output-path=${file}`, '--quiet', `--chrome-flags=${chrome}`)
   return args
 }
 
-function runLighthouse(url, formFactor, file) {
+function runLighthouse(url, formFactor, file, extraDisabledFeatures) {
   if (!existsSync(LIGHTHOUSE_BIN)) {
     throw new Error(
       `Lighthouse is not installed at ${LIGHTHOUSE_BIN}; run \`npx --yes pnpm@12.6.0 install\`. ` +
         'It is a pinned devDependency on purpose, and this robot will not fetch it with npx.',
     )
   }
-  const args = lighthouseArgs(url, formFactor, file)
+  const args = lighthouseArgs(url, formFactor, file, Boolean(process.env.CI), extraDisabledFeatures)
   const result = spawnSync(LIGHTHOUSE_BIN, args, LIGHTHOUSE_SPAWN_OPTIONS)
   for (const line of describeExit(result, url, formFactor)) console.log(line)
 }
@@ -622,6 +672,10 @@ async function main() {
     `[lighthouse-robot] Lighthouse ${LIGHTHOUSE_VERSION}, ${args.runs} run(s) each, floors: ${measuringMachine()}, ` +
       `${args.from ? `judging reports in ${dir}` : `writing reports to ${dir}`}`,
   )
+  // Named on every run, so a dispatch's A/B arm can be read off its log.
+  console.log(
+    `[lighthouse-robot] extra disabled features: ${args.extraDisabledFeatures.join(',') || 'none'}`,
+  )
   const results = []
   const byKey = new Map()
   let warmUps = 0
@@ -633,7 +687,12 @@ async function main() {
   })) {
     if (!measured) {
       warmUps += 1
-      runLighthouse(page.url, formFactor, join(dir, `warmup.${warmUps}.json`))
+      runLighthouse(
+        page.url,
+        formFactor,
+        join(dir, `warmup.${warmUps}.json`),
+        args.extraDisabledFeatures,
+      )
       continue
     }
     const key = `${page.name}.${formFactor}`
@@ -642,7 +701,7 @@ async function main() {
       results.push(byKey.get(key))
     }
     const file = join(dir, `${key}.run${run}.json`)
-    if (!args.from) runLighthouse(page.url, formFactor, file)
+    if (!args.from) runLighthouse(page.url, formFactor, file, args.extraDisabledFeatures)
     byKey.get(key).runs.push(readReport(file))
   }
 

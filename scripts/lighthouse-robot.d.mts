@@ -18,7 +18,10 @@ export declare function lighthouseArgs(
   formFactor: string,
   file: string,
   ci?: boolean,
+  extraDisabledFeatures?: string[],
 ): string[]
+export declare const EXTRA_DISABLED_FEATURES: string[]
+export declare function launcherDisabledFeatures(): string[]
 
 export type MeasuringMachine = 'local' | 'github-runner'
 export declare const PERFORMANCE_FLOORS: Record<MeasuringMachine, Record<string, number>>
@@ -69,11 +72,15 @@ export declare function plannedRuns(options: {
   runs: number
   warmUp: number
 }): PlannedRun[]
-export declare function parseArgs(argv: string[]): {
+export declare function parseArgs(
+  argv: string[],
+  env?: Record<string, string | undefined>,
+): {
   pages: string[] | undefined
   formFactors: string[] | undefined
   runs: number
   warmUp: number
+  extraDisabledFeatures: string[]
   out: string | undefined
   from: string | undefined
   report: boolean

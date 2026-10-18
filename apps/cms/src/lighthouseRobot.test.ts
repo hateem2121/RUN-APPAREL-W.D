@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { userAgents as lighthouseUserAgents } from 'lighthouse/core/config/constants.js'
 import { DEFAULT_PRODUCT } from '../../../scripts/live-products.mjs'
@@ -11,9 +12,11 @@ import {
   describeExit,
   documentStatus,
   EXPECTED_BELOW_ONE,
+  EXTRA_DISABLED_FEATURES,
   evaluate,
   exact,
   FORM_FACTORS,
+  launcherDisabledFeatures,
   judgePage,
   LIGHTHOUSE_SPAWN_OPTIONS,
   MAX_NOT_JUDGED,
@@ -832,5 +835,82 @@ describe('a failing median is printed exactly', () => {
     expect(exact(0.8449999999999999)).toBe('0.845')
     expect(exact(0.9)).toBe('0.900')
     expect(exact(null)).toBe('—')
+  })
+})
+
+/**
+ * GoogleChrome/lighthouse#17148: under phone emulation headless Chrome sometimes withholds the
+ * first frame for ~1–2 s, and community A/B tests tie it to two Chrome features, RenderDocument
+ * (chrome-launcher already disables it) and TreesInViz. The robot can switch extra features off
+ * for an A/B test; nothing is switched off unless asked.
+ */
+describe('a Chrome feature can be switched off for a test, and only then', () => {
+  const chromeFlag = (args: string[]) => args.find((arg) => arg.startsWith('--chrome-flags=')) ?? ''
+
+  it('no extra features adds no flag', () => {
+    expect(EXTRA_DISABLED_FEATURES).toEqual([])
+    for (const extra of [[], ['']]) {
+      const flag = chromeFlag(
+        lighthouseArgs('https://wear-run.com/', 'mobile', '/tmp/x.json', true, extra),
+      )
+      expect(flag).toBe('--chrome-flags=--headless=new --no-first-run --no-sandbox')
+    }
+  })
+
+  it('reads the launcher’s own list, which already holds RenderDocument', () => {
+    const list = launcherDisabledFeatures()
+    expect(list).toContain('RenderDocument')
+    expect(list).toContain('Translate')
+  })
+
+  /*
+   * Chrome keeps only one --disable-features value, so a bare --disable-features=TreesInViz
+   * would quietly switch RenderDocument and Translate back ON and change two things at once.
+   */
+  it('an extra feature keeps the launcher’s list', () => {
+    const flag = chromeFlag(
+      lighthouseArgs('https://wear-run.com/', 'mobile', '/tmp/x.json', true, ['TreesInViz']),
+    )
+    expect(flag.match(/--disable-features=/g)).toHaveLength(1)
+    expect(flag).toContain(`--disable-features=${launcherDisabledFeatures().join(',')},TreesInViz`)
+  })
+
+  it('takes the list from the command line first, then the environment, then the default', () => {
+    expect(parseArgs([], {}).extraDisabledFeatures).toEqual([])
+    expect(parseArgs([], { EXTRA_DISABLED_FEATURES: '' }).extraDisabledFeatures).toEqual([])
+    expect(parseArgs([], { EXTRA_DISABLED_FEATURES: 'TreesInViz' }).extraDisabledFeatures).toEqual([
+      'TreesInViz',
+    ])
+    expect(
+      parseArgs(['--extra-disabled-features=A,B'], { EXTRA_DISABLED_FEATURES: 'TreesInViz' })
+        .extraDisabledFeatures,
+    ).toEqual(['A', 'B'])
+    // A feature name is letters and digits only: anything else would reach Chrome's command line.
+    expect(() => parseArgs(['--extra-disabled-features=Trees In"Viz'], {})).toThrow(/feature name/)
+  })
+})
+
+/**
+ * Run 38551763539 (measuring the deploy of c865c441, 2026-10-14) was cancelled by run
+ * 38552102412, which a cancelled CI run had started and which then skipped its only job:
+ * a workflow-level concurrency group is joined before any job's `if:` is read.
+ */
+describe('only a run that measures takes part in the cancel group', () => {
+  const workflow = readFileSync(
+    fileURLToPath(new URL('../../../.github/workflows/lighthouse-live.yml', import.meta.url)),
+    'utf8',
+  )
+  it('concurrency belongs to the measuring job, not the workflow', () => {
+    expect(workflow).not.toMatch(/^concurrency:/m)
+    const job = workflow.slice(workflow.indexOf('\n  measure:'))
+    expect(job).toMatch(
+      /^ {4}concurrency:\n {6}group: lighthouse-live\n {6}cancel-in-progress: true$/m,
+    )
+  })
+
+  it('a dispatch can name features to switch off, carried in the environment', () => {
+    expect(workflow).toMatch(/^ {6}extra_disabled_features:$/m)
+    expect(workflow).toMatch(/EXTRA_DISABLED_FEATURES: \$\{\{ inputs\.extra_disabled_features \}\}/)
+    expect(workflow).not.toMatch(/run:.*inputs\.extra_disabled_features/)
   })
 })
