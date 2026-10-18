@@ -427,18 +427,49 @@ export function evaluate(pages) {
   }
 }
 
-function parseArgs(argv) {
+/**
+ * Runs made and thrown away before any is measured. The first Lighthouse run of a job is cold
+ * (a fresh machine, a first Chrome start, and an edge cache the deploy just emptied):
+ * home.mobile, always first, averaged 0.747 on run 1 against 0.89–0.91 on runs 2–5, and run 1
+ * was the lowest of the five in 61 of 71 jobs (2026-09-29 → 2026-10-18).
+ */
+export const WARM_UP_RUNS = 1
+
+/**
+ * Every Lighthouse run in order. Warm-ups come first, on the first page and form factor, as
+ * `run: 0, measured: false`; their reports are written and never read.
+ */
+export function plannedRuns({ pages, formFactors, runs, warmUp }) {
+  const plan = []
+  for (let i = 0; i < warmUp && pages.length && formFactors.length; i++) {
+    plan.push({ page: pages[0], formFactor: formFactors[0], run: 0, measured: false })
+  }
+  for (const page of pages) {
+    for (const formFactor of formFactors) {
+      for (let run = 1; run <= runs; run++) plan.push({ page, formFactor, run, measured: true })
+    }
+  }
+  return plan
+}
+
+export function parseArgs(argv) {
   const value = (name) => argv.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1]
   const list = (name) => value(name)?.split(',').filter(Boolean)
   const runs = Number(value('runs') ?? RUNS)
   if (!Number.isInteger(runs) || runs < 1)
     throw new Error(`--runs must be a whole number, got ${value('runs')}`)
+  const from = value('from')
+  // Judging reports already written measures nothing, so there is nothing to warm up.
+  const warmUp = from ? 0 : Number(value('warm-up') ?? WARM_UP_RUNS)
+  if (!Number.isInteger(warmUp) || warmUp < 0)
+    throw new Error(`--warm-up must be a whole number of runs, got ${value('warm-up')}`)
   return {
     pages: list('pages'),
     formFactors: list('form-factors'),
     runs,
+    warmUp,
     out: value('out'),
-    from: value('from'),
+    from,
     report: argv.includes('--report'),
   }
 }
@@ -567,16 +598,27 @@ async function main() {
       `${args.from ? `judging reports in ${dir}` : `writing reports to ${dir}`}`,
   )
   const results = []
-  for (const page of pages) {
-    for (const formFactor of factors) {
-      const runs = []
-      for (let i = 1; i <= args.runs; i++) {
-        const file = join(dir, `${page.name}.${formFactor}.run${i}.json`)
-        if (!args.from) runLighthouse(page.url, formFactor, file)
-        runs.push(readReport(file))
-      }
-      results.push({ page: page.name, formFactor, runs })
+  const byKey = new Map()
+  let warmUps = 0
+  for (const { page, formFactor, run, measured } of plannedRuns({
+    pages,
+    formFactors: factors,
+    runs: args.runs,
+    warmUp: args.warmUp,
+  })) {
+    if (!measured) {
+      warmUps += 1
+      runLighthouse(page.url, formFactor, join(dir, `warmup.${warmUps}.json`))
+      continue
     }
+    const key = `${page.name}.${formFactor}`
+    if (!byKey.has(key)) {
+      byKey.set(key, { page: page.name, formFactor, runs: [] })
+      results.push(byKey.get(key))
+    }
+    const file = join(dir, `${key}.run${run}.json`)
+    if (!args.from) runLighthouse(page.url, formFactor, file)
+    byKey.get(key).runs.push(readReport(file))
   }
 
   const { ok, failures, inconclusive, advisories, lines } = evaluate(results)

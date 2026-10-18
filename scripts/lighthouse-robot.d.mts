@@ -56,6 +56,29 @@ export declare const LIGHTHOUSE_SPAWN_OPTIONS: {
   timeout: number
   killSignal: 'SIGKILL'
 }
+export declare const WARM_UP_RUNS: number
+export interface PlannedRun {
+  page: { name: string; url: string }
+  formFactor: string
+  run: number
+  measured: boolean
+}
+export declare function plannedRuns(options: {
+  pages: { name: string; url: string }[]
+  formFactors: string[]
+  runs: number
+  warmUp: number
+}): PlannedRun[]
+export declare function parseArgs(argv: string[]): {
+  pages: string[] | undefined
+  formFactors: string[] | undefined
+  runs: number
+  warmUp: number
+  out: string | undefined
+  from: string | undefined
+  report: boolean
+}
+
 export declare const STDERR_TAIL_LINES: number
 export declare function stderrTail(text: string, lines?: number): string
 export declare function describeExit(

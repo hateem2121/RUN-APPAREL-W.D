@@ -23,6 +23,9 @@ import {
   PAGES,
   PERFORMANCE_FLOORS,
   paintStall,
+  parseArgs,
+  plannedRuns,
+  WARM_UP_RUNS,
   type Run,
   ROBOT_UA_MARK,
   readReport,
@@ -727,5 +730,35 @@ describe('a run explains itself', () => {
     expect(failed.slice(1)).toEqual(['    Runtime error encountered: NO_NAVSTART'])
 
     expect(describeExit({ status: 0, stderr: 'x LH:status done' }, url, 'mobile')).toEqual([])
+  })
+})
+
+/**
+ * The first Lighthouse run of every job is cold: home.mobile, always the first, averaged 0.747
+ * against 0.89–0.91 for its runs 2–5, and was the lowest of its five in 61 of 71 jobs
+ * (2026-09-29 → 10-18). One run is made and thrown away before any is measured.
+ */
+describe('a warm-up run is thrown away', () => {
+  const pages = PAGES
+  it('plannedRuns puts one unmeasured warm-up first', () => {
+    const plan = plannedRuns({ pages, formFactors: FORM_FACTORS, runs: 5, warmUp: WARM_UP_RUNS })
+    expect(WARM_UP_RUNS).toBe(1)
+    expect(plan).toHaveLength(41)
+    expect(plan[0]).toEqual({ page: pages[0], formFactor: 'mobile', run: 0, measured: false })
+    expect(plan.slice(1).every((entry) => entry.measured)).toBe(true)
+    expect(plan[1]).toEqual({ page: pages[0], formFactor: 'mobile', run: 1, measured: true })
+  })
+
+  it('--warm-up=0 plans exactly the measured runs', () => {
+    const plan = plannedRuns({ pages, formFactors: FORM_FACTORS, runs: 5, warmUp: 0 })
+    expect(plan).toHaveLength(40)
+    expect(plan.every((entry) => entry.measured)).toBe(true)
+  })
+
+  it('reads --warm-up, defaults to one, and never warms up when judging old reports', () => {
+    expect(parseArgs([]).warmUp).toBe(1)
+    expect(parseArgs(['--warm-up=0']).warmUp).toBe(0)
+    expect(parseArgs(['--from=/tmp/reports']).warmUp).toBe(0)
+    expect(() => parseArgs(['--warm-up=-1'])).toThrow(/--warm-up/)
   })
 })
