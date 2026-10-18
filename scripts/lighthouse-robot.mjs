@@ -400,7 +400,7 @@ export function judgePage({
   } else if (scores.performance === null || scores.performance < floor) {
     const causes = [...failing].filter((id) => id.startsWith('performance/')).join(', ')
     failures.push(
-      `${key}: performance median ${short(scores.performance)} is below the ${machine} floor of ${floor}` +
+      `${key}: performance median ${exact(scores.performance)} is below the ${machine} floor of ${floor}` +
         (causes ? ` (failing: ${causes}).` : '.'),
     )
   }
@@ -414,10 +414,34 @@ export function judgePage({
   }
 }
 
-/** Judge every page. `ok` is false only for a failure; not-judged pages never fail it. */
-export function evaluate(pages) {
+/**
+ * A failing median, to three places. Lighthouse rounds each score to two, and with four valid
+ * runs the median is the mean of the middle two: run 36983128382 printed "performance median
+ * 0.85 is below the github-runner floor of 0.85" for a median of 0.845.
+ */
+export function exact(score) {
+  return score === null ? '—' : score.toFixed(3)
+}
+
+/**
+ * How many page/device pairs may go unjudged before the robot itself fails. One or two pairs
+ * left with fewer than three valid runs is ordinary (a NO_NAVSTART or a 403 twice on the same
+ * pair); more means the robot measured too little to vouch for the site. Until 2026-10-18 no
+ * number of unjudged pairs could fail it, so a run that measured nothing passed (F-05).
+ */
+export const MAX_NOT_JUDGED = 2
+
+/** Judge every page. `ok` is false for any failure, or when too many pairs went unjudged. */
+export function evaluate(pages, { maxNotJudged = MAX_NOT_JUDGED } = {}) {
   const judged = pages.map(judgePage)
   const failures = judged.flatMap((page) => page.failures)
+  const notJudged = judged.filter((page) => page.inconclusive.length > 0).length
+  if (notJudged > maxNotJudged) {
+    failures.push(
+      `${notJudged} of ${judged.length} page/device pairs were not judged — too few valid runs ` +
+        `to say anything (most allowed: ${maxNotJudged}).`,
+    )
+  }
   return {
     ok: failures.length === 0,
     failures,
@@ -624,7 +648,8 @@ async function main() {
   const { ok, failures, inconclusive, advisories, lines } = evaluate(results)
   for (const line of lines) console.log(line)
   for (const note of advisories) console.log(`[lighthouse-robot] ${note}`)
-  for (const note of inconclusive) console.log(`[lighthouse-robot] inconclusive: ${note}`)
+  // An annotation, not a log line: an unjudged page must show on the run's page, not only in the log.
+  for (const note of inconclusive) console.log(`::warning::lighthouse-robot inconclusive: ${note}`)
   for (const failure of failures) console.error(`::error::${failure}`)
   console.log(
     ok

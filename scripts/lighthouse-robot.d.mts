@@ -112,7 +112,12 @@ export interface PageVerdict {
 }
 export declare function judgePage(page: PageRuns): PageVerdict
 
-export declare function evaluate(pages: PageRuns[]): {
+export declare function exact(score: number | null): string
+export declare const MAX_NOT_JUDGED: number
+export declare function evaluate(
+  pages: PageRuns[],
+  options?: { maxNotJudged?: number },
+): {
   ok: boolean
   failures: string[]
   inconclusive: string[]

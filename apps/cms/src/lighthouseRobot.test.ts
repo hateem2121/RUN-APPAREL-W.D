@@ -12,9 +12,11 @@ import {
   documentStatus,
   EXPECTED_BELOW_ONE,
   evaluate,
+  exact,
   FORM_FACTORS,
   judgePage,
   LIGHTHOUSE_SPAWN_OPTIONS,
+  MAX_NOT_JUDGED,
   LIGHTHOUSE_TIMEOUT_MS,
   LIGHTHOUSE_VERSION,
   lighthouseArgs,
@@ -301,7 +303,7 @@ describe('judgePage', () => {
         machine: 'local',
         runs: runs(5, { scores: { ...HOME_SCORES, performance }, below: HOME_BELOW }),
       }).failures
-    expect(at(0.5).join()).toMatch(/performance median 0\.5 is below the local floor of 0\.55/)
+    expect(at(0.5).join()).toMatch(/performance median 0\.500 is below the local floor of 0\.55/)
     expect(at(0.56)).toEqual([])
   })
 
@@ -473,7 +475,7 @@ describe('each measuring machine has its own floors', () => {
       }).failures
     expect(at(0.5)).toEqual([])
     expect(at(0.7).join()).toMatch(
-      /performance median 0\.6 is below the github-runner floor of 0\.7/,
+      /performance median 0\.600 is below the github-runner floor of 0\.7/,
     )
   })
 
@@ -518,7 +520,7 @@ describe('each measuring machine has its own floors', () => {
       runs: runs(5, { scores: { ...HOME_SCORES, performance: 0.82 }, below: HOME_BELOW }),
     })
     expect(verdict.failures.join()).toMatch(
-      /performance median 0\.82 is below the github-runner floor of 0\.85/,
+      /performance median 0\.820 is below the github-runner floor of 0\.85/,
     )
   })
 
@@ -760,5 +762,75 @@ describe('a warm-up run is thrown away', () => {
     expect(parseArgs(['--warm-up=0']).warmUp).toBe(0)
     expect(parseArgs(['--from=/tmp/reports']).warmUp).toBe(0)
     expect(() => parseArgs(['--warm-up=-1'])).toThrow(/--warm-up/)
+  })
+})
+
+/**
+ * F-05 (2026-10-18): a page left with fewer than three valid runs is "not judged", and until now
+ * that could never fail the robot — judged on a single 0.75 run, /products was reported as
+ * "every judged page meets its rules" and the robot exited 0. With every page unjudged it
+ * would pass having measured nothing.
+ */
+describe('a robot that measured too little says so', () => {
+  const pairs = PAGES.flatMap((page) =>
+    FORM_FACTORS.map((formFactor) => ({ page: page.name, formFactor })),
+  )
+  const healthy = () => runs(5, { scores: { performance: 1 } })
+  const thin = () => [
+    ...runs(2, { scores: { performance: 1 } }),
+    ...Array.from({ length: 3 }, () => readRun(null)),
+  ]
+  const robotRun = (unjudged: number) =>
+    evaluate(
+      pairs.map((pair, index) => ({
+        ...pair,
+        machine: 'github-runner' as const,
+        runs: index < unjudged ? thin() : healthy(),
+      })),
+    )
+
+  it('three unjudged pairs fail the robot', () => {
+    expect(MAX_NOT_JUDGED).toBe(2)
+    const verdict = robotRun(3)
+    expect(verdict.ok).toBe(false)
+    expect(verdict.failures.join('\n')).toMatch(/3 of 8 page\/device pairs were not judged/)
+  })
+
+  it('two unjudged pairs pass, each named', () => {
+    const verdict = robotRun(2)
+    expect(verdict.ok).toBe(true)
+    expect(verdict.inconclusive).toHaveLength(2)
+  })
+
+  it('a robot that judged everything passes', () => {
+    expect(robotRun(0)).toMatchObject({ ok: true, inconclusive: [] })
+  })
+})
+
+/**
+ * F-06: Lighthouse rounds each score to two places, and with four valid runs the median is the
+ * mean of the middle two — so run 36983128382 printed "performance median 0.85 is below the
+ * github-runner floor of 0.85" for a median of 0.845.
+ */
+describe('a failing median is printed exactly', () => {
+  it('a median of 0.845 is printed as 0.845', () => {
+    const scored = [0.74, 0.84, 0.85, 0.9].map((performance) =>
+      readRun(lhr({ scores: { ...HOME_SCORES, performance }, below: HOME_BELOW })),
+    )
+    const verdict = judgePage({
+      page: 'home',
+      formFactor: 'mobile',
+      machine: 'github-runner',
+      runs: [...scored, readRun(null)],
+    })
+    expect(verdict.failures.join()).toMatch(
+      /performance median 0\.845 is below the github-runner floor of 0\.85/,
+    )
+  })
+
+  it('exact prints three places, and a dash for nothing', () => {
+    expect(exact(0.8449999999999999)).toBe('0.845')
+    expect(exact(0.9)).toBe('0.900')
+    expect(exact(null)).toBe('—')
   })
 })
