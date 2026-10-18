@@ -234,7 +234,7 @@ describe('SiteFooter', () => {
  * CMS holds, so it is checked with no certifications at all, and with them after the CMS's lines.
  */
 describe('SiteFooter and the climate commitment', () => {
-  const badgeLink = `<a class="footer-commitment" href="${CLIMATE_COMMITMENT.href.replace('&', '&amp;')}" rel="noopener"><img class="footer-logo" src="${CLIMATE_COMMITMENT.logo.src}"`
+  const badgeLink = `<a class="footer-commitment" href="${CLIMATE_COMMITMENT.href.replaceAll('&', '&amp;')}" rel="noopener"><img class="footer-logo" src="${CLIMATE_COMMITMENT.logo.src}"`
 
   it('draws its line and its linked badge with nothing in the CMS', () => {
     const out = html(base)
