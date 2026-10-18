@@ -217,6 +217,7 @@ export function readRun(lhr) {
   if (!lhr || typeof lhr !== 'object') return { missing: true, reason: 'no report was written' }
   const scores = {}
   const belowOne = []
+  const observed = lhr.audits?.metrics?.details?.items?.[0]
   for (const [id, category] of Object.entries(lhr.categories ?? {})) {
     scores[id] = typeof category.score === 'number' ? category.score : null
     for (const ref of category.auditRefs ?? []) {
@@ -239,11 +240,41 @@ export function readRun(lhr) {
     // lists one per origin and reports their maximum as its numericValue. On 2026-09-16 the
     // Mac's viewer runs that scored below the floor were at 375-596 ms, and the two at or
     // above it were at 126-280 ms.
-    rttMs:
-      typeof lhr.audits?.['network-rtt']?.numericValue === 'number'
-        ? lhr.audits['network-rtt'].numericValue
-        : null,
+    rttMs: numberOrNull(lhr.audits?.['network-rtt']?.numericValue),
+    // Why a run scored what it did (investigation of 2026-10-18, F-04). The machine's CPU index:
+    // Lighthouse's throttling is relative to the host (docs/throttling.md), so two machines are
+    // only comparable at a similar index. The document's server time: a cold page cache answered
+    // /products in 1,213 ms on the Mac that day, against 32 ms for a warm home page. And the
+    // browser's own paint and load times, which `paintStall` reads.
+    benchmarkIndex: numberOrNull(lhr.environment?.benchmarkIndex),
+    ttfbMs: numberOrNull(lhr.audits?.['server-response-time']?.numericValue),
+    observedFcpMs: numberOrNull(observed?.observedFirstContentfulPaint),
+    observedDclMs: numberOrNull(observed?.observedDomContentLoaded),
+    observedLoadMs: numberOrNull(observed?.observedLoad),
   }
+}
+
+function numberOrNull(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/** First paint this much after the DOM was ready, with the page already loaded, is a stall. */
+export const PAINT_STALL_MS = 700
+
+/**
+ * GoogleChrome/lighthouse#17148 (open, read 2026-10-18): under PHONE emulation headless Chrome
+ * sometimes withholds the first frame for about 1 or 2 seconds after the page is ready, so the
+ * load event fires BEFORE the first paint — "which no normal load produces" — and Lighthouse's
+ * simulation turns that into a slow score. Reported on Chrome 153–155; the runner moved from
+ * Chrome 152 to 153 on 2026-09-29, the day the phone medians stepped down. 700 ms is under the
+ * shortest withheld-frame wait the issue measured (717 ms), so a stall is counted and a quick page is
+ * not. Counted and printed only: it judges nothing until it is proven on our pages.
+ */
+export function paintStall(run) {
+  if (!run || run.missing) return false
+  const { observedFcpMs: fcp, observedDclMs: dcl, observedLoadMs: load } = run
+  if (fcp === null || dcl === null || load === null) return false
+  return load < fcp && fcp - dcl >= PAINT_STALL_MS
 }
 
 /** One run, sorted into: valid, inconclusive, broken (a 4xx/5xx page), or wrong-version. */
@@ -315,11 +346,17 @@ export function judgePage({
     CATEGORIES.map((category) => [category, median(valid.map((run) => run.scores[category]))]),
   )
   const rtt = median(valid.map((run) => run.rttMs))
+  const ttfb = median(valid.map((run) => run.ttfbMs))
+  const cpu = median(valid.map((run) => run.benchmarkIndex))
+  const stalls = valid.filter(paintStall).length
   const line = (note) =>
     `  ${key.padEnd(26)} ${String(valid.length).padStart(1)}/${runs.length} runs  ` +
     CATEGORIES.map((category) => `${LABELS[category]} ${short(scores[category])}`).join('  ') +
     `  perf runs ${valid.map((run) => short(run.scores.performance)).join('/')}` +
     `  rtt ${rtt === null ? '—' : `${Math.round(rtt)}ms`}` +
+    `  ttfb ${ttfb === null ? '—' : `${Math.round(ttfb)}ms`}` +
+    `  cpu ${cpu === null ? '—' : Math.round(cpu)}` +
+    `  stalls ${stalls}/${valid.length}` +
     (note ? `  ${note}` : '')
 
   if (valid.length < MIN_VALID_RUNS) {
@@ -452,13 +489,52 @@ function runLighthouse(url, formFactor, file) {
     )
   }
   const args = lighthouseArgs(url, formFactor, file)
-  const result = spawnSync(LIGHTHOUSE_BIN, args, {
-    stdio: ['ignore', 'ignore', 'pipe'],
-    encoding: 'utf8',
-  })
-  if (result.status !== 0) {
-    console.log(`[lighthouse-robot] lighthouse exited ${result.status} for ${url} (${formFactor})`)
+  const result = spawnSync(LIGHTHOUSE_BIN, args, LIGHTHOUSE_SPAWN_OPTIONS)
+  for (const line of describeExit(result, url, formFactor)) console.log(line)
+}
+
+/**
+ * One run's ceiling. 40 runs took about 13 minutes on the runner (about 20 s each), and nothing
+ * else bounded a single run: a Chrome that hung would have held the job until its 60 minutes ran
+ * out and taken every page's result with it. A run stopped here leaves no report, so it is set
+ * aside as inconclusive like any run that wrote none.
+ */
+export const LIGHTHOUSE_TIMEOUT_MS = 180_000
+
+export const LIGHTHOUSE_SPAWN_OPTIONS = {
+  stdio: ['ignore', 'ignore', 'pipe'],
+  encoding: 'utf8',
+  timeout: LIGHTHOUSE_TIMEOUT_MS,
+  killSignal: 'SIGKILL',
+}
+
+/** How many of Lighthouse's own last lines a failed run prints. */
+export const STDERR_TAIL_LINES = 20
+
+/**
+ * The end of Lighthouse's error output, without its progress chatter. Until 2026-10-18 the robot
+ * kept stderr and printed none of it, so 147 failed runs said only "exited 1".
+ */
+export function stderrTail(text, lines = STDERR_TAIL_LINES) {
+  const kept = String(text ?? '')
+    .split('\n')
+    .filter((line) => line.trim() !== '' && !line.includes(' LH:status '))
+  return kept.slice(-lines).join('\n')
+}
+
+/** The lines to print about one finished `spawnSync` of Lighthouse; none for a clean run. */
+export function describeExit(result, url, formFactor) {
+  if (result.error?.code === 'ETIMEDOUT') {
+    return [
+      `::warning::lighthouse timed out after ${LIGHTHOUSE_TIMEOUT_MS / 1000} s for ${url} (${formFactor}) — stopped, set aside`,
+    ]
   }
+  if (result.status === 0) return []
+  const tail = stderrTail(result.stderr)
+  return [
+    `::warning::lighthouse exited ${result.status} for ${url} (${formFactor}):`,
+    ...(tail ? tail.split('\n').map((line) => `    ${line}`) : []),
+  ]
 }
 
 export function readReport(file) {

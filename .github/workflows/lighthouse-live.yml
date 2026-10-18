@@ -99,7 +99,7 @@ jobs:
           fi
           export CHROME_PATH
           echo "Lighthouse will drive $CHROME_PATH"
-          node scripts/lighthouse-robot.mjs
+          node scripts/lighthouse-robot.mjs --out="$RUNNER_TEMP/lighthouse-reports"
       - name: Both sites show the same tab icon
         # IM-09's live check. Here and not in uptime.yml because it rasterises with sharp,
         # which needs the install above. It runs whatever Lighthouse concluded: one red
@@ -117,3 +117,15 @@ jobs:
         # lands and would page someone for a change that is still rolling out.
         if: ${{ !cancelled() }}
         run: node scripts/preconnect-probe.mjs
+      - name: Keep the reports
+        # Until 2026-10-18 every report was thrown away with the machine, so 147 failed
+        # Lighthouse runs and the drift in the phone scores could not be explained afterwards
+        # (investigation F-04). They are public pages measured without signing in, so a public
+        # artifact holds nothing private; 14 days covers re-taking a baseline.
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lighthouse-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/lighthouse-reports/*.json
+          retention-days: 14
+          if-no-files-found: warn

@@ -8,22 +8,27 @@ import { CRAWLER } from '../../viewer/worker/crawlerAgents'
 import {
   CATEGORIES,
   classifyRun,
+  describeExit,
   documentStatus,
   EXPECTED_BELOW_ONE,
   evaluate,
   FORM_FACTORS,
   judgePage,
+  LIGHTHOUSE_SPAWN_OPTIONS,
+  LIGHTHOUSE_TIMEOUT_MS,
   LIGHTHOUSE_VERSION,
   lighthouseArgs,
   measuringMachine,
   median,
   PAGES,
   PERFORMANCE_FLOORS,
+  paintStall,
   type Run,
   ROBOT_UA_MARK,
   readReport,
   readRun,
   robotUserAgent,
+  stderrTail,
 } from '../../../scripts/lighthouse-robot.mjs'
 
 /**
@@ -599,5 +604,128 @@ describe('the robot names itself on the live site', () => {
     for (const formFactor of ['mobile', 'desktop'] as const) {
       expect(CRAWLER.test(robotUserAgent(formFactor))).toBe(false)
     }
+  })
+})
+
+/**
+ * F-04 (investigation of 2026-10-18): 147 Lighthouse runs exited 1 across 82 of 143 jobs, every one
+ * set aside as NO_NAVSTART, and none could be explained — the robot printed only the exit code and
+ * kept no report. A run must now say why it failed, and a hung Chrome must not eat the job.
+ */
+describe('a run explains itself', () => {
+  /** A report carrying the fields a real Lighthouse 13.5.0 report has for these numbers. */
+  const timed = (
+    observed: { fcp: number | null; dcl: number | null; load: number | null },
+    extra: { benchmarkIndex?: number; ttfb?: number } = {},
+  ) => {
+    const base = lhr({ scores: HOME_SCORES, below: HOME_BELOW })
+    return {
+      ...base,
+      environment: { benchmarkIndex: extra.benchmarkIndex ?? 1450 },
+      audits: {
+        ...base.audits,
+        'server-response-time': { numericValue: extra.ttfb ?? 412 },
+        metrics: {
+          details: {
+            items: [
+              {
+                observedFirstContentfulPaint: observed.fcp,
+                observedDomContentLoaded: observed.dcl,
+                observedLoad: observed.load,
+              },
+            ],
+          },
+        },
+      },
+    }
+  }
+
+  it('stderrTail keeps the error and drops progress lines', () => {
+    const progress = Array.from(
+      { length: 30 },
+      (_, i) => `2026-10-18T14:25:${String(i).padStart(2, '0')}.000Z LH:status Auditing: step ${i}`,
+    )
+    expect(stderrTail([...progress, 'Runtime error encountered: NO_NAVSTART'].join('\n'))).toBe(
+      'Runtime error encountered: NO_NAVSTART',
+    )
+    expect(stderrTail('')).toBe('')
+    const many = Array.from({ length: 25 }, (_, i) => `error line ${i}`).join('\n')
+    expect(stderrTail(many).split('\n')).toHaveLength(20)
+    expect(stderrTail(many).endsWith('error line 24')).toBe(true)
+  })
+
+  it('readRun reads the CPU index, server time and observed paints', () => {
+    expect(readRun(timed({ fcp: 2330, dcl: 260, load: 300 }))).toMatchObject({
+      benchmarkIndex: 1450,
+      ttfbMs: 412,
+      observedFcpMs: 2330,
+      observedDclMs: 260,
+      observedLoadMs: 300,
+    })
+  })
+
+  it('readRun leaves those numbers empty when a report does not carry them', () => {
+    expect(readRun(lhr({}))).toMatchObject({
+      benchmarkIndex: null,
+      ttfbMs: null,
+      observedFcpMs: null,
+      observedDclMs: null,
+      observedLoadMs: null,
+    })
+  })
+
+  /*
+   * GoogleChrome/lighthouse#17148 (open, read 2026-10-18): under phone emulation headless Chrome
+   * sometimes withholds the first frame for ~1 or ~2 s after the page has finished loading, so the
+   * load event lands BEFORE first paint — "which no normal load produces".
+   */
+  it('paintStall flags the #17148 signature and not a normal load', () => {
+    expect(paintStall(readRun(timed({ fcp: 2330, dcl: 260, load: 300 })))).toBe(true)
+    expect(paintStall(readRun(timed({ fcp: 400, dcl: 260, load: 900 })))).toBe(false)
+    // Load before paint but only 200 ms after the DOM was ready: a fast page, not a stall.
+    expect(paintStall(readRun(timed({ fcp: 460, dcl: 260, load: 300 })))).toBe(false)
+    expect(paintStall(readRun(timed({ fcp: null, dcl: null, load: null })))).toBe(false)
+    expect(paintStall(readRun(null))).toBe(false)
+  })
+
+  it('the page line names server time, CPU and stalls', () => {
+    const scored = [
+      timed({ fcp: 2330, dcl: 260, load: 300 }, { ttfb: 400 }),
+      ...Array.from({ length: 4 }, () => timed({ fcp: 400, dcl: 260, load: 900 }, { ttfb: 412 })),
+    ].map(readRun)
+    const { line } = judgePage({ page: 'home', formFactor: 'mobile', runs: scored })
+    expect(line).toContain('ttfb 412ms')
+    expect(line).toContain('cpu 1450')
+    expect(line).toContain('stalls 1/5')
+  })
+
+  it('a hung Lighthouse is stopped, not waited on for the whole job', () => {
+    expect(LIGHTHOUSE_SPAWN_OPTIONS.timeout).toBe(LIGHTHOUSE_TIMEOUT_MS)
+    expect(LIGHTHOUSE_TIMEOUT_MS).toBe(180_000)
+    // 41 runs at the bound would still be cut by the job's 60 minutes; the bound is for ONE hang.
+    expect(LIGHTHOUSE_SPAWN_OPTIONS.killSignal).toBe('SIGKILL')
+    expect(LIGHTHOUSE_SPAWN_OPTIONS.stdio).toEqual(['ignore', 'ignore', 'pipe'])
+  })
+
+  it('describeExit names a timeout, an error with its own words, and stays quiet on success', () => {
+    const url = 'https://wear-run.com/products'
+    const timedOut = describeExit(
+      { status: null, error: { code: 'ETIMEDOUT' }, stderr: '' },
+      url,
+      'mobile',
+    )
+    expect(timedOut.join('\n')).toMatch(
+      /^::warning::lighthouse timed out after 180 s for .*products \(mobile\)/,
+    )
+
+    const failed = describeExit(
+      { status: 1, stderr: 'x LH:status Loading page\nRuntime error encountered: NO_NAVSTART' },
+      url,
+      'desktop',
+    )
+    expect(failed[0]).toBe(`::warning::lighthouse exited 1 for ${url} (desktop):`)
+    expect(failed.slice(1)).toEqual(['    Runtime error encountered: NO_NAVSTART'])
+
+    expect(describeExit({ status: 0, stderr: 'x LH:status done' }, url, 'mobile')).toEqual([])
   })
 })

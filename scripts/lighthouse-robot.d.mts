@@ -38,9 +38,31 @@ export type Run =
       scores: Record<string, number | null>
       belowOne: string[]
       rttMs: number | null
+      benchmarkIndex: number | null
+      ttfbMs: number | null
+      observedFcpMs: number | null
+      observedDclMs: number | null
+      observedLoadMs: number | null
     }
 
 export declare function readRun(lhr: unknown): Run
+export declare const PAINT_STALL_MS: number
+export declare function paintStall(run: Run): boolean
+
+export declare const LIGHTHOUSE_TIMEOUT_MS: number
+export declare const LIGHTHOUSE_SPAWN_OPTIONS: {
+  stdio: ['ignore', 'ignore', 'pipe']
+  encoding: 'utf8'
+  timeout: number
+  killSignal: 'SIGKILL'
+}
+export declare const STDERR_TAIL_LINES: number
+export declare function stderrTail(text: string, lines?: number): string
+export declare function describeExit(
+  result: { status: number | null; error?: { code?: string }; stderr?: string },
+  url: string,
+  formFactor: string,
+): string[]
 export declare function readReport(file: string): Run
 
 export interface Classified {
