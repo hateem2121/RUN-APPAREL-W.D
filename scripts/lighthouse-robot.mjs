@@ -49,9 +49,12 @@
  * (HEAD, 2026-09-16) — so a full run costs about 38 MB. `--pages` narrows it.
  *
  * Usage:
- *   node scripts/lighthouse-robot.mjs                    # run all 40, judge, exit 1 on failure
+ *   node scripts/lighthouse-robot.mjs                    # 1 warm-up + 40 runs, judge, exit 1 on failure
  *   node scripts/lighthouse-robot.mjs --from=DIR         # judge reports already in DIR
  *   node scripts/lighthouse-robot.mjs --pages=home --form-factors=mobile --runs=1 --report
+ *   --out=DIR                          keep the reports in DIR (CI uploads them as an artifact)
+ *   --warm-up=0                        skip the thrown-away first run
+ *   --extra-disabled-features=A,B      switch Chrome features off, for a side-by-side test only
  */
 
 import { spawnSync } from 'node:child_process'
