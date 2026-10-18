@@ -432,6 +432,27 @@ test.describe('№03 — the live 3D garment', () => {
     await page.mouse.click(at.x, at.y)
     await expect(layer).toHaveAttribute('data-zoom', '')
     await expect(model).not.toHaveAttribute('disable-zoom')
+    // The middle of the garment is the garment's, not model-viewer's 8px pan dot, which takes the
+    // pointer outside its controls (LiveGarment.tsx, "THE PAN TARGET"). The dot hangs below and right
+    // of the exact centre (measured: its box starts AT the centre), so the wheel above, aimed at the
+    // centre, landed on it only when CI's layout rounded a fraction of a pixel inward: 1 try in 8 in
+    // CI's own image. Asked of model-viewer's own tree a few pixels round the centre, the answer
+    // does not depend on that rounding.
+    const nearCentre = await model.evaluate((element) => {
+      const box = element.getBoundingClientRect()
+      const cx = box.x + box.width / 2
+      const cy = box.y + box.height / 2
+      return [-3, 0, 3].flatMap((dx) =>
+        [-3, 0, 3].map((dy) => {
+          const hit = element.shadowRoot?.elementFromPoint(cx + dx, cy + dy)
+          return hit ? hit.id || hit.className || hit.tagName : 'nothing'
+        }),
+      )
+    })
+    expect(nearCentre, 'what lies round the centre of the garment').not.toContain(
+      'default-pan-target',
+    )
+    expect(nearCentre).not.toContain('nothing')
     await page.waitForTimeout(1200)
     before = await scrolled()
     await page.mouse.wheel(0, -300)

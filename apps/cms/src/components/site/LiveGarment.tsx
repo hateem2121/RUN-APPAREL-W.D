@@ -55,6 +55,15 @@ import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
  * it, pressing Escape, tapping elsewhere or scrolling it off the screen switches zoom off again, so
  * the page scrolls as before. A drag never counts as the click.
  *
+ * ⚠️ THE PAN TARGET IS REPLACED BY AN EMPTY ONE, OR THE GARMENT'S CENTRE SCROLLS THE PAGE (PR #200,
+ * 2026-10-18). model-viewer 4.3.1 draws an 8px dot, `#default-pan-target`, at the exact centre of
+ * the garment (template.js): see-through, but it still takes the pointer, and it lies outside the
+ * element its controls listen on. A wheel there, with zoom on, reached no zoom handler and scrolled
+ * the page 300px: CI's Chromium failed the zoom test so on two tries, and in CI's own Playwright
+ * image the wheel's innermost target was that dot in 1 try of 8 and the controls' layer in the 7
+ * that passed. Panning is off here, so the dot is never needed; an empty element in its
+ * `pan-target` slot takes its place and takes no pointer at all.
+ *
  * ⚠️ A NEW COLOUR CROSS-FADES OVER THE OLD ONE (owner, 2026-10-17). model-viewer swaps a variant in
  * one frame (21–28 ms after the pick on an M4 Pro, measured 2026-10-17; the 0.7–0.95 s an earlier
  * robot run reported was its software renderer, not the site). Before the swap, a picture of the
@@ -351,33 +360,38 @@ export function LiveGarment({
       {...(zoom ? { [KEEP_WHEEL_ATTRIBUTE]: '' } : {})}
     >
       {live
-        ? createElement('model-viewer', {
-            ref: attach,
-            className: 'live-garment__model',
-            src: model.url,
-            alt: `${label} — a 3D model you can turn`,
-            'camera-controls': '',
-            'camera-orbit': model.camera.orbit,
-            'camera-target': model.camera.target,
-            'field-of-view': model.camera.fieldOfView,
-            ...(zoom ? {} : { 'disable-zoom': '' }),
-            'disable-pan': '',
-            'disable-tap': '',
-            'interaction-prompt': 'none',
-            // A pinch needs every finger once zoom is on; until then the page keeps its swipe.
-            'touch-action': zoom ? 'none' : touchAction,
-            ...(reduced.current || touched
-              ? {}
-              : { 'auto-rotate': '', 'auto-rotate-delay': '0', 'rotation-per-second': '12deg' }),
-            'interpolation-decay': reduced.current ? 1 : LIVE_RENDER.cameraDecayMs,
-            'shadow-intensity': LIVE_RENDER.shadowIntensity,
-            'shadow-softness': LIVE_RENDER.shadowSoftness,
-            'environment-image': LIVE_RENDER.environmentImage,
-            'tone-mapping': LIVE_RENDER.toneMapping,
-            exposure: LIVE_RENDER.exposure,
-            loading: 'eager',
-            reveal: 'auto',
-          })
+        ? createElement(
+            'model-viewer',
+            {
+              ref: attach,
+              className: 'live-garment__model',
+              src: model.url,
+              alt: `${label} — a 3D model you can turn`,
+              'camera-controls': '',
+              'camera-orbit': model.camera.orbit,
+              'camera-target': model.camera.target,
+              'field-of-view': model.camera.fieldOfView,
+              ...(zoom ? {} : { 'disable-zoom': '' }),
+              'disable-pan': '',
+              'disable-tap': '',
+              'interaction-prompt': 'none',
+              // A pinch needs every finger once zoom is on; until then the page keeps its swipe.
+              'touch-action': zoom ? 'none' : touchAction,
+              ...(reduced.current || touched
+                ? {}
+                : { 'auto-rotate': '', 'auto-rotate-delay': '0', 'rotation-per-second': '12deg' }),
+              'interpolation-decay': reduced.current ? 1 : LIVE_RENDER.cameraDecayMs,
+              'shadow-intensity': LIVE_RENDER.shadowIntensity,
+              'shadow-softness': LIVE_RENDER.shadowSoftness,
+              'environment-image': LIVE_RENDER.environmentImage,
+              'tone-mapping': LIVE_RENDER.toneMapping,
+              exposure: LIVE_RENDER.exposure,
+              loading: 'eager',
+              reveal: 'auto',
+            },
+            // Empty, so the centre of the garment is the garment's own (the header).
+            createElement('span', { slot: 'pan-target' }),
+          )
         : null}
       {phase === 'shown' && !zoom && touchAction === 'none' ? (
         <>
