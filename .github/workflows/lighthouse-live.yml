@@ -45,6 +45,15 @@ on:
     # (measured, .github/CLAUDE.md), which does not matter for a weekly trend.
     - cron: '41 5 * * 2'
   workflow_dispatch:
+    inputs:
+      # For a side-by-side test only (GoogleChrome/lighthouse#17148, owner's decision of
+      # 2026-10-18): Chrome features to switch off on top of chrome-launcher's own list, as
+      # comma-separated names. Empty — the default, and every run that is not a dispatch —
+      # leaves Chrome exactly as Lighthouse launches it. The robot refuses anything but names.
+      extra_disabled_features:
+        description: 'Chrome features to switch off for this run (e.g. TreesInViz); empty = none'
+        type: string
+        default: ''
 
 # A `permissions:` block REPLACES the defaults; `contents: read` is what checkout needs.
 permissions:
@@ -55,16 +64,18 @@ permissions:
 # cache poisoning).
 cache-mode: read
 
-concurrency:
-  group: lighthouse-live
-  # Nothing here deploys, and a newer deploy makes an older measurement moot.
-  cancel-in-progress: true
-
 jobs:
   measure:
     # `workflow_run` also fires for CI runs that a pull request started, and `branches:`
     # matches the HEAD branch — which a fork may name `main`. Only a green PUSH counts.
     if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    # Nothing here deploys, and a newer deploy makes an older measurement moot. On the JOB, not
+    # the workflow: a workflow-level group is joined before this `if:` is read, so on 2026-10-14
+    # run 38552102412 — started by a CANCELLED CI run, its job then skipped — cancelled run
+    # 38551763539 mid-measurement of a real deploy (investigation F-08).
+    concurrency:
+      group: lighthouse-live
+      cancel-in-progress: true
     runs-on: ubuntu-26.04
     # 40 runs took ~17 minutes on an M4 Pro; a hosted runner is two to three times slower.
     timeout-minutes: 60
@@ -89,6 +100,9 @@ jobs:
       - name: Judge the live pages
         # Chrome is resolved exactly as ci.yml's lighthouse job does it, and a missing one
         # fails loudly — "no Chrome installations found" reads as a broken robot.
+        env:
+          # Carried in the environment, never pasted into the script (workflowHardening.test.ts).
+          EXTRA_DISABLED_FEATURES: ${{ inputs.extra_disabled_features }}
         run: |
           set -euo pipefail
           CHROME_PATH="${CHROME_PATH:-}"
@@ -99,7 +113,7 @@ jobs:
           fi
           export CHROME_PATH
           echo "Lighthouse will drive $CHROME_PATH"
-          node scripts/lighthouse-robot.mjs
+          node scripts/lighthouse-robot.mjs --out="$RUNNER_TEMP/lighthouse-reports"
       - name: Both sites show the same tab icon
         # IM-09's live check. Here and not in uptime.yml because it rasterises with sharp,
         # which needs the install above. It runs whatever Lighthouse concluded: one red
@@ -117,3 +131,15 @@ jobs:
         # lands and would page someone for a change that is still rolling out.
         if: ${{ !cancelled() }}
         run: node scripts/preconnect-probe.mjs
+      - name: Keep the reports
+        # Until 2026-10-18 every report was thrown away with the machine, so 147 failed
+        # Lighthouse runs and the drift in the phone scores could not be explained afterwards
+        # (investigation F-04). They are public pages measured without signing in, so a public
+        # artifact holds nothing private; 14 days covers re-taking a baseline.
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lighthouse-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/lighthouse-reports/*.json
+          retention-days: 14
+          if-no-files-found: warn

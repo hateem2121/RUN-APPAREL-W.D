@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { userAgents as lighthouseUserAgents } from 'lighthouse/core/config/constants.js'
 import { DEFAULT_PRODUCT } from '../../../scripts/live-products.mjs'
@@ -8,22 +9,34 @@ import { CRAWLER } from '../../viewer/worker/crawlerAgents'
 import {
   CATEGORIES,
   classifyRun,
+  describeExit,
   documentStatus,
   EXPECTED_BELOW_ONE,
+  EXTRA_DISABLED_FEATURES,
   evaluate,
+  exact,
   FORM_FACTORS,
+  launcherDisabledFeatures,
   judgePage,
+  LIGHTHOUSE_SPAWN_OPTIONS,
+  MAX_NOT_JUDGED,
+  LIGHTHOUSE_TIMEOUT_MS,
   LIGHTHOUSE_VERSION,
   lighthouseArgs,
   measuringMachine,
   median,
   PAGES,
   PERFORMANCE_FLOORS,
+  paintStall,
+  parseArgs,
+  plannedRuns,
+  WARM_UP_RUNS,
   type Run,
   ROBOT_UA_MARK,
   readReport,
   readRun,
   robotUserAgent,
+  stderrTail,
 } from '../../../scripts/lighthouse-robot.mjs'
 
 /**
@@ -293,7 +306,7 @@ describe('judgePage', () => {
         machine: 'local',
         runs: runs(5, { scores: { ...HOME_SCORES, performance }, below: HOME_BELOW }),
       }).failures
-    expect(at(0.5).join()).toMatch(/performance median 0\.5 is below the local floor of 0\.55/)
+    expect(at(0.5).join()).toMatch(/performance median 0\.500 is below the local floor of 0\.55/)
     expect(at(0.56)).toEqual([])
   })
 
@@ -465,7 +478,7 @@ describe('each measuring machine has its own floors', () => {
       }).failures
     expect(at(0.5)).toEqual([])
     expect(at(0.7).join()).toMatch(
-      /performance median 0\.6 is below the github-runner floor of 0\.7/,
+      /performance median 0\.600 is below the github-runner floor of 0\.7/,
     )
   })
 
@@ -510,7 +523,7 @@ describe('each measuring machine has its own floors', () => {
       runs: runs(5, { scores: { ...HOME_SCORES, performance: 0.82 }, below: HOME_BELOW }),
     })
     expect(verdict.failures.join()).toMatch(
-      /performance median 0\.82 is below the github-runner floor of 0\.85/,
+      /performance median 0\.820 is below the github-runner floor of 0\.85/,
     )
   })
 
@@ -599,5 +612,306 @@ describe('the robot names itself on the live site', () => {
     for (const formFactor of ['mobile', 'desktop'] as const) {
       expect(CRAWLER.test(robotUserAgent(formFactor))).toBe(false)
     }
+  })
+})
+
+/**
+ * F-04 (investigation of 2026-10-18): 147 Lighthouse runs exited 1 across 82 of 143 jobs, every one
+ * set aside as NO_NAVSTART, and none could be explained — the robot printed only the exit code and
+ * kept no report. A run must now say why it failed, and a hung Chrome must not eat the job.
+ */
+describe('a run explains itself', () => {
+  /** A report carrying the fields a real Lighthouse 13.5.0 report has for these numbers. */
+  const timed = (
+    observed: { fcp: number | null; dcl: number | null; load: number | null },
+    extra: { benchmarkIndex?: number; ttfb?: number } = {},
+  ) => {
+    const base = lhr({ scores: HOME_SCORES, below: HOME_BELOW })
+    return {
+      ...base,
+      environment: { benchmarkIndex: extra.benchmarkIndex ?? 1450 },
+      audits: {
+        ...base.audits,
+        'server-response-time': { numericValue: extra.ttfb ?? 412 },
+        metrics: {
+          details: {
+            items: [
+              {
+                observedFirstContentfulPaint: observed.fcp,
+                observedDomContentLoaded: observed.dcl,
+                observedLoad: observed.load,
+              },
+            ],
+          },
+        },
+      },
+    }
+  }
+
+  it('stderrTail keeps the error and drops progress lines', () => {
+    const progress = Array.from(
+      { length: 30 },
+      (_, i) => `2026-10-18T14:25:${String(i).padStart(2, '0')}.000Z LH:status Auditing: step ${i}`,
+    )
+    expect(stderrTail([...progress, 'Runtime error encountered: NO_NAVSTART'].join('\n'))).toBe(
+      'Runtime error encountered: NO_NAVSTART',
+    )
+    expect(stderrTail('')).toBe('')
+    const many = Array.from({ length: 25 }, (_, i) => `error line ${i}`).join('\n')
+    expect(stderrTail(many).split('\n')).toHaveLength(20)
+    expect(stderrTail(many).endsWith('error line 24')).toBe(true)
+  })
+
+  it('readRun reads the CPU index, server time and observed paints', () => {
+    expect(readRun(timed({ fcp: 2330, dcl: 260, load: 300 }))).toMatchObject({
+      benchmarkIndex: 1450,
+      ttfbMs: 412,
+      observedFcpMs: 2330,
+      observedDclMs: 260,
+      observedLoadMs: 300,
+    })
+  })
+
+  it('readRun leaves those numbers empty when a report does not carry them', () => {
+    expect(readRun(lhr({}))).toMatchObject({
+      benchmarkIndex: null,
+      ttfbMs: null,
+      observedFcpMs: null,
+      observedDclMs: null,
+      observedLoadMs: null,
+    })
+  })
+
+  /*
+   * GoogleChrome/lighthouse#17148 (open, read 2026-10-18): under phone emulation headless Chrome
+   * sometimes withholds the first frame for ~1 or ~2 s after the page has finished loading, so the
+   * load event lands BEFORE first paint — "which no normal load produces".
+   */
+  it('paintStall flags the #17148 signature and not a normal load', () => {
+    expect(paintStall(readRun(timed({ fcp: 2330, dcl: 260, load: 300 })))).toBe(true)
+    expect(paintStall(readRun(timed({ fcp: 400, dcl: 260, load: 900 })))).toBe(false)
+    // Load before paint but only 200 ms after the DOM was ready: a fast page, not a stall.
+    expect(paintStall(readRun(timed({ fcp: 460, dcl: 260, load: 300 })))).toBe(false)
+    expect(paintStall(readRun(timed({ fcp: null, dcl: null, load: null })))).toBe(false)
+    expect(paintStall(readRun(null))).toBe(false)
+  })
+
+  it('the page line names server time, CPU and stalls', () => {
+    const scored = [
+      timed({ fcp: 2330, dcl: 260, load: 300 }, { ttfb: 400 }),
+      ...Array.from({ length: 4 }, () => timed({ fcp: 400, dcl: 260, load: 900 }, { ttfb: 412 })),
+    ].map(readRun)
+    const { line } = judgePage({ page: 'home', formFactor: 'mobile', runs: scored })
+    expect(line).toContain('ttfb 412ms')
+    expect(line).toContain('cpu 1450')
+    expect(line).toContain('stalls 1/5')
+  })
+
+  it('a hung Lighthouse is stopped, not waited on for the whole job', () => {
+    expect(LIGHTHOUSE_SPAWN_OPTIONS.timeout).toBe(LIGHTHOUSE_TIMEOUT_MS)
+    expect(LIGHTHOUSE_TIMEOUT_MS).toBe(180_000)
+    // 41 runs at the bound would still be cut by the job's 60 minutes; the bound is for ONE hang.
+    expect(LIGHTHOUSE_SPAWN_OPTIONS.killSignal).toBe('SIGKILL')
+    expect(LIGHTHOUSE_SPAWN_OPTIONS.stdio).toEqual(['ignore', 'ignore', 'pipe'])
+  })
+
+  it('describeExit names a timeout, an error with its own words, and stays quiet on success', () => {
+    const url = 'https://wear-run.com/products'
+    const timedOut = describeExit(
+      { status: null, error: { code: 'ETIMEDOUT' }, stderr: '' },
+      url,
+      'mobile',
+    )
+    expect(timedOut.join('\n')).toMatch(
+      /^::warning::lighthouse timed out after 180 s for .*products \(mobile\)/,
+    )
+
+    const failed = describeExit(
+      { status: 1, stderr: 'x LH:status Loading page\nRuntime error encountered: NO_NAVSTART' },
+      url,
+      'desktop',
+    )
+    expect(failed[0]).toBe(`::warning::lighthouse exited 1 for ${url} (desktop):`)
+    expect(failed.slice(1)).toEqual(['    Runtime error encountered: NO_NAVSTART'])
+
+    expect(describeExit({ status: 0, stderr: 'x LH:status done' }, url, 'mobile')).toEqual([])
+  })
+})
+
+/**
+ * The first Lighthouse run of every job is cold: home.mobile, always the first, averaged 0.747
+ * against 0.89–0.91 for its runs 2–5, and was the lowest of its five in 61 of 71 jobs
+ * (2026-09-29 → 10-18). One run is made and thrown away before any is measured.
+ */
+describe('a warm-up run is thrown away', () => {
+  const pages = PAGES
+  it('plannedRuns puts one unmeasured warm-up first', () => {
+    const plan = plannedRuns({ pages, formFactors: FORM_FACTORS, runs: 5, warmUp: WARM_UP_RUNS })
+    expect(WARM_UP_RUNS).toBe(1)
+    expect(plan).toHaveLength(41)
+    expect(plan[0]).toEqual({ page: pages[0], formFactor: 'mobile', run: 0, measured: false })
+    expect(plan.slice(1).every((entry) => entry.measured)).toBe(true)
+    expect(plan[1]).toEqual({ page: pages[0], formFactor: 'mobile', run: 1, measured: true })
+  })
+
+  it('--warm-up=0 plans exactly the measured runs', () => {
+    const plan = plannedRuns({ pages, formFactors: FORM_FACTORS, runs: 5, warmUp: 0 })
+    expect(plan).toHaveLength(40)
+    expect(plan.every((entry) => entry.measured)).toBe(true)
+  })
+
+  it('reads --warm-up, defaults to one, and never warms up when judging old reports', () => {
+    expect(parseArgs([]).warmUp).toBe(1)
+    expect(parseArgs(['--warm-up=0']).warmUp).toBe(0)
+    expect(parseArgs(['--from=/tmp/reports']).warmUp).toBe(0)
+    expect(() => parseArgs(['--warm-up=-1'])).toThrow(/--warm-up/)
+  })
+})
+
+/**
+ * F-05 (2026-10-18): a page left with fewer than three valid runs is "not judged", and until now
+ * that could never fail the robot — judged on a single 0.75 run, /products was reported as
+ * "every judged page meets its rules" and the robot exited 0. With every page unjudged it
+ * would pass having measured nothing.
+ */
+describe('a robot that measured too little says so', () => {
+  const pairs = PAGES.flatMap((page) =>
+    FORM_FACTORS.map((formFactor) => ({ page: page.name, formFactor })),
+  )
+  const healthy = () => runs(5, { scores: { performance: 1 } })
+  const thin = () => [
+    ...runs(2, { scores: { performance: 1 } }),
+    ...Array.from({ length: 3 }, () => readRun(null)),
+  ]
+  const robotRun = (unjudged: number) =>
+    evaluate(
+      pairs.map((pair, index) => ({
+        ...pair,
+        machine: 'github-runner' as const,
+        runs: index < unjudged ? thin() : healthy(),
+      })),
+    )
+
+  it('three unjudged pairs fail the robot', () => {
+    expect(MAX_NOT_JUDGED).toBe(2)
+    const verdict = robotRun(3)
+    expect(verdict.ok).toBe(false)
+    expect(verdict.failures.join('\n')).toMatch(/3 of 8 page\/device pairs were not judged/)
+  })
+
+  it('two unjudged pairs pass, each named', () => {
+    const verdict = robotRun(2)
+    expect(verdict.ok).toBe(true)
+    expect(verdict.inconclusive).toHaveLength(2)
+  })
+
+  it('a robot that judged everything passes', () => {
+    expect(robotRun(0)).toMatchObject({ ok: true, inconclusive: [] })
+  })
+})
+
+/**
+ * F-06: Lighthouse rounds each score to two places, and with four valid runs the median is the
+ * mean of the middle two — so run 36983128382 printed "performance median 0.85 is below the
+ * github-runner floor of 0.85" for a median of 0.845.
+ */
+describe('a failing median is printed exactly', () => {
+  it('a median of 0.845 is printed as 0.845', () => {
+    const scored = [0.74, 0.84, 0.85, 0.9].map((performance) =>
+      readRun(lhr({ scores: { ...HOME_SCORES, performance }, below: HOME_BELOW })),
+    )
+    const verdict = judgePage({
+      page: 'home',
+      formFactor: 'mobile',
+      machine: 'github-runner',
+      runs: [...scored, readRun(null)],
+    })
+    expect(verdict.failures.join()).toMatch(
+      /performance median 0\.845 is below the github-runner floor of 0\.85/,
+    )
+  })
+
+  it('exact prints three places, and a dash for nothing', () => {
+    expect(exact(0.8449999999999999)).toBe('0.845')
+    expect(exact(0.9)).toBe('0.900')
+    expect(exact(null)).toBe('—')
+  })
+})
+
+/**
+ * GoogleChrome/lighthouse#17148: under phone emulation headless Chrome sometimes withholds the
+ * first frame for ~1–2 s, and community A/B tests tie it to two Chrome features, RenderDocument
+ * (chrome-launcher already disables it) and TreesInViz. The robot can switch extra features off
+ * for an A/B test; nothing is switched off unless asked.
+ */
+describe('a Chrome feature can be switched off for a test, and only then', () => {
+  const chromeFlag = (args: string[]) => args.find((arg) => arg.startsWith('--chrome-flags=')) ?? ''
+
+  it('no extra features adds no flag', () => {
+    expect(EXTRA_DISABLED_FEATURES).toEqual([])
+    for (const extra of [[], ['']]) {
+      const flag = chromeFlag(
+        lighthouseArgs('https://wear-run.com/', 'mobile', '/tmp/x.json', true, extra),
+      )
+      expect(flag).toBe('--chrome-flags=--headless=new --no-first-run --no-sandbox')
+    }
+  })
+
+  it('reads the launcher’s own list, which already holds RenderDocument', () => {
+    const list = launcherDisabledFeatures()
+    expect(list).toContain('RenderDocument')
+    expect(list).toContain('Translate')
+  })
+
+  /*
+   * One flag carrying the launcher's list and ours, so a run's command line names every feature
+   * that is off. (Chrome 155 merges repeated --disable-features — checked with `ps` during the
+   * 2026-10-18 A/B — so this guards readability, and against a Chrome that stops merging.)
+   */
+  it('an extra feature keeps the launcher’s list', () => {
+    const flag = chromeFlag(
+      lighthouseArgs('https://wear-run.com/', 'mobile', '/tmp/x.json', true, ['TreesInViz']),
+    )
+    expect(flag.match(/--disable-features=/g)).toHaveLength(1)
+    expect(flag).toContain(`--disable-features=${launcherDisabledFeatures().join(',')},TreesInViz`)
+  })
+
+  it('takes the list from the command line first, then the environment, then the default', () => {
+    expect(parseArgs([], {}).extraDisabledFeatures).toEqual([])
+    expect(parseArgs([], { EXTRA_DISABLED_FEATURES: '' }).extraDisabledFeatures).toEqual([])
+    expect(parseArgs([], { EXTRA_DISABLED_FEATURES: 'TreesInViz' }).extraDisabledFeatures).toEqual([
+      'TreesInViz',
+    ])
+    expect(
+      parseArgs(['--extra-disabled-features=A,B'], { EXTRA_DISABLED_FEATURES: 'TreesInViz' })
+        .extraDisabledFeatures,
+    ).toEqual(['A', 'B'])
+    // A feature name is letters and digits only: anything else would reach Chrome's command line.
+    expect(() => parseArgs(['--extra-disabled-features=Trees In"Viz'], {})).toThrow(/feature name/)
+  })
+})
+
+/**
+ * Run 38551763539 (measuring the deploy of c865c441, 2026-10-14) was cancelled by run
+ * 38552102412, which a cancelled CI run had started and which then skipped its only job:
+ * a workflow-level concurrency group is joined before any job's `if:` is read.
+ */
+describe('only a run that measures takes part in the cancel group', () => {
+  const workflow = readFileSync(
+    fileURLToPath(new URL('../../../.github/workflows/lighthouse-live.yml', import.meta.url)),
+    'utf8',
+  )
+  it('concurrency belongs to the measuring job, not the workflow', () => {
+    expect(workflow).not.toMatch(/^concurrency:/m)
+    const job = workflow.slice(workflow.indexOf('\n  measure:'))
+    expect(job).toMatch(
+      /^ {4}concurrency:\n {6}group: lighthouse-live\n {6}cancel-in-progress: true$/m,
+    )
+  })
+
+  it('a dispatch can name features to switch off, carried in the environment', () => {
+    expect(workflow).toMatch(/^ {6}extra_disabled_features:$/m)
+    expect(workflow).toMatch(/EXTRA_DISABLED_FEATURES: \$\{\{ inputs\.extra_disabled_features \}\}/)
+    expect(workflow).not.toMatch(/run:.*inputs\.extra_disabled_features/)
   })
 })

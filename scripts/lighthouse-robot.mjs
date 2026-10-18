@@ -49,17 +49,22 @@
  * (HEAD, 2026-09-16) — so a full run costs about 38 MB. `--pages` narrows it.
  *
  * Usage:
- *   node scripts/lighthouse-robot.mjs                    # run all 40, judge, exit 1 on failure
+ *   node scripts/lighthouse-robot.mjs                    # 1 warm-up + 40 runs, judge, exit 1 on failure
  *   node scripts/lighthouse-robot.mjs --from=DIR         # judge reports already in DIR
  *   node scripts/lighthouse-robot.mjs --pages=home --form-factors=mobile --runs=1 --report
+ *   --out=DIR                          keep the reports in DIR (CI uploads them as an artifact)
+ *   --warm-up=0                        skip the thrown-away first run
+ *   --extra-disabled-features=A,B      switch Chrome features off, for a side-by-side test only
  */
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { userAgents } from 'lighthouse/core/config/constants.js'
+import { INCONCLUSIVE_STATUSES } from './inconclusive-statuses.mjs'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 
 export const LIGHTHOUSE_VERSION = '13.5.0'
@@ -92,7 +97,7 @@ export const PAGES = [
 ]
 
 /** Statuses that mean "ask again later" — Bot Fight Mode, rate limiting, a busy origin. */
-export const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
+export { INCONCLUSIVE_STATUSES }
 
 /**
  * Audits that fail on purpose, by page. Empty since the launch switch flipped on
@@ -217,6 +222,7 @@ export function readRun(lhr) {
   if (!lhr || typeof lhr !== 'object') return { missing: true, reason: 'no report was written' }
   const scores = {}
   const belowOne = []
+  const observed = lhr.audits?.metrics?.details?.items?.[0]
   for (const [id, category] of Object.entries(lhr.categories ?? {})) {
     scores[id] = typeof category.score === 'number' ? category.score : null
     for (const ref of category.auditRefs ?? []) {
@@ -239,11 +245,41 @@ export function readRun(lhr) {
     // lists one per origin and reports their maximum as its numericValue. On 2026-09-16 the
     // Mac's viewer runs that scored below the floor were at 375-596 ms, and the two at or
     // above it were at 126-280 ms.
-    rttMs:
-      typeof lhr.audits?.['network-rtt']?.numericValue === 'number'
-        ? lhr.audits['network-rtt'].numericValue
-        : null,
+    rttMs: numberOrNull(lhr.audits?.['network-rtt']?.numericValue),
+    // Why a run scored what it did (investigation of 2026-10-18, F-04). The machine's CPU index:
+    // Lighthouse's throttling is relative to the host (docs/throttling.md), so two machines are
+    // only comparable at a similar index. The document's server time: a cold page cache answered
+    // /products in 1,213 ms on the Mac that day, against 32 ms for a warm home page. And the
+    // browser's own paint and load times, which `paintStall` reads.
+    benchmarkIndex: numberOrNull(lhr.environment?.benchmarkIndex),
+    ttfbMs: numberOrNull(lhr.audits?.['server-response-time']?.numericValue),
+    observedFcpMs: numberOrNull(observed?.observedFirstContentfulPaint),
+    observedDclMs: numberOrNull(observed?.observedDomContentLoaded),
+    observedLoadMs: numberOrNull(observed?.observedLoad),
   }
+}
+
+function numberOrNull(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/** First paint this much after the DOM was ready, with the page already loaded, is a stall. */
+export const PAINT_STALL_MS = 700
+
+/**
+ * GoogleChrome/lighthouse#17148 (open, read 2026-10-18): under PHONE emulation headless Chrome
+ * sometimes withholds the first frame for about 1 or 2 seconds after the page is ready, so the
+ * load event fires BEFORE the first paint — "which no normal load produces" — and Lighthouse's
+ * simulation turns that into a slow score. Reported on Chrome 153–155; the runner moved from
+ * Chrome 152 to 153 on 2026-09-29, the day the phone medians stepped down. 700 ms is under the
+ * shortest withheld-frame wait the issue measured (717 ms), so a stall is counted and a quick page is
+ * not. Counted and printed only: it judges nothing until it is proven on our pages.
+ */
+export function paintStall(run) {
+  if (!run || run.missing) return false
+  const { observedFcpMs: fcp, observedDclMs: dcl, observedLoadMs: load } = run
+  if (fcp === null || dcl === null || load === null) return false
+  return load < fcp && fcp - dcl >= PAINT_STALL_MS
 }
 
 /** One run, sorted into: valid, inconclusive, broken (a 4xx/5xx page), or wrong-version. */
@@ -315,11 +351,17 @@ export function judgePage({
     CATEGORIES.map((category) => [category, median(valid.map((run) => run.scores[category]))]),
   )
   const rtt = median(valid.map((run) => run.rttMs))
+  const ttfb = median(valid.map((run) => run.ttfbMs))
+  const cpu = median(valid.map((run) => run.benchmarkIndex))
+  const stalls = valid.filter(paintStall).length
   const line = (note) =>
     `  ${key.padEnd(26)} ${String(valid.length).padStart(1)}/${runs.length} runs  ` +
     CATEGORIES.map((category) => `${LABELS[category]} ${short(scores[category])}`).join('  ') +
     `  perf runs ${valid.map((run) => short(run.scores.performance)).join('/')}` +
     `  rtt ${rtt === null ? '—' : `${Math.round(rtt)}ms`}` +
+    `  ttfb ${ttfb === null ? '—' : `${Math.round(ttfb)}ms`}` +
+    `  cpu ${cpu === null ? '—' : Math.round(cpu)}` +
+    `  stalls ${stalls}/${valid.length}` +
     (note ? `  ${note}` : '')
 
   if (valid.length < MIN_VALID_RUNS) {
@@ -363,7 +405,7 @@ export function judgePage({
   } else if (scores.performance === null || scores.performance < floor) {
     const causes = [...failing].filter((id) => id.startsWith('performance/')).join(', ')
     failures.push(
-      `${key}: performance median ${short(scores.performance)} is below the ${machine} floor of ${floor}` +
+      `${key}: performance median ${exact(scores.performance)} is below the ${machine} floor of ${floor}` +
         (causes ? ` (failing: ${causes}).` : '.'),
     )
   }
@@ -377,10 +419,34 @@ export function judgePage({
   }
 }
 
-/** Judge every page. `ok` is false only for a failure; not-judged pages never fail it. */
-export function evaluate(pages) {
+/**
+ * A failing median, to three places. Lighthouse rounds each score to two, and with four valid
+ * runs the median is the mean of the middle two: run 36983128382 printed "performance median
+ * 0.85 is below the github-runner floor of 0.85" for a median of 0.845.
+ */
+export function exact(score) {
+  return score === null ? '—' : score.toFixed(3)
+}
+
+/**
+ * How many page/device pairs may go unjudged before the robot itself fails. One or two pairs
+ * left with fewer than three valid runs is ordinary (a NO_NAVSTART or a 403 twice on the same
+ * pair); more means the robot measured too little to vouch for the site. Until 2026-10-18 no
+ * number of unjudged pairs could fail it, so a run that measured nothing passed (F-05).
+ */
+export const MAX_NOT_JUDGED = 2
+
+/** Judge every page. `ok` is false for any failure, or when too many pairs went unjudged. */
+export function evaluate(pages, { maxNotJudged = MAX_NOT_JUDGED } = {}) {
   const judged = pages.map(judgePage)
   const failures = judged.flatMap((page) => page.failures)
+  const notJudged = judged.filter((page) => page.inconclusive.length > 0).length
+  if (notJudged > maxNotJudged) {
+    failures.push(
+      `${notJudged} of ${judged.length} page/device pairs were not judged — too few valid runs ` +
+        `to say anything (most allowed: ${maxNotJudged}).`,
+    )
+  }
   return {
     ok: failures.length === 0,
     failures,
@@ -390,18 +456,85 @@ export function evaluate(pages) {
   }
 }
 
-function parseArgs(argv) {
+/**
+ * Runs made and thrown away before any is measured. The first Lighthouse run of a job is cold
+ * (a fresh machine, a first Chrome start, and an edge cache the deploy just emptied):
+ * home.mobile, always first, averaged 0.747 on run 1 against 0.89–0.91 on runs 2–5, and run 1
+ * was the lowest of the five in 61 of 71 jobs (2026-09-29 → 2026-10-18).
+ */
+export const WARM_UP_RUNS = 1
+
+/**
+ * Every Lighthouse run in order. Warm-ups come first, on the first page and form factor, as
+ * `run: 0, measured: false`; their reports are written and never read.
+ */
+export function plannedRuns({ pages, formFactors, runs, warmUp }) {
+  const plan = []
+  for (let i = 0; i < warmUp && pages.length && formFactors.length; i++) {
+    plan.push({ page: pages[0], formFactor: formFactors[0], run: 0, measured: false })
+  }
+  for (const page of pages) {
+    for (const formFactor of formFactors) {
+      for (let run = 1; run <= runs; run++) plan.push({ page, formFactor, run, measured: true })
+    }
+  }
+  return plan
+}
+
+/**
+ * Chrome features the robot switches off on top of chrome-launcher's own list. EMPTY: a feature
+ * goes here only with the side-by-side evidence that it removes a measuring fault and changes
+ * nothing else (owner's decision, 2026-10-18), and comes out again once Chrome fixes the fault.
+ * For a test, name them with --extra-disabled-features=A,B or EXTRA_DISABLED_FEATURES.
+ */
+export const EXTRA_DISABLED_FEATURES = []
+
+const FEATURE_NAME = /^[A-Za-z0-9]+$/
+
+/** The features chrome-launcher (as Lighthouse installs it) already passes in --disable-features. */
+export function launcherDisabledFeatures() {
+  const require = createRequire(import.meta.resolve('lighthouse/package.json'))
+  const { Launcher } = require('chrome-launcher')
+  const flag = Launcher.defaultFlags().find((arg) => arg.startsWith('--disable-features='))
+  return flag ? flag.slice('--disable-features='.length).split(',').filter(Boolean) : []
+}
+
+export function parseArgs(argv, env = process.env) {
   const value = (name) => argv.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1]
   const list = (name) => value(name)?.split(',').filter(Boolean)
+  const named = (text) =>
+    String(text ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean)
+  const fromCli = named(value('extra-disabled-features'))
+  const fromEnv = named(env.EXTRA_DISABLED_FEATURES)
+  const extraDisabledFeatures = fromCli.length
+    ? fromCli
+    : fromEnv.length
+      ? fromEnv
+      : [...EXTRA_DISABLED_FEATURES]
+  for (const name of extraDisabledFeatures) {
+    // A dispatch input reaches Chrome's command line: only a bare feature name may.
+    if (!FEATURE_NAME.test(name))
+      throw new Error(`not a Chrome feature name: ${JSON.stringify(name)}`)
+  }
   const runs = Number(value('runs') ?? RUNS)
   if (!Number.isInteger(runs) || runs < 1)
     throw new Error(`--runs must be a whole number, got ${value('runs')}`)
+  const from = value('from')
+  // Judging reports already written measures nothing, so there is nothing to warm up.
+  const warmUp = from ? 0 : Number(value('warm-up') ?? WARM_UP_RUNS)
+  if (!Number.isInteger(warmUp) || warmUp < 0)
+    throw new Error(`--warm-up must be a whole number of runs, got ${value('warm-up')}`)
   return {
     pages: list('pages'),
     formFactors: list('form-factors'),
     runs,
+    warmUp,
+    extraDisabledFeatures,
     out: value('out'),
-    from: value('from'),
+    from,
     report: argv.includes('--report'),
   }
 }
@@ -434,31 +567,84 @@ export function robotUserAgent(formFactor) {
 }
 
 /** The command line for one run. Separate from `runLighthouse` so a test can read it. */
-export function lighthouseArgs(url, formFactor, file, ci = Boolean(process.env.CI)) {
+export function lighthouseArgs(
+  url,
+  formFactor,
+  file,
+  ci = Boolean(process.env.CI),
+  extraDisabledFeatures = EXTRA_DISABLED_FEATURES,
+) {
   const args = [url]
   if (formFactor === 'desktop') args.push('--preset=desktop')
   args.push(`--emulatedUserAgent=${robotUserAgent(formFactor)}`)
   // `--no-sandbox` only on CI, where the existing lighthouse job already needs it.
-  const chrome = `--headless=new --no-first-run${ci ? ' --no-sandbox' : ''}`
+  let chrome = `--headless=new --no-first-run${ci ? ' --no-sandbox' : ''}`
+  const extra = extraDisabledFeatures.filter(Boolean)
+  if (extra.length) {
+    // The launcher's whole list plus ours, in one flag, so the command line alone shows every
+    // feature that is off. Measured 2026-10-18 on Chrome 155: Chrome MERGES repeated
+    // --disable-features (its child processes got the launcher's list, Lighthouse's own
+    // PaintHolding and TreesInViz together), so this is for the reader, not for Chrome.
+    chrome += ` --disable-features=${[...launcherDisabledFeatures(), ...extra].join(',')}`
+  }
   args.push('--output=json', `--output-path=${file}`, '--quiet', `--chrome-flags=${chrome}`)
   return args
 }
 
-function runLighthouse(url, formFactor, file) {
+function runLighthouse(url, formFactor, file, extraDisabledFeatures) {
   if (!existsSync(LIGHTHOUSE_BIN)) {
     throw new Error(
       `Lighthouse is not installed at ${LIGHTHOUSE_BIN}; run \`npx --yes pnpm@12.6.0 install\`. ` +
         'It is a pinned devDependency on purpose, and this robot will not fetch it with npx.',
     )
   }
-  const args = lighthouseArgs(url, formFactor, file)
-  const result = spawnSync(LIGHTHOUSE_BIN, args, {
-    stdio: ['ignore', 'ignore', 'pipe'],
-    encoding: 'utf8',
-  })
-  if (result.status !== 0) {
-    console.log(`[lighthouse-robot] lighthouse exited ${result.status} for ${url} (${formFactor})`)
+  const args = lighthouseArgs(url, formFactor, file, Boolean(process.env.CI), extraDisabledFeatures)
+  const result = spawnSync(LIGHTHOUSE_BIN, args, LIGHTHOUSE_SPAWN_OPTIONS)
+  for (const line of describeExit(result, url, formFactor)) console.log(line)
+}
+
+/**
+ * One run's ceiling. 40 runs took about 13 minutes on the runner (about 20 s each), and nothing
+ * else bounded a single run: a Chrome that hung would have held the job until its 60 minutes ran
+ * out and taken every page's result with it. A run stopped here leaves no report, so it is set
+ * aside as inconclusive like any run that wrote none.
+ */
+export const LIGHTHOUSE_TIMEOUT_MS = 180_000
+
+export const LIGHTHOUSE_SPAWN_OPTIONS = {
+  stdio: ['ignore', 'ignore', 'pipe'],
+  encoding: 'utf8',
+  timeout: LIGHTHOUSE_TIMEOUT_MS,
+  killSignal: 'SIGKILL',
+}
+
+/** How many of Lighthouse's own last lines a failed run prints. */
+export const STDERR_TAIL_LINES = 20
+
+/**
+ * The end of Lighthouse's error output, without its progress chatter. Until 2026-10-18 the robot
+ * kept stderr and printed none of it, so 147 failed runs said only "exited 1".
+ */
+export function stderrTail(text, lines = STDERR_TAIL_LINES) {
+  const kept = String(text ?? '')
+    .split('\n')
+    .filter((line) => line.trim() !== '' && !line.includes(' LH:status '))
+  return kept.slice(-lines).join('\n')
+}
+
+/** The lines to print about one finished `spawnSync` of Lighthouse; none for a clean run. */
+export function describeExit(result, url, formFactor) {
+  if (result.error?.code === 'ETIMEDOUT') {
+    return [
+      `::warning::lighthouse timed out after ${LIGHTHOUSE_TIMEOUT_MS / 1000} s for ${url} (${formFactor}) — stopped, set aside`,
+    ]
   }
+  if (result.status === 0) return []
+  const tail = stderrTail(result.stderr)
+  return [
+    `::warning::lighthouse exited ${result.status} for ${url} (${formFactor}):`,
+    ...(tail ? tail.split('\n').map((line) => `    ${line}`) : []),
+  ]
 }
 
 export function readReport(file) {
@@ -490,23 +676,44 @@ async function main() {
     `[lighthouse-robot] Lighthouse ${LIGHTHOUSE_VERSION}, ${args.runs} run(s) each, floors: ${measuringMachine()}, ` +
       `${args.from ? `judging reports in ${dir}` : `writing reports to ${dir}`}`,
   )
+  // Named on every run, so a dispatch's A/B arm can be read off its log.
+  console.log(
+    `[lighthouse-robot] extra disabled features: ${args.extraDisabledFeatures.join(',') || 'none'}`,
+  )
   const results = []
-  for (const page of pages) {
-    for (const formFactor of factors) {
-      const runs = []
-      for (let i = 1; i <= args.runs; i++) {
-        const file = join(dir, `${page.name}.${formFactor}.run${i}.json`)
-        if (!args.from) runLighthouse(page.url, formFactor, file)
-        runs.push(readReport(file))
-      }
-      results.push({ page: page.name, formFactor, runs })
+  const byKey = new Map()
+  let warmUps = 0
+  for (const { page, formFactor, run, measured } of plannedRuns({
+    pages,
+    formFactors: factors,
+    runs: args.runs,
+    warmUp: args.warmUp,
+  })) {
+    if (!measured) {
+      warmUps += 1
+      runLighthouse(
+        page.url,
+        formFactor,
+        join(dir, `warmup.${warmUps}.json`),
+        args.extraDisabledFeatures,
+      )
+      continue
     }
+    const key = `${page.name}.${formFactor}`
+    if (!byKey.has(key)) {
+      byKey.set(key, { page: page.name, formFactor, runs: [] })
+      results.push(byKey.get(key))
+    }
+    const file = join(dir, `${key}.run${run}.json`)
+    if (!args.from) runLighthouse(page.url, formFactor, file, args.extraDisabledFeatures)
+    byKey.get(key).runs.push(readReport(file))
   }
 
   const { ok, failures, inconclusive, advisories, lines } = evaluate(results)
   for (const line of lines) console.log(line)
   for (const note of advisories) console.log(`[lighthouse-robot] ${note}`)
-  for (const note of inconclusive) console.log(`[lighthouse-robot] inconclusive: ${note}`)
+  // An annotation, not a log line: an unjudged page must show on the run's page, not only in the log.
+  for (const note of inconclusive) console.log(`::warning::lighthouse-robot inconclusive: ${note}`)
   for (const failure of failures) console.error(`::error::${failure}`)
   console.log(
     ok

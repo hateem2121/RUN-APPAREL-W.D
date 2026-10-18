@@ -22,19 +22,30 @@
  *   node scripts/preconnect-probe.mjs
  */
 import { realpathSync } from 'node:fs'
+import { isInconclusiveStatus } from './inconclusive-statuses.mjs'
 
 export const PAGE_URL = 'https://wear-run.com/products'
+/** Neither fetch had a limit; a stalled edge would have held the job until its 60 minutes. */
+export const FETCH_TIMEOUT_MS = 30_000
 /** The public pages name the bucket by its wear-run.com address since 2026-09-28. */
 export const MEDIA_HOST = 'media.wear-run.com'
 /** The page never same-page-fetches from here — it only LINKS to it. */
 export const UNEXPECTED_HOST = 'viewer.wear-run.help'
 
-/** Pure: every `<link rel="preconnect">` host in an HTML string. */
+/**
+ * Pure: every `<link rel="preconnect">` host in an HTML string, whatever the attribute order and
+ * whatever other `rel` words sit beside it. Until 2026-10-18 only `rel` immediately before `href`
+ * was matched, so `<link href=… rel="preconnect">` read as "(none)" and passed.
+ */
 export function extractPreconnectHosts(html) {
   const hosts = []
-  for (const match of html.matchAll(/<link\s+rel="preconnect"\s+href="([^"]+)"/gi)) {
+  for (const [tag] of html.matchAll(/<link\b[^>]*>/gi)) {
+    const rel = tag.match(/\srel="([^"]*)"/i)?.[1] ?? ''
+    if (!rel.toLowerCase().split(/\s+/).includes('preconnect')) continue
+    const href = tag.match(/\shref="([^"]*)"/i)?.[1]
+    if (!href) continue
     try {
-      hosts.push(new URL(match[1]).host)
+      hosts.push(new URL(href).host)
     } catch {
       // A malformed href is a template bug worth surfacing on its own terms, not here.
     }
@@ -81,10 +92,44 @@ export function evaluateCardImage(src) {
   return { ok: true, problems: [] }
 }
 
+/**
+ * Fetch the first card picture and judge the answer by its headers alone. The body is never
+ * needed, so it is cancelled: from 2026-10-05 this step took 6 min 40 s in every run although its
+ * answer was printed in its first second, because Node's fetch holds the connection — and the
+ * process — until a body is read or cancelled (undici's docs; reproduced 2026-10-18, still alive
+ * at 600 s). A 307 is the `onerror=redirect` fallback to the full-size file.
+ */
+export async function checkCardPicture(src, fetchImpl = fetch) {
+  const picture = await fetchImpl(new URL(src, PAGE_URL), {
+    headers: { accept: 'image/avif,image/webp,*/*' },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
+  const status = picture.status
+  const resized = picture.headers.get('cf-resized') ?? ''
+  const type = picture.headers.get('content-type') ?? ''
+  await picture.body?.cancel()
+  const problems = []
+  if (status >= 300 && status < 400) {
+    problems.push(
+      `The first card picture fell back to the original (${status}, cf-resized: ${resized}). ` +
+        "Cloudflare's resizing is off for wear-run.com, or this month's free 5,000 resizes are used up.",
+    )
+  } else if (status !== 200 || !type.startsWith('image/') || /err=/.test(resized)) {
+    problems.push(`The first card picture answered ${status} ${type} (cf-resized: ${resized}).`)
+  }
+  return { status, type, resized, problems }
+}
+
 async function main() {
-  const res = await fetch(PAGE_URL, { headers: { accept: 'text/html' } })
-  if (res.status === 403 || res.status === 429) {
-    console.log(`⚠️  ${PAGE_URL} answered ${res.status} — INCONCLUSIVE (Bot Fight Mode).`)
+  const res = await fetch(PAGE_URL, {
+    headers: { accept: 'text/html' },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
+  if (isInconclusiveStatus(res.status)) {
+    // An annotation, so it shows on the run's page; a plain log line here went unseen.
+    console.log(`::warning::preconnect-probe: inconclusive — ${PAGE_URL} answered ${res.status}`)
+    await res.body?.cancel()
     process.exit(0)
   }
   if (!res.ok) {
@@ -98,25 +143,11 @@ async function main() {
   console.log(`preconnect-probe: ${PAGE_URL} preconnects to: ${hosts.join(', ') || '(none)'}`)
 
   if (src?.startsWith('/cdn-cgi/image/')) {
-    const picture = await fetch(new URL(src, PAGE_URL), {
-      headers: { accept: 'image/avif,image/webp,*/*' },
-      redirect: 'manual',
-    })
-    const resized = picture.headers.get('cf-resized') ?? ''
-    const type = picture.headers.get('content-type') ?? ''
+    const picture = await checkCardPicture(src)
     console.log(
-      `preconnect-probe: first card picture ${picture.status} ${type} cf-resized: ${resized || '(none)'}`,
+      `preconnect-probe: first card picture ${picture.status} ${picture.type} cf-resized: ${picture.resized || '(none)'}`,
     )
-    if (picture.status >= 300 && picture.status < 400) {
-      problems.push(
-        `The first card picture fell back to the original (${picture.status}, cf-resized: ${resized}). ` +
-          "Cloudflare's resizing is off for wear-run.com, or this month's free 5,000 resizes are used up.",
-      )
-    } else if (picture.status !== 200 || !type.startsWith('image/') || /err=/.test(resized)) {
-      problems.push(
-        `The first card picture answered ${picture.status} ${type} (cf-resized: ${resized}).`,
-      )
-    }
+    problems.push(...picture.problems)
   }
 
   if (problems.length > 0) {
