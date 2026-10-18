@@ -578,9 +578,10 @@ export function lighthouseArgs(
   let chrome = `--headless=new --no-first-run${ci ? ' --no-sandbox' : ''}`
   const extra = extraDisabledFeatures.filter(Boolean)
   if (extra.length) {
-    // The launcher's WHOLE list plus ours, in one flag: Chrome keeps one --disable-features
-    // value, so a bare `--disable-features=TreesInViz` would quietly turn RenderDocument and
-    // Translate back on and change two things at once.
+    // The launcher's whole list plus ours, in one flag, so the command line alone shows every
+    // feature that is off. Measured 2026-10-18 on Chrome 155: Chrome MERGES repeated
+    // --disable-features (its child processes got the launcher's list, Lighthouse's own
+    // PaintHolding and TreesInViz together), so this is for the reader, not for Chrome.
     chrome += ` --disable-features=${[...launcherDisabledFeatures(), ...extra].join(',')}`
   }
   args.push('--output=json', `--output-path=${file}`, '--quiet', `--chrome-flags=${chrome}`)

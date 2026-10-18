@@ -864,8 +864,9 @@ describe('a Chrome feature can be switched off for a test, and only then', () =>
   })
 
   /*
-   * Chrome keeps only one --disable-features value, so a bare --disable-features=TreesInViz
-   * would quietly switch RenderDocument and Translate back ON and change two things at once.
+   * One flag carrying the launcher's list and ours, so a run's command line names every feature
+   * that is off. (Chrome 155 merges repeated --disable-features — checked with `ps` during the
+   * 2026-10-18 A/B — so this guards readability, and against a Chrome that stops merging.)
    */
   it('an extra feature keeps the launcher’s list', () => {
     const flag = chromeFlag(
