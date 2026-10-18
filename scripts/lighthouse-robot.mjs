@@ -60,6 +60,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { userAgents } from 'lighthouse/core/config/constants.js'
+import { INCONCLUSIVE_STATUSES } from './inconclusive-statuses.mjs'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 
 export const LIGHTHOUSE_VERSION = '13.5.0'
@@ -92,7 +93,7 @@ export const PAGES = [
 ]
 
 /** Statuses that mean "ask again later" — Bot Fight Mode, rate limiting, a busy origin. */
-export const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
+export { INCONCLUSIVE_STATUSES }
 
 /**
  * Audits that fail on purpose, by page. Empty since the launch switch flipped on

@@ -8,6 +8,7 @@ export interface IconParityResult {
 }
 
 export declare function isRefusal(status: number): boolean
+export declare function stripMediaQuery(svg: string): string
 export declare const SITE_ICON_URL: string
 export declare const VIEWER_ICON_URL: string
 export declare const COMPARE_SIZE: number

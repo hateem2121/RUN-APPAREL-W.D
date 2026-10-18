@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { isInconclusiveStatus } from '../../../scripts/inconclusive-statuses.mjs'
 import {
+  checkCardPicture,
   evaluateCardImage,
   evaluatePreconnect,
   extractPreconnectHosts,
+  FETCH_TIMEOUT_MS,
   firstCardImage,
   MEDIA_HOST,
   UNEXPECTED_HOST,
@@ -74,5 +77,74 @@ describe('the first card picture is a resized one', () => {
 
   it('flags a page with no card picture at all', () => {
     expect(evaluateCardImage(null).ok).toBe(false)
+  })
+})
+
+describe('a preconnect is found however the tag is written', () => {
+  it('finds a preconnect written href-first', () => {
+    expect(extractPreconnectHosts('<link href="https://media.wear-run.com" rel="preconnect">')).toEqual([
+      MEDIA_HOST,
+    ])
+  })
+
+  it('finds preconnect among several rel words, and ignores other links', () => {
+    expect(
+      extractPreconnectHosts(
+        '<link rel="dns-prefetch preconnect" href="https://media.wear-run.com" crossorigin>' +
+          '<link rel="stylesheet" href="https://media.wear-run.com/x.css">',
+      ),
+    ).toEqual([MEDIA_HOST])
+  })
+})
+
+/**
+ * F-07 (2026-10-18): from 2026-10-05 this step took 6 min 40 s in every run although its answer
+ * was printed in the first second. It read the picture's headers and never its body, and Node's
+ * fetch keeps the connection — and so the whole process — alive until the body is read or
+ * cancelled (undici docs; reproduced: the process was still alive at 600 s).
+ */
+describe('checkCardPicture', () => {
+  const picture = (status: number, headers: Record<string, string>) => {
+    const state = { cancelled: false }
+    const body = new ReadableStream({
+      pull() {
+        // Never delivers and never ends: only a cancel lets go of it.
+      },
+      cancel() {
+        state.cancelled = true
+      },
+    })
+    const fetchImpl = async () => new Response(body, { status, headers })
+    return { state, fetchImpl }
+  }
+  const SRC = '/cdn-cgi/image/fit=scale-down,width=720/https://media.wear-run.com/r-xmp-wine-render.webp'
+
+  it('cancels the body it does not read', async () => {
+    const { state, fetchImpl } = picture(200, {
+      'content-type': 'image/avif',
+      'cf-resized': 'internal=ok/m',
+    })
+    const result = await checkCardPicture(SRC, fetchImpl)
+    expect(state.cancelled).toBe(true)
+    expect(result).toMatchObject({ status: 200, type: 'image/avif', problems: [] })
+  })
+
+  // NEGATIVE CONTROL: a 307 is Cloudflare's fallback to the full-size file.
+  it('flags a picture that fell back to the original', async () => {
+    const { state, fetchImpl } = picture(307, { 'cf-resized': 'err=9403' })
+    const result = await checkCardPicture(SRC, fetchImpl)
+    expect(state.cancelled).toBe(true)
+    expect(result.problems[0]).toMatch(/fell back to the original/)
+  })
+
+  it('gives up on a fetch after 30 seconds', () => {
+    expect(FETCH_TIMEOUT_MS).toBe(30_000)
+  })
+})
+
+describe('the same answers are inconclusive as in the robot', () => {
+  it('a 503 is inconclusive, a 500 is an answer', () => {
+    expect([403, 429, 503].map(isInconclusiveStatus)).toEqual([true, true, true])
+    expect([200, 404, 500].map(isInconclusiveStatus)).toEqual([false, false, false])
   })
 })

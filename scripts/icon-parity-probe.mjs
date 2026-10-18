@@ -30,6 +30,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { realpathSync } from 'node:fs'
+import { isInconclusiveStatus } from './inconclusive-statuses.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..') // this script lives at repo-root scripts/, one hop from the root
@@ -60,14 +61,21 @@ export const CHANNEL_TOLERANCE = 24
 /** Past this fraction of differing pixels, the two marks are not the same picture. */
 export const MAX_DIFFERING_FRACTION = 0.02
 
-/** Pure: Bot Fight Mode's refusal of a robot — inconclusive, never a failed comparison. */
+/**
+ * Pure: an edge answer that means "ask again later" — Bot Fight Mode's 403/429 or a busy 503 —
+ * is inconclusive, never a failed comparison. The same list the Lighthouse robot uses.
+ */
 export function isRefusal(status) {
-  return status === 403 || status === 429
+  return isInconclusiveStatus(status)
 }
 
-function stripMediaQuery(svg) {
-  return svg.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/, '')
+/** Every `@media` block, not only the first: a second one would otherwise reach the rasteriser. */
+export function stripMediaQuery(svg) {
+  return svg.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/g, '')
 }
+
+/** Neither fetch had a limit; a stalled edge would have held the job until its 60 minutes. */
+const FETCH_TIMEOUT_MS = 30_000
 
 /**
  * Pure: rasterise both SVG source strings to the same size and compare pixels. No
@@ -125,8 +133,8 @@ export async function compareMarks(
 /** All network lives here: a plain GET of each host's live SVG. */
 async function fetchMarks() {
   const [siteResponse, viewerResponse] = await Promise.all([
-    fetch(SITE_ICON_URL),
-    fetch(VIEWER_ICON_URL),
+    fetch(SITE_ICON_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }),
+    fetch(VIEWER_ICON_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }),
   ])
   // Bot Fight Mode refuses datacenter robots intermittently (.github/CLAUDE.md): a 403 or
   // 429 is INCONCLUSIVE, never a failed comparison, or a scheduled run goes red on a
@@ -135,7 +143,11 @@ async function fetchMarks() {
     [SITE_ICON_URL, siteResponse],
     [VIEWER_ICON_URL, viewerResponse],
   ]) {
-    if (isRefusal(response.status)) return { refused: `${url} answered ${response.status}` }
+    if (isRefusal(response.status)) {
+      // Release both connections: an unread body keeps Node alive (the card probe's 6.7 minutes).
+      await Promise.all([siteResponse.body?.cancel(), viewerResponse.body?.cancel()])
+      return { refused: `${url} answered ${response.status}` }
+    }
   }
   if (!siteResponse.ok) {
     throw new Error(`${SITE_ICON_URL} answered ${siteResponse.status}`)

@@ -5,6 +5,7 @@ import {
   CHANNEL_TOLERANCE,
   compareMarks,
   isRefusal,
+  stripMediaQuery,
   MAX_DIFFERING_FRACTION,
 } from '../../../scripts/icon-parity-probe.mjs'
 
@@ -105,8 +106,25 @@ describe('compareMarks', () => {
 })
 
 describe('isRefusal — a blocked robot is inconclusive, since the probe runs on a schedule', () => {
-  it('reads 403 and 429 as a refusal, and a real error or success as an answer', () => {
-    expect([403, 429].map(isRefusal)).toEqual([true, true])
-    expect([200, 404, 500, 503].map(isRefusal)).toEqual([false, false, false, false])
+  /*
+   * 503 joined 403 and 429 on 2026-10-18 (investigation F-09): the Lighthouse robot in the same
+   * workflow already set 503 aside as "a busy origin, ask again later", while this probe failed
+   * the job on it — one edge answer, two verdicts in one run.
+   */
+  it('reads 403, 429 and 503 as inconclusive, and a real error or success as an answer', () => {
+    expect([403, 429, 503].map(isRefusal)).toEqual([true, true, true])
+    expect([200, 404, 500].map(isRefusal)).toEqual([false, false, false])
+  })
+})
+
+describe('stripMediaQuery', () => {
+  it('removes every @media block, not only the first', () => {
+    const svg =
+      '<svg><style>.a{fill:#000}@media (prefers-color-scheme: dark){.a{fill:#fff}}' +
+      '@media (forced-colors: active){.a{fill:CanvasText}}</style><rect class="a"/></svg>'
+    const stripped = stripMediaQuery(svg)
+    expect(stripped).not.toContain('@media')
+    expect(stripped).toContain('.a{fill:#000}')
+    expect(stripped).toContain('<rect class="a"/>')
   })
 })
