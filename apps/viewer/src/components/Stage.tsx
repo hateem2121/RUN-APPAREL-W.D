@@ -40,6 +40,7 @@ import {
   MIN_FIELD_OF_VIEW,
   type ModelViewerEl,
   PAN_SENSITIVITY,
+  PAN_TARGET_STYLE,
   STALL_NOTICE,
   TOUCH_ACTION,
   VARIANT_NOTICE,
@@ -1210,6 +1211,8 @@ export function Stage({
                   />
                 </svg>
               </button>
+              {/* The pan dot, which lets a wheel at the garment's centre zoom (PAN_TARGET_STYLE). */}
+              <div slot="pan-target" aria-hidden="true" style={PAN_TARGET_STYLE} />
             </model-viewer>
           )}
 
