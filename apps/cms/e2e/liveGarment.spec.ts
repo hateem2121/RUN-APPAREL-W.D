@@ -436,7 +436,19 @@ test.describe('№03 — the live 3D garment', () => {
     before = await scrolled()
     await page.mouse.wheel(0, -300)
     await page.waitForTimeout(1200)
-    expect(await scrolled(), 'the page scrolled while zoom was on').toBe(before)
+    // Without WebGL (CI's Firefox) model-viewer never takes the wheel, so the page scrolls on, which
+    // is right where there is nothing to zoom. Measured on PR #200, 2026-10-18: CI's Firefox moved
+    // the page 300px here on both tries; the Mac's Firefox with `webgl.disabled` did the same, and
+    // held still with WebGL on. The holding is checked where a frame is drawn (CI's Chromium).
+    const draws = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
+    })
+    if (draws) {
+      expect(await scrolled(), 'the page scrolled while zoom was on').toBe(before)
+    } else {
+      expect(await scrolled(), 'without WebGL the wheel should stay the page’s').not.toBe(before)
+    }
 
     // The pointer leaves: zoom off, and the wheel is the page's again.
     await page.mouse.move(8, 450)
