@@ -646,6 +646,8 @@ html {
   --z-sticky-index: 2;
   /* №04's stage name ("Stage 1 · Talk"), over its card's two step photos, inside the card (D42). */
   --z-stage-name: 1;
+  /* №03's old still picture over the new one while it is wiped away (2026-10-19, D47). */
+  --z-still-leaving: 1;
   /* №02's opened card over the cards it pushed aside, and its words' sheet under its own words (D44). */
   --z-card-open: 1;
   --z-card-sheet: -1;
@@ -4320,7 +4322,7 @@ a.contact-block__value:active {
 .proof__frame > [data-still="leaving"] {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: var(--z-still-leaving);
 }
 
 .proof__frame > [data-still="arriving"] {
@@ -4330,8 +4332,8 @@ a.contact-block__value:active {
 .proof__figure:not(:has(.live-garment[data-phase="shown"])) .proof__frame > [data-still="leaving"] {
   mask-image: radial-gradient(
     circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
-    transparent calc(var(--wipe) * var(--wipe-reach) - 80px),
-    #000 calc(var(--wipe) * var(--wipe-reach))
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 80px),
+    #000 calc(var(--wipe) * var(--wipe-reach, 0px))
   );
   animation: live-garment-wipe var(--slow) var(--ease) forwards;
 }
@@ -5793,8 +5795,8 @@ a.contact-block__value:active {
 
   .order-stage__steps > .order-step {
     position: sticky;
-    top: min(calc(var(--step) * 8px), calc(100svh - var(--stage-fit, 0px)));
-    min-block-size: calc(100svh - var(--step) * 8px);
+    top: min(calc(var(--step, 0) * 8px), calc(100svh - var(--stage-fit, 0px)));
+    min-block-size: calc(100svh - var(--step, 0) * 8px);
     padding-block-start: calc(var(--card-lead) + 18px);
     border-block-start: 1px solid var(--line);
     background: var(--ink);
@@ -5824,9 +5826,9 @@ a.contact-block__value:active {
 
     .order-stage__steps > .order-step {
       transform-origin: 50% 0;
-      view-timeline-name: var(--step-name);
+      view-timeline-name: var(--step-name, none);
       animation: order-step-sink linear both;
-      animation-timeline: var(--next-name);
+      animation-timeline: var(--next-name, none);
       animation-range: entry 0% entry 100%;
     }
 
@@ -6138,9 +6140,9 @@ a.contact-block__value:active {
 
 .live-garment__fade[data-going] {
   mask-image: radial-gradient(
-    circle at var(--wipe-x) var(--wipe-y),
-    transparent calc(var(--wipe) * var(--wipe-reach) - 80px),
-    #000 calc(var(--wipe) * var(--wipe-reach))
+    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 80px),
+    #000 calc(var(--wipe) * var(--wipe-reach, 0px))
   );
   animation: live-garment-wipe var(--slow) var(--ease) forwards;
 }
@@ -6153,11 +6155,11 @@ a.contact-block__value:active {
   mask-size: 100% 100%;
   mix-blend-mode: multiply;
   background: radial-gradient(
-    circle at var(--wipe-x) var(--wipe-y),
-    transparent calc(var(--wipe) * var(--wipe-reach) - 100px),
-    color-mix(in srgb, var(--wipe-swatch) 55%, transparent)
-      calc(var(--wipe) * var(--wipe-reach) - 40px),
-    transparent calc(var(--wipe) * var(--wipe-reach))
+    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 100px),
+    color-mix(in srgb, var(--wipe-swatch, transparent) 55%, transparent)
+      calc(var(--wipe) * var(--wipe-reach, 0px) - 40px),
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px))
   );
   animation:
     live-garment-wipe var(--slow) var(--ease) forwards,
