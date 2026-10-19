@@ -63,14 +63,48 @@ const report = (page: Page) =>
     moving: sessionStorage.getItem('mo3-moving') ?? '',
   }))
 
+/**
+ * Keep the garment's payload from arriving until the test says so, and hand back the key.
+ *
+ * ⚠️ THE FLAKE THIS REMOVES (found 2026-10-19; it failed 5 in 50 and 7 in 60 runs on this Mac, with
+ * main's CSS and this branch's alike). The loading screen is the ONLY element the new page names, so
+ * the picture can only grow into it if it is still in the page when the browser takes the new
+ * page's picture (the first rendering opportunity after `pagereveal`). Under automation it is not
+ * always: `Preloader` skips its 400 ms minimum stay when `navigator.webdriver` is set
+ * (`Preloader.tsx`, `reduce`) and leaves the instant the payload arrives, and the fixture answers
+ * in milliseconds. When that wins the race, `pagereveal` already finds the finished page, with an
+ * `h1` and no `.preloader`: the old picture is captured and nothing is captured to grow into (the
+ * failing page had `::view-transition-old(garment-opening)` and no group). A real visitor never
+ * races: the payload takes 1.8-2.3 s (`Preloader.tsx`) and the screen stays at least 400 ms.
+ * Measured with two independent interventions, 60 runs each, 0 failures: the payload held 300 ms,
+ * and `navigator.webdriver` masked so the screen keeps its stay. Held on a condition, not for a
+ * time, so no machine can win the race.
+ */
+async function holdThePayload(page: Page): Promise<() => void> {
+  let release = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/api/public/viewer/**', async (route) => {
+    await held
+    await route.continue()
+  })
+  return release
+}
+
 test("a card's picture grows into the loading screen", async ({ page }) => {
   await onTheCardPage(page, 'no-preference')
-  await page.locator('#card').click()
-  await page.waitForURL('**/n001/wine')
-  await expect
-    .poll(async () => (await report(page)).moving)
-    .toContain(`::view-transition-group(${NAME})`)
-  expect((await report(page)).reveal).toBe('transition')
+  const release = await holdThePayload(page)
+  try {
+    await page.locator('#card').click()
+    await page.waitForURL('**/n001/wine')
+    await expect
+      .poll(async () => (await report(page)).moving)
+      .toContain(`::view-transition-group(${NAME})`)
+    expect((await report(page)).reveal).toBe('transition')
+  } finally {
+    release()
+  }
 })
 
 test('leaving a garment page stays instant', async ({ page }) => {

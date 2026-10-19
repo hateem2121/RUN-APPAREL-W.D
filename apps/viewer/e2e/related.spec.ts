@@ -117,9 +117,14 @@ test.describe('More from this category (polish S6)', () => {
     const linked = [...shell.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(
       (match) => match[1] ?? '',
     )
-    expect(linked.length, 'the shell links no stylesheet, so this checks nothing').toBeGreaterThan(
-      0,
-    )
+    // Since 2026-10-19 the main stylesheet is INSIDE the shell (`scripts/inlineStylesheet.mjs`), so
+    // what the first paint waits for is the shell's own <style> blocks as well as any link.
+    const inline = [...shell.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((match) => match[1] ?? '')
+    expect(
+      inline.some((css) => css.length > 30_000),
+      'the shell carries no stylesheet of its own, so this checks nothing',
+    ).toBe(true)
+    for (const css of inline) expect(css, 'the shell’s own <style>').not.toContain('.related__card')
     for (const href of linked) {
       expect(await (await request.get(href)).text(), href).not.toContain('.related__card')
     }

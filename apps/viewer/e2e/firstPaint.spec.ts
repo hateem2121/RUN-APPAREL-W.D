@@ -82,6 +82,16 @@ test.describe('RO-08 — first paint on slow 3G', () => {
     expect(shell, 'the shell was not captured, so the preload check measures nothing').toContain(
       '<div id="root">',
     )
+    /*
+     * THE SHELL CARRIES ITS STYLESHEET (2026-10-19, `scripts/inlineStylesheet.mjs`). Inlined, the
+     * median read 884 ms against 2,304 ms with a link: a ceiling of 2,400 ms can no longer see that
+     * link come back (2,304 still passes), so the shell is checked for it directly, as it is for the
+     * 3D preloads below.
+     */
+    expect(
+      shell,
+      'the shell links a stylesheet again: it shares the line with the scripts and fonts (see inlineStylesheet.mjs)',
+    ).not.toMatch(/<link[^>]*rel="stylesheet"[^>]*href="\/assets\//)
     for (const file of LATE_3D_FILES) {
       expect(
         shell,

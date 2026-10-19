@@ -564,6 +564,23 @@
  * pale ground, had a dark band under the bar. `watchFooterInView` (packages/shared) marks the page
  * while any of the footer is on screen, which is when the footer is what lies at the screen's foot;
  * before that the colour is the page's own paper. Without scripting it stays paper.
+ *
+ * ⚠️ KNOWN AND NOT FIXED (owner's iPhone, 2026-10-19: "after the footer and back up, the strip stays
+ * dark"). Reproduced in Safari on the iOS 26.5 simulator (iPhone 17 Pro), light mode, on the HOME
+ * page: scrolled in fast flings to the footer's end and back, the strip under the bar stayed
+ * (29, 31, 26) while `data-footer-in-view` was OFF, the root paper (241, 239, 234) and the page
+ * above it paper. So this file's rules and `watchFooterInView` were right and Safari kept the
+ * colour. What the readings narrow it to, measured on a test page of the same shape:
+ *   - it needs the order steps' stack: sticky, full-width cards with an ink background, whose feet
+ *     are the screen's foot (site.css). The same page and fling with the stack taken out, or with
+ *     the same height of plain paper in its place, recovered to paper every time (2 of 2);
+ *   - stopping the cards 12px short of the screen's foot, and marking the root dark while the stack
+ *     is on screen, did NOT help (1 of 1 still stale);
+ *   - the 500ms colour transition the website gives `html` (site.css) is NOT it: with it restored
+ *     the same path still matched once, and a test page with it matched twice;
+ *   - garment pages, which have no stack, matched after the footer and back up (1 of 1).
+ * Not tried: a stack narrower than 90% of the screen (Safari skips narrower fixed boxes). Only a
+ * real iPhone settles it; `consent.spec.ts` and `siteFooter.spec.ts` hold the half a browser can.
  */
 @media (width < 720px) and (hover: none) {
   html {

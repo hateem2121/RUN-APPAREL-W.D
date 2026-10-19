@@ -45,10 +45,11 @@ export function watchFooterInView(page: WatchablePage): () => void {
   const View = page.defaultView?.IntersectionObserver
   if (!footer || !View) return () => {}
   const observer = new View((entries) => {
-    root.toggleAttribute(
-      FOOTER_IN_VIEW,
-      entries.some((entry) => entry.isIntersecting),
-    )
+    // The LAST report is where the footer is now. A batch (a busy main thread holds the callback
+    // back, and a fast fling into the footer and out again queues two) lists them oldest first, and
+    // `some` would read "in, out" as "in" and leave the page marked, its strip dark, with the footer
+    // gone. A target watched alone gives one entry per change, so this is the whole of the batch.
+    root.toggleAttribute(FOOTER_IN_VIEW, entries.at(-1)?.isIntersecting ?? false)
   })
   observer.observe(footer)
   return () => {
