@@ -384,13 +384,11 @@
    * 48px floor (e2e/footer.spec.ts). Clipped here, nothing spills, the slab ends at this box, and the
    * cut is 0.2em in every engine (box 688.7–713.5, slab foot 713.5 on the iPhone) with the layout
    * main had. `min-block-size: 0` so no flex minimum can hold the box at its line's height.
-   * ⚠️ `--mark-head` IS HEADROOM FOR THE STROKE: the outline's top sits ~1px above a 0.74 line at a
-   * phone's size (393px), and the clip took that row. The lit layer starts under it too.
+   * ⚠️ THE 2px IS HEADROOM FOR THE STROKE: the outline's top sits ~1px above a 0.74 line at a
+   * phone's size (393px), and the clip took that row. The lit layer starts under it too (2px).
    */
-  --mark-head: 2px;
-  box-sizing: border-box;
-  padding-block-start: var(--mark-head);
-  block-size: calc(0.74em - 0.2em + var(--mark-head));
+  padding-block-start: 2px;
+  block-size: calc(0.54em + 2px);
   min-block-size: 0;
   overflow: clip;
   font-size: var(--text-footer-mark);
@@ -427,7 +425,7 @@
 
 .footer-mark__layer--lit {
   position: absolute;
-  inset: var(--mark-head, 0px) 0 0;
+  inset: 2px 0 0;
   --mx: -1000px;
   --my: -1000px;
   color: color-mix(in srgb, var(--volt) 30%, transparent);
@@ -579,6 +577,28 @@
   html body {
     background-color: transparent;
     background-image: linear-gradient(var(--bg), var(--bg));
+  }
+
+  /*
+   * ⚠️ AND THE FOOTER FADES INTO SAFARI'S BAR INSTEAD OF STOPPING AT IT (owner, 2026-10-19: the
+   * strip under the pill "must also be part of the footer"; shown four edges in the iOS 26.5
+   * simulator, chose the soft fade, phones only). At a page's end iOS 26 Safari brings its bar back
+   * and the page ends at the bar's top edge: the strip under the pill is Safari's, painted the root's
+   * colour (above), and nothing on the page can draw there. `viewport-fit=cover` changed nothing in
+   * a Safari tab (innerHeight 714, safe-area insets 0, the page still ending at 713.5px). So the
+   * slab's last 20px fade the grid and the cut wordmark into that same colour (29, 31, 26 measured
+   * on both sides), and the footer reads as running on under the pill; computers keep the hard cut.
+   * ⚠️ IN THIS BLOCK AND AS FEW BYTES AS IT CAN BE: the garment page's first paint on slow 3G
+   * (apps/viewer/e2e/firstPaint.spec.ts, 2,400ms ceiling) went 2,300 -> 2,452ms when this rule had
+   * its own media query, 181 bytes that cost a whole round trip. A phone has nothing to tap here,
+   * so no `pointer-events`.
+   */
+  .site-footer__slab::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    block-size: 1.25rem;
+    background: linear-gradient(transparent, var(--footer-bg) 85%);
   }
 }
 

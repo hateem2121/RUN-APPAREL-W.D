@@ -189,6 +189,46 @@ test.describe('the footer geometry', () => {
   }
 
   /*
+   * On a touch phone the slab's last 20px fade into the colour of Safari's strip under its pill
+   * (owner, 2026-10-19: chose the soft fade, phones only; footer.css). What would have to break: the
+   * fade missing on a phone (a hard line where the page meets the bar), ending in another colour
+   * than the slab's (a seam), or reaching a computer (the owner kept the hard cut there).
+   */
+  const fadeOf = (page: Page) =>
+    page.evaluate(() => {
+      const slab = document.querySelector('.site-footer__slab') as HTMLElement
+      const after = getComputedStyle(slab, '::after')
+      return {
+        touch: matchMedia('(hover: none)').matches,
+        content: after.content,
+        height: after.height,
+        image: after.backgroundImage,
+        ground: getComputedStyle(slab).backgroundColor,
+      }
+    })
+
+  test.describe('on a touch phone', () => {
+    test.use({ viewport: { width: 393, height: 659 }, hasTouch: true, isMobile: true })
+    test("the footer's foot fades into the bar's colour", async ({ page, browserName }) => {
+      test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
+      await page.goto('/contact')
+      const fade = await fadeOf(page)
+      expect(fade.touch, 'the emulated phone reports hover — this test measures nothing').toBe(true)
+      expect(fade.content).not.toBe('none')
+      expect(fade.height).toBe('20px')
+      expect(fade.image, 'the fade ends in another colour than the slab').toContain(fade.ground)
+    })
+  })
+
+  test('a computer keeps the hard cut, with no fade', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/contact')
+    const fade = await fadeOf(page)
+    expect(fade.touch).toBe(false)
+    expect(fade.content).toBe('none')
+  })
+
+  /*
    * ⚠️ UNDER REDUCED MOTION THE WORDMARK SHRANK FOR AS LONG AS THE PAGE WAS OPEN. Found
    * 2026-10-01 by the screenshot suite (visual.spec.ts), live on wear-run.com: 87.9px ->
    * 56.0px in three seconds at 768 wide, and still going. base.css's hard stop gives every

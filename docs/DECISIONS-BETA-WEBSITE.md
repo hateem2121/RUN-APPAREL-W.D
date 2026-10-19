@@ -1360,6 +1360,12 @@ spill, so the letters stood whole there. Moving the drawing (`translate`) cut th
 took the 0.2em out of the footer's quiet band, under D7's floor at 768px. The wordmark's box is now
 its line less 0.2em and clips itself, which cuts 0.2em in every engine with the layout the footer
 had (read in the simulator: box foot and slab foot both at 713.5px, the letters to 722.7px).
+The owner then asked for the strip under Safari's pill to be part of the footer too. At a page's
+end Safari brings its bar back and the page ends at its top edge; `viewport-fit=cover` changed
+nothing in a Safari tab, so nothing on the page can draw there, and the strip already takes the
+footer's colour. Shown four edges in the simulator (hard cut, soft fade, whole word, half cut and
+fade), the owner chose the soft fade, on phones only: the slab's last 20px fade the grid and the
+letters into that colour, and computers keep the hard cut.
 
 **Guard:** `apps/cms/e2e/familyTickets.spec.ts` (both speeds and the stagger),
 `apps/cms/e2e/liveGarment.spec.ts` and `apps/cms/e2e/proofShowcase.spec.ts` (the wipe's origin, its
