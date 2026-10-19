@@ -4,6 +4,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { stripHtmlComments } from './scripts/htmlComments.mjs'
+import { inlineStylesheets } from './scripts/inlineStylesheet.mjs'
 // @ts-expect-error — plain .mjs, as scripts/csp.mjs is. Every decision it makes is
 // a pure function with tests in scripts/sw.test.ts; this plugin is only the I/O.
 import { serviceWorkerSource, serviceWorkerVersion, shellFromBundle } from './scripts/sw.mjs'
@@ -106,6 +107,30 @@ export default defineConfig({
       transformIndexHtml: {
         order: 'post' as const,
         handler: (html: string) => stripHtmlComments(html),
+      },
+    },
+    /**
+     * Inline the main stylesheet into the built `index.html` (2026-10-19, owner-approved): slow-3G
+     * first paint 2,304 -> 884 ms, same pixels. `scripts/inlineStylesheet.mjs` has the measurement,
+     * the repeat-visit cost and why it goes straight after the charset tag. It runs AFTER the
+     * comment stripper above, so no stylesheet byte is ever read as markup.
+     */
+    {
+      name: 'run-inline-main-stylesheet',
+      apply: 'build' as const,
+      enforce: 'post' as const,
+      transformIndexHtml: {
+        order: 'post' as const,
+        handler(
+          html: string,
+          ctx: { bundle?: Record<string, { type?: string; source?: unknown }> },
+        ) {
+          const bundle = ctx.bundle ?? {}
+          return inlineStylesheets(html, (href: string) => {
+            const item = bundle[href.replace(/^\//, '')]
+            return item?.type === 'asset' ? String(item.source) : undefined
+          })
+        },
       },
     },
     // Absent entirely without a token, so a local or PR build is byte-identical to

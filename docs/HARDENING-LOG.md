@@ -1236,3 +1236,32 @@ export does not match `raw/CANONICAL.json`.
 
 **Reported, not fixed:** the viewer applies the print nudge on `load` but schedules no redraw,
 so the very first frame is drawn un-nudged until anything moves.
+
+## The garment page's first paint: the stylesheet moved into the page (2026-10-19)
+
+On Chrome's "Slow 3G" (`apps/viewer/e2e/firstPaint.spec.ts`, RO-08) a garment page painted at a median
+of 2,304 ms, with the render-blocking stylesheet 15 KB on the wire. It took 1,138 ms to arrive because
+the browser asked for it in the same burst as the app script, its three preloaded chunks and the two
+preloaded fonts (about 230 KB of brotli), and the line is shared between them. Measured on one build,
+median of 5, cold cache:
+
+| shell | first paint | page mounts |
+|---|---|---|
+| stylesheet linked, as before | 2,304 ms | 6,694 ms |
+| the two font preloads removed | 1,892 ms | 5,827 ms, headline paints in the fallback face first |
+| stylesheet inlined after `<meta charset>` | 884 ms | 6,691 ms, both fonts loaded when it does |
+
+The owner chose the inlined stylesheet (nothing visible changes). `apps/viewer/scripts/inlineStylesheet.mjs`
+does it at build time; the CSS file stays in `dist/`, so `scripts/check-bundle-budget.mjs` counts the same
+bytes (stylesheet headroom is unchanged at 56 B: no dead CSS could be found to win more, see below). The cost:
+a repeat visit re-reads the stylesheet inside the page (`index.html` is `max-age=0`) instead of from the
+immutable `/assets/*` cache. The document went from 4.3 KB to 17.6 KB on the wire.
+
+Looked for and not found: CSS the garment page never uses. Across 13 viewports, both colour schemes, touch and
+mouse, hover, focus, the menu, error screens and print, 16 KB of the 60 KB sheet never matched, and nearly
+all of it is states that were not triggered (the cookie card, the open menu, the custom cursor, error
+screens). Four custom properties nothing in the viewer reads are used by the website, which shares the file.
+
+Two tests that read the shell's stylesheet link (`related.spec.ts`, `vibecoded.spec.ts`) now read its `<style>`
+too, and RO-08 checks the shell links no `/assets/` stylesheet, because its 2,400 ms ceiling would no longer
+see the link come back.

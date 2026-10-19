@@ -34,7 +34,15 @@ test.describe('the viewer does not look machine-made', () => {
     await page.goto('/n001/wine', { waitUntil: 'networkidle' })
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
-    const css = bodies.filter((b) => /\.css(\?|$)/.test(b.url)).map((b) => b.text)
+    // The main stylesheet is inside the shell's own <style> since 2026-10-19
+    // (`scripts/inlineStylesheet.mjs`), so it is read from the page as well as from responses.
+    const inlineCss = await page.evaluate(() =>
+      [...document.querySelectorAll('style')].map((style) => style.textContent ?? ''),
+    )
+    const css = [
+      ...bodies.filter((b) => /\.css(\?|$)/.test(b.url)).map((b) => b.text),
+      ...inlineCss,
+    ]
     const rules = extractLeafRules(css.join('\n'))
     expect(rules.length, 'no CSS was collected, so nothing was checked').toBeGreaterThan(50)
     expect.soft(findColouredEdges(rules), 'a coloured accent stripe (VC-07)').toEqual([])
