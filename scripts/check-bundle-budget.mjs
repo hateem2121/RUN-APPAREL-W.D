@@ -189,6 +189,14 @@ const REPORT_ONLY = process.argv.includes('--report')
  *       stylesheet    15,407 -> 15,647 B gzip  (+240)    budget 15,466 -> 15,706 (headroom 59)
  *   The main sheet 12,419 -> 12,605 (+186); FooterPrompt-*.css 1,540 -> 1,594 (+54). A garment
  *   page's slow-3G first paint read 2,332 ms (median of 5) with and without the move.
+ *   ⚠️ 2026-10-19, the home page's motion (D47). The footer's RUN APPAREL is cut by a quarter on an
+ *   iPhone too (the wordmark clips itself: iOS 26.5 Safari grew the footer around any spill), and on
+ *   a phone the footer fades into Safari's bar under its pill (the owner chose it from four edges).
+ *   Measured by building with main's footer.css and then this branch's, gzip level 9, every .css:
+ *       stylesheet    15,678 -> 15,750 B gzip  (+72)    budget 15,706 -> 15,806 (headroom 56)
+ *   Main had 28 B left; the owner chose to raise by 100 B rather than the bare 72. A garment page's
+ *   slow-3G first paint: 2,304 ms on main, 2,300 ms on this branch (median of 5). The fade in a media
+ *   block of its own read 2,452 ms, a whole round trip for 181 bytes, so it shares the phone block.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -215,7 +223,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 15_706, note: 'CSS' },
+  stylesheet: { bytes: 15_806, note: 'CSS' },
 }
 
 /**
