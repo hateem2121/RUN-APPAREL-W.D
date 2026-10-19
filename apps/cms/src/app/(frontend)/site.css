@@ -5230,6 +5230,95 @@ a.contact-block__value:active {
     opacity: 0.62;
     filter: saturate(0.55);
   }
+
+  /*
+   * ⚠️ IT OPENS SLOWER THAN IT CLOSES (owner, 2026-10-19: "its opening is too fast"). Since the home
+   * page audit every part of the open ran on `--ui` (220 ms), the same as the close, and the card
+   * snapped open. Opening is what the visitor came to see, so it now takes `--settle` (500 ms): the
+   * sheet slides out, the card moves into place and the others step back together, and the words
+   * arrive one after another, `--stagger` (40 ms) apart, starting a fifth of the way in, each rising
+   * 8px as it fades in. Closing keeps the rules above (`--ui`, `--fast`) and no stagger, so the row is
+   * clear at once when the pointer leaves. Still no pause before it starts (the owner's 2026-10-17
+   * answer): only how long the movement takes changed.
+   *
+   * The title only fades: nothing between the card and its link may move (above), or a click on the
+   * picture misses the stretched link.
+   */
+  .family-card__more > :not(.family-card__title) {
+    translate: 0 8px;
+    transition:
+      opacity var(--fast) var(--ease),
+      translate var(--fast) var(--ease);
+  }
+
+  .family-card__more > :nth-child(2) {
+    --word: 1;
+  }
+
+  .family-card__more > :nth-child(3) {
+    --word: 2;
+  }
+
+  .family-card__more > :nth-child(4) {
+    --word: 3;
+  }
+
+  .family-card__more > :nth-child(5) {
+    --word: 4;
+  }
+
+  .family-card__more > :nth-child(6) {
+    --word: 5;
+  }
+
+  .family-card__more > :nth-child(n + 7) {
+    --word: 6;
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__more
+    > * {
+    translate: none;
+    transition:
+      opacity var(--settle) var(--ease),
+      translate var(--settle) var(--ease);
+    transition-delay: calc(var(--settle) / 5 + var(--word, 0) * var(--stagger));
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::before {
+    transition: clip-path var(--settle) var(--ease);
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__more {
+    transition: translate var(--settle) var(--ease);
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    :is(.family-card__img, .family-card__under > *) {
+    transition: opacity var(--settle) var(--ease);
+  }
+
+  .family-grid:has(
+      .family-card:hover:not([data-dismissed]),
+      .family-card:not([data-dismissed]) .family-card__link:focus-visible
+    )
+    > .family-card {
+    transition:
+      transform var(--settle) var(--ease),
+      scale var(--instant) var(--ease);
+  }
+
+  .family-grid:has(
+      .family-card:hover:not([data-dismissed]),
+      .family-card:not([data-dismissed]) .family-card__link:focus-visible
+    )
+    > .family-card
+    .family-card__media {
+    transition:
+      opacity var(--settle) var(--ease),
+      filter var(--settle) var(--ease);
+  }
 }
 
 /* ------------------------------------------------ the guides index (VA-47) */

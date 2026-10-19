@@ -98,16 +98,27 @@ test.describe('the row of five, from 1440px where a pointer can hover (D3; D44)'
     await restOn(page, second)
     await expect.poll(() => isOpen(second)).toBe(true)
     // No pause before opening (home page audit, 2026-10-17; the owner removed polish #128's 120 ms):
-    // the card moves at once, and its words fade in a third of the way into the sheet's slide.
+    // the card moves at once.
     expect(await second.evaluate((card) => getComputedStyle(card).transitionDelay)).not.toContain(
       '0.12s',
     )
-    const wordsDelay = await second
+    // Slower open than close (owner, 2026-10-19: "too fast"): the card moves over --settle (0.5 s)
+    // while open, and its words arrive one after another, 40 ms apart, from a fifth of the way in.
+    expect(await second.evaluate((card) => getComputedStyle(card).transitionDuration)).toMatch(
+      /^0\.5s/,
+    )
+    const delays = await second
       .locator('.family-card__more > *')
-      .first()
-      .evaluate((words) => Number.parseFloat(getComputedStyle(words).transitionDelay))
-    expect(wordsDelay, 'the words wait for the whole slide again').toBeLessThan(0.1)
-    expect(wordsDelay, 'the words no longer overlap the slide').toBeGreaterThan(0)
+      .evaluateAll((all) =>
+        all.map((words) => Number.parseFloat(getComputedStyle(words).transitionDelay)),
+      )
+    expect(delays[0], 'the first words start a fifth of the way into the open').toBeCloseTo(0.1, 3)
+    for (let at = 1; at < Math.min(delays.length, 7); at++) {
+      expect((delays[at] ?? 0) - (delays[at - 1] ?? 0), `words ${at} and ${at + 1}`).toBeCloseTo(
+        0.04,
+        3,
+      )
+    }
     // The others are drawn at 0.7, their pictures faded, their names at full strength.
     const first = cards(page).first()
     await expect
@@ -125,6 +136,20 @@ test.describe('the row of five, from 1440px where a pointer can hover (D3; D44)'
         (card) => getComputedStyle(card.querySelector('.family-card__stub') as Element).opacity,
       ),
     ).toBe('1')
+    // And it closes on --ui (0.22 s), with no word waiting: the row is clear at once.
+    await page.mouse.move(2, 2)
+    expect(await second.evaluate((card) => getComputedStyle(card).transitionDuration)).toMatch(
+      /^0\.22s/,
+    )
+    expect(
+      await second.locator('.family-card__more > *').evaluateAll((all) =>
+        all.every((words) =>
+          getComputedStyle(words)
+            .transitionDelay.split(', ')
+            .every((delay) => delay === '0s'),
+        ),
+      ),
+    ).toBe(true)
   })
 
   /*
