@@ -1334,6 +1334,46 @@ faults), `apps/cms/e2e/familyTickets.spec.ts` (no pause), and `apps/cms/e2e/live
 `Footer.test.tsx` and `e2e/siteFooter.spec.ts` (the badge); `footer.spec.ts` DS-09 and LA-13 with
 `e2e/fixtures/live-footer-facts-2026-10-17.html` (one screen with the live facts).
 
+## 2026-10-19 — the home page's motion
+
+### D47 · №02 opens slower than it closes, №03's colour spreads like dye, №04 stacks one step to a card on a phone, the footer's wordmark is cut on an iPhone too — amends D42, D43 and D46
+
+**Decision: №02's family cards open over `--settle` (0.5 s), the words arriving 40 ms apart, and
+close over `--ui` (0.22 s); still no pause before the open. A colour picked in №03 spreads over the
+garment from the chosen dot like dye, over `--slow`, and a garment still turning by itself turns a
+little with it; with the 3D off the still picture is wiped the same way. Below 900px, for someone
+who allows motion, №04's eight steps stack one by one, each sinking back to 94% and dimming as the
+next comes over it; the computer keeps its four stage cards and they do not animate. The footer's
+outline wordmark loses a quarter at the page's end on every browser, the iPhone included. The
+phone's status bands stay as they were. Owner, 2026-10-19.**
+
+№03: the owner watched two options recorded on the live hoodie (dye spread and turn; slow fade and
+zoom) and chose the dye; the fade showed the turning garment twice at once. №04: the owner asked
+for "single card stacking" on a phone and, asked whether D42's "nothing animates" should hold
+there, chose the sink. The phone's bands: both other options were built and shown in the iOS 26.5
+simulator (the top band following the section under it; always paper; the bottom band dark always),
+and the owner kept both as they were ("Dark always" at the top). Reading WebKit's own source for
+that showed how Safari really picks the top band's colour, now noted at the strip in
+`packages/ui/src/notch.css`. The wordmark: a negative margin
+cut it in desktop browsers, but iOS 26.5 Safari grew the footer around anything the wordmark let
+spill, so the letters stood whole there. Moving the drawing (`translate`) cut them on the iPhone but
+took the 0.2em out of the footer's quiet band, under D7's floor at 768px. The wordmark's box is now
+its line less 0.2em and clips itself, which cuts 0.2em in every engine with the layout the footer
+had (read in the simulator: box foot and slab foot both at 713.5px, the letters to 722.7px).
+The owner then asked for the strip under Safari's pill to be part of the footer too. At a page's
+end Safari brings its bar back and the page ends at its top edge; `viewport-fit=cover` changed
+nothing in a Safari tab, so nothing on the page can draw there, and the strip already takes the
+footer's colour. Shown four edges in the simulator (hard cut, soft fade, whole word, half cut and
+fade), the owner chose the soft fade, on phones only: the slab's last 20px fade the grid and the
+letters into that colour, and computers keep the hard cut.
+
+**Guard:** `apps/cms/e2e/familyTickets.spec.ts` (both speeds and the stagger),
+`apps/cms/e2e/liveGarment.spec.ts` and `apps/cms/e2e/proofShowcase.spec.ts` (the wipe's origin, its
+edge, that the circle grows rather than cuts, the turn), `apps/cms/e2e/orderTimeline.spec.ts` (the
+eight step cards at every phone size, the sink, the lists in Chromium's accessibility tree), and
+`apps/cms/e2e/footer.spec.ts` (the wordmark's cut at three widths). Each had a fault planted and
+failed on it.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

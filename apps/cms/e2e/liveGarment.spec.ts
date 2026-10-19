@@ -288,12 +288,14 @@ test.describe('№03 — the live 3D garment', () => {
   })
 
   /*
-   * The cross-fade (owner, 2026-10-17, after the home page audit). What would have to break: the
-   * colour swapped bare in one frame (no picture over it), a picture that never goes, or a blank
-   * picture (`toDataURL` is blank on this renderer; `toBlob` is not: pipeline-evals.md). A browser
-   * without WebGL (CI's Firefox) draws no frame to picture, so it simply swaps; that is asserted too.
+   * The dye (owner, 2026-10-19, option A; a cross-fade from 2026-10-17 until then). What would have
+   * to break: the colour swapped bare in one frame (no picture over it), a picture that never goes, a
+   * blank picture (`toDataURL` is blank on this renderer; `toBlob` is not: pipeline-evals.md), a wipe
+   * that opens anywhere but the chosen dot's side, a wet edge not held to the garment's outline, or a
+   * garment still turning by itself that does not turn with the pick. A browser without WebGL (CI's
+   * Firefox) draws no frame to picture, so it simply swaps; that is asserted too.
    */
-  test('a colour pick cross-fades: the old colour lies over the swap, then goes', async ({
+  test('a colour pick spreads like dye from the chosen dot, and the turning garment turns with it', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -329,10 +331,47 @@ test.describe('№03 — the live 3D garment', () => {
         })
       }).observe(layer, { childList: true })
     })
-    await page
-      .locator('.proof__pill')
-      .nth(2)
-      .click({ position: { x: 22, y: 22 } })
+    const theta = () =>
+      page.evaluate(
+        () =>
+          (
+            document.querySelector('.live-garment model-viewer') as unknown as {
+              getCameraOrbit: () => { theta: number }
+            }
+          ).getCameraOrbit().theta,
+      )
+    const before = await theta()
+    const target = page.locator('.proof__pill').nth(2)
+    await target.click({ position: { x: 22, y: 22 } })
+    if (draws) {
+      // The wipe's origin and its edge, read while the wipe runs.
+      const going = page.locator('.live-garment__fade[data-going]')
+      await expect(going).toHaveCount(1, { timeout: 5000 })
+      const wipe = await going.evaluate((img) => {
+        const style = getComputedStyle(img)
+        const edge = document.querySelector('.live-garment__edge')
+        return {
+          x: Number.parseFloat(style.getPropertyValue('--wipe-x')),
+          y: Number.parseFloat(style.getPropertyValue('--wipe-y')),
+          mask: style.maskImage,
+          edgeMask: edge ? getComputedStyle(edge).maskImage : 'no edge',
+        }
+      })
+      const box = await page.locator('.live-garment model-viewer').boundingBox()
+      const dot = await target.locator('i').boundingBox()
+      if (!box || !dot) throw new Error('no garment or dot')
+      // At 1440 the dots stand left of the garment: the wipe opens on its left edge, level with the dot.
+      const centre = dot.y + dot.height / 2
+      expect(wipe.x).toBeCloseTo(
+        Math.min(Math.max(dot.x + dot.width / 2, box.x), box.x + box.width) - box.x,
+        0,
+      )
+      expect(
+        Math.abs(wipe.y - (Math.min(Math.max(centre, box.y), box.y + box.height) - box.y)),
+      ).toBeLessThan(4)
+      expect(wipe.mask).toContain('radial-gradient')
+      expect(wipe.edgeMask).toMatch(/^url\("?blob:/)
+    }
     await expect
       .poll(() =>
         page.evaluate(
@@ -351,6 +390,13 @@ test.describe('№03 — the live 3D garment', () => {
     }
     // Whatever happened, nothing is left over the garment once the change is done.
     await expect(page.locator('.live-garment__fade')).toHaveCount(0, { timeout: 3000 })
+    await expect(page.locator('.live-garment__edge')).toHaveCount(0)
+    if (draws) {
+      // Its own turning spins the garment, not the camera (measured: 0.00 rad with the pick's turn
+      // planted at 0), so the camera moves by the pick's 0.5 rad alone.
+      const turned = (await theta()) - before
+      expect(turned, `turned ${turned.toFixed(2)} rad`).toBeGreaterThan(0.45)
+    }
   })
 
   test('under reduced motion a colour pick swaps with no picture over it', async ({ page }) => {

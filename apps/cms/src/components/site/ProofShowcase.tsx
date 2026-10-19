@@ -4,6 +4,8 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -11,7 +13,7 @@ import {
 } from 'react'
 import type { CardColour, LiveModel } from '../../lib/projectPublic'
 import { pillPaint } from '../../lib/proofShowcase'
-import { LiveGarment } from './LiveGarment'
+import { LiveGarment, type PickedFrom, wipeFrom, wipeStyle } from './LiveGarment'
 import { ProductPoster } from './ProductPoster'
 
 /** What №03 needs of its garment: one published product with a poster. */
@@ -97,6 +99,37 @@ export function ProofShowcase({
   // A colour the one model cannot switch to (a model per colour) shows its still instead.
   const live = product?.model && (chosen === 0 || variant) ? product.model : null
   const { shown, leaving } = useArrivingStill(still)
+  // A colour's dot, read as its colour lands, so its wipe opens from it (LiveGarment.tsx).
+  const pick = useRef<HTMLDivElement>(null)
+  const dotFrom = useCallback((dot: HTMLElement | null | undefined): PickedFrom | null => {
+    if (!dot?.parentElement) return null
+    const box = dot.getBoundingClientRect()
+    return {
+      x: box.left + box.width / 2,
+      y: box.top + box.height / 2,
+      swatch: getComputedStyle(dot.parentElement).getPropertyValue('--swatch').trim(),
+    }
+  }, [])
+  const pickedFrom = useCallback(
+    () => dotFrom(pick.current?.querySelector<HTMLElement>('[aria-checked="true"] > i')),
+    [dotFrom],
+  )
+  /*
+   * With the 3D off, the old picture is wiped away from the dot the same way (site.css, `data-still`).
+   * Measured at the pick, from the dot that was pressed, so the old picture has its circle's place and
+   * size from its first frame: measured once it was marked to leave, the first build began the wipe
+   * with no size and the old picture was cut at the end instead (2026-10-19,
+   * e2e/proofShowcase.spec.ts).
+   */
+  const frame = useRef<HTMLSpanElement>(null)
+  const [stillWipe, setStillWipe] = useState<CSSProperties | undefined>(undefined)
+  const choose = (index: number) => {
+    const dot = pick.current
+      ?.querySelectorAll<HTMLElement>('.proof__pill')
+      [index]?.querySelector('i')
+    if (frame.current) setStillWipe(wipeStyle(wipeFrom(frame.current, dotFrom(dot))))
+    setChosen(index)
+  }
   // Fetch every colour's picture once the visitor reaches for the colours, so a pick has its picture.
   const warmed = useRef(false)
   const warm = () => {
@@ -113,7 +146,7 @@ export function ProofShowcase({
       {product ? (
         <figure className="proof__figure">
           <a className="proof__link" href={`${garmentPages}/${product.slug}/${colour?.slug ?? ''}`}>
-            <span className="proof__frame">
+            <span className="proof__frame" ref={frame} style={stillWipe}>
               {/* The leaving picture keeps its key, so it stays the very element already drawn:
                   remounted, Firefox drew no picture at all for a frame (measured 2026-10-17). */}
               {leaving?.src ? (
@@ -139,11 +172,19 @@ export function ProofShowcase({
             The live garment sits OVER the picture and OUTSIDE the link, so turning it never
             navigates; the caption and cue below still open the full viewer (LiveGarment.tsx).
           */}
-          {live ? <LiveGarment model={live} label={label} variant={variant} /> : null}
+          {live ? (
+            <LiveGarment model={live} label={label} variant={variant} from={pickedFrom} />
+          ) : null}
         </figure>
       ) : null}
       {product && colours.length > 1 ? (
-        <ColourPills colours={colours} chosen={chosen} onChoose={setChosen} onReach={warm} />
+        <ColourPills
+          colours={colours}
+          chosen={chosen}
+          onChoose={choose}
+          onReach={warm}
+          pickRef={pick}
+        />
       ) : null}
       {product && details && details.rows.length > 0 ? (
         <div className="proof__details">
@@ -168,15 +209,16 @@ export function ProofShowcase({
 /** The picture under the garment: which, from where, and its words. */
 type Still = { key: string; src: string | null; alt: string }
 
-/** How long the arriving picture takes to fade in: `--ui` (tokens.css), plus a frame of slack. */
-const STILL_FADE_MS = 240
+/** How long the old picture takes to be wiped away: `--slow` (tokens.css), plus a frame of slack. */
+const STILL_WIPE_MS = 840
 
 /**
  * ⚠️ A NEW COLOUR'S PICTURE ARRIVES OVER THE OLD ONE, NEVER OVER AN EMPTY BOX (home page audit,
  * 2026-10-17). The still was keyed by colour, so a pick threw the old picture away and drew a new,
  * lazy one: with the 3D off (data saver, 2G, a failed load), the box stood empty and white for
  * 0.4–1.2 s on the live site. Now the old picture stays until the new one is fetched and decoded,
- * then the new one fades in on top (site.css, `data-still`) and the old one goes. A picture that
+ * then the old one is wiped away over it from the chosen dot (site.css, `data-still`; owner,
+ * 2026-10-19, as the 3D garment's colour is) and goes. A picture that
  * fails to load still arrives, and ProductPoster draws its placeholder.
  */
 function useArrivingStill(still: Still): { shown: Still; leaving: Still | null } {
@@ -207,10 +249,10 @@ function useArrivingStill(still: Still): { shown: Still; leaving: Still | null }
     }
   }, [still.key, still.src])
 
-  // The old picture goes once the new one has faded in.
+  // The old picture goes once it has been wiped away.
   useEffect(() => {
     if (!leaving) return
-    const timer = setTimeout(() => setLeaving(null), STILL_FADE_MS)
+    const timer = setTimeout(() => setLeaving(null), STILL_WIPE_MS)
     return () => clearTimeout(timer)
   }, [leaving])
 
@@ -241,12 +283,15 @@ function ColourPills({
   chosen,
   onChoose,
   onReach,
+  pickRef,
 }: {
   colours: readonly CardColour[]
   chosen: number
   onChoose: (index: number) => void
   /** The pointer or the keyboard has reached the colours: fetch their pictures now. */
   onReach: () => void
+  /** The row's box, where №03 reads the chosen dot from. */
+  pickRef: RefObject<HTMLDivElement | null>
 }) {
   const titleId = useId()
   const row = useRef<HTMLDivElement>(null)
@@ -332,7 +377,7 @@ function ColourPills({
   }
 
   return (
-    <div className="proof__pick">
+    <div className="proof__pick" ref={pickRef}>
       <p className="proof__label" id={titleId}>
         Colors
       </p>

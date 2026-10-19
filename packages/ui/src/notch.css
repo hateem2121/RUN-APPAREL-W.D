@@ -123,6 +123,14 @@
  * The page's background alone does not do it (VA-25 made it the bar's colour on phones; the
  * area stayed paper, measured the same day).
  *
+ * ⚠️ HOW IT REALLY WORKS, READ IN WEBKIT'S SOURCE 2026-10-19 (`LocalFrameView::fixedContainerEdges`)
+ * AND PROVEN IN THE iOS 26.5 SIMULATOR: Safari hit-tests the middle of the top edge (the bar), walks up
+ * to the first fixed element at least 90% of the screen wide (`.notch-shell`) and takes ITS background
+ * colour; it skips any box 10px tall or less, so this strip never counts as that element. The shell is
+ * transparent, so Safari samples the top edge's pixels once, the strip's among them, and keeps that
+ * colour while the shell is there: dark from the first paint on. The owner saw the band follow the
+ * section under it, and always paper, both built, and kept it dark (2026-10-19, D47).
+ *
  * Phones only, by owner decision: Safari on a Mac tints its own toolbar the same way, and the
  * owner kept the desktop as it is. `pointer-events: auto` because the shell's `none` is
  * inherited, and Safari finds the strip by hit-testing, so a strip it cannot hit is a strip it

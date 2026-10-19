@@ -646,6 +646,8 @@ html {
   --z-sticky-index: 2;
   /* №04's stage name ("Stage 1 · Talk"), over its card's two step photos, inside the card (D42). */
   --z-stage-name: 1;
+  /* №03's old still picture over the new one while it is wiped away (2026-10-19, D47). */
+  --z-still-leaving: 1;
   /* №02's opened card over the cards it pushed aside, and its words' sheet under its own words (D44). */
   --z-card-open: 1;
   --z-card-sheet: -1;
@@ -4310,31 +4312,30 @@ a.contact-block__value:active {
 }
 
 /*
- * №03's colour change with the 3D off: the old picture stays underneath while the new one fades in
- * over it (ProofShowcase.tsx, `useArrivingStill`; home page audit, 2026-10-17: the box stood empty
- * for 0.4–1.2 s). The fade runs only while the model is not shown: an animation's opacity would win
- * over the rule that hides the still under a shown model, and flash the picture behind the garment.
+ * №03's colour change with the 3D off: the new picture is drawn under the old one, and the old one is
+ * wiped away from the chosen dot (ProofShowcase.tsx, `useArrivingStill`; owner, 2026-10-19, the same
+ * dye as the 3D garment's, site.css "№03's colour change, like dye"). The old picture stayed until the
+ * new one was decoded since the home page audit (2026-10-17: the box stood empty for 0.4–1.2 s).
+ * The wipe runs only while the model is not shown: under a shown model the still is not seen.
  * Reduced motion makes it instant (base.css).
  */
 .proof__frame > [data-still="leaving"] {
   position: absolute;
   inset: 0;
+  z-index: var(--z-still-leaving);
 }
 
 .proof__frame > [data-still="arriving"] {
   position: relative;
 }
 
-.proof__figure:not(:has(.live-garment[data-phase="shown"]))
-  .proof__frame
-  > [data-still="arriving"] {
-  animation: proof-still-in var(--ui) var(--ease) both;
-}
-
-@keyframes proof-still-in {
-  from {
-    opacity: 0;
-  }
+.proof__figure:not(:has(.live-garment[data-phase="shown"])) .proof__frame > [data-still="leaving"] {
+  mask-image: radial-gradient(
+    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 80px),
+    #000 calc(var(--wipe) * var(--wipe-reach, 0px))
+  );
+  animation: live-garment-wipe var(--slow) var(--ease) forwards;
 }
 
 .proof__caption {
@@ -5231,6 +5232,95 @@ a.contact-block__value:active {
     opacity: 0.62;
     filter: saturate(0.55);
   }
+
+  /*
+   * ⚠️ IT OPENS SLOWER THAN IT CLOSES (owner, 2026-10-19: "its opening is too fast"). Since the home
+   * page audit every part of the open ran on `--ui` (220 ms), the same as the close, and the card
+   * snapped open. Opening is what the visitor came to see, so it now takes `--settle` (500 ms): the
+   * sheet slides out, the card moves into place and the others step back together, and the words
+   * arrive one after another, `--stagger` (40 ms) apart, starting a fifth of the way in, each rising
+   * 8px as it fades in. Closing keeps the rules above (`--ui`, `--fast`) and no stagger, so the row is
+   * clear at once when the pointer leaves. Still no pause before it starts (the owner's 2026-10-17
+   * answer): only how long the movement takes changed.
+   *
+   * The title only fades: nothing between the card and its link may move (above), or a click on the
+   * picture misses the stretched link.
+   */
+  .family-card__more > :not(.family-card__title) {
+    translate: 0 8px;
+    transition:
+      opacity var(--fast) var(--ease),
+      translate var(--fast) var(--ease);
+  }
+
+  .family-card__more > :nth-child(2) {
+    --word: 1;
+  }
+
+  .family-card__more > :nth-child(3) {
+    --word: 2;
+  }
+
+  .family-card__more > :nth-child(4) {
+    --word: 3;
+  }
+
+  .family-card__more > :nth-child(5) {
+    --word: 4;
+  }
+
+  .family-card__more > :nth-child(6) {
+    --word: 5;
+  }
+
+  .family-card__more > :nth-child(n + 7) {
+    --word: 6;
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__more
+    > * {
+    translate: none;
+    transition:
+      opacity var(--settle) var(--ease),
+      translate var(--settle) var(--ease);
+    transition-delay: calc(var(--settle) / 5 + var(--word, 0) * var(--stagger));
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])::before {
+    transition: clip-path var(--settle) var(--ease);
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    .family-card__more {
+    transition: translate var(--settle) var(--ease);
+  }
+
+  .family-card:is(:hover, :has(.family-card__link:focus-visible)):not([data-dismissed])
+    :is(.family-card__img, .family-card__under > *) {
+    transition: opacity var(--settle) var(--ease);
+  }
+
+  .family-grid:has(
+      .family-card:hover:not([data-dismissed]),
+      .family-card:not([data-dismissed]) .family-card__link:focus-visible
+    )
+    > .family-card {
+    transition:
+      transform var(--settle) var(--ease),
+      scale var(--instant) var(--ease);
+  }
+
+  .family-grid:has(
+      .family-card:hover:not([data-dismissed]),
+      .family-card:not([data-dismissed]) .family-card__link:focus-visible
+    )
+    > .family-card
+    .family-card__media {
+    transition:
+      opacity var(--settle) var(--ease),
+      filter var(--settle) var(--ease);
+  }
 }
 
 /* ------------------------------------------------ the guides index (VA-47) */
@@ -5674,6 +5764,89 @@ a.contact-block__value:active {
   }
 }
 
+/*
+ * ⚠️ ON A PHONE, ONE STEP TO A CARD (owner, 2026-10-19: "single card stacking … is how it must be").
+ * The stage card held two steps one above the other, so a phone's stack moved two at a time. Below
+ * 900px, for someone who allows motion, the stage and its list step aside (`display: contents`), and
+ * each of the eight steps is a card of its own in the stack's grid: it stops 8px below the one before
+ * (`--step`, its place in the eight, OrderSteps.tsx), reaches the screen's foot, scrolls on first if it
+ * is taller (`--stage-fit`, now measured per step by OrderStagesList.tsx), and rests a third of a screen
+ * before the next covers it. The grid's row gap is that rest, as it is for the four cards.
+ *
+ * Every step now starts under the floating bar, so each keeps the bar's room above its number; the
+ * first step of a stage keeps the pill's room as well (the pill is drawn in it, OrderSteps.tsx). A
+ * line along each card's top edge keeps the 8px strips of the cards beneath apart.
+ *
+ * Lists with `display: contents` keep their list and item roles in Safari since 17 (Safari 17 release
+ * notes; WebKit bug 255325) and in Chromium; `e2e/orderTimeline.spec.ts` reads the accessibility
+ * tree at a phone's width to hold that.
+ */
+@media screen and (prefers-reduced-motion: no-preference) and (max-width: 899px) {
+  .order-stages > .order-stage,
+  .order-stage__steps {
+    display: contents;
+  }
+
+  /* The stack's own ground, the cards' ink: a covered card sinks narrower (below), and beside its
+     strip a visitor sees the deck's dark edge, never the pale page (the owner's "no blank space"). */
+  .order-stages {
+    background: var(--ink);
+  }
+
+  .order-stage__steps > .order-step {
+    position: sticky;
+    top: min(calc(var(--step, 0) * 8px), calc(100svh - var(--stage-fit, 0px)));
+    min-block-size: calc(100svh - var(--step, 0) * 8px);
+    padding-block-start: calc(var(--card-lead) + 18px);
+    border-block-start: 1px solid var(--line);
+    background: var(--ink);
+  }
+
+  .order-stage__steps > .order-step:first-child {
+    padding-block-start: calc(var(--card-lead) + 64px);
+  }
+}
+
+/*
+ * ⚠️ AND A COVERED CARD SINKS BACK (owner, 2026-10-19, choosing it over D42's "nothing animates", on
+ * phones only). As the next step comes up over a stopped one, that one shrinks to 94% about its top
+ * edge, so its strip stays where it stopped, and dims, run by the NEXT step's own progress onto the
+ * screen (its view timeline, from its top at the screen's foot to its whole height on screen):
+ * nothing moves unless the page does, and scrolling back undoes it. Each step names its own timeline
+ * and reads the next one's (`--step-name`, `--next-name`, OrderSteps.tsx); `timeline-scope` lets a
+ * step read its sibling's. A browser without scroll-driven animations (Firefox, October 2026) keeps
+ * the plain stack above.
+ */
+@supports (timeline-scope: --a) and (animation-timeline: view()) {
+  @media screen and (prefers-reduced-motion: no-preference) and (max-width: 899px) {
+    .order-stages {
+      timeline-scope:
+        --step-1, --step-2, --step-3, --step-4, --step-5, --step-6, --step-7, --step-8;
+    }
+
+    .order-stage__steps > .order-step {
+      transform-origin: 50% 0;
+      view-timeline-name: var(--step-name, none);
+      animation: order-step-sink linear both;
+      animation-timeline: var(--next-name, none);
+      animation-range: entry 0% entry 100%;
+    }
+
+    /* The last step has nothing to come over it. Its next timeline is `none`, which Chromium still
+       ran from the start, so the last card stood at 94% (measured 2026-10-19): no sink at all. */
+    .order-stages > .order-stage:last-child .order-step:last-child {
+      animation: none;
+    }
+  }
+}
+
+@keyframes order-step-sink {
+  to {
+    scale: 0.94;
+    filter: brightness(0.62);
+  }
+}
+
 /* On paper: the list (the stack is for screens only), without photos or washes, in the page's own
    colours (the photo hero's print rule names the step too). */
 @media print {
@@ -5939,17 +6112,78 @@ a.contact-block__value:active {
  * The old colour's picture over a colour change (LiveGarment.tsx, the cross-fade; owner, 2026-10-17):
  * exactly the canvas's box, never in the way of a press, fading on `--ui`.
  */
-.live-garment__fade {
+/*
+ * №03's colour change, like dye (owner, 2026-10-19; LiveGarment.tsx says why a wipe and not a fade).
+ * The old colour's picture lies over the garment; once the new colour is under it, a circle opens in
+ * it from the chosen dot (`--wipe-x`, `--wipe-y`) to past the far corner (`--wipe-reach`), over
+ * `--slow` ("wipes and reveals") on the site's `--ease`. Its edge is 80px soft (WIPE_FEATHER_PX),
+ * so the colour soaks in rather than cuts. `--wipe` is how far it has opened, 0 to 1, a registered
+ * number so it can animate (Baseline since July 2024: Safari 16.4, Firefox 128), and the keyframes
+ * hold plain numbers: Firefox steps a keyframe that holds a `var()` instead of sliding it, and the
+ * circle jumped open halfway (measured 2026-10-19, e2e/proofShowcase.spec.ts). Under reduced motion base.css makes the
+ * animation instant, and LiveGarment does not lay the picture at all.
+ */
+@property --wipe {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+.live-garment__fade,
+.live-garment__edge {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  transition: opacity var(--ui) var(--ease);
 }
 
 .live-garment__fade[data-going] {
-  opacity: 0;
+  mask-image: radial-gradient(
+    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 80px),
+    #000 calc(var(--wipe) * var(--wipe-reach, 0px))
+  );
+  animation: live-garment-wipe var(--slow) var(--ease) forwards;
+}
+
+/*
+ * The wet edge: the new colour at 55% riding just inside the circle, multiplied into the cloth, held
+ * to the garment's outline by the old picture as its mask (set inline), and gone by the end.
+ */
+.live-garment__edge {
+  mask-size: 100% 100%;
+  mix-blend-mode: multiply;
+  background: radial-gradient(
+    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 100px),
+    color-mix(in srgb, var(--wipe-swatch, transparent) 55%, transparent)
+      calc(var(--wipe) * var(--wipe-reach, 0px) - 40px),
+    transparent calc(var(--wipe) * var(--wipe-reach, 0px))
+  );
+  animation:
+    live-garment-wipe var(--slow) var(--ease) forwards,
+    live-garment-edge-out var(--slow) ease-in forwards;
+}
+
+@keyframes live-garment-wipe {
+  from {
+    --wipe: 0;
+  }
+
+  to {
+    --wipe: 1;
+  }
+}
+
+@keyframes live-garment-edge-out {
+  60% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 .live-garment__offer {

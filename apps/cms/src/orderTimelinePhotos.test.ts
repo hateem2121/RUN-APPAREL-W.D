@@ -383,11 +383,12 @@ describe('the cards, in the stylesheet (D42)', () => {
   /*
    * The stack stops cards only for someone who allows motion, on every screen since the home page
    * audit (2026-10-17: "stack on all phones"; a card taller than the screen stops at its foot).
-   * Until then it also needed a screen 40rem tall from 900px and 50rem below it. Nothing animates
-   * since D42: the eight cards' sink and shade went with them. Both are measured in a browser; this
-   * pins where the rules sit, so a later edit cannot lift one out of its guard.
+   * Until then it also needed a screen 40rem tall from 900px and 50rem below it. Nothing animated
+   * since D42; since D47 (owner, 2026-10-19) a phone stacks one step to a card and a covered step
+   * sinks back, and the computer's four cards still animate nothing. Both are measured in a browser;
+   * this pins where the rules sit, so a later edit cannot lift one out of its guard.
    */
-  it('stops the cards only inside their guard, and animates nothing', () => {
+  it('stops the cards only inside their guard, and sinks a step only on a phone', () => {
     const guards = [
       ...SITE_CSS.matchAll(
         /@media screen and \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/g,
@@ -398,6 +399,14 @@ describe('the cards, in the stylesheet (D42)', () => {
     expect(own).toMatch(/position:\s*sticky/)
     const outside = SITE_CSS.replace(own, '')
     expect(outside).not.toMatch(/\.order-stage\b[^{]*\{[^}]*position:\s*sticky/)
-    expect(SITE_CSS).not.toMatch(/order-step-sink|order-step-shade|--order-steps/)
+    // The sink: only inside the scroll-timeline support check, for a phone that allows motion.
+    const sink =
+      /@supports \(timeline-scope: --a\) and \(animation-timeline: view\(\)\) \{\s*@media screen and \(prefers-reduced-motion: no-preference\) and \(max-width: 899px\) \{([\s\S]*?)\n {2}\}\n\}/.exec(
+        SITE_CSS,
+      )?.[1]
+    expect(sink, 'the sink is not inside its phone guard').toMatch(/animation:\s*order-step-sink/)
+    const rest = SITE_CSS.replace(sink ?? '', '')
+    expect(rest).not.toMatch(/animation(?:-name)?\s*:[^;]*order-step-sink/)
+    expect(SITE_CSS).not.toMatch(/order-step-shade|--order-steps/)
   })
 })

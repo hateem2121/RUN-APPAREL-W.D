@@ -227,6 +227,54 @@ test.describe('№03 — the colours, a growing pill (D43)', () => {
     await expect(page.locator('.proof__frame > img')).toHaveCount(1)
   })
 
+  /*
+   * The dye (owner, 2026-10-19, option A): with the 3D off the old picture is wiped away from the
+   * chosen dot, over `--slow`. What would have to break: a wipe from the wrong place (the dots sit
+   * left of the garment at 1440, so it must open on the frame's left edge, level with the dot), or
+   * no wipe at all (the old picture cut in one frame, or faded): the circle's size is read every
+   * frame and must grow through many values, not jump.
+   */
+  test('with the 3D off, the old picture is wiped away from the chosen dot, not cut', async ({
+    page,
+  }) => {
+    await openHome(page, 1440, 900)
+    // `openHome` asks for reduced motion, which makes every animation instant (base.css).
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    const pills = await pillsReady(page)
+    await page.evaluate(() => {
+      const w = window as unknown as { __wipe: { sizes: string[]; origin: string[] } }
+      w.__wipe = { sizes: [], origin: [] }
+      const start = performance.now()
+      const tick = () => {
+        const leaving = document.querySelector<HTMLElement>(
+          '.proof__frame > [data-still="leaving"]',
+        )
+        if (leaving) {
+          const style = getComputedStyle(leaving)
+          w.__wipe.sizes.push(style.getPropertyValue('--wipe'))
+          w.__wipe.origin = [style.getPropertyValue('--wipe-x'), style.getPropertyValue('--wipe-y')]
+        }
+        if (performance.now() - start < 2000) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    const target = pills.nth((await pills.count()) - 1)
+    await target.click({ position: { x: 22, y: 22 } })
+    await page.waitForTimeout(2100)
+    const wipe = await page.evaluate(
+      () => (window as unknown as { __wipe: { sizes: string[]; origin: string[] } }).__wipe,
+    )
+    const frame = await page.locator('.proof__frame').boundingBox()
+    const dot = await target.locator('i').boundingBox()
+    if (!frame || !dot) throw new Error('no frame or dot')
+    const expectedX = Math.min(Math.max(dot.x + dot.width / 2, frame.x), frame.x + frame.width)
+    const expectedY = Math.min(Math.max(dot.y + dot.height / 2, frame.y), frame.y + frame.height)
+    expect(Number.parseFloat(wipe.origin[0] ?? 'NaN')).toBeCloseTo(expectedX - frame.x, 0)
+    expect(Number.parseFloat(wipe.origin[1] ?? 'NaN')).toBeCloseTo(expectedY - frame.y, 0)
+    const distinct = new Set(wipe.sizes).size
+    expect(distinct, `the circle took only ${distinct} sizes: cut, not wiped`).toBeGreaterThan(10)
+  })
+
   // WAI-ARIA APG, "Radio Group" (read 2026-10-16): Tab lands on the chosen one; the arrows move and
   // choose, wrapping at the ends.
   test('the keyboard: the arrows move and choose, wrapping at both ends', async ({ page }) => {

@@ -11,6 +11,15 @@ import { OrderStagesList } from './OrderStagesList'
  * the other. As the page scrolls each card stops just under the one before and the next slides up
  * over it; nothing animates (site.css, "the order steps").
  *
+ * ⚠️ ON A PHONE EACH STEP IS ITS OWN CARD (owner, 2026-10-19: "single card stacking … not 2 at a
+ * time"). Below 900px, for someone who allows motion, the stage and its list step aside
+ * (`display: contents`) and the eight steps stack one by one, each sinking back a little as the next
+ * covers it (the owner's choice that day, amending D42's "nothing animates" for phones). So the
+ * stage's pill is drawn in its FIRST STEP, at the same place it held on the card: from 900px that
+ * step starts where its card does, so the computer's cards look as they did. Each step carries its
+ * place in the eight (`--step`) and the names of its own and the next step's view timelines, which
+ * the sink reads.
+ *
  * Eight cards, one per step, until D42 (polish D4 and the owner's answer Q14, 2026-10-03), each
  * half the page wide; the eight sank back and darkened as the next covered them.
  *
@@ -39,6 +48,9 @@ const PHOTOS = new Map(FACTORY_PHOTOS.map((photo) => [photo.slug, photo]))
  */
 export const ORDER_STEP_SIZES = '(max-width: 899px) 100vw, 50vw'
 
+/** How many steps there are in all: the last one has no next step to sink under. */
+const STEP_COUNT = ORDER_PHASES.reduce((sum, { steps }) => sum + steps.length, 0)
+
 /** Each stage with its steps' numbers, counted on from the stages before it (1–2, 3–4, …). */
 const STAGES = ORDER_PHASES.map((phase, stage) => {
   const before = ORDER_PHASES.slice(0, stage).reduce((sum, { steps }) => sum + steps.length, 0)
@@ -57,8 +69,6 @@ export function OrderSteps() {
             // The card's place in the stack: where it stops.
             style={{ '--i': stage } as CSSProperties}
           >
-            {/* One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces. */}
-            <p className="order-stage__name">{`Stage ${stage + 1} · ${phase.name}`}</p>
             {/* biome-ignore lint/a11y/noRedundantRoles: iOS VoiceOver reads a list with `list-style: none` as plain text (WebKit bug 304137, December 2025), so the role is said again. */}
             <ol className="order-stage__steps" role="list" start={first}>
               {phase.steps.map((step, index) => {
@@ -67,7 +77,21 @@ export function OrderSteps() {
                 const image = photo ? factoryPhotoImage(photo) : null
                 const [across, down] = photo?.focus ?? [50, 50]
                 return (
-                  <li className="order-step" key={step.title}>
+                  <li
+                    className="order-step"
+                    key={step.title}
+                    style={
+                      {
+                        '--step': number - 1,
+                        '--step-name': `--step-${number}`,
+                        '--next-name': number < STEP_COUNT ? `--step-${number + 1}` : 'none',
+                      } as CSSProperties
+                    }
+                  >
+                    {index === 0 ? (
+                      // One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces.
+                      <p className="order-stage__name">{`Stage ${stage + 1} · ${phase.name}`}</p>
+                    ) : null}
                     <div className="order-step__top">
                       <span className="order-step__number display display--hero" aria-hidden="true">
                         {String(number).padStart(2, '0')}
