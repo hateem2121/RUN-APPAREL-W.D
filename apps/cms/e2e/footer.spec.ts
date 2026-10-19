@@ -157,6 +157,37 @@ test.describe('the footer geometry', () => {
   })
 
   /*
+   * A quarter of the wordmark is cut off by the slab's foot (owner, 2026-10-19: "was 1/4 cut … it
+   * needs to stay under the pill and cut as well"). The cut is the wordmark's DRAWING moved 0.2em
+   * down (`translate`, footer.css), because iOS 26.5 Safari ended the slab at the wordmark's own foot
+   * when a negative margin did it, and the letters stood whole on an iPhone. What would have to
+   * break: the wordmark ending at or above the slab's foot (no cut). This engine laid the old margin
+   * out as intended, so the iPhone's own failure is checked in the simulator, not here.
+   */
+  for (const [width, height] of [
+    [393, 659],
+    [768, 1024],
+    [1440, 900],
+  ] as const) {
+    test(`at ${width}px the slab's foot cuts the wordmark by 0.2em, scrolled to the end`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/contact')
+      await page.evaluate(() => document.fonts.ready)
+      await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight }))
+      const cut = () =>
+        page.locator('.footer-mark').evaluate((el) => {
+          const slab = el.closest('.site-footer__slab') as HTMLElement
+          const size = Number.parseFloat(getComputedStyle(el).fontSize)
+          return (el.getBoundingClientRect().bottom - slab.getBoundingClientRect().bottom) / size
+        })
+      await expect.poll(cut).toBeGreaterThan(0.15)
+      expect(await cut()).toBeLessThan(0.25)
+    })
+  }
+
+  /*
    * ⚠️ UNDER REDUCED MOTION THE WORDMARK SHRANK FOR AS LONG AS THE PAGE WAS OPEN. Found
    * 2026-10-01 by the screenshot suite (visual.spec.ts), live on wear-run.com: 87.9px ->
    * 56.0px in three seconds at 768 wide, and still going. base.css's hard stop gives every

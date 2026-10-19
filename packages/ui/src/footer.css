@@ -369,7 +369,16 @@
 .footer-mark {
   position: relative;
   margin-inline: calc(var(--footer-pad) * -1);
-  margin-block-end: -0.2em;
+  /*
+   * ⚠️ CROPPED BY MOVING ITS DRAWING, NOT BY A NEGATIVE MARGIN (owner, 2026-10-19: "the RUN APPAREL at
+   * the end was 1/4 cut … it needs to stay under the pill and cut as well"). A `margin-block-end: -0.2em`
+   * cut a quarter of the letters off at the slab's foot in desktop browsers (25.4–26.6% measured at
+   * 393, 768 and 1440 wide), but iOS 26.5 Safari laid the slab out to end exactly at the wordmark's own
+   * foot, margin and all (wordmark 680.6–714.6, slab foot 714.4, margin computed −9.2px; read on the
+   * page in the simulator), so on an iPhone the letters stood whole above the toolbar. `translate`
+   * moves only the painting, never the layout, so the slab's clip cuts the same 0.2em everywhere.
+   */
+  translate: 0 0.2em;
   font-size: var(--text-footer-mark);
   line-height: 0.74;
   cursor: default;
