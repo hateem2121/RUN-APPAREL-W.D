@@ -4310,31 +4310,30 @@ a.contact-block__value:active {
 }
 
 /*
- * №03's colour change with the 3D off: the old picture stays underneath while the new one fades in
- * over it (ProofShowcase.tsx, `useArrivingStill`; home page audit, 2026-10-17: the box stood empty
- * for 0.4–1.2 s). The fade runs only while the model is not shown: an animation's opacity would win
- * over the rule that hides the still under a shown model, and flash the picture behind the garment.
+ * №03's colour change with the 3D off: the new picture is drawn under the old one, and the old one is
+ * wiped away from the chosen dot (ProofShowcase.tsx, `useArrivingStill`; owner, 2026-10-19, the same
+ * dye as the 3D garment's, site.css "№03's colour change, like dye"). The old picture stayed until the
+ * new one was decoded since the home page audit (2026-10-17: the box stood empty for 0.4–1.2 s).
+ * The wipe runs only while the model is not shown: under a shown model the still is not seen.
  * Reduced motion makes it instant (base.css).
  */
 .proof__frame > [data-still="leaving"] {
   position: absolute;
   inset: 0;
+  z-index: 1;
 }
 
 .proof__frame > [data-still="arriving"] {
   position: relative;
 }
 
-.proof__figure:not(:has(.live-garment[data-phase="shown"]))
-  .proof__frame
-  > [data-still="arriving"] {
-  animation: proof-still-in var(--ui) var(--ease) both;
-}
-
-@keyframes proof-still-in {
-  from {
-    opacity: 0;
-  }
+.proof__figure:not(:has(.live-garment[data-phase="shown"])) .proof__frame > [data-still="leaving"] {
+  mask-image: radial-gradient(
+    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
+    transparent calc(var(--wipe) - 80px),
+    #000 var(--wipe)
+  );
+  animation: live-garment-wipe var(--slow) var(--ease) forwards;
 }
 
 .proof__caption {
@@ -5939,17 +5938,71 @@ a.contact-block__value:active {
  * The old colour's picture over a colour change (LiveGarment.tsx, the cross-fade; owner, 2026-10-17):
  * exactly the canvas's box, never in the way of a press, fading on `--ui`.
  */
-.live-garment__fade {
+/*
+ * №03's colour change, like dye (owner, 2026-10-19; LiveGarment.tsx says why a wipe and not a fade).
+ * The old colour's picture lies over the garment; once the new colour is under it, a circle opens in
+ * it from the chosen dot (`--wipe-x`, `--wipe-y`) to past the far corner (`--wipe-reach`), over
+ * `--slow` ("wipes and reveals") on the site's `--ease`. Its edge is 80px soft (WIPE_FEATHER_PX),
+ * so the colour soaks in rather than cuts. `--wipe` is a registered length so it can animate:
+ * Baseline since July 2024 (Safari 16.4, Firefox 128). Under reduced motion base.css makes the
+ * animation instant, and LiveGarment does not lay the picture at all.
+ */
+@property --wipe {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.live-garment__fade,
+.live-garment__edge {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  transition: opacity var(--ui) var(--ease);
 }
 
 .live-garment__fade[data-going] {
-  opacity: 0;
+  mask-image: radial-gradient(
+    circle at var(--wipe-x) var(--wipe-y),
+    transparent calc(var(--wipe) - 80px),
+    #000 var(--wipe)
+  );
+  animation: live-garment-wipe var(--slow) var(--ease) forwards;
+}
+
+/*
+ * The wet edge: the new colour at 55% riding just inside the circle, multiplied into the cloth, held
+ * to the garment's outline by the old picture as its mask (set inline), and gone by the end.
+ */
+.live-garment__edge {
+  mask-size: 100% 100%;
+  mix-blend-mode: multiply;
+  background: radial-gradient(
+    circle at var(--wipe-x) var(--wipe-y),
+    transparent calc(var(--wipe) - 100px),
+    color-mix(in srgb, var(--wipe-swatch) 55%, transparent) calc(var(--wipe) - 40px),
+    transparent var(--wipe)
+  );
+  animation:
+    live-garment-wipe var(--slow) var(--ease) forwards,
+    live-garment-edge-out var(--slow) ease-in forwards;
+}
+
+@keyframes live-garment-wipe {
+  to {
+    --wipe: var(--wipe-reach);
+  }
+}
+
+@keyframes live-garment-edge-out {
+  60% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 .live-garment__offer {
