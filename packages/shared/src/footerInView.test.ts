@@ -43,6 +43,8 @@ function fakePage({ footer = true, observer = true } = {}) {
     watched,
     footerElement,
     see: (on: boolean) => report?.([{ isIntersecting: on }]),
+    /** One callback carrying several reports, oldest first, as a held-back observer delivers. */
+    seeBatch: (reports: boolean[]) => report?.(reports.map((on) => ({ isIntersecting: on }))),
     disconnected: () => disconnected,
   }
 }
@@ -61,6 +63,19 @@ describe('watchFooterInView', () => {
     stop()
     expect(page.disconnected()).toBe(true)
     expect(page.attributes.has(FOOTER_IN_VIEW), 'left marked after clean-up').toBe(false)
+  })
+
+  it('reads a batch by its last report: in, then out, is out', () => {
+    // A fast fling into the footer and out again, delivered late as ONE callback with both reports,
+    // oldest first. The first version marked the page when ANY report said "in", so the marker, and
+    // the dark strip behind Safari's bar, outlived the footer.
+    const page = fakePage()
+    const stop = watchFooterInView(page.doc)
+    page.seeBatch([true, false])
+    expect(page.attributes.has(FOOTER_IN_VIEW), 'in, out: the page is still marked').toBe(false)
+    page.seeBatch([false, true])
+    expect(page.attributes.has(FOOTER_IN_VIEW), 'out, in: the page is not marked').toBe(true)
+    stop()
   })
 
   it('does nothing on a page with no footer, or a browser with no observer', () => {

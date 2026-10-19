@@ -417,6 +417,86 @@ test.describe('the room kept for the cookie question on the garment pages (VA-25
     })
 
     /*
+     * THE SAME, ON EVERY STEP OF A SCROLL (home page audit follow-up, 2026-10-19; the owner's iPhone:
+     * "after the footer and back up the strip stays dark"). The test above jumps to the foot and to
+     * the top, so it cannot see a marker that is right at both ends and wrong between them. This one
+     * walks down in 300px steps and back up, and on each step asks the page two things it can answer
+     * for itself: is the footer on screen, and does the root's colour (the strip's source) agree.
+     * What it cannot see is Safari: on the iOS 26.5 simulator the strip stayed dark on the home page
+     * with this marker off and the root paper (the sticky ink cards of the order steps are in that
+     * failure and a long page without them is not; apps/cms e2e has the home page's own walk). Only a
+     * real Safari reads the strip.
+     */
+    test("the root's colour follows the footer on every step of a scroll down and back up", async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const colours = await page.evaluate(() => {
+        const probe = document.createElement('div')
+        probe.style.background = 'var(--bg)'
+        document.body.append(probe)
+        const paper = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return {
+          touch: matchMedia('(hover: none)').matches,
+          paper,
+          footer: getComputedStyle(document.querySelector('.site-footer__slab') as HTMLElement)
+            .backgroundColor,
+        }
+      })
+      expect(colours.touch, 'the emulated phone reports hover — this test measures nothing').toBe(
+        true,
+      )
+      const end = await page.evaluate(
+        () => document.documentElement.scrollHeight - window.innerHeight,
+      )
+      expect(end, 'the page is too short to walk').toBeGreaterThan(1200)
+      const read = () =>
+        page.evaluate(() => {
+          const slab = document.querySelector('.site-footer__slab') as HTMLElement
+          const box = slab.getBoundingClientRect()
+          return {
+            // Within 2px of either edge the observer and a rounded rect may disagree: no verdict.
+            edge: Math.abs(box.top - window.innerHeight) < 2 || Math.abs(box.bottom) < 2,
+            onScreen: box.top < window.innerHeight && box.bottom > 0,
+            marked: document.documentElement.hasAttribute('data-footer-in-view'),
+            canvas: getComputedStyle(document.documentElement).backgroundColor,
+          }
+        })
+      const down = Array.from({ length: Math.ceil(end / 300) + 1 }, (_, i) =>
+        Math.min(i * 300, end),
+      )
+      const walk = [...down, ...[...down].reverse()]
+      let sawFooter = false
+      let sawPaperAfterFooter = false
+      for (const [index, y] of walk.entries()) {
+        await page.evaluate((to) => window.scrollTo(0, to), y)
+        await expect
+          .poll(
+            async () => {
+              const now = await read()
+              if (now.edge) return 'edge'
+              if (now.marked !== now.onScreen) return `marker ${now.marked}, footer ${now.onScreen}`
+              return now.canvas === (now.onScreen ? colours.footer : colours.paper)
+                ? 'ok'
+                : `colour ${now.canvas}`
+            },
+            { message: `step ${index} (scrollY ${y})` },
+          )
+          .toMatch(/^(ok|edge)$/)
+        const now = await read()
+        if (now.onScreen) sawFooter = true
+        else if (sawFooter) sawPaperAfterFooter = true
+      }
+      // The walk must have gone into the footer and come out of it, or it measured nothing.
+      expect(sawFooter, 'the walk never reached the footer').toBe(true)
+      expect(sawPaperAfterFooter, 'the walk never came back out of the footer').toBe(true)
+    })
+
+    /*
      * ⚠️ THE CHECK ABOVE IS CHROMIUM'S RULE; SAFARI'S ADDS `body` (owner's iPhone, 2026-10-02: the
      * band was still there on every page). WebKit takes the colour beyond the page from
      * `LocalFrameView::documentBackgroundColor()`, body's background COLOUR painted over html's
