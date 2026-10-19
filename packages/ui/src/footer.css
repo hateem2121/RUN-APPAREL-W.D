@@ -370,15 +370,29 @@
   position: relative;
   margin-inline: calc(var(--footer-pad) * -1);
   /*
-   * ⚠️ CROPPED BY MOVING ITS DRAWING, NOT BY A NEGATIVE MARGIN (owner, 2026-10-19: "the RUN APPAREL at
-   * the end was 1/4 cut … it needs to stay under the pill and cut as well"). A `margin-block-end: -0.2em`
-   * cut a quarter of the letters off at the slab's foot in desktop browsers (25.4–26.6% measured at
-   * 393, 768 and 1440 wide), but iOS 26.5 Safari laid the slab out to end exactly at the wordmark's own
-   * foot, margin and all (wordmark 680.6–714.6, slab foot 714.4, margin computed −9.2px; read on the
-   * page in the simulator), so on an iPhone the letters stood whole above the toolbar. `translate`
-   * moves only the painting, never the layout, so the slab's clip cuts the same 0.2em everywhere.
+   * ⚠️ THE WORDMARK CUTS ITSELF: A BOX 0.2em SHORTER THAN ITS LINE, CLIPPED (owner, 2026-10-19: "the
+   * RUN APPAREL at the end was 1/4 cut … it needs to stay under the pill and cut as well"). Read in
+   * the iOS 26.5 simulator, Safari grew the slab to hold whatever the wordmark let spill, so every cut
+   * the SLAB was meant to make left the letters whole above the toolbar there, while desktop engines
+   * cut them:
+   * - `margin-block-end: -0.2em` (until today): wordmark 680.6–714.6, slab foot 714.4.
+   * - a box 0.2em shorter, letters spilling out of it: box 679.7–704.5, slab foot 713.5, the
+   *   letters' foot 713.7.
+   * - a negative top margin: the box rose 9.2px and the slab did not shorten.
+   * `translate` alone cut them (a transform is not layout), but the box kept its whole height and the
+   * quiet band above it (`.footer-grow`, flex: 1) lost the 0.2em: 42.4px at 768px against DS-09's
+   * 48px floor (e2e/footer.spec.ts). Clipped here, nothing spills, the slab ends at this box, and the
+   * cut is 0.2em in every engine (box 688.7–713.5, slab foot 713.5 on the iPhone) with the layout
+   * main had. `min-block-size: 0` so no flex minimum can hold the box at its line's height.
+   * ⚠️ `--mark-head` IS HEADROOM FOR THE STROKE: the outline's top sits ~1px above a 0.74 line at a
+   * phone's size (393px), and the clip took that row. The lit layer starts under it too.
    */
-  translate: 0 0.2em;
+  --mark-head: 2px;
+  box-sizing: border-box;
+  padding-block-start: var(--mark-head);
+  block-size: calc(0.74em - 0.2em + var(--mark-head));
+  min-block-size: 0;
+  overflow: clip;
   font-size: var(--text-footer-mark);
   line-height: 0.74;
   cursor: default;
@@ -413,7 +427,7 @@
 
 .footer-mark__layer--lit {
   position: absolute;
-  inset: 0;
+  inset: var(--mark-head, 0px) 0 0;
   --mx: -1000px;
   --my: -1000px;
   color: color-mix(in srgb, var(--volt) 30%, transparent);
@@ -522,6 +536,8 @@
  * decoration (both its layers are `aria-hidden`), instead of empty room. From a tablet up the slab is a screen tall
  * and `.footer-grow` gives the room up, so the links lift and the page grows by nothing; on a
  * phone the page is 11rem longer while the question is open, as before.
+ * Less the 0.2em the wordmark's drawing is moved down (`.footer-mark`, 2026-10-19), so the room a
+ * visitor sees above the letters is still the whole 11rem.
  */
 :root:has(.consent) .footer-mark {
   margin-block-start: var(--consent-reserve);

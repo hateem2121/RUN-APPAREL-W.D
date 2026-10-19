@@ -158,11 +158,11 @@ test.describe('the footer geometry', () => {
 
   /*
    * A quarter of the wordmark is cut off by the slab's foot (owner, 2026-10-19: "was 1/4 cut … it
-   * needs to stay under the pill and cut as well"). The cut is the wordmark's DRAWING moved 0.2em
-   * down (`translate`, footer.css), because iOS 26.5 Safari ended the slab at the wordmark's own foot
-   * when a negative margin did it, and the letters stood whole on an iPhone. What would have to
-   * break: the wordmark ending at or above the slab's foot (no cut). This engine laid the old margin
-   * out as intended, so the iPhone's own failure is checked in the simulator, not here.
+   * needs to stay under the pill and cut as well"). The wordmark's box is its line less 0.2em and
+   * clips itself (footer.css), because iOS 26.5 Safari grew the slab around anything the wordmark let
+   * spill, and the letters stood whole on an iPhone. The base layer is the line the letters are drawn
+   * in, so this reads the drawing, not the box. What would have to break: the letters ending at or
+   * above the slab's foot (no cut). The iPhone's own failure is checked in the simulator, not here.
    */
   for (const [width, height] of [
     [393, 659],
@@ -179,8 +179,9 @@ test.describe('the footer geometry', () => {
       const cut = () =>
         page.locator('.footer-mark').evaluate((el) => {
           const slab = el.closest('.site-footer__slab') as HTMLElement
+          const line = el.querySelector('.footer-mark__layer') as HTMLElement
           const size = Number.parseFloat(getComputedStyle(el).fontSize)
-          return (el.getBoundingClientRect().bottom - slab.getBoundingClientRect().bottom) / size
+          return (line.getBoundingClientRect().bottom - slab.getBoundingClientRect().bottom) / size
         })
       await expect.poll(cut).toBeGreaterThan(0.15)
       expect(await cut()).toBeLessThan(0.25)

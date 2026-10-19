@@ -1355,8 +1355,11 @@ simulator (the top band following the section under it; always paper; the bottom
 and the owner kept both as they were ("Dark always" at the top). Reading WebKit's own source for
 that showed how Safari really picks the top band's colour, now noted at the strip in
 `packages/ui/src/notch.css`. The wordmark: a negative margin
-cut it in desktop browsers, but iOS 26.5 Safari ended the footer at the wordmark's own foot, so the
-letters stood whole; the drawing is now moved instead (`translate`).
+cut it in desktop browsers, but iOS 26.5 Safari grew the footer around anything the wordmark let
+spill, so the letters stood whole there. Moving the drawing (`translate`) cut them on the iPhone but
+took the 0.2em out of the footer's quiet band, under D7's floor at 768px. The wordmark's box is now
+its line less 0.2em and clips itself, which cuts 0.2em in every engine with the layout the footer
+had (read in the simulator: box foot and slab foot both at 713.5px, the letters to 722.7px).
 
 **Guard:** `apps/cms/e2e/familyTickets.spec.ts` (both speeds and the stagger),
 `apps/cms/e2e/liveGarment.spec.ts` and `apps/cms/e2e/proofShowcase.spec.ts` (the wipe's origin, its
