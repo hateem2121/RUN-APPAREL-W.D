@@ -665,6 +665,13 @@ test.describe('TY-12 / TY-13 — no headline strands its last word', () => {
       return offenders
     })
 
+  /*
+   * ⚠️ ONE CHARACTER OF SLACK, NOT ZERO. The first line, "Aaaaaa aaaaaa aaaaaa", is 20 characters,
+   * and the box was 20ch: 240px of text in a 240px box, measured in CI's image (2026-10-19). Any
+   * rounding broke it as "Aaaaaa aaaaaa / aaaaaa b", nothing was stranded, and the control failed
+   * twice on main's run after #203 while passing on the PR and 10 of 10 in that image. At 21ch the
+   * line fits with a character to spare and " b" (2 more) still cannot, so "b" is always alone.
+   */
   test('the detector flags a planted stranded word (negative control)', async ({ page }) => {
     await page.goto('/')
     await page.evaluate(() => {
@@ -672,7 +679,7 @@ test.describe('TY-12 / TY-13 — no headline strands its last word', () => {
       planted.id = 'stranded-control'
       planted.textContent = 'Aaaaaa aaaaaa aaaaaa b'
       planted.style.cssText =
-        'font-family:monospace;font-size:24px;width:20ch;white-space:normal;text-wrap:wrap'
+        'font-family:monospace;font-size:24px;width:21ch;white-space:normal;text-wrap:wrap'
       document.querySelector('main')?.prepend(planted)
     })
     const offenders = await strandedLastWords(page)
