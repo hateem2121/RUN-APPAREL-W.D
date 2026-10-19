@@ -54,6 +54,24 @@ async function open(
  * ⚠️ AND ONCE `OrderStagesList` HAS WRITTEN THE HEIGHTS (`data-stage-fit`): before, a card taller
  * than the screen still stops under the bar.
  */
+/**
+ * The stack's cards at the screen's width: the four stage cards from 900px, and below it, where the
+ * stage steps aside (owner, 2026-10-19: one step to a card on a phone), the eight steps. Read in
+ * the page, from the same media query site.css uses.
+ */
+const CARDS_IN_PAGE = ['.order-stage__steps > .order-step', '.order-stages > .order-stage'] as const
+
+const cardsOf = (page: Page) =>
+  page.evaluate(
+    (source) =>
+      [
+        ...document.querySelectorAll<HTMLElement>(
+          matchMedia('(max-width: 899px)').matches ? source[0] : source[1],
+        ),
+      ].length,
+    CARDS_IN_PAGE,
+  )
+
 async function stack(page: Page) {
   await expect(page.locator('.order-stages[data-stage-fit]')).toHaveCount(1)
   await page.locator('.order-stages').evaluate((list) => {
@@ -67,8 +85,12 @@ async function stack(page: Page) {
   await page.evaluate(
     () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
   )
-  return page.locator('.order-stages').evaluate((list) => {
-    const cards = [...list.querySelectorAll<HTMLElement>(':scope > .order-stage')]
+  return page.locator('.order-stages').evaluate((list, source) => {
+    const cards = [
+      ...document.querySelectorAll<HTMLElement>(
+        matchMedia('(max-width: 899px)').matches ? source[0] : source[1],
+      ),
+    ]
     return {
       screen: window.innerHeight,
       bar: document.querySelector('.notch')?.getBoundingClientRect().bottom ?? 0,
@@ -78,7 +100,7 @@ async function stack(page: Page) {
       stops: cards.map((card) => Number.parseFloat(getComputedStyle(card).top)),
       positions: cards.map((card) => getComputedStyle(card).position),
     }
-  })
+  }, CARDS_IN_PAGE)
 }
 
 type Stack = Awaited<ReturnType<typeof stack>>
@@ -389,7 +411,11 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
       expect(s.gap, 'the rest is shorter than a third of the screen').toBeGreaterThanOrEqual(
         s.screen / 3 - 1,
       )
-      for (let k = 0; k < 4; k++) {
+      const count = await cardsOf(page)
+      expect(count, 'the stack has neither four stage cards nor eight step cards').toBe(
+        width < 900 ? 8 : 4,
+      )
+      for (let k = 0; k < count; k++) {
         // A card that fits stops 8px below the one before, from the screen's top edge: the bar
         // floats over it (no pale page beside the bar, the owner's rule, 2026-10-17).
         const fits = (s.heights[k] ?? 0) <= s.screen - 8 * k + 1
@@ -401,15 +427,21 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
         }
         // Just before the rest ends: card k is stopped, the next still 2px below the screen.
         await scrollTo(page, settledAt(s, k, 2))
-        const now = await page.locator('.order-stages > .order-stage').evaluateAll((cards) =>
-          cards.map((card) => ({
-            top: card.getBoundingClientRect().top,
-            bottom: card.getBoundingClientRect().bottom,
-            // Each step's last line of text, not its box: the box ends at the card's foot, 24px below it.
-            words: [...card.querySelectorAll('.order-step__words')].map(
-              (words) => (words.lastElementChild ?? words).getBoundingClientRect().bottom,
-            ),
-          })),
+        const now = await page.evaluate(
+          (source) =>
+            [
+              ...document.querySelectorAll<HTMLElement>(
+                matchMedia('(max-width: 899px)').matches ? source[0] : source[1],
+              ),
+            ].map((card) => ({
+              top: card.getBoundingClientRect().top,
+              bottom: card.getBoundingClientRect().bottom,
+              // Each step's last line of text, not its box: the box ends at the card's foot, 24px below it.
+              words: [...card.querySelectorAll('.order-step__words')].map(
+                (words) => (words.lastElementChild ?? words).getBoundingClientRect().bottom,
+              ),
+            })),
+          CARDS_IN_PAGE,
         )
         for (let j = 0; j <= k; j++) {
           expect(
@@ -431,7 +463,7 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
             s.screen + 0.5,
           )
         }
-        if (k < 3) {
+        if (k < count - 1) {
           expect(
             now[k + 1]?.top ?? 0,
             `card ${k + 2} covers card ${k + 1} before its rest is over`,
@@ -452,9 +484,16 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
             ['bottom left', 2, h - 1],
             ['bottom right', w - 3, h - 1],
           ]
+          // On a phone a covered card sinks narrower (owner, 2026-10-19), and beside its strip lies
+          // the stack's own ground, the cards' ink: a card's colour, not the pale page.
+          const ink = getComputedStyle(
+            document.querySelector('.order-step') as Element,
+          ).backgroundColor
           return points.flatMap(([where, x, y]) => {
             const first = document.elementsFromPoint(x, y).find((el) => !el.closest('.notch-shell'))
-            return first?.closest('.order-stage')
+            const deck =
+              first?.matches('.order-stages') && getComputedStyle(first).backgroundColor === ink
+            return first?.closest('.order-stage') || deck
               ? []
               : [`${where}: ${first?.className || first?.tagName}`]
           })
@@ -463,6 +502,90 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
       }
     })
   }
+
+  /*
+   * The sink (owner, 2026-10-19, phones only): what would have to break is a covered card that stays
+   * full size, one that sinks before the next card reaches it, or one whose strip moves (it sinks
+   * about its top edge). Skipped where the browser has no scroll-driven animations (Firefox).
+   */
+  for (const [width, height] of [
+    [393, 659],
+    [360, 640],
+  ] as const) {
+    test(`at ${width}x${height} a covered step sinks back as the next one comes over it, and not before`, async ({
+      page,
+    }) => {
+      await open(page, width, height, { motion: 'no-preference' })
+      const supported = await page.evaluate(
+        () => CSS.supports('timeline-scope: --a') && CSS.supports('animation-timeline: view()'),
+      )
+      test.skip(!supported, 'no scroll-driven animations in this browser')
+      const s = await stack(page)
+      const read = () =>
+        page.evaluate((source) => {
+          const cards = [
+            ...document.querySelectorAll<HTMLElement>(
+              matchMedia('(max-width: 899px)').matches ? source[0] : source[1],
+            ),
+          ]
+          return cards.slice(0, 2).map((card) => ({
+            scale: getComputedStyle(card).scale,
+            top: card.getBoundingClientRect().top,
+          }))
+        }, CARDS_IN_PAGE)
+      // Step 1 stopped, step 2 still below the screen: nothing has sunk.
+      await scrollTo(page, settledAt(s, 0, 2))
+      expect((await read())[0]?.scale, 'step 1 sank before step 2 reached it').toMatch(/^(none|1)$/)
+      // Step 2 stopped over it: step 1 is at 94%, its strip still where it stopped.
+      await scrollTo(page, settledAt(s, 1, 2))
+      const [first, second] = await read()
+      expect(Number.parseFloat(first?.scale ?? '1')).toBeCloseTo(0.94, 2)
+      expect(
+        Math.abs((first?.top ?? 0) - (s.stops[0] ?? 0)),
+        'step 1’s strip moved',
+      ).toBeLessThanOrEqual(1)
+      expect(second?.scale, 'step 2 sank with nothing over it').toMatch(/^(none|1)$/)
+    })
+  }
+
+  test('on a phone the steps are still lists to a screen reader (Chromium’s own tree)', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'reads Chromium’s accessibility tree')
+    await open(page, 393, 659, { motion: 'no-preference' })
+    // The control that the phone's stack is on: the stage and its list are stepped aside.
+    expect(
+      await page
+        .locator('.order-stages > .order-stage')
+        .first()
+        .evaluate((li) => getComputedStyle(li).display),
+    ).toBe('contents')
+    const cdp = await page.context().newCDPSession(page)
+    const { root } = (await cdp.send('DOM.getDocument', { depth: -1 })) as {
+      root: { nodeId: number }
+    }
+    const roleOf = async (selector: string) => {
+      const { nodeId } = (await cdp.send('DOM.querySelector', {
+        nodeId: root.nodeId,
+        selector,
+      })) as {
+        nodeId: number
+      }
+      const { nodes } = (await cdp.send('Accessibility.getPartialAXTree', {
+        nodeId,
+        fetchRelatives: false,
+      })) as { nodes: { role?: { value?: string }; ignored?: boolean }[] }
+      const node = nodes[0]
+      return node?.ignored ? 'ignored' : (node?.role?.value ?? 'none')
+    }
+    expect({
+      stages: await roleOf('ol.order-stages'),
+      stage: await roleOf('.order-stages > .order-stage'),
+      steps: await roleOf('ol.order-stage__steps'),
+      step: await roleOf('.order-stage__steps > .order-step'),
+    }).toEqual({ stages: 'list', stage: 'listitem', steps: 'list', step: 'listitem' })
+  })
 
   test('nothing in the cards animates while they stack', async ({ page }) => {
     await open(page, 1440, 900, { motion: 'no-preference' })

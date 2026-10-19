@@ -116,10 +116,10 @@ export function ProofShowcase({
   )
   /*
    * With the 3D off, the old picture is wiped away from the dot the same way (site.css, `data-still`).
-   * ⚠️ MEASURED AT THE PICK, BEFORE THE OLD PICTURE IS MARKED TO LEAVE: its wipe's keyframe reads
-   * `--wipe-reach` once, as the animation starts, and a measure taken after the picture was marked
-   * forced that start with the size still unset, so the circle stayed at 0 and the old picture was cut
-   * at the end instead of wiped (2026-10-19, e2e/proofShowcase.spec.ts).
+   * Measured at the pick, from the dot that was pressed, so the old picture has its circle's place and
+   * size from its first frame: measured once it was marked to leave, the first build began the wipe
+   * with no size and the old picture was cut at the end instead (2026-10-19,
+   * e2e/proofShowcase.spec.ts).
    */
   const frame = useRef<HTMLSpanElement>(null)
   const [stillWipe, setStillWipe] = useState<CSSProperties | undefined>(undefined)

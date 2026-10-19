@@ -14,6 +14,9 @@ import { type ReactNode, useEffect, useRef } from 'react'
  * writes each card's height to `--stage-fit`, and site.css stops it at `100svh − --stage-fit`
  * whenever that is higher than its place under the bar. A card that fits is untouched.
  *
+ * On a phone each STEP is a card of its own (OrderSteps.tsx, owner 2026-10-19), so every step's
+ * height is written too, on the step; there its own value wins over its stage's.
+ *
  * `data-stage-fit` says the heights are written: the e2e tests wait for it. Without scripting the
  * cards still stop under the bar, as they did before.
  */
@@ -23,7 +26,11 @@ export function OrderStagesList({ children }: { children: ReactNode }) {
   useEffect(() => {
     const element = list.current
     if (!element) return
-    const cards = [...element.querySelectorAll<HTMLElement>(':scope > .order-stage')]
+    const cards = [
+      ...element.querySelectorAll<HTMLElement>(
+        ':scope > .order-stage, .order-stage__steps > .order-step',
+      ),
+    ]
     // Its border box: the card's own height, which `top` does not change, so nothing loops.
     // ⚠️ ROUNDED DOWN, NEVER UP: the stop is the screen less this, so a height rounded up stopped
     // the card up to 1px high and left the page's last pixel row pale under it (393 × 659,
