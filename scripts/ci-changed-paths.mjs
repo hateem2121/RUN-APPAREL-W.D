@@ -19,6 +19,10 @@
  * Markdown under tools/asset-pipeline/ is excluded because c0a6728 (2026-08-12) built and
  * pushed a Docker image for a docs-only commit. ci.yml itself counts because the deploy
  * steps live there now, as the old filter counted deploy-shrink.yml.
+ * `.trivyignore` counts because `shrink-image-audit` reads its waivers (added 2026-10-20,
+ * owner decision): PR #207 renewed the base image's perl waivers and CI skipped the scan
+ * that reads them, so a waiver edit was never tested and a lapsed one stayed invisible
+ * until the next shrink change stopped `deploy-shrink`.
  *
  * WHEN IN DOUBT, `true`. A by-hand run, a first push, or a base commit this checkout
  * cannot see all answer `true`: an unneeded image build costs minutes, a skipped one
@@ -40,7 +44,8 @@ export function touchesShrink(file) {
     file.startsWith('packages/shared/') ||
     file === 'pnpm-lock.yaml' ||
     file === 'pnpm-workspace.yaml' ||
-    file === '.github/workflows/ci.yml'
+    file === '.github/workflows/ci.yml' ||
+    file === '.trivyignore'
   )
 }
 
