@@ -77,60 +77,71 @@ export function OrderSteps() {
                 const image = photo ? factoryPhotoImage(photo) : null
                 const [across, down] = photo?.focus ?? [50, 50]
                 return (
-                  <li
-                    className="order-step"
-                    key={step.title}
-                    style={
-                      {
-                        '--step': number - 1,
-                        '--step-name': `--step-${number}`,
-                        '--next-name': number < STEP_COUNT ? `--step-${number + 1}` : 'none',
-                      } as CSSProperties
-                    }
-                  >
-                    {index === 0 ? (
-                      // One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces.
-                      <p className="order-stage__name">{`Stage ${stage + 1} · ${phase.name}`}</p>
-                    ) : null}
-                    <div className="order-step__top">
-                      <span className="order-step__number display display--hero" aria-hidden="true">
-                        {String(number).padStart(2, '0')}
-                      </span>
-                      {/*
-                       * Said, not shown: "Step 3, our move" (home page audit, 2026-10-17). The
-                       * pill's bare "You" or "We" told a screen reader nothing about whose turn.
-                       */}
-                      <span className="visually-hidden">
-                        {`Step ${number}, ${step.actor === 'You' ? 'your move' : 'our move'}`}
-                      </span>
-                      <span
-                        className={`order-step__actor order-step__actor--${step.actor}`}
-                        aria-hidden="true"
-                      >
-                        {step.actor}
-                      </span>
+                  // ⚠️ THREE BOXES FOR ONE CARD, so iPhone Safari's bar can forget a card (2026-10-20).
+                  // The list item keeps the role; the slot is what sticks in a phone's stack and paints
+                  // nothing; `.order-step` draws the card. Why the slot: OrderStagesList.tsx.
+                  <li className="order-step-item" key={step.title}>
+                    <div
+                      className="order-step-slot"
+                      style={
+                        {
+                          '--step': number - 1,
+                          '--step-name': `--step-${number}`,
+                          '--next-name': number < STEP_COUNT ? `--step-${number + 1}` : 'none',
+                        } as CSSProperties
+                      }
+                    >
+                      <div className="order-step">
+                        {index === 0 ? (
+                          // One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces.
+                          <p className="order-stage__name">{`Stage ${stage + 1} · ${phase.name}`}</p>
+                        ) : null}
+                        <div className="order-step__top">
+                          <span
+                            className="order-step__number display display--hero"
+                            aria-hidden="true"
+                          >
+                            {String(number).padStart(2, '0')}
+                          </span>
+                          {/*
+                           * Said, not shown: "Step 3, our move" (home page audit, 2026-10-17). The
+                           * pill's bare "You" or "We" told a screen reader nothing about whose turn.
+                           */}
+                          <span className="visually-hidden">
+                            {`Step ${number}, ${step.actor === 'You' ? 'your move' : 'our move'}`}
+                          </span>
+                          <span
+                            className={`order-step__actor order-step__actor--${step.actor}`}
+                            aria-hidden="true"
+                          >
+                            {step.actor}
+                          </span>
+                        </div>
+                        <div className="order-step__words">
+                          <h3 className="order-step__title display display--section">
+                            {step.title}
+                          </h3>
+                          <p className="order-step__body">{step.body}</p>
+                          <p className="order-step__detail">{step.detail}</p>
+                        </div>
+                        {photo && image ? (
+                          // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the widths are pre-built files, picked by srcSet.
+                          <img
+                            className="order-step__photo"
+                            src={image.src}
+                            srcSet={image.srcSet}
+                            sizes={ORDER_STEP_SIZES}
+                            width={image.width}
+                            height={image.height}
+                            alt={photo.alt}
+                            // Which part of the file stays when the half cuts it: a value per picture.
+                            style={{ objectPosition: `${across}% ${down}%` }}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="order-step__words">
-                      <h3 className="order-step__title display display--section">{step.title}</h3>
-                      <p className="order-step__body">{step.body}</p>
-                      <p className="order-step__detail">{step.detail}</p>
-                    </div>
-                    {photo && image ? (
-                      // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the widths are pre-built files, picked by srcSet.
-                      <img
-                        className="order-step__photo"
-                        src={image.src}
-                        srcSet={image.srcSet}
-                        sizes={ORDER_STEP_SIZES}
-                        width={image.width}
-                        height={image.height}
-                        alt={photo.alt}
-                        // Which part of the file stays when the half cuts it: a value per picture.
-                        style={{ objectPosition: `${across}% ${down}%` }}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : null}
                   </li>
                 )
               })}

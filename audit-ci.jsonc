@@ -306,6 +306,20 @@
   // DELETE each override once its parent chain itself asks for the patched
   // floor: express for proxy-addr ≥2.0.8, @lhci/cli for compression ≥1.8.2, and
   // css-tree / postcss / sass for source-map-js ≥1.2.2.
+  //
+  // ── glob 10, fixed by OVERRIDE 2026-10-20 ──
+  // Dependabot PR #210 (@opennextjs/cloudflare 1.20.9 → 1.20.10) failed `audit` on
+  // GHSA-5j98-mcp5-4vw2, "glob CLI: Command injection via -c/--cmd executes matches
+  // with shell:true", high, patched in 10.5.0 (published 2025-11-18). The new
+  // @opennextjs/aws 4.1.9 asks for @node-minify/core ^9.0.2, which pins glob to
+  // exactly 10.3.3 (apps__cms>@opennextjs/cloudflare>@opennextjs/aws>
+  // @node-minify/core>glob); main had no glob 10 at all before it. The flaw is in
+  // glob's command-line tool, which a build-time minifier never runs, but the
+  // patched floor is correct regardless. `glob@10: ^10.5.0` in pnpm-workspace.yaml
+  // stays inside glob 10 and touches no other major (7, 12, 13 here). Checked both
+  // ways on #210's tree with pnpm 12.6.0: without the override audit-ci exits 1 on
+  // this one path; with it, exit 0 and glob 10.3.3 is gone from the lockfile.
+  // DELETE it once @node-minify/core itself asks for glob ≥10.5.0.
   "allowlist": [
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",

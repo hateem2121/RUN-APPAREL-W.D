@@ -29,7 +29,7 @@ const STEPS = ORDER_PHASES.flatMap((phase) =>
   phase.steps.map((step) => ({ ...step, phase: phase.name })),
 )
 const photoOf = (slug: string) => FACTORY_PHOTOS.find((photo) => photo.slug === slug)
-const HALVES = '.order-stage__steps > .order-step'
+const HALVES = '.order-stage__steps .order-step'
 
 async function open(
   page: Page,
@@ -59,7 +59,11 @@ async function open(
  * stage steps aside (owner, 2026-10-19: one step to a card on a phone), the eight steps. Read in
  * the page, from the same media query site.css uses.
  */
-const CARDS_IN_PAGE = ['.order-stage__steps > .order-step', '.order-stages > .order-stage'] as const
+// On a phone the step's SLOT is what sticks and sinks; its card fills it (OrderSteps.tsx, 2026-10-20).
+const CARDS_IN_PAGE = [
+  '.order-stage__steps .order-step-slot',
+  '.order-stages > .order-stage',
+] as const
 
 const cardsOf = (page: Page) =>
   page.evaluate(
@@ -137,7 +141,7 @@ test.describe('D42 — the eight steps, as four stage cards, everywhere (A3, Q41
         all.map((card) => ({
           name: card.querySelector('.order-stage__name')?.textContent ?? '',
           start: card.querySelector('ol.order-stage__steps')?.getAttribute('start'),
-          steps: [...card.querySelectorAll('.order-stage__steps > .order-step')].map((half) => ({
+          steps: [...card.querySelectorAll('.order-stage__steps .order-step')].map((half) => ({
             number: half.querySelector('.order-step__number')?.textContent ?? '',
             numberHidden: half.querySelector('.order-step__number')?.getAttribute('aria-hidden'),
             actor: half.querySelector('.order-step__actor')?.textContent ?? '',
@@ -272,7 +276,7 @@ test.describe('D42 — the layout', () => {
       const measured = await page.evaluate(() => {
         const list = document.querySelector('.order-stages') as HTMLElement
         const heading = list.closest('section')?.querySelector('h2') as HTMLElement
-        const first = document.querySelector('.order-stage__steps > .order-step') as HTMLElement
+        const first = document.querySelector('.order-stage__steps .order-step') as HTMLElement
         const words = first.querySelector('.order-step__title') as HTMLElement
         const name = document.querySelector('.order-stage__name') as HTMLElement
         return {
@@ -314,7 +318,7 @@ test.describe('D42 — the layout', () => {
       await open(page, width, 900)
       const cards = await page.locator('.order-stages > .order-stage').evaluateAll((all) =>
         all.map((card) => {
-          const [a, b] = [...card.querySelectorAll('.order-stage__steps > .order-step')].map(
+          const [a, b] = [...card.querySelectorAll('.order-stage__steps .order-step')].map(
             (half) => {
               const box = half.getBoundingClientRect()
               const title = (
@@ -583,7 +587,7 @@ test.describe('D42 — the cards stack as the page scrolls', () => {
       stages: await roleOf('ol.order-stages'),
       stage: await roleOf('.order-stages > .order-stage'),
       steps: await roleOf('ol.order-stage__steps'),
-      step: await roleOf('.order-stage__steps > .order-step'),
+      step: await roleOf('.order-stage__steps > .order-step-item'),
     }).toEqual({ stages: 'list', stage: 'listitem', steps: 'list', step: 'listitem' })
   })
 
@@ -959,3 +963,61 @@ for (const [density, label] of [
     })
   })
 }
+
+/*
+ * ⚠️ SAFARI'S BOTTOM STRIP FORGETS A STEP THAT LEFT THE SCREEN'S FOOT (2026-10-20). iOS 26 Safari
+ * colours the strip under its pill from the sticky box at the screen's foot, and when there is none
+ * it keeps the last one's colour while that box is still `visibility: visible` (WebKit,
+ * Page::updateFixedContainerEdges). A step's ink card did that: after the stack, and after the footer
+ * and back, the strip stayed ink over paper (owner's report; reproduced in the iOS 26.5 simulator).
+ * No browser here draws Safari's bar, so this holds WebKit's own rule instead: a slot is visible
+ * exactly while it covers the foot, and every card is always visible, so nothing on screen moves.
+ * Checked mid-stack, at the stack's tail (still on screen, the paper below it: the case that stayed
+ * stale) and past it. What would have to break: the observer gone, its band moved, or a card that
+ * inherits `hidden` and vanishes.
+ */
+test.describe('Safari’s bottom strip — a step is shown to it only while it covers the foot', () => {
+  test('phone stack: slot visible ⇔ it covers the foot, and every card stays visible', async ({
+    page,
+  }) => {
+    await open(page, 393, 659, { motion: 'no-preference' })
+    const s = await stack(page)
+    const list = await page.locator('.order-stages').evaluate((ol) => {
+      const r = ol.getBoundingClientRect()
+      return { top: r.top + scrollY, height: r.height }
+    })
+    const spots = {
+      'mid-stack': settledAt(s, 3, 0) + 40,
+      'the stack’s tail, paper below': list.top + list.height - 0.5 * 659,
+      'past the stack': list.top + list.height + 200,
+    }
+    for (const [where, y] of Object.entries(spots)) {
+      await scrollTo(page, Math.round(y))
+      await expect
+        .poll(
+          () =>
+            page.locator('.order-stage__steps .order-step-slot').evaluateAll((slots) => {
+              const foot = innerHeight - 4
+              return slots.flatMap((slot, i) => {
+                const r = slot.getBoundingClientRect()
+                const covers = r.top <= foot && r.bottom > foot
+                const shown = getComputedStyle(slot).visibility === 'visible'
+                const card = getComputedStyle(slot.querySelector('.order-step') as Element)
+                const wrong = []
+                if (covers !== shown)
+                  wrong.push(`slot ${i + 1}: covers ${covers}, visible ${shown}`)
+                if (card.visibility !== 'visible') wrong.push(`card ${i + 1} is ${card.visibility}`)
+                return wrong
+              })
+            }),
+          { message: where, timeout: 3000 },
+        )
+        .toEqual([])
+    }
+    // The control that the band can find a slot at all: mid-stack one covers the foot.
+    await scrollTo(page, Math.round(spots['mid-stack']))
+    await expect
+      .poll(() => page.locator('.order-stage__steps .order-step-slot[data-edge="on"]').count())
+      .toBeGreaterThan(0)
+  })
+})

@@ -57,6 +57,7 @@ overrides:
   proxy-addr: ^2.0.8
   compression: ^1.8.2
   source-map-js: ^1.2.2
+  glob@10: ^10.5.0
 
 # Which dependencies may run install scripts (pnpm 11 replaced
 # `onlyBuiltDependencies` with this map). `true` = allowed, the same four that

@@ -185,6 +185,7 @@ overrides:
   proxy-addr: ^2.0.8
   compression: ^1.8.2
   source-map-js: ^1.2.2
+  glob@10: ^10.5.0
 
 patchedDependencies:
   '@google/model-viewer@4.3.1': e9336063e855fb2e2e675980cc359aa8d6e1c38a690c907db6ee60e67de846d2

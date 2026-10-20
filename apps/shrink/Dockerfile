@@ -27,14 +27,29 @@
 # in both); quality 94 as the control changed all 15. The wordmark fixture alone was blind
 # to it: its colour is flat and its alpha lossless.
 #
-# PINNED-ON: 2026-10-14
+# DEBIAN 13 SINCE 2026-10-20 (owner decision): node:24-slim is Debian 12, whose perl-base
+# 5.36.0-7+deb12u3 carried three fixable CRITICALs (CVE-2026-13221, CVE-2026-42496,
+# CVE-2026-8376) that the newest node:24-slim (a5f4366e…, pushed 2026-10-14) still had, so
+# shrink-image-audit passed only on dated waivers renewed by hand each week. This image scanned
+# clean at the gate's flags with no waiver (Trivy 0.70.0, --pkg-types os --severity CRITICAL
+# --ignore-unfixed: exit 0; d6aa754 and a5f4366e: exit 1). It moves Node 24.21.0 -> 24.22.0 and
+# glibc 2.36 -> 2.41; sharp 0.35.5 and its own libvips 8.18.7 / libwebp 1.6.0 are the same.
+# Print check, both images built for linux/amd64 from this Dockerfile and run through
+# shrinkFile() with the robot's flags on two raw CLO exports: the canonical rxps export
+# (382,107,380 B, balanced) and APEX FLEX PULLOVER (fidelity) came out BYTE-IDENTICAL, and the
+# rxps wordmark and two label crops (raw/CANONICAL.json views) rendered 0.00% changed. Control:
+# `--no-uv-remap` on the pullover changed the output (1,886,524 -> 2,245,916 B), so the
+# comparison can see a difference; --quality, --max-texture and --simplify-error did not,
+# because refineFlags rewrites them for a small, texture-heavy export.
+#
+# PINNED-ON: 2026-10-20
 # ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
 # the pin is older than the refresh window. Base images are rebuilt mainly to pick up
 # operating-system security fixes, so pinning is correct and never refreshing is not —
 # and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
 # pull request as the digest (Dependabot moves only the digest), or the gate is measuring
 # a lie.
-FROM node:24-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
+FROM node:24-trixie-slim@sha256:7f486cabe892bff8fef04c0f7da8dba84a560be3e4e2740b7a86afc57ebec315
 
 WORKDIR /app
 

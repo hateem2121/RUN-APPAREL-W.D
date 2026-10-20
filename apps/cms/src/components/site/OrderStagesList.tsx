@@ -28,7 +28,7 @@ export function OrderStagesList({ children }: { children: ReactNode }) {
     if (!element) return
     const cards = [
       ...element.querySelectorAll<HTMLElement>(
-        ':scope > .order-stage, .order-stage__steps > .order-step',
+        ':scope > .order-stage, .order-stage__steps .order-step-slot',
       ),
     ]
     // Its border box: the card's own height, which `top` does not change, so nothing loops.
@@ -45,6 +45,48 @@ export function OrderStagesList({ children }: { children: ReactNode }) {
     })
     for (const card of cards) observer.observe(card)
     return () => observer.disconnect()
+  }, [])
+
+  /*
+   * ⚠️ A STEP IS SHOWN TO SAFARI'S BAR ONLY WHILE IT REACHES THE SCREEN'S FOOT (2026-10-20).
+   * iOS 26 Safari colours the strip under its bottom pill from the sticky box at the screen's foot,
+   * and when none is there it KEEPS the last one's colour for as long as that box is still
+   * `visibility: visible` (WebKit, Page::updateFixedContainerEdges, read 2026-10-20). A step is a
+   * full-width sticky ink box, so after the stack the strip stayed ink over the paper below, and
+   * after the footer and back up too (owner's report, reproduced in the iOS 26.5 simulator:
+   * strip 29,31,26 over paper 241,239,234). So a step's slot is `hidden` unless it covers the foot:
+   * the slot paints nothing and its card says `visible`, so not one pixel moves, and Safari drops it.
+   * The band is the last 1% of the screen; the hit test is 4px above the foot.
+   */
+  useEffect(() => {
+    const element = list.current
+    if (!element) return
+    const slots = [...element.querySelectorAll<HTMLElement>('.order-step-slot')]
+    const stack = window.matchMedia(
+      'screen and (prefers-reduced-motion: no-preference) and (max-width: 899px)',
+    )
+    let edge: IntersectionObserver | null = null
+    const follow = () => {
+      edge?.disconnect()
+      edge = null
+      for (const slot of slots) delete slot.dataset.edge
+      if (!stack.matches) return
+      edge = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            ;(entry.target as HTMLElement).dataset.edge = entry.isIntersecting ? 'on' : 'off'
+          }
+        },
+        { rootMargin: '-99% 0px 0px 0px' },
+      )
+      for (const slot of slots) edge.observe(slot)
+    }
+    follow()
+    stack.addEventListener('change', follow)
+    return () => {
+      stack.removeEventListener('change', follow)
+      edge?.disconnect()
+    }
   }, [])
 
   return (

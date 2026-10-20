@@ -27,6 +27,8 @@ describe('which files the shrink service is built from', () => {
       'pnpm-lock.yaml',
       'pnpm-workspace.yaml',
       '.github/workflows/ci.yml',
+      // The base image's waivers: PR #207 renewed them and CI never scanned the image.
+      '.trivyignore',
     ]) {
       expect(touchesShrink(file), file).toBe(true)
     }
