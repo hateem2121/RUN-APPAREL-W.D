@@ -5541,8 +5541,16 @@ a.contact-block__value:active {
  *
  * The number and whose move it is at the top, the words at the foot, and the photo showing in the
  * row between (at least 16px of it).
+ *
+ * The list item and its slot step aside, so the card is laid out where the item was; only a
+ * phone's stack gives the slot a box (below, "ON A PHONE, ONE STEP TO A CARD").
  */
-.order-stage__steps > .order-step {
+.order-step-item,
+.order-step-slot {
+  display: contents;
+}
+
+.order-stage__steps .order-step {
   --pad-start: var(--stage-edge);
   --pad-end: var(--stage-edge);
   position: relative;
@@ -5555,11 +5563,11 @@ a.contact-block__value:active {
 }
 
 /* Under the stage's pill, on the first step: the pill's 18px, its height and 18px under it. */
-.order-stage__steps > .order-step:first-child {
+.order-step-item:first-child .order-step {
   padding-block-start: calc(var(--card-lead) + 64px);
 }
 
-.order-stage__steps > .order-step + .order-step {
+.order-step-item + .order-step-item .order-step {
   border-block-start: 1px solid var(--line);
 }
 
@@ -5575,7 +5583,7 @@ a.contact-block__value:active {
   }
 
   /* Each half keeps the column's edge on its outer side and the gutter on its inner one. */
-  .order-stage__steps > .order-step {
+  .order-stage__steps .order-step {
     --pad-end: var(--site-gutter);
     grid-row: 1 / -1;
     grid-template-rows: subgrid;
@@ -5587,7 +5595,7 @@ a.contact-block__value:active {
     --fade: 64px;
   }
 
-  .order-stage__steps > .order-step + .order-step {
+  .order-step-item + .order-step-item .order-step {
     --pad-start: var(--site-gutter);
     --pad-end: var(--stage-edge);
     border-block-start: 0;
@@ -5793,16 +5801,31 @@ a.contact-block__value:active {
     background: var(--ink);
   }
 
-  .order-stage__steps > .order-step {
+  /*
+   * ⚠️ THE SLOT STICKS AND PAINTS NOTHING; THE CARD INSIDE IT IS DRAWN (2026-10-20). iPhone Safari
+   * keeps the colour of the last sticky box at the screen's foot while that box stays visible, so a
+   * step that left the foot kept the bar's strip ink over paper (OrderStagesList.tsx has the WebKit
+   * source). The slot is hidden unless it covers the foot; the card stays visible, so nothing moves.
+   */
+  .order-stage__steps .order-step-slot {
+    display: block;
     position: sticky;
     top: min(calc(var(--step, 0) * 8px), calc(100svh - var(--stage-fit, 0px)));
+  }
+
+  .order-step-slot[data-edge="off"] {
+    visibility: hidden;
+  }
+
+  .order-stage__steps .order-step {
+    visibility: visible;
     min-block-size: calc(100svh - var(--step, 0) * 8px);
     padding-block-start: calc(var(--card-lead) + 18px);
     border-block-start: 1px solid var(--line);
     background: var(--ink);
   }
 
-  .order-stage__steps > .order-step:first-child {
+  .order-step-item:first-child .order-step {
     padding-block-start: calc(var(--card-lead) + 64px);
   }
 }
@@ -5824,7 +5847,7 @@ a.contact-block__value:active {
         --step-1, --step-2, --step-3, --step-4, --step-5, --step-6, --step-7, --step-8;
     }
 
-    .order-stage__steps > .order-step {
+    .order-stage__steps .order-step-slot {
       transform-origin: 50% 0;
       view-timeline-name: var(--step-name, none);
       animation: order-step-sink linear both;
@@ -5834,7 +5857,7 @@ a.contact-block__value:active {
 
     /* The last step has nothing to come over it. Its next timeline is `none`, which Chromium still
        ran from the start, so the last card stood at 94% (measured 2026-10-19): no sink at all. */
-    .order-stages > .order-stage:last-child .order-step:last-child {
+    .order-stages > .order-stage:last-child .order-step-item:last-child .order-step-slot {
       animation: none;
     }
   }

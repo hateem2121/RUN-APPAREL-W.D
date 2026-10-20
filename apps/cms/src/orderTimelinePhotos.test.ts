@@ -111,7 +111,9 @@ describe('every step of the timeline has its own photo (VA-29)', () => {
 
 describe('what the order steps draw (D42: four stage cards, two steps each)', () => {
   const figures = imgTags(stepsHtml)
-  const cards = stepsHtml.split(/<li class="order-step"/).slice(1)
+  // Each step: its list item, the slot that sticks in a phone stack, then the card it draws
+  // (OrderSteps.tsx, 2026-10-20). The card is the split point; the item and slot come just before.
+  const cards = stepsHtml.split(/<div class="order-step">/).slice(1)
   const stages = stepsHtml.split(/<li class="order-stage"/).slice(1)
 
   /*
@@ -124,13 +126,19 @@ describe('what the order steps draw (D42: four stage cards, two steps each)', ()
     expect(stepsHtml.startsWith('<ol class="order-stages"')).toBe(true)
     expect(stages).toHaveLength(4)
     expect(cards).toHaveLength(8)
+    // Every card sits in its slot, every slot in its list item: nothing else between them.
+    expect(
+      stepsHtml.match(
+        /<li class="order-step-item"><div class="order-step-slot" style="[^"]*"><div class="order-step">/g,
+      ),
+    ).toHaveLength(8)
     expect(
       [...stepsHtml.matchAll(/<ol class="order-stage__steps" role="list" start="(\d+)"/g)].map(
         (m) => m[1],
       ),
     ).toEqual(['1', '3', '5', '7'])
     for (const [index, stage] of stages.entries()) {
-      expect(stage.split(/<li class="order-step"/).length - 1, `stage ${index + 1}`).toBe(2)
+      expect(stage.split(/<li class="order-step-item">/).length - 1, `stage ${index + 1}`).toBe(2)
     }
     expect(timelineHtml).toContain(stepsHtml)
   })
