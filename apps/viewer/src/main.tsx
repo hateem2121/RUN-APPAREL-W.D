@@ -1,7 +1,7 @@
 // wdth build: carries both weight (100–900) and width (62–125%) axes, so
 // display type can use the 122% width (docs/DESIGN.md § Type). Swapping this for
 // the weight-only build silently flattens every headline back to normal width.
-import '@fontsource-variable/archivo/wdth.css'
+import '@run-apparel/ui/archivo.css'
 import '@fontsource/instrument-serif/400-italic.css'
 // tokens + base moved to packages/ui on 2026-09-04 so the public marketing site
 // (apps/cms) renders from the SAME design system rather than a second copy of it.

@@ -1,0 +1,22 @@
+{
+  "package": "@fontsource-variable/archivo",
+  "version": "5.3.0",
+  "wdth": [100, 125],
+  "files": {
+    "latin": {
+      "source": "e3a28eade21a900c7155a247757f4b2834c07bb7ef07ad7efa55cebaac1e8f5e",
+      "cut": "dc3dad9f6cfbbca374f83ba1cd0897b785dbde6343d5239dbe26823fb7c2f6da",
+      "bytes": [90104, 62492]
+    },
+    "latin-ext": {
+      "source": "5717f37059660ca5c899bad6c48ee22c3ac55cb3c484055241689d0f905a1a86",
+      "cut": "ade8ccca58cc2266ccdaae52cf7131ed9d4533732119acaf1c0b98df8f39bbb7",
+      "bytes": [86240, 58960]
+    },
+    "vietnamese": {
+      "source": "332e6f66de84927cdffc60894e4e186ced783f5cb4b3e88200f45b7c1d306810",
+      "cut": "df03d3ab14e9483dd2b1701ae4cc76401d5f4883da2e8c4e3ecc91ba19e89f83",
+      "bytes": [34464, 23748]
+    }
+  }
+}
