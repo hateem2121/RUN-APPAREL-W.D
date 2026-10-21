@@ -7382,6 +7382,9 @@ a.contact-block__value:active {
   min-height: var(--target-min);
   padding-block: 8px;
   border-bottom: 1px solid var(--line);
+  /* Square: base.css rounds every link at rest (2026-10-21), and this one draws a divider line,
+     whose ends a radius would curl. */
+  border-radius: 0;
   color: var(--text);
   font-size: var(--text-sm);
   text-decoration: none;
@@ -7575,6 +7578,9 @@ a.contact-block__value:active {
   gap: 8px;
   padding-block: 24px;
   border-bottom: 1px solid var(--line);
+  /* Square: base.css rounds every link at rest (2026-10-21), and this one draws a divider line,
+     whose ends a radius would curl. */
+  border-radius: 0;
   color: inherit;
   text-decoration: none;
 }

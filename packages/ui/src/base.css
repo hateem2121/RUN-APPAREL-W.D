@@ -92,11 +92,25 @@ li {
    * pages in both themes found it reached only the elements with no radius of their own,
    * because every button, panel and pill sets its radius in a later sheet that wins the
    * (0,1,0) tie. Of those, `.skip-link` is a painted box; the rest are bare links whose ring
-   * was the only thing that changed. Each now carries its own `--radius-chip`, so every ring
-   * looks as it did. A new component with a fill and no radius would have been rounded on
-   * focus only. apps/viewer/src/styles/focusRing.test.ts refuses the line coming back, and
-   * apps/cms/e2e/focusRing.spec.ts checks no element's corners move when it takes focus.
+   * was the only thing that changed. A new component with a fill and no radius would have been
+   * rounded on focus only. apps/viewer/src/styles/focusRing.test.ts refuses the line coming
+   * back, and apps/cms/e2e/focusRing.spec.ts checks no element's corners move when it takes
+   * focus.
    */
+}
+
+/*
+ * Links and disclosure toggles keep the rounded ring they had before (owner, 2026-10-21). The
+ * radius is set AT REST, where it changes nothing a reader sees on a link that paints no box, so
+ * the ring follows it and nothing reshapes on focus. `:where()` keeps it at zero specificity:
+ * any component that sets its own corners wins, whatever the order. Measured on every page of
+ * the live site in both themes at 1280 and 390px: the only links it would have rounded at rest
+ * were the two FAQ lists, whose 1px divider line would curl at its ends, so those two set
+ * `border-radius: 0` themselves (site.css). The first fix (#216) squared these rings; a test that
+ * read the corners in the same task as focus() could not see it (focusRing.spec.ts).
+ */
+:where(a, summary) {
+  border-radius: var(--radius-chip);
 }
 
 /*
@@ -148,9 +162,6 @@ li {
   color: var(--bg);
   font-weight: 700;
   text-decoration: none;
-  /* Its own corners. It took 6px from the shared :focus-visible rule until 2026-10-21, and it is
-     only ever seen focused, so that was its look; the rule no longer sets a radius. */
-  border-radius: var(--radius-chip);
   /* Off the top of the viewport, not `display: none` — a hidden element cannot
      receive focus at all, which would make the link unreachable. */
   transform: translateY(-150%);

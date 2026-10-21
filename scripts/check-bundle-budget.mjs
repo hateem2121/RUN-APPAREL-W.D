@@ -197,6 +197,15 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   Main had 28 B left; the owner chose to raise by 100 B rather than the bare 72. A garment page's
  *   slow-3G first paint: 2,304 ms on main, 2,300 ms on this branch (median of 5). The fade in a media
  *   block of its own read 2,452 ms, a whole round trip for 181 bytes, so it shares the phone block.
+ *   ⚠️ 2026-10-21, the focus ring and High Contrast (#216, #218; owner chose the raise over square
+ *   link rings). #218 gives every link and FAQ toggle its rounded ring back (`:where(a, summary)`)
+ *   and draws the footer's status dot in High Contrast; it also trims three per-link radii and the
+ *   footer tab's corners to one shorthand. Built from main (86e60dda) and from this branch, gzip
+ *   level 9, every .css, on this Mac:
+ *       stylesheet    15,768 -> 15,781 B gzip  (+13)    budget 15,806 -> 16,006
+ *   ⚠️ CI READS 25 B MORE THAN THIS MAC for the same commit (main: 15,768 here, 15,793 in run
+ *   39589018065), so main had 13 B left in CI and this branch about 0 (it failed `verify`). Measure
+ *   headroom on CI's figure, never a local one. First paint was not re-measured for 13 bytes.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -223,7 +232,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 15_806, note: 'CSS' },
+  stylesheet: { bytes: 16_006, note: 'CSS' },
 }
 
 /**
