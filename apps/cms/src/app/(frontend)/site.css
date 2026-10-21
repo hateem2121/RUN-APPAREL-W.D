@@ -1421,6 +1421,38 @@ html {
 }
 
 /*
+ * ⚠️ THE OTHER COLOURS OF A CARD FAR DOWN THE PAGE ARE NOT DRAWN UNTIL IT COMES WITHIN TWO SCREENS
+ * (2026-10-21), AND ONLY THEY: NOT THE CARD, NOT THE PICTURE BOX, NOT THE FIRST SLIDE.
+ *
+ * Why: /products draws 41 cards of up to five slides, 2,449 elements, and a GitHub runner spent
+ * 1.1 s of a phone load on style and layout (Lighthouse live, 440 reports, 11 runs from 18 Oct). The
+ * "cost nothing measurable" figures at `.gallery-group` were measured on the Mac, about 1.7x a
+ * runner's CPU; they still hold for the groups, which stay drawn whole. Live page, phone, Lighthouse
+ * 13.5.0 at a runner's CPU, six runs each: blocking time 233 -> 156 ms, score 0.95 -> 0.97, and the
+ * runs no longer spread down to 0.92.
+ *
+ * Why these and nothing wider, all measured that day:
+ * - A slide's size is the strip's (`flex: 0 0 100%`, `height: 100%`), never its contents', so
+ *   skipping one cannot move anything. Polish S9 failed on a guessed stand-in height; there is none.
+ * - The same rule on `.product-card__figure` scored as well and started every card picture only once
+ *   it was 29-408px ON the screen, against about 2,700px ahead today: a lazy picture inside an undrawn
+ *   box has no position. These slides' pictures wait for `slidesToLoad` (CardGallery.tsx) anyway, so
+ *   their timing did not move (2,619-2,975px ahead, both ways). Lighthouse cannot see that regression.
+ *
+ * ⚠️ WHY A MARK (`data-far`) AND NOT THE BROWSER'S OWN NEARNESS: WEBKIT, EVERY IPHONE. Chromium and
+ * Firefox draw the colours beside a card in view (they are near the screen). WebKit counts them as
+ * off screen behind the strip's clip, so on a card in view the next colour stayed undrawn, its picture
+ * never loaded on a touch, and it was still undrawn a frame after a swipe began (Playwright WebKit,
+ * live page). So `CardGallery.tsx` marks cards from the fifth on as far and clears the mark for good
+ * once a card is within two screens (`NEAR_MARGIN`), long before a finger can reach it.
+ * `e2e/productsDrawing.spec.ts` holds all of this in three engines, with negative controls.
+ * Skipped slides stay in the page and the accessibility tree: links, names and find-in-page work.
+ */
+.product-card__figure[data-far] .card-gallery__slide + .card-gallery__slide {
+  content-visibility: auto;
+}
+
+/*
  * The dots row. Each dot is a real 44px button (`--target-min`) with the visible dot drawn
  * inside it — never a small button with padding or negative margins, which overlaps its
  * neighbours and hides the miss (`e2e/navbar.spec.ts` records the footer that shipped

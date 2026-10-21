@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   afterScroll,
   colourHref,
+  DRAWN_UP_FRONT,
   restingTarget,
   slideAt,
   slidesToLoad,
+  startsFar,
   stepColour,
 } from './cardGallery'
 
@@ -200,5 +202,13 @@ describe('"previous" twice while a "next" glide is under way (VA-30, CI run 3814
     g.scroll(sentTo * SLIDE, true)
     expect(sentTo, 'where the second "previous" sent the strip').toBe(4)
     expect(g.active, 'the colour the dots show once the strip rests').toBe(4)
+  })
+})
+
+describe('startsFar', () => {
+  it('leaves the first DRAWN_UP_FRONT cards whole and marks every later one', () => {
+    expect(DRAWN_UP_FRONT).toBe(4)
+    expect([0, 1, 2, 3].map(startsFar)).toEqual([false, false, false, false])
+    expect([4, 5, 40].map(startsFar)).toEqual([true, true, true])
   })
 })

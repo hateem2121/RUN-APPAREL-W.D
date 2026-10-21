@@ -87,3 +87,33 @@ describe('CardGallery: the dots are the colours, and arrows step through them (V
     expect(render([wine])).not.toContain('card-gallery__arrow')
   })
 })
+
+describe('CardGallery: a card far down the page starts marked far (site.css, `[data-far]`)', () => {
+  const figureOf = (index: number, colours: number) => {
+    const props: ComponentProps<typeof CardGallery> = {
+      productSlug: 'r-xmp',
+      productName: 'X-MILO PRO BIB',
+      garmentPages: '/products',
+      colours: Array.from({ length: colours }, (_, n) => ({
+        ...colour('https://media.wear-run.com/r-xmp-wine-render.webp'),
+        slug: `c${n}`,
+      })),
+      index,
+      children: 'X-MILO PRO BIB',
+    }
+    return (
+      renderToStaticMarkup(createElement(CardGallery, props)).match(/<figure [^>]*>/)?.[0] ?? ''
+    )
+  }
+
+  it('marks the fifth card on and leaves the first four whole, in the server’s markup', () => {
+    expect(figureOf(3, 5)).not.toContain('data-far')
+    expect(figureOf(4, 5)).toContain('data-far=""')
+    expect(figureOf(40, 2)).toContain('data-far=""')
+  })
+
+  // NEGATIVE CONTROL for the marking: one colour has no other colour to hold back.
+  it('never marks a card of one colour', () => {
+    expect(figureOf(40, 1)).not.toContain('data-far')
+  })
+})

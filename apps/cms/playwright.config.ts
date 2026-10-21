@@ -113,11 +113,13 @@ export default defineConfig({
      * engine carries on its own way, and the arrows a Mac's pointer gets in Safari.
      * `aboutGround` joined 2026-10-17 (home page audit): the light line between the hero and №01
      * was reported on an iPhone, and the rise that opened it runs on a scroll timeline (Safari 26).
+     * `productsDrawing` joined 2026-10-21: the cards' other colours wait to be drawn
+     * (`content-visibility`, Safari 18+), and how early a lazy picture starts is each engine's own.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|galleryArrows|aboutGround)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

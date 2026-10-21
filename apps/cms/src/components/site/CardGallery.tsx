@@ -4,10 +4,12 @@ import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 
 import {
   afterScroll,
   colourHref,
+  NEAR_MARGIN,
   REST_FRAMES,
   restingTarget,
   slideAt,
   slidesToLoad,
+  startsFar,
   stepColour,
 } from '../../lib/cardGallery'
 import { cardImage } from '../../lib/cardImage'
@@ -100,6 +102,27 @@ export function CardGallery({
   }
   const showing = colours[active] ?? colours[0]
   const href = colourHref(garmentPages, productSlug, showing?.slug ?? '')
+
+  /**
+   * A card far down the page waits to draw its other colours (`data-far`, site.css has why). Once it
+   * comes within two screens the mark goes for good, so a card a visitor can touch is whole and its
+   * next colour loads ahead of a swipe in every engine, as before. Without scripting the mark stays;
+   * those slides have no picture to show then anyway (only the first loads, see above).
+   */
+  const figure = useRef<HTMLElement>(null)
+  const [far, setFar] = useState(() => startsFar(index) && colours.length > 1)
+  useEffect(() => {
+    const el = figure.current
+    if (!far || !el) return
+    const near = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setFar(false)
+      },
+      { rootMargin: NEAR_MARGIN },
+    )
+    near.observe(el)
+    return () => near.disconnect()
+  }, [far])
 
   /**
    * The colour a dot or an arrow is gliding the strip to, until the strip comes to rest.
@@ -226,6 +249,8 @@ export function CardGallery({
     <>
       <figure
         className="product-card__figure"
+        ref={figure}
+        data-far={far ? '' : undefined}
         onPointerEnter={engage}
         onPointerDown={(event) => {
           engage()
