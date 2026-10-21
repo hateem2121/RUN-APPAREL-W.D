@@ -15,10 +15,11 @@ import {
   offsetOrbitAzimuth,
 } from '../lib/interactionCue'
 import { downloadWithRetries, MAX_ATTEMPTS } from '../lib/downloadWithRetries'
-import { DownloadStalledError } from '../lib/fetchWithProgress'
+import { DownloadStalledError, fetchFailureReason } from '../lib/fetchWithProgress'
 import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
 import { pictureHeadStart } from '../lib/pictureFirst'
+import { reloadForStaleChunk } from '../lib/staleChunkReload'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
@@ -339,10 +340,19 @@ export function Stage({
         if (!cancelled) setLibReady(true)
       })
       .catch(() => {
-        if (!cancelled) {
-          dispatchPhase({ type: 'load-failed', reason: 'module-failed' })
-          diagnostic('module-load-failed', { module: 'model-viewer' })
-        }
+        if (cancelled) return
+        // Most often a deploy deleted this chunk while the page was open (2026-10-21:
+        // 65 s after the viewer deploy, the owner got the fallback below; a reload drew
+        // the garment). One reload asks for the new chunk names — lib/staleChunkReload.ts.
+        const outcome = reloadForStaleChunk('model-viewer', { product: product.productCode })
+        // `leaving`: the visitor navigated away mid-download and the browser cancelled it.
+        if (outcome === 'reloaded' || outcome === 'leaving') return
+        dispatchPhase({ type: 'load-failed', reason: 'module-failed' })
+        // `product` since 2026-10-21: the two rows before then could not say which garment.
+        diagnostic('module-load-failed', {
+          product: product.productCode,
+          reason: `model-viewer (${outcome})`,
+        })
       })
     return () => {
       cancelled = true
@@ -814,9 +824,12 @@ export function Stage({
             dispatchPhase({ type: 'load-failed', reason: 'stalled' })
             return
           }
+          // WHY it failed, since 2026-10-21. Every one of the 13 rows in the 30 days before
+          // read only "falling back…", and each was followed by `model-load-error`, so the
+          // largest cause of "The 3D view is not available" could not be told apart.
           diagnostic('model-prefetch-failed', {
             product: product.productCode,
-            reason: 'falling back to direct model-viewer fetch',
+            reason: `falling back to direct model-viewer fetch (${fetchFailureReason(error)})`,
           })
           setResolvedSrc(glbUrl)
         })

@@ -225,3 +225,79 @@ describe('serviceWorkerSource', () => {
     expect(() => new Script(source())).not.toThrow()
   })
 })
+
+/**
+ * 2026-10-21: a chunk a deploy deleted is answered by the SPA fallback as `200 text/html`
+ * (measured live). Stored under the chunk's own URL, that page would stand in for the script
+ * until the next worker version. Run the GENERATED worker, not a string search, both ways.
+ */
+describe('the generated worker, run', () => {
+  const source = () =>
+    serviceWorkerSource({ shell: shellFromBundle(bundle()), version: 'abc123' }) as string
+
+  async function fetchThroughWorker(contentType: string): Promise<string[]> {
+    const listeners: Record<string, (event: unknown) => void> = {}
+    const stored: string[] = []
+    const cache = {
+      put: (request: { url: string }) => {
+        stored.push(request.url)
+        return Promise.resolve()
+      },
+      addAll: () => Promise.resolve(),
+    }
+    const response = {
+      ok: true,
+      type: 'basic',
+      redirected: false,
+      headers: new Headers({ 'content-type': contentType }),
+      clone() {
+        return this
+      },
+    }
+    const context = {
+      self: {
+        addEventListener: (name: string, fn: (event: unknown) => void) => {
+          listeners[name] = fn
+        },
+        location: { origin: 'https://wear-run.com' },
+        registration: { scope: 'https://wear-run.com/products/' },
+        clients: { matchAll: () => Promise.resolve([]) },
+        skipWaiting: () => Promise.resolve(),
+      },
+      caches: {
+        match: () => Promise.resolve(undefined),
+        open: () => Promise.resolve(cache),
+        keys: () => Promise.resolve([]),
+      },
+      fetch: () => Promise.resolve(response),
+      URL,
+      Response,
+      Promise,
+    }
+    new Script(source()).runInNewContext(context)
+    let answered: Promise<unknown> = Promise.resolve()
+    listeners.fetch({
+      request: {
+        url: 'https://wear-run.com/assets/model-viewer-OLDHASH.js',
+        method: 'GET',
+        mode: 'cors',
+      },
+      respondWith: (p: Promise<unknown>) => {
+        answered = p
+      },
+    })
+    await answered
+    await new Promise((r) => setTimeout(r, 0)) // the put is chained after the answer
+    return stored
+  }
+
+  it('does not store the HTML page that stands in for a deleted chunk', async () => {
+    expect(await fetchThroughWorker('text/html; charset=utf-8')).toEqual([])
+  })
+
+  it('still stores a real script (negative control)', async () => {
+    expect(await fetchThroughWorker('text/javascript')).toEqual([
+      'https://wear-run.com/assets/model-viewer-OLDHASH.js',
+    ])
+  })
+})

@@ -206,8 +206,12 @@ self.addEventListener('fetch', (event) => {
       if (cached) return cached
       return fetch(request).then((response) => {
         /* Only a real, complete, same-origin 200 is worth storing. An opaque or
-           partial response cached here would be replayed forever as a broken asset. */
-        if (response.ok && response.type === 'basic') {
+           partial response cached here would be replayed forever as a broken asset.
+           Nor an HTML page: a chunk a deploy deleted is answered by the SPA fallback,
+           200 text/html (measured live 2026-10-21), and stored here it would stand in
+           for that script until the next service-worker version. */
+        const type = response.headers.get('content-type') || ''
+        if (response.ok && response.type === 'basic' && !type.includes('text/html')) {
           const copy = response.clone()
           caches.open(CACHE).then((cache) => cache.put(request, copy))
         }

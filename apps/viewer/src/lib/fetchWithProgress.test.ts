@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DownloadStalledError, fetchWithProgress } from './fetchWithProgress'
+import { DownloadStalledError, fetchFailureReason, fetchWithProgress } from './fetchWithProgress'
 
 /**
  * The only route to the megabyte counts the readout promises.
@@ -348,5 +348,46 @@ describe('a download that stops sending (issue #41)', () => {
     const settled = expect(p).rejects.toBeInstanceOf(DownloadStalledError)
     await vi.advanceTimersByTimeAsync(12_000)
     await settled
+  })
+})
+
+/**
+ * 2026-10-21: `model-prefetch-failed` said only "falling back…" on all 13 rows of the previous
+ * 30 days, so the largest cause of "The 3D view is not available" had no cause attached. Each
+ * reason below is what a real failure produces — the reason must name it, and never the URL.
+ */
+describe('fetchFailureReason', () => {
+  afterEach(() => vi.restoreAllMocks())
+  const URL_ = 'https://media.example/secret-path/x.glb?sig=abc'
+
+  it('names the HTTP status of a refused model', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 404 }))
+    const error = await fetchWithProgress(URL_, () => {}).catch((e: unknown) => e)
+    expect(fetchFailureReason(error)).toBe('http 404')
+  })
+
+  it('names an HTML page that arrived as a 200', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<!doctype html>', { status: 200, headers: { 'content-type': 'text/html' } }),
+    )
+    const error = await fetchWithProgress(URL_, () => {}).catch((e: unknown) => e)
+    expect(fetchFailureReason(error)).toBe('html page')
+  })
+
+  it('names a network failure — Safari rejects fetch with TypeError "Load failed"', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Load failed'))
+    const error = await fetchWithProgress(URL_, () => {}).catch((e: unknown) => e)
+    expect(fetchFailureReason(error)).toBe('network')
+  })
+
+  it('names a stall and an abort, and never carries the URL', () => {
+    const abort = new DOMException('The operation was aborted.', 'AbortError')
+    const reasons = [
+      fetchFailureReason(new DownloadStalledError(URL_, 0, 12_000)),
+      fetchFailureReason(abort),
+      fetchFailureReason('a string'),
+    ]
+    expect(reasons).toEqual(['stalled', 'aborted', 'unknown'])
+    for (const reason of reasons) expect(reason).not.toContain('media.example')
   })
 })
