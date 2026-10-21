@@ -85,10 +85,18 @@ li {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  /* 4px → --radius-chip (6px), 2026-08-14. The only visual change in this file's
-     token sweep, and it is 2px on an outline corner at 2px offset. Left raw, it
-     would have been the last raw radius in the codebase. */
-  border-radius: var(--radius-chip);
+  /*
+   * ⚠️ NO border-radius HERE (packages/ui audit, 2026-10-21). An outline already follows the
+   * element's own corners (MDN, outline), so a radius in this rule never shaped the ring: it
+   * reshaped the FOCUSED ELEMENT. It held a 6px `--radius-chip` from 2026-08-14. Tabbing six
+   * pages in both themes found it reached only the elements with no radius of their own,
+   * because every button, panel and pill sets its radius in a later sheet that wins the
+   * (0,1,0) tie. Of those, `.skip-link` is a painted box; the rest are bare links whose ring
+   * was the only thing that changed. Each now carries its own `--radius-chip`, so every ring
+   * looks as it did. A new component with a fill and no radius would have been rounded on
+   * focus only. apps/viewer/src/styles/focusRing.test.ts refuses the line coming back, and
+   * apps/cms/e2e/focusRing.spec.ts checks no element's corners move when it takes focus.
+   */
 }
 
 /*
@@ -108,7 +116,10 @@ li {
   margin: -1px;
   padding: 0;
   overflow: hidden;
+  /* `clip` is deprecated (MDN) and kept only for browsers older than `clip-path`'s
+     January 2020 baseline; `clip-path` is the one current engines read. */
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -137,6 +148,9 @@ li {
   color: var(--bg);
   font-weight: 700;
   text-decoration: none;
+  /* Its own corners. It took 6px from the shared :focus-visible rule until 2026-10-21, and it is
+     only ever seen focused, so that was its look; the rule no longer sets a radius. */
+  border-radius: var(--radius-chip);
   /* Off the top of the viewport, not `display: none` — a hidden element cannot
      receive focus at all, which would make the link unreachable. */
   transform: translateY(-150%);
@@ -400,6 +414,14 @@ li {
   border-radius: var(--radius-chip);
   background: var(--label-bg);
   color: var(--label-text);
+}
+
+/* Windows High Contrast replaces the volt block with the page's own Canvas, so the light chip was
+   bare words in a run of text (audit, 2026-10-21). A border is the one edge forced colours keep. */
+@media (forced-colors: active) {
+  .label {
+    border: 1px solid CanvasText;
+  }
 }
 
 .section-number {

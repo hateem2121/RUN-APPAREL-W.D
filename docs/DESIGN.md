@@ -1100,9 +1100,19 @@ download 100 bytes, Apple's own test.
 
 ### Elevation
 
-`--shadow-raised` — one token, because this system has exactly one elevated
-surface: **the desktop contact rail** (`.contact-rail`), the floating
-EMAIL / WHATSAPP pill in the bottom-right corner.
+`--shadow-raised` — one token. Its users, read from the CSS on 2026-10-21: **the menu
+bar** (`.notch`, `packages/ui/src/notch.css`), **the cookie card** (`.consent__card`,
+`packages/ui/src/base.css`), and the glow on the footer's "open" dot
+(`packages/ui/src/footer-prompt.css`).
+
+⚠️ **This section named the desktop contact rail (`.contact-rail`) until 2026-10-21, and that
+element was DELETED on 2026-09-04** (`apps/viewer/src/styles/page.css` records why), so it
+documented a consumer that did not exist for seven weeks, the same drift as the one below.
+
+**In forced colours (Windows High Contrast) the browser sets `box-shadow` to `none`** (MDN,
+`forced-colors`), so the shadow cannot be an elevated surface's only edge there. The menu bar
+gets a `1px solid CanvasText` border in its forced-colours block; the cookie card already has a
+1px border, which forced colours keep and recolour. A new elevated surface needs the same.
 
 ⚠️ **It named the floating colourway preview until 2026-08-17, and that element
 had been DELETED on 2026-08-15** — so for two days this section documented an
@@ -1122,8 +1132,12 @@ Declared with `light-dark()` like every other surface value. Added 2026-08-14: t
 system had **no shadow token at all**, and its one drop shadow was a raw
 `rgba(0, 0, 0, 0.12)` — forbidden by the rule above, and invisible over the dark
 `--bg` (#1c1f18), so the preview lost its only separation from the rail behind it.
-Pure black is wrong in both halves of this system for the same reason `--ink` is
-`#1d1f1a` and never `#000`.
+
+**The never-`#000` rule covers text and fills, not this shadow** (owner, 2026-10-21). `--ink`
+is `#1d1f1a` and never `#000` because a reader sees a fill or a letter as a colour. A shadow is
+seen only as darkening: the light half is the ink at 14%, and the dark half stays
+`rgba(0, 0, 0, 0.5)`, because over the dark `--bg` that is the value that gave the surface an
+edge.
 
 ### Layering
 
@@ -1397,12 +1411,25 @@ widths where an unrounded value would be fractional.
 
 ## 7. Accessibility
 
-- `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, `--radius-chip` (6px)
-  radius, applied globally. `--focus-ring` is volt-deep in light and volt in dark, so it
+- `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, applied globally. **No
+  radius:** the ring follows each element's own corners, so a 10px button, an 18px panel and a
+  999px pill each keep their shape when focused. The rule set `--radius-chip` until 2026-10-21,
+  which reshaped the focused element rather than the ring; the bare links that relied on it
+  (menu-bar and footer links, the wordmark, contact values, gallery dots, the skip link) carry
+  `--radius-chip` themselves, so their rings look as before. `focusRing.test.ts` and the
+  website's `e2e/focusRing.spec.ts` hold it. WCAG 2.2 SC 2.4.13 (Focus Appearance, AAA) asks
+  for at least the area of a 2px perimeter and a 3:1 change; a 2px solid ring at 2px offset
+  meets the area. `--focus-ring` is volt-deep in light and volt in dark, so it
   clears contrast in both — except on the site's dark surfaces, which take volt in both
   themes: the footer's links and, since 2026-09, everything in the menu bar (volt-deep
   measured 3.16:1 on the bar's ink).
-- `.visually-hidden` for screen-reader-only text.
+- `.visually-hidden` for screen-reader-only text: `clip-path: inset(50%)`, with the deprecated
+  `clip` kept beside it for browsers older than `clip-path`.
+- Forced colours (Windows High Contrast): backgrounds are replaced and shadows removed, so a
+  surface whose edge is a fill or a shadow gets a `1px solid CanvasText` border inside
+  `@media (forced-colors: active)`: the light label chip (`base.css`), the menu bar, its open
+  menu and the footer tab (`notch.css`, `footer-prompt.css`), and the product tickets
+  (`site.css`).
 - Touch targets ≥ 44px.
 - 60ch measure cap.
 - Enforced by `apps/viewer/e2e/a11y.spec.ts` (axe) and the Lighthouse
