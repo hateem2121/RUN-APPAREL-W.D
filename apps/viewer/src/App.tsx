@@ -5,6 +5,7 @@ import {
   PAGE_TITLE_BRAND,
   type TrackerWindow,
   trackerEvent,
+  viewerApiPath,
 } from '@run-apparel/shared'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
@@ -24,6 +25,7 @@ import { startActionBarHeight } from './lib/actionBarHeight'
 import { track } from './lib/analytics'
 import { type ViewerFetchFailure, ViewerFetchError, fetchViewerData } from './lib/api'
 import { diagnostic } from './lib/diagnostic'
+import { takeEmbeddedPayload } from './lib/embeddedPayload'
 import { isFocusUnclaimed } from './lib/focusHandoff'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { useIdentityInAside } from './lib/useIdentityInAside'
@@ -128,7 +130,11 @@ export default function App() {
       return
     }
     try {
-      const response = await fetchViewerData(route.productSlug, route.colourSlug)
+      // A search robot's page carries the payload already (src/lib/embeddedPayload.ts), so
+      // its renderer never depends on the request Google's fetcher sometimes drops.
+      const response =
+        takeEmbeddedPayload(viewerApiPath(route.productSlug, route.colourSlug)) ??
+        (await fetchViewerData(route.productSlug, route.colourSlug))
       if (isViewerApiError(response)) {
         setState({ kind: 'unavailable' })
         // A real product that will not load and a URL nobody ever published look

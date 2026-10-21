@@ -280,6 +280,30 @@ async function runChecks() {
     fail('the page a crawler receives has no readable <article> with the garment name in it.')
   }
 
+  // 3c. The payload itself, so a robot's renderer never depends on the API request
+  //     (2026-10-21: Google's fetcher failed it, the app drew "did not load", and that
+  //     screen's noindex kept eight garments out of Google). `embeddedPayload.test.ts`
+  //     covers the markup; this confirms the DEPLOYED Worker appends it, for THIS garment.
+  const block = html.match(
+    /<script type="application\/json" id="viewer-payload" data-path="([^"]*)">([^<]*)<\/script>/,
+  )
+  const expectPath = `/api/public/viewer/${encodeURIComponent(PRODUCT)}/${encodeURIComponent(COLOUR)}`
+  if (!block) {
+    fail('the page a crawler receives carries no garment payload (#viewer-payload).')
+  } else {
+    if (block[1] !== expectPath)
+      fail(`#viewer-payload answers ${block[1]}, expected ${expectPath}.`)
+    let embedded = null
+    try {
+      embedded = JSON.parse(block[2])
+    } catch {
+      fail('#viewer-payload does not parse as JSON.')
+    }
+    if (embedded && embedded.product?.slug !== PRODUCT) {
+      fail(`#viewer-payload is for ${embedded.product?.slug}, expected ${PRODUCT}.`)
+    }
+  }
+
   // 4. The picture is absolute and really fetchable. A relative og:image is the most
   //    common way a preview fails, and a 404 here shows as a card with a blank slot.
   const image = meta(html, 'og:image')
