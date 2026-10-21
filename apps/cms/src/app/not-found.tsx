@@ -1,4 +1,4 @@
-import '@fontsource-variable/archivo/wdth.css'
+import '@run-apparel/ui/archivo.css'
 import '@fontsource/instrument-serif/400-italic.css'
 // ORDER IS LOAD-BEARING — the same four-import cascade (frontend)/layout.tsx uses.
 import '@run-apparel/ui/tokens.css'

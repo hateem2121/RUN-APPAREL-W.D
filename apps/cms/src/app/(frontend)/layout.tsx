@@ -24,7 +24,7 @@
  * `products/page.tsx` preconnects to the media host, which costs no bandwidth at all —
  * that is the shape of hint worth adding.
  */
-import '@fontsource-variable/archivo/wdth.css'
+import '@run-apparel/ui/archivo.css'
 import '@fontsource/instrument-serif/400-italic.css'
 // ORDER IS LOAD-BEARING — tokens define the custom properties the files below
 // read. The same four-import cascade apps/viewer uses, from the same package, so the

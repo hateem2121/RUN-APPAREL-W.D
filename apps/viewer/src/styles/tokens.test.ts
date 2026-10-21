@@ -1706,6 +1706,10 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for lab
   /** Brand faces a stylesheet declares itself, and the only package each may load files from. */
   const BRAND_FILES: Record<string, RegExp> = {
     'IBM Plex Mono': /^\s*url\("@fontsource\/ibm-plex-mono\/files\/ibm-plex-mono-[\w-]+\.woff2"\)/,
+    // Archivo cut to 100-125% wide (packages/ui/src/archivo.css, 2026-10-21): the brand's own font,
+    // made from its package by packages/ui/scripts/cut-archivo.py, and only those three files.
+    'Archivo Variable':
+      /^\s*url\(\.\.\/fonts\/archivo-(?:latin|latin-ext|vietnamese)-wdth-100-125\.woff2\)/,
   }
   /*
    * The brand faces again, with `font-display: optional` (site.css, owner decision 2026-10-01):
@@ -1784,9 +1788,12 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for lab
         continue
       }
       if (NO_SWAP_COPIES.includes(family)) {
-        // A copy may load only the brand's own fontsource files, never a new webfont.
+        // A copy may load only the brand's own files, never a new webfont: Instrument Serif's
+        // fontsource files, and Archivo's cut copy in packages/ui (archivo.css, 2026-10-21).
         if (
-          !/^\s*url\("@fontsource(?:-variable)?\/(?:archivo|instrument-serif)\/files\//.test(src)
+          !/^\s*url\("(?:@fontsource\/instrument-serif\/files\/|@run-apparel\/ui\/fonts\/archivo-(?:latin|latin-ext|vietnamese)-wdth-100-125\.woff2")/.test(
+            src,
+          )
         ) {
           offenders.push(`@font-face "${family}" loads something other than the brand's own files`)
         }

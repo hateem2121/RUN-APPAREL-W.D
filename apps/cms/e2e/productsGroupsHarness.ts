@@ -13,7 +13,7 @@
  * `next/link` becomes a plain `<a>` here (`fixtures/nextLinkShim.tsx`). Next's Link renders the same
  * element, and outside a Next app there is no router for it.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
@@ -28,7 +28,7 @@ const REPO = join(CMS, '..', '..')
  * and a card's height, and where its links sit, are the font's.
  */
 const STYLESHEETS = [
-  'apps/cms/node_modules/@fontsource-variable/archivo/wdth.css',
+  'packages/ui/src/archivo.css',
   'apps/cms/node_modules/@fontsource/instrument-serif/400-italic.css',
   'packages/ui/src/tokens.css',
   'packages/ui/src/base.css',
@@ -44,14 +44,18 @@ const fontFiles = new Map<string, string>()
 
 /**
  * Points each font file a stylesheet names at an address the spec serves from disk. Both shapes
- * Next's build resolves: `./files/x.woff2` beside a fontsource sheet, and site.css's own
- * `@fontsource/<name>/files/x.woff2`. Only the files named here are ever served.
+ * Next's build resolves: a path relative to the sheet (`./files/x.woff2` beside a fontsource sheet,
+ * `../fonts/x.woff2` from packages/ui's archivo.css), and site.css's package paths
+ * (`@fontsource/<name>/files/x.woff2`, `@run-apparel/ui/fonts/x.woff2`). Only the files named here are ever served.
  */
 function withServedFonts(css: string, sheet: string): string {
   return css.replace(/url\("?([^")]+\.woff2?)"?\)/g, (_, ref: string) => {
-    const file = ref.startsWith('./') ? join(dirname(sheet), ref) : join(CMS, 'node_modules', ref)
-    if (!existsSync(file))
+    const named = ref.startsWith('.') ? join(dirname(sheet), ref) : join(CMS, 'node_modules', ref)
+    if (!existsSync(named))
       throw new Error(`[products-groups-harness] no font file ${ref} (${sheet})`)
+    // The real path: archivo.css names packages/ui/fonts/ and site.css the same file through the
+    // workspace link in node_modules, which is one font, not two (2026-10-21).
+    const file = realpathSync(named)
     const address = `/__products-groups/fonts/${basename(file)}`
     const known = fontFiles.get(address)
     if (known && known !== file)

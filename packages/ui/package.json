@@ -9,9 +9,12 @@
     "./base.css": "./src/base.css",
     "./notch.css": "./src/notch.css",
     "./footer.css": "./src/footer.css",
-    "./footer-prompt.css": "./src/footer-prompt.css"
+    "./footer-prompt.css": "./src/footer-prompt.css",
+    "./archivo.css": "./src/archivo.css",
+    "./fonts/*": "./fonts/*"
   },
   "files": [
-    "src"
+    "src",
+    "fonts"
   ]
 }
