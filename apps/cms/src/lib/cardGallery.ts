@@ -122,3 +122,24 @@ export function slidesToLoad(
   }
   return next
 }
+
+/**
+ * Cards before this position draw every colour from the start; later ones are marked far and wait
+ * until `CardGallery.tsx`'s observer finds them within `NEAR_MARGIN` of the screen (site.css, at
+ * `[data-far]`, has why and the measurements). Four covers a phone's first screen and the top row
+ * of the widest grid; a wider first screen is cleared by the observer as soon as the page runs.
+ */
+export const DRAWN_UP_FRONT = 4
+
+/**
+ * How close a far card comes before its other colours are drawn: two screens, so a card is whole
+ * long before a visitor can touch it, in every engine. WebKit counts the colours beside a card's
+ * frame as off screen even on a card in view (measured 2026-10-21), so this, not the browser's own
+ * nearness, decides it there.
+ */
+export const NEAR_MARGIN = '200% 0px'
+
+/** Whether a card starts marked far: the same answer on the server and in the browser. */
+export function startsFar(index: number): boolean {
+  return index >= DRAWN_UP_FRONT
+}
