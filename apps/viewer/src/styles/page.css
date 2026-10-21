@@ -186,8 +186,15 @@
    * 16px buys 25px of clearance for 16px of garment, on a garment that Part A
    * and C1 between them grew by 30% on the same screens. That is a good trade
    * and it is the difference between an invariant and a coincidence.
+   *
+   * ⚠️ 24px SINCE THE BAR LOST 8px (2026-10-21), SO THE GARMENT DID NOT GROW. With +16 the 8px
+   * the slimmer bar gave back went to the stage, every line under the garment moved 8px down,
+   * and on a first visit the cookie card covered the bottom 5px of the colour's name (WINE at
+   * 697px against the card's top at 692.4px, all four engines, consent.spec.ts). The owner chose
+   * the slimmer bar with the garment unchanged: bar 8px shorter + reserve 8px larger = the same
+   * layout above the bar, and 8px more clearance between the colours and the bar.
    */
-  padding-bottom: calc(var(--action-bar-h) + 16px);
+  padding-bottom: calc(var(--action-bar-h) + 24px);
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
@@ -2635,8 +2642,17 @@ summary.spec-item__row:focus-visible {
   z-index: var(--z-action-bar);
   display: flex;
   gap: 10px;
-  padding-top: 12px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  /*
+    8px, not 12px (owner, 2026-10-21): the strip under the buttons read as wasted space on an
+    iPhone. Most of it is not ours. Measured in the iOS 26.5 simulator, Safari's page ends at
+    714pt of 874 (754 with the toolbar collapsed), env(safe-area-inset-bottom) reads 0 in both
+    states, and Safari 26 will not paint a fixed bar inside its own toolbar zone below that
+    (58-98pt, tinted in this bar's colour). These 4px a side are the only part the page owns;
+    the buttons keep their 48px height, and `.stage-block` reserves 8px more so the garment
+    keeps its size (the reason is there).
+  */
+  padding-top: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   padding-left: max(clamp(16px, 4vw, 24px), env(safe-area-inset-left, 0px));
   padding-right: max(clamp(16px, 4vw, 24px), env(safe-area-inset-right, 0px));
   /*
