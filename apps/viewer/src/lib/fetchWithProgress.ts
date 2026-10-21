@@ -25,6 +25,35 @@ export class DownloadStalledError extends Error {
   }
 }
 
+/** A model request that answered, but not with a model. `reason` is safe to report: no URL. */
+export class ModelFetchError extends Error {
+  override readonly name = 'ModelFetchError'
+  constructor(
+    message: string,
+    readonly reason: string,
+  ) {
+    super(message)
+  }
+}
+
+/**
+ * Why a model download failed, in words that are safe to send to telemetry: never the URL.
+ *
+ * Added 2026-10-21 because `model-prefetch-failed` said only "falling back…" on all 13 rows of
+ * the previous 30 days, and each was followed by `model-load-error` and the fallback notice —
+ * the largest cause of a missing 3D view, and nothing recorded which kind of failure it was.
+ * `network` is the browser's own TypeError ("Load failed" in Safari, Sentry VIEWER-A).
+ */
+export function fetchFailureReason(error: unknown): string {
+  if (error instanceof DownloadStalledError) return 'stalled'
+  if (error instanceof ModelFetchError) return error.reason
+  // By name, not class: an abort is a DOMException, which is not an `Error` everywhere (jsdom).
+  if ((error as { name?: unknown } | null)?.name === 'AbortError') return 'aborted'
+  if (error instanceof TypeError) return 'network'
+  if (error instanceof Error) return error.name
+  return 'unknown'
+}
+
 /**
  * Fetch a URL while counting the bytes as they arrive.
  *
@@ -128,7 +157,10 @@ async function readCounted(
   const response = await fetch(url, { signal })
   onHeaders()
   if (!response.ok) {
-    throw new Error(`fetchWithProgress: ${url} responded ${response.status}`)
+    throw new ModelFetchError(
+      `fetchWithProgress: ${url} responded ${response.status}`,
+      `http ${response.status}`,
+    )
   }
 
   /**
@@ -155,10 +187,11 @@ async function readCounted(
    */
   const contentType = response.headers.get('content-type') ?? ''
   if (contentType.includes('text/html')) {
-    throw new Error(
+    throw new ModelFetchError(
       `fetchWithProgress: ${url} returned an HTML page (${contentType}), not a model. ` +
         'The object is probably missing from storage — R2 answers a missing key with ' +
         "Cloudflare's own error document.",
+      'html page',
     )
   }
 
