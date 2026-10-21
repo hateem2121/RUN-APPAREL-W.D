@@ -1500,6 +1500,8 @@ html {
   border: 0;
   background: none;
   cursor: pointer;
+  /* Paints nothing; it shapes the focus ring, which the shared rule no longer does (2026-10-21). */
+  border-radius: var(--radius-chip);
   transition: scale var(--instant) var(--ease);
 }
 
@@ -2201,6 +2203,8 @@ html {
 .contact-block__value {
   font-size: var(--text-body);
   color: var(--text);
+  /* Paints nothing; it shapes the focus ring, which the shared rule no longer does (2026-10-21). */
+  border-radius: var(--radius-chip);
 }
 
 /*

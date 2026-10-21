@@ -135,8 +135,11 @@
   /* The system defined no shadow token at all, and its one drop shadow was a
      raw `rgba(0, 0, 0, 0.12)` — forbidden by tokens.css:4, and invisible over
      the dark --bg (#1c1f18), so the floating colourway preview lost its only
-     separation from the rail behind it. Pure black is wrong in both halves of
-     this system: --ink is deliberately "#1d1f1a … Never #000". */
+     separation from the rail behind it. The never-#000 rule (--ink is "#1d1f1a …
+     Never #000") covers text and fills, not this shadow (owner, 2026-10-21): the
+     dark half stays rgba(0, 0, 0, 0.5), the value that gave the surface an edge
+     over the dark --bg. Forced colours remove it entirely, so an elevated surface
+     also needs a CanvasText border there (DESIGN.md, Elevation). */
 
   /* ── Radii ──────────────────────────────────────────────────────── */
   /* --radius-card and --radius-chip were MEASURED from the eight raw values
