@@ -44,12 +44,12 @@
   letter-spacing: var(--tracking-instrument);
   text-transform: uppercase;
   white-space: nowrap;
-  border-start-start-radius: var(--notch-r);
-  border-start-end-radius: var(--notch-r);
-  /* Square at the foot, where the tab joins the slab. Stated, not left to the initial 0: base.css
-     rounds every link at rest (2026-10-21), which rounded this foot until these two lines. */
-  border-end-start-radius: 0;
-  border-end-end-radius: 0;
+  /* Rounded on top, square at the foot where the tab joins the slab. All four corners are stated:
+     base.css rounds every link at rest (2026-10-21), which rounded this foot while only the top
+     two were set. One shorthand rather than four logical longhands, because the garment pages'
+     stylesheet budget had 4 bytes left (PR #218); the site is left-to-right only, so top-left and
+     top-right are exactly the start corners. */
+  border-radius: var(--notch-r) var(--notch-r) 0 0;
   /* Ungated, unlike the hover transition further down — a press happens on both
      pointer types and this tab is the footer's only call to action. */
   transition: background-color var(--instant) var(--ease);
@@ -393,10 +393,10 @@
   /* The status dot is a filled 7px circle, and forced colours repaint its fill in the page's own
      colour, so it vanished in both themes (measured 2026-10-21). Painted in the text's colour,
      as the works-clock dot already is (site.css); open and closed then look alike here, and the
-     words beside it say which. The open state is named too: its volt rule is more specific and
-     would otherwise win, and be repainted out of sight. */
-  .footer-status::before,
-  .footer-status[data-state="open"]::before {
+     words beside it say which. `[data-state]` (FooterClock always sets it) ties the open state's
+     volt rule on specificity and comes after it, so it wins for both states; the bare
+     `.footer-status::before` lost to that rule and the dot stayed invisible when open. */
+  .footer-status[data-state]::before {
     background: CanvasText;
   }
 }

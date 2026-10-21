@@ -341,8 +341,6 @@
    */
   letter-spacing: var(--tracking-wordmark);
   text-decoration: none;
-  /* Paints nothing; it shapes the focus ring, which the shared rule no longer does (2026-10-21). */
-  border-radius: var(--radius-chip);
   color: var(--notch-text);
 }
 
@@ -379,8 +377,6 @@
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps-snug);
   text-decoration: none;
-  /* Paints nothing; it shapes the focus ring, which the shared rule no longer does (2026-10-21). */
-  border-radius: var(--radius-chip);
   color: var(--notch-muted, var(--muted));
   /* `scale` rides in this list rather than a rule of its own: `transition` is a
      shorthand, so a second declaration would replace the colour transition instead of

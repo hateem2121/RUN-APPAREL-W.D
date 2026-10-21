@@ -1418,8 +1418,8 @@ widths where an unrounded value would be fractional.
   rounded ring** (owner, 2026-10-21): `base.css` gives every `a` and `summary` `--radius-chip`
   AT REST through `:where()`, which changes nothing a reader sees on a link that paints no box,
   and any component that sets its own corners wins. A link that paints a line or a box states
-  its corners itself (the two FAQ lists' divider lines, the footer tab's square foot). The
-  wordmark, contact values, gallery dots and the skip link carry `--radius-chip` themselves.
+  its corners itself (the two FAQ lists' divider lines, the footer tab's square foot). Contact
+  values and the gallery dots (buttons) carry `--radius-chip` themselves.
   `focusRing.test.ts` and the website's `e2e/focusRing.spec.ts` hold all of it; the spec reads a
   focused element's corners two frames after `focus()`, because read at once the browser
   intermittently reported the resting value. WCAG 2.2 SC 2.4.13 (Focus Appearance, AAA) asks

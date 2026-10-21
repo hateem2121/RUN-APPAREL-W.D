@@ -162,9 +162,6 @@ li {
   color: var(--bg);
   font-weight: 700;
   text-decoration: none;
-  /* Its own corners. It took 6px from the shared :focus-visible rule until 2026-10-21, and it is
-     only ever seen focused, so that was its look; the rule no longer sets a radius. */
-  border-radius: var(--radius-chip);
   /* Off the top of the viewport, not `display: none` — a hidden element cannot
      receive focus at all, which would make the link unreachable. */
   transform: translateY(-150%);

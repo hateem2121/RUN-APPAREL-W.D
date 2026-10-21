@@ -104,6 +104,7 @@ test.describe('keyboard focus keeps each element its own corners', () => {
 test.describe("links keep their rounded ring (owner, 2026-10-21), and it rounds no link's box", () => {
   for (const [path, selector] of [
     ['/', 'footer li > a'],
+    ['/', '.notch .nav-link'],
     ['/policies/workplace-conduct', 'nav.crumbs > a'],
     ['/faq/orders-and-samples', 'details summary'],
   ] as const) {
@@ -120,14 +121,18 @@ test.describe("links keep their rounded ring (owner, 2026-10-21), and it rounds 
 
   // The rounding is set at rest, so it must stay invisible at rest: removing the rule from the
   // page must leave every link or toggle that paints a box (a fill, a border, a divider line)
-  // exactly as it was. Measured 2026-10-21: the two FAQ lists' divider lines failed this until
-  // they set their own `border-radius: 0`.
+  // exactly as it was. Measured 2026-10-21: the two FAQ lists' divider lines and the footer tab's
+  // foot failed this until they stated their own corners. An element clipped to 1px at rest
+  // (the skip link) shows no corners to anyone until it is focused, so it is not checked here;
+  // its focused corners are the keyboard test's business.
   for (const path of ['/', '/products', '/contact', '/faq', '/faq/orders-and-samples']) {
     test(`${path}: the rounding rule changes no painted link`, async ({ page }) => {
       await page.goto(path)
       const result = await page.evaluate(() => {
         const painted = [...document.querySelectorAll<HTMLElement>('a, summary')].filter((el) => {
           const c = getComputedStyle(el)
+          const box = el.getBoundingClientRect()
+          if (box.width <= 1 || box.height <= 1) return false
           return (
             c.backgroundColor !== 'rgba(0, 0, 0, 0)' ||
             c.backgroundImage !== 'none' ||
