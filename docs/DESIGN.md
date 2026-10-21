@@ -1414,10 +1414,15 @@ widths where an unrounded value would be fractional.
 - `:focus-visible` — `2px solid var(--focus-ring)`, `2px` offset, applied globally. **No
   radius:** the ring follows each element's own corners, so a 10px button, an 18px panel and a
   999px pill each keep their shape when focused. The rule set `--radius-chip` until 2026-10-21,
-  which reshaped the focused element rather than the ring; the bare links that relied on it
-  (menu-bar and footer links, the wordmark, contact values, gallery dots, the skip link) carry
-  `--radius-chip` themselves, so their rings look as before. `focusRing.test.ts` and the
-  website's `e2e/focusRing.spec.ts` hold it. WCAG 2.2 SC 2.4.13 (Focus Appearance, AAA) asks
+  which reshaped the focused element rather than the ring. **Links and FAQ toggles keep a
+  rounded ring** (owner, 2026-10-21): `base.css` gives every `a` and `summary` `--radius-chip`
+  AT REST through `:where()`, which changes nothing a reader sees on a link that paints no box,
+  and any component that sets its own corners wins. A link that paints a line or a box states
+  its corners itself (the two FAQ lists' divider lines, the footer tab's square foot). The
+  wordmark, contact values, gallery dots and the skip link carry `--radius-chip` themselves.
+  `focusRing.test.ts` and the website's `e2e/focusRing.spec.ts` hold all of it; the spec reads a
+  focused element's corners two frames after `focus()`, because read at once the browser
+  intermittently reported the resting value. WCAG 2.2 SC 2.4.13 (Focus Appearance, AAA) asks
   for at least the area of a 2px perimeter and a 3:1 change; a 2px solid ring at 2px offset
   meets the area. `--focus-ring` is volt-deep in light and volt in dark, so it
   clears contrast in both — except on the site's dark surfaces, which take volt in both
