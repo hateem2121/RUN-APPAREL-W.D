@@ -712,6 +712,10 @@ describe('raw values in component stylesheets', () => {
       selector: '.related__body .related__name',
       value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
     },
+    // Site check-up (2026-10-22): a careers step's name shrinks with its step when the reader's
+    // text is large, rather than run off a 320px phone or break inside a word. The step is the
+    // container; `apps/cms/e2e/bigText.spec.ts` sets seven pages at twice the text.
+    { file: 'site.css', selector: '.career-path__name', value: 'min(var(--text-lead), 13cqi)' },
   ] as const
   const RATIOS = [{ file: 'base.css', selector: '.serif-accent', value: '1.07em' }] as const
 

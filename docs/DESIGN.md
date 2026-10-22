@@ -264,7 +264,14 @@ takes a range in `cqi`, the card's body being the container. Two cards a row (VA
 ticket gives the name its right half, 132px at 320px: 16.2px there, 17.6px at 340 and the full
 18px from 360px (measured in Chromium). A hyphenated word (V-NECK) is held whole.
 `apps/cms/e2e/productsGrid.spec.ts` sets the catalogue's long words in a phone card at seven
-widths. A garment page's "More from this category" cards (polish S6,
+widths.
+
+**A careers step's name shrinks with its step when the reader's text is large (site check-up,
+2026-10-22).** `.career-path__name` is `min(var(--text-lead), 13cqi)`, each step its own
+container: with the root text at 200% on a 320px phone, SUPERVISOR needed 300px in a 164px step
+and ran off the screen, and a role's name never breaks inside a word (2026-10-07). At the usual
+size the lead size is the smaller from 320px up, so nothing moves there.
+`apps/cms/e2e/bigText.spec.ts` holds seven pages at twice the text. A garment page's "More from this category" cards (polish S6,
 2026-10-04) are the same card two to a row, and `.related__body .related__name` takes the same
 range: its words have 112px at 320px, and `apps/viewer/e2e/related.spec.ts` checks five widths.
 
@@ -1149,12 +1156,13 @@ nothing moved — with one stated exception below.
 | Token | Value | Layer |
 |---|---|---|
 | `--z-hero-grid` | -1 | the site's `.site-hero__grid` — the blueprint grid behind the hero copy |
-| `--z-menu-dim` | -1 | `.notch-shell::before`, both hosts — the dim behind the open phone menu (polish X26, 2026-10-04); -1 inside the bar's own layer, so it covers the page and stays under the bar |
+| `--z-menu-dim` | -1 | `.notch-dim`, both hosts — the dim behind the open phone menu (polish X26, 2026-10-04); -1 inside the bar's own layer, so it covers the page and stays under the bar. Its own element since 2026-10-22, not the shell's `::before`: iPhone Safari kept the dimmed colour of the always-visible shell under its bar (site check-up) |
 | `--z-stage-control` | 1 | `.stage__ar` — inside the stage, above the canvas |
 | `--z-card-control` | 1 | the site's `.card-gallery__arrow` — previous / next over a gallery card's picture (VA-30) |
 | `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
 | `--z-footer-glow` | 6 | the site's `.footer-glow` — the light, blended over the slab's content |
 | `--z-header` | 40 | the bar; both hosts' `.notch-shell` share it since 2026-09-24 |
+| `--z-nav-progress` | 41 | the website's `.nav-progress`, the loading line after a tap on a link inside the site (site check-up, 2026-10-22) — over the bar it runs along, under everything above it |
 | `--z-action-bar` | 50 | the persistent contact bar |
 | `--z-consent` | 55 | `.consent`, the cookie choice (2026-09-30) — over the action bar until answered; under the grain, the dialog and the curtain |
 | `--z-grain` | 60 | the full-page grain overlay |

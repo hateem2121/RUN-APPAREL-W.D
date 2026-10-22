@@ -8609,7 +8609,7 @@ a.contact-block__value:active {
 .nav-progress {
   position: fixed;
   inset: 0 0 auto;
-  z-index: calc(var(--z-header) + 1);
+  z-index: var(--z-nav-progress);
   height: 3px;
   background: var(--volt);
   transform-origin: left center;

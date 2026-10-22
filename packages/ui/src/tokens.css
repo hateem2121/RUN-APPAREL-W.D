@@ -333,6 +333,7 @@
      same table in reading order. */
   --z-stage-control: 1; /* .stage__ar — inside the stage, above the canvas */
   --z-header: 40; /* the bar; both hosts' .notch-shell share it since 2026-09-24 */
+  --z-nav-progress: 41; /* the website's loading line (NavProgress.tsx, 2026-10-22): over the bar, under the action bar */
   --z-action-bar: 50;
   --z-consent: 55; /* .consent — the cookie choice; over the action bar, under the grain, dialog and curtain */
   --z-grain: 60; /* the full-page grain overlay */
