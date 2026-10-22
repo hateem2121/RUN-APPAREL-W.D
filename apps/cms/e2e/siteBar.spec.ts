@@ -259,24 +259,66 @@ test.describe('the open phone menu holds the page still and dims it (polish F3, 
     const width = await page.evaluate(() => document.documentElement.clientWidth)
     await openMenu(page)
     await expect
-      .poll(() =>
-        page
-          .locator('header.notch-shell')
-          .evaluate((shell) => getComputedStyle(shell, '::before').opacity),
-      )
+      .poll(() => page.locator('.notch-dim').evaluate((dim) => getComputedStyle(dim).opacity))
       .toBe('1')
     const hits = await page.evaluate(({ x, y }) => {
       const bar = (document.querySelector('.notch') as HTMLElement).getBoundingClientRect()
       const onBar = document.elementFromPoint(bar.left + 24, bar.top + bar.height / 2)
       return {
         bar: Boolean(onBar?.closest('.notch')),
-        page: document.elementFromPoint(x, y)?.matches('header.notch-shell') ?? false,
+        page: document.elementFromPoint(x, y)?.matches('.notch-dim') ?? false,
       }
     }, point)
     expect(hits.bar, 'the dim lies over the bar').toBe(true)
     expect(hits.page, 'the dim does not cover the page').toBe(true)
     // A classic scrollbar (Firefox here) keeps its space while the page is held.
     expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(width)
+  })
+
+  /*
+   * ⚠️ SAFARI'S BAR COLOUR (site check-up, 2026-10-22). iOS 26 Safari tints the strip under its
+   * bottom pill from the first fixed or sticky box at least 90% of the screen wide at the screen's
+   * foot, and KEEPS that box's colour while the box stays `visibility: visible` (WebKit,
+   * Page::updateFixedContainerEdges). The dim was the shell's own ::before, so the box Safari found
+   * was the always-visible shell: after the menu closed the strip stayed the dimmed paper,
+   * rgb(156,155,150) under a page of 241,238,233, in the Bottom and Compact layouts (iOS 27.0
+   * simulator). This walks up from the foot the way WebKit does, while the menu is open, and asks
+   * that the box it finds is hidden once the menu has closed. On the ::before dim it finds the
+   * shell, which never hides, so this fails there.
+   */
+  test("once the menu closes, the box at the screen's foot hides, so Safari lets go of its colour", async ({
+    page,
+  }) => {
+    await openProducts(page)
+    await openMenu(page)
+    const found = await page.evaluate(() => {
+      let element = document.elementFromPoint(innerWidth / 2, innerHeight - 4)
+      while (element) {
+        const style = getComputedStyle(element)
+        const wide = element.getBoundingClientRect().width >= innerWidth * 0.9
+        if ((style.position === 'fixed' || style.position === 'sticky') && wide) {
+          element.setAttribute('data-foot-probe', '')
+          return `${element.tagName.toLowerCase()}.${element.className}`
+        }
+        element = element.parentElement
+      }
+      return null
+    })
+    expect(
+      found,
+      'nothing fixed and full-width is at the foot while the menu is open',
+    ).not.toBeNull()
+    await page.keyboard.press('Escape')
+    await expect.poll(() => menuOpen(page)).toBe(false)
+    await expect
+      .poll(
+        () =>
+          page
+            .locator('[data-foot-probe]')
+            .evaluate((element) => getComputedStyle(element).visibility),
+        { message: `${found} stays visible, so Safari keeps the dimmed colour` },
+      )
+      .toBe('hidden')
   })
 
   /*
@@ -292,8 +334,7 @@ test.describe('the open phone menu holds the page still and dims it (polish F3, 
       async ({ page }) => {
         await openProducts(page)
         const point = await pointOnThePage(page)
-        if (!dim)
-          await page.addStyleTag({ content: '.notch-shell::before{display:none!important}' })
+        if (!dim) await page.addStyleTag({ content: '.notch-dim{display:none!important}' })
         await page.evaluate(() => {
           const clicks: boolean[] = []
           ;(window as unknown as { __linkClicks: boolean[] }).__linkClicks = clicks

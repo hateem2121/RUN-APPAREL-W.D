@@ -1,6 +1,7 @@
 'use client'
 
 import { type ReactNode, useEffect, useRef } from 'react'
+import { followFootEdge } from '../../lib/footEdge'
 
 /**
  * The stage cards' list, which tells the stack how tall each card really is (home page audit,
@@ -56,7 +57,8 @@ export function OrderStagesList({ children }: { children: ReactNode }) {
    * after the footer and back up too (owner's report, reproduced in the iOS 26.5 simulator:
    * strip 29,31,26 over paper 241,239,234). So a step's slot is `hidden` unless it covers the foot:
    * the slot paints nothing and its card says `visible`, so not one pixel moves, and Safari drops it.
-   * The band is the last 1% of the screen; the hit test is 4px above the foot.
+   * The band is the last 1% of the screen; the hit test is 4px above the foot (lib/footEdge.ts,
+   * shared with the About page's hero since 2026-10-22).
    */
   useEffect(() => {
     const element = list.current
@@ -65,27 +67,16 @@ export function OrderStagesList({ children }: { children: ReactNode }) {
     const stack = window.matchMedia(
       'screen and (prefers-reduced-motion: no-preference) and (max-width: 899px)',
     )
-    let edge: IntersectionObserver | null = null
+    let stop: (() => void) | null = null
     const follow = () => {
-      edge?.disconnect()
-      edge = null
-      for (const slot of slots) delete slot.dataset.edge
-      if (!stack.matches) return
-      edge = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            ;(entry.target as HTMLElement).dataset.edge = entry.isIntersecting ? 'on' : 'off'
-          }
-        },
-        { rootMargin: '-99% 0px 0px 0px' },
-      )
-      for (const slot of slots) edge.observe(slot)
+      stop?.()
+      stop = stack.matches ? followFootEdge(slots) : null
     }
     follow()
     stack.addEventListener('change', follow)
     return () => {
       stack.removeEventListener('change', follow)
-      edge?.disconnect()
+      stop?.()
     }
   }, [])
 

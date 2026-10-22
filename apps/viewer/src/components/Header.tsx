@@ -100,6 +100,9 @@ export function Header({ wordmark }: HeaderProps) {
     <header className="notch-shell" ref={shell}>
       {/* The phone's status area takes the bar's colour from this strip (notch.css, VA-50). */}
       <div className="notch-strip" aria-hidden="true" />
+      {/* The dim behind the open phone menu: its own element so it can hide, which lets iPhone Safari
+          let go of its colour (notch.css, site check-up 2026-10-22). */}
+      <div className="notch-dim" aria-hidden="true" />
       <div className="notch">
         {/*
           THE WORDMARK IS A LINK HOME since 2026-09-07 — owner decision D5,

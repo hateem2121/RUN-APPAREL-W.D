@@ -717,6 +717,11 @@
   }
 }
 
+/* The dim behind the open phone menu is drawn only where the phone menu is (below). */
+.notch-dim {
+  display: none;
+}
+
 /* A phone-menu row arriving (VA-51, below). */
 @keyframes notch-row-in {
   from {
@@ -782,9 +787,19 @@
      * that first frame went through to a card's link (siteBar.spec.ts, 2026-10-04).
      * A dim and no blur: the plan's "soft dim", and the one `backdrop-filter` the site allows is
      * `.stage__ar` (scripts/vibecoded-rules.mjs, VC-08 — a second needs the owner's decision).
+     *
+     * ⚠️ ITS OWN ELEMENT, NOT THE SHELL'S ::before (site check-up, 2026-10-22). iPhone Safari tints
+     * the strip under its bottom pill from the fixed box at the screen's foot and keeps that box's
+     * colour for as long as the box stays `visibility: visible` (WebKit,
+     * Page::updateFixedContainerEdges; the order steps hit the same rule on 2026-10-20). A pseudo-
+     * element's box is its host's, so with the menu open Safari found the SHELL there, sampled the
+     * dimmed paper, and kept it after the menu closed, because the shell never hides: a grey strip,
+     * rgb(156,155,150) under a page of 241,238,233, on every page reached through the menu, in the
+     * Bottom and Compact layouts (iOS 27.0 simulator). `.notch-dim` hides itself when the menu
+     * closes, so Safari lets go. siteBar.spec.ts walks up from the foot the way WebKit does.
      */
-    .notch-shell::before {
-      content: "";
+    .notch-dim {
+      display: block;
       position: fixed;
       inset: 0;
       z-index: var(--z-menu-dim);
@@ -796,7 +811,7 @@
         visibility var(--instant);
     }
 
-    .notch-shell:has(.notch__menu:popover-open)::before {
+    .notch-shell:has(.notch__menu:popover-open) .notch-dim {
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
@@ -1048,7 +1063,7 @@
   }
 
   /* The dim behind the open menu (X26) is decoration; the menu's own border does its work here. */
-  .notch-shell::before {
+  .notch-dim {
     display: none;
   }
 }
