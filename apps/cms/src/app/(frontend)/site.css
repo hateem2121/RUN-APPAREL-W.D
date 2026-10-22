@@ -8581,3 +8581,58 @@ a.contact-block__value:active {
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
+
+/* ------------------------------------------------ the loading line (NavProgress.tsx) */
+
+/*
+ * ⚠️ A TAP ON A LINK SHOWS AT ONCE THAT IT WAS HEARD (site check-up #3, 2026-10-22: in-site taps
+ * waited 2.3–2.8 s with nothing on screen moving). A 3px volt line along the top of the screen,
+ * over the bar's status strip, from 120 ms after the tap until the page arrives: it runs most of
+ * the way on --slow and completes on --ui when the page is there, then fades. Not a box: nothing
+ * moves, and it covers no control. Volt in both themes, the colour the menu button already uses.
+ */
+.nav-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: calc(var(--z-header) + 1);
+  height: 3px;
+  background: var(--volt);
+  transform-origin: left center;
+  scale: 0 1;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-progress[data-state="loading"] {
+  scale: 0.8 1;
+  opacity: 1;
+  transition:
+    scale var(--slow) var(--ease),
+    opacity var(--instant) var(--ease);
+}
+
+.nav-progress[data-state="done"] {
+  scale: 1 1;
+  opacity: 0;
+  transition:
+    scale var(--ui) var(--ease),
+    opacity var(--ui) var(--ease) var(--ui);
+}
+
+/* Without motion the line simply appears, full width, and goes. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress[data-state="loading"] {
+    scale: 1 1;
+    transition: none;
+  }
+
+  .nav-progress[data-state="done"] {
+    transition: none;
+  }
+}
+
+@media print {
+  .nav-progress {
+    display: none;
+  }
+}
