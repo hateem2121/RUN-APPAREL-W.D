@@ -59,18 +59,42 @@ function countNavigations(page: Page) {
   return seen
 }
 
-/** Refuses `piece` the way production does: the fixture's index.html, as a 200. */
-async function plant(page: Page, piece: Piece, refuse: (served: number) => boolean) {
+/**
+ * Refuses `piece` the way production does after a deploy: the fixture's index.html, as a 200, to
+ * EVERY request from the documents `refuse` names (1 is the page as first opened, 2 the reload).
+ * Every request, because Firefox asks twice in one document, the modulepreload and then the
+ * import, and refusing only the first let the second through with no reload at all (probe,
+ * 2026-10-22). A deploy refuses the old page everything; the reloaded page asks for new names.
+ */
+async function plant(
+  page: Page,
+  piece: Piece,
+  navigations: { count: number },
+  refuse: (documentNumber: number) => boolean,
+) {
   const planted = { count: 0, served: 0 }
   await page.context().route(piece.chunk, async (route) => {
     planted.served++
-    if (!refuse(planted.served)) return route.continue()
+    if (!refuse(navigations.count)) return route.continue()
     planted.count++
     const index = await route.fetch({ url: new URL('/', route.request().url()).href })
-    return route.fulfill({ response: index })
+    return route.fulfill({
+      response: index,
+      headers: { ...index.headers(), 'cache-control': 'no-store' },
+    })
   })
   return planted
 }
+
+/*
+ * ⚠️ WEBKIT CANNOT SHOW "THEN THE PIECE IS THERE" HERE. Its reloaded page asked for the same chunk
+ * name and was answered from memory with the refused HTML, without reaching the route, `no-store`
+ * or not (probe, 2026-10-22: the reload happened once, the request never reached the route). A real
+ * deploy changes the names, so the reloaded page asks for files it has never seen; a test without a
+ * rebuild cannot. On WebKit these tests hold what the visitor needs most: one reload, never a loop,
+ * never the crash screen.
+ */
+const reloadsAgainForReal = (browserName: string) => browserName !== 'webkit'
 
 const crashScreen = (page: Page) => page.getByRole('heading', { name: CRASH })
 
@@ -78,24 +102,29 @@ for (const piece of [FOOTER, RELATED, POLISH]) {
   test.describe(piece.name, () => {
     test('a chunk deleted by a deploy costs one reload, then the piece is there', async ({
       page,
+      browserName,
     }) => {
-      const planted = await plant(page, piece, (served) => served === 1)
       const navigations = countNavigations(page)
+      const planted = await plant(page, piece, navigations, (documentNumber) => documentNumber <= 1)
 
       await page.goto('/n001/wine')
-      await piece.arrived(page)
+      await expect.poll(() => navigations.count, { message: 'no automatic reload' }).toBe(2)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      if (reloadsAgainForReal(browserName)) await piece.arrived(page)
+      else await page.waitForTimeout(2_000)
 
-      expect(planted.count, 'the plant must land, or this passes vacuously').toBe(1)
+      expect(planted.count, 'the plant must land, or this passes vacuously').toBeGreaterThanOrEqual(
+        1,
+      )
       expect(navigations.count, 'exactly one automatic reload').toBe(2)
       await expect(crashScreen(page)).toHaveCount(0)
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     })
 
     test('a chunk that stays missing reloads once, never a loop, and never blanks the page', async ({
       page,
     }) => {
-      const planted = await plant(page, piece, () => true)
       const navigations = countNavigations(page)
+      const planted = await plant(page, piece, navigations, () => true)
 
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -103,7 +132,9 @@ for (const piece of [FOOTER, RELATED, POLISH]) {
       // local boundary were missing: the first reload lands well inside this on the fixture.
       await page.waitForTimeout(3_000)
 
-      expect(planted.count, 'one refused chunk per document: before and after the reload').toBe(2)
+      expect(planted.count, 'the plant must land, or this passes vacuously').toBeGreaterThanOrEqual(
+        1,
+      )
       expect(navigations.count, 'one reload, not a loop').toBe(2)
       await expect(
         crashScreen(page),
@@ -114,17 +145,22 @@ for (const piece of [FOOTER, RELATED, POLISH]) {
   })
 }
 
-test('two pieces failing in one page-load share ONE reload', async ({ page }) => {
-  const footer = await plant(page, FOOTER, (served) => served === 1)
-  const related = await plant(page, RELATED, (served) => served === 1)
+test('two pieces failing in one page-load share ONE reload', async ({ page, browserName }) => {
   const navigations = countNavigations(page)
+  const first = (documentNumber: number) => documentNumber <= 1
+  const footer = await plant(page, FOOTER, navigations, first)
+  const related = await plant(page, RELATED, navigations, first)
 
   await page.goto('/n001/wine')
-  await FOOTER.arrived(page)
-  await RELATED.arrived(page)
+  await expect.poll(() => navigations.count, { message: 'no automatic reload' }).toBe(2)
+  if (reloadsAgainForReal(browserName)) {
+    await FOOTER.arrived(page)
+    await RELATED.arrived(page)
+  }
   await page.waitForTimeout(1_000)
 
-  expect(footer.count + related.count, 'both plants must land').toBe(2)
+  expect(footer.count, 'the footer plant must land').toBeGreaterThanOrEqual(1)
+  expect(related.count, 'the cards plant must land').toBeGreaterThanOrEqual(1)
   expect(navigations.count, 'one shared guard: one reload for both').toBe(2)
   await expect(crashScreen(page)).toHaveCount(0)
 })
@@ -133,12 +169,12 @@ test('NEGATIVE CONTROL: with no chunk missing the page never reloads', async ({ 
   // Counts requests without refusing any. If the counters or the routes were not wired, the tests
   // above could pass for the wrong reason; here they must read "chunks asked for, none refused,
   // no reload".
-  const planted = [
-    await plant(page, FOOTER, () => false),
-    await plant(page, RELATED, () => false),
-    await plant(page, POLISH, () => false),
-  ]
   const navigations = countNavigations(page)
+  const planted = [
+    await plant(page, FOOTER, navigations, () => false),
+    await plant(page, RELATED, navigations, () => false),
+    await plant(page, POLISH, navigations, () => false),
+  ]
 
   await page.goto('/n001/wine')
   await FOOTER.arrived(page)
