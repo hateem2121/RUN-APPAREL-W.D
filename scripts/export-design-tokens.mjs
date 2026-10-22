@@ -157,8 +157,11 @@ function classify(css) {
   m = /^cubic-bezier\(([^)]+)\)$/.exec(css)
   if (m) return { $type: 'cubicBezier', $value: m[1].split(',').map((n) => Number(n.trim())) }
   if (/^-?\d+$/.test(css)) return { $type: 'number', $value: Number(css) }
-  if (/^(".*?"|[\w-]+)(\s*,\s*(".*?"|[\w-]+))*$/.test(css) && /"|serif|monospace/.test(css)) {
-    return { $type: 'fontFamily', $value: splitTopLevel(css).map((f) => f.replace(/^"|"$/g, '')) }
+  // Split first, then test each name on its own: one pattern over the whole list
+  // (`^(".*?"|[\w-]+)(\s*,\s*(…))*$`) backtracks exponentially, which CodeQL raised on PR #222.
+  const names = splitTopLevel(css)
+  if (names.every((f) => /^(?:"[^"]*"|[\w-]+)$/.test(f)) && /"|serif|monospace/.test(css)) {
+    return { $type: 'fontFamily', $value: names.map((f) => f.replace(/^"|"$/g, '')) }
   }
   return { omit: `${css} (no 2025.10 type holds it)` }
 }
