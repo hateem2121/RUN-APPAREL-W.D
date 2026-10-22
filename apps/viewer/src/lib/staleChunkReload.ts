@@ -39,10 +39,18 @@ const KEY = 'run:stale-chunk-reload'
  * and without this the second call would read the first one's fresh timestamp as "already
  * reloaded" and paint the fallback while the page unloads.
  *
- * ⚠️ ONLY THE 3D LIBRARY RELOADS BY ITSELF. Other lazy chunks keep their own handling: the
- * full-screen view's failure shows a note with "Reload Page" and leaves the garment in place
- * (owner-approved 2026-10-14, e2e/hd-image.spec.ts), and a reload under a visitor's tap
- * would undo that. Hence no page-wide `vite:preloadError` listener.
+ * ⚠️ WHICH PIECES RELOAD BY THEMSELVES (owner, 2026-10-22): the 3D library, and the BACKGROUND
+ * pieces nobody tapped for — the footer's tab and question (`Footer.tsx`), the related garments'
+ * cards (`RelatedGarments.tsx`) and the polish layer (`App.tsx`, `polish/index.ts`). They share
+ * this ONE guard through `reloadOnChunkFailure`, so two pieces failing in one page-load cost one
+ * reload, not two. The FULL-SCREEN VIEW DOES NOT: its failure shows a note with "Reload Page" and
+ * leaves the garment in place (owner-approved 2026-10-14, e2e/hd-image.spec.ts), and a reload
+ * under a visitor's tap would undo that. Hence no page-wide `vite:preloadError` listener.
+ *
+ * Why the footer and the rest were added: until then a missing FooterPrompt chunk threw out of
+ * `lazy()` into the page-wide ErrorBoundary and replaced the whole garment page with "This page
+ * ran into a problem" (the footer sits on every garment page), while a missing polish chunk left
+ * the page quietly without its motion until the visitor reloaded by hand.
  */
 let reloading = false
 
@@ -121,4 +129,24 @@ export function reloadForStaleChunk(
   reloading = true
   ;(deps.reload ?? (() => window.location.reload()))()
   return 'reloaded'
+}
+
+/**
+ * Waits for a chunk's `import()` and, if it FAILS, asks for the one automatic reload before
+ * passing the failure on unchanged. The caller still decides what its own page shows meanwhile
+ * (nothing, for a background piece), so a refused reload — guard hit, offline, no storage — fails
+ * quietly exactly as before: never a loop.
+ *
+ * Wrap only the `import()` promise, never a `.then` that runs the loaded module: an error thrown
+ * by the piece's own code is not a missing chunk and must not cost a reload.
+ */
+export function reloadOnChunkFailure<T>(
+  chunk: string,
+  loading: Promise<T>,
+  deps: StaleChunkDeps = {},
+): Promise<T> {
+  return loading.catch((error: unknown) => {
+    reloadForStaleChunk(chunk, {}, deps)
+    throw error
+  })
 }

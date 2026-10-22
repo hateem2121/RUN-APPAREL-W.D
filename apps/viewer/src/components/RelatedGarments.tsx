@@ -2,6 +2,7 @@ import { categoryPath, seeAllInCategoryLabel, type ViewerApiSuccess } from '@run
 import { useEffect, useState } from 'react'
 import { diagnostic } from '../lib/diagnostic'
 import { SITE_ORIGIN } from '../lib/siteLinks'
+import { reloadOnChunkFailure } from '../lib/staleChunkReload'
 
 /*
  * ⚠️ THE CARDS ARE A DYNAMIC IMPORT, WITH A STYLESHEET OF THEIR OWN (`RelatedCards.tsx`,
@@ -29,7 +30,11 @@ import { SITE_ORIGIN } from '../lib/siteLinks'
  * moment later and pushed the contact section and the footer down under a visitor already at the
  * end of the page (measured 2026-10-04: e2e/action-bar-steps-aside.spec.ts, mobile Safari).
  */
-const loadCards = () => import('./RelatedCards')
+/*
+ * ⚠️ A MISSING CARDS CHUNK RELOADS THE PAGE ONCE (owner, 2026-10-22; staleChunkReload.ts has the
+ * guard and the incident). The failure still leaves the cards out and is still reported below.
+ */
+const loadCards = () => reloadOnChunkFailure('related-cards', import('./RelatedCards'))
 type Cards = Awaited<ReturnType<typeof loadCards>>['default']
 
 let readyCards: Cards | null = null

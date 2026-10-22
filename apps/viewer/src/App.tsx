@@ -28,6 +28,7 @@ import { diagnostic } from './lib/diagnostic'
 import { takeEmbeddedPayload } from './lib/embeddedPayload'
 import { isFocusUnclaimed } from './lib/focusHandoff'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
+import { reloadOnChunkFailure } from './lib/staleChunkReload'
 import { useIdentityInAside } from './lib/useIdentityInAside'
 import { usePrinting } from './lib/usePrinting'
 
@@ -297,7 +298,11 @@ export default function App() {
   useEffect(() => {
     if (state.kind === 'ready' && !polishStarted.current) {
       polishStarted.current = true
-      void import('./polish').then((m) => m.startPolish()).catch(() => {})
+      // ⚠️ A polish chunk deleted by a deploy reloads the page once (staleChunkReload.ts, owner
+      // 2026-10-22); the wrap covers the import only, so an error inside startPolish is no reload.
+      void reloadOnChunkFailure('polish', import('./polish'))
+        .then((m) => m.startPolish())
+        .catch(() => {})
     }
   }, [state.kind])
 

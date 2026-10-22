@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { RELOAD_GUARD_MS, reloadForStaleChunk, resetStaleChunkReload } from './staleChunkReload'
+import {
+  RELOAD_GUARD_MS,
+  reloadForStaleChunk,
+  reloadOnChunkFailure,
+  resetStaleChunkReload,
+} from './staleChunkReload'
 
 function memoryStorage() {
   const map = new Map<string, string>()
@@ -138,5 +143,69 @@ describe('a page restored from the back/forward cache', () => {
         { storage: memoryStorage(), online: () => true, reload },
       ),
     ).toBe('reloaded')
+  })
+})
+
+describe('reloadOnChunkFailure (background pieces, owner 2026-10-22)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    resetStaleChunkReload()
+  })
+
+  const refused = () => Promise.reject(new Error('Failed to fetch dynamically imported module'))
+
+  it('passes a loaded module through and never reloads', async () => {
+    const reload = vi.fn()
+    const deps = { storage: memoryStorage(), now: () => 1_000, online: () => true, reload }
+    await expect(
+      reloadOnChunkFailure('footer-prompt', Promise.resolve('module'), deps),
+    ).resolves.toBe('module')
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it('reloads once for a refused import and still hands the failure to the caller', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const reload = vi.fn()
+    const deps = { storage: memoryStorage(), now: () => 1_000, online: () => true, reload }
+    await expect(reloadOnChunkFailure('footer-prompt', refused(), deps)).rejects.toThrow(
+      'Failed to fetch dynamically imported module',
+    )
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('two pieces failing in one page-load share ONE reload', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const reload = vi.fn()
+    const deps = { storage: memoryStorage(), now: () => 1_000, online: () => true, reload }
+    await reloadOnChunkFailure('footer-prompt', refused(), deps).catch(() => {})
+    await reloadOnChunkFailure('related-cards', refused(), deps).catch(() => {})
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('a second failure inside the guard (after the reload) does not reload again', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const reload = vi.fn()
+    const storage = memoryStorage()
+    let t = 1_000
+    const deps = { storage, now: () => t, online: () => true, reload }
+    await reloadOnChunkFailure('polish', refused(), deps).catch(() => {})
+    resetStaleChunkReload() // the reloaded document
+    t += 10_000
+    await expect(reloadOnChunkFailure('polish', refused(), deps)).rejects.toThrow()
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails quietly, without a reload, where storage is unavailable', async () => {
+    const reload = vi.fn()
+    const throwing = {
+      getItem: () => {
+        throw new Error('SecurityError')
+      },
+      setItem: () => {},
+    }
+    await expect(
+      reloadOnChunkFailure('polish', refused(), { storage: throwing, online: () => true, reload }),
+    ).rejects.toThrow()
+    expect(reload).not.toHaveBeenCalled()
   })
 })

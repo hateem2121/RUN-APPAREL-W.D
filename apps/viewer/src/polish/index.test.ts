@@ -22,11 +22,20 @@ const mocks = vi.hoisted(() => {
     startSmoothScroll: vi.fn(() => stopScroll),
     mountCursor: vi.fn(() => stopCursor),
     startReveals: vi.fn(() => () => {}),
+    reloads: [] as string[],
   }
 })
 
 vi.mock('./smooth-scroll', () => ({ startSmoothScroll: mocks.startSmoothScroll }))
 vi.mock('./Cursor', () => ({ mountCursor: mocks.mountCursor }))
+// The once-only reload itself is tested in staleChunkReload.test.ts; jsdom cannot reload.
+vi.mock('../lib/staleChunkReload', () => ({
+  reloadOnChunkFailure: (chunk: string, loading: Promise<unknown>) =>
+    loading.catch((error: unknown) => {
+      mocks.reloads.push(chunk)
+      throw error
+    }),
+}))
 vi.mock('./reveal', () => ({ startReveals: mocks.startReveals }))
 
 class FakeMediaQueryList {
@@ -54,7 +63,11 @@ let reduced: FakeMediaQueryList
 
 beforeEach(() => {
   vi.resetModules() // `startPolish` is idempotent through module state; each test starts fresh
-  for (const spy of Object.values(mocks)) spy.mockClear()
+  for (const spy of Object.values(mocks)) if (typeof spy === 'function') spy.mockClear()
+  // Back to the working stand-ins after a test that made one of them refuse (below).
+  vi.doMock('./smooth-scroll', () => ({ startSmoothScroll: mocks.startSmoothScroll }))
+  vi.doMock('./Cursor', () => ({ mountCursor: mocks.mountCursor }))
+  mocks.reloads.length = 0
   reduced = new FakeMediaQueryList(false)
   window.matchMedia = ((query: string) =>
     query.includes('prefers-reduced-motion')
@@ -118,5 +131,38 @@ describe('startPolish and a reduced-motion change mid-visit', () => {
     await new Promise((resolve) => setTimeout(resolve, 30))
     expect(mocks.mountCursor).not.toHaveBeenCalled()
     expect(mocks.startSmoothScroll).not.toHaveBeenCalled()
+  })
+})
+
+describe('startPolish when a deploy deleted one of its chunks (owner, 2026-10-22)', () => {
+  it('asks for the one reload for a missing smooth-scroll chunk, and still starts the cursor', async () => {
+    // A chunk a deploy deleted: the stand-in throws, as a refused import does.
+    vi.doMock('./smooth-scroll', () => {
+      throw new Error('Failed to fetch dynamically imported module')
+    })
+    const { startPolish } = await import('./index')
+    startPolish()
+    await vi.waitFor(() => expect(mocks.mountCursor).toHaveBeenCalled())
+    expect(mocks.reloads).toEqual(['polish-smooth-scroll'])
+  })
+
+  it('asks for the one reload for a missing cursor chunk, and the page stays quiet', async () => {
+    vi.doMock('./Cursor', () => {
+      throw new Error('Failed to fetch dynamically imported module')
+    })
+    const { startPolish } = await import('./index')
+    expect(() => startPolish()).not.toThrow()
+    await vi.waitFor(() => expect(mocks.reloads).toEqual(['polish-cursor']))
+    expect(mocks.startSmoothScroll).toHaveBeenCalledTimes(1)
+  })
+
+  it('does NOT ask for a reload when the chunk arrived and its own code threw (negative control)', async () => {
+    mocks.startSmoothScroll.mockImplementationOnce(() => {
+      throw new Error('boom inside our own code')
+    })
+    const { startPolish } = await import('./index')
+    startPolish()
+    await vi.waitFor(() => expect(mocks.mountCursor).toHaveBeenCalled())
+    expect(mocks.reloads).toEqual([])
   })
 })
