@@ -30,11 +30,11 @@ export const TOKENS = Object.freeze({
   surface: /** @type {const} */ (['#faf9f6', '#23271f']),
   wash: /** @type {const} */ (['#e4e1d8', '#2c3126']),
   text: /** @type {const} */ (['#1d1f1a', '#ecebe4']),
-  muted: /** @type {const} */ (['#63665b', '#a2a695']),
+  muted: /** @type {const} */ (['#62655a', '#a2a695']),
   line: /** @type {const} */ (['rgba(29, 31, 26, 0.18)', 'rgba(236, 235, 228, 0.18)']),
   'btn-primary-bg': /** @type {const} */ (['#1d1f1a', '#cdf345']),
   'btn-primary-text': /** @type {const} */ (['#cdf345', '#1d1f1a']),
-  'focus-ring': /** @type {const} */ (['#5f7414', '#cdf345']),
+  'focus-ring': /** @type {const} */ (['#586c05', '#cdf345']),
 })
 
 const variables = Object.entries(TOKENS)

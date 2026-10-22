@@ -18,7 +18,7 @@
  * under a pinned `color-scheme: light` (see the two `tokenParity.spec.ts` files) and
  * recorded here as the LIGHT value the token itself defines: `--focus-ring` is
  * `light-dark(var(--volt-deep), var(--volt))`, and light-mode `--volt-deep` is
- * `#5f7414`.
+ * `#586c05`.
  *
  * ⚠️ NO `ms`/`s` DURATION TOKENS HERE, MEASURED NOT ASSUMED. `--fast: 200ms` was
  * tried first and read back as `.2s` in EVERY engine, chromium included — a

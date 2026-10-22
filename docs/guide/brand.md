@@ -41,7 +41,7 @@ Never say RUN APPAREL itself is certified.
 | Paper | `#f1efea` | The light background |
 | Ink | `#1d1f1a` | Text and dark buttons |
 | Volt | `#cdf345` | Bright labels and buttons |
-| Muted | `#63665b` | Quiet, less important text |
+| Muted | `#62655a` | Quiet, less important text |
 
 These codes come from our design file, [tokens.css](../../packages/ui/src/tokens.css).
 

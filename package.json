@@ -22,6 +22,7 @@
     "deploy:apex": "pnpm --filter @run-apparel/viewer exec wrangler deploy --config \"$PWD/infra/apex-404/wrangler.jsonc\" --message \"${DEPLOY_MESSAGE:-manual}\"",
     "seed:cms": "pnpm --filter @run-apparel/cms seed",
     "index:ai": "node scripts/index-ai.mjs",
+    "tokens:export": "node scripts/export-design-tokens.mjs",
     "eval:artwork": "pnpm --filter @run-apparel/asset-pipeline eval:artwork",
     "eval:artwork:real": "pnpm --filter @run-apparel/asset-pipeline eval:artwork:real",
     "og:cards": "pnpm --filter @run-apparel/asset-pipeline og:cards",

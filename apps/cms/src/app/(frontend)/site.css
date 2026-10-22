@@ -3623,6 +3623,10 @@ a.contact-block__value:active {
  * changing a colour across both surfaces to fix an animation. Computing the alpha is what
  * separated the two.
  *
+ * 2026-10-22: light `--muted` is #62655a now (4.48 → 4.55:1 on `--wash`). The same solve from
+ * it gives α = 0.83 (0.832–0.833 per channel, against 0.838–0.839 from #63665b), and the token
+ * itself measures 5.17:1 on `--paper`. The finding is unchanged: a fade puts text under 4.5:1.
+ *
  * A translate carries no such hazard: the text is at full opacity throughout, so what a
  * contrast checker sees is what a reader sees. Removing the fade took the home page from
  * 7 violations back to 0. Verified both ways.

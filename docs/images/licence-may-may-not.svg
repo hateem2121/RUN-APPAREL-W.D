@@ -23,10 +23,10 @@
       <text x="324" y="184">✗  Sell it or rent it</text>
       <text x="324" y="220">✗  Take it apart to see how it works</text>
       <text x="324" y="256">✗  Remove the copyright notice</text>
-      <text x="324" y="292" font-size="14" fill="#63665b">Ask first: inquiry@wear-run.com</text>
+      <text x="324" y="292" font-size="14" fill="#62655a">Ask first: inquiry@wear-run.com</text>
     </g>
 
     <text x="360" y="340" font-size="14" text-anchor="middle">Garment designs, artwork and photos belong to RUN APPAREL too.</text>
-    <text x="360" y="362" font-size="13" text-anchor="middle" fill="#63665b">A summary, not the legal text. The LICENSE file is what counts.</text>
+    <text x="360" y="362" font-size="13" text-anchor="middle" fill="#62655a">A summary, not the legal text. The LICENSE file is what counts.</text>
   </g>
 </svg>
