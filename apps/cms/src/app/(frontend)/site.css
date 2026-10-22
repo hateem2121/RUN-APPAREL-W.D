@@ -5850,6 +5850,33 @@ a.contact-block__value:active {
     visibility: hidden;
   }
 
+  /*
+   * DRAFT FOR THE OWNER (site check-up #4, 2026-10-22): ONE fade at the screen's foot over the whole
+   * stack, so a photo never meets the ink iPhone Safari fills under its bar with a hard edge (275 of
+   * 441 apart, iOS 27.0 simulator, Bottom layout). A per-card fade could not reach the foot while the
+   * next card was only entering, and a sticky item of the stack's grid cannot leave its own row, so
+   * this is the SECTION's: a plain block, its sticky range the whole stack. Drawn only while a step
+   * covers the foot (its slot's `data-edge`,
+   * OrderStagesList.tsx), and `visibility: hidden` otherwise: a sticky full-width box at the foot is
+   * what Safari keeps, and one left visible after the stack would bring back the 2026-10-20 strip.
+   */
+  .site-section:has(> .order-stages)::after {
+    content: "";
+    display: block;
+    position: sticky;
+    bottom: 0;
+    z-index: var(--z-card-control);
+    height: 120px;
+    margin-block-start: -120px;
+    background: linear-gradient(to bottom, transparent, var(--bg) 70%);
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .site-section:has(.order-step-slot[data-edge="on"])::after {
+    visibility: visible;
+  }
+
   .order-stage__steps .order-step {
     visibility: visible;
     min-block-size: calc(100svh - var(--step, 0) * 8px);

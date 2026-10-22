@@ -1020,4 +1020,32 @@ test.describe('Safari’s bottom strip — a step is shown to it only while it c
       .poll(() => page.locator('.order-stage__steps .order-step-slot[data-edge="on"]').count())
       .toBeGreaterThan(0)
   })
+
+  /*
+   * The photos' fade at the screen's foot (site check-up #4, owner's yes 2026-10-22): the section's
+   * sticky ::after, drawn while a step covers the foot so no photo meets Safari's ink band with a
+   * hard edge, and hidden otherwise, because a full-width sticky box left visible after the stack is
+   * the box Safari keeps (the 2026-10-20 strip). What would have to break: the fade gone mid-stack,
+   * or still shown past the stack.
+   */
+  test('phone stack: the foot fade shows only while a step covers the foot', async ({ page }) => {
+    await open(page, 393, 659, { motion: 'no-preference' })
+    const s = await stack(page)
+    const list = await page.locator('.order-stages').evaluate((ol) => {
+      const r = ol.getBoundingClientRect()
+      return { top: r.top + scrollY, height: r.height }
+    })
+    const fade = () =>
+      page.locator('.site-section:has(> .order-stages)').evaluate((section) => {
+        // Content and position too: a pseudo-element that is not drawn still reports `visible`.
+        const after = getComputedStyle(section, '::after')
+        return `${after.content} ${after.position} ${after.visibility}`
+      })
+    await scrollTo(page, Math.round(settledAt(s, 3, 0) + 40))
+    await expect.poll(fade, { message: 'mid-stack: no fade at the foot' }).toBe('"" sticky visible')
+    await scrollTo(page, Math.round(list.top + list.height + 200))
+    await expect
+      .poll(fade, { message: 'past the stack: the fade is still shown' })
+      .toBe('"" sticky hidden')
+  })
 })
