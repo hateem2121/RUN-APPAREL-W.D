@@ -9,6 +9,7 @@ import { withCompression } from './compression'
 import { CRAWLER } from './crawlerAgents'
 import { applyCrawlerCacheHeaders } from './crawlerCacheHeaders'
 import { withDocumentIsolation } from './documentHeaders'
+import { embeddedPayloadScript } from './embeddedPayload'
 import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
@@ -219,7 +220,7 @@ function attr(value: string): string {
  * correct, and this is the first time there has been a per-request anything.
  * scripts/og.test.ts asserts they stay absent from the static file.
  */
-function applyPreview(response: Response, preview: Preview): Response {
+function applyPreview(response: Response, preview: Preview, payloadScript: string): Response {
   const rewriter = new HTMLRewriter()
     .on('title', {
       element(el) {
@@ -260,7 +261,10 @@ function applyPreview(response: Response, preview: Preview): Response {
             // match, and an HTMLRewriter selector that matches nothing is a silent no-op.
             (preview.breadcrumbJsonLd
               ? `<script type="application/ld+json">${preview.breadcrumbJsonLd}</script>`
-              : ''),
+              : '') +
+            // The payload itself, so Google's renderer draws the garment without a second
+            // request that its fetcher sometimes drops (embeddedPayload.ts, 2026-10-21).
+            payloadScript,
           { html: true },
         )
       },
@@ -461,6 +465,7 @@ export default {
         // unchanged (apps/cms/viewerForward.mjs), so the path says which shape loaded.
         prefix: isGarmentPagePath(url.pathname) ? GARMENT_PATH_PREFIX : '',
       }),
+      embeddedPayloadScript(payload, viewerApiPath(route.productSlug, route.colourSlug)),
     )
     // The response body now depends on the User-Agent, and this copy must never be
     // injected into (a crawler executes no JavaScript, so Cloudflare's bootstrap is
