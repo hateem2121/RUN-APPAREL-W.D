@@ -4271,7 +4271,13 @@ a.contact-block__value:active {
 
 .proof__specs > div {
   display: grid;
-  grid-template-columns: 7.5em minmax(0, 1fr);
+  /*
+   * At most 45% for the label (site check-up, 2026-10-22): a fixed 7.5em doubles with the reader's
+   * text, and at twice the size on a 320px phone it left the value 36px and "elastane" ran 91px off
+   * the screen. 46% is at least 7.5em at the usual size from 320px up (128 of 280px, measured), so
+   * nothing moves there.
+   */
+  grid-template-columns: min(7.5em, 46%) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -4286,6 +4292,7 @@ a.contact-block__value:active {
 
 .proof__specs dd {
   margin: 0;
+  overflow-wrap: break-word;
   font-size: var(--text-sm);
   color: var(--text);
 }
@@ -7100,6 +7107,8 @@ a.contact-block__value:active {
 }
 
 .career-path__step {
+  /* Its own width is what the name is sized against (`.career-path__name`). */
+  container-type: inline-size;
   position: relative;
   padding-block-end: 16px;
   padding-inline-end: 16px;
@@ -7130,7 +7139,13 @@ a.contact-block__value:active {
   line-height: 0.95;
   letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
-  font-size: var(--text-lead);
+  /*
+   * The lead size, or less when the step is too narrow for its longest word (site check-up,
+   * 2026-10-22): with the reader's text at twice the size, "SUPERVISOR" needed 300px in a 164px step
+   * on a 320px phone and ran off the screen. 13cqi is that word's width at 110% stretch, 800, over
+   * the step's width, measured; at the usual size the lead size is the smaller from 320px up.
+   */
+  font-size: min(var(--text-lead), 13cqi);
   /* A role's name never breaks inside a word ("SUPERVI-SOR" did at 390 px, 2026-10-07). */
   overflow-wrap: normal;
   hyphens: manual;

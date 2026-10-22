@@ -117,11 +117,12 @@ export default defineConfig({
      * (`content-visibility`, Safari 18+), and how early a lazy picture starts is each engine's own.
      * `navProgress` joined 2026-10-22 (site check-up #3): the silent 2.3–2.8 s taps were measured in
      * Safari on an iPhone, so the loading line that answers them is proven in its engine.
+     * `bigText` the same day: twice-size text on a 320px phone ran off the side in WebKit as well.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

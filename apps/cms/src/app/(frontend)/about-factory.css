@@ -550,6 +550,12 @@
 .about-people__role {
   font-size: var(--text-lead);
   color: var(--heading);
+  /* With the reader's text at twice the size, "Merchandising" ran 22px past its card on a 320px
+     phone (site check-up, 2026-10-22). It hyphenates where the browser can, and breaks where it cannot
+     (`anywhere`, so the card itself may narrow: `break-word` left Chromium and Firefox 22px over);
+     at the usual size it fits whole. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 @media (width >= 900px) {

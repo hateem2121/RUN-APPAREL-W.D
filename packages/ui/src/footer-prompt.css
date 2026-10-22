@@ -43,7 +43,13 @@
   font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-instrument);
   text-transform: uppercase;
-  white-space: nowrap;
+  /*
+   * ⚠️ IT MAY WRAP (site check-up, 2026-10-22). It was `nowrap`, so with the reader's text at twice
+   * the size on a 320px phone "START A CONVERSATION" ran past the tab and the screen (52px of
+   * sideways scroll on every page, in WebKit, Firefox and Chromium). The label now takes a second
+   * line instead; at the usual size it still fits on one, so nothing moves there.
+   */
+  text-align: center;
   /* Rounded on top, square at the foot where the tab joins the slab. All four corners are stated:
      base.css rounds every link at rest (2026-10-21), which rounded this foot while only the top
      two were set. One shorthand rather than four logical longhands, because the garment pages'
@@ -93,11 +99,18 @@
   mask: radial-gradient(circle at 100% 0, #0000 var(--notch-r), #000 calc(var(--notch-r) + 0.5px));
 }
 
+/* Its lines balanced when it has to wrap; never narrower than its longest word (a flex item's
+   own minimum), so a word is never broken. */
+.site-footer__tab-label {
+  text-wrap: balance;
+}
+
 /* The label rests centred; on hover it slides left and the arrow arrives. The tab's
    WIDTH NEVER CHANGES — the arrow's slot is always reserved and the label is nudged
    right by half of it at rest — so the fillets never move. Touch has no hover, so
    there the arrow is simply always shown. */
 .site-footer__tab-arrow {
+  flex-shrink: 0;
   font-family: var(--font-display);
   width: var(--arrow-w);
   margin-inline-start: var(--arrow-gap);
