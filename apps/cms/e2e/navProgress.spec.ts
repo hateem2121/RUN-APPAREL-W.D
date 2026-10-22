@@ -55,7 +55,10 @@ test.describe('the loading line', () => {
     })
     await page.locator('#plain-link').click()
     await page.waitForTimeout(400)
-    expect(new URL(page.url()).pathname, 'the window did not cancel the plain load, so the test left the page').toBe('/faq')
+    expect(
+      new URL(page.url()).pathname,
+      'the window did not cancel the plain load, so the test left the page',
+    ).toBe('/faq')
     await expect(page.locator('.nav-progress[data-state="loading"]')).toHaveCount(0)
   })
 })
