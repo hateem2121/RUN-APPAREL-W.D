@@ -36,7 +36,7 @@ loud colour; everything else in the system is quiet so that it reads.
 | Token | Value | Role |
 |---|---|---|
 | `--volt` | `#cdf345` | The signal. Highlights, the dark-mode page title, dark-mode primary fill. |
-| `--volt-deep` | `#5f7414` | Light-mode serif accents and dimension lines — volt is illegible on paper-white. |
+| `--volt-deep` | `#586c05` | Light-mode serif accents and dimension lines — volt is illegible on paper-white. |
 | `--ink` | `#1d1f1a` | Near-black with an olive cast. Never `#000`. |
 
 ### Surfaces and text
@@ -50,7 +50,19 @@ Declared with CSS `light-dark()`, so one token carries both modes.
 | `--wash` | `#e4e1d8` | `#2c3126` |
 | `--raised` | `#ffffff` | `#363c2f` |
 | `--text` | `#1d1f1a` | `#ecebe4` |
-| `--muted` | `#63665b` | `#a2a695` |
+| `--muted` | `#62655a` | `#a2a695` |
+
+**`--muted` and `--volt-deep` clear 4.5:1 on all four light grounds** since 2026-10-22, wash
+included: `--muted` 5.17 / 5.65 / 4.55 / 5.95 and `--volt-deep` 5.13 / 5.59 / 4.50 / 5.89 on
+`--bg` / `--surface` / `--wash` / `--raised`, unrounded (WCAG's Understanding 1.4.3: 4.499:1 fails).
+Each is the smallest same-hue darkening that passes of its value before 2026-10-22 (#63665b at 4.48,
+#5f7414 at 4.02 on wash, until 2026-10-22), so either may now carry small text on `--wash`.
+
+**`packages/ui/src/tokens.css` is the source; `packages/ui/tokens/` is generated from it.**
+`pnpm tokens:export` writes three files in the Design Tokens Format Module 2025.10 (light with
+every non-colour token, dark, and high contrast), and `apps/cms/src/designTokens.test.ts` fails a
+pull request whose tokens.css and export disagree. The Paper & Ink design system and the brand
+guide are re-synced from those files, never edited first.
 
 **Dark-mode text is off-white (`#ecebe4`), never `#ffffff`.** The token file says
 so inline. Pure white on a near-black olive ground buzzes; the off-white sits.

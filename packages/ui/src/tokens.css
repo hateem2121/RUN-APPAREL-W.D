@@ -15,7 +15,11 @@
 
   /* ── Constants — the signal ─────────────────────────────────────── */
   --volt: #cdf345;
-  --volt-deep: #5f7414;
+  /* #5f7414 until 2026-10-22, which measured 4.02:1 on light `--wash` against the 4.5:1
+     text needs. #586c05 is the smallest same-hue darkening that clears it (OKLab
+     lightness down 0.026): bg 5.13 · surface 5.59 · wash 4.50 · raised 5.89, and 4.63:1
+     against `--volt`. Ratios are truncated, never rounded (WCAG Understanding 1.4.3). */
+  --volt-deep: #586c05;
   --ink: #1d1f1a;
   /* The light half of "PAPER & INK". Raw and theme-independent exactly as
      `--ink` is, because its one use pairs the two as a two-tone bezel that must
@@ -33,7 +37,10 @@
   --wash: light-dark(#e4e1d8, #2c3126);
   --raised: light-dark(#ffffff, #363c2f);
   --text: light-dark(#1d1f1a, #ecebe4); /* dark text is off-white, never #fff */
-  --muted: light-dark(#63665b, #a2a695);
+  /* Light half #63665b until 2026-10-22: 4.48:1 on `--wash`, a fail. #62655a (OKLab
+     lightness down 0.002) clears every light ground: bg 5.17 · surface 5.65 · wash 4.55 ·
+     raised 5.95. `apps/viewer/src/styles/tokens.test.ts` holds both tokens to 4.5:1 there. */
+  --muted: light-dark(#62655a, #a2a695);
 
   /* ── Motif inks ─────────────────────────────────────────────────── */
   --grid: light-dark(rgba(29, 31, 26, 0.05), rgba(236, 235, 228, 0.05));

@@ -44,11 +44,11 @@
       <circle cx="194" cy="180" r="7" fill="#f6f0b8"/><circle cx="212" cy="180" r="7" fill="#8fd35c"/>
     </g>
     <text x="180" y="236" font-size="13" text-anchor="middle">ONE file with every colour inside.</text>
-    <text x="180" y="256" font-size="13" text-anchor="middle" fill="#63665b">Colour names in CLO do not matter.</text>
+    <text x="180" y="256" font-size="13" text-anchor="middle" fill="#62655a">Colour names in CLO do not matter.</text>
 
     <!-- 2: CMS product page, 3D file tab -->
     <rect x="400" y="72" width="280" height="150" rx="6" fill="#ffffff" stroke="#1d1f1a" stroke-opacity="0.4"/>
-    <text x="414" y="94" font-size="12" fill="#63665b">Products › your garment</text>
+    <text x="414" y="94" font-size="12" fill="#62655a">Products › your garment</text>
     <text x="414" y="118" font-size="12">Details</text>
     <text x="474" y="118" font-size="12" font-weight="700">3D file</text>
     <line x1="472" y1="123" x2="520" y2="123" stroke="#1d1f1a" stroke-width="2"/>
@@ -59,7 +59,7 @@
     <rect x="460" y="186" width="84" height="22" rx="4" fill="#cdf345" stroke="#1d1f1a"/>
     <text x="502" y="201" font-size="12" text-anchor="middle">Balanced</text>
     <text x="540" y="246" font-size="13" text-anchor="middle">Keep the tab open while it uploads.</text>
-    <text x="540" y="266" font-size="13" text-anchor="middle" fill="#63665b">A robot then shrinks the file.</text>
+    <text x="540" y="266" font-size="13" text-anchor="middle" fill="#62655a">A robot then shrinks the file.</text>
 
     <!-- 3: Colours tab -->
     <rect x="40" y="372" width="280" height="150" rx="6" fill="#ffffff" stroke="#1d1f1a" stroke-opacity="0.4"/>
@@ -79,7 +79,7 @@
       <text x="160" y="498">Colorway 3 ▾</text>
     </g>
     <text x="180" y="546" font-size="13" text-anchor="middle">Pick the CLO colour for each name.</text>
-    <text x="180" y="566" font-size="13" text-anchor="middle" fill="#63665b">The first row is the colour people see first.</text>
+    <text x="180" y="566" font-size="13" text-anchor="middle" fill="#62655a">The first row is the colour people see first.</text>
 
     <!-- 4: publish + phone -->
     <rect x="400" y="372" width="170" height="150" rx="6" fill="#ffffff" stroke="#1d1f1a" stroke-opacity="0.4"/>
@@ -96,6 +96,6 @@
       <rect x="648" y="500" width="6" height="6"/>
     </g>
     <text x="540" y="546" font-size="13" text-anchor="middle">Zoom right in on a printed logo.</text>
-    <text x="540" y="566" font-size="13" text-anchor="middle" fill="#63665b">The print is the product: it must be sharp.</text>
+    <text x="540" y="566" font-size="13" text-anchor="middle" fill="#62655a">The print is the product: it must be sharp.</text>
   </g>
 </svg>

@@ -680,11 +680,12 @@ describe('the notch', () => {
     expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*min-width: 0/)
   })
 
-  it('keeps the card placeholder off --wash, which fails AA by two hundredths', () => {
+  it('keeps the card placeholder on --bg, where its label has the most margin', () => {
     // axe, 2026-09-05: nine SERIOUS colour-contrast violations on /products, all the
     // same rule — the "[ 3D REFERENCE ]" label was --muted on --wash at 4.48:1 against
-    // a 4.5:1 floor. Every other gate was green; only a live audit found it. On --bg it
-    // is 5.10:1 light and 6.69:1 dark, and the card body being the lighter --surface
+    // a 4.5:1 floor. Every other gate was green; only a live audit found it. Since
+    // 2026-10-22 --muted clears --wash too (4.55:1), but by hundredths; on --bg it is
+    // 5.17:1 light and 6.69:1 dark, and the card body being the lighter --surface
     // keeps the figure reading as recessed.
     expect(css()).toMatch(/\.product-card__figure\s*\{[^}]*background: var\(--bg\)/)
     expect(css()).not.toMatch(/\.product-card__figure\s*\{[^}]*background: var\(--wash\)/)

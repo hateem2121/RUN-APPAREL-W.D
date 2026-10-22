@@ -13,7 +13,7 @@ import { ABOUT } from '../src/lib/aboutCopy'
  */
 
 const VOLT = '#cdf345'
-const VOLT_DEEP = '#5f7414'
+const VOLT_DEEP = '#586c05'
 const INK = '#1d1f1a'
 const OFF_WHITE = '#ecebe4'
 

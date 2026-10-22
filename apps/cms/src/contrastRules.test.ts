@@ -128,13 +128,18 @@ describe('contrastOf — what the eye receives, which is the whole point', () =>
      * reproduces all four from the real tokens in `packages/ui/src/tokens.css`. Agreement
      * between two independent implementations is why these are pinned rather than
      * bounded — a figure picked to make a test pass would prove nothing at all.
+     *
+     * 2026-10-22: light `--muted` went #63665b → #62655a so it clears 4.5:1 on `--wash`
+     * (4.48 → 4.55, Paper & Ink v19). The incident's figures above were measured on
+     * the old value; on today's token the same two light readings are 5.17:1 and 2.21:1, and
+     * the dark pair is unchanged. The incident still reproduces: 0.55 still takes it under 3.
      */
-    const MUTED = { light: '#63665b', dark: '#a2a695' }
+    const MUTED = { light: '#62655a', dark: '#a2a695' }
     const BG = { light: '#f1efea', dark: '#1c1f18' }
 
-    expect(contrastOf(MUTED.light, BG.light)).toBeCloseTo(5.1, 1)
+    expect(contrastOf(MUTED.light, BG.light)).toBeCloseTo(5.18, 1)
     expect(contrastOf(MUTED.dark, BG.dark)).toBeCloseTo(6.69, 1)
-    expect(contrastOf(MUTED.light, BG.light, { opacity: 0.55 })).toBeCloseTo(2.19, 1)
+    expect(contrastOf(MUTED.light, BG.light, { opacity: 0.55 })).toBeCloseTo(2.21, 1)
     expect(contrastOf(MUTED.dark, BG.dark, { opacity: 0.55 })).toBeCloseTo(2.97, 1)
 
     // The floor the incident crossed: it passes on the token and fails on what is seen.
@@ -143,7 +148,7 @@ describe('contrastOf — what the eye receives, which is the whole point', () =>
   })
 
   it('changes nothing at opacity 1 — negative control for the option itself', () => {
-    expect(contrastOf('#63665b', '#f1efea', { opacity: 1 })).toBe(contrastOf('#63665b', '#f1efea'))
+    expect(contrastOf('#62655a', '#f1efea', { opacity: 1 })).toBe(contrastOf('#62655a', '#f1efea'))
   })
 })
 

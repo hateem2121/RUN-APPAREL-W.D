@@ -970,12 +970,12 @@ function resolveToken(tokensSource: string, token: string): { light: string; dar
 }
 
 /*
- * ⚠️ TWO TOKEN PAIRS SIT JUST UNDER AA ON --wash IN THE LIGHT THEME, AND NOTHING USES THEM YET.
- * Computed in the visual audit of 2026-10-01 from tokens.css: `--muted` on `--wash` 4.48:1 and
- * `--volt-deep` on `--wash` 4.02:1, against the 4.5:1 normal text needs. axe found no live
- * instance on ten pages, so this is a guard, not a fix: a rule that paints `--wash` behind its own
- * text must give that text a colour that clears 4.5:1 there, in both themes. Same-rule pairs only
- * (inheritance is beyond a stylesheet scan); the planted control below proves it sees one.
+ * A rule that paints `--wash` behind its own text must give that text a colour that clears 4.5:1
+ * there, in both themes. Written after the visual audit of 2026-10-01 measured `--muted` on
+ * `--wash` at 4.48:1 and `--volt-deep` at 4.02:1 in light; both tokens were darkened on
+ * 2026-10-22 (now 4.55 and 4.50, truncated) and the next describe block holds them there. This
+ * scan stays for any other text token. Same-rule pairs only (inheritance is beyond a stylesheet
+ * scan); the planted control below proves it sees one.
  */
 function washTextFailures(css: string, tokensSource: string, file: string): string[] {
   const wash = resolveToken(tokensSource, '--wash')
@@ -1016,9 +1016,62 @@ describe('text on the --wash surface', () => {
     expect(failures).toEqual([])
   })
 
-  it('NEGATIVE CONTROL: --muted text on --wash is caught (4.48:1 in light)', () => {
+  it('NEGATIVE CONTROL: --muted text on --wash is caught at its pre-2026-10-22 value (4.48:1)', () => {
+    // Today's --muted passes, so the defect is planted in the tokens: the old light half.
+    const oldTokens = tokensSource.replace('light-dark(#62655a,', 'light-dark(#63665b,')
+    expect(oldTokens, 'the plant must land').not.toBe(tokensSource)
     const planted = '.planted { background: var(--wash); color: var(--muted); }'
-    expect(washTextFailures(planted, tokensSource, 'planted')).toHaveLength(1)
+    expect(washTextFailures(planted, oldTokens, 'planted')).toHaveLength(1)
+    expect(washTextFailures(planted, tokensSource, 'planted')).toEqual([])
+  })
+})
+
+/**
+ * `--muted` (secondary text) and `--volt-deep` (the light serif accent, dimension lines and focus
+ * ring) on every light ground, at the 4.5:1 normal text needs. Unrounded: WCAG's Understanding
+ * page for 1.4.3 says 4.499:1 does not meet 4.5:1, and `--muted` on `--wash` was exactly that kind
+ * of near-miss (4.48:1) until 2026-10-22. Read from tokens.css, so a future edit to either
+ * colour or any ground is measured, not trusted.
+ */
+const LIGHT_GROUNDS = ['--bg', '--surface', '--wash', '--raised'] as const
+const LIGHT_TEXT = ['--muted', '--volt-deep'] as const
+
+function lightTextFailures(tokensSource: string): string[] {
+  const failures: string[] = []
+  for (const text of LIGHT_TEXT) {
+    const fg = resolveToken(tokensSource, text)
+    if (!fg) {
+      failures.push(`${text} does not resolve to a hex pair`)
+      continue
+    }
+    for (const ground of LIGHT_GROUNDS) {
+      const bg = resolveToken(tokensSource, ground)
+      if (!bg) {
+        failures.push(`${ground} does not resolve to a hex pair`)
+        continue
+      }
+      const ratio = contrast(fg.light, bg.light)
+      if (ratio < 4.5) failures.push(`${text} ${fg.light} on ${ground} ${bg.light}: ${ratio}:1`)
+    }
+  }
+  return failures
+}
+
+describe('secondary text and the serif accent on every light ground', () => {
+  const tokensSource = readFileSync(cssPath('tokens.css'), 'utf8')
+
+  it('--muted and --volt-deep clear 4.5:1 on --bg, --surface, --wash and --raised', () => {
+    expect(lightTextFailures(tokensSource)).toEqual([])
+  })
+
+  it('NEGATIVE CONTROL: the values before 2026-10-22 fail on --wash, and only there', () => {
+    const oldTokens = tokensSource
+      .replace('light-dark(#62655a,', 'light-dark(#63665b,')
+      .replace('--volt-deep: #586c05;', '--volt-deep: #5f7414;')
+    expect(oldTokens, 'the plant must land').not.toBe(tokensSource)
+    const failures = lightTextFailures(oldTokens)
+    expect(failures).toHaveLength(2)
+    expect(failures.every((f) => f.includes('on --wash'))).toBe(true)
   })
 })
 
@@ -1140,7 +1193,7 @@ describe('progress indicators', () => {
       failures,
       'A cue is being dimmed below the contrast floor by its own opacity.\n' +
         'Lower the opacity requirement rather than the colour: dropping `opacity`\n' +
-        'and keeping --muted measures 5.10:1 light / 6.69:1 dark. --dimension also\n' +
+        'and keeping --muted measures 5.17:1 light / 6.69:1 dark. --dimension also\n' +
         'passes but resolves to volt, which pulls the eye off the garment.',
     ).toEqual([])
   })

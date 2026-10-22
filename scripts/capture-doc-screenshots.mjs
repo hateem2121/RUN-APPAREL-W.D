@@ -80,7 +80,7 @@ await card.setContent(`<!doctype html>
     letter-spacing: .08em; padding: 6px 12px; border-radius: 6px; }
   h1 { font-size: 104px; line-height: .95; margin: 28px 0 24px; letter-spacing: -.02em; font-weight: 900; }
   p { font-size: 34px; margin: 0 0 12px; }
-  .small { font: 500 24px ui-monospace, Menlo, monospace; color: #63665b; margin-top: 36px; }
+  .small { font: 500 24px ui-monospace, Menlo, monospace; color: #62655a; margin-top: 36px; }
   img { height: 560px; border-radius: 36px; border: 6px solid #1d1f1a; }
 </style>
 <div>
