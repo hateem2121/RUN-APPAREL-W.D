@@ -8,8 +8,13 @@ import Link from 'next/link'
  * that threw showed Next's unstyled default (audit 2026-09-26). It renders inside the
  * (frontend) layout, so the header and footer stay. `DEFAULT_SITE_SETTINGS`, not the CMS,
  * for the same reason as `not-found.tsx`: this must survive the outage that caused it.
+ *
+ * ⚠️ THE BUTTON CALLS `retry()`, NOT `reset()` (site check-up, 2026-10-22). Next 16.3.8's `error.md`:
+ * `retry()` re-fetches and re-renders the children, while `reset()` clears the error and re-renders
+ * WITHOUT re-fetching, so a page that failed on a fetch would fail again on the same data.
+ * `retry` has been stable since v16.3.0 (`unstable_retry` before that).
  */
-export default function SiteError({ reset }: { error: Error; reset: () => void }) {
+export default function SiteError({ retry }: { error: Error; retry: () => void }) {
   return (
     <section className="site-hero">
       <div className="blueprint site-hero__grid" aria-hidden="true" />
@@ -23,7 +28,7 @@ export default function SiteError({ reset }: { error: Error; reset: () => void }
           write to us and we will send what you were looking for.
         </p>
         <div className="site-actions">
-          <button className="btn btn--primary" type="button" onClick={() => reset()}>
+          <button className="btn btn--primary" type="button" onClick={() => retry()}>
             Try again
           </button>
           <Link className="btn btn--ghost" href="/products">

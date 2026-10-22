@@ -127,6 +127,20 @@ describe('validateApplication', () => {
     expect(MAX_LENGTHS.name).toBe(120)
     expect(MAX_LENGTHS.note).toBe(2000)
   })
+
+  // 2026-10-22: the note is the careers form's free text, so it keeps its lines like the contact message.
+  it('keeps the line breaks in the free-text note, and the trunk 0 off the phone', () => {
+    const result = validateApplication({
+      ...good,
+      phone: '0300 1234567',
+      note: 'Ten years on the floor.\r\n\r\n\r\nCan start now.',
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.note).toBe('Ten years on the floor.\n\nCan start now.')
+      expect(result.value.phone).toBe('+92 300 1234567')
+    }
+  })
 })
 
 describe('the honeypot', () => {

@@ -6,6 +6,7 @@ import {
   CONSENT_OPEN_EVENT,
   type CookieJar,
   declineTrackers,
+  followOtherTab,
   forgetTrackers,
   readConsent,
   restoreTrackers,
@@ -100,9 +101,26 @@ export function ConsentBanner() {
       else if (answered && returnTo.current === null) setOpen(false)
     }
     window.addEventListener('pageshow', restored)
+
+    /*
+     * Another open tab answered the question (site check-up, 2026-10-22). The browser fires
+     * `storage` only in the tabs that did not write, so this tab learns of it here and not
+     * through its own buttons: it closes the question it put up unasked (one the visitor asked
+     * for stays, as on `pageshow`), starts the trackers for an Accept, and forgets them for a
+     * Decline, reloading if they already run. `followOtherTab` (consent.ts) has the cases.
+     */
+    const answeredElsewhere = (event: StorageEvent) => {
+      if (event.storageArea !== null && event.storageArea !== window.localStorage) return
+      const followed = followOtherTab(event, trackerWindow(), storage(), cookieJar())
+      if (!followed) return
+      if (followed.reload) window.location.reload()
+      else if (followed.answered && returnTo.current === null) setOpen(false)
+    }
+    window.addEventListener('storage', answeredElsewhere)
     return () => {
       document.removeEventListener(CONSENT_OPEN_EVENT, reopen)
       window.removeEventListener('pageshow', restored)
+      window.removeEventListener('storage', answeredElsewhere)
     }
   }, [])
 

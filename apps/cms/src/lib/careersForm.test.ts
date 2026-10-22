@@ -24,7 +24,8 @@ describe('the approved fixed words', () => {
   it('button, help lines, received text and privacy line', () => {
     expect(SEND_APPLICATION).toBe('Send application')
     expect(PHONE_HELP).toBe('We will call you on this number.')
-    expect(CV_HELP).toBe('Needed for office roles. PDF, Word, JPG or PNG, up to 10 MB.')
+    // "Word (.docx)": an old .doc is refused (2026-10-22), so the line names what is taken.
+    expect(CV_HELP).toBe('Needed for office roles. PDF, Word (.docx), JPG or PNG, up to 10 MB.')
     expect(RECEIVED_TEXT).toBe(
       'Thank you — your application is with our HR team. We keep good candidates on file for future openings.',
     )
@@ -79,7 +80,7 @@ describe('the CV, checked before it is sent', () => {
       'Your CV is 11.0 MB. Up to 10 MB can be attached — please send a smaller file.',
     )
     expect(await pickedCvProblem([new File([new Uint8Array([0x4d, 0x5a])], 'cv.pdf')])).toBe(
-      '“cv.pdf” is not a kind we accept, or its contents do not match its name. We accept PDF, Word, JPG or PNG.',
+      '“cv.pdf” is not a kind we accept, or its contents do not match its name. We accept PDF, Word (.docx), JPG or PNG.',
     )
     expect(await pickedCvProblem([new File([], 'cv.pdf')])).toBe(
       '“cv.pdf” is empty — please choose it again.',
@@ -104,7 +105,7 @@ describe('what the page says after "Send application"', () => {
     // After sending, only a CODE comes back (no file name, no size), so the approved lines'
     // placeholders are filled with "Your CV" and the sentence that needs the size is left out.
     expect(careersNotice({ error: 'files', reason: 'type' })?.text).toBe(
-      `${NOT_SENT} Your CV is not a kind we accept, or its contents do not match its name. We accept PDF, Word, JPG or PNG.`,
+      `${NOT_SENT} Your CV is not a kind we accept, or its contents do not match its name. We accept PDF, Word (.docx), JPG or PNG.`,
     )
     expect(careersNotice({ error: 'files', reason: 'too-big' })?.text).toBe(
       `${NOT_SENT} Up to 10 MB can be attached — please send a smaller file.`,

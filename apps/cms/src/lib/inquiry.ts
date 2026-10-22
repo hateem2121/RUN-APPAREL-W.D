@@ -70,6 +70,27 @@ export const clean = (value: unknown, max: number): string =>
   typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : ''
 
 /**
+ * For the one free-text box on each form (the contact `message`, the careers `note`): keeps its
+ * line breaks. Found 2026-10-22 (site check-up): an inquiry typed on three lines was stored as one,
+ * because `clean` collapses every run of whitespace, newlines included, and it ran on every field.
+ *
+ * Line ends become `\n`; spaces and tabs inside a line collapse and each line is trimmed; at most
+ * one empty line in a row; the ends are trimmed. Every single-line field keeps using `clean`.
+ */
+export const cleanText = (value: unknown, max: number): string =>
+  typeof value === 'string'
+    ? value
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.replace(/\s+/g, ' ').trim())
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, max)
+        .trimEnd()
+    : ''
+
+/**
  * ⚠️ DELIBERATELY PERMISSIVE, AND THAT IS THE CORRECT TRADE FOR THIS FORM.
  *
  * A strict address regex rejects valid addresses — plus-tags, new TLDs, quoted local
@@ -90,18 +111,23 @@ export function joinPhone(rawCode: unknown, rawNumber: unknown): string {
   const number = clean(rawNumber, MAX_LENGTHS.phone)
   if (!number) return ''
   const code = clean(rawCode, 8).replace(/\D/g, '').slice(0, 4)
-  return (code && !number.startsWith('+') ? `+${code} ${number}` : number).slice(
-    0,
-    MAX_LENGTHS.phone,
-  )
+  if (!code || number.startsWith('+')) return number.slice(0, MAX_LENGTHS.phone)
+  // A national trunk 0 is what you dial at home and never after a country code: found 2026-10-22,
+  // "+92" + "0300 1234567" was stored as "+92 0300 1234567". Drop ONE.
+  // ⚠️ ITALY (+39) IS THE EXCEPTION: its landlines keep the leading 0 when dialled from abroad
+  // (+39 06 …), so dropping it would turn a Rome number into a different one.
+  const national = code !== ITALY_CODE ? number.replace(/^0\s*/, '') : number
+  return national ? `+${code} ${national}`.slice(0, MAX_LENGTHS.phone) : ''
 }
+
+const ITALY_CODE = '39'
 
 export function validateInquiry(raw: Record<string, unknown>): InquiryResult {
   const value: InquiryInput = {
     name: clean(raw.name, MAX_LENGTHS.name),
     company: clean(raw.company, MAX_LENGTHS.company),
     email: clean(raw.email, MAX_LENGTHS.email),
-    message: clean(raw.message, MAX_LENGTHS.message),
+    message: cleanText(raw.message, MAX_LENGTHS.message),
     jobTitle: clean(raw.jobTitle, MAX_LENGTHS.jobTitle),
     country: clean(raw.country, MAX_LENGTHS.country),
     phone: joinPhone(raw.phoneCode, raw.phone),

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from '../../lib/inquiryFiles'
 import { INQUIRY_FILE_ACCEPT } from '../../lib/inquiryFileTypes'
-import { pickedFileProblem, pickProblem } from '../../lib/inquiryForm'
+import { FILE_BOX_NOTE, pickedFileProblem, pickProblem } from '../../lib/inquiryForm'
 
 /**
  * The contact form's file field (owner, 2026-09-29: up to 5 files, 25 MB in total).
@@ -126,8 +126,7 @@ export function FilePicker() {
         </span>
       </label>
       <p className="inquiry-form__note" id="inquiry-files-note">
-        Photos, PDF, Office, Keynote, Illustrator or Photoshop. Larger? Paste a WeTransfer or Drive
-        link in your message.
+        {FILE_BOX_NOTE}
       </p>
       {chosen.length > 0 ? (
         <ul className="inquiry-files">

@@ -442,3 +442,40 @@ export function restoreTrackers(
   }
   return { answered: choice !== null, reload: false }
 }
+
+/**
+ * The cookie choice was answered in ANOTHER open tab (the window's `storage` event, which fires
+ * only in the tabs that did not write). Found 2026-10-22 (site check-up): without this, a tab
+ * left open kept asking a question already answered, and one that had accepted kept its trackers
+ * after the visitor declined elsewhere until it was reloaded.
+ *
+ * `change.key` is the key that changed, or null when the other tab cleared the whole storage;
+ * any other key is not ours and returns null. Then the stored answer is read afresh:
+ *
+ * - Declined: anything stored is forgotten, and a tab where Google already runs must RELOAD, by
+ *   `declineTrackers`'s rule (a started script cannot be stopped).
+ * - Accepted: the three trackers start (`startTrackers` does nothing twice). Unlike
+ *   `restoreTrackers` it counts no page view for a tab that already runs them: the visitor did
+ *   not come back to this page, an answer arrived.
+ * - No answer: nothing happens and the question stays.
+ *
+ * `answered` lets the component close the question it put up unasked.
+ */
+export function followOtherTab(
+  change: { key: string | null },
+  win: TrackerWindow,
+  storage: ConsentStorage,
+  jar: CookieJar,
+): { answered: boolean; reload: boolean } | null {
+  if (change.key !== null && change.key !== CONSENT_STORAGE_KEY) return null
+  const choice = readConsent(storage)
+  if (choice === 'declined') {
+    forgetTrackers(storage, jar)
+    return { answered: true, reload: win.runTrackersStarted === true }
+  }
+  if (choice === 'accepted') {
+    startTrackers(win)
+    return { answered: true, reload: false }
+  }
+  return { answered: false, reload: false }
+}

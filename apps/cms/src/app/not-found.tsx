@@ -85,7 +85,10 @@ import { THEME_COLOR } from '../lib/themeColor'
  * show the page. Its headline keeps one font from first paint (`.hero-notfound`, polish X19).
  */
 export const metadata: Metadata = {
-  title: 'Page not found — RUN APPAREL',
+  // `absolute`, not a string: /journal/<missing> and /case-studies/<missing> call notFound() inside
+  // generateMetadata, which draws this page UNDER the (frontend) layout, and that layout's
+  // `%s — RUN APPAREL` template then doubled the name (found 2026-10-22; `notFoundTitle.test.ts`).
+  title: { absolute: 'Page not found — RUN APPAREL' },
   robots: { index: false, follow: true },
 }
 

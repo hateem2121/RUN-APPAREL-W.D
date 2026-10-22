@@ -39,61 +39,85 @@ const SCROLL_KEYS = new Set(['End', 'Home', 'PageDown', 'PageUp', 'ArrowDown', '
 export function SmoothScroll() {
   useEffect(() => {
     if (navigator.webdriver) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     /*
      * Only a wheel glides, and a phone has none (home page audit, 2026-10-17): Lenis's frame loop
      * (`autoRaf`) ran on every phone for nothing. `any-pointer`, not `pointer`: a touch laptop
      * with a trackpad or mouse keeps its glide (MDN, "any-pointer", modified 20 April 2026).
      */
     if (!window.matchMedia('(any-pointer: fine)').matches) return
-    let lenis: Lenis | null = null
-    let cancelled = false
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
 
     /*
-     * ⚠️ ANY OTHER WAY OF MOVING THE PAGE ENDS THE GLIDE, AT THE MOMENT OF INTENT.
-     * Lenis ignores native scroll while it is gliding and writes its own position on every
-     * frame, so without this (measured 2026-09-25, e2e/smoothScroll.spec.ts, Chromium and
-     * Firefox): End pressed mid-glide was pulled back up by the glide, and a link clicked
-     * mid-glide left the NEW page scrolled to the old page's target — Next had put it at
-     * the top, then the next frame put it back. A reset after navigation is too late for
-     * the same reason: one Lenis frame runs between Next's scroll and a React effect.
-     * So the glide stops BEFORE the page moves: on a pointer press (a link, the scrollbar),
-     * a scrolling key, and Back/Forward. stop() + start() is Lenis's public reset: it snaps
-     * its target to wherever the page really is, and a touch on a moving page stopping it
-     * is what a person expects anyway.
+     * ⚠️ REDUCED MOTION IS FOLLOWED LIVE, NOT READ ONCE (site check-up, 2026-10-22). It was read at
+     * mount, so a visitor who switched "Reduce motion" on mid-visit kept the glide until they
+     * reloaded; `OrderStagesList` and `ProductsFilm` already listen for `change`. `run` is the whole
+     * glide, started and torn down as the preference flips either way.
      */
-    const endGlide = () => {
-      if (lenis?.isScrolling !== 'smooth') return
-      lenis.stop()
-      lenis.start()
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (SCROLL_KEYS.has(event.key)) endGlide()
+    const run = () => {
+      let lenis: Lenis | null = null
+      let cancelled = false
+
+      /*
+       * ⚠️ ANY OTHER WAY OF MOVING THE PAGE ENDS THE GLIDE, AT THE MOMENT OF INTENT.
+       * Lenis ignores native scroll while it is gliding and writes its own position on every
+       * frame, so without this (measured 2026-09-25, e2e/smoothScroll.spec.ts, Chromium and
+       * Firefox): End pressed mid-glide was pulled back up by the glide, and a link clicked
+       * mid-glide left the NEW page scrolled to the old page's target — Next had put it at
+       * the top, then the next frame put it back. A reset after navigation is too late for
+       * the same reason: one Lenis frame runs between Next's scroll and a React effect.
+       * So the glide stops BEFORE the page moves: on a pointer press (a link, the scrollbar),
+       * a scrolling key, and Back/Forward. stop() + start() is Lenis's public reset: it snaps
+       * its target to wherever the page really is, and a touch on a moving page stopping it
+       * is what a person expects anyway.
+       */
+      const endGlide = () => {
+        if (lenis?.isScrolling !== 'smooth') return
+        lenis.stop()
+        lenis.start()
+      }
+      const onKey = (event: KeyboardEvent) => {
+        if (SCROLL_KEYS.has(event.key)) endGlide()
+      }
+
+      import('lenis')
+        .then(({ default: LenisClass }) => {
+          if (cancelled) return
+          lenis = new LenisClass({
+            autoRaf: true,
+            duration: SITE_SCROLL_DURATION_S,
+            easing: siteScrollEasing,
+            virtualScroll: ({ event }) => event.isTrusted && !pageHeld(document),
+          })
+          window.addEventListener('pointerdown', endGlide, { capture: true })
+          window.addEventListener('keydown', onKey, { capture: true })
+          window.addEventListener('popstate', endGlide)
+        })
+        .catch(() => {
+          // Decorative: the page scrolls natively without it.
+        })
+      return () => {
+        cancelled = true
+        window.removeEventListener('pointerdown', endGlide, { capture: true })
+        window.removeEventListener('keydown', onKey, { capture: true })
+        window.removeEventListener('popstate', endGlide)
+        lenis?.destroy()
+        lenis = null
+      }
     }
 
-    import('lenis')
-      .then(({ default: LenisClass }) => {
-        if (cancelled) return
-        lenis = new LenisClass({
-          autoRaf: true,
-          duration: SITE_SCROLL_DURATION_S,
-          easing: siteScrollEasing,
-          virtualScroll: ({ event }) => event.isTrusted && !pageHeld(document),
-        })
-        window.addEventListener('pointerdown', endGlide, { capture: true })
-        window.addEventListener('keydown', onKey, { capture: true })
-        window.addEventListener('popstate', endGlide)
-      })
-      .catch(() => {
-        // Decorative: the page scrolls natively without it.
-      })
+    let stop: (() => void) | null = reduced.matches ? null : run()
+    const onMotionChange = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        stop?.()
+        stop = null
+      } else if (!stop) {
+        stop = run()
+      }
+    }
+    reduced.addEventListener('change', onMotionChange)
     return () => {
-      cancelled = true
-      window.removeEventListener('pointerdown', endGlide, { capture: true })
-      window.removeEventListener('keydown', onKey, { capture: true })
-      window.removeEventListener('popstate', endGlide)
-      lenis?.destroy()
-      lenis = null
+      reduced.removeEventListener('change', onMotionChange)
+      stop?.()
     }
   }, [])
 
