@@ -29,8 +29,6 @@ export const JOURNAL_CLUSTERS = [
   { value: 'company-news', label: 'Company news' },
 ] as const
 
-export type JournalClusterValue = (typeof JOURNAL_CLUSTERS)[number]['value']
-
 /** A stored cluster value's label; null for a value no longer offered. */
 export function journalClusterLabel(value: unknown): string | null {
   return JOURNAL_CLUSTERS.find((cluster) => cluster.value === value)?.label ?? null
