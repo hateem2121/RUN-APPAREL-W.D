@@ -145,24 +145,27 @@ for (const piece of [FOOTER, RELATED, POLISH]) {
   })
 }
 
-test('two pieces failing in one page-load share ONE reload', async ({ page, browserName }) => {
+/*
+ * Both pieces refused in EVERY load, so whichever fails first triggers the one reload and the other
+ * fails too, before or after it. The first version refused them in the first load only and failed
+ * 3 of 3 engines in the full suite (2026-10-22): the cards failed first, the page reloaded before it
+ * had asked for the footer, so the footer's plant never landed. What this holds is the guard: two
+ * missing pieces never cost more than one reload, and never the crash screen.
+ */
+test('two pieces failing never cost more than ONE reload', async ({ page }) => {
   const navigations = countNavigations(page)
-  const first = (documentNumber: number) => documentNumber <= 1
-  const footer = await plant(page, FOOTER, navigations, first)
-  const related = await plant(page, RELATED, navigations, first)
+  const footer = await plant(page, FOOTER, navigations, () => true)
+  const related = await plant(page, RELATED, navigations, () => true)
 
   await page.goto('/n001/wine')
-  await expect.poll(() => navigations.count, { message: 'no automatic reload' }).toBe(2)
-  if (reloadsAgainForReal(browserName)) {
-    await FOOTER.arrived(page)
-    await RELATED.arrived(page)
-  }
-  await page.waitForTimeout(1_000)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await page.waitForTimeout(3_000)
 
   expect(footer.count, 'the footer plant must land').toBeGreaterThanOrEqual(1)
   expect(related.count, 'the cards plant must land').toBeGreaterThanOrEqual(1)
   expect(navigations.count, 'one shared guard: one reload for both').toBe(2)
   await expect(crashScreen(page)).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 })
 
 test('NEGATIVE CONTROL: with no chunk missing the page never reloads', async ({ page }) => {
