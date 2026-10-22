@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cleanText,
   inquirySubject,
   formatInquiryEmail,
+  joinPhone,
   HONEYPOT_FIELD,
   inquiryRecipient,
   isHoneypotTripped,
@@ -304,5 +306,82 @@ describe('inquiryRecipient', () => {
   it('is exactly the address the site shows, trimmed as `mergeSiteSettings` trims it', () => {
     expect(inquiryRecipient({ email: '  sales@example.com ' })).toBe('sales@example.com')
     expect(inquiryRecipient({ email: '   ' })).toBe('inquiry@wear-run.com')
+  })
+})
+
+/*
+ * Found 2026-10-22 (site check-up): an inquiry typed on three lines was stored as one, because
+ * `clean()` collapsed every run of whitespace, newlines included, in every field.
+ */
+describe('the free-text message keeps its line breaks', () => {
+  it('stores a three-line message as three lines', () => {
+    const typed = 'Hello,\nWe need 400 tops.\nThanks, Dana'
+    const result = validateInquiry({ ...good, message: typed })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value.message).toBe(typed)
+  })
+
+  it('turns Windows and old-Mac line ends into \\n', () => {
+    expect(cleanText('a\r\nb\rc', 100)).toBe('a\nb\nc')
+  })
+
+  it('collapses spaces and tabs inside a line, and trims each line', () => {
+    expect(cleanText('  a \t  b  \n   c   ', 100)).toBe('a b\nc')
+  })
+
+  it('allows at most one empty line in a row', () => {
+    expect(cleanText('a\n\n\n\n\nb', 100)).toBe('a\n\nb')
+    expect(cleanText('a\n \n\t\n\nb', 100)).toBe('a\n\nb')
+  })
+
+  it('trims blank lines at both ends and still clips to the maximum', () => {
+    expect(cleanText('\n\n a \n\n', 100)).toBe('a')
+    expect(cleanText('abc\ndef', 5)).toBe('abc\nd')
+    expect(cleanText(42, 5)).toBe('')
+  })
+
+  it('leaves a one-line field flat, as before', () => {
+    const result = validateInquiry({ ...good, name: 'Dana\nOkafor', subject: 'a\nb' })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.name).toBe('Dana Okafor')
+      expect(result.value.subject).toBe('a b')
+    }
+  })
+
+  it('keeps the line breaks in the notification email body', () => {
+    const body = formatInquiryEmail({ ...good, message: 'one\ntwo\n\nthree' }, new Date(0))
+    expect(body).toContain('\none\ntwo\n\nthree\n')
+  })
+})
+
+/*
+ * Found 2026-10-22: "+92" + "0300 1234567" was stored as "+92 0300 1234567". A national trunk 0
+ * is dialled at home and never after a country code.
+ */
+describe('joinPhone drops the national trunk 0 after a country code', () => {
+  it('+92 0300 1234567 becomes +92 300 1234567', () => {
+    expect(joinPhone('92', '0300 1234567')).toBe('+92 300 1234567')
+  })
+
+  it('+44 07700 900123 becomes +44 7700 900123', () => {
+    expect(joinPhone('44', '07700 900123')).toBe('+44 7700 900123')
+  })
+
+  it('drops ONE zero only', () => {
+    expect(joinPhone('44', '0044 7700')).toBe('+44 044 7700')
+  })
+
+  it("keeps Italy's leading 0 (landlines are dialled with it from abroad)", () => {
+    expect(joinPhone('39', '06 1234 5678')).toBe('+39 06 1234 5678')
+  })
+
+  it('leaves a number alone when there is no code, or it already starts with +', () => {
+    expect(joinPhone('', '0300 1234567')).toBe('0300 1234567')
+    expect(joinPhone('92', '+44 07700 900123')).toBe('+44 07700 900123')
+  })
+
+  it('leaves a number without a leading 0 alone', () => {
+    expect(joinPhone('92', '300 1234567')).toBe('+92 300 1234567')
   })
 })

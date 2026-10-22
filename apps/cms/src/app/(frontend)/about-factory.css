@@ -155,6 +155,21 @@
       overflow: clip;
     }
 
+    /*
+     * ⚠️ HIDDEN TO SAFARI ONCE IT LEAVES THE SCREEN'S FOOT (site check-up, 2026-10-22). This is a
+     * full-width sticky box, and iPhone Safari keeps the colour of the last one at the foot while it
+     * stays visible: in the Compact layout the strip under the bar stayed paper at the end of the
+     * page, under the dark footer (362 of 441 apart, iOS 27.0 simulator; lib/footEdge.ts). The stage
+     * paints nothing of its own and its children stay visible, so nothing on screen changes.
+     */
+    .about-hero__stage[data-edge="off"] {
+      visibility: hidden;
+    }
+
+    .about-hero__stage > * {
+      visibility: visible;
+    }
+
     .about-hero__ghost {
       display: grid;
       place-items: center;
@@ -535,6 +550,12 @@
 .about-people__role {
   font-size: var(--text-lead);
   color: var(--heading);
+  /* With the reader's text at twice the size, "Merchandising" ran 22px past its card on a 320px
+     phone (site check-up, 2026-10-22). It hyphenates where the browser can, and breaks where it cannot
+     (`anywhere`, so the card itself may narrow: `break-word` left Chromium and Firefox 22px over);
+     at the usual size it fits whole. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 @media (width >= 900px) {

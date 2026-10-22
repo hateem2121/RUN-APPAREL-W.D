@@ -260,16 +260,6 @@ export const FAMILY_SOON = {
 } as const
 
 /**
- * The kinds of garment a family's home-page card lists when it opens (polish D3): the first four
- * groups of its buyer page's "what we make", in the owner's approved words. A family with no page
- * lists none: nothing the site has not already said is claimed for it (the demo's "Backpacks / Bags
- * / Caps" for Sports Accessories was never confirmed).
- */
-export function familyTypes(family: Family): readonly string[] {
-  return (familyPageFor(family)?.makes ?? []).slice(0, 4).map((entry) => entry.group)
-}
-
-/**
  * Whether a family says "[ ask us ]": no page AND no garment yet (today, Sports Accessories). Once a
  * garment of it is published, its group lists it and its card opens that group, page or not; a
  * "soon" over a garment on show would be wrong.

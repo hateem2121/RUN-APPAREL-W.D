@@ -1,4 +1,4 @@
-import { clean, joinPhone, LOOKS_LIKE_EMAIL } from './inquiry'
+import { clean, cleanText, joinPhone, LOOKS_LIKE_EMAIL } from './inquiry'
 
 /**
  * The careers form's validation and shaping — pure, like `inquiry.ts`, whose helpers it shares
@@ -85,7 +85,7 @@ export function validateApplication(raw: Record<string, unknown>): ApplicationRe
         ? clean(raw.roleOther, MAX_LENGTHS.roleOther)
         : clean(raw.role, MAX_LENGTHS.roleOther),
     years: wholeYears(raw.years),
-    note: clean(raw.note, MAX_LENGTHS.note),
+    note: cleanText(raw.note, MAX_LENGTHS.note),
   }
 
   const errors: Partial<Record<RequiredField, string>> = {}

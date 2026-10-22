@@ -4271,7 +4271,13 @@ a.contact-block__value:active {
 
 .proof__specs > div {
   display: grid;
-  grid-template-columns: 7.5em minmax(0, 1fr);
+  /*
+   * At most 45% for the label (site check-up, 2026-10-22): a fixed 7.5em doubles with the reader's
+   * text, and at twice the size on a 320px phone it left the value 36px and "elastane" ran 91px off
+   * the screen. 46% is at least 7.5em at the usual size from 320px up (128 of 280px, measured), so
+   * nothing moves there.
+   */
+  grid-template-columns: min(7.5em, 46%) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -4286,6 +4292,7 @@ a.contact-block__value:active {
 
 .proof__specs dd {
   margin: 0;
+  overflow-wrap: break-word;
   font-size: var(--text-sm);
   color: var(--text);
 }
@@ -5850,6 +5857,33 @@ a.contact-block__value:active {
     visibility: hidden;
   }
 
+  /*
+   * DRAFT FOR THE OWNER (site check-up #4, 2026-10-22): ONE fade at the screen's foot over the whole
+   * stack, so a photo never meets the ink iPhone Safari fills under its bar with a hard edge (275 of
+   * 441 apart, iOS 27.0 simulator, Bottom layout). A per-card fade could not reach the foot while the
+   * next card was only entering, and a sticky item of the stack's grid cannot leave its own row, so
+   * this is the SECTION's: a plain block, its sticky range the whole stack. Drawn only while a step
+   * covers the foot (its slot's `data-edge`,
+   * OrderStagesList.tsx), and `visibility: hidden` otherwise: a sticky full-width box at the foot is
+   * what Safari keeps, and one left visible after the stack would bring back the 2026-10-20 strip.
+   */
+  .site-section:has(> .order-stages)::after {
+    content: "";
+    display: block;
+    position: sticky;
+    bottom: 0;
+    z-index: var(--z-card-control);
+    height: 120px;
+    margin-block-start: -120px;
+    background: linear-gradient(to bottom, transparent, var(--bg) 70%);
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .site-section:has(.order-step-slot[data-edge="on"])::after {
+    visibility: visible;
+  }
+
   .order-stage__steps .order-step {
     visibility: visible;
     min-block-size: calc(100svh - var(--step, 0) * 8px);
@@ -7073,6 +7107,8 @@ a.contact-block__value:active {
 }
 
 .career-path__step {
+  /* Its own width is what the name is sized against (`.career-path__name`). */
+  container-type: inline-size;
   position: relative;
   padding-block-end: 16px;
   padding-inline-end: 16px;
@@ -7103,7 +7139,13 @@ a.contact-block__value:active {
   line-height: 0.95;
   letter-spacing: var(--tracking-display-sm);
   color: var(--heading);
-  font-size: var(--text-lead);
+  /*
+   * The lead size, or less when the step is too narrow for its longest word (site check-up,
+   * 2026-10-22): with the reader's text at twice the size, "SUPERVISOR" needed 300px in a 164px step
+   * on a 320px phone and ran off the screen. 13cqi is that word's width at 110% stretch, 800, over
+   * the step's width, measured; at the usual size the lead size is the smaller from 320px up.
+   */
+  font-size: min(var(--text-lead), 13cqi);
   /* A role's name never breaks inside a word ("SUPERVI-SOR" did at 390 px, 2026-10-07). */
   overflow-wrap: normal;
   hyphens: manual;
@@ -8553,4 +8595,59 @@ a.contact-block__value:active {
   font-size: var(--text-mono-lg);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+}
+
+/* ------------------------------------------------ the loading line (NavProgress.tsx) */
+
+/*
+ * ⚠️ A TAP ON A LINK SHOWS AT ONCE THAT IT WAS HEARD (site check-up #3, 2026-10-22: in-site taps
+ * waited 2.3–2.8 s with nothing on screen moving). A 3px volt line along the top of the screen,
+ * over the bar's status strip, from 120 ms after the tap until the page arrives: it runs most of
+ * the way on --slow and completes on --ui when the page is there, then fades. Not a box: nothing
+ * moves, and it covers no control. Volt in both themes, the colour the menu button already uses.
+ */
+.nav-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: var(--z-nav-progress);
+  height: 3px;
+  background: var(--volt);
+  transform-origin: left center;
+  scale: 0 1;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-progress[data-state="loading"] {
+  scale: 0.8 1;
+  opacity: 1;
+  transition:
+    scale var(--slow) var(--ease),
+    opacity var(--instant) var(--ease);
+}
+
+.nav-progress[data-state="done"] {
+  scale: 1 1;
+  opacity: 0;
+  transition:
+    scale var(--ui) var(--ease),
+    opacity var(--ui) var(--ease) var(--ui);
+}
+
+/* Without motion the line simply appears, full width, and goes. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress[data-state="loading"] {
+    scale: 1 1;
+    transition: none;
+  }
+
+  .nav-progress[data-state="done"] {
+    transition: none;
+  }
+}
+
+@media print {
+  .nav-progress {
+    display: none;
+  }
 }

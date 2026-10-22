@@ -1,18 +1,17 @@
 /**
  * Security headers for responses this Worker BUILDS ITSELF.
  *
- * ⚠️ NOTHING CALLS THIS RIGHT NOW, and it is kept deliberately. Its only caller
- * was the `/render` refusal, removed 2026-08-17 along with the poster-capture
- * job it guarded — so this Worker currently builds no response of its own and
- * has nothing to apply these to.
- *
- * It stays for the reason `tokens.css` kept `--raised` when the hover thumbnail
- * was deleted: the next `new Response(...)` in worker/index.ts will need it, and
- * the MEASUREMENT below is the expensive part, not the code. Deleting it means
- * re-learning on the live edge that `_headers` does not reach a Worker-built
- * response. `apps/viewer/scripts/csp.test.ts` still pins these values against
- * `buildHeadersFile()`'s own `/*` rule, so the two copies cannot drift while it
- * waits.
+ * ⚠️ THREE FILES CALL THIS TODAY (corrected 2026-10-22; this header said "NOTHING CALLS THIS"
+ * from 2026-08-17, after the `/render` refusal it first served was removed). The Worker builds
+ * responses of its own again, and each takes `workerResponseHeaders()`:
+ *   - `worker/index.ts`: the branded 404 for a missing `/og/` card;
+ *   - `worker/oldViewerHost.ts`: the permanent redirect from `viewer.wear-run.help`;
+ *   - `worker/securityTxt.ts`: `/.well-known/security.txt`.
+ * It exists for the reason `tokens.css` kept `--raised` when the hover thumbnail was deleted:
+ * the MEASUREMENT below is the expensive part, not the code, and deleting it means re-learning
+ * on the live edge that `_headers` does not reach a Worker-built response.
+ * `apps/viewer/scripts/csp.test.ts` pins these values against `buildHeadersFile()`'s own `/*`
+ * rule, so the two copies cannot drift.
  *
  * PURE, and deliberately dependency-free — same reason as preview.ts: plain
  * objects and strings only, so it type-checks under the Worker's

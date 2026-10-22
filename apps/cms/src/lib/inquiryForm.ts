@@ -137,6 +137,20 @@ export function pickProblem(files: readonly { size: number }[]): string | null {
 }
 
 /**
+ * The kinds the contact form takes, in words. ⚠️ THE OFFICE KINDS CARRY THEIR EXTENSION BECAUSE
+ * THE OLD FORMATS ARE REFUSED: the accept list (`inquiryFileTypes.ts`) holds .docx, .xlsx and
+ * .pptx and not .doc, .xls or .ppt, yet this line used to say "Word, Excel, PowerPoint", so a
+ * buyer with an old .doc was told it was a kind we take and then refused (site check-up,
+ * 2026-10-22; owner chose to keep refusing and fix the wording).
+ */
+const ACCEPTED_KINDS =
+  'photos (JPG, PNG, WebP, HEIC), PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Keynote, Illustrator and Photoshop files'
+
+/** The line under the file box, from the same words. */
+export const FILE_BOX_NOTE =
+  'Photos, PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Keynote, Illustrator or Photoshop. Larger? Paste a WeTransfer or Drive link in your message.'
+
+/**
  * The picker's full check: the count and size above, then every file's first bytes through the
  * SERVER's own `checkFiles`, so the browser refuses exactly what the route would.
  *
@@ -153,7 +167,7 @@ export async function pickedFileProblem(files: readonly File[]): Promise<string 
   if (check.ok) return null
   if (check.reason === 'empty') return `“${check.name}” is empty — please choose it again.`
   if (check.reason === 'type')
-    return `“${check.name}” is not a kind we accept, or its contents do not match its name. We accept photos (JPG, PNG, WebP, HEIC), PDF, Word, Excel, PowerPoint, Keynote, Illustrator and Photoshop files.`
+    return `“${check.name}” is not a kind we accept, or its contents do not match its name. We accept ${ACCEPTED_KINDS}.`
   return pickProblem(files)
 }
 
@@ -166,7 +180,7 @@ const NOT_SENT = 'Your message has not been sent.'
  * come back in the URL (`contact/submit/route.ts` explains why never the typed values), and a
  * URL can be written by anyone, so an unknown code gets the generic line rather than itself.
  */
-const WRONG_KIND = `${NOT_SENT} One of the files is not a kind we accept, or could not be read. We accept photos (JPG, PNG, WebP, HEIC), PDF, Word, Excel, PowerPoint, Keynote, Illustrator and Photoshop files.`
+const WRONG_KIND = `${NOT_SENT} One of the files is not a kind we accept, or could not be read. We accept ${ACCEPTED_KINDS}.`
 
 const FILE_REASONS: Record<string, string> = {
   'too-many': `${NOT_SENT} Up to ${MAX_FILES} files can be attached — please send it again with fewer, or email the rest.`,

@@ -12,7 +12,7 @@ import type { Notice } from './inquiryForm'
 
 export const SEND_APPLICATION = 'Send application'
 export const PHONE_HELP = 'We will call you on this number.'
-export const CV_HELP = 'Needed for office roles. PDF, Word, JPG or PNG, up to 10 MB.'
+export const CV_HELP = 'Needed for office roles. PDF, Word (.docx), JPG or PNG, up to 10 MB.'
 export const RECEIVED_TEXT =
   'Thank you — your application is with our HR team. We keep good candidates on file for future openings.'
 export const SEND_ANOTHER_APPLICATION = 'Send another application'
@@ -49,7 +49,7 @@ export function careersFieldError(
   return null
 }
 
-const WRONG_KIND = 'We accept PDF, Word, JPG or PNG.'
+const WRONG_KIND = 'We accept PDF, Word (.docx), JPG or PNG.'
 
 /**
  * The CV picker's check, before anything is sent: one file, 10 MB, and its first bytes through

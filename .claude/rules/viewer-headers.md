@@ -67,9 +67,13 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   200 asset-served:  csp, hsts, permissions-policy, referrer-policy, nosniff  ALL PRESENT
   400 Worker-built:  ALL FIVE ABSENT
   ```
-  🟡 That is why `worker/securityHeaders.ts` is KEPT with no caller left — the Worker
-  currently builds no response of its own, and the next one that carries HTML must
-  not re-learn this in production. `apps/viewer/scripts/csp.test.ts` pins its values
+  🟡 That is why `worker/securityHeaders.ts` exists. It was written up as "kept with no
+  caller left" after the `/render` refusal went (2026-08-17), and **that is false since the
+  Worker built responses again** (corrected 2026-10-22): `apps/viewer/worker/index.ts`
+  imports it (the `/og/` 404), and so do `apps/viewer/worker/oldViewerHost.ts` (the redirect
+  from the old host) and `apps/viewer/worker/securityTxt.ts`. The next Worker-built response
+  must take `workerResponseHeaders()` too, and not re-learn this in production.
+  `apps/viewer/scripts/csp.test.ts` pins its values
   against `buildHeadersFile()`'s `/*` rule so the two copies cannot drift, and fails
   if a SIXTH header is added to `_headers` and not to it.
   🟡 **Two things made that measurement trustworthy, and both are easy to omit.** The

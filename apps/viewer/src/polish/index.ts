@@ -1,4 +1,5 @@
 import { isCoarsePointer, onReducedMotionChange, prefersReducedMotion } from '../lib/capabilities'
+import { reloadOnChunkFailure } from '../lib/staleChunkReload'
 import { startReveals } from './reveal'
 
 /**
@@ -69,7 +70,9 @@ export function startPolish(): void {
    * refuse on its own terms as well.
    */
   if (!navigator.webdriver && !prefersReducedMotion()) {
-    void import('./smooth-scroll')
+    // Both dynamic imports here go through `reloadOnChunkFailure` (owner, 2026-10-22): a chunk a
+    // deploy deleted asks for the page's one automatic reload, then fails quietly as before.
+    void reloadOnChunkFailure('polish-smooth-scroll', import('./smooth-scroll'))
       .then(({ startSmoothScroll }) => {
         stopScroll = startSmoothScroll()
       })
@@ -93,7 +96,7 @@ export function startPolish(): void {
    */
   if (isCoarsePointer() || prefersReducedMotion() || navigator.webdriver) return
 
-  void import('./Cursor')
+  void reloadOnChunkFailure('polish-cursor', import('./Cursor'))
     .then(({ mountCursor }) => {
       stopCursor = mountCursor()
     })

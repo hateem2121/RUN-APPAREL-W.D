@@ -19,8 +19,10 @@ import {
 } from '@run-apparel/shared'
 import { lazy, Suspense, useEffect } from 'react'
 import { track } from '../lib/analytics'
+import { reloadOnChunkFailure } from '../lib/staleChunkReload'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { FooterGlow, FooterWordmark } from './FooterLive'
+import { LazyPieceBoundary } from './LazyPieceBoundary'
 
 /**
  * The website's footer, drawn on the garment pages too (visual audit VA-31, owner-approved
@@ -43,10 +45,22 @@ import { FooterGlow, FooterWordmark } from './FooterLive'
  * keeps both. They load lazily with their own stylesheet (`FooterPrompt.tsx` says why), and both
  * suites hold the footer to the website's full template.
  */
-const FooterTab = lazy(() => import('./FooterPrompt').then((m) => ({ default: m.FooterTab })))
-const FooterQuestion = lazy(() =>
-  import('./FooterPrompt').then((m) => ({ default: m.FooterQuestion })),
-)
+/*
+ * ⚠️ A MISSING FOOTERPROMPT CHUNK RELOADS THE PAGE ONCE AND NEVER BLANKS IT (owner, 2026-10-22).
+ * A deploy deletes the old chunk names (staleChunkReload.ts), and until then a page left open
+ * across one threw out of `lazy()` into main.tsx's page-wide boundary: the whole garment became
+ * "This page ran into a problem". Now the `import()` itself asks for the shared once-only reload
+ * (`reloadOnChunkFailure`), and each piece sits in its own `LazyPieceBoundary` below, so where the
+ * reload is refused (guard hit, offline, no storage) the footer simply lacks the tab and the
+ * question. ONE shared promise: two failures of the same file are one report and one reload.
+ */
+let promptModule: Promise<typeof import('./FooterPrompt')> | undefined
+const loadPrompt = () => {
+  promptModule ??= reloadOnChunkFailure('footer-prompt', import('./FooterPrompt'))
+  return promptModule
+}
+const FooterTab = lazy(() => loadPrompt().then((m) => ({ default: m.FooterTab })))
+const FooterQuestion = lazy(() => loadPrompt().then((m) => ({ default: m.FooterQuestion })))
 export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   // An API answer cached before the footer joined it (2026-10) has none: the copy's defaults,
   // and no claim — a claim never has a default.
@@ -60,16 +74,20 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
 
   return (
     <footer className="site-footer">
-      <Suspense fallback={null}>
-        <FooterTab label={f.ctaLabel} />
-      </Suspense>
+      <LazyPieceBoundary piece="footer-tab">
+        <Suspense fallback={null}>
+          <FooterTab label={f.ctaLabel} />
+        </Suspense>
+      </LazyPieceBoundary>
       <div className="site-footer__slab">
         <FooterGlow />
 
         <div className="site-footer__inner">
-          <Suspense fallback={null}>
-            <FooterQuestion footer={f} />
-          </Suspense>
+          <LazyPieceBoundary piece="footer-question">
+            <Suspense fallback={null}>
+              <FooterQuestion footer={f} />
+            </Suspense>
+          </LazyPieceBoundary>
           <div className="footer-facts">
             {/*
               THE CONTACT DETAILS (audit FA-Q-09, 2026-09-07): this is the page someone lands on

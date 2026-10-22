@@ -334,9 +334,9 @@ describe('buildHeadersFile — the _headers file', () => {
    *
    * Both halves are checked because they are written in different files — the
    * `_headers` copy in `csp.mjs`, and the copy a Worker-built response would
-   * carry in `worker/securityHeaders.ts` (which has no caller today and exists
-   * precisely so the next one does not re-learn that `_headers` never reaches
-   * it).
+   * carry in `worker/securityHeaders.ts` (called by `worker/index.ts`,
+   * `oldViewerHost.ts` and `securityTxt.ts`, and there so the next Worker-built response does
+   * not re-learn that `_headers` never reaches it).
    */
   it('sends an enforcing CSP, never a report-only one', () => {
     const out = buildHeadersFile({ html: THEME_BOOTSTRAP, apiBaseUrl: API })

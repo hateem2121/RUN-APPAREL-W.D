@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   announcedQuarter,
+  FILE_BOX_NOTE,
   fieldError,
   inquiryAdminUrl,
   inquiryNotice,
@@ -21,6 +22,7 @@ import {
   uploadProgressLabel,
 } from './inquiryForm'
 import { MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFiles'
+import { INQUIRY_FILE_ACCEPT } from './inquiryFileTypes'
 
 const MB = 1024 * 1024
 
@@ -194,6 +196,36 @@ describe('pickedFileProblem — the picker checks what a file really is before i
   it('says nothing about a real PDF, or about no files at all', async () => {
     expect(await pickedFileProblem([pdf])).toBeNull()
     expect(await pickedFileProblem([])).toBeNull()
+  })
+})
+
+/*
+ * Found 2026-10-22: the refusal said "We accept … Word, Excel, PowerPoint" while the accept list
+ * is .docx/.xlsx/.pptx only, so a buyer with an old .doc was told it was a kind we take and then
+ * refused. Owner chose to keep refusing the old formats and say so (2026-10-22).
+ */
+describe('the words about accepted file kinds match what is really accepted', () => {
+  const OLD_OFFICE = /\b(Word|Excel|PowerPoint)\b(?! \(\.(docx|xlsx|pptx)\))/
+
+  it('names the Office kinds by their accepted extension, in the picker and the notice', async () => {
+    const mislabelled = new File([new Uint8Array([0x4d, 0x5a, 0x90, 0x00])], 'pack.pdf')
+    const picker = (await pickedFileProblem([mislabelled])) ?? ''
+    const notice = inquiryNotice({ error: 'files', reason: 'type' })?.text ?? ''
+    for (const text of [picker, notice]) {
+      expect(text).toContain('Word (.docx), Excel (.xlsx), PowerPoint (.pptx)')
+      expect(text).not.toMatch(OLD_OFFICE)
+    }
+  })
+
+  it('only claims extensions the accept list really holds, and none of the old ones', () => {
+    const accepted = INQUIRY_FILE_ACCEPT.split(',')
+    for (const ext of ['.docx', '.xlsx', '.pptx']) expect(accepted).toContain(ext)
+    for (const ext of ['.doc', '.xls', '.ppt']) expect(accepted).not.toContain(ext)
+  })
+
+  it('says the same about Office files under the file box', () => {
+    expect(FILE_BOX_NOTE).toContain('Word (.docx), Excel (.xlsx), PowerPoint (.pptx)')
+    expect(FILE_BOX_NOTE).not.toMatch(OLD_OFFICE)
   })
 })
 

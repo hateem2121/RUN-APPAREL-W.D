@@ -47,7 +47,9 @@ test.describe('the careers form', () => {
     await expect(form.getByRole('radio')).toHaveCount(8)
     await expect(form.getByRole('radio', { name: 'Something else' })).toBeVisible()
     await expect(form).toContainText('We will call you on this number.')
-    await expect(form).toContainText('Needed for office roles. PDF, Word, JPG or PNG, up to 10 MB.')
+    await expect(form).toContainText(
+      'Needed for office roles. PDF, Word (.docx), JPG or PNG, up to 10 MB.',
+    )
     await expect(form.getByRole('button', { name: 'Send application' })).toBeVisible()
     await expect(form.getByRole('link', { name: 'privacy notice' })).toHaveAttribute(
       'href',

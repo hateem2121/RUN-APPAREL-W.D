@@ -194,7 +194,11 @@ export function LiveGarment({
   const [zoom, setZoom] = useState(false)
   const [fade, setFade] = useState<Fade | null>(null)
   const layer = useRef<HTMLDivElement>(null)
+  // The visitor's reduced-motion setting, followed live (see the effect below). The state draws
+  // the model's attributes; the ref is the same value for the colour swap's callback.
+  const [reducedMotion, setReducedMotion] = useState(false)
   const reduced = useRef(false)
+  reduced.current = reducedMotion
   const viewer = useRef<ModelViewerElement | null>(null)
   // Read at load, so a colour chosen while the model was still on its way is the one it opens in.
   const chosen = useRef(variant ?? model.variantId)
@@ -320,9 +324,24 @@ export function LiveGarment({
     )
   }, [])
 
+  /*
+   * ⚠️ REDUCED MOTION IS FOLLOWED LIVE, NOT READ ONCE (site check-up, 2026-10-22). It was read when
+   * the model was prepared, so switching "Reduce motion" on mid-visit left the garment turning until
+   * a reload; `OrderStagesList` and `ProductsFilm` already listen for `change`. A state, not just the
+   * ref, so the model's `auto-rotate` attribute is drawn again the moment the setting flips (back
+   * too). Declared before the loading effect, so the first read still comes first.
+   */
   useEffect(() => {
     if (navigator.webdriver) return
-    reduced.current = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const query = matchMedia('(prefers-reduced-motion: reduce)')
+    setReducedMotion(query.matches)
+    const onMotionChange = (event: MediaQueryListEvent) => setReducedMotion(event.matches)
+    query.addEventListener('change', onMotionChange)
+    return () => query.removeEventListener('change', onMotionChange)
+  }, [])
+
+  useEffect(() => {
+    if (navigator.webdriver) return
     const connection = (navigator as Navigator & { connection?: ConnectionHint }).connection
     if (!autoLoadAllowed(connection)) {
       setPhase('offer')
@@ -442,10 +461,10 @@ export function LiveGarment({
               'interaction-prompt': 'none',
               // A pinch needs every finger once zoom is on; until then the page keeps its swipe.
               'touch-action': zoom ? 'none' : touchAction,
-              ...(reduced.current || touched
+              ...(reducedMotion || touched
                 ? {}
                 : { 'auto-rotate': '', 'auto-rotate-delay': '0', 'rotation-per-second': '12deg' }),
-              'interpolation-decay': reduced.current ? 1 : LIVE_RENDER.cameraDecayMs,
+              'interpolation-decay': reducedMotion ? 1 : LIVE_RENDER.cameraDecayMs,
               'shadow-intensity': LIVE_RENDER.shadowIntensity,
               'shadow-softness': LIVE_RENDER.shadowSoftness,
               'environment-image': LIVE_RENDER.environmentImage,

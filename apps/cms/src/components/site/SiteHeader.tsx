@@ -57,6 +57,9 @@ export function SiteHeader({ wordmark }: { wordmark: string }) {
       {/* The phone's status area takes the bar's colour from this strip (notch.css, VA-50).
           In the markup, not added by script: React removes a node it did not render. */}
       <div className="notch-strip" aria-hidden="true" />
+      {/* The dim behind the open phone menu: its own element so it can hide, which lets iPhone Safari
+          let go of its colour (notch.css, site check-up 2026-10-22). */}
+      <div className="notch-dim" aria-hidden="true" />
       <div className="notch">
         {/* `translate="no"` (polish X27, 2026-10-04): buyers abroad read with the browser's
             Translate, which could turn the name into "LAUF BEKLEIDUNG". The garment names and

@@ -139,6 +139,67 @@ test.describe('the /about hero', () => {
     })
   }
 
+  /*
+   * ⚠️ SAFARI'S BAR COLOUR (site check-up, 2026-10-22). In Safari's Compact layout the strip under
+   * the bar stayed paper at the end of /about, under the dark footer, 2 times of 2 (iOS 27.0
+   * simulator). Safari tints that strip from the first fixed or sticky box at least 90% of the
+   * screen wide at the foot, and keeps it while the box stays visible (lib/footEdge.ts). This walks
+   * up from the foot the way WebKit does at the top of the page, scrolls to the end, and asks that
+   * the box it found has hidden itself. The control keeps the stage visible, as it was before.
+   */
+  for (const fixed of [true, false]) {
+    test(
+      fixed
+        ? "the hero's sticky stage hides once the page's end is reached, so Safari lets go of it"
+        : 'NEGATIVE CONTROL: a stage that stays visible is caught',
+      async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: 'no-preference' })
+        await page.setViewportSize({ width: 390, height: 844 })
+        await page.goto('/about')
+        const supported = await page.evaluate(() =>
+          CSS.supports('(animation-timeline: view()) and (animation-range: entry)'),
+        )
+        test.skip(!supported, 'no scroll timeline here, so the stage never sticks (Firefox)')
+        if (!fixed)
+          await page.addStyleTag({ content: '.about-hero__stage{visibility:visible!important}' })
+        await page.waitForTimeout(300)
+        const found = await page.evaluate(() => {
+          let element = document.elementFromPoint(innerWidth / 2, innerHeight - 4)
+          while (element) {
+            const style = getComputedStyle(element)
+            const wide = element.getBoundingClientRect().width >= innerWidth * 0.9
+            if ((style.position === 'fixed' || style.position === 'sticky') && wide) {
+              element.setAttribute('data-foot-probe', '')
+              return element.className
+            }
+            element = element.parentElement
+          }
+          return null
+        })
+        expect(found, 'the hero stage is not the box at the foot at the top').toContain(
+          'about-hero__stage',
+        )
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+        const visibility = () =>
+          page
+            .locator('[data-foot-probe]')
+            .evaluate((element) => getComputedStyle(element).visibility)
+        if (fixed) await expect.poll(visibility).toBe('hidden')
+        else {
+          await page.waitForTimeout(500)
+          expect(await visibility(), 'the control did not keep the stage visible').toBe('visible')
+        }
+        // Nothing on screen changes: the hero's photo is still drawn while the stage is hidden.
+        if (fixed)
+          expect(
+            await page
+              .locator('.about-hero .site-hero__photo')
+              .evaluate((element) => getComputedStyle(element).visibility),
+          ).toBe('visible')
+      },
+    )
+  }
+
   test('keeps the still hero under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.setViewportSize({ width: 1440, height: 900 })

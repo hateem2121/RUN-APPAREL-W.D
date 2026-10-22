@@ -12,6 +12,7 @@
  * - Never runs under automation (Playwright) so e2e stays clean and offline.
  * - Client errors are capped and de-duplicated per session.
  */
+import { RESIZE_OBSERVER_NOTICE } from './harmlessErrors'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.help').replace(
   /\/$/,
@@ -127,6 +128,8 @@ function enqueue(item: QueuedEvent): void {
 }
 
 const recordError = (message: string) => {
+  // Before the cap, so it never spends one of the five (harmlessErrors.ts).
+  if (RESIZE_OBSERVER_NOTICE.test(message)) return
   if (errorCount >= MAX_ERRORS) return
   const key = message.slice(0, 100)
   if (seenErrors.has(key)) return

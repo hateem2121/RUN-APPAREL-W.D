@@ -5,6 +5,7 @@ import {
   CONSENT_COPY,
   CONSENT_STORAGE_KEY,
   declineTrackers,
+  followOtherTab,
   forgetTrackers,
   GA_MEASUREMENT_ID,
   parseConsent,
@@ -463,6 +464,71 @@ describe('a page brought back by Back or Forward', () => {
     const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'declined', apolloAnonId: 'x' })
     expect(restoreTrackers(win, storage, jar)).toEqual({ answered: true, reload: false })
     expect(storage.getItem('apolloAnonId')).toBeNull()
+    expect(scripts).toHaveLength(0)
+  })
+})
+
+// Site check-up 2026-10-22: a choice made in one tab never reached the other open tabs, which
+// kept asking (or kept their old trackers running). `followOtherTab` runs on the `storage` event.
+describe('a choice made in another tab', () => {
+  const jar = { hostname: 'wear-run.com', readCookies: () => '', writeCookie: () => {} }
+  const asked = { key: CONSENT_STORAGE_KEY }
+
+  it('accepted there: the three trackers start here, once, and the question closes', () => {
+    const { win, scripts } = fakeWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
+    expect(followOtherTab(asked, win, storage, jar)).toEqual({ answered: true, reload: false })
+    expect(scripts).toHaveLength(3)
+    // A second event (or a tab that already ran them) loads nothing twice.
+    followOtherTab(asked, win, storage, jar)
+    expect(scripts).toHaveLength(3)
+  })
+
+  it('declined there, nothing running here: forgets what was stored, no reload', () => {
+    const { win, scripts } = fakeWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'declined', apolloAnonId: 'x' })
+    expect(followOtherTab(asked, win, storage, jar)).toEqual({ answered: true, reload: false })
+    expect(storage.getItem('apolloAnonId')).toBeNull()
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('declined there, Google running here: a started script cannot be stopped, so it reloads', () => {
+    const { win } = fakeWindow()
+    const storage = fakeStorage()
+    acceptTrackers(win, storage)
+    writeConsent(storage, 'declined')
+    expect(followOtherTab(asked, win, storage, jar)).toEqual({ answered: true, reload: true })
+  })
+
+  it('does not count a page view for a tab that already runs (unlike a Back restore)', () => {
+    const { win } = fakeWindow()
+    const storage = fakeStorage()
+    acceptTrackers(win, storage)
+    const before = win.dataLayer?.length
+    followOtherTab(asked, win, storage, jar)
+    expect(win.dataLayer?.length).toBe(before)
+  })
+
+  it('ignores every other key, so the theme switch in another tab does nothing here', () => {
+    const { win, scripts } = fakeWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
+    expect(followOtherTab({ key: 'run-theme' }, win, storage, jar)).toBeNull()
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('a cleared storage (key null) is re-read, and with no answer left the question stays', () => {
+    const { win, scripts } = fakeWindow()
+    expect(followOtherTab({ key: null }, win, fakeStorage(), jar)).toEqual({
+      answered: false,
+      reload: false,
+    })
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('fails closed: junk under the consent key starts nothing', () => {
+    const { win, scripts } = fakeWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'yes please' })
+    expect(followOtherTab(asked, win, storage, jar)).toEqual({ answered: false, reload: false })
     expect(scripts).toHaveLength(0)
   })
 })

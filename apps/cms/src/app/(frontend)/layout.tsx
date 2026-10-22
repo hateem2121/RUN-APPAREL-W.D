@@ -46,6 +46,7 @@ import { ConsentBanner } from '../../components/site/ConsentBanner'
 import { Cursor } from '../../components/site/Cursor'
 import { SmoothScroll } from '../../components/site/SmoothScroll'
 import { JsonLd } from '../../components/site/JsonLd'
+import { NavProgress } from '../../components/site/NavProgress'
 import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
 import { ThemeBoot } from '../../components/site/ThemeBoot'
@@ -158,6 +159,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
             only after every link on the page and in the footer, while it covered the foot of
             the screen the whole time (visual audit, WCAG 2.2 SC 2.4.11). */}
         <ConsentBanner />
+        {/* The loading line for a tap on a link inside the site (NavProgress.tsx). */}
+        <NavProgress />
         <SiteHeader wordmark={settings.temporaryWordmark} />
         {/*
           ⚠️ tabindex="-1" IS WHAT MAKES THE SKIP LINK REACH A SCREEN READER.

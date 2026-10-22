@@ -5,6 +5,7 @@ import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { Breadcrumb } from './Breadcrumb'
 import { CountUp } from './CountUp'
+import { FootEdgeBox } from './FootEdgeBox'
 import { JsonLd } from './JsonLd'
 import { Marquee } from './Marquee'
 import { ABOUT_PAGE } from '../../lib/aboutPages'
@@ -51,7 +52,7 @@ export function AboutPage() {
        * from screen readers, shown only in the motion layout.
        */}
       <section className="site-hero site-hero--photo about-hero">
-        <div className="about-hero__stage">
+        <FootEdgeBox className="about-hero__stage">
           {/* The wrapper moves, never the SVG: moving the <svg> itself re-laid out its <text> on
               every frame of the scroll (86 layouts in a Chrome trace, 2026-10-09). */}
           <div className="about-hero__ghost" aria-hidden="true">
@@ -107,7 +108,7 @@ export function AboutPage() {
             </h1>
             <p className="site-lede about-hero__subtitle">{page.hero.subtitle}</p>
           </div>
-        </div>
+        </FootEdgeBox>
       </section>
 
       {/*

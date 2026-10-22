@@ -366,8 +366,7 @@ test.describe('the open phone menu holds the page and dims it (polish F3, X26) â
     const state = () =>
       page.evaluate(() => ({
         held: document.documentElement.style.overflowY || document.body.style.overflowY,
-        dim: getComputedStyle(document.querySelector('.notch-shell') as Element, '::before')
-          .opacity,
+        dim: getComputedStyle(document.querySelector('.notch-dim') as Element).opacity,
       }))
     expect(await state()).toEqual({ held: '', dim: '0' })
 

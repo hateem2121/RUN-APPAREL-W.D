@@ -30,6 +30,7 @@ afterEach(() => {
   act(() => root.unmount())
   host.remove()
   vi.doUnmock('./RelatedCards')
+  vi.doUnmock('../lib/staleChunkReload')
 })
 
 const DATA = {
@@ -80,6 +81,16 @@ describe('RelatedGarments while its cards load', () => {
     vi.doMock('./RelatedCards', () => {
       throw new Error('Failed to fetch dynamically imported module')
     })
+    // The once-only reload is asked for (and tested in staleChunkReload.test.ts); jsdom cannot
+    // reload, so only the request is recorded here.
+    const reloads: string[] = []
+    vi.doMock('../lib/staleChunkReload', () => ({
+      reloadOnChunkFailure: (chunk: string, loading: Promise<unknown>) =>
+        loading.catch((error: unknown) => {
+          reloads.push(chunk)
+          throw error
+        }),
+    }))
     const reports: string[] = []
     const listen = (event: Event) =>
       reports.push((event as CustomEvent<{ kind: string }>).detail.kind)
@@ -93,6 +104,8 @@ describe('RelatedGarments while its cards load', () => {
       expect(host.querySelector('.related__all')?.textContent).toBe('See all outerwear in 3D')
       expect(host.querySelectorAll('.related__card')).toHaveLength(0)
       expect(reports).toEqual(['related-cards-failed'])
+      // A deploy that deleted the cards' file earns the page's one reload (owner, 2026-10-22).
+      expect(reloads).toEqual(['related-cards'])
     } finally {
       document.removeEventListener('run:diagnostic', listen)
       warn.mockRestore()

@@ -27,9 +27,10 @@ import { securityTxtResponse } from './securityTxt'
  * ⚠️ IT ALSO GUARDED `/render` UNTIL 2026-08-17, refusing a `model=` host that
  * was not our own. That route and its guard went with the automatic poster
  * capture they served (owner decision — see apps/shrink/src/index.ts). Removing
- * a route removes its attack surface, but note what it also removed: the ONLY
- * response this Worker built itself. `securityHeaders.ts` is deliberately kept
- * — read its header before adding the next `new Response`, because `_headers`
+ * a route removes its attack surface, but note what it also removed: the only
+ * response this Worker built itself AT THE TIME (it builds a few again since: the
+ * `/og/` 404, the old-host redirect and security.txt). `securityHeaders.ts` serves
+ * them — read its header before adding the next `new Response`, because `_headers`
  * does NOT reach one.
  *
  * Until 2026-08-08 this project was static-assets-only. index.html carries one
