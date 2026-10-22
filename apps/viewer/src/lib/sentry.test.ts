@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { IGNORED_ERRORS, isHttpError, isNetworkError, scrub } from './sentry'
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  IGNORED_ERRORS,
+  isHttpError,
+  isNetworkError,
+  isPageUnloading,
+  scrub,
+  watchPageUnloading,
+} from './sentry'
 
 /**
  * These assert a PRIVACY guarantee, not a formatting preference.
@@ -88,6 +95,13 @@ describe('IGNORED_ERRORS', () => {
     expect(matches('ResizeObserver loop completed with undelivered notifications.')).toBe(true)
   })
 
+  it('drops both spellings of the harmless ResizeObserver notice (2026-10-22)', () => {
+    expect(matches('ResizeObserver loop limit exceeded')).toBe(true)
+    expect(matches('Uncaught ResizeObserver loop limit exceeded')).toBe(true)
+    // Negative control: a message that merely mentions it later is not the notice.
+    expect(matches('TypeError: x. See also ResizeObserver loop')).toBe(false)
+  })
+
   it('does NOT drop a real application error (negative control)', () => {
     // If this ever goes true the filter has started eating the signal it exists
     // to protect.
@@ -162,5 +176,47 @@ describe('isHttpError', () => {
 
     expect([isHttpError(httpish), isNetworkError(httpish)]).toEqual([true, false])
     expect([isHttpError(transportish), isNetworkError(transportish)]).toEqual([false, true])
+  })
+})
+
+/**
+ * Safari parks a page in the back/forward cache on `pagehide` and a Back tap restores the SAME
+ * document. The flag that drops "Failed to fetch" after a pagehide was never cleared, so after a
+ * restore every genuine transport failure was silently dropped (found 2026-10-22).
+ */
+describe('watchPageUnloading', () => {
+  let stop = () => {}
+  afterEach(() => stop())
+
+  const show = (persisted: boolean) =>
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted }))
+
+  it('arms on pagehide', () => {
+    stop = watchPageUnloading()
+    expect(isPageUnloading()).toBe(false)
+    window.dispatchEvent(new Event('pagehide'))
+    expect(isPageUnloading()).toBe(true)
+  })
+
+  it('is cleared when the page comes back from the back/forward cache', () => {
+    stop = watchPageUnloading()
+    window.dispatchEvent(new Event('pagehide'))
+    show(true)
+    expect(isPageUnloading()).toBe(false)
+  })
+
+  it('stays armed for an ordinary pageshow (negative control: only a restore clears it)', () => {
+    stop = watchPageUnloading()
+    window.dispatchEvent(new Event('pagehide'))
+    show(false)
+    expect(isPageUnloading()).toBe(true)
+  })
+
+  it('can arm again after a restore', () => {
+    stop = watchPageUnloading()
+    window.dispatchEvent(new Event('pagehide'))
+    show(true)
+    window.dispatchEvent(new Event('pagehide'))
+    expect(isPageUnloading()).toBe(true)
   })
 })

@@ -81,6 +81,31 @@ describe('initTelemetry', () => {
     ])
   })
 
+  it("never sends the browser's harmless ResizeObserver notice, and it never spends the cap (2026-10-22)", async () => {
+    stop = initTelemetry()
+    for (const m of [
+      'ResizeObserver loop completed with undelivered notifications.',
+      'ResizeObserver loop limit exceeded',
+      'Uncaught ResizeObserver loop limit exceeded',
+    ]) {
+      window.dispatchEvent(new ErrorEvent('error', { message: m }))
+    }
+    // Five real errors after the noise: all must still fit under MAX_ERRORS.
+    for (const m of ['e1', 'e2', 'e3', 'e4', 'e5']) {
+      window.dispatchEvent(new ErrorEvent('error', { message: m }))
+    }
+    window.dispatchEvent(new Event('pagehide'))
+    const arr = await batchOf(beacon.mock.calls[0]!)
+    const errors = arr.filter((e: { type: string }) => e.type === 'error')
+    expect(errors.map((e: { message: string }) => e.message)).toEqual([
+      'e1',
+      'e2',
+      'e3',
+      'e4',
+      'e5',
+    ])
+  })
+
   it('caps and de-duplicates client errors', async () => {
     stop = initTelemetry()
     window.dispatchEvent(new ErrorEvent('error', { message: 'boom' }))

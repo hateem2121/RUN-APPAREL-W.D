@@ -33,6 +33,7 @@
  * screenshot of a visitor's session.
  */
 import { canRender3D } from './capabilities'
+import { RESIZE_OBSERVER_NOTICE } from './harmlessErrors'
 import { currentRoute } from './router'
 
 /** Events larger than this are almost certainly carrying something unintended. */
@@ -92,7 +93,7 @@ export function scrub(event: Record<string, unknown>): Record<string, unknown> {
 export const IGNORED_ERRORS: (string | RegExp)[] = [
   /Object Not Found Matching Id:\d+/,
   // Injected by browser extensions, never by our bundle.
-  /^ResizeObserver loop/,
+  RESIZE_OBSERVER_NOTICE,
   'chrome-extension://',
   'moz-extension://',
   'safari-extension://',
@@ -165,6 +166,35 @@ export function isHttpError(event: Record<string, unknown>): boolean {
 let pageIsUnloading = false
 
 /**
+ * ⚠️ `pagehide` IS NOT THE END OF THE PAGE: Safari parks it in the back/forward cache and a Back
+ * tap brings the SAME document back live. Until 2026-10-22 the flag above was never cleared, so
+ * after any such restore every genuine "Failed to fetch" / "Load failed" was dropped in
+ * `beforeSend` for the rest of the visit. `persisted` is true only for that restore (web.dev
+ * "bfcache"; staleChunkReload.ts clears its own `leaving` flag the same way). Exported so a test
+ * can drive both events; `initErrorTracking` is the only caller.
+ */
+export function watchPageUnloading(target: Window = window): () => void {
+  const onHide = () => {
+    pageIsUnloading = true
+  }
+  const onShow = (event: PageTransitionEvent) => {
+    if (event.persisted) pageIsUnloading = false
+  }
+  target.addEventListener('pagehide', onHide)
+  target.addEventListener('pageshow', onShow)
+  return () => {
+    target.removeEventListener('pagehide', onHide)
+    target.removeEventListener('pageshow', onShow)
+    pageIsUnloading = false
+  }
+}
+
+/** For the transport-error decision in `beforeSend` and its test. */
+export function isPageUnloading(): boolean {
+  return pageIsUnloading
+}
+
+/**
  * How many TRANSPORT failures one page-load may report before the rest are dropped.
  *
  * `pagehide` alone was not enough, and the measurement says why: a scanner whose
@@ -228,9 +258,7 @@ export function initErrorTracking(): void {
       },
     })
 
-    window.addEventListener('pagehide', () => {
-      pageIsUnloading = true
-    })
+    watchPageUnloading()
 
     // Non-personal context, set once. Product and colourway are read at SEND time
     // rather than here (see below) because a visitor switches colourway without a
