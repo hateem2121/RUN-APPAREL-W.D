@@ -56,6 +56,8 @@
   // uncaught exception went nowhere queryable. Free tier, and the sampling defaults
   // are right for this volume; do not add head_sampling_rate without a measurement.
   "observability": { "enabled": true },
+  // Off, as before wrangler 4.150.0 made uploading them the default (why: apps/cms/wrangler.jsonc).
+  "upload_source_maps": false,
   // The internal workers.dev URL and per-version preview URLs are disabled:
   // visitors only ever use viewer.wear-run.help. (Re-enable workers_dev
   // temporarily if you need a pre-cutover smoke-test URL.)
@@ -71,7 +73,7 @@
   // front of every asset request and `/assets/*.js` would lose the zero-overhead path it
   // had before the script existed. That reasoning was sound and the conclusion was wrong,
   // because it was reasoning about `run_worker_first: true`. Cloudflare's docs for
-  // Advanced routing control (wrangler >= 4.20.0; this repo pins 4.148.0):
+  // Advanced routing control (wrangler >= 4.20.0; this repo pins 4.151.0):
   //
   //   "you can use run_worker_first with an array of route patterns. This approach
   //    DISABLES the automatic Sec-Fetch-Mode: navigate detection and gives you explicit

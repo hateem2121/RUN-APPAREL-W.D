@@ -53,6 +53,15 @@
   // Workers Logs (free tier): worker errors + console output become queryable
   // in the Cloudflare dashboard and via `wrangler tail`.
   "observability": { "enabled": true },
+  // SOURCE MAPS STAY OFF, AS THEY HAVE ALWAYS BEEN (2026-10-23). wrangler 4.150.0 started
+  // generating and uploading them on every deploy when this key is unset (release notes,
+  // PR #16231; Cloudflare changelog "Wrangler and cf now upload source maps by default",
+  // 2026-10-20). Moving wrangler 4.148.0 -> 4.151.0 in a dependency pull request must not
+  // change what a deploy uploads: this Worker's bundle is ~42 MB and Cloudflare caps a
+  // source map at 15 MB gzipped, and what an over-size map does to a deploy is not
+  // documented. Turning them on (readable stack traces in Workers Logs) is the owner's
+  // call; same key in apps/viewer, apps/shrink and infra/apex-404.
+  "upload_source_maps": false,
   // THREE HOSTNAMES, ONE WORKER (2026-09-06). The custom domain is the admin and the
   // API; the two zone routes are the public marketing site on its real address. The
   // PDF Worker (infra/apex-404) keeps `/catalogue*` and `/profile*` on both hosts —

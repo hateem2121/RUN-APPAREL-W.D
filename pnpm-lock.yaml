@@ -467,8 +467,8 @@ importers:
         specifier: 4.5.1
         version: 4.5.1(@types/node@26.6.5)
       draco3dgltf:
-        specifier: 1.5.8
-        version: 1.5.8
+        specifier: 1.5.7
+        version: 1.5.7
       gltf-validator:
         specifier: 2.0.0-dev.3.10
         version: 2.0.0-dev.3.10
@@ -4148,8 +4148,8 @@ packages:
     resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
 
-  draco3dgltf@1.5.8:
-    resolution: {integrity: sha512-gA5A8yIr9V8Y78rHrCjNWvuslq9995rfM9i6pbWIVeBv5P6O/c6rwVof6safnlupHB9HG0xrrZ9jpd0eUeTS6g==}
+  draco3dgltf@1.5.7:
+    resolution: {integrity: sha512-LeqcpmoHIyYUi0z70/H3tMkGj8QhqVxq6FJGPjlzR24BNkQ6jyMheMvFKJBI0dzGZrEOUyQEmZ8axM1xRrbRiw==}
 
   drizzle-kit@0.31.7:
     resolution: {integrity: sha512-hOzRGSdyKIU4FcTSFYGKdXEjFsncVwHZ43gY3WU5Bz9j5Iadp6Rh6hxLSQ1IWXpKLBKt/d5y1cpSPcV+FcoQ1A==}
@@ -10813,7 +10813,7 @@ snapshots:
 
   dotenv@17.4.2: {}
 
-  draco3dgltf@1.5.8: {}
+  draco3dgltf@1.5.7: {}
 
   drizzle-kit@0.31.7(supports-color@10.2.2):
     dependencies:

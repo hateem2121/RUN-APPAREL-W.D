@@ -161,6 +161,29 @@ one. Measured from the installed `package.json` files on 2026-09-26.
 To re-check either: `npm view payload peerDependencies.graphql` and
 `npm view @google/model-viewer peerDependencies.three`, against the newest versions.
 
+## `draco3dgltf` held at 1.5.7 (2026-10-23)
+
+**In plain words:** the newest Draco (the 3D compression library) changed how it hands its
+memory to other code, and the library we read 3D files with has not caught up, so we stay on
+the previous Draco.
+
+Dependabot's `needs-hand-sync` pull request #226 moved it 1.5.7 → 1.5.8 (published
+2026-10-15). On CI one pipeline test failed: `tools/asset-pipeline/src/pipeline.test.ts`,
+"applies Draco compression when requested and stays parseable with variants intact",
+with `TypeError: Cannot read properties of undefined (reading 'buffer')` thrown in
+`decodeAttribute` of `@gltf-transform/extensions` 4.5.1 while reading the file back.
+
+The cause, read from both packages' published files on 2026-10-23 (nothing executed):
+1.5.7's `draco_decoder_gltf_nodejs.js` assigns `a.HEAP8`, `a.HEAPU16`, `a.HEAPU32` and
+`a.HEAPF32` onto the module; 1.5.8's contains none of the four names. glTF-Transform's
+decoder (`khr-draco-mesh-compression/decoder.ts`) reads `decoderModule.HEAPF32.buffer`,
+`HEAPU16.buffer` and `HEAPU32.buffer` to copy each decoded attribute out. 4.5.1 is the
+newest glTF-Transform (2026-09-28), and no upstream issue named this on 2026-10-23.
+
+`.github/dependabot.yml` ignores `draco3dgltf >= 1.5.8`. Release it when a glTF-Transform
+release reads Draco 1.5.8: bump both, then run `pnpm --filter @run-apparel/asset-pipeline
+test` — that Draco test is the check, and it fails on the pair that does not fit.
+
 ## `next` held below 16.4 — RELEASED 2026-10-23 (held from 2026-10-14)
 
 **Released for security.** Next.js 16.0–16.4.0 carry two critical remote-code-execution
