@@ -6,7 +6,8 @@
 export declare const TOKENS_CSS: string
 export declare const OUT_DIR: string
 export declare const FILES: { light: string; dark: string; highContrast: string }
-export declare const HIGH_CONTRAST_INPUTS: Readonly<Record<string, string>>
+/** name → light-half CSS value of each override in tokens.css's `prefers-contrast: more` block. */
+export declare function highContrastOverrides(css: string): Record<string, string>
 
 export interface Declaration {
   name: string

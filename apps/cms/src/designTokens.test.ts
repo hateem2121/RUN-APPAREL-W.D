@@ -383,24 +383,15 @@ const COPIES = [
 
 /** file → hexes that are near a token on purpose, each with the reason. */
 const NEAR_ON_PURPOSE: Record<string, Record<string, string>> = {
-  'packages/ui/src/footer.css': {
-    '#ecebe6':
-      'the partner logos are recoloured to it in their SVGs (an image file cannot read a token); ' +
-      'chosen in a side-by-side by the owner. 2 steps off dark --text #ecebe4, raised 2026-10-22',
-  },
   'apps/cms/src/app/(frontend)/site.css': {
     '#63665b': 'the 2026-09 fade incident, solved from the --muted of that day',
     '#a3a49b': 'the same incident: the old --muted at 55% over the page ground',
-    '#44473e':
-      '--muted as this site raises it for prefers-contrast: more. The design system high-contrast muted is ' +
-      '#47493f; the two disagree, raised with the owner 2026-10-22',
     '#4a4c46': 'arithmetic: 80% ink over a white wall, the worst case under the photo hero',
   },
   'apps/viewer/src/styles/tokens.test.ts': {
     '#63665b': 'negative controls plant the retired --muted',
     '#5f7414': 'negative controls plant the retired --volt-deep',
     '#333333': 'a neutral grey fixture, not a brand colour',
-    '#44473e': 'the EXCEPTIONS list naming the prefers-contrast: more --muted in site.css',
   },
 }
 
@@ -485,5 +476,68 @@ describe('no file that copies the design system holds a stale brand colour', () 
     expect(staleCopies('docs/guide/brand.md', 'was #63665b until 2026-10-22', tokens)).toEqual([])
     // A deliberately different colour, far from every token, is never a copy.
     expect(staleCopies('docs/guide/brand.md', 'fill: #0057b8;', tokens)).toEqual([])
+  })
+})
+
+// ── High contrast has one home ──────────────────────────────────────────────────────────────
+//
+// Until 2026-10-23 site.css and the viewer's page.css each raised tokens for
+// `prefers-contrast: more`, and they had drifted: the site raised --muted and the garment pages
+// did not, and the two dark --line values were mixed from different off-whites. The values now
+// live once, in tokens.css, where the export reads them. A host may still restyle its own
+// components there (page.css points --dimension at --text); it may not raise a shared token.
+
+const SHARED_HIGH_CONTRAST = ['--muted', '--volt-deep', '--danger', '--line', '--line-control']
+
+function sharedTokensRaisedOutsideTokensCss(file: string, source: string): string[] {
+  const out: string[] = []
+  const text = source.replace(/\/\*[\s\S]*?\*\//g, '')
+  for (const match of text.matchAll(/@media[^{]*prefers-contrast:\s*more[^{]*\{/g)) {
+    let depth = 0
+    let i = (match.index ?? 0) + match[0].length - 1
+    const from = i
+    for (; i < text.length; i++) {
+      if (text[i] === '{') depth++
+      else if (text[i] === '}' && --depth === 0) break
+    }
+    const block = text.slice(from, i)
+    for (const token of SHARED_HIGH_CONTRAST) {
+      if (new RegExp(`${token}\\s*:`).test(block)) out.push(`${file} raises ${token}`)
+    }
+  }
+  return out
+}
+
+describe('the high-contrast values live only in tokens.css', () => {
+  const HOSTS = [
+    'apps/cms/src/app/(frontend)/site.css',
+    'apps/viewer/src/styles/page.css',
+    'packages/ui/src/base.css',
+    'packages/ui/src/notch.css',
+    'packages/ui/src/footer.css',
+  ]
+
+  it('no other stylesheet raises a shared token for prefers-contrast: more', () => {
+    const found = HOSTS.flatMap((f) =>
+      sharedTokensRaisedOutsideTokensCss(f, readFileSync(join(REPO, f), 'utf8')),
+    )
+    expect(found, 'Set high-contrast token values in packages/ui/src/tokens.css only.').toEqual([])
+  })
+
+  it('tokens.css itself sets all five, so the export has them', () => {
+    expect(sharedTokensRaisedOutsideTokensCss('tokens.css', css())).toHaveLength(5)
+  })
+
+  it('NEGATIVE CONTROL: the block site.css carried until 2026-10-23 is caught', () => {
+    const old =
+      '@media (prefers-contrast: more) {\n  :root {\n    --line: light-dark(rgba(29, 31, 26, 0.55), rgba(236, 235, 228, 0.55));\n' +
+      '    --muted: light-dark(#44473e, #cfd2c2); /* dated 2026-09-07 */\n  }\n}'
+    expect(sharedTokensRaisedOutsideTokensCss('site.css', old)).toEqual([
+      'site.css raises --muted',
+      'site.css raises --line',
+    ])
+    // A host's own component choice is allowed.
+    const own = '@media (prefers-contrast: more) { :root { --dimension: var(--text); } }'
+    expect(sharedTokensRaisedOutsideTokensCss('page.css', own)).toEqual([])
   })
 })

@@ -105,9 +105,16 @@ decoration, and must stay near-invisible.
 **`--line-control` is not a motif ink, and it is deliberately not near-invisible.** At 0.55
 alpha it is the edge that identifies a control — the outline button and the form fields —
 and WCAG 1.4.11 asks 3:1 for exactly that. `--line` measured 1.43:1 light / 1.68:1 dark
-there (audit CO-02, 2026-09-11). 0.55 is the value both `prefers-contrast: more` blocks
-already raise `--line` to, so the system gained a role, not a new number: 3.48–3.77:1 light
+there (audit CO-02, 2026-09-11). 0.55 was the value both `prefers-contrast: more` blocks
+raised `--line` to then, so the system gained a role, not a new number: 3.48–3.77:1 light
 and 4.10–5.13:1 dark across `--bg`, `--surface`, `--wash` and `--raised`.
+
+**High contrast (`prefers-contrast: more`) is one block at the end of `tokens.css`** since
+2026-10-23, for the website and the garment pages alike, with the Paper & Ink design system's
+light values: `--muted` #47493f, `--volt-deep` #3c4e00, `--danger` #950000, `--line` ink at
+50% and `--line-control` ink at 65%. Text clears 7:1 on every light ground (tightest: muted on
+wash, 7.00) and both lines clear 3:1 (tightest: `--line` on wash, 3.04). No other stylesheet
+may raise these tokens; `apps/cms/src/designTokens.test.ts` fails if one does.
 
 **`--danger` is the one error colour**, shared by both apps since 2026-10-01 (it lived in the
 website's stylesheet until then): `#b3261e` in light, `#f2b8b5` in dark, for a wrongly filled

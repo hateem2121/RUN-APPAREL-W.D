@@ -50,7 +50,8 @@
    * The EDGE OF A CONTROL: the outline button and the form fields (audit CO-02). WCAG
    * 1.4.11 asks 3:1 for a boundary that identifies a control, and `--line` is a divider at
    * 1.43:1 light / 1.68:1 dark. 0.55 is the alpha both `prefers-contrast: more` blocks
-   * already raise `--line` to, so it is one proven value rather than a new one. Measured
+   * raised `--line` to when this was written (2026-09-11), one proven value rather than a new
+   * one; since 2026-10-22 the high-contrast block at the end of this file sets both. Measured
    * against every ground a control sits on: 3.48–3.77:1 light and 4.10–5.13:1 dark across
    * --bg, --surface, --wash and --raised; the weakest ground needs 0.50 light / 0.42 dark.
    */
@@ -492,6 +493,34 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+}
+
+/*
+ * HIGH CONTRAST — the visitor told the OS that default contrast is not enough
+ * (`prefers-contrast: more`, Baseline since May 2022 per MDN, read 2026-10-23). ONE block for
+ * both hosts since 2026-10-23. Until then `site.css` and the viewer's `page.css` each raised
+ * their own tokens, and had drifted: the site raised `--muted` and the garment pages did not,
+ * and the two dark `--line` values were mixed from different off-whites. The light values are
+ * the Paper & Ink design system's high-contrast theme (version 19); the owner ruled on
+ * 2026-10-23 that the code follows it. Measured on bg / surface / wash / raised, unrounded:
+ *
+ *   --muted         #47493f       7.97 / 8.70 / 7.00 / 9.16   (7:1, WCAG 1.4.6)
+ *   --volt-deep     #3c4e00       8.01 / 8.74 / 7.04 / 9.20   (the serif accent, dimension, focus)
+ *   --danger        #950000       8.02 / 8.76 / 7.05 / 9.22
+ *   --line          ink at 50%    3.14 / 3.21 / 3.04 / 3.25   (3:1, WCAG 1.4.11)
+ *   --line-control  ink at 65%    4.90 / 5.08 / 4.64 / 5.18
+ *
+ * The dark halves are the site's, unchanged: the design system's high-contrast theme is light.
+ * `scripts/export-design-tokens.mjs` reads this block for paper-ink.high-contrast.tokens.json.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --muted: light-dark(#47493f, #cfd2c2);
+    --volt-deep: #3c4e00;
+    --danger: light-dark(#950000, #f2b8b5);
+    --line: light-dark(rgba(29, 31, 26, 0.5), rgba(236, 235, 228, 0.55));
+    --line-control: light-dark(rgba(29, 31, 26, 0.65), rgba(236, 235, 228, 0.55));
+  }
 }
 
 /*
