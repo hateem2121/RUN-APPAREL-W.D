@@ -267,7 +267,8 @@
  * dark lettering (Sedex, SMETA, GRS) vanish, and whitening everything turned OEKO-TEX and GOTS
  * into blank shapes — both measured in a side-by-side the owner chose from. So each SVG in
  * `public/standards/` keeps its brand colours and has its black and dark-grey fills recoloured
- * to #ecebe6 (the paper tone; an <img> cannot read a CSS token), and ISO's dark blue lightened to
+ * to #ecebe4, dark-mode `--text` (an <img> cannot read a CSS token; it was
+ * #ecebe6 until 2026-10-23, called "the paper tone" here, which it was not), and ISO's dark blue lightened to
  * #7fb2e5. `standardsLogos.test.ts` fails on a dark fill or a chip coming back.
  * ⚠️ NO HEIGHT HERE SINCE POLISH X23: each mark is drawn at the width and height its `<img>`
  * carries, one area for every mark (`markBox`, packages/shared/src/standardsLogos.ts), where a

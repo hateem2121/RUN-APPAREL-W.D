@@ -45,47 +45,67 @@ export const FILES = {
 /** Reverse-domain key for this repo's extensions, as the format asks. */
 const EXT = 'com.wear-run.paper-ink'
 
-/*
- * ⚠️ THE HIGH-CONTRAST THEME IS A DESIGN-SYSTEM ADDITION, NOT SOMETHING tokens.css DECLARES.
- * These five values come from the RUN APPAREL Paper & Ink design system (version 19,
- * 22 Oct 2026) and are FIXED INPUTS here: change them there first, then here. Every other
- * colour in the high-contrast file is the light theme's. Measured 2026-10-22, each text value
- * clears 7:1 (WCAG 1.4.6) on bg, surface, wash and raised; the tightest is muted on wash, 7.00.
- */
-export const HIGH_CONTRAST_INPUTS = Object.freeze({
-  muted: '#47493f',
-  'volt-deep': '#3c4e00',
-  danger: '#950000',
-  line: 'rgba(29, 31, 26, 0.5)', // ink at 50%
-  'line-control': 'rgba(29, 31, 26, 0.65)', // ink at 65%
-})
+/** `[start, end)` of the `{ … }` block opening at or after `from`, braces balanced. */
+function blockRange(css, from) {
+  const open = css.indexOf('{', from)
+  let depth = 0
+  for (let i = open; i < css.length; i++) {
+    if (css[i] === '{') depth++
+    else if (css[i] === '}' && --depth === 0) return [open, i + 1]
+  }
+  throw new Error('tokens.css has an unclosed block')
+}
+
+/** The custom-property declarations inside one block, comments removed, in source order. */
+function declarationsIn(css, [open, close]) {
+  const body = css.slice(open + 1, close - 1).replace(/\/\*[\s\S]*?\*\//g, '')
+  return [...body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)].map((m) => ({
+    name: m[1],
+    value: m[2].replace(/\s+/g, ' ').trim(),
+  }))
+}
 
 /** The declarations of the FIRST `:root { … }` block, comments removed, in source order. */
 export function rootDeclarations(css) {
   const start = css.indexOf(':root {')
   if (start < 0) throw new Error('tokens.css has no :root block')
-  let depth = 0
-  let end = start
-  for (let i = css.indexOf('{', start); i < css.length; i++) {
-    if (css[i] === '{') depth++
-    else if (css[i] === '}' && --depth === 0) {
-      end = i
-      break
-    }
-  }
-  const body = css.slice(css.indexOf('{', start) + 1, end).replace(/\/\*[\s\S]*?\*\//g, '')
-  const out = []
-  for (const m of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)) {
-    out.push({ name: m[1], value: m[2].replace(/\s+/g, ' ').trim() })
-  }
-  return out
+  return declarationsIn(css, blockRange(css, start))
+}
+
+/*
+ * THE HIGH-CONTRAST THEME is tokens.css's own `@media (prefers-contrast: more)` block since
+ * 2026-10-23, when it moved there from site.css and page.css and took the Paper & Ink design
+ * system's values (owner's ruling). Until then this script carried those five values as fixed
+ * inputs copied from the design system. The file takes each override's LIGHT half: the design
+ * system's high-contrast theme is light; every colour not overridden is the light theme's.
+ */
+const HIGH_CONTRAST_QUERY = '@media (prefers-contrast: more)'
+
+function highContrastRange(css) {
+  const at = css.indexOf(HIGH_CONTRAST_QUERY)
+  if (at < 0) throw new Error(`tokens.css has no ${HIGH_CONTRAST_QUERY} block`)
+  return blockRange(css, at)
+}
+
+/** name → light-half CSS value of each high-contrast override. */
+export function highContrastOverrides(css) {
+  return Object.fromEntries(
+    declarationsIn(css, highContrastRange(css)).map(({ name, value }) => [
+      name,
+      themeHalves(value).light,
+    ]),
+  )
 }
 
 /** Custom properties set again outside the main :root block (media queries, @supports). */
 function overriddenElsewhere(css) {
   const start = css.indexOf(':root {')
-  const afterRoot = css.slice(css.indexOf('\n}\n', start)).replace(/\/\*[\s\S]*?\*\//g, '')
-  return [...new Set([...afterRoot.matchAll(/--([a-z0-9-]+)\s*:/gi)].map((m) => m[1]))]
+  const [hcOpen, hcClose] = highContrastRange(css)
+  const rest = (css.slice(blockRange(css, start)[1], hcOpen) + css.slice(hcClose)).replace(
+    /\/\*[\s\S]*?\*\//g,
+    '',
+  )
+  return [...new Set([...rest.matchAll(/--([a-z0-9-]+)\s*:/gi)].map((m) => m[1]))]
 }
 
 /** Split `a, b` at the top-level comma only (nested parentheses kept whole). */
@@ -294,10 +314,10 @@ export function exportTokens(css) {
       true,
     ),
     highContrast: build(
-      'high-contrast theme: the light theme with five colours from the design system (version 19, 22 Oct 2026)',
+      'high-contrast theme: the light theme with the light halves of the prefers-contrast: more block in tokens.css',
       'light',
       true,
-      HIGH_CONTRAST_INPUTS,
+      highContrastOverrides(css),
     ),
     omitted,
   }

@@ -1668,11 +1668,9 @@ describe('CO-08 — every literal colour is on the palette, or a named exception
       colours: ['#111111', '#333333', '#999999'],
       why: 'the printed footer (@media print) — paper has no dark theme',
     },
-    {
-      file: 'site.css',
-      colours: ['#44473e', '#cfd2c2'],
-      why: '--muted raised for prefers-contrast: more',
-    },
+    // Until 2026-10-23 site.css's prefers-contrast: more --muted (#44473e / #cfd2c2) was listed
+    // here. The high-contrast values moved into tokens.css that day, which this scan reads as
+    // the palette rather than as a stray literal.
   ] as const
 
   /** Every literal colour in a declaration, skipping `mask`/`mask-image`, whose #000/#0000 stops are alpha, not colour. */
@@ -1698,7 +1696,21 @@ describe('CO-08 — every literal colour is on the palette, or a named exception
     const colours = palette()
     // The ink, the paper and the volt are the brand; if these are not found, the scan is broken.
     for (const brand of ['#1d1f1a', '#f1efea', '#cdf345']) expect(colours).toContain(brand)
-    expect(colours.size, 'the palette is small by design').toBeLessThanOrEqual(20)
+    /*
+     * The ceiling is for the everyday palette. Since 2026-10-23 tokens.css also holds the
+     * high-contrast theme (one `prefers-contrast: more` block, values from Paper & Ink), whose
+     * four darker shades exist only for visitors who asked for more contrast. They get their own
+     * ceiling rather than lifting this one, so neither can grow unnoticed.
+     */
+    const tokens = cssFiles().find(({ name }) => name === 'tokens.css')?.source ?? ''
+    const split = tokens.indexOf('@media (prefers-contrast: more)')
+    expect(split, 'the high-contrast block must be found').toBeGreaterThan(0)
+    const everyday = new Set(literalColoursIn(tokens.slice(0, split)).map((c) => hexOf(c.rgba)))
+    const highContrastOnly = [...colours].filter((c) => !everyday.has(c))
+    expect(everyday.size, 'the palette is small by design').toBeLessThanOrEqual(20)
+    expect(highContrastOnly.length, 'the high-contrast theme adds four shades').toBeLessThanOrEqual(
+      4,
+    )
   })
 
   it('no component stylesheet introduces a colour the palette does not have', () => {

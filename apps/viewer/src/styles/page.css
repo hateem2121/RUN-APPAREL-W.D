@@ -2894,11 +2894,14 @@ summary.spec-item__row:focus-visible {
  * translucent header sits over scrolling content.
  *
  * Raising the token rather than restyling components means every border, rule and
- * divider in the system answers at once, including any added later.
+ * divider in the system answers at once, including any added later. Since 2026-10-23 the
+ * raised `--line`, `--line-control`, `--muted`, `--volt-deep` and `--danger` come from the
+ * one high-contrast block in packages/ui/src/tokens.css (until then this file raised `--line`
+ * to 0.55 itself, its dark half mixed from paper rather than the token's off-white). Only the
+ * viewer's own choice stays here: dimension lines take the text colour.
  */
 @media (prefers-contrast: more) {
   :root {
-    --line: light-dark(rgba(29, 31, 26, 0.55), rgba(241, 239, 234, 0.55));
     --dimension: var(--text);
   }
 }

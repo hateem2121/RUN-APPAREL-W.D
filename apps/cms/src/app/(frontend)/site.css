@@ -4441,13 +4441,13 @@ a.contact-block__value:active {
  * ⚠️ `--grid` AND `--contour` ARE DELIBERATELY NOT RAISED. The blueprint behind the hero
  * is decoration; making it louder for someone who asked for more contrast would add noise
  * to the thing they are trying to read past, not separation.
+ *
+ * MOVED 2026-10-23: the block that raised `--line` (0.55) and `--muted` (#44473e / #cfd2c2)
+ * here now lives in packages/ui/src/tokens.css, once for both hosts, with the Paper & Ink
+ * design system's light values (owner's ruling): `--muted` #47493f, `--line` 0.50,
+ * `--line-control` 0.65, `--volt-deep` #3c4e00, `--danger` #950000. The figures above are
+ * the 2026-09-07 measurement of the old values; tokens.css has the new ones.
  */
-@media (prefers-contrast: more) {
-  :root {
-    --line: light-dark(rgba(29, 31, 26, 0.55), rgba(236, 235, 228, 0.55));
-    --muted: light-dark(#44473e, #cfd2c2);
-  }
-}
 
 /* ======================================== the 2026-09-29 refresh (owner's ten points) */
 
