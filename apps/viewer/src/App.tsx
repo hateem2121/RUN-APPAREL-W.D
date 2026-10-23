@@ -122,6 +122,12 @@ export default function App() {
    */
   const [stageFallback, setStageFallback] = useState(false)
   const specsInCorners = identityInAside && !stageFallback
+  /**
+   * The page came from the Worker's copy for a search robot (the payload was embedded), so the
+   * stage shows the garment's picture and fetches no 3D file (`PosterReason` 'crawler' says why).
+   * Set once and never cleared: a colourway change keeps the visitor a robot.
+   */
+  const [crawlerCopy, setCrawlerCopy] = useState(false)
 
   const load = useCallback(async () => {
     const route = currentRoute()
@@ -133,9 +139,9 @@ export default function App() {
     try {
       // A search robot's page carries the payload already (src/lib/embeddedPayload.ts), so
       // its renderer never depends on the request Google's fetcher sometimes drops.
-      const response =
-        takeEmbeddedPayload(viewerApiPath(route.productSlug, route.colourSlug)) ??
-        (await fetchViewerData(route.productSlug, route.colourSlug))
+      const embedded = takeEmbeddedPayload(viewerApiPath(route.productSlug, route.colourSlug))
+      if (embedded) setCrawlerCopy(true)
+      const response = embedded ?? (await fetchViewerData(route.productSlug, route.colourSlug))
       if (isViewerApiError(response)) {
         setState({ kind: 'unavailable' })
         // A real product that will not load and a URL nobody ever published look
@@ -549,6 +555,7 @@ export default function App() {
                 onSelectColourway={onSelectColourway}
                 cornerSpecs={specsInCorners}
                 onFallbackChange={setStageFallback}
+                forCrawler={crawlerCopy}
               />
             </div>
             {/*
