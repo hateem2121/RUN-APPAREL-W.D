@@ -18,7 +18,7 @@ import { getProductCards, type ProductCard } from '../../lib/content'
 import { getSiteSettings } from '../../lib/content'
 import { FAMILIES, familyGarments, familyPictures } from '../../lib/families'
 import { familyIsSoon } from '../../lib/familyPages'
-import { HOME_DESCRIPTION } from '../../lib/pageDescriptions'
+import { HOME_DESCRIPTION, HOME_TITLE } from '../../lib/pageDescriptions'
 import { garmentCount, pickProofGarment } from '../../lib/proofShowcase'
 import { buildMetadata, GARMENT_PAGES } from '../../lib/seo'
 import { websiteJsonLd } from '../../lib/structuredData'
@@ -32,7 +32,7 @@ import { websiteJsonLd } from '../../lib/structuredData'
  */
 export const dynamic = 'force-dynamic'
 
-const TITLE = 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer'
+const TITLE = HOME_TITLE
 
 export const metadata: Metadata = {
   ...buildMetadata({ title: TITLE, description: HOME_DESCRIPTION, path: '/' }),

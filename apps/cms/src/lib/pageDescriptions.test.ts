@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import {
   findBritishSpellings,
   findBuzzwords,
@@ -8,6 +9,7 @@ import {
 import {
   CONTACT_DESCRIPTION,
   HOME_DESCRIPTION,
+  HOME_TITLE,
   MAX_PAGE_DESCRIPTION,
   PRODUCTS_DESCRIPTION,
 } from './pageDescriptions'
@@ -68,5 +70,19 @@ describe('page descriptions (L-06, FI-01)', () => {
     ]) {
       expect(text, `the home description no longer names ${word}`).toContain(word)
     }
+  })
+})
+
+/*
+ * The home title (owner, 2026-10-23). Google sent "private label sportswear" searches to the
+ * casual-wear page while this title said "Custom B2B Sportswear & Team Wear Manufacturer".
+ */
+describe('the home page title', () => {
+  it('leads with the brand, then the words buyers search', () => {
+    expect(HOME_TITLE).toBe('RUN APPAREL — Private Label Sportswear Manufacturer')
+  })
+
+  it('fits in the 60 characters a result shows whole', () => {
+    expect(HOME_TITLE.length).toBeLessThanOrEqual(TITLE_MAX)
   })
 })

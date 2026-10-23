@@ -143,13 +143,19 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
   },
   /*
    * ⚠️ "ACTIVEWEAR" LEADS, NOT "SPORTSWEAR", AND THE ADDRESS SAYS SO (owner, 2026-09-30).
-   * The home page's title already aims at "custom sportswear manufacturer"; a second page
-   * aiming at the same words would compete with it in the same results.
+   * The home page's title aims at "private label sportswear manufacturer" (since 2026-10-23); a
+   * second page aiming at the same words would compete with it in the same results.
+   *
+   * "PRIVATE LABEL" LEADS THE TITLE (owner, 2026-10-23). Search Console, 90 days to 21 Oct: Google
+   * sent "private label activewear" and "private label sportswear manufacturer pakistan" to the
+   * casual-wear page (positions 60–90), the only page whose title said "private label". It was
+   * "Custom Activewear & Sportswear Manufacturer"; "& Sportswear" went because the title has to
+   * keep "Manufacturer" (the word buyers type) and fit 60 characters with the brand.
    */
   {
     path: '/custom-activewear-manufacturer',
     familySlug: 'sportswear',
-    title: 'Custom Activewear & Sportswear Manufacturer',
+    title: 'Private Label Activewear Manufacturer',
     description: `Custom activewear and sportswear made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
     eyebrow: `[ Sportswear · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom activewear and sportswear',
@@ -219,6 +225,28 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     closingHeading: 'Have a range that needs making?',
   },
 ]
+
+/**
+ * The guides a buyer page lists beside the order guide, by address (`guides.ts` holds their words).
+ *
+ * Printing and fabrics on every page (owner, 2026-10-08). The country comparison on every page and
+ * the start-up cost guide on the activewear page joined on 2026-10-23 (owner's yes): a crawl that
+ * day found 2 internal links to each, against 8–9 for the others, and a page few pages link to is
+ * one Google reads rarely.
+ */
+const RANGE_GUIDE_PATHS = [
+  '/guides/garment-printing-methods',
+  '/guides/sportswear-fabrics-and-weights',
+  '/guides/pakistan-vs-china-vs-turkey',
+] as const
+
+const FAMILY_GUIDE_PATHS: Readonly<Record<string, readonly string[]>> = {
+  sportswear: ['/guides/cost-to-start-an-activewear-brand'],
+}
+
+export function rangeGuidePaths(page: FamilyPage): readonly string[] {
+  return [...RANGE_GUIDE_PATHS, ...(FAMILY_GUIDE_PATHS[page.familySlug] ?? [])]
+}
 
 /** The buyer page for a family, or null when the owner has not approved one yet. */
 export function familyPageFor(family: Family): FamilyPage | null {

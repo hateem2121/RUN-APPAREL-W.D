@@ -51,6 +51,7 @@ import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
 import { ThemeBoot } from '../../components/site/ThemeBoot'
 import { getSiteSettings } from '../../lib/content'
+import { HOME_TITLE } from '../../lib/pageDescriptions'
 import { robotsFor, searchVisibility } from '../../lib/searchVisibility'
 import { SITE_ORIGIN } from '../../lib/seo'
 import { organizationJsonLd } from '../../lib/structuredData'
@@ -111,7 +112,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(SITE_ORIGIN),
     title: {
       template: '%s — RUN APPAREL',
-      default: 'RUN APPAREL — Custom B2B Sportswear & Team Wear Manufacturer',
+      default: HOME_TITLE,
     },
     // `noindex` while the beta is hidden; NOTHING when visible — see searchVisibility.ts
     // and the paragraph above about why `index: true` must never be declared here.

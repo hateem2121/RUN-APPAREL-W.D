@@ -2,7 +2,13 @@ import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import Link from 'next/link'
 import type { ProductCard, PublicSiteSettings } from '../../lib/content'
 import { FAMILIES, familyPictures } from '../../lib/families'
-import { FAMILY_PAGE_ACTION, type FamilyPage, familyHref, familyOf } from '../../lib/familyPages'
+import {
+  FAMILY_PAGE_ACTION,
+  type FamilyPage,
+  familyHref,
+  familyOf,
+  rangeGuidePaths,
+} from '../../lib/familyPages'
 import { guideAt } from '../../lib/guides'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
@@ -11,15 +17,6 @@ import { JsonLd } from './JsonLd'
 
 /** The guide that tells how an order works, once, for every buyer page (polish S4). */
 const ORDER_GUIDE = guideAt('/guides/how-a-private-label-order-works')
-
-/**
- * The two guides every range shares beside it (owner, 2026-10-08): how a design goes on and what
- * it is knitted from, each with its own approved description as the reason to open it.
- */
-const RANGE_GUIDES = [
-  guideAt('/guides/garment-printing-methods'),
-  guideAt('/guides/sportswear-fabrics-and-weights'),
-]
 
 /**
  * A buyer page: one product family, written for the words a buyer searches (2026-09-30).
@@ -166,12 +163,15 @@ export function FamilyLanding({
               </Link>
             </div>
             <ul className="see-also__list">
-              {RANGE_GUIDES.map((guide) => (
-                <li key={guide.path}>
-                  <Link href={guide.path}>{guide.title}</Link>
-                  <p className="see-also__why">{guide.description}</p>
-                </li>
-              ))}
+              {/* Each guide with its own approved description as the reason to open it. */}
+              {rangeGuidePaths(page)
+                .map(guideAt)
+                .map((guide) => (
+                  <li key={guide.path}>
+                    <Link href={guide.path}>{guide.title}</Link>
+                    <p className="see-also__why">{guide.description}</p>
+                  </li>
+                ))}
             </ul>
           </div>
         </div>

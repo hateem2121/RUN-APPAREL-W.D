@@ -20,6 +20,19 @@ import { WHAT_WE_ARE } from './companyFacts'
  */
 export const MAX_PAGE_DESCRIPTION = 160
 
+/**
+ * The home page's title, shown whole (no " — RUN APPAREL" suffix), and the layout's default for a
+ * page that sets none.
+ *
+ * "PRIVATE LABEL SPORTSWEAR" LEADS (owner, 2026-10-23). It read "Custom B2B Sportswear & Team Wear
+ * Manufacturer" until then, and Search Console (90 days to 21 Oct) showed Google sending "private
+ * label sportswear manufacturer pakistan" and "private label sportswear" to the casual-wear page at
+ * positions 60–90: the only page whose title said "private label". It now says what the description
+ * below already opens with, which also names Pakistan: the title stays under the 60 characters a
+ * result shows whole (owner, 2026-10-23).
+ */
+export const HOME_TITLE = 'RUN APPAREL — Private Label Sportswear Manufacturer'
+
 export const HOME_DESCRIPTION =
   'RUN APPAREL is a private label sportswear manufacturer in Pakistan: teamwear, uniforms, casual wear, outerwear and sports accessories, from 50 pieces per style.'
 
