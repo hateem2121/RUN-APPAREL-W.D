@@ -22,9 +22,9 @@ push and requires the checks `verify`, `e2e`, `audit`, `secrets`, `artwork` and 
 2. **deploy**, on `main` only, when every gate passed *and*
    `vars.DEPLOY_ENABLED == 'true'` — backs up D1 and proves the backup restores,
    applies migrations, deploys the apex Worker and the CMS worker, builds + deploys
-   the viewer to the **`run-apparel-viewer-site` Worker** (Static Assets; selected by
-   the `VIEWER_DEPLOY_TARGET=worker` repo variable since the 2026-07-22 cutover), then
-   runs the live checks.
+   the viewer to the **`run-apparel-viewer-site` Worker** (Static Assets; its only
+   target since the 2026-07-22 cutover), then runs the live checks. To undo a deploy,
+   see "Viewer: rolling back a deploy".
 
 So: **open a PR, let the gates go green, merge, watch the Actions tab.** A red gate
 never deploys. `gh run watch` follows the latest run from the CLI — and judge a run by
@@ -1302,7 +1302,8 @@ yourself muting UptimeRobot, add a second destination instead.
 - **No error budget policy.** Recorded as a decision, not an oversight: with a
   single maintainer there is no release train to halt, so a budget would be a
   number nobody could act on.
-- **The bare apex `wear-run.help` serves the marketing site since 2026-09-06** (it
+- **The website is at `wear-run.com` since 2026-09-28**; the bare apex `wear-run.help`
+  served it from 2026-09-06 and now forwards (308) to `wear-run.com` (it
   404'd in ~0.7 s from 2026-08-19, and 522'd after 20.2 s before that). The CMS Worker
   answers it on zone routes; `infra/apex-404/` answers the old `/catalogue` and `/profile`
   (410) and the private document hosts. `scripts/apex-probe.mjs`, run from `uptime.yml`,
@@ -1973,6 +1974,12 @@ egress is free).
 
 ## API + media domain cutover
 
+> ✅ **Status (re-read 2026-10-23): BOTH HALVES DONE.** The viewer calls the API at
+> `https://cms.wear-run.help` (repository variable `VITE_API_BASE_URL`), the CMS Worker's
+> `workers_dev` is `false` (2026-08-31), and public pages read media from
+> `media.wear-run.com` since the 2026-09-28 move (the admin keeps `media.wear-run.help`).
+> Everything below is the record of how it got there.
+>
 > **Status (2026-07-22): MEDIA HALF DONE, API HALF BLOCKED on the free plan.**
 > - **Media:** ✅ cut over. Served direct from R2 at `media.wear-run.help`
 >   (R2 custom domain, Active) with a 30-day edge Cache Rule
@@ -2036,7 +2043,7 @@ egress is free).
 > URL containing a personal account handle. If even one sample 403s, stop: the
 > Pro-plan conclusion stands and this note should be dated and closed.
 
-**Where we are now.** The viewer calls the CMS API via the worker's
+**Where we were on 2026-07-22** (see the status at the top of this section for today). The viewer called the CMS API via the worker's
 `run-apparel-viewer-cms.<account>.workers.dev` URL (the `VITE_API_BASE_URL` repo
 variable), because the `wear-run.help` zone's **Bot Fight Mode** (protecting the
 separate live commercial site) challenges automated requests to
@@ -2088,22 +2095,35 @@ break mid-flight (each config flip is a one-liner already commented in
 The admin panel is reachable at `cms.wear-run.help/admin` throughout (a real
 browser solves any challenge automatically).
 
-## Viewer: Pages → Worker cutover
+## Viewer: rolling back a deploy
 
-The viewer can deploy either to a **Worker with Static Assets**
-(`apps/viewer/wrangler.jsonc`, Cloudflare's 2026 recommended static platform —
-**the current target**, `VIEWER_DEPLOY_TARGET=worker`) or to Cloudflare **Pages**
-(kept only as the rollback path documented at the end of this section).
+The viewer is a **Worker with Static Assets** (`run-apparel-viewer-site`,
+`apps/viewer/wrangler.jsonc`) and nothing else. It draws the garment pages at
+`wear-run.com/products/<product>/<colour>` (since 2026-09-28); `viewer.wear-run.help`
+only forwards there (301), for the printed QR tags.
 
-> **Status: ✅ CUT OVER COMPLETE (2026-07-22).** The Worker
-> **`run-apparel-viewer-site`** serves `viewer.wear-run.help` (custom domain
-> attached in the dashboard; `VIEWER_DEPLOY_TARGET=worker`). The old
-> `run-apparel-viewer` Pages project has been **deleted**, and the worker's
-> `workers_dev`/`preview_urls` are disabled — the custom domain is the only
-> public surface. `run-apparel-viewer.pages.dev` was also removed from
-> `VIEWER_ALLOWED_ORIGINS` (CMS CORS) and from the R2 bucket CORS policy scope.
+**To undo a bad viewer deploy** (Cloudflare's Workers rollback docs, read 2026-10-23):
 
-How it works / notes learned during the cutover:
+1. Dashboard → **Workers & Pages** → `run-apparel-viewer-site` → **Deployments** → the
+   three dots on the last good version → **Rollback**. Or from a checkout:
+   `npx --yes pnpm@12.6.0 --filter @run-apparel/viewer exec wrangler rollback` (the version
+   before the latest), or `… wrangler rollback <version-id> --message "why"`.
+2. Any of the 100 most recent versions can be restored; the rollback is live at once on
+   every route and domain. It does not change bindings or data.
+3. Then fix forward on a branch: the next merge to `main` deploys over the rollback.
+4. Check the result the usual way: `wear-run.com/products/rxps/wine` on a phone, and
+   `/check-live`.
+
+### History: the Pages → Worker cutover (2026-07-22)
+
+The viewer moved from Cloudflare **Pages** to the Worker on 2026-07-22, and the
+`run-apparel-viewer` Pages project was **deleted** that day. Two CI steps behind
+`VIEWER_DEPLOY_TARGET=pages` were kept as a "rollback to Pages" until **2026-10-23**, when
+they were removed (owner decision): the project they would recreate was gone, the garment
+pages had moved to `wear-run.com/products/…` on this Worker, and a Pages build would have
+served neither — nor the per-garment link previews, which need the Worker's script.
+
+Notes learned during the cutover, still true:
 
 - SPA fallback comes from `not_found_handling: "single-page-application"` in
   `apps/viewer/wrangler.jsonc`; the Pages-style `dist/_redirects`
@@ -2119,22 +2139,8 @@ How it works / notes learned during the cutover:
 - Immediately after deploy/domain changes, expect a few minutes of DNS/route
   propagation (transient 404s or stale resolution) before judging health.
 
-**Rollback to Pages** (the CI Pages steps are kept for exactly this):
-
-1. `gh variable set VIEWER_DEPLOY_TARGET --body pages` and run
-   `gh workflow run ci.yml --ref main` — the deploy job **recreates** the Pages
-   project (`run-apparel-viewer`) and deploys the viewer to it.
-2. Dashboard: remove `viewer.wear-run.help` from the worker, then add it as a
-   custom domain on the recreated Pages project.
-3. Re-add `https://run-apparel-viewer.pages.dev` to `VIEWER_ALLOWED_ORIGINS`
-   in `apps/cms/wrangler.jsonc` if the pages.dev URL is used directly.
-
-⚠️ **The Pages rollback path now loses the link previews.** Since 2026-08-08 the
-viewer worker has a script (`apps/viewer/worker/index.ts`) that rewrites the
-preview tags per garment. Pages deploys `dist/` only, so on Pages every link
-reverts to the single generic card in `index.html`. That is a cosmetic
-regression, not a broken site — but do not be surprised by it, and note the CI
-link-preview smoke test is skipped when `VIEWER_DEPLOY_TARGET=pages`.
+The `VIEWER_DEPLOY_TARGET` repository variable no longer does anything; it can be
+deleted in GitHub → Settings → Secrets and variables → Actions.
 
 ## Link previews — what a shared link looks like
 

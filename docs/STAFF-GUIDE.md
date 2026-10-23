@@ -155,12 +155,15 @@ already printed. After restoring, check the colours are all still there before y
 
 ### 9. Custom domain for the viewer
 
-One-time step: in Cloudflare dashboard → Workers & Pages → the
-`run-apparel-viewer-site` **Worker** → *Settings → Domains & Routes* → add
-`wear-run.com` (the public site since 2026-09-28; `viewer.wear-run.help` forwards to it, because printed QR
-tags carry that address). Full walkthrough in `docs/RUNBOOK.md` →
-"Viewer: Pages → Worker cutover". (`docs/CLOUDFLARE-SETUP.md` §6 describes the
-old Pages route and is kept only as historical reference.)
+Already done; nothing to add. The garment pages live at
+`wear-run.com/products/<product>/<colour>`: the domain `wear-run.com` belongs to the CMS
+Worker, which hands every `/products/…` page to the `run-apparel-viewer-site` Worker
+through its service binding `VIEWER` (`apps/cms/wrangler.jsonc`). The viewer Worker keeps
+the custom domain `viewer.wear-run.help` only to forward it (301) to `wear-run.com`,
+because printed QR tags carry that address. ⚠️ Do NOT add `wear-run.com` to the viewer
+Worker's *Domains & Routes*. Undoing a bad deploy: `docs/RUNBOOK.md` → "Viewer: rolling
+back a deploy". (`docs/CLOUDFLARE-SETUP.md` §6 describes the old Pages route and is kept
+only as history.)
 
 ### 10. Before you announce anything
 

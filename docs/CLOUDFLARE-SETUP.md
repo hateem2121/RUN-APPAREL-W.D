@@ -178,9 +178,8 @@ admin panel.
 > The viewer now deploys as the **`run-apparel-viewer-site` Worker** (Static
 > Assets), which has served garment pages at `wear-run.com/products/<product>/<colour>` since
 > 2026-09-28 (`viewer.wear-run.help` forwards there, because printed QR tags carry it); the
-> `run-apparel-viewer` Pages project was **deleted** after the cutover. CI deploys the worker
-> because the `VIEWER_DEPLOY_TARGET` repo variable is `worker` — see `docs/RUNBOOK.md` →
-> "Viewer: Pages → Worker cutover". Rolling the Worker back is `wrangler rollback` or
+> `run-apparel-viewer` Pages project was **deleted** after the cutover. CI deploys only the
+> worker — see `docs/RUNBOOK.md` → "Viewer: rolling back a deploy". Rolling the Worker back is `wrangler rollback` or
 > dashboard → Deployments → Rollback; the Pages rollback steps were removed from CI. The
 > steps below are kept only as history.
 
