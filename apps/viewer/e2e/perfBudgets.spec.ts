@@ -1,7 +1,10 @@
 import { expect, request, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { calibratedThrottleRate, cpuBenchmarkInPage, isReferenceClass } from '@run-apparel/shared'
-import { evaluateInteractionWalkthrough } from '../scripts/interaction-metrics.mjs'
+import {
+  evaluateInteractionWalkthrough,
+  evaluateRepeatedWalkthroughs,
+} from '../scripts/interaction-metrics.mjs'
 
 /**
  * Performance-budget robots for the viewer's own page.
@@ -185,10 +188,58 @@ async function collectInteractionMetrics(
  * and read as a pass. Real touch input only exists in the iOS Simulator (PF-21's
  * own task), which this Playwright-only spec cannot reach.
  *
- * Ceilings are re-measured fresh against this fixture (not the original audit's own
- * numbers, which were for a different build): see the task report for the run that
- * produced them.
+ * TWO CHECKS, since 2026-10-23, because one walkthrough could not be judged on CI.
+ * Measured on CI that day (193 past runs, then a probe on six machines with a planted
+ * 300 ms freeze on the tab's click): the FIRST walkthrough on a fresh page read
+ * 230-616 ms clean and 545-697 ms frozen, so no ceiling separated them — the old 550 ms
+ * failed clean code on 25 of 193 runs AND would have passed a 545 ms freeze. That first
+ * walkthrough's cost is mostly drawing a colourway for the first time, which is software
+ * 3D in the GPU process here, and the CPU throttle never reaches it: a later switch to a
+ * colourway not yet drawn read 232-683 ms clean on the same machines. Switches between
+ * colourways ALREADY drawn read 23-159 ms clean and 279-418 ms frozen.
+ *   1. The first walkthrough, against a loose guard: it catches a gross regression in
+ *      drawing (the September load race read 2,656 ms), not a 300 ms freeze.
+ *   2. Every colourway drawn once, then FIVE walkthroughs between drawn colourways,
+ *      judged by their MEDIAN: 30-159 ms clean and 314-418 ms frozen across twelve CI
+ *      pages. A freeze slows every walkthrough and moves the median; one slow moment on
+ *      a shared machine slows one, which the median ignores. The median of several runs
+ *      is what Lighthouse's own variability guide recommends over a single run
+ *      (GoogleChrome/lighthouse docs/variability.md, read 2026-10-23).
  */
+const PF04_TABS_TO_WARM = [2, 3, 4, 0]
+const PF04_MEASURED_TABS = [1, 2, 3, 4, 0]
+
+// Each limit sits between the worst clean and the best frozen reading on its tier, measured
+// 2026-10-23 with a planted 300 ms freeze in ColourwayTabs' onClick (Mac) or on the tab's
+// click (CI probe, six machines, twelve pages):
+//   reference (this Mac, six runs each):
+//     first walkthrough  clean tbt 137-151 / inp 144-152   frozen tbt 403-414 / inp 440-456
+//     warm median        clean tbt 0       / inp 64-72     frozen tbt 263-264 / inp 328
+//     The first-walkthrough limit stays the 300/300 this Mac has always had, so the Mac
+//     check is no weaker than before; both checks catch the freeze here.
+//   slower (CI's runner; the probe, then this test itself on four machines x three runs
+//   each way, with the freeze in onClick):
+//     first walkthrough  clean tbt 230-616 over 193 old runs, 339-803 in the proof
+//     warm median        clean tbt 30-159 / inp 120-232   frozen tbt 273-418 / inp 336-400
+//     The warm limits sit near the middle of each gap (215: 56 ms above the worst clean
+//     median, 58 below the best frozen one). The first walkthrough here guards only
+//     against a gross regression (1,200; the September load race read 2,656).
+const PF04_CEILINGS = {
+  reference: { firstWalk: { tbt: 300, inp: 300 }, warmMedian: { tbt: 150, inp: 200 } },
+  slower: { firstWalk: { tbt: 1200, inp: 1200 }, warmMedian: { tbt: 215, inp: 290 } },
+}
+
+async function closeOpenPopovers(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    for (const el of document.querySelectorAll<HTMLElement>('[popover]')) {
+      if (el.matches(':popover-open')) el.hidePopover()
+    }
+  })
+  // Let the close, and anything the last interaction scheduled, finish OUTSIDE the
+  // next measured window.
+  await page.waitForTimeout(700)
+}
+
 test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interactions', () => {
   test('colourway tab switch and the theme toggle stay under the ceilings', async ({
     page,
@@ -197,6 +248,8 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
     // CDP (the throttle and the long-task/event-timing plumbing it enables) is a
     // Chromium-only protocol; WebKit and Firefox have no equivalent session here.
     test.skip(browserName !== 'chromium', 'CDP is only available in Chromium')
+    // Eleven walkthroughs with a settle after each: ~20 s on top of the model's load.
+    test.setTimeout(120_000)
     // The menu button (and the theme toggle behind it) only exists in the DOM's
     // visible sense below 720px — `packages/ui/src/notch.css`'s own
     // `@media (width < 720px)` rule; at desktop width the button is `display: none`.
@@ -219,10 +272,8 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
     // landed in the measurement window on a host-speed-dependent share, so this Mac read
     // tbt ~1,000ms and CI's slower runner 2,656/2,676ms, and the number measured the RACE,
     // not the interactions. Same runs with WebGL off: tbt 0 — the clicks alone cost
-    // nothing. Once `loaded` is true the same walkthrough reads tbt 133-139ms over six runs,
-    // which is the colourway swap's own material rebind (apps/viewer/CLAUDE.md records it
-    // at 121-131ms). Headless Chromium DOES have WebGL here (ANGLE → SwiftShader, on this
-    // Mac too), so the model loads; if it ever stops loading, fail loudly rather than
+    // nothing. Headless Chromium DOES have WebGL here (ANGLE → SwiftShader, on this Mac
+    // too), so the model loads; if it ever stops loading, fail loudly rather than
     // measure an empty stage and call it fast.
     await expect
       .poll(
@@ -242,40 +293,69 @@ test.describe('PF-04 + PF-05 — long tasks and an INP proxy across real interac
         },
       )
       .toBe(true)
+    // The walk below visits every colourway; the fixture serves five, as production does.
+    await expect(page.getByRole('tab')).toHaveCount(5)
 
-    const samples = await collectInteractionMetrics(page, async () => {
-      await page.getByRole('tab').nth(1).click()
-      await page.waitForTimeout(150)
-      await page.locator('.notch__menu-btn').click()
-      await page.locator('.theme-toggle').click()
-    })
+    const walkthrough = (tab: number) =>
+      collectInteractionMetrics(page, async () => {
+        await page.getByRole('tab').nth(tab).click()
+        await page.waitForTimeout(150)
+        await page.locator('.notch__menu-btn').click()
+        await page.locator('.theme-toggle').click()
+      })
 
     // TWO TIERS, by the machine's own score (packages/shared/src/cpuCalibration.ts):
-    //   reference-class (this Mac, score ~580) — 300/300. Clean on a LOADED garment:
-    //     tbt 139-235ms, inpProxy 136-200ms. A planted 300ms freeze in the colourway tab's
-    //     onClick read tbt 393-405 / inp 432-448 and fails. At 600/500 it PASSED.
-    //   slower (CI's runner, scores 104-171) — 550/550. Clean, measured on CI 2026-09-25:
-    //     tbt 331-373ms, inpProxy 352-400ms (the software 3D here is not slowed by the
-    //     throttle, so no rate brings CI down to the reference). The same freeze added a
-    //     steady ~+280-300ms at every rate tried on the Mac (8x/10x/12x), so on CI it lands
-    //     at >= ~630 and still fails; the load race this replaced read 2,656ms there.
-    // The tight tier runs wherever the suite runs on a reference-class machine, i.e. before
-    // every push from the Mac (root CLAUDE.md: run the viewer e2e before pushing).
+    //   reference-class (this Mac, score ~580) and slower (CI's runner, scores ~160-410).
+    //   Ceilings measured on each, 2026-10-23 (numbers beside PF04_CEILINGS).
     const referenceClass = isReferenceClass(score)
-    const ceiling = referenceClass ? 300 : 550
-    const result = evaluateInteractionWalkthrough(samples, {
-      tbtCeilingMs: ceiling,
-      inpCeilingMs: ceiling,
+    const ceilings = referenceClass ? PF04_CEILINGS.reference : PF04_CEILINGS.slower
+    const tier = referenceClass ? 'reference-class' : 'slower'
+
+    // 1. The first walkthrough on a fresh page, against the loose guard.
+    const first = evaluateInteractionWalkthrough(await walkthrough(1), {
+      tbtCeilingMs: ceilings.firstWalk.tbt,
+      inpCeilingMs: ceilings.firstWalk.inp,
     })
+    await closeOpenPopovers(page)
+
+    // 2. Draw every other colourway once, unmeasured, then five walkthroughs between
+    //    colourways already drawn, judged by their median.
+    for (const tab of PF04_TABS_TO_WARM) {
+      await page.getByRole('tab').nth(tab).click()
+      await page.waitForTimeout(700)
+    }
+    const walks = []
+    for (const tab of PF04_MEASURED_TABS) {
+      walks.push(await walkthrough(tab))
+      await closeOpenPopovers(page)
+    }
+    const warm = evaluateRepeatedWalkthroughs(walks, {
+      tbtCeilingMs: ceilings.warmMedian.tbt,
+      inpCeilingMs: ceilings.warmMedian.inp,
+    })
+
     // Printed on a pass too, so CI's own numbers are readable in the job log.
     console.log(
-      `PF-04/05 measured: tbt=${result.tbt.toFixed(0)}ms worstTask=${result.worstTask.toFixed(0)}ms ` +
-        `inpProxy=${result.inpProxy.toFixed(0)}ms (host benchmark ${score}, throttle ${rate.toFixed(2)}x, ${referenceClass ? 'reference-class' : 'slower'} tier, ceiling ${ceiling}ms)`,
+      `PF-04/05 measured: first walkthrough tbt=${first.tbt.toFixed(0)}ms inpProxy=${first.inpProxy.toFixed(0)}ms ` +
+        `(guard ${ceilings.firstWalk.tbt}/${ceilings.firstWalk.inp}ms); warm median tbt=${warm.tbt.toFixed(0)}ms ` +
+        `inpProxy=${warm.inpProxy.toFixed(0)}ms (ceiling ${ceilings.warmMedian.tbt}/${ceilings.warmMedian.inp}ms; each walk tbt ` +
+        `${warm.perWalk.map((w) => w.tbt.toFixed(0)).join('/')}) — host benchmark ${score}, ` +
+        `throttle ${rate.toFixed(2)}x, ${tier} tier`,
     )
+    // Soft, so a run always reports BOTH verdicts: the warm median below is the one a
+    // 300 ms freeze must fail on CI, where this guard is loose.
+    expect
+      .soft(
+        first.ok,
+        `first walkthrough: ${first.problems.join('; ')} (tbt=${first.tbt.toFixed(0)}ms, ` +
+          `worstTask=${first.worstTask.toFixed(0)}ms, inpProxy=${first.inpProxy.toFixed(0)}ms)`,
+      )
+      .toBe(true)
     expect(
-      result.ok,
-      `${result.problems.join('; ')} (tbt=${result.tbt.toFixed(0)}ms, ` +
-        `worstTask=${result.worstTask.toFixed(0)}ms, inpProxy=${result.inpProxy.toFixed(0)}ms)`,
+      warm.ok,
+      `five warm walkthroughs: ${warm.problems.join('; ')} (each walk tbt ` +
+        `${warm.perWalk.map((w) => w.tbt.toFixed(0)).join('/')}, inpProxy ` +
+        `${warm.perWalk.map((w) => w.inpProxy.toFixed(0)).join('/')})`,
     ).toBe(true)
   })
 })
