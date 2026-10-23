@@ -434,9 +434,11 @@ describe('the doc-citations command', () => {
 
   it('covers docs/ recursively — three subdirectory documents were never read', async () => {
     const covered = await documentsToCheck(REPO_ROOT)
+    // The subfolder it proved this with was docs/superpowers/ until 2026-10-23, when the
+    // finished plans there were deleted; docs/guide/ is a subfolder that stays.
     expect(
-      covered.some((path) => path.includes(`${join('docs', 'superpowers')}`)),
-      'docs/ was walked one level deep until 2026-08-18, so plans and reviews were invisible',
+      covered.some((path) => path.includes(`${join('docs', 'guide')}`)),
+      'docs/ was walked one level deep until 2026-08-18, so subfolder documents were invisible',
     ).toBe(true)
     expect(covered.some((path) => path.endsWith('audit-ci.jsonc'))).toBe(true)
   })
