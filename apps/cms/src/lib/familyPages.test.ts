@@ -7,7 +7,8 @@ import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import { FACTS } from './companyFacts'
 import { FAMILIES } from './families'
-import { FAMILY_PAGES, familyHref, familyOf, familyPageFor } from './familyPages'
+import { FAMILY_PAGES, familyHref, familyOf, familyPageFor, rangeGuidePaths } from './familyPages'
+import { guideAt } from './guides'
 import { buildLlmsTxt } from './llmsTxt'
 import { sitemapFor } from './searchVisibility'
 import { breadcrumbJsonLd, faqJsonLd } from './structuredData'
@@ -189,5 +190,34 @@ describe('the data a search engine reads', () => {
     expect(data.mainEntity.map((entry) => [entry.name, entry.acceptedAnswer.text])).toEqual(
       page.questions.map((entry) => [entry.question, entry.answer]),
     )
+  })
+})
+
+/*
+ * The guides each buyer page links to (owner, 2026-10-23). A crawl that day counted 2 internal links
+ * to the country comparison and to the start-up cost guide, against 8–9 for every other guide.
+ */
+describe('the guides a buyer page links to', () => {
+  it.each(FAMILY_PAGES)('$path links the printing, fabrics and country guides', (page) => {
+    expect(rangeGuidePaths(page)).toEqual(
+      expect.arrayContaining([
+        '/guides/garment-printing-methods',
+        '/guides/sportswear-fabrics-and-weights',
+        '/guides/pakistan-vs-china-vs-turkey',
+      ]),
+    )
+  })
+
+  it('links the start-up cost guide from the activewear page, and only there', () => {
+    const withCost = FAMILY_PAGES.filter((page) =>
+      rangeGuidePaths(page).includes('/guides/cost-to-start-an-activewear-brand'),
+    ).map((page) => page.path)
+    expect(withCost).toEqual(['/custom-activewear-manufacturer'])
+  })
+
+  it.each(FAMILY_PAGES)('$path names only guides that exist, each once', (page) => {
+    const paths = rangeGuidePaths(page)
+    expect(new Set(paths).size).toBe(paths.length)
+    for (const path of paths) expect(() => guideAt(path)).not.toThrow()
   })
 })
