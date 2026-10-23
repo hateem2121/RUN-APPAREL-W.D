@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   evaluateInteractionWalkthrough,
+  evaluateRepeatedWalkthroughs,
+  median,
   totalBlockingTime,
   worstInteraction,
   worstLongTask,
@@ -64,5 +66,46 @@ describe('evaluateInteractionWalkthrough', () => {
     const r = evaluateInteractionWalkthrough({ longTasks: [60], events: [50, 350] }, CEILINGS)
     expect(r.ok).toBe(false)
     expect(r.problems.join(' ')).toContain('worst interaction')
+  })
+})
+
+describe('median', () => {
+  it('is the middle value of an odd count, whatever the order', () => {
+    expect(median([610, 40, 90, 300, 70])).toBe(90)
+  })
+
+  it('is the mean of the two middle values of an even count', () => {
+    expect(median([10, 40, 60, 90])).toBe(50)
+  })
+
+  it('refuses an empty list rather than reporting 0, which would read as fast', () => {
+    expect(() => median([])).toThrow(/at least one/)
+  })
+})
+
+describe('evaluateRepeatedWalkthroughs', () => {
+  const CEILINGS = { tbtCeilingMs: 240, inpCeilingMs: 240 }
+  const walk = (task: number, event: number) => ({ longTasks: [task], events: [event] })
+
+  it('passes when one slow walkthrough sits among fast ones: the median ignores an outlier', () => {
+    const r = evaluateRepeatedWalkthroughs(
+      [walk(80, 60), walk(700, 650), walk(90, 70), walk(60, 50), walk(100, 80)],
+      CEILINGS,
+    )
+    expect(r.ok).toBe(true)
+    expect(r.tbt).toBe(40)
+    expect(r.perWalk.map((w) => w.tbt)).toEqual([30, 650, 40, 10, 50])
+  })
+
+  it('fails when every walkthrough carries the same freeze: the median moves with it', () => {
+    const frozen = [380, 360, 400, 370, 390].map((t) => walk(t, t))
+    const r = evaluateRepeatedWalkthroughs(frozen, CEILINGS)
+    expect(r.ok).toBe(false)
+    expect(r.problems.join(' ')).toContain('median total blocking time 330ms')
+    expect(r.problems.join(' ')).toContain('median worst interaction 380ms')
+  })
+
+  it('refuses to judge no walkthroughs at all', () => {
+    expect(() => evaluateRepeatedWalkthroughs([], CEILINGS)).toThrow(/at least one/)
   })
 })
