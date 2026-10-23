@@ -33,9 +33,9 @@ One printed QR code, one phone, no wifi supplied by us:
 
 ```
 printed tag / QR
-  → https://viewer.wear-run.help/<product-slug>/<colourway-slug>
+  → https://wear-run.com/products/<product-slug>/<colourway-slug>
   → colourway payload  (cms.wear-run.help, public read API)
-  → GLB + poster       (media.wear-run.help)
+  → GLB + poster       (media.wear-run.com)
   → first render on device GPU
   → turn · zoom · switch colourway
 ```
@@ -152,7 +152,7 @@ reviewed against our 3D sampling flow are on me either way — no obligation.
 If sourcing sits with someone else on your team, send it their way and I will pick
 it up there.
 
-{{live link: https://viewer.wear-run.help/<product-slug>/<colourway-slug>}}
+{{live link: https://wear-run.com/products/<product-slug>/<colourway-slug>}}
 
 Hateem Jamshaid
 Business Development Director | RUN APPAREL (PVT) LTD

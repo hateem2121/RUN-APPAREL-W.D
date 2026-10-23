@@ -53,6 +53,8 @@ with scripting off.
 **Decision: no per-product page on the marketing site. Keep linking out to
 `viewer.wear-run.help`.**
 
+*Update 2026-09-28: the public site moved to `wear-run.com`. Garment pages are now `wear-run.com/products/<product>/<colour>`; `viewer.wear-run.help` forwards there for ever, because printed QR tags carry it.*
+
 The viewer already is the detail page: it renders the garment in 3D, carries the
 fabric, GSM, fit and customisation copy, and is the address printed on physical QR
 tags. Duplicating it on the marketing site would mean two pages describing one
@@ -143,6 +145,8 @@ guard reads three at 1280px, four at 1440px and five at 1920px.
 ### D5 · The viewer wordmark becomes a link home — `FA-W-02`
 
 **Decision: the company name in the viewer header links to `wear-run.help`.**
+
+*Update 2026-09-28: the home address is now `wear-run.com`; `wear-run.help` forwards to it.*
 
 Correct as plain text while there was nowhere to send anyone. There is about to
 be. Someone who scans a QR tag on a garment currently reaches a page describing

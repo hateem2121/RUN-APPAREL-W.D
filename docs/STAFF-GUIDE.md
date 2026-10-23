@@ -122,7 +122,7 @@ experience — a failed merge never blocks publishing.
 The URL is simply:
 
 ```
-https://viewer.wear-run.help/<product-slug>/<colourway-slug>
+https://wear-run.com/products/<product-slug>/<colourway-slug>
 ```
 
 Generate the QR with any reputable free generator (or `npx qrcode <url>`),
@@ -157,7 +157,8 @@ already printed. After restoring, check the colours are all still there before y
 
 One-time step: in Cloudflare dashboard → Workers & Pages → the
 `run-apparel-viewer-site` **Worker** → *Settings → Domains & Routes* → add
-`viewer.wear-run.help`. Full walkthrough in `docs/RUNBOOK.md` →
+`wear-run.com` (the public site since 2026-09-28; `viewer.wear-run.help` forwards to it, because printed QR
+tags carry that address). Full walkthrough in `docs/RUNBOOK.md` →
 "Viewer: Pages → Worker cutover". (`docs/CLOUDFLARE-SETUP.md` §6 describes the
 old Pages route and is kept only as historical reference.)
 

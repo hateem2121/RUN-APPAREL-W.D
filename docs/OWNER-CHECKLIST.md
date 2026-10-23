@@ -275,7 +275,7 @@ Perplexity, Google's AI answers and about twenty others. That is deliberate: whe
 asks one of them "who makes custom team wear in Sialkot", you want your real capacity
 figures to be what it finds, rather than nothing.
 
-To make that work I added two things. A file at `wear-run.help/llms.txt` that describes
+To make that work I added two things. A file at `wear-run.com/llms.txt` (`wear-run.help/llms.txt` forwards to it since 2026-09-28) that describes
 your business in plain text — what you make, your six confirmed numbers, where you ship,
 the certification position and where the 3D pages live. And a line in `robots.txt` that
 names each AI crawler and says they are welcome, with the admin login and the internal API

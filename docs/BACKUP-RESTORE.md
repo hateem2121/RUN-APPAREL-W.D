@@ -285,10 +285,10 @@ answer from `GET` on this domain:
 
 ```bash
 curl -sS -o /dev/null -D - https://wear-run.help/catalogue | head -1
-curl -sS -o /dev/null -D - https://viewer.wear-run.help/rxps/wine | head -1
+curl -sS -o /dev/null -D - https://wear-run.com/products/rxps/wine | head -1
 ```
 
-`/catalogue` must answer **410**: it is retired and never serves a PDF. Then open both
+On the old apex host, `/catalogue` must answer **410** (checked 2026-10-23: `wear-run.help/catalogue` does; `wear-run.com/catalogue` forwards to it, so test the old host on purpose) and the garment page must answer **200**. `/catalogue` is retired and never serves a PDF. Then open both
 private links from the owner's Passwords and press Download — the only check that reads
 the restored objects, because no command here may hold a code.
 
@@ -344,5 +344,5 @@ touches it again.
 ## After any restore
 
 1. `curl -f https://cms.wear-run.help/api/health` → `{"ok":true}`.
-2. Open `https://viewer.wear-run.help/rxps/wine` — model loads, colourways switch, contact links work.
+2. Open `https://wear-run.com/products/rxps/wine` — model loads, colourways switch, contact links work.
 3. Log into `/admin` and spot-check a product + its media.

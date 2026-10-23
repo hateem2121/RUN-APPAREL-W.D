@@ -66,8 +66,9 @@ Only if you cannot use CI **and** cannot use the command line.
 > Since 2026-07-22 the viewer is the **`run-apparel-viewer-site` Worker**
 > (Static Assets) — the old Pages project was deleted. A dashboard-only viewer
 > deploy isn't practical for the Worker; use CI (normal path) or Fallback A.
-> The `viewer.wear-run.help` domain lives on that Worker under
-> *Settings → Domains & Routes*.
+> The public domain `wear-run.com` (since 2026-09-28) lives on that Worker under
+> *Settings → Domains & Routes*; `viewer.wear-run.help` forwards to it, because printed
+> QR tags carry that address.
 
 ---
 

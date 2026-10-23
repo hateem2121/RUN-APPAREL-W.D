@@ -519,7 +519,7 @@ existing 40 MB guardrail applies.
    | Status reaches **Ready to review**, Report lists the colour variants | the whole chain |
 
    Then attach, verify the variant names match the colourway IDs, publish, and load
-   `viewer.wear-run.help/<product>/<colour>` — **inspect the printed graphics at
+   `wear-run.com/products/<product>/<colour>` — **inspect the printed graphics at
    zoom, on a phone**, since artwork fidelity is the thing the new decimation is
    trading against. Confirm an unauthenticated fetch of a raw-upload URL is denied.
 

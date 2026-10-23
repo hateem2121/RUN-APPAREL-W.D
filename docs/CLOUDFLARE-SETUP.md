@@ -59,6 +59,8 @@ cache-control) and a **bucket CORS policy** (GET/HEAD from
 `PUBLIC_MEDIA_BASE_URL=https://media.wear-run.help` is set in `wrangler.jsonc`.
 Fallback if media ever misbehaves: set the var to empty — media then streams
 through the CMS worker — and purge the `media.wear-run.help` hostname cache.
+(Since 2026-09-28 public pages name `media.wear-run.com` on the same bucket and the admin keeps
+`media.wear-run.help`; see section 11.9.)
 ⚠️ Never set this var to anything but a full `https://…` URL or empty: a stray
 value (it was once `RUN`) breaks every media URL on the live site. History and
 verification: `docs/RUNBOOK.md` → "API + media domain cutover".
@@ -174,12 +176,13 @@ admin panel.
 ## 6. Viewer on Cloudflare Pages — ⛔ superseded (2026-07-22)
 
 > The viewer now deploys as the **`run-apparel-viewer-site` Worker** (Static
-> Assets) serving `viewer.wear-run.help`; the `run-apparel-viewer` Pages
-> project was **deleted** after the cutover. CI deploys the worker because the
-> `VIEWER_DEPLOY_TARGET` repo variable is `worker` — see `docs/RUNBOOK.md` →
-> "Viewer: Pages → Worker cutover" (including the rollback that recreates the
-> Pages project). The steps below are kept only as a historical reference for
-> that rollback.
+> Assets), which has served garment pages at `wear-run.com/products/<product>/<colour>` since
+> 2026-09-28 (`viewer.wear-run.help` forwards there, because printed QR tags carry it); the
+> `run-apparel-viewer` Pages project was **deleted** after the cutover. CI deploys the worker
+> because the `VIEWER_DEPLOY_TARGET` repo variable is `worker` — see `docs/RUNBOOK.md` →
+> "Viewer: Pages → Worker cutover". Rolling the Worker back is `wrangler rollback` or
+> dashboard → Deployments → Rollback; the Pages rollback steps were removed from CI. The
+> steps below are kept only as history.
 
 Dashboard → Workers & Pages → **Create → Pages → Connect to Git** → select this repo.
 
@@ -201,8 +204,9 @@ Cloudflare creates the DNS record automatically because the zone is on the same 
 
 ## 7. CORS check
 
-`VIEWER_ALLOWED_ORIGINS` in `wrangler.jsonc` must include `https://viewer.wear-run.help`,
-and only production origins. `http://localhost:5173` is added by `payload.config.ts` itself,
+`VIEWER_ALLOWED_ORIGINS` in `wrangler.jsonc` must include `https://wear-run.com` (the site
+since 2026-09-28), and only production origins. It also still lists `https://wear-run.help` and
+`https://viewer.wear-run.help`. `http://localhost:5173` is added by `payload.config.ts` itself,
 outside production only: until 2026-09-26 it sat in this list, so the live CMS trusted a
 developer's laptop address with credentials. Redeploy the worker after changes. (`https://run-apparel-viewer.pages.dev` was removed 2026-07-22 when the
 Pages project was deleted.) The R2 bucket CORS policy mirrors this list — update
@@ -222,7 +226,8 @@ the bucket policy.
 > records only on `wear-run.com`.
 
 **Already done — nothing to configure.** The beacon is embedded directly in
-`apps/viewer/index.html` as a `<script src>` with the zone's token, which is a
+`apps/viewer/index.html` as a `<script src>` with a Web Analytics site token
+(since 2026-09-28 the `wear-run.com` site's token, see section 11.9), which is a
 public site tag and not a secret. It sets no cookies.
 
 It is a hard-coded tag on purpose, and there are two separate reasons:
@@ -245,7 +250,7 @@ replace the token in `apps/viewer/index.html` and rebuild.
 1. `https://cms.wear-run.help/admin` — log in, confirm collections exist.
 2. `https://cms.wear-run.help/api/health` — `{"ok":true}`.
 3. `https://cms.wear-run.help/api/public/viewer/rxps/wine` — JSON with product data.
-4. `https://viewer.wear-run.help/rxps/wine` — model loads, tabs work.
+4. `https://wear-run.com/products/rxps/wine` — model loads, tabs work. (`https://viewer.wear-run.help/rxps/wine` should answer 301 to it: printed QR tags carry that address.)
 5. Run through `docs/QA-CHECKLIST.md`.
 
 ## 10. GitHub Actions auto-deploy (makes `git push` deploy)
@@ -288,7 +293,7 @@ domains, or create Web Analytics sites):
 | 3 | Set `PAYLOAD_SECRET` on `run-apparel-viewer-cms` | wrangler |
 | 5 | Deploy worker `run-apparel-viewer-cms` + add `cms.wear-run.help` | wrangler + dashboard |
 | 5b | (optional) R2 public domain `media.wear-run.help` + set `PUBLIC_MEDIA_BASE_URL` | dashboard |
-| 6 | Create Pages project + build settings + `viewer.wear-run.help` | dashboard |
+| 6 | ~~Create Pages project~~ — superseded 2026-07-22: the viewer is a Worker (section 6); its public address is `wear-run.com` | dashboard |
 | 7 | Confirm CORS origins | wrangler.jsonc |
 | 8 | Create Web Analytics site, set beacon token | dashboard |
 | 9 | First admin user (or `pnpm --filter @run-apparel/cms seed`, then change password) | /admin |
@@ -303,23 +308,23 @@ step 10 is done (or via the manual commands above). Endpoints:
 
 | Piece | URL |
 |---|---|
-| Marketing site (CMS Worker on zone routes) | `https://wear-run.help` — `www.` redirects here; `/admin` and `/api` here answer the site's 404 |
+| Marketing site (CMS Worker, custom domains) | `https://wear-run.com` — `www.` redirects here; `/admin` and `/api` here answer the site's 404 (checked 2026-10-23). `wear-run.help` and `www.wear-run.help` forward here (308) |
 | Private catalogue and profile links (`run-apparel-apex-404`) | `https://catalogue.wear-run.help/<code>` and `https://profile.wear-run.help/<code>`, and the same two on `wear-run.com` (custom domains; each code is a Worker secret). The old `wear-run.help/catalogue` and `/profile` answer 410 |
 | CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
 | Public viewer API | `https://cms.wear-run.help/api/public/viewer/rxps/wine` |
-| Media (R2 `run-apparel-viewer-media`) | `https://media.wear-run.help/<file>` (30-day edge cache) |
-| Viewer (Worker `run-apparel-viewer-site`) | `https://viewer.wear-run.help` (custom domain; workers.dev/preview URLs disabled) |
+| Media (R2 `run-apparel-viewer-media`) | `https://media.wear-run.com/<file>` for public pages, `https://media.wear-run.help/<file>` for the admin (30-day edge cache) |
+| Garment pages (Worker `run-apparel-viewer-site`) | `https://wear-run.com/products/<product>/<colour>` (workers.dev/preview URLs disabled). `https://viewer.wear-run.help/<product>/<colour>` forwards there (301), for ever |
 
 Notes for future maintenance:
 
 - **CMS custom domain** is declared in `apps/cms/wrangler.jsonc` (`routes` →
   `cms.wear-run.help`, `custom_domain: true`); `wrangler deploy` manages the DNS
-  record. **Viewer custom domain** `viewer.wear-run.help` is attached to the
+  record. **Viewer custom domain** `viewer.wear-run.help` was attached to the
   `run-apparel-viewer-site` Worker in the dashboard (the Worker manages its own
   DNS record; since 2026-07-22 — previously a CNAME to the deleted Pages
-  project). **Media custom domain** `media.wear-run.help` is attached to the R2
+  project); since 2026-09-28 it forwards to `wear-run.com` (section 11.9). **Media custom domain** `media.wear-run.help` is attached to the R2
   bucket in the dashboard.
 - **`PAYLOAD_SECRET`** is set as a worker secret (`wrangler secret put`).
 - **Seeding production D1 + R2 from the CLI:** the `seed`/`migrate` scripts use
@@ -330,7 +335,8 @@ Notes for future maintenance:
   (`getPlatformProxy` proxies the marked bindings to the live resources). Revert
   the `"remote"` flags afterwards. N001 (“Velocity Performance Tee”, 3
   colourways) is seeded and its GLB/posters live in `run-apparel-viewer-media`.
-- **Web Analytics:** the `wear-run.help` zone beacon is embedded directly in
+- **Web Analytics:** the `wear-run.com` Web Analytics site's beacon (the `wear-run.help` zone
+  token drops visits on `wear-run.com`, see section 11.9) is embedded directly in
   `apps/viewer/index.html` (SPA route changes tracked). Creating a *dedicated*
   viewer-only site needs an API token with Account Analytics **edit** permission
   (or the dashboard); swap the token in that file and rebuild if you create one.
@@ -405,8 +411,9 @@ write only under `/tmp`.
 a Worker secret (`CATALOGUE_CODE`, `PROFILE_CODE`), and four narrow apex routes
 (`wear-run.help/catalogue*`, `/profile*`, and the `www.` pair) that answer 410. It reads the
 PDFs and the page pictures from the **shared** `run-assets` bucket. Since 2026-09-06 the
-apex itself — `wear-run.help/*` and `www.wear-run.help/*` — is the marketing site, served by
-the CMS Worker; Cloudflare hands a request to the most specific route. CI deploys this Worker
+apex itself — `wear-run.help/*` and `www.wear-run.help/*` — was the marketing site, served by
+the CMS Worker; since 2026-09-28 the site is `wear-run.com` and those two forward to it (308,
+checked 2026-10-23, section 11.9). Cloudflare hands a request to the most specific route. CI deploys this Worker
 BEFORE the CMS Worker because a route pattern belongs to one Worker at a time, and refuses to
 deploy it without both secrets. Operating it: `docs/RUNBOOK.md` → "Private document links".
 
@@ -424,7 +431,7 @@ may therefore name no other `wear-run.com` host, and `apps/cms/src/workerConfigs
 fails if one appears.
 
 ⚠️ **The apex DNS record must stay proxied.** Zone routes require it; deleting it
-takes the site and the four retired PDF routes offline. The private links are not on
+takes the forward to `wear-run.com` and the four retired PDF routes offline. The private links are not on
 it: `catalogue.` and `profile.wear-run.help` are custom domains whose DNS records
 `wrangler deploy` creates.
 
@@ -520,7 +527,8 @@ securityheaders.com; results kept privately):
 - **The public pages run only nonced scripts** (SE-04, decided 2026-09-18, live from the merge
   that deploys it). `apps/cms/worker.mjs` wraps OpenNext and gives every public page a fresh
   nonce; `script-src` there no longer allows `'unsafe-inline'`.
-  ⚠️ **So do not switch on an edge feature that injects scripts into `wear-run.help` pages.**
+  ⚠️ **So do not switch on an edge feature that injects scripts into `wear-run.com` pages** (public
+  pages moved there on 2026-09-28; the same holds for any `wear-run.help` page.)
   That means Web Analytics *automatic* setup, Zaraz auto-inject with tools, Email Obfuscation
   and Rocket Loader. Their scripts carry no nonce and would be blocked.
   `scripts/public-security-probe.mjs` names the extra script within a day. Turn the feature off
@@ -554,9 +562,10 @@ On `wear-run.help`:
 `scripts/check-email-dns.mjs` still reads DMARC and TLS-RPT, but a value that changed may be
 that project's deliberate edit: check with it before "fixing" a record.
 
-On `wear-run.com`, the apex, `www.`, `go.`, `assets.` and `mta-sts.` belong to that project
-too. Its apex and `www.` redirect to `wear-run.help`, which is how an old
-`wear-run.com/catalogue` link still reaches the 410 page — no route of ours is needed there.
+On `wear-run.com`, `go.`, `assets.` and `mta-sts.` belong to that project too. (Until
+2026-09-28 its apex and `www.` did as well, and redirected to `wear-run.help`; since then they
+are the website, section 11.9.) An old `wear-run.com/catalogue` link still reaches the 410
+page: it forwards (308, checked 2026-10-23) to `wear-run.help/catalogue`.
 Only `catalogue.` and `profile.wear-run.com` are this repository's (section 11.4).
 
 **Two redirects that old emails use — keep them forever.** `wear-run.help/map` (302 to the
@@ -650,6 +659,9 @@ URL, or registering a lookalike subdomain, defeated it. Key on the referrer's **
 prefix**, never on a substring of the host. Re-measured after the fix: all five 403,
 and the viewer's own referrer, a deep viewer path, the CMS admin and a referrer-less
 request all still 206.
+
+*Since 2026-09-28 public pages fetch models from `media.wear-run.com`; its copy of this rule is in
+section 11.9. The rule above is the `.help` original, which now serves the admin.*
 
 **Images are deliberately NOT gated.** A poster with a hostile referrer still returns
 200, on purpose — see PP3-N-07 in the audit.
