@@ -61,7 +61,7 @@ First-time deployment: follow **`docs/CLOUDFLARE-SETUP.md`** once, top to bottom
 
 **No working documents live at the repository root.** The last one, a hand-off
 prompt for the next AI session, was archived on 2026-09-26 with the old
-instruction files in [`docs/archive/agent-memory/`](archive/agent-memory/README.md).
+instruction files in [docs/archive/agent-memory/](https://github.com/hateem2121/RUN-APPAREL-W.D/tree/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/agent-memory/).
 
 **Maintainer** — [@hateem2121](https://github.com/hateem2121), sole maintainer.
 
@@ -72,14 +72,14 @@ list. For anything that looks like a security problem, follow
 [`SECURITY.md`](../SECURITY.md) and **do not open an issue**.
 
 **Session logs** — narrative records of expensive debugging, kept because
-re-deriving them costs days: [`docs/archive/sessions/SESSION-2026-07-27.md`](archive/sessions/SESSION-2026-07-27.md)
-(why raw uploads never worked) · [`docs/archive/sessions/SESSION-2026-07-28.md`](archive/sessions/SESSION-2026-07-28.md)
+re-deriving them costs days: [SESSION-2026-07-27.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-27.md)
+(why raw uploads never worked) · [SESSION-2026-07-28.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-28.md)
 (audit of those fixes; texture-aware decimation; CI token scope) ·
-[`docs/archive/sessions/SESSION-2026-07-29.md`](archive/sessions/SESSION-2026-07-29.md) (the first real
+[SESSION-2026-07-29.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-29.md) (the first real
 garment; five first-run bugs; a data-loss incident) ·
-[`docs/archive/sessions/SESSION-2026-07-31.md`](archive/sessions/SESSION-2026-07-31.md) (artwork fixes, and
+[SESSION-2026-07-31.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-31.md) (artwork fixes, and
 why fixtures that cannot fail keep letting bugs through) ·
-[`docs/archive/sessions/SESSION-2026-08-03.md`](archive/sessions/SESSION-2026-08-03.md) (production audit —
+[SESSION-2026-08-03.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-03.md) (production audit —
 the live site was serving the wrong garment in wrongly-named colours with a torn
 wordmark; automatic colour naming and a blocking artwork gate).
 

@@ -851,7 +851,7 @@ builds. D1 backup and before/after payloads captured.
 # 2026-08-06 — the gates learn to read
 
 An agent-tooling audit that turned into closing the legibility gap. Full detail in
-`docs/archive/sessions/SESSION-2026-08-06.md`; this is the retrospective.
+[SESSION-2026-08-06.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-06.md); this is the retrospective.
 
 ## The shape of the day
 
@@ -922,7 +922,7 @@ Fixing it surfaced two more defects nobody had found:
 - **`citedPaths` could not strip a line RANGE.** The expression had no branch for the
   hyphen, so `file.ts:53-80` kept the range as part of the filename and could never
   resolve. All seven of those failures were ranges.
-- **`docs/` was walked ONE LEVEL DEEP.** `docs/reviews/` and `docs/superpowers/` had
+- **`docs/` was walked ONE LEVEL DEEP.** The docs/reviews and docs/superpowers folders (deleted 2026-10-23) had
   never been read by anything. Widening it surfaced **eight** unresolvable citations
   across three documents at once. `git log --diff-filter=A` split them cleanly: three
   files really existed and were deleted by `a57b66d`; four **never existed** —

@@ -10,7 +10,7 @@ files (`docs/BUYER-EVIDENCE-YYYY-MM-DD.md`), never in this one.
 
 ## 1. Why this exists
 
-Every gate in this repository measures the machine. `docs/SCORECARD-2026-08-13.md`
+Every gate in this repository measures the machine. [SCORECARD-2026-08-13.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/SCORECARD-2026-08-13.md)
 reads 96/100 and answers "is CI green" — not "did a buyer scan the tag and understand
 the print". The root CLAUDE.md states the product thesis plainly: **"the 3D loads" is
 not success — the printed artwork IS the product.**
@@ -166,7 +166,7 @@ never superlatives); 100% B2B — the link is a buying tool, never a shop.
 
 ## 8. Where the evidence goes
 
-The scorecard rewrite (`docs/SCORECARD-2026-08-13.md` is the one it replaces) takes
+The scorecard rewrite ([SCORECARD-2026-08-13.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/SCORECARD-2026-08-13.md) is the one it replaces) takes
 its primary numbers from these files: success rate per session, print-read rate,
 time-to-first-render observed in the wild, fallback incidents, and the verbatim
 buyers' verdicts. Machine metrics stay, demoted to a secondary section — a composite

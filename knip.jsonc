@@ -31,7 +31,10 @@
       // sharp is loaded from tools/asset-pipeline through createRequire (it is native and
       // must not spread); capture-doc-screenshots.mjs loads Playwright from the app folder it
       // is run in; vitest.coverage.mjs names vitest/node only in a JSDoc type.
-      "ignoreDependencies": ["sharp", "@playwright/test", "vitest"]
+      // chrome-launcher: scripts/lighthouse-robot.mjs requires the copy Lighthouse installs,
+      // on purpose — it must read the exact launch flags Lighthouse itself passes, so a
+      // separately listed copy (another version) would measure the wrong browser (2026-10-23).
+      "ignoreDependencies": ["sharp", "@playwright/test", "vitest", "chrome-launcher"]
     },
     "apps/cms": {
       "entry": [
@@ -50,7 +53,20 @@
       // (src/app/(frontend)/site.css) and scripts/gen-share-images.mjs reads its file from
       // node_modules — real use knip's import analysis cannot see. Checked 2026-10-06: the
       // first cleanup attempt removed it from here on knip's word alone and would have broken both.
-      "ignoreDependencies": ["server-only", "sharp", "@fontsource/ibm-plex-mono"]
+      // @fontsource-variable/archivo, the same way (checked 2026-10-23): no import since the
+      // site serves its own cut (#214), but gen-share-images.mjs and calibrate-fallback.mjs
+      // read its woff2 from node_modules, src/archivoCut.test.ts compares the cut against it,
+      // and packages/ui/scripts/cut-archivo.py is cut from it.
+      "ignoreDependencies": [
+        "server-only",
+        "sharp",
+        "@fontsource/ibm-plex-mono",
+        "@fontsource-variable/archivo"
+      ],
+      // Loaded by a path string, not an import: e2e/productsGroupsHarness.ts aliases
+      // `next/link` to it for the harness build. `ignoreFiles` drops it from "unused files"
+      // only, so it is still analysed for everything else (knip.dev configuration reference).
+      "ignoreFiles": ["e2e/fixtures/nextLinkShim.tsx"]
     },
     "apps/viewer": {
       "entry": ["scripts/*.mjs"],

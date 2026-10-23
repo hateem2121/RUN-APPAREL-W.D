@@ -39,9 +39,10 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
 export const RECORD_TREES = [
   'docs/superpowers/plans/',
   'docs/superpowers/specs/',
-  // Snapshots of the instruction files taken before the 2026-09-26 rebuild, each named
-  // by the date its content was true. Kept so a moved or reworded rule can be traced
-  // back to its original wording; nobody is expected to keep them current.
+  // Dated records: the session logs and the instruction-file snapshots from before the
+  // 2026-09-26 rebuild lived here. All three trees were emptied on 2026-10-23 (owner
+  // decision: finished records are deleted; each stays readable at commit bd384f3c).
+  // The entries stay so a future dated record placed here is still classed correctly.
   'docs/archive/',
 ]
 

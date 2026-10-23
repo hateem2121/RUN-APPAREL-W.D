@@ -41,9 +41,11 @@ date, and correct to leave exactly as it is. Editing one to keep it "current" wo
 destroy the only thing it is for. The 0.63 MB of manifests is addressed by name by the
 tooling and read by a person about never.
 
-**Records live in:** `docs/superpowers/plans/`, `docs/superpowers/specs/` and
-`docs/archive/` (the instruction files as they were before the 2026-09-26 rebuild —
-[index](archive/agent-memory/README.md)). The audit reports that used to sit at
+**Finished records were deleted from `main` on 2026-10-23** (owner decision): the plans
+and specs, the session logs, a post-merge review, two scorecards, a pipeline summary and
+the instruction files as they were before the 2026-09-26 rebuild. Every one is still
+readable exactly as it was at [commit bd384f3c](https://github.com/hateem2121/RUN-APPAREL-W.D/tree/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/), and the session logs keep
+their links below. The audit reports that used to sit at
 `docs/AUDIT-*.md` are private since 2026-09-10 (see below).
 The 2026-08-30 Cloudflare + GitHub infrastructure audits are kept privately and
 are not part of this public repository — they record live account, monitor and
@@ -103,7 +105,7 @@ recurs and costs an afternoon each time it is answered from scratch.
 | Topic | File |
 |---|---|
 | Why anything is built the way it is | [HARDENING-LOG.md](HARDENING-LOG.md) |
-| Damaged printed artwork — the open issue | [OPEN-ISSUE-ARTWORK.md](OPEN-ISSUE-ARTWORK.md) |
+| Damaged printed artwork — the case, closed 2026-08-05 | [OPEN-ISSUE-ARTWORK.md](OPEN-ISSUE-ARTWORK.md) |
 | The CSP violation and Bot Fight Mode | [VIEWER-CSP-BOT-FIGHT-MODE.md](VIEWER-CSP-BOT-FIGHT-MODE.md) |
 | Measured baseline for the whole garment catalogue | [GARMENT-CATALOGUE-BASELINE.md](GARMENT-CATALOGUE-BASELINE.md) |
 | How the AI agent tooling is wired | [AI-TOOLING.md](AI-TOOLING.md) |
@@ -114,10 +116,9 @@ recurs and costs an afternoon each time it is answered from scratch.
 Point-in-time assessments. **Read the date first** — an audit is a measurement of
 one day, and several of their findings have since been fixed, refuted or reversed.
 
-| Date | File |
-|---|---|
-| 2026-08-13 — scorecard | [SCORECARD-2026-08-13.md](SCORECARD-2026-08-13.md) |
-| 2026-08-08 — scorecard | [SCORECARD-2026-08-08.md](SCORECARD-2026-08-08.md) |
+The two scorecards (2026-08-08 and 2026-08-13) were deleted on 2026-10-23 with the other
+finished records: [2026-08-13](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/SCORECARD-2026-08-13.md),
+[2026-08-08](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/SCORECARD-2026-08-08.md).
 
 ⚠️ **The audit reports themselves are kept privately since 2026-09-10.** This repository
 is public, and those reports listed weak spots in detail. Other documents cite them by
@@ -126,21 +127,21 @@ date ("the 2026-09-05 product-page audit"), which is deliberate, not a broken li
 ## Session logs
 
 Narrative records of expensive debugging, kept because re-deriving them costs days.
-Newest first. Moved into `docs/archive/sessions/` on 2026-09-26: they are records of a day,
-not documents anyone keeps current.
+Newest first. Records of a day, not documents anyone keeps current: deleted from `main` on
+2026-10-23, and each link opens the file as it was at commit bd384f3c.
 
 | Date | What it covers |
 |---|---|
-| [2026-08-28](archive/sessions/SESSION-2026-08-28.md) | CLO export settings and the catalogue census |
-| [2026-08-27](archive/sessions/SESSION-2026-08-27.md) | The garment flicker, and what it actually was |
-| [2026-08-06](archive/sessions/SESSION-2026-08-06.md) | The cached 404 — HEAD said 200 while GET said 404 |
-| [2026-08-05](archive/sessions/SESSION-2026-08-05.md) | Artwork damage: found, rendered, fixed |
-| [2026-08-04](archive/sessions/SESSION-2026-08-04.md) | Pipeline tuning |
-| [2026-08-03](archive/sessions/SESSION-2026-08-03.md) | Every published colour name was wrong |
-| [2026-07-31](archive/sessions/SESSION-2026-07-31.md) | Why fixtures that cannot fail keep letting bugs through |
-| [2026-07-29](archive/sessions/SESSION-2026-07-29.md) | The first real garment; five bugs; a data-loss incident |
-| [2026-07-28](archive/sessions/SESSION-2026-07-28.md) | Texture-aware decimation; CI token scope |
-| [2026-07-27](archive/sessions/SESSION-2026-07-27.md) | Why raw uploads never worked |
+| [2026-08-28](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-28.md) | CLO export settings and the catalogue census |
+| [2026-08-27](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-27.md) | The garment flicker, and what it actually was |
+| [2026-08-06](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-06.md) | The cached 404 — HEAD said 200 while GET said 404 |
+| [2026-08-05](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-05.md) | Artwork damage: found, rendered, fixed |
+| [2026-08-04](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-04.md) | Pipeline tuning |
+| [2026-08-03](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-03.md) | Every published colour name was wrong |
+| [2026-07-31](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-31.md) | Why fixtures that cannot fail keep letting bugs through |
+| [2026-07-29](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-29.md) | The first real garment; five bugs; a data-loss incident |
+| [2026-07-28](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-28.md) | Texture-aware decimation; CI token scope |
+| [2026-07-27](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-07-27.md) | Why raw uploads never worked |
 
 ## Audit working files
 
@@ -160,9 +161,9 @@ code disagree, the code is right and the plan simply landed differently.
 
 | What | Where |
 |---|---|
-| Every implementation plan (CMS UX redesign, audit remediations, CI sizing, viewer layout, garment-pipeline defects) | [superpowers/plans/](superpowers/plans/) |
-| The design spec behind each of those plans | [superpowers/specs/](superpowers/specs/) |
-| A post-merge review kept as a worked example | [reviews/2026-08-12-post-merge-8927062.md](reviews/2026-08-12-post-merge-8927062.md) |
+| Every finished implementation plan, deleted 2026-10-23 | [superpowers/plans at bd384f3c](https://github.com/hateem2121/RUN-APPAREL-W.D/tree/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/superpowers/plans) |
+| The design spec behind each of those plans, deleted 2026-10-23 | [superpowers/specs at bd384f3c](https://github.com/hateem2121/RUN-APPAREL-W.D/tree/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/superpowers/specs) |
+| A post-merge review kept as a worked example, deleted 2026-10-23 | [the review at bd384f3c](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/reviews/2026-08-12-post-merge-8927062.md) |
 | **In-progress** plans are kept privately by the owner, not in this public repository | — |
 
 ## Not in this folder

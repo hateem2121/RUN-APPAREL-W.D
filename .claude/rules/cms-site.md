@@ -102,7 +102,7 @@ Not shipped (owner, 2026-10-08).
 
 ## The public site footer
 
-Built 2026-09-05 from an approved design — `docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md`.
+Built 2026-09-05 from an approved design — [2026-09-05-site-footer-quiet-room-design.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md).
 
 🟡 **The garment pages draw this footer too since 2026-10-02 (visual audit VA-31).** Its rules
 are `packages/ui/src/footer.css` (not site.css), and the tab, question and clock that only the

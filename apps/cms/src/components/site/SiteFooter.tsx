@@ -25,7 +25,7 @@ import { FooterWordmark } from './FooterWordmark'
 
 /**
  * The public site footer — "The Quiet Room". Design record:
- * docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md
+ * `git show bd384f3c:docs/superpowers/specs/2026-09-05-site-footer-quiet-room-design.md` (deleted 2026-10-23)
  *
  * ⚠️ <footer> IS UNCLIPPED AND THE SLAB INSIDE IT CARRIES `overflow: hidden`. The tab is
  * seated ON the slab's top edge — the header notch mirrored — and a tab inside a clipped

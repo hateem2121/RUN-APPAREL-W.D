@@ -51,7 +51,7 @@ timeline
 - Search robots get each garment's picture and words in the page itself, so Google never reads a slow 3D load as an empty page ([#220](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/220), [#232](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/232)).
 - Colour names say their colour, and the muted and volt colours are dark enough to read on every light background ([#131](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/131), [#222](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/222)).
 - The shrink robot's container runs on Debian 13 ([#211](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/211)).
-- This repository's instructions, guides and code comments were checked against the live site and the code, and corrected where they had gone out of date; CI now runs on Node 26; the unused Cloudflare Pages rollback was removed, and 38 finished plans and old records were deleted (they stay in the history).
+- This repository's instructions, guides and code comments were checked against the live site and the code, and corrected where they had gone out of date; CI now runs on Node 26; the unused Cloudflare Pages rollback was removed, and 39 finished plans, specs, session logs and other old records were deleted (each is still readable at commit bd384f3c).
 
 - Every outside package moved to its newest stable version ([#72](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/72)).
 - Error reports now use Sentry 11, and the privacy page says exactly what they include ([#72](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/72)).

@@ -112,7 +112,7 @@ rendered print is the only judge (its "Before you change the pipeline").
 
 ## From the 2026-08-27 session
 
-*Full record: `docs/archive/sessions/SESSION-2026-08-27.md`. Here is only what tells you what to DO.*
+*Full record: [SESSION-2026-08-27.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-27.md). Here is only what tells you what to DO.*
 
 🟡 **`prune()` RENUMBERS UV SETS AND UPDATES ONLY THE DEFAULT MATERIAL.** Anything reachable
 solely through `KHR_materials_variants` keeps sampling a `TEXCOORD_n` that no longer

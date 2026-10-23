@@ -176,7 +176,7 @@ Credibility still leads.
 misalignment beside it.**
 
 The space is from the approved footer design
-(`docs/superpowers/plans/2026-09-05-site-footer-quiet-room.md`) and does its job.
+([2026-09-05-site-footer-quiet-room.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/superpowers/plans/2026-09-05-site-footer-quiet-room.md)) and does its job.
 The audit's real finding was next to it, not in it: the footer's left edge drifts
 up to **370px** from the page's own left edge (`FA-D-01`). That is a bug and is
 fixed; the space is not.
