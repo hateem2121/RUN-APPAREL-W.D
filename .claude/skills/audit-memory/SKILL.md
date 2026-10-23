@@ -21,7 +21,7 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/claudeMd.tes
 ```
 
 The first prints sizes against each limit, rules without `paths:`, pinned-version drift,
-any line asking Claude to show its reasoning (Opus 5.5 can refuse those), and private
+any line asking Claude to reveal its chain of thought (Opus 5.5 can refuse those), and private
 notes that name a repo path that no longer exists. The other three are the repo's own
 gates for citations, quoted settings and trap counts.
 

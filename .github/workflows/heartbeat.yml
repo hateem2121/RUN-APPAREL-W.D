@@ -88,7 +88,8 @@ jobs:
           # delivers a median gap of ~45 min against a scheduled 15, and the worst
           # observed gap over 94 h was 6.1 h.
           #
-          # ⚠️ uptime.yml is DAILY since 2026-08-18 (cron '23 7 * * *'). At */15 it
+          # ⚠️ uptime.yml was DAILY from 2026-08-18 to 2026-09-29 (cron '23 7 * * *'); it
+          # is 6-hourly now (see the 24 h note below). At */15 it
           # billed ~1,200 of the 2,000 free Actions minutes a month and the exhausted
           # quota stopped a deploy; liveness moved to the external monitor, which polls
           # every 5 min for no Actions minutes. See docs/RUNBOOK.md → "Uptime alerts".
@@ -267,7 +268,7 @@ jobs:
             "$STALE" \
             "**This is not necessarily an outage.** It means a CHECK is not running, so the thing it watches is currently unobserved — which is how the uptime monitor sat dead for ~23 hours on 2026-08-05 while looking fine.
 
-          Open the workflow in the Actions tab and read the most recent run. If it is failing at \`actions/checkout\` with \"Repository not found\" on this private repo, the cause is a \`permissions:\` block missing \`contents: read\` — see the note at the top of uptime.yml.")
+          Open the workflow in the Actions tab and read the most recent run. If it is failing at \`actions/checkout\` with \"Repository not found\", the cause is a \`permissions:\` block missing \`contents: read\` — see the note at the top of uptime.yml.")
 
           # `// empty` is load-bearing — see the note on the same line in
           # uptime.yml. Without it an empty list yields "null null", which is not

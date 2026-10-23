@@ -3,14 +3,14 @@ name: Performance watch
 on:
   schedule:
     # Weekly. Deliberately NOT frequent: this measures a trend, not liveness —
-    # liveness is uptime.yml's job (every 15 min requested, ~45 min delivered) plus
+    # liveness is the deep check in uptime.yml (every 6 hours since 2026-09-29) plus
     # the two external UptimeRobot checks every 5 minutes. A performance probe on a
     # tight schedule would mostly measure GitHub's runner variance.
     - cron: '17 6 * * 1'
   workflow_dispatch:
 
 # A `permissions:` block REPLACES the defaults rather than adding to them. `contents:
-# read` is required or actions/checkout fails with a 404 on this private repo — the
+# read` is required or actions/checkout failed with a 404 while this repo was private — the
 # failure that killed uptime.yml silently for ~23 hours. No other scope is needed:
 # this job reports by failing, and does not write issues (see below).
 permissions:
@@ -36,7 +36,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
 
       # No install step: the probe uses `fetch` and nothing else. Keeping it
       # dependency-free means this workflow cannot break because of the lockfile.

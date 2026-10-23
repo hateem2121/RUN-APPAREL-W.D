@@ -1,9 +1,9 @@
 # CLAUDE.md — RUN-APPAREL-W.D
 
 <!-- Owner: @hateem2121. Review every change to this file like code.
-Rebuilt 2026-09-26 from a 550-line file. The old text is in
-docs/archive/agent-memory/2026-09-26-root-CLAUDE.md, and where each of its rules went is
-in docs/CLAUDE-MD-MAINTENANCE.md ("Where the root file's rules went").
+Rebuilt 2026-09-26 from a 550-line file. The old text is `git show 53ab7012^:CLAUDE.md`
+(the archive copy was deleted 2026-10-23), and where each of its rules went is in
+docs/CLAUDE-MD-MAINTENANCE.md ("Where the root file's rules went").
 Limits: under 200 lines (Anthropic's target) and under 39,000 characters
 (apps/cms/src/claudeMd.test.ts fails CI above that). HTML comments like this one are
 stripped before Claude reads the file, so they cost no context. -->
@@ -78,12 +78,13 @@ workspace: `apps/shrink/container` is not a pnpm member (CI runs
 `npm ci --no-audit --no-fund && npx tsc --noEmit` inside it), `eval:artwork` runs
 in its own job, and `check-bundle-budget` exits 1 without a build.
 `node .claude/skills/gates/run-gates.mjs` runs all of them in order and stops at the
-first failure.
+first failure. One unit test: `pnpm --filter @run-apparel/<pkg> exec vitest run <file>`;
+one e2e spec: `pnpm --filter @run-apparel/viewer exec playwright test <spec> --project=viewer`.
 
 ## How work is done here
 
 - **Branch off `main`; never commit to it** (a hook refuses both). Commit messages are plain English,
-  "Area: what changed" — e.g. *Viewer — retry a model download that stops sending*.
+  "Area — what changed" — e.g. *Viewer — retry a model download that stops sending*.
   Why: the owner is not a developer and reads the history.
 - **Comments explain *why*, citing the incident.** Several traps are discoverable only
   from those comments. State a measurement rather than an adjective ("27.0 MB", not
@@ -122,22 +123,20 @@ is missed:
 
 | Hook in `.claude/hooks/` | What it does |
 |---|---|
-| `guard-bare-pnpm.mjs` | Rewrites a bare `pnpm` to the `npx` form, or refuses it |
-| `guard-pipeline-input.mjs` | Refuses to run the pipeline on its own output |
-| `guard-main-branch.mjs` | Refuses a commit made on `main` and a push to `main` |
-| `guard-coverage-floor.mjs` | Refuses an Edit or Write that lowers a coverage floor |
-| `format-edited-file.mjs` | Runs Biome on each file you edit |
-| `check-doc-citations.mjs` | Re-checks citations after each Markdown edit |
+| `guard-bare-pnpm.mjs`, `guard-pipeline-input.mjs`, `guard-main-branch.mjs`, `guard-coverage-floor.mjs` | Rewrite a bare `pnpm` to the `npx` form; refuse the pipeline on its own output, a commit or push on `main`, and an edit that lowers a coverage floor |
+| `format-edited-file.mjs`, `check-doc-citations.mjs` | After each edit: Biome formats the file; a Markdown edit re-checks citations |
 | `explain-failure.mjs` | Names the real cause when an error blames the wrong thing |
 | `note-compaction.mjs`, `recall-nested-instructions.mjs` | After `/compact`, name the instruction files no longer loaded |
 | `log-instructions-loaded.mjs` | Logs which instruction file loaded, when and why |
 
 ## Where the other rules live
 
-Only this file loads in every session. The rest load when the **Read tool** opens a
-matching file — `cat` or `sed` in Bash does not trigger them, so in a Bash-first session
-read the matching file yourself before changing anything. After `/compact` only this
-file comes back; a hook names the others.
+Only this file loads in every session. The rest load when Claude reads a matching file:
+the Read, Write or Edit tool, or a plain `cat`, `head`, `tail`, `sed -n 'X,Yp'` or `grep`
+of ONE file. A pipe or a redirect (`… | head`, `> out`) makes it not count, so in a
+Bash-first session read the matching file on its own before changing anything
+(Anthropic's memory and tools-reference pages, read 2026-10-23). After `/compact` only
+this file comes back; a hook names the others.
 
 - **The viewer's 34 traps are in four `viewer-*` path rules** (table below);
   `apps/viewer/CLAUDE.md` indexes them and keeps what every viewer session needs.
@@ -172,7 +171,8 @@ Longer reading: `docs/README.md` (every document), `docs/RUNBOOK.md` (operations
 ## Deploying
 
 A merge to `main` backs up D1, applies migrations, then deploys the apex Worker, the CMS
-and the viewer.
+and the viewer (plus the shrink Worker when `apps/shrink` changed). To undo one,
+`wrangler rollback` or the dashboard's Deployments → Rollback restores a recent version.
 
 - 🟡 **Check `git config user.email` before the first commit.** An unset one makes the
   commit unattributed, and `main`'s ruleset then blocks the merge.

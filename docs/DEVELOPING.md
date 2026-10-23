@@ -10,8 +10,10 @@ CMS that feeds it. A buyer scans a QR code on a garment tag (or in the PDF
 catalogue) and lands directly on e.g.:
 
 ```
-https://viewer.wear-run.help/rxps/wine
+https://wear-run.com/products/rxps/wine
 ```
+
+Older printed tags carry `viewer.wear-run.help/rxps/wine`; that address forwards here for ever.
 
 They see an instant static render, the interactive 3D garment loads behind it,
 and they can rotate, zoom, switch colourways, jump back to the catalogue, or
@@ -22,7 +24,7 @@ development reference for partners, not a retail page.**
 
 | Folder | What it is |
 |---|---|
-| `apps/viewer` | The public viewer site (Cloudflare Worker + Static Assets, `viewer.wear-run.help`) |
+| `apps/viewer` | The public viewer site (Cloudflare Worker + Static Assets; draws the garment pages at `wear-run.com/products/…`) |
 | `apps/cms` | Payload CMS — private admin + public read-only API (Cloudflare Workers, `cms.wear-run.help`) |
 | `apps/shrink` | The auto-shrink service — queue consumer Worker + Container that runs the asset pipeline on raw CLO uploads |
 | `packages/shared` | Shared types, size ceilings and the shrink job contract, used by all of the above |

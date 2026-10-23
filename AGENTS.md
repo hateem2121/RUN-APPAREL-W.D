@@ -6,7 +6,7 @@ read this one.
 
 The main rules are the root `CLAUDE.md`, included below with Antigravity's
 `@[label](path)` include, so there is one copy and it cannot drift. The expanded file is
-about 12 KB, inside Antigravity's 24,000-byte limit for a rule file (the root stays under
+about 13.5 KB, inside Antigravity's 24,000-byte limit for a rule file (the root stays under
 200 lines, which keeps it there).
 
 @[The root CLAUDE.md](CLAUDE.md)

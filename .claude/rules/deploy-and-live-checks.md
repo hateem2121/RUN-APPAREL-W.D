@@ -46,7 +46,8 @@ deployed and then gone red at verification. Fixed in the same change.
 **`uptime.yml` stayed GREEN through all of it**, six consecutive successes in the
 two hours before it was found, because it probed
 `viewer.wear-run.help/n001/wine` (it probes `/rxps/wine` now) and the viewer is an **SPA**: any path returns
-200 HTML and renders "REFERENCE UNAVAILABLE" on the client. A status check there
+200 HTML and renders "REFERENCE UNAVAILABLE" on the client — still true at
+`wear-run.com/products/<anything>/<anything>` (GET 200, re-checked 2026-10-23). A status check there
 proves a web server answered, nothing more. `apps/viewer/e2e/serve.mjs` still
 fixtures `n001`, correctly — that server *is* the fixture. RUNBOOK's four
 remaining mentions are annotated pre-rename measurements (re-checked 2026-08-17),

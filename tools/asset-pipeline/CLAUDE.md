@@ -50,8 +50,8 @@ curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['product']['glbUrl'])"
 ```
 
-Cache it locally for repeated use — one 27 MB GET is nothing, but the 15-minute
-uptime job is why `.github/CLAUDE.md` has CI check models with `HEAD` (weight, not an
+Cache it locally for repeated use — one 27 MB GET is nothing, but the uptime job (every
+15 minutes until 2026-08-18, every 6 hours now) is why `.github/CLAUDE.md` has CI check models with `HEAD` (weight, not an
 R2 bill — R2 egress is free).
 
 🟡 **For a material/alphaMode census you do NOT need the file — RANGE-FETCH the header.**

@@ -24,14 +24,14 @@
 ## 🔗 A link, piece by piece
 
 ```
-https://viewer.wear-run.help/rxps/wine
-        └─ the viewer ─────┘ └┬─┘ └┬─┘
-                      product ┘    └ colour
+https://wear-run.com/products/rxps/wine
+        └─ our website ┘          └┬─┘ └┬─┘
+                          product ┘    └ colour
 ```
 
 ```mermaid
 flowchart TB
-  A["viewer.wear-run.help"] --> B["rxps = the product"]
+  A["wear-run.com/products"] --> B["rxps = the product"]
   B --> C["wine = the colour"]
 ```
 

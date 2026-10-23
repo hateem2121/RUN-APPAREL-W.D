@@ -17,7 +17,7 @@ measured 2026-09-05) instead of the 1 KB range request; you almost never need it
 
 | Signal | Why it alone is not enough |
 | :-- | :-- |
-| `viewer.wear-run.help/<slug>` returns 200 | The viewer is an **SPA**: every path returns 200 HTML and renders "REFERENCE UNAVAILABLE" on the client. `uptime.yml` stayed green through six runs while the product 404ed. |
+| `wear-run.com/products/<slug>/<colour>` returns 200 | The viewer is an **SPA**: every path returns 200 HTML and renders "REFERENCE UNAVAILABLE" on the client. `uptime.yml` stayed green through six runs while the product 404ed. |
 | `HEAD` on the model returns 200 | HEAD does **not** share the GET's cache entry. A model has returned `GET 404` (a cached error page, 25 h old) while HEAD returned 200 with the right content-length. |
 | A full `GET` on the model | Correct, but 53.69 MB per check for the eleven products live on 2026-09-05, and more with every product added. |
 | `content-length` on a `fetch` | **Reads 0 on this domain.** Node's undici sends `accept-encoding`, so Cloudflare compresses the GLB and drops the header; `curl -I`, which sends none, reports `content-length: 28271780` for the same URL in the same minute. That blinded `MIN_MODEL_BYTES` in the post-deploy gate for its entire life, and then blinded a hand-written sweep hours after the gate was fixed (2026-09-04). A range request is exempt from compression — read the size with `scripts/model-size.mjs`. |

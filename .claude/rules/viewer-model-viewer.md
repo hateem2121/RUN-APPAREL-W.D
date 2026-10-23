@@ -35,7 +35,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   production** — the CSP correctly refused gstatic — and fell back to its poster.
   `Stage.tsx` now seeds `self.ModelViewerElement` before the dynamic import, per
   model-viewer's own docs — 🟢 **verified live 2026-09-24**: a cold load of
-  `viewer.wear-run.help/rxps/wine` reads `/draco/`. A local harness cannot show it: the
+  `viewer.wear-run.help/rxps/wine` (now `wear-run.com/products/rxps/wine`) reads `/draco/`. A local harness cannot show it: the
   `dist` build registers its own global (`dist` reads `undefined`, live read gstatic).
   Production stays on `--meshopt` (`packages/shared/src/shrink.ts`) for size and GPU
   weight (LIVE-08); **before re-enabling `--draco`, re-run that check cold on the

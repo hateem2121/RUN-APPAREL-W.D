@@ -63,7 +63,7 @@ These are runnable today. They are a starting set, not the whole list — grep f
 
 - `command -v pnpm; pnpm --version` — the file says this has measured BOTH ways.
 - `node scripts/doc-citations.mjs` — claimed to print a summary and exit 1 on failure.
-- `node -e "require('node:sqlite')"` — claimed built into the pinned Node 24.
+- `node -e "require('node:sqlite')"` — claimed built into the Node CI pins (26).
 - `npx --yes pnpm@12.6.0 --filter @run-apparel/shrink typecheck` — the dependencies rule
   says `apps/shrink` no longer reaches `validate.ts`, so it takes the same
   `@cloudflare/workers-types` as `apps/cms` and `apps/viewer` (a hold until 2026-10-03).

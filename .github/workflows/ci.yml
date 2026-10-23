@@ -84,7 +84,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # THE PNPM STORE CACHE (GitHub's cache service): worth it here, where every job
           # starts on an empty disk. From 2026-09-08 to 2026-09-10 CI ran on a self-hosted
           # runner on the owner's Mac, where the same archive cost 151 s of `audit`'s 205 s
@@ -428,10 +428,15 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      # No `actions/setup-node` here either, for the reason measured beside `artwork`
-      # below: the image ships the pinned Node 24, and the pnpm store cache costs more
-      # to save than it saves on install — every feature branch pays the miss, because
-      # Actions caches are branch-scoped.
+      # setup-node WITHOUT a cache, for the reason measured beside `artwork` below: the
+      # image ships Node 24 (Microsoft's `ARG NODE_VERSION=24`), and the repo runs Node 26
+      # since 2026-10-23 (owner decision; 26 is Active LTS from 2026-10-28). `cache: ''`
+      # keeps out the pnpm store cache, which cost more to save than it saved.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
       # ONE SECOND OF DIAGNOSTIC, for the same reason the deleted `ldd` check existed:
       # a browser that cannot LAUNCH must not be debugged as a flaky test. If a shard
@@ -544,7 +549,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # The pnpm store cache; the reason is beside `verify`'s setup-node.
           cache: pnpm
       - run: pnpm install --frozen-lockfile
@@ -606,7 +611,7 @@ jobs:
     cache-mode: write
     # `pull-requests: read` is what dependency-review needs to diff a PR's manifests.
     # Restating `contents: read` is not optional — a job-level block REPLACES the
-    # workflow default, and omitting it 404s `actions/checkout` on this private repo.
+    # workflow default, and omitting it 404'd `actions/checkout` while this repo was private.
     permissions:
       contents: read
       pull-requests: read
@@ -626,7 +631,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # The pnpm store cache; the reason is beside `verify`'s setup-node.
           cache: pnpm
       - run: pnpm install --frozen-lockfile
@@ -897,7 +902,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # The pnpm store cache; the reason is beside `verify`'s setup-node.
           cache: pnpm
       - run: pnpm install --frozen-lockfile
@@ -1053,10 +1058,18 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      # NO `actions/setup-node` IN THIS JOB — the image already ships Node v24.18.1,
-      # which is the version this repo pins, verified by running the image.
+      # setup-node IS BACK (2026-10-23), WITHOUT ITS CACHE. The image ships Node 24
+      # (Microsoft's Dockerfile.noble: `ARG NODE_VERSION=24`); the repo moved to Node 26
+      # that day (owner decision), so the job must install it. Everything below is why
+      # `cache: ''` stays: the cost measured here was the store cache, not the action.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
       #
-      # It was kept at first "because `cache: pnpm` makes install faster", and that
+      # Until 2026-10-23 there was NO setup-node here — the image's v24.18.1 was the
+      # repo's version. It was kept at first "because `cache: pnpm` makes install faster", and that
       # reasoning did not survive measurement. Six container runs of this job, and the
       # totals are BIMODAL rather than noisy:
       #
@@ -1146,7 +1159,7 @@ jobs:
     # so a workflow cannot read it. Unreadable BY CI is not the same as unreadable.
     # A job-level `permissions:` block REPLACES the workflow default, it does not
     # add to it — so `contents: read` MUST be restated here or `actions/checkout`
-    # fails with a 404 on this private repo. That is the exact bug that killed
+    # failed with a 404 while this repo was private. That is the exact bug that killed
     # uptime.yml for 23 hours; see the note at the top of that file.
     #
     # `issues: write` is new on 2026-08-30, for the failure alert at the end of this
@@ -1199,7 +1212,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # ⚠️ NO CACHE IN THIS JOB — IT HOLDS THE PRODUCTION CLOUDFLARE TOKEN.
           #
           # A restored pnpm store was saved by an EARLIER job that holds no secrets
@@ -1371,8 +1384,8 @@ jobs:
       #
       # FIRST, BEFORE THE CMS WORKER, SINCE 2026-09-06 — and not merely "early".
       # A route pattern belongs to one Worker at a time. This Worker used to hold
-      # `wear-run.help/*` and `www.wear-run.help/*`; the marketing site now lives on
-      # them, served by the CMS Worker. So this deploy must give the wildcards UP
+      # `wear-run.help/*` and `www.wear-run.help/*`; the CMS Worker holds them now (the
+      # site lived there until 2026-09-28; they forward to wear-run.com since). So this deploy must give the wildcards UP
       # before the CMS deploy claims them, or the CMS deploy is refused for a route
       # that is still taken. The four PDF routes stay attached throughout; the only
       # window is the seconds between the two deploys on `wear-run.help/` itself.
@@ -1503,53 +1516,16 @@ jobs:
           fi
           echo "No source maps in dist. Safe to deploy."
 
-      # Viewer deploy target, selectable via the VIEWER_DEPLOY_TARGET repo
-      # variable. The Worker (run-apparel-viewer-site) has served
-      # viewer.wear-run.help since the 2026-07-22 cutover; the Pages project was
-      # deleted then. The Pages steps are KEPT as the rollback path — setting
-      # VIEWER_DEPLOY_TARGET=pages recreates the project and deploys to it. See
-      # docs/RUNBOOK.md → "Viewer: Pages → Worker cutover".
-      #
-      # THE DEFAULT IS THE WORKER, and that is the point of the `== 'pages'`
-      # comparison rather than `!= 'worker'`. Written the other way, an unset or
-      # mistyped variable sent the deploy to Pages: the job goes green, a Pages
-      # project is recreated, and the live custom domain — which points at the
-      # Worker — keeps serving the previous build. A deploy that reports success
-      # and changes nothing is the worst failure mode available here.
-      - name: Ensure Pages project exists
-        if: vars.VIEWER_DEPLOY_TARGET == 'pages'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # Tolerate ONLY "already exists". The previous form was
-        #   ... 2>/dev/null || echo "already exists — continuing."
-        # which discarded stderr and swallowed every failure equally: a bad API
-        # token, a wrong account id, a Cloudflare outage all printed "already
-        # exists" and let the deploy proceed to fail later, somewhere less
-        # obvious. Match the message, re-raise anything else.
-        run: |
-          set -o pipefail
-          if ! out=$(pnpm --filter @run-apparel/viewer exec wrangler pages project create run-apparel-viewer \
-                       --production-branch main 2>&1); then
-            if grep -qiE 'already (exists|in use)|8000007' <<<"$out"; then
-              echo "Pages project already exists — continuing."
-            else
-              echo "$out" >&2
-              exit 1
-            fi
-          fi
-
-      - name: Deploy viewer (Cloudflare Pages)
-        if: vars.VIEWER_DEPLOY_TARGET == 'pages'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: >-
-          pnpm --filter @run-apparel/viewer exec wrangler pages deploy dist
-          --project-name run-apparel-viewer --branch main
-
+      # The viewer is a Worker with Static Assets (run-apparel-viewer-site) and nothing
+      # else. Until 2026-10-23 two Cloudflare Pages steps sat here as a "rollback path"
+      # behind VIEWER_DEPLOY_TARGET=pages; they were removed (owner decision) because the
+      # Pages project was deleted at the 2026-07-22 cutover, the garment pages have lived
+      # at wear-run.com/products/… on this Worker since 2026-09-28, and a Pages build
+      # would serve neither. To undo a bad viewer deploy use the Worker's own versions:
+      # `wrangler rollback [<version-id>]` or dashboard → Deployments → Rollback (the
+      # last 100 versions; Cloudflare's Workers rollback docs, read 2026-10-23).
+      # docs/RUNBOOK.md → "Viewer: rolling back a deploy" has the steps.
       - name: Deploy viewer (Cloudflare Worker, static assets)
-        if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -1558,7 +1534,6 @@ jobs:
         # Worker, SPA fallback is provided by not_found_handling:
         # single-page-application in apps/viewer/wrangler.jsonc, so _redirects is
         # redundant here — remove it before deploying. dist/_headers (CSP) stays.
-        # Only runs when target=worker, so the Pages deploy path is unaffected.
         run: |
           rm -f apps/viewer/dist/_redirects
           # See the version-labelling note on the CMS deploy step above.
@@ -1596,12 +1571,12 @@ jobs:
       # 2026-07-29 a broken model shipped and stayed live six days with every
       # automated check green, because nothing looked at the payload.
       - name: Post-deploy viewer payload smoke test
-        # SMOKE_BROWSER_GET is set HERE and deliberately NOT in uptime.yml. It adds
-        # a bare GET on the model — the check that would have caught the cached 404
-        # of 2026-08-06, where HEAD returned 200 and a browser's GET returned 404
-        # from a 25-hour-old cached miss. That fault is created at publish time, so
-        # this is where it is worth one extra request; polling for it every 15
-        # minutes would buy nothing. See check 4 in the script.
+        # SMOKE_BROWSER_GET adds a bare GET on the model — the check that would have
+        # caught the cached 404 of 2026-08-06, where HEAD returned 200 and a browser's
+        # GET returned 404 from a 25-hour-old cached miss. That fault is created at
+        # publish time, so it matters most here. uptime.yml sets it too since the
+        # 2026-08-30 audit (finding L6-02): its 6-hourly run made the old "every 15
+        # minutes buys nothing" reason stale. See check 4 in the script.
         env:
           SMOKE_BROWSER_GET: '1'
           # In `env:`, not pasted into `run:` — zizmor's template-injection rule
@@ -1628,7 +1603,6 @@ jobs:
       # at 9.5 s total (a card is 38 KB; crawler HTML is 0.68 s cold, 0.03 s warm), so
       # the coverage is nearly free. A fake twelfth row exits 1.
       - name: Post-deploy link-preview smoke test
-        if: vars.VIEWER_DEPLOY_TARGET != 'pages'
         run: node scripts/smoke-live-previews.mjs https://wear-run.com/products
 
       - name: Post-deploy apex assertion (site, retired PDF paths, private hosts)
@@ -1760,7 +1734,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # Nothing is installed here: one script, node built-ins only.
           cache: ''
           package-manager-cache: false
@@ -1884,7 +1858,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # ⚠️ NO CACHE: this job deploys with the production Cloudflare token — the same
           # two lines, for the same reason, as the `deploy` job above.
           cache: ''

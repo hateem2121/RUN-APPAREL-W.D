@@ -144,7 +144,9 @@ updates:
     cooldown:
       default-days: 7
     ignore:
-      # Stay on Node 24, the runtime the whole project and CI use; only refresh it.
+      # Stay on Node 24 for this PRODUCTION image; only refresh it. CI moved to Node 26 on
+      # 2026-10-23, but moving the shrink robot is its own change: it needs a rendered
+      # print checked (`.claude/rules/shrink-container.md`), not just green CI.
       - dependency-name: node
         update-types:
           - version-update:semver-major

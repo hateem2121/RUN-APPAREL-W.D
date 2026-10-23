@@ -2,7 +2,7 @@
 
 [![CI status](https://github.com/hateem2121/RUN-APPAREL-W.D/actions/workflows/ci.yml/badge.svg)](https://github.com/hateem2121/RUN-APPAREL-W.D/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hateem2121/RUN-APPAREL-W.D/badge)](https://scorecard.dev/viewer/?uri=github.com/hateem2121/RUN-APPAREL-W.D)
-[![Website: wear-run.help](https://img.shields.io/website?url=https%3A%2F%2Fwear-run.help&label=wear-run.help)](https://wear-run.help)
+[![Website: wear-run.com](https://img.shields.io/website?url=https%3A%2F%2Fwear-run.com&label=wear-run.com)](https://wear-run.com)
 [![Licence: proprietary](https://img.shields.io/badge/licence-proprietary-1d1f1a)](LICENSE)
 
 > **What is this?** RUN APPAREL makes clothes for brands and teams.
@@ -46,8 +46,8 @@ So we judge every garment by its print, on a real phone.
 
 | What | Link |
 | --- | --- |
-| Our website | [wear-run.help](https://wear-run.help) |
-| A garment in 3D | [viewer.wear-run.help/rxps/wine](https://viewer.wear-run.help/rxps/wine) |
+| Our website | [wear-run.com](https://wear-run.com) |
+| A garment in 3D | [wear-run.com/products/rxps/wine](https://wear-run.com/products/rxps/wine) |
 | The CMS (staff only) | [cms.wear-run.help/admin](https://cms.wear-run.help/admin) |
 
 ## 🚪 Pick your door

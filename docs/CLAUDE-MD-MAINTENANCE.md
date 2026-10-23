@@ -87,15 +87,27 @@ Read-tool session. Not hypothetical: that session re-derived `apps/viewer/CLAUDE
 records as having already cost someone the same bisect. **Working through Bash? `cat`
 the sub-file for the directory you are in before you start**, and check with
 `tail .claude/instructions-loaded.log`.
-**Two tools worth knowing, both newer than this section's first draft:**
+✅ **SUPERSEDED BY CLAUDE CODE ITSELF — re-checked 2026-10-23 on 2.1.300.** Anthropic's
+memory and tools-reference pages now say nested files and path rules also load when Claude
+views a matching file with `cat`, `nl`, `head`, `tail`, `sed -n 'X,Yp'`, `grep` or `rg`, run
+on ONE file with no pipe or redirect. Measured the same day: a `cd … && sed -n '1,200p'
+docs/CLAUDE-MD-MAINTENANCE.md` logged `path_glob_match .claude/rules/docs-and-instructions.md`
+at 17:37:07. The advice above still holds for piped commands and heredocs.
+**Three tools worth knowing, all newer than this section's first draft:**
+**`/doctor prompt-audit`** (v2.1.283+) audits every CLAUDE.md, CLAUDE.local.md, AGENTS.md,
+rule, skill, command, agent and output style for instructions written for older models,
+references to files or commands that no longer exist, and files that contradict each other;
+it reports proposed edits and changes nothing until asked. Run it from a terminal alongside
+`/audit-memory`.
 `/doctor` now proposes trims for a checked-in CLAUDE.md (v2.1.206+) — it cuts what
 Claude can re-derive from the codebase, directory layouts and dependency lists, and
 *keeps* pitfalls and rationale, which is this file's entire content model. And the
 **`InstructionsLoaded` hook** logs which instruction files loaded, when, and why —
 the way to verify the on-demand claims above instead of asserting them. This repo
 wires one at `.claude/hooks/log-instructions-loaded.mjs`; see `docs/RUNBOOK.md`.
-Free win nobody here uses yet: block-level `<!-- HTML comments -->` are stripped
-before injection, so pure provenance can stay legible to humans at zero context cost.
+Block-level `<!-- HTML comments -->` are stripped before injection, so pure provenance
+stays legible to humans at zero context cost — the root file's header has used one since
+2026-09-26.
 
 **A quoted setting must still be in the file its sentence names (since 2026-09-24).**
 A backticked `key: value` in an instruction file must appear in a file named by the same
@@ -122,7 +134,8 @@ text only, not the reading: a sentence can still misread a setting it quotes cor
 The root `CLAUDE.md` was rebuilt on 2026-09-26: **550 lines and 37,375 characters became
 188 lines and about 10,950**. No rule was dropped. Each one either stayed in the root in
 a shorter form, or moved word for word to the place that loads when it applies. The old
-file is kept at `docs/archive/agent-memory/2026-09-26-root-CLAUDE.md`.
+file is in git history: `git show 53ab7012^:CLAUDE.md` (the archive copy under `docs/` was
+deleted on 2026-10-23 with the other finished records).
 
 | Old section or trap | Where it is now |
 |---|---|
@@ -161,7 +174,8 @@ file is kept at `docs/archive/agent-memory/2026-09-26-root-CLAUDE.md`.
 
 The same day, three nested files moved their detail, word for word, into path rules that
 load only with the files they govern. Nothing was reworded or dropped; the originals are in
-`docs/archive/agent-memory/`. `.github/CLAUDE.md` was left whole on purpose: it already loads
+git history as `git show 9835ec4d^:<path>` (e.g. `git show 9835ec4d^:apps/viewer/CLAUDE.md`).
+`.github/CLAUDE.md` was left whole on purpose: it already loads
 only for workflow edits, every one of its traps applies to them, and its central rule — two
 workflows duplicate the same gates — would be split across files by a move.
 

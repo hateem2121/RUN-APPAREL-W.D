@@ -64,7 +64,7 @@ It must be sharp.
 Make a QR code (a square barcode) from the garment's link.
 
 ```
-https://viewer.wear-run.help/<product>/<colour>
+https://wear-run.com/products/<product>/<colour>
 ```
 
 Print it at least 2 cm wide.
