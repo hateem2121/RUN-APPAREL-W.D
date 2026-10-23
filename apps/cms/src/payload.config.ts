@@ -60,7 +60,15 @@ async function resolveCloudflareEnv(): Promise<CloudflareEnv | null> {
     // node:sqlite shim, which then fail to bundle). Obfuscating the specifier,
     // the way OpenNext does for its own wrangler import, keeps it a runtime-only
     // dynamic import that is never reached inside the deployed Worker.
-    const wranglerSpecifier = ['wr', 'angler'].join('')
+    //
+    // ⚠️ THE JOIN MUST DEPEND ON A RUNTIME VALUE (2026-10-23). Next 16.4's minifier folds
+    // `['wr', 'angler'].join('')` into the literal `import("wrangler")`, which 16.3 did not,
+    // and that put wrangler + Miniflare back in the Worker: 476 Miniflare mentions and a
+    // failed wrangler dry run (`Could not resolve "sqlite"`), the exact failure that held
+    // Next below 16.4 from 2026-10-14 (docs/DEPENDENCY-HOLDS.md). An environment variable is
+    // unknown at build time, so nothing can fold it; this branch only runs when
+    // PAYLOAD_LOCAL_D1 is set, so the separator is always '' and the name is 'wrangler'.
+    const wranglerSpecifier = ['wr', 'angler'].join(process.env.PAYLOAD_LOCAL_D1 ? '' : '-')
     const { getPlatformProxy } = (await import(
       /* webpackIgnore: true */ /* turbopackIgnore: true */ wranglerSpecifier
     )) as {

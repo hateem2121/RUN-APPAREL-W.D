@@ -161,7 +161,31 @@ one. Measured from the installed `package.json` files on 2026-09-26.
 To re-check either: `npm view payload peerDependencies.graphql` and
 `npm view @google/model-viewer peerDependencies.three`, against the newest versions.
 
-## `next` held below 16.4 — the CMS Worker will not build with it (2026-10-14)
+## `next` held below 16.4 — RELEASED 2026-10-23 (held from 2026-10-14)
+
+**Released for security.** Next.js 16.0–16.4.0 carry two critical remote-code-execution
+advisories and a Server Actions denial of service (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr,
+GHSA-p3m5-59mp-jv5r; nextjs.org/blog/nextjs-security-update-october-14-2026, read 2026-10-23),
+fixed only in 16.4.1, with no 16.3 backport. They failed `audit` on PR #223. OpenNext 1.20.12
+(2026-10-15) names "support for Next.js 16.4" and 1.20.13 requires `next >=16.4.1`, so the
+release condition below was met. Taken: `next` 16.4.2 and `@opennextjs/cloudflare` 1.20.13,
+wrangler 4.148.0 unchanged.
+
+**The build still failed at first, for a reason of ours.** Next 16.4's minifier folds
+`['wr', 'angler'].join('')` in `apps/cms/src/payload.config.ts` into a literal
+`import("wrangler")`, which 16.3 left alone, and OpenNext's esbuild pass then bundled wrangler
+and Miniflare (476 mentions, dry run `Could not resolve "sqlite"`): the same signature as the
+table below, so the 2026-10-14 failure was very likely this too. The join now takes its
+separator from `process.env.PAYLOAD_LOCAL_D1`, which no build can know. Measured after:
+
+| next | OpenNext | wrangler | literal `import("wrangler")` | Miniflare code in the Worker | dry run |
+| --- | --- | --- | --- | --- | --- |
+| 16.4.2 | 1.20.13 | 4.148.0 | 0 | 0 (2 mentions: a library's error message) | 42,221 KiB |
+
+`handler.mjs` is now a 49-byte stub that re-exports the real handler in a folder beside it, so its byte count
+no longer compares with the rows below; the dry run is the figure to compare.
+
+### The hold as it stood (2026-10-14)
 
 Not a declared range this time: `@opennextjs/cloudflare` declares `next: >=15.5.27 <16 || >=16.3.8`,
 which admits 16.4. Its release notes name 16.3.8 as the newest required version (1.20.8,
