@@ -243,9 +243,10 @@ export default buildConfig({
     // committed migrations. Schema changes now need `pnpm migrate:create`.
     push: false,
     // NOTE: migrations are NOT applied on the deployed Worker. They run in an
-    // explicit, gated CI step (`.github/workflows/ci.yml` → the `migrate` job
-    // applies pending migrations to the *remote* production D1 *before* the new
-    // Worker is deployed). The old cold-start `prodMigrations` path is
+    // explicit, gated CI step (`.github/workflows/ci.yml` → the "Apply pending
+    // D1 migrations" step of the `deploy` job applies pending migrations to the
+    // *remote* production D1 *before* the new Worker is deployed; there is no
+    // separate `migrate` job). The old cold-start `prodMigrations` path is
     // deliberately removed — running migrations lazily on first request hung in
     // production once. Committed migrations in ./migrations remain the single
     // source of truth; `pnpm --filter @run-apparel/cms migrate` applies them to

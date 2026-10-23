@@ -13,7 +13,8 @@
 //
 // WHY THIS SHAPE. Two tidier-looking fixes do not actually work here:
 //   - `poolOptions.forks.execArgv: ['--no-experimental-webstorage']` is silently
-//     ignored by Vitest 4.1.10 — the flag never reaches the worker (verified).
+//     ignored by Vitest 4.1.10 — the flag never reaches the worker (verified on 4.1.10;
+//     the repo is on Vitest 5.0.5 now and this has NOT been re-verified on 5.x).
 //   - Putting NODE_OPTIONS in the `test` script does work, but only for `pnpm test`;
 //     a bare `vitest run`, or an IDE's Vitest integration, would still fail.
 // A setup file runs inside the worker, so it fixes every entry point, needs no

@@ -11,10 +11,11 @@ const baseLaunch = chromiumPath ? { executablePath: chromiumPath } : {}
 
 /**
  * Everything except the specs that need a real WebGL context, which are
- * Chromium-only by necessity: webgl.spec.ts, and render.spec.ts (task 13/14)
- * since it waits on `window.__RENDER_READY`, which only fires after
- * <model-viewer>'s `load` event — undetectable without actually decoding a
- * Meshopt-compressed model.
+ * Chromium-only by necessity: webgl.spec.ts and the other `*-webgl.spec.ts` files, which
+ * wait on <model-viewer>'s `load` event and read its drawn frames — undetectable without
+ * actually decoding a Meshopt-compressed model. (`render.spec.ts` and `window.__RENDER_READY`
+ * were removed with the /render route, commit 1197364e, 2026-08-17; the `render` in the
+ * pattern below matches no spec file today.)
  *
  * camera-settle.spec.ts joined them on 2026-09-07 for the same reason: it drags the
  * garment and measures where the camera comes to rest, and without a GL context the

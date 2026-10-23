@@ -13,9 +13,10 @@
  * never got the same treatment, and its `/icon.svg` was additionally unparseable, so the
  * site had no working tab icon at all.
  *
- * WHY sharp HERE AND PLAYWRIGHT IN gen-og-image.mjs. That script renders TEXT, and SVG
+ * WHY sharp HERE AND PLAYWRIGHT IN gen-share-images.mjs. That script renders TEXT, and SVG
  * text comes out in whatever face the rasteriser can find, so it needs a real browser with
- * the woff2 embedded. This mark is pure polygons and bezier paths with no text, so a
+ * the woff2 embedded. (`gen-og-image.mjs`, which did the same for the old share picture,
+ * was deleted in #221.) This mark is pure polygons and bezier paths with no text, so a
  * rasteriser cannot substitute anything. sharp is the smaller tool for the smaller job.
  *
  * ⚠️ DO NOT PASS A `density`. sharp scales an SVG by density/72, and this mark's viewBox is
@@ -23,7 +24,7 @@
  * sharp refuses outright with "Input image exceeds pixel limit". The default renders it at
  * its natural size, which downsamples cleanly.
  *
- * ⚠️ NOT WIRED INTO ANY BUILD, deliberately, exactly as gen-og-image.mjs is not: the
+ * ⚠️ NOT WIRED INTO ANY BUILD, deliberately, exactly as gen-share-images.mjs is not: the
  * outputs are committed and change only when the brand does. Run it by hand:
  *
  *     node apps/cms/scripts/gen-icons.mjs --force

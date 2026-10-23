@@ -62,9 +62,11 @@
   // documented. Turning them on (readable stack traces in Workers Logs) is the owner's
   // call; same key in apps/viewer, apps/shrink and infra/apex-404.
   "upload_source_maps": false,
-  // THREE HOSTNAMES, ONE WORKER (2026-09-06). The custom domain is the admin and the
-  // API; the two zone routes are the public marketing site on its real address. The
-  // PDF Worker (infra/apex-404) keeps `/catalogue*` and `/profile*` on both hosts —
+  // FIVE ROUTES, ONE WORKER (three until 2026-09-28). Three are custom domains:
+  // `cms.wear-run.help` is the admin and the API, and `wear-run.com` + `www.wear-run.com`
+  // are the public marketing site. The two `wear-run.help` zone routes only FORWARD to
+  // wear-run.com since the move (siteHostRules.mjs); they were the site until then. The
+  // PDF Worker (infra/apex-404) keeps `/catalogue*` and `/profile*` on both `.help` hosts —
   // Cloudflare sends a request to the MOST SPECIFIC route, so those four never reach
   // this Worker. Only host-conditioned rules in next.config.mjs tell the hostnames
   // apart; see siteHostRules.mjs. The apex DNS record must stay proxied: zone routes
@@ -210,5 +212,5 @@
     "EMAIL_FROM_NAME": "RUN APPAREL"
   }
   // Secrets (never in this file): wrangler secret put PAYLOAD_SECRET
-  // Custom domain cms.wear-run.help is attached in the Cloudflare dashboard — see docs/CLOUDFLARE-SETUP.md
+  // Custom domain cms.wear-run.help is declared in this file's `routes` array, so CI's `wrangler deploy` attaches it (docs/CLOUDFLARE-SETUP.md has the dashboard side)
 }

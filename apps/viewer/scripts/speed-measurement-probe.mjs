@@ -8,7 +8,7 @@
  * Node's bare-specifier resolution only climbs an importing file's own ancestor
  * directories, so a copy at `scripts/` could never resolve `@playwright/test`
  * without adding it as a new root dependency, which both apps already carry at the
- * same pinned version (`1.62.1`) — an unnecessary lockfile change for a module that
+ * same pinned version (`1.64.1`) — an unnecessary lockfile change for a module that
  * already has a home. `apps/viewer/scripts/preload.test.ts` and friends already show
  * this package hosts its own probe-shaped scripts.
  *
@@ -32,7 +32,10 @@
 import { DEFAULT_PRODUCT } from '../../../scripts/live-products.mjs'
 import { realpathSync } from 'node:fs'
 
-export const VIEWER_URL = `https://viewer.wear-run.help/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`
+// The garment page's own address since the domain move of 2026-09-28. viewer.wear-run.help only
+// 301s here now, so measuring that host would add a redirect hop to TTFB and to every timing
+// taken from `navStart` below.
+export const VIEWER_URL = `https://wear-run.com/products/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`
 export const RUNS = 5
 
 /** Pure: median of a numeric array. Throws on empty input rather than returning NaN silently. */

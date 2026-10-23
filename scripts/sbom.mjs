@@ -5,23 +5,27 @@
  *
  * WHY THIS, AND WHY NOT GitHub'S BUILT-IN.
  *
- * ⚠️ THE ORIGINAL ANSWER HERE IS NOW HALF FALSE, AND CORRECTED 2026-08-31 (L11-08)
- * RATHER THAN DELETED, because a stale reason is worse than none: it argues the
- * next reader out of a feature they already have.
+ * ⚠️ THE ORIGINAL ANSWER HERE WAS HALF FALSE, CORRECTED 2026-08-31 (L11-08) AND
+ * CORRECTED AGAIN 2026-10-23, kept as history rather than deleted, because a stale
+ * reason is worse than none: it argues the next reader out of a feature they
+ * already have.
  *
  * It said `actions/attest-build-provenance` and CodeQL "both want a public
- * repository or a paid tier; this repo is private". Measured today:
- *   - the organisation is on plan `enterprise`;
- *   - this repository is `private: true`;
- *   - and CodeQL is `state: configured` across FOUR languages, with live alerts.
- * So CodeQL is not merely affordable, it has been RUNNING on this private repo
- * since 2026-08-18. The paid tier the comment treated as hypothetical is the tier
- * the org is on.
+ * repository or a paid tier; this repo is private". Measured 2026-08-31, while the
+ * repository was private:
+ *   - the organisation was on plan `enterprise`;
+ *   - the repository was `private: true`;
+ *   - and CodeQL was `state: configured` across FOUR languages, with live alerts,
+ *     RUNNING since 2026-08-18.
+ * Neither premise holds today. The organisation was deleted on 2026-09-02, and the
+ * repository has been PUBLIC since 2026-09-10 (root CLAUDE.md), so the "private
+ * repository" objection is gone outright and the "paid tier" one no longer applies.
+ * CodeQL (Extended) still runs and blocks a merge on new alerts.
  *
- * The provenance half is therefore plausible now and NOT YET PROVEN. Build
- * attestations are available to private repositories on Enterprise Cloud, but
- * nothing here has produced one, and `GET /repos/.../attestations/{digest}` cannot
- * answer the question without a real artifact to ask about. Treat "we cannot have
+ * The provenance half is therefore plausible and NOT YET PROVEN: no workflow in
+ * `.github/workflows/` calls `actions/attest-build-provenance`, so nothing here has
+ * produced an attestation, and `GET /repos/.../attestations/{digest}` cannot answer
+ * the question without a real artifact to ask about. Treat "we cannot have
  * provenance" as unverified rather than true.
  *
  * What has NOT changed is why this script exists: an SBOM plus an enforced licence

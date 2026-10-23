@@ -10,7 +10,7 @@ import { ProductPanel } from './ProductPanel'
  * ⚠️ WHY THIS FILE EXISTS. On 2026-08-21 the product's chips, <h1>, description and
  * colour note stopped having ONE home. They render in `.stage__aside` when the
  * stage band is two columns and in `.content` when it is not, chosen by
- * `useTwoColumnLayout()`.
+ * `useIdentityInAside()`.
  *
  * That creates one failure mode that did not exist before and that no other gate
  * can see: BOTH renderings at once. Two <h1> elements, two `id="product-heading"`,

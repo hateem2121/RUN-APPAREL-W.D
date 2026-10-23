@@ -34,18 +34,13 @@
       // import path for `next dev` vs `next build`. Formatting it means `pnpm
       // lint` fails after every single build.
       "!apps/cms/next-env.d.ts",
-      // GENERATED AUDIT EVIDENCE — ~1.6 MB of JSON emitted by
-      // docs/audit-2026-08-30/extract-workflow-results.mjs, committed as the record
-      // behind docs/AUDIT-2026-08-30-CLOUDFLARE-AND-GITHUB.md. Reformatting it would
-      // rewrite every line on each regeneration for no reader's benefit, and it is
-      // machine output, not source. Same reasoning as the Payload files above.
-      "!docs/audit-2026-08-30",
-      // Same again for the 2026-08-30 PM audit: ~2 MB of finding records plus 50
-      // per-lane checkpoints. These are EVIDENCE. Reformatting them would rewrite
-      // every line of a document whose value is that it has not been touched since
-      // it was measured, and CONSOLIDATED.json is over Biome's 1 MiB scan ceiling
-      // anyway, so it could only ever be half-checked.
-      "!docs/audit-2026-08-30-pm",
+      // The 2026-08-30 audit evidence (~1.6 MB of generated JSON in
+      // `docs/audit-2026-08-30`, ~2 MB of finding records in `docs/audit-2026-08-30-pm`)
+      // used to be ignored here, because reformatting machine output rewrites every line
+      // for no reader's benefit. Both folders are kept privately by the owner and are not
+      // in this public repository (public since 2026-09-10), so the two ignore entries
+      // matched nothing and were removed. If audit evidence is ever committed again, ignore
+      // it here for the same reason.
       "!pnpm-lock.yaml"
     ]
   },
@@ -83,8 +78,13 @@
       },
       "complexity": {
         "noForEach": "off",
-        // Every occurrence is inside the `prefers-reduced-motion` block or the
-        // Lenis override in base.css, and BOTH need `!important` to do their job:
+        // Every occurrence is one of four things, counted 2026-10-23 across the CSS
+        // files: (1) the `prefers-reduced-motion` block and (2) the Lenis override in
+        // base.css, (3) the `.has-custom-cursor` rules in base.css (`cursor: none`, which
+        // a list of per-element rules cannot keep up with), and (4) `@media print` blocks
+        // (packages/ui/src/base.css, footer.css, footer-prompt.css, notch.css,
+        // apps/viewer/src/styles/page.css, apps/cms/src/app/(frontend)/site.css), where
+        // paper has to beat the screen rules. All need `!important` to do their job:
         // the reduced-motion recipe has to beat animation and inline styles, and
         // Lenis sets `scroll-behavior` on <html> itself. Turning these into
         // ordinary declarations would silently re-enable motion for people who

@@ -6,7 +6,7 @@
  * WHY A SHEET AND NOT THE FILES. Posters are transparent since 2026-09-03 (fix plan
  * Rank 6): opened one at a time on a dark desktop a white garment is invisible and a
  * black one is a silhouette, so each is flattened here onto the viewer's own light
- * ground (`--bg`, apps/viewer/src/styles/tokens.css), which is where a visitor sees it.
+ * ground (`--bg`, packages/ui/src/tokens.css), which is where a visitor sees it.
  * And the question a poster set answers — "does every colourway show ITS colour?" —
  * is a question about five pictures side by side (2026-09-03: five skinsuit posters,
  * all wine, passed every per-file check).
@@ -24,7 +24,7 @@ const CELL_W = 240
 const CELL_H = 300
 const LABEL_W = 150
 const HEADER_H = 28
-/** apps/viewer/src/styles/tokens.css `--bg`, light — the ground the viewer paints. */
+/** packages/ui/src/tokens.css `--bg`, light — the ground the viewer paints. */
 const BG = '#f1efea'
 
 const args = process.argv.slice(2)

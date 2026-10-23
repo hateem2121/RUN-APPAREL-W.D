@@ -6,7 +6,8 @@
  * remediation then applied six more changes of exactly that shape — min TLS, SSL
  * mode, HSTS, CAA, an R2 custom-domain TLS floor, queue retention — all of which live
  * in Cloudflare's control plane and none of which any test could notice being undone.
- * `docs/audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md` records them; this measures them.
+ * The owner's private copy of the 2026-08-30 audit (`CLOUDFLARE-LIVE-CHANGES.md`; not in this
+ * public repository) records them; this measures them.
  *
  * ⚠️ THE OBVIOUS VERSION OF THIS CHECK REPORTS SUCCESS WHILE MEASURING NOTHING, AND
  * IT DID SO FOR TWENTY MINUTES ON 2026-08-30. Two separate ways:
@@ -380,7 +381,8 @@ export function evaluate(observations) {
       continue
     }
     // preload is deliberately absent — an owner ruling of 2026-08-30, recorded in
-    // docs/audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md. It is NOT asserted either way:
+    // the owner's private copy of the audit's CLOUDFLARE-LIVE-CHANGES.md (not in this repository).
+    // It is NOT asserted either way:
     // asserting its absence would fight the owner if they later choose to enable it.
     lines.push(`  ${label} TLS1.0/1.1 closed · TLS1.2 ok · HSTS ${hsts.maxAge}s ok`)
 
@@ -582,8 +584,8 @@ if (isMain) {
     console.log('\nFAILURES:')
     for (const failure of failures) console.log(`  - ${failure}`)
     console.log(
-      '\nBaseline to restore from: docs/audit-2026-08-30/cf-baseline/\n' +
-        'What each setting is and why: docs/audit-2026-08-30/CLOUDFLARE-LIVE-CHANGES.md',
+      '\nBaseline to restore from: kept privately by the owner (not in this repository)\n' +
+        'What each setting is and why: the same private copy, CLOUDFLARE-LIVE-CHANGES.md',
     )
     process.exit(1)
   }

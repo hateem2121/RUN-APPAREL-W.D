@@ -26,8 +26,8 @@
  *   SMOKE_MIN_MODEL_BYTES   override the "not a stub" floor (default 102400)
  *   SMOKE_BROWSER_GET=1     also fetch the model the way a browser does — a bare
  *                           GET, no HEAD, no Range. Costs one extra request, so
- *                           it is opt-in and set only on the post-deploy path.
- *                           See "the cached 404" below.
+ *                           it is opt-in; ci.yml's post-deploy step and uptime.yml
+ *                           (every 6 hours) both set it. See "the cached 404" below.
  *   SMOKE_API_RETRY_MS      the pause before asking the API again after a 5xx
  *                           (default 5000; see getJson, issue #189)
  */
@@ -71,10 +71,13 @@ const MIN_MODEL_BYTES = Number(process.env.SMOKE_MIN_MODEL_BYTES || 102400)
 /**
  * Opt-in bare GET. See the block comment at check 4.
  *
- * Off by default because uptime.yml runs this script every 15 minutes and the
- * extra request would be pointless there — a cached 404 is created by a probe
- * made BEFORE the object existed, so it is a hazard at publish time, not a
- * standing condition to poll for.
+ * Off by default, ON in ci.yml's post-deploy step and in uptime.yml
+ * (`SMOKE_BROWSER_GET: '1'`; uptime.yml runs this script every 6 hours, at minute 23).
+ * It was off in uptime.yml while that ran every 15 minutes, on the
+ * reasoning that a cached 404 is created by a probe made BEFORE the object existed,
+ * so it is a hazard at publish time and not a standing condition to poll for. The
+ * schedule left 15 minutes on 2026-08-18 and the request is cheap (the body is
+ * cancelled once the status line arrives), so uptime.yml opts in too.
  */
 const BROWSER_GET = process.env.SMOKE_BROWSER_GET === '1'
 
@@ -214,10 +217,11 @@ if (expectComingSoon && !modelUrl) {
 
   // --- 3. the model is really there, and is not a stub ---------------------
   //
-  // HEAD, not GET. This runs after every deploy AND every 15 minutes from
-  // uptime.yml; a GET pulled the whole 37.7 MB model each time — roughly 3.6 GB
-  // of R2 egress a day against a $5/month cap, to learn a number that is in the
-  // headers. The first version of this check did exactly that.
+  // HEAD, not GET. This runs after every deploy AND on uptime.yml's schedule (every
+  // 15 minutes when this was written, every 6 hours now); a GET pulled the whole
+  // 37.7 MB model each time — roughly 3.6 GB of R2 egress a day at the 15-minute
+  // rate, against a $5/month cap, to learn a number that is in the headers. The
+  // first version of this check did exactly that.
   // Tracked so check 4 can tell "the object is genuinely missing" apart from
   // "HEAD says yes and GET says no", which is a different fault with a different
   // fix and is the one that shipped a 404 to the live page.
@@ -313,8 +317,9 @@ if (expectComingSoon && !modelUrl) {
   //
   // So `artworkVerdict: ok`, the filesize, the {OPAQUE, MASK} census AND check 3's
   // HEAD were all green while a buyer scanning a QR tag would have got nothing.
-  // Check 3 uses HEAD deliberately — a GET on every 15-minute uptime run is ~3.6 GB
-  // of R2 egress a day against a $5/month cap — and that trade is still right. It
+  // Check 3 uses HEAD deliberately — a full GET on every uptime run (every 15 minutes when
+  // this was written; every 6 hours now) was ~3.6 GB a day of R2 egress at that rate,
+  // against a $5/month cap — and that trade is still right. It
   // just means HEAD alone cannot see this class of fault, by construction.
   //
   // WHY THE BODY IS NOT DOWNLOADED. The verdict is in the status line, which arrives

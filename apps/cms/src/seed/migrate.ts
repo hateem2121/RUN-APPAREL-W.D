@@ -1,7 +1,8 @@
 import { getPayload } from 'payload'
 import config from '../payload.config'
 
-// Migration runner used by the CLI scripts and the gated CI `migrate` job.
+// Migration runner used by the CLI scripts and by the gated "Apply pending D1 migrations"
+// step of the CI `deploy` job.
 //
 // Direction is chosen by env flag so `payload run` needs no extra args:
 //   • default            → apply all pending migrations (`up`)

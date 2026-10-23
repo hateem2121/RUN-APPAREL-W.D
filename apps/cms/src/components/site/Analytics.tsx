@@ -43,9 +43,12 @@ import { beaconLoader } from '@run-apparel/shared'
  * 'unsafe-inline' is gone.
  *
  * TOKEN SET ON THE WORKER 2026-09-07 (`CF_ANALYTICS_TOKEN`, `run-apparel-viewer-cms`) and
- * verified in `wrangler secret list`. It renders nothing yet, correctly: fetched live the
- * same day, `cms.wear-run.help/` serves a private holding page and the marketing site is
- * not deployed anywhere. The beacon appears when the site does.
+ * verified in `wrangler secret list`. It rendered nothing that day, correctly: fetched live,
+ * `cms.wear-run.help/` served a private holding page and the marketing site was not deployed
+ * anywhere. The site is live now (`SITE_INDEXING` is "visible" in `apps/cms/wrangler.jsonc`,
+ * and its address has been wear-run.com since 2026-09-28), so wherever the Worker holds that
+ * token this renders the loader (below) on every public page; without it, still nothing.
+ * (Not re-checked against the live Worker when this comment was updated.)
  */
 export function Analytics() {
   const token = process.env.CF_ANALYTICS_TOKEN?.trim()

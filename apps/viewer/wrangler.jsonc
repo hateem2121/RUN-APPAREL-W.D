@@ -59,8 +59,10 @@
   // Off, as before wrangler 4.150.0 made uploading them the default (why: apps/cms/wrangler.jsonc).
   "upload_source_maps": false,
   // The internal workers.dev URL and per-version preview URLs are disabled:
-  // visitors only ever use viewer.wear-run.help. (Re-enable workers_dev
-  // temporarily if you need a pre-cutover smoke-test URL.)
+  // since the domain move of 2026-09-28 the only address this Worker answers on that a
+  // visitor meets is viewer.wear-run.help, which only 301s to wear-run.com/products/…
+  // (worker/oldViewerHost.ts); the garment pages themselves are drawn on wear-run.com.
+  // (Re-enable workers_dev temporarily if you need a pre-cutover smoke-test URL.)
   "workers_dev": false,
   "preview_urls": false,
   // Worker + static assets. It was assets-ONLY until 2026-08-08; the script does

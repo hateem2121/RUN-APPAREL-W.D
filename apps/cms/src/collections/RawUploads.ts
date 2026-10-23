@@ -74,7 +74,8 @@ export const RawUploads: CollectionConfig = {
   upload: {
     // ⚠️ DO NOT ADD `mimeTypes` HERE. Setting it breaks every upload over 50 MB —
     // i.e. exactly the raw CLO exports this inbox exists for. The chain (verified
-    // against payload 3.86.0 / @payloadcms/storage-r2 3.86.0, which are `latest`):
+    // against payload 3.86.0 / @payloadcms/storage-r2 3.86.0, then `latest`; installed is
+    // 3.91.0 and this chain has not been re-read on it):
     //   1. storage-r2 `getFile.js` deliberately returns an EMPTY body when
     //      `fileSize > 50MB && clientUploadContext` ("or the Worker will run out
     //      of memory"), and this collection uses clientUploads.
