@@ -78,6 +78,11 @@ interface StageProps {
    * or stalled download). App.tsx moves the facts out of the corners while it holds.
    */
   onFallbackChange?: (fallback: boolean) => void
+  /**
+   * The page is the Worker's copy for a search robot: show the picture, fetch no model
+   * (`PosterReason` 'crawler' has the Search Console numbers). A person never gets it.
+   */
+  forCrawler?: boolean
 }
 
 export function Stage({
@@ -88,6 +93,7 @@ export function Stage({
   onSelectColourway,
   cornerSpecs = false,
   onFallbackChange,
+  forCrawler = false,
 }: StageProps) {
   const { product } = data
   const separateMode = product.variantMode === 'separate-glb-per-colour'
@@ -228,6 +234,12 @@ export function Stage({
       })
       return
     }
+    // A search robot gets the picture and never the module or the model (2026-10-23). Before
+    // `canRender3D()`, so it neither reports a missing GPU nor imports model-viewer.
+    if (forCrawler) {
+      dispatchPhase({ type: 'load-failed', reason: 'crawler' })
+      return
+    }
     if (!canRender3D()) {
       dispatchPhase({ type: 'load-failed', reason: 'no-webgl' })
       diagnostic('render3d-unavailable', {
@@ -357,7 +369,7 @@ export function Stage({
     return () => {
       cancelled = true
     }
-  }, [glbUrl])
+  }, [glbUrl, forCrawler])
 
   // Wire model events once the element exists.
   const attachRef = useCallback(
@@ -741,7 +753,10 @@ export function Stage({
     //     on a connection that explicitly asked us not to.
     // (2) `libReady` must leave the dependency array in the SAME edit. Left in,
     //     the effect re-runs when it flips and the file downloads twice.
-    if (!glbUrl || fallback || !canRender3D()) return
+    // (3) `forCrawler` too, not only `fallback`: on the first render both effects run before the
+    //     effect above has moved the phase to the poster, so `fallback` is still false and a
+    //     robot would start the very download it is meant to skip (2026-10-23).
+    if (!glbUrl || fallback || forCrawler || !canRender3D()) return
     let cancelled = false
     let objectUrl: string | null = null
     const controller = new AbortController()
@@ -850,7 +865,7 @@ export function Stage({
       // between colourways in separate-GLB mode accumulates a copy per swap.
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [glbUrl, glbBytes, fallback, product.productCode])
+  }, [glbUrl, glbBytes, fallback, forCrawler, product.productCode])
 
   const applyView = (view: CameraView) => {
     const mv = mvRef.current
@@ -1003,8 +1018,16 @@ export function Stage({
    */
   const fallbackPicture = fallback ? (!savesData() && selected.renderScreen) || placeholder : null
   // The sentence under that picture: a garment with no 3D on purpose says "coming soon"
-  // (2026-10-08); everything else says what failed.
-  const failureNotice = comingSoon ? COMING_SOON_NOTICE : stalled ? STALL_NOTICE : LOAD_NOTICE
+  // (2026-10-08); a search robot's copy says nothing, since nothing failed and "not available"
+  // would be indexed as the garment's words (2026-10-23); everything else says what failed.
+  const failureNotice =
+    phase.kind === 'poster' && phase.reason === 'crawler'
+      ? null
+      : comingSoon
+        ? COMING_SOON_NOTICE
+        : stalled
+          ? STALL_NOTICE
+          : LOAD_NOTICE
 
   /*
    * POLISH F14: ON PAPER THE WINDOW HOLDS THE CHOSEN COLOUR'S PICTURE, NOT THE 3D. A browser

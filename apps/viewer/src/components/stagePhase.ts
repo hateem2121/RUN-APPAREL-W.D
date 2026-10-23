@@ -30,6 +30,15 @@ export type PosterReason =
    * ("3D coming soon", owner decision 2026-10-08). Not a fault, so it reports nothing.
    */
   | 'coming-soon'
+  /**
+   * A search robot's page (the Worker embedded the payload, src/lib/embeddedPayload.ts): the
+   * garment's picture, and no 3D file fetched at all. Search Console, 23 Oct 2026: of 1,520 crawl
+   * requests in 90 days, half were page resources fetched while rendering, the models are
+   * 3.5–9.9 MB each, and seven garments sat "Discovered – currently not indexed", which Google
+   * defines as a crawl rescheduled because it "was expected to overload the site". Not a fault,
+   * so it reports nothing and says nothing.
+   */
+  | 'crawler'
 
 export type StagePhase =
   /** Downloading and decoding. The readout is showing real bytes. */
