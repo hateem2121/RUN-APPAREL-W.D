@@ -9,6 +9,8 @@
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Off, as before wrangler 4.150.0 made uploading them the default (why: apps/cms/wrangler.jsonc).
+  "upload_source_maps": false,
   // Internal-only worker: no public routes, no workers.dev, no preview URLs.
   "workers_dev": false,
   "preview_urls": false,
