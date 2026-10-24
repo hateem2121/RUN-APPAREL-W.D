@@ -2350,8 +2350,10 @@ the owner gave on 2026-09-30; the comment above them in `guides.ts` records whic
 
 `scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
-The four buyer pages, the guides index and seven of the nine guides are in it (2026-10-24);
-`/guides/cost-to-start-an-activewear-brand` and `/guides/pakistan-vs-china-vs-turkey` are not yet.
+The four buyer pages, the guides index and all nine guides are in it (2026-10-24), and
+`apps/cms/src/publicSecurityProbe.test.ts` fails when a fixed page in `PUBLIC_PAGE_SOURCES`
+(`apps/cms/publicViewerHeaders.mjs`) is missing from it: the cost and country guides went
+unprobed for sixteen days because the test's own lists were copied from the probe.
 
 ### The company pages, FAQ and glossary (since 2026-10-07)
 
