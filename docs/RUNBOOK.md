@@ -195,6 +195,26 @@ staging resources (never the live ones): `run-apparel-viewer-db-staging` (D1),
 worker via a `[env.staging]` block in `apps/cms/wrangler.jsonc`, then add a CI job
 that deploys to staging on demand for validation before promoting to production.
 
+## The website shows an old copy of a page
+
+Since 2026-10-24 the website's pages, `sitemap.xml`, `llms.txt`, `robots.txt` and the garment
+data are kept in Workers Cache, a store shared by every Cloudflare data centre, in front of the
+CMS Worker's `SitePages` entrypoint (`apps/cms/worker.mjs`, `apps/cms/pageCache.mjs`).
+
+- **A CMS save reaches every page within about a minute.** Every save of a product, a picture or
+  the site settings writes a new content version, and the store's keys include it.
+- **A deploy starts an empty store**, which the CI step "Post-deploy warm-up of the shared page
+  store" fills straight away (`scripts/warm-shared-store.mjs`; its log says how many pages came
+  from the store on the second pass).
+- **To empty the store by hand**, save anything in the CMS, or redeploy. ⚠️ The zone's
+  **Caching → Purge** button does NOT touch it: Workers Cache belongs to the Worker, not the zone.
+- **To see whether a page came from the store**, read its `Server-Timing` header with a plain
+  GET: `page-cache;desc="hit"` (the store), `"miss"` (just drawn) or `"skip"` (drawn and
+  deliberately not kept: an error page, a page drawn from the fallbacks).
+- **To switch the store off**, set `"SitePages": { …, "cache": { "enabled": false } }` in
+  `apps/cms/wrangler.jsonc` and deploy, or roll back to a version from before 2026-10-24: a
+  rollback restores that version's cache setting too.
+
 ## Undoing a bad deploy (rollback)
 
 Until 2026-08-08 this runbook had no rollback section at all — the deploy gates

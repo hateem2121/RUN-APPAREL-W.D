@@ -1589,6 +1589,17 @@ jobs:
         # Now eleven: 37 s measured, all green, and a fake twelfth row exits 1.
         run: node scripts/smoke-live-products.mjs "$API_BASE"
 
+      # The shared page store starts empty for each new Worker version (Workers Cache keys by
+      # version), so the first buyer to open each page after a deploy would wait while it is drawn:
+      # home page opens were at p90 2,338 ms in the 7 days to 2026-10-24. This asks once for every
+      # website page in the live sitemap, llms.txt, robots.txt and each garment's data, then asks
+      # again and prints how many the store answered. It never fails the deploy (a 403/429/503 from
+      # a runner is inconclusive). Before the security probe, so the probe meets a full store, and
+      # before IndexNow, so Bing's crawl does too.
+      - name: Post-deploy warm-up of the shared page store
+        timeout-minutes: 5
+        run: node scripts/warm-shared-store.mjs https://wear-run.com
+
       # The per-garment link preview is produced by an HTMLRewriter in
       # apps/viewer/worker/index.ts, and HTMLRewriter does not exist under vitest —
       # so the unit tests cover every decision and NOTHING covers the rewrite. This
