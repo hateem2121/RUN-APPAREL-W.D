@@ -106,12 +106,16 @@ describe('UnavailableState', () => {
   })
 
   it('offers both contact routes, and deliberately does NOT link the catalogue', () => {
-    const settings: ViewerSiteSettings = {
+    // `catalogueUrl` left the type and the payload on 2026-10-25 (retired in place), but an answer
+    // cached before then still carries it, so the settings here still hold one: going through a
+    // variable lets the old field ride along, exactly as it does in such an answer.
+    const cachedBeforeRetirement = {
       ...DEFAULT_SITE_SETTINGS,
       email: 'sales@example.com',
       whatsappNumber: '+441234567890',
       catalogueUrl: 'https://example.com/catalogue',
     }
+    const settings: ViewerSiteSettings = cachedBeforeRetirement
     render(<UnavailableState settings={settings} />)
 
     const hrefs = [...host.querySelectorAll<HTMLAnchorElement>('a')].map(
@@ -127,8 +131,8 @@ describe('UnavailableState', () => {
     // ⚠️ THE NEGATIVE HALF IS THE POINT, and it is why this assertion exists at all.
     // Owner decision 2026-09-04: no page may hand a visitor the catalogue, because
     // these pages are indexed and the catalogue is a 54 MB B2B PDF. `catalogueUrl`
-    // is STILL in the payload and still in this component's props, so nothing about
-    // the types stops someone rendering it again — only this line does. It was
+    // is no longer sent (2026-10-25), but a cached answer can still carry it, and
+    // nothing at run time stops someone rendering it again — only this line does. It was
     // previously asserted the other way round (`toBe(true)`), so the decision would
     // silently revert if this were merely deleted rather than inverted.
     expect(hrefs.some((h) => h.includes('example.com/catalogue'))).toBe(false)

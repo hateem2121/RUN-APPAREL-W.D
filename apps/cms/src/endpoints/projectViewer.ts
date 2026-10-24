@@ -252,9 +252,10 @@ export function buildViewerResponse(
         cameraTarget: String(product.cameraTarget ?? 'auto auto auto'),
         defaultFieldOfView: String(product.defaultFieldOfView ?? '30deg'),
       },
-      catalogueUrl: String(
-        product.catalogueUrl ?? settings.catalogueUrl ?? DEFAULT_SITE_SETTINGS.catalogueUrl,
-      ),
+      // No `catalogueUrl`, here or in `siteSettings` below: retired in place (owner, 2026-10-24).
+      // The column and the hidden admin field stay (dropping a column rebuilds the table on D1);
+      // nothing has read it since the "Catalogue" button went on 2026-09-04, and its default
+      // address answers 410.
       retiredMessage: String(product.retiredMessage ?? ''),
     },
     colourways,
@@ -265,7 +266,6 @@ export function buildViewerResponse(
       companyName: String(settings.companyName ?? DEFAULT_SITE_SETTINGS.companyName),
       email: String(settings.email ?? DEFAULT_SITE_SETTINGS.email),
       whatsappNumber: String(settings.whatsappNumber ?? DEFAULT_SITE_SETTINGS.whatsappNumber),
-      catalogueUrl: String(settings.catalogueUrl ?? DEFAULT_SITE_SETTINGS.catalogueUrl),
       temporaryWordmark: String(
         settings.temporaryWordmark ?? DEFAULT_SITE_SETTINGS.temporaryWordmark,
       ),

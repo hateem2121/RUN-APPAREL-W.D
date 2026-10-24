@@ -21,11 +21,25 @@ describe('SiteSettings global', () => {
     'companyName',
     'email',
     'whatsappNumber',
-    'catalogueUrl',
     'temporaryWordmark',
     'footerLine',
     'legalLine',
   ] as const)('starts %s where the site falls back to when the CMS is unreachable', (key) => {
     expect(defaults.get(key)).toBe(DEFAULT_SITE_SETTINGS[key])
+  })
+
+  // Retired in place (owner, 2026-10-24): the column is NOT NULL, so the field and its default
+  // stay, hidden; it is no longer published, so it has no fallback to agree with.
+  it('keeps the retired catalogue link, hidden, with its old default', () => {
+    const field = (
+      SiteSettings.fields as {
+        name?: string
+        defaultValue?: unknown
+        admin?: { hidden?: boolean }
+      }[]
+    ).find((f) => f.name === 'catalogueUrl')
+    expect(field?.defaultValue).toBe('https://wear-run.help/catalogue')
+    expect(field?.admin?.hidden).toBe(true)
+    expect(DEFAULT_SITE_SETTINGS).not.toHaveProperty('catalogueUrl')
   })
 })

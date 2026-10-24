@@ -67,19 +67,13 @@ export const SiteSettings: GlobalConfig = {
       type: 'text',
       required: true,
       defaultValue: 'https://wear-run.help/catalogue',
-      // The third of the three catalogue fields corrected 2026-09-05. This one
-      // carried no label and no description at all, so it rendered as "Catalogue
-      // Url" with nothing to say it is inert — quieter than the other two and
-      // misleading in the same way.
-      label: 'Catalogue link (not shown on the website)',
-      // It had no validate at all before this change (decided 2026-09-11, live from the
-      // merge that deploys it). The public API emits this value, so a private document
-      // link must never save here.
+      // ⚠️ RETIRED IN PLACE (owner, 2026-10-24), like the same field on Products: hidden, no
+      // longer published (endpoints/projectViewer.ts), and KEPT, because its column is NOT NULL
+      // and a column drop rebuilds the table on D1. Its default address answers 410. The
+      // validator stays (decided 2026-09-11) in case the field is ever shown again.
+      label: 'Catalogue link (retired)',
       validate: validateCatalogueUrl,
-      admin: {
-        description:
-          'Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.',
-      },
+      admin: { hidden: true },
     },
     {
       name: 'logo',
