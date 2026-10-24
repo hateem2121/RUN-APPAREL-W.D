@@ -9,10 +9,15 @@
  * 346 ms for Next alone and 161 ms more for the CMS. The 60-second memory cache in
  * src/lib/content.ts cannot help, because it lives inside the copy that has just started.
  *
- * WHAT. worker.mjs keeps each finished public page in Cloudflare's cache (the Cache API: one
- * store per data centre) and answers the next visitor from that copy. A copy answered this
- * way never loads Next or the CMS, because OpenNext imports its server only when a request
- * needs it (`await import(".../handler.mjs")` in .open-next/worker.js).
+ * WHAT. worker.mjs keeps each finished public page, and since 2026-10-24 the sitemap, llms.txt
+ * and robots.txt, in Cloudflare's Workers Cache in front of its SitePages entrypoint: a store
+ * shared by every data centre in two tiers, which answers without running the Worker and joins
+ * simultaneous misses into one drawing. Until 2026-10-24 it used the Cache API, one store per
+ * data centre, so after every deploy the first visitor in each data centre waited (home page
+ * opens, 7 days to 2026-10-24: p75 799 ms, p90 2,338 ms). A copy answered from the store never
+ * loads Next or the CMS. ⚠️ A LOCAL PREVIEW DOES NOT KEEP ANYTHING: measured 2026-10-24, a page
+ * fetched again 5 s later in `opennextjs-cloudflare preview` was drawn again. Only the live
+ * site can show a hit (Server-Timing `page-cache;desc="hit"`).
  *
  * ⚠️ THE COPY IS KEPT BEFORE THE SCRIPT GUARD STAMPS IT. worker.mjs stamps every answer, kept
  * or fresh, with its own nonce, so no visitor's nonce is ever served twice (cspNonce.mjs).
@@ -106,9 +111,108 @@ export const KEPT_RENDER_HEADERS = Object.freeze({
   'user-agent': 'RUN APPAREL page cache',
 })
 
-/** The request a kept page is drawn from: the visitor's address and nothing else of theirs. */
-export function keptRenderRequest(request) {
-  return new Request(request.url, { method: 'GET', headers: KEPT_RENDER_HEADERS })
+/**
+ * The request a kept page is drawn from: the visitor's address and nothing else of theirs.
+ * `cf` carries the shared store's key (sharedCacheKey) on the call into SitePages.
+ */
+export function keptRenderRequest(request, cf) {
+  const init = { method: 'GET', headers: KEPT_RENDER_HEADERS }
+  return new Request(request.url, cf ? { ...init, cf } : init)
+}
+
+/**
+ * The key in the SHARED store (Workers Cache in front of worker.mjs's SitePages entrypoint,
+ * 2026-10-24). It replaces the path and query in Workers Cache's own key, which already holds
+ * the Worker version; the deploy is named here too so a copy can never cross deploys even if
+ * cross-version caching were switched on (a page from the last build asks for script files
+ * that no longer exist).
+ *
+ * ⚠️ IT NAMES THE HOST because Workers Cache leaves the host out of its key ("a request to
+ * /api/users/42 hits the same cached entry whether it came in through api.example.com …",
+ * developers.cloudflare.com/workers/cache/cache-keys, updated 12 Oct 2026), and this Worker
+ * answers on five hostnames: the admin host's robots.txt must never be served on the site.
+ */
+export function sharedCacheKey(url, deployVersion, contentVersion) {
+  const { hostname, pathname } = new URL(url)
+  const deploy = encodeURIComponent(deployVersion)
+  const content = encodeURIComponent(contentVersion)
+  return `/__kept/${hostname}/${deploy}/${content}${pathname}`
+}
+
+/**
+ * The generated text files kept like the pages (W1-A, 2026-10-24). Measured that week in Workers
+ * logs: /sitemap.xml took a median 966 ms and 595 ms of processor time, redrawn on every request,
+ * because only HTML was kept. Each file's check proves it arrived whole.
+ * /.well-known/ai-catalog.json is NOT one of them: it is a deliberate 404
+ * (apps/viewer/worker/notFound.ts), and nothing under /.well-known is kept.
+ */
+const WHOLE_FILE = Object.freeze({
+  '/sitemap.xml': (text) => /<\/urlset>\s*$/.test(text) && text.includes('<loc>'),
+  '/llms.txt': (text) => text.startsWith('# '),
+  '/robots.txt': (text) => /^User-agent:/im.test(text) && /^Sitemap:/im.test(text),
+})
+
+export const KEPT_FILES = Object.freeze(Object.keys(WHOLE_FILE))
+
+/** May this request for one of the generated files be answered from the shared store? */
+export function keptFileRequest(request) {
+  if (request.method !== 'GET') return false
+  const url = new URL(request.url)
+  if (url.hostname !== SITE_HOST || url.search !== '') return false
+  if (!Object.hasOwn(WHOLE_FILE, url.pathname)) return false
+  if (REQUEST_HEADERS_NEVER_KEPT.some((name) => request.headers.has(name))) return false
+  return !SIGNED_IN_OR_DRAFT.test(request.headers.get('cookie') ?? '')
+}
+
+/** Did this generated file arrive whole? A cut-off sitemap must not be served for a day. */
+export function wholeFile(pathname, text) {
+  return Object.hasOwn(WHOLE_FILE, pathname) && WHOLE_FILE[pathname](text)
+}
+
+/** May this generated file's answer be kept? Same rules as a page, but text or XML. */
+export function keepableFile(response) {
+  if (response.status !== 200 || response.body === null) return false
+  if (response.headers.has('set-cookie')) return false
+  if ((response.headers.get('vary') ?? '').includes('*')) return false
+  const encoding = (response.headers.get('content-encoding') ?? 'identity').toLowerCase()
+  const type = response.headers.get('content-type') ?? ''
+  return encoding === 'identity' && /^(?:text\/plain|application\/xml|text\/xml)\b/.test(type)
+}
+
+/**
+ * Where a copy holds the answer's own Cache-Control while the store obeys the kept lifetime.
+ * robots.txt asks browsers for 5 minutes and the sitemap for none; servedHeaders restores it.
+ */
+export const BROWSER_CACHE_CONTROL = 'x-run-browser-cache-control'
+
+/**
+ * SitePages's own verdict on each answer: `yes` (given the kept lifetime) or `no` (sent out
+ * `no-store`). Without it a miss and a refusal look the same from outside, locally and in Workers
+ * logs. servedHeaders removes it before the visitor sees the answer.
+ */
+export const KEPT_MARK = 'x-run-kept'
+
+/**
+ * When SitePages drew a kept copy (epoch ms). Cloudflare's docs do not say whether a loopback
+ * answer carries `Cf-Cache-Status` (measured locally 2026-10-24: it carried neither that nor
+ * `Age`), so the age of the drawing is what tells a stored copy from a fresh one. A fresh
+ * drawing is read the moment it arrives; anything older than STORED_AFTER_MS came from the store.
+ */
+export const DRAWN_AT = 'x-run-drawn-at'
+const STORED_AFTER_MS = 2_000
+
+/**
+ * Did the shared store answer this (`Cf-Cache-Status`, or an `Age` it added), did SitePages draw
+ * it (`miss`), or did SitePages refuse to keep it (`skip`: not whole, drawn from fallbacks, not a
+ * 200, or personal)?
+ */
+export function storeState(headers, now = Date.now()) {
+  if (headers.get(KEPT_MARK) === 'no') return 'skip'
+  const status = (headers.get('cf-cache-status') ?? '').toUpperCase()
+  if (['HIT', 'STALE', 'UPDATING', 'REVALIDATED'].includes(status)) return 'hit'
+  if (Number(headers.get('age') ?? '0') > 0) return 'hit'
+  const drawnAt = Number(headers.get(DRAWN_AT))
+  return drawnAt > 0 && now - drawnAt > STORED_AFTER_MS ? 'hit' : 'miss'
 }
 
 /** The cache key: the page, the deploy that drew it, and the content it was drawn from. */
@@ -137,18 +241,42 @@ export function wholePage(html) {
  * The headers kept with a copy: Next's own, with a lifetime the Cache API obeys. No validator
  * is kept, so the cache can never answer a visitor's conditional request with a bare 304.
  */
-export function keptHeaders(headers) {
+export function keptHeaders(headers, now = Date.now()) {
   const out = new Headers(headers)
+  const own = out.get('cache-control')
+  if (own) out.set(BROWSER_CACHE_CONTROL, own)
   out.set('cache-control', `public, max-age=${PAGE_CACHE_SECONDS}`)
+  out.set(KEPT_MARK, 'yes')
+  out.set(DRAWN_AT, String(now))
   for (const name of ['set-cookie', 'etag', 'last-modified', 'content-length']) out.delete(name)
+  return out
+}
+
+/**
+ * An answer the store must not keep (not whole, drawn from fallbacks, a redirect, an error):
+ * `no-store` makes Workers Cache bypass it, and the answer's own rule rides along for the browser.
+ */
+export function unkeptHeaders(headers) {
+  const out = new Headers(headers)
+  const own = out.get('cache-control')
+  out.delete(BROWSER_CACHE_CONTROL)
+  if (own) out.set(BROWSER_CACHE_CONTROL, own)
+  out.set('cache-control', 'no-store')
+  out.set(KEPT_MARK, 'no')
   return out
 }
 
 /** A kept copy's headers, made a page's again: the cache's bookkeeping removed. */
 export function servedHeaders(headers) {
   const out = new Headers(headers)
-  for (const name of ['age', 'expires', 'cf-cache-status', 'etag', 'last-modified']) {
-    out.delete(name)
+  const bookkeeping = ['age', 'expires', 'cf-cache-status', 'etag', 'last-modified']
+  for (const name of [...bookkeeping, KEPT_MARK, DRAWN_AT]) out.delete(name)
+  if (out.has(BROWSER_CACHE_CONTROL)) {
+    out.set('cache-control', out.get(BROWSER_CACHE_CONTROL))
+    out.delete(BROWSER_CACHE_CONTROL)
+  } else if (out.get('cache-control') === `public, max-age=${PAGE_CACHE_SECONDS}`) {
+    // The store's lifetime, never the browser's.
+    out.delete('cache-control')
   }
   return out
 }

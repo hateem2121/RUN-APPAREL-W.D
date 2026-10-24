@@ -1,8 +1,9 @@
 /**
  * The site's Worker entry: OpenNext's generated handler, wrapped by the script guard
- * (SE-04, decided 2026-09-18, live from the merge that deploys it), with the stored page
- * cache in front of it (polish X15, 2026-10-04) and the garment data kept the same way
- * (viewerApiCache.mjs, 2026-10-07).
+ * (SE-04, decided 2026-09-18, live from the merge that deploys it), with the shared page
+ * store in front of it (Workers Cache on the SitePages entrypoint, 2026-10-24; it replaced
+ * polish X15's per-data-centre cache of 2026-10-04) and the garment data kept in the Cache
+ * API (viewerApiCache.mjs, 2026-10-07).
  *
  * Every decision is in cspNonce.mjs, pageCache.mjs and viewerApiCache.mjs (pure, tested). This
  * file only applies them.
@@ -25,20 +26,27 @@
  * drop one a later OpenNext adds. `export *` never re-exports `default`, which this file
  * replaces.
  */
+import { WorkerEntrypoint } from 'cloudflare:workers'
 import openNext from './.open-next/worker.js'
 import { newNonce, nonceable, noncedHeaders } from './cspNonce.mjs'
 import { filmResponse, servesFilm } from './filmRange.mjs'
 import {
   CONTENT_VERSION_KEY,
+  KEPT_FILES,
+  keepableFile,
   keepablePage,
   keepablePageRequest,
+  keptFileRequest,
   keptHeaders,
   keptRenderRequest,
   keptRenders,
-  pageCacheKey,
   pageCacheTiming,
   servedHeaders,
+  sharedCacheKey,
+  storeState,
+  unkeptHeaders,
   VERSION_CACHE_SECONDS,
+  wholeFile,
   wholePage,
 } from './pageCache.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
@@ -48,53 +56,66 @@ import { forwardsToViewer } from './viewerForward.mjs'
 export * from './.open-next/worker.js'
 
 /**
- * The kept copy of this page (pageCache.mjs) as `{ key, hit }`, or `{ key }` when there is none
- * yet, or null when the request is not one to keep or the cache cannot be read.
- * ⚠️ EVERY FAILURE FALLS THROUGH TO DRAWING THE PAGE. The cache may make a page faster; it
- * must never be the reason a page fails.
+ * THE SHARED PAGE STORE (W1-A, 2026-10-24). Cloudflare's Workers Cache sits in front of this
+ * entrypoint only (wrangler.jsonc `exports`): a hit is answered from a two-tier cache shared by
+ * every data centre without running it, and simultaneous misses are collapsed into one drawing.
+ * It replaced the per-data-centre Cache API, which made the first visitor in each data centre
+ * wait after every deploy (home page opens, 7 days to 2026-10-24: p75 799 ms, p90 2,338 ms).
+ *
+ * It draws from the CLEAN request the default entrypoint hands it (keptRenderRequest) and decides
+ * whether Cloudflare may keep the answer: only a whole page or file drawn from the database, with
+ * nothing personal in it, gets the kept lifetime; anything else goes out `no-store` and is never
+ * stored. It never stamps a nonce: the default entrypoint does that on every answer, hit or miss.
  */
-async function findKeptPage(request, env) {
-  if (!keepablePageRequest(request)) return null
-  const deploy = env.CF_VERSION_METADATA?.id
-  if (!deploy || !env.SITE_CACHE) return null
-  try {
-    const content =
-      (await env.SITE_CACHE.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS })) ?? 'none'
-    const key = pageCacheKey(request.url, deploy, content)
-    const copy = await caches.default.match(key)
-    if (copy?.status !== 200 || copy.body === null) return { key }
-    return {
-      key,
-      hit: new Response(copy.body, { status: 200, headers: servedHeaders(copy.headers) }),
+export class SitePages extends WorkerEntrypoint {
+  async fetch(request) {
+    const render = { spoiled: false }
+    const response = await keptRenders().run(render, () =>
+      openNext.fetch(request, this.env, this.ctx),
+    )
+    const { pathname } = new URL(request.url)
+    const file = KEPT_FILES.includes(pathname)
+    const init = { status: response.status, statusText: response.statusText }
+    if (!(file ? keepableFile(response) : keepablePage(response))) {
+      return new Response(response.body, { ...init, headers: unkeptHeaders(response.headers) })
     }
-  } catch (error) {
-    console.error('[page-cache] could not read the cache; drawing the page', error)
-    return null
+    const text = await response.text()
+    const whole = !render.spoiled && (file ? wholeFile(pathname, text) : wholePage(text))
+    const headers = whole ? keptHeaders(response.headers) : unkeptHeaders(response.headers)
+    return new Response(text, { ...init, headers })
   }
 }
 
 /**
- * Keep a copy of a page while it streams to the visitor. It is stored only once it has
- * arrived whole, and only if its content came from the database rather than the fallbacks
- * (`render.spoiled`, set by src/lib/content.ts).
+ * This request's answer from the shared store as `{ response, state }`, or null when the request
+ * is not one to keep or the store cannot be reached (`next start`, a local preview without
+ * ctx.exports, a missing binding).
+ * ⚠️ EVERY FAILURE FALLS THROUGH TO DRAWING THE PAGE. The store may make a page faster; it must
+ * never be the reason a page fails.
  */
-function keepWhenWhole(response, key, render, ctx) {
-  const [toVisitor, toKeep] = response.body.tee()
-  const headers = keptHeaders(response.headers)
-  ctx.waitUntil(
-    new Response(toKeep)
-      .text()
-      .then((html) => {
-        if (render.spoiled || !wholePage(html)) return
-        return caches.default.put(key, new Response(html, { status: 200, headers }))
-      })
-      .catch((error) => console.error('[page-cache] could not keep the page', error)),
-  )
-  return new Response(toVisitor, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
-  })
+async function fromSharedStore(request, env, ctx) {
+  if (!keepablePageRequest(request) && !keptFileRequest(request)) return null
+  const deploy = env.CF_VERSION_METADATA?.id
+  const store = ctx?.exports?.SitePages
+  if (!deploy || !env.SITE_CACHE || !store) return null
+  try {
+    const content =
+      (await env.SITE_CACHE.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS })) ?? 'none'
+    const cacheKey = sharedCacheKey(request.url, deploy, content)
+    // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
+    const kept = await store.fetch(keptRenderRequest(request, { cacheKey }))
+    return {
+      state: storeState(kept.headers),
+      response: new Response(kept.body, {
+        status: kept.status,
+        statusText: kept.statusText,
+        headers: servedHeaders(kept.headers),
+      }),
+    }
+  } catch (error) {
+    console.error('[page-cache] could not reach the shared store; drawing the page', error)
+    return null
+  }
 }
 
 export default {
@@ -118,23 +139,10 @@ export default {
     )
     if (garmentData) return garmentData
 
-    // The stored page cache (pageCache.mjs): answer from a kept copy, or draw the page and keep it.
-    const kept = await findKeptPage(request, env)
-    let response
-    let cacheState = null
-    if (kept?.hit) {
-      response = kept.hit
-      cacheState = 'hit'
-    } else if (kept) {
-      // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
-      const render = { spoiled: false }
-      const clean = keptRenderRequest(request)
-      response = await keptRenders().run(render, () => openNext.fetch(clean, env, ctx))
-      cacheState = 'miss'
-      if (keepablePage(response)) response = keepWhenWhole(response, kept.key, render, ctx)
-    } else {
-      response = await openNext.fetch(request, env, ctx)
-    }
+    // The shared page store (SitePages above): Cloudflare answers a kept copy, or SitePages draws.
+    const kept = await fromSharedStore(request, env, ctx)
+    const response = kept ? kept.response : await openNext.fetch(request, env, ctx)
+    const cacheState = kept ? kept.state : null
     try {
       // The old addresses and www. answer redirects, which OpenNext sends bare
       // (redirectHeaders.mjs). A redirect is never a page, so the nonce guard has no work.
