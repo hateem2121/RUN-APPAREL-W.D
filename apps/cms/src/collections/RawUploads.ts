@@ -355,7 +355,7 @@ export const RawUploads: CollectionConfig = {
       // REQUIRED, and the old description ("Helps you find the result
       // afterwards") badly undersold it. `apps/shrink/src/index.ts` only writes
       // `fileColours` back when this is set, `deriveVariantsVerified` can never
-      // be true without it (publishGating.ts:130), and so a
+      // be true without it (publishGating.ts:215, `deriveVariantsVerified`), and so a
       // `single-glb-variants` product whose upload had no target product CAN
       // NEVER BE PUBLISHED — with an error message that talks about the Colours
       // tab, nowhere near the actual cause. Optional here meant "quietly
