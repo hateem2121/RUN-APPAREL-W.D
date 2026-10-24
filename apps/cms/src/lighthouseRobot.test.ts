@@ -482,37 +482,48 @@ describe('each measuring machine has its own floors', () => {
     )
   })
 
-  // The 2026-09-26 re-baseline (lighthouse-robot.mjs, "RE-TAKEN 2026-09-26"): the worst median
-  // of nine scheduled runs after the speed work, and the floors it replaced.
-  const WORST_MEDIAN_2026_09_25 = {
-    'home.mobile': 0.88,
-    'home.desktop': 0.99,
-    'products.mobile': 0.88,
-    'products.desktop': 0.99,
-    'contact.mobile': 0.94,
-    'contact.desktop': 0.99,
-    'viewer-rxps-wine.mobile': 0.42,
-    'viewer-rxps-wine.desktop': 0.58,
-  }
-  const FLOORS_2026_09_17 = {
-    'home.mobile': 0.79,
-    'home.desktop': 0.95,
-    'products.mobile': 0.83,
+  // The 2026-10-24 re-baseline (lighthouse-robot.mjs, "RE-TAKEN 2026-10-24"): the worst job
+  // median of the 30 normal jobs of 2026-10-18..24 on ubuntu-26.04, read with
+  // scripts/lighthouse-baseline.mjs. It replaced the 2026-09-25 baseline (worst medians home
+  // 0.88 / 0.99, products 0.88 / 0.99, contact 0.94 / 0.99, viewer 0.42 / 0.58), taken on the
+  // runner image GitHub retired on 2026-09-29, whose floors failed 15 of those 30 jobs.
+  const WORST_MEDIAN_2026_10_24 = {
+    'home.mobile': 0.86,
+    'home.desktop': 0.96,
+    'products.mobile': 0.77,
     'products.desktop': 0.96,
-    'contact.mobile': 0.91,
+    'contact.mobile': 0.86,
     'contact.desktop': 0.98,
-    'viewer-rxps-wine.mobile': 0.4,
-    'viewer-rxps-wine.desktop': 0.49,
+    'viewer-rxps-wine.mobile': 0.38,
+    'viewer-rxps-wine.desktop': 0.46,
   }
 
-  it('runner floors sit under every median measured after the speed work, and never loosen', () => {
+  it('each runner floor is its baseline worst median minus the recorded margin, no more, no less', () => {
+    // The owner's rule (2026-09-26, re-applied 2026-10-24): 0.03 under on a phone, 0.01 on a
+    // computer. Pinning equality stops a floor drifting either way without a new baseline —
+    // loosening one number to get a green run is exactly what this header forbids.
     const floors = PERFORMANCE_FLOORS['github-runner'] as Record<string, number>
-    for (const [key, worst] of Object.entries(WORST_MEDIAN_2026_09_25)) {
-      expect(floors[key], `${key} would fail the site as it is today`).toBeLessThanOrEqual(worst)
-      expect(floors[key], `${key} was loosened`).toBeGreaterThanOrEqual(
-        FLOORS_2026_09_17[key as keyof typeof FLOORS_2026_09_17],
+    expect(Object.keys(floors).sort()).toEqual(Object.keys(WORST_MEDIAN_2026_10_24).sort())
+    for (const [key, worst] of Object.entries(WORST_MEDIAN_2026_10_24)) {
+      const margin = key.endsWith('.mobile') ? 0.03 : 0.01
+      expect(floors[key], `${key} is not its baseline minus ${margin}`).toBeCloseTo(
+        worst - margin,
+        10,
       )
     }
+  })
+
+  it('NEGATIVE CONTROL: that rule check sees a floor moved by one hundredth either way', () => {
+    const floors = PERFORMANCE_FLOORS['github-runner'] as Record<string, number>
+    const moved = (delta: number) =>
+      Object.entries(WORST_MEDIAN_2026_10_24).some(([key, worst]) => {
+        const value = key === 'contact.mobile' ? (floors[key] as number) + delta : floors[key]
+        const margin = key.endsWith('.mobile') ? 0.03 : 0.01
+        return Math.abs((value as number) - (worst - margin)) > 1e-9
+      })
+    expect(moved(0)).toBe(false)
+    expect(moved(-0.01)).toBe(true)
+    expect(moved(0.01)).toBe(true)
   })
 
   it('catches a phone home page slowing to 0.82, which the 2026-09-17 floor let through', () => {
@@ -523,7 +534,7 @@ describe('each measuring machine has its own floors', () => {
       runs: runs(5, { scores: { ...HOME_SCORES, performance: 0.82 }, below: HOME_BELOW }),
     })
     expect(verdict.failures.join()).toMatch(
-      /performance median 0\.820 is below the github-runner floor of 0\.85/,
+      /performance median 0\.820 is below the github-runner floor of 0\.83/,
     )
   })
 
@@ -813,11 +824,12 @@ describe('a robot that measured too little says so', () => {
 /**
  * F-06: Lighthouse rounds each score to two places, and with four valid runs the median is the
  * mean of the middle two — so run 36983128382 printed "performance median 0.85 is below the
- * github-runner floor of 0.85" for a median of 0.845.
+ * github-runner floor of 0.85" for a median of 0.845. (Values moved down 0.02 with the
+ * 2026-10-24 floor of 0.83, so the median still FAILS and is still between two scores.)
  */
 describe('a failing median is printed exactly', () => {
-  it('a median of 0.845 is printed as 0.845', () => {
-    const scored = [0.74, 0.84, 0.85, 0.9].map((performance) =>
+  it('a median of 0.825 is printed as 0.825', () => {
+    const scored = [0.72, 0.82, 0.83, 0.9].map((performance) =>
       readRun(lhr({ scores: { ...HOME_SCORES, performance }, below: HOME_BELOW })),
     )
     const verdict = judgePage({
@@ -827,7 +839,7 @@ describe('a failing median is printed exactly', () => {
       runs: [...scored, readRun(null)],
     })
     expect(verdict.failures.join()).toMatch(
-      /performance median 0\.845 is below the github-runner floor of 0\.85/,
+      /performance median 0\.825 is below the github-runner floor of 0\.83/,
     )
   })
 
