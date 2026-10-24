@@ -135,8 +135,11 @@ describe('the Worker sends the film folder here, and only it', () => {
   const config = readFileSync(join(CMS, 'wrangler.jsonc'), 'utf8')
 
   it('worker.mjs answers film requests before OpenNext sees them', () => {
-    const film = worker.indexOf('servesFilm(')
-    const openNext = worker.indexOf('openNext.fetch(')
+    // Measured inside the default handler: SitePages (above it, 2026-10-24) also draws with
+    // openNext.fetch, but only for requests the default handler hands it after the film check.
+    const handler = worker.slice(worker.indexOf('export default {'))
+    const film = handler.indexOf('servesFilm(')
+    const openNext = handler.indexOf('openNext.fetch(')
     expect(film, 'worker.mjs never asks servesFilm').toBeGreaterThan(-1)
     expect(film, 'the film check comes after OpenNext').toBeLessThan(openNext)
     expect(worker).toContain('return filmResponse(request, env)')

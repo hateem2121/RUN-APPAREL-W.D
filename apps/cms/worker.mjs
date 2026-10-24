@@ -50,7 +50,7 @@ import {
   wholePage,
 } from './pageCache.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
-import { serveViewerApi } from './viewerApiCache.mjs'
+import { keepableApiRequest, keepApiAnswer, serveViewerApi } from './viewerApiCache.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
 export * from './.open-next/worker.js'
@@ -69,6 +69,10 @@ export * from './.open-next/worker.js'
  */
 export class SitePages extends WorkerEntrypoint {
   async fetch(request) {
+    // The garment data on the admin host (viewerApiCache.mjs decides what is kept there).
+    if (keepableApiRequest(request)) {
+      return keepApiAnswer(request, (clean) => openNext.fetch(clean, this.env, this.ctx))
+    }
     const render = { spoiled: false }
     const response = await keptRenders().run(render, () =>
       openNext.fetch(request, this.env, this.ctx),
@@ -103,7 +107,8 @@ async function fromSharedStore(request, env, ctx) {
       (await env.SITE_CACHE.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS })) ?? 'none'
     const cacheKey = sharedCacheKey(request.url, deploy, content)
     // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
-    const kept = await store.fetch(keptRenderRequest(request, { cacheKey }))
+    const cf = { cacheKey }
+    const kept = await store.fetch(keptRenderRequest(request, cf), { cf })
     return {
       state: storeState(kept.headers),
       response: new Response(kept.body, {
@@ -134,9 +139,7 @@ export default {
     // 4.0–4.5 s uncached from Pakistan, ~10 database trips from local-ISB to ENAM). The viewer
     // Worker's `CMS` binding asks for the same address, so a robot's garment page gains too.
     // Its CORS headers are worked out per request there; null = not one to keep, serve as before.
-    const garmentData = await serveViewerApi(request, env, ctx, (clean) =>
-      openNext.fetch(clean, env, ctx),
-    )
+    const garmentData = await serveViewerApi(request, env, ctx)
     if (garmentData) return garmentData
 
     // The shared page store (SitePages above): Cloudflare answers a kept copy, or SitePages draws.
