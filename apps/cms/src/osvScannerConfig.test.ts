@@ -29,8 +29,8 @@ function ignoredVulns(toml: string): { id: string; reason: string }[] {
 /** The distinct advisory ids audit-ci.jsonc allowlists (each entry is "<id>|<path>"). */
 function allowlistedIds(jsonc: string): string[] {
   const list = jsonc.match(/"allowlist"\s*:\s*\[([\s\S]*?)\]/)?.[1] ?? ''
-  const entries = [...list.matchAll(/^\s*"([^"]+)"/gm)].map((m) => m[1])
-  return [...new Set(entries.map((entry) => entry.split('|')[0]))].sort()
+  const entries = [...list.matchAll(/^\s*"([^"]+)"/gm)].flatMap((m) => (m[1] ? [m[1]] : []))
+  return [...new Set(entries.map((entry) => entry.split('|')[0] ?? ''))].sort()
 }
 
 const toml = readFileSync(join(REPO_ROOT, 'osv-scanner.toml'), 'utf8')
