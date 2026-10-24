@@ -17,6 +17,13 @@
   // pages (document-pages.mjs); the two drivers run the phone browser tests; ffmpeg
   // prepares the /products film from the owner's original (build-products-film.mjs).
   "ignoreBinaries": ["gs", "chromedriver", "safaridriver", "ffmpeg"],
+  // infra/apex-404 (the private-PDF-link Worker) has no package.json, so Knip cannot make it a
+  // workspace ("a workspace must have a package.json", knip.dev/features/monorepos-and-workspaces,
+  // read 2026-10-25). It needs none: the "." workspace's default project glob already covers it,
+  // and the tests and scripts that import index.js reach the rest. Measured 2026-10-25 by planting
+  // an unused file, an unused export in manifest.js and one in index.js: all three were reported.
+  // ⚠️ Do NOT add infra/apex-404/index.js to an `entry` list "so Knip sees the Worker": an entry
+  // file's exports are not reported, and the planted export in index.js then went unseen.
   "workspaces": {
     ".": {
       "entry": ["scripts/*.mjs", ".claude/hooks/*.mjs", ".claude/skills/*/*.mjs"],
