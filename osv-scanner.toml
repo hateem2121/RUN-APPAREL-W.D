@@ -1,0 +1,32 @@
+# OSV-Scanner exceptions for pnpm-lock.yaml, the lockfile beside this file. (OSV reads an
+# osv-scanner.toml only from the folder of the lockfile it scans; it does not reach
+# apps/shrink/container/package-lock.json or tools/asset-pipeline's.)
+#
+# WHY IT EXISTS (2026-10-24). OpenSSF Scorecard v5.6.0 (scorecard-action v2.5.0, #240) is
+# the first version to read this lockfile, and its Vulnerabilities check found 12
+# advisories: the public grade fell from 6.8 to 6.0. Nine had fixed releases and were
+# fixed by override in pnpm-workspace.yaml the same day. The three below have no fixed
+# release on the line we can use, and are already excused by the deploy gate,
+# audit-ci.jsonc, with the full reasoning.
+#
+# ⚠️ AUDIT-CI IS THE GUARD, NOT THIS FILE. An entry here ignores the advisory on EVERY
+# path; audit-ci excuses it only on the Lighthouse paths it names, so the deploy still
+# fails if one of these packages ever reaches code the website runs. Never add an id here
+# that audit-ci.jsonc does not allowlist: apps/cms/src/osvScannerConfig.test.ts fails if
+# the two lists differ, in either direction.
+#
+# Format: https://github.com/google/osv-scanner/blob/main/docs/configuration.md (read
+# 2026-10-24). Scorecard's remedy for an advisory that does not affect a project is this
+# file: ossf/scorecard docs/checks.md → Vulnerabilities (v5.6.0).
+
+[[IgnoredVulns]]
+id = "GHSA-jmr9-qjv8-65gv"
+reason = "extract-zip 2.0.1 is its newest release and npm lists no patched version. Reached only through @lhci/cli > lighthouse > puppeteer-core > @puppeteer/browsers: root devDependencies for the CI speed test, never built into the CMS, the viewer or the shrink container. The only archive it unpacks is the Chrome build it downloads from Google's CDN, not one an attacker supplies. Path-scoped in audit-ci.jsonc."
+
+[[IgnoredVulns]]
+id = "GHSA-7pqw-9j4j-h8q3"
+reason = "extract-zip 2.0.1 has no fixed release. Same Lighthouse-only route as GHSA-jmr9-qjv8-65gv; path-scoped in audit-ci.jsonc."
+
+[[IgnoredVulns]]
+id = "GHSA-mrhx-c7xc-m3w5"
+reason = "First fixed in zod 4.6.6, and no zod 3 release is fixed (3.25.76 is the newest 3.x); the repo's own zod 4 resolves to 4.6.7. The zod 3 copy comes from chromium-bidi inside Lighthouse's puppeteer-core, root devDependencies never built into the CMS, the viewer or the shrink container. It validates protocol messages with the Chrome that Lighthouse launches itself; no visitor supplies them. Path-scoped in audit-ci.jsonc."
