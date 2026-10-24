@@ -27,6 +27,7 @@
  */
 
 import { realpathSync } from 'node:fs'
+import { GUIDE_PAGE_SOURCES } from '../apps/cms/publicViewerHeaders.mjs'
 import { gitChangedFiles, indexNowSelection } from './indexnow-paths.mjs'
 
 const DEFAULT_HOST = 'wear-run.com'
@@ -35,6 +36,8 @@ const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
 
 /**
  * Fallback static URLs list if sitemap fetch is offline or unavailable.
+ * The guides come from the site's own list: a hand copy here missed the cost and country
+ * guides from #152 (2026-10-08) until 2026-10-24.
  */
 const CORE_URLS = [
   '/',
@@ -43,14 +46,7 @@ const CORE_URLS = [
   '/custom-activewear-manufacturer',
   '/custom-outerwear-manufacturer',
   '/private-label-casual-wear-manufacturer',
-  '/guides',
-  '/guides/how-a-private-label-order-works',
-  '/guides/3d-garment-reference',
-  '/guides/minimum-order-and-samples',
-  '/guides/garment-printing-methods',
-  '/guides/sportswear-fabrics-and-weights',
-  '/guides/private-label-packaging',
-  '/guides/shipping-and-import-duties',
+  ...GUIDE_PAGE_SOURCES,
   '/contact',
 ]
 
