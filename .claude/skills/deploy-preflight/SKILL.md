@@ -46,6 +46,9 @@ node scripts/backup-d1.mjs
 ```
 
 No arguments means `--remote`, i.e. **production** — that is the one you want here.
+While it runs (about 11 seconds, 2026-10-23), D1 refuses the live site's reads: Cloudflare
+documents that "a running export will block other database requests", and one buyer's request
+failed that way (`docs/BACKUP-RESTORE.md` → "Taking a backup"). Take one export, not several.
 It writes a timestamped `.sql` under `backups/d1/` and needs Cloudflare auth
 (`wrangler login`, or `CLOUDFLARE_API_TOKEN` in the environment).
 
