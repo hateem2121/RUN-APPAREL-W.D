@@ -17,11 +17,6 @@
   // pages (document-pages.mjs); the two drivers run the phone browser tests; ffmpeg
   // prepares the /products film from the owner's original (build-products-film.mjs).
   "ignoreBinaries": ["gs", "chromedriver", "safaridriver", "ffmpeg"],
-  "ignoreIssues": {
-    // Documents the PDF page-part ID format beside the code that builds and parses it.
-    // Every merge redeploys this Worker first, so it is not touched for a tidy-up.
-    "infra/apex-404/manifest.js": ["exports"]
-  },
   "workspaces": {
     ".": {
       "entry": ["scripts/*.mjs", ".claude/hooks/*.mjs", ".claude/skills/*/*.mjs"],

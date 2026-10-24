@@ -21,9 +21,6 @@ export const WIDTHS = Object.freeze([800, 1600, 2400])
 /** `<YYYYMMDD>-<first 8 hex digits of the PDF's MD5>`. */
 export const VERSION_SHAPE = /^\d{8}-[0-9a-f]{8}$/
 
-/** `p` + 3-digit page number + `a` (left half), `b` (right half) or `w` (whole page). */
-export const PART_ID_SHAPE = /^p\d{3}[abw]$/
-
 /** Three digits of page number. */
 export const MAX_PAGES = 999
 
@@ -50,7 +47,9 @@ const isObject = (value) => typeof value === 'object' && value !== null && !Arra
 const positiveWhole = (value) => Number.isInteger(value) && Number(value) > 0
 
 /**
- * The part ids a page must carry, in order.
+ * The part ids a page must carry, in order: `p` + 3-digit page number + `a` (left half),
+ * `b` (right half) or `w` (whole page). (A `PART_ID_SHAPE` regex for this format was exported
+ * here and read by nothing; removed 2026-10-24, this function is the one place that builds ids.)
  *
  * @param {number} number page number, from 1
  * @param {number} count 2 for a split spread, 1 for a whole page
