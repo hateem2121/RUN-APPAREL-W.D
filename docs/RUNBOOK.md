@@ -2350,7 +2350,7 @@ the owner gave on 2026-09-30; the comment above them in `guides.ts` records whic
 
 `scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
-The four buyer pages, the guides index and six of the eight guides are in it (2026-10-24);
+The four buyer pages, the guides index and seven of the nine guides are in it (2026-10-24);
 `/guides/cost-to-start-an-activewear-brand` and `/guides/pakistan-vs-china-vs-turkey` are not yet.
 
 ### The company pages, FAQ and glossary (since 2026-10-07)
