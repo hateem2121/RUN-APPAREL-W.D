@@ -342,8 +342,9 @@ from the `minimumReleaseAge` cooldown, so it is always safe.
 **Node version note.** CI pins **Node 26** since 2026-10-23 (it pinned 24 before; 24 left
 Active LTS on 2026-10-20 and 26 takes over on 2026-10-28, per the Node.js release
 schedule). Local development should match: Homebrew's plain `node` formula is 26. The
-shrink robot's production image stays on `node:24-trixie-slim` until a print-checked
-move. From Node 25 the
+shrink robot's production image moved to `node:26-trixie-slim` on 2026-10-24 (owner's
+decision, four days before 26 became LTS), after a print check recorded in
+`apps/shrink/Dockerfile`. From Node 25 the
 experimental Web Storage API is on by default, defining a global `localStorage` that
 evaluates to `undefined` without `--localstorage-file` and suppressing the one jsdom
 would install. That used to fail 6 tests in `apps/viewer/src/lib/theme.test.ts` while

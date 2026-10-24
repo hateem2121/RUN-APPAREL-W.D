@@ -72,6 +72,7 @@ timeline
 - Two critical security advisories in Next.js are closed ([#223](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/223)).
 - The live check now looks inside every 3D file. Two garments with large files (R-TTP and R-MSS) were skipped without a word; both turned out clean.
 - The runbook, the design notes, the deep-read notes and the website decisions were checked claim by claim against the code: 100 corrections, among them runbook commands that would have failed today and the order steps the site has drawn since 15 October.
+- The shrink robot runs on Node 26 (owner's choice, four days before Node 26 became the long-term-support line). Two real garments came out byte-for-byte identical on Node 24 and Node 26.
 - The live speed check stops failing on GitHub's slower machines: its limits were set before GitHub changed its machines on 29 September, and they failed 15 of the last 30 runs with nothing on the site wrong. Re-measured from those 30 runs (owner's choice); a clear slowdown still fails it.
 - Four security advisories published on 23 October no longer block the deploy: undici, body-parser, happy-dom and zod 4 now use their fixed versions, and the one copy with no fix (zod 3 inside the Lighthouse speed tool) is listed with its reason.
 - Server errors reach Sentry, and the weekly error report no longer counts our own speed robot ([#190](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/190), [#191](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/191)).

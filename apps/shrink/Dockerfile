@@ -10,13 +10,13 @@
 # `--platform linux/amd64`.
 #
 # PINNED BY DIGEST for the same reason `npm ci` replaced `npm install` below: two
-# builds of the same commit must produce the same pipeline. `node:24-slim` is a
+# builds of the same commit must produce the same pipeline. `node:26-trixie-slim` is a
 # moving tag — it picks up Node patch releases and rebuilt system libraries, and
 # sharp links against those. A change in the WebP encoder shows up as printed
 # artwork looking different for no reason anyone can trace to a commit, which is
 # the single hardest class of bug in this repository to attribute.
 # DEPENDABOT PROPOSES DIGEST BUMPS SINCE 2026-10-03 (owner decision): the `docker` block in
-# .github/dependabot.yml opens one at a time, Node 24 only, after a 7-day cooldown. Until
+# .github/dependabot.yml opens one at a time, within the current Node major, after a 7-day cooldown. Until
 # then nothing automated refreshed this digest, and until 2026-08-25 this comment wrongly
 # said Dependabot did. A bump changes the system libraries sharp links against, so look at
 # a rendered garment print before merging one. Do not unpin it to make an update easier.
@@ -42,14 +42,23 @@
 # comparison can see a difference; --quality, --max-texture and --simplify-error did not,
 # because refineFlags rewrites them for a small, texture-heavy export.
 #
-# PINNED-ON: 2026-10-20
+# NODE 26 SINCE 2026-10-24 (owner decision, made knowing Node 26 becomes Active LTS on
+# 2026-10-28 and that Node's releases page says production should use an LTS line). Node
+# 24.22.0 -> 26.12.1 on the same Debian 13 base. Print check the same way as 2026-10-20: both
+# images built for linux/amd64 from this Dockerfile (git archive of HEAD), shrinkFile() run
+# with shrinkFlagsFor() on the canonical rxps export (382,107,380 B, balanced) and APEX FLEX
+# PULLOVER (fidelity). Outputs BYTE-IDENTICAL, SHA-256 equal: pullover 1,886,524 B
+# (9b26c709…), rxps 16,683,676 B (8e0264c5…). Control: `--no-uv-remap` on the pullover gave
+# 2,245,916 B (7ae698e9…), so the comparison sees a change — the same sizes 2026-10-20 measured.
+#
+# PINNED-ON: 2026-10-24
 # ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
 # the pin is older than the refresh window. Base images are rebuilt mainly to pick up
 # operating-system security fixes, so pinning is correct and never refreshing is not —
 # and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
 # pull request as the digest (Dependabot moves only the digest), or the gate is measuring
 # a lie.
-FROM node:24-trixie-slim@sha256:7f486cabe892bff8fef04c0f7da8dba84a560be3e4e2740b7a86afc57ebec315
+FROM node:26-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec
 
 WORKDIR /app
 
