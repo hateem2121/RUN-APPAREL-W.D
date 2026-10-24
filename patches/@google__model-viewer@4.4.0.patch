@@ -1,0 +1,13 @@
+diff --git a/lib/three-components/Renderer.js b/lib/three-components/Renderer.js
+index cf288c8838a8f2b774b849782259fa0d4d9ead10..e9830387a0d433eff0338b63d66fbf65ee96282f 100644
+--- a/lib/three-components/Renderer.js
++++ b/lib/three-components/Renderer.js
+@@ -316,7 +316,7 @@ export class Renderer extends EventDispatcher {
+     copyPixels(scene, width, height) {
+         const context2D = scene.context;
+         if (context2D == null) {
+-            console.log('could not acquire 2d context');
++            // (debug output removed by this repository's patch, visual audit VA-10)
+             return;
+         }
+         context2D.clearRect(0, 0, width, height);

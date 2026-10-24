@@ -248,9 +248,11 @@ describe('the lazy chunks stay lazy', () => {
 
 describe('the model-viewer chunk is quiet (VA-10)', () => {
   /**
-   * `@google/model-viewer` 4.3.1 prints its own debugging — nine `console.log` calls in its library
-   * source, six of them on every garment visit (visual audit VA-10, 2026-10-02). A pnpm patch turns
-   * those calls into comments in the installed package (`pnpm-workspace.yaml` →
+   * `@google/model-viewer` 4.3.1 printed its own debugging — nine `console.log` calls in its library
+   * source, six of them on every garment visit (visual audit VA-10, 2026-10-02). 4.4.0 removed eight
+   * of them itself; a pnpm patch turns the last one (`could not acquire 2d context`) into a comment
+   * in the installed package, and the list below keeps the old messages as a tripwire
+   * (`pnpm-workspace.yaml` →
    * `patchedDependencies`; docs/DEPENDENCY-HOLDS.md). apps/cms/src/modelViewerQuiet.test.ts reads
    * the installed library and the website's build; THIS reads the chunk the garment pages actually
    * ship. It lives in this file because CI runs this file after a real build (`test:preload`); a unit

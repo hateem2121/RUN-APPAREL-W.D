@@ -37,7 +37,9 @@ minimumReleaseAgeExclude:
 overrides:
   sharp: 0.35.5
   tmp: ^0.2.4
-  postcss: ^8.5.23
+  # vite 8.3.5 declares postcss ^8.5.30; an override REPLACES a dependency's own range, so the old
+  # floor (^8.5.23) let the lockfile keep 8.5.28 under it (measured 2026-10-24).
+  postcss: ^8.5.30
   dompurify: ^3.4.17
   brace-expansion@1: ^1.1.20
   brace-expansion@2: ^2.1.6
@@ -73,12 +75,14 @@ allowBuilds:
   sharp: true
   workerd: true
 
-# One local patch, to a library's own source. @google/model-viewer 4.3.1 prints nine debug
-# messages through console.log ("[$updateSource] BAILING OUT EARLY!" and the like), six of them
-# on every garment visit, on the garment pages and the website's home page alike (visual audit
-# VA-10, 2026-10-02). The patch turns those nine statements, and only those, into one-line
-# comments: no line moves, so the library's shipped source maps stay aligned, and its console.warn
-# and console.error (real problem reports) and everything of three.js are untouched.
+# One local patch, to a library's own source. @google/model-viewer prints debug messages through
+# console.log ("[$updateSource] BAILING OUT EARLY!" and the like): nine of them in 4.3.1, six on
+# every garment visit, on the garment pages and the website's home page alike (visual audit VA-10,
+# 2026-10-02). 4.4.0 (2026-10-09, its #5182) removed eight of the nine itself; the one left is
+# "could not acquire 2d context" in lib/three-components/Renderer.js, so the patch is now that one
+# statement, turned into a one-line comment: no line moves, so the library's shipped source maps
+# stay aligned, and its console.warn and console.error (real problem reports) and everything of
+# three.js are untouched.
 # Why a patch and not a bundler rule: pnpm documents it (pnpm.io/cli/patch); Next.js documents
 # removeConsole for "application code (not node_modules)" with no per-package form; a Turbopack
 # loader would cover the website only, and the garment pages build with Vite. One patch reaches
@@ -89,4 +93,4 @@ allowBuilds:
 # upgrade cannot skip it either. How to redo it, and when to delete it: docs/DEPENDENCY-HOLDS.md.
 # apps/cms/src/modelViewerQuiet.test.ts guards it.
 patchedDependencies:
-  '@google/model-viewer@4.3.1': patches/@google__model-viewer@4.3.1.patch
+  '@google/model-viewer@4.4.0': patches/@google__model-viewer@4.4.0.patch
