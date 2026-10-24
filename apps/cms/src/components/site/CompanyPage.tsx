@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { CompanyPage as CompanyContentType } from '../../lib/companyPages'
-import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
+import { SiteClosing } from './ArticleParts'
 
 /**
  * The company pages' closing block: the site's one primary action, and "More about us".
@@ -17,34 +17,22 @@ export function CompanyClosing({ links }: { links: CompanyContentType['links'] }
   return (
     <section className="site-section" data-site-reveal>
       <div className="site-container">
-        <div className="section-head">
-          <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-          <div className="section-head__words">
-            <p className="site-lede">
-              Send the styles, quantities and specs you have — a sketch is enough to start. We reply
-              within 24 hours.
-            </p>
-            <div className="site-actions">
-              <Link className="btn btn--primary" href="/contact#inquiry">
-                {FAMILY_PAGE_ACTION}
-              </Link>
+        <SiteClosing>
+          <nav className="see-also company-closing__more" aria-label="More about us">
+            <div className="see-also__group">
+              <h3 className="product-card__name" id="more-about-us">
+                More about us
+              </h3>
+              <ul className="see-also__list">
+                {links.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href}>{link.name}</Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <nav className="see-also company-closing__more" aria-label="More about us">
-              <div className="see-also__group">
-                <h3 className="product-card__name" id="more-about-us">
-                  More about us
-                </h3>
-                <ul className="see-also__list">
-                  {links.map((link) => (
-                    <li key={link.href}>
-                      <Link href={link.href}>{link.name}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </nav>
-          </div>
-        </div>
+          </nav>
+        </SiteClosing>
       </div>
     </section>
   )

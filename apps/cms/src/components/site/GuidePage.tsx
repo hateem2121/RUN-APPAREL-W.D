@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Fragment } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
-import { FAMILY_PAGE_ACTION, familyPageFor } from '../../lib/familyPages'
+import { familyPageFor } from '../../lib/familyPages'
 import {
   GUIDES_INDEX,
   type Guide,
@@ -18,6 +18,7 @@ import {
 import { formatPostDate } from '../../lib/journal'
 import type { ProductCard } from '../../lib/projectPublic'
 import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
+import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
@@ -393,20 +394,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <div className="section-head">
-            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-            <div className="section-head__words">
-              <p className="site-lede">
-                Send the styles, quantities and specs you have — a sketch is enough to start. We
-                reply within 24 hours.
-              </p>
-              <div className="site-actions">
-                <Link className="btn btn--primary" href="/contact#inquiry">
-                  {FAMILY_PAGE_ACTION}
-                </Link>
-              </div>
-            </div>
-          </div>
+          <SiteClosing />
           <GuideLinks current={guide.path} />
         </div>
       </section>
