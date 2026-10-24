@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { TRAINING_ONLY_UAS } from '../htmlLimitedBots.mjs'
 import { REDIRECT_HEADERS, TARGETS, evaluate } from '../../../scripts/public-security-probe.mjs'
 import { NONCED_PAGE_CACHE_CONTROL, newNonce, withNonce } from '../cspNonce.mjs'
-import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
+import { PUBLIC_PAGE_CSP, PUBLIC_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 
 /**
  * The public-side security probe (decided 2026-09-18, live from the merge that deploys it):
@@ -191,9 +191,11 @@ describe('TARGETS', () => {
       '/glossary',
       '/guides',
       '/guides/3d-garment-reference',
+      '/guides/cost-to-start-an-activewear-brand',
       '/guides/garment-printing-methods',
       '/guides/how-a-private-label-order-works',
       '/guides/minimum-order-and-samples',
+      '/guides/pakistan-vs-china-vs-turkey',
       '/guides/private-label-packaging',
       '/guides/shipping-and-import-duties',
       '/guides/sportswear-fabrics-and-weights',
@@ -416,6 +418,9 @@ describe('the script guard, seen from outside (SE-04)', () => {
         '/guides/private-label-packaging',
         '/guides/shipping-and-import-duties',
         '/guides/sportswear-fabrics-and-weights',
+        // The cost and country guides, live since #152 (2026-10-08), probed since 2026-10-24.
+        '/guides/cost-to-start-an-activewear-brand',
+        '/guides/pakistan-vs-china-vs-turkey',
         // The company pages, added after #141 went live (2026-10-07).
         '/policies',
         '/policies/workplace-conduct',
@@ -448,6 +453,21 @@ describe('the script guard, seen from outside (SE-04)', () => {
       ].sort(),
     )
     expect(targets.filter((t) => t.kind === 'admin-csp')).toHaveLength(1)
+  })
+
+  // The two lists above were copied from the probe, so they agreed with it while the cost and
+  // country guides went unprobed for sixteen days (#152, 2026-10-08 → 2026-10-24). This one reads
+  // the site's own list instead: PUBLIC_PAGE_SOURCES is what gives every public page its policy,
+  // so a page on it that the probe skips is a page whose script guard nobody watches live.
+  // `:slug` entries are patterns, not addresses, and are left out.
+  it('watches every fixed public page the site serves (PUBLIC_PAGE_SOURCES)', () => {
+    const probed = new Set(
+      (TARGETS as { kind: string; url: string }[])
+        .filter((t) => t.kind === 'page-csp')
+        .map((t) => new URL(t.url).pathname),
+    )
+    const fixed = (PUBLIC_PAGE_SOURCES as string[]).filter((path) => !path.includes(':'))
+    expect(fixed.filter((path) => !probed.has(path))).toEqual([])
   })
 })
 
