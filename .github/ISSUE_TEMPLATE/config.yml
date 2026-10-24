@@ -16,9 +16,11 @@ contact_links:
     url: https://github.com/hateem2121/RUN-APPAREL-W.D/blob/main/docs/RUNBOOK.md
     about: "Rollback, migrations, secrets and the cached-404 trap. Run `node scripts/apex-probe.mjs` and `node scripts/smoke-live-products.mjs` first — they say what is actually failing."
 
+  # Pointed at docs/OPEN-ISSUE-ARTWORK.md until 2026-10-24: that case closed on 2026-08-05,
+  # so the link sent people to a finished investigation instead of the steps that help.
   - name: A garment looks wrong (artwork, colour, missing model)
-    url: https://github.com/hateem2121/RUN-APPAREL-W.D/blob/main/docs/OPEN-ISSUE-ARTWORK.md
-    about: "Printed artwork, colour naming and the pipeline settings that damage them. Include the product slug and colourway — both are printed on physical QR tags."
+    url: https://github.com/hateem2121/RUN-APPAREL-W.D/blob/main/docs/guide/when-something-looks-wrong.md
+    about: "What to check first, in pictures. Still wrong? Use the 'A garment looks wrong' form with the product and colour — both are printed on the QR tag."
 
   - name: How do I upload a garment?
     url: https://github.com/hateem2121/RUN-APPAREL-W.D/blob/main/docs/FIRST-GARMENT-UPLOAD.md
