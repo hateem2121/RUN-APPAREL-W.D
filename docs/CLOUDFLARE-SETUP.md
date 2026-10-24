@@ -72,7 +72,8 @@ npx wrangler secret put PAYLOAD_SECRET     # paste a long random string (openssl
 ```
 
 Review `wrangler.jsonc` vars: `CMS_PUBLIC_URL`, `PUBLIC_MEDIA_BASE_URL`,
-`VIEWER_ALLOWED_ORIGINS`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME`.
+`VIEWER_ALLOWED_ORIGINS`. (`EMAIL_FROM_ADDRESS` and `EMAIL_FROM_NAME` are optional overrides, no
+longer set there: the code defaults are `noreply@wear-run.help` and `RUN APPAREL`.)
 
 `VIEWER_API_CACHE_SECONDS` was removed on 2026-08-18 (audit L2). It fed the
 public viewer API's `Cache-Control`, and that header has no observable effect
@@ -95,8 +96,9 @@ status. Reference for rebuilding from scratch:
 1. Create a free account at [resend.com](https://resend.com) and **verify a
    sending domain** (add the DNS records it lists to the `wear-run.help` zone;
    skip Resend's optional DMARC record — the zone already has one).
-2. Set `EMAIL_FROM_ADDRESS` in `wrangler.jsonc` vars to an address on that domain
-   (e.g. `noreply@wear-run.help`) and `EMAIL_FROM_NAME` to `RUN APPAREL`.
+2. The "From" identity defaults to `noreply@wear-run.help` and `RUN APPAREL`
+   (`apps/cms/src/payload.config.ts`). For another address on the verified domain, add
+   `EMAIL_FROM_ADDRESS` (and `EMAIL_FROM_NAME`) to `wrangler.jsonc` vars.
 3. Create an API key and store it as a worker secret:
    `npx wrangler secret put RESEND_API_KEY`, then redeploy.
 4. Test: `/admin` → *Forgot password* for a real user → confirm the email lands.

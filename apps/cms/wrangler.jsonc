@@ -204,12 +204,12 @@
     // also load inside the website at /products/<product>/<colour>, first on
     // wear-run.help to prove it, then on wear-run.com. Each is our own page, and the
     // media bucket's CORS policy lists the same origins.
-    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://wear-run.help,https://wear-run.com",
-    // Transactional email "From" identity (password resets / notifications). The
-    // address's domain must be verified in Resend. The API key itself is a
-    // secret: `wrangler secret put RESEND_API_KEY` — email is off until it is set.
-    "EMAIL_FROM_ADDRESS": "noreply@wear-run.help",
-    "EMAIL_FROM_NAME": "RUN APPAREL"
+    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://wear-run.help,https://wear-run.com"
+    // Not here: EMAIL_FROM_ADDRESS and EMAIL_FROM_NAME (the transactional "From" identity). Until
+    // 2026-10-25 they were set here to the very values src/payload.config.ts already defaults to
+    // (noreply@wear-run.help, RUN APPAREL), so this copy only had to be kept in step. Set either
+    // one as a var here to override the default. The Resend API key is a secret
+    // (`wrangler secret put RESEND_API_KEY`); email is off until it is set.
   }
   // Secrets (never in this file): wrangler secret put PAYLOAD_SECRET
   // Custom domain cms.wear-run.help is declared in this file's `routes` array, so CI's `wrangler deploy` attaches it (docs/CLOUDFLARE-SETUP.md has the dashboard side)
