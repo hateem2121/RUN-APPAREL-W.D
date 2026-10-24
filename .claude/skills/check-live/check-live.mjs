@@ -43,7 +43,9 @@
 const LEAK_NEEDLES = ['Stretch-Warp', 'SeamLinePairList', 'D:/New File', 'PhysicalPropertyName']
 
 const API = 'https://cms.wear-run.help/api/public/viewer'
-const VIEWER = 'https://viewer.wear-run.help'
+// The garment page itself (since the 2026-09-28 domain move), not viewer.wear-run.help,
+// which only forwards here: probing the forward also tested the redirect.
+const VIEWER = 'https://wear-run.com/products'
 
 /**
  * The live products. Slugs are printed on physical QR tags — never guess one.
@@ -53,6 +55,7 @@ const VIEWER = 'https://viewer.wear-run.help'
  * nothing. One list means a rename fails everything at once, loudly, instead of
  * one gate going quietly green.
  */
+import { pathToFileURL } from 'node:url'
 import { LIVE_PRODUCTS as PRODUCTS } from '../../../scripts/live-products.mjs'
 
 const full = process.argv.includes('--full')
@@ -110,33 +113,77 @@ async function probeAsset(url, label) {
  * image built before the fix would re-introduce it silently. This is the only check
  * that looks at what is actually SERVED.
  *
- * Reads the JSON chunk only — 512 KB of a multi-megabyte file, one ranged GET. A
- * GLB is a 12-byte header then [uint32 length][uint32 type][payload], so the JSON
- * length is at offset 12 and the JSON itself starts at 20.
+ * Reads the JSON chunk only, never the binary one. A GLB is a 12-byte header, then
+ * chunks of [uint32 chunkLength][uint32 chunkType][chunkData]; the first chunk MUST be
+ * JSON, so its length is at offset 12, its type at 16 and the JSON starts at 20
+ * (glTF 2.0 spec, "GLB File Format Specification", read 2026-10-24).
+ *
+ * ⚠️ IT READ A FIXED 512 KB UNTIL 2026-10-24, AND WENT SILENT PAST IT. A JSON chunk
+ * larger than that failed to parse, fell to a string scan for the leak needles, and on
+ * a clean scan printed NOTHING, so copyright and root extras were never checked. Two
+ * live garments were over it that day: r-ttp (552 KB) and r-mss (1,284 KB), the only
+ * two of 41 without this verdict line. It now reads the chunk length from the first
+ * read and fetches exactly the rest, and every path ends in an ok or a FAIL.
  */
+const FIRST_READ = 524_288
+const GLB_MAGIC = 0x46546c67 // "glTF"
+const JSON_CHUNK = 0x4e4f534a // "JSON"
+
 async function probeModelPrivacy(url) {
   let bytes
   try {
-    const response = await fetch(url, { headers: { Range: 'bytes=0-524287' } })
+    const response = await fetch(url, { headers: { Range: `bytes=0-${FIRST_READ - 1}` } })
     if (!response.ok) return // probeAsset already reported the status.
     bytes = new Uint8Array(await response.arrayBuffer())
-  } catch {
+  } catch (error) {
+    fail(`model header unreadable: ${error.message}`)
     return
   }
-  if (bytes.byteLength < 20) return
+  if (bytes.byteLength < 20) {
+    fail(`model header is ${bytes.byteLength} bytes — not a GLB`)
+    return
+  }
 
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  if (view.getUint32(0, true) !== GLB_MAGIC || view.getUint32(16, true) !== JSON_CHUNK) {
+    fail('model does not start with a GLB header and a JSON chunk')
+    return
+  }
   const jsonLength = view.getUint32(12, true)
-  const end = Math.min(20 + jsonLength, bytes.byteLength)
+  let json = bytes.subarray(20, Math.min(20 + jsonLength, bytes.byteLength))
+  if (json.byteLength < jsonLength) {
+    try {
+      const rest = await fetch(url, {
+        headers: { Range: `bytes=${20 + json.byteLength}-${19 + jsonLength}` },
+      })
+      if (!rest.ok) throw new Error(`HTTP ${rest.status}`)
+      const tail = new Uint8Array(await rest.arrayBuffer())
+      const whole = new Uint8Array(json.byteLength + tail.byteLength)
+      whole.set(json)
+      whole.set(tail, json.byteLength)
+      json = whole
+    } catch (error) {
+      fail(
+        `model JSON chunk is ${(jsonLength / 1024).toFixed(0)} KB and the rest of it could ` +
+          `not be read (${error.message}) — copyright and extras NOT checked`,
+      )
+      return
+    }
+  }
+
   let doc
   try {
-    doc = JSON.parse(new TextDecoder().decode(bytes.subarray(20, end)))
+    doc = JSON.parse(new TextDecoder().decode(json))
   } catch {
-    // A truncated read is normal on a large JSON chunk; fall back to a string scan
-    // so the check still catches the leak rather than going quiet.
-    const text = new TextDecoder().decode(bytes.subarray(20, end))
+    // The whole chunk is in hand now, so a parse failure is a broken file, not a short
+    // read. Still scan for the needles, so a leak is named rather than just "broken".
+    const text = new TextDecoder().decode(json)
     const found = LEAK_NEEDLES.filter((needle) => text.includes(needle))
-    if (found.length > 0) fail(`model LEAKS CLO factory data: ${found.join(', ')}`)
+    fail(
+      found.length > 0
+        ? `model LEAKS CLO factory data: ${found.join(', ')}`
+        : `model JSON chunk (${(jsonLength / 1024).toFixed(0)} KB) does not parse`,
+    )
     return
   }
 
@@ -150,71 +197,86 @@ async function probeModelPrivacy(url) {
   } else if (!doc.asset?.copyright) {
     fail('model has no asset.copyright — it was not processed by the current pipeline')
   } else {
-    ok(`model carries no CLO metadata, copyright "${doc.asset.copyright}"`)
+    ok(
+      `model carries no CLO metadata, copyright "${doc.asset.copyright}" ` +
+        `(JSON chunk ${(jsonLength / 1024).toFixed(0)} KB)`,
+    )
   }
 }
 
-for (const { slug, colourway, modelComingSoon } of PRODUCTS) {
-  console.log(`\n=== ${slug} ===`)
+// Exported so a planted-file control can drive the probe against a local server
+// (2026-10-24); the sweep below runs only when this file is the program. Not
+// `import.meta.main`: it arrived in Node 24.2, and `engines` allows any Node 24.
+export { probeModelPrivacy }
+const isProgram =
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href
+if (isProgram) await sweep()
 
-  let payload
-  try {
-    const response = await fetch(`${API}/${slug}/${colourway}`)
-    if (!response.ok) {
-      fail(`API ${API}/${slug}/${colourway} -> HTTP ${response.status}. The product is not served.`)
+async function sweep() {
+  for (const { slug, colourway, modelComingSoon } of PRODUCTS) {
+    console.log(`\n=== ${slug} ===`)
+
+    let payload
+    try {
+      const response = await fetch(`${API}/${slug}/${colourway}`)
+      if (!response.ok) {
+        fail(
+          `API ${API}/${slug}/${colourway} -> HTTP ${response.status}. The product is not served.`,
+        )
+        continue
+      }
+      payload = await response.json()
+    } catch (error) {
+      fail(`API unreachable: ${error.message}`)
       continue
     }
-    payload = await response.json()
-  } catch (error) {
-    fail(`API unreachable: ${error.message}`)
-    continue
+
+    const product = payload.product ?? {}
+    const colourways = Array.isArray(payload.colourways) ? payload.colourways : []
+    ok(`API 200 — ${product.productCode ?? '(no code)'}, ${colourways.length} colourways`)
+
+    // Not a failure: the API falls back deliberately. But a silent fallback is how a
+    // stranded colourway tab goes unnoticed, so it is always printed.
+    if (payload.requestedColourwayUnavailable) {
+      console.log(
+        `  note  "${colourway}" is not a colourway of this product; the API fell back` +
+          `${payload.fallbackMessage ? ` — ${payload.fallbackMessage}` : ''}`,
+      )
+    }
+
+    const noModel = typeof product.glbUrl !== 'string' || product.glbUrl.length === 0
+    if (noModel && modelComingSoon && product.modelComingSoon === true) {
+      // "3D coming soon" (2026-10-08): the LIST allows no model and the payload agrees, so the
+      // page shows its pictures with a calm note. The poster below is still fetched.
+      ok('3D coming soon — no model, by the list and by the payload')
+    } else if (noModel) {
+      fail('no glbUrl on the product — there is nothing for the viewer to render')
+    } else {
+      await probeAsset(product.glbUrl, 'model')
+      await probeModelPrivacy(product.glbUrl)
+    }
+
+    const poster = product.posterFallback?.url ?? payload.selectedColourway?.poster?.url
+    if (typeof poster === 'string') await probeAsset(poster, 'poster')
+
+    // Deliberately last, and deliberately labelled. The SPA returns 200 for ANY path,
+    // so this line is not evidence the garment renders — it is evidence a web server
+    // answered. uptime.yml believing otherwise is why this whole script exists.
+    try {
+      const response = await fetch(`${VIEWER}/${slug}/${colourway}`)
+      console.log(
+        `  info  viewer HTTP ${response.status} (SPA: any path returns 200 — NOT proof it renders)`,
+      )
+      await response.arrayBuffer().catch(() => {})
+    } catch (error) {
+      fail(`viewer unreachable: ${error.message}`)
+    }
   }
 
-  const product = payload.product ?? {}
-  const colourways = Array.isArray(payload.colourways) ? payload.colourways : []
-  ok(`API 200 — ${product.productCode ?? '(no code)'}, ${colourways.length} colourways`)
-
-  // Not a failure: the API falls back deliberately. But a silent fallback is how a
-  // stranded colourway tab goes unnoticed, so it is always printed.
-  if (payload.requestedColourwayUnavailable) {
-    console.log(
-      `  note  "${colourway}" is not a colourway of this product; the API fell back` +
-        `${payload.fallbackMessage ? ` — ${payload.fallbackMessage}` : ''}`,
-    )
-  }
-
-  const noModel = typeof product.glbUrl !== 'string' || product.glbUrl.length === 0
-  if (noModel && modelComingSoon && product.modelComingSoon === true) {
-    // "3D coming soon" (2026-10-08): the LIST allows no model and the payload agrees, so the
-    // page shows its pictures with a calm note. The poster below is still fetched.
-    ok('3D coming soon — no model, by the list and by the payload')
-  } else if (noModel) {
-    fail('no glbUrl on the product — there is nothing for the viewer to render')
-  } else {
-    await probeAsset(product.glbUrl, 'model')
-    await probeModelPrivacy(product.glbUrl)
-  }
-
-  const poster = product.posterFallback?.url ?? payload.selectedColourway?.poster?.url
-  if (typeof poster === 'string') await probeAsset(poster, 'poster')
-
-  // Deliberately last, and deliberately labelled. The SPA returns 200 for ANY path,
-  // so this line is not evidence the garment renders — it is evidence a web server
-  // answered. uptime.yml believing otherwise is why this whole script exists.
-  try {
-    const response = await fetch(`${VIEWER}/${slug}/${colourway}`)
-    console.log(
-      `  info  viewer HTTP ${response.status} (SPA: any path returns 200 — NOT proof it renders)`,
-    )
-    await response.arrayBuffer().catch(() => {})
-  } catch (error) {
-    fail(`viewer unreachable: ${error.message}`)
-  }
+  console.log(
+    problems === 0
+      ? '\nAll live checks passed.'
+      : `\n${problems} PROBLEM${problems === 1 ? '' : 'S'} — see FAIL lines above.`,
+  )
+  process.exit(problems === 0 ? 0 : 1)
 }
-
-console.log(
-  problems === 0
-    ? '\nAll live checks passed.'
-    : `\n${problems} PROBLEM${problems === 1 ? '' : 'S'} — see FAIL lines above.`,
-)
-process.exit(problems === 0 ? 0 : 1)

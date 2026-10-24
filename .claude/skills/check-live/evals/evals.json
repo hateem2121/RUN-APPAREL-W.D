@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Is the site working right now?",
-      "expected_output": "Uses the check-live skill on its own (it is model-invocable). Runs node .claude/skills/check-live/check-live.mjs, not a curl of the viewer page. Does not treat a 200 from viewer.wear-run.help as proof: the viewer is an SPA."
+      "expected_output": "Uses the check-live skill on its own (it is model-invocable). Runs node .claude/skills/check-live/check-live.mjs, not a curl of the viewer page. Does not treat a 200 from the garment page (wear-run.com/products/<product>/<colour>) as proof: the viewer is an SPA."
     },
     {
       "id": 2,

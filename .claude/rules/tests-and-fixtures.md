@@ -74,3 +74,13 @@ as broken code and is a browser that never launched. Install once —
 🟡 **Known CI flake: `apps/cms/e2e/fontSwap.spec.ts:312`** ("/contact at 768px … fonts arrive
 late") failed on PRs #111 and #114 (2026-10-01) and passed on a re-run of the failed job.
 Re-run it before debugging it.
+
+🟡 **Known local flake: `apps/viewer/e2e/consent.spec.ts:221`** (viewer-firefox, "the footer
+link reopens the question without leaving the garment") missed its 5 s wait for the cookie
+panel once in a full uninterrupted run on 2026-10-24 (1,935 passed), then passed 10/10 with
+`--repeat-each=10` and in the run before. Load, not code. Re-run it alone before debugging it.
+
+🟡 **A full e2e run that took hours means the Mac slept.** 2026-10-24: 7 viewer-firefox tests
+died (`JSWindowActorChild cannot send`, juggler "Cannot find object") in a 4.0-hour run;
+`pmset -g log` showed "Low Power Sleep" at 1% battery from 06:29 to 10:13. All 7 passed alone.
+Read the power log before reading the failures.
