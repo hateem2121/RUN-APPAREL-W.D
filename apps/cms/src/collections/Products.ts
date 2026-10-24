@@ -464,7 +464,7 @@ export const Products: CollectionConfig = {
               label: 'Web address word',
               validate: (value: unknown) => {
                 if (typeof value !== 'string' || value.trim() === '') {
-                  return 'Every product needs a web address word, e.g. n001.'
+                  return 'Every product needs a web address word, e.g. rxps.'
                 }
                 /**
                  * ⚠️ THIS ONE STAYS STRICT, deliberately, while `productCode` above
@@ -481,7 +481,7 @@ export const Products: CollectionConfig = {
                 const suggestion = deriveSlug(value)
                 return (
                   `“${value}” can’t be used in a web address. Use lowercase letters, numbers ` +
-                  `and hyphens only — e.g. n001.` +
+                  `and hyphens only — e.g. rxps.` +
                   (suggestion ? ` Did you mean “${suggestion}”?` : '')
                 )
               },
