@@ -2139,8 +2139,9 @@ Notes learned during the cutover, still true:
 - Immediately after deploy/domain changes, expect a few minutes of DNS/route
   propagation (transient 404s or stale resolution) before judging health.
 
-The `VIEWER_DEPLOY_TARGET` repository variable no longer does anything; it can be
-deleted in GitHub → Settings → Secrets and variables → Actions.
+The `VIEWER_DEPLOY_TARGET` repository variable did nothing after that and was deleted on
+2026-10-24 (owner's decision; its value was `worker`). Nothing reads it: only this note, the
+history in `docs/HARDENING-LOG.md` and a comment in `ci.yml` still name it.
 
 ## Link previews — what a shared link looks like
 

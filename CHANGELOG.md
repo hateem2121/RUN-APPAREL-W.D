@@ -70,6 +70,7 @@ timeline
 - A garment page left open during an update reloads once and shows the garment in 3D, instead of a notice ([#217](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/217)).
 - Safari's bottom strip on iPhone matches the page again ([#211](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/211)).
 - Two critical security advisories in Next.js are closed ([#223](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/223)).
+- The live check now looks inside every 3D file. Two garments with large files (R-TTP and R-MSS) were skipped without a word; both turned out clean.
 - The live speed check stops failing on GitHub's slower machines: its limits were set before GitHub changed its machines on 29 September, and they failed 15 of the last 30 runs with nothing on the site wrong. Re-measured from those 30 runs (owner's choice); a clear slowdown still fails it.
 - Four security advisories published on 23 October no longer block the deploy: undici, body-parser, happy-dom and zod 4 now use their fixed versions, and the one copy with no fix (zod 3 inside the Lighthouse speed tool) is listed with its reason.
 - Server errors reach Sentry, and the weekly error report no longer counts our own speed robot ([#190](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/190), [#191](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/191)).

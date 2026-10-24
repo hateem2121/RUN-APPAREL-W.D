@@ -120,6 +120,14 @@ node scripts/backup-d1.mjs --local
 node scripts/backup-r2.mjs --local
 ```
 
+🟡 **A production D1 export briefly takes the live site's database away.** Cloudflare: "A
+running export will block other database requests" (D1 import/export docs, read 2026-10-24).
+Measured 2026-10-23: the local export started 11:50:14 UTC and was written 11 seconds later, and
+at 11:50:21 a buyer's `GET /api/public/viewer/r-aj/indigo` failed with *"Currently processing a
+long-running export"* (Sentry CMS-A). Every export can do this — the nightly job, the deploy's
+pre-migration backup and this command — so run a manual one only when you need it, and expect a
+Sentry error if a visitor arrives during those seconds.
+
 Automated: `.github/workflows/nightly-backup.yml` runs the D1 export nightly (copied to R2, and uploaded as a 90-day GitHub artifact ENCRYPTED to the owner's backup key) and the R2 mirror weekly (also encrypted). See [DEPLOY-BY-CLICKING.md](DEPLOY-BY-CLICKING.md) for the one-time secret setup, and "The backup key" below.
 
 ## The backup key (since 2026-09-10)
