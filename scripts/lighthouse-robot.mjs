@@ -152,7 +152,21 @@ export const EXPECTED_BELOW_ONE = {}
  * 0.01 on a computer, and never below its 2026-09-17 value: nine medians is a small sample,
  * and the ten-percent chance that a tenth lands below the worst of nine is a false alarm, not
  * a regression. The owner chose this on 2026-09-26 ("keep the look, lock in today") over
- * trimming the site's motion to chase a phone 100. `lighthouseRobot.test.ts` pins both bounds.
+ * trimming the site's motion to chase a phone 100.
+ *
+ * ⚠️ RE-TAKEN 2026-10-24 ON TODAY'S RUNNER, BY THE SAME RULE, WITHOUT THE 2026-09-17 BOUND
+ * (owner's choice, "option B"). On 2026-09-29 the runner moved to ubuntu-26.04 and Chrome
+ * 153 (155 by 2026-10-18), and the phone medians stepped down 0.01–0.03 with nothing on the
+ * site changed (investigation F-01/F-02): the 2026-09-25 floors then failed 15 of the 30
+ * normal jobs of 2026-10-18..24 — exactly the 15 GitHub recorded — and keeping the
+ * 2026-09-17 floors as a lower bound still failed 12. Baseline: those 30 jobs (post-deploy +
+ * the weekly run, first attempts only, no manual dispatches; five runs per page each, paint
+ * stalls 0%, cpu benchmark ~2,400), read with `scripts/lighthouse-baseline.mjs`. Worst medians:
+ * home 0.86 / 0.96, products 0.77 / 0.96, contact 0.86 / 0.98, viewer 0.38 / 0.46 (phone /
+ * computer); each floor is that minus 0.03 / 0.01. In the sample no job fails; held out one
+ * at a time, 1 of 30 would fail on an unchanged site. The price: phone floors sit 0.07–0.13
+ * under a typical job, so only a clear slowdown fails here — a small one shows on the Mac's
+ * `local` floors. `lighthouseRobot.test.ts` pins every floor to this rule and this baseline.
  *
  * ⚠️ Keyed by page name. A different default product is a different page with a different
  * model, so its missing floor FAILS the robot rather than borrowing this one — measure it.
@@ -171,14 +185,14 @@ const LOCAL_FLOORS = {
 export const PERFORMANCE_FLOORS = {
   local: LOCAL_FLOORS,
   'github-runner': {
-    'home.mobile': 0.85,
-    'home.desktop': 0.98,
-    'products.mobile': 0.85,
-    'products.desktop': 0.98,
-    'contact.mobile': 0.91,
-    'contact.desktop': 0.98,
-    'viewer-rxps-wine.mobile': 0.4,
-    'viewer-rxps-wine.desktop': 0.57,
+    'home.mobile': 0.83,
+    'home.desktop': 0.95,
+    'products.mobile': 0.74,
+    'products.desktop': 0.95,
+    'contact.mobile': 0.83,
+    'contact.desktop': 0.97,
+    'viewer-rxps-wine.mobile': 0.35,
+    'viewer-rxps-wine.desktop': 0.45,
   },
 }
 
