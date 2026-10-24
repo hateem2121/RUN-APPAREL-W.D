@@ -66,7 +66,7 @@ change. That is treated as a defect and fixed (see `FA-N-09`, `FA-W-01`), not as
 reason to rebuild the page.
 
 **Guard:** `apps/cms/src/publicSite.test.ts` asserts that the gallery's product links
-resolve to the viewer host, and that every page building such a link renders the
+resolve to the garment pages (`wear-run.com/products/…`, built from `GARMENT_PAGES`; a separate viewer host until 2026-09-28), and that every page building such a link renders the
 caption once per link — **"Opens the 3D viewer ↗"**, the owner's wording of 2026-09-17.
 `apps/cms/e2e/viewerCue.spec.ts` checks every such link on `/products` and `/`, in both
 themes, the caption's contrast included. Until 2026-09-17 only the host was tested, so
@@ -283,7 +283,7 @@ reference the other, and both will be registered in Search Console.
 
 **Decision: leave the file at its current size.**
 
-1,491 lines, roughly half of them comments recording incidents that each cost a
+1,491 lines (1,634 on 2026-10-24), roughly half of them comments recording incidents that each cost a
 session. The file drives the live 3D garment on every QR scan. Splitting it trades
 a real risk to a working production surface for a tidiness gain no visitor sees,
 and the comments are load-bearing: the root `CLAUDE.md` explicitly records that
@@ -413,7 +413,7 @@ robots.txt was prepending nine `Disallow` lines and a `Content-Signal: ai-train=
 served file until the owner turned that feature off on 2026-09-04, so reading the file in
 the repo told you nothing about what a crawler actually received.
 
-Twenty-four AI crawlers are now named explicitly, with the same `Allow: /` and the same
+Twenty-four AI crawlers (27 by 2026-10-24) are now named explicitly, with the same `Allow: /` and the same
 two refusals as everyone else. The policy has not changed; it is now legible in the served
 file rather than inferred from a wildcard.
 

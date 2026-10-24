@@ -101,9 +101,9 @@ const REPORT_ONLY = process.argv.includes('--report')
  * has to be a deliberate act. What changed is that they stopped being counted as
  * part of the shell, because they are not part of it. Both budgets went DOWN.
  *
- * ⚠️ DO NOT DELETE THE DECODERS TO "FIX" THIS. apps/viewer/CLAUDE.md records the
- * draco decoder-location fix as UNVERIFIED and keeps the path open for a future
- * draco garment; KTX2/basis was refused for quality, not removed. Deleting them
+ * ⚠️ DO NOT DELETE THE DECODERS TO "FIX" THIS. The draco decoder-location fix is
+ * verified live since 2026-09-24 (.claude/rules/viewer-model-viewer.md), and the path
+ * stays open for a future draco garment; KTX2/basis was refused for quality, not removed. Deleting them
  * turns a re-enable into a debugging session.
  *
  * MEASURED 2026-09-04 on the committed build (`--report`), gzip level 9:

@@ -30,10 +30,10 @@ on:
     # missed runs. Still far past ordinary skew, and it still caps how long a dead
     # monitor can stay unnoticed at a quarter of the 23 hours it managed last time.
     #
-    # ⚠️ The same measurement puts the worst observed uptime gap at 6.1 h, which is
-    # TWICE the 3 h budget in WATCHED below — so the premise "each budget is
-    # several times the workflow's own interval" no longer holds for uptime.yml.
-    # Deliberately not changed here; see docs/RUNBOOK.md → "Uptime alerts".
+    # The same measurement put the worst observed uptime gap at 6.1 h, twice the 3 h
+    # budget uptime.yml had then. Since 2026-09-29 uptime.yml runs every 6 hours and its
+    # budget in WATCHED below is 24 h, so the "several times its own interval" premise
+    # holds again; see docs/RUNBOOK.md → "Uptime alerts".
     - cron: '43 */6 * * *'
   workflow_dispatch:
 

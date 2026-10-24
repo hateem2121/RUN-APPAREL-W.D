@@ -30,7 +30,7 @@
  *   3. A named set of tables is non-empty. A syntactically perfect dump of an empty
  *      database is the failure that looks most like success.
  *
- * No new dependency: `node:sqlite` ships with Node 24, which this repo already pins.
+ * No new dependency: `node:sqlite` ships with Node 24 and later (CI pins 26, `engines` allows 24).
  */
 
 import { DatabaseSync } from 'node:sqlite'
