@@ -13,7 +13,7 @@ body:
     attributes:
       label: Which page?
       description: Copy the web address from the top of your browser.
-      placeholder: https://viewer.wear-run.help/rxps/wine
+      placeholder: https://wear-run.com/products/rxps/wine
     validations:
       required: true
   - type: textarea

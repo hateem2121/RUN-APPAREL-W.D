@@ -80,7 +80,9 @@ heredoc; humans have to remember.
 
 Run **all** of these before you push. Three of them are invisible from the
 workspace root, and "it passed locally" has failed here twice because of exactly
-that.
+that. `node .claude/skills/gates/run-gates.mjs` runs every gate in CI's order, including
+the docs index, the CMS Worker build and its size limit, which this list leaves out, and
+stops at the first failure.
 
 ```bash
 npx --yes pnpm@12.6.0 install --frozen-lockfile   # the lockfile moves often
@@ -107,9 +109,11 @@ in `.github/workflows/deploy-shrink.yml` until that date.
 
 ⚠️ **`e2e` IS ITS OWN REQUIRED CHECK**, split out of `verify` on 2026-08-20, and it
 was missing from this list. It is the slowest gate in CI (21.5 min on one machine on
-2026-09-27, split across five machines since 2026-09-29) and among the
-fastest locally (~45 s, 352 tests, four engines) — so run it here, not there. Two CI
-round trips were spent learning that.
+2026-09-27; split across seven machines since 2026-10-05, the viewer suite in thirds and
+the site suite one engine a machine), and locally it takes about six minutes for 1,936
+viewer tests on four engines (measured 2026-10-24; it was ~45 s for 352 tests when this
+was first written) — so run it here before pushing. Two CI round trips were spent
+learning that.
 
 `pnpm build` is the one that matters most on a dependency change. `tsc --noEmit`
 passed cleanly for the entire time the CMS was broken on TypeScript 7 — only the
