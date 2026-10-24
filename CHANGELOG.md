@@ -71,6 +71,7 @@ timeline
 - Safari's bottom strip on iPhone matches the page again ([#211](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/211)).
 - Two critical security advisories in Next.js are closed ([#223](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/223)).
 - The live check now looks inside every 3D file. Two garments with large files (R-TTP and R-MSS) were skipped without a word; both turned out clean.
+- The public "report a problem" forms and the contributor guide are current: the example address is the website's, the "garment looks wrong" link opens the steps that help instead of a case closed in August, and the test numbers are today's.
 - The daily security check now covers the two newest guides (the cost guide and the country comparison), missed since they went live on 8 October, and fails if a future page is left out the same way.
 - The runbook, the design notes, the deep-read notes and the website decisions were checked claim by claim against the code: 100 corrections, among them runbook commands that would have failed today and the order steps the site has drawn since 15 October.
 - The shrink robot runs on Node 26 (owner's choice, four days before Node 26 became the long-term-support line). Two real garments came out byte-for-byte identical on Node 24 and Node 26.
