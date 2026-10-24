@@ -112,36 +112,6 @@ export function describeHost(capabilities) {
   return `${platform} · Chrome ${version} (emulator)`
 }
 
-/**
- * Extract `versionName` from `adb shell dumpsys package <pkg>` output.
- *
- * The shape below (`versionName=X.Y.Z.W` inside a `Package [pkg] (hash):` block) has been
- * stable across Android releases for over a decade; this is documented `dumpsys` behaviour,
- * not something re-measured for this repo. Unlike `ios-safari.mjs`'s fixtures, the sample in
- * this module's test file is a REPRESENTATIVE shape, not one copied from a real run — flagged
- * there, not hidden, because this Mac has no device to capture a real one from.
- */
-export function parseChromeVersionName(dumpsysOutput) {
-  const match = /versionName=(\S+)/.exec(dumpsysOutput ?? '')
-  if (!match?.[1]) {
-    throw new Error(
-      'no "versionName=" line in dumpsys output — is com.android.chrome installed on this AVD image?',
-    )
-  }
-  return match[1]
-}
-
-/** "129.0.6668.100" -> 129. Throws rather than returning NaN, so a bad parse is loud. */
-export function chromeMajorVersion(versionName) {
-  const match = /^(\d+)\./.exec(versionName ?? '')
-  if (!match?.[1]) {
-    throw new Error(
-      `"${versionName}" does not look like a Chrome version (expected e.g. "129.0.6668.100")`,
-    )
-  }
-  return Number(match[1])
-}
-
 const json = async (url, init) => {
   const response = await fetch(url, init)
   return response.json()

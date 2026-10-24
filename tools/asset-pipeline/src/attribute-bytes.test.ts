@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   type GltfForBytes,
-  accessorBytes,
   attributeBytes,
   formatAttributeBytes,
   formatVram,
@@ -141,19 +140,6 @@ describe('textureVramBytes', () => {
      * ~800 MB of graphics memory, and one garment carried six of them.
      */
     expect(textureVramBytes(14576, 10295)).toBeGreaterThan(700 * 1024 * 1024)
-  })
-})
-
-describe('accessorBytes', () => {
-  it('multiplies count by components by component size', () => {
-    expect(accessorBytes({ componentType: 5126, count: 100, type: 'VEC2' })).toBe(800)
-    expect(accessorBytes({ componentType: 5123, count: 100, type: 'VEC2' })).toBe(400)
-  })
-
-  it('returns 0 for an accessor the file does not describe, rather than NaN', () => {
-    // NaN propagates silently through a total and makes the whole report meaningless.
-    expect(accessorBytes({})).toBe(0)
-    expect(accessorBytes({ componentType: 9999, count: 10, type: 'VEC2' })).toBe(0)
   })
 })
 

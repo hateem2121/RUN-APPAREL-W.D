@@ -24,9 +24,6 @@ export declare function readSessionId(payload: unknown): string
 
 export declare function describeHost(capabilities: unknown): string
 
-export declare function parseChromeVersionName(dumpsysOutput: string): string
-export declare function chromeMajorVersion(versionName: string): number
-
 export interface Driver {
   port: number
   stop(): void

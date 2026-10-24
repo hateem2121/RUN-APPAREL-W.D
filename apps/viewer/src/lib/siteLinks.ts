@@ -36,4 +36,3 @@ export const SITE_PRODUCTS_URL = `${SITE_ORIGIN}/products`
  * links the site's pages rather than keeping second copies that could drift.
  */
 export const SITE_PRIVACY_URL = `${SITE_ORIGIN}/privacy`
-export const SITE_TERMS_URL = `${SITE_ORIGIN}/terms`

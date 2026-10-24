@@ -3,13 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   ANDROID_CAVEAT,
-  chromeMajorVersion,
   DEFAULT_ANDROID_PACKAGE,
   describeHost,
   FONT_CHECK_SCRIPT,
   fontCheckPassed,
   HOST_LOOPBACK_ALIAS,
-  parseChromeVersionName,
   readSessionId,
   sessionBody,
 } from '../../../scripts/android-chrome.mjs'
@@ -115,58 +113,6 @@ describe('describeHost — a report must name what it measured', () => {
   it('never silently invents a version when the fields are missing', () => {
     expect(describeHost({})).toBe('android · Chrome unknown version (emulator)')
     expect(describeHost(undefined)).toContain('(emulator)')
-  })
-})
-
-describe('parseChromeVersionName — reading adb shell dumpsys package output', () => {
-  // ⚠️ This fixture is a REPRESENTATIVE shape of `dumpsys package <pkg>` output (stable
-  // across Android releases for over a decade), not one captured from a real device —
-  // unlike ios-safari.test.ts's fixtures, this Mac has no Android SDK to capture a real
-  // one from. Flagged here rather than passed off as measured.
-  const REPRESENTATIVE_DUMPSYS = `
-Packages:
-  Package [com.android.chrome] (a1b2c3d):
-    userId=10123
-    pkg=Package{a1b2c3d com.android.chrome}
-    codePath=/product/app/Chrome
-    versionCode=629400610 minSdk=24 targetSdk=34
-    versionName=129.0.6668.100
-    splits=[base]
-    apkSigningVersion=3
-`
-
-  it('extracts the versionName from a realistic dumpsys block', () => {
-    expect(parseChromeVersionName(REPRESENTATIVE_DUMPSYS)).toBe('129.0.6668.100')
-  })
-
-  it('throws a named, actionable error when there is no versionName line — negative control', () => {
-    // Proves the function distinguishes "found" from "not found" rather than always
-    // succeeding: a block with real dumpsys shape but no versionName line (e.g. the
-    // package genuinely is not installed on this AVD image) must still throw.
-    const packageBlockWithNoVersion =
-      'Packages:\n  Package [com.android.chrome] (a1b2c3d):\n    userId=10123\n    apkSigningVersion=3\n'
-    expect(() => parseChromeVersionName(packageBlockWithNoVersion)).toThrow(
-      /is com.android.chrome installed/,
-    )
-    expect(() => parseChromeVersionName('')).toThrow(/is com.android.chrome installed/)
-    expect(() => parseChromeVersionName(undefined as unknown as string)).toThrow(
-      /is com.android.chrome installed/,
-    )
-  })
-})
-
-describe('chromeMajorVersion', () => {
-  it('reads the major version off a full version string', () => {
-    expect(chromeMajorVersion('129.0.6668.100')).toBe(129)
-  })
-
-  it('handles an older-shaped version the same way — negative control for a hardcoded parse', () => {
-    expect(chromeMajorVersion('94.0.4606.71')).toBe(94)
-  })
-
-  it('throws rather than returning NaN on a bad parse', () => {
-    expect(() => chromeMajorVersion('not-a-version')).toThrow(/does not look like a Chrome version/)
-    expect(() => chromeMajorVersion('')).toThrow(/does not look like a Chrome version/)
   })
 })
 
