@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
  * nothing refreshed it. This test is still the reminder, because a proposal is not a merge
  * and Dependabot leaves the `# PINNED-ON:` date it reads alone.
  *
- * Pinning is correct: `node:24-trixie-slim` (Debian 13, since 2026-10-20) is a moving tag that picks up Node patch releases
+ * Pinning is correct: `node:26-trixie-slim` (Debian 13 since 2026-10-20, Node 26 since 2026-10-24) is a moving tag that picks up Node patch releases
  * and rebuilt system libraries, and `sharp` links against those — a change in the WebP
  * encoder shows up as printed artwork looking different for no reason anyone can trace
  * to a commit. Never refreshing it is not correct: base images are rebuilt mainly to
@@ -57,7 +57,7 @@ describe('the container base image pin', () => {
 
   it('is still pinned by digest, not by a moving tag', async () => {
     const source = await readFile(DOCKERFILE, 'utf8')
-    expect(source).toMatch(/^FROM node:24-trixie-slim@sha256:[0-9a-f]{64}$/m)
+    expect(source).toMatch(/^FROM node:26-trixie-slim@sha256:[0-9a-f]{64}$/m)
   })
 
   it(`has been refreshed within the last ${MAX_AGE_DAYS} days`, async () => {
@@ -72,8 +72,8 @@ describe('the container base image pin', () => {
         'If Dependabot has an open pull request for it, finish that one: look at a\n' +
         'rendered garment print, and set PINNED-ON in apps/shrink/Dockerfile to today in\n' +
         'the same pull request. Otherwise, to refresh by hand:\n' +
-        '  docker pull node:24-trixie-slim\n' +
-        '  docker inspect --format="{{index .RepoDigests 0}}" node:24-trixie-slim\n' +
+        '  docker pull node:26-trixie-slim\n' +
+        '  docker inspect --format="{{index .RepoDigests 0}}" node:26-trixie-slim\n' +
         '  # put that digest in apps/shrink/Dockerfile, update PINNED-ON to today,\n' +
         '  # then rebuild the image and confirm it still starts.\n\n' +
         'Do NOT unpin it — see the comment beside the pin for why.',
