@@ -27,10 +27,11 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  // SIX ENTRIES since 2026-10-03: braces x two routes, and two extract-zip advisories
-  // x two routes (all at the bottom). Four from 2026-09-26 to 2026-10-03, two from
-  // 2026-09-10 to 2026-09-26, one from 2026-08-13, empty from 2026-08-12 before that;
-  // getting back to empty is the goal.
+  // SEVEN ENTRIES since 2026-10-24: two extract-zip advisories x two routes, and zod 3
+  // x three Lighthouse routes (all at the bottom). Six from 2026-10-03 to 2026-10-24
+  // (the two braces routes left when GitHub withdrew that advisory), four from
+  // 2026-09-26 to 2026-10-03, two from 2026-09-10 to 2026-09-26, one from 2026-08-13,
+  // empty from 2026-08-12 before that; getting back to empty is the goal.
   //
   // Two GHSA-mh99-v99m-4gvg (brace-expansion DoS) paths lived here from
   // 2026-07-27, correctly: at the time the only patched release was 5.0.8, there
@@ -266,6 +267,10 @@
   // entry 1 scoped to sass's watcher, so braces arriving by any other route still
   // fails the gate. DELETE BOTH once braces ships a fix (then override, as for
   // brace-expansion above) or once sass moves to chokidar 4+, which has no braces.
+  // DELETED 2026-10-24: GitHub WITHDREW the advisory (`withdrawn_at`
+  // 2026-10-23T12:53:02Z), and audit-ci answered "Consider not allowlisting paths" for
+  // both entries. braces is still 3.0.3 here; if the advisory is ever reinstated the
+  // gate fails again, which is the point of not keeping an entry that matches nothing.
   //
   // ── proxy-addr + compression + source-map-js, fixed by OVERRIDE 2026-10-06 ──
   // Three high advisories published within minutes of each other on 2026-10-05
@@ -321,12 +326,57 @@
   // ways on #210's tree with pnpm 12.6.0: without the override audit-ci exits 1 on
   // this one path; with it, exit 0 and glob 10.3.3 is gone from the lockfile.
   // DELETE it once @node-minify/core itself asks for glob ≥10.5.0.
+  //
+  // ── undici + body-parser + happy-dom + zod 4, fixed by OVERRIDE 2026-10-24 ──
+  // Four high advisories stopped the deploy of PR #233's merge (run 40046490551,
+  // 2026-10-24 00:45 UTC) with no dependency change: three were published
+  // 2026-10-23 20:53–22:14 UTC, after that PR's last green `audit` (18:34), and the
+  // zod one (published 2026-10-01) was GitHub-reviewed at 18:26 and reached the
+  // advisory feed after it. Reproduced here with pnpm 12.6.0 before acting.
+  //   1. GHSA-xjj6-f33q-929c, undici DoS via excessive content-encodings. 7.30.0
+  //      here; patched 7.30.1 (2026-10-15). The existing floor `undici: ^7.29.0`
+  //      already allowed it — the LOCKFILE held it back, as with nanoid above — so
+  //      the floor is raised to ^7.30.1. 36 paths: payload, wrangler/miniflare, jsdom.
+  //   2. GHSA-27r3-jxmh-p828, body-parser DoS via trailing bytes after a compressed
+  //      body. 1.20.6 + 2.3.0 here; patched 1.20.9 + 2.4.0 (both 2026-10-22).
+  //      `body-parser@1` / `@2` keep each major. Reached via express under @lhci/cli
+  //      and @opennextjs/aws — build tools; no express server runs in a Worker.
+  //   3. GHSA-834v-8h66-3h79, happy-dom host code execution through an ESM import
+  //      alias (needs `enableJavaScriptEvaluation` AND attacker-supplied HTML).
+  //      20.14.5 here; the range is `>=17.0.0, <=21.0.3`, so NO 20.x is fixed and the
+  //      override crosses a major to 21.0.4 (2026-10-20). 21.0.0's one breaking change
+  //      turns CSS and iframe loading OFF by default (SSRF hardening). 14 paths are
+  //      vitest's DOM; the 15th is apps/cms > @payloadcms/richtext-lexical >
+  //      @lexical/headless, whose `./dom` entry is the only file that loads it — and
+  //      Payload 3.91.0's dist imports neither that entry nor happy-dom (checked
+  //      2026-10-24), so the CMS Worker never runs it.
+  //   4. GHSA-mrhx-c7xc-m3w5, zod memory exhaustion on an unbounded array schema,
+  //      range `< 4.6.6`. knip's zod 4.6.5 → `zod@4: ^4.6.6` (resolved 4.6.7,
+  //      2026-10-12). zod 3 is allowlisted below: see the next note.
+  // DELETE each override once its parents ask for the patched floor themselves:
+  // payload / miniflare / jsdom for undici ≥7.30.1, express for body-parser
+  // ≥1.20.9 / ≥2.4.0, vitest and @lexical/headless for happy-dom ≥21.0.4, knip for
+  // zod ≥4.6.6.
+  //
+  // ── zod 3, added 2026-10-24: NO FIXED zod 3 RELEASE EXISTS ──────────────────
+  // The same GHSA-mrhx-c7xc-m3w5 covers every zod 3 (`< 4.6.6`, first patched 4.6.6),
+  // and zod 3.25.76 is the newest 3.x. chromium-bidi 14.0.0 and 17.0.2 (the WebDriver
+  // BiDi layer of puppeteer-core 24 and 25) depend on zod 3, and overriding them to
+  // zod 4 would swap a major under a library that was never built for it. Every route
+  // is the Lighthouse tooling the extract-zip notes above already cover: `@lhci/cli`
+  // and `lighthouse` are ROOT devDependencies (package.json), never built into the
+  // CMS, the viewer or the shrink container. chromium-bidi validates protocol
+  // messages exchanged with the Chrome that Lighthouse launches itself; no visitor
+  // supplies them. Listed path by path, so zod 3 arriving by any other route still
+  // fails the gate. DELETE these three once chromium-bidi moves to zod ≥4.6.6 (then
+  // `pnpm why zod -r` shows no 3.x), or once puppeteer-core drops it.
   "allowlist": [
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-7pqw-9j4j-h8q3|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
-    "GHSA-vfj7-8cjw-p6xm|*>sass>chokidar>braces",
-    "GHSA-vfj7-8cjw-p6xm|apps__cms>@payloadcms/storage-r2>@payloadcms/plugin-cloud-storage>find-node-modules>findup-sync>micromatch>braces"
+    "GHSA-mrhx-c7xc-m3w5|@lhci/cli>lighthouse>puppeteer-core>chromium-bidi>zod",
+    "GHSA-mrhx-c7xc-m3w5|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>chromium-bidi>zod",
+    "GHSA-mrhx-c7xc-m3w5|lighthouse>puppeteer-core>chromium-bidi>zod"
   ]
 }
