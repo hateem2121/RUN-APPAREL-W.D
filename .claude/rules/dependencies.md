@@ -56,8 +56,8 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
 - `tools/asset-pipeline` has its own npm lockfile that only Docker reads; bumping that
   package means regenerating it — the procedure is in `tools/asset-pipeline/CLAUDE.md`.
   *(Added 2026-09-26 as a signpost; not moved text.)*
-- **🟡 `@google/model-viewer` 4.3.1 is PATCHED, and pnpm refuses an upgrade until you deal with
+- **🟡 `@google/model-viewer` 4.4.0 is PATCHED, and pnpm refuses an upgrade until you deal with
   it** (2026-10-02, visual audit VA-10). `pnpm-workspace.yaml` → `patchedDependencies` turns the
-  library's nine `console.log` calls into comments; installing another version fails with
-  `ERR_PNPM_UNUSED_PATCH`. What to do, and when to delete the patch: `docs/DEPENDENCY-HOLDS.md`.
+  library's last `console.log` call into a comment (nine on 4.3.1; 4.4.0 removed eight itself,
+  2026-10-24); installing another version fails with `ERR_PNPM_UNUSED_PATCH`. What to do, and when to delete the patch: `docs/DEPENDENCY-HOLDS.md`.
   `apps/cms/src/modelViewerQuiet.test.ts` guards it.

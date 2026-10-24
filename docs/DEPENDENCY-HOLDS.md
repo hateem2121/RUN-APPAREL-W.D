@@ -155,8 +155,8 @@ one. Measured from the installed `package.json` files on 2026-09-26.
 
 | held | at | newest | why | release it when |
 | --- | --- | --- | --- | --- |
-| `graphql` (`apps/cms`) | 16.14.2, newest 16 | 17.0.2 | `payload` 3.90.2 and `@payloadcms/next` 3.90.2 both declare `graphql: ^16.8.1` | a Payload release widens that range to include 17 |
-| `three` (`apps/viewer`, `tools/asset-pipeline`) | 0.183.2 | 0.186.1 | `@google/model-viewer` 4.3.1, its newest release, declares `three: ^0.183.0` | a model-viewer release accepts a newer `three` |
+| `graphql` (`apps/cms`) | 16.14.2, newest 16 | 17.0.2 | `payload` 3.92.0 and `@payloadcms/next` 3.92.0 both declare `graphql: ^16.8.1` (re-read 2026-10-24) | a Payload release widens that range to include 17 |
+| `three` (`apps/viewer`, `tools/asset-pipeline`) | 0.183.2 | 0.186.1 | `@google/model-viewer` 4.4.0, its newest release (re-read 2026-10-24), declares `three: ^0.183.0` | a model-viewer release accepts a newer `three` |
 
 To re-check either: `npm view payload peerDependencies.graphql` and
 `npm view @google/model-viewer peerDependencies.three`, against the newest versions.
@@ -208,6 +208,13 @@ separator from `process.env.PAYLOAD_LOCAL_D1`, which no build can know. Measured
 `handler.mjs` is now a 49-byte stub that re-exports the real handler in a folder beside it, so its byte count
 no longer compares with the rows below; the dry run is the figure to compare.
 
+**Re-measured 2026-10-24** on `next` 16.4.3, `@opennextjs/cloudflare` 1.20.13 (still the newest; its
+peer is `next >=15.5.28 <16 || >=16.4.1`), wrangler 4.152.0, Payload 3.92.0, with
+`opennextjs-cloudflare build` and `scripts/check-cms-worker-size.mjs`: literal `import("wrangler")`
+in `.open-next`: 0 files; Miniflare in the Worker: only the drizzle-kit error-message text
+("If you are using Miniflare 2, please update…", 3 files); dry run **42,070 KiB** against 42,289 KiB
+on the same machine one step earlier (`next` 16.4.2, Payload 3.91.0, wrangler 4.151.1).
+
 ### The hold as it stood (2026-10-14)
 
 Not a declared range this time: `@opennextjs/cloudflare` declares `next: >=15.5.27 <16 || >=16.3.8`,
@@ -229,13 +236,20 @@ shows no Miniflare in `handler.mjs` and a dry-run size within a few KiB of the r
 
 ---
 
-## A package we patch: `@google/model-viewer` 4.3.1 (2026-10-02)
+## A package we patch: `@google/model-viewer` 4.4.0 (2026-10-02; cut to one line 2026-10-24)
 
 Not a hold, but it changes what upgrading that package means, so it is written down here.
 `pnpm-workspace.yaml` carries one `patchedDependencies` entry, and
-`patches/@google__model-viewer@4.3.1.patch` is its file.
+`patches/@google__model-viewer@4.4.0.patch` is its file.
 
-**What it does.** The library calls `console.log` nine times in its own source (four in
+**Since 2026-10-24 the patch is ONE line, not nine.** model-viewer 4.4.0 (2026-10-09, its #5182,
+"Removed leftover debug console logs") deleted eight of the nine calls itself. Read from the
+installed 4.4.0 files that day: `lib/model-viewer-base.js`, `lib/features/ar.js` and
+`lib/three-components/ARRenderer.js` have no `console.log`; `lib/three-components/Renderer.js` still
+has one, `console.log('could not acquire 2d context')` in `copyPixels` (line 319), and that is the
+statement the patch now turns into a comment. The rest of this section is how it stood on 4.3.1.
+
+**What it did on 4.3.1.** The library called `console.log` nine times in its own source (four in
 `lib/model-viewer-base.js`, three in `lib/features/ar.js`, one each in
 `lib/three-components/Renderer.js` and `lib/three-components/ARRenderer.js`: "[$updateSource]
 BAILING OUT EARLY!" and the like), and a garment page printed six of them on every visit (visual
@@ -263,8 +277,8 @@ own `log()` helper and others), `console.warn` stayed 84 and `console.error` sta
 `pnpm install --frozen-lockfile` fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`. Installing another
 version of the package fails with `ERR_PNPM_UNUSED_PATCH`. Both were measured with pnpm 12.6.0.
 `apps/cms/src/modelViewerQuiet.test.ts` reads the installed library for a `console.log`, the patch
-for anything but those nine lines, and, in CI's built-config step, the website build for the nine
-messages.
+for anything but the console.log lines it removes (one now), and, in CI's built-config step, the
+website build for the message.
 
 **When model-viewer is upgraded.** pnpm refuses until the entry is dealt with:
 
