@@ -3,11 +3,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { HTML_LIMITED_BOTS } from '../htmlLimitedBots.mjs'
 import {
+  BROWSER_CACHE_CONTROL,
   CONTENT_VERSION_KEY,
   drawingToKeep,
+  KEPT_FILES,
   KEPT_RENDER_HEADERS,
+  keepableFile,
   keepablePage,
   keepablePageRequest,
+  keptFileRequest,
   keptHeaders,
   keptRenderRequest,
   keptRenders,
@@ -16,8 +20,12 @@ import {
   pageCacheTiming,
   SITE_HOST,
   servedHeaders,
+  sharedCacheKey,
   spoilKeptRender,
+  storeState,
+  unkeptHeaders,
   VERSION_CACHE_SECONDS,
+  wholeFile,
   wholePage,
 } from '../pageCache.mjs'
 import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
@@ -183,6 +191,85 @@ describe('the key', () => {
   })
 })
 
+describe('the shared store’s key (Workers Cache, 2026-10-24)', () => {
+  const url = `https://${SITE_HOST}/products`
+
+  it('names the host, the deploy, the content version and the page', () => {
+    expect(sharedCacheKey(url, 'deploy-1', 'content-1')).toBe(
+      `/__kept/${SITE_HOST}/deploy-1/content-1/products`,
+    )
+  })
+
+  // Workers Cache leaves the host out of its own key, and this Worker answers on five.
+  it('sees the fault: the same path on two hosts never shares a copy', () => {
+    expect(sharedCacheKey('https://cms.wear-run.help/robots.txt', 'd', 'c')).not.toBe(
+      sharedCacheKey(`https://${SITE_HOST}/robots.txt`, 'd', 'c'),
+    )
+  })
+
+  it('changes with a deploy and with a save', () => {
+    expect(sharedCacheKey(url, 'd2', 'c1')).not.toBe(sharedCacheKey(url, 'd1', 'c1'))
+    expect(sharedCacheKey(url, 'd1', 'c2')).not.toBe(sharedCacheKey(url, 'd1', 'c1'))
+  })
+
+  it('cannot be steered by a version holding a slash, and ignores the query', () => {
+    expect(sharedCacheKey(url, 'a/b', 'c')).toBe(`/__kept/${SITE_HOST}/a%2Fb/c/products`)
+    expect(sharedCacheKey(`${url}?x=1`, 'd', 'c')).toBe(sharedCacheKey(url, 'd', 'c'))
+  })
+
+  it('a kept page is drawn from the clean request, carrying the key for the store', () => {
+    const drawn = keptRenderRequest(page('/products'), { cacheKey: 'k' }) as Request & {
+      cf?: { cacheKey?: string }
+    }
+    expect([...drawn.headers.entries()]).toEqual(Object.entries(KEPT_RENDER_HEADERS).sort())
+    expect(drawn.cf?.cacheKey ?? 'k').toBe('k')
+  })
+})
+
+describe('the three generated files', () => {
+  it('keeps exactly the sitemap, llms.txt and robots.txt', () => {
+    expect([...KEPT_FILES].sort()).toEqual(['/llms.txt', '/robots.txt', '/sitemap.xml'])
+    for (const path of KEPT_FILES) expect(keptFileRequest(page(path)), path).toBe(true)
+  })
+
+  // The AI catalogue address is a deliberate 404 (apps/viewer/worker/notFound.ts).
+  it.each<[string, Request]>([
+    ['the AI catalogue 404', page('/.well-known/ai-catalog.json')],
+    ['a page', page('/products')],
+    ['the admin host', new Request('https://cms.wear-run.help/robots.txt')],
+    ['a query', page('/sitemap.xml?x=1')],
+    ['a HEAD', page('/sitemap.xml', { method: 'HEAD' })],
+    ['a signed-in editor', page('/robots.txt', { headers: { cookie: 'payload-token=x' } })],
+  ])('never %s', (_label, request) => {
+    expect(keptFileRequest(request)).toBe(false)
+  })
+
+  const sitemap =
+    '<?xml version="1.0"?><urlset><url><loc>https://wear-run.com/</loc></url></urlset>\n'
+  it('keeps only a file that arrived whole', () => {
+    expect(wholeFile('/sitemap.xml', sitemap)).toBe(true)
+    expect(wholeFile('/sitemap.xml', sitemap.slice(0, 60))).toBe(false)
+    expect(wholeFile('/sitemap.xml', '<urlset></urlset>')).toBe(false)
+    expect(wholeFile('/llms.txt', '# RUN APPAREL\n\n> A private label maker')).toBe(true)
+    expect(wholeFile('/llms.txt', '')).toBe(false)
+    expect(wholeFile('/robots.txt', 'User-agent: *\nAllow: /\nSitemap: https://x/s.xml\n')).toBe(
+      true,
+    )
+    expect(wholeFile('/robots.txt', 'User-agent: *\nAllow: /\n')).toBe(false)
+    expect(wholeFile('/products', sitemap)).toBe(false)
+  })
+
+  const file = (headers: Record<string, string> = {}, status = 200) =>
+    new Response(sitemap, { status, headers: { 'content-type': 'application/xml', ...headers } })
+  it('keeps an ordinary answer and nothing personal or compressed', () => {
+    expect(keepableFile(file())).toBe(true)
+    expect(keepableFile(file({}, 500))).toBe(false)
+    expect(keepableFile(file({ 'set-cookie': 'a=1' }))).toBe(false)
+    expect(keepableFile(file({ 'content-encoding': 'gzip' }))).toBe(false)
+    expect(keepableFile(file({ 'content-type': 'text/html' }))).toBe(false)
+  })
+})
+
 describe('which answers may be kept', () => {
   const html = (status = 200, headers: Record<string, string> = {}) =>
     new Response('<html></html>', {
@@ -257,6 +344,60 @@ describe('the headers', () => {
   it('labels the answer for the network panel', () => {
     expect(pageCacheTiming('hit')).toBe('page-cache;desc="hit"')
   })
+
+  // The store obeys the kept lifetime; the browser must still get the answer's own rule
+  // (robots.txt asks for 5 minutes, the sitemap for none).
+  it('the answer’s own cache rule travels with the copy and comes back on the way out', () => {
+    const own = 'public, max-age=300, stale-while-revalidate=3600'
+    const kept = keptHeaders(new Headers({ 'cache-control': own }))
+    expect(kept.get(BROWSER_CACHE_CONTROL)).toBe(own)
+    const served = servedHeaders(kept)
+    expect(served.get('cache-control')).toBe(own)
+    expect(served.has(BROWSER_CACHE_CONTROL)).toBe(false)
+  })
+
+  it('an answer that must not be kept tells the store so, and still serves its own rule', () => {
+    const own = 'private, no-cache, max-age=0, must-revalidate'
+    const unkept = unkeptHeaders(new Headers({ 'cache-control': own }))
+    expect(unkept.get('cache-control')).toBe('no-store')
+    expect(servedHeaders(unkept).get('cache-control')).toBe(own)
+  })
+
+  it('an answer with no rule of its own leaves the store without one', () => {
+    expect(servedHeaders(keptHeaders(new Headers())).has('cache-control')).toBe(false)
+  })
+
+  it.each<[string, Record<string, string>, 'hit' | 'miss' | 'skip']>([
+    ['HIT', { 'cf-cache-status': 'HIT' }, 'hit'],
+    ['STALE', { 'cf-cache-status': 'STALE' }, 'hit'],
+    ['UPDATING', { 'cf-cache-status': 'UPDATING' }, 'hit'],
+    ['REVALIDATED', { 'cf-cache-status': 'REVALIDATED' }, 'hit'],
+    ['MISS', { 'cf-cache-status': 'MISS' }, 'miss'],
+    ['BYPASS', { 'cf-cache-status': 'BYPASS' }, 'miss'],
+    ['no status but an age', { age: '12' }, 'hit'],
+    ['nothing at all', {}, 'miss'],
+    [
+      'a copy SitePages refused to keep',
+      { 'x-run-kept': 'no', 'cf-cache-status': 'BYPASS' },
+      'skip',
+    ],
+  ])('reads %s as a %s', (_label, headers, state) => {
+    expect(storeState(new Headers(headers))).toBe(state)
+  })
+
+  it('tells a stored copy from a fresh drawing by its age when Cloudflare says nothing', () => {
+    const drawn = keptHeaders(new Headers(), 1_000_000)
+    expect(storeState(drawn, 1_000_050)).toBe('miss') // read the moment it arrived
+    expect(storeState(drawn, 1_000_000 + 60_000)).toBe('hit') // a minute old: from the store
+    expect(servedHeaders(drawn).has('x-run-drawn-at')).toBe(false)
+  })
+
+  it('SitePages marks its verdict, and the visitor never sees the mark', () => {
+    expect(keptHeaders(new Headers()).get('x-run-kept')).toBe('yes')
+    expect(unkeptHeaders(new Headers()).get('x-run-kept')).toBe('no')
+    expect(servedHeaders(keptHeaders(new Headers())).has('x-run-kept')).toBe(false)
+    expect(servedHeaders(unkeptHeaders(new Headers())).has('x-run-kept')).toBe(false)
+  })
 })
 
 describe('the signal from worker.mjs to content.ts', () => {
@@ -299,7 +440,28 @@ describe('what the cache relies on', () => {
   ) as {
     kv_namespaces?: { binding: string; id: string }[]
     version_metadata?: { binding: string }
+    cache?: { enabled?: boolean; cross_version_cache?: boolean }
+    exports?: Record<string, { type?: string; cache?: { enabled?: boolean } }>
   }
+
+  // ⚠️ The default entrypoint serves the admin and the API too. Caching it would hand one
+  // visitor's stamped page (and its nonce) to the next.
+  it('caches only the SitePages entrypoint, never the default one', () => {
+    expect(wrangler.cache?.enabled).toBe(false)
+    expect(wrangler.exports?.default).toEqual({ type: 'worker', cache: { enabled: false } })
+    expect(wrangler.exports?.SitePages).toEqual({ type: 'worker', cache: { enabled: true } })
+  })
+
+  // A page drawn by the last deploy names script files the new deploy no longer has.
+  it('never serves one deploy’s copies to another', () => {
+    expect(wrangler.cache?.cross_version_cache ?? false).toBe(false)
+  })
+
+  const worker = readFileSync(join(import.meta.dirname, '..', 'worker.mjs'), 'utf8')
+  it('worker.mjs exports the cached entrypoint and no longer keeps pages in the per-data-centre cache', () => {
+    expect(worker).toMatch(/export class SitePages extends WorkerEntrypoint/)
+    expect(worker).not.toMatch(/caches\.default/)
+  })
 
   it('binds the KV namespace holding the content version, by a real id', () => {
     const kv = wrangler.kv_namespaces?.find((namespace) => namespace.binding === 'SITE_CACHE')

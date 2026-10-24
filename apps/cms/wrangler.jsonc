@@ -50,6 +50,25 @@
    */
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
+  /**
+   * THE SHARED PAGE STORE (W1-A, 2026-10-24): Workers Cache in front of ONE entrypoint only.
+   * worker.mjs's `SitePages` draws the public pages and the sitemap, llms.txt and robots.txt;
+   * Cloudflare keeps each answer in a two-tier cache shared across data centres and answers the
+   * next visitor anywhere without running it. The per-data-centre Cache API it replaces missed
+   * for the first visitor in each data centre after every deploy (home page opens, 7 days to
+   * 2026-10-24: p75 799 ms, p90 2,338 ms).
+   * ⚠️ NEVER CACHE `default`: it also serves the admin and the API, and it stamps each page with
+   * its own nonce AFTER the store answers. A cached default would hand one visitor's nonce to the
+   * next. `cross_version_cache` stays off: a page from the last deploy names script files the
+   * new one no longer has. src/pageCache.test.ts pins all three.
+   * ctx.exports needs no flag: it is the default from compatibility_date 2025-11-17.
+   * Docs: developers.cloudflare.com/workers/cache/ (updated 12 Oct 2026); needs wrangler 4.107+.
+   */
+  "cache": { "enabled": false },
+  "exports": {
+    "default": { "type": "worker", "cache": { "enabled": false } },
+    "SitePages": { "type": "worker", "cache": { "enabled": true } }
+  },
   // Workers Logs (free tier): worker errors + console output become queryable
   // in the Cloudflare dashboard and via `wrangler tail`.
   "observability": { "enabled": true },

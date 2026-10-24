@@ -1,15 +1,14 @@
 import type { PayloadRequest } from 'payload'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { drawingToKeep, keptRenders } from '../pageCache.mjs'
+import { drawingToKeep, keptRenders, PAGE_CACHE_SECONDS, sharedCacheKey } from '../pageCache.mjs'
 import { PUBLIC_VIEWER_VARY } from '../publicViewerHeaders.mjs'
 import {
-  API_CACHE_SECONDS,
   API_HOST,
   API_RENDER_HEADERS,
   allowedOrigins,
-  apiCacheKey,
   keepableApiAnswer,
   keepableApiRequest,
+  keepApiAnswer,
   keptApiHeaders,
   serveViewerApi,
   servedApiHeaders,
@@ -59,57 +58,60 @@ const payloadLike =
     })
   }
 
-/** `caches.default`, in memory: a stored copy comes back as a fresh Response. */
-const fakeCache = () => {
-  const store = new Map<string, { text: string; status: number; headers: [string, string][] }>()
+/**
+ * Workers Cache in front of SitePages, in memory: read-through by `cf.cacheKey`. A miss runs
+ * SitePages's own decision (keepApiAnswer, as worker.mjs does) and stores only an answer it marked
+ * kept; a hit comes back as a fresh Response with `Cf-Cache-Status: HIT`.
+ */
+const fakeStore = (draw: (request: Request) => Promise<Response>) => {
+  const kept = new Map<string, { text: string; status: number; headers: [string, string][] }>()
   return {
-    store,
-    match: vi.fn(async (key: string) => {
-      const hit = store.get(key)
-      if (!hit) return undefined
-      return new Response(hit.text, { status: hit.status, headers: hit.headers })
-    }),
-    put: vi.fn(async (key: string, response: Response) => {
-      store.set(key, {
-        text: await response.text(),
-        status: response.status,
-        headers: [...response.headers.entries()],
-      })
+    kept,
+    fetch: vi.fn(async (request: Request, init?: { cf?: { cacheKey?: string } }) => {
+      const key = init?.cf?.cacheKey
+      if (!key) throw new Error('every call into the store must carry its key')
+      const hit = kept.get(key)
+      if (hit) {
+        return new Response(hit.text, {
+          status: hit.status,
+          headers: [...hit.headers, ['cf-cache-status', 'HIT']],
+        })
+      }
+      const answer = await keepApiAnswer(request, draw)
+      if (answer.headers.get('x-run-kept') === 'yes') {
+        const copy = answer.clone()
+        kept.set(key, {
+          text: await copy.text(),
+          status: copy.status,
+          headers: [...copy.headers.entries()],
+        })
+      }
+      return answer
     }),
     /** The one copy kept so far: what a later visitor would be served. */
     only: () => {
-      const [kept, ...more] = [...store.values()]
-      if (!kept || more.length > 0) throw new Error(`expected one kept copy, found ${store.size}`)
-      return kept
+      const [copy, ...more] = [...kept.values()]
+      if (!copy || more.length > 0) throw new Error(`expected one kept copy, found ${kept.size}`)
+      return copy
     },
   }
 }
 
 const setup = (draw = payloadLike()) => {
   let version = 'v1'
-  const pending: Promise<unknown>[] = []
   const env = {
     CF_VERSION_METADATA: { id: 'deploy-1' },
     SITE_CACHE: { get: vi.fn(async () => version) },
     VIEWER_ALLOWED_ORIGINS: ALLOWED,
   }
-  const ctx = { waitUntil: (p: Promise<unknown>) => pending.push(p) }
-  const cache = fakeCache()
+  const ctx = { waitUntil: () => {} }
   const drawSpy = vi.fn(draw)
-  const ask = async (path = '/rxps/wine', init: RequestInit = {}) => {
-    const response = await serveViewerApi(
-      new Request(`${API}${path}`, init),
-      env,
-      ctx,
-      drawSpy,
-      cache,
-    )
-    await Promise.all(pending.splice(0))
-    return response
-  }
+  const store = fakeStore(drawSpy)
+  const ask = (path = '/rxps/wine', init: RequestInit = {}) =>
+    serveViewerApi(new Request(`${API}${path}`, init), env, ctx, store)
   return {
     env,
-    cache,
+    store,
     draw: drawSpy,
     ask,
     save: (next: string) => {
@@ -147,48 +149,42 @@ describe('which requests the garment-data cache may answer', () => {
     expect(keepableApiRequest(request)).toBe(false)
   })
 
-  it('leaves every other request to the Worker untouched: no cache read, no draw', async () => {
-    const { ask, draw, cache } = setup()
+  it('leaves every other request to the Worker untouched: no store call, no draw', async () => {
+    const { ask, draw, store } = setup()
     for (const path of ['/rxps/wine?x=1', '/rxps/wine/extra']) {
       expect(await ask(path)).toBeNull()
     }
-    expect(
-      await serveViewerApi(
-        new Request(`https://${API_HOST}/admin`),
-        {},
-        { waitUntil: () => {} },
-        draw,
-        cache,
-      ),
-    ).toBeNull()
+    expect(await serveViewerApi(new Request(`https://${API_HOST}/admin`), {}, {}, store)).toBeNull()
     expect(draw).not.toHaveBeenCalled()
-    expect(cache.match).not.toHaveBeenCalled()
+    expect(store.fetch).not.toHaveBeenCalled()
   })
 
-  it('answers as before (null) without the deploy id, the KV binding, or a readable cache', async () => {
-    const { env, draw, cache } = setup()
+  it('answers as before (null) without the deploy id, the KV binding, the store, or a reachable one', async () => {
+    const { env, draw, store } = setup()
     const request = () => new Request(`${API}/rxps/wine`)
-    const ctx = { waitUntil: () => {} }
     expect(
-      await serveViewerApi(request(), { ...env, CF_VERSION_METADATA: undefined }, ctx, draw, cache),
+      await serveViewerApi(request(), { ...env, CF_VERSION_METADATA: undefined }, {}, store),
     ).toBeNull()
-    expect(
-      await serveViewerApi(request(), { ...env, SITE_CACHE: undefined }, ctx, draw, cache),
-    ).toBeNull()
+    expect(await serveViewerApi(request(), { ...env, SITE_CACHE: undefined }, {}, store)).toBeNull()
+    // `next start` and a local preview without ctx.exports have no store at all.
+    expect(await serveViewerApi(request(), env, {})).toBeNull()
     const broken = { ...env, SITE_CACHE: { get: vi.fn().mockRejectedValue(new Error('KV down')) } }
     vi.spyOn(console, 'error').mockImplementationOnce(() => {})
-    expect(await serveViewerApi(request(), broken, ctx, draw, cache)).toBeNull()
+    expect(await serveViewerApi(request(), broken, {}, store)).toBeNull()
+    const unreachable = { fetch: vi.fn().mockRejectedValue(new Error('loopback failed')) }
+    vi.spyOn(console, 'error').mockImplementationOnce(() => {})
+    expect(await serveViewerApi(request(), env, {}, unreachable)).toBeNull()
     expect(draw).not.toHaveBeenCalled()
   })
 })
 
-describe('the cache key', () => {
-  it('holds the address, the deploy and the content version', () => {
-    const key = apiCacheKey(`${API}/rxps/wine`, 'deploy-1', 'v1')
-    expect(key).toBe(`https://${API_HOST}/__api-cache/deploy-1/v1/api/public/viewer/rxps/wine`)
-    expect(apiCacheKey(`${API}/rxps/wine`, 'deploy-1', 'v2')).not.toBe(key)
-    expect(apiCacheKey(`${API}/rxps/wine`, 'deploy-2', 'v1')).not.toBe(key)
-    expect(apiCacheKey(`${API}/rxps/navy`, 'deploy-1', 'v1')).not.toBe(key)
+describe('the store key', () => {
+  it('is the shared key: the API host, the deploy, the content version and the address', async () => {
+    const { ask, store } = setup()
+    await ask()
+    const [, init] = store.fetch.mock.calls[0] as [Request, { cf: { cacheKey: string } }]
+    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, 'deploy-1', 'v1'))
+    expect(init.cf.cacheKey).toContain(API_HOST)
   })
 })
 
@@ -218,11 +214,11 @@ describe('a miss draws and keeps, a hit answers without drawing', () => {
   })
 
   it('serves the answer’s own Cache-Control and headers, and none of the cache’s bookkeeping', async () => {
-    const { ask, cache } = setup()
+    const { ask, store } = setup()
     await ask()
-    const kept = cache.only()
+    const kept = store.only()
     const keptHeaders = new Headers(kept.headers)
-    expect(keptHeaders.get('cache-control')).toBe(`public, max-age=${API_CACHE_SECONDS}`)
+    expect(keptHeaders.get('cache-control')).toBe(`public, max-age=${PAGE_CACHE_SECONDS}`)
     const hit = await ask()
     expect(hit?.headers.get('cache-control')).toBe(
       'public, s-maxage=60, stale-while-revalidate=300',
@@ -231,7 +227,9 @@ describe('a miss draws and keeps, a hit answers without drawing', () => {
     expect(hit?.headers.get('strict-transport-security')).toContain('max-age=63072000')
     expect(hit?.headers.get('content-type')).toBe('application/json')
     expect(hit?.headers.get('vary')).toBe(PUBLIC_VIEWER_VARY)
-    expect(hit?.headers.has('x-run-api-cache-control')).toBe(false)
+    for (const name of ['x-run-browser-cache-control', 'x-run-kept', 'x-run-drawn-at']) {
+      expect(hit?.headers.has(name), name).toBe(false)
+    }
     expect(hit?.headers.get('server-timing')).toBe('api-cache;desc="hit"')
   })
 
@@ -259,13 +257,13 @@ describe('a miss draws and keeps, a hit answers without drawing', () => {
 
 describe('CORS is worked out for each request, never kept (the Origin trap)', () => {
   it('each origin gets its own grant, a stranger and the viewer binding get none', async () => {
-    const { ask, draw, cache } = setup()
+    const { ask, draw, store } = setup()
     const first = await ask('/rxps/wine', from('https://wear-run.com'))
     expect(first?.headers.get('access-control-allow-origin')).toBe('https://wear-run.com')
     expect(first?.headers.get('access-control-allow-credentials')).toBe('true')
 
     // The kept copy carries no grant at all.
-    const kept = cache.only()
+    const kept = store.only()
     const keptNames = kept.headers.map(([name]) => name.toLowerCase())
     expect(keptNames).not.toContain('access-control-allow-origin')
     expect(keptNames).not.toContain('access-control-allow-credentials')
@@ -341,20 +339,29 @@ describe('only a whole, real garment is kept', () => {
     ['a body that is not JSON', () => payloadLike('{"product":', 200)],
     ['an HTML page', () => payloadLike('<html></html>', 200, 'text/html')],
   ])('never keeps %s, and draws again next time', async (_label, make) => {
-    const { ask, draw, cache } = setup(make())
+    const { ask, draw, store } = setup(make())
+    const first = await ask()
+    expect(first?.headers.get('server-timing')).toBe('api-cache;desc="skip"')
     await ask()
-    await ask()
-    expect(cache.put).not.toHaveBeenCalled()
+    expect(store.kept.size).toBe(0)
     expect(draw).toHaveBeenCalledTimes(2)
   })
 
   it('never keeps an answer drawn without its "More from" list (a spoiled render)', async () => {
-    const { ask, cache } = setup(async (request) => {
+    const { ask, store } = setup(async (request) => {
       keptRenders().getStore().spoiled = true
       return payloadLike()(request)
     })
     expect((await ask())?.status).toBe(200)
-    expect(cache.put).not.toHaveBeenCalled()
+    expect(store.kept.size).toBe(0)
+  })
+
+  it('a refused answer still reaches the browser with its own cache rule', async () => {
+    const { ask } = setup(payloadLike({ error: 'not_found', message: 'x' }, 404))
+    const res = await ask()
+    expect(res?.headers.get('cache-control')).toBe(
+      'public, s-maxage=60, stale-while-revalidate=300',
+    )
   })
 
   it('never keeps an answer that sets a cookie or arrives compressed', () => {

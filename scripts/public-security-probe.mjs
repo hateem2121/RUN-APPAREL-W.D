@@ -391,6 +391,17 @@ export function evaluate(observations, now, { daily = false } = {}) {
       if (/\b(?:public|s-maxage)\b/.test(cache) || !(keptByNoOne || keptOnlyByTheBrowser)) {
         problems.push(`the page is cacheable ("${cache}"), so its nonce could be reused`)
       }
+      // The shared page store (worker.mjs SitePages, 2026-10-24) should already hold the home page:
+      // the post-deploy warm-up asked for it. A miss is noted, never failed, because a store that
+      // is slow to fill makes the site slower, not unsafe; the nonce checks above are the safety.
+      if (o.name === 'site / again' && o.status === 200) {
+        const timing = o.headers?.['server-timing'] ?? ''
+        if (!timing.includes('page-cache;desc="hit"')) {
+          inconclusive.push(
+            `${o.name}: the shared page store did not answer (${timing || 'no page-cache timing'}); the post-deploy warm-up should have filled it.`,
+          )
+        }
+      }
     } else if (o.kind === 'admin-csp') {
       if (o.status !== 200) problems.push(`HTTP ${o.status}, expected 200`)
       const policy = o.headers?.['content-security-policy'] ?? '(none)'
