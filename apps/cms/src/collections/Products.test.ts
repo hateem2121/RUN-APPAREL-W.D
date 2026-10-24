@@ -88,7 +88,7 @@ const reqWhereGlobalReadFails = () => ({
 // Payload calls a field's defaultValue function only when the document has no
 // existing value for that field yet — confirmed against Payload 3.86.0's own
 // fields/hooks/beforeValidate/getFallbackValue.js AND empirically against a
-// real local D1 (see task-9-report.md): a fresh create inherits the global,
+// real local D1 (the task report this cited was never committed): a fresh create inherits the global,
 // re-reading the same product after the global changes still shows the
 // original value, and a plain update that omits the field also leaves it
 // unchanged. None of that machinery is Payload's own to test here — these

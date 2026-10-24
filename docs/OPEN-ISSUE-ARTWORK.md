@@ -332,7 +332,8 @@ cycling suit with five CLO colourways (`Colorway 2` … `Colorway 6`). Uploaded
 against product N001 as a test, so the garment does not match the product name.
 
 **The processed file.** `cycling-all-colours-optimized-2.glb`, 19,385,652 bytes,
-produced at Detail = **"Smallest file"** with
+produced at Detail = **"Smallest file"** (a preset DELETED on 2026-08-05 — it protected artwork
+less than the others and is not offered any more) with
 `--simplify 0.02 --meshopt --simplify-error 0.01 --uv-weight 1`.
 
 Measured on the *previous* output (Balanced, 37.5 MB) — the shape is the same:

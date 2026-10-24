@@ -257,7 +257,7 @@ replace the token in `apps/viewer/index.html` and rebuild.
 So every push to `main` deploys automatically (after tests pass):
 
 1. Cloudflare dashboard → *My Profile → API Tokens → Create Token* → grant
-   **Workers Scripts: Edit**, **Cloudflare Pages: Edit**, **D1: Edit**,
+   **Workers Scripts: Edit**, **D1: Edit**,
    **Workers R2 Storage: Edit** on this account. Copy the token.
 2. Store it and the account id as repo secrets, and enable deploys:
 

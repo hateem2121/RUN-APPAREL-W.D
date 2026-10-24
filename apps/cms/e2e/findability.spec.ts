@@ -556,7 +556,7 @@ test.describe('IM-04 — card sizes only where Cloudflare resizes, and the size 
    * test already parses for `srcset`, so a regression here (someone changing the
    * component's `width={800}` without touching the pipeline, or the reverse) is exactly
    * as visible as the `srcset` regression above. Proving the FILE ON DISK still matches
-   * is `scripts/media-content-probe.mjs`'s job, against live production — see the PR
+   * is `scripts/poster-sizes.mjs`'s job (its poster content check), against live production — see the PR
    * report for today's live confirmation.
    */
   test('the gallery reserves a 4:5 box for every card picture: 1200 x 1500', async ({
