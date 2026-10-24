@@ -64,6 +64,15 @@
     "formatter": { "enabled": true, "trailingCommas": "none" },
     "parser": { "allowComments": true }
   },
+  // Biome 2.6 started formatting Markdown and YAML by default (measured 2026-10-24 on 2.6.2: 233
+  // `.md` files, 14 workflows under .github/workflows and pnpm-workspace.yaml all "would have
+  // printed" a different file, none of them touched by that bump). Neither is wanted here: the
+  // docs are hand-written, and every CLAUDE.md, rule and doc is held to size and citation gates
+  // that a reflow would shift; the workflows are parsed line by line by workflowHardening.test.ts
+  // and diffed by the owner in review, so a whole-file reflow of ci.yml hides real changes. Left
+  // off, `pnpm lint` checks exactly what it checked on 2.5.15.
+  "markdown": { "formatter": { "enabled": false } },
+  "yaml": { "formatter": { "enabled": false } },
   "linter": {
     "enabled": true,
     "rules": {
@@ -76,7 +85,30 @@
         // would push people to `as` casts, which silence more.
         "noNonNullAssertion": "off"
       },
+      // Three rules Biome 2.6.2 promoted into `recommended` fire on code that is right (59 rules
+      // were promoted on 2026-10-21; measured here 2026-10-24, each hit read by hand). Off, not
+      // suppressed per line, because the hits are the codebase's normal idiom.
+      "correctness": {
+        // Its idea of a valid `describe` is narrower than the two runners' own. Vitest takes
+        // `describe('name', { timeout: 30_000 }, () => {…})` (apps/cms/src/shrinkImageMoved.test.ts,
+        // 3 hits) and Playwright takes an untitled `test.describe(() => {…})` for a `test.use`
+        // group (apps/viewer/e2e/hd-image.spec.ts) — and it reads a local helper named `describe`
+        // inside a `page.evaluate` as a test group (apps/viewer/e2e/motion-and-layout.spec.ts,
+        // 2 hits). 6 hits, 0 real.
+        "usePlaywrightValidDescribeCallback": "off"
+      },
+      "performance": {
+        // `innerText` is chosen on purpose in the browser tests and the copy check: it returns what
+        // a visitor SEES (hidden and `display: none` text left out), which `textContent` does not.
+        // 15 hits (11 in apps/cms/e2e, 2 in apps/viewer/e2e, 2 in scripts/copy-rules.mjs), 0 real.
+        "useDomNodeTextContent": "off"
+      },
       "complexity": {
+        // The ternaries it wants as `Math.min`/`Math.max` are not the same function when the input
+        // is NaN: `dt > 0 ? dt : 0` (apps/cms/src/lib/cursorMath.ts) is 0 for NaN, `Math.max(dt, 0)`
+        // is NaN, and a NaN frame time would stop the cursor for good. The other three hits are
+        // clamps with the same shape. 4 hits, none a safe rewrite without a test.
+        "useMathMinMax": "off",
         "noForEach": "off",
         // Every occurrence is one of four things, counted 2026-10-23 across the CSS
         // files: (1) the `prefers-reduced-motion` block and (2) the Lenis override in
@@ -122,6 +154,17 @@
   // index.html off disk to assert the rewritten tags still exist. The rule is about
   // SHIPPED code.
   "overrides": [
+    {
+      // Biome 2.6.2's `noInvalidGridAreas` miscounts a `grid-template-areas` written one string
+      // per line, which is how these two files write all six of theirs, and calls valid grids
+      // inconsistent. Planted control run both ways on 2026-10-24: `"intro" "main" "details"` on
+      // three lines is flagged, `". figure" "copy figure"` on two lines is flagged, the same
+      // strings on ONE line pass; every one of the six was read and has equal cell counts per
+      // row. A `biome-ignore` comment above the declaration did not apply (reported as unused),
+      // hence the per-file override. Remove it when a Biome release counts multi-line strings.
+      "includes": ["apps/cms/src/app/(frontend)/site.css", "apps/viewer/src/styles/page.css"],
+      "linter": { "rules": { "correctness": { "noInvalidGridAreas": "off" } } }
+    },
     {
       // packages/shared is imported by three Workers and the pipeline. Its
       // tsconfig deliberately declares NEITHER @types/node NOR a `types` field, so

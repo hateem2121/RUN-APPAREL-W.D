@@ -5251,9 +5251,10 @@ a.contact-block__value:active {
    * card is found through its link.
    */
   .family-grid:has(
-    .family-card:hover:not([data-dismissed]),
-    .family-card:not([data-dismissed]) .family-card__link:focus-visible
-  ) > .family-card {
+      .family-card:hover:not([data-dismissed]),
+      .family-card:not([data-dismissed]) .family-card__link:focus-visible
+    )
+    > .family-card {
     --after: clamp(0, var(--card, 0) - var(--open), 1);
     transform: translateX(calc(var(--card-w) * (var(--after) * 1.5 - var(--card, 0) * 0.3)))
       scale(0.7);

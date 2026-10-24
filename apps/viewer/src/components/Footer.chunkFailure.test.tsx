@@ -59,6 +59,7 @@ describe('Footer when its prompt chunk is missing', () => {
     // React logs a caught render error; this one is the expected failure.
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
 
+    // biome-ignore lint/correctness/noComponentHookFactories: built once per test, never per render; it must extend the React copy loaded after the module reset, so it cannot be hoisted to the top of the file
     class PageWideStandIn extends (await import('react')).Component<
       { children: React.ReactNode },
       { crashed: boolean }
