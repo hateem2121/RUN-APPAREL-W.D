@@ -34,7 +34,8 @@ rule that `apps/shrink` must never reach `tools/asset-pipeline/src/validate.ts` 
   🟡 **SINCE 2026-10-03 DEPENDABOT PROPOSES DIGEST BUMPS — CHECK A PRINT BEFORE MERGING
   ONE.** `.github/dependabot.yml` gained a `docker` ecosystem for `apps/shrink` that day
   (owner decision, told that CI does not render garments inside this image): one pull
-  request at a time, Node 24 only, after a 7-day cooldown. Until then nothing automated
+  request at a time, within the current Node major (26 since 2026-10-24), after a 7-day
+  cooldown. Until then nothing automated
   refreshed the pin. A digest bump changes the system libraries sharp links against, so
   look at a rendered garment print before merging one; `apps/cms/src/baseImageAge.test.ts`
   still turns CI red when the pin ages. Do not unpin it to make an update easier. The

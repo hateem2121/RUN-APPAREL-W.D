@@ -144,9 +144,10 @@ updates:
     cooldown:
       default-days: 7
     ignore:
-      # Stay on Node 24 for this PRODUCTION image; only refresh it. CI moved to Node 26 on
-      # 2026-10-23, but moving the shrink robot is its own change: it needs a rendered
-      # print checked (`.claude/rules/shrink-container.md`), not just green CI.
+      # Stay on this Node major for the PRODUCTION image; only refresh it. The shrink robot
+      # moved 24 -> 26 by hand on 2026-10-24 after a print check (apps/shrink/Dockerfile).
+      # A major move needs a rendered print checked (`.claude/rules/shrink-container.md`),
+      # not just green CI, so Dependabot never proposes one.
       - dependency-name: node
         update-types:
           - version-update:semver-major
