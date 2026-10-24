@@ -47,15 +47,17 @@ directory was created. Point 2 is the one the installer does **not** give you �
 "What the lockfile does not pin" below. Use these flags or vendor by hand; a bare
 `npx skills add` is still the thing this section is against.
 
-⚠️ **Eight entries ARE symlinks as of `fc16d6e` (2026-08-15), which the paragraph
+⚠️ **Seven entries ARE symlinks (counted 2026-10-25; `fc16d6e`, 2026-08-15, installed
+eight skills, and the eighth, `ask-sonner`, never had a link and was removed on
+2026-10-25 because nothing here uses Sonner), which the paragraph
 above says never happens.** `npx skills add emilkowalski/skill` — run without
 `--copy` — writes to `.agents/skills/`, its universal location shared with the other
 harnesses on this checkout, and points `.claude/skills/` at it. They are tracked and
 pinned by `skills-lock.json`, so points 1, 2 and 4 still hold; only "real files"
 does not. The same run tried to replace `emil-design-eng` and `review-animations`
 with symlinks and was reverted from git, so **re-running the installer can silently
-overwrite a tracked skill — check `git status` after.** The eight: `animate`,
-`animation-vocabulary`, `apple-design`, `ask-sonner`,
+overwrite a tracked skill — check `git status` after.** The seven: `animate`,
+`animation-vocabulary`, `apple-design`,
 `find-animation-opportunities`, `improve-animations`, `pick-ui-library`,
 `prototype`. Two of them (`pick-ui-library`, `prototype`) are
 `disable-model-invocation: true`, so they never appear in a session's skill listing

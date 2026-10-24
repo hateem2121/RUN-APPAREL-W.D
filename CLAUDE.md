@@ -62,24 +62,24 @@ The gates, in CI's order. Run them before pushing:
 
 ```bash
 pnpm install --frozen-lockfile     # after every merge; the lockfile moves often
-pnpm lint                          # biome check .
-pnpm typecheck                     # 5 workspaces (packages/ui is CSS only)
+pnpm lint && pnpm typecheck        # biome check .; 5 workspaces (packages/ui is CSS only)
+(cd apps/shrink/container && npm ci --no-audit --no-fund && npx tsc --noEmit)  # not a pnpm member
 pnpm test:coverage                 # every suite + the measured coverage floors
-bash scripts/test-alert-shell.sh   # the alert branch nothing else exercises
-node scripts/check-docs-index.mjs  # every maintained doc reachable from docs/README.md
+bash scripts/test-alert-shell.sh && node scripts/check-docs-index.mjs  # alert branch; docs reachable
+for t in .claude/hooks/*.test.mjs; do node "$t"; done   # the hook guards
 pnpm seed:assets && pnpm build     # the gate that catches dependency breaks
 node scripts/check-bundle-budget.mjs         # reads apps/viewer/dist: build first
+pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build && node scripts/check-cms-worker-size.mjs
 pnpm eval:artwork                            # its own CI job; gates the deploy
+node apps/cms/scripts/check-doc-visuals.mjs  # needs Chromium (CI e2e-shard)
 pnpm --filter @run-apparel/viewer test:e2e   # its own CI job; gates the deploy (~45 s here)
 ```
 
-"It passed locally" has failed here because three gates are invisible from the
-workspace: `apps/shrink/container` is not a pnpm member (CI runs
-`npm ci --no-audit --no-fund && npx tsc --noEmit` inside it), `eval:artwork` runs
-in its own job, and `check-bundle-budget` exits 1 without a build.
-`node .claude/skills/gates/run-gates.mjs` runs all of them in order and stops at the
-first failure. One unit test: `pnpm --filter @run-apparel/<pkg> exec vitest run <file>`;
-one e2e spec: `pnpm --filter @run-apparel/viewer exec playwright test <spec> --project=viewer`.
+`node .claude/skills/gates/run-gates.mjs` runs these in order and stops at the first failure, plus
+knip, actionlint and zizmor (SKIPPED loudly if not installed), `node --test scripts/*.test.mjs` and
+`test:preload`/`test:routes`/`test:built-config`; `--list` names what it skips (the website's e2e).
+One unit test: `pnpm --filter @run-apparel/<pkg> exec vitest run <file>`; one e2e spec:
+`pnpm --filter @run-apparel/viewer exec playwright test <spec> --project=viewer`.
 
 ## How work is done here
 

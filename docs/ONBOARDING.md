@@ -91,9 +91,10 @@ In a second terminal:
 npx --yes pnpm@12.6.0 dev:viewer
 ```
 
-Viewer at <http://localhost:5173>. Go to **<http://localhost:5173/n001/navy>** — that
-URL shape is the whole product: it is what a printed QR code on a garment tag
-resolves to.
+Viewer at <http://localhost:5173>. Go to **<http://localhost:5173/n001/wine>** — the product
+and colour `seed:cms` created (colours: wine, blush, butter, lime, black). That URL shape is
+the whole product: it is what a printed QR code on a garment tag resolves to. (The live
+garment is `rxps`; on the website its pages sit under `/products/rxps/wine`.)
 
 ## 6. Run the browser suite (≈5 min)
 

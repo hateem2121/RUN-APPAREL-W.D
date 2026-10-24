@@ -3,6 +3,10 @@
  * the same shape as `ios-safari.d.mts`.
  */
 
+import type { Driver, Session } from './webdriver-client.mjs'
+export type { Driver, Session }
+export { closeSession, evaluate, go } from './webdriver-client.mjs'
+
 export declare const ANDROID_CAVEAT: string
 export declare const DEFAULT_ANDROID_PACKAGE: string
 export declare const HOST_LOOPBACK_ALIAS: string
@@ -24,29 +28,9 @@ export declare function readSessionId(payload: unknown): string
 
 export declare function describeHost(capabilities: unknown): string
 
-export declare function parseChromeVersionName(dumpsysOutput: string): string
-export declare function chromeMajorVersion(versionName: string): number
-
-export interface Driver {
-  port: number
-  stop(): void
-}
 export declare function startDriver(port: number): Promise<Driver>
 
-export interface Session {
-  sessionId: string
-  host: string
-}
 export declare function openSession(port: number, options?: SessionOptions): Promise<Session>
-
-export declare function go(port: number, sessionId: string, url: string): Promise<void>
-export declare function evaluate(
-  port: number,
-  sessionId: string,
-  script: string,
-  args?: unknown[],
-): Promise<unknown>
-export declare function closeSession(port: number, sessionId: string): Promise<void>
 
 export interface FontCheckResult {
   fontFamily?: string

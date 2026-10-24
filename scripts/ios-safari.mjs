@@ -36,7 +36,18 @@
  * shares the host's network stack, so `localhost` is the Mac.
  */
 
-import { spawn } from 'node:child_process'
+import {
+  closeSession,
+  evaluate,
+  go,
+  json,
+  newSession,
+  readSessionIdWith,
+  startDriverProcess,
+} from './webdriver-client.mjs'
+
+// The W3C calls are the same for both phones, so they live in one module (2026-10-25).
+export { closeSession, evaluate, go }
 
 /** Print this beside any measurement taken through this module. */
 export const SIMULATOR_CAVEAT =
@@ -73,17 +84,14 @@ export function sessionBody({ platformVersion = DEFAULT_PLATFORM_VERSION, device
  * diagnosis.
  */
 export function readSessionId(payload) {
-  const value = payload?.value
-  if (value?.sessionId) return value.sessionId
-  const message = value?.message ?? 'safaridriver returned no sessionId and no message'
-  if (/session hosts/i.test(message)) {
-    throw new Error(
-      `${message}\n` +
-        '  → that runtime is not discoverable. iOS 27.0 fails this way on Xcode 27; ' +
-        `use ${DEFAULT_PLATFORM_VERSION}. Adding more devices does not help.`,
-    )
-  }
-  throw new Error(message)
+  return readSessionIdWith(payload, {
+    driver: 'safaridriver',
+    explain: (message) =>
+      /session hosts/i.test(message)
+        ? '  → that runtime is not discoverable. iOS 27.0 fails this way on Xcode 27; ' +
+          `use ${DEFAULT_PLATFORM_VERSION}. Adding more devices does not help.`
+        : null,
+  })
 }
 
 /** "iPhone 17 Pro · iOS 26.5 (simulator)" — for a report that names what it measured. */
@@ -93,56 +101,18 @@ export function describeHost(capabilities) {
   return `${name} · iOS ${version} (simulator)`
 }
 
-const json = async (url, init) => {
-  const response = await fetch(url, init)
-  return response.json()
-}
-
 /** Start safaridriver on `port`. Returns a handle with `.stop()`. Never runs `--enable`. */
-export async function startDriver(port) {
-  const child = spawn('safaridriver', ['-p', String(port)], { stdio: 'ignore' })
-  // safaridriver has no ready signal; poll its status endpoint instead of sleeping.
-  for (let attempt = 0; attempt < 40; attempt++) {
-    try {
-      await fetch(`http://127.0.0.1:${port}/status`)
-      return { port, stop: () => child.kill() }
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 250))
-    }
-  }
-  child.kill()
-  throw new Error(`safaridriver did not answer on port ${port} within 10s`)
+export function startDriver(port) {
+  return startDriverProcess({ command: 'safaridriver', args: ['-p', String(port)], port })
 }
 
 /** Open a session. Returns `{ sessionId, host }`, `host` being `describeHost`'s label. */
 export async function openSession(port, options = {}) {
-  const payload = await json(`http://127.0.0.1:${port}/session`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sessionBody(options)),
-  })
+  const payload = await newSession(port, sessionBody(options))
   return {
     sessionId: readSessionId(payload),
     host: describeHost(payload?.value?.capabilities),
   }
-}
-
-export async function go(port, sessionId, url) {
-  await json(`http://127.0.0.1:${port}/session/${sessionId}/url`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
-  })
-}
-
-/** Run `script` in the page and return its value. Write it as a function body with a return. */
-export async function evaluate(port, sessionId, script, args = []) {
-  const payload = await json(`http://127.0.0.1:${port}/session/${sessionId}/execute/sync`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ script, args }),
-  })
-  return payload?.value
 }
 
 /**
@@ -156,9 +126,4 @@ export async function screenshot(port, sessionId) {
     method: 'GET',
   })
   return payload?.value
-}
-
-/** Always call this, even on failure — a leaked session holds the simulator's Safari. */
-export async function closeSession(port, sessionId) {
-  await fetch(`http://127.0.0.1:${port}/session/${sessionId}`, { method: 'DELETE' })
 }

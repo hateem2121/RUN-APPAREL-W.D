@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { MEDIA_REFERENCE_PATHS } from '../../../shrink/src/cms'
+import { MEDIA_GLOBAL_REFERENCES, MEDIA_REFERENCE_PATHS } from '../../../shrink/src/cms'
+import { BuildProcess } from '../globals/BuildProcess'
+import { CatalogueDefaults } from '../globals/CatalogueDefaults'
+import { SiteSettings } from '../globals/SiteSettings'
 import { Authors } from './Authors'
 import { CaseStudies } from './CaseStudies'
 import { JournalPosts } from './JournalPosts'
@@ -33,6 +36,11 @@ import { RawUploads } from './RawUploads'
  * Now it: builds dotted paths by walking the real collection configs (not a regex over
  * source), compares them against the list `apps/shrink/src/cms.ts` actually EXPORTS,
  * and cross-checks the script's copy against that same export.
+ *
+ * ⚠️ IT ALSO WALKED COLLECTIONS ONLY, until 2026-10-24. The site-settings global has a Media
+ * field (`logo`, the browser-tab icon, SiteSettings.ts) and neither consumer asked the CMS for
+ * globals, so `find-orphan-media.mjs --delete` would have listed the live logo as an orphan.
+ * The globals are walked now too (the last describe below).
  */
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..', '..')
@@ -219,3 +227,73 @@ describe('Media relationships are all accounted for', () => {
     expect(mediaPaths(Products.fields as Field[]).length).toBeGreaterThanOrEqual(4)
   })
 })
+
+describe('Media relationships on GLOBALS are seen by both consumers (2026-10-24)', () => {
+  /**
+   * The site logo was the one Media field no consumer knew: this guard walked collection
+   * configs only, and neither the finder nor the robot's `isMediaReferenced` fetched a global.
+   * Every global registered in payload.config.ts is walked, so a Media field added to any of
+   * them fails here until it is listed in both places.
+   */
+  const GLOBALS = { SiteSettings, CatalogueDefaults, BuildProcess }
+
+  const actual = () =>
+    Object.fromEntries(
+      Object.values(GLOBALS)
+        .map((global) => [global.slug, mediaPaths(global.fields as Field[]).sort()] as const)
+        .filter(([, paths]) => paths.length > 0),
+    )
+
+  it('walks every global that payload.config.ts registers', async () => {
+    const source = await readFile(
+      join(REPO_ROOT, 'apps', 'cms', 'src', 'payload.config.ts'),
+      'utf8',
+    )
+    const registered = /globals:\s*\[([^\]]*)\]/.exec(source)?.[1]
+    if (!registered) throw new Error('globals: [...] not found in payload.config.ts')
+    expect(
+      registered
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .sort(),
+      'A global was registered in payload.config.ts. Add it to GLOBALS in this test so its ' +
+        'Media fields are checked.',
+    ).toEqual(Object.keys(GLOBALS).sort())
+  })
+
+  it('every Media field on a global is in GLOBAL_REFERENCES (the finder)', async () => {
+    expect(
+      await scriptContentReferences('GLOBAL_REFERENCES'),
+      'A Media field was added to a global. Add it to GLOBAL_REFERENCES in ' +
+        'scripts/find-orphan-media.mjs AND to MEDIA_GLOBAL_REFERENCES in apps/shrink/src/cms.ts, ' +
+        'or a live picture looks unused.',
+    ).toEqual(actual())
+  })
+
+  it('the robot’s list agrees with the finder’s, global for global', async () => {
+    const robot = Object.fromEntries(
+      Object.entries(MEDIA_GLOBAL_REFERENCES).map(([slug, paths]) => [slug, [...paths].sort()]),
+    )
+    expect(robot).toEqual(await scriptContentReferences('GLOBAL_REFERENCES'))
+  })
+
+  it('⚠️ CONTROL: the walker finds the site logo', () => {
+    // A walker that returned {} would make every comparison above pass for the wrong reason.
+    expect(actual()).toEqual({ 'site-settings': ['logo'] })
+  })
+
+  it('⚠️ CONTROL: a Media field planted on a global is detected', () => {
+    const planted: Field[] = [...(SiteSettings.fields as Field[])]
+    planted.push({ name: 'ogImage', type: 'upload', relationTo: 'media' })
+    expect(mediaPaths(planted).sort()).toEqual(['logo', 'ogImage'])
+    expect(unlisted('ogImage')).toBe(true)
+  })
+})
+
+/** `ogImage` is in neither list, so the comparisons above would fail on it. */
+function unlisted(path: string): boolean {
+  return !Object.values(MEDIA_GLOBAL_REFERENCES).some((paths) =>
+    (paths as readonly string[]).includes(path),
+  )
+}

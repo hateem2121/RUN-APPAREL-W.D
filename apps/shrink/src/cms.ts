@@ -105,6 +105,45 @@ export const MEDIA_REFERENCE_PATHS = [
   'colourways.renderScreen',
 ] as const
 
+/**
+ * The GLOBALS that point at a Media document (2026-10-24). `site-settings.logo` is the browser-tab
+ * icon; until this list existed neither this check nor `scripts/find-orphan-media.mjs` knew
+ * globals, so a logo that no product used looked unreferenced. A global is one document, read at
+ * `/api/globals/<slug>`. `mediaReferences.test.ts` walks every registered global and fails when a
+ * Media field is missing here or in the script.
+ */
+export const MEDIA_GLOBAL_REFERENCES = {
+  'site-settings': ['logo'],
+} as const
+
+/**
+ * Does a global point at this Media id? `'unknown'` on any doubt (HTTP error, a body that is not
+ * an object), which the caller reads as "referenced". An empty picker (`null`, or no key) is a
+ * real answer: nothing is picked.
+ */
+async function globalReferences(
+  env: CmsEnv,
+  mediaId: number | string,
+): Promise<boolean | 'unknown'> {
+  for (const [slug, paths] of Object.entries(MEDIA_GLOBAL_REFERENCES)) {
+    try {
+      const res = await cmsFetch(env, `/api/globals/${slug}?depth=0`, { method: 'GET' })
+      if (!res.ok) return 'unknown'
+      const doc = (await res.json()) as Record<string, unknown> | null
+      if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) return 'unknown'
+      for (const path of paths) {
+        const value = doc[path]
+        const id =
+          value !== null && typeof value === 'object' ? (value as { id?: unknown }).id : value
+        if (id != null && String(id) === String(mediaId)) return true
+      }
+    } catch {
+      return 'unknown'
+    }
+  }
+  return false
+}
+
 /** Count matching docs, treating anything unexpected as "cannot rule it out". */
 async function countOrUnknown(env: CmsEnv, path: string): Promise<number | 'unknown'> {
   try {
@@ -120,7 +159,7 @@ async function countOrUnknown(env: CmsEnv, path: string): Promise<number | 'unkn
 /**
  * Is this Media doc used by anything?
  *
- * Checks products AND other raw uploads — the same two collections
+ * Checks products, other raw uploads AND the globals (the site logo) — the same places
  * scripts/find-orphan-media.mjs walks. One definition of "orphan" that deletes
  * and another that only reports would mean the automated path could remove
  * something the manual audit calls live.
@@ -146,11 +185,12 @@ export async function isMediaReferenced(
     uploadParams.set('where[and][1][id][not_equals]', String(exceptRawUploadId))
   }
 
-  const [products, uploads] = await Promise.all([
+  const [products, uploads, globals] = await Promise.all([
     countOrUnknown(env, `/api/products?${productParams.toString()}`),
     countOrUnknown(env, `/api/raw-uploads?${uploadParams.toString()}`),
+    globalReferences(env, mediaId),
   ])
 
-  if (products === 'unknown' || uploads === 'unknown') return true
-  return products > 0 || uploads > 0
+  if (products === 'unknown' || uploads === 'unknown' || globals === 'unknown') return true
+  return products > 0 || uploads > 0 || globals
 }

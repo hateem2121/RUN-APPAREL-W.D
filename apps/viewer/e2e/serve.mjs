@@ -653,7 +653,7 @@ const server = http.createServer((req, res) => {
     return
   }
 
-  // Static dist with SPA fallback (mirrors Cloudflare Pages `_redirects`)
+  // Static dist with SPA fallback (mirrors `not_found_handling: single-page-application`)
   const candidate = path.join(DIST, url.pathname === '/' ? 'index.html' : url.pathname)
   if (existsSync(candidate) && path.extname(candidate)) {
     res.setHeader('content-type', MIME[path.extname(candidate)] ?? 'application/octet-stream')

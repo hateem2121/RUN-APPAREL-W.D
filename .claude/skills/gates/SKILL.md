@@ -29,9 +29,17 @@ failed twice here:
   reason unless `build` ran first.
 
 The list must match CI. Until 2026-09-30 it silently lacked the docs-index and
-doc-pictures checks that CI runs, so "All gates passed" did not cover them;
-`apps/cms/src/gateRunnerParity.test.ts` now fails when CI's `verify` or `e2e-shard` job
-runs a `node` check this script does not.
+doc-pictures checks that CI runs, so "All gates passed" did not cover them, and until
+2026-10-25 it still lacked knip, actionlint, zizmor, the three post-build guards and the
+script tests, because the parity test compared only `node <x>.mjs` lines.
+`apps/cms/src/gateRunnerParity.test.ts` now compares EVERY gate command CI's `verify` and
+`e2e-shard` jobs run (pnpm, npm, bash and node) and fails on one this script neither runs nor
+lists as "not run" (`--list` shows them: the runner-image check, and the website's browser
+tests, which need a seeded local database and are run by hand).
+
+`actionlint` and `zizmor` are single binaries CI downloads. Where they are not installed the
+script prints `SKIPPED` for them and names them in its closing summary; it never counts them
+as passed.
 
 The script also runs the `.claude/` guard tests. `.claude/` is not a workspace package,
 so vitest never sees them; since 2026-09-29 CI runs them too, as the `verify` step

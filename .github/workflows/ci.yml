@@ -270,6 +270,13 @@ jobs:
             echo "::endgroup::"
           done
 
+      # scripts/ping-indexnow.test.mjs (2 tests, node:test) matched no vitest include and
+      # no CI step, so it ran for nobody until 2026-10-24. A glob, so the next
+      # scripts/*.test.mjs is picked up without editing this step; node:test is built in,
+      # no install needed. `node --test` exits 1 if a test fails or a file fails to load.
+      - name: Script tests (scripts/*.test.mjs, node:test)
+        run: node --test scripts/*.test.mjs
+
       - run: pnpm seed:assets
       - run: pnpm build
 
@@ -1529,13 +1536,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        # The Pages-style dist/_redirects ("/* /index.html 200") is rejected by
-        # Workers Static Assets as an infinite-loop rule (code 100324). On the
-        # Worker, SPA fallback is provided by not_found_handling:
-        # single-page-application in apps/viewer/wrangler.jsonc, so _redirects is
-        # redundant here — remove it before deploying. dist/_headers (CSP) stays.
+        # SPA fallback is provided by not_found_handling: single-page-application in
+        # apps/viewer/wrangler.jsonc. dist/_headers (CSP) is honoured natively. Until
+        # 2026-10-24 a Pages-style public/_redirects ("/* /index.html 200", rejected by
+        # Workers Static Assets as an infinite-loop rule, code 100324) was committed and
+        # deleted from dist here before every deploy; the file is gone, so is the step.
         run: |
-          rm -f apps/viewer/dist/_redirects
           # See the version-labelling note on the CMS deploy step above.
           pnpm --filter @run-apparel/viewer exec wrangler deploy \
             --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"

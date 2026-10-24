@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SITE_ORIGIN, SITE_PRIVACY_URL, SITE_PRODUCTS_URL, SITE_TERMS_URL } from './lib/siteLinks'
+import { SITE_ORIGIN, SITE_PRIVACY_URL, SITE_PRODUCTS_URL } from './lib/siteLinks'
 
 /**
  * The viewer now links to the marketing site (owner decision D5, 2026-09-07), and
@@ -96,7 +96,6 @@ describe('the legal links point at pages the site really serves', () => {
 
   it('privacy and terms are paths on SITE_ORIGIN', () => {
     expect(SITE_PRIVACY_URL).toBe(`${SITE_ORIGIN}/privacy`)
-    expect(SITE_TERMS_URL).toBe(`${SITE_ORIGIN}/terms`)
   })
 
   it('the CMS app has both routes, so renaming one breaks this test rather than the link', () => {

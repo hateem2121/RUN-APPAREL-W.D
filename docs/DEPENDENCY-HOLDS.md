@@ -46,7 +46,7 @@ It had been applied to all three workspaces that declare it. Measured that day:
 | --- | --- | --- |
 | `apps/cms` | **5.20260827.1** | passes |
 | `apps/viewer` | **5.20260827.1** | passes |
-| `apps/shrink` | 5.20260804.1 (held) | passes — and fails on 5.20260827.1 |
+| `apps/shrink` | 5.20260804.1 (held then) | passes — and fails on 5.20260827.1 |
 
 **Re-measured 2026-09-26** with the procedure below, in a real worktree:
 
@@ -54,7 +54,7 @@ It had been applied to all three workspaces that declare it. Measured that day:
 | --- | --- | --- |
 | `apps/cms` | **5.20260925.1** (raised that day) | passes |
 | `apps/viewer` | **5.20260925.1** (raised that day) | passes |
-| `apps/shrink` | 5.20260804.1 (held) | passes — and fails on 5.20260925.1 with the same four errors in `readGlbGenerator` |
+| `apps/shrink` | 5.20260804.1 (held then) | passes — and fails on 5.20260925.1 with the same four errors in `readGlbGenerator` |
 
 **Re-measured 2026-10-03** on Dependabot's `needs-hand-sync` pull request (#121), which
 raised all three:
@@ -63,7 +63,7 @@ raised all three:
 | --- | --- | --- |
 | `apps/cms` | **5.20260926.1** (raised that day) | passes |
 | `apps/viewer` | **5.20260926.1** (raised that day) | passes |
-| `apps/shrink` | 5.20260804.1 (held) | passes — and failed on 5.20260926.1 in CI with the same four errors in `readGlbGenerator` |
+| `apps/shrink` | 5.20260804.1 (held then) | passes — and failed on 5.20260926.1 in CI with the same four errors in `readGlbGenerator` |
 
 Negative control run in both directions: bumping `apps/shrink` too produces exactly
 four errors, all in `tools/asset-pipeline/src/validate.ts` lines 47-50, which is
@@ -91,9 +91,13 @@ fails. Both directions have controls.
 
 ---
 
-## `@cloudflare/workers-types` — held at 5.20260804.1
+## HISTORY — `@cloudflare/workers-types` was held at 5.20260804.1 (released 2026-10-03)
 
-- **`@cloudflare/workers-types` is HELD at `5.20260804.1` — the break begins at
+> **Not a live hold.** It was released on 2026-10-03; see "RELEASED 2026-10-03" at the top of
+> this page. What follows is the evidence from the time the hold stood, kept as history, and
+> its present tense ("is HELD") describes then, not now.
+
+- **`@cloudflare/workers-types` was HELD at `5.20260804.1` — the break began at
   `5.20260808.1`.** Bisected 2026-08-12 across 0804/0808/0809/0810: 0804.1 passes,
   every release from 0808.1 on fails `apps/shrink` typecheck with
   `Property 'readUInt32LE' does not exist on type 'NonSharedBuffer'` ×3 plus one
@@ -136,7 +140,7 @@ fails. Both directions have controls.
 
 ---
 
-## How to re-test the hold
+## How the hold was re-tested (history; the hold was released 2026-10-03)
 
 1. **Negative control first.** In a real `git worktree` at the held version, run
    `npx --yes pnpm@12.6.0 --filter @run-apparel/shrink typecheck` and confirm it exits 0.

@@ -12,10 +12,9 @@ Licence texts below were copied from each upstream repository's `LICENSE` file o
 ## Emil Kowalski — `emilkowalski/skill`
 
 `.agents/skills/animate/`, `.agents/skills/animation-vocabulary/`,
-`.agents/skills/apple-design/`, `.agents/skills/ask-sonner/`,
-`.agents/skills/find-animation-opportunities/`, `.agents/skills/improve-animations/`,
-`.agents/skills/pick-ui-library/` and `.agents/skills/prototype/` (linked from
-`.claude/skills/`).
+`.agents/skills/apple-design/`, `.agents/skills/find-animation-opportunities/`,
+`.agents/skills/improve-animations/`, `.agents/skills/pick-ui-library/` and
+`.agents/skills/prototype/` (linked from `.claude/skills/`).
 
 ```text
 MIT License

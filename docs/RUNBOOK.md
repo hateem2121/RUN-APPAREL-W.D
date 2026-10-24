@@ -40,7 +40,6 @@ pnpm --filter @run-apparel/cms run deploy          # CMS worker (canonical comma
 # Use the SAME API base URL as the VITE_API_BASE_URL repo variable (currently
 # https://cms.wear-run.help, read with `gh` 2026-10-24 — see "API + media domain cutover" below):
 VITE_API_BASE_URL="$(gh variable get VITE_API_BASE_URL)" pnpm --filter @run-apparel/viewer build
-rm -f apps/viewer/dist/_redirects   # Pages-only file; rejected by Workers Static Assets
 pnpm --filter @run-apparel/viewer exec wrangler deploy   # → run-apparel-viewer-site
 curl -f https://cms.wear-run.help/api/health
 ```
@@ -2148,11 +2147,11 @@ served neither — nor the per-garment link previews, which need the Worker's sc
 Notes learned during the cutover, still true:
 
 - SPA fallback comes from `not_found_handling: "single-page-application"` in
-  `apps/viewer/wrangler.jsonc`; the Pages-style `dist/_redirects`
+  `apps/viewer/wrangler.jsonc`. A Pages-style `_redirects` file
   (`/* /index.html 200`) is **rejected** by Workers Static Assets as an
-  infinite-loop rule (code 100324), so the CI worker-deploy step deletes it
-  before `wrangler deploy`. `dist/_headers` (CSP + immutable caching) is
-  honoured natively.
+  infinite-loop rule (code 100324); the repository's copy and the CI step that
+  deleted its built copy were removed on 2026-10-24. `dist/_headers` (CSP +
+  immutable caching) is honoured natively.
 - A Worker custom domain refuses a hostname that already has DNS records
   ("externally managed DNS records"): the old proxied CNAME
   `viewer → run-apparel-viewer.pages.dev` had to be **deleted in DNS → Records

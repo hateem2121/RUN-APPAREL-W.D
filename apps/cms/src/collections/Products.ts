@@ -69,7 +69,8 @@ async function readArtworkVerdict(
  * Returns null on any error, AND on a global that has never been saved:
  * Payload's findOne operation returns `{}` rather than the field-level
  * defaults when no row exists yet for a global (verified against Payload
- * 3.86.0's globals/operations/findOne.js — see task-9-report.md), which is
+ * 3.86.0's globals/operations/findOne.js; the task report this comment used to cite was
+ * never committed), which is
  * exactly the state this global is in immediately after this migration
  * deploys and before anyone opens Settings → Catalogue defaults and saves it.
  * Both cases fall back the same way: each field below applies the literal
@@ -464,7 +465,7 @@ export const Products: CollectionConfig = {
               label: 'Web address word',
               validate: (value: unknown) => {
                 if (typeof value !== 'string' || value.trim() === '') {
-                  return 'Every product needs a web address word, e.g. n001.'
+                  return 'Every product needs a web address word, e.g. rxps.'
                 }
                 /**
                  * ⚠️ THIS ONE STAYS STRICT, deliberately, while `productCode` above
@@ -481,7 +482,7 @@ export const Products: CollectionConfig = {
                 const suggestion = deriveSlug(value)
                 return (
                   `“${value}” can’t be used in a web address. Use lowercase letters, numbers ` +
-                  `and hyphens only — e.g. n001.` +
+                  `and hyphens only — e.g. rxps.` +
                   (suggestion ? ` Did you mean “${suggestion}”?` : '')
                 )
               },
