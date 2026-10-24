@@ -54,7 +54,8 @@ import {
  * ones that break a copy script: a nested folder (seo-audit has evals/ and references/), a
  * folder whose name differs from its upstream folder (vercel-react-view-transitions lives in
  * skills/react-view-transitions), and skills whose real files sit in .agents/skills/, behind a
- * symlink (animate) or with no link at all (ask-sonner, as in this repository today). The
+ * symlink (animate) or with no link at all (improve-animations is copied WITHOUT its link: the
+ * shape the installer can leave, though every skill in .agents/skills is linked today). The
  * upstream is a fake fetch that answers like GitHub: nothing here touches the network.
  *
  * Those folders are rewritten every week by the robot this script serves, so no test here may
@@ -210,8 +211,9 @@ function makeRoot() {
   copy(['.agents', 'skills', 'animate'], ['.agents', 'skills', 'animate'])
   // The way the installer links it: .claude/skills/animate -> ../../.agents/skills/animate
   symlinkSync('../../.agents/skills/animate', join(root, '.claude', 'skills', 'animate'))
-  // Real files in .agents/skills and, as in this repository today, NO link in .claude/skills.
-  copy(['.agents', 'skills', 'ask-sonner'], ['.agents', 'skills', 'ask-sonner'])
+  // Real files in .agents/skills and NO link in .claude/skills (the real repository links all
+  // seven; improve-animations was the one without until 2026-10-25, so this fixture now makes the shape).
+  copy(['.agents', 'skills', 'improve-animations'], ['.agents', 'skills', 'improve-animations'])
   // Files the tests own (see the header): one nested, one alone in its folder.
   const own = (parts: string[], content: string) => {
     mkdirSync(join(root, ...parts.slice(0, -1)), { recursive: true })
@@ -224,7 +226,7 @@ function makeRoot() {
     '# Fixture\n',
   )
   own(['.agents', 'skills', 'animate', 'FIXTURE.md'], '# Fixture\n')
-  own(['.agents', 'skills', 'ask-sonner', 'FIXTURE.md'], '# Fixture\n')
+  own(['.agents', 'skills', 'improve-animations', 'FIXTURE.md'], '# Fixture\n')
   writeFileSync(join(root, '.claude', 'skills', 'README.md'), MINI_README)
   const lock = parseLock(LOCK_TEXT).skills
   writeFileSync(
@@ -233,7 +235,7 @@ function makeRoot() {
       version: 1,
       skills: {
         animate: lock.animate!,
-        'ask-sonner': lock['ask-sonner']!,
+        'improve-animations': lock['improve-animations']!,
         'vercel-react-view-transitions': lock['vercel-react-view-transitions']!,
       },
     }),
@@ -259,7 +261,10 @@ function upstreamFor(root: string) {
       spdx: 'MIT',
       files: new Map([
         ...folderFiles(join(root, '.agents', 'skills', 'animate'), 'skills/animate'),
-        ...folderFiles(join(root, '.agents', 'skills', 'ask-sonner'), 'skills/ask-sonner'),
+        ...folderFiles(
+          join(root, '.agents', 'skills', 'improve-animations'),
+          'skills/improve-animations',
+        ),
       ]),
     } as FakeRepo,
     vercel: {
@@ -341,7 +346,8 @@ describe('folderHash', () => {
     const names = readdirSync(real('.agents', 'skills'), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
-    expect(names.length).toBeGreaterThanOrEqual(8)
+    // Seven since improve-animations left on 2026-10-25 (it was eight): a floor so an empty folder cannot pass.
+    expect(names.length).toBeGreaterThanOrEqual(7)
     for (const name of names) {
       expect(lock[name], `${name} is in .agents/skills but not in skills-lock.json`).toBeDefined()
       expect(folderHash(real('.agents', 'skills', name)), name).toBe(lock[name]!.computedHash)
@@ -601,11 +607,8 @@ describe('resolveSkillDir', () => {
     expect(resolveSkillDir(REPO_ROOT, 'animate').dir).toBe(
       realpathSync(real('.agents', 'skills', 'animate')),
     )
-    // ask-sonner has real files in .agents/skills and, measured 2026-10-03, no link in
-    // .claude/skills, so only the fallback finds it.
-    expect(resolveSkillDir(REPO_ROOT, 'ask-sonner').dir).toBe(
-      realpathSync(real('.agents', 'skills', 'ask-sonner')),
-    )
+    // The fallback to .agents/skills, for a skill with no link, is the next test (a planted
+    // ghost) and the 'no link in .claude/skills' refresh test: every real skill is linked now.
   })
 
   it('treats a link that points at nothing as missing, and falls back to .agents/skills', () => {
@@ -1154,7 +1157,7 @@ describe('refresh, on a temp copy of real skills', () => {
     const result = await refresh({ root, fetch: fake.fetch, write: true })
     expect(statuses(result)).toEqual([
       ['animate', 'unchanged'],
-      ['ask-sonner', 'unchanged'],
+      ['improve-animations', 'unchanged'],
       ['seo-audit', 'unchanged'],
       ['vercel-react-view-transitions', 'unchanged'],
     ])
@@ -1227,7 +1230,7 @@ describe('refresh, on a temp copy of real skills', () => {
       sourceType: 'github',
       skillPath: 'skills/animate/SKILL.md',
     })
-    expect(lock['ask-sonner']).toEqual(lockBefore['ask-sonner']) // unchanged skill, untouched entry
+    expect(lock['improve-animations']).toEqual(lockBefore['improve-animations']) // unchanged skill, untouched entry
     expect(serializeLock(parseLock(lockText))).toBe(lockText) // still the installer's format
 
     // animate is a link: the write went through it, and it is still a link.
@@ -1239,23 +1242,27 @@ describe('refresh, on a temp copy of real skills', () => {
 
   it('writes into .agents/skills for a skill with no link in .claude/skills', async () => {
     const { root, up, fake } = setup((u) =>
-      addLine(u.emil, 'skills/ask-sonner/FIXTURE.md', 'A new endpoint.'),
+      addLine(u.emil, 'skills/improve-animations/FIXTURE.md', 'A new endpoint.'),
     )
-    expect(existsSync(join(root, '.claude', 'skills', 'ask-sonner'))).toBe(false) // the shape under test
-    const before = parseLock(text(root, 'skills-lock.json')).skills['ask-sonner']!.computedHash
+    expect(existsSync(join(root, '.claude', 'skills', 'improve-animations'))).toBe(false) // the shape under test
+    const before = parseLock(text(root, 'skills-lock.json')).skills['improve-animations']!
+      .computedHash
 
     const result = await refresh({ root, fetch: fake.fetch, write: true })
     expect(statuses(result)).toEqual([
       ['animate', 'unchanged'],
-      ['ask-sonner', 'updated'],
+      ['improve-animations', 'updated'],
       ['seo-audit', 'unchanged'],
       ['vercel-react-view-transitions', 'unchanged'],
     ])
-    expect(text(root, '.agents', 'skills', 'ask-sonner', 'FIXTURE.md')).toContain('A new endpoint.')
-    expect(existsSync(join(root, '.claude', 'skills', 'ask-sonner'))).toBe(false) // no link is invented
-    const after = parseLock(text(root, 'skills-lock.json')).skills['ask-sonner']!.computedHash
+    expect(text(root, '.agents', 'skills', 'improve-animations', 'FIXTURE.md')).toContain(
+      'A new endpoint.',
+    )
+    expect(existsSync(join(root, '.claude', 'skills', 'improve-animations'))).toBe(false) // no link is invented
+    const after = parseLock(text(root, 'skills-lock.json')).skills['improve-animations']!
+      .computedHash
     expect(after).not.toBe(before)
-    expect(after).toBe(hashFiles(stripPrefix(up.emil, 'skills/ask-sonner')))
+    expect(after).toBe(hashFiles(stripPrefix(up.emil, 'skills/improve-animations')))
   })
 
   describe.each(Object.entries(PLANTED))('a planted %s pattern', (pattern, planted) => {
@@ -1687,7 +1694,7 @@ describe('refresh, on a temp copy of real skills', () => {
     const { root, fake } = setup((up) => addLine(up.marketing, SEO('SKILL.md'), 'A new line.'))
     rmSync(join(root, 'skills-lock.json'))
     const result = await refresh({ root, fetch: fake.fetch, write: true })
-    // Only the README rows are left to refresh: animate and ask-sonner lived in the lock.
+    // Only the README rows are left to refresh: animate and improve-animations lived in the lock.
     // The vercel skill is blocked, not lost: only the lock's skillPath says its upstream
     // folder is skills/react-view-transitions, so without it the name is looked up as given.
     expect(statuses(result)).toEqual([
