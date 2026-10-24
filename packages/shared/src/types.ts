@@ -135,10 +135,10 @@ export interface ViewerProduct {
   /**
    * Rich text serialised to sanitised HTML by the CMS endpoint.
    *
-   * ⚠️ SOURCED FROM THE `build-process` GLOBAL SINCE 2026-08-17, not from the
-   * product. The name and shape are unchanged on purpose — the viewer consumes
-   * these exactly as it did, and the switch is entirely inside
-   * apps/cms/src/endpoints/projectViewer.ts.
+   * From each product's own `customisationIntro` (Lexical) since 2026-09-05, when the
+   * `build-process` global was retired; it was sourced from that global from 2026-08-17.
+   * The name and shape never changed — the viewer consumes these exactly as it did, and
+   * the switch is entirely inside apps/cms/src/endpoints/projectViewer.ts.
    */
   customisationIntroHtml: string
   customisationSteps: ViewerCustomisationStep[]

@@ -2,6 +2,9 @@
 
 **In plain words:** How to run the live site: go live, undo a change, fix a problem.
 
+**`pnpm` in this runbook means `npx --yes pnpm@12.6.0`.** Bare `pnpm` is missing or broken on the
+maintainer's Mac (absent on 2026-10-24); root `CLAUDE.md` → Commands says why.
+
 Day-to-day operations for the live stack. For first-time setup see
 [CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md); for backups see
 [BACKUP-RESTORE.md](BACKUP-RESTORE.md); for the July 2026 hardening history,
@@ -16,8 +19,8 @@ push and requires the checks `verify`, `e2e`, `audit`, `secrets`, `artwork` and 
 `main`, runs `.github/workflows/ci.yml`:
 
 1. **The gates**, in parallel — `verify` (lint, typecheck, unit tests with coverage,
-   build, bundle weight), `e2e` (the browser tests; since 2026-09-29 they run on five
-   `e2e-shard` machines and `e2e` passes only if every one did), `audit`, `secrets`
+   build, bundle weight), `e2e` (the browser tests; since 2026-09-29 they run on separate
+   `e2e-shard` machines, seven since 2026-10-05: three viewer, four website; `e2e` passes only if every one did), `audit`, `secrets`
    and `artwork`.
 2. **deploy**, on `main` only, when every gate passed *and*
    `vars.DEPLOY_ENABLED == 'true'` — backs up D1 and proves the backup restores,
@@ -34,8 +37,8 @@ its `conclusion`, since `--exit-status` returns 1 for `cancelled` as well.
 
 ```bash
 pnpm --filter @run-apparel/cms run deploy          # CMS worker (canonical command)
-# Use the SAME API base URL as the VITE_API_BASE_URL repo variable (currently the
-# CMS workers.dev URL — see "API + media domain cutover" below for why):
+# Use the SAME API base URL as the VITE_API_BASE_URL repo variable (currently
+# https://cms.wear-run.help, read with `gh` 2026-10-24 — see "API + media domain cutover" below):
 VITE_API_BASE_URL="$(gh variable get VITE_API_BASE_URL)" pnpm --filter @run-apparel/viewer build
 rm -f apps/viewer/dist/_redirects   # Pages-only file; rejected by Workers Static Assets
 pnpm --filter @run-apparel/viewer exec wrangler deploy   # → run-apparel-viewer-site
@@ -93,7 +96,8 @@ the gates.
 > `{ error: 'Authentication error' }` — which names neither permission.
 >
 > To rotate it: `gh secret set CLOUDFLARE_API_TOKEN`, then
-> `gh workflow run "Deploy shrink service"` to confirm before relying on it.
+> `gh workflow run ci.yml` on `main` to confirm before relying on it (the shrink deploy moved
+> into `ci.yml` on 2026-09-29; there is no separate shrink workflow).
 >
 > Manual fallback, if CI is ever unavailable (needs Docker running; on an
 > Apple-silicon Mac the amd64 build is emulated and takes several minutes):
@@ -109,7 +113,7 @@ the gates.
 **GitHub CI deploys it, behind the same gates as the site.** The `deploy-shrink` job in
 `.github/workflows/ci.yml` runs on a push to `main` that changes `apps/shrink/`,
 `tools/asset-pipeline/` (not its Markdown), `packages/shared/`, the pnpm lockfile or
-workspace file, or `ci.yml` — and on any by-hand *Run workflow* of CI, which is the manual
+workspace file, `ci.yml`, or `.trivyignore` (the image scan's waivers, since 2026-10-20) — and on any by-hand *Run workflow* of CI, which is the manual
 redeploy (it redeploys the unchanged site first). It waits for `verify`, `artwork`,
 `audit`, `secrets`, `shrink-image-audit` (the base image's Trivy scan) and the site's
 `deploy`, and runs only while the repository variables `DEPLOY_ENABLED` and
@@ -175,6 +179,10 @@ production deploy pause for a human approval:
 > only appears with **GitHub Pro** or higher — on the Free plan the environment
 > page shows only branches/secrets/variables. Decision: skipped for now; the
 > automated gates (verify + audit + health check) remain the deploy protection.
+>
+> **Still the decision on 2026-10-24**, though the repo is public since 2026-09-10: `ci.yml`
+> records `production` as a label and the reviewer step as a closed decision (budget), not an
+> unfinished setup step. Do not list it as pending.
 
 This layers on top of the code-review that happens before `main` (see below). The
 deploy job also `needs` both `verify` (typecheck/test/build/e2e) and `audit`
@@ -229,8 +237,9 @@ The four Worker names:
 | `run-apparel-viewer-shrink` | garment processing only; the live site is unaffected |
 | `run-apparel-apex-404` | the private catalogue and profile links, and the retired apex PDF paths |
 
-⚠️ **Once `run-apparel-archive` is deleted, `run-apparel-viewer-shrink` cannot be rolled back
-to any version deployed between 2026-09-03 and the archive's retirement** — those versions
+⚠️ **`run-apparel-archive` is deleted (absent from the account's R2 bucket list, read
+2026-10-24), so `run-apparel-viewer-shrink` cannot be rolled back to any version deployed
+between 2026-09-03 and the archive's retirement** — those versions
 bind that bucket, and Cloudflare refuses a rollback to a version whose R2 binding names a
 bucket that no longer exists. For that Worker use `git revert` + push.
 
@@ -240,7 +249,10 @@ public API.
 ### Routes are not versions — rolling back the site's address
 
 `wrangler rollback` restores a Worker's CODE and leaves its ROUTES where they are. To
-put the apex back the way it was before 2026-09-06 (the PDF Worker answering everything):
+⚠️ **This undoes the 2026-09-06 change on the old `wear-run.help` apex only.** Since the domain
+move of 2026-09-28 the site lives on `wear-run.com`; to undo THAT move, follow
+[CLOUDFLARE-SETUP.md](CLOUDFLARE-SETUP.md) §11.9, "Undo". To
+put the old apex back the way it was before 2026-09-06 (the PDF Worker answering everything):
 
 1. remove the two wildcard routes from `apps/cms/wrangler.jsonc` and deploy the CMS
    Worker — the site stops answering on the apex;
@@ -269,6 +281,7 @@ the schema back with `migrate:remote:down` before the Worker.
 likely to turn a visible outage into a data problem.** Check first:
 
 ```bash
+cd apps/cms   # where wrangler.jsonc declares the database, as for every D1 command here
 npx wrangler@4.151.1 d1 migrations list run-apparel-viewer-db --remote
 ```
 
@@ -359,17 +372,17 @@ inspect what's applied, then re-run the migrate or apply the SQL by hand:
 ```bash
 node scripts/backup-d1.mjs
 cd apps/cms
-pnpm exec wrangler d1 execute run-apparel-viewer-db --remote \
+npx wrangler@4.151.1 d1 execute run-apparel-viewer-db --remote \
   --command "SELECT id, name, batch, created_at FROM payload_migrations ORDER BY id"
 # last-resort manual apply of a specific migration's SQL:
-pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --file src/migrations/<file>.sql
+npx wrangler@4.151.1 d1 execute run-apparel-viewer-db --remote --file src/migrations/<file>.sql
 ```
 
 ### Canonicalising migration history
 
 During an earlier recovery a `payload_migrations` row was inserted by hand, so the
-table should be verified once against the canonical history. The canonical state
-(two committed migrations, applied in order) is exactly:
+table should be verified once against the canonical history. Its first two rows must read
+(29 committed migrations on 2026-10-24; the rest follow `apps/cms/src/migrations/index.ts`):
 
 | id | name | batch |
 |---|---|---|
@@ -380,7 +393,7 @@ Verify the live table matches (run after a backup):
 
 ```bash
 cd apps/cms
-pnpm exec wrangler d1 execute run-apparel-viewer-db --remote \
+npx wrangler@4.151.1 d1 execute run-apparel-viewer-db --remote \
   --command "SELECT id, name, batch FROM payload_migrations ORDER BY id"
 ```
 
@@ -389,7 +402,7 @@ If a `dev`/`NULL` marker row is present, or the batch numbers differ, reconcile 
 
 ```bash
 cd apps/cms
-pnpm exec wrangler d1 execute run-apparel-viewer-db --remote --command "
+npx wrangler@4.151.1 d1 execute run-apparel-viewer-db --remote --command "
   DELETE FROM payload_migrations WHERE name IS NULL OR name = 'dev';
   UPDATE payload_migrations SET batch = 1 WHERE name = '20260720_185735_initial';
   UPDATE payload_migrations SET batch = 2 WHERE name = '20260721_084024_add_events';
@@ -487,9 +500,9 @@ pull request:
   slug correctly falls back to the default colourway. That fallback is right (a QR
   tag printed with an old slug must still work) and is exactly why this default
   cannot be a retired slug: it would test the fallback forever and never the
-  normal path. See the comment at `scripts/smoke-viewer-payload.mjs:37`.
+  normal path. See the comment at `scripts/smoke-viewer-payload.mjs:57`.
 
-  **It resolves the model URL by the same rule `Stage.tsx:46` uses** —
+  **It resolves the model URL by the same rule `apps/viewer/src/components/Stage.tsx:100` uses** —
   `separateMode ? selected.glbUrl : product.glbUrl`, with no fallback between the
   two fields. Writing it as `a || b` would pass on a product whose *unused* field
   happens to be populated, i.e. green CI while every visitor sees the no-model
@@ -869,8 +882,8 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec wrangler d1 execute run-app
 
 Decided 2026-09-18, live from the merge that deploys it: every host answers
 `/.well-known/security.txt` (RFC 9116) with one shared text,
-`packages/shared/src/securityTxt.ts` — the documents Worker, the site (wear-run.help and
-cms.; www. redirects to the apex copy) and the viewer all import it. Security reports go to
+`packages/shared/src/securityTxt.ts` — the documents Worker, the site (`wear-run.com` and its `www.`, `cms.wear-run.help`, and the forwarding hosts
+`wear-run.help`, `www.wear-run.help` and `viewer.wear-run.help`) and the viewer all import it. Security reports go to
 `security@wear-run.com` (an alias of team@, since 2026-10-11), which SECURITY.md names too.
 
 Its `Expires` must stay less than a year ahead. `scripts/public-security-probe.mjs` reads
@@ -902,11 +915,11 @@ probe fails with "the page is cut off or garbled".
 
 - **A new script is blocked on the site** (the browser console says "Refused to execute…
   nonce"): an edge feature started injecting one (`docs/CLOUDFLARE-SETUP.md` 11.7). Turn that
-  feature off for `wear-run.help`.
+  feature off for `wear-run.com` (the public pages moved there on 2026-09-28).
 - **Roll back:** set `"main"` in `apps/cms/wrangler.jsonc` back to `".open-next/worker.js"` and
   deploy through a PR. Pages then use the fallback policy immediately.
 - **Prove it:** `node apps/cms/e2e/csp-nonce-edge.mjs --origin=https://wear-run.com` checks
-  3 browser engines × 6 page types.
+  3 browser engines × 40 pages (counted 2026-10-24).
 
 ## Error 1101 only under load — the CMS Worker's size (since 2026-10-07)
 
@@ -1111,7 +1124,7 @@ or linked to a later day's.
 
 Viewer telemetry (analytics, diagnostics, client errors) lands in the **Events**
 collection in `/admin` (System group). No IP or personal data is stored. The
-nightly workflow prunes rows older than 180 days on the 1st of each month; to
+nightly workflow prunes rows older than 90 days (180 until 2026-08-18) on the 1st of each month; to
 prune on demand run `nightly-backup.yml` via *workflow_dispatch*.
 
 Aggregate page views (if enabled) are in Cloudflare **Web Analytics**.
@@ -1227,7 +1240,9 @@ pathname so query and fragment can never carry anything; `tracesSampleRate: 0`;
 tags limited to release, environment, product slug, colourway slug, WebGL
 availability and pointer type. Pinned by `sentry.test.ts`.
 
-**What it cannot leak, structurally:** there is no login, no cookie and no form.
+**What it cannot leak, structurally:** there is no login and no form. Since the cookie question
+(PR #99) the browser keeps one answer, the visitor's cookie choice, and only after Accept the
+analytics cookies (`apps/viewer/src/components/ConsentBanner.tsx`).
 The enquiry path is a `mailto:`/`wa.me` link built client-side
 (`components/Contact.tsx`), so nothing a visitor types ever exists in the page.
 
@@ -1248,6 +1263,10 @@ $5/month budget and one part-time maintainer.
 |---|---|---|---|
 | Viewer page loads | **99.5%/month** (≈3.6 h down) | UptimeRobot keyword check, 5 min | Cloudflare Workers' own availability is the floor; we cannot beat our platform |
 | Product API answers | **99.5%/month** | UptimeRobot keyword `"productCode":"R-XPS"` ⚠️ see below | Same |
+| A published garment actually renders | **100%** — any failure is an incident | `scripts/smoke-viewer-payload.mjs` in uptime.yml | A 200 that renders nothing is the failure this project has actually shipped, twice |
+| Time to notice an outage | **≤10 min** | UptimeRobot, 5 min interval | GitHub's cron cannot do this — see below |
+| Time to roll back a bad deploy | **≤15 min** | "Undoing a bad deploy" above | Procedure is written and drilled |
+| Printed artwork legible on every deploy | **100%** | `pnpm eval:artwork` gates CI | Not availability, but it is the product |
 
 > ⚠️ **CHECK THE EXTERNAL MONITOR'S KEYWORD BY HAND — this table was wrong about it
 > until 2026-08-30, and this repo cannot verify it.** The row said the keyword was
@@ -1264,10 +1283,6 @@ $5/month budget and one part-time maintainer.
 > The same rename broke both in-repo post-deploy gates on 2026-08-15 and again on
 > 2026-08-17. Before changing any product identity field, grep `scripts/smoke-*.mjs`,
 > `.github/workflows/` **and** re-read this box.
-| A published garment actually renders | **100%** — any failure is an incident | `scripts/smoke-viewer-payload.mjs` in uptime.yml | A 200 that renders nothing is the failure this project has actually shipped, twice |
-| Time to notice an outage | **≤10 min** | UptimeRobot, 5 min interval | GitHub's cron cannot do this — see below |
-| Time to roll back a bad deploy | **≤15 min** | "Undoing a bad deploy" above | Procedure is written and drilled |
-| Printed artwork legible on every deploy | **100%** | `pnpm eval:artwork` gates CI | Not availability, but it is the product |
 
 **The detection target is why the external monitor is not optional.**
 `uptime.yml` asked for every 15 minutes until 2026-08-18 and GitHub delivered about 27% of that —
@@ -1317,7 +1332,8 @@ yourself muting UptimeRobot, add a second destination instead.
 > 60% of the entire 2,000-minute Free allowance — because GitHub rounds **every job**
 > up to a whole minute, so a 12-second check costs a full one, 40 times a day. The
 > quota ran out, GitHub refused to start any job, and that stopped a production
-> deploy. Cadence is now **daily**.
+> deploy. Cadence was **daily** from 2026-08-18; it is every 6 hours since 2026-09-29, once the
+> public repository's hosted minutes were free.
 >
 > **Liveness lives on the external uptime service**, which polls every 5 minutes —
 > three times more often — and costs no Actions minutes. What stayed in this
@@ -1334,12 +1350,13 @@ yourself muting UptimeRobot, add a second destination instead.
 > still concluded `success`. Outage issue #47 was that false alarm.
 >
 > **If you ever raise the cadence here, do the arithmetic first**: runs/day × jobs ×
-> 1 minute, against 2,000/month.
+> 1 minute, against 2,000/month — the limit while the repo was private; hosted minutes are
+> free since it went public on 2026-09-10.
 
 
 
 `.github/workflows/uptime.yml` **asks** GitHub to ping `/api/health` and the viewer
-once a day (see the cadence note below). On failure it opens a GitHub issue labelled `outage` — or, if one
+every 6 hours (see the cadence note below). On failure it opens a GitHub issue labelled `outage` — or, if one
 is already open, **comments on it**.
 
 > ### ⚠️ Measured 2026-08-10 — GitHub delivers about a QUARTER of that cadence
@@ -1443,6 +1460,9 @@ workflow last **succeeded**:
 | `uptime.yml` | **every 6 hours** since 2026-09-29 (daily from 2026-08-18; every 15 min before) | worst gap 13.6 h for a 6-hour cron, measured on `heartbeat.yml` | 24 hours |
 | `nightly-backup.yml` | nightly | nightly | 36 hours |
 | `diagnostics-digest.yml` | Mondays | first run due 2026-08-10 | 192 hours (8 days) |
+
+The table shows three of the ten workflows it watches; `WATCHED` in `heartbeat.yml` lists all ten
+with their budgets (counted 2026-10-24).
 
 Each budget was chosen to be several times the workflow's own interval, so that
 GitHub's best-effort cron skew would never trip it. *(For `uptime.yml` it once was not:
@@ -1627,8 +1647,8 @@ logos; `lockBorder` with the same budget gave 36.1 MB; `lockBorder` with
 predate texture-aware decimation; re-measure rather than extrapolate.
 
 For the automatic shrinker, do **not** edit flags in the container — pick the
-**Detail** level on the raw upload instead (Balanced / Highest quality / Smallest
-file). The levels map to these flags in `packages/shared/src/shrink.ts`.
+**Detail** level on the raw upload instead (Balanced or Highest quality;
+"Smallest file" was removed on 2026-08-05). The levels map to these flags in `packages/shared/src/shrink.ts`.
 
 **Detail only moves decimation, and it is worth being exact about what that
 rules out.** It is the right knob for artwork that comes back *smeared*, warped
@@ -1738,7 +1758,8 @@ new render at full size until a new copy is made. Nothing breaks without a copy;
 only downloads more. To make one for a new render, with Pillow (installed on the owner's Mac):
 
 ```bash
-python3 -c "
+# Plain python3 has no Pillow on this Mac (checked 2026-10-24); use the imaging venv.
+~/.venvs/imaging/bin/python -c "
 from PIL import Image; import sys
 im = Image.open(sys.argv[1]); h = 1400
 if im.height > h: im = im.resize((round(im.width * h / im.height), h), Image.Resampling.LANCZOS)
@@ -1756,7 +1777,7 @@ never against the whole catalogue. A poster at `FLAG_AT` (2×) its family's medi
 heavier is flagged, unless the product is named in `OWNER_EXCEPTIONS`: `r-wzu`, ceiling
 3×, the owner's 2026-09-17 call on "Shrink gently" (*the vest keeps its detail*), and six
 products the owner reviewed on 2026-09-29 and kept as they are (`r-csp` 3×; `r-ifs`,
-`r-xmp`, `r-cch`, `r-asb`, `r-pps` 2.5×). Past its own ceiling an exception stops
+`r-xmp`, `r-cch`, `r-asb`, `r-pps` 2.5×), and `r-sps` 3×, the owner's call of 2026-10-08 on its studio renders. Past its own ceiling an exception stops
 covering the product; it is flagged same as anything else.
 
 🟡 **Since 2026-09-29 the medians are FROZEN** (`BASELINE_MEDIANS`, all 200 live posters
@@ -1833,8 +1854,8 @@ PATCH sends back the WHOLE `colourways` array, read at the start of that product
 own turn — an edit made in the window before it writes is silently overwritten,
 and the read-back would still pass, because it compares against what THIS run sent.
 
-Afterwards, `node scripts/poster-sizes.mjs` should exit 0 with 5 excepted and 0
-flagged. `apps/cms/src/shrinkPostersGently.test.ts` pins every settings/bytes/sha256
+Afterwards, `node scripts/poster-sizes.mjs` should exit 0 with 0
+flagged (how many it lists as excepted depends on the live posters; eight products may be). `apps/cms/src/shrinkPostersGently.test.ts` pins every settings/bytes/sha256
 triple above.
 
 ## Publishing a garment before its 3D file ("3D coming soon")
@@ -1945,8 +1966,9 @@ the first move — it costs a 350 MB+ upload.
 ### Visual acceptance — the sign-off
 
 Processing successfully is **not** the same claim as the garment looking right.
-This repo keeps those separate on purpose, and the 2026-08-04 fix is measured but,
-as of this writing, still unrendered.
+This repo keeps those separate on purpose. The 2026-08-04 fix was later rendered and the
+artwork issue CLOSED on 2026-08-05 (`docs/OPEN-ISSUE-ARTWORK.md`); run this check after any
+change to the pipeline's texture handling.
 
 - [ ] Open the new `resultGlb` — CMS preview, or attach it to the product in a
       draft and open the viewer.
@@ -1959,8 +1981,8 @@ as of this writing, still unrendered.
 - [ ] Edges are clean, not smeared or torn. *That* one is a Detail problem.
 - [ ] Screenshot the chest crop and attach it to `docs/OPEN-ISSUE-ARTWORK.md`.
 
-Until that screenshot exists, the artwork issue stays open regardless of what the
-tests say.
+If that screenshot shows damage, reopen `docs/OPEN-ISSUE-ARTWORK.md`: a green test suite does
+not close it.
 
 **After attaching the re-shrunk model, before telling the owner it is live**, run
 `node scripts/glb-provenance-probe.mjs <product>/<colourway>` — confirms
@@ -2146,8 +2168,8 @@ history in `docs/HARDENING-LOG.md` and a comment in `ci.yml` still name it.
 ## Link previews — what a shared link looks like
 
 Paste `https://wear-run.com/products/rxps/wine` into WhatsApp, email or LinkedIn
-and the recipient sees a card: the garment's own picture, "N001 Velocity
-Performance Skinsuit — Wine", and its fabric and fit. Every colourway gets its
+and the recipient sees a card: the garment's own picture, "R-XPS X-MILO PRO
+SKIN-SUIT — Claret Red" (read live 2026-10-24), and its fabric and fit. Every colourway gets its
 own card.
 
 **How it works, in one line:** link crawlers do not run JavaScript, so the viewer
@@ -2328,7 +2350,8 @@ the owner gave on 2026-09-30; the comment above them in `guides.ts` records whic
 
 `scripts/public-security-probe.mjs` checks the live site, so add a new page to it only
 AFTER the page is live. Added before, the daily check fails until the deploy finishes.
-The four buyer pages and all eight guide pages are in it.
+The four buyer pages, the guides index and seven of the nine guides are in it (2026-10-24);
+`/guides/cost-to-start-an-activewear-brand` and `/guides/pakistan-vs-china-vs-turkey` are not yet.
 
 ### The company pages, FAQ and glossary (since 2026-10-07)
 
@@ -2658,14 +2681,14 @@ periodically):
 ## Viewer security headers (CSP)
 
 The viewer ships a Content-Security-Policy plus `X-Content-Type-Options: nosniff`
-and `Referrer-Policy` via `dist/_headers`, honoured by Cloudflare Pages and
-Workers Static Assets. `_headers` is **generated** by
+and `Referrer-Policy` via `dist/_headers`, honoured by Workers
+Static Assets (Cloudflare Pages is gone since 2026-07-22). `_headers` is **generated** by
 `apps/viewer/scripts/gen-headers.mjs` at build time — do not hand-edit
 `dist/_headers`. The generator:
 
 - hashes the inline theme `<script>` so `script-src` needs no `'unsafe-inline'`;
 - bakes the API origin in from `VITE_API_BASE_URL`, and allows `*.wear-run.help`
-  (media);
+  and `media.wear-run.com` (media);
 - allows `blob:` in `connect-src` and `worker-src` — the Meshopt decoder builds
   its worker's source as a Blob, and every production GLB is Meshopt-compressed.
 

@@ -9,7 +9,7 @@ of the other.
 ## Why this file exists, and what it is not
 
 Three source files have cited `DESIGN.md` as their authority since the design was
-locked — `packages/ui/src/tokens.css:2`, `apps/viewer/src/main.tsx:2` and
+locked — `packages/ui/src/tokens.css:7`, `apps/viewer/src/main.tsx:2` and
 `apps/viewer/src/components/SerifAccent.tsx:5` — and **the file did not exist**.
 Written 2026-08-06 to close that gap.
 
@@ -247,10 +247,10 @@ ratio of the two fonts' average widths) and `Instrument Serif Fallback Products 
 then the family name, because Chromium and Firefox match only the first and WebKit only the
 second. Android has neither family and still uses its own system font.
 
-**Archivo is imported from its `wdth` build** (`@fontsource-variable/archivo/wdth.css`),
-which carries both the weight axis (100–900) and the width axis (62–125%). The
-display style needs `font-stretch: 122%`, so the plain weight-only build will not
-do — swapping the import silently flattens every headline back to normal width.
+**Archivo comes from `@run-apparel/ui/archivo.css`** (since 2026-10-21): the `wdth` build cut to
+the widths both apps use (100–125%) by `packages/ui/scripts/cut-archivo.py`, still carrying the
+weight axis (100–900). The display style needs `font-stretch: 122%`, so a weight-only build will
+not do — swapping the import silently flattens every headline back to normal width.
 
 ### Display
 
@@ -394,7 +394,7 @@ reference is no longer **live**"*, *"Develop this garment with **us**"*.
 It is wrong for a PRODUCT NAME. Every product in this catalogue ends in its
 garment type, so the accent landed on *skinsuit*, *jacket*, *tee* — every time,
 on the least distinctive word available — while the model name sat in plain
-uppercase beside it. `<ProductPanel>` therefore passes `'first'`, which puts the
+uppercase beside it. `<ProductIdentity>` therefore passes `'first'`, which puts the
 accent on the model name.
 
 Neither position is correct everywhere, which is why it is a parameter and not a
@@ -415,6 +415,10 @@ device stops reading as an accent and starts reading as a second typeface.
 | `.mono` | 11px | 0.11em | `[ BRACKETED ]` labels, `№0X` section numbers, specs |
 | `.label` | 10px | 0.12em | Tag chips, 4/8px padding, 6px radius |
 | `.section-number` | 10px | 0.14em | Section numbering, `--muted` |
+
+10px is the phone and tablet size. From 1280px `.label` and `.section-number` take 12px
+(`--text-mono-lg`) and from 1920px 13px (`--text-xs`): `--text-mono-sm` steps up the scale
+(polish X3, 2026-10-04).
 
 **The face is IBM Plex Mono, the same on every device (polish X5 and F17, the owner's Q39).** Until
 2026-10-04 the labels were each device's own monospace, and in Chrome and Firefox on a Mac that font
@@ -673,19 +677,34 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 559px` | `site.css` | on a phone each product card is a sideways ticket, one a row: a square picture on its left, 12px of text padding and narrower colour dots (polish M1), and `/products`' jump bar is one row that scrolls sideways (VA-42) |
 | `720px`, and `184px + 14.9rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
-| `min-height: 40rem`, with motion allowed | `site.css` | the order steps stack as the page scrolls (polish D4); on a shorter screen, under reduced motion and on paper they are a plain list |
-| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, the order steps beside their sticky heading, polish D4), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
+| motion allowed | `site.css` | the order stages stack on every screen (D42; the owner, 2026-10-17); under reduced motion and on paper they are a plain list |
+| `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, each order stage's two steps side by side, D42), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
 | `700px` and `min-aspect-ratio: 3 / 2` | `page.css` | a landscape phone also gets the two-column stage, so the controls sit beside the garment |
 | `700px` and `orientation: portrait` | `page.css` | an upright tablet keeps the phone's one column, its garment window half the screen tall so the name under it is on the first screen (polish F11) |
 | `1024px` and `min-height: 620px`, sideways | `useIdentityInAside.ts`, `page.css` | the product's name and description move beside the garment on every computer and sideways iPad, the description at three lines with "Read more"; 620px is measured so the contact buttons stay on screen with the longest copy (polish D8; a script query, kept a strict subset of the CSS one). The garment's facts follow the same query into the 3D window's four corners, unless the 3D cannot run (polish D10; `specsInCorners` in `App.tsx` decides, so they are drawn once) |
 | `1024px` and `min-height: 656px`, sideways, and container `colourrail` `350px` | `page.css` | beside the garment, each colour's name under its dot, three to a row (polish D8) |
-| `1180px` | `site.css` | the product families go to five columns |
+| `1440px`, with hover | `site.css` | the five product families become a row of five that open in place (the owner, 2026-10-16; 1180px before) |
 | `1280px` | `site.css`, `footer.css` | the website's column widens to 1440px (polish D1; it was 1180px until 1600px); the footer's facts go to five columns (polish X23) |
 | `560px` to `899px`, `900px`, `1440px`, `1920px` | `site.css` | the product grid is one column on a phone, two from 560px (a tablet's odd last card lies across both), three from 900px, four from 1440px (the owner's call of 2026-10-02; D4 had four from 1600px) and five from 1920px (polish D1), each with its own rule against a lone last card (VA-42) |
 | `1920px` | `base.css`, `site.css`, `page.css` | the display headlines and the garment pages' stage keep growing, to their 3840px sizes (VA-12); the website's column is 1600px (polish D1) |
 | container `colourrail`: `252px`, `350px` | `page.css` | below 252px the dots go three to a row (3 + 2, VA-32); from 350px, beside the garment, each dot has its name under it (polish D8) |
 
-### The order steps: stacking photo cards (polish D4)
+### The order steps: four stage cards (D42)
+
+**Since 2026-10-15 (the owner's option A3, D42) the eight steps are four full-screen stage cards,
+two steps to a card.** Each card is one stage, named once in a volt pill; each half is one step
+over the photo of its room. From 900px the two halves sit side by side, below it one above the
+other. With motion allowed, on every screen (the owner, 2026-10-17: "stack on all phones"), each
+card stops 8px below the one before and the next slides up over it; nothing animates. A stopped
+card fills the screen from its top edge and the bar floats over it (home page audit, 2026-10-17:
+no blank space), and a card taller than the screen scrolls until its foot shows, then stops.
+Under reduced motion and on paper the four are a plain list. The record is the D42 comment in
+`apps/cms/src/app/(frontend)/site.css`; `apps/cms/e2e/orderTimeline.spec.ts` measures the stops
+and the plain list.
+
+Until D42 they were eight half-width cards that sank back and darkened as the next covered them
+(polish D4, 2026-10-05). What follows describes those eight and is kept as history; the words,
+the photos and their order carried over.
 
 №04 "How an order works" and the order guide's "The eight steps" draw the same eight cards
 (`apps/cms/src/components/site/OrderSteps.tsx`, from `apps/cms/src/lib/orderProcess.ts`): the
@@ -760,10 +779,11 @@ notch where the tear line meets each edge (the owner's version 2 of 3 October 20
 `site.css` "The family tickets"). The notches are a CSS mask whose sizes are registered properties,
 so they glide as a card opens.
 
-- **The row of five**, only from 1180px and only where a pointer can hover: closed, the picture sits
+- **The row of five**, only from 1440px (1180px until the owner's call of 2026-10-16) and only where a pointer can hover: closed, the picture sits
   over a stub with the name and the count ("[ 19 references ]", "[ 19 refs ]" where the card is too
   narrow for it). A card opens when the pointer rests on it for `--instant`, or at once for the
-  keyboard: it widens (2.7 shares to 1), the picture moves left, the opened half's lines arrive
+  keyboard: its words open beside the picture in a second column 1.2 times the picture's width
+  (`site.css`, "THE ROW"), and the opened half's lines arrive
   `--stagger` apart (the count and minimum, the name, the description, the first four groups of the
   family's buyer page, the way in), and the neighbours' pictures fade back while their words keep
   full contrast. It closes when the pointer leaves, and on Escape (`TicketDismiss.tsx`, the one
@@ -814,7 +834,7 @@ pixels.
 2026-10-02) found `/products` 30,363px long on a 390px phone, 36 screens with no garment on the
 first one, and at 1440px the 40 cards leaving one alone on the last row. Decision D1 stands: one
 long page, every garment in the document. Since the owner's call of 2026-10-02 the fourth column
-starts at 1440px, so the catalogue's 40 garments fill ten rows of four there; 1280px keeps three.
+starts at 1440px, so the catalogue's 40 garments (counted 2026-10-02; 41 on 2026-10-24) fill ten rows of four there; 1280px keeps three.
 From 1920px, where the page is 1600px wide since polish D1, there are five: eight full rows.
 
 | Width | Columns | Picture | The jump bar on `/products` |
@@ -1167,8 +1187,9 @@ edge.
 
 ### Layering
 
-Eight stacking contexts in the viewer, in reading order from the canvas upward, and
-three more that only the marketing site uses. Added as tokens 2026-09-05 (the
+Eight stacking contexts in the viewer and three more that only the marketing site uses when this
+was written; the table lists all fifteen there are on 2026-10-24, in reading order from the
+canvas upward. Added as tokens 2026-09-05 (the
 viewer's) and 2026-09-06 (the site's); the numbers are exactly what shipped, so
 nothing moved — with one stated exception below.
 
@@ -1277,7 +1298,7 @@ inversion is the single most load-bearing line in the motion layer.
 Lenis smooth scroll is loaded lazily and applies its classes to `<html>`. ⚠️ **They are
 STATE classes, not a flag, and this paragraph said otherwise until 2026-09-07**
 (audit FA-F-11). `lenis` stays for the session; `lenis-smooth` is present only while a
-smooth scroll is actually running — verified in lenis 1.3.26, `dist/lenis.mjs:1041`, which
+smooth scroll is actually running — verified in lenis 1.3.26, `dist/lenis.mjs:1041` (still so in 1.3.27, line 1045), which
 adds it only while `isScrolling === 'smooth'`, and on the live page at rest
 `document.documentElement.className` is `lenis has-custom-cursor`.
 
@@ -1408,7 +1429,7 @@ Twelve steps, in pixels:
 | 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20 | 22 | 24 | 64 |
 
 Plus `0`, `auto`, negative hairlines (`-1px`), and the one fluid gutter
-(`clamp(32px, 5vw, 64px)`). `padding: 0.75rem 1.25rem` on `.skip-link` is the
+(`clamp(20px, 5vw, 64px)`). `padding: 0.75rem 1.25rem` on `.skip-link` is the
 sole rem-based holdout.
 
 **This section was written on 2026-08-13 and it documents what was already

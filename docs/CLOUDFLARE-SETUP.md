@@ -309,7 +309,7 @@ step 10 is done (or via the manual commands above). Endpoints:
 |---|---|
 | Marketing site (CMS Worker, custom domains) | `https://wear-run.com` — `www.` redirects here; `/admin` and `/api` here answer the site's 404 (checked 2026-10-23). `wear-run.help` and `www.wear-run.help` forward here (308) |
 | Private catalogue and profile links (`run-apparel-apex-404`) | `https://catalogue.wear-run.help/<code>` and `https://profile.wear-run.help/<code>`, and the same two on `wear-run.com` (custom domains; each code is a Worker secret). The old `wear-run.help/catalogue` and `/profile` answer 410 |
-| CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer *calls* the API via the workers.dev URL instead (Bot Fight Mode, see RUNBOOK) |
+| CMS worker (`run-apparel-viewer-cms`) | `https://cms.wear-run.help` (custom domain) — the viewer calls the API here (the cutover is done: `VITE_API_BASE_URL` is this address and the CMS sets `workers_dev: false`; checked 2026-10-24) |
 | CMS admin | `https://cms.wear-run.help/admin` |
 | CMS health | `https://cms.wear-run.help/api/health` |
 | Public viewer API | `https://cms.wear-run.help/api/public/viewer/rxps/wine` |
@@ -643,7 +643,8 @@ privately since 2026-09-10.
 | Order | 2 (after the CMS-API skip rule) |
 
 ⚠️ **`len(http.referer) > 0` IS LOAD-BEARING — do not "tighten" it away.** The viewer's
-own model fetch sends `Referer: https://viewer.wear-run.help/` and **no `Origin` header
+own model fetch sent `Referer: https://viewer.wear-run.help/` (measured 2026-09-05, while the
+garment pages lived on that host; since 2026-09-28 they are on `wear-run.com`, see §11.9) and **no `Origin` header
 at all** (measured before the rule was written; a rule keyed on `Origin` would match
 nothing). Dropping the length test would block every referrer-less client — `curl`, a
 privacy browser that strips the header, the backup script — which is a self-inflicted

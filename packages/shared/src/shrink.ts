@@ -130,7 +130,12 @@ export interface ShrinkJobMessage {
  * reads the **gstatic default**, while `meshoptDecoderLocation` correctly reads
  * `/meshopt_decoder.js`.
  *
- * ⚠️ The cause is NOT the obvious one and is still open. `Stage.tsx` sets all four
+ * ✅ FIXED, verified live 2026-09-24 (.claude/rules/viewer-model-viewer.md): `Stage.tsx` now
+ * seeds `self.ModelViewerElement` before the dynamic import, and a cold load reads `/draco/`.
+ * Production stays on `--meshopt` anyway, for size and GPU weight (LIVE-08). What was
+ * measured before the fix, kept as the record:
+ *
+ * The cause is NOT the obvious one. `Stage.tsx` set all four
  * values on the CLASS (not an instance — the local is misleadingly named `element`),
  * the deployed bundle provably contains
  * `n.meshoptDecoderLocation=…,n.minimumRenderScale=…,n.dracoDecoderLocation=…`, none

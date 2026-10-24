@@ -1,7 +1,7 @@
 // Give the tests a working Web Storage, on every Node version.
 //
 // THE PROBLEM. Node 22.4+ ships an experimental Web Storage API. It is opt-in on
-// Node 24 (what CI pins) but ON BY DEFAULT from Node 25. When it is on, Node
+// Node 24 but ON BY DEFAULT from Node 25 (CI pins Node 26 since 2026-10-23). When it is on, Node
 // defines a global `localStorage` that evaluates to `undefined` unless the process
 // was started with `--localstorage-file`. That global wins over the one jsdom would
 // otherwise install — `window.localStorage` comes back undefined too — so
