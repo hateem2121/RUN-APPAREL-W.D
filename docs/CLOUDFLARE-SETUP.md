@@ -192,9 +192,9 @@ Dashboard → Workers & Pages → **Create → Pages → Connect to Git** → se
 | Build output directory | `apps/viewer/dist` |
 | Environment variable | `VITE_API_BASE_URL=https://cms.wear-run.help` |
 
-The committed `apps/viewer/public/_redirects` (`/* /index.html 200`) makes direct
-deep links like `/rxps/blush` resolve on Pages; `_headers` sets immutable caching
-for hashed assets.
+A committed `_redirects` file (`/* /index.html 200`) made direct deep links like
+`/rxps/blush` resolve on Pages (deleted from the repo 2026-10-24); `_headers` sets
+immutable caching for hashed assets.
 
 ### Custom domain
 

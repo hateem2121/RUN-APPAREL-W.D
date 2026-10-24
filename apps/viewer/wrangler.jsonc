@@ -121,9 +121,9 @@
   // above against viewer.wear-run.help and expect the navigate rows to match the plain
   // ones. `scripts/smoke-viewer-preview.mjs` carries the crawler assertion.
   "main": "./worker/index.ts",
-  // `single-page-application` replaces the Pages `_redirects` SPA fallback (CI
-  // deletes dist/_redirects for this target — Workers Static Assets rejects the
-  // "/* /index.html 200" rule); dist/_headers (immutable asset caching + the CSP)
+  // `single-page-application` is the SPA fallback (a Pages-style public/_redirects, which
+  // Workers Static Assets rejects as the "/* /index.html 200" loop, was deleted 2026-10-24
+  // along with the CI step that removed its built copy); dist/_headers (immutable asset caching + the CSP)
   // is honoured natively, and was measured on 2026-08-08 to survive a response
   // pulled through the ASSETS binding below — the open question that had blocked
   // adding a Worker here at all.

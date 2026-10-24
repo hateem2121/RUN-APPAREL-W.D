@@ -42,7 +42,6 @@ token in your shell):
 pnpm --filter @run-apparel/cms run deploy          # the CMS "brain"
 # Build with the SAME API URL the automation uses (currently the workers.dev one):
 VITE_API_BASE_URL="$(gh variable get VITE_API_BASE_URL)" pnpm --filter @run-apparel/viewer build
-rm -f apps/viewer/dist/_redirects                  # Pages-only file, not valid on the Worker
 pnpm --filter @run-apparel/viewer exec wrangler deploy   # → run-apparel-viewer-site Worker
 ```
 
