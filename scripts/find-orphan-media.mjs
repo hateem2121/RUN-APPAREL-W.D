@@ -19,9 +19,9 @@
  * bug it cleans up is that it was hard to see.
  *
  * The reference list is deliberately the same one the shrink Worker uses
- * (MEDIA_REFERENCE_PATHS in apps/shrink/src/cms.ts). If a Media relationship
- * is added to a collection, it must be added in BOTH places, or this will report
- * a live asset as an orphan.
+ * (MEDIA_REFERENCE_PATHS and MEDIA_GLOBAL_REFERENCES in apps/shrink/src/cms.ts). If a Media
+ * relationship is added to a collection or a global, it must be added in BOTH places, or this
+ * will report a live asset as an orphan.
  */
 import { createInterface } from 'node:readline/promises'
 
@@ -69,6 +69,18 @@ const CONTENT_REFERENCES = {
   'journal-posts': ['heroImage', 'shareImage'],
   'case-studies': ['images', 'shareImage'],
   authors: ['photo'],
+}
+
+/**
+ * GLOBALS that point at Media (2026-10-24): the site logo, the browser-tab icon an admin picks
+ * under Settings. A global is one document, read at `/api/globals/<slug>`, not a collection.
+ * This list and the guard test both skipped globals until the logo was found missing: with
+ * `--delete`, the live tab icon would have been listed as an orphan and removed.
+ * `apps/cms/src/collections/mediaReferences.test.ts` walks every registered global and fails when
+ * a Media field is missing here or in `MEDIA_GLOBAL_REFERENCES` (apps/shrink/src/cms.ts).
+ */
+const GLOBAL_REFERENCES = {
+  'site-settings': ['logo'],
 }
 
 /** Rich-text fields whose upload nodes point at Media: a picture placed inside a post's body. */
@@ -181,6 +193,13 @@ async function main() {
         if (!json.hasNextPage) break
       }
     }
+  }
+
+  // The globals: one document each, so one request each. A global that cannot be read stops
+  // the run — a guess here could list the live logo as an orphan.
+  for (const [slug, paths] of Object.entries(GLOBAL_REFERENCES)) {
+    const doc = await request(`/api/globals/${slug}?depth=0`)
+    for (const path of paths) noteReference(doc?.[path])
   }
 
   const orphans = media.filter((doc) => !referenced.has(String(doc.id)))

@@ -106,6 +106,53 @@ describe('isMediaReferenced', () => {
     }
   })
 
+  describe('the globals (the site logo, 2026-10-24)', () => {
+    const settings =
+      (body: unknown, status = 200) =>
+      (path: string) =>
+        path.startsWith('/api/globals/site-settings') ? { status, body } : nothingFound
+
+    it('reports referenced when the site logo is this file, as a bare id', async () => {
+      const { env } = envWith(settings({ logo: 7 }))
+      expect(await isMediaReferenced(env, 7)).toBe(true)
+    })
+
+    it('reports referenced when the logo came back populated, as an object', async () => {
+      const { env } = envWith(settings({ logo: { id: 7 } }))
+      expect(await isMediaReferenced(env, '7')).toBe(true)
+    })
+
+    it('does not count a different logo, or an empty picker', async () => {
+      for (const body of [{ logo: 8 }, { logo: null }, {}]) {
+        const { env } = envWith(settings(body))
+        expect(await isMediaReferenced(env, 7)).toBe(false)
+      }
+    })
+
+    it.each([
+      ['a 500', 500, {}],
+      ['a 403', 403, {}],
+      ['a body that is not an object', 200, 'nope'],
+      ['a body that is a list', 200, []],
+    ])('assumes referenced on %s from the global', async (_label, status, body) => {
+      const { env } = envWith(settings(body, status))
+      expect(await isMediaReferenced(env, 7)).toBe(true)
+    })
+
+    it('assumes referenced when the global request throws', async () => {
+      const { env } = envWith((path) =>
+        path.startsWith('/api/globals') ? new Error('network down') : nothingFound,
+      )
+      expect(await isMediaReferenced(env, 7)).toBe(true)
+    })
+
+    it('asks for every global it lists', async () => {
+      const { env, calls } = envWith(() => nothingFound)
+      await isMediaReferenced(env, 7)
+      expect(calls.some((c) => c.startsWith('/api/globals/site-settings'))).toBe(true)
+    })
+  })
+
   it('sends the robot API key', async () => {
     const seen: string[] = []
     const env = {
