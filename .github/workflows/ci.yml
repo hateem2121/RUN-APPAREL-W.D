@@ -270,6 +270,13 @@ jobs:
             echo "::endgroup::"
           done
 
+      # scripts/ping-indexnow.test.mjs (2 tests, node:test) matched no vitest include and
+      # no CI step, so it ran for nobody until 2026-10-24. A glob, so the next
+      # scripts/*.test.mjs is picked up without editing this step; node:test is built in,
+      # no install needed. `node --test` exits 1 if a test fails or a file fails to load.
+      - name: Script tests (scripts/*.test.mjs, node:test)
+        run: node --test scripts/*.test.mjs
+
       - run: pnpm seed:assets
       - run: pnpm build
 
