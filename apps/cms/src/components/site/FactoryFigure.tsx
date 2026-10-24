@@ -24,9 +24,15 @@ export const HALF_COLUMN_SIZES =
  * drift of `.photo-wipe` / `.photo-parallax` in site.css are scroll-driven CSS that a browser
  * without them simply skips.
  *
- * ⚠️ LAZY AND SIZED, like every factory picture: none of these is on the first screen, and the
- * width and height reserve the space before a byte arrives (`composition.spec.ts` fails any
- * `<img>` without both).
+ * ⚠️ LAZY EVERYWHERE EXCEPT A PAGE'S FIRST-SCREEN FIGURE, AND ALWAYS SIZED. A factory picture is
+ * lazy: most sit far down a page. The one exception is `priority`, for the single figure a page
+ * draws in its first spread (a guide's first section, `GuidePage.tsx`), which a visitor sees
+ * without scrolling and which can be the page's largest paint: it loads `eager` with
+ * `fetchPriority="high"`. web.dev "Optimize Largest Contentful Paint" (updated 31 Mar 2025):
+ * "Never lazy-load your LCP image", and put `fetchpriority="high"` on that ONE image only, since
+ * a second high-priority image takes bandwidth from the first. So a page passes `priority` to at
+ * most one figure (`GuidePage.test.ts` fails a second). The width and height reserve the space
+ * before a byte arrives (`composition.spec.ts` fails any `<img>` without both), eager or lazy.
  *
  * NO LABEL UNDER THE PHOTO (the owner, 2026-10-05: "remove all the image names"). Each one said
  * which room it was (`caption` in lib/factoryPhotos.ts, kept there); the picture's `alt` still
@@ -42,6 +48,7 @@ export function FactoryFigure({
   sizes,
   width,
   height,
+  priority = false,
 }: {
   photo: FactoryPhoto
   src: string
@@ -49,6 +56,8 @@ export function FactoryFigure({
   sizes: string
   width: number
   height: number
+  /** The page's one first-screen figure: eager and high priority, not lazy. Default: lazy. */
+  priority?: boolean
 }) {
   return (
     <figure className="photo-figure">
@@ -62,7 +71,8 @@ export function FactoryFigure({
           width={width}
           height={height}
           alt={photo.alt}
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
           decoding="async"
         />
       </span>

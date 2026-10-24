@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
 import type { PublicImage } from '../../lib/journalPublic'
 
@@ -9,8 +10,16 @@ import type { PublicImage } from '../../lib/journalPublic'
  * primary button is the buyer pages' (`e2e/copy.spec.ts`, CT-08).
  */
 
-/** The site's closing block: "Tell us what you're making." and its one primary button. */
-export function SiteClosing() {
+/**
+ * The site's closing block: "Tell us what you're making." and its one primary button. The ONE
+ * place these words are written: the company pages, the FAQ pages, the glossary and the guides
+ * each had a hand-typed copy until 2026-10-24, and a reword had to be made five times.
+ *
+ * `children` is drawn inside the column of words, under the button: the company pages' "More
+ * about us" and the FAQ pages' "More to read" finish the column the button starts. A page whose
+ * links sit under the whole block (the guides') draws them after `<SiteClosing />` instead.
+ */
+export function SiteClosing({ children }: { children?: ReactNode }) {
   return (
     <div className="section-head">
       <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
@@ -24,6 +33,7 @@ export function SiteClosing() {
             {FAMILY_PAGE_ACTION}
           </Link>
         </div>
+        {children}
       </div>
     </div>
   )

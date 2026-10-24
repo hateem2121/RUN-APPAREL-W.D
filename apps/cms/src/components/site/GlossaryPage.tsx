@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { FAQ_TOPICS } from '../../lib/faqs'
-import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
 import {
   GLOSSARY_CATEGORIES,
   GLOSSARY_INDEX,
@@ -10,6 +9,7 @@ import {
 } from '../../lib/glossary'
 import { GUIDES } from '../../lib/guides'
 import { breadcrumbTrailJsonLd, definedTermSetJsonLd } from '../../lib/structuredData'
+import { SiteClosing } from './ArticleParts'
 import { Breadcrumb } from './Breadcrumb'
 import { GlossaryFilter } from './GlossaryFilter'
 import { JsonLd } from './JsonLd'
@@ -131,20 +131,7 @@ export function GlossaryPage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <div className="section-head">
-            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-            <div className="section-head__words">
-              <p className="site-lede">
-                Send the styles, quantities and specs you have — a sketch is enough to start. We
-                reply within 24 hours.
-              </p>
-              <div className="site-actions">
-                <Link className="btn btn--primary" href="/contact#inquiry">
-                  {FAMILY_PAGE_ACTION}
-                </Link>
-              </div>
-            </div>
-          </div>
+          <SiteClosing />
         </div>
       </section>
     </>
