@@ -61,7 +61,7 @@
 >
 > Still open, and tracked as separate work: the placeholder poster images and the
 > colour data. See
-> `docs/superpowers/specs/2026-08-05-n001-production-polish-design.md`.
+> [2026-08-05-n001-production-polish-design.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/superpowers/specs/2026-08-05-n001-production-polish-design.md).
 
 > ## ⚠ NEW FINDING 2026-08-05: the three gates do NOT catch decimation damage
 >

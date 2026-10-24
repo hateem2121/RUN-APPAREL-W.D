@@ -96,7 +96,9 @@ export default defineConfig({
        * `<model-viewer>` cannot be meaningfully driven under jsdom (CLAUDE.md: `src`
        * is a property not an attribute, and `webglcontextlost` never reaches a host
        * listener), so a jsdom test of Stage.tsx would assert against a stub and pass
-       * whatever production did. That is worse than an honest 42%.
+       * whatever production did. That is worse than an honest low number (the floor was 42% when
+       * this was written; it is lines 58 / functions 55 / branches 49 / statements 57 now,
+       * below).
        *
        * The right way to raise this number is to move logic OUT of those components
        * into `src/lib/` — which is where every 100%-covered module here came from.

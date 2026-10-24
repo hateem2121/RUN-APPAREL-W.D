@@ -2,7 +2,7 @@
 /**
  * PreToolUse guard — a bare `pnpm` does not reliably run here, so rewrite it (or refuse).
  *
- * WHY THIS EXISTS. It is the pnpm note under "What this is" in the root CLAUDE.md,
+ * WHY THIS EXISTS. It is the pnpm note under "## Commands" in the root CLAUDE.md,
  * and the reason it is worth a mechanical guard rather than a paragraph is *where
  * the failure surfaces*:
  *

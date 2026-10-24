@@ -1,4 +1,4 @@
-<!-- Title: plain English, "Area: what changed" — e.g. "Viewer: retry a model download
+<!-- Title: plain English, "Area — what changed" — e.g. "Viewer — retry a model download
      that stops". The owner is not a developer and reads these. -->
 
 ## ✏️ What changed (plain words)

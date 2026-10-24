@@ -873,7 +873,7 @@ export async function optimizeGlb(
   const telemetry: OptimizeTelemetry = {}
   // Carried into the result (fix plan Rank 13, audit HG-06): a repair used to be a
   // console line and nothing else, so a stripped COLOUR map — the garment's own picture —
-  // would have shipped silently. The robot refuses that case (apps/shrink repairGate.ts).
+  // would have shipped silently. The robot refuses that case (`repairRefusal` in apps/shrink/src/refusals.ts).
   if (repair.referencesRemoved) telemetry.repair = repair
   await optimizeDocument(document, options, telemetry)
 

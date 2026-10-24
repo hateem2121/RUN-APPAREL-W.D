@@ -4,13 +4,12 @@
   // recommended static-hosting platform. Fully separate from the CMS worker, and
   // NEVER named "run-apparel" (the separate live commercial site).
   //
-  // ✅ CUTOVER DONE (2026-07-22): this worker serves viewer.wear-run.help (custom
-  // domain attached in the dashboard). The old "run-apparel-viewer" Pages
-  // project has been DELETED. CI deploys here because the VIEWER_DEPLOY_TARGET
-  // repo variable is "worker". Rollback to Pages: set VIEWER_DEPLOY_TARGET=pages
-  // (CI recreates the Pages project automatically), then attach
-  // viewer.wear-run.help to it in the dashboard — see docs/RUNBOOK.md →
-  // "Viewer: Pages → Worker cutover".
+  // ✅ CUTOVER DONE (2026-07-22): the old "run-apparel-viewer" Pages project was
+  // DELETED, and since 2026-10-23 CI deploys only here (the Pages rollback steps
+  // were removed). This worker draws the garment pages at wear-run.com/products/…,
+  // reached through the CMS Worker's `VIEWER` service binding, and keeps the custom
+  // domain viewer.wear-run.help only to 301 it there. Roll back with `wrangler
+  // rollback` — see docs/RUNBOOK.md → "Viewer: rolling back a deploy".
   "name": "run-apparel-viewer-site",
 
   /**
@@ -59,8 +58,10 @@
   // Off, as before wrangler 4.150.0 made uploading them the default (why: apps/cms/wrangler.jsonc).
   "upload_source_maps": false,
   // The internal workers.dev URL and per-version preview URLs are disabled:
-  // visitors only ever use viewer.wear-run.help. (Re-enable workers_dev
-  // temporarily if you need a pre-cutover smoke-test URL.)
+  // since the domain move of 2026-09-28 the only address this Worker answers on that a
+  // visitor meets is viewer.wear-run.help, which only 301s to wear-run.com/products/…
+  // (worker/oldViewerHost.ts); the garment pages themselves are drawn on wear-run.com.
+  // (Re-enable workers_dev temporarily if you need a pre-cutover smoke-test URL.)
   "workers_dev": false,
   "preview_urls": false,
   // Worker + static assets. It was assets-ONLY until 2026-08-08; the script does

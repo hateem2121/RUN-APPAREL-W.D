@@ -99,12 +99,12 @@ const HEADLINES = [
 
 /**
  * `--linux`: the faces a machine WITHOUT Arial and Georgia draws — a Linux desktop, and CI's
- * Playwright image (`mcr.microsoft.com/playwright:v1.62.1-noble` has neither, measured 2026-09-11,
+ * Playwright image (`mcr.microsoft.com/playwright:v1.64.1-noble` has neither; measured 2026-09-11 on v1.62.1,
  * which is why PR #10's font tests failed there and nowhere else). Liberation Sans has Arial's
  * advance widths, so the display face keeps its values and Liberation Sans Bold is one more source
  * in it. Liberation Serif is shaped like Times, not Georgia, so the serif gets faces of its own in
  * site.css, sized by this mode. Run it INSIDE that image:
- *   docker run --rm --init --ipc=host -v "$PWD":/repo:ro mcr.microsoft.com/playwright:v1.62.1-noble \
+ *   docker run --rm --init --ipc=host -v "$PWD":/repo:ro mcr.microsoft.com/playwright:v1.64.1-noble \
  *     node /repo/apps/cms/scripts/calibrate-fallback.mjs --linux
  * ⚠️ READ ITS CHROMIUM AND FIREFOX ROWS ONLY. In that image WebKit's real-font widths did not
  * change between 390, 1350 and 1440px, and its display ideal came out at 90% where the other two

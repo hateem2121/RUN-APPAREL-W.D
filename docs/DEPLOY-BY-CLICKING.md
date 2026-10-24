@@ -66,8 +66,12 @@ Only if you cannot use CI **and** cannot use the command line.
 > Since 2026-07-22 the viewer is the **`run-apparel-viewer-site` Worker**
 > (Static Assets) — the old Pages project was deleted. A dashboard-only viewer
 > deploy isn't practical for the Worker; use CI (normal path) or Fallback A.
-> The `viewer.wear-run.help` domain lives on that Worker under
-> *Settings → Domains & Routes*.
+> Its garment pages are reached at `wear-run.com/products/…` (since 2026-09-28): the
+> domain belongs to the CMS Worker, which hands those pages to this Worker through its
+> `VIEWER` service binding. This Worker keeps only `viewer.wear-run.help`, which forwards
+> (301) to `wear-run.com` because printed QR tags carry that address. To undo a bad
+> viewer deploy without CI: dashboard → Workers & Pages → `run-apparel-viewer-site` →
+> Deployments → Rollback.
 
 ---
 

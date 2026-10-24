@@ -16,7 +16,7 @@ bullets moved here from `apps/cms/CLAUDE.md` the same day, also word for word.
   not **cascades** — so neither pragma makes a table rebuild safe. **Ordering
   does**: stage or drop referencing tables first. A `DROP TABLE` runs an implicit
   `DELETE`, and that cascades.
-- 🟢 **`node:sqlite` is built into the pinned Node 24** — `scripts/verify-backup.mjs`
+- 🟢 **`node:sqlite` is built into Node (22.5 and up; CI runs 26)** — `scripts/verify-backup.mjs`
   uses it to replay a D1 dump with foreign keys ON. Reach for it before adding a
   SQLite dependency.
 

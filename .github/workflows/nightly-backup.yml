@@ -57,7 +57,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version: 26
           # ⚠️ NO CACHE: this job holds the production Cloudflare token. The same two
           # lines in ci.yml's `deploy` job say why a pnpm store restored from a job that
           # held no secrets does not belong here.
@@ -112,7 +112,7 @@ jobs:
       # of those is otherwise discovered during a real restore, after the data is gone.
       #
       # This replays the .sql into a throwaway in-memory SQLite (node:sqlite, built
-      # into the Node 24 this repo already pins — no new dependency) with FOREIGN KEYS
+      # into Node since 22.5; this job runs 26 — no new dependency) with FOREIGN KEYS
       # ON, then checks that every table the dump claims to populate ends up with the
       # rows it claims, and that products/users/site_settings/media are non-empty.
       # Foreign keys are on deliberately: root CLAUDE.md records a migration that

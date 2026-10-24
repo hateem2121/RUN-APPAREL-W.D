@@ -14,7 +14,7 @@ import { escapeRegExp } from './regexEscape.mjs'
 /**
  * One site, three hostnames, and the rules that give it ONE address.
  *
- * Owner decisions 2026-09-06 (docs/superpowers/specs/2026-09-06-beta-website-launch-design.md):
+ * Owner decisions 2026-09-06 (`git show bd384f3c:docs/superpowers/specs/2026-09-06-beta-website-launch-design.md` (deleted 2026-10-23)):
  *
  *   www.wear-run.help/*         -> 308 https://wear-run.help/<same path>
  *   cms.wear-run.help/<page>    -> 308 https://wear-run.help/<page>   (the four public paths only;

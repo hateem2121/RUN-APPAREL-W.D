@@ -86,7 +86,7 @@ jobs:
       #
       # It was off here because "uptime.yml runs this every 15 minutes and the extra
       # request would be pointless". BOTH HALVES OF THAT ARE NOW STALE: the schedule
-      # has been a single daily cron since 2026-08-18, and a cached 404 stopped being
+      # went daily on 2026-08-18 and 6-hourly on 2026-09-29, and a cached 404 stopped being
       # a 30-day condition on 2026-08-31 when the media cache rule gained a
       # status_code_ttl of 10s.
       #
@@ -141,7 +141,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: github.event.inputs.target == ''
         with:
-          node-version: 24
+          node-version: 26
 
       - name: Check CMS health + viewer
         id: check

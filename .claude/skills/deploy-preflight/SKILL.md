@@ -77,7 +77,9 @@ that is exactly the check that catches a wrong slug:
 node -e "const d=require('/tmp/rxps-wine-before.json'); if (d.error) { console.error('REFUSED: got an error payload, not the product:', d); process.exit(1) } console.log(d.product.productCode, d.colourways.length + ' colourways,', JSON.stringify(d).length + ' bytes')"
 ```
 
-Expect `R-XPS 5 colourways, ~5265 bytes` — measured 2026-09-08, unchanged on 2026-09-24.
+Expect `R-XPS 5 colourways, ~10100 bytes` — measured 2026-10-23 (it was ~5265 on 2026-09-08
+and 2026-09-24; the customisation copy and related garments have joined the payload since).
+The size moves as the product's content does; the code and the colourway count are the check.
 
 ⚠️ **Longer is fine; SHORTER, or a non-zero exit, is a stop.** The payload grows when
 sales copy is added (it did on 2026-09-08), so "longer than expected" is the reading

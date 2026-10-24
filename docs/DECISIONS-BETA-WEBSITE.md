@@ -53,6 +53,8 @@ with scripting off.
 **Decision: no per-product page on the marketing site. Keep linking out to
 `viewer.wear-run.help`.**
 
+*Update 2026-09-28: the public site moved to `wear-run.com`. Garment pages are now `wear-run.com/products/<product>/<colour>`; `viewer.wear-run.help` forwards there for ever, because printed QR tags carry it.*
+
 The viewer already is the detail page: it renders the garment in 3D, carries the
 fabric, GSM, fit and customisation copy, and is the address printed on physical QR
 tags. Duplicating it on the marketing site would mean two pages describing one
@@ -144,6 +146,8 @@ guard reads three at 1280px, four at 1440px and five at 1920px.
 
 **Decision: the company name in the viewer header links to `wear-run.help`.**
 
+*Update 2026-09-28: the home address is now `wear-run.com`; `wear-run.help` forwards to it.*
+
 Correct as plain text while there was nowhere to send anyone. There is about to
 be. Someone who scans a QR tag on a garment currently reaches a page describing
 that one garment with no route to the other 66.
@@ -172,7 +176,7 @@ Credibility still leads.
 misalignment beside it.**
 
 The space is from the approved footer design
-(`docs/superpowers/plans/2026-09-05-site-footer-quiet-room.md`) and does its job.
+([2026-09-05-site-footer-quiet-room.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/superpowers/plans/2026-09-05-site-footer-quiet-room.md)) and does its job.
 The audit's real finding was next to it, not in it: the footer's left edge drifts
 up to **370px** from the page's own left edge (`FA-D-01`). That is a bug and is
 fixed; the space is not.

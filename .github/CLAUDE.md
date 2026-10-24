@@ -188,7 +188,7 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   failed a deploy through a new post-deploy check that treated the 403 as "no
   model". Treat such a 403 as *inconclusive*, never as a failed assertion. And use
   `HEAD`: a `GET` on the model is **1.9-8.2 MB** per garment (measured 2026-09-05;
-  it was ~27 MB before the 2026-09-03 re-exports), pointless weight on a 15-minute job.
+  it was ~27 MB before the 2026-09-03 re-exports), pointless weight on a job that ran every 15 minutes then (every 6 hours since 2026-09-29).
   (It is not an R2 bill: R2 egress is free, re-read on its pricing page 2026-09-25.)
 - **🟡 A red `secrets` job can mean gitleaks never DOWNLOADED.** Run 33264929752,
   2026-08-29: the release CDN answered **504**, `curl | tar` died on the truncated

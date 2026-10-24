@@ -215,7 +215,7 @@ const INDEX_SENTENCE =
  * — enough to notice, not enough to drift.
  *
  * When this fails, DEMOTE a section to docs/ rather than raising the limit. Three
- * examples of the move are docs/archive/sessions/SESSION-2026-08-27.md, docs/DEPENDENCY-HOLDS.md and
+ * examples of the move are `git show bd384f3c:docs/archive/sessions/SESSION-2026-08-27.md` (deleted 2026-10-23), docs/DEPENDENCY-HOLDS.md and
  * docs/VIEWER-CSP-BOT-FIGHT-MODE.md — each keeps the live rule in CLAUDE.md and moves
  * only the evidence.
  */
@@ -434,9 +434,11 @@ describe('the doc-citations command', () => {
 
   it('covers docs/ recursively — three subdirectory documents were never read', async () => {
     const covered = await documentsToCheck(REPO_ROOT)
+    // The subfolder it proved this with was docs/superpowers/ until 2026-10-23, when the
+    // finished plans there were deleted; docs/guide/ is a subfolder that stays.
     expect(
-      covered.some((path) => path.includes(`${join('docs', 'superpowers')}`)),
-      'docs/ was walked one level deep until 2026-08-18, so plans and reviews were invisible',
+      covered.some((path) => path.includes(`${join('docs', 'guide')}`)),
+      'docs/ was walked one level deep until 2026-08-18, so subfolder documents were invisible',
     ).toBe(true)
     expect(covered.some((path) => path.endsWith('audit-ci.jsonc'))).toBe(true)
   })

@@ -1,10 +1,12 @@
 # Customization copy — draft for all eleven garments, 2026-09-04
 
-**In plain words:** Draft words about customising each garment, written for the CMS but not added yet.
+**In plain words:** Words about customising each garment, written for the CMS. They are now live there (checked 2026-10-23).
 
-**Status: DRAFT. Nothing here has been written to the CMS.** Paste each block into
+**Status: LIVE in the CMS (checked 2026-10-23).** The live API carries this text for every
+product checked (`rxps`, `r-xmp`, `r-afp`, `r-gtd`, `r-css`, `r-ttp`, `r-mrp`, `r-srs`), and this
+file is now the record of it. When it was a draft, the plan was to paste each block into
 the matching product's `Customisation intro` and `Customisation steps` fields, or
-ask for the API script and it can be applied in one pass.
+ask for the API script and apply them in one pass.
 
 ## Why this exists
 
@@ -956,13 +958,13 @@ crawlers are blocked there, they will keep getting a 403 no matter what
 **Verify afterwards** — the managed block is gone when this prints nothing:
 
 ```bash
-curl -s https://viewer.wear-run.help/robots.txt | grep -A1 "GPTBot\|ClaudeBot"
+curl -s https://wear-run.com/robots.txt | grep -A1 "GPTBot\|ClaudeBot"
 ```
 
 And confirm a crawler is actually served rather than challenged:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" -A "GPTBot/1.0" https://viewer.wear-run.help/rxps/wine
+curl -s -o /dev/null -w "%{http_code}\n" -A "GPTBot/1.0" https://wear-run.com/products/rxps/wine
 ```
 
 A `200` is the answer you want. A `403` means the AI Crawl Control layer is still
@@ -996,7 +998,8 @@ deliberately rather than leaving as a default nobody chose.
 
 ### 4. A note on the domain, offered rather than argued
 
-`wear-run.help` carries no search penalty, but `.help` is an unusual TLD for a
+(Settled: the site moved to `wear-run.com` on 2026-09-28; the note below is kept as the
+reason.) `wear-run.help` carried no search penalty, but `.help` is an unusual TLD for a
 manufacturer and B2B buyers do read a domain as a trust signal when comparing
 unfamiliar suppliers. Worth knowing when the site is competing for exactly that
 kind of first impression. This is a business decision and there may be reasons for

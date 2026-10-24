@@ -130,7 +130,7 @@
 
 /*
  * ⚠️ A MACHINE WITH NO ARIAL AND NO GEORGIA GOT NONE OF THE ABOVE UNTIL 2026-09-11 — a Linux
- * desktop, and CI's Playwright image (`mcr.microsoft.com/playwright:v1.62.1-noble`), where every
+ * desktop, and CI's Playwright image (`mcr.microsoft.com/playwright:v1.64.1-noble`), where every
  * face errored, the stacks fell through to the generic family, and PR #10's font tests failed
  * while passing on a Mac. Measured in that image, and from the font files:
  *

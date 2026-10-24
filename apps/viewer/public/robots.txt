@@ -1,7 +1,8 @@
 # What may be done with this content: search=yes, ai-input=yes, ai-train=no
 # https://contentsignals.org — a stated preference, not a technical block.
 #
-# ⚠️ THE SAME POLICY AS https://wear-run.help/robots.txt (owner decision 2026-09-11), and
+# ⚠️ THE SAME POLICY AS https://wear-run.com/robots.txt (owner decision 2026-09-11, when the
+# site was still on wear-run.help, which now 308s every path to wear-run.com), and
 # apps/cms/src/viewerRobots.test.ts fails if the two hosts drift. That file's list lives in
 # apps/cms/htmlLimitedBots.mjs; this host serves public/ as plain files, so it is copied here.
 #

@@ -42,7 +42,7 @@ const PAGE_CSS = join(import.meta.dirname, '..', 'styles', 'page.css')
 /**
  * Blank comment BODIES while preserving offsets, exactly as `tokens.test.ts` does.
  *
- * Not optional here: `page.css` and `useTwoColumnLayout.ts` both DISCUSS this query
+ * Not optional here: `page.css` and `useIdentityInAside.ts` both DISCUSS this query
  * in prose, and `.stage__more`'s comment quotes it while explaining why the scroll
  * cue is hidden in two columns. Counting a mention in a comment as a declaration
  * would let the real rule be deleted while this test stayed green.

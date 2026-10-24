@@ -44,9 +44,10 @@
   // would have served the PDF to anyone.
   //
   // The four apex routes stay only so the old guessable addresses answer "no longer
-  // active" (410). The marketing site lives on `wear-run.help/*` and `www.wear-run.help/*`,
-  // served by the CMS Worker (apps/cms/wrangler.jsonc); Cloudflare hands `/catalogue*`
-  // and `/profile*` here because the most specific route wins.
+  // active" (410). The marketing site lived on `wear-run.help/*` and `www.wear-run.help/*` until it
+  // moved to wear-run.com on 2026-09-28; those two routes now only forward to wear-run.com.
+  // Both are still held by the CMS Worker (apps/cms/wrangler.jsonc); Cloudflare hands
+  // `/catalogue*` and `/profile*` here because the most specific route wins.
   //
   // ⚠️ A ROUTE PATTERN BELONGS TO ONE WORKER AT A TIME. Restoring a wildcard here
   // collides with the CMS Worker's, and ci.yml deploys THIS Worker before the CMS Worker

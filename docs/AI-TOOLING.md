@@ -339,8 +339,11 @@ Run `pnpm install --frozen-lockfile` after any merge that moves `pnpm-lock.yaml`
 otherwise new deps are missing and the failure looks like a code error. It is exempt
 from the `minimumReleaseAge` cooldown, so it is always safe.
 
-**Node version note.** CI pins Node 24, and local development should match it
-(`brew link --overwrite --force node@24`). From Node 25 the
+**Node version note.** CI pins **Node 26** since 2026-10-23 (it pinned 24 before; 24 left
+Active LTS on 2026-10-20 and 26 takes over on 2026-10-28, per the Node.js release
+schedule). Local development should match: Homebrew's plain `node` formula is 26. The
+shrink robot's production image stays on `node:24-trixie-slim` until a print-checked
+move. From Node 25 the
 experimental Web Storage API is on by default, defining a global `localStorage` that
 evaluates to `undefined` without `--localstorage-file` and suppressing the one jsdom
 would install. That used to fail 6 tests in `apps/viewer/src/lib/theme.test.ts` while
@@ -354,7 +357,8 @@ not work and are documented in that file: Vitest 4.1.10 silently ignores
 `poolOptions.forks.execArgv`, and a `NODE_OPTIONS` in the `test` script would leave a
 bare `vitest run` (and IDE Vitest integrations) still broken.
 
-Still worth doing: **use Node 24 locally**, matching CI and the current Active LTS.
+Still worth doing: **use Node 26 locally**, matching CI (and the Active LTS from
+2026-10-28).
 
 ### Hardening — where `CBM_ALLOWED_ROOT` lives
 

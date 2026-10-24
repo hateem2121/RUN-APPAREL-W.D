@@ -1653,14 +1653,14 @@ test.describe('layout invariants', () => {
    * What the old test was really protecting survives and is asserted below: ONE
    * <h1> per page. The new layout can break that in a way the old one could not,
    * because the heading is now rendered by one of two mutually exclusive branches
-   * in App.tsx (`{twoColumn && <ProductIdentity/>}` and
-   * `<ProductPanel showIdentity={!twoColumn}/>`). Invert one and you get two <h1>
+   * in App.tsx (`{identityInAside && <ProductIdentity/>}` and
+   * `<ProductPanel showIdentity={!identityInAside}/>`). Invert one and you get two <h1>
    * elements sharing one id; invert the other and you get none. Both render
    * without erroring, and neither is invalid enough for axe to flag.
    *
    * The viewport is changed on a LIVE page rather than reloaded at each size,
-   * because that is the case the hook exists for: `useTwoColumnLayout` subscribes
-   * to the query, so rotating a tablet must move the heading without a reload. A
+   * because that is the case the hook exists for: `useIdentityInAside` subscribes
+   * to `IDENTITY_IN_ASIDE_QUERY`, so rotating a tablet must move the heading without a reload. A
    * reload between sizes would pass against a mount-time-only implementation.
    */
   test('the product heading moves between columns and never doubles', async ({ page }) => {

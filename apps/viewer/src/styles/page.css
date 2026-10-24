@@ -676,10 +676,12 @@
   /*
    * The product identity, in the column instead of below the fold.
    *
-   * Placement is JavaScript's, not this rule's: `useTwoColumnLayout()` matches
-   * this exact media query and renders <ProductIdentity> here or <ProductPanel>'s
-   * section in `.content`, never both. The guard against those two queries
-   * drifting apart is `useTwoColumnLayout.test.ts`, which reads this file.
+   * Placement is JavaScript's, not this rule's: `useIdentityInAside()` matches
+   * `IDENTITY_IN_ASIDE_QUERY`, a strictly NARROWER query than the one this block
+   * sits in (it adds a 1024px width and 620px height floor), and renders
+   * <ProductIdentity> here or <ProductPanel>'s section in `.content`, never both.
+   * The guard against the two queries drifting apart is
+   * `useIdentityInAside.test.tsx`, which reads this file.
    */
   .product-info--aside {
     gap: 12px;

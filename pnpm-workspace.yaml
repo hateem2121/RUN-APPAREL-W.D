@@ -29,7 +29,7 @@ minimumReleaseAgeExclude:
   - '@esbuild/*'
 
 # Moved here from package.json's `pnpm` field on 2026-09-26 for pnpm 12: from
-# pnpm 11 on, that field is NOT READ AT ALL — left in place, all 17 security
+# pnpm 11 on, that field is NOT READ AT ALL — left in place, all 23 security
 # overrides below would silently stop applying while every install still
 # succeeded. The lockfile's own `overrides:` block records what was applied, and
 # a frozen install refuses to run when the two disagree, so it is the check.

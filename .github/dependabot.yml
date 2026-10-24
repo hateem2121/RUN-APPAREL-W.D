@@ -90,7 +90,7 @@ updates:
       # docs/DEPENDENCY-HOLDS.md says when to drop the patch.
       - dependency-name: "@google/model-viewer"
       # Held by other packages' own ranges (docs/DEPENDENCY-HOLDS.md, 2026-09-26):
-      # model-viewer 4.3.1 declares three ^0.183.0, and payload 3.90.2 declares
+      # model-viewer 4.3.1 declares three ^0.183.0, and payload 3.91.0 declares
       # graphql ^16.8.1. Release each when that range widens.
       - dependency-name: three
       - dependency-name: graphql
@@ -144,7 +144,9 @@ updates:
     cooldown:
       default-days: 7
     ignore:
-      # Stay on Node 24, the runtime the whole project and CI use; only refresh it.
+      # Stay on Node 24 for this PRODUCTION image; only refresh it. CI moved to Node 26 on
+      # 2026-10-23, but moving the shrink robot is its own change: it needs a rendered
+      # print checked (`.claude/rules/shrink-container.md`), not just green CI.
       - dependency-name: node
         update-types:
           - version-update:semver-major

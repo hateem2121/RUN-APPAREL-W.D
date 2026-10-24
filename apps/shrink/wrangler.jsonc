@@ -97,7 +97,7 @@
 
   "vars": {
     // R2 S3 endpoint + bucket for the private ingest bucket. The account-id host
-    // is filled in at go-live. The read-only access key/secret are SECRETS:
+    // was a go-live placeholder and is filled in below. The read-only access key/secret are SECRETS:
     //   wrangler secret put R2_INGEST_ACCESS_KEY_ID
     //   wrangler secret put R2_INGEST_SECRET_ACCESS_KEY
     //   wrangler secret put CMS_ROBOT_API_KEY   (the Payload robot user's API key)

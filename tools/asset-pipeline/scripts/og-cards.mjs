@@ -50,7 +50,7 @@ const MANIFEST_PATH = join(REPO_ROOT, 'apps', 'viewer', 'worker', 'og-cards.ts')
  * Same reasoning as the og-default.jpg note in apps/viewer/index.html.
  */
 const JPEG_QUALITY = 76
-/** apps/viewer/src/styles/tokens.css `--bg`, light. */
+/** packages/ui/src/tokens.css `--bg`, light. */
 const OG_CARD_BACKGROUND = '#f1efea'
 
 /** Relative paths resolve against the repo root, not the package. See CLAUDE.md. */

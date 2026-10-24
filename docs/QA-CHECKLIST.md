@@ -8,7 +8,7 @@ throttled "Slow 4G" network profile.
 
 ## Direct URLs & QR flow
 
-- [ ] `https://viewer.wear-run.help/<product>/<colour>` loads correctly on **first visit** (no client-routing gap)
+- [ ] `https://wear-run.com/products/<product>/<colour>` loads correctly on **first visit** (no client-routing gap)
 - [ ] The same URL survives a **page refresh**
 - [ ] Scanning the printed QR code opens the right product **and** pre-selects the right colourway
 - [ ] Sloppy URLs normalise (`/RXPS/Wine` → `/rxps/wine`) — verified live 2026-08-17
@@ -148,14 +148,14 @@ as *inconclusive* and keeps the run green.
 | Product API (`/api/public/viewer/rxps/wine`) | **2.1 – 3.7 s** | > 5 s |
 | The garment itself (27 MB GLB) | **~19 s at ~1.45 MB/s** | the *rate* drops, not the time — time scales with the tester's line |
 | Model edge cache | **`cf-cache-status: HIT`**, age ~13.7 h | `MISS` on repeat requests |
-| Bare apex (`https://wear-run.help/`) | **404 in 0.89 s** (2026-08-19) | a 5xx, or > 2 s |
+| Bare apex (`https://wear-run.com/`) | **200**, the website itself (3 GETs on 2026-10-23: 3.5, 2.6 and 1.5 s in total). History: the old apex `https://wear-run.help/` answered **404 in 0.89 s** on 2026-08-19, before the site moved to `wear-run.com` on 2026-09-28; it now forwards (308) to `wear-run.com` | a 5xx or a 404 (the time is not gated: it is a real page, not the quick 404 it replaced) |
 | Old catalogue and profile addresses (`/catalogue`, `/profile`) | **410**, `text/html`, "no longer active" | a PDF, or anything but 410 |
 | Private host without a code (`https://catalogue.wear-run.help/`, and the `wear-run.com` twins) | **404**, `text/html`, `x-robots-tag: noindex, nofollow` | a 200, or a PDF |
 | Private document page, with its code (decided 2026-09-15) | **200**, `text/html`, `cache-control: no-store` | `public, max-age=300`, or any cached `HIT` — the page must reach the Worker on every open, so every visit is counted |
 | Marker pixel (`/<code>/seen/<n>`) | **200**, `image/gif`, `cache-control: no-store`, `cross-origin-resource-policy: same-origin` | any other status, or a cached `HIT` |
 | Download stop (`/<code>/get`) | **302**, `location: download`, `cache-control: no-store` | a 200, or a cached `HIT` |
 
-⚠️ **The apex figure replaced a 20.2 s one on 2026-08-19 (audit L6).** It used to
+⚠️ **History: the old `wear-run.help` apex figure replaced a 20.2 s one on 2026-08-19 (audit L6).** It used to
 return **522 after 20.214 s** — Cloudflare timing out against an origin that was
 never there. The 522 was BY DESIGN and owner-confirmed; the *duration* was the
 finding, because a typo, an accidental link or a crawler hung for twenty seconds.

@@ -26,8 +26,13 @@ has the evidence — read it before moving prose between instruction files.
   one sentence of the form **"**Thirteen more traps live in `apps/cms/CLAUDE.md`**"**,
   and the number must equal that file's trap bullets. Add a trap → update the number
   in the same commit.
-- A rule file with `paths:` loads only when the Read tool opens a matching file. A new
-  rule does not fire in the session that created it.
+- A rule file with `paths:` loads only when Claude reads a matching file: the Read, Write
+  or Edit tool, or a plain `cat`/`head`/`tail`/`sed -n`/`grep` of one file with no pipe or
+  redirect (Anthropic's tools-reference, read 2026-10-23). A new rule does not fire in the
+  session that created it.
+- `/doctor prompt-audit` (Claude Code 2.1.283+) is Anthropic's own audit of these files —
+  outdated instructions, missing files, contradictions. Run it from a terminal alongside
+  `/audit-memory`; it proposes edits and changes nothing until asked.
 
 ## Every document is citation-checked
 

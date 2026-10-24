@@ -103,8 +103,9 @@ try {
           'root file only indexes:\n\n' +
           `${rows}\n` +
           (rules.length > 0
-            ? '\nPath rules (each reloads only when the Read tool opens a file its `paths:` ' +
-              `names):\n${rules.map((p) => `  ${p}`).join('\n')}\n`
+            ? '\nPath rules (each reloads only when you read a file its `paths:` names — ' +
+              'the Read tool, or a plain cat/head/sed -n of that one file with no pipe):\n' +
+              `${rules.map((p) => `  ${p}`).join('\n')}\n`
             : '') +
           '\nRead the relevant one BEFORE changing anything in its area. The root file ' +
           'says this about itself, but says it from the only file that survived.',

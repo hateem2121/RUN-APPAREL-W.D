@@ -123,7 +123,7 @@ rendered print is the only judge (its "Before you change the pipeline").
 
 ## From the 2026-08-27 session
 
-*Full record: `docs/archive/sessions/SESSION-2026-08-27.md`. Here is only what tells you what to DO.*
+*Full record: [SESSION-2026-08-27.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-27.md). Here is only what tells you what to DO.*
 
 🟡 **COMPARE THE ARTIFACTS, NOT A PICTURE OF THE DIFFERENCE.** A rendered diff shows what
 CHANGED, never whether it got WORSE: a macro crop "proved" reduced texture settings had

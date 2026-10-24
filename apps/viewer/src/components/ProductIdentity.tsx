@@ -88,7 +88,7 @@ function Statement({ text, clamp }: { text: string; clamp: boolean }) {
  * Who the garment is: its chips, its name, its description, its colour note.
  *
  * Split out of <ProductPanel> on 2026-08-21 because it now renders in one of two
- * places and the spec list does not. See `lib/useTwoColumnLayout.ts` for the
+ * places and the spec list does not. See `lib/useIdentityInAside.ts` for the
  * query, and <ProductIdentitySection> below for the wrapper.
  *
  * A FRAGMENT, deliberately. In the single-column layout these fields and the
@@ -164,7 +164,7 @@ export function ProductIdentityFields({
  * The same fields, wrapped for the stage aside.
  *
  * ⚠️ EXACTLY ONE `.product-info` SECTION EXISTS AT A TIME — this one OR the one
- * <ProductPanel> renders, never both, because `useTwoColumnLayout()` chooses. Two
+ * <ProductPanel> renders, never both, because `useIdentityInAside()` chooses. Two
  * would mean two <h1> elements and two `id="product-heading"`, which is an invalid
  * document and would break `aria-labelledby` for whichever lost the race.
  *

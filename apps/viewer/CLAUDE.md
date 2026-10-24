@@ -25,7 +25,7 @@ session. **Working through Bash? `cat` the rule for the files you are about to c
 
 **`docs/DESIGN.md` outranks the three vendored motion skills** (`review-animations`,
 `emil-design-eng`, `motion`). It is the viewer's *locked* design system, and
-`packages/ui/src/tokens.css:2` cites it as their authority.
+`packages/ui/src/tokens.css:7` cites it as their authority.
 
 Not a precaution, arithmetic: `review-animations` standard 4 is *"sub-300ms on UI, or
 it is a finding"* while `docs/DESIGN.md` §5 locks `--settle` at **500ms** and `--slow`
@@ -54,7 +54,7 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/viewer test:e2e
 
 The e2e suite is the only thing that exercises `<model-viewer>` for real — under jsdom
 it asserts against a stub, which is why this package's coverage floor is the repo's
-lowest at 42% and why the floor must not be "fixed" by excluding `App.tsx`/`Stage.tsx`.
+lowest (58% of lines) and why the floor must not be "fixed" by excluding `App.tsx`/`Stage.tsx`.
 If it dies with `Timed out waiting 120000ms from config.webServer`, confirm `pnpm`
 resolved (bare `pnpm` exits 127 inside the child process) **before reading any code** —
 it has caused that exact timeout here.

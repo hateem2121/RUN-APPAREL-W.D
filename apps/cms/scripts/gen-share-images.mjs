@@ -8,17 +8,17 @@
  * is, for the links already shared; these are new files with new names.
  *
  * WHY COMMITTED FILES AND NOT `next/og` AT REQUEST TIME: `src/lib/shareImages.ts` has the ruling.
- * WHY PLAYWRIGHT AND NOT sharp FOR THE DRAWING: `gen-og-image.mjs` has it — SVG text comes out in
- * whatever face the rasteriser finds, and Chromium with the site's own woff2 files embedded draws
- * the same letters everywhere. sharp then writes the JPEG, as `gen-icons.mjs` uses it: JPEG
- * because link previewers are not browsers (`.claude/rules/viewer-headers.md`), at quality 82 with
+ * WHY PLAYWRIGHT AND NOT sharp FOR THE DRAWING: SVG text comes out in whatever face the
+ * rasteriser finds, and Chromium with the site's own woff2 files embedded draws the same letters
+ * everywhere (this script took over from `gen-og-image.mjs`, deleted in #221). sharp then writes
+ * the JPEG, as `gen-icons.mjs` uses it: JPEG because link previewers are not browsers (`.claude/rules/viewer-headers.md`), at quality 82 with
  * full-resolution colour so the lime words do not bleed into the ink, and under 300 KB, above which
  * WhatsApp is reported to show no picture (vercel/next.js discussion 60366).
  *
  * Every word comes from `shareImages.ts`, which takes it from the pages; every colour from
  * `packages/ui/src/tokens.css`; every picture from a file already in the repository.
  *
- * ⚠️ NOT WIRED INTO ANY BUILD, like `gen-og-image.mjs` and `gen-icons.mjs`: it needs a browser,
+ * ⚠️ NOT WIRED INTO ANY BUILD, like `gen-icons.mjs`: it needs a browser,
  * and the outputs are committed. Run it by hand after a page's label or headline changes, through
  * the pipeline's `tsx`, which reads the site's TypeScript:
  *
