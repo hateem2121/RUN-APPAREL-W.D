@@ -36,8 +36,7 @@ import '@run-apparel/ui/footer.css'
 // The footer's tab, question and clock: the website's alone since the garment pages dropped them
 // (polish Q42), so the viewer does not download them (polish D1). After footer.css, as they were.
 import '@run-apparel/ui/footer-prompt.css'
-// The two stand-in faces shared with the garment pages (2026-10-25); site.css names them.
-import '@run-apparel/ui/fallback-faces.css'
+// site.css brings in the two stand-in faces shared with the garment pages, by @import (it says why).
 import './site.css'
 
 import type { Metadata, Viewport } from 'next'

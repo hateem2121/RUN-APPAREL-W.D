@@ -1,4 +1,13 @@
 /*
+ * ⚠️ THE SHARED STAND-IN FACES COME IN HERE, BY @import, NOT AS A SEPARATE IMPORT IN layout.tsx
+ * (2026-10-25). Imported from layout.tsx, Turbopack gave them a third stylesheet of their own: a third
+ * render-blocking download on every page, which e2e/firstPaint.spec.ts refuses (at most two), and the
+ * root not-found page, which links only this file's two halves, lost the faces altogether. Bundled
+ * here, they ride inside this sheet wherever it goes. An @import must come before every rule.
+ */
+@import "@run-apparel/ui/fallback-faces.css";
+
+/*
  * Public marketing site chrome — header, footer, page sections, product grid.
  *
  * WHAT IS DELIBERATELY *NOT* HERE. Colours, type, buttons, [ MONO LABELS ], the
@@ -81,7 +90,7 @@
 
 /*
  * "Archivo Display Fallback" and "Instrument Serif Fallback", the two stand-ins the garment pages
- * draw too, live in packages/ui/src/fallback-faces.css since 2026-10-25 (imported in layout.tsx):
+ * draw too, live in packages/ui/src/fallback-faces.css since 2026-10-25 (the @import at the top):
  * one copy for both apps, where this file and the viewer's page.css each had a byte-identical one.
  * The faces below are this site's own.
  */
