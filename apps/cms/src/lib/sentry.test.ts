@@ -15,10 +15,12 @@
  *   - The no-throw tests fail if this module can ever raise. It runs inside
  *     `onRequestError`, i.e. during the handling of another exception.
  */
-import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildEnvelope,
   buildEvent,
+  buildRelease,
   envelopeUrl,
   eventId,
   KEPT_HEADERS,
@@ -399,5 +401,64 @@ describe('reportToSentry', () => {
     await expect(
       reportToSentry({ dsn: 'https://no-project-id@sentry.io', error: new Error('x') }),
     ).resolves.toBe(false)
+  })
+})
+
+/**
+ * The release ties a CMS error to the deploy that caused it, as the viewer's already does.
+ * WHAT WOULD HAVE TO BREAK: the build stops replacing the value (renamed on one side, or read
+ * destructured), or reportToSentry stops applying it. The unset case is the negative control:
+ * a local build has no GITHUB_SHA and must send no release rather than an empty string.
+ */
+describe('the release (the commit the Worker was built from)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  async function sentEvent(options: { release?: string } = {}): Promise<Record<string, unknown>> {
+    let body = ''
+    await reportToSentry({
+      dsn: DSN,
+      error: new Error('x'),
+      ...options,
+      fetchImpl: (async (_url: string, init: RequestInit) => {
+        body = String(init.body)
+        return { ok: true } as Response
+      }) as unknown as typeof fetch,
+    })
+    return JSON.parse(at(body.trimEnd().split('\n'), 2, 'the event line'))
+  }
+
+  it('tags every event with the built commit', async () => {
+    vi.stubEnv('CMS_RELEASE', '2c4647ab40ad033c552c58884f34784ed2af5ef0')
+    expect((await sentEvent()).release).toBe('2c4647ab40ad033c552c58884f34784ed2af5ef0')
+  })
+
+  it('sends no release key at all from a build with no commit (negative control)', async () => {
+    vi.stubEnv('CMS_RELEASE', '')
+    expect(buildRelease()).toBeUndefined()
+    expect(await sentEvent()).not.toHaveProperty('release')
+  })
+
+  it('lets a caller that names a release keep it', async () => {
+    vi.stubEnv('CMS_RELEASE', 'built-commit')
+    expect((await sentEvent({ release: 'named' })).release).toBe('named')
+  })
+
+  /**
+   * The two halves are joined only by a string: next.config.mjs replaces the exact text
+   * `process.env.CMS_RELEASE`, and sentry.ts must contain that exact text. Rename one side and
+   * every test above still passes (they stub the variable), while production quietly sends no
+   * release again.
+   */
+  it('reads the very name next.config.mjs replaces at build time', () => {
+    const config = readFileSync(new URL('../../next.config.mjs', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('./sentry.ts', import.meta.url), 'utf8')
+    // The plain string, never JSON.stringify(...): Next quotes it itself, and a stringified
+    // value was built as `'"<sha>"'` (next.config.mjs carries the measurement).
+    expect(config).toContain(
+      "defineServer: { 'process.env.CMS_RELEASE': process.env.GITHUB_SHA ?? '' }",
+    )
+    expect(source).toContain('return process.env.CMS_RELEASE || undefined')
   })
 })
