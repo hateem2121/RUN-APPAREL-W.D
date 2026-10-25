@@ -108,7 +108,11 @@ async function fromSharedStore(request, env, ctx) {
     const cacheKey = sharedCacheKey(request.url, deploy, content)
     // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
     const cf = { cacheKey }
-    const kept = await store.fetch(keptRenderRequest(request, cf), { cf })
+    // ⚠️ `redirect: 'manual'`, or a 308 from the store is FOLLOWED: this call has Fetch semantics
+    // and follows a redirect out over the internet by default (Cloudflare, Workers RPC "Reserved
+    // methods"). Live on 2026-10-25 (#247), /factory answered 200 with the factory page instead of
+    // its 308. Manual hands the redirect back to withRedirectHeaders below, as before the store.
+    const kept = await store.fetch(keptRenderRequest(request, cf), { cf, redirect: 'manual' })
     return {
       state: storeState(kept.headers),
       response: new Response(kept.body, {
