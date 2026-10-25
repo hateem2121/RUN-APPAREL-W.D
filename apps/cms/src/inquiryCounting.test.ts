@@ -31,9 +31,16 @@ import { describe, expect, it } from 'vitest'
 
 const ROUTE = join(import.meta.dirname, 'app', '(frontend)', 'contact', 'submit', 'route.ts')
 
+/**
+ * Since 2026-10-25 the `events` write itself lives in the module both forms share (the careers
+ * route used to carry a copy), and the contact route names the event in the `count` it hands over.
+ * So the write is scanned there, and the name here: the same four things, one file further on.
+ */
+const SHARED = join(import.meta.dirname, 'lib', 'formSubmission.ts')
+
 /** Comments blanked, for the reason publicSite.test.ts records: prose is not code. */
-function code(): string {
-  return readFileSync(ROUTE, 'utf8')
+function code(file: string = SHARED): string {
+  return readFileSync(file, 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
     .replace(/^\s*\/\/.*$/gm, '')
 }
@@ -54,8 +61,12 @@ describe('the submit route counts an inquiry', () => {
     const block = /collection:\s*'events',\s*data:\s*\{([^}]*)\}/.exec(source)?.[1] ?? ''
     expect(block, 'no events payload found to check').not.toBe('')
     expect(block).toMatch(/type:\s*'analytics'/)
-    expect(block).toMatch(/event:\s*'inquiry_submitted'/)
-    expect(block).toMatch(/placement:\s*'site-contact-form'/)
+    // The event name and placement come from the route's `count`, spread into the write.
+    expect(block).toMatch(/\.\.\.submission\.count/)
+    const count = /count:\s*\{([^}]*)\}/.exec(code(ROUTE))?.[1] ?? ''
+    expect(count, 'the contact route hands no `count` to the shared module').not.toBe('')
+    expect(count).toMatch(/event:\s*'inquiry_submitted'/)
+    expect(count).toMatch(/placement:\s*'site-contact-form'/)
   })
 
   /*
@@ -68,6 +79,10 @@ describe('the submit route counts an inquiry', () => {
       const block = /collection:\s*'events',\s*data:\s*\{([^}]*)\}/.exec(code())?.[1] ?? ''
       expect(block).not.toMatch(new RegExp(`\\b${field}\\b`))
       expect(block).not.toMatch(/result\.value/)
+      // And not through the `count` the route hands over either.
+      const count = /count:\s*\{([^}]*)\}/.exec(code(ROUTE))?.[1] ?? ''
+      expect(count).not.toMatch(new RegExp(`\\b${field}\\b`))
+      expect(count).not.toMatch(/result\.value/)
     },
   )
 
@@ -82,8 +97,12 @@ describe('the submit route counts an inquiry', () => {
     const at = source.search(/collection:\s*'events'/)
     expect(at).toBeGreaterThan(0)
     const before = source.slice(0, at)
-    // The inquiry is stored first...
-    expect(before).toMatch(/collection:\s*'inquiries'/)
+    // The inquiry is stored first, by the route, before it hands over to the shared module...
+    const route = code(ROUTE)
+    expect(route.search(/collection:\s*'inquiries'/)).toBeGreaterThan(0)
+    expect(route.search(/collection:\s*'inquiries'/)).toBeLessThan(
+      route.search(/completeSubmission\(/),
+    )
     // ...and the count sits inside a try, whose catch does not rethrow.
     const tail = source.slice(before.lastIndexOf('try {'))
     expect(tail).toMatch(/catch\s*\(?\w*\)?\s*\{/)

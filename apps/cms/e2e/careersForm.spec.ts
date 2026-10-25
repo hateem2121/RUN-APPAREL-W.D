@@ -222,6 +222,86 @@ test.describe('the careers form', () => {
   })
 })
 
+/*
+ * The careers form's own rate limit, added 2026-10-25 when its limiter and the contact form's
+ * became one maker (`lib/rateLimiter.ts`). Until then the contact form's limit had a browser test
+ * (`inquirySecurity.spec.ts`, SE-13) and this form's had none: removing it would have gone green.
+ *
+ * Addresses are TEST-NET-1 (192.0.2.0/24, RFC 5737, never a real one), a band no other spec uses,
+ * and random per run and per engine for the reason SE-13 gives: the three engines share ONE `next
+ * start` process and so one counter per address, and a Playwright retry reuses the allowance the
+ * first attempt already spent.
+ */
+test.describe('the careers form’s rate limit', () => {
+  // One 80-address block per engine, three disjoint 26-address bands inside it, so no two
+  // addresses in the whole file can ever be the same.
+  const octet = (min: number) => min + Math.floor(Math.random() * 26)
+  function addresses(projectName: string) {
+    const block = projectName === 'firefox' ? 90 : projectName === 'webkit' ? 170 : 10
+    return {
+      limited: `192.0.2.${octet(block)}`,
+      other: `192.0.2.${octet(block + 26)}`,
+      refusedOnly: `192.0.2.${octet(block + 52)}`,
+    }
+  }
+  const good = (tag: string) => ({
+    name: `Rate Limit Test ${tag}`,
+    phone: '300 1234567',
+    role: 'Cutting',
+  })
+
+  test('the sixth application from one address in the window is refused; one from another address is not', async ({
+    request,
+  }, testInfo) => {
+    const { limited, other } = addresses(testInfo.project.name)
+    // MAX_PER_IP is 5 (`apps/cms/src/lib/inquiryRate.ts`, shared by both forms' limiters).
+    for (let i = 0; i < 5; i += 1) {
+      const res = await request.post('/careers/submit', {
+        form: good(`a-${i}`),
+        headers: { 'cf-connecting-ip': limited },
+        maxRedirects: 0,
+      })
+      expect(res.status(), `application ${i + 1}/5`).toBe(303)
+      expect(res.headers().location, `application ${i + 1}/5`).toContain('sent=1')
+    }
+    const sixth = await request.post('/careers/submit', {
+      form: good('a-6'),
+      headers: { 'cf-connecting-ip': limited },
+      maxRedirects: 0,
+    })
+    expect(sixth.status()).toBe(303)
+    expect(sixth.headers().location).toContain('error=too-many')
+
+    // The ceiling is per address, not for the whole form.
+    const seventh = await request.post('/careers/submit', {
+      form: good('b-7'),
+      headers: { 'cf-connecting-ip': other },
+      maxRedirects: 0,
+    })
+    expect(seventh.headers().location).toContain('sent=1')
+  })
+
+  test('refused forms do not use up the allowance: after six refusals a good application still goes', async ({
+    request,
+  }, testInfo) => {
+    const { refusedOnly } = addresses(testInfo.project.name)
+    for (let i = 0; i < 6; i += 1) {
+      const refused = await request.post('/careers/submit', {
+        form: { ...good(`c-${i}`), phone: '12' },
+        headers: { 'cf-connecting-ip': refusedOnly },
+        maxRedirects: 0,
+      })
+      expect(refused.headers().location, `refusal ${i + 1}/6`).toContain('error=invalid')
+    }
+    const goodOne = await request.post('/careers/submit', {
+      form: good('c-good'),
+      headers: { 'cf-connecting-ip': refusedOnly },
+      maxRedirects: 0,
+    })
+    expect(goodOne.headers().location).toContain('sent=1')
+  })
+})
+
 test.describe('applications and CVs are private', () => {
   test('a stranger can neither list applications nor download a CV', async ({ request }) => {
     const wrong: string[] = []

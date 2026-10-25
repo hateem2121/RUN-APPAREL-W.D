@@ -1,17 +1,16 @@
 import config from '@payload-config'
 import type { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
+import { formResult } from '../../../../lib/formResult'
+import { clientAddress, completeSubmission } from '../../../../lib/formSubmission'
 import {
-  type InquiryEmailExtras,
-  type InquiryInput,
+  formatInquiryEmail,
   inquiryRecipient,
   inquirySubject,
-  formatInquiryEmail,
   isHoneypotTripped,
   validateInquiry,
 } from '../../../../lib/inquiry'
-import { formResult } from '../../../../lib/formResult'
-import { type CheckedFile, checkFiles, formatBytes } from '../../../../lib/inquiryFiles'
+import { checkFiles } from '../../../../lib/inquiryFiles'
 import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
 
@@ -47,20 +46,6 @@ export const dynamic = 'force-dynamic'
  * scripting off, so the ordinary mistakes never reach here at all.
  */
 
-const RESEND_ENDPOINT = 'https://api.resend.com/emails'
-
-/**
- * ⚠️ THE ADDRESS MAIL IS SENT FROM MUST BE A DOMAIN VERIFIED IN RESEND, AND THAT IS NOT
- * PROVEN HERE. `RESEND_API_KEY` was found already set on this Worker on 2026-09-07, but
- * `wear-run.help`'s SPF record names Hostinger, Google and SendGrid — not Resend — so the
- * domain may not be verified for it. If it is not, every send fails with a 4xx.
- *
- * That is survivable BY DESIGN rather than by luck: the inquiry is already stored, and
- * the failure is written onto the row as `notified: false` with the reason beside it, so
- * it is visible in the admin rather than silent. See docs/OWNER-CHECKLIST.md.
- */
-const FROM = process.env.INQUIRY_FROM?.trim() || 'inquiries@wear-run.help'
-
 /*
  * ⚠️ EVERY RETURN NAMES THE RESULT ITSELF AS ITS ANCHOR (visual audit VA-01). Without an anchor
  * the page reloaded at the top and the result sat a screen or more below the hero: 37px of it
@@ -77,86 +62,6 @@ const back = (request: NextRequest, params: string, anchor: 'inquiry-done' | 'in
   formResult(request, new URL(`/contact${params}#${anchor}`, request.url))
 const sent = (request: NextRequest) => back(request, '?sent=1', 'inquiry-done')
 const refused = (request: NextRequest, params: string) => back(request, params, 'inquiry-problem')
-
-/** Never throws. A notification is a nice-to-have; the inquiry is the thing. */
-async function notify(
-  value: InquiryInput,
-  receivedAt: Date,
-  to: string,
-  extras: InquiryEmailExtras,
-): Promise<{ notified: boolean; notifyError?: string }> {
-  const key = process.env.RESEND_API_KEY?.trim()
-  if (!key) return { notified: false, notifyError: 'RESEND_API_KEY is not set on this Worker' }
-
-  try {
-    const res = await fetch(RESEND_ENDPOINT, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        from: `RUN APPAREL inquiries <${FROM}>`,
-        to: [to],
-        // Hitting Reply in any mail client answers the customer, not the robot.
-        reply_to: value.email,
-        subject: inquirySubject(value),
-        text: formatInquiryEmail(value, receivedAt, extras),
-      }),
-      signal: AbortSignal.timeout(8000),
-    })
-    if (res.ok) return { notified: true }
-    return {
-      notified: false,
-      notifyError: `Resend answered ${res.status}: ${(await res.text()).slice(0, 200)}`,
-    }
-  } catch (err) {
-    return { notified: false, notifyError: String(err).slice(0, 200) }
-  }
-}
-
-/**
- * Store each checked file against its inquiry. Never throws: the inquiry is already stored, so a
- * file that will not save is written onto the row (`filesError`) and named in the email, rather
- * than turning a received message into an error page.
- *
- * ⚠️ ONE WRITE PER FILE, AND IT NAMES ITS INQUIRY. `Inquiries.files` is a join over
- * `inquiry-files.inquiry`, so there is no second update of the inquiry that could fail after the
- * file is already in R2 and leave it unlisted.
- *
- * ⚠️ EACH FILE IS READ HERE, ONE AT A TIME, AND NOWHERE ELSE. At the 25 MB limit the request
- * already holds the upload; `checkFiles` reads only each file's ends, so the one full copy is the
- * one being stored, and it can be freed before the next file is read. Measured 2026-09-29: with
- * every file copied up front, one 24 MB PDF raised a local Workers runtime's memory by 124 MB.
- */
-async function saveFiles(
-  // D1 ids are integers; `payload.create` above types its result's id loosely.
-  inquiry: number,
-  files: readonly CheckedFile[],
-): Promise<{ saved: CheckedFile[]; filesError?: string }> {
-  const saved: CheckedFile[] = []
-  const failed: string[] = []
-  const payload = await getPayload({ config })
-  for (const file of files) {
-    try {
-      await payload.create({
-        collection: 'inquiry-files',
-        data: { inquiry },
-        file: {
-          data: Buffer.from(await file.file.arrayBuffer()),
-          mimetype: file.type,
-          name: file.name,
-          size: file.size,
-        },
-        overrideAccess: true,
-      })
-      saved.push(file)
-    } catch (err) {
-      console.error('[inquiry] stored, but a file was not:', file.name, err)
-      failed.push(`${file.name} (${String(err).slice(0, 80)})`)
-    }
-  }
-  return failed.length > 0
-    ? { saved, filesError: `Not saved: ${failed.join('; ')}`.slice(0, 500) }
-    : { saved }
-}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let raw: Record<string, unknown> = {}
@@ -197,9 +102,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    * already read by this point either way, so checking later costs nothing, and a refused
    * attempt stores nothing and sends nothing to limit.
    */
-  const ip =
-    request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!checkInquiryRate(ip, Date.now())) return refused(request, '?error=too-many')
+  if (!checkInquiryRate(clientAddress(request), Date.now()))
+    return refused(request, '?error=too-many')
 
   const receivedAt = new Date()
   let created: { id: string | number } | null = null
@@ -223,96 +127,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return refused(request, '?error=storage')
   }
 
-  // The files, after the inquiry they belong to. A failure here is recorded, never fatal.
-  const stored =
-    files.files.length > 0 ? await saveFiles(Number(created.id), files.files) : { saved: [] }
-  if (stored.filesError) {
-    try {
-      const payload = await getPayload({ config })
-      await payload.update({
-        collection: 'inquiries',
-        id: created.id,
-        data: { filesError: stored.filesError },
-        overrideAccess: true,
-      })
-    } catch {
-      // The email below still names the problem.
-    }
-  }
-
-  // Only now, and never in a way that can fail the request.
-  const settings = await getPayload({ config })
-    .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
-    .catch(() => null)
-  const to = inquiryRecipient(settings as Record<string, unknown> | null)
-  const outcome = await notify(result.value, receivedAt, to, {
-    files: stored.saved.map((file) => ({ name: file.name, size: formatBytes(file.size) })),
-    filesError: stored.filesError,
+  // The files, the email, what happened to it and the count: `lib/formSubmission.ts`, shared with
+  // the careers form. Never throws past here, and never changes what the visitor is told.
+  await completeSubmission({
+    storage: { collection: 'inquiries', filesCollection: 'inquiry-files', ownerField: 'inquiry' },
+    id: created.id,
+    files: files.files,
+    logTag: 'inquiry',
+    fileNoun: 'a file',
+    // The address the site shows, read AFTER the inquiry is stored so a settings outage can never
+    // cost the inquiry; when it cannot be read, `inquiryRecipient` answers with the default.
+    recipient: async () => {
+      const settings = await getPayload({ config })
+        .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
+        .catch(() => null)
+      return inquiryRecipient(settings as Record<string, unknown> | null)
+    },
+    compose: (extras) => ({
+      fromName: 'RUN APPAREL inquiries',
+      // Hitting Reply in any mail client answers the customer, not the robot.
+      replyTo: result.value.email,
+      subject: inquirySubject(result.value),
+      text: formatInquiryEmail(result.value, receivedAt, extras),
+    }),
     adminUrl: inquiryAdminUrl(created.id),
+    count: { event: 'inquiry_submitted', placement: 'site-contact-form' },
   })
-
-  if (!outcome.notified) {
-    console.error('[inquiry] stored but not notified:', outcome.notifyError)
-    try {
-      const payload = await getPayload({ config })
-      await payload.update({
-        collection: 'inquiries',
-        id: created.id,
-        data: { notified: false, notifyError: outcome.notifyError },
-        overrideAccess: true,
-      })
-    } catch {
-      // The row exists and that is what matters. A failed annotation is not worth a 500.
-    }
-  } else {
-    try {
-      const payload = await getPayload({ config })
-      await payload.update({
-        collection: 'inquiries',
-        id: created.id,
-        data: { notified: true },
-        overrideAccess: true,
-      })
-    } catch {
-      /* as above */
-    }
-  }
-
-  /*
-   * ⚠️ COUNT IT WHERE THE VIEWER'S ARE COUNTED — audit FA-I-16.
-   *
-   * The finding was "the viewer counts, the site does not": every enquiry button on a
-   * garment page raises a `run:analytics` event that `apps/viewer/src/lib/telemetry.ts`
-   * ships to `POST /api/public/events`, and the marketing site recorded nothing at all.
-   * Since D3 that is no longer true of the substance — an inquiry is a row in
-   * `inquiries`, which is strictly more than a count — but the two surfaces still
-   * reported into different places, so "did the website produce any leads this month?"
-   * had two answers in two systems.
-   *
-   * ⚠️ A ROW HERE, NOT A BEACON FROM THE PAGE. The obvious symmetry would be a client
-   * counter like the viewer's, and it would cost three things this site has decided
-   * against: `connect-src` widened to reach cms.wear-run.help (the marketing site is
-   * served from the apex, where `/api` is deliberately rewritten to the 404 so the API
-   * has ONE hostname), a CORS surface, and JavaScript on a page whose own client bundle
-   * is 6.0 KB gzip. This runs in the same request that already stored the inquiry.
-   *
-   * ⚠️ AND IT CARRIES NO PERSONAL DATA, deliberately — not the name, not the email, not
-   * the message. Those are in `inquiries`, behind authentication. This is the count, and
-   * `Events` is read by anyone who can read events.
-   *
-   * Never awaited in a way that can fail the request: the inquiry is already stored and
-   * the visitor has already been served. A missing count is not worth a 500.
-   */
-  try {
-    const payload = await getPayload({ config })
-    await payload.create({
-      collection: 'events',
-      data: { type: 'analytics', event: 'inquiry_submitted', placement: 'site-contact-form' },
-      overrideAccess: true,
-    })
-  } catch (err) {
-    console.error('[inquiry] stored but not counted:', err)
-  }
 
   // The visitor's experience does not depend on the email. Their message is safe either way.
   return sent(request)
