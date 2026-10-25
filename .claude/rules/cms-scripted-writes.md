@@ -10,6 +10,26 @@ paths:
 Moved from `apps/cms/CLAUDE.md` on 2026-09-26, word for word, so it loads only when you open
 the files it governs (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechanism).
 
+## One client for every script (2026-10-25)
+
+🟡 **A script that talks to the CMS uses `scripts/cms-client.mjs`; it does not carry its own
+`fetch` helper.** Fourteen scripts each did, under three names for the address, and two of them
+(`publish-garment`, `upload-posters`) never read a write back. The client's promises, each
+pinned by `apps/cms/src/cmsClient.test.ts` against a fake `fetch`:
+- **The address is `CMS_API_BASE`** (default production). `CMS_ORIGIN` and `CMS_URL` still work
+  and print one "renamed, use CMS_API_BASE" line. The key is `CMS_API_KEY`; the Keychain
+  (`run-apparel-cms-api-key`) only for a script that asks (`resolveCmsKey({ keychain: true })`).
+  A test fails if a script reads either from `process.env` itself.
+- **A client made without `apply: true` sends no write**; pass `apply: APPLY` from the script's own
+  flag. `publish-garment`, `upload-posters`, `attach-renders`, `swap-live-model` and
+  `ingest-local-glb` write unless `--dry-run`, as they always did; the rest are dry by default.
+- **Every write method reads the document back (`depth=0`) and compares**, and reports `ok: false`
+  with `stage` `write`, `read` or `verify`. Pass a `verify` callback when the default "every sent
+  field is stored" is not the right check; it must return an array. Print `result.stage`, never
+  just the status: a 200 that stored nothing is stage `verify`.
+- **The key is never in a URL or in printed text**, and a request that carries it (or any write)
+  needs https, or http to localhost.
+
 ## Writing products from a script
 
 🟡 **Go through the REST API, never D1.** `Authorization: users API-Key <key>` — the

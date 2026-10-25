@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { inspect } from 'node:util'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -614,5 +616,31 @@ describe('the rest of the client', () => {
     ])
     expect(subsetMismatches({ a: null }, {})).toEqual([])
     expect(subsetMismatches({ a: null }, { a: 3 })).toEqual(['a: sent empty, stored 3'])
+  })
+})
+
+/**
+ * The reason this module exists: fourteen scripts each read the address and the key their own
+ * way, under three names. A script that goes back to `process.env.CMS_ORIGIN` would quietly
+ * restore the second name. This reads every script's source, so the next one cannot.
+ */
+describe('no script outside the client reads the CMS address or key itself', () => {
+  const SCRIPTS = join(import.meta.dirname, '..', '..', '..', 'scripts')
+  const OWN_READ = /process\.env\.CMS_(API_BASE|ORIGIN|URL|API_KEY)\b|env\[['"]CMS_/
+
+  it('finds none in scripts/*.mjs except cms-client.mjs', () => {
+    const offenders = readdirSync(SCRIPTS)
+      .filter((name) => name.endsWith('.mjs') && name !== 'cms-client.mjs')
+      .filter((name) => OWN_READ.test(readFileSync(join(SCRIPTS, name), 'utf8')))
+    expect(offenders).toEqual([])
+  })
+
+  it('CONTROL: the same scan DOES flag a script that reads one of the old names', () => {
+    expect(OWN_READ.test("const CMS = process.env.CMS_ORIGIN ?? 'https://cms.wear-run.help'")).toBe(
+      true,
+    )
+    expect(OWN_READ.test('const key = process.env.CMS_API_KEY')).toBe(true)
+    expect(OWN_READ.test("const base = env['CMS_URL']")).toBe(true)
+    expect(OWN_READ.test('const base = resolveCmsBase()')).toBe(false)
   })
 })
