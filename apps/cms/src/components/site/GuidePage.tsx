@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Fragment } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
-import { FAMILY_PAGE_ACTION, familyPageFor } from '../../lib/familyPages'
+import { familyPageFor } from '../../lib/familyPages'
 import {
   GUIDES_INDEX,
   type Guide,
@@ -18,6 +18,7 @@ import {
 import { formatPostDate } from '../../lib/journal'
 import type { ProductCard } from '../../lib/projectPublic'
 import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
+import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
@@ -101,13 +102,24 @@ function GuideTable({ block }: { block: Extract<GuideBlock, { kind: 'table' }> }
  * of the `.spread` from 900px, which was empty beside the words. That half is `.about`'s half (the
  * same grid and gap, site.css), so the photo asks for `HALF_COLUMN_SIZES`; the files and their
  * widths are `factoryPhotos.ts`'s (`factoryPhotoImage`), as `OrderSteps.tsx` reads them.
+ *
+ * `priority` is true for ONE figure per page: the photo of the guide's FIRST section, the first
+ * spread under the hero (see `GuidePage`). It loads eager at high priority (`FactoryFigure.tsx`
+ * says why); every later section's photo stays lazy.
  */
-function SectionPhoto({ slug }: { slug: string }) {
+function SectionPhoto({ slug, priority }: { slug: string; priority: boolean }) {
   const photo = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
   // `guides.test.ts` fails a slug with no photo; drawing nothing is the safe miss in production.
   if (!photo) return null
   // Every width the photo has (polish X16 added larger ones for sharp screens), as №01 asks.
-  return <FactoryFigure photo={photo} {...factoryPhotoImage(photo)} sizes={HALF_COLUMN_SIZES} />
+  return (
+    <FactoryFigure
+      photo={photo}
+      {...factoryPhotoImage(photo)}
+      sizes={HALF_COLUMN_SIZES}
+      priority={priority}
+    />
+  )
 }
 
 /** One group of links at the end of a page, under its own heading; `why` is drawn under a link. */
@@ -312,7 +324,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
           polish D1): the words keep their 50ch measure, and the heading fills the half beside them.
           A section with a photo puts it under its heading, in that half (polish X22); on a phone
           it comes between the heading and the words, as the markup has it. */}
-      {guide.sections.map((section) => {
+      {guide.sections.map((section, index) => {
         const heading = <h2 className="display display--section">{section.heading}</h2>
         const garments =
           guide.garments?.after === section.heading ? (
@@ -344,7 +356,11 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
                 {section.photo ? (
                   <div className="spread__head">
                     {heading}
-                    <SectionPhoto slug={section.photo} />
+                    {/* Only the first section is the first spread under the hero, so only its
+                        photo is fetched early: the rest are further down, where lazy is right.
+                        Of the five guides with photos, the minimum-order and printing guides
+                        start with one (guides.ts); the other three have theirs later. */}
+                    <SectionPhoto slug={section.photo} priority={index === 0} />
                   </div>
                 ) : (
                   heading
@@ -378,20 +394,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <div className="section-head">
-            <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-            <div className="section-head__words">
-              <p className="site-lede">
-                Send the styles, quantities and specs you have — a sketch is enough to start. We
-                reply within 24 hours.
-              </p>
-              <div className="site-actions">
-                <Link className="btn btn--primary" href="/contact#inquiry">
-                  {FAMILY_PAGE_ACTION}
-                </Link>
-              </div>
-            </div>
-          </div>
+          <SiteClosing />
           <GuideLinks current={guide.path} />
         </div>
       </section>

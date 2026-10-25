@@ -123,7 +123,8 @@ describe('a factory photo beside the words that name it (polish X22)', () => {
         // The heading's half is `.about`'s half: the same grid, the same 64px gap (site.css).
         expect(img).toContain(`sizes="${HALF_COLUMN_SIZES}"`)
         expect(img).toMatch(/ width="\d+" height="\d+"/)
-        expect(img).toContain('loading="lazy"')
+        // Lazy, except the first section's photo, which is fetched early (`priority`, below).
+        expect(img).toContain(guide.sections[0] === section ? 'loading="eager"' : 'loading="lazy"')
         // No label under the photo (the owner, 2026-10-05: "remove all the image names").
         expect(head, 'the photo carries a label').not.toMatch(/<figcaption\b/)
         expect(head).not.toContain(`>${photo.caption}<`)
@@ -134,6 +135,104 @@ describe('a factory photo beside the words that name it (polish X22)', () => {
   it('draws no photo in a section that names none', () => {
     const guide = guideAt('/guides/3d-garment-reference')
     expect(render(guide)).not.toContain('photo-figure')
+  })
+})
+
+/**
+ * A page's first-screen picture is not lazy (web.dev "Optimize Largest Contentful Paint", updated
+ * 31 Mar 2025: "Never lazy-load your LCP image"; `fetchpriority="high"` on that one image only).
+ * On a guide that is the photo of its FIRST section; every photo further down stays lazy, and a
+ * second high-priority image would take bandwidth from the first.
+ */
+describe('a guide fetches its first spread’s photo early and no other (2026-10-24)', () => {
+  /** Every factory figure's `<img>` on the page, as its loading and priority attributes. */
+  const figuresIn = (html: string) =>
+    [...html.matchAll(/<img\b[^>]*class="photo-figure__img[^>]*>/g)].map((match) => ({
+      loading: /\bloading="([^"]*)"/.exec(match[0])?.[1],
+      priority: /\bfetchpriority="([^"]*)"/i.exec(match[0])?.[1],
+    }))
+
+  /** Everything wrong with a guide's photo loading, as sentences. */
+  function problemsWith(html: string, wantEarly: boolean): string[] {
+    const figures = figuresIn(html)
+    const problems: string[] = []
+    const early = figures.filter((figure) => figure.loading === 'eager' || figure.priority)
+    if (early.length !== (wantEarly ? 1 : 0)) {
+      problems.push(`${early.length} early figures where ${wantEarly ? 1 : 0} were wanted`)
+    }
+    for (const figure of early) {
+      if (figure.loading !== 'eager' || figure.priority !== 'high') {
+        problems.push(`an early figure is loading=${figure.loading} priority=${figure.priority}`)
+      }
+    }
+    for (const figure of figures.filter((entry) => !early.includes(entry))) {
+      if (figure.loading !== 'lazy') problems.push(`a later figure is loading=${figure.loading}`)
+    }
+    return problems
+  }
+
+  const withPhotos = GUIDES.filter((guide) => guide.sections.some((section) => section.photo))
+
+  it('has the five guides with photos to look at', () => {
+    expect(withPhotos.map((guide) => guide.path)).toEqual([
+      '/guides/minimum-order-and-samples',
+      '/guides/garment-printing-methods',
+      '/guides/sportswear-fabrics-and-weights',
+      '/guides/private-label-packaging',
+      '/guides/shipping-and-import-duties',
+    ])
+  })
+
+  for (const guide of withPhotos) {
+    const first = Boolean(guide.sections[0]?.photo)
+    const rule = first
+      ? 'its first section’s photo is eager and high, the rest lazy'
+      : 'every photo is lazy (its photos start later)'
+    it(`${guide.path}: ${rule}`, () => {
+      const html = render(guide)
+      expect(figuresIn(html).length, 'no figures were found, so nothing was measured').toBe(
+        guide.sections.filter((section) => section.photo).length,
+      )
+      expect(problemsWith(html, first)).toEqual([])
+    })
+  }
+
+  // NEGATIVE CONTROL, run both ways: the good page is clean, then a second priority image, a
+  // lazy first photo and an eager photo without high priority are each named. Each plant is
+  // asserted to have landed first.
+  it('sees a second priority image, a lazy first photo and a missing priority', () => {
+    const guide = guideAt('/guides/minimum-order-and-samples')
+    const html = render(guide)
+    expect(problemsWith(html, true)).toEqual([])
+    // The same guide with a second photo, so there is a later figure to promote by mistake.
+    const two: Guide = {
+      ...guide,
+      sections: guide.sections.map((section, index) =>
+        index === 1 ? { ...section, photo: 'lab' } : section,
+      ),
+    }
+    const twoHtml = render(two)
+    expect(figuresIn(twoHtml)).toHaveLength(2)
+    expect(problemsWith(twoHtml, true)).toEqual([])
+    const second = twoHtml.replace(
+      /(<img\b[^>]*)loading="lazy"/,
+      '$1loading="eager" fetchPriority="high"',
+    )
+    expect(second, 'the planted second priority did not land').not.toBe(twoHtml)
+    expect(problemsWith(second, true)).toContain('2 early figures where 1 were wanted')
+    // React also hoists a preload `<link>` for the priority image, so edit the `<img>` only.
+    const inImg = (page: string, edit: (img: string) => string) =>
+      page.replace(/<img\b[^>]*photo-figure__img[^>]*>/, edit)
+    const lazy = inImg(html, (img) =>
+      img.replace('loading="eager"', 'loading="lazy"').replace(' fetchPriority="high"', ''),
+    )
+    expect(lazy, 'the planted lazy first photo did not land').not.toBe(html)
+    expect(problemsWith(lazy, true)).toContain('0 early figures where 1 were wanted')
+    const noPriority = inImg(html, (img) => img.replace(' fetchPriority="high"', ''))
+    expect(noPriority, 'the planted missing priority did not land').not.toBe(html)
+    expect(problemsWith(noPriority, true)).toContain(
+      'an early figure is loading=eager priority=undefined',
+    )
   })
 })
 

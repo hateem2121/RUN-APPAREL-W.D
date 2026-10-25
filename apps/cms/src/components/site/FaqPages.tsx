@@ -9,9 +9,9 @@ import {
   faqEntryById,
   faqVisibleAnswer,
 } from '../../lib/faqs'
-import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
 import { GUIDES, GUIDES_INDEX } from '../../lib/guides'
 import { breadcrumbTrailJsonLd, faqJsonLd } from '../../lib/structuredData'
+import { SiteClosing } from './ArticleParts'
 import { Breadcrumb } from './Breadcrumb'
 import { JsonLd } from './JsonLd'
 
@@ -79,41 +79,29 @@ function FaqClosing({
   return (
     <section className="site-section" data-site-reveal>
       <div className="site-container">
-        <div className="section-head">
-          <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
-          <div className="section-head__words">
-            <p className="site-lede">
-              Send the styles, quantities and specs you have — a sketch is enough to start. We reply
-              within 24 hours.
+        <SiteClosing>
+          <nav className="see-also company-closing__more" aria-labelledby="more-to-read">
+            <p className="subhead" id="more-to-read">
+              More to read
             </p>
-            <div className="site-actions">
-              <Link className="btn btn--primary" href="/contact#inquiry">
-                {FAMILY_PAGE_ACTION}
-              </Link>
+            <div className="see-also__groups">
+              {groups.map((group) => (
+                <div className="see-also__group" key={group.id}>
+                  <h3 className="product-card__name" id={group.id}>
+                    {group.title}
+                  </h3>
+                  <ul className="see-also__list">
+                    {group.links.map((link) => (
+                      <li key={link.href}>
+                        <Link href={link.href}>{link.name}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-            <nav className="see-also company-closing__more" aria-labelledby="more-to-read">
-              <p className="subhead" id="more-to-read">
-                More to read
-              </p>
-              <div className="see-also__groups">
-                {groups.map((group) => (
-                  <div className="see-also__group" key={group.id}>
-                    <h3 className="product-card__name" id={group.id}>
-                      {group.title}
-                    </h3>
-                    <ul className="see-also__list">
-                      {group.links.map((link) => (
-                        <li key={link.href}>
-                          <Link href={link.href}>{link.name}</Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </nav>
-          </div>
-        </div>
+          </nav>
+        </SiteClosing>
       </div>
     </section>
   )
