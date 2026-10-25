@@ -642,6 +642,7 @@ export function createCmsClient({
 
   return Object.freeze({
     base: origin,
+    // Fixed at creation. A script cannot turn writes on later by setting a property.
     apply,
     get,
     getJson,
@@ -655,4 +656,15 @@ export function createCmsClient({
     uploadMedia,
     fetchServed: (url) => fetchServed(url, { fetchImpl, timeoutMs }),
   })
+}
+
+let memoPublic
+/**
+ * A KEYLESS client on the default address, made once per process: for the read-only probes
+ * (`poster-sizes`, `glb-provenance-probe`), which only read public endpoints and never write.
+ * Made on first use, never at import, so a test that imports one of them reads nothing.
+ */
+export function publicCmsClient() {
+  memoPublic ??= createCmsClient({ base: defaultCmsBase() })
+  return memoPublic
 }

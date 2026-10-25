@@ -134,6 +134,8 @@ export interface CmsClient {
   fetchServed(url: string): Promise<Served>
 }
 
+export declare function publicCmsClient(): CmsClient
+
 export declare function createCmsClient(options?: {
   base?: string
   key?: string
