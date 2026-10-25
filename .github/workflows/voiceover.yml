@@ -122,11 +122,15 @@ jobs:
       #     written to disk — `ffmpeg-static`'s `install.js` never runs to fetch one).
       #     Prepares the OS-level environment and downloads the VoiceOver driver assets —
       #     see the next two steps.
+      #   Since 25 Oct 2026 the three come from `npm ci` against the committed lockfile in
+      #   .github/ci-installs/guidepup (Scorecard Pinned-Dependencies): the versions above
+      #   are pinned there, and so are their 48 dependencies, which used to float. Dependabot
+      #   updates that folder; move playwright there when the workspace's @playwright/test moves.
       - name: Install Guidepup for this run only
         run: |
-          npm install --no-save --no-audit --no-fund --ignore-scripts \
-            --prefix "${RUNNER_TEMP}/guidepup-deps" \
-            @guidepup/guidepup@0.34.0 @guidepup/setup@0.25.3 playwright@1.64.0
+          mkdir -p "${RUNNER_TEMP}/guidepup-deps"
+          cp .github/ci-installs/guidepup/package.json .github/ci-installs/guidepup/package-lock.json "${RUNNER_TEMP}/guidepup-deps/"
+          npm ci --no-audit --no-fund --ignore-scripts --prefix "${RUNNER_TEMP}/guidepup-deps"
 
       # Enables VoiceOver to be scripted and pre-approves the calling process for
       # Accessibility, on a headless runner with no human to click "Allow".

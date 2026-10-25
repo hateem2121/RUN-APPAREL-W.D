@@ -1,0 +1,48 @@
+name: Tool versions
+
+# Says when a newer actionlint, zizmor or gitleaks has been out a week. ci.yml downloads those
+# three by a version number in an `env:` value, which Dependabot cannot see (zizmor sat ten
+# days behind until the 25 Oct 2026 CI audit). scripts/check-tool-versions.mjs has the rule;
+# a red run names the tool and both versions. Bumping one stays a person's job: a new version
+# needs its checksum and a clean run against these workflows first.
+#
+# Not gated by DEPLOY_ENABLED: it reads public release data with the job's own read-only
+# token and touches nothing of the site's.
+
+on:
+  schedule:
+    - cron: '23 7 * * 1' # Mondays, 07:23 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# No job here uses the Actions cache (GitHub `cache-mode`, as in every other workflow).
+cache-mode: none
+
+concurrency:
+  group: tool-versions
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
+      - name: Compare pinned tools with their latest releases
+        env:
+          # Read-only, for GitHub's API rate limit; the script never prints it.
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/check-tool-versions.mjs

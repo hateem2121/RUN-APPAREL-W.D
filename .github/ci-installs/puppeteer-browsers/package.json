@@ -1,0 +1,8 @@
+{
+  "name": "ci-install-puppeteer-browsers",
+  "private": true,
+  "description": "android-chrome.yml installs this with `npm ci`, so the CLI's own dependencies are the ones in package-lock.json, not whatever the registry holds that day (Scorecard Pinned-Dependencies, 25 Oct 2026).",
+  "dependencies": {
+    "@puppeteer/browsers": "3.2.2"
+  }
+}

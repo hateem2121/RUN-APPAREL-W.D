@@ -42,6 +42,14 @@ permissions:
 # privilege against cache poisoning).
 cache-mode: none
 
+# One digest at a time. GitHub runs a schedule 19-90 minutes late (.github/CLAUDE.md), so a
+# late Monday run and a manual one can overlap, and each would file its own issue. The second
+# waits rather than cancelling the first: a cancelled digest is a week nobody reads
+# (zizmor `concurrency-limits`, 25 Oct 2026).
+concurrency:
+  group: diagnostics-digest
+  cancel-in-progress: false
+
 jobs:
   digest:
     if: vars.DEPLOY_ENABLED == 'true'
