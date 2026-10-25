@@ -51,7 +51,7 @@ function post(
 const where = (res: Response) => res.headers.get('location')
 const rowsOf = (collection: string) =>
   payload.create.mock.calls.filter(([args]) => args.collection === collection)
-const emailBody = () => JSON.parse(fetchMock.mock.calls[0][1].body as string)
+const emailBody = () => JSON.parse(fetchMock.mock.calls[0]?.[1].body as string)
 
 beforeEach(() => {
   __resetApplicationRate()
@@ -78,7 +78,7 @@ describe('a good application', () => {
     expect(where(res)).toBe('https://wear-run.com/careers?sent=1#application-done')
 
     expect(rowsOf('job-applications')).toHaveLength(1)
-    expect(rowsOf('job-applications')[0][0]).toMatchObject({
+    expect(rowsOf('job-applications')[0]?.[0]).toMatchObject({
       data: {
         name: 'Imran Bashir',
         phone: '+92 300 1234567',
@@ -90,8 +90,8 @@ describe('a good application', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.resend.com/emails')
-    expect(fetchMock.mock.calls[0][1].headers).toEqual({
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.resend.com/emails')
+    expect(fetchMock.mock.calls[0]?.[1].headers).toEqual({
       authorization: 'Bearer test-key',
       'content-type': 'application/json',
     })
@@ -112,7 +112,7 @@ describe('a good application', () => {
       data: { notified: true },
       overrideAccess: true,
     })
-    expect(rowsOf('events')[0][0]).toMatchObject({
+    expect(rowsOf('events')[0]?.[0]).toMatchObject({
       data: { type: 'analytics', event: 'application_submitted', placement: 'site-careers-form' },
       overrideAccess: true,
     })
@@ -154,12 +154,12 @@ describe('a good application', () => {
     expect(where(res)).toContain('sent=1')
     const stored = rowsOf('application-files')
     expect(stored).toHaveLength(1)
-    expect(stored[0][0]).toMatchObject({
+    expect(stored[0]?.[0]).toMatchObject({
       data: { application: 9 },
       file: { mimetype: 'application/pdf', size: PDF.length },
       overrideAccess: true,
     })
-    expect(Buffer.isBuffer(stored[0][0].file.data)).toBe(true)
+    expect(Buffer.isBuffer(stored[0]?.[0].file.data)).toBe(true)
     expect(emailBody().text).toMatch(/CV: {6}.*\.pdf \(1 KB\)/)
   })
 
