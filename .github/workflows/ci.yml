@@ -1212,53 +1212,57 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      # ⚠️ BLOCK MODE (owner decision 25 Oct 2026; the 29 Sep plan was "watch mode everywhere,
-      # then block on every job that holds a production password"). This job holds the
-      # Cloudflare deploy key, so anything it runs can reach only the hosts below; a call
-      # anywhere else is refused and the step that made it fails. The list is the union of
-      # what Harden-Runner recorded for this job on four real deploys (24-25 Oct: #245, #246,
-      # #250, #257) plus `api.indexnow.org`, which ping-indexnow.mjs calls only when a public
-      # page changed. Every call is https on 443 (the deploy's scripts make no plain-http
-      # request). Each deploy's Worker preview URL is a fresh random
-      # `<hex>.hateemjamshaid.workers.dev`, hence the wildcard (step-security/agent's
-      # dnsproxy_test.go: `*.github.com` matches `abc.github.com`).
-      # A FAILED STEP THAT SAYS A HOST WAS BLOCKED: open the run's Harden-Runner insights link
-      # (job summary) → Network Events → Blocked, check the host is expected, add it here.
-      - name: Network guard (Harden-Runner, block mode)
+      # WATCH MODE, ON PURPOSE (25 Oct 2026, after one deploy in block mode). Block mode
+      # (owner decision 25 Oct) ran once, on #259's merge, and checkout failed in 26 s on a
+      # westus2 runner: the agent resolves each allowed host ONCE, opens its firewall for that
+      # one address, and drops the others (github.com was recorded as 140.82.116.4; git dialled
+      # 20.29.134.23 and got `ip address dropped`). The job then hung until cancelled. That is
+      # step-security/harden-runner#708, open and unfixed (StepSecurity: GitHub is changing DNS
+      # on westus2 runners); the one workaround there still leaves every such job hanging.
+      # Nothing was deployed. A block that fails at random could also stop a deploy HALFWAY
+      # (after the migration, before the Workers), which is worse than no block.
+      # TO SWITCH BLOCK BACK ON once #708 is fixed: `egress-policy: block`, rename the step,
+      # and restore the list below as `allowed-endpoints: >-` (`>-`, not `>`: the agent splits
+      # it on single spaces and reads each port with strconv.Atoi, ignoring the error —
+      # step-security/agent config.go parseEndpoints — so a final newline would make the last
+      # port 0 and block it). The list is the union of what Harden-Runner recorded for this
+      # job on four real deploys (24-25 Oct: #245, #246, #250, #257) plus `api.indexnow.org`,
+      # which ping-indexnow.mjs calls only when a public page changed; every call is https on
+      # 443. Each deploy's Worker preview URL is a fresh random `<hex>.hateemjamshaid.workers.dev`,
+      # hence the wildcard. In watch mode the agent ignores an allow-list (harden-runner
+      # action.yml: "Only these endpoints will be allowed if egress-policy is set to block"),
+      # so it lives here as a comment rather than as a live input that would read as enforced.
+      #   github.com:443
+      #   api.github.com:443
+      #   release-assets.githubusercontent.com:443
+      #   registry.npmjs.org:443
+      #   api.cloudflare.com:443
+      #   sparrow.cloudflare.com:443
+      #   workers.cloudflare.com:443
+      #   1ad59b064bfa3690063414a9906129e4.r2.cloudflarestorage.com:443
+      #   *.hateemjamshaid.workers.dev:443
+      #   tail.developers.workers.dev:443
+      #   telemetry.payloadcms.com:443
+      #   sentry.io:443
+      #   us.sentry.io:443
+      #   o1.ingest.sentry.io:443
+      #   o1.ingest.us.sentry.io:443
+      #   wear-run.com:443
+      #   www.wear-run.com:443
+      #   media.wear-run.com:443
+      #   catalogue.wear-run.com:443
+      #   profile.wear-run.com:443
+      #   cms.wear-run.help:443
+      #   wear-run.help:443
+      #   www.wear-run.help:443
+      #   viewer.wear-run.help:443
+      #   catalogue.wear-run.help:443
+      #   profile.wear-run.help:443
+      #   api.indexnow.org:443
+      - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          egress-policy: block
-          # `>-`, not `>`: the agent splits this on single spaces and reads the port with
-          # strconv.Atoi, ignoring the error (step-security/agent config.go parseEndpoints),
-          # so a final newline would make the last entry's port 0 and block it.
-          allowed-endpoints: >-
-            github.com:443
-            api.github.com:443
-            release-assets.githubusercontent.com:443
-            registry.npmjs.org:443
-            api.cloudflare.com:443
-            sparrow.cloudflare.com:443
-            workers.cloudflare.com:443
-            1ad59b064bfa3690063414a9906129e4.r2.cloudflarestorage.com:443
-            *.hateemjamshaid.workers.dev:443
-            tail.developers.workers.dev:443
-            telemetry.payloadcms.com:443
-            sentry.io:443
-            us.sentry.io:443
-            o1.ingest.sentry.io:443
-            o1.ingest.us.sentry.io:443
-            wear-run.com:443
-            www.wear-run.com:443
-            media.wear-run.com:443
-            catalogue.wear-run.com:443
-            profile.wear-run.com:443
-            cms.wear-run.help:443
-            wear-run.help:443
-            www.wear-run.help:443
-            viewer.wear-run.help:443
-            catalogue.wear-run.help:443
-            profile.wear-run.help:443
-            api.indexnow.org:443
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
