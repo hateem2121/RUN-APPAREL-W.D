@@ -11,6 +11,7 @@ import {
   parseCssColour,
   ROUTES,
 } from '../../lib/globe'
+import { webglAvailable } from '../../lib/webglAvailable'
 
 /**
  * Sialkot on a turning globe, with lines running out to cities on every continent (owner,
@@ -55,20 +56,6 @@ const TILT = 0.25
 type Theme = {
   dark: boolean
   colours: Pick<COBEOptions, 'baseColor' | 'glowColor' | 'markerColor' | 'arcColor'>
-}
-
-/** Both WebGL generations, tried the way cobe tries them; the probe context is released at once. */
-function webglAvailable(): boolean {
-  try {
-    const probe = document.createElement('canvas')
-    const gl = (probe.getContext('webgl2') ??
-      probe.getContext('webgl')) as WebGLRenderingContext | null
-    if (!gl) return false
-    gl.getExtension('WEBGL_lose_context')?.loseContext()
-    return true
-  } catch {
-    return false
-  }
 }
 
 /** A token, resolved by the browser to a real colour for the CURRENT theme (`light-dark()` and all). */

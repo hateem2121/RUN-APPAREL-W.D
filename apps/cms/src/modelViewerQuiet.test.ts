@@ -5,17 +5,19 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * VA-10 (visual audit, 2026-10-02): the 3D library prints its own debugging in the visitor's
- * console. `@google/model-viewer` 4.3.1 calls `console.log` nine times in its own source
+ * console. `@google/model-viewer` 4.3.1 called `console.log` nine times in its own source
  * ("[$updateSource] BAILING OUT EARLY!", "IntersectionObserver fired!" and the like), and a garment
- * page printed six of them on every visit. The fix is a pnpm patch (`pnpm-workspace.yaml`,
+ * page printed six of them on every visit. 4.4.0 (2026-10-09, its #5182) removed eight of the nine
+ * itself; the ninth, "could not acquire 2d context" in `lib/three-components/Renderer.js`, is
+ * still there, so the patch is now that one line. The fix is a pnpm patch (`pnpm-workspace.yaml`,
  * `patches/`), not a bundler rule: it reaches the website's Turbopack build, the garment pages' Vite
  * build and the render harness at once, and a frozen install refuses to run if the entry goes
  * missing (ERR_PNPM_LOCKFILE_CONFIG_MISMATCH).
  *
  * This file guards the three ways it can go quietly wrong: the patch is not applied to the library
- * that is installed; the patch grows beyond the nine `console.log` lines (the library's warnings and
+ * that is installed; the patch grows beyond the one `console.log` line (the library's warnings and
  * errors are its real problem reports and must stay); or the website build, which is what visitors
- * download, carries one of the messages anyway.
+ * download, carries the message anyway.
  *
  * What would have to break for these to fail: a `pnpm install` that did not apply the patch, a
  * model-viewer upgrade that still prints (or a patch left behind for a library that no longer does),
@@ -41,23 +43,16 @@ const VERSION = manifest(join(CMS_ROOT, 'package.json')).dependencies?.[PACKAGE]
 const PATCH_FILE = join(REPO_ROOT, 'patches', `@google__model-viewer@${VERSION}.patch`)
 const installed = dirname(createRequire(import.meta.url).resolve(`${PACKAGE}/package.json`))
 
-/** One fragment of each of the library's nine messages, as they read in the built code. */
-const MESSAGES = [
-  '[onExtraModelChanged]',
-  'IntersectionObserver fired!',
-  '[$updateSource] called!',
-  'BAILING OUT EARLY',
-  'Attempting to present in AR with WebXR',
-  'Attempting to present in AR with Scene Viewer',
-  'Attempting to present in AR with Quick Look',
-  'could not acquire 2d context',
-  '[processInput] Setting goalPosition.y',
-]
+/**
+ * One fragment of the message the library still prints (4.3.1 printed nine: the other eight were
+ * removed upstream in 4.4.0), as it reads in the built code.
+ */
+const MESSAGES = ['could not acquire 2d context']
 
 /** Text only the library's own warning carries: proof that a bundle holds the library at all. */
 const LIBRARY_WARNING = 'Error while trying to present in AR with WebXR'
 
-/** Which of the nine messages a piece of built code says. */
+/** Which of the patched-out messages a piece of built code says. */
 const messagesIn = (text: string) => MESSAGES.filter((message) => text.includes(message))
 
 /** 1-based numbers of the lines that call `console.log` (the shape of every call the library makes). */
@@ -107,7 +102,7 @@ describe('the installed model-viewer prints nothing of its own (VA-10)', () => {
     // The removed lines are the library's own text, copied out by pnpm, so this is the scan run on
     // the unpatched library: the control that says an empty result above means something.
     const { removed } = patchLines()
-    expect(removed, 'the patch removes the nine console.log statements').toHaveLength(9)
+    expect(removed, 'the patch removes the one console.log statement').toHaveLength(1)
     for (const line of removed) expect(consoleLogLines(line.slice(1)), line).toHaveLength(1)
     for (const fragment of MESSAGES) {
       expect(
@@ -155,7 +150,7 @@ describe('the patch is registered, and does one thing (VA-10)', () => {
   })
 })
 
-describe('the website build carries none of the nine messages (VA-10)', () => {
+describe('the website build carries none of the messages (VA-10)', () => {
   const built = () => [...scripts(join(BUILD, 'static')), ...scripts(join(BUILD, 'server'))]
 
   it('a CI step that forgot to build cannot pass this file', () => {
@@ -165,8 +160,8 @@ describe('the website build carries none of the nine messages (VA-10)', () => {
   })
 
   it('finds a message in code that has one, and none in the patched comment: the scan can see', () => {
-    expect(messagesIn('a();console.log("[$updateSource] BAILING OUT EARLY!");b()')).toEqual([
-      'BAILING OUT EARLY',
+    expect(messagesIn("a();console.log('could not acquire 2d context');b()")).toEqual([
+      'could not acquire 2d context',
     ])
     expect(messagesIn('a();/* debug output removed */b()')).toEqual([])
   })
@@ -183,7 +178,7 @@ describe('the website build carries none of the nine messages (VA-10)', () => {
   )
 
   it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(
-    'has none of the nine messages in any script a visitor or the server runs',
+    'has none of the messages in any script a visitor or the server runs',
     () => {
       const found = built().flatMap((file) =>
         messagesIn(read(file)).map((message) => `${file.slice(BUILD.length + 1)}: ${message}`),

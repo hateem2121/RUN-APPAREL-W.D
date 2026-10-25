@@ -90,7 +90,7 @@ updates:
       # docs/DEPENDENCY-HOLDS.md says when to drop the patch.
       - dependency-name: "@google/model-viewer"
       # Held by other packages' own ranges (docs/DEPENDENCY-HOLDS.md, 2026-09-26):
-      # model-viewer 4.3.1 declares three ^0.183.0, and payload 3.91.0 declares
+      # model-viewer 4.4.0 declares three ^0.183.0, and payload 3.92.0 declares
       # graphql ^16.8.1. Release each when that range widens.
       - dependency-name: three
       - dependency-name: graphql

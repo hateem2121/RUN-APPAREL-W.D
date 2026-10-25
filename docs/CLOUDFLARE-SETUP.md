@@ -360,7 +360,7 @@ incomplete parts list is not an estimate.
 ### 11.1 R2 ingest bucket + its lifecycle rule
 
 ```bash
-npx wrangler@4.151.1 r2 bucket create run-apparel-viewer-ingest
+npx wrangler@4.152.0 r2 bucket create run-apparel-viewer-ingest
 ```
 
 Raw CLO uploads land here on their way to the shrink pipeline. It carries an
@@ -371,8 +371,8 @@ backup**, deliberately: it is working space, not storage. A raw export older tha
 ### 11.2 Queues
 
 ```bash
-npx wrangler@4.151.1 queues create glb-shrink
-npx wrangler@4.151.1 queues create glb-shrink-dlq
+npx wrangler@4.152.0 queues create glb-shrink
+npx wrangler@4.152.0 queues create glb-shrink-dlq
 ```
 
 `glb-shrink` carries the upload jobs; `glb-shrink-dlq` is the dead-letter queue
@@ -382,8 +382,8 @@ on Workers Paid; the default is 345600 s and the FREE-tier maximum is 24 h, so
 copying this number onto a free account will fail).
 
 ```bash
-npx wrangler@4.151.1 queues update glb-shrink     --message-retention-period-secs 1209600
-npx wrangler@4.151.1 queues update glb-shrink-dlq --message-retention-period-secs 1209600
+npx wrangler@4.152.0 queues update glb-shrink     --message-retention-period-secs 1209600
+npx wrangler@4.152.0 queues update glb-shrink-dlq --message-retention-period-secs 1209600
 ```
 
 ⚠️ **This paragraph said the DLQ was "still at the 4-day default" when it was first

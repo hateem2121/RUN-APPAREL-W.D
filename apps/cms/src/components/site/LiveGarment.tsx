@@ -10,6 +10,7 @@ import {
 } from '../../lib/render/camera-near-plane'
 import { applyDecalDepthBias, correlatedThreeMaterials } from '../../lib/render/decal-depth-bias'
 import { LIVE_RENDER } from '../../lib/render/liveRender'
+import { webglAvailable } from '../../lib/webglAvailable'
 import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
 
 /**
@@ -54,6 +55,12 @@ import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
  * (`KEEP_WHEEL_ATTRIBUTE`) and a one-finger drag kept for the garment; moving the pointer off
  * it, pressing Escape, tapping elsewhere or scrolling it off the screen switches zoom off again, so
  * the page scrolls as before. A drag never counts as the click.
+ * 🟡 AND ONLY WHERE A FRAME IS DRAWN (2026-10-25). Without WebGL the poster shows and there is
+ * nothing to zoom, so a click leaves zoom off and the wheel the page's. model-viewer 4.3.1 did
+ * that by accident: with no WebGL its camera-target sync threw ("arRenderer is null") on every
+ * update, so `disable-zoom` never came off. 4.4.0 fixed the throw, and its zoom then held a
+ * no-WebGL page still under the wheel (CI's Firefox, PR #245; reproduced on the Mac's Firefox with
+ * `webgl.disabled`: 4.3.1 moved the page 300px, 4.4.0 held it).
  *
  * ⚠️ THE PAN TARGET IS REPLACED BY AN EMPTY ONE, OR THE GARMENT'S CENTRE SCROLLS THE PAGE (PR #200,
  * 2026-10-18). model-viewer 4.3.1 draws an 8px dot, `#default-pan-target`, at the exact centre of
@@ -392,16 +399,22 @@ export function LiveGarment({
       setTouched(true)
       pressedAt = { x: event.clientX, y: event.clientY }
     }
-    // A click that did not turn the garment switches zoom on (the header).
+    // A click that did not turn the garment switches zoom on, where a frame is drawn (the header).
+    // Probed at the first click, not on load, and once.
+    let draws: boolean | undefined
+    const zoomOn = () => {
+      draws ??= webglAvailable()
+      if (draws) setZoom(true)
+    }
     const onClick = (event: MouseEvent) => {
       const moved = pressedAt
         ? Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y)
         : 0
       pressedAt = null
-      if (moved <= CLICK_SLOP_PX) setZoom(true)
+      if (moved <= CLICK_SLOP_PX) zoomOn()
     }
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') setZoom(true)
+      if (event.key === 'Enter') zoomOn()
     }
     // A mouse leaving the garment hands the wheel back to the page; a finger never "leaves".
     const onLeave = (event: PointerEvent) => {
