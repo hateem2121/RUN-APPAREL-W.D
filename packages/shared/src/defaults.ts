@@ -13,7 +13,6 @@ export const DEFAULT_SITE_SETTINGS: ViewerSiteSettings = {
   // of team@, so mail that came from the website is told apart; buyers write to this one.
   email: 'inquiry@wear-run.com',
   whatsappNumber: '+923361777313',
-  catalogueUrl: 'https://wear-run.help/catalogue',
   temporaryWordmark: 'RUN APPAREL',
   footerLine: 'RUN THE EXTRA MILE.',
   legalLine: '© RUN APPAREL (PVT) LTD',

@@ -232,7 +232,6 @@ export function mergeSiteSettings(
     companyName: pick('companyName'),
     email: pick('email'),
     whatsappNumber: pick('whatsappNumber'),
-    catalogueUrl: pick('catalogueUrl'),
     temporaryWordmark: pick('temporaryWordmark'),
     footerLine: pick('footerLine'),
     legalLine: pick('legalLine'),

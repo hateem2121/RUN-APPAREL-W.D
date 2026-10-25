@@ -18,11 +18,10 @@ interface NamedField {
   // `shortDescription` only. Present so the test below can assert its ABSENCE —
   // see "the product description carries no length limit".
   maxLength?: number
-  // catalogueUrl / retiredMessage / customisationIntro / customisationSteps —
-  // each reads the CatalogueDefaults global. Untyped `req` here on purpose:
-  // this file has no Payload bootstrap (see vitest.config.ts), so the tests
-  // below hand in the minimal fake shape each function actually touches.
-  defaultValue?: (args: { req: unknown }) => unknown
+  // A plain value on catalogueUrl / retiredMessage since catalogue-defaults was retired
+  // (2026-10-25), and absent on customisationIntro / customisationSteps (2026-08-17). A
+  // FUNCTION here would mean a shared screen seeds products again: see the tests below.
+  defaultValue?: unknown
   fields?: unknown[]
   tabs?: { fields?: unknown[] }[]
 }
@@ -69,80 +68,24 @@ const fieldNamed = (name: string): NamedField => {
 const runDuplicate = (name: string, args: unknown) =>
   fieldNamed(name).hooks?.beforeDuplicate?.[0]?.(args as never)
 
-const runDefaultValue = (name: string, req: unknown) => fieldNamed(name).defaultValue?.({ req })
-
-/** A fake req whose req.payload.findGlobal resolves to the given document. */
-const reqWithGlobal = (globalDoc: Record<string, unknown>) => ({
-  payload: { findGlobal: async () => globalDoc },
-})
-
-/** A fake req whose req.payload.findGlobal always throws — the D1-hiccup case. */
-const reqWhereGlobalReadFails = () => ({
-  payload: {
-    findGlobal: async () => {
-      throw new Error('D1 unavailable')
-    },
-  },
-})
-
-// Payload calls a field's defaultValue function only when the document has no
-// existing value for that field yet — confirmed against Payload 3.86.0's own
-// fields/hooks/beforeValidate/getFallbackValue.js AND empirically against a
-// real local D1 (the task report this cited was never committed): a fresh create inherits the global,
-// re-reading the same product after the global changes still shows the
-// original value, and a plain update that omits the field also leaves it
-// unchanged. None of that machinery is Payload's own to test here — these
-// tests exercise exactly the function Payload would call in the one situation
-// where it does fire, standing in for req.payload.findGlobal the way
-// runDuplicate above stands in for Payload's beforeDuplicate call.
-describe('Products defaultValue — inherits from CatalogueDefaults on create only', () => {
-  it('catalogueUrl reads the global', async () => {
-    await expect(
-      runDefaultValue(
-        'catalogueUrl',
-        reqWithGlobal({ catalogueUrl: 'https://custom.example/catalogue' }),
-      ),
-    ).resolves.toBe('https://custom.example/catalogue')
+/*
+ * The two seeds the catalogue-defaults screen used to supply are plain values since that screen
+ * was retired in place (owner, 2026-10-24). It was never saved (no row in the backup of
+ * 2026-10-25), so every product already got exactly these values through the fallback; the
+ * reader and its fail-open tests went with it. What would have to break: the screen reconnected
+ * as a source (a defaultValue FUNCTION again), a changed literal, or the retired catalogue link
+ * shown in the admin again.
+ */
+describe('Products defaultValue — plain values since catalogue-defaults was retired', () => {
+  it('catalogueUrl defaults to the same literal as always, and is hidden in the admin', () => {
+    const field = fieldNamed('catalogueUrl') as NamedField & { admin?: { hidden?: boolean } }
+    expect(field.defaultValue).toBe('https://wear-run.help/catalogue')
+    expect(field.admin?.hidden).toBe(true)
   })
-  it('catalogueUrl fails open to the literal default if the global cannot be read', async () => {
-    await expect(runDefaultValue('catalogueUrl', reqWhereGlobalReadFails())).resolves.toBe(
-      'https://wear-run.help/catalogue',
-    )
-  })
-  // The global's own catalogueUrl is required and has a schema default, but
-  // Payload returns `{}` — not the field-level defaults — when a global has no
-  // saved row yet (see globals/operations/findOne.js: `hasDoc` is false and
-  // `doc` falls through to `{}`). That is the real state of this global
-  // immediately after this migration deploys and before anyone opens Settings
-  // → Catalogue defaults, so it has to fail open exactly like a read error.
-  it('catalogueUrl fails open to the literal default if the global has never been saved', async () => {
-    await expect(runDefaultValue('catalogueUrl', reqWithGlobal({}))).resolves.toBe(
-      'https://wear-run.help/catalogue',
-    )
-  })
-  it('catalogueUrl treats an empty string from the global the same as unset', async () => {
-    await expect(
-      runDefaultValue('catalogueUrl', reqWithGlobal({ catalogueUrl: '' })),
-    ).resolves.toBe('https://wear-run.help/catalogue')
-  })
-
-  it('retiredMessage reads the global', async () => {
-    await expect(
-      runDefaultValue(
-        'retiredMessage',
-        reqWithGlobal({ retiredMessage: 'Custom retired message.' }),
-      ),
-    ).resolves.toBe('Custom retired message.')
-  })
-  it('retiredMessage fails open to DEFAULT_RETIRED_MESSAGE if the global cannot be read', async () => {
-    await expect(runDefaultValue('retiredMessage', reqWhereGlobalReadFails())).resolves.toBe(
-      DEFAULT_RETIRED_MESSAGE,
-    )
-  })
-  it('retiredMessage fails open to DEFAULT_RETIRED_MESSAGE if the global has never been saved', async () => {
-    await expect(runDefaultValue('retiredMessage', reqWithGlobal({}))).resolves.toBe(
-      DEFAULT_RETIRED_MESSAGE,
-    )
+  it('retiredMessage defaults to DEFAULT_RETIRED_MESSAGE and stays editable', () => {
+    const field = fieldNamed('retiredMessage') as NamedField & { admin?: { hidden?: boolean } }
+    expect(field.defaultValue).toBe(DEFAULT_RETIRED_MESSAGE)
+    expect(field.admin?.hidden).not.toBe(true)
   })
 
   /**

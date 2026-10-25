@@ -10,6 +10,10 @@
  * anyone, twice per response. A link saved there would be published, whichever address it
  * uses.
  *
+ * 🟢 SINCE 2026-10-25 THOSE FIELDS ARE RETIRED IN PLACE: hidden in the admin and no longer in
+ * the public answer (endpoints/projectViewer.ts). The validator stays on all three, so a field
+ * shown again cannot start publishing a private link on its first save.
+ *
  * ⚠️ The host list must match `infra/apex-404/documents.js`; a test pins it.
  */
 

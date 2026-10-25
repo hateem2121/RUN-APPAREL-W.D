@@ -8,7 +8,6 @@ import { keptPagesAfterChange, keptPagesAfterDelete } from '../lib/contentVersio
 import { pingIndexNowForGarment } from '../lib/garmentIndexNow'
 import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
 import { GARMENT_PAGES } from '../lib/seo'
-import type { CatalogueDefault } from '../payload-types'
 import { IMAGE_MIME_TYPES, MODEL_MIME_TYPES } from './mediaRules'
 import {
   becameUnverifiedWhilePublished,
@@ -54,37 +53,6 @@ async function readArtworkVerdict(
     }
   } catch {
     return {}
-  }
-}
-
-/**
- * Read the shared "how we build your product" copy off the CatalogueDefaults
- * global (globals/CatalogueDefaults.ts), for the defaultValue functions below.
- *
- * FAILS OPEN, same reasoning as readArtworkVerdict immediately above: on
- * create, a D1 hiccup reading the global must not make the whole product
- * uncreatable over default paragraph text — that would be an error about
- * catalogue copy blocking someone who is just trying to start a new garment.
- *
- * Returns null on any error, AND on a global that has never been saved:
- * Payload's findOne operation returns `{}` rather than the field-level
- * defaults when no row exists yet for a global (verified against Payload
- * 3.86.0's globals/operations/findOne.js; the task report this comment used to cite was
- * never committed), which is
- * exactly the state this global is in immediately after this migration
- * deploys and before anyone opens Settings → Catalogue defaults and saves it.
- * Both cases fall back the same way: each field below applies the literal
- * default this file used before this global existed.
- */
-async function readCatalogueDefaults(req: PayloadRequest): Promise<CatalogueDefault | null> {
-  try {
-    return await req.payload.findGlobal({
-      slug: 'catalogue-defaults',
-      depth: 0,
-      req,
-    })
-  } catch {
-    return null
   }
 }
 
@@ -814,46 +782,35 @@ export const Products: CollectionConfig = {
           description: 'Sensible defaults are already set. You can usually ignore this tab.',
           fields: [
             ...cameraFields,
+            /*
+             * ⚠️ RETIRED IN PLACE (owner, 2026-10-24): hidden, never published, KEPT. Nothing
+             * has read it since the "Catalogue" button went on 2026-09-04, its default address
+             * answers 410, and the public API stopped sending it on 2026-10-25
+             * (endpoints/projectViewer.ts). The field stays in the config because the column is
+             * NOT NULL (and so is `version_catalogue_url` in the history table): without the
+             * field, Payload would stop writing it and every save would fail. Dropping the
+             * column would rebuild the table on D1, the operation that lost data on 2026-07-29.
+             * The validator stays too, in case it is ever shown again.
+             */
             {
               name: 'catalogueUrl',
               type: 'text',
               required: true,
-              // Same inheritance as customisationIntro above. The `||` (not `??`)
-              // is deliberate: an empty string read back from the global must also
-              // fall through, not just null/undefined, since this field requires
-              // non-empty text and readCatalogueDefaults cannot itself tell "global
-              // unreadable" apart from "global exists but nobody has filled it in
-              // yet" — see readCatalogueDefaults's comment for why both land here.
-              // The literal is the same one this field always defaulted to, and
-              // the one SiteSettings.ts's own catalogueUrl still carries.
-              defaultValue: async ({ req }: { req: PayloadRequest }) => {
-                const defaults = await readCatalogueDefaults(req)
-                return defaults?.catalogueUrl || 'https://wear-run.help/catalogue'
-              },
-              label: 'Catalogue link (not shown on the website)',
-              // Shared with CatalogueDefaults and SiteSettings, which also refuses a
-              // private document link: this field is published by the public API.
+              // A literal since the catalogue-defaults screen was retired the same day: that
+              // screen was never saved (0 rows, backup of 2026-10-25), so every product already
+              // got this value.
+              defaultValue: 'https://wear-run.help/catalogue',
+              label: 'Catalogue link (retired)',
               validate: validateCatalogueUrl,
-              // ⚠️ THE LABEL AND DESCRIPTION ARE THE FIX, NOT THE FIELD. Both said
-              // "Where the “Catalogue” button sends people" until 2026-09-05 — a
-              // button removed on 2026-09-04. This one is on EVERY product, so an
-              // editor met a control that named a thing the site no longer has and
-              // reasonably concluded it still did. The field itself stays: the CMS
-              // owns the value and another surface may want it.
-              admin: {
-                description:
-                  'Kept on record only. The website has had no “Catalogue” button since 4 September 2026 — these product pages are indexed by Google and the catalogue is a 54 MB trade PDF. Changing this does not change anything a visitor sees.',
-              },
+              admin: { hidden: true },
             },
             {
               name: 'retiredMessage',
               type: 'text',
               required: true,
-              // Same inheritance and the same `||` reasoning as catalogueUrl above.
-              defaultValue: async ({ req }: { req: PayloadRequest }) => {
-                const defaults = await readCatalogueDefaults(req)
-                return defaults?.retiredMessage || DEFAULT_RETIRED_MESSAGE
-              },
+              // The literal since the catalogue-defaults screen was retired (2026-10-25). It was
+              // never saved, so new products already started with exactly this text.
+              defaultValue: DEFAULT_RETIRED_MESSAGE,
               label: 'Message for retired colours',
               admin: {
                 description:

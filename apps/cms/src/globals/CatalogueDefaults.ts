@@ -20,6 +20,13 @@ import { validateCatalogueUrl } from '../lib/privateDocumentLinks'
  * already made, including one made a minute earlier. See admin.description
  * below — that is exactly the behaviour a non-technical editor would
  * reasonably expect to work the other way.
+ *
+ * ⚠️ RETIRED IN PLACE (owner, 2026-10-24). This screen was never saved — no row, backup of
+ * 2026-10-25 — so every product was made from the literals in Products.ts, which now carries
+ * them itself and no longer reads this document. One of its two values is a catalogue link
+ * that is no longer published anywhere. Hidden rather than deleted, like the build-process
+ * global: the document and its table stay, because a table drop is the most hazardous
+ * operation on D1.
  */
 export const CatalogueDefaults: GlobalConfig = {
   slug: 'catalogue-defaults',
@@ -30,6 +37,8 @@ export const CatalogueDefaults: GlobalConfig = {
   // it pins today's behaviour through that upgrade.
   versions: false,
   admin: {
+    // Unreachable in the admin, not merely discouraged (see the header).
+    hidden: true,
     group: 'Content',
     description:
       'The settings every NEW garment starts with. Changing something here changes what the NEXT product you create begins with — it does NOT rewrite any product you have already made, even one made a minute ago. To fix one existing product, open it and edit it directly. (“How we build your product” does not work this way and is not here — it is one text for every product, in its own screen under Content.)',

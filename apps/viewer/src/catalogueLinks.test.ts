@@ -12,11 +12,12 @@ import { describe, expect, it } from 'vitest'
  * next step from a product page is an enquiry, not a download.
  *
  * ⚠️ WHY A SOURCE SCAN RATHER THAN A COMPONENT TEST.
- * `catalogueUrl` is still in the API payload, still on `ViewerProduct`, and still
- * on `ViewerSiteSettings` — deliberately, because the CMS owns it and other
- * surfaces may want it later. So the TYPES actively invite this back: rendering
- * `href={settings.catalogueUrl}` anywhere compiles, lints and passes every other
- * test in this suite. Three separate places used to do exactly that (the header
+ * Until 2026-10-25 `catalogueUrl` was in the API payload and on `ViewerProduct` and
+ * `ViewerSiteSettings`, so the TYPES actively invited this back: rendering
+ * `href={settings.catalogueUrl}` anywhere compiled, linted and passed every other
+ * test in this suite. It was then retired in place (owner, 2026-10-24) and left the
+ * payload and the types, but an answer cached before then still carries it, and the
+ * literal URL below needs no type at all. Three separate places used to do exactly that (the header
  * wordmark, the header button, the footer), and a fourth was on the unavailable
  * screen. A per-component test only guards the components someone remembered to
  * write a test for; this guards the ones they did not.

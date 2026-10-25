@@ -229,9 +229,9 @@ test.describe('RUN APPAREL 3D viewer', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/no longer live/i)
     await expect(page.getByText('[ PAGE ERROR ]')).toHaveCount(0)
     // The catalogue button was removed here on 2026-09-04 (owner decision). This
-    // asserts the removal rather than merely dropping the old assertion, because
-    // `catalogueUrl` is still in the payload and still in this component's props:
-    // nothing but this line and src/catalogueLinks.test.ts stops it coming back.
+    // asserts the removal rather than merely dropping the old assertion. `catalogueUrl`
+    // left the payload and the types on 2026-10-25, but a link written by hand would
+    // still compile: nothing but this line and src/catalogueLinks.test.ts stops it.
     await expect(page.getByRole('link', { name: /catalogue/i })).toHaveCount(0)
     // Unscoped is correct HERE: the unavailable state renders no action bar, so
     // there is only ever one "Email Us" on this page.

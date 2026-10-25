@@ -356,7 +356,6 @@ describe('buildViewerResponse', () => {
         'customisationIntroHtml',
         'customisationSteps',
         'camera',
-        'catalogueUrl',
         'retiredMessage',
         'shortDescription',
         'garmentType',
@@ -366,6 +365,28 @@ describe('buildViewerResponse', () => {
     expect(serialized).not.toContain('INTERNAL NOTE')
     expect(serialized).not.toContain('secret-source')
     expect(serialized).not.toContain('sourceReference')
+  })
+
+  /*
+   * The catalogue link is retired in place (owner, 2026-10-24): kept in the database, hidden in
+   * the admin, and no longer published. No page read it after the "Catalogue" button went on
+   * 2026-09-04, and its default address, https://wear-run.help/catalogue, answers 410. What would
+   * have to break: a value saved on a product or in the site settings reaching the public answer.
+   */
+  it('publishes no catalogue link, even one saved on the product and in the site settings', () => {
+    const body = buildViewerResponse(
+      product({ catalogueUrl: 'https://saved-on-product.example/catalogue' }),
+      [colourway()],
+      { catalogueUrl: 'https://saved-in-settings.example/catalogue' },
+      origin,
+      'navy',
+      deps,
+    )!
+    expect(body.product).not.toHaveProperty('catalogueUrl')
+    expect(body.siteSettings).not.toHaveProperty('catalogueUrl')
+    const serialized = JSON.stringify(body)
+    expect(serialized).not.toContain('saved-on-product.example')
+    expect(serialized).not.toContain('saved-in-settings.example')
   })
 
   it('exposes only whitelisted colourway keys', () => {

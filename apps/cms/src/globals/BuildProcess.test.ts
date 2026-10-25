@@ -72,9 +72,15 @@ describe('CatalogueDefaults no longer owns the build-process copy', () => {
     const names = (CatalogueDefaults.fields as { name?: string }[]).map((f) => f.name)
     expect(names).not.toContain('customisationIntro')
     expect(names).not.toContain('customisationSteps')
-    // A garment CAN have its own catalogue link and its own retired-colour
-    // wording, so those two stay seeds and this global keeps its purpose.
+    // Its two fields stay as they were: the screen is retired in place (2026-10-24), its
+    // document and table kept, so the shape must not drift while nobody can see it.
     expect(names).toEqual(['catalogueUrl', 'retiredMessage'])
+  })
+
+  // Retired in place (owner, 2026-10-24): never saved, read by nothing since Products.ts took the
+  // literals itself, and one of its two values is a catalogue link no longer published.
+  it('is hidden in the admin, like the retired build-process screen', () => {
+    expect(CatalogueDefaults.admin?.hidden).toBe(true)
   })
 
   /**

@@ -143,7 +143,8 @@ export interface ViewerProduct {
   customisationIntroHtml: string
   customisationSteps: ViewerCustomisationStep[]
   camera: ViewerCameraConfig
-  catalogueUrl: string
+  // No `catalogueUrl` since 2026-10-25: retired in place, no longer sent (projectViewer.ts). An
+  // answer cached before then still carries it, and nothing reads it.
   retiredMessage: string
 }
 
@@ -151,7 +152,6 @@ export interface ViewerSiteSettings {
   companyName: string
   email: string
   whatsappNumber: string
-  catalogueUrl: string
   temporaryWordmark: string
   footerLine: string
   legalLine: string
