@@ -127,6 +127,28 @@ updates:
         update-types:
           - version-update:semver-major
 
+  # The two command-line tools two scheduled workflows install with `npm ci`, since 25 Oct
+  # 2026 (android-chrome.yml: @puppeteer/browsers; voiceover.yml: Guidepup and Playwright).
+  # Each folder holds only a package.json and its lockfile; neither is a pnpm workspace
+  # member, so the first block never sees them. A group covers one folder at a time (GitHub's
+  # options reference, read 25 Oct 2026: separate pull requests per directory unless
+  # `group-by` is set), so at most one grouped PR per folder a week, after the same 7-day
+  # wait. Playwright here should follow the workspace's @playwright/test.
+  - package-ecosystem: npm
+    directories:
+      - /.github/ci-installs/puppeteer-browsers
+      - /.github/ci-installs/guidepup
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    groups:
+      ci-installs:
+        patterns:
+          - "*"
+
   # The shrink container's base image (apps/shrink/Dockerfile), since 2026-10-03 (owner
   # decision, told that CI does not render garments inside this image). The pin is a
   # digest because sharp links against the image's system libraries; a digest bump

@@ -176,11 +176,13 @@ jobs:
       # recorded there; the stricter `pedantic` persona's errors were fixed too.
       - name: zizmor (workflow security)
         env:
-          ZIZMOR_VERSION: 1.30.1
-          ZIZMOR_SHA256_X64: eee12266b793cb87ad4a7e3af2e72404f8a63e3de5eb099b80bf7b1cfd232a8e
-          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/63/55/1900b53d34dcebc207cf3ceb7957b3748e8bb40958f062e3853ab72f2395/zizmor-1.30.1-py3-none-manylinux_2_28_x86_64.whl
-          ZIZMOR_SHA256_ARM64: 92906f448365672ebb657fb50d36f997290a3aaba8cac723214741ea9054845d
-          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/37/9c/43764a6e9eb5ad5a332202afc3e63622e3380669ecf7079b6b0de892e474/zizmor-1.30.1-py3-none-manylinux_2_24_aarch64.whl
+          # 1.31.1 (2026-10-15) ran clean on every workflow here before this bump (25 Oct);
+          # tool-versions.yml says when a newer one has been out a week.
+          ZIZMOR_VERSION: 1.31.1
+          ZIZMOR_SHA256_X64: 58e878eb2dbd2c6183c105e1ac28c14f7dd1eca44a783f1fe2a69647d012c410
+          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/7c/f7/ee2c8eedc7bf07f443a41aa12f828c7846fd17bab184c22403afd0cbb137/zizmor-1.31.1-py3-none-manylinux_2_28_x86_64.whl
+          ZIZMOR_SHA256_ARM64: d9b36840c560a8abe39d9ef3d077239aabf6d572c5c2b629c970592a617dbf6f
+          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/17/a9/a2e0721c169d116074f07cddf98a939886d422acd393537efd99a331475b/zizmor-1.31.1-py3-none-manylinux_2_24_aarch64.whl
           # For the online audits (impostor-commit, known-vulnerable-actions). The job's
           # own read-only token; nothing here writes.
           GH_TOKEN: ${{ github.token }}
@@ -1210,10 +1212,53 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - name: Network guard (Harden-Runner, watch mode)
+      # ⚠️ BLOCK MODE (owner decision 25 Oct 2026; the 29 Sep plan was "watch mode everywhere,
+      # then block on every job that holds a production password"). This job holds the
+      # Cloudflare deploy key, so anything it runs can reach only the hosts below; a call
+      # anywhere else is refused and the step that made it fails. The list is the union of
+      # what Harden-Runner recorded for this job on four real deploys (24-25 Oct: #245, #246,
+      # #250, #257) plus `api.indexnow.org`, which ping-indexnow.mjs calls only when a public
+      # page changed. Every call is https on 443 (the deploy's scripts make no plain-http
+      # request). Each deploy's Worker preview URL is a fresh random
+      # `<hex>.hateemjamshaid.workers.dev`, hence the wildcard (step-security/agent's
+      # dnsproxy_test.go: `*.github.com` matches `abc.github.com`).
+      # A FAILED STEP THAT SAYS A HOST WAS BLOCKED: open the run's Harden-Runner insights link
+      # (job summary) → Network Events → Blocked, check the host is expected, add it here.
+      - name: Network guard (Harden-Runner, block mode)
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          egress-policy: audit
+          egress-policy: block
+          # `>-`, not `>`: the agent splits this on single spaces and reads the port with
+          # strconv.Atoi, ignoring the error (step-security/agent config.go parseEndpoints),
+          # so a final newline would make the last entry's port 0 and block it.
+          allowed-endpoints: >-
+            github.com:443
+            api.github.com:443
+            release-assets.githubusercontent.com:443
+            registry.npmjs.org:443
+            api.cloudflare.com:443
+            sparrow.cloudflare.com:443
+            workers.cloudflare.com:443
+            1ad59b064bfa3690063414a9906129e4.r2.cloudflarestorage.com:443
+            *.hateemjamshaid.workers.dev:443
+            tail.developers.workers.dev:443
+            telemetry.payloadcms.com:443
+            sentry.io:443
+            us.sentry.io:443
+            o1.ingest.sentry.io:443
+            o1.ingest.us.sentry.io:443
+            wear-run.com:443
+            www.wear-run.com:443
+            media.wear-run.com:443
+            catalogue.wear-run.com:443
+            profile.wear-run.com:443
+            cms.wear-run.help:443
+            wear-run.help:443
+            www.wear-run.help:443
+            viewer.wear-run.help:443
+            catalogue.wear-run.help:443
+            profile.wear-run.help:443
+            api.indexnow.org:443
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

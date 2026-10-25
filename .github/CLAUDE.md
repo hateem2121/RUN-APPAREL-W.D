@@ -58,7 +58,13 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   `browserType.launch` failure it predicted.
 - **🟡 `main` is guarded by ruleset `22763709` — read 2026-09-11: no deletion or
   force-push, a PR with 0 approvals, `code_scanning`, NO bypass actors, and six
-  required checks (listed below).** The rules below carry its history. It first existed as org ruleset
+  required checks (listed below).** 🟡 **Since 2026-10-25 a PR must also be UP TO DATE
+  with `main` before it merges** (the ruleset's strict status-check policy, switched on by
+  owner decision after a CI audit): two PRs that each pass alone can clash together — #252 made
+  knip blocking while #256 added a script, and only a hand-run trial merge proved them
+  safe. The price is one more CI run when another PR lands first. The same day GitHub
+  accepted a PATCH turning on secret-scanning validity checks and generic patterns, answered
+  200 and stored `disabled` for both: not on this plan. The rules below carry its history. It first existed as org ruleset
   `21016174` (APPLIED 2026-08-19, while the repo sat in the RUN-APPAREL org on GitHub
   ENTERPRISE), alongside `production` restricted to protected branches and
   `sha_pinning_required: true`, which the repo already satisfied so it cost nothing.
@@ -165,7 +171,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   lacks a tool a workflow relies on); a Playwright
   `container: image:` tag equals the declared `@playwright/test` version and carries a
   `@sha256:` digest (since 2026-09-29); every job that can host it starts with the
-  Harden-Runner network guard (it cannot run in a `container:` job); every job is
+  Harden-Runner network guard (it cannot run in a `container:` job) — 🟡 in BLOCK mode on
+  ci.yml's `deploy` since 2026-10-25, which holds the Cloudflare key: its allow-list sits
+  beside the step with how it was built, and a host missing from it fails the step that
+  called it (find it under the run's insights link → Network Events → Blocked); the
+  three tools `verify` downloads by version are watched by `tool-versions.yml` weekly,
+  because Dependabot cannot see an `env:` pin; every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
   under a key that already has a value; every workflow `heartbeat.yml` watches exists
   and parses; `DEPLOY_MESSAGE` has no space; the vulnerability audit retries only on

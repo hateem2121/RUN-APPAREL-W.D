@@ -117,8 +117,15 @@ jobs:
       # resolution for this scoped package that is unreliable on npm 11.19.1, not the
       # package. Installing to an explicit `--prefix` and invoking the CLI file directly
       # sidesteps npx's resolution entirely, which is the fix below.
+      #
+      # `npm ci` from a committed lockfile (25 Oct 2026): `npm install <pkg>@3.2.2` pinned the
+      # CLI but let its 16 dependencies float to whatever the registry held on the day
+      # (Scorecard Pinned-Dependencies). Same directory, same CLI path; Dependabot updates it.
       - name: Install the browser-install CLI
-        run: npm install --no-save --no-audit --no-fund --prefix "${RUNNER_TEMP}/puppeteer-browsers" @puppeteer/browsers@3.2.2
+        run: |
+          mkdir -p "${RUNNER_TEMP}/puppeteer-browsers"
+          cp .github/ci-installs/puppeteer-browsers/package.json .github/ci-installs/puppeteer-browsers/package-lock.json "${RUNNER_TEMP}/puppeteer-browsers/"
+          npm ci --no-audit --no-fund --prefix "${RUNNER_TEMP}/puppeteer-browsers"
 
       # The emulator boot itself, then ONE first real check once it is ready. Suggested by
       # the plan's own 2026-09-11 finding ("Android has no bundled Arial or Georgia, so a
