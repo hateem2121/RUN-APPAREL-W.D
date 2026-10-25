@@ -179,7 +179,12 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   cancelled (step-security/harden-runner#708, open). Switch block back on only once
   #708 is closed as fixed; the 27-host allow-list and how it was built sit as a comment beside the step; the
   three tools `verify` downloads by version are watched by `tool-versions.yml` weekly,
-  because Dependabot cannot see an `env:` pin; every job is
+  because Dependabot cannot see an `env:` pin — 🟡 and since 2026-10-25 that one workflow (only)
+  runs from GitHub's workflow LOCKFILE, `.github/workflows/actions.lock` (public preview; made by
+  `gh actions-lock` v0.4.0, which keeps our exact-commit pins and records each one's tag and its
+  owner and repository ids). Change an action in it and re-run `gh actions-lock` on it, or GitHub
+  refuses the run outright (a mismatched commit: HTTP 422 at dispatch; a wrong repository id:
+  "repository identity has changed" at Set up job — both measured); every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
   under a key that already has a value; every workflow `heartbeat.yml` watches exists
   and parses; `DEPLOY_MESSAGE` has no space; the vulnerability audit retries only on
