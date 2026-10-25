@@ -14,6 +14,8 @@ import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
 import '@run-apparel/ui/notch.css'
 import '@run-apparel/ui/footer.css'
+// The two stand-in faces shared with the website (2026-10-25); page.css names them.
+import '@run-apparel/ui/fallback-faces.css'
 import './styles/page.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

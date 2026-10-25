@@ -1808,29 +1808,10 @@ model-viewer.stage__model {
  * SOCCER JERSEY" two -> three (e2e/fontSwap.spec.ts, WebKit, 390 and 1440 px), and those garments
  * were held as drafts. These are the marketing site's measured stand-ins for the SAME `.display`
  * and `.serif-accent` classes (site.css, calibrated with apps/cms/scripts/calibrate-fallback.mjs),
- * scoped to the product name only, the way site.css scopes `.hero-products`. `local()` only:
- * nothing is downloaded. Liberation Sans Bold has Arial Bold's advance widths (site.css).
+ * scoped to the product name only, the way site.css scopes `.hero-products`. The two faces
+ * themselves live in packages/ui/src/fallback-faces.css since 2026-10-25 (imported in main.tsx),
+ * one copy shared with the website instead of a byte-identical second one here.
  */
-@font-face {
-  font-family: "Archivo Display Fallback";
-  src:
-    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
-  font-weight: 700 900;
-  size-adjust: 128.24%;
-  ascent-override: 68.47%;
-  descent-override: 16.38%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: "Instrument Serif Fallback";
-  src: local("Georgia Italic"), local("Georgia");
-  font-style: italic;
-  size-adjust: 79.52%;
-  ascent-override: 124.49%;
-  descent-override: 38.98%;
-  line-gap-override: 0%;
-}
 
 /* No plain "Archivo" between the web font and its stand-in (11 Oct 2026): that name has no
    @font-face here, so it reaches a copy INSTALLED on the device, and a computer with Archivo installed

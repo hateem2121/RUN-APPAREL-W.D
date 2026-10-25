@@ -16,13 +16,19 @@ const BASE_CSS = readFileSync(
   join(import.meta.dirname, '..', '..', '..', 'packages', 'ui', 'src', 'base.css'),
   'utf8',
 )
+// The stand-in face is shared with the garment pages since 2026-10-25, so it lives in packages/ui.
+const FALLBACK_FACES_CSS = readFileSync(
+  join(import.meta.dirname, '..', '..', '..', 'packages', 'ui', 'src', 'fallback-faces.css'),
+  'utf8',
+)
 
 /** Arial Bold's capital height: 1467 of its 2048 units per em (the stand-in's first local face). */
 const ARIAL_BOLD_CAP = 1467 / 2048
 
 /** One descriptor of the stand-in face, as a fraction. */
 function standIn(descriptor: string): number {
-  const face = /font-family: "Archivo Display Fallback";([^}]*)\}/.exec(SITE_CSS)?.[1] ?? ''
+  const face =
+    /font-family: "Archivo Display Fallback";([^}]*)\}/.exec(FALLBACK_FACES_CSS)?.[1] ?? ''
   const value = new RegExp(`${descriptor}:\\s*([\\d.]+)%`).exec(face)?.[1]
   expect(value, `"Archivo Display Fallback" has no ${descriptor}`).toBeDefined()
   return Number(value) / 100
