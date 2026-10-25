@@ -360,6 +360,28 @@ jobs:
             echo 'MODELS'
           } >> "$GITHUB_OUTPUT"
 
+      # The shared page store's speed against its four targets (W5-1, owner yes on 24 Oct), from
+      # the Workers Observability query API with this job's own key: no new secret. The prose,
+      # the targets and the before figures live in `scripts/page-store-digest.mjs`, tested in
+      # apps/cms/src/pageStoreDigest.test.ts. It prints numbers and fixed words only (public log,
+      # public issue); a failed read exits 1 and the issue says so in a fixed sentence.
+      - name: Read the last 7 days of page-store speed
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        id: pagestore
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          node scripts/page-store-digest.mjs > page-store-summary.txt
+          requests=$(head -n 1 page-store-summary.txt | sed 's/^requests=//')
+          echo "requests=$requests" >> "$GITHUB_OUTPUT"
+          {
+            echo 'summary<<PAGESTORE'
+            tail -n +2 page-store-summary.txt
+            echo 'PAGESTORE'
+          } >> "$GITHUB_OUTPUT"
+
       # One rolling issue rather than one per week, so a quiet month does not
       # bury the tab — same shape as the outage alert in uptime.yml.
       #
@@ -367,7 +389,7 @@ jobs:
       # rows only, so an analytics flood leaves it at 0 and this step would never
       # run — which is precisely the gap H1 describes.
       - name: Open or update the digest issue
-        if: steps.read.outputs.rows != '0' || steps.growth.outputs.alert == 'true' || steps.vitals.outcome == 'failure' || (steps.vitals.outputs.visits != '' && steps.vitals.outputs.visits != '0') || steps.models.outcome == 'failure' || (steps.models.outputs.days != '' && steps.models.outputs.days != '0')
+        if: steps.read.outputs.rows != '0' || steps.growth.outputs.alert == 'true' || steps.vitals.outcome == 'failure' || (steps.vitals.outputs.visits != '' && steps.vitals.outputs.visits != '0') || steps.models.outcome == 'failure' || (steps.models.outputs.days != '' && steps.models.outputs.days != '0') || steps.pagestore.outcome == 'failure' || (steps.pagestore.outputs.requests != '' && steps.pagestore.outputs.requests != '0')
         env:
           # Passed through the environment rather than interpolated with ${{ }},
           # for exactly the reason heartbeat.yml gives for its own STALE variable.
@@ -388,6 +410,7 @@ jobs:
           # quiet week.
           VITALS_SUMMARY: ${{ steps.vitals.outcome == 'success' && steps.vitals.outputs.summary || 'Page speed could not be read this week. See this run in the Actions tab.' }}
           MODELS_SUMMARY: ${{ steps.models.outcome == 'success' && steps.models.outputs.summary || '3D model load rate could not be read this week. See this run in the Actions tab.' }}
+          PAGE_STORE_SUMMARY: ${{ steps.pagestore.outcome == 'success' && steps.pagestore.outputs.summary || 'Page store speed could not be read this week. See this run in the Actions tab.' }}
         run: |
           set -euo pipefail
           # The label has to exist before EITHER command below touches it: `gh issue
@@ -404,11 +427,12 @@ jobs:
                              --description "Weekly viewer diagnostics digest" 2>&1); then
             grep -qi 'already exists' <<<"$label_out" || echo "::warning::gh label create failed: $label_out"
           fi
-          body=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n' \
+          body=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n\n%s\n' \
             "Viewer diagnostics for the 7 days to $(date -u +%Y-%m-%d)." \
             "$DIGEST_TABLE" \
             "$VITALS_SUMMARY" \
             "$MODELS_SUMMARY" \
+            "$PAGE_STORE_SUMMARY" \
             "$GROWTH_SUMMARY" \
             "\`model-load-error\` means a buyer opened a product and the 3D file did not load. \`variant-missing\` means a colour button pointed at a colour that is not inside the file. \`variants-unverified-while-published\` means a re-upload renamed the colours under a live product. \`viewer-load-failed\` means the product's details never reached the page. \`render-scale-degraded\` means a slow device drew the 3D at lower sharpness; the garment still showed. \`react-render-error\` means part of a garment page crashed and the buyer saw 'This page ran into a problem'; the same message from many **browsers** is a bug in our code. \`hd-image-load-failed\` means the full-screen HD picture did not download, or crashed; the garment page stayed. One is nothing to worry about; many just after an update means pages were left open across it. **browsers** is how many different browsers sent those rows, so one busy browser cannot pass for many buyers (- means the server wrote it). Left out on purpose: our own checks (user-agent \`run-apparel-…\`) and the harmless \`ResizeObserver loop\` browser notice. See docs/RUNBOOK.md.")
           existing=$(gh issue list --label diagnostics --state open --json number --jq '.[0].number // empty')
