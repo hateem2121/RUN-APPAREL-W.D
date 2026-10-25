@@ -125,9 +125,13 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   change to routing, middleware, headers or `next.config.mjs`. Same shape as the TypeScript
   pin in the root file, one level deeper.
 
-- **🟡 Public pages are cached twice** (polish X15, 2026-10-04). `worker.mjs` keeps whole pages
-  in Cloudflare's cache and answers from them before Next even loads (`pageCache.mjs`); each
-  answer still gets its own nonce. The key holds the deploy (`CF_VERSION_METADATA`) and a
+- **🟡 Public pages are cached twice** (polish X15, 2026-10-04). `worker.mjs` keeps whole pages,
+  and since 2026-10-24 the sitemap, llms.txt and robots.txt, in Workers Cache in front of its
+  `SitePages` entrypoint (`wrangler.jsonc` `exports`), shared across data centres; the default
+  entrypoint stamps each answer with its own nonce. 🟡 Never switch caching on for `default` (it
+  would hand one visitor's nonce to the next, and it serves the admin) and keep the HOST in the
+  key (`sharedCacheKey`: Workers Cache ignores hosts). A local preview keeps nothing (measured
+  2026-10-24); only the live site shows `page-cache;desc="hit"`. The key holds the deploy (`CF_VERSION_METADATA`) and a
   content version that every save of a product, a picture or the site settings rewrites in KV
   (`SITE_CACHE`, `src/lib/contentVersion.ts`). Behind it, `src/lib/content.ts` keeps content in
   memory for 60 seconds per isolate; a page drawn to be kept skips that memory, and a page drawn

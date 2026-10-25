@@ -374,6 +374,26 @@ describe('the script guard, seen from outside (SE-04)', () => {
     expect(result.failures).toEqual([])
   })
 
+  it('notes, never fails, a home page the shared page store did not answer', () => {
+    const again = (timing?: string) =>
+      pageCsp({
+        name: 'site / again',
+        headers: {
+          'content-security-policy': NONCED(N1),
+          'cache-control': PAGE_CACHE,
+          ...(timing ? { 'server-timing': timing } : {}),
+        },
+        body: HTML(N1),
+      })
+    for (const timing of ['page-cache;desc="miss"', 'page-cache;desc="skip"', undefined]) {
+      const result = evaluate([again(timing)], NOW)
+      expect(result.failures, String(timing)).toEqual([])
+      expect(result.inconclusive.join(' '), String(timing)).toContain('shared page store')
+    }
+    const hit = evaluate([again('page-cache;desc="hit"')], NOW)
+    expect(hit.inconclusive.join(' ')).not.toContain('shared page store')
+  })
+
   it('FAILS a nonce served twice (a cached page)', () => {
     const result = evaluate([pageCsp(), pageCsp({ name: 'site / again' })], NOW)
     expect(result.ok).toBe(false)

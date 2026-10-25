@@ -1,6 +1,10 @@
 /**
  * The garment data, kept (2026-10-07): `GET /api/public/viewer/<product>[/<colour>]` on the
  * admin host, answered from Cloudflare's cache the way pageCache.mjs answers the website's pages.
+ * Since 2026-10-24 that is the shared store (Workers Cache in front of worker.mjs's SitePages,
+ * one store for every data centre; it was the per-data-centre Cache API): 7 days to that date,
+ * 51,030 answers had a median of 55 ms but 1 in 10 waited 677 ms or more. A copy lives a day
+ * (pageCache.mjs PAGE_CACHE_SECONDS); a save or a deploy makes it unreachable sooner.
  *
  * WHY. Measured 2026-10-07 from Pakistan: an uncached answer took 4.0–4.5 s. The CMS Worker runs
  * beside the visitor (every answer said `cf-placement: local-ISB`), the database is in ENAM about
@@ -20,8 +24,9 @@
  * ⚠️ THE ANSWER'S CORS HEADERS ARE NEVER KEPT; THEY ARE WORKED OUT FOR EACH REQUEST. Payload
  * answers `Access-Control-Allow-Origin: <the visitor's Origin>` only to an origin on
  * VIEWER_ALLOWED_ORIGINS (wrangler.jsonc; payload.config.ts `cors`), and nothing to anyone else.
- * The Cache API ignores `Vary`, so a kept copy carrying one visitor's header would be served to
- * the next: a browser on wear-run.com handed `viewer.wear-run.help`'s header refuses the answer,
+ * A kept copy carrying one visitor's header would be served to the next (the Cache API ignored
+ * `Vary`; the shared store keys on none of the visitor's headers, because it is always asked with
+ * the clean request): a browser on wear-run.com handed `viewer.wear-run.help`'s header refuses the answer,
  * and the garment page shows "REFERENCE UNAVAILABLE" (publicViewer.ts, the L1 incident of
  * 2026-08-18). So the copy is drawn from a CLEAN request carrying no Origin, kept with every
  * per-visitor header removed, and every answer this path sends gets `withViewerCors` for the
@@ -43,8 +48,12 @@
  */
 import {
   CONTENT_VERSION_KEY,
+  keptHeaders,
   keptRenders,
   servedHeaders,
+  sharedCacheKey,
+  storeState,
+  unkeptHeaders,
   VERSION_CACHE_SECONDS,
 } from './pageCache.mjs'
 import { PUBLIC_VIEWER_VARY } from './publicViewerHeaders.mjs'
@@ -55,17 +64,8 @@ export const API_HOST = 'cms.wear-run.help'
 /** `/api/public/viewer/<product>` and `/api/public/viewer/<product>/<colour>`, nothing deeper. */
 const VIEWER_API_PATH = /^\/api\/public\/viewer\/[^/]+(?:\/[^/]+)?$/
 
-/**
- * How long one data centre may keep a copy: a day, as for the pages (PAGE_CACHE_SECONDS). A save
- * or a deploy makes a copy unreachable sooner; this bounds only a database edit outside the CMS.
- */
-export const API_CACHE_SECONDS = 86_400
-
 /** Payload's fallback when the variable is missing (payload.config.ts, CMS_TRUSTED.viewer). */
 const FALLBACK_ALLOWED_ORIGIN = 'https://wear-run.com'
-
-/** Where a kept copy holds the answer's own Cache-Control while the Cache API obeys its own. */
-const ORIGINAL_CACHE_CONTROL = 'x-run-api-cache-control'
 
 /** Never kept: they belong to one visitor or to the copy's bookkeeping. */
 const NEVER_KEPT_HEADERS = [
@@ -91,15 +91,7 @@ export function keepableApiRequest(request) {
   return url.hostname === API_HOST && url.search === '' && VIEWER_API_PATH.test(url.pathname)
 }
 
-/** The cache key: the address, the deploy that drew it, and the content it was drawn from. */
-export function apiCacheKey(url, deployVersion, contentVersion) {
-  const { pathname } = new URL(url)
-  const deploy = encodeURIComponent(deployVersion)
-  const content = encodeURIComponent(contentVersion)
-  return `https://${API_HOST}/__api-cache/${deploy}/${content}${pathname}`
-}
-
-/** The request a copy is drawn from. */
+/** The request a copy is drawn from: the address and nothing of the visitor's (no Origin). */
 function apiRenderRequest(request) {
   return new Request(request.url, { method: 'GET', headers: API_RENDER_HEADERS })
 }
@@ -151,24 +143,37 @@ export function keepableApiAnswer(response, text) {
   }
 }
 
-/** The headers kept with a copy: the answer's own, minus anything per visitor. */
+/**
+ * The headers kept with a copy: the answer's own, minus anything per visitor, with the store's
+ * lifetime (pageCache.mjs keptHeaders carries the answer's own Cache-Control alongside).
+ */
 export function keptApiHeaders(headers) {
   const out = new Headers(headers)
   for (const name of NEVER_KEPT_HEADERS) out.delete(name)
-  const original = out.get('cache-control')
-  if (original) out.set(ORIGINAL_CACHE_CONTROL, original)
-  out.set('cache-control', `public, max-age=${API_CACHE_SECONDS}`)
-  return out
+  return keptHeaders(out)
 }
 
 /** A kept copy's headers, made an answer's again, for this request's Origin. */
 export function servedApiHeaders(headers, requestOrigin, allowed) {
-  const out = servedHeaders(headers)
-  const original = out.get(ORIGINAL_CACHE_CONTROL)
-  out.delete(ORIGINAL_CACHE_CONTROL)
-  if (original) out.set('cache-control', original)
-  else out.delete('cache-control')
-  return withViewerCors(out, requestOrigin, allowed)
+  return withViewerCors(servedHeaders(headers), requestOrigin, allowed)
+}
+
+/**
+ * Draw a garment-data answer for the shared store and say whether it may be kept: SitePages calls
+ * this for the API host (worker.mjs). Only a whole, real garment drawn from the database gets the
+ * kept lifetime; anything else goes out `no-store`, and Workers Cache stores nothing.
+ */
+export async function keepApiAnswer(request, draw) {
+  const render = { spoiled: false }
+  const response = await keptRenders().run(render, () => draw(request))
+  const init = { status: response.status, statusText: response.statusText }
+  if (response.status !== 200 || response.body === null) {
+    return new Response(response.body, { ...init, headers: unkeptHeaders(response.headers) })
+  }
+  const text = await response.text()
+  const keep = !render.spoiled && keepableApiAnswer(response, text)
+  const headers = keep ? keptApiHeaders(response.headers) : unkeptHeaders(response.headers)
+  return new Response(text, { ...init, headers })
 }
 
 /** For the network panel and a `curl -D -`: did this answer come from a kept copy? */
@@ -177,46 +182,29 @@ function apiCacheTiming(state) {
 }
 
 /**
- * Answer a garment-data request from a kept copy, or draw it and keep it. Returns null when this
- * request is not one to keep or the cache cannot be read: worker.mjs then serves it as before.
- * `draw` is OpenNext's handler; `cache` is `caches.default` (a parameter for the tests).
+ * Answer a garment-data request from the shared store (Workers Cache in front of SitePages,
+ * 2026-10-24), which draws it through keepApiAnswer on a miss. Returns null when this request is
+ * not one to keep or the store cannot be reached: worker.mjs then serves it as before.
+ * `store` is the SitePages loopback binding (a parameter for the tests).
  */
-export async function serveViewerApi(request, env, ctx, draw, cache = globalThis.caches?.default) {
+export async function serveViewerApi(request, env, ctx, store = ctx?.exports?.SitePages) {
   if (!keepableApiRequest(request)) return null
   const deploy = env?.CF_VERSION_METADATA?.id
-  if (!deploy || !env.SITE_CACHE || !cache) return null
+  if (!deploy || !env.SITE_CACHE || !store) return null
   const requestOrigin = request.headers.get('origin')
   const allowed = allowedOrigins(env)
 
-  let key
+  let kept
   try {
     const content =
       (await env.SITE_CACHE.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS })) ?? 'none'
-    key = apiCacheKey(request.url, deploy, content)
-    const copy = await cache.match(key)
-    if (copy?.status === 200 && copy.body !== null) {
-      const headers = servedApiHeaders(copy.headers, requestOrigin, allowed)
-      headers.append('server-timing', apiCacheTiming('hit'))
-      return new Response(copy.body, { status: 200, headers })
-    }
+    const cf = { cacheKey: sharedCacheKey(request.url, deploy, content) }
+    kept = await store.fetch(apiRenderRequest(request), { cf })
   } catch (error) {
-    console.error('[api-cache] could not read the cache; answering as before', error)
+    console.error('[api-cache] could not reach the shared store; answering as before', error)
     return null
   }
-
-  const render = { spoiled: false }
-  const response = await keptRenders().run(render, () => draw(apiRenderRequest(request)))
-  const headers = withViewerCors(response.headers, requestOrigin, allowed)
-  headers.append('server-timing', apiCacheTiming('miss'))
-  const init = { status: response.status, statusText: response.statusText, headers }
-  if (response.status !== 200 || response.body === null) return new Response(response.body, init)
-
-  const text = await response.text()
-  if (!render.spoiled && keepableApiAnswer(response, text)) {
-    const kept = new Response(text, { status: 200, headers: keptApiHeaders(response.headers) })
-    ctx.waitUntil(
-      cache.put(key, kept).catch((error) => console.error('[api-cache] could not keep', error)),
-    )
-  }
-  return new Response(text, init)
+  const headers = servedApiHeaders(kept.headers, requestOrigin, allowed)
+  headers.append('server-timing', apiCacheTiming(storeState(kept.headers)))
+  return new Response(kept.body, { status: kept.status, statusText: kept.statusText, headers })
 }
