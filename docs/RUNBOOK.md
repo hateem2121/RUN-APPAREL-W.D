@@ -1704,6 +1704,13 @@ npx --yes pnpm@12.6.0 pipeline posters output/<garment>.glb --product rxps \
 npx --yes pnpm@12.6.0 og:cards rxps
 ```
 
+Once the garment is live and its CLO renders are uploaded, redraw its cards from the renders
+(2026-10-25: a card is 1200x630 with the whole garment, from the render when there is one):
+
+```bash
+npx --yes pnpm@12.6.0 og:cards --from-site rxps
+```
+
 Judge the set on one sheet before uploading anything — the posters are transparent, so
 opened one at a time a white garment is invisible and every per-file check passed five
 all-wine skinsuit posters on 2026-09-03:
@@ -2202,9 +2209,10 @@ After a new garment's posters have been rendered to `output/posters/`:
 pnpm og:cards n002
 ```
 
-It converts `output/posters/n002-*-poster.webp` into
+It draws `output/posters/n002-*-poster.webp` into 1200x630 cards at
 `apps/viewer/public/og/n002/<colour>.jpg` and updates
-`apps/viewer/worker/og-cards.ts`. **Commit both.** The product slug must match
+`apps/viewer/worker/og-cards.ts`. **Commit both.** Once the garment is live and its renders are
+uploaded, `pnpm og:cards --from-site n002` redraws them from the renders. The product slug must match
 the CMS slug exactly — that is the key the worker looks the card up by, and a
 mismatch shows up as "the preview is right but the picture is the poster".
 

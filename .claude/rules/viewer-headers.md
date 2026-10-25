@@ -93,9 +93,12 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   and WhatsApp are both unreliable with WebP. All five N001 posters are
   `image/webp` (checked against the live payload), so pointing `og:image` at
   `media.wear-run.help` directly shows a picture on Slack and X and *nothing* on
-  the two channels most likely to carry a link to a lead. `pnpm og:cards <slug>`
-  transcodes the rendered posters into `apps/viewer/public/og/<product>/<colour>.jpg`
-  (62–75 KB each at quality 76) and regenerates the manifest the Worker reads.
+  the two channels most likely to carry a link to a lead. `pnpm og:cards --from-site [<slug>]`
+  draws `apps/viewer/public/og/<product>/<colour>.jpg` from each live colour's uploaded render
+  (else its poster; `pnpm og:cards <slug>` uses local posters for a garment not yet live) and
+  regenerates the manifest the Worker reads. 🟡 Since 2026-10-25 a card is 1200x630 with the
+  WHOLE garment on paper (11–38 KB): the tall 1200x1500 card was cut to a band of torso by wide
+  apps. Its address carries `?v=<hash of its bytes>`, because apps keep a picture by address.
   The Worker still falls back to the poster when no card exists — the right
   garment on some platforms beats a polished card of a different garment on all of
   them — so skipping the command degrades, it does not break.
