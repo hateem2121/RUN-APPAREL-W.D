@@ -171,10 +171,13 @@ npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHard
   lacks a tool a workflow relies on); a Playwright
   `container: image:` tag equals the declared `@playwright/test` version and carries a
   `@sha256:` digest (since 2026-09-29); every job that can host it starts with the
-  Harden-Runner network guard (it cannot run in a `container:` job) — 🟡 in BLOCK mode on
-  ci.yml's `deploy` since 2026-10-25, which holds the Cloudflare key: its allow-list sits
-  beside the step with how it was built, and a host missing from it fails the step that
-  called it (find it under the run's insights link → Network Events → Blocked); the
+  Harden-Runner network guard (it cannot run in a `container:` job), in watch mode
+  everywhere — 🟡 **block mode on ci.yml's `deploy` was tried on 2026-10-25 and backed out the
+  same day:** on a `westus2` runner the agent opens its firewall for ONE address per allowed
+  host and drops the rest, so checkout failed in 26 s with `github.com:443` allowed (git
+  dialled 20.29.134.23, the agent had recorded 140.82.116.4) and the job then hung until
+  cancelled (step-security/harden-runner#708, open). Switch block back on only once
+  #708 is closed as fixed; the 27-host allow-list and how it was built sit as a comment beside the step; the
   three tools `verify` downloads by version are watched by `tool-versions.yml` weekly,
   because Dependabot cannot see an `env:` pin; every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
