@@ -1,3 +1,5 @@
+import { createRateLimiter } from './rateLimiter'
+
 /**
  * Rate limiting for the contact form.
  *
@@ -18,6 +20,9 @@
  * inquiries in ten minutes, and an office or a mobile carrier can put many genuine
  * visitors behind one address, so the limit sits well above any plausible person and well
  * below anything worth calling a flood.
+ *
+ * The counting itself is `createRateLimiter` (`rateLimiter.ts`, shared with the careers form since
+ * 2026-10-25); this file owns the contact form's NUMBERS, which the careers form reuses.
  */
 
 /** Inquiries one address may send per window. */
@@ -34,30 +39,15 @@ export const WINDOW_MS = 10 * 60 * 1000
  */
 export const MAX_TRACKED_IPS = 5000
 
-type State = { windowStart: number; isolateCount: number; perIp: Map<string, number> }
-
-let state: State | null = null
+const limiter = createRateLimiter({
+  maxPerIp: MAX_PER_IP,
+  maxPerIsolate: MAX_PER_ISOLATE,
+  windowMs: WINDOW_MS,
+  maxTrackedIps: MAX_TRACKED_IPS,
+})
 
 /** True when this request may proceed. */
-export function checkInquiryRate(ip: string, now: number): boolean {
-  if (!state || now - state.windowStart >= WINDOW_MS) {
-    state = { windowStart: now, isolateCount: 0, perIp: new Map() }
-  }
-  if (state.isolateCount >= MAX_PER_ISOLATE) return false
-
-  const used = state.perIp.get(ip) ?? 0
-  if (used >= MAX_PER_IP) return false
-
-  // An unknown address is still counted, together, rather than exempted: a caller that
-  // strips its own headers must not thereby get an unlimited allowance.
-  if (state.perIp.size >= MAX_TRACKED_IPS && !state.perIp.has(ip)) return false
-
-  state.perIp.set(ip, used + 1)
-  state.isolateCount += 1
-  return true
-}
+export const checkInquiryRate = limiter.check
 
 /** Exported for the tests, which must not depend on wall-clock timing. */
-export function __resetInquiryRate(): void {
-  state = null
-}
+export const __resetInquiryRate = limiter.reset
