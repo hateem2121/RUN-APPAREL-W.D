@@ -24,8 +24,8 @@
  * own `safaridriver` over Appium for the iPhone half. Unlike Appium, there is no extra
  * server process translating a second protocol — ChromeDriver talks W3C WebDriver on one
  * side and drives the on-device Chrome over `adb` on the other, so this module's HTTP calls
- * are byte-for-byte the same shapes as `ios-safari.mjs`'s (`/session`, `/session/:id/url`,
- * `/session/:id/execute/sync`) — only the capabilities differ.
+ * are the very same ones `ios-safari.mjs` makes (`/session`, `/session/:id/url`,
+ * `/session/:id/execute/sync`), from `webdriver-client.mjs` — only the capabilities differ.
  *
  * ⚠️ AN ANDROID EMULATOR'S "localhost" IS THE DEVICE ITSELF, NOT THE HOST RUNNER.
  * The default AVD network (QEMU user-mode networking, unchanged for over a decade) aliases
@@ -44,8 +44,18 @@
  * `reactivecircus/android-emulator-runner` does that before this module's CLI ever runs.
  */
 
-import { spawn } from 'node:child_process'
 import { realpathSync } from 'node:fs'
+import {
+  closeSession,
+  evaluate,
+  go,
+  newSession,
+  readSessionIdWith,
+  startDriverProcess,
+} from './webdriver-client.mjs'
+
+// The W3C calls are the same for both phones, so they live in one module (2026-10-25).
+export { closeSession, evaluate, go }
 
 /** Print this beside any measurement taken through this module. */
 export const ANDROID_CAVEAT =
@@ -93,16 +103,14 @@ export function sessionBody({
  * always ChromeDriver's own `message`, printed verbatim.
  */
 export function readSessionId(payload) {
-  const value = payload?.value
-  if (value?.sessionId) return value.sessionId
-  const message = value?.message ?? 'chromedriver returned no sessionId and no message'
-  throw new Error(
-    `${message}\n` +
+  return readSessionIdWith(payload, {
+    driver: 'chromedriver',
+    explain: () =>
       '  → chromedriver could not start a Chrome-for-Android session. Likely causes: adb ' +
       'has no booted device attached, the androidPackage is not present on this AVD image, ' +
       'or this chromedriver build does not support the on-device Chrome version — compare ' +
       'the versions printed above this error.',
-  )
+  })
 }
 
 /** "android · Chrome 129.0.6668.100 (emulator)" — for a report that names what it measured. */
@@ -112,92 +120,18 @@ export function describeHost(capabilities) {
   return `${platform} · Chrome ${version} (emulator)`
 }
 
-/**
- * Extract `versionName` from `adb shell dumpsys package <pkg>` output.
- *
- * The shape below (`versionName=X.Y.Z.W` inside a `Package [pkg] (hash):` block) has been
- * stable across Android releases for over a decade; this is documented `dumpsys` behaviour,
- * not something re-measured for this repo. Unlike `ios-safari.mjs`'s fixtures, the sample in
- * this module's test file is a REPRESENTATIVE shape, not one copied from a real run — flagged
- * there, not hidden, because this Mac has no device to capture a real one from.
- */
-export function parseChromeVersionName(dumpsysOutput) {
-  const match = /versionName=(\S+)/.exec(dumpsysOutput ?? '')
-  if (!match?.[1]) {
-    throw new Error(
-      'no "versionName=" line in dumpsys output — is com.android.chrome installed on this AVD image?',
-    )
-  }
-  return match[1]
-}
-
-/** "129.0.6668.100" -> 129. Throws rather than returning NaN, so a bad parse is loud. */
-export function chromeMajorVersion(versionName) {
-  const match = /^(\d+)\./.exec(versionName ?? '')
-  if (!match?.[1]) {
-    throw new Error(
-      `"${versionName}" does not look like a Chrome version (expected e.g. "129.0.6668.100")`,
-    )
-  }
-  return Number(match[1])
-}
-
-const json = async (url, init) => {
-  const response = await fetch(url, init)
-  return response.json()
-}
-
 /** Start chromedriver on `port`. Returns a handle with `.stop()`. */
-export async function startDriver(port) {
-  const child = spawn('chromedriver', [`--port=${port}`], { stdio: 'ignore' })
-  // chromedriver has no ready signal beyond answering its status endpoint; poll instead
-  // of sleeping, the same pattern ios-safari.mjs uses for safaridriver.
-  for (let attempt = 0; attempt < 40; attempt++) {
-    try {
-      await fetch(`http://127.0.0.1:${port}/status`)
-      return { port, stop: () => child.kill() }
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 250))
-    }
-  }
-  child.kill()
-  throw new Error(`chromedriver did not answer on port ${port} within 10s`)
+export function startDriver(port) {
+  return startDriverProcess({ command: 'chromedriver', args: [`--port=${port}`], port })
 }
 
 /** Open a session. Returns `{ sessionId, host }`, `host` being `describeHost`'s label. */
 export async function openSession(port, options = {}) {
-  const payload = await json(`http://127.0.0.1:${port}/session`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sessionBody(options)),
-  })
+  const payload = await newSession(port, sessionBody(options))
   return {
     sessionId: readSessionId(payload),
     host: describeHost(payload?.value?.capabilities),
   }
-}
-
-export async function go(port, sessionId, url) {
-  await json(`http://127.0.0.1:${port}/session/${sessionId}/url`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
-  })
-}
-
-/** Run `script` in the page and return its value. Write it as a function body with a return. */
-export async function evaluate(port, sessionId, script, args = []) {
-  const payload = await json(`http://127.0.0.1:${port}/session/${sessionId}/execute/sync`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ script, args }),
-  })
-  return payload?.value
-}
-
-/** Always call this, even on failure — a leaked session holds the emulator's Chrome open. */
-export async function closeSession(port, sessionId) {
-  await fetch(`http://127.0.0.1:${port}/session/${sessionId}`, { method: 'DELETE' })
 }
 
 /**

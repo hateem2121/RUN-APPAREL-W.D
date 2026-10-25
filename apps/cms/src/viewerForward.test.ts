@@ -64,7 +64,6 @@ describe('the two apps never claim the same address', () => {
     'robots.txt', // the website's own robots.txt speaks for the whole host
     'sitemap.xml', // the website's own sitemap
     'llms.txt', // the website's own llms.txt
-    '_redirects', // deleted by CI before deploy; never served
   ]
 
   it("covers every file in the viewer's public folder", () => {

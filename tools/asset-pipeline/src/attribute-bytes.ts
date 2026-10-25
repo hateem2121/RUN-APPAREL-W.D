@@ -53,18 +53,6 @@ export interface AttributeBytes {
   plausible: boolean
 }
 
-/** Bytes per component, by glTF componentType. */
-const COMPONENT_BYTES: Record<number, number> = {
-  5120: 1,
-  5121: 1,
-  5122: 2,
-  5123: 2,
-  5125: 4,
-  5126: 4,
-}
-/** Components per element, by glTF accessor type. */
-const TYPE_COMPONENTS: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 }
-
 /**
  * Attribute the on-disk bytes of every bufferView to the semantic that reads it.
  *
@@ -125,20 +113,6 @@ export function attributeBytes(gltf: GltfForBytes, fileBytes: number): Attribute
 export function textureVramBytes(width: number, height: number): number {
   // 4 bytes per pixel (RGBA8), plus a full mipmap chain, which converges to 1/3 extra.
   return Math.round(width * height * 4 * (4 / 3))
-}
-
-/**
- * Uncompressed accessor size, for reporting what quantization did or did not save.
- * Returns 0 for an accessor the file does not describe.
- */
-export function accessorBytes(accessor: {
-  componentType?: number
-  count?: number
-  type?: string
-}): number {
-  const component = COMPONENT_BYTES[accessor.componentType ?? -1] ?? 0
-  const components = TYPE_COMPONENTS[accessor.type ?? ''] ?? 0
-  return (accessor.count ?? 0) * component * components
 }
 
 /** A one-line-per-part summary, largest first. Empty when the numbers are implausible. */

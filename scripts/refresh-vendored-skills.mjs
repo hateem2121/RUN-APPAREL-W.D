@@ -61,8 +61,10 @@
  * - The lock names eight skills `emilkowalski/skill`; the README names the same upstream
  *   `emilkowalski/skills`. GitHub answers the first with `full_name: emilkowalski/skills`, so
  *   repositories are keyed by the full_name GitHub reports and fetched once.
- * - `ask-sonner` is in the lock and in .agents/skills/ but has no .claude/skills/ link (seven
- *   links exist where the README says eight), so a skill's folder is looked up in both places.
+ * - `ask-sonner` was in the lock and in .agents/skills/ but had no .claude/skills/ link (seven
+ *   links existed where the README said eight), so a skill's folder is looked up in both places.
+ *   (Removed 2026-10-25: all seven skills left are linked. The lookup stays: the installer can
+ *   leave a skill unlinked again, and refreshVendoredSkills.test.ts builds that shape.)
  * - The lock's three vercel-* hashes are neither the folder hash below nor SHA-256 of
  *   SKILL.md (the cause was not found), so the recipe cannot be checked on a nested folder.
  *   The first refresh that changes one of those skills rewrites its entry with the folder

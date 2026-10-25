@@ -88,7 +88,7 @@ const reqWhereGlobalReadFails = () => ({
 // Payload calls a field's defaultValue function only when the document has no
 // existing value for that field yet — confirmed against Payload 3.86.0's own
 // fields/hooks/beforeValidate/getFallbackValue.js AND empirically against a
-// real local D1 (see task-9-report.md): a fresh create inherits the global,
+// real local D1 (the task report this cited was never committed): a fresh create inherits the global,
 // re-reading the same product after the global changes still shows the
 // original value, and a plain update that omits the field also leaves it
 // unchanged. None of that machinery is Payload's own to test here — these
@@ -282,6 +282,21 @@ describe('Products beforeDuplicate hooks', () => {
     const message = fieldNamed('slug').validate?.('X Milo Pro')
     expect(message).toContain('x-milo-pro')
   })
+  /**
+   * The help text's example must be the live product's own word. It said `n001` until
+   * 2026-10-24, three months after that product was renamed `rxps` (2026-08-15, and `n001`
+   * 404s in production). An example that is itself a valid word proves the message is usable.
+   */
+  it('gives the live product’s web address word as its example, and the example is valid', () => {
+    const empty = String(fieldNamed('slug').validate?.('   '))
+    const refused = String(fieldNamed('slug').validate?.('X Milo Pro'))
+    for (const message of [empty, refused]) {
+      expect(message).toContain('e.g. rxps.')
+      expect(message).not.toContain('n001')
+    }
+    expect(fieldNamed('slug').validate?.('rxps')).toBe(true)
+  })
+
   // ⚠️ THE SUFFIX WAS `COPY` WITH NO HYPHEN UNTIL 2026-08-17, and the comment
   // here explained at length that `-COPY` failed productCode's own validate:
   // the pattern was /^[A-Z][A-Z0-9]*$/, and beforeChange/index.js throws a

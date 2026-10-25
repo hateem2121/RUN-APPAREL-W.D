@@ -66,6 +66,26 @@ That runs the full production chain five times with one stage removed each time,
 renders every result, and writes a contact sheet per run against the unprocessed
 original. See `docs/OPEN-ISSUE-ARTWORK.md` for how to read the output.
 
+### Hand-run tools
+
+Nothing in CI or in `pnpm test` runs these. Each is run by hand from `tools/asset-pipeline`
+against real exports, and each prints the table a number in the source was drawn from, so the
+number can be re-checked when a new garment arrives instead of being trusted.
+
+- `scripts/artwork-detail-census.mjs` — per print: bytes, ink share, bytes per ink pixel and the
+  share of ink on a colour edge. The "artwork stored suspiciously small" line in
+  `src/textures.ts:130` is drawn from it.
+- `scripts/fabric-texture-census.mjs` — per colourway: the fabric picture's dominant colour, how
+  busy it is, and whether one texture is bound to every colourway. The "plain fabric" stdev range
+  in `src/variant-colour.ts:316` comes from it.
+- `scripts/ink-softness-census.mjs` — per print: the share of part-transparent pixels over the ink
+  and over the whole texture, next to the verdict the cut-out rule gives. The soft-versus-hard line
+  in `src/textures.ts:300` is drawn from it.
+- `scripts/bisect-artwork.mjs` — runs the production chain five times with one stage removed each
+  time and renders every result, to find which stage damages a print (the command is above).
+- `scripts/sweep-size-vs-artwork.mjs` — file size and the gates across `--simplify-error` values,
+  from the raw export; it renders nothing (see the warning below).
+
 ### The two artwork evals — the only automated check on *legibility*
 
 Everything else here (and the three blocking gates in `optimize`) tests structure:

@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "/gates — I bumped three dependencies, check everything before I push.",
-      "expected_output": "Runs node .claude/skills/gates/run-gates.mjs rather than its own list of pnpm commands. Reports the first failure and stops there. Does not claim all gates passed unless the script printed that."
+      "expected_output": "Runs node .claude/skills/gates/run-gates.mjs rather than its own list of pnpm commands. Reports the first failure and stops there. Does not claim all gates passed unless the script printed that, and reports any gate it named as SKIPPED or as not run."
     },
     {
       "id": 2,

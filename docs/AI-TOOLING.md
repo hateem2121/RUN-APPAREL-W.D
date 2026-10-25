@@ -232,9 +232,8 @@ What remains deliberately unindexed: `package.json`, `tsconfig.json`,
 `package-lock.json` and `yarn.lock` are skipped **by name**, so no config can pull
 them in. Proven 2026-08-01 by indexing a throwaway repo containing six
 byte-identical JSON files differing only in filename: `aacontrol.json` and
-`zzcontrol.json` were indexed, the four above were not. `.gitignore`/`.dockerignore`,
-the binary `studio-soft.hdr`, and `apps/viewer/public/_redirects` (extensionless) are
-also absent. None of this is worth working around.
+`zzcontrol.json` were indexed, the four above were not. `.gitignore`/`.dockerignore`
+and the binary `studio-soft.hdr` are also absent. None of this is worth working around.
 
 ### Architecture decisions (ADR)
 
