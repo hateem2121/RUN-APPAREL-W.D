@@ -463,6 +463,19 @@ describe('what the cache relies on', () => {
     expect(worker).not.toMatch(/caches\.default/)
   })
 
+  /*
+   * Live on 2026-10-25 (#247): /factory answered 200 with the factory page instead of its 308. The
+   * call into the store has Fetch semantics, and its default redirect mode FOLLOWS a 3xx, out over
+   * the internet (Cloudflare, Workers RPC "Reserved methods"). worker.mjs imports the Workers
+   * runtime, so this reads its source, the way the test above does: every call into the store says
+   * `redirect: 'manual'`, so the redirect reaches withRedirectHeaders and then the browser.
+   */
+  it('worker.mjs asks the store never to follow a redirect', () => {
+    const calls = [...worker.matchAll(/store\.fetch\(([^)]*\([^)]*\)[^)]*)\)/g)].map((m) => m[1])
+    expect(calls.length).toBeGreaterThan(0)
+    for (const call of calls) expect(call).toMatch(/redirect:\s*'manual'/)
+  })
+
   it('binds the KV namespace holding the content version, by a real id', () => {
     const kv = wrangler.kv_namespaces?.find((namespace) => namespace.binding === 'SITE_CACHE')
     expect(kv?.id).toMatch(/^[0-9a-f]{32}$/)

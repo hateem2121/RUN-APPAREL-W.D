@@ -199,7 +199,8 @@ export async function serveViewerApi(request, env, ctx, store = ctx?.exports?.Si
     const content =
       (await env.SITE_CACHE.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS })) ?? 'none'
     const cf = { cacheKey: sharedCacheKey(request.url, deploy, content) }
-    kept = await store.fetch(apiRenderRequest(request), { cf })
+    // Never follow a redirect from the store (worker.mjs's call says why: #247, 2026-10-25).
+    kept = await store.fetch(apiRenderRequest(request), { cf, redirect: 'manual' })
   } catch (error) {
     console.error('[api-cache] could not reach the shared store; answering as before', error)
     return null

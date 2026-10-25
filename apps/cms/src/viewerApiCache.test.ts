@@ -62,32 +62,46 @@ const payloadLike =
  * Workers Cache in front of SitePages, in memory: read-through by `cf.cacheKey`. A miss runs
  * SitePages's own decision (keepApiAnswer, as worker.mjs does) and stores only an answer it marked
  * kept; a hit comes back as a fresh Response with `Cf-Cache-Status: HIT`.
+ *
+ * ⚠️ AND IT FOLLOWS A REDIRECT UNLESS TOLD NOT TO, AS THE RUNTIME DOES. `fetch()` on a service
+ * binding or `ctx.exports` has Fetch semantics: the default redirect mode follows a 3xx "resulting
+ * in an HTTP request to the public internet" (Cloudflare, Workers RPC "Reserved methods", read
+ * 2026-10-25). That is how #247 served /factory as the factory page (200) instead of its 308 live
+ * on 2026-10-25: this fake used to hand the 308 back whatever the caller asked, so it could not fail
+ * the way production did.
  */
+const FOLLOWED_BODY = 'the page the redirect pointed at'
 const fakeStore = (draw: (request: Request) => Promise<Response>) => {
   const kept = new Map<string, { text: string; status: number; headers: [string, string][] }>()
+  const follow = (answer: Response, init?: { redirect?: string }) =>
+    answer.status >= 300 && answer.status < 400 && init?.redirect !== 'manual'
+      ? new Response(FOLLOWED_BODY, { status: 200, headers: { 'content-type': 'text/html' } })
+      : answer
   return {
     kept,
-    fetch: vi.fn(async (request: Request, init?: { cf?: { cacheKey?: string } }) => {
-      const key = init?.cf?.cacheKey
-      if (!key) throw new Error('every call into the store must carry its key')
-      const hit = kept.get(key)
-      if (hit) {
-        return new Response(hit.text, {
-          status: hit.status,
-          headers: [...hit.headers, ['cf-cache-status', 'HIT']],
-        })
-      }
-      const answer = await keepApiAnswer(request, draw)
-      if (answer.headers.get('x-run-kept') === 'yes') {
-        const copy = answer.clone()
-        kept.set(key, {
-          text: await copy.text(),
-          status: copy.status,
-          headers: [...copy.headers.entries()],
-        })
-      }
-      return answer
-    }),
+    fetch: vi.fn(
+      async (request: Request, init?: { cf?: { cacheKey?: string }; redirect?: string }) => {
+        const key = init?.cf?.cacheKey
+        if (!key) throw new Error('every call into the store must carry its key')
+        const hit = kept.get(key)
+        if (hit) {
+          return new Response(hit.text, {
+            status: hit.status,
+            headers: [...hit.headers, ['cf-cache-status', 'HIT']],
+          })
+        }
+        const answer = await keepApiAnswer(request, draw)
+        if (answer.headers.get('x-run-kept') === 'yes') {
+          const copy = answer.clone()
+          kept.set(key, {
+            text: await copy.text(),
+            status: copy.status,
+            headers: [...copy.headers.entries()],
+          })
+        }
+        return follow(answer, init)
+      },
+    ),
     /** The one copy kept so far: what a later visitor would be served. */
     only: () => {
       const [copy, ...more] = [...kept.values()]
@@ -376,6 +390,24 @@ describe('only a whole, real garment is kept', () => {
       headers: { 'content-type': 'application/json', 'content-encoding': 'gzip' },
     })
     expect(keepableApiAnswer(gzip, text)).toBe(false)
+  })
+})
+
+describe('a redirect from the store reaches the browser as a redirect (live, 2026-10-25)', () => {
+  it('passes a 308 through instead of following it to its target', async () => {
+    const redirect = async () =>
+      new Response(null, { status: 308, headers: { location: `${API}/rxps/navy` } })
+    const { ask } = setup(redirect)
+    const res = await ask()
+    expect(res?.status).toBe(308)
+    expect(res?.headers.get('location')).toBe(`${API}/rxps/navy`)
+    expect(await res?.text()).not.toContain(FOLLOWED_BODY)
+  })
+
+  it('asks the store not to follow redirects', async () => {
+    const { ask, store } = setup()
+    await ask()
+    expect(store.fetch.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' })
   })
 })
 
