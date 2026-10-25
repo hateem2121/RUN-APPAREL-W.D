@@ -20,11 +20,10 @@
  * The CMS key comes from $CMS_API_KEY or the macOS Keychain (service run-apparel-cms-api-key,
  * account cms). It is never printed.
  */
-import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { createCmsClient, defaultCmsBase, resolveCmsKey } from './cms-client.mjs'
 import { swapProblems } from './live-garment-writes-lib.mjs'
 
-const CMS = process.env.CMS_ORIGIN ?? 'https://cms.wear-run.help'
 const args = process.argv.slice(2)
 const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
 const slug = args.find(
@@ -38,49 +37,31 @@ if (!slug || !Number.isInteger(mediaId) || !reportPath) {
   process.exit(2)
 }
 
-const KEY =
-  process.env.CMS_API_KEY ??
-  execFileSync(
-    'security',
-    ['find-generic-password', '-s', 'run-apparel-cms-api-key', '-a', 'cms', '-w'],
-    {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    },
-  ).trim()
-async function cms(path, init = {}) {
-  const res = await fetch(`${CMS}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `users API-Key ${KEY}`,
-      'content-type': 'application/json',
-      ...init.headers,
-    },
-  })
-  const body = await res.json().catch(() => null)
-  if (!res.ok)
-    throw new Error(
-      `${init.method ?? 'GET'} ${path} → ${res.status}: ${JSON.stringify(body).slice(0, 400)}`,
-    )
-  return body
+// $CMS_API_KEY, else the macOS Keychain (service run-apparel-cms-api-key, account cms).
+const KEY = resolveCmsKey({ keychain: true })
+if (!KEY) throw new Error('no CMS key: set CMS_API_KEY or add it to the Keychain (see the header)')
+// The address is CMS_API_BASE (this script's old name, CMS_ORIGIN, still works). Writes are on
+// unless --dry-run, as this script has always behaved; every write is read back by the client.
+const client = createCmsClient({ base: defaultCmsBase(), key: KEY, apply: !dryRun })
+const readProduct = async () => {
+  const found = await client.productBySlug(slug)
+  if (!found.ok) throw new Error(`GET product "${slug}" → ${found.status}`)
+  return found.doc
 }
-const readProduct = async () =>
-  (await cms(`/api/products?where[slug][equals]=${encodeURIComponent(slug)}&depth=0&limit=1`))
-    .docs[0]
 
 const { report } = JSON.parse(readFileSync(reportPath, 'utf8'))
 const fileColours = report.variantsInFileOrder ?? report.variants ?? []
 const product = await readProduct()
 if (!product) throw new Error(`no product with slug "${slug}"`)
-const media = await cms(`/api/media/${mediaId}?depth=0`)
+const media = await client.getJson(`/api/media/${mediaId}?depth=0`)
 // A plain GET, never HEAD: on this domain they hit different edge cache entries.
-const served = await fetch(media.url)
-const servedBytes = served.ok ? (await served.arrayBuffer()).byteLength : 0
+const served = await client.fetchServed(media.url)
+const servedBytes = served.ok ? served.byteLength : 0
 
 const problems = swapProblems({ product, mediaId, media, servedBytes, fileColours })
 console.log(
   `[swap] ${product.productName} (#${product.id}, ${product.status}): glb ${product.glbAsset} -> ${mediaId} ` +
-    `(${media.filename}, ${servedBytes} bytes, GET ${served.status} ${served.headers.get('cf-cache-status')})`,
+    `(${media.filename}, ${servedBytes} bytes, GET ${served.status} ${served.cache})`,
 )
 if (problems.length) {
   console.error(`[swap] REFUSED:\n  ${problems.join('\n  ')}`)
@@ -92,24 +73,36 @@ if (dryRun) {
 }
 
 const oldGlb = product.glbAsset
-await cms(`/api/products/${product.id}`, {
-  method: 'PATCH',
-  body: JSON.stringify({
+// Each PATCH is read back by the client (`depth=0`) and compared with the check beside it.
+const colours = await client.patchDoc(
+  'products',
+  product.id,
+  {
     fileColours,
     ...(report.variantColours?.length ? { fileColourDetails: report.variantColours } : {}),
-  }),
-})
-let back = await readProduct()
-if (JSON.stringify(back.fileColours) !== JSON.stringify(fileColours))
-  throw new Error(`fileColours did not store: read ${JSON.stringify(back.fileColours)}`)
+  },
+  {
+    verify: (stored) =>
+      JSON.stringify(stored?.fileColours) === JSON.stringify(fileColours)
+        ? []
+        : [`fileColours did not store: read ${JSON.stringify(stored?.fileColours)}`],
+  },
+)
+if (!colours.ok) throw new Error(colours.error)
 
-await cms(`/api/products/${product.id}`, {
-  method: 'PATCH',
-  body: JSON.stringify({ glbAsset: mediaId }),
-})
-back = await readProduct()
-if (String(back.glbAsset) !== String(mediaId))
-  throw new Error(`glbAsset did not store: read ${back.glbAsset}`)
+const swapped = await client.patchDoc(
+  'products',
+  product.id,
+  { glbAsset: mediaId },
+  {
+    verify: (stored) =>
+      String(stored?.glbAsset) === String(mediaId)
+        ? []
+        : [`glbAsset did not store: read ${stored?.glbAsset}`],
+  },
+)
+if (!swapped.ok) throw new Error(swapped.error)
+const back = swapped.stored
 const order = (rows) => rows.map((r) => `${r.variantId}=${r.slug}`).join(',')
 if (order(back.colourways) !== order(product.colourways))
   throw new Error(`colour rows changed: ${order(product.colourways)} -> ${order(back.colourways)}`)

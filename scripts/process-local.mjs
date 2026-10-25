@@ -46,6 +46,7 @@
  * run-apparel-cms-api-key, account cms). It is never printed.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createCmsClient, defaultCmsBase, resolveCmsKey } from './cms-client.mjs'
 import { createHash } from 'node:crypto'
 import {
   copyFileSync,
@@ -77,7 +78,6 @@ const REPO = fileURLToPath(new URL('..', import.meta.url))
 const PIPELINE = join(REPO, 'tools', 'asset-pipeline')
 const OWNER_FOLDER =
   process.env.GARMENT_SOURCE_DIR ?? '/Users/hateemjamshaid/Documents/3D Catalouge Products'
-const CMS = process.env.CMS_ORIGIN ?? 'https://cms.wear-run.help'
 // The user's own cache, not the shared temp folder — defaultScratchRoot says why.
 const SCRATCH_ROOT = resolve(defaultScratchRoot(process.env, homedir()))
 const CMS_TIMEOUT_MS = 120_000
@@ -124,61 +124,39 @@ async function main() {
   }
 
   // ── The CMS ───────────────────────────────────────────────────────────────────
-  function apiKey() {
-    if (process.env.CMS_API_KEY) return process.env.CMS_API_KEY
-    try {
-      return execFileSync(
-        'security',
-        ['find-generic-password', '-s', 'run-apparel-cms-api-key', '-a', 'cms', '-w'],
-        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
-      ).trim()
-    } catch {
-      refuse(
-        'no CMS key: set CMS_API_KEY or add it to the Keychain (service run-apparel-cms-api-key, account cms)',
-      )
-    }
+  // $CMS_API_KEY, else the macOS Keychain (service run-apparel-cms-api-key, account cms).
+  const KEY = resolveCmsKey({ keychain: true })
+  if (!KEY) {
+    refuse(
+      'no CMS key: set CMS_API_KEY or add it to the Keychain (service run-apparel-cms-api-key, account cms)',
+    )
   }
-  const KEY = apiKey()
-
-  async function cms(path, init = {}) {
-    const headers = new Headers(init.headers)
-    headers.set('Authorization', `users API-Key ${KEY}`)
-    const res = await fetch(`${CMS}${path}`, {
-      ...init,
-      headers,
-      signal: AbortSignal.timeout(CMS_TIMEOUT_MS),
-    })
-    const text = await res.text()
-    let json = null
-    try {
-      json = JSON.parse(text)
-    } catch {}
-    if (!res.ok) {
-      // Payload's outer message never names the field; the inner one does.
-      const inner = json?.errors?.[0]?.data?.errors
-        ?.map((e) => `${e.path}: ${e.message}`)
-        .join('; ')
-      throw new Error(
-        `${init.method ?? 'GET'} ${path} → ${res.status}: ${inner || text.slice(0, 300)}`,
-      )
-    }
-    return json
-  }
+  // The address is CMS_API_BASE (this script's old name, CMS_ORIGIN, still works). Dry run is
+  // the default here, so the client only writes under --apply, and it reads every write back.
+  const client = createCmsClient({
+    base: defaultCmsBase(),
+    key: KEY,
+    apply: APPLY,
+    timeoutMs: CMS_TIMEOUT_MS,
+  })
 
   async function readProduct() {
-    const q = new URLSearchParams({ 'where[slug][equals]': slug, depth: '0', limit: '1' })
-    const found = await cms(`/api/products?${q}`)
-    const doc = found?.docs?.[0]
-    if (!doc) refuse(`no product with slug "${slug}"`)
-    return doc
+    const found = await client.productBySlug(slug)
+    if (!found.ok) throw new Error(`GET product "${slug}" → ${found.status}`)
+    if (!found.doc) refuse(`no product with slug "${slug}"`)
+    return found.doc
   }
 
-  const patchProduct = (id, data) =>
-    cms(`/api/products/${id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(data),
-    })
+  /**
+   * A PATCH the client reads back and compares with `verify`. The CMS refusing it throws, as it
+   * always did; a write the CMS accepted and did not store is a REFUSAL, named by `verify`.
+   */
+  async function patchProduct(id, data, verify) {
+    const res = await client.patchDoc('products', id, data, { verify })
+    if (res.stage === 'verify') refuse(res.mismatches.join('; '))
+    if (!res.ok) throw new Error(res.error)
+    return res
+  }
 
   // ── Files ─────────────────────────────────────────────────────────────────────
   function sha256Of(path) {
@@ -361,10 +339,13 @@ async function main() {
     const { planColourImport } = await import('../apps/shrink/src/colourImport.ts')
     const filename = String(report.suggestedFilename)
     const sourceReference = sourceReferenceFor({ zipName: zip.name, zipBytes, sha256, commit, now })
-    const form = new FormData()
-    form.append(
-      '_payload',
-      JSON.stringify({
+    // The client uploads, reads the Media document back (its stored size) and fetches the
+    // file with a plain GET, never HEAD: on this domain they hit different edge cache entries.
+    const uploaded = await client.uploadMedia({
+      filename,
+      bytes,
+      type: 'model/gltf-binary',
+      fields: {
         alt: describeModel({
           productCode: product.productCode ?? null,
           detail,
@@ -374,24 +355,21 @@ async function main() {
         }),
         artworkVerdict: 'ok',
         sourceReference,
-      }),
-    )
-    form.append('file', new Blob([bytes], { type: 'model/gltf-binary' }), filename)
-    const created = await cms('/api/media', { method: 'POST', body: form })
-    const mediaId = created?.doc?.id
+      },
+      verifyDoc: (stored) =>
+        stored?.filesize === bytes.length
+          ? []
+          : [`Media #${stored?.id} stored ${stored?.filesize} bytes, not ${bytes.length}`],
+      expectServed: { byteLength: bytes.length },
+    })
+    if (uploaded.stage === 'write' || uploaded.stage === 'read') throw new Error(uploaded.error)
+    const mediaId = uploaded.doc?.id
     if (mediaId == null) refuse('the CMS created no Media doc')
-    const media = await cms(`/api/media/${mediaId}?depth=0`)
-    if (media.filesize !== bytes.length) {
-      refuse(`Media #${mediaId} stored ${media.filesize} bytes, not ${bytes.length}`)
-    }
-    // A plain GET, never HEAD: on this domain they hit different edge cache entries.
-    const served = await fetch(media.url, { signal: AbortSignal.timeout(CMS_TIMEOUT_MS) })
-    const servedBytes = (await served.arrayBuffer()).byteLength
-    if (!served.ok || servedBytes !== bytes.length) {
-      refuse(`${media.url} answered ${served.status} with ${servedBytes} bytes`)
-    }
+    const media = uploaded.stored ?? uploaded.doc
+    const served = uploaded.served
+    if (!uploaded.ok) refuse(uploaded.mismatches.join('; '))
     console.log(
-      `${slug}: Media #${mediaId} ${media.url} (GET ${served.status}, ${served.headers.get('cf-cache-status')})` +
+      `${slug}: Media #${mediaId} ${media.url} (GET ${served?.status}, ${served?.cache})` +
         (media.sourceReference === sourceReference
           ? ', provenance stored'
           : ', provenance NOT readable back'),
@@ -417,35 +395,39 @@ async function main() {
 
     const fileColours = report.variantsInFileOrder ?? report.variants ?? []
     if (fileColours.length > 0) {
-      await patchProduct(fresh.id, {
-        fileColours,
-        ...(report.variantColours?.length ? { fileColourDetails: report.variantColours } : {}),
-      })
-      const back = await readProduct()
-      if (JSON.stringify(back.fileColours) !== JSON.stringify(fileColours)) {
-        refuse(
-          `fileColours did not store: sent ${JSON.stringify(fileColours)}, read ${JSON.stringify(back.fileColours)}`,
-        )
-      }
+      await patchProduct(
+        fresh.id,
+        {
+          fileColours,
+          ...(report.variantColours?.length ? { fileColourDetails: report.variantColours } : {}),
+        },
+        (back) =>
+          JSON.stringify(back?.fileColours) === JSON.stringify(fileColours)
+            ? []
+            : [
+                `fileColours did not store: sent ${JSON.stringify(fileColours)}, read ${JSON.stringify(back?.fileColours)}`,
+              ],
+      )
     }
 
     const colourPlan = planColourImport(target, named.colours)
     if (colourPlan.rows?.length) {
-      await patchProduct(fresh.id, { colourways: colourPlan.rows })
-      const back = await readProduct()
-      if ((back.colourways ?? []).length !== colourPlan.rows.length) {
-        refuse(
-          `colour import did not store: sent ${colourPlan.rows.length} rows, read ${(back.colourways ?? []).length}`,
-        )
-      }
+      await patchProduct(fresh.id, { colourways: colourPlan.rows }, (back) =>
+        (back?.colourways ?? []).length === colourPlan.rows.length
+          ? []
+          : [
+              `colour import did not store: sent ${colourPlan.rows.length} rows, read ${(back?.colourways ?? []).length}`,
+            ],
+      )
     }
 
     const attach = planModelAttach(fresh.id, target)
     if (attach.attach) {
-      await patchProduct(fresh.id, { glbAsset: mediaId })
-      const back = await readProduct()
-      if (String(back.glbAsset) !== String(mediaId))
-        refuse(`glbAsset did not store: read ${back.glbAsset}`)
+      await patchProduct(fresh.id, { glbAsset: mediaId }, (back) =>
+        String(back?.glbAsset) === String(mediaId)
+          ? []
+          : [`glbAsset did not store: read ${back?.glbAsset}`],
+      )
     }
     console.log(
       `${slug}: done — fileColours ${fileColours.length}, colour rows ${colourPlan.rows?.length ?? 0}` +
