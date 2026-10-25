@@ -51,25 +51,31 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import {
+  createCmsClient,
+  defaultCmsBase,
+  exitIfBaseUnsafe,
+  explainPayloadError as explain,
+  resolveCmsKey,
+} from './cms-client.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const DATA = path.join(HERE, 'catalogue-products.json')
 
-const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
-const API_KEY = process.env.CMS_API_KEY || ''
+const API_BASE = defaultCmsBase()
+const API_KEY = resolveCmsKey()
 
 // Rows from catalogue-products.json AND the API key above both travel in every
-// request below. `CMS_API_BASE` is operator-supplied, so an http:// value would put
+// request below. The address is operator-supplied, so an http:// value would put
 // the catalogue and the credential on the wire in cleartext with nothing to say so
-// (CodeQL js/file-access-to-http, two instances). No localhost exemption: docs/RUNBOOK.md
-// documents only https origins for this variable, so one would be speculative.
-if (!API_BASE.startsWith('https://')) {
-  console.error(`CMS_API_BASE must be https:// — got "${API_BASE}"`)
-  process.exit(2)
-}
+// (CodeQL js/file-access-to-http, two instances). scripts/cms-client.mjs repeats the check
+// beside the `fetch` itself (2026-10-25) and allows http:// only to localhost, where nothing
+// leaves the machine.
+exitIfBaseUnsafe(API_BASE)
 
 const args = process.argv.slice(2)
 const APPLY = args.includes('--apply')
+const client = createCmsClient({ base: API_BASE, key: API_KEY, apply: APPLY })
 const limitAt = args.indexOf('--limit')
 const LIMIT = limitAt === -1 ? Number.POSITIVE_INFINITY : Number(args[limitAt + 1])
 
@@ -114,43 +120,10 @@ function validate(products) {
   return problems
 }
 
-async function api(method, pathname, body) {
-  const res = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `users API-Key ${API_KEY}`,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  const text = await res.text()
-  let json
-  try {
-    json = JSON.parse(text)
-  } catch {
-    json = { raw: text.slice(0, 300) }
-  }
-  return { ok: res.ok, status: res.status, json }
-}
-
-/**
- * The API's own error shape, flattened to one line.
- *
- * Payload returns `{ errors: [{ message, data: { errors: [{ field, message }] } }] }`
- * for a validation failure, and the useful part is the innermost `field`/`message`
- * pair. Printing the outer message alone yields "The following field is invalid"
- * with no field named, which is exactly the unhelpful shape Products.ts's own
- * APIError comment complains about.
- */
-function explain(json) {
-  const top = json?.errors?.[0]
-  if (!top) return JSON.stringify(json).slice(0, 200)
-  const inner = top.data?.errors
-  if (Array.isArray(inner) && inner.length > 0) {
-    return inner.map((e) => `${e.field ?? '?'}: ${e.message}`).join('; ')
-  }
-  return top.message ?? JSON.stringify(top).slice(0, 200)
-}
+// `explain` (the API's own error shape, flattened to one line) is the client's
+// `explainPayloadError`. Payload's outer message is "The following field is invalid" with no
+// field named; the useful part is the innermost `field`/`message` pair — exactly the
+// unhelpful shape Products.ts's own APIError comment complains about.
 
 /** The payload for one product. `catalogueUrl` and `retiredMessage` are omitted
  *  on purpose so their defaultValue functions inherit from the
@@ -169,6 +142,10 @@ const toPayload = (p) => ({
   ...(p.garmentFit ? { garmentFit: p.garmentFit } : {}),
   performanceFeatures: (p.performanceFeatures ?? []).map((feature) => ({ feature })),
 })
+
+/** A refusal reads `status explanation`, as it always did; a write the read-back disagrees with says so. */
+const failureText = (res) =>
+  res.stage === 'write' ? `${res.status} ${res.detail}` : `written but NOT stored: ${res.error}`
 
 async function main() {
   const all = JSON.parse(readFileSync(DATA, 'utf8')).products
@@ -205,7 +182,7 @@ async function main() {
     const lookup = p.existingProductId
       ? `/api/products/${p.existingProductId}?depth=0`
       : `/api/products?where[productCode][equals]=${encodeURIComponent(p.productCode)}&depth=0&limit=1`
-    const found = await api('GET', lookup)
+    const found = await client.get(lookup)
 
     if (p.existingProductId) {
       if (!found.ok) {
@@ -230,7 +207,10 @@ async function main() {
       // measured), so the dataset's own guesses must not overwrite them. That is
       // why the read-back diff still reports gsm differing for this one row, and
       // why that difference is correct.
-      const res = await api('PATCH', `/api/products/${p.existingProductId}`, {
+      //
+      // The client reads the row back (`depth=0`) and compares the three fields sent; before
+      // 2026-10-25 this PATCH, and the create below, were trusted on their status alone.
+      const res = await client.patchDoc('products', p.existingProductId, {
         productCode: p.productCode,
         shortDescription: p.shortDescription,
         sortOrder: p.sortOrder,
@@ -239,7 +219,7 @@ async function main() {
         console.log(`${label} UPDATED (slug "${found.json.slug}" untouched)`)
         tally.updated++
       } else {
-        console.log(`${label} FAILED  ${res.status} ${explain(res.json)}`)
+        console.log(`${label} FAILED  ${failureText(res)}`)
         tally.failed++
       }
       continue
@@ -251,12 +231,12 @@ async function main() {
       continue
     }
 
-    const res = await api('POST', '/api/products', toPayload(p))
+    const res = await client.createDoc('products', { json: toPayload(p) })
     if (res.ok) {
       console.log(`${label} created  /${p.slug}`)
       tally.created++
     } else {
-      console.log(`${label} FAILED  ${res.status} ${explain(res.json)}`)
+      console.log(`${label} FAILED  ${failureText(res)}`)
       tally.failed++
     }
   }
