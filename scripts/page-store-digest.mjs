@@ -14,6 +14,14 @@
  * request, so a fetch the store answers is fast and a fresh draw is slow; a week after a deploy
  * mixes both, which is why the line names the request count.
  *
+ * ⚠️ VISITORS ONLY, AND THE MISSES COUNTED APART (25 Oct). A miss shows in Workers logs twice: the
+ * visitor's request, which waits, and the store's own draw into SitePages at the same address.
+ * Counted together they made the store look slower than it is: garment data in the hour after
+ * #255 was 462 requests, 333 visitors and 129 draws, p75 627 ms together and 112 ms for the
+ * visitors. Only the store's requests carry an entrypoint name (`$workers.entrypoint` is
+ * SitePages; a visitor's is empty), so the timings read the empty ones and the draws are counted
+ * by name. Splitting on the user-agent instead loses the 26 visitors that send none.
+ *
  * ⚠️ NUMBERS AND FIXED WORDS ONLY. On a public repository every Actions log is public (root
  * CLAUDE.md, the 2026-09-11 incident), and the summary is also written into a GitHub issue. Nothing
  * from the API response is printed except the numbers this module picks out, and an error is a
@@ -22,6 +30,9 @@
 import { realpathSync } from 'node:fs'
 
 export const CMS_SERVICE = 'run-apparel-viewer-cms'
+
+/** The store's entrypoint (worker.mjs): the only requests that carry an entrypoint name. */
+export const STORE_ENTRYPOINT = 'SitePages'
 
 /** The four targets, from the plan the owner approved on 24 Oct. */
 export const TARGETS = Object.freeze({
@@ -45,11 +56,16 @@ export const ROUTES = Object.freeze({
  * @param {keyof typeof ROUTES} route
  * @param {number} from epoch ms
  * @param {number} to epoch ms
+ * @param {'visitors' | 'draws'} [who] the visitors' requests (timed), or the store's own draws
  */
-export function queryBody(route, from, to) {
+export function queryBody(route, from, to, who = 'visitors') {
   const { match, url } = ROUTES[route]
+  const entrypoint =
+    who === 'draws'
+      ? { key: '$workers.entrypoint', operation: 'eq', type: 'string', value: STORE_ENTRYPOINT }
+      : { key: '$workers.entrypoint', operation: 'is_null', type: 'string' }
   return {
-    queryId: `weekly-digest-page-store-${route}`,
+    queryId: `weekly-digest-page-store-${route}-${who}`,
     view: 'calculations',
     timeframe: { from, to },
     parameters: {
@@ -57,6 +73,7 @@ export function queryBody(route, from, to) {
       filters: [
         { key: '$metadata.service', operation: 'eq', type: 'string', value: CMS_SERVICE },
         { key: '$workers.event.request.url', operation: match, type: 'string', value: url },
+        entrypoint,
       ],
       calculations: [
         { operator: 'count', alias: 'requests' },
@@ -99,9 +116,10 @@ const verdict = (value, target) =>
  * Pure: the three routes' numbers to the digest's prose. Fixed words around numbers only.
  *
  * @param {{ home: ReturnType<typeof readCalculations>, sitemap: ReturnType<typeof readCalculations>, data: ReturnType<typeof readCalculations> }} r
+ * @param {{ home?: number, sitemap?: number, data?: number }} [draws] how many the store drew fresh
  * @returns {{ requests: number, summary: string }}
  */
-export function summarizePageStore(r) {
+export function summarizePageStore(r, draws = {}) {
   const requests = r.home.requests + r.sitemap.requests + r.data.requests
   if (requests === 0) {
     return {
@@ -111,11 +129,16 @@ export function summarizePageStore(r) {
     }
   }
   const ms = (v) => (v === null ? '-' : `${v} ms`)
+  const over = (route) => {
+    const fresh = draws[route]
+    const count = `over ${r[route].requests} requests`
+    return Number.isFinite(fresh) ? `${count}, ${Math.round(fresh)} drawn fresh` : count
+  }
   const lines = [
-    'Page store (Workers logs, 7 days; targets from the 24 Oct plan):',
-    `- Home page: p75 ${ms(r.home.p75)} (${verdict(r.home.p75, TARGETS.homeP75)}, target under ${TARGETS.homeP75} ms), p90 ${ms(r.home.p90)} (${verdict(r.home.p90, TARGETS.homeP90)}, under ${TARGETS.homeP90} ms), over ${r.home.requests} requests. Before the store: 799 / 2,338 ms.`,
-    `- Garment data: p90 ${ms(r.data.p90)} (${verdict(r.data.p90, TARGETS.dataP90)}, target under ${TARGETS.dataP90} ms), over ${r.data.requests} requests. Before: 677 ms.`,
-    `- Sitemap processor time: median ${ms(r.sitemap.cpuP50)} (${verdict(r.sitemap.cpuP50, TARGETS.sitemapCpuP50)}, target under ${TARGETS.sitemapCpuP50} ms), over ${r.sitemap.requests} requests. Before: 595 ms.`,
+    'Page store (Workers logs, 7 days, visitors only; targets from the 24 Oct plan):',
+    `- Home page: p75 ${ms(r.home.p75)} (${verdict(r.home.p75, TARGETS.homeP75)}, target under ${TARGETS.homeP75} ms), p90 ${ms(r.home.p90)} (${verdict(r.home.p90, TARGETS.homeP90)}, under ${TARGETS.homeP90} ms), ${over('home')}. Before the store: 799 / 2,338 ms.`,
+    `- Garment data: p90 ${ms(r.data.p90)} (${verdict(r.data.p90, TARGETS.dataP90)}, target under ${TARGETS.dataP90} ms), ${over('data')}. Before: 677 ms.`,
+    `- Sitemap processor time: median ${ms(r.sitemap.cpuP50)} (${verdict(r.sitemap.cpuP50, TARGETS.sitemapCpuP50)}, target under ${TARGETS.sitemapCpuP50} ms), ${over('sitemap')}. Before: 595 ms.`,
   ]
   return { requests, summary: lines.join('\n') }
 }
@@ -138,13 +161,13 @@ async function main() {
   }
   const to = Date.now()
   const from = to - 7 * 24 * 3600 * 1000
-  const read = async (route) => {
+  const read = async (route, who) => {
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${account}/workers/observability/telemetry/query`,
       {
         method: 'POST',
         headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify(queryBody(route, from, to)),
+        body: JSON.stringify(queryBody(route, from, to, who)),
         signal: AbortSignal.timeout(30_000),
       },
     )
@@ -152,11 +175,18 @@ async function main() {
     return readCalculations(await response.json())
   }
   try {
-    const { requests, summary } = summarizePageStore({
-      home: await read('home'),
-      sitemap: await read('sitemap'),
-      data: await read('data'),
-    })
+    const { requests, summary } = summarizePageStore(
+      {
+        home: await read('home', 'visitors'),
+        sitemap: await read('sitemap', 'visitors'),
+        data: await read('data', 'visitors'),
+      },
+      {
+        home: (await read('home', 'draws')).requests,
+        sitemap: (await read('sitemap', 'draws')).requests,
+        data: (await read('data', 'draws')).requests,
+      },
+    )
     console.log(`requests=${requests}`)
     console.log(summary)
   } catch (error) {

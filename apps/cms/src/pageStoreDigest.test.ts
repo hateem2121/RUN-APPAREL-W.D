@@ -5,6 +5,7 @@ import {
   CMS_SERVICE,
   queryBody,
   readCalculations,
+  STORE_ENTRYPOINT,
   summarizePageStore,
   TARGETS,
   UNREADABLE,
@@ -41,6 +42,7 @@ describe('the query asks about the CMS Worker and the right addresses', () => {
         type: 'string',
         value: 'https://wear-run.com/',
       },
+      { key: '$workers.entrypoint', operation: 'is_null', type: 'string' },
     ])
   })
 
@@ -48,6 +50,34 @@ describe('the query asks about the CMS Worker and the right addresses', () => {
     const filter = queryBody('data', 1, 2).parameters.filters[1]
     expect(filter?.operation).toBe('starts_with')
     expect(filter?.value).toBe('https://cms.wear-run.help/api/public/viewer/')
+  })
+
+  /*
+   * A miss shows in Workers logs TWICE: the visitor's request, which waits, and the store's own
+   * draw into SitePages at the same address. Measured 25 Oct, garment data in the hour after
+   * #255: 462 requests = 333 visitors + 129 draws; counted together p75 627 ms, visitors alone
+   * 112 ms. Only the store's requests carry an entrypoint name, so "no entrypoint" is exactly the
+   * visitors, including the ones that send no user-agent.
+   */
+  it('times only the visitors, never the store drawing into itself', () => {
+    const filters = queryBody('home', 1, 2).parameters.filters
+    expect(filters).toContainEqual({
+      key: '$workers.entrypoint',
+      operation: 'is_null',
+      type: 'string',
+    })
+    expect(filters).toHaveLength(3)
+  })
+
+  it('counts the draws, which are the misses, through the store entrypoint', () => {
+    const filters = queryBody('data', 1, 2, 'draws').parameters.filters
+    expect(filters).toContainEqual({
+      key: '$workers.entrypoint',
+      operation: 'eq',
+      type: 'string',
+      value: STORE_ENTRYPOINT,
+    })
+    expect(filters.some((f) => f.operation === 'is_null')).toBe(false)
   })
 })
 
@@ -77,6 +107,20 @@ describe('the summary says plainly whether each target was met', () => {
     expect(summary).toContain('p90 1457 ms (OVER target')
     expect(summary).toContain('Garment data: p90 1771 ms (OVER target')
     expect(summary).toContain('median 25 ms (OVER target')
+  })
+
+  it('names how many requests the store drew fresh, beside each timing', () => {
+    const { summary } = summarizePageStore(
+      {
+        home: readCalculations(answer(121, 77, 1119, 2)),
+        sitemap: readCalculations(answer(16, 115, 920, 1)),
+        data: readCalculations(answer(333, 112, 1507, 1)),
+      },
+      { home: 11, sitemap: 3, data: 129 },
+    )
+    expect(summary).toContain('over 121 requests, 11 drawn fresh')
+    expect(summary).toContain('over 333 requests, 129 drawn fresh')
+    expect(summary).toContain('over 16 requests, 3 drawn fresh')
   })
 
   it('a week with no requests says so, rather than reading as a pass', () => {
