@@ -44,11 +44,15 @@
  * copyright on a non-default colourway's export is invisible to this run.
  */
 
+import { publicCmsClient } from './cms-client.mjs'
 import { LIVE_PRODUCTS } from './live-products.mjs'
 import { judgePosters } from './poster-sizes.mjs'
 import { realpathSync } from 'node:fs'
 
-const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
+// The public viewer payload is read through `publicCmsClient()` (keyless, read-only, made on
+// first use). The address is CMS_API_BASE; CMS_ORIGIN and CMS_URL still work (scripts/cms-client.mjs,
+// 2026-10-25). The model files themselves are fetched from their own public URLs below, not
+// through the client.
 
 /** Statuses that mean "ask again later", not "the model is broken" — same set every probe here uses. */
 const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
@@ -387,11 +391,9 @@ export function evaluate(observations) {
 async function probeOne(target) {
   let body
   try {
-    const response = await fetch(
-      `${API_BASE}/api/public/viewer/${target.slug}/${target.colourway}`,
-      {
-        signal: AbortSignal.timeout(20_000),
-      },
+    const response = await publicCmsClient().fetchRaw(
+      `/api/public/viewer/${target.slug}/${target.colourway}`,
+      { auth: false, timeoutMs: 20_000 },
     )
     if (!response.ok)
       return [{ key: target.key, error: `viewer payload answered ${response.status}` }]
