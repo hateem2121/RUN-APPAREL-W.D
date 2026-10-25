@@ -41,11 +41,11 @@ const GATES = [
   },
   { name: 'lint', why: 'biome check . — the cheapest gate to fail on', argv: [...PNPM, 'lint'] },
   {
-    // REPORT ONLY in CI as well (`--no-exit-code`, knip.jsonc): it lists, it never fails. Added
-    // here 2026-10-25 so the runner's list is CI's list.
+    // BLOCKING in CI as well since 2026-10-25 (owner decision, knip.jsonc): an unused file,
+    // export or package fails it. Added here 2026-10-25 so the runner's list is CI's list.
     name: 'knip',
-    why: 'unused files, exports and packages — report only, never fails (as in CI)',
-    argv: [...PNPM, 'exec', 'knip', '--no-exit-code'],
+    why: 'unused files, exports and packages — blocks, as in CI',
+    argv: [...PNPM, 'exec', 'knip'],
   },
   {
     // A single Go binary CI downloads (pinned 1.7.12). Not installed here unless the owner did:
