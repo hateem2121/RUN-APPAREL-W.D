@@ -7,6 +7,9 @@
  *   CMS_API_KEY=... node scripts/find-orphan-media.mjs [--delete] [--yes]
  *                                                      [--url https://cms.wear-run.help]
  *
+ * The address is `--url`, else CMS_API_BASE (CMS_URL, its old name, still works), else
+ * production — through scripts/cms-client.mjs, which reads every delete back (2026-10-25).
+ *
  * WHY THIS EXISTS. Until this session, every re-run of a shrink job created a
  * brand-new Media document and overwrote the raw upload's `resultGlb`, leaving
  * the previous document and its object in the PUBLIC bucket with nothing
@@ -24,6 +27,7 @@
  * will report a live asset as an orphan.
  */
 import { createInterface } from 'node:readline/promises'
+import { createCmsClient, resolveCmsKey } from './cms-client.mjs'
 
 /**
  * The Product fields that can point at a Media document. `a.b` means "for every
@@ -89,11 +93,9 @@ const CONTENT_RICH_TEXT = {
 }
 
 function parseArgs(argv) {
-  const options = {
-    delete: false,
-    yes: false,
-    url: process.env.CMS_URL ?? 'https://cms.wear-run.help',
-  }
+  // `url` stays unset unless `--url` is given: the shared client then takes the address from
+  // CMS_API_BASE (CMS_URL, this script's old name, still works with a "renamed" note).
+  const options = { delete: false, yes: false, url: undefined }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--delete') options.delete = true
     else if (argv[i] === '--yes') options.yes = true
@@ -109,7 +111,7 @@ function fail(message) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2))
-  const apiKey = process.env.CMS_API_KEY
+  const apiKey = resolveCmsKey()
   if (!apiKey) {
     fail(
       'CMS_API_KEY is not set.\n' +
@@ -117,14 +119,17 @@ async function main() {
         '    export CMS_API_KEY=...',
     )
   }
-  const base = options.url.replace(/\/$/, '')
+  // A write (the delete below) only happens with --delete; the client refuses one otherwise.
+  const client = createCmsClient({ base: options.url, key: apiKey, apply: options.delete })
+  const base = client.base
 
   const request = async (path) => {
-    const res = await fetch(`${base}${path}`, {
-      headers: { Authorization: `users API-Key ${apiKey}`, accept: 'application/json' },
-    })
+    const res = await client.get(path)
     if (!res.ok) fail(`${path} returned ${res.status}`)
-    return res.json()
+    // A page that is not JSON (a challenge page) must stop the run: read as "nothing is
+    // referenced", every file would be listed as an orphan, and --delete would remove them.
+    if (!res.parsed) fail(`${path} did not return JSON`)
+    return res.json
   }
 
   // 1. Every Media doc, paged.
@@ -241,15 +246,14 @@ async function main() {
 
   let deleted = 0
   for (const doc of orphans) {
-    const res = await fetch(`${base}/api/media/${doc.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `users API-Key ${apiKey}` },
-    })
+    // The client deletes, then reads the document back: "deleted" is printed only when the
+    // CMS no longer has it (a 200 that kept the file is a failure).
+    const res = await client.deleteDoc('media', doc.id)
     if (res.ok) {
       deleted++
       console.log(`  deleted #${doc.id}`)
     } else {
-      console.error(`  FAILED  #${doc.id} (${res.status})`)
+      console.error(`  FAILED  #${doc.id} (${res.stage === 'write' ? res.status : res.error})`)
     }
   }
   console.log(`\nDeleted ${deleted}/${orphans.length}.`)

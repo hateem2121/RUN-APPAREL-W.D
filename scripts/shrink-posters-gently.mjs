@@ -43,6 +43,13 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { realpathSync } from 'node:fs'
+import {
+  createCmsClient,
+  defaultCmsBase,
+  exitIfBaseUnsafe,
+  explainPayloadError as explain,
+  resolveCmsKey,
+} from './cms-client.mjs'
 
 /** The repo root, derived from this file's own location — never hard-coded. */
 const REPO = fileURLToPath(new URL('..', import.meta.url))
@@ -50,10 +57,19 @@ const REPO = fileURLToPath(new URL('..', import.meta.url))
 const require = createRequire(join(REPO, 'tools/asset-pipeline/package.json'))
 const sharp = require('sharp')
 
-const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 /** `let`, not `const`: the hidden prompt in apply() assigns it when unset. */
-let API_KEY = process.env.CMS_API_KEY || ''
+let API_KEY = resolveCmsKey()
 const APPLY = process.argv.includes('--apply')
+
+/**
+ * The shared client (scripts/cms-client.mjs, 2026-10-25), made where it is used so nothing
+ * reads the environment at import (a test imports this file). `key` empty is a public,
+ * read-only client: the dry run needs none. The address is CMS_API_BASE; CMS_ORIGIN and
+ * CMS_URL still work with a "renamed" note.
+ * @param {{ key?: string, apply?: boolean }} [options]
+ */
+const clientFor = ({ key = '', apply = false } = {}) =>
+  createCmsClient({ base: defaultCmsBase(), key, apply })
 
 /** The settings the owner approved for `r-wzu` (all five colourways). */
 export const VEST = { quality: 75, alphaQuality: 80, effort: 6, smartSubsample: false }
@@ -429,29 +445,6 @@ export async function findExistingUpload(mediaDocs, trim) {
   return null
 }
 
-async function api(auth, method, pathname, body) {
-  const response = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...auth },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  const text = await response.text()
-  let json
-  try {
-    json = JSON.parse(text)
-  } catch {
-    json = { raw: text.slice(0, 300) }
-  }
-  return { ok: response.ok, status: response.status, json }
-}
-
-function explain(json) {
-  const outer = json?.errors?.[0]
-  const inner = outer?.data?.errors?.[0]
-  if (inner) return `${inner.field}: ${inner.message}`
-  return outer?.message || json?.raw || JSON.stringify(json).slice(0, 200)
-}
-
 /**
  * Thrown in place of `process.exit()` everywhere inside dryRun()/apply()'s own
  * logic, so a test can observe a stop (via `.rejects`) without killing the test
@@ -515,13 +508,13 @@ function groupByProduct(trims) {
  * the WHOLE run here, before any upload or PATCH, and says plainly that nothing
  * was changed.
  *
- * @param {Record<string, string>} auth
+ * @param {import('./cms-client.d.mts').CmsClient} client
  * @returns {Promise<import('./shrink-posters-gently.d.mts').MediaListing[]>}
  */
-async function fetchMediaIndex(auth) {
+async function fetchMediaIndex(client) {
   const docs = []
   for (let page = 1; ; page++) {
-    const listed = await api(auth, 'GET', `/api/media?limit=100&depth=0&page=${page}`)
+    const listed = await client.get(`/api/media?limit=100&depth=0&page=${page}`)
     if (!listed.ok) {
       console.error(
         `\nCould not list Media to check for a prior upload (${listed.status}): ${explain(listed.json)}`,
@@ -557,8 +550,9 @@ async function fetchMediaIndex(auth) {
  */
 export async function dryRun(trims = GENTLE_TRIMS) {
   const rows = []
+  const client = clientFor() // keyless: the dry run reads public endpoints only
   for (const [product, productTrims] of groupByProduct(trims)) {
-    const response = await fetch(`${API_BASE}/api/public/viewer/${product}`)
+    const response = await client.fetchRaw(`/api/public/viewer/${product}`, { auth: false })
     if (!response.ok) {
       for (const trim of productTrims) {
         rows.push({
@@ -748,23 +742,20 @@ export async function apply(providedKey, trims = GENTLE_TRIMS) {
   // Only the real interactive/env path updates module state — a test's own key
   // must never leak into a later call that expects to prompt for one.
   if (!providedKey) API_KEY = key
-  const auth = { Authorization: `users API-Key ${key}` }
+  // The shared client: every write below is read back, and nothing is sent without `apply`.
+  const client = clientFor({ key, apply: true })
 
   // Fetched at most once, lazily, the first time a colour actually needs an
   // upload — most runs (a clean first pass, or a full re-run once everything is
   // 'done') never need it at all.
   let mediaIndexPromise = null
-  const getMediaIndex = () => (mediaIndexPromise ??= fetchMediaIndex(auth))
+  const getMediaIndex = () => (mediaIndexPromise ??= fetchMediaIndex(client))
 
   for (const [product, productTrims] of groupByProduct(trims)) {
     console.log(`\n${product}:`)
 
     // Step 2.
-    const found = await api(
-      auth,
-      'GET',
-      `/api/products?where%5Bslug%5D%5Bequals%5D=${product}&depth=0&limit=1`,
-    )
+    const found = await client.productBySlug(product)
     if (!found.ok) return fail(found, `reading ${product}`)
     const doc = found.json?.docs?.[0]
     if (!doc) {
@@ -783,7 +774,7 @@ export async function apply(providedKey, trims = GENTLE_TRIMS) {
         console.error(`  no colourway "${trim.colour}" on ${product}`)
         throw new Stop(1)
       }
-      const media = await api(auth, 'GET', `/api/media/${idOf(row.posterPreview)}?depth=0`)
+      const media = await client.get(`/api/media/${idOf(row.posterPreview)}?depth=0`)
       if (!media.ok) return fail(media, `reading the current poster for ${trim.colour}`)
       const currentUrl = media.json?.url
       if (!currentUrl) {
@@ -857,34 +848,26 @@ export async function apply(providedKey, trims = GENTLE_TRIMS) {
         // Step 4. Payload may add "-1" to the filename if one of this name
         // already exists (it does — the current poster). That is fine; newDoc.url
         // is read back, never assumed from the name sent.
-        const form = new FormData()
-        form.append('_payload', JSON.stringify({ alt: row.altText }))
-        form.append(
-          'file',
-          new File([result], `${product}-${trim.colour}-poster.webp`, { type: 'image/webp' }),
-        )
-        const uploadResponse = await fetch(`${API_BASE}/api/media`, {
-          method: 'POST',
-          headers: auth,
-          body: form,
+        //
+        // Steps 4 and 5 in one call: the client uploads (multipart, `_payload` then the
+        // file), then fetches the new file back with a plain GET and compares its sha256 to
+        // the approved trim. No media-document GET: the served bytes are the check.
+        const uploaded = await client.uploadMedia({
+          filename: `${product}-${trim.colour}-poster.webp`,
+          bytes: result,
+          type: 'image/webp',
+          fields: { alt: row.altText },
+          expectServed: { sha256: trim.approved.sha256 },
         })
-        const uploadBody = await uploadResponse.json()
-        if (uploadResponse.status >= 300) {
-          return fail(
-            { status: uploadResponse.status, json: uploadBody },
-            `uploading ${trim.colour}`,
-          )
+        if (uploaded.stage === 'write') {
+          return fail({ status: uploaded.status, json: uploaded.json }, `uploading ${trim.colour}`)
         }
-        newDoc = uploadBody.doc ?? uploadBody
-
-        // Step 5.
-        const readBack = await fetch(newDoc.url)
-        const readBackBytes = Buffer.from(await readBack.arrayBuffer())
-        if (sha256(readBackBytes) !== trim.approved.sha256) {
+        if (!uploaded.ok) {
           console.error(`  ${trim.colour}: uploaded, but the served bytes do not match. Stop.`)
           console.error('  The product was NOT patched.')
           throw new Stop(1)
         }
+        newDoc = uploaded.doc
       }
 
       idsBySlug.set(trim.colour, newDoc.id)
@@ -895,16 +878,19 @@ export async function apply(providedKey, trims = GENTLE_TRIMS) {
 
     // Step 6.
     const sentRows = repointedColourways(doc.colourways ?? [], idsBySlug)
-    const patched = await api(auth, 'PATCH', `/api/products/${doc.id}`, { colourways: sentRows })
-    if (!patched.ok) return fail(patched, `writing ${product}`)
-
-    // Step 7.
-    const reread = await api(auth, 'GET', `/api/products/${doc.id}?depth=0`)
-    if (!reread.ok) return fail(reread, `reading ${product} back`)
-    const problems = readBackProblems(sentRows, reread.json?.colourways ?? [])
-    if (problems.length > 0) {
+    // Steps 6 and 7 in one call: the client sends the PATCH, reads the product back
+    // (`depth=0`) and runs `readBackProblems` on the rows.
+    const patched = await client.patchDoc(
+      'products',
+      doc.id,
+      { colourways: sentRows },
+      { verify: (stored) => readBackProblems(sentRows, stored?.colourways ?? []) },
+    )
+    if (patched.stage === 'write') return fail(patched, `writing ${product}`)
+    if (patched.stage === 'read') return fail(patched, `reading ${product} back`)
+    if (!patched.ok) {
       console.error(`  read-back mismatch on ${product}:`)
-      for (const problem of problems) console.error(`    - ${problem}`)
+      for (const problem of patched.mismatches) console.error(`    - ${problem}`)
       throw new Stop(1)
     }
     console.log(`  ${product}: written and read back — every field matches.`)
@@ -915,7 +901,9 @@ export async function apply(providedKey, trims = GENTLE_TRIMS) {
     console.log('  waiting for the public payload to catch up…')
     let caughtUp = false
     for (let attempt = 0; attempt < 12; attempt++) {
-      const publicResponse = await fetch(`${API_BASE}/api/public/viewer/${product}`)
+      const publicResponse = await client.fetchRaw(`/api/public/viewer/${product}`, {
+        auth: false,
+      })
       const publicBody = publicResponse.ok ? await publicResponse.json() : { colourways: [] }
       const posterUrlBySlug = new Map(
         (publicBody.colourways ?? []).map((c) => [String(c.slug ?? ''), c.poster?.url]),
@@ -944,12 +932,7 @@ export async function apply(providedKey, trims = GENTLE_TRIMS) {
 }
 
 async function main() {
-  if (!API_BASE.startsWith('https://')) {
-    console.error(
-      `CMS_API_BASE must be https:// — the key travels in every request. Got "${API_BASE}"`,
-    )
-    process.exit(2)
-  }
+  exitIfBaseUnsafe(defaultCmsBase())
   if (APPLY) {
     await apply()
     return

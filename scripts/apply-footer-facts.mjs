@@ -36,12 +36,17 @@
  */
 
 import { realpathSync } from 'node:fs'
+import {
+  createCmsClient,
+  defaultCmsBase,
+  exitIfBaseUnsafe,
+  explainPayloadError as explain,
+  resolveCmsKey,
+} from './cms-client.mjs'
 
-const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
-/** `let`, not `const`: the prompt in main() assigns the key when the variable is unset. */
-let API_KEY = process.env.CMS_API_KEY || ''
 const APPLY = process.argv.includes('--apply')
-const GLOBAL = '/api/globals/site-settings'
+/** The CMS global these facts live in (`globals/SiteSettings.ts`). */
+const GLOBAL_SLUG = 'site-settings'
 
 /**
  * The owner's words, 2026-09-16, mapped onto the field names in `globals/SiteSettings.ts`.
@@ -135,39 +140,13 @@ export function problems(facts = FOOTER_FACTS) {
   return found
 }
 
-async function api(method, pathname, body) {
-  const response = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: `users API-Key ${API_KEY}` },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  const text = await response.text()
-  let json
-  try {
-    json = JSON.parse(text)
-  } catch {
-    json = { raw: text.slice(0, 300) }
-  }
-  return { ok: response.ok, status: response.status, json }
-}
-
-/** Payload's useful error is nested; the outer one is "The following field is invalid". */
-function explain(json) {
-  const outer = json?.errors?.[0]
-  const inner = outer?.data?.errors?.[0]
-  if (inner) return `${inner.field}: ${inner.message}`
-  return outer?.message || json?.raw || JSON.stringify(json).slice(0, 200)
-}
-
 const show = (label, value) => console.log(`  ${label.padEnd(24)} ${JSON.stringify(value)}`)
 
 async function main() {
-  if (!API_BASE.startsWith('https://')) {
-    console.error(
-      `CMS_API_BASE must be https:// — the key travels in every request. Got "${API_BASE}"`,
-    )
-    process.exit(2)
-  }
+  // Resolved here, not at import: apps/cms/src/footerFacts.test.ts and
+  // scripts/footer-facts-probe.mjs import this file and must not print a "renamed" note.
+  const base = defaultCmsBase()
+  exitIfBaseUnsafe(base)
   const bad = problems()
   if (bad.length > 0) {
     console.error('These values would be refused by the CMS:')
@@ -215,7 +194,7 @@ async function main() {
    * The environment variable still wins when it is set, so CI and any existing habit keep
    * working; it simply stops being what the owner is handed.
    */
-  let key = API_KEY
+  let key = resolveCmsKey()
 
   if (!key) {
     /*
@@ -284,9 +263,9 @@ async function main() {
     console.error('Run without CMS_API_KEY set and the script will ask for it instead.')
     process.exit(2)
   }
-  API_KEY = key
+  const client = createCmsClient({ base, key, apply: true })
 
-  const before = await api('GET', `${GLOBAL}?depth=0`)
+  const before = await client.get(`/api/globals/${GLOBAL_SLUG}?depth=0`)
   if (!before.ok) {
     console.error(`\nCould not read Settings (${before.status}): ${explain(before.json)}`)
     /*
@@ -315,9 +294,31 @@ async function main() {
     (before.json?.socialLinks ?? []).map((r) => r?.label),
   )
 
-  const saved = await api('POST', GLOBAL, FOOTER_FACTS)
-  if (!saved.ok) {
-    console.error(`\nRefused (${saved.status}): ${explain(saved.json)}`)
+  // The client sends it, then reads the global back (`depth=0`) and runs this comparison.
+  // A 200 is not storage: it compares what actually landed.
+  const saved = await client.updateGlobal(GLOBAL_SLUG, FOOTER_FACTS, {
+    verify: (stored) => {
+      const got = stored ?? {}
+      const mismatches = []
+      for (const [field, value] of Object.entries(FOOTER_FACTS.capacity)) {
+        if (got?.capacity?.[field] !== value)
+          mismatches.push(`capacity.${field}: stored ${JSON.stringify(got?.capacity?.[field])}`)
+      }
+      if (got.worksCoordinates !== FOOTER_FACTS.worksCoordinates) {
+        mismatches.push(`worksCoordinates: stored ${JSON.stringify(got.worksCoordinates)}`)
+      }
+      const names = (rows) => (rows ?? []).map((r) => r?.name ?? r?.label)
+      if (names(got.certifications).join('|') !== names(FOOTER_FACTS.certifications).join('|')) {
+        mismatches.push(`certifications: stored ${JSON.stringify(names(got.certifications))}`)
+      }
+      if (names(got.socialLinks).join('|') !== names(FOOTER_FACTS.socialLinks).join('|')) {
+        mismatches.push(`socialLinks: stored ${JSON.stringify(names(got.socialLinks))}`)
+      }
+      return mismatches
+    },
+  })
+  if (saved.stage === 'write') {
+    console.error(`\nRefused (${saved.status}): ${saved.detail}`)
     /*
      * ⚠️ THIS GATE IS STRICTER THAN THE READ ABOVE, AND THE ASYMMETRY IS THE TRAP.
      * `SiteSettings.access` is `read: isAuthenticated` but `update: isAdmin`, so an
@@ -333,32 +334,13 @@ async function main() {
     process.exit(1)
   }
 
-  // A 200 is not storage. Read it back and compare what actually landed.
-  const stored = await api('GET', `${GLOBAL}?depth=0`)
-  if (!stored.ok) {
-    console.error(`\nWrote, but could not read back (${stored.status}): ${explain(stored.json)}`)
+  if (saved.stage === 'read') {
+    console.error(`\nWrote, but could not read back (${saved.status}): ${saved.detail}`)
     process.exit(1)
   }
-  const got = stored.json ?? {}
-  const mismatches = []
-  for (const [key, value] of Object.entries(FOOTER_FACTS.capacity)) {
-    if (got?.capacity?.[key] !== value)
-      mismatches.push(`capacity.${key}: stored ${JSON.stringify(got?.capacity?.[key])}`)
-  }
-  if (got.worksCoordinates !== FOOTER_FACTS.worksCoordinates) {
-    mismatches.push(`worksCoordinates: stored ${JSON.stringify(got.worksCoordinates)}`)
-  }
-  const names = (rows) => (rows ?? []).map((r) => r?.name ?? r?.label)
-  if (names(got.certifications).join('|') !== names(FOOTER_FACTS.certifications).join('|')) {
-    mismatches.push(`certifications: stored ${JSON.stringify(names(got.certifications))}`)
-  }
-  if (names(got.socialLinks).join('|') !== names(FOOTER_FACTS.socialLinks).join('|')) {
-    mismatches.push(`socialLinks: stored ${JSON.stringify(names(got.socialLinks))}`)
-  }
-
-  if (mismatches.length > 0) {
+  if (!saved.ok) {
     console.error('\nThe CMS accepted the write but stored something else:')
-    for (const line of mismatches) console.error(`  - ${line}`)
+    for (const line of saved.mismatches) console.error(`  - ${line}`)
     process.exit(1)
   }
   console.log('\nWritten and read back — every field matches. The footer blocks will appear.')
