@@ -143,6 +143,24 @@ const nextConfig = {
    * sheet brings it back.
    */
   experimental: { inlineCss: false },
+  /*
+   * THE SENTRY RELEASE IS BAKED IN AT BUILD TIME, NOT READ FROM THE WORKER (2026-10-25).
+   * The viewer tags each event with the commit that built it (VITE_SENTRY_RELEASE in ci.yml);
+   * the CMS sent none, so a CMS error could not be tied to a deploy. The Worker's own version
+   * metadata cannot carry it: the deploy uploads a version, then the two secret steps each make
+   * a NEWER version, and that last one serves with no message or tag (measured on 25 Oct:
+   * 454a3336, `workers/triggered_by: secret`). So the commit is replaced into server code here.
+   * GITHUB_SHA is set on every Actions step and is absent locally, so a local build sends no
+   * release. `compiler.defineServer` replaces it in server code only (nextjs.org "Next.js
+   * Compiler", read 2026-10-25); `env:` is Next's legacy option and would also inline it into
+   * browser bundles. src/lib/sentry.ts reads it as process.env.CMS_RELEASE.
+   * ⚠️ PASS THE PLAIN STRING, NOT JSON.stringify(...): Next already emits a string value as a
+   * string literal. Wrapped in JSON.stringify, the built code read `'"<sha>"'` and Sentry would
+   * have got a release named with its own quote marks (measured in .next/server, 2026-10-25).
+   */
+  compiler: {
+    defineServer: { 'process.env.CMS_RELEASE': process.env.GITHUB_SHA ?? '' },
+  },
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }]
   },

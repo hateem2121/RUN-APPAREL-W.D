@@ -331,6 +331,16 @@ export function buildEnvelope(event: Record<string, unknown>, sentAt: string): s
   return `${header}\n${itemHeader}\n${JSON.stringify(event)}\n`
 }
 
+/**
+ * The commit this Worker was built from, or undefined for a local build. All three senders
+ * (instrumentation.ts, reportCaught.ts, reportServerError.ts) go through reportToSentry, so it
+ * is applied once there. ⚠️ Written as the literal `process.env.CMS_RELEASE`: next.config.mjs
+ * replaces that exact text at build time, and a destructured or computed read is never replaced.
+ */
+export function buildRelease(): string | undefined {
+  return process.env.CMS_RELEASE || undefined
+}
+
 export interface ReportOptions extends BuildEventOptions {
   dsn: string | undefined | null
   fetchImpl?: typeof fetch
@@ -350,7 +360,7 @@ export async function reportToSentry(options: ReportOptions): Promise<boolean> {
   if (!dsn) return false
   const send = options.fetchImpl ?? fetch
   try {
-    const event = buildEvent(options)
+    const event = buildEvent({ ...options, release: options.release ?? buildRelease() })
     const body = buildEnvelope(event, options.sentAt ?? new Date().toISOString())
     const response = await send(envelopeUrl(dsn), {
       method: 'POST',
