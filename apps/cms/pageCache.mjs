@@ -30,13 +30,28 @@
  * redraw it on every visit (live: 217 URLs, `x-nextjs-cache: MISS`). An R2 incremental cache
  * would have served the build's copy and dropped all 200 garment pages from the sitemap.
  *
- * ⚠️ TWO VERSIONS IN EVERY KEY, so an old copy becomes unreachable instead of being deleted:
- * - The Worker's version (the CF_VERSION_METADATA binding). A deploy renames every script
- *   file, so a page from the last build would ask for files that no longer exist.
- * - The content version (KV binding SITE_CACHE, key CONTENT_VERSION_KEY). Every save of a
- *   product, a picture or the site settings writes a new one (src/lib/contentVersion.ts).
- *   Other data centres read it through KV's own cache of VERSION_CACHE_SECONDS, so a save
- *   reaches every page within about a minute, as the memory cache already allowed.
+ * ⚠️ THE DEPLOY IS IN EVERY KEY, so an old copy becomes unreachable instead of being deleted:
+ * the Worker's version (the CF_VERSION_METADATA binding). A deploy renames every script file,
+ * so a page from the last build would ask for files that no longer exist.
+ *
+ * ⚠️ A SAVE NO LONGER EMPTIES THE STORE (2026-10-25, owner's plan); IT MARKS THE COPIES OLD.
+ * Until then every save of a product, a picture or the site settings wrote a new content
+ * version into the key, so every region's next visitor waited while the page was drawn again:
+ * 25 Oct 08:00-18:40 UTC, 57 of the home page's 84 slow opens (over 600 ms) waited 2.2-4.6 s for
+ * a drawing, after a deploy or after seven picture deletions at 17:42. In practice each region
+ * keeps its own copy (sitemap that day: US data centres warm from 16:39, Marseille drew its own
+ * at 18:11, Muscat at 18:26). Now each copy carries a tag (Cache-Tag, KEPT_TAGS) and a
+ * stale-while-revalidate lifetime, and a save calls Workers Cache's invalidate() for the tags
+ * (worker.mjs SitePages.invalidateKept, called from src/lib/contentVersion.ts): the copy is
+ * marked stale, not deleted, so it is served while a new one is drawn. Cloudflare docs read
+ * 2026-10-25: invalidate() added 2026-09-29, "keeps them but marks them stale"; asynchronous
+ * stale-while-revalidate since 2026-02-26. ⚠️ NOT PROVEN BEFORE IT SHIPPED: the docs do not say
+ * whether a visitor waits while an invalidated copy is revalidated, and a local preview keeps
+ * nothing, so it was proven live after the merge.
+ *
+ * ⚠️ AND IT HAS AN OFF SWITCH. The KV value STORE_MODE_KEY = 'versioned' puts the content
+ * version back in the key (the behaviour before 2026-10-25) within VERSION_CACHE_SECONDS, with
+ * no deploy. Every save still writes a new content version, so the switch works either way.
  *
  * ⚠️ IT KEEPS ONLY WHAT IS THE SAME FOR EVERYONE. Never a request with a query string
  * (`?family=`, `?_rsc=`, an advert's `?utm_…`), an RSC or prefetch request, a Range, or a
@@ -58,6 +73,13 @@ export const SITE_HOST = 'wear-run.com'
 /** The KV key every CMS save rewrites (src/lib/contentVersion.ts). */
 export const CONTENT_VERSION_KEY = 'content-version'
 
+/** The KV key of the off switch: 'versioned' keys copies by the content version again. */
+export const STORE_MODE_KEY = 'page-store-mode'
+export const VERSIONED_MODE = 'versioned'
+
+/** What a save marks stale: Workers Cache invalidates by these (Cache-Tag on each copy). */
+export const KEPT_TAGS = Object.freeze({ pages: 'site-pages', garmentData: 'garment-data' })
+
 /** KV's shortest edge-cache time for a read (Cloudflare KV docs: "minimum: 30"). */
 export const VERSION_CACHE_SECONDS = 30
 
@@ -66,6 +88,17 @@ export const VERSION_CACHE_SECONDS = 30
  * sooner; this bounds only what neither can see, such as a database edit outside the CMS.
  */
 export const PAGE_CACHE_SECONDS = 86_400
+
+/**
+ * How long a copy past its lifetime, or marked stale by a save, may still be served while a new
+ * one is drawn in the background. A week: longer than any gap between visits on this site, so a
+ * returning region gets an old page at once rather than a wait. The deploy in the key still
+ * retires every copy at the next deploy.
+ */
+export const STALE_SECONDS = 604_800
+
+/** The lifetime a kept copy carries for the store (never sent to a browser: servedHeaders). */
+export const KEPT_CACHE_CONTROL = `public, max-age=${PAGE_CACHE_SECONDS}, stale-while-revalidate=${STALE_SECONDS}`
 
 const NEVER_KEPT_PATHS = /^\/(?:admin|api|_next|cdn-cgi|film|\.well-known)(?:\/|$)/
 const REQUEST_HEADERS_NEVER_KEPT = [
@@ -118,6 +151,35 @@ export const KEPT_RENDER_HEADERS = Object.freeze({
 export function keptRenderRequest(request, cf) {
   const init = { method: 'GET', headers: KEPT_RENDER_HEADERS }
   return new Request(request.url, cf ? { ...init, cf } : init)
+}
+
+/**
+ * A HEAD asks for a page's headers. The store keeps GET answers only, so a HEAD was drawn in full
+ * every time: 16 home-page HEADs on 25 Oct (the README's Shields.io badge and a Go client) at a
+ * median 636 ms of processor time. It is looked up as the GET it describes, and worker.mjs sends
+ * the headers without the body. Anything else is returned as it came.
+ */
+export function storeLookupRequest(request) {
+  if (request.method !== 'HEAD') return request
+  return new Request(request.url, { method: 'GET', headers: request.headers })
+}
+
+/**
+ * The key for this request in the shared store: the deploy, and the content version only when
+ * the off switch says 'versioned' (see the note at the top). A switch that cannot be read is
+ * left as it was set: on, the new behaviour.
+ *
+ * @param {string} url
+ * @param {string} deployVersion
+ * @param {{ get: (key: string, options: { cacheTtl: number }) => Promise<string | null> }} kv
+ */
+export async function keptStoreKey(url, deployVersion, kv) {
+  const [mode, content] = await Promise.all([
+    kv.get(STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null),
+    kv.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }),
+  ])
+  const versioned = mode === VERSIONED_MODE
+  return sharedCacheKey(url, deployVersion, versioned ? (content ?? 'none') : 'live')
 }
 
 /**
@@ -238,14 +300,20 @@ export function wholePage(html) {
 }
 
 /**
- * The headers kept with a copy: Next's own, with a lifetime the Cache API obeys. No validator
- * is kept, so the cache can never answer a visitor's conditional request with a bare 304.
+ * The headers kept with a copy: Next's own, with the store's lifetime and the tag a save marks
+ * stale. No validator is kept, so the cache can never answer a visitor's conditional request with
+ * a bare 304, and a revalidation after a save gets the whole new answer.
+ *
+ * @param {HeadersInit} headers
+ * @param {number} [now]
+ * @param {string} [tag] one of KEPT_TAGS
  */
-export function keptHeaders(headers, now = Date.now()) {
+export function keptHeaders(headers, now = Date.now(), tag = KEPT_TAGS.pages) {
   const out = new Headers(headers)
   const own = out.get('cache-control')
   if (own) out.set(BROWSER_CACHE_CONTROL, own)
-  out.set('cache-control', `public, max-age=${PAGE_CACHE_SECONDS}`)
+  out.set('cache-control', KEPT_CACHE_CONTROL)
+  out.set('cache-tag', tag)
   out.set(KEPT_MARK, 'yes')
   out.set(DRAWN_AT, String(now))
   for (const name of ['set-cookie', 'etag', 'last-modified', 'content-length']) out.delete(name)
@@ -269,12 +337,12 @@ export function unkeptHeaders(headers) {
 /** A kept copy's headers, made a page's again: the cache's bookkeeping removed. */
 export function servedHeaders(headers) {
   const out = new Headers(headers)
-  const bookkeeping = ['age', 'expires', 'cf-cache-status', 'etag', 'last-modified']
+  const bookkeeping = ['age', 'expires', 'cf-cache-status', 'etag', 'last-modified', 'cache-tag']
   for (const name of [...bookkeeping, KEPT_MARK, DRAWN_AT]) out.delete(name)
   if (out.has(BROWSER_CACHE_CONTROL)) {
     out.set('cache-control', out.get(BROWSER_CACHE_CONTROL))
     out.delete(BROWSER_CACHE_CONTROL)
-  } else if (out.get('cache-control') === `public, max-age=${PAGE_CACHE_SECONDS}`) {
+  } else if (out.get('cache-control') === KEPT_CACHE_CONTROL) {
     // The store's lifetime, never the browser's.
     out.delete('cache-control')
   }

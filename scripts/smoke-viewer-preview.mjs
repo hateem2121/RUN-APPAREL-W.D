@@ -240,10 +240,28 @@ async function runChecks() {
   if (!title.trim() || title.trim() === STATIC_TITLE) {
     fail(`<title> is "${title}" — the per-garment rewrite did not run.`)
   }
+  //    ⚠️ THE CARD TITLE NO LONGER CARRIES THE CODE EITHER (2026-10-25, owner's plan). It is
+  //    the page title without the brand, so that is what is checked, and the code must be on
+  //    the card somewhere: in the description, or in the title of a garment with no type yet.
+  //    Changed in the same commit as preview.ts: #100's deploy went red on a gate line left
+  //    pinning the old shape (2026-09-30).
+  //    Both sides are decoded: HTMLRewriter escapes an apostrophe in an attribute ("Women&#39;s")
+  //    and not in the title's text, and the two must still compare equal.
+  const decode = (text) =>
+    text
+      .replace(/&#(?:39|x27);/gi, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+  const cardTitle = decode(title.trim()).replace(/ \| RUN APPAREL$/, '')
   for (const key of ['og:title', 'twitter:title']) {
-    const value = meta(html, key) ?? ''
-    if (!squash(value).includes(expectCode))
-      fail(`${key} is "${value}", expected it to contain the product code ${expectCode}.`)
+    const value = decode((meta(html, key) ?? '').trim())
+    if (value !== cardTitle) fail(`${key} is "${value}", expected the page title "${cardTitle}".`)
+  }
+  const onCard = `${meta(html, 'og:title') ?? ''} ${meta(html, 'og:description') ?? ''}`
+  if (!squash(onCard).includes(expectCode)) {
+    fail(`neither og:title nor og:description names the product code ${expectCode}: "${onCard}".`)
   }
 
   // 3. The canonical URL is per-colourway and points back here. A static value would

@@ -6,8 +6,10 @@ import {
   BROWSER_CACHE_CONTROL,
   CONTENT_VERSION_KEY,
   drawingToKeep,
+  KEPT_CACHE_CONTROL,
   KEPT_FILES,
   KEPT_RENDER_HEADERS,
+  KEPT_TAGS,
   keepableFile,
   keepablePage,
   keepablePageRequest,
@@ -15,6 +17,7 @@ import {
   keptHeaders,
   keptRenderRequest,
   keptRenders,
+  keptStoreKey,
   PAGE_CACHE_SECONDS,
   pageCacheKey,
   pageCacheTiming,
@@ -22,6 +25,9 @@ import {
   servedHeaders,
   sharedCacheKey,
   spoilKeptRender,
+  STALE_SECONDS,
+  STORE_MODE_KEY,
+  storeLookupRequest,
   storeState,
   unkeptHeaders,
   VERSION_CACHE_SECONDS,
@@ -85,6 +91,26 @@ describe('which requests may be answered from a kept copy', () => {
 
   it('reads a cookie that merely CONTAINS the name as no login', () => {
     expect(keepablePageRequest(page('/', { headers: { cookie: 'my-payload-token=x' } }))).toBe(true)
+  })
+
+  /*
+   * 2026-10-25: a HEAD (the README's Shields.io badge, a Go client) was drawn in full every time,
+   * at a median 636 ms of processor time, because the store keeps GET answers only. It is now
+   * looked up as the GET it describes; worker.mjs sends the headers without the body.
+   */
+  it('looks a HEAD up as the GET it describes, with the same address and headers', () => {
+    const head = page('/', { method: 'HEAD', headers: { 'user-agent': 'Shields.io' } })
+    const asked = storeLookupRequest(head)
+    expect(asked.method).toBe('GET')
+    expect(asked.url).toBe(head.url)
+    expect(asked.headers.get('user-agent')).toBe('Shields.io')
+    expect(keepablePageRequest(asked)).toBe(true)
+    expect(keptFileRequest(storeLookupRequest(page('/sitemap.xml', { method: 'HEAD' })))).toBe(true)
+    // NEGATIVE CONTROL: as it arrives, the HEAD is still refused, and nothing else is rewritten.
+    expect(keepablePageRequest(head)).toBe(false)
+    const post = page('/contact', { method: 'POST', body: 'x' })
+    expect(storeLookupRequest(post)).toBe(post)
+    expect(keepablePageRequest(storeLookupRequest(post))).toBe(false)
   })
 })
 
@@ -226,6 +252,77 @@ describe('the shared store’s key (Workers Cache, 2026-10-24)', () => {
   })
 })
 
+/*
+ * 2026-10-25 (owner's plan): a save marks the kept copies stale instead of changing the key, so a
+ * region's next visitor is answered at once while the new copy is drawn; KV's 'page-store-mode' =
+ * 'versioned' switches the content version back into the key with no deploy.
+ */
+describe('the key a request is kept under, and its off switch', () => {
+  const url = `https://${SITE_HOST}/products`
+  const kv = (values: Record<string, string | null>) => ({
+    get: async (key: string) => values[key] ?? null,
+  })
+
+  it('names the deploy, and not the content version: a save leaves the key alone', async () => {
+    const before = await keptStoreKey(url, 'd1', kv({ 'content-version': 'c1' }))
+    const after = await keptStoreKey(url, 'd1', kv({ 'content-version': 'c2' }))
+    expect(after).toBe(before)
+    expect(before).toBe(sharedCacheKey(url, 'd1', 'live'))
+  })
+
+  it('still changes with a deploy', async () => {
+    expect(await keptStoreKey(url, 'd2', kv({}))).not.toBe(await keptStoreKey(url, 'd1', kv({})))
+  })
+
+  // NEGATIVE CONTROL: the switch set to 'versioned' is today's key, which a save does change.
+  it('switched to "versioned", keys by the content version again, as before 2026-10-25', async () => {
+    const off = { [STORE_MODE_KEY]: 'versioned' }
+    const before = await keptStoreKey(url, 'd1', kv({ ...off, 'content-version': 'c1' }))
+    const after = await keptStoreKey(url, 'd1', kv({ ...off, 'content-version': 'c2' }))
+    expect(before).toBe(sharedCacheKey(url, 'd1', 'c1'))
+    expect(after).not.toBe(before)
+    expect(await keptStoreKey(url, 'd1', kv(off))).toBe(sharedCacheKey(url, 'd1', 'none'))
+  })
+
+  it('a switch that cannot be read leaves the new behaviour on', async () => {
+    const broken = {
+      get: async (key: string) => {
+        if (key === STORE_MODE_KEY) throw new Error('KV down')
+        return 'c1'
+      },
+    }
+    expect(await keptStoreKey(url, 'd1', broken)).toBe(sharedCacheKey(url, 'd1', 'live'))
+  })
+
+  it('reads both through KV’s shortest cache', async () => {
+    const seen: unknown[] = []
+    await keptStoreKey(url, 'd1', {
+      get: async (key: string, options: unknown) => {
+        seen.push([key, options])
+        return null
+      },
+    })
+    expect(seen).toEqual([
+      [STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }],
+      [CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }],
+    ])
+  })
+
+  it('tags every kept copy, so a save can mark it stale, and serves it while redrawing', () => {
+    expect(KEPT_TAGS).toEqual({ pages: 'site-pages', garmentData: 'garment-data' })
+    expect(keptHeaders(new Headers()).get('cache-tag')).toBe('site-pages')
+    expect(keptHeaders(new Headers(), Date.now(), KEPT_TAGS.garmentData).get('cache-tag')).toBe(
+      'garment-data',
+    )
+    expect(KEPT_CACHE_CONTROL).toBe(
+      `public, max-age=${PAGE_CACHE_SECONDS}, stale-while-revalidate=${STALE_SECONDS}`,
+    )
+    expect(STALE_SECONDS).toBe(604_800)
+    // The tag is the store's bookkeeping; a visitor never sees it.
+    expect(servedHeaders(keptHeaders(new Headers())).has('cache-tag')).toBe(false)
+  })
+})
+
 describe('the three generated files', () => {
   it('keeps exactly the sitemap, llms.txt and robots.txt', () => {
     expect([...KEPT_FILES].sort()).toEqual(['/llms.txt', '/robots.txt', '/sitemap.xml'])
@@ -317,7 +414,7 @@ describe('the headers', () => {
         'content-length': '10',
       }),
     )
-    expect(kept.get('cache-control')).toBe(`public, max-age=${PAGE_CACHE_SECONDS}`)
+    expect(kept.get('cache-control')).toBe(KEPT_CACHE_CONTROL)
     for (const name of ['etag', 'last-modified', 'set-cookie', 'content-length']) {
       expect(kept.has(name), name).toBe(false)
     }
@@ -470,6 +567,25 @@ describe('what the cache relies on', () => {
    * runtime, so this reads its source, the way the test above does: every call into the store says
    * `redirect: 'manual'`, so the redirect reaches withRedirectHeaders and then the browser.
    */
+  /*
+   * Workers Cache scopes invalidate() to the entrypoint that owns the copies, so it must run inside
+   * SitePages (Cloudflare's own example does the same), reached over RPC from a save.
+   */
+  it('worker.mjs marks the kept copies stale from inside SitePages, and never throws', () => {
+    const method = worker.slice(worker.indexOf('async invalidateKept('))
+    expect(method.length, 'SitePages has no invalidateKept').toBeLessThan(worker.length)
+    expect(method).toMatch(/this\.ctx\?\.cache/)
+    expect(method).toMatch(/cache\.invalidate\(\{ tags: \[\.\.\.tags\] \}\)/)
+    expect(method.slice(0, method.indexOf('\n  }\n'))).toMatch(/catch \(error\)/)
+  })
+
+  it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
+    expect(worker).not.toMatch(/CONTENT_VERSION_KEY/)
+    expect(worker).toMatch(/await keptStoreKey\(request\.url, deploy, env\.SITE_CACHE\)/)
+    expect(worker).toMatch(/storeLookupRequest\(request\)/)
+    expect(worker).toMatch(/request\.method === 'HEAD' \? null : kept\.body/)
+  })
+
   it('worker.mjs asks the store never to follow a redirect', () => {
     const calls = [...worker.matchAll(/store\.fetch\(([^)]*\([^)]*\)[^)]*)\)/g)].map((m) => m[1])
     expect(calls.length).toBeGreaterThan(0)

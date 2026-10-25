@@ -16,7 +16,11 @@
  * WhatsApp is reported to show no picture (vercel/next.js discussion 60366).
  *
  * Every word comes from `shareImages.ts`, which takes it from the pages; every colour from
- * `packages/ui/src/tokens.css`; every picture from a file already in the repository.
+ * `packages/ui/src/tokens.css`. The garments are the owner's uploaded CLO renders (2026-10-25),
+ * read from each colour's public garment answer, the same one the garment page reads, and shown
+ * whole on a paper tile: until then the tiles were crops of the tall 3D snapshot cards, which
+ * became wide 1200x630 cards that day. The contact photo is a file in the repository. So this
+ * needs the network, and a colour without a render stops it rather than drawing the old picture.
  *
  * ⚠️ NOT WIRED INTO ANY BUILD, like `gen-icons.mjs`: it needs a browser,
  * and the outputs are committed. Run it by hand after a page's label or headline changes, through
@@ -39,7 +43,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const CMS = join(HERE, '..')
 const REPO = join(CMS, '..', '..')
 const OUT = join(CMS, 'public', SHARE_IMAGE.folder)
-const POSTERS = join(REPO, 'apps', 'viewer', 'public', 'og')
+const API_ORIGIN = 'https://cms.wear-run.help'
 const force = process.argv.includes('--force')
 
 /** A WhatsApp preview is reported to vanish above this (see the header). */
@@ -75,22 +79,41 @@ const dataUri = (path, type) => `data:${type};base64,${readFileSync(path).toStri
 const escapeHtml = (text) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-/** Garment tiles: two columns of 4:5 posters, as tall as the card allows in two rows. */
+/** Garment tiles: two columns of 4:5 tiles, as tall as the card allows in two rows. */
 const TILE = { inset: 40, gap: 12 }
 TILE.height = (SHARE_IMAGE.height - 2 * TILE.inset - TILE.gap) / 2
 TILE.width = (TILE.height * 4) / 5
 const TILES_WIDTH = 2 * TILE.width + TILE.gap
 
-function pictureMarkup(card) {
+/**
+ * One colour's uploaded render, as a PNG data URI at twice the tile's height (sharp, so a 1 MB
+ * render does not ride into the page whole). Throws for a colour with no render: drawing its 3D
+ * snapshot instead would quietly put the old picture back on the card.
+ */
+async function renderUri(sharp, colour) {
+  const [product, slug] = colour.split('/')
+  const answer = await fetch(`${API_ORIGIN}/api/public/viewer/${product}/${slug}`)
+  if (!answer.ok) throw new Error(`${colour}: the garment API answered ${answer.status}`)
+  const selected = (await answer.json()).selectedColourway
+  if (selected?.slug !== slug) throw new Error(`${colour}: the API served ${selected?.slug}`)
+  if (!selected.render?.url) throw new Error(`${colour} has no uploaded render`)
+  const res = await fetch(selected.render.url)
+  if (!res.ok) throw new Error(`${selected.render.url} answered ${res.status}`)
+  const png = await sharp(Buffer.from(await res.arrayBuffer()))
+    .trim({ threshold: 1 })
+    .resize({ height: Math.round(TILE.height * 2), withoutEnlargement: true })
+    .png()
+    .toBuffer()
+  return `data:image/png;base64,${png.toString('base64')}`
+}
+
+async function pictureMarkup(card, sharp) {
   if (card.picture.kind === 'garments') {
-    const tiles = card.picture.garments
-      .map((garment) => {
-        const file = join(POSTERS, `${garment.poster}.jpg`)
-        if (!existsSync(file)) throw new Error(`gen-share-images: no poster ${file}`)
-        return `<img src="${dataUri(file, 'image/jpeg')}" alt="">`
-      })
-      .join('')
-    return `<div class="tiles">${tiles}</div>`
+    const tiles = []
+    for (const garment of card.picture.garments) {
+      tiles.push(`<img src="${await renderUri(sharp, garment.colour)}" alt="">`)
+    }
+    return `<div class="tiles">${tiles.join('')}</div>`
   }
   if (card.picture.kind === 'photo') {
     // The contact page's own hero, its widest crop.
@@ -101,7 +124,7 @@ function pictureMarkup(card) {
   return ''
 }
 
-function page(card) {
+async function page(card, sharp) {
   const wordsWidth =
     card.picture.kind === 'garments'
       ? SHARE_IMAGE.width - TILE.inset - TILES_WIDTH - 56
@@ -136,10 +159,10 @@ h1 em{font-family:Instrument,serif;font-style:italic;font-weight:400;font-stretc
 .mark{font-size:34px;font-weight:800;font-stretch:122%;letter-spacing:-.01em}
 .host{font-family:Plex,monospace;font-size:22px;color:${PAPER}b3}
 .tiles{position:absolute;top:${TILE.inset}px;right:${TILE.inset}px;display:grid;grid-template-columns:repeat(2,${TILE.width}px);grid-auto-rows:${TILE.height}px;gap:${TILE.gap}px}
-.tiles img{display:block;width:100%;height:100%;object-fit:cover;border-radius:12px}
+.tiles img{display:block;width:100%;height:100%;object-fit:contain;padding:14px;background:${PAPER};border-radius:12px}
 </style></head><body>
 <div class="grid"></div>
-${pictureMarkup(card)}
+${await pictureMarkup(card, sharp)}
 <div class="words">
   <p class="label">${escapeHtml(card.label)}</p>
   <h1>${escapeHtml(headingText)}${accent}</h1>
@@ -202,7 +225,7 @@ async function main() {
       viewport: { width: SHARE_IMAGE.width, height: SHARE_IMAGE.height },
     })
     for (const card of SHARE_CARDS) {
-      await browserPage.setContent(page(card), { waitUntil: 'load' })
+      await browserPage.setContent(await page(card, sharp), { waitUntil: 'load' })
       await browserPage.evaluate(() => document.fonts.ready)
       const size = await fitHeadline(browserPage)
       const png = await browserPage.screenshot({ type: 'png' })

@@ -169,10 +169,11 @@ describe('the fallback card', () => {
         'Re-encode it at the same quality tools/asset-pipeline/scripts/og-cards.mjs uses.',
     ).toBeLessThan(100_000)
     // Floor too: a card that has collapsed to a few KB is a broken render, and
-    // "smaller" is not automatically better.
+    // "smaller" is not automatically better. 8 KB since 2026-10-25: the wide card is
+    // mostly flat paper, and the 205 garment cards measured 11-38 KB that day.
     expect(
       bytes,
       'og-default.jpg is suspiciously small — is it still a real image?',
-    ).toBeGreaterThan(20_000)
+    ).toBeGreaterThan(8_000)
   })
 })

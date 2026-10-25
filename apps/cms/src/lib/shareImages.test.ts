@@ -26,7 +26,15 @@ import { SHARE_IMAGE, type ShareCard, shareCardFor, shareImageUrl } from './shar
 const CMS = join(import.meta.dirname, '..', '..')
 const REPO = join(CMS, '..', '..')
 const PUBLIC = join(CMS, 'public')
-const POSTERS = join(REPO, 'apps', 'viewer', 'public', 'og')
+/** The viewer's card manifest, as text: which colours' garment cards are drawn from a render. */
+const OG_CARDS_TEXT = readFileSync(join(REPO, 'apps', 'viewer', 'worker', 'og-cards.ts'), 'utf8')
+const hasRender = (colour: string) => {
+  const at = OG_CARDS_TEXT.indexOf(`'${colour}': {`)
+  return (
+    at !== -1 &&
+    OG_CARDS_TEXT.slice(at, OG_CARDS_TEXT.indexOf('}', at)).includes("source: 'render'")
+  )
+}
 const FRONTEND = join(CMS, 'src', 'app', '(frontend)')
 
 /** The committed catalogue: each product's `category`, as imported into the CMS. */
@@ -186,17 +194,25 @@ describe('the pictures on a card come from the repository, and say what they sho
     const picture = shareCardFor(path).picture
     return picture.kind === 'garments' ? picture.garments : []
   }
-  const categoryOf = (poster: string) =>
-    CATALOGUE.find((product) => product.slug === poster.split('/')[0])?.category
+  const categoryOf = (colour: string) =>
+    CATALOGUE.find((product) => product.slug === colour.split('/')[0])?.category
 
-  it('every garment is a committed poster, named by its approved garment type', () => {
+  // 2026-10-25: the garments are drawn from the owner's uploaded renders, read when the cards are
+  // drawn; a colour still on its 3D snapshot would put the old picture back on the card.
+  it('every garment is a live colour with an uploaded render, named by its approved garment type', () => {
     const all = OWN_PICTURE.flatMap(garmentsOf)
     expect(all.length, 'no card shows a garment').toBeGreaterThan(0)
     for (const garment of all) {
-      expect(existsSync(join(POSTERS, `${garment.poster}.jpg`)), garment.poster).toBe(true)
-      const slug = garment.poster.split('/')[0] ?? ''
-      expect(garment.type, garment.poster).toBe(GARMENT_TYPES[slug as keyof typeof GARMENT_TYPES])
+      expect(hasRender(garment.colour), `${garment.colour} has no render`).toBe(true)
+      const slug = garment.colour.split('/')[0] ?? ''
+      expect(garment.type, garment.colour).toBe(GARMENT_TYPES[slug as keyof typeof GARMENT_TYPES])
     }
+  })
+
+  // NEGATIVE CONTROL: the render check refuses a colour that is not in the manifest at all.
+  it('sees a colour with no render', () => {
+    expect(hasRender('r-zzz/none')).toBe(false)
+    expect(hasRender('rxps/wine')).toBe(true)
   })
 
   it('a category page shows four of its own family’s garments', () => {
@@ -205,14 +221,14 @@ describe('the pictures on a card come from the repository, and say what they sho
       const garments = garmentsOf(page.path)
       expect(garments, page.path).toHaveLength(4)
       for (const garment of garments) {
-        expect(categoryOf(garment.poster), `${page.path}: ${garment.poster}`).toBe(family?.name)
+        expect(categoryOf(garment.colour), `${page.path}: ${garment.colour}`).toBe(family?.name)
       }
     }
     expect(FAMILY_PAGES.map((page) => page.path)).toEqual(FAMILY_PAGE_SOURCES)
   })
 
   it('products shows one garment from each family that has a page', () => {
-    const shown = garmentsOf('/products').map((garment) => categoryOf(garment.poster))
+    const shown = garmentsOf('/products').map((garment) => categoryOf(garment.colour))
     const families = FAMILY_PAGES.map(
       (page) => FAMILIES.find((family) => family.slug === page.familySlug)?.name,
     )
@@ -242,25 +258,29 @@ describe('the pictures on a card come from the repository, and say what they sho
   })
 })
 
-describe('a card LinkedIn kept a small copy of gets a new address', () => {
+describe('a card whose picture changed, or LinkedIn kept small, gets a new address', () => {
   /*
    * Post Inspector, 2026-10-07/08: LinkedIn stored some cards from its FIRST fetch at 160 or 480 px
    * wide and showed them stretched and blurry, although every file is 1200 x 630 (LinkedIn help
    * a521928: at least 1200 x 627, under 5 MB). Inspecting again never replaced the copy; a new
    * address did: /community went from `shrink_160` to `shrink_1280_800` once it was `?v=2`.
    */
+  // The five garment cards moved up one on 2026-10-25, when they were redrawn from the renders.
   const REFETCHED = {
     '/community': 2,
     '/press': 2,
     '/faq': 2,
-    '/products': 2,
+    '/products': 3,
     '/': 2,
-    '/custom-teamwear-manufacturer': 2,
+    '/custom-teamwear-manufacturer': 3,
+    '/custom-activewear-manufacturer': 2,
+    '/custom-outerwear-manufacturer': 2,
+    '/private-label-casual-wear-manufacturer': 2,
     '/policies/equal-opportunity': 2,
   }
 
   for (const [path, version] of Object.entries(REFETCHED)) {
-    it(`${path}: ?v=${version}, so LinkedIn fetches the full-size file again`, () => {
+    it(`${path}: ?v=${version}, so a stored copy is fetched again`, () => {
       expect(shareImageUrl(shareCardFor(path), SITE_ORIGIN)).toBe(
         `${SITE_ORIGIN}/share/${shareCardFor(path).file}?v=${version}`,
       )
