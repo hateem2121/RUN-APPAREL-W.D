@@ -38,31 +38,39 @@
  *                 editor or admin role: `Authorization: users API-Key <key>`, the
  *                 same form scripts/import-catalogue-products.mjs already uses.
  *   CMS_API_BASE  override the CMS origin (default https://cms.wear-run.help).
+ *
+ * Talks to the CMS through scripts/cms-client.mjs (2026-10-25), which reads every write back.
  */
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  createCmsClient,
+  defaultCmsBase,
+  exitIfBaseUnsafe,
+  explainPayloadError as explain,
+  resolveCmsKey,
+} from './cms-client.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const DOC = path.join(HERE, '..', 'docs', 'CUSTOMISATION-COPY-2026-09-04.md')
 
-const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
-const API_KEY = process.env.CMS_API_KEY || ''
+const API_BASE = defaultCmsBase()
+const API_KEY = resolveCmsKey()
 
-// The copy and the API key both travel in every request below. `CMS_API_BASE` is
+// The copy and the API key both travel in every request below. The address is
 // operator-supplied, so an http:// value would put them on the wire in cleartext
 // with nothing to say so — the same guard, and the same reasoning, as
-// scripts/import-catalogue-products.mjs.
-if (!API_BASE.startsWith('https://')) {
-  console.error(`CMS_API_BASE must be https:// — got "${API_BASE}"`)
-  process.exit(2)
-}
+// scripts/import-catalogue-products.mjs. (http:// to localhost is allowed: nothing leaves
+// the machine.)
+exitIfBaseUnsafe(API_BASE)
 
 const args = process.argv.slice(2)
 const APPLY = args.includes('--apply')
 const onlyAt = args.indexOf('--only')
 const ONLY = onlyAt === -1 ? null : args[onlyAt + 1]
+const client = createCmsClient({ base: API_BASE, key: API_KEY, apply: APPLY })
 
 /**
  * 11 -> 16 on 2026-09-07, with the five garments published that day.
@@ -145,25 +153,6 @@ function parseFits(markdown) {
   return fits
 }
 
-async function api(method, pathname, body) {
-  const res = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `users API-Key ${API_KEY}`,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  const text = await res.text()
-  let json
-  try {
-    json = JSON.parse(text)
-  } catch {
-    json = { raw: text.slice(0, 300) }
-  }
-  return { ok: res.ok, status: res.status, json }
-}
-
 /**
  * One paragraph as a Lexical editor state — the shape `customisationIntro` stores.
  *
@@ -210,13 +199,6 @@ function lexicalParagraph(text) {
       ],
     },
   }
-}
-
-function explain(json) {
-  const outer = json?.errors?.[0]
-  const inner = outer?.data?.errors?.[0]
-  if (inner) return `${inner.field}: ${inner.message}`
-  return outer?.message || json?.raw || JSON.stringify(json).slice(0, 200)
 }
 
 const markdown = readFileSync(DOC, 'utf8')
@@ -288,11 +270,8 @@ for (const p of targets) {
     continue
   }
 
-  const found = await api(
-    'GET',
-    `/api/products?where[slug][equals]=${encodeURIComponent(p.slug)}&limit=1&depth=0`,
-  )
-  const doc = found.json?.docs?.[0]
+  const found = await client.productBySlug(p.slug)
+  const doc = found.doc
   if (!found.ok || !doc) {
     console.error(`   ✗ could not find product "${p.slug}": ${explain(found.json)}\n`)
     failed++
@@ -318,37 +297,43 @@ for (const p of targets) {
   // specification a buyer may quote back.
   if (fit && !String(doc.garmentFit || '').trim()) patch.garmentFit = fit
 
-  const res = await api('PATCH', `/api/products/${doc.id}`, patch)
-  if (!res.ok) {
-    console.error(`   ✗ ${res.status}: ${explain(res.json)}\n`)
+  // The client reads the document back (`depth=0` returns the stored columns rather than the
+  // projected view, so this checks what was actually persisted) and runs the comparison below.
+  const res = await client.patchDoc('products', doc.id, patch, {
+    verify: (stored) => {
+      const storedIntro = stored?.customisationIntro?.root?.children?.[0]?.children?.[0]?.text ?? ''
+      const storedSteps = Array.isArray(stored?.customisationSteps) ? stored.customisationSteps : []
+
+      const mismatches = []
+      if (storedIntro !== p.intro) {
+        mismatches.push(
+          storedIntro
+            ? `intro differs (stored ${storedIntro.length} chars, expected ${p.intro.length})`
+            : 'intro did not persist — the field is empty after the write',
+        )
+      }
+      if (storedSteps.length !== p.steps.length) {
+        mismatches.push(`expected ${p.steps.length} steps, ${storedSteps.length} stored`)
+      }
+      if (patch.garmentFit && String(stored?.garmentFit || '').trim() !== patch.garmentFit) {
+        mismatches.push(`fit did not persist (stored "${String(stored?.garmentFit || '')}")`)
+      }
+      return mismatches
+    },
+  })
+  if (res.stage === 'write') {
+    console.error(`   ✗ ${res.status}: ${res.detail}\n`)
+    failed++
+    continue
+  }
+  if (res.stage === 'read') {
+    console.error(`   ✗ written but could not be read back: ${res.error}\n`)
     failed++
     continue
   }
 
-  // Read the document back and compare. `depth=0` returns the stored columns
-  // rather than the projected view, so this checks what was actually persisted.
-  const after = await api('GET', `/api/products/${doc.id}?depth=0`)
-  const stored = after.json || {}
-  const storedIntro = stored?.customisationIntro?.root?.children?.[0]?.children?.[0]?.text ?? ''
-  const storedSteps = Array.isArray(stored.customisationSteps) ? stored.customisationSteps : []
-
-  const mismatches = []
-  if (storedIntro !== p.intro) {
-    mismatches.push(
-      storedIntro
-        ? `intro differs (stored ${storedIntro.length} chars, expected ${p.intro.length})`
-        : 'intro did not persist — the field is empty after the write',
-    )
-  }
-  if (storedSteps.length !== p.steps.length) {
-    mismatches.push(`expected ${p.steps.length} steps, ${storedSteps.length} stored`)
-  }
-  if (patch.garmentFit && String(stored.garmentFit || '').trim() !== patch.garmentFit) {
-    mismatches.push(`fit did not persist (stored "${String(stored.garmentFit || '')}")`)
-  }
-
-  if (mismatches.length > 0) {
-    console.error(`   ✗ written but NOT stored: ${mismatches.join('; ')}\n`)
+  if (!res.ok) {
+    console.error(`   ✗ written but NOT stored: ${res.mismatches.join('; ')}\n`)
     failed++
   } else {
     console.log(`   ✓ written and verified\n`)

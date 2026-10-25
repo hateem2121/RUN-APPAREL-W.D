@@ -148,8 +148,16 @@ function heroHeadline(tsx: string): { archivo: string; accent: string | null } |
   }
 }
 
+/**
+ * The site's stand-in faces: its own in site.css, and the two it shares with the garment pages in
+ * packages/ui/src/fallback-faces.css (2026-10-25). Both are checked, so a face that moves file
+ * keeps its derivation check.
+ */
+const SHARED_FACES_CSS = '../../../packages/ui/src/fallback-faces.css'
+const siteFacesCss = () => `${read('./app/(frontend)/site.css')}\n${read(SHARED_FACES_CSS)}`
+
 describe('PF-03 — the stand-in font faces stay derived from the real fonts', () => {
-  const faces = standInFaces(read('./app/(frontend)/site.css'))
+  const faces = standInFaces(siteFacesCss())
 
   it('finds a stand-in face for each of the three real fonts (the instrument sees the CSS)', () => {
     expect(new Set(faces.map((face) => face.realFont))).toEqual(
@@ -205,7 +213,7 @@ function unwiredFaces(css: string): string[] {
 
 describe('PF-03 — every stand-in face is reachable', () => {
   it('each stand-in family is named in a font stack outside its @font-face rule', () => {
-    expect(unwiredFaces(read('./app/(frontend)/site.css'))).toEqual([])
+    expect(unwiredFaces(siteFacesCss())).toEqual([])
   })
 
   it('NEGATIVE CONTROL: a face that no stack names is caught', () => {
@@ -215,6 +223,32 @@ describe('PF-03 — every stand-in face is reachable', () => {
       :root { --font-display: "Archivo Variable", system-ui, sans-serif; }
     `
     expect(unwiredFaces(css)).toEqual(['Orphan Fallback'])
+  })
+})
+
+/**
+ * The two shared faces are declared ONCE (2026-10-25). Until then site.css and the viewer's
+ * page.css each carried a byte-identical copy, so a re-calibration could land in one and not the
+ * other. What would have to break: a copy pasted back into either app's stylesheet.
+ */
+const SHARED_FAMILIES = ['Archivo Display Fallback', 'Instrument Serif Fallback']
+const declaredFamilies = (css: string) =>
+  [...css.matchAll(/@font-face\s*\{[^}]*font-family:\s*"([^"]+)"/g)].map((m) => m[1])
+
+describe('the shared stand-in faces have one copy', () => {
+  it('packages/ui declares both, and neither app stylesheet declares them again', () => {
+    expect(declaredFamilies(read(SHARED_FACES_CSS)).sort()).toEqual([...SHARED_FAMILIES].sort())
+    for (const file of ['./app/(frontend)/site.css', '../../viewer/src/styles/page.css']) {
+      const again = declaredFamilies(read(file)).filter((f) => SHARED_FAMILIES.includes(f ?? ''))
+      expect(again, `${file} declares a shared face again`).toEqual([])
+    }
+  })
+
+  it('NEGATIVE CONTROL: a copy pasted back is caught', () => {
+    const pasted = `@font-face { font-family: "Instrument Serif Fallback"; src: local("Georgia"); }`
+    expect(declaredFamilies(pasted).filter((f) => SHARED_FAMILIES.includes(f ?? ''))).toEqual([
+      'Instrument Serif Fallback',
+    ])
   })
 })
 

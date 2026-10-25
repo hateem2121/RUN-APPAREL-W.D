@@ -44,10 +44,10 @@ import { open, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { AwsClient } from '../apps/shrink/container/node_modules/aws4fetch/dist/aws4fetch.esm.mjs'
+import { createCmsClient, defaultCmsBase, resolveCmsKey } from './cms-client.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const INGEST_BUCKET = 'run-apparel-viewer-ingest'
-const CMS_ORIGIN = process.env.CMS_ORIGIN ?? 'https://cms.wear-run.help'
 /**
  * Where the .glb files are. ⚠️ The owner's `FIXED GLBs` folder holds ZIPS, one GLB inside
  * each, so it is NOT a valid value here — unzip first and point `GLB_SOURCE_DIR` at the
@@ -276,14 +276,19 @@ async function main() {
   }
 
   // Resolve the product by slug. Never hardcode the id.
-  const apiKey = process.env.CMS_API_KEY
+  const apiKey = resolveCmsKey()
   if (!apiKey) throw new Error('CMS_API_KEY is required to create the raw-upload document')
-  const auth = { Authorization: `users API-Key ${apiKey}` }
-  const lookup = await fetch(
-    `${CMS_ORIGIN}/api/products?where[slug][equals]=${encodeURIComponent(garment.slug)}&depth=0&limit=1`,
-    { headers: { ...auth, accept: 'application/json' } },
-  )
-  const product = (await lookup.json())?.docs?.[0]
+  // The CMS address is CMS_API_BASE (this script's old name, CMS_ORIGIN, still works), through
+  // scripts/cms-client.mjs. Reached only here, once the upload above has finished: --list,
+  // --dry-run and --upload-only never need it. The write below is read back by the client.
+  const client = createCmsClient({ base: defaultCmsBase(), key: apiKey, apply: true })
+  const looked = await client.productBySlug(garment.slug)
+  if (!looked.ok) {
+    throw new Error(
+      `could not read product "${garment.slug}" (${looked.status}): ${looked.text.slice(0, 200)}`,
+    )
+  }
+  const product = looked.doc
   if (!product) throw new Error(`no product with slug "${garment.slug}"`)
   console.log(`[ingest]   product #${product.id} — ${product.productName} [${product.status}]`)
 
@@ -302,22 +307,30 @@ async function main() {
       size: bytes,
     }),
   )
-  const created = await fetch(`${CMS_ORIGIN}/api/raw-uploads`, {
-    method: 'POST',
-    headers: auth,
-    body: form,
+  // Read back by the client: the document must exist and point at THIS product. (`filename` is
+  // not compared: Payload may add a "-1" suffix to a name that already exists.)
+  const created = await client.createDoc('raw-uploads', {
+    form,
+    verify: (stored) =>
+      String(stored?.targetProduct) === String(product.id)
+        ? []
+        : [`targetProduct: sent ${product.id}, stored ${JSON.stringify(stored?.targetProduct)}`],
   })
-  const doc = await created.json()
-  if (created.status >= 300) {
+  if (created.stage === 'write') {
     console.error(`[ingest] create failed ${created.status}:`)
-    console.error(JSON.stringify(doc, null, 2).slice(0, 1200))
+    console.error(JSON.stringify(created.json, null, 2).slice(0, 1200))
     process.exit(1)
   }
+  if (!created.ok) {
+    console.error(`[ingest] created, but it did not read back as sent: ${created.error}`)
+    process.exit(1)
+  }
+  const doc = created.json
   const d = doc.doc ?? doc
   console.log(
     `[ingest] ✅ raw upload #${d.id} created — status "${d.status}", detail "${d.detail}"`,
   )
-  console.log(`[ingest]    watch: ${CMS_ORIGIN}/admin/collections/raw-uploads/${d.id}`)
+  console.log(`[ingest]    watch: ${client.base}/admin/collections/raw-uploads/${d.id}`)
 }
 
 await main()

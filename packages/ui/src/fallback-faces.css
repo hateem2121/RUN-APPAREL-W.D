@@ -1,0 +1,37 @@
+/*
+ * The two SHARED stand-in faces the website and the garment pages both draw before their web fonts
+ * arrive (moved here 2026-10-25; until then `apps/cms/src/app/(frontend)/site.css` and
+ * `apps/viewer/src/styles/page.css` each carried a byte-identical copy, so a re-calibration could
+ * land in one and not the other). `local()` only: nothing is downloaded.
+ *
+ * ⚠️ THESE ARE CORPUS AVERAGES, NOT PER-HEADLINE FITS. Every piece of display text uses them —
+ * section headings, product names, the wordmark — so they are calibrated across all of it with
+ * `apps/cms/scripts/calibrate-fallback.mjs` (its header says why moving them to fit three
+ * headlines trades all of those for these three). A headline that wraps differently gets scoped
+ * faces of its own in its app's stylesheet, as /products, the card titles and the bar's wordmark
+ * have; those stay where they are.
+ *
+ * The values are derived from the font files (`apps/cms/src/fallbackMetrics.test.ts` keeps them
+ * derived): `override × size-adjust` is the real font's own ascent or descent per em. Liberation
+ * Sans Bold has Arial Bold's advance widths, so the Linux CI image draws the same widths.
+ */
+@font-face {
+  font-family: "Archivo Display Fallback";
+  src:
+    local("Arial Bold"), local("Helvetica Neue Bold"), local("Liberation Sans Bold"), local("Arial");
+  font-weight: 700 900;
+  size-adjust: 128.24%;
+  ascent-override: 68.47%;
+  descent-override: 16.38%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Instrument Serif Fallback";
+  src: local("Georgia Italic"), local("Georgia");
+  font-style: italic;
+  size-adjust: 79.52%;
+  ascent-override: 124.49%;
+  descent-override: 38.98%;
+  line-gap-override: 0%;
+}

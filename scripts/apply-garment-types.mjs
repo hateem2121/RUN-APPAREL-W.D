@@ -30,6 +30,7 @@
  *   CMS_API_KEY=… node scripts/apply-garment-types.mjs --apply
  */
 import { realpathSync } from 'node:fs'
+import { createCmsClient, defaultCmsBase, exitIfBaseUnsafe, resolveCmsKey } from './cms-client.mjs'
 
 /** slug -> the approved garment type. */
 export const GARMENT_TYPES = {
@@ -135,46 +136,22 @@ export function fixedColourRows(rows) {
   return { rows: next, changed }
 }
 
-const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
-const API_KEY = process.env.CMS_API_KEY || ''
 const APPLY = process.argv.includes('--apply')
 
-async function api(method, pathname, body) {
-  const response = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: `users API-Key ${API_KEY}` },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  const text = await response.text()
-  let json
-  try {
-    json = JSON.parse(text)
-  } catch {
-    json = { raw: text.slice(0, 300) }
-  }
-  return { ok: response.ok, status: response.status, json }
+/** What went wrong, in the CMS's own words, or the status when it said nothing. */
+const why = (result) => result.detail || result.error || `status ${result.status}`
+
+async function findProduct(client, slug) {
+  const found = await client.productBySlug(slug)
+  return found.ok ? found.doc : null
 }
 
-/** Payload's useful message is the inner one; the outer says only "field is invalid". */
-const why = (result) =>
-  result.json?.errors?.[0]?.data?.errors?.map((e) => `${e.path}: ${e.message}`).join('; ') ||
-  result.json?.errors?.[0]?.message ||
-  `status ${result.status}`
-
-async function findProduct(slug) {
-  const found = await api(
-    'GET',
-    `/api/products?where%5Bslug%5D%5Bequals%5D=${encodeURIComponent(slug)}&limit=1&depth=0`,
-  )
-  return found.ok ? (found.json?.docs?.[0] ?? null) : null
-}
-
-async function applyTypes(tally) {
+async function applyTypes(client, tally) {
   for (const [slug, approved] of Object.entries(GARMENT_TYPES)) {
     let stored
     let id
     if (APPLY) {
-      const doc = await findProduct(slug)
+      const doc = await findProduct(client, slug)
       if (!doc) {
         console.error(`✗ ${slug}: could not read the stored product`)
         tally.failed++
@@ -183,8 +160,9 @@ async function applyTypes(tally) {
       stored = doc.garmentType
       id = doc.id
     } else {
-      const live = await fetch(`${API_BASE}/api/public/viewer/${slug}`, {
+      const live = await client.fetchRaw(`/api/public/viewer/${slug}`, {
         headers: { accept: 'application/json' },
+        auth: false,
       })
       if (!live.ok) {
         console.error(`✗ ${slug}: the public API answered ${live.status}`)
@@ -207,9 +185,9 @@ async function applyTypes(tally) {
     tally.toWrite++
     console.log(`+ ${slug}: ${approved}`)
     if (!APPLY) continue
-    const saved = await api('PATCH', `/api/products/${id}`, { garmentType: approved })
-    const back = await api('GET', `/api/products/${id}?depth=0`)
-    if (!saved.ok || back.json?.garmentType !== approved) {
+    // The client reads it back (`depth=0`); the default comparison is exactly the stored value.
+    const saved = await client.patchDoc('products', id, { garmentType: approved })
+    if (!saved.ok) {
       console.error(
         `   ✗ not stored (${why(saved)}). If every row says this, the deploy that adds ` +
           'the field has not happened yet.',
@@ -222,12 +200,13 @@ async function applyTypes(tally) {
   }
 }
 
-async function applyNameFix(tally) {
+async function applyNameFix(client, tally) {
   const { slug, wrong, right } = NAME_FIX
   console.log(`\nSpelling fix on ${slug}: ${wrong} -> ${right}`)
   if (!APPLY) {
-    const live = await fetch(`${API_BASE}/api/public/viewer/${slug}`, {
+    const live = await client.fetchRaw(`/api/public/viewer/${slug}`, {
       headers: { accept: 'application/json' },
+      auth: false,
     })
     const name = live.ok ? ((await live.json()).product?.productName ?? '') : ''
     console.log(
@@ -238,7 +217,7 @@ async function applyNameFix(tally) {
     return
   }
 
-  const doc = await findProduct(slug)
+  const doc = await findProduct(client, slug)
   if (!doc) {
     console.error(`✗ ${slug}: could not read the stored product`)
     tally.failed++
@@ -257,19 +236,31 @@ async function applyNameFix(tally) {
     const order = (rows) => rows.map((row) => `${row.id}:${row.slug}`).join(' ')
     console.log(`   rows before: ${order(doc.colourways)}`)
     console.log(`   rows to send: ${order(plan.rows)}`)
-    const saved = await api('PATCH', `/api/products/${doc.id}`, {
-      productName: fixSpelling(name),
-      colourways: plan.rows,
-    })
-    const back = await api('GET', `/api/products/${doc.id}?depth=0`)
-    const after = back.json?.colourways ?? []
-    const intact =
-      saved.ok &&
-      back.json?.productName === fixSpelling(name) &&
-      order(after) === order(doc.colourways) &&
-      after.every((row) => !String(row.altText ?? '').includes(wrong))
+    // The client sends, then reads the product back (`depth=0`) and runs this comparison: the
+    // name as corrected, the rows in the order and with the ids they came in, and none of
+    // them still carrying the wrong spelling.
+    const saved = await client.patchDoc(
+      'products',
+      doc.id,
+      { productName: fixSpelling(name), colourways: plan.rows },
+      {
+        verify: (stored) => {
+          const rows = stored?.colourways ?? []
+          const problems = []
+          if (stored?.productName !== fixSpelling(name)) problems.push('productName was not stored')
+          if (order(rows) !== order(doc.colourways)) {
+            problems.push(`colour rows changed: ${order(doc.colourways)} -> ${order(rows)}`)
+          }
+          if (rows.some((row) => String(row.altText ?? '').includes(wrong))) {
+            problems.push(`a colour description still says ${wrong}`)
+          }
+          return problems
+        },
+      },
+    )
+    const after = saved.stored?.colourways ?? []
     console.log(`   rows after:  ${order(after)}`)
-    if (!intact) {
+    if (!saved.ok) {
       console.error(`   ✗ the product did not read back as sent (${why(saved)})`)
       tally.failed++
       return
@@ -289,12 +280,11 @@ async function applyNameFix(tally) {
     }
   }
   for (const mediaId of mediaIds) {
-    const media = await api('GET', `/api/media/${mediaId}?depth=0`)
+    const media = await client.get(`/api/media/${mediaId}?depth=0`)
     const alt = media.json?.alt
     if (!media.ok || typeof alt !== 'string' || !alt.includes(wrong)) continue
-    const saved = await api('PATCH', `/api/media/${mediaId}`, { alt: fixSpelling(alt) })
-    const back = await api('GET', `/api/media/${mediaId}?depth=0`)
-    if (!saved.ok || back.json?.alt !== fixSpelling(alt)) {
+    const saved = await client.patchDoc('media', mediaId, { alt: fixSpelling(alt) })
+    if (!saved.ok) {
       console.error(`   ✗ picture ${mediaId}: description not stored (${why(saved)})`)
       tally.failed++
       continue
@@ -305,18 +295,19 @@ async function applyNameFix(tally) {
 }
 
 async function main() {
-  if (!API_BASE.startsWith('https://')) {
-    console.error(`CMS_API_BASE must be https:// — got "${API_BASE}"`)
-    process.exit(2)
-  }
-  if (APPLY && !API_KEY) {
+  // Resolved here, not at import: apps/cms/src/garmentTypes.test.ts imports this file.
+  const base = defaultCmsBase()
+  exitIfBaseUnsafe(base)
+  const key = resolveCmsKey()
+  if (APPLY && !key) {
     console.error('CMS_API_KEY is not set. Export it before using --apply.')
     process.exit(2)
   }
-  console.log(APPLY ? `APPLYING to ${API_BASE}\n` : 'Dry run — nothing will be written.\n')
+  console.log(APPLY ? `APPLYING to ${base}\n` : 'Dry run — nothing will be written.\n')
+  const client = createCmsClient({ base, key, apply: APPLY })
   const tally = { toWrite: 0, written: 0, already: 0, ownerEdited: 0, failed: 0 }
-  await applyTypes(tally)
-  await applyNameFix(tally)
+  await applyTypes(client, tally)
+  await applyNameFix(client, tally)
   console.log(
     `\n${tally.toWrite} type(s) to write, ${tally.written} write(s) stored, ` +
       `${tally.already} already set, ${tally.ownerEdited} left alone, ${tally.failed} failed.`,

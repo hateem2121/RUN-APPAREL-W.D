@@ -11,6 +11,7 @@
     "./footer.css": "./src/footer.css",
     "./footer-prompt.css": "./src/footer-prompt.css",
     "./archivo.css": "./src/archivo.css",
+    "./fallback-faces.css": "./src/fallback-faces.css",
     "./fonts/*": "./fonts/*"
   },
   "files": [

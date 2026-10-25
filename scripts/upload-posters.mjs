@@ -29,8 +29,8 @@
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
+import { createCmsClient, defaultCmsBase, resolveCmsKey } from './cms-client.mjs'
 
-const CMS_ORIGIN = process.env.CMS_ORIGIN ?? 'https://cms.wear-run.help'
 const args = process.argv.slice(2)
 const slug = args.find((a) => !a.startsWith('--'))
 const dirIndex = args.indexOf('--dir')
@@ -41,15 +41,16 @@ if (!slug) {
   console.error('usage: upload-posters.mjs <product-slug> --dir <dir> [--dry-run]')
   process.exit(2)
 }
-const apiKey = process.env.CMS_API_KEY
+const apiKey = resolveCmsKey()
 if (!apiKey) throw new Error('CMS_API_KEY is required')
-const auth = { Authorization: `users API-Key ${apiKey}` }
+// The address is CMS_API_BASE (this script's old name, CMS_ORIGIN, still works). Writes are on
+// unless --dry-run, as this script has always behaved; the dry run exits below before any
+// upload, and the client would refuse one anyway. Every write is read back by the client.
+const client = createCmsClient({ base: defaultCmsBase(), key: apiKey, apply: !dryRun })
 
-const found = await fetch(
-  `${CMS_ORIGIN}/api/products?where[slug][equals]=${encodeURIComponent(slug)}&depth=0&limit=1`,
-  { headers: { ...auth, accept: 'application/json' } },
-).then((r) => r.json())
-const product = found?.docs?.[0]
+const found = await client.productBySlug(slug)
+if (!found.ok) throw new Error(`could not read product "${slug}" (${found.status})`)
+const product = found.doc
 if (!product) throw new Error(`no product with slug "${slug}"`)
 console.log(`[posters] ${product.productName} (#${product.id}, ${product.status})`)
 
@@ -71,17 +72,28 @@ if (dryRun) {
 }
 
 for (const p of plan) {
-  const form = new FormData()
-  form.append('_payload', JSON.stringify({ alt: p.alt }))
-  form.append('file', new File([readFileSync(p.file)], basename(p.file), { type: 'image/webp' }))
-  const res = await fetch(`${CMS_ORIGIN}/api/media`, { method: 'POST', headers: auth, body: form })
-  const body = await res.json()
-  if (res.status >= 300) {
-    console.error(`[posters] upload failed for ${p.row.slug} (${res.status}):`)
-    console.error(JSON.stringify(body, null, 2).slice(0, 800))
+  // The client uploads, then fetches the file back with a plain GET (never HEAD) and compares
+  // its size and the stored alt text — before 2026-10-25 an upload was trusted on its status.
+  const bytes = readFileSync(p.file)
+  const uploaded = await client.uploadMedia({
+    filename: basename(p.file),
+    bytes,
+    type: 'image/webp',
+    fields: { alt: p.alt },
+    verifyDoc: (stored) =>
+      stored?.alt === p.alt ? [] : [`alt: sent "${p.alt}", stored "${stored?.alt}"`],
+    expectServed: { byteLength: bytes.length },
+  })
+  if (uploaded.stage === 'write') {
+    console.error(`[posters] upload failed for ${p.row.slug} (${uploaded.status}):`)
+    console.error(JSON.stringify(uploaded.json, null, 2).slice(0, 800))
     process.exit(1)
   }
-  p.mediaId = (body.doc ?? body).id
+  if (!uploaded.ok) {
+    console.error(`[posters] uploaded ${p.row.slug}, but it did not read back: ${uploaded.error}`)
+    process.exit(1)
+  }
+  p.mediaId = uploaded.doc.id
   console.log(`  uploaded ${p.row.slug} -> media ${p.mediaId}`)
 }
 
@@ -91,18 +103,43 @@ const colourways = product.colourways.map((row) => {
   const p = plan.find((x) => x.row.id === row.id)
   return { ...row, posterPreview: p.mediaId, altText: p.alt }
 })
-const res = await fetch(`${CMS_ORIGIN}/api/products/${product.id}`, {
-  method: 'PATCH',
-  headers: { ...auth, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ colourways }),
-})
-const body = await res.json()
-if (res.status >= 300) {
-  console.error(`[posters] product PATCH failed (${res.status}):`)
-  console.error(JSON.stringify(body, null, 2).slice(0, 900))
+const sentOrder = colourways.map((r) => r.slug).join(',')
+const patched = await client.patchDoc(
+  'products',
+  product.id,
+  { colourways },
+  {
+    verify: (stored) => {
+      const rows = stored?.colourways ?? []
+      const problems = []
+      if (rows.length !== colourways.length) {
+        problems.push(`expected ${colourways.length} colour rows, ${rows.length} stored`)
+      }
+      for (const [index, sent] of colourways.entries()) {
+        const row = rows[index]
+        for (const field of ['id', 'slug', 'posterPreview', 'altText']) {
+          if (row?.[field] !== sent[field]) {
+            problems.push(
+              `row ${index + 1} ${field}: sent ${JSON.stringify(sent[field])}, stored ${JSON.stringify(row?.[field])}`,
+            )
+          }
+        }
+      }
+      if (rows.map((r) => r.slug).join(',') !== sentOrder) problems.push('the row order changed')
+      return problems
+    },
+  },
+)
+if (patched.stage === 'write') {
+  console.error(`[posters] product PATCH failed (${patched.status}):`)
+  console.error(JSON.stringify(patched.json, null, 2).slice(0, 900))
   process.exit(1)
 }
-const after = (body.doc ?? body).colourways
+if (!patched.ok) {
+  console.error(`[posters] the product PATCH did not read back as sent: ${patched.error}`)
+  process.exit(1)
+}
+const after = patched.stored.colourways
 console.log('[posters] ✅ repointed:')
 for (const row of after)
   console.log(`  ${row.slug.padEnd(10)} poster ${row.posterPreview}  "${row.altText}"`)

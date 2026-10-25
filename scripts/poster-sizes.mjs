@@ -25,10 +25,19 @@
  *   node scripts/poster-sizes.mjs --report     # same table, always exits 0
  */
 import { LIVE_PRODUCTS } from './live-products.mjs'
+import { createCmsClient, publicCmsClient } from './cms-client.mjs'
 import { realpathSync } from 'node:fs'
 
-const API_BASE = (process.env.CMS_API_BASE || 'https://cms.wear-run.help').replace(/\/+$/, '')
 const REPORT = process.argv.includes('--report')
+
+/**
+ * A KEYLESS client: everything this file reads is a public endpoint, and it never writes. Made
+ * on first use, never at import, so a test (or the probe) that imports `judgePosters` does not
+ * read the environment or print a "renamed" note. The address is CMS_API_BASE (CMS_ORIGIN and
+ * CMS_URL still work), through scripts/cms-client.mjs (2026-10-25).
+ * @param {string} [apiBase] an explicit address, as `resolveLiveModelUrl` has always taken
+ */
+const publicClient = (apiBase) => (apiBase ? createCmsClient({ base: apiBase }) : publicCmsClient())
 
 /**
  * Pure: pull the model URL a real viewer load would use out of an already-fetched
@@ -66,11 +75,12 @@ export function modelUrlFromPayload(body) {
  * @param {{ apiBase?: string }} [options]
  * @returns {Promise<{ url: string } | { error: string }>}
  */
-export async function resolveLiveModelUrl(slug, colourway, { apiBase = API_BASE } = {}) {
+export async function resolveLiveModelUrl(slug, colourway, { apiBase } = {}) {
   try {
-    const response = await fetch(`${apiBase}/api/public/viewer/${slug}/${colourway}`, {
-      signal: AbortSignal.timeout(20_000),
-    })
+    const response = await publicClient(apiBase).fetchRaw(
+      `/api/public/viewer/${slug}/${colourway}`,
+      { auth: false, timeoutMs: 20_000 },
+    )
     if (!response.ok) return { error: `viewer payload answered ${response.status}` }
     const body = await response.json()
     return modelUrlFromPayload(body)
@@ -281,7 +291,7 @@ async function collectPosters() {
   const unreadable = []
   const contentProblems = []
   for (const { slug } of LIVE_PRODUCTS) {
-    const response = await fetch(`${API_BASE}/api/public/viewer/${slug}`)
+    const response = await publicClient().fetchRaw(`/api/public/viewer/${slug}`, { auth: false })
     if (!response.ok) {
       unreadable.push(`${slug}: viewer payload answered ${response.status}`)
       continue
