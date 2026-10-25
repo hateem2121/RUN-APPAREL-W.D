@@ -1,8 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
-  // REPORT ONLY (2026-10-01, owner-approved plan): Knip lists unused files, exports and
-  // packages in ci.yml's `verify` log and never fails it. Make it blocking only by owner
-  // decision, after it has been quiet for a while.
+  // BLOCKING since 2026-10-25 (owner decision, 24 Oct: "keep-clean checks, yes, after Wave 1").
+  // It was report-only from 2026-10-01 and reported 0 findings on main on 25 Oct; now a pull
+  // request that adds an unused file, export or package fails ci.yml's `verify`. Fix the finding,
+  // or name the file below with WHO runs it — never silence it to go green.
   //
   // Every entry below is a file something OTHER than an import runs, which Knip cannot
   // see on its own: a person or a CI step runs `node scripts/x.mjs`, Claude Code runs the
@@ -14,9 +15,10 @@
   // Ignoring them leaves the report short enough that a new finding is noticed.
   "ignoreExportsUsedInFile": true,
   // Programs installed on the machine, not npm packages: Ghostscript renders the PDF
-  // pages (document-pages.mjs); the two drivers run the phone browser tests; ffmpeg
-  // prepares the /products film from the owner's original (build-products-film.mjs).
-  "ignoreBinaries": ["gs", "chromedriver", "safaridriver", "ffmpeg"],
+  // pages (document-pages.mjs); ffmpeg prepares the /products film from the owner's original
+  // (build-products-film.mjs). chromedriver and safaridriver left this list on 2026-10-25: knip
+  // reported both as no longer used once the phone scripts shared webdriver-client.mjs.
+  "ignoreBinaries": ["gs", "ffmpeg"],
   // infra/apex-404 (the private-PDF-link Worker) has no package.json, so Knip cannot make it a
   // workspace ("a workspace must have a package.json", knip.dev/features/monorepos-and-workspaces,
   // read 2026-10-25). It needs none: the "." workspace's default project glob already covers it,
@@ -26,7 +28,33 @@
   // file's exports are not reported, and the planted export in index.js then went unseen.
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs", ".claude/hooks/*.mjs", ".claude/skills/*/*.mjs"],
+      // ⚠️ NOT `scripts/*.mjs` (until 2026-10-25 it was): that made every script an entry, so a
+      // script nothing runs could never show up, and an entry's unused exports are never reported.
+      // Knip finds the scripts a workflow or package.json runs, and the ones a test or script
+      // imports, by itself (measured 2026-10-25: all but the 13 below). These 13 are run BY HAND
+      // or in a shape the workflow plugin does not read; each names where it is run. A NEW script
+      // that nothing runs fails knip until it is listed here with its runner, or deleted.
+      "entry": [
+        ".claude/hooks/*.mjs",
+        ".claude/skills/*/*.mjs",
+        // uptime.yml runs it through a variable the GitHub Actions plugin does not resolve.
+        "scripts/smoke-viewer-payload.mjs",
+        // The deploy-and-live-checks skill and the runbook run it against a preview by hand.
+        "scripts/smoke-viewer-preview.mjs",
+        // Hand-run garment tools (`.claude/rules/cms-scripted-writes.md`, docs/RUNBOOK.md).
+        "scripts/apply-customisation-copy.mjs",
+        "scripts/attach-renders.mjs",
+        "scripts/import-catalogue-products.mjs",
+        "scripts/ingest-local-glb.mjs",
+        "scripts/process-local.mjs",
+        "scripts/publish-garment.mjs",
+        "scripts/swap-live-model.mjs",
+        "scripts/upload-posters.mjs",
+        // Hand-run site tools: the /products film, the docs screenshots, the SEO crawl.
+        "scripts/build-products-film.mjs",
+        "scripts/capture-doc-screenshots.mjs",
+        "scripts/seo-crawl.mjs"
+      ],
       // Type declarations for the .mjs scripts, read by TypeScript, not imported.
       "ignore": ["scripts/*.d.mts"],
       // Deliberately NOT root dependencies (checked 2026-10-01: none resolves from the root).
@@ -59,11 +87,15 @@
       // site serves its own cut (#214), but gen-share-images.mjs and calibrate-fallback.mjs
       // read its woff2 from node_modules, src/archivoCut.test.ts compares the cut against it,
       // and packages/ui/scripts/cut-archivo.py is cut from it.
+      // `cloudflare` is the Workers RUNTIME, not an npm package: worker.mjs imports
+      // `cloudflare:workers` (the shared page store, 2026-10-25), which knip reads as a package
+      // named `cloudflare` and reported as unlisted once it blocked (measured on a trial merge).
       "ignoreDependencies": [
         "server-only",
         "sharp",
         "@fontsource/ibm-plex-mono",
-        "@fontsource-variable/archivo"
+        "@fontsource-variable/archivo",
+        "cloudflare"
       ],
       // Loaded by a path string, not an import: e2e/productsGroupsHarness.ts aliases
       // `next/link` to it for the harness build. `ignoreFiles` drops it from "unused files"

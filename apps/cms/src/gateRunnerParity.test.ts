@@ -185,7 +185,7 @@ describe('the local gate runner and CI', () => {
     // Measured 2026-10-25: pnpm, npm, npx, bash and node lines all parsed, across both jobs.
     for (const expected of [
       `${PNPM} lint`,
-      `${PNPM} exec knip --no-exit-code`,
+      `${PNPM} exec knip`,
       `${PNPM} --filter @run-apparel/viewer test:preload`,
       `${PNPM} --filter @run-apparel/cms test:routes`,
       `${PNPM} --filter @run-apparel/cms test:built-config`,
