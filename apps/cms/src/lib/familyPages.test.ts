@@ -7,6 +7,7 @@ import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
 import { FACTS } from './companyFacts'
 import { FAMILIES } from './families'
+import { faqEntryById } from './faqs'
 import { FAMILY_PAGES, familyHref, familyOf, familyPageFor, rangeGuidePaths } from './familyPages'
 import { guideAt } from './guides'
 import { buildLlmsTxt } from './llmsTxt'
@@ -24,6 +25,15 @@ const ORIGIN = 'https://wear-run.com'
 const BRAND_SUFFIX = ' | RUN APPAREL'
 /** A buyer-page title must LEAD with the term a buyer types. */
 const LEADS_WITH_SEARCH_TERM = /^(?:custom|private label)/i
+
+/** The questions allowed to name a printing method (owner, 2026-10-26, site check). */
+const PRINTING_QUESTIONS = new Set([
+  'Which printing methods suit team kit?',
+  'Which decoration suits the polo?',
+])
+
+/** The FAQ's recycled-and-organic sentence (F10, 2026-10-07), as the pages use it. */
+const RECYCLED_ORGANIC = faqEntryById('recycled-organic').entry.answer.replace(/^Yes\. /, '')
 
 const everyWord = (page: (typeof FAMILY_PAGES)[number]): string =>
   [
@@ -127,11 +137,23 @@ describe('the words state only what the site already states', () => {
      * the owner, `companyFacts.ts`), a certificate the company does not itself hold, and
      * 1889 as a founding year.
      */
+    /*
+     * Owner, 2026-10-26 (site check): two questions may name sublimation and embroidery (the printing
+     * guide's own words, and the polo's own page), and the recycled-fabric sentence may say
+     * "certified suppliers" (the FAQ's answer F10, word for word). Anywhere else on a page each still
+     * fails.
+     */
     it(`${page.path}: no printing method, lead time, certificate or founding year is claimed`, () => {
-      expect(words).not.toMatch(/sublimat/i)
-      expect(words).not.toMatch(/embroider/i)
+      const elsewhere = everyWord({
+        ...page,
+        questions: page.questions.filter((entry) => !PRINTING_QUESTIONS.has(entry.question)),
+      })
+      expect(elsewhere).not.toMatch(/sublimat/i)
+      expect(elsewhere).not.toMatch(/embroider/i)
       expect(words).not.toMatch(/\d+\s*(?:–|-|to)\s*\d+\s*days/i)
-      expect(words).not.toMatch(/certified|OEKO|GOTS|SMETA|SEDEX|ISO\s?9001/i)
+      expect(words.split(RECYCLED_ORGANIC).join('')).not.toMatch(
+        /certified|OEKO|GOTS|SMETA|SEDEX|ISO\s?9001/i,
+      )
       expect(words).not.toMatch(/1889|since \d{4}|founded|established/i)
     })
 
@@ -219,5 +241,88 @@ describe('the guides a buyer page links to', () => {
     const paths = rangeGuidePaths(page)
     expect(new Set(paths).size).toBe(paths.length)
     for (const path of paths) expect(() => guideAt(path)).not.toThrow()
+  })
+})
+
+/*
+ * The questions each buyer page asks (owner, 2026-10-26, site check: "nothing said twice on one
+ * page"). Four of the six every page shared repeated the page's own opening paragraph and closing
+ * band, so a page now asks its own questions and keeps only the two that say something new.
+ */
+describe('the questions on a buyer page (owner, 2026-10-26)', () => {
+  const SHARED = ['Do you keep stock designs we can pick from?', 'Where do you ship?']
+  // The four the owner dropped: what the page already says in its label, opening and closing.
+  const DROPPED =
+    /^What is the minimum order for\b|^How long does a sample take\?|^Can the (?:kit|jackets|garments) carry our own brand\?|^What do you need from us to quote\?/
+
+  const own = (page: (typeof FAMILY_PAGES)[number]) =>
+    page.questions.filter((entry) => !SHARED.includes(entry.question))
+
+  it('each page ends with the two shared questions and asks its own before them', () => {
+    for (const page of FAMILY_PAGES) {
+      expect(
+        page.questions.slice(-2).map((entry) => entry.question),
+        page.path,
+      ).toEqual(SHARED)
+      expect(own(page).length, page.path).toBe(page.questions.length - 2)
+    }
+  })
+
+  it('no page asks the four questions that repeated the page', () => {
+    for (const page of FAMILY_PAGES) {
+      for (const entry of page.questions) expect(entry.question, page.path).not.toMatch(DROPPED)
+    }
+    // NEGATIVE CONTROL, run both ways: the dropped questions are caught, and a kept one is not.
+    for (const old of [
+      'What is the minimum order for custom teamwear?',
+      'How long does a sample take?',
+      'Can the kit carry our own brand?',
+      'Can the garments carry our own brand?',
+      'What do you need from us to quote?',
+    ]) {
+      expect(old).toMatch(DROPPED)
+    }
+    expect('Do you keep stock designs we can pick from?').not.toMatch(DROPPED)
+  })
+
+  it('no page repeats a question or an answer', () => {
+    for (const page of FAMILY_PAGES) {
+      const questions = page.questions.map((entry) => entry.question)
+      const answers = page.questions.map((entry) => entry.answer)
+      expect(new Set(questions).size, page.path).toBe(questions.length)
+      expect(new Set(answers).size, page.path).toBe(answers.length)
+    }
+  })
+
+  it('the teamwear page carries the owner’s name-and-number answer, word for word', () => {
+    const teamwear = FAMILY_PAGES.find((page) => page.path === '/custom-teamwear-manufacturer')
+    expect(teamwear?.questions).toContainEqual({
+      question: 'Can each piece carry its own name and number?',
+      answer:
+        'Yes. Each piece can carry its own name and number, and they count toward the same minimum.',
+    })
+  })
+
+  // Fact 8b stays out until the owner gives the water temperatures a wetsuit is made for.
+  it('no page says what water temperature a wetsuit suits', () => {
+    for (const page of FAMILY_PAGES) expect(everyWord(page), page.path).not.toMatch(/temperature/i)
+  })
+
+  // A guide is static and a page's counts are database figures: a typed "nine of the ten" or "four
+  // use DTF" is wrong the day a garment is added. An answer names its garments instead.
+  it('no answer counts the catalogue', () => {
+    const counted =
+      /\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten) (?:reference |live )?(?:garments|colou?rways|families)\b|\b(?:nine|seven|six|three) of (?:them|the ten)\b|\b(?:four|two|one|three|five) uses?\b/i
+    for (const page of FAMILY_PAGES) {
+      for (const entry of page.questions) expect(entry.answer, page.path).not.toMatch(counted)
+    }
+    for (const planted of [
+      'Nine of the ten blend in 5 to 25% spandex.',
+      'Four use DTF: the pullover.',
+      'One uses digital printing.',
+      'The 41 reference garments come in five colorways.',
+    ]) {
+      expect(planted, planted).toMatch(counted)
+    }
   })
 })
