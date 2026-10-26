@@ -2352,9 +2352,9 @@ test.describe("the garment's name on the first screen (D8, F11, M5)", () => {
       })
       // 58%, not the 61-66% measured: a line put back over the garment costs it about 32px, 4%.
       // ⚠️ THE NAME LINE CAME BACK ON 2026-10-26 (`.stage-block__title`, owner, site check): 17px
-      // of text and 8px above it, about 25px, 3-4% of these screens. 61-66% less that is 57-63%,
-      // so this floor is now 54%, NOT RE-MEASURED when it moved (written by a helper with no
-      // browser): read the real shares off a run and set the floor 3-4 points under the lowest.
+      // of text and 8px above it. Measured that day in Chromium, WebKit and mobile Safari: 56.8-57.6%
+      // at 375x812, 58.5-59.2% at 390x844, 62.4-63.0% at 430x932. The floor is 54%, about 3 points
+      // under the lowest, the same margin 58% kept under the 61% measured before.
       expect(m.share, 'the garment window lost its room').toBeGreaterThanOrEqual(0.54)
       expect(m.headingAfterBand, 'the name is no longer after the garment').toBe(true)
     })
@@ -2979,9 +2979,11 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
           range.selectNodeContents(el)
           return Math.round(range.getBoundingClientRect().left)
         }
-        // Since polish D8 and M5 (2026-10-04) the garment is the first thing under the bar: the
-        // label and the product line that stood between them are gone.
+        // Since polish D8 and M5 (2026-10-04) the label and the product line that stood between
+        // the bar and the garment were gone; since the site check (owner, 2026-10-26) one line
+        // with the name and code stands there again, part of the garment's group (8px each side).
         const bar = box('.notch')
+        const name = box('.stage-block__title')
         const canvas = box('.stage__canvas')
         const controls = box('.stage__plinth')
         const colour = box('.colourways__name')
@@ -2989,7 +2991,8 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
         const gap = (a?: DOMRect, b?: DOMRect) => (a && b ? Math.round(b.top - a.bottom) : null)
         return {
           gaps: {
-            'bar > garment': gap(bar, canvas),
+            'bar > name': gap(bar, name),
+            'name > garment': gap(name, canvas),
             'garment > controls': gap(canvas, controls),
             'controls > colour name': gap(controls, colour),
             'colour name > colours': gap(colour, dot),
@@ -2999,7 +3002,8 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
         }
       })
       expect(m.gaps).toEqual({
-        'bar > garment': 8,
+        'bar > name': 8,
+        'name > garment': 8,
         'garment > controls': 16,
         'controls > colour name': 16,
         'colour name > colours': 8,
