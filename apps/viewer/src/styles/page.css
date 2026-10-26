@@ -2612,6 +2612,38 @@ summary.spec-item__row:focus-visible {
 }
 
 /*
+ * THE FOUR STEPS IN TWO COLUMNS ON A WIDE SCREEN (owner, 2026-10-26, site check). In one column
+ * the steps used only the left ~60% of their 1,104px card at 1440px: a step's words stop at the
+ * paragraph measure (`p { max-width: 60ch }`, base.css) and the card's right side stood empty.
+ * Two columns read left to right, 1 2 / 3 4, in the order the markup and the Tab key have; no
+ * word changes. 900px is the garment page's existing seam (the two-column stage, the bar), not a
+ * new breakpoint; a column is then about 400px, which holds a step's number, title and words.
+ *
+ * `minmax(0, 1fr)`, not `1fr`: a column's floor is its content's width, and one long word would
+ * widen it. The dividers follow the shape: step 2 sits beside step 1, so it loses the dashed top
+ * edge `.step + .step` gives it and takes a dashed left edge, like step 4; steps 3 and 4 keep
+ * the top edge, the line between the rows. A last step with no partner (a garment with three or
+ * five) takes the whole row, so no empty cell shows the card's background.
+ */
+@media (min-width: 900px) {
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .step:nth-child(2) {
+    border-top: 0;
+  }
+
+  .step:nth-child(even) {
+    border-left: 1px dashed var(--line);
+  }
+
+  .step:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/*
  * ── More from this category (polish S6, RelatedGarments.tsx) ─────────
  *
  * The section only. The cards' rules are in related-cards.css, which loads with the cards after

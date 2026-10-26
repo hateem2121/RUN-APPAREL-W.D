@@ -4216,3 +4216,52 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
     ).toBeGreaterThanOrEqual(2900)
   })
 })
+
+/**
+ * THE №02 STEPS IN TWO COLUMNS ON A WIDE SCREEN (owner, 2026-10-26, site check). In one column the
+ * four steps used only the left ~60% of their card at 1440px. `styles/stepsColumns.test.ts` holds
+ * the declarations; this measures the card. The fixture serves four steps, as production does.
+ */
+test.describe('the №02 steps lie in two columns on a wide screen', () => {
+  const measureSteps = (page: Page) =>
+    page.evaluate(() => {
+      const card = (document.querySelector('.steps') as Element).getBoundingClientRect()
+      const boxes = [...document.querySelectorAll('.step')].map((el) => el.getBoundingClientRect())
+      return {
+        card: { left: card.left, right: card.right },
+        boxes: boxes.map((b) => ({ left: b.left, right: b.right, top: b.top, bottom: b.bottom })),
+      }
+    })
+
+  test('1440x900: 1 and 2 share a row, 3 and 4 the next, and the card is filled', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.step')).toHaveCount(4)
+    const m = await measureSteps(page)
+    const [one, two, three, four] = m.boxes
+    if (!one || !two || !three || !four) throw new Error('fewer than four steps measured')
+    expect(Math.abs(one.top - two.top), 'step 2 is not beside step 1').toBeLessThan(1)
+    expect(two.left, 'step 2 is not to the right of step 1').toBeGreaterThanOrEqual(one.right - 1)
+    expect(three.top, 'step 3 does not start a second row').toBeGreaterThanOrEqual(one.bottom - 1)
+    expect(Math.abs(three.top - four.top), 'step 4 is not beside step 3').toBeLessThan(1)
+    // The card is used edge to edge: the right column ends where the card does.
+    expect(four.right).toBeGreaterThanOrEqual(m.card.right - 2)
+    expect(one.left).toBeLessThanOrEqual(m.card.left + 2)
+  })
+
+  test('a phone keeps one column, in order', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.getByRole('button', { name: /How we build your product/ }).click()
+    const m = await measureSteps(page)
+    for (let i = 1; i < m.boxes.length; i += 1) {
+      expect(m.boxes[i]?.top ?? 0, `step ${i + 1} is not under step ${i}`).toBeGreaterThanOrEqual(
+        (m.boxes[i - 1]?.bottom ?? 0) - 1,
+      )
+    }
+  })
+})
