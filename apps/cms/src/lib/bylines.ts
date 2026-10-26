@@ -91,7 +91,7 @@ const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
  * eight guides' approved sections. It replaced the date of the reference garments' links
  * (2026-10-08) on the 3D and fabrics guides, so that constant went with it.
  */
-const SITE_CHECK = '2026-10-26T14:04:04+05:00'
+const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then

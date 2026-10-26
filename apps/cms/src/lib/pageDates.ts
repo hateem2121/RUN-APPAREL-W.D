@@ -41,7 +41,7 @@ const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 /** #246: the closing block written once, on every FAQ topic. */
 const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
-const SITE_CHECK = '2026-10-26T14:04:04+05:00'
+const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(SITE_CHECK, 'f1b6d4e6e9a2'),
