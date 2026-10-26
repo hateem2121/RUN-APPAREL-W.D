@@ -127,6 +127,28 @@ test('the arrows step through the colours WITH renders and move the page with th
   await expect(page).toHaveURL(/\/n001\/wine$/)
 })
 
+/*
+ * A key pressed before the view has focus. base-ui moves focus in a frame after the view opens,
+ * and a key in that frame lands on the button behind it: the factory photo viewer lost such a
+ * press in CI's image and blocked a deploy (#270). Here the key is sent to that button on purpose,
+ * in every engine, so the test does not depend on how fast focus arrives. The button is held
+ * before the view opens, because the view then hides the page from the accessibility tree.
+ */
+test('an arrow pressed before the view has focus still steps the colours', async ({ page }) => {
+  await openReady(page, 'wine')
+  const fallback = await stageFallsBack(page)
+  await hdButton(page).click()
+  const opener = await (fallback ? hdButton(page) : fullButton(page)).elementHandle()
+  if (!fallback) await fullButton(page).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText('in Wine')
+
+  await opener?.evaluate((button) =>
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
+  )
+  await expect(dialog).toContainText('in Pebble / Optic White')
+})
+
 test('zooms with the wheel and with a double-click, and never past the frame', async ({
   page,
   isMobile,
