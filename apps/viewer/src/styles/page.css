@@ -539,8 +539,57 @@
    header's height — the number the band subtracts. It read 92px on every stage-band
    viewport (measured 2026-09-24); see tokens.css. */
 
-/* `.stage-block__name`, the garment's name over a phone's garment, was deleted on 2026-10-04:
-   polish M5, F11 and X1, owner-approved (App.tsx says where the name is now). */
+/*
+ * THE GARMENT'S NAME AND CODE OVER A PHONE'S GARMENT: "NAME · CODE", one line (owner-approved
+ * 2026-10-26, site check). `.stage-block__name` (the earlier "CODE · NAME") was deleted on
+ * 2026-10-04 by polish M5, F11 and X1; the owner has since asked for the name back on a phone's
+ * first screen, so this is a new element and not that one returning (ProductNameLine.tsx).
+ *
+ * Hidden everywhere else because everywhere else already has the name on the first screen: an
+ * upright tablet (700px and up) because its garment is shortened for it (F11, above), a computer
+ * because the heading is beside the garment (D8). 699px is the tablet rule's own line less one.
+ * 501px of height is the action bar's own: below it the band is a sideways phone's and, at
+ * 844x390, "has no row to spare" (the earlier line was refused there for the same reason).
+ *
+ * ⚠️ IT COSTS THE GARMENT ITS OWN HEIGHT, and that is the trade the owner chose: the canvas
+ * takes what the band has left (`.stage__canvas`), so the line's 17px of text and 8px above it
+ * come out of the garment. The 8px under it is `.stage__inner`'s own top padding on an upright
+ * phone. The earlier line measured 20px at 375x812 (canvas 495 -> 475).
+ * `e2e/motion-and-layout.spec.ts` reads what the garment is left with.
+ *
+ * Flex, not inline: the name shortens with an ellipsis (`min-width: 0` is what lets a flex item
+ * narrow below its text) while the code, which a buyer quotes, never does.
+ */
+.stage-block__title {
+  display: none;
+}
+
+@media (max-width: 699px) and (min-height: 501px) {
+  .stage-block__title {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0 0;
+    padding: 0 var(--stage-gutter);
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-lg);
+    letter-spacing: var(--tracking-caps);
+    line-height: 1.4;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .stage-block__title-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .stage-block__title-code {
+    flex: none;
+    white-space: nowrap;
+  }
+}
 
 /* ── Two columns when the screen has width to spare ────────────────── */
 
@@ -3236,6 +3285,7 @@ summary.spec-item__row:focus-visible {
   .trail,
   .stage__plinth,
   .stage__more,
+  .stage-block__title,
   .stage__hint,
   .stage__loading,
   .stage__placeholder,

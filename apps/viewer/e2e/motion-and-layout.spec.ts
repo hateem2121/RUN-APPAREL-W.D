@@ -732,6 +732,71 @@ test.describe('no label row and no name line over the garment (D8, M5)', () => {
   }
 })
 
+/**
+ * ONE NAME LINE OVER A PHONE'S GARMENT (owner, 2026-10-26, site check). The block above holds that
+ * the 2026-10-04 line (`.stage-block__name`, "CODE · NAME") stays gone; the owner has since asked
+ * for the name on a phone's first screen, so `.stage-block__title` ("NAME · CODE", ProductNameLine)
+ * shows at 699px wide and under and 501px tall and over, inside the band, and nowhere else.
+ * `styles/phoneNameLine.test.ts` holds the declarations; this measures what the visitor gets.
+ */
+test.describe('the name line over a phone’s garment (owner, 2026-10-26)', () => {
+  for (const [width, height] of [
+    [320, 640],
+    [375, 812],
+    [390, 844],
+    [430, 932],
+  ] as const) {
+    test(`a phone shows "NAME · CODE" above the garment at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await serveGarment(page, LONGEST_COPY)
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const line = page.locator('.stage-block__title')
+      await expect(line).toBeVisible()
+      await expect(line).toHaveAttribute('aria-hidden', 'true')
+      await expect(line).toHaveText(/^THE VELOCITY MATRIX JACKET\s*·\s*N001$/i)
+      const m = await line.evaluate((el) => {
+        const box = el.getBoundingClientRect()
+        const code = (
+          el.querySelector('.stage-block__title-code') as Element
+        ).getBoundingClientRect()
+        const canvas = (document.querySelector('.stage__canvas') as Element).getBoundingClientRect()
+        const bar = (document.querySelector('.notch') as Element).getBoundingClientRect()
+        return {
+          oneLine: box.height < 24,
+          codeInside: code.right <= innerWidth && code.left >= 0,
+          aboveGarment: box.bottom <= canvas.top,
+          underBar: box.top >= bar.bottom,
+          overflowX: document.documentElement.scrollWidth > innerWidth,
+        }
+      })
+      expect(m.oneLine, 'the name line wrapped onto a second line').toBe(true)
+      expect(m.codeInside, 'the code is cut off or pushed off the screen').toBe(true)
+      expect(m.aboveGarment, 'the line is not above the 3D window').toBe(true)
+      expect(m.underBar, 'the line is under the bar, not over it').toBe(true)
+      expect(m.overflowX, 'the line made the page scroll sideways').toBe(false)
+    })
+  }
+
+  for (const [width, height] of [
+    [768, 1024],
+    [1024, 1366],
+    [1440, 900],
+    [844, 390],
+  ] as const) {
+    test(`a tablet, a computer and a sideways phone do not get it at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.locator('.stage-block__title')).toBeHidden()
+    })
+  }
+})
+
 test.describe('layout invariants', () => {
   for (const viewport of VIEWPORTS) {
     test(`no horizontal overflow at ${viewport.name} (${viewport.width}px)`, async ({ page }) => {
@@ -2286,18 +2351,24 @@ test.describe("the garment's name on the first screen (D8, F11, M5)", () => {
         }
       })
       // 58%, not the 61-66% measured: a line put back over the garment costs it about 32px, 4%.
-      expect(m.share, 'the garment window lost its room').toBeGreaterThanOrEqual(0.58)
+      // ⚠️ THE NAME LINE CAME BACK ON 2026-10-26 (`.stage-block__title`, owner, site check): 17px
+      // of text and 8px above it, about 25px, 3-4% of these screens. 61-66% less that is 57-63%,
+      // so this floor is now 54%, NOT RE-MEASURED when it moved (written by a helper with no
+      // browser): read the real shares off a run and set the floor 3-4 points under the lowest.
+      expect(m.share, 'the garment window lost its room').toBeGreaterThanOrEqual(0.54)
       expect(m.headingAfterBand, 'the name is no longer after the garment').toBe(true)
     })
   }
 
-  test('a phone held sideways keeps its band to one screen and draws no name line', async ({
+  test('a phone held sideways keeps its band to one screen and shows no name line', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 844, height: 390 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.locator('.stage-block__name')).toHaveCount(0)
+    // The upright phone's line (owner, 2026-10-26) is refused here, for the band has no row to spare.
+    await expect(page.locator('.stage-block__title')).toBeHidden()
     await expect(page.getByTestId('product-identity-aside')).toHaveCount(0)
   })
 })
