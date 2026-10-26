@@ -2248,6 +2248,13 @@ a.contact-block__value:focus-visible {
   }
 }
 
+/* The one number's two links, WhatsApp and Call, one under the other (2026-10-26). */
+.contact-block--stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .contact-block__note {
   margin-top: 8px;
   font-size: var(--text-sm);

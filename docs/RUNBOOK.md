@@ -2595,9 +2595,11 @@ what readers and Google see.
   breadcrumbs (`buildBreadcrumbJsonLd` in `apps/viewer/worker/preview.ts`). If Search Console's
   "Merchant listings" or "Product snippets" issues come back, something added a product block
   again: read D38 before keeping it. Never a price (D10).
-- The site name is `SITE_NAME` (`apps/cms/src/lib/seo.ts`); the legal name `LEGAL_NAME` and the
-  second phone `CALL_NUMBER` are in `apps/cms/src/lib/companyFacts.ts`, and
-  `apps/cms/src/lib/structuredData.ts` reads all three. The `sameAs` list of profiles is the
+- The site name is `SITE_NAME` (`apps/cms/src/lib/seo.ts`); the legal name `LEGAL_NAME` is in
+  `apps/cms/src/lib/companyFacts.ts`, and `apps/cms/src/lib/structuredData.ts` reads both. The
+  phone is the CMS's **Settings → WhatsApp number**, the company's ONE number for calls and
+  WhatsApp (owner, 26 Oct 2026; a second call line was removed that day).
+  `apps/cms/src/singlePhoneNumber.test.ts` fails if another real number appears in the code. The `sameAs` list of profiles is the
   CMS's **Settings → Social links** (the footer's "Elsewhere"), so a profile added there reaches
   Google with no code change. A chat link (wa.me) is not a profile and is left out.
 
