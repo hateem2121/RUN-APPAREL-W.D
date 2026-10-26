@@ -9,7 +9,7 @@ import { FACTORY_PAGE } from './aboutPages'
 import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { FACTORY_PHOTOS } from './factoryPhotos'
-import { GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from './guides'
+import { GARMENT_FABRICS, GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from './guides'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
 import { ORDER_PHASES } from './orderProcess'
@@ -594,11 +594,18 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
       .sections.flatMap((section) => section.blocks)
       .find((block) => block.kind === 'table')
     if (table?.kind !== 'table') throw new Error('the fabrics guide has no table')
-    expect(table.columns).toEqual(['Garment', 'Composition', 'Weight'])
-    expect(new Set(table.rows.map((row) => row[0])).size).toBe(table.rows.length)
+    // Two columns, so it stays a table on a 320px phone (`GuideTable`): the weight rides in the cell.
+    expect(table.columns).toEqual(['Garment', 'Made of'])
+    expect(table.rows).toEqual(
+      GARMENT_FABRICS.map(([garment, composition, weight]) => [
+        garment,
+        `${composition}, ${weight}`,
+      ]),
+    )
+    expect(new Set(GARMENT_FABRICS.map((row) => row[0])).size).toBe(GARMENT_FABRICS.length)
     const total = (composition: string) =>
       [...composition.matchAll(/(\d+)%/g)].reduce((sum, match) => sum + Number(match[1]), 0)
-    for (const [garment, composition, weight] of table.rows) {
+    for (const [garment, composition, weight] of GARMENT_FABRICS) {
       expect(total(composition ?? ''), garment).toBe(100)
       expect(weight, garment).toMatch(/GSM$|^\d+(?:\.\d+)? mm/)
     }

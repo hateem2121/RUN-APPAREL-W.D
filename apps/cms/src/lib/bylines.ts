@@ -126,7 +126,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.production,
     GUIDES_2,
     SITE_CHECK,
-    'c74d5aaa6b2b',
+    '2d2a4b0248a6',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,

@@ -131,6 +131,34 @@ const BUILDINGS = (
   ABOUT.points.find((point) => point.label.startsWith('Buildings'))?.value ?? ''
 ).toLowerCase()
 
+/**
+ * Some garments' own published fabric and weight (owner, 2026-10-26, site check), read from the
+ * public garment data that day and typed, because a guide is static: a garment whose fabric is
+ * edited in the CMS needs its row edited here (owner's choice, same day).
+ *
+ * ⚠️ TWO COLUMNS ON THE PAGE, NOT THREE: the weight joins the fabric's cell. Three columns ran 38px
+ * past a 320px phone (measured 2026-10-26), and the two ways a wider table fits, a sideways scroll
+ * or a stacked layout that changes each part's `display`, are both refused at `GuideTable`.
+ */
+export const GARMENT_FABRICS: readonly (readonly [
+  garment: string,
+  composition: string,
+  weight: string,
+])[] = [
+  ['Men’s training pullover', '88% polyester, 12% spandex', '160 to 210 GSM'],
+  ['High-support sports bra', '95% nylon, 5% spandex', '200 to 240 GSM'],
+  ['Quarter-zip running shirt', '100% recycled polyester', '180 to 220 GSM'],
+  ['V-neck soccer jersey', '100% polyester', '140 to 180 GSM'],
+  ['Polo-collar soccer jersey', '50% polyester, 50% cotton', '160 to 220 GSM'],
+  ['Training bib', '100% polyester', '80 to 100 GSM'],
+  ['Women’s crop hoodie', '98% recycled polyester, 2% spandex', '340 to 380 GSM'],
+  ['Men’s tracksuit', '100% organic cotton', '280 to 350 GSM'],
+  ['Men’s sherpa fleece jacket', '80% cotton, 20% polyester', '320 to 440 GSM'],
+  ['Windbreaker', '100% nylon', '40 to 70 GSM'],
+  ['Neoprene wetsuit', '88% polychloroprene, 12% nylon', '3 mm, about 700 g/m²'],
+  ['Leather utility jacket', '100% genuine leather (cowhide)', '1.2 mm'],
+]
+
 /** What the inquiry form takes, in the form's own words and limits (`inquiryForm.ts`). */
 const FORM_TAKES = `The inquiry form takes ${ACCEPTED_KINDS}, up to ${MAX_FILES} files and ${LIMIT} in total.`
 const LARGER_FILES = 'For larger files, paste a WeTransfer or Drive link in your message.'
@@ -743,21 +771,11 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'table',
             caption: 'What each garment is made of',
-            columns: ['Garment', 'Composition', 'Weight'],
-            rows: [
-              ['Men’s training pullover', '88% polyester, 12% spandex', '160 to 210 GSM'],
-              ['High-support sports bra', '95% nylon, 5% spandex', '200 to 240 GSM'],
-              ['Quarter-zip running shirt', '100% recycled polyester', '180 to 220 GSM'],
-              ['V-neck soccer jersey', '100% polyester', '140 to 180 GSM'],
-              ['Polo-collar soccer jersey', '50% polyester, 50% cotton', '160 to 220 GSM'],
-              ['Training bib', '100% polyester', '80 to 100 GSM'],
-              ['Women’s crop hoodie', '98% recycled polyester, 2% spandex', '340 to 380 GSM'],
-              ['Men’s tracksuit', '100% organic cotton', '280 to 350 GSM'],
-              ['Men’s sherpa fleece jacket', '80% cotton, 20% polyester', '320 to 440 GSM'],
-              ['Windbreaker', '100% nylon', '40 to 70 GSM'],
-              ['Neoprene wetsuit', '88% polychloroprene, 12% nylon', '3 mm, about 700 g/m²'],
-              ['Leather utility jacket', '100% genuine leather (cowhide)', '1.2 mm'],
-            ],
+            columns: ['Garment', 'Made of'],
+            rows: GARMENT_FABRICS.map(([garment, composition, weight]) => [
+              garment,
+              `${composition}, ${weight}`,
+            ]),
           },
         ],
       },
