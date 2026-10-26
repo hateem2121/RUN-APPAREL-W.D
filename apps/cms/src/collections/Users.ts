@@ -12,8 +12,12 @@ export const Users: CollectionConfig = {
     lockTime: 10 * 60 * 1000,
     // Allow API-key auth so the shrink robot (apps/shrink) can create the
     // guardrailed Media doc and update the raw-upload record after processing.
-    // Give the robot user the Editor role and enable its key on its user record;
-    // keys are per-user and revocable. Humans still sign in with email/password.
+    // The robot user has the ADMIN role, not Editor: it also deletes the unused
+    // models it leaves behind, and deleting media is admin-only (Media.ts). As an
+    // Editor those deletes are refused and the unused files pile up (checked
+    // 2026-10-26; owner kept Admin). Data no robot needs is closed to every key
+    // instead (`isSignedInPerson`, `isAdminPerson` in access/roles.ts). Keys are
+    // per-user and revocable. Humans still sign in with email/password.
     useAPIKey: true,
   },
   // Auth collections are the one place Payload v4 still defaults `versions` to

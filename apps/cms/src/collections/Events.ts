@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { isAdmin } from '../access/roles'
+import { isAdmin, isAdminPerson } from '../access/roles'
 import { MAX_CLS, MAX_INP_MS, MAX_LCP_MS } from '../endpoints/events'
 
 /**
@@ -27,7 +27,8 @@ export const Events: CollectionConfig = {
       'Anonymous viewer analytics, diagnostics and client errors. No IP or personal data is stored. Written only by the public events endpoint; prune periodically.',
   },
   access: {
-    read: isAdmin,
+    // A person, never an API key: the robot's key is an admin's too (roles.ts, isAdminPerson).
+    read: isAdminPerson,
     create: () => false, // endpoint-only via the Local API (overrideAccess)
     update: () => false,
     delete: isAdmin,

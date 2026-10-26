@@ -23,12 +23,25 @@ export const isAdminOrEditor: Access = ({ req }) => {
 export const isAuthenticated: Access = ({ req }) => Boolean(req.user)
 
 /**
- * A person signed in through the admin, never an API key. The shrink robot signs in as
- * an editor with `users API-Key`, so `isAuthenticated` let its key read every customer's
- * name, email and message (audit 2026-09-26) — data it has no use for.
+ * A person signed in through the admin, never an API key. The shrink robot signs in with
+ * `users API-Key`, so `isAuthenticated` let its key read every customer's name, email and
+ * message (audit 2026-09-26) — data it has no use for.
  */
 export const isSignedInPerson: Access = ({ req }) =>
   Boolean(req.user) && (req.user as { _strategy?: string })._strategy !== 'api-key'
+
+/**
+ * An ADMIN signed in as a person: `isAdmin` and `isSignedInPerson` together.
+ *
+ * WHY (2026-10-26). The shrink robot's user has the ADMIN role, because deleting media is
+ * admin-only and the robot deletes the unused models it leaves behind (`orphanGuard.ts`,
+ * `index.ts` in apps/shrink). So `isAdmin` alone let the robot's key, a Cloudflare secret,
+ * read the PDF visitors' city, country and device (DocumentVisits), the weekly email log and
+ * site events. Nothing reads those by key: every reader is the CMS's own Local API code,
+ * which bypasses access. The owner chose people-only reads that day.
+ */
+export const isAdminPerson: Access = (args) =>
+  Boolean(isAdmin(args)) && Boolean(isSignedInPerson(args))
 
 export const isAdminFieldLevel: FieldAccess = ({ req }) => roleOf(req.user) === 'admin'
 
