@@ -256,7 +256,8 @@ replace the token in `apps/viewer/index.html` and rebuild.
 
 ## 10. GitHub Actions auto-deploy (makes `git push` deploy)
 
-So every push to `main` deploys automatically (after tests pass):
+So every push to `main` deploys automatically (after tests pass), except one that changes
+only documents, tests or other workflows (since 2026-10-26):
 
 1. Cloudflare dashboard → *My Profile → API Tokens → Create Token* → grant
    **Workers Scripts: Edit**, **D1: Edit**,
