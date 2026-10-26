@@ -42,9 +42,11 @@ const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
+/** The dye: the home page draws the island that turns №02's cards colour (2026-10-26). */
+const DYE = '2026-10-26T21:46:41+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(SITE_CHECK, 'f1b6d4e6e9a2'),
+  '/': page(DYE, '72ba63f289f5'),
   '/products': page(SITE_CHECK, '033a56dfbd1f'),
   '/custom-teamwear-manufacturer': page(SITE_CHECK, '18a602bbf355'),
   '/custom-activewear-manufacturer': page(SITE_CHECK, '0668dfbc51a4'),
