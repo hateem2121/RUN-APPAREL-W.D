@@ -90,6 +90,14 @@ export function FamilyDye() {
       )
     }
 
+    /*
+     * ⚠️ THE PICTURES' OWN CROSS-FADE IS SWITCHED OFF WHERE THE DYE RUNS (whole-branch review,
+     * 2026-10-26). site.css fades the two pictures over --settle as a card opens, and under a dye of
+     * about 400 ms the soaked region showed both garments at once: the double image the dye replaces.
+     * Inline, so a page without this script keeps the cross-fade.
+     */
+    const pictures = [...document.querySelectorAll<HTMLElement>('.family-card .family-card__img')]
+    for (const picture of pictures) picture.style.transition = 'none'
     for (const card of document.querySelectorAll<HTMLElement>('.family-card')) {
       const options = { signal: done.signal }
       card.addEventListener('pointerenter', () => play(card, true), options)
@@ -112,6 +120,7 @@ export function FamilyDye() {
     }
     return () => {
       done.abort()
+      for (const picture of pictures) picture.style.transition = ''
       for (const run of runs.values()) run.cancel()
     }
   }, [])

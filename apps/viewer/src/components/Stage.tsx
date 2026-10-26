@@ -1,6 +1,7 @@
 import {
   containedBox,
   copyModelFrame,
+  type DyeRun,
   playDye,
   readDyeTiming,
   type ViewerApiSuccess,
@@ -35,6 +36,9 @@ import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './sta
 import { colourwayTabId } from './ColourwayTabs'
 import { HdImageButton } from './HdImageButton'
 import { SpecGroups } from './SpecGroups'
+
+/** How far the dye opens, as a share of its trip, before model-viewer has drawn the new colour. */
+const DYE_GATE = 0.2
 
 /**
  * A colour's dot, in px from the top-left of `layer`'s box, for the dye to start from: found by its
@@ -132,6 +136,9 @@ export function Stage({
    * and the colour last CHOSEN, so a change of choice plays the full dye and a hover the short one.
    */
   const dyeRef = useRef<HTMLCanvasElement | null>(null)
+  /** The dye running on the garment and the colour it is taking it to (the colour effect below). */
+  const dyeRunRef = useRef<{ run: DyeRun; target: string } | null>(null)
+  useEffect(() => () => dyeRunRef.current?.run.cancel(), [])
   // The HD picture's dye: its own layer, a copy of the picture last drawn, and that picture's address.
   const hdRef = useRef<HTMLImageElement | null>(null)
   const hdDyeRef = useRef<HTMLCanvasElement | null>(null)
@@ -693,7 +700,6 @@ export function Stage({
     if (!mv || !modelLoaded) return
     if (separateMode) return // handled via src/poster attributes below
     const available = mv.availableVariants ?? []
-    let stopDye: (() => void) | undefined
     // A change of choice, not a hover: the full dye.
     const chosen = committedRef.current !== null && committedRef.current !== selected.slug
     committedRef.current = selected.slug
@@ -710,13 +716,33 @@ export function Stage({
        * heaviest frame model-viewer draws (121-131 ms of main thread on the live garment, the
        * viewer-model-viewer rule), and drawn with the dye's first opening it held a pick's first
        * change back (website №03, measured 2026-10-26: 160-178 ms against 74-86 ms this way).
+       *
+       * ⚠️ A HOVER'S DYE CARRIES ON WHEN THAT COLOUR IS THEN CLICKED (whole-branch review, 2026-10-26).
+       * The click re-runs this effect for the colour already going on, and cutting the hover's dye
+       * there snapped the garment for every mouse user who pointed before clicking. And a different
+       * colour mid-dye starts from what is on screen (the player's takeover), never from a cleared
+       * garment.
+       *
+       * ⚠️ AND THE FRONT WAITS AT THE DOT UNTIL model-viewer HAS DRAWN THE NEW COLOUR (`gate`, the
+       * same review): until then the dye opened over the old cloth, which on a heavy garment could
+       * sweep the whole picture and then snap. MO2 waited for `variant-applied` the same way.
        */
+      const target = displayed.variantId
+      const current = dyeRunRef.current
+      if (current?.target === target) {
+        appliedVariantRef.current = target
+        setNotice(null)
+        return
+      }
       const layer = dyeRef.current
       const old = document.createElement('canvas')
+      const applied = new Promise((done) =>
+        mv.addEventListener('variant-applied', done, { once: true }),
+      )
       const run =
         layer &&
         appliedVariantRef.current !== null &&
-        mv.variantName !== displayed.variantId &&
+        mv.variantName !== target &&
         !reduceMotion &&
         !canvasRef.current?.hasAttribute('data-hd') &&
         copyModelFrame(mv, old)
@@ -727,18 +753,25 @@ export function Stage({
               swatch: displayed.hexSwatch || null,
               kind: chosen ? 'full' : 'short',
               timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+              gate: { until: applied, at: DYE_GATE },
             })
           : null
-      appliedVariantRef.current = displayed.variantId
-      let alive = true
-      const apply = () => {
-        if (alive) mv.variantName = displayed.variantId
-      }
-      if (run) run.firstFrame.then(() => requestAnimationFrame(apply))
-      else apply()
-      stopDye = () => {
-        alive = false
-        run?.cancel()
+      if (!run) current?.run.cancel()
+      appliedVariantRef.current = target
+      const mine = run ? { run, target } : null
+      dyeRunRef.current = mine
+      if (mine) {
+        // Applied only while this is still the newest colour: a newer one applies its own.
+        mine.run.firstFrame.then(() =>
+          requestAnimationFrame(() => {
+            if (dyeRunRef.current === mine) mv.variantName = target
+          }),
+        )
+        mine.run.finished.then(() => {
+          if (dyeRunRef.current === mine) dyeRunRef.current = null
+        })
+      } else {
+        mv.variantName = target
       }
       setNotice(null)
     } else {
@@ -756,8 +789,6 @@ export function Stage({
         })
       }
     }
-    // A newer colour, or a stage that changes before the colour lands, clears the dye at once.
-    return () => stopDye?.()
   }, [
     modelLoaded,
     displayed.variantId,

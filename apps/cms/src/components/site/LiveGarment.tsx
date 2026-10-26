@@ -103,6 +103,9 @@ type ModelViewerElement = HTMLElement & {
 /** Where a pick came from: the chosen dot's centre on the screen, and its colour. */
 export type PickedFrom = { x: number; y: number; swatch: string }
 
+/** How far the dye opens, as a share of its trip, before model-viewer has drawn the new colour. */
+const DYE_GATE = 0.2
+
 /** How far an untouched, turning garment turns with a pick (about 29°). */
 const PICK_TURN_RAD = 0.5
 
@@ -188,6 +191,15 @@ export function LiveGarment({
     const canvas = dye.current
     const old = document.createElement('canvas')
     const picked = pickedFrom.current?.() ?? null
+    /*
+     * ⚠️ THE FRONT WAITS AT THE DOT UNTIL model-viewer HAS DRAWN THE NEW COLOUR (whole-branch review,
+     * 2026-10-26): the old path waited for `variant-applied` before wiping, and without that a heavy
+     * garment's dye could sweep over cloth still in the old colour, then snap. And a pick mid-dye
+     * starts from what is on screen (the player's takeover), never from a cleared garment.
+     */
+    const applied = new Promise((done) =>
+      mv.addEventListener('variant-applied', done, { once: true }),
+    )
     const run =
       !reduced.current && canvas && copyModelFrame(mv, old)
         ? playDye({
@@ -197,6 +209,7 @@ export function LiveGarment({
             swatch: picked?.swatch || null,
             kind: 'full',
             timing: readDyeTiming((token) => getComputedStyle(canvas).getPropertyValue(token)),
+            gate: { until: applied, at: DYE_GATE },
           })
         : null
     /*

@@ -63,8 +63,11 @@ export type DyeRun = {
 
 export type DyeOptions = {
   layer: DyeLayer
-  /** The old colour's picture, the same shape as the layer's box. */
-  old: object
+  /**
+   * The old colour's picture, the same shape as the layer's box. `null` where there is none to read
+   * (a picture not loaded): the dye then runs only if an earlier one is still on this layer, from it.
+   */
+  old: object | null
   /** The chosen dot's centre, in px from the layer's top-left; `null` for the middle of the foot. */
   point: { x: number; y: number } | null
   /** The new colour's swatch, for the wet edge; `null` draws no edge. */
@@ -76,6 +79,13 @@ export type DyeOptions = {
    * the dye's clock: a picture still on its way would otherwise be soaked onto a blank box.
    */
   after?: Promise<unknown>
+  /**
+   * Let the front open only to `at` (a share of the trip: the wet spot at the dot, the visitor's
+   * first change) until `until` settles, at most `GATE_MS`. For a 3D garment, whose new colour is
+   * applied a frame behind the dye and drawn when model-viewer says `variant-applied`: the front must
+   * not sweep over cloth still in the old colour (whole-branch review, 2026-10-26).
+   */
+  gate?: { until: Promise<unknown>; at: number }
 }
 
 /** The mask's cell, in CSS px: 8, so a 1440px screen's garment is about 100 × 125 cells a frame. */
@@ -87,6 +97,20 @@ const WET_BAND = 0.05
 const WET_ALPHA = 0.55
 /** The mark a pick's first visible change leaves, which the timing test reads (≤ 100 ms). */
 export const DYE_FIRST_FRAME = 'dye-first-frame'
+
+/** The longest a gate holds the front. */
+const GATE_MS = 1500
+
+/**
+ * The dye on screen on each layer: a run, or a cancelled one whose clear waits for the next frame.
+ * ⚠️ A NEWER CHANGE STARTS FROM WHAT IS ON SCREEN (whole-branch review, 2026-10-26). A second pick
+ * mid-dye used to clear the layer and start from the first pick's colour, so whatever was still
+ * covered snapped to it in one frame, and a pointer brushing across a №02 card flashed its other
+ * colour. Now a new dye on the same layer copies the layer as it stands and lays it over its own old
+ * picture before anything clears; and a cancel clears on the next frame, not at once, so the owner
+ * that cancels and starts again in one go never shows a cleared layer in between.
+ */
+const onScreen = new WeakMap<object, { capture(): object | null; release(): void }>()
 
 /** The site's `--ease` (cubic-bezier(0.22, 1, 0.36, 1)), as the quartic ease-out it closely follows. */
 const ease = (p: number) => 1 - (1 - p) ** 4
@@ -101,12 +125,22 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   const firstFrame = new Promise<void>((done) => {
     drawn = done
   })
+  // An earlier dye still on this layer: copy what it shows before anything clears or resizes it.
+  const previous = onScreen.get(layer)
+  onScreen.delete(layer)
+  const under = previous?.capture() ?? null
+  previous?.release()
   const context = env.reducedMotion() ? null : layer.getContext('2d')
   const box = layer.getBoundingClientRect()
   const cols = Math.ceil(box.width / CELL)
   const rows = Math.ceil(box.height / CELL)
   const mask = context && cols > 0 && rows > 0 ? env.makeCanvas(cols, rows) : null
-  if (!context || !mask) {
+  const source = options.old ?? under
+  if (!context || !mask || !source) {
+    if (previous) {
+      layer.getContext('2d')?.clearRect(0, 0, layer.width, layer.height)
+      layer.removeAttribute('data-running')
+    }
     resolve()
     drawn()
     return { finished, firstFrame, cancel: () => {} }
@@ -117,9 +151,19 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
    * a picture, its natural size), so the first frame IS that picture, pixel for pixel: the garment
    * pages' WebGL test compares it with model-viewer's own crop. Otherwise the screen's pixel ratio.
    */
-  const own = ownSize(options.old)
+  const own = ownSize(source)
   layer.width = own ? own.width : Math.round(box.width * env.pixelRatio())
   layer.height = own ? own.height : Math.round(box.height * env.pixelRatio())
+  // What was on screen, over the new old picture: the new dye continues from what the visitor sees.
+  let picture: object = source
+  if (under && options.old) {
+    const both = env.makeCanvas(layer.width, layer.height)
+    if (both) {
+      both.context.drawImage(options.old as never, 0, 0, layer.width, layer.height)
+      both.context.drawImage(under as never, 0, 0, layer.width, layer.height)
+      picture = both.canvas
+    }
+  }
   const origin = dyeOrigin(box, options.point)
   const field = arrivalField(cols, rows, origin, CELL, Math.floor(env.now()) & 0xffff)
   const duration = dyeDuration(origin.reach, options.kind, options.timing)
@@ -154,7 +198,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
     context.imageSmoothingEnabled = true
     context.drawImage(mask.canvas as never, 0, 0, cols, rows, 0, 0, scaledW, scaledH)
     context.globalCompositeOperation = 'source-in'
-    context.drawImage(options.old as never, 0, 0, layer.width, layer.height)
+    context.drawImage(picture as never, 0, 0, layer.width, layer.height)
     if (edge && edgeData) {
       edge.context.putImageData(edgeData as never, 0, 0)
       // Only on what is left of the old picture: a 3D garment's copy is see-through around it, so
@@ -166,28 +210,83 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   }
 
   let frameId = 0
+  let clearing = 0
   let marked = false
   let over = false
   let start = env.now()
-  const end = () => {
-    if (over) return
+  // The gate (see `DyeOptions.gate`): open without one, or once its promise settles or its cap passes.
+  const gate = options.gate
+  let gateOpen = !gate
+  gate?.until.then(
+    () => {
+      gateOpen = true
+    },
+    () => {
+      gateOpen = true
+    },
+  )
+  let held = 0
+  let heldSince = -1
+  /** Stops this run's frames and settles its promises, leaving the layer as it is. */
+  const stop = () => {
     over = true
     env.cancelFrame(frameId)
     stopWatching()
-    context.clearRect(0, 0, layer.width, layer.height)
-    layer.removeAttribute('data-running')
     drawn()
     resolve()
+  }
+  const clear = () => {
+    context.clearRect(0, 0, layer.width, layer.height)
+    layer.removeAttribute('data-running')
+  }
+  const entry = {
+    capture: () => {
+      const copy = env.makeCanvas(layer.width, layer.height)
+      if (!copy) return null
+      copy.context.drawImage(layer as never, 0, 0)
+      return copy.canvas
+    },
+    release: () => {
+      stop()
+      env.cancelFrame(clearing)
+    },
+  }
+  /** Done, or the tab hidden: cleared at once. */
+  const end = () => {
+    if (over) return
+    stop()
+    if (onScreen.get(layer) === entry) onScreen.delete(layer)
+    clear()
+  }
+  /** A newer change, or the owner going: cleared on the next frame unless a new dye takes over. */
+  const cancel = () => {
+    if (over) return
+    stop()
+    clearing = env.frame(() => {
+      if (onScreen.get(layer) !== entry) return
+      onScreen.delete(layer)
+      clear()
+    })
   }
   const stopWatching = env.onHidden(end)
   const tick = () => {
     if (over) return
-    const progress = Math.min(1, (env.now() - start) / duration)
+    const now = env.now()
+    if (!gateOpen && heldSince >= 0 && now - heldSince > GATE_MS) gateOpen = true
+    let progress = Math.min(1, (now - start - held) / duration)
+    let t = ease(progress) * (1 + SOFT)
+    if (gate && !gateOpen && t > gate.at) {
+      // Held at the gate: the clock is moved on so the front resumes from here once it opens.
+      if (heldSince < 0) heldSince = now
+      progress = 1 - (1 - gate.at / (1 + SOFT)) ** 0.25
+      held = now - start - progress * duration
+      t = gate.at
+    }
     if (progress >= 1) {
       end()
       return
     }
-    draw(ease(progress) * (1 + SOFT))
+    draw(t)
     if (!marked) {
       marked = true
       env.mark(DYE_FIRST_FRAME)
@@ -196,6 +295,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
     frameId = env.frame(tick)
   }
 
+  onScreen.set(layer, entry)
   layer.setAttribute('data-running', '')
   // The old picture covers the change from this very moment: the caller swaps the colour next.
   draw(0)
@@ -206,7 +306,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   }
   if (options.after) options.after.then(go, go)
   else go()
-  return { finished, firstFrame, cancel: end }
+  return { finished, firstFrame, cancel }
 }
 
 /** A picture's natural size, or a canvas's; `null` for anything without one. */

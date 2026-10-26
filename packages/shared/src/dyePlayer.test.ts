@@ -71,7 +71,7 @@ function harness(options: { reduced?: boolean } = {}) {
     // wet edge's.
     makeCanvas: () => {
       made++
-      return { canvas: { kind: 'mask' }, context: context([], made === 1 ? puts : []) }
+      return { canvas: { kind: 'mask' }, context: context(ops, made === 1 ? puts : []) }
     },
   }
   /** Moves the clock and draws one frame. */
@@ -194,7 +194,7 @@ describe('playDye', () => {
     expect(h.marks).toEqual([])
   })
 
-  it('a cancel, or the tab being hidden, clears the overlay at once', async () => {
+  it('the tab being hidden clears the overlay at once; a cancel by the next frame', async () => {
     for (const end of ['cancel', 'hide'] as const) {
       const h = harness()
       const run = playDye(
@@ -205,6 +205,8 @@ describe('playDye', () => {
       if (end === 'cancel') run.cancel()
       else h.hide()
       await run.finished
+      // A cancel waits one frame for a newer dye to take the layer over (the takeover test).
+      if (end === 'cancel') h.step(16)
       expect(h.ops.at(-1)?.[0], end).toBe('clearRect')
       expect(h.attributes.has('data-running'), end).toBe(false)
       expect(h.pending(), end).toBe(false)
@@ -255,6 +257,113 @@ describe('playDye', () => {
     h.step(16)
     expect(h.marks).toEqual(['dye-first-frame'])
     for (let i = 0; i < 40; i++) h.step(16)
+    await run.finished
+    expect(h.attributes.has('data-running')).toBe(false)
+  })
+
+  it('a second dye on the same layer starts from what is on screen, never from a cleared layer', async () => {
+    const h = harness()
+    const first = playDye(
+      { layer: h.layer, old: OLD, point: null, swatch: null, kind: 'full', timing: TIMING },
+      h.env,
+    )
+    h.step(16)
+    h.step(16)
+    // A newer change: its owner lets the first go, then starts the second at once.
+    first.cancel()
+    const before = h.ops.length
+    playDye(
+      {
+        layer: h.layer,
+        old: { kind: 'newer old' },
+        point: null,
+        swatch: null,
+        kind: 'full',
+        timing: TIMING,
+      },
+      h.env,
+    )
+    await first.finished
+    const taken = h.ops.slice(before)
+    // The layer as it stood was copied before anything cleared it, and the layer stayed shown.
+    const firstClear = taken.findIndex(([op]) => op === 'clearRect')
+    const copied = taken.findIndex(([op, source]) => op === 'drawImage' && source === h.layer)
+    expect(copied, 'what was on screen was never copied').toBeGreaterThanOrEqual(0)
+    expect(firstClear === -1 || copied < firstClear).toBe(true)
+    expect(h.attributes.has('data-running')).toBe(true)
+    // And the first run's own next-frame clear never lands over the second.
+    h.step(16)
+    expect(h.attributes.has('data-running')).toBe(true)
+  })
+
+  it('a cancel with nothing after it clears on the next frame', async () => {
+    const h = harness()
+    const run = playDye(
+      { layer: h.layer, old: OLD, point: null, swatch: null, kind: 'full', timing: TIMING },
+      h.env,
+    )
+    h.step(16)
+    run.cancel()
+    await run.finished
+    h.step(16)
+    expect(h.ops.at(-1)?.[0]).toBe('clearRect')
+    expect(h.attributes.has('data-running')).toBe(false)
+  })
+
+  it('a gate holds the front at its first change until the new colour is in, then lets it run', async () => {
+    const h = harness()
+    let open = () => {}
+    const until = new Promise<void>((done) => {
+      open = done
+    })
+    let finished = false
+    const run = playDye(
+      {
+        layer: h.layer,
+        old: OLD,
+        point: { x: 0, y: 100 },
+        swatch: null,
+        kind: 'full',
+        timing: TIMING,
+        gate: { until, at: 0.25 },
+      },
+      h.env,
+    )
+    run.finished.then(() => {
+      finished = true
+    })
+    // Far longer than the whole dye, held: the corner by the dot opened, the far one still covered.
+    for (let i = 0; i < 40; i++) h.step(16)
+    await Promise.resolve()
+    expect(finished).toBe(false)
+    expect(h.marks).toEqual(['dye-first-frame'])
+    const mask = h.puts.at(-1) as Uint8ClampedArray
+    const alpha = (col: number, row: number) => mask[(row * 10 + col) * 4 + 3] as number
+    expect(alpha(0, 12)).toBe(0)
+    expect(alpha(9, 0)).toBe(255)
+    open()
+    await until
+    await Promise.resolve()
+    for (let i = 0; i < 40; i++) h.step(16)
+    await run.finished
+    expect(h.attributes.has('data-running')).toBe(false)
+  })
+
+  it('a gate that never opens lets go after its cap', async () => {
+    const h = harness()
+    const run = playDye(
+      {
+        layer: h.layer,
+        old: OLD,
+        point: null,
+        swatch: null,
+        kind: 'full',
+        timing: TIMING,
+        gate: { until: new Promise(() => {}), at: 0.15 },
+      },
+      h.env,
+    )
+    for (let i = 0; i < 160; i++) h.step(16)
     await run.finished
     expect(h.attributes.has('data-running')).toBe(false)
   })

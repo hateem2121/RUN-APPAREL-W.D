@@ -290,6 +290,23 @@ test.describe('the row of five, from 1440px where a pointer can hover (D3; D44)'
     expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
   })
 
+  test('where the dye runs, the two pictures no longer cross-fade under it', async ({ page }) => {
+    await openRow(page, 1440, true)
+    const first = cards(page).first()
+    if ((await first.locator('.family-card__img--open').count()) === 0) {
+      if (process.env.CI) throw new Error('the seeded garment has no second colour to show')
+      test.skip(true, 'no garment with a second colour in this local database')
+    }
+    // The island turns the cross-fade off once it runs (FamilyDye.tsx): a double image under the dye.
+    await expect
+      .poll(() =>
+        first
+          .locator('.family-card__img')
+          .evaluateAll((all) => all.map((img) => getComputedStyle(img).transitionDuration)),
+      )
+      .toEqual(['0s', '0s'])
+  })
+
   test('under reduced motion a card opens with no dye', async ({ page }) => {
     await answerCardPictures(page)
     await openRow(page)

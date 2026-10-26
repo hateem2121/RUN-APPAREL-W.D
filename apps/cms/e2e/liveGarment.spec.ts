@@ -402,6 +402,68 @@ test.describe('№03 — the live 3D garment', () => {
     expect(left, 'pixels left drawn over the garment').toBe(0)
   })
 
+  /*
+   * A second pick mid-dye starts from what is on screen (whole-branch review, 2026-10-26). What would
+   * have to break: the first dye cleared and the second started from the garment, already on the
+   * first pick's colour, so the still-covered side snaps to that colour in one frame. The layer's far
+   * side is read just before the second pick and just after: it must still show the original colour.
+   */
+  test('a second pick mid-dye starts from what is on screen, not from the first pick’s colour', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const draws = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
+    })
+    test.skip(!draws, 'no WebGL: no frame to copy, so a pick simply swaps')
+    // Slow the dye a hundredfold, so it barely moves between the read and the second pick (a click
+    // takes about 100 ms; at ten times, the front still crossed the read pixel in 3 runs of 5).
+    await page.addStyleTag({
+      content: ':root{--dye-min:32000ms!important;--dye-max:64000ms!important}',
+    })
+    /**
+     * A covered pixel on the garment's far side from the dots (they stand left at 1440), then the SAME
+     * pixel again: the garment turns under the copy, so a pixel found afresh could land on the new
+     * copy's own edge and read a mix (a first version did, 2026-10-26).
+     */
+    const farSide = (at?: { x: number; y: number }) =>
+      page.evaluate((spot) => {
+        const layer = document.querySelector('.live-garment .dye-layer') as HTMLCanvasElement
+        const context = layer.getContext('2d') as CanvasRenderingContext2D
+        const read = (x: number, y: number) => [...context.getImageData(x, y, 1, 1).data]
+        if (spot) return { ...spot, rgba: read(spot.x, spot.y) }
+        for (let y = Math.floor(layer.height * 0.45); y < layer.height * 0.55; y += 4) {
+          for (let x = Math.floor(layer.width * 0.62); x < layer.width * 0.75; x += 4) {
+            const rgba = read(x, y)
+            if (rgba[3] === 255) return { x, y, rgba }
+          }
+        }
+        return { x: -1, y: -1, rgba: [0, 0, 0, 0] }
+      }, at)
+    const pills = page.locator('.proof__pill')
+    await pills.nth(1).click({ position: { x: 22, y: 22 } })
+    await page.waitForTimeout(400)
+    const before = await farSide()
+    expect(before.rgba[3], 'the far side was not covered when read').toBe(255)
+    await pills.nth(3).click({ position: { x: 22, y: 22 } })
+    // Two frames: the second dye has started and drawn its first frame.
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    )
+    const after = await farSide(before)
+    const moved = Math.max(
+      ...[0, 1, 2].map((c) => Math.abs((after.rgba[c] ?? 0) - (before.rgba[c] ?? 0))),
+    )
+    expect(moved, `far side ${before.rgba.join()} → ${after.rgba.join()}`).toBeLessThan(24)
+  })
+
   test('two picks in quick succession leave one dye at a time, and none once settled', async ({
     page,
   }) => {

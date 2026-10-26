@@ -139,6 +139,45 @@ test.describe('a colour change soaks into the garment like dye', () => {
     ).toBe('N001-BLACK')
   })
 
+  /*
+   * Hover, then click the same colour a moment later, as a person does (whole-branch review,
+   * 2026-10-26). What would have to break: the click cutting the hover's dye off, so the garment
+   * snaps to the colour; Playwright's own `click()` hovers and presses in one frame and could not
+   * see it, so the press here comes 120 ms after the hover.
+   */
+  test('a hover then a click on the same colour lets the hover’s dye run on', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await openStill(page)
+    await page.evaluate(() => {
+      const w = window as unknown as { __lengths: number[] }
+      w.__lengths = []
+      let started = 0
+      new MutationObserver(() => {
+        const running = document.querySelector('.stage__dye')?.hasAttribute('data-running') ?? false
+        if (running && !started) started = performance.now()
+        if (!running && started) {
+          w.__lengths.push(performance.now() - started)
+          started = 0
+        }
+      }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-running'] })
+    })
+    const tab = page.getByRole('tab', { name: /black/i })
+    await tab.hover()
+    await page.waitForTimeout(120)
+    await page.mouse.down()
+    await page.mouse.up()
+    const lengths = () =>
+      page.evaluate(() => (window as unknown as { __lengths: number[] }).__lengths)
+    await expect.poll(lengths, { timeout: 5000 }).toHaveLength(1)
+    // The one dye ran to its end: the short one (--dye-short, 240 ms), not cut at the click.
+    expect((await lengths())[0], 'the click cut the hover’s dye').toBeGreaterThanOrEqual(200)
+    expect(
+      await page.evaluate(
+        () => (document.querySelector('model-viewer') as { variantName?: string }).variantName,
+      ),
+    ).toBe('N001-BLACK')
+  })
+
   test('a hover previews with the short dye; a click plays the full one', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await openStill(page)

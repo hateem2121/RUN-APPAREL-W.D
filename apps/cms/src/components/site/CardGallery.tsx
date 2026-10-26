@@ -18,6 +18,16 @@ import type { CardColour } from '../../lib/projectPublic'
 import { ProductPoster } from './ProductPoster'
 import { ViewerCue } from './ViewerCue'
 
+/** The pressed control's centre, in px from the top-left of `layer`. */
+function pointFrom(from: Element, layer: Element): { x: number; y: number } {
+  const pressed = from.getBoundingClientRect()
+  const box = layer.getBoundingClientRect()
+  return {
+    x: pressed.left + pressed.width / 2 - box.left,
+    y: pressed.top + pressed.height / 2 - box.top,
+  }
+}
+
 /** The longest the old picture is held over a new one still loading (CardGallery's header). */
 const HOLD_MS = 1500
 
@@ -277,7 +287,22 @@ export function CardGallery({
     const next = slides[target]
     const old = now?.querySelector('img')
     if (!now || !next || now === next || now.dataset.kind !== next.dataset.kind) return false
-    if (!old?.complete || !old.naturalWidth) return false
+    if (!old?.complete || !old.naturalWidth) {
+      // A press during a dye still holding for its picture: the new dye takes over from what is on
+      // screen, where the layer already lies (whole-branch review, 2026-10-26: it glided over a
+      // blank slide).
+      if (!layer.hasAttribute('data-running')) return false
+      dyeRun.current = playDye({
+        layer,
+        old: null,
+        point: pointFrom(from, layer),
+        swatch: colours[target]?.swatch || null,
+        kind: 'full',
+        timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+        after: arrived(next),
+      })
+      return true
+    }
     const style = getComputedStyle(old)
     const drawn = containedBox(
       { width: old.offsetWidth, height: old.offsetHeight },
@@ -296,15 +321,10 @@ export function CardGallery({
       width: `${drawn.width}px`,
       height: `${drawn.height}px`,
     })
-    const pressed = from.getBoundingClientRect()
-    const box = layer.getBoundingClientRect()
     dyeRun.current = playDye({
       layer,
       old,
-      point: {
-        x: pressed.left + pressed.width / 2 - box.left,
-        y: pressed.top + pressed.height / 2 - box.top,
-      },
+      point: pointFrom(from, layer),
       swatch: colours[target]?.swatch || null,
       kind: 'full',
       timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
