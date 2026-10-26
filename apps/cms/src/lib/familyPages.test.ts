@@ -21,7 +21,7 @@ import { breadcrumbJsonLd, faqJsonLd } from './structuredData'
  */
 const FRONTEND = join(import.meta.dirname, '..', 'app', '(frontend)')
 const ORIGIN = 'https://wear-run.com'
-const BRAND_SUFFIX = ' — RUN APPAREL'
+const BRAND_SUFFIX = ' | RUN APPAREL'
 /** A buyer-page title must LEAD with the term a buyer types. */
 const LEADS_WITH_SEARCH_TERM = /^(?:custom|private label)/i
 

@@ -87,7 +87,7 @@ export function RelatedGarments({ data }: { data: ViewerApiSuccess }) {
   if (!shown) return null
   return (
     <section className="related" aria-labelledby="related-heading" data-reveal>
-      <p className="section-number">&#8470;03 — More from this category</p>
+      <p className="section-number">&#8470;03 · More from this category</p>
       <h2 id="related-heading" className="display display--section">
         More <span className="serif-accent">{category}</span> in 3D.
       </h2>

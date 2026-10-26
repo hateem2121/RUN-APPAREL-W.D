@@ -12,7 +12,7 @@ export interface EnquiryContext {
 }
 
 export function buildEnquirySubject({ productName, colourName }: EnquiryContext): string {
-  return `Product Inquiry — ${productName} / ${colourName}`
+  return `Product Inquiry: ${productName} / ${colourName}`
 }
 
 export function buildEnquiryBody({ productName, productCode, colourName }: EnquiryContext): string {

@@ -18,7 +18,7 @@ import { guideBreadcrumbJsonLd } from './structuredData'
  */
 const FRONTEND = join(import.meta.dirname, '..', 'app', '(frontend)')
 const ORIGIN = 'https://wear-run.com'
-const BRAND_SUFFIX = ' — RUN APPAREL'
+const BRAND_SUFFIX = ' | RUN APPAREL'
 
 const everyWord = (guide: (typeof GUIDES)[number]): string =>
   [

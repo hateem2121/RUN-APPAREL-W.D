@@ -1,4 +1,5 @@
 import { BYLINES } from './bylines'
+import { PAGE_DATES } from './pageDates'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // `vi.hoisted`, not a bare `const`: vi.mock's factory is hoisted above module scope, so
@@ -284,8 +285,9 @@ describe('the Journal and case studies in the sitemap', () => {
 
 /**
  * 2026-10-08: the guides, the policies and the careers page state when their words last changed,
- * from their bylines (`bylines.ts`, kept true by `bylines.test.ts`). The hubs and the other code
- * pages still state no date, rather than one nobody keeps.
+ * from their bylines (`bylines.ts`, kept true by `bylines.test.ts`). Since 2026-10-26 every other
+ * page does too, from `pageDates.ts` (kept true by `pageDates.test.ts`), and a page that shows
+ * garments or posts takes the newest one's date when it is later.
  */
 describe('the dated website pages', () => {
   const entries = sitemapFor('visible', 'https://wear-run.com')
@@ -297,10 +299,38 @@ describe('the dated website pages', () => {
     }
   })
 
-  it('leave the hubs and the other pages undated', () => {
-    for (const path of ['', '/guides', '/policies', '/community', '/contact', '/privacy']) {
-      expect(at(path), path).toBeDefined()
-      expect(at(path), path).not.toHaveProperty('lastModified')
+  it('date every other page by its page date, the hubs included', () => {
+    for (const [path, date] of Object.entries(PAGE_DATES)) {
+      const url = path === '/' ? '' : path
+      expect(at(url)?.lastModified, path).toEqual(new Date(date.on))
     }
+    for (const entry of entries) expect(entry.lastModified, entry.url).toBeInstanceOf(Date)
+  })
+
+  it('take a newer garment’s date on the home page, /products and its own buyer page only', () => {
+    const later = '2099-01-01T00:00:00.000Z'
+    const dated = sitemapFor('visible', 'https://wear-run.com', [
+      { slug: 'kit', category: 'Outerwear', updatedAt: later, colours: [{ slug: 'black' }] },
+    ])
+    const on = (path: string) => dated.find((entry) => entry.url === `https://wear-run.com${path}`)
+    for (const path of ['', '/products', '/custom-outerwear-manufacturer']) {
+      expect(on(path)?.lastModified, path).toEqual(new Date(later))
+    }
+    expect(on('/custom-teamwear-manufacturer')?.lastModified).toEqual(
+      new Date(PAGE_DATES['/custom-teamwear-manufacturer']?.on ?? ''),
+    )
+  })
+
+  it('keep the page date when every garment and post is older', () => {
+    const earlier = '2020-01-01T00:00:00.000Z'
+    const dated = sitemapFor(
+      'visible',
+      'https://wear-run.com',
+      [{ slug: 'kit', category: 'Outerwear', updatedAt: earlier, colours: [{ slug: 'black' }] }],
+      { posts: [{ path: '/journal/a', updatedAt: earlier }] },
+    )
+    const on = (path: string) => dated.find((entry) => entry.url === `https://wear-run.com${path}`)
+    expect(on('/products')?.lastModified).toEqual(new Date(PAGE_DATES['/products']?.on ?? ''))
+    expect(on('/journal')?.lastModified).toEqual(new Date(PAGE_DATES['/journal']?.on ?? ''))
   })
 })

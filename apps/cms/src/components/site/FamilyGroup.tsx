@@ -64,8 +64,8 @@ export function FamilyGroup({ entry, page, products, soon, start }: FamilyGroupP
         </ul>
       ) : page ? (
         <p className="site-empty">
-          No 3D references in {entry.name} yet — the garments exist, the references are still being
-          built. Email us and we will send what we have.
+          No 3D references in {entry.name} yet. The garments exist and the references are still
+          being built. Email us and we will send what we have.
         </p>
       ) : null}
     </section>

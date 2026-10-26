@@ -39,7 +39,7 @@ export type FamilyPage = {
   readonly path: string
   /** The family whose garments the page shows: a `slug` in `FAMILIES`. */
   readonly familySlug: string
-  /** The `<title>`; the layout adds " — RUN APPAREL". */
+  /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
   readonly description: string
   /** The mono label above the heading. */

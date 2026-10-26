@@ -80,15 +80,15 @@ import { THEME_COLOR } from '../lib/themeColor'
  *
  * ⚠️ IT IS THE SAME SITE, SO IT BEHAVES LIKE IT (polish F6, 2026-10-04). Outside every layout it
  * missed three things each other page has: the dot-and-ring pointer, the smooth scroll and
- * "— RUN APPAREL" in the tab title (the layout's `%s — RUN APPAREL` template never reaches it).
+ * "— RUN APPAREL" in the tab title (the layout's `%s | RUN APPAREL` template never reaches it).
  * All three are added here as the layout adds them; none needs the database or JavaScript to
  * show the page. Its headline keeps one font from first paint (`.hero-notfound`, polish X19).
  */
 export const metadata: Metadata = {
   // `absolute`, not a string: /journal/<missing> and /case-studies/<missing> call notFound() inside
   // generateMetadata, which draws this page UNDER the (frontend) layout, and that layout's
-  // `%s — RUN APPAREL` template then doubled the name (found 2026-10-22; `notFoundTitle.test.ts`).
-  title: { absolute: 'Page not found — RUN APPAREL' },
+  // `%s | RUN APPAREL` template then doubled the name (found 2026-10-22; `notFoundTitle.test.ts`).
+  title: { absolute: 'Page not found | RUN APPAREL' },
   robots: { index: false, follow: true },
 }
 

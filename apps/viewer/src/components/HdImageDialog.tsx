@@ -247,7 +247,7 @@ export default function HdImageDialog({
 
   if (!render) return null
   const poster = selected.poster
-  const title = `Studio render — ${productName} in ${selected.displayName}`
+  const title = `Studio render: ${productName} in ${selected.displayName}`
   const previous = canStep
     ? withRenders[(index - 1 + withRenders.length) % withRenders.length]
     : null

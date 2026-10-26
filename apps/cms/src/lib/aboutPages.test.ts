@@ -11,7 +11,7 @@ import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts
  * claims (no founding date, no year count, no "certified") are `siteFacts.test.ts`'s, which walks
  * this module like the other copy modules.
  */
-const BRAND_SUFFIX = ' — RUN APPAREL'
+const BRAND_SUFFIX = ' | RUN APPAREL'
 const factValue = (prefix: string) =>
   FACTS.find((fact) => fact.label.startsWith(prefix))?.value ?? ''
 
@@ -28,7 +28,7 @@ describe('what a search result shows', () => {
 describe("the owner's approved words stay word for word", () => {
   it('timeline card 3 keeps the owner’s words of 2026-10-09 exactly', () => {
     expect(ABOUT_PAGE.timeline.entries[2].body).toBe(
-      "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952 — exporting to Europe by 1958.",
+      "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952. They were exporting to Europe by 1958.",
     )
   })
 

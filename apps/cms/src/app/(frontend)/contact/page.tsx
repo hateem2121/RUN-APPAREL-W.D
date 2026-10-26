@@ -24,7 +24,7 @@ import { JsonLd } from '../../../components/site/JsonLd'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Contact',
+  title: 'Contact a Sialkot Private Label Manufacturer',
   description: CONTACT_DESCRIPTION,
   path: '/contact',
 })
@@ -162,7 +162,7 @@ export default async function ContactPage({
            * Re-run that test in CI's image after any change to this sentence.
            */}
           <p className="site-lede">
-            Reach us directly — by email or on WhatsApp, whichever suits you. We reply within 24
+            Reach us directly by email or on WhatsApp, whichever suits you. We reply within 24
             hours.
           </p>
           {/*

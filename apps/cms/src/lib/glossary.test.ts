@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { FEATURE_NOTES, FIBRE_NOTES, FIT_NOTES } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
+import { metaTitleOf } from './seo'
 import { PUBLIC_PAGE_SOURCES } from '../../publicViewerHeaders.mjs'
 import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
 import { GLOSSARY_CATEGORIES, GLOSSARY_INDEX, GLOSSARY_TERMS, termsIn } from './glossary'
@@ -13,7 +14,7 @@ import { GUIDES } from './guides'
  * from, an anchor that lands nowhere, or a "Read more" to a page that does not exist.
  */
 const FRONTEND = join(import.meta.dirname, '..', 'app', '(frontend)')
-const BRAND_SUFFIX = ' — RUN APPAREL'
+const BRAND_SUFFIX = ' | RUN APPAREL'
 
 describe('the glossary terms', () => {
   it('every id is unique and an anchor', () => {
@@ -111,7 +112,7 @@ describe('/glossary has an address, a route and a title that fits', () => {
   })
 
   it('the whole title fits and the description can be the snippet', () => {
-    expect((GLOSSARY_INDEX.title + BRAND_SUFFIX).length).toBeLessThanOrEqual(TITLE_MAX)
+    expect((metaTitleOf(GLOSSARY_INDEX) + BRAND_SUFFIX).length).toBeLessThanOrEqual(TITLE_MAX)
     expect(GLOSSARY_INDEX.description.length).toBeGreaterThanOrEqual(DESCRIPTION_MIN)
     expect(GLOSSARY_INDEX.description.length).toBeLessThanOrEqual(DESCRIPTION_MAX)
   })

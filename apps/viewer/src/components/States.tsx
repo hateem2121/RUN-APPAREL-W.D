@@ -82,7 +82,7 @@ export function UnreachableState({
       */}
       <p style={{ color: 'var(--muted)' }}>
         {offline
-          ? 'The garment is still here — your device just has no connection right now. This page will load itself as soon as the signal returns.'
+          ? 'The garment is still here. Your device just has no connection right now. This page will load itself as soon as the signal returns.'
           : 'Nothing has been discontinued: we could not reach the reference just now. Please try again in a moment.'}
       </p>
       {/*
@@ -174,7 +174,7 @@ export function CrashedState({
   // (owner's choice, 2026-10-14).
   const enquiry = {
     productName: 'a product reference from your catalog',
-    productCode: 'Page error — reference not shown',
+    productCode: 'Page error: reference not shown',
     colourName: 'N/A',
   }
 

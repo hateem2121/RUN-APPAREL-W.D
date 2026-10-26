@@ -53,7 +53,7 @@ export const CUTTING_LINES: CompanyFact = { value: '3', label: 'Cutting lines' }
  * and South America, and Oceania"): "customers can be new and from anywhere", so a list of
  * regions told a buyer outside it that they were not served.
  */
-export const SHIPS_TO = 'Worldwide — wherever your team is.'
+export const SHIPS_TO = 'Worldwide, wherever your team is.'
 
 /**
  * ⚠️ THE CERTIFICATE HOLDER IS NAMED, DELIBERATELY. RUN APPAREL holds none in its own

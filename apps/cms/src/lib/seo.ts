@@ -62,6 +62,18 @@ function shareImage(path: string) {
 }
 
 /**
+ * The title a search result shows for a page: its `metaTitle` when it has one, else its `title`.
+ *
+ * ⚠️ TWO FIELDS, BECAUSE ONE NAME FEEDS FOUR PLACES. A hub's `title` is also its breadcrumb, its
+ * footer link and its `llms.txt` line ("FAQ", "Policies"), where a long name crowds the row. The
+ * site check of 2026-10-26 found eleven results reading only "FAQ | RUN APPAREL" and the like;
+ * the owner approved a descriptive title for each that day, for the `<title>` alone.
+ */
+export function metaTitleOf(page: { readonly title: string; readonly metaTitle?: string }): string {
+  return page.metaTitle ?? page.title
+}
+
+/**
  * Build page metadata with a canonical URL and matching social tags.
  *
  * WHY A HELPER RATHER THAN PER-PAGE OBJECTS. The viewer learned this the hard way: OG

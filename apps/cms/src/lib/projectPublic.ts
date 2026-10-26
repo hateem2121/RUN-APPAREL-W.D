@@ -291,7 +291,7 @@ export function toProductCard(
       .map((row) => text((row as { feature?: unknown } | null)?.feature))
       .filter(Boolean),
     posterUrl: poster.url,
-    posterAlt: poster.alt || `${productName} — 3D product reference`,
+    posterAlt: poster.alt || `${productName}, 3D product reference`,
     defaultColourSlug: text(colourways[0]?.slug),
     colourNames: colourways.map((colour) => text(colour.displayName) || text(colour.slug)),
     colours: colourways.map((colour, index) =>

@@ -85,7 +85,7 @@ export type GuideSource = {
 export type Guide = {
   /** Root-relative, under `/guides/`. Public: a sent link must keep working. */
   readonly path: string
-  /** The `<title>`; the layout adds " — RUN APPAREL". */
+  /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
   readonly description: string
   /** The one `<h1>`, in two parts: plain, then the single serif accent. */

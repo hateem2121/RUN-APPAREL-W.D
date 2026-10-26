@@ -43,7 +43,7 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
         and a screen reader gets the words as written rather than a shouted line (MDN, text-transform,
         read 2026-10-02: it changes the drawing, not the text). `sectionLabels.test.tsx` holds it.
       */}
-      <p className="section-number">&#8470;02 — Customization</p>
+      <p className="section-number">&#8470;02 · Customization</p>
       <h2 id="customise-heading" className="display display--section">
         FROM IDEA TO <span className="serif-accent">production</span>.
       </h2>
@@ -61,8 +61,8 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
         />
       ) : (
         <p className="customise__intro">
-          Send us a finished design, a tech pack, artwork, a reference image — or simply an idea.
-          Our team develops it with you into a production-ready garment.
+          Send us a finished design, a tech pack, artwork, a reference image, or simply an idea. Our
+          team develops it with you into a production-ready garment.
         </p>
       )}
       {product.customisationSteps.length > 0 && (

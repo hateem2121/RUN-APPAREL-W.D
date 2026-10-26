@@ -40,6 +40,7 @@ export type GlossaryTerm = {
 export const GLOSSARY_INDEX = {
   path: '/glossary',
   title: 'Glossary',
+  metaTitle: 'Garment and Export Terms in Plain Words',
   description:
     'Garment and export terms in plain words: fabrics and GSM, printing methods, seams and finishes, Incoterms, and the standards and audits buyers ask about.',
   heading: 'Every term,',

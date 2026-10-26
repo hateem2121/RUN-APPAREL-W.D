@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
+import { metaTitleOf } from './seo'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE, FACTS, LEAD_TIME } from './companyFacts'
 import {
   FAQ_GUIDES,
@@ -21,7 +22,7 @@ import { GUIDES } from './guides'
  * buyer to read a wrong or invented answer.
  */
 const FRONTEND = join(import.meta.dirname, '..', 'app', '(frontend)')
-const BRAND_SUFFIX = ' — RUN APPAREL'
+const BRAND_SUFFIX = ' | RUN APPAREL'
 const entries = FAQ_TOPICS.flatMap((topic) => topic.entries)
 const words = (text: string) => text.trim().split(/\s+/).length
 
@@ -102,7 +103,7 @@ describe('every FAQ page has an address, a route and a title that fits', () => {
 
   for (const page of [FAQ_INDEX, ...FAQ_TOPICS]) {
     it(`${page.path}: the whole title fits and the description can be the snippet`, () => {
-      expect((page.title + BRAND_SUFFIX).length).toBeLessThanOrEqual(TITLE_MAX)
+      expect((metaTitleOf(page) + BRAND_SUFFIX).length).toBeLessThanOrEqual(TITLE_MAX)
       expect(page.description.length).toBeGreaterThanOrEqual(DESCRIPTION_MIN)
       expect(page.description.length).toBeLessThanOrEqual(DESCRIPTION_MAX)
     })

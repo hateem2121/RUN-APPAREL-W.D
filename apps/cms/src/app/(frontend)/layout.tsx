@@ -112,7 +112,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(SITE_ORIGIN),
     title: {
-      template: '%s — RUN APPAREL',
+      template: '%s | RUN APPAREL',
       default: HOME_TITLE,
     },
     // `noindex` while the beta is hidden; NOTHING when visible — see searchVisibility.ts

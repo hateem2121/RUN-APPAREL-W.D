@@ -87,14 +87,19 @@ const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
 const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
 /** Step 05's photo became the front of the works (owner, home page audit 2026-10-17). */
 const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
+/**
+ * The site check's words (owner, 2026-10-26): About's bands merged and its repeated figures cut,
+ * the factory gallery and its policy links, careers' two policy links, the em dashes replaced.
+ */
+const SITE_CHECK = '2026-10-26T14:04:04+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
  * fails again if the words move without this moving.
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
-  '/about': 'e20c171297da',
-  '/inside-the-factory': '6dbbda2a5dae',
+  '/about': 'f2cbaa003c0c',
+  '/inside-the-factory': '6f25fe7879f1',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
@@ -159,19 +164,19 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/policies/labor-rights': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e7040ea909d2'),
   '/policies/quality': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e442ac2701ef'),
   '/policies/environmental': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, '2192f91d468f'),
-  '/careers': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, '77747b8b8d27'),
-  // The about and factory pages: the commit that shipped their approved words (092a086), and
-  // its time. The fingerprint is `bylines.test.ts`'s of the words at that moment.
+  '/careers': byline(AUTHORS.hr, POLICIES_LIVE, SITE_CHECK, '998d9a7f5371'),
+  // The about and factory pages: first shipped in 092a086; their words last changed in the site
+  // check. The fingerprint is `bylines.test.ts`'s of the words at that moment.
   '/about': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    ABOUT_FACTORY_WORDS,
+    SITE_CHECK,
     ABOUT_FACTORY_FINGERPRINTS['/about'],
   ),
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    SIX_BUILDINGS,
+    SITE_CHECK,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }

@@ -143,7 +143,7 @@ test.describe('the branded 404', () => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false })
     })
     await page.goto('/definitely-not-a-page')
-    await expect(page).toHaveTitle('Page not found — RUN APPAREL')
+    await expect(page).toHaveTitle('Page not found | RUN APPAREL')
     await expect(page.locator('html')).toHaveClass(/\blenis\b/)
     await page.mouse.move(200, 200)
     await page.mouse.move(240, 260)

@@ -25,7 +25,7 @@ export function OrderTimeline() {
         {/* The heading beside its line from 900px (`.section-head`, polish D1), as №02's is. */}
         <div className="section-head">
           <div className="section-head__title">
-            <p className="section-number">№04 — How an order works</p>
+            <p className="section-number">№04 · How an order works</p>
             <h2 className="display display--section">
               From a sketch <span className="serif-accent">to your&nbsp;door.</span>
             </h2>

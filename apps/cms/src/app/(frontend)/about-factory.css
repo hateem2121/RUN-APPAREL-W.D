@@ -335,7 +335,7 @@
  */
 .about-intro {
   display: grid;
-  gap: 32px;
+  gap: 24px;
 }
 
 .about-intro__words {

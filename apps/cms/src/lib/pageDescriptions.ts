@@ -31,7 +31,7 @@ export const MAX_PAGE_DESCRIPTION = 160
  * below already opens with, which also names Pakistan: the title stays under the 60 characters a
  * result shows whole (owner, 2026-10-23).
  */
-export const HOME_TITLE = 'RUN APPAREL — Private Label Sportswear Manufacturer'
+export const HOME_TITLE = 'RUN APPAREL | Private Label Sportswear Manufacturer'
 
 export const HOME_DESCRIPTION =
   'RUN APPAREL is a private label sportswear manufacturer in Pakistan: teamwear, uniforms, casual wear, outerwear and sports accessories, from 50 pieces per style.'

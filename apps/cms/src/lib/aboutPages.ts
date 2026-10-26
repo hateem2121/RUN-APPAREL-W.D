@@ -67,7 +67,7 @@ export type GallerySet = {
 export const ABOUT_PAGE = {
   path: '/about',
   title: 'About us: family makers in Sialkot since 1889',
-  description: `The OEM/ODM apparel division of ${PARENT_COMPANY} — private label sportswear from Sialkot, Pakistan, made by a family manufacturing and exporting since ${FAMILY_SINCE}.`,
+  description: `The OEM/ODM apparel division of ${PARENT_COMPANY}: private label sportswear from Sialkot, Pakistan, made by a family manufacturing and exporting since ${FAMILY_SINCE}.`,
   hero: {
     partLeft: 'SINCE 1889',
     partRight: 'STILL',
@@ -75,7 +75,7 @@ export const ABOUT_PAGE = {
     accent: 'running',
     subtitle: `Private label sportswear from Sialkot, Pakistan. The family behind it has made and exported from this city since ${FAMILY_SINCE}.`,
   },
-  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes — first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's apparel division. We engineer and export private label sportswear for partners who go the extra mile.`,
+  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes: first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's apparel division. We engineer and export private label sportswear for partners who go the extra mile.`,
   /** The mission, word for word (owner): rendered as a quote the readability test skips. */
   mission:
     'To empower global partners with sustainable, high-performance apparel that drives unity, endurance, and excellence — combining ethical craftsmanship with technological precision.',
@@ -87,12 +87,12 @@ export const ABOUT_PAGE = {
       { name: 'casual wear', href: '/private-label-casual-wear-manufacturer' },
       { name: 'outerwear', href: '/custom-outerwear-manufacturer' },
     ],
-    close: 'and sports accessories — all made to the same standard.',
+    close: 'and sports accessories, all made to the same standard.',
   },
   /** Decorative, aria-hidden; the same words appear in real text in `whatWeMake`. */
   marquee: ['TEAMWEAR', 'ACTIVEWEAR', 'CASUAL WEAR', 'OUTERWEAR', 'SPORTS ACCESSORIES'] as const,
   timeline: {
-    label: '[ 1889 — TODAY ]',
+    label: '[ 1889 TO TODAY ]',
     heading: 'The long run.',
     entries: [
       {
@@ -110,7 +110,7 @@ export const ABOUT_PAGE = {
         title: 'The scale years.',
         // The owner's own words, 2026-10-09, verbatim: nothing added back (no "leads for 76
         // years", no worker count — both ruled out).
-        body: "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952 — exporting to Europe by 1958.",
+        body: "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952. They were exporting to Europe by 1958.",
       },
       {
         year: '1956–1992',

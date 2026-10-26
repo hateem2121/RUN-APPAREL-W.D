@@ -1378,6 +1378,51 @@ eight step cards at every phone size, the sink, the lists in Chromium's accessib
 `apps/cms/e2e/footer.spec.ts` (the wordmark's cut at three widths). Each had a fault planted and
 failed on it.
 
+## 2026-10-26 — the site check (Hallmark, Impeccable, claude-seo)
+
+### D48 · The site check's answers: every finding fixed or decided, in one change
+
+**Decision: the owner answered every finding of the 26 October check, section by section, and
+asked for all of it in one pull request. Built: the order cards' last line clears the fade; the
+factory gallery flows in two columns with The Building full width (sharp 2400 and 3200px files cut
+from the original); each figure is said once per page (About's cards and table leave the count-up
+band's figures to it, Factory's lines leave the solar share to its stat); the About bands merge
+into one section; the contact hero has two plain buttons, "Email us" and "WhatsApp us"; the
+products count is said by the family chip only; the guides' author is "M. Hateem Jamshaid,
+Business Development Director", About included; the phone field shows a "Code" label; em dashes
+in the site's own words are replaced, each shown first; titles end " | RUN APPAREL"; sixteen pages
+get a search title of their own (`metaTitle`), the short title staying their breadcrumb, footer
+link and `llms.txt` line; Factory and Careers link the policies; and every page the sitemap lists
+now carries a measured `lastmod`. Owner, 2026-10-26.**
+
+Kept as they are, by the owner's choice: the products film hero (decided 1 October); the factory
+photos shown twice until new photos exist; №05's 100,000 as the bento's feature; the label-first
+figure (VA-58); invented colour addresses answering 200, which protects printed tags; the
+Hallmark word and fold budgets; the footer's columns on a phone; home №04, so the order guide's
+steps still appear there too. Journal and Case studies keep their short titles until each has a
+first post. Decided by the evidence and reported to the owner: the factory headline keeps its
+no-swap font (`.hero-legal`, twelve page types, no layout shift); no `overflow-x: clip` guard (it
+would hide an overflow the e2e suite measures); the sitemap's picture entries stay full size
+(Google Images asks for a high resolution). A policy's "Last reviewed" date does not move for a
+new search title (owner, asked the same day): the date check leaves `metaTitle` out.
+
+The new dates (`apps/cms/src/lib/pageDates.ts`): the 22 pages without a byline are each dated by
+the commit that brought their present words to `main`, found by fingerprinting each page at every
+earlier `main` commit; a page that shows garments or posts takes the newest one's date when it is
+later (`sitemapFor` in `apps/cms/src/lib/searchVisibility.ts`). A page drawn in JSX is fingerprinted
+from its source without comments or spaces, so a markup change can move its date a little early;
+the owner's rule is a date that never stands still while the words change.
+
+Left for after the merge, each write approved first: five dots and 200 poster alt texts in the CMS,
+49 em dashes in garment customization copy, and R-MM's literal asterisks.
+
+**Guard:** `apps/cms/src/lib/searchTitles.test.ts` (the sixteen titles word for word, within 60
+characters, none repeated), `apps/cms/src/lib/pageDates.test.ts` (every listed page dated, and its
+words held to the date), `apps/cms/src/lib/searchVisibility.test.ts` (a newer garment dates the
+home page, /products and its own buyer page only), `apps/cms/src/lib/aboutPages.test.ts` (a figure
+said once per page), `apps/cms/src/factoryPhotos.test.ts` (the full-width photo is sharp) and
+`apps/cms/src/lib/bylines.test.ts`. Each had a fault planted and failed on it.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

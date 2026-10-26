@@ -108,7 +108,7 @@ describe('inquiryNotice — what the page says after a submission', () => {
   it('thanks the buyer when the inquiry was stored', () => {
     expect(inquiryNotice({ sent: '1' })).toEqual({
       kind: 'ok',
-      text: 'Thank you — your inquiry is with us. We reply within 24 hours.',
+      text: 'Thank you. Your inquiry is with us. We reply within 24 hours.',
     })
   })
 

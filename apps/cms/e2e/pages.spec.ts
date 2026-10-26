@@ -816,7 +816,7 @@ test.describe('the teamwear buyer page, as a search engine receives it', () => {
   }) => {
     const html = await (await request.get(PATH)).text()
     expect(html).toMatch(
-      /<title>Custom Teamwear &amp; Team Uniform Manufacturer — RUN APPAREL<\/title>/,
+      /<title>Custom Teamwear &amp; Team Uniform Manufacturer | RUN APPAREL<\/title>/,
     )
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1)
     expect(html).toMatch(/<link rel="canonical" href="[^"]*\/custom-teamwear-manufacturer"/)
