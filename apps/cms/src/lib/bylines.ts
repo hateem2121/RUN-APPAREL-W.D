@@ -71,8 +71,6 @@ const byline = (author: Author, published: string, on: string, words: string): B
 const GUIDES_1 = '2026-09-30T20:06:49+05:00'
 const GUIDES_2 = '2026-09-30T20:43:00+05:00'
 const GUIDES_3 = '2026-09-30T22:15:50+05:00'
-/** The reference garments joined the 3D, printing and fabrics guides (findability audit). */
-const GARMENT_LINKS = '2026-10-08T16:26:29+05:00'
 /** The cost guide and the country comparison, approved by the owner (findability audit). */
 const NEW_GUIDES = '2026-10-08T16:38:58+05:00'
 /** The policies, careers and community pages (#141). */
@@ -89,7 +87,9 @@ const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
 const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
 /**
  * The site check's words (owner, 2026-10-26): About's bands merged and its repeated figures cut,
- * the factory gallery and its policy links, careers' two policy links, the em dashes replaced.
+ * the factory gallery and its policy links, careers' two policy links, the em dashes replaced, and
+ * eight guides' approved sections. It replaced the date of the reference garments' links
+ * (2026-10-08) on the 3D and fabrics guides, so that constant went with it.
  */
 const SITE_CHECK = '2026-10-26T14:04:04+05:00'
 /*
@@ -109,48 +109,48 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     STEP_FIVE_PHOTO,
     'fba06078c80f',
   ),
-  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, GARMENT_LINKS, '9afd7f827218'),
+  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, SITE_CHECK, 'e111b660bc6b'),
   '/guides/minimum-order-and-samples': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    SIX_BUILDINGS,
-    '69202031e4bb',
+    SITE_CHECK,
+    'd70355fe2f5e',
   ),
   '/guides/garment-printing-methods': byline(
     AUTHORS.production,
     GUIDES_2,
-    SIX_BUILDINGS,
-    '14f01dcef536',
+    SITE_CHECK,
+    '227e86c56492',
   ),
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
     GUIDES_2,
-    GARMENT_LINKS,
-    'e5d99bfe8009',
+    SITE_CHECK,
+    'c74d5aaa6b2b',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
     GUIDES_2,
-    SIX_BUILDINGS,
-    '2fc3ab65674b',
+    SITE_CHECK,
+    '42dd0cb36541',
   ),
   '/guides/shipping-and-import-duties': byline(
     AUTHORS.merchandiser,
     GUIDES_3,
-    SIX_BUILDINGS,
-    'e4a623dd5ca7',
+    SITE_CHECK,
+    '9f6e6164232b',
   ),
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    SIX_BUILDINGS,
-    'bf7e9d7b6282',
+    SITE_CHECK,
+    'c54b89f66da8',
   ),
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    SIX_BUILDINGS,
-    '4534a342ef7d',
+    SITE_CHECK,
+    '7342552f1c09',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),
