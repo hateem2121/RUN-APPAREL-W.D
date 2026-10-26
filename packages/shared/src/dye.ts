@@ -60,6 +60,20 @@ const byte = (c: number) =>
     .toString(16)
     .padStart(2, '0')
 
+/** A `#rrggbb` colour in OKLab as [L, a, b]; `null` for anything else. */
+function oklab(hex: string): [number, number, number] | null {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return null
+  const [r, g, b] = [1, 3, 5].map((i) => toLinear(Number.parseInt(hex.slice(i, i + 2), 16) / 255))
+  const l = Math.cbrt(0.4122214708 * r! + 0.5363325363 * g! + 0.0514459929 * b!)
+  const m = Math.cbrt(0.2119034982 * r! + 0.6806995451 * g! + 0.1073969566 * b!)
+  const s = Math.cbrt(0.0883024619 * r! + 0.2817188376 * g! + 0.6299787005 * b!)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
 /**
  * The wet edge's colour: the dye, darker, in OKLab, so the hue holds as it darkens (sRGB darkening
  * shifts a red towards brown). Björn Ottosson's matrices, "A perceptual color space for image
@@ -67,20 +81,35 @@ const byte = (c: number) =>
  * anything that is not `#rrggbb`, so a colour with no swatch draws no edge.
  */
 export function wetShade(hex: string): string {
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) return 'transparent'
-  const [r, g, b] = [1, 3, 5].map((i) => toLinear(Number.parseInt(hex.slice(i, i + 2), 16) / 255))
-  const l = Math.cbrt(0.4122214708 * r! + 0.5363325363 * g! + 0.0514459929 * b!)
-  const m = Math.cbrt(0.2119034982 * r! + 0.6806995451 * g! + 0.1073969566 * b!)
-  const s = Math.cbrt(0.0883024619 * r! + 0.2817188376 * g! + 0.6299787005 * b!)
-  const L = (0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s) * WET_LIGHTNESS
-  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
-  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  const lab = oklab(hex)
+  if (!lab) return 'transparent'
+  const [lightness, A, B] = lab
+  const L = lightness * WET_LIGHTNESS
   const l2 = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
   const m2 = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
   const s2 = (L - 0.0894841775 * A - 1.291485548 * B) ** 3
   return `#${byte(4.0767416621 * l2 - 3.3077115913 * m2 + 0.2309699292 * s2)}${byte(
     -1.2684380046 * l2 + 2.6097574011 * m2 - 0.3413193965 * s2,
   )}${byte(-0.0041960863 * l2 - 0.7034186147 * m2 + 1.707614701 * s2)}`
+}
+
+/** The OKLab lightness at which the wet edge starts to fade, where it is faintest, and how faint. */
+const FADE_FROM_L = 0.65
+const FADE_TO_L = 0.9
+const FAINTEST = 0.2
+
+/**
+ * How strongly the wet edge stains, from 1 (a dark dye) down to `FAINTEST` (a pale one). At one
+ * strength for every colour, blush → butter left a tan ring on the blush (owner, 2026-10-26): wet
+ * pale cloth hardly darkens, and the darker yellow over pink reads as dirt. Measured with CIEDE2000
+ * on the seeded colours, it moved the old cloth by 18.0 there; this keeps every light pair at 8 or
+ * under, and leaves wine and black untouched. 1 for anything that is not `#rrggbb`.
+ */
+export function wetStrength(hex: string): number {
+  const lab = oklab(hex)
+  if (!lab) return 1
+  const share = Math.min(Math.max((lab[0] - FADE_FROM_L) / (FADE_TO_L - FADE_FROM_L), 0), 1)
+  return 1 - share * (1 - FAINTEST)
 }
 
 /** How far the noise moves the front, as a share of the whole trip. */

@@ -1,4 +1,12 @@
-import { arrivalField, coverAt, type DyeTiming, dyeDuration, dyeOrigin, wetShade } from './dye.ts'
+import {
+  arrivalField,
+  coverAt,
+  type DyeTiming,
+  dyeDuration,
+  dyeOrigin,
+  wetShade,
+  wetStrength,
+} from './dye.ts'
 
 /**
  * Plays the site's colour change (owner, 2026-10-26: one dye everywhere a garment changes colour).
@@ -92,7 +100,7 @@ export type DyeOptions = {
 const CELL = 8
 /** How soft the front is, as a share of the trip (`coverAt`). */
 const SOFT = 0.06
-/** How wide the wet edge is, as a share of the trip, and how strongly it stains. */
+/** How wide the wet edge is, as a share of the trip, and how strongly a dark dye stains (`wetStrength` fades a pale one). */
 const WET_BAND = 0.05
 const WET_ALPHA = 0.55
 /** The mark a pick's first visible change leaves, which the timing test reads (≤ 100 ms). */
@@ -171,6 +179,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   const wet = options.swatch ? wetShade(options.swatch) : 'transparent'
   const edge = wet === 'transparent' ? null : env.makeCanvas(cols, rows)
   const edgeData = edge?.context.createImageData(cols, rows) ?? null
+  const edgeAlpha = WET_ALPHA * wetStrength(options.swatch ?? '')
   if (edgeData) {
     const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(wet.slice(i, i + 2), 16))
     for (let i = 0; i < cols * rows; i++) {
@@ -189,7 +198,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
       coverData.data[i * 4 + 3] = Math.round(coverAt(arrival, t, SOFT) * 255)
       if (edgeData) {
         const band = Math.max(0, 1 - Math.abs(arrival - t) / WET_BAND)
-        edgeData.data[i * 4 + 3] = Math.round(band * WET_ALPHA * 255)
+        edgeData.data[i * 4 + 3] = Math.round(band * edgeAlpha * 255)
       }
     }
     mask.context.putImageData(coverData as never, 0, 0)

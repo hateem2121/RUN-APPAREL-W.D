@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { arrivalField, containedBox, coverAt, dyeDuration, dyeOrigin, wetShade } from './dye'
+import { deltaE2000, hexToLab } from './deltaE'
+import {
+  arrivalField,
+  containedBox,
+  coverAt,
+  dyeDuration,
+  dyeOrigin,
+  wetShade,
+  wetStrength,
+} from './dye'
 
 const TIMING = { min: 320, max: 640, short: 240 }
 
@@ -60,6 +69,46 @@ describe('wetShade', () => {
   it('names nothing for a value that is not a colour', () => {
     expect(wetShade('nope')).toBe('transparent')
     expect(wetShade('#12')).toBe('transparent')
+  })
+})
+
+describe('wetStrength', () => {
+  // The seeded garment's five colours (seed.ts), as the shrink writes them.
+  const swatches = ['#825353', '#F7CDCD', '#FDFDC8', '#D6F26B', '#262727']
+  const mix = (under: string, over: string, alpha: number) =>
+    `#${[1, 3, 5]
+      .map((i) => {
+        const a = Number.parseInt(under.slice(i, i + 2), 16)
+        const b = Number.parseInt(over.slice(i, i + 2), 16)
+        return Math.round(a * (1 - alpha) + b * alpha)
+          .toString(16)
+          .padStart(2, '0')
+      })
+      .join('')}`
+  /** How far the wet edge, painted over the old cloth, moves it (CIEDE2000; `deltaE.ts`). */
+  const stain = (old: string, next: string, alpha: number) =>
+    deltaE2000(hexToLab(mix(old, wetShade(next), alpha)), hexToLab(old))
+
+  it('keeps the full edge for a dark dye', () => {
+    expect(wetStrength('#825353')).toBe(1)
+    expect(wetStrength('#262727')).toBe(1)
+  })
+
+  it('leaves only a faint edge between two light colours (owner, 2026-10-26: a tan stain on blush → butter)', () => {
+    // At 0.55 alone blush → butter measured 18.0 and lime → blush 15.5.
+    for (const old of swatches) {
+      for (const next of swatches) {
+        if (old === next || hexToLab(old).L <= 80 || hexToLab(next).L <= 80) continue
+        expect(stain(old, next, 0.55 * wetStrength(next))).toBeLessThanOrEqual(8)
+      }
+    }
+  })
+
+  it('fades as the dye gets lighter, and does not vanish', () => {
+    const order = ['#262727', '#825353', '#F7CDCD', '#D6F26B', '#FDFDC8'].map(wetStrength)
+    for (let i = 1; i < order.length; i++)
+      expect(order[i]).toBeLessThanOrEqual(order[i - 1] as number)
+    expect(wetStrength('#ffffff')).toBeGreaterThan(0)
   })
 })
 

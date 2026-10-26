@@ -35,6 +35,7 @@ function context(ops: Op[], puts: Uint8ClampedArray[]) {
 function harness(options: { reduced?: boolean } = {}) {
   const ops: Op[] = []
   const puts: Uint8ClampedArray[] = []
+  const edgePuts: Uint8ClampedArray[] = []
   const attributes = new Map<string, string>()
   const layer: DyeLayer = {
     width: 0,
@@ -67,11 +68,14 @@ function harness(options: { reduced?: boolean } = {}) {
     },
     mark: (name) => marks.push(name),
     pixelRatio: () => 1,
-    // The first small canvas is the cover mask, whose puts the tests read; any later one is the
-    // wet edge's.
+    // The first small canvas is the cover mask, whose puts the tests read; the next is the wet
+    // edge's, kept apart.
     makeCanvas: () => {
       made++
-      return { canvas: { kind: 'mask' }, context: context(ops, made === 1 ? puts : []) }
+      return {
+        canvas: { kind: 'mask' },
+        context: context(ops, made === 1 ? puts : made === 2 ? edgePuts : []),
+      }
     },
   }
   /** Moves the clock and draws one frame. */
@@ -86,6 +90,7 @@ function harness(options: { reduced?: boolean } = {}) {
     env,
     ops,
     puts,
+    edgePuts,
     attributes,
     marks,
     step,
@@ -149,6 +154,26 @@ describe('playDye', () => {
     const drawn = h.ops.filter(([op]) => op === 'drawImage').map(([, source]) => source)
     expect(drawn).toContainEqual(OLD)
     expect(drawn).toContainEqual({ kind: 'mask' })
+  })
+
+  it('stains with a pale dye far more faintly than with a dark one (owner, 2026-10-26)', () => {
+    /** The strongest wet-edge alpha a dye of `swatch` paints across its run. */
+    const strongest = (swatch: string) => {
+      const h = harness()
+      playDye(
+        { layer: h.layer, old: OLD, point: null, swatch, kind: 'full', timing: TIMING },
+        h.env,
+      )
+      for (let i = 0; i < 30; i++) h.step(16)
+      let most = 0
+      for (const put of h.edgePuts)
+        for (let i = 3; i < put.length; i += 4) most = Math.max(most, put[i] as number)
+      return most
+    }
+    // Wine keeps the full 0.55 (140 of 255); butter is at most a fifth of that.
+    expect(strongest('#825353')).toBeGreaterThanOrEqual(135)
+    expect(strongest('#FDFDC8')).toBeLessThanOrEqual(29)
+    expect(strongest('#FDFDC8')).toBeGreaterThan(0)
   })
 
   it('draws at the old picture’s own resolution, so the first frame is that picture exactly', () => {
