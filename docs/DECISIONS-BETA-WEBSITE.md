@@ -1413,6 +1413,15 @@ later (`sitemapFor` in `apps/cms/src/lib/searchVisibility.ts`). A page drawn in 
 from its source without comments or spaces, so a markup change can move its date a little early;
 the owner's rule is a date that never stands still while the words change.
 
+The guides grew by the owner's approved sections, and each buyer page asks its own questions. The
+payment terms are one sentence everywhere, "Production starts on a 50% deposit; the balance is due
+before shipment" (the owner dropped "agreed with each buyer" the same day). The fabrics guide's
+garment table is typed from that day's live garments (owner's choice) in two columns, because three
+ran past a 320px phone. The country guide now gives the duty in six markets, the EU, the UK, the
+US, Canada, Australia and New Zealand, each rate one an official page printed for the codes read
+that day and nothing added up (owner: "research all the rates; for those you find nothing, do not
+mention"); the US section includes the Section 301 duty of 24 July 2026.
+
 Left for after the merge, each write approved first: five dots and 200 poster alt texts in the CMS,
 49 em dashes in garment customization copy, and R-MM's literal asterisks.
 

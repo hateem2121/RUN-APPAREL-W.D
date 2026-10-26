@@ -36,8 +36,6 @@ const page = (on: string, words: string): PageDate => ({ on, words })
  */
 /** #152: the case studies hub's words. */
 const FINDABILITY = '2026-10-08T21:50:32+05:00'
-/** #192, six buildings on one site: the guides hub's cards. */
-const SIX_BUILDINGS = '2026-10-16T10:56:20+05:00'
 /** #231: the Journal hub's links to two buyer guides. */
 const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 /** #246: the closing block written once, on every FAQ topic. */
@@ -52,7 +50,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-activewear-manufacturer': page(SITE_CHECK, '0668dfbc51a4'),
   '/custom-outerwear-manufacturer': page(SITE_CHECK, 'ea2b3c2c32f9'),
   '/private-label-casual-wear-manufacturer': page(SITE_CHECK, 'b58e00722144'),
-  '/guides': page(SIX_BUILDINGS, '82d6307506a4'),
+  '/guides': page(SITE_CHECK, '68291ef27bac'),
   '/policies': page(SITE_CHECK, '77c728cd6d39'),
   '/community': page(SITE_CHECK, '82a687c86d9d'),
   '/press': page(SITE_CHECK, '2b73a863f26b'),

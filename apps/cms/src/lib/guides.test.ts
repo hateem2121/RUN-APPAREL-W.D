@@ -431,11 +431,15 @@ describe('garments and read-next links (2026-10-08)', () => {
 /**
  * The country comparison quotes official pages only (owner, 2026-10-08: "cited public data"), each
  * listed under "Sources" with its date. A source on any other host, or with no date, fails here.
+ * Since 2026-10-26 it covers six markets (owner, site check), so the hosts are the EU's and the UK's,
+ * the US federal government's (and CBP's own bulletin account, where its CSMS messages are
+ * published), Canada's, Australia's and New Zealand's.
  */
 describe('a guide’s sources (2026-10-08)', () => {
-  const OFFICIAL = /^https:\/\/(?:[a-z0-9-]+\.)*(?:europa\.eu|gov\.uk)\//
+  const OFFICIAL =
+    /^https:\/\/(?:(?:[a-z0-9-]+\.)*(?:europa\.eu|gov\.uk|gov|gc\.ca|gov\.au|govt\.nz)\/|content\.govdelivery\.com\/accounts\/USDHSCBP\/)/
 
-  it('lists only official EU and UK government pages, each dated', () => {
+  it('lists only official government pages, each dated', () => {
     const quoting = GUIDES.filter((guide) => guide.sources)
     expect(quoting.map((guide) => guide.path)).toEqual(['/guides/pakistan-vs-china-vs-turkey'])
     for (const source of quoting.flatMap((guide) => guide.sources ?? [])) {
@@ -449,6 +453,8 @@ describe('a guide’s sources (2026-10-08)', () => {
   it('NEGATIVE CONTROL: a source on another host is refused', () => {
     expect('https://www.example.com/report').not.toMatch(OFFICIAL)
     expect('https://europa.eu.example.com/x').not.toMatch(OFFICIAL)
+    expect('https://cbp.gov.example.com/x').not.toMatch(OFFICIAL)
+    expect('https://content.govdelivery.com/accounts/SOMEONE/bulletins/1').not.toMatch(OFFICIAL)
   })
 })
 
@@ -554,10 +560,23 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     expect(answer).not.toMatch(/SMETA-certified/i)
   })
 
-  it('the country guide says nothing of the United States, Canada, Australia or New Zealand', () => {
-    expect(wordsOf('/guides/pakistan-vs-china-vs-turkey')).not.toMatch(
-      /United States|\bUSA?\b|Canada|Australia|New Zealand/,
+  // Six markets, each rate one an official page prints (owner, 2026-10-26: "research all the rates;
+  // for those you find nothing, do not mention"). No total: no official page prints one.
+  it('the country guide covers the six markets the owner approved, and adds no rates up', () => {
+    const guide = guideAt('/guides/pakistan-vs-china-vs-turkey')
+    expect(guide.sections.map((section) => section.heading).slice(0, 6)).toEqual([
+      'Bringing it into the European Union',
+      'Bringing it into the United Kingdom',
+      'Bringing it into the US',
+      'Bringing it into Canada',
+      'Bringing it into Australia',
+      'Bringing it into New Zealand',
+    ])
+    const words = wordsOf(guide.path)
+    expect(words).toContain(
+      'Since July 24, 2026, a Section 301 duty is added on top: 10% on goods from Pakistan, 12.5% from Türkiye and 12.5% from China.',
     )
+    expect(words).not.toMatch(/\btotal\b|\bin all\b|\badds up\b/i)
   })
 
   it('the country guide’s works figures are the site’s own', () => {

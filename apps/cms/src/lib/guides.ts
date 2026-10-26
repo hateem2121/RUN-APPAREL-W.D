@@ -1229,10 +1229,10 @@ export const GUIDES: readonly Guide[] = [
     path: '/guides/pakistan-vs-china-vs-turkey',
     title: 'Pakistan vs China vs Turkey for Sportswear',
     description:
-      'Making sportswear in Pakistan, China or Türkiye: what you pay at the EU and UK border, from official sources, and the questions to ask any factory.',
+      'Making sportswear in Pakistan, China or Türkiye: the duty in six markets, from official sources, and the questions to ask any factory.',
     heading: 'Pakistan, China or Türkiye,',
     headingAccent: 'side by side.',
-    lede: "We make sportswear in Sialkot, Pakistan, so read this knowing that. What it says about each country's trade terms comes from official sources, named with the date we read them. What it says about us is what our own pages say.",
+    lede: "We make sportswear in Sialkot, Pakistan, so read this knowing that. What it says about each country's trade terms comes from official sources, named with the date we read them. What it says about us is what our own pages say. Each rate is for the sportswear tariff codes we checked.",
     sections: [
       {
         heading: 'Bringing it into the European Union',
@@ -1240,8 +1240,8 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'From Pakistan',
-            // Source 1.
-            text: "More than 85% of Pakistan's exports, including textiles and clothing, enter the EU duty and quota free under the EU's GSP+ scheme.",
+            // Sources 1, 7 and 8 (TARIC and Access2Markets, 2026-10-26).
+            text: "More than 85% of Pakistan's exports, including textiles and clothing, enter the EU duty and quota free under the EU's GSP+ scheme. That is 0%, with a statement of origin from the exporter.",
           },
           {
             kind: 'text',
@@ -1251,14 +1251,14 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'From Türkiye',
-            // Source 3.
-            text: 'Türkiye and the EU are in a customs union that removed tariffs on all industrial goods between them.',
+            // Sources 3 and 7.
+            text: 'Türkiye and the EU are in a customs union that removed tariffs on all industrial goods between them, so the rate is 0%.',
           },
           {
             kind: 'point',
             title: 'From China',
-            // Source 4: Delegated Regulation 1421/2013, recital 7 and Article 2.
-            text: "China has been outside the EU's GSP preferences since 1 January 2015, when the EU removed it from the list of beneficiary countries.",
+            // Source 4: Delegated Regulation 1421/2013, recital 7 and Article 2; source 7 for the rate.
+            text: "China has been outside the EU's GSP preferences since 1 January 2015, when the EU removed it from the list of beneficiary countries. Its garments pay the EU's standard duty of 12%.",
           },
         ],
       },
@@ -1268,14 +1268,75 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'From Pakistan',
-            // Source 5.
-            text: "Pakistan is in the Enhanced Preferences tier of the UK's Developing Countries Trading Scheme, which gives 0% import tariffs on 92% of product lines.",
+            // Source 5; sources 9 and 10 for the rate and the proof.
+            text: "Pakistan is in the Enhanced Preferences tier of the UK's Developing Countries Trading Scheme, which gives 0% import tariffs on 92% of product lines. Its garments pay 0%; the exporter gives an origin declaration or a Form A.",
           },
           {
             kind: 'point',
             title: 'From Türkiye',
-            // Source 6. No line for China: no official UK page was found to quote (2026-10-08).
-            text: "Goods that meet the UK–Turkey trade agreement's rules of origin trade at its preferential tariff rates.",
+            // Sources 6 and 9.
+            text: "Goods that meet the UK–Turkey trade agreement's rules of origin trade at its preferential tariff rates: 0%, with the exporter's declaration on origin.",
+          },
+          {
+            kind: 'point',
+            title: 'From China',
+            // Source 9: the UK tariff shows China no preference on these codes (2026-10-26).
+            text: "Garments from China pay the UK's standard duty: 12%.",
+          },
+        ],
+      },
+      /*
+       * Four more markets (owner, 2026-10-26, site check: "research all the rates; for those you
+       * find nothing, do not mention"). Every rate is one an official page prints for the codes read
+       * that day; nothing adds them up, because no official page prints a total.
+       */
+      {
+        heading: 'Bringing it into the US',
+        blocks: [
+          {
+            kind: 'text',
+            // Source 11.
+            text: 'Garments pay the general rate in the US tariff schedule: about 7% to 32%, set by the fiber and the garment.',
+          },
+          {
+            kind: 'text',
+            // Sources 11 and 12.
+            text: 'Since July 24, 2026, a Section 301 duty is added on top: 10% on goods from Pakistan, 12.5% from Türkiye and 12.5% from China. Most Chinese garment codes pay a further 7.5% under an older Section 301 action.',
+          },
+          {
+            kind: 'text',
+            // Sources 13 and 14.
+            text: 'The US GSP program lists Pakistan, but it expired on December 31, 2020, and has not been renewed. The "reciprocal" tariffs stopped on February 24, 2026.',
+          },
+        ],
+      },
+      {
+        heading: 'Bringing it into Canada',
+        blocks: [
+          {
+            kind: 'text',
+            // Sources 15 and 16.
+            text: "Pakistan is on Canada's General Preferential Tariff list; China and Türkiye are not. On T-shirts, sweatshirts, track suits, trousers and jackets the preference sets no rate, so all three pay the general rate, mostly 16% to 18%.",
+          },
+        ],
+      },
+      {
+        heading: 'Bringing it into Australia',
+        blocks: [
+          {
+            kind: 'text',
+            // Sources 17, 18, 19 and 20.
+            text: 'Australia has no free trade agreement with Pakistan or Türkiye, so the general rate applies: 5% or free, by code. Garments that qualify as Chinese under the China–Australia agreement enter free, with a certificate or declaration of origin.',
+          },
+        ],
+      },
+      {
+        heading: 'Bringing it into New Zealand',
+        blocks: [
+          {
+            kind: 'text',
+            // Sources 21 and 22.
+            text: "New Zealand's list of free trade agreements does not include Pakistan or Türkiye. Their garments pay the normal rate, 10% on almost every garment code. Chinese-origin garments enter free under the New Zealand–China agreement.",
           },
         ],
       },
@@ -1389,6 +1450,103 @@ export const GUIDES: readonly Guide[] = [
         url: 'https://www.gov.uk/guidance/summary-of-the-uk-turkey-trade-agreement',
         date: '2022-11-21',
         kind: 'updated',
+      },
+      // 7 to 22: read on 2026-10-26 for the rates (owner, site check), each with the page's own date.
+      {
+        name: 'European Commission, TARIC: duties on garment codes from China, Pakistan and Türkiye',
+        url: 'https://ec.europa.eu/taxation_customs/dds2/taric/measures.jsp?Lang=en&SimDate=20261026&Taric=6109100010&Area=PK&LangDescr=en',
+        date: '2026-10-23',
+        kind: 'updated',
+      },
+      {
+        name: 'European Commission, Access2Markets: origin documentation for GSP',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/results?product=6109100010&origin=PK&destination=DE',
+        date: '2026-10-24',
+        kind: 'updated',
+      },
+      {
+        name: 'UK Integrated Online Tariff: duties on garment codes by country of origin',
+        url: 'https://www.trade-tariff.service.gov.uk/commodities/6109100010?country=PK&day=26&month=10&year=2026',
+        date: '2026-10-26',
+        kind: 'read',
+      },
+      {
+        name: 'GOV.UK: How to claim preferences under the Developing Countries Trading Scheme',
+        url: 'https://www.gov.uk/guidance/how-to-claim-preferences-under-the-developing-countries-trading-scheme-dcts',
+        date: '2023-08-17',
+        kind: 'updated',
+      },
+      {
+        name: 'USITC: Harmonized Tariff Schedule of the United States, 2026 Revision 21, Chapters 61, 62 and 99',
+        url: 'https://hts.usitc.gov/',
+        date: '2026-10-09',
+        kind: 'published',
+      },
+      {
+        name: 'U.S. Customs and Border Protection, CSMS 69326983: Section 301 Forced Labor Import Duties',
+        url: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/421d887',
+        date: '2026-07-23',
+        kind: 'published',
+      },
+      {
+        name: 'U.S. Customs and Border Protection: Generalized System of Preferences (GSP)',
+        url: 'https://www.cbp.gov/trade/priority-issues/trade-agreements/special-trade-legislation/generalized-system-preferences',
+        date: '2026-08-06',
+        kind: 'updated',
+      },
+      {
+        name: 'U.S. Customs and Border Protection, CSMS 67834313: Ending Collection of IEEPA Duties',
+        url: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/40b11c9',
+        date: '2026-02-22',
+        kind: 'published',
+      },
+      {
+        name: 'Canada Border Services Agency: Customs Tariff 2026-2, countries and tariff treatments',
+        url: 'https://www.cbsa-asfc.gc.ca/trade-commerce/tariff-tarif/2026/html/countries-pays-2-eng.html',
+        date: '2026-09-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Canada Border Services Agency: Customs Tariff 2026-2, Chapters 61 and 62',
+        url: 'https://www.cbsa-asfc.gc.ca/trade-commerce/tariff-tarif/2026/html/tblmod-2-eng.html',
+        date: '2026-09-01',
+        kind: 'published',
+      },
+      {
+        name: 'Australian Border Force: Free Trade Agreements',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/fta/free-trade-agreements',
+        date: '2026-10-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force: Customs Tariff, Schedule 3, Chapter 61',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-3/section-xi/chapter-61',
+        date: '2026-07-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force: Customs Tariff, Schedule 12, Chinese originating goods',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-12',
+        date: '2026-10-20',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force: China-Australia FTA Rules of Origin, Instruction and Guideline',
+        url: 'https://www.abf.gov.au/free-trade-agreements/files/instructions-guidelines-australia-china-fta.pdf',
+        date: '2015-12-14',
+        kind: 'published',
+      },
+      {
+        name: 'New Zealand Customs Service: Working Tariff Document, Section XI, effective 20 October 2026',
+        url: 'https://www.customs.govt.nz/media/rxuexxcm/section-xi-effective-20-october-2026.pdf',
+        date: '2026-10-26',
+        kind: 'read',
+      },
+      {
+        name: 'New Zealand Customs Service: New Zealand–China Free Trade Agreement',
+        url: 'https://www.customs.govt.nz/information-releases-and-legislation/legislation/international-agreements/free-trade-agreements/new-zealand-china-free-trade-agreement',
+        date: '2026-10-26',
+        kind: 'read',
       },
     ],
   },
