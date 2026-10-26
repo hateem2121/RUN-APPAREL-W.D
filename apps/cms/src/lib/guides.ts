@@ -1,7 +1,7 @@
 import { WEIGHT_BANDS } from '@run-apparel/shared'
 import { ABOUT } from './aboutCopy'
 import { FACTORY_PAGE } from './aboutPages'
-import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
+import { CERTIFICATION_LINES, FACTS, LEAD_TIME, PAYMENT_TERMS } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
@@ -130,12 +130,6 @@ const FLOOR = fact('Sq m')
 const BUILDINGS = (
   ABOUT.points.find((point) => point.label.startsWith('Buildings'))?.value ?? ''
 ).toLowerCase()
-
-/**
- * The deposit and balance terms (owner, 2026-10-26, site check), stated by the two guides that
- * speak of payment. Kept here, once, so the two cannot differ.
- */
-const PAYMENT_TERMS = 'Production starts on a 50% deposit; the balance is due before shipment.'
 
 /** What the inquiry form takes, in the form's own words and limits (`inquiryForm.ts`). */
 const FORM_TAKES = `The inquiry form takes ${ACCEPTED_KINDS}, up to ${MAX_FILES} files and ${LIMIT} in total.`
@@ -433,7 +427,7 @@ export const GUIDES: readonly Guide[] = [
           },
           {
             kind: 'text',
-            text: `Payment terms are agreed with each buyer. ${PAYMENT_TERMS}`,
+            text: PAYMENT_TERMS,
           },
         ],
       },
@@ -1179,7 +1173,7 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: `Payment terms are agreed with each buyer, so ask for them in the same conversation as the quote. ${PAYMENT_TERMS}`,
+            text: PAYMENT_TERMS,
           },
         ],
       },

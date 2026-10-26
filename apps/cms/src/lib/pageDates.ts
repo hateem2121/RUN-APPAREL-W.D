@@ -38,7 +38,7 @@ const page = (on: string, words: string): PageDate => ({ on, words })
 const FINDABILITY = '2026-10-08T21:50:32+05:00'
 /** #192, six buildings on one site: the guides hub's cards. */
 const SIX_BUILDINGS = '2026-10-16T10:56:20+05:00'
-/** #231: two buyer guides linked from every buyer page, and from the Journal. */
+/** #231: the Journal hub's links to two buyer guides. */
 const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 /** #246: the closing block written once, on every FAQ topic. */
 const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
@@ -46,18 +46,18 @@ const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 const SITE_CHECK = '2026-10-26T14:04:04+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(SITE_CHECK, 'f819acb36dea'),
+  '/': page(SITE_CHECK, 'f1b6d4e6e9a2'),
   '/products': page(SITE_CHECK, '033a56dfbd1f'),
-  '/custom-teamwear-manufacturer': page(BUYER_GUIDE_LINKS, 'df1adaf98877'),
-  '/custom-activewear-manufacturer': page(BUYER_GUIDE_LINKS, 'bd5d1e77a7ab'),
-  '/custom-outerwear-manufacturer': page(BUYER_GUIDE_LINKS, 'f6cd71b4034d'),
-  '/private-label-casual-wear-manufacturer': page(BUYER_GUIDE_LINKS, '2df29c0e708d'),
+  '/custom-teamwear-manufacturer': page(SITE_CHECK, '18a602bbf355'),
+  '/custom-activewear-manufacturer': page(SITE_CHECK, '0668dfbc51a4'),
+  '/custom-outerwear-manufacturer': page(SITE_CHECK, 'ea2b3c2c32f9'),
+  '/private-label-casual-wear-manufacturer': page(SITE_CHECK, 'b58e00722144'),
   '/guides': page(SIX_BUILDINGS, '82d6307506a4'),
   '/policies': page(SITE_CHECK, '77c728cd6d39'),
   '/community': page(SITE_CHECK, '82a687c86d9d'),
   '/press': page(SITE_CHECK, '2b73a863f26b'),
   '/faq': page(SITE_CHECK, 'f03571679b6c'),
-  '/faq/orders-and-samples': page(CLOSING_BLOCK, 'f9f9eca6e4d3'),
+  '/faq/orders-and-samples': page(SITE_CHECK, '1b5f9ca8c410'),
   '/faq/quality-and-certifications': page(CLOSING_BLOCK, 'cfb7053a641d'),
   '/faq/shipping-and-importing': page(SITE_CHECK, 'f0d4229b86ec'),
   '/faq/fabrics-and-printing': page(CLOSING_BLOCK, '2b50b5a34a59'),
@@ -65,7 +65,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/glossary': page(SITE_CHECK, '92789da87f82'),
   '/journal': page(BUYER_GUIDE_LINKS, '70ef49791a5f'),
   '/case-studies': page(FINDABILITY, '41b19e1d9a71'),
-  '/contact': page(SITE_CHECK, '1814a94bea1b'),
+  '/contact': page(SITE_CHECK, 'f5b6b49e1f0e'),
   '/privacy': page(SITE_CHECK, '0a96254ac2f9'),
   '/terms': page(SITE_CHECK, '6d0e930fcd18'),
 }

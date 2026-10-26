@@ -3,6 +3,7 @@ import {
   CERTIFICATION_PROMISE,
   FACTS,
   LEAD_TIME,
+  PAYMENT_TERMS,
   SHIPS_TO,
 } from './companyFacts'
 
@@ -137,8 +138,8 @@ const ORDERS: FaqTopic = {
     {
       id: 'payment-terms',
       question: 'What are your payment terms?',
-      answer: 'We agree payment terms with each buyer.',
-      source: 'owner (F4, 2026-10-07): "mutually agreed with the customer"',
+      answer: PAYMENT_TERMS,
+      source: 'owner (site check, 2026-10-26): "50% deposit, 50% before ship"',
     },
     {
       id: 'quote',

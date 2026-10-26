@@ -114,7 +114,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.merchandiser,
     GUIDES_1,
     SITE_CHECK,
-    'd70355fe2f5e',
+    '4a8e6bacc216',
   ),
   '/guides/garment-printing-methods': byline(
     AUTHORS.production,
@@ -144,7 +144,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.hateem,
     NEW_GUIDES,
     SITE_CHECK,
-    'c54b89f66da8',
+    'de3f9381a9cf',
   ),
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
