@@ -151,6 +151,37 @@ describe('playDye', () => {
     expect(drawn).toContainEqual({ kind: 'mask' })
   })
 
+  it('draws at the old picture’s own resolution, so the first frame is that picture exactly', () => {
+    const h = harness()
+    // A 3D garment's copy: model-viewer's buffer, 2.5 pixels per CSS px of the 80 x 100 box.
+    playDye(
+      {
+        layer: h.layer,
+        old: { width: 200, height: 251 },
+        point: null,
+        swatch: null,
+        kind: 'full',
+        timing: TIMING,
+      },
+      h.env,
+    )
+    expect([h.layer.width, h.layer.height]).toEqual([200, 251])
+    // A picture: its natural size, not its drawn one.
+    const p = harness()
+    playDye(
+      {
+        layer: p.layer,
+        old: { width: 80, height: 100, naturalWidth: 1200, naturalHeight: 1500 },
+        point: null,
+        swatch: null,
+        kind: 'full',
+        timing: TIMING,
+      },
+      p.env,
+    )
+    expect([p.layer.width, p.layer.height]).toEqual([1200, 1500])
+  })
+
   it('under reduced motion draws nothing at all and is done at once', async () => {
     const h = harness({ reduced: true })
     const run = playDye(
@@ -178,6 +209,29 @@ describe('playDye', () => {
       expect(h.attributes.has('data-running'), end).toBe(false)
       expect(h.pending(), end).toBe(false)
     }
+  })
+
+  it('says when its first frame is drawn, so a heavy swap can wait one frame behind it', async () => {
+    const h = harness()
+    let drawn = false
+    const run = playDye(
+      { layer: h.layer, old: OLD, point: null, swatch: null, kind: 'full', timing: TIMING },
+      h.env,
+    )
+    run.firstFrame.then(() => {
+      drawn = true
+    })
+    await Promise.resolve()
+    expect(drawn).toBe(false)
+    h.step(16)
+    await run.firstFrame
+    expect(drawn).toBe(true)
+    // With nothing to animate, there is no frame to wait for.
+    const still = playDye(
+      { layer: h.layer, old: OLD, point: null, swatch: null, kind: 'full', timing: TIMING },
+      harness({ reduced: true }).env,
+    )
+    await still.firstFrame
   })
 
   it('a hover’s short dye ends at the short token, whatever the distance', async () => {
@@ -248,7 +302,10 @@ describe('browserDyeEnv', () => {
     expect(env.pixelRatio()).toBe(2)
     expect(env.now()).toBeGreaterThan(0)
     env.mark('dye-test')
-    expect(performance.getEntriesByName('dye-test')).toHaveLength(1)
+    const marks = (
+      globalThis as unknown as { performance: { getEntriesByName(name: string): unknown[] } }
+    ).performance
+    expect(marks.getEntriesByName('dye-test')).toHaveLength(1)
     const made = env.makeCanvas(10, 13)
     expect(made?.canvas).toMatchObject({ width: 10, height: 13 })
     // Hidden calls back; visible does not; unsubscribing removes the listener.

@@ -641,8 +641,10 @@ html {
   --z-sticky-index: 2;
   /* №04's stage name ("Stage 1 · Talk"), over its card's two step photos, inside the card (D42). */
   --z-stage-name: 1;
-  /* №03's old still picture over the new one while it is wiped away (2026-10-19, D47). */
+  /* №03's old still picture over the new one for its first two frames (2026-10-19, D47), and the dye
+     over both (2026-10-26). */
   --z-still-leaving: 1;
+  --z-still-dye: 2;
   /* №02's opened card over the cards it pushed aside, and its words' sheet under its own words (D44). */
   --z-card-open: 1;
   --z-card-sheet: -1;
@@ -4346,12 +4348,9 @@ a.contact-block__value:active {
 }
 
 /*
- * №03's colour change with the 3D off: the new picture is drawn under the old one, and the old one is
- * wiped away from the chosen dot (ProofShowcase.tsx, `useArrivingStill`; owner, 2026-10-19, the same
- * dye as the 3D garment's, site.css "№03's colour change, like dye"). The old picture stayed until the
- * new one was decoded since the home page audit (2026-10-17: the box stood empty for 0.4–1.2 s).
- * The wipe runs only while the model is not shown: under a shown model the still is not seen.
- * Reduced motion makes it instant (base.css).
+ * №03's colour change with the 3D off: the old picture is held over the new one for two frames
+ * (ProofShowcase.tsx, `useArrivingStill`: a newly drawn picture is blank for a frame in Firefox), and the
+ * dye's layer over both draws the old colour soaking away (dye.css, dyePlayer.ts).
  */
 .proof__frame > [data-still="leaving"] {
   position: absolute;
@@ -4359,17 +4358,8 @@ a.contact-block__value:active {
   z-index: var(--z-still-leaving);
 }
 
-.proof__frame > [data-still="arriving"] {
-  position: relative;
-}
-
-.proof__figure:not(:has(.live-garment[data-phase="shown"])) .proof__frame > [data-still="leaving"] {
-  mask-image: radial-gradient(
-    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
-    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 80px),
-    #000 calc(var(--wipe) * var(--wipe-reach, 0px))
-  );
-  animation: live-garment-wipe var(--slow) var(--ease) forwards;
+.proof__frame > .dye-layer {
+  z-index: var(--z-still-dye);
 }
 
 .proof__caption {
@@ -6216,83 +6206,11 @@ a.contact-block__value:active {
 }
 
 /*
- * The old colour's picture over a colour change (LiveGarment.tsx, the cross-fade; owner, 2026-10-17):
- * exactly the canvas's box, never in the way of a press, fading on `--ui`.
+ * №03's colour change (LiveGarment.tsx and ProofShowcase.tsx; one dye everywhere a garment changes
+ * colour since 2026-10-26): the shared `.dye-layer` (packages/ui/src/dye.css) lies over the garment
+ * and over the still picture. Until then a CSS `radial-gradient` mask opened a perfect circle here,
+ * which read as a screen wipe; dyePlayer.ts draws a noisy front instead, which no CSS mask can.
  */
-/*
- * №03's colour change, like dye (owner, 2026-10-19; LiveGarment.tsx says why a wipe and not a fade).
- * The old colour's picture lies over the garment; once the new colour is under it, a circle opens in
- * it from the chosen dot (`--wipe-x`, `--wipe-y`) to past the far corner (`--wipe-reach`), over
- * `--slow` ("wipes and reveals") on the site's `--ease`. Its edge is 80px soft (WIPE_FEATHER_PX),
- * so the colour soaks in rather than cuts. `--wipe` is how far it has opened, 0 to 1, a registered
- * number so it can animate (Baseline since July 2024: Safari 16.4, Firefox 128), and the keyframes
- * hold plain numbers: Firefox steps a keyframe that holds a `var()` instead of sliding it, and the
- * circle jumped open halfway (measured 2026-10-19, e2e/proofShowcase.spec.ts). Under reduced motion base.css makes the
- * animation instant, and LiveGarment does not lay the picture at all.
- */
-@property --wipe {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
-}
-
-.live-garment__fade,
-.live-garment__edge {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.live-garment__fade[data-going] {
-  mask-image: radial-gradient(
-    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
-    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 80px),
-    #000 calc(var(--wipe) * var(--wipe-reach, 0px))
-  );
-  animation: live-garment-wipe var(--slow) var(--ease) forwards;
-}
-
-/*
- * The wet edge: the new colour at 55% riding just inside the circle, multiplied into the cloth, held
- * to the garment's outline by the old picture as its mask (set inline), and gone by the end.
- */
-.live-garment__edge {
-  mask-size: 100% 100%;
-  mix-blend-mode: multiply;
-  background: radial-gradient(
-    circle at var(--wipe-x, 50%) var(--wipe-y, 100%),
-    transparent calc(var(--wipe) * var(--wipe-reach, 0px) - 100px),
-    color-mix(in srgb, var(--wipe-swatch, transparent) 55%, transparent)
-      calc(var(--wipe) * var(--wipe-reach, 0px) - 40px),
-    transparent calc(var(--wipe) * var(--wipe-reach, 0px))
-  );
-  animation:
-    live-garment-wipe var(--slow) var(--ease) forwards,
-    live-garment-edge-out var(--slow) ease-in forwards;
-}
-
-@keyframes live-garment-wipe {
-  from {
-    --wipe: 0;
-  }
-
-  to {
-    --wipe: 1;
-  }
-}
-
-@keyframes live-garment-edge-out {
-  60% {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-  }
-}
-
 .live-garment__offer {
   position: absolute;
   inset-block-end: 16px;

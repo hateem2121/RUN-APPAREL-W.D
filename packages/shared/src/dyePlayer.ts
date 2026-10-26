@@ -50,7 +50,16 @@ export type DyeEnv = {
   makeCanvas(w: number, h: number): { canvas: object; context: DyeContext } | null
 }
 
-export type DyeRun = { finished: Promise<void>; cancel(): void }
+export type DyeRun = {
+  finished: Promise<void>
+  /**
+   * The first opened frame is drawn (or there is nothing to draw). A caller with heavy work to do,
+   * such as model-viewer swapping a colour (121-131 ms of main thread on the live garment, measured
+   * 2026-08-21), starts it one frame after this, so the visitor's first change is not held behind it.
+   */
+  firstFrame: Promise<void>
+  cancel(): void
+}
 
 export type DyeOptions = {
   layer: DyeLayer
@@ -83,6 +92,10 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   const finished = new Promise<void>((done) => {
     resolve = done
   })
+  let drawn = () => {}
+  const firstFrame = new Promise<void>((done) => {
+    drawn = done
+  })
   const context = env.reducedMotion() ? null : layer.getContext('2d')
   const box = layer.getBoundingClientRect()
   const cols = Math.ceil(box.width / CELL)
@@ -90,12 +103,18 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   const mask = context && cols > 0 && rows > 0 ? env.makeCanvas(cols, rows) : null
   if (!context || !mask) {
     resolve()
-    return { finished, cancel: () => {} }
+    drawn()
+    return { finished, firstFrame, cancel: () => {} }
   }
 
-  const ratio = env.pixelRatio()
-  layer.width = Math.round(box.width * ratio)
-  layer.height = Math.round(box.height * ratio)
+  /*
+   * At the old picture's own resolution where it has one (a 3D garment's copy is model-viewer's buffer;
+   * a picture, its natural size), so the first frame IS that picture, pixel for pixel: the garment
+   * pages' WebGL test compares it with model-viewer's own crop. Otherwise the screen's pixel ratio.
+   */
+  const own = ownSize(options.old)
+  layer.width = own ? own.width : Math.round(box.width * env.pixelRatio())
+  layer.height = own ? own.height : Math.round(box.height * env.pixelRatio())
   const origin = dyeOrigin(box, options.point)
   const field = arrivalField(cols, rows, origin, CELL, Math.floor(env.now()) & 0xffff)
   const duration = dyeDuration(origin.reach, options.kind, options.timing)
@@ -112,8 +131,8 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
     }
   }
   // The mask's cells cover whole CSS px, so the last row and column may run past the box.
-  const scaledW = cols * CELL * ratio
-  const scaledH = rows * CELL * ratio
+  const scaledW = cols * CELL * (layer.width / box.width)
+  const scaledH = rows * CELL * (layer.height / box.height)
 
   const draw = (t: number) => {
     for (let i = 0; i < field.length; i++) {
@@ -152,6 +171,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
     stopWatching()
     context.clearRect(0, 0, layer.width, layer.height)
     layer.removeAttribute('data-running')
+    drawn()
     resolve()
   }
   const stopWatching = env.onHidden(end)
@@ -166,6 +186,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
     if (!marked) {
       marked = true
       env.mark(DYE_FIRST_FRAME)
+      drawn()
     }
     frameId = env.frame(tick)
   }
@@ -174,7 +195,22 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   // The old picture covers the change from this very moment: the caller swaps the colour next.
   draw(0)
   frameId = env.frame(tick)
-  return { finished, cancel: end }
+  return { finished, firstFrame, cancel: end }
+}
+
+/** A picture's natural size, or a canvas's; `null` for anything without one. */
+function ownSize(source: object): { width: number; height: number } | null {
+  const s = source as {
+    naturalWidth?: unknown
+    naturalHeight?: unknown
+    width?: unknown
+    height?: unknown
+  }
+  const width = typeof s.naturalWidth === 'number' ? s.naturalWidth : s.width
+  const height = typeof s.naturalHeight === 'number' ? s.naturalHeight : s.height
+  return typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0
+    ? { width, height }
+    : null
 }
 
 /** A duration token as `getComputedStyle` gives it: `240ms`, or `.24s` (tokenContract.ts says why). */
