@@ -3357,6 +3357,10 @@ test.describe('the longest copy never pushes the contact buttons off screen (D8)
  * and under the garment, where nothing needs bounding, the description is whole.
  */
 test.describe('the description beside the garment opens with Read more (D8)', () => {
+  /** The words a visitor can see: the paragraph's text outside its visually-hidden remainder. */
+  const visibleSummary = (statement: import('@playwright/test').Locator) =>
+    statement.evaluate((el) => (el.firstChild?.textContent ?? '').trim())
+
   const lines = (statement: import('@playwright/test').Locator) =>
     statement.evaluate((el) =>
       Math.round(
@@ -3372,7 +3376,11 @@ test.describe('the description beside the garment opens with Read more (D8)', ()
     const statement = page.locator('.product-info--aside .product-info__statement')
     const more = page.getByRole('button', { name: 'Read more' })
     await expect(more).toHaveAttribute('aria-expanded', 'false')
-    expect(await lines(statement)).toBe(3)
+    // Three lines at most, and the summary ends at a full stop, not inside a word (owner,
+    // 2026-10-26: "…a chamois pad in sever…"). One whole sentence of LONGEST_COPY is two lines here,
+    // so it is "at most", not "exactly", since the sentence rule.
+    expect(await lines(statement)).toBeLessThanOrEqual(3)
+    expect(await visibleSummary(statement), 'the summary stops inside a sentence').toMatch(/[.!?]$/)
     // The clipped lines are still text in the page, for a screen reader and for search.
     await expect(statement).toContainText('rain, grit and cold.')
     const box = await more.boundingBox()
@@ -3388,7 +3396,8 @@ test.describe('the description beside the garment opens with Read more (D8)', ()
 
     await less.click()
     await expect(page.getByRole('button', { name: 'Read more' })).toBeVisible()
-    expect(await lines(statement)).toBe(3)
+    expect(await lines(statement)).toBeLessThanOrEqual(3)
+    expect(await visibleSummary(statement)).toMatch(/[.!?]$/)
   })
 
   test('a description that fits in three lines has no Read more (the control)', async ({

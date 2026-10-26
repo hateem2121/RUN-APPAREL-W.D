@@ -286,6 +286,104 @@ describe('Read more beside the garment (D8)', () => {
     }
   })
 
+  /**
+   * Owner, 2026-10-26 (site check): the three lines end at a full stop, not inside a word
+   * ("…a chamois pad in sever…"). jsdom lays nothing out, so a paragraph's height is stated from
+   * its text: `charsPerLine` characters to a 24px line, the clamp three lines (72px). The copy is
+   * invented in the live description's shape.
+   */
+  describe('the summary ends at a sentence (owner, 2026-10-26)', () => {
+    const FIRST = 'A women’s race skinsuit in a nylon knit that stretches four ways.'
+    const REST =
+      ' Compression spandex, a chamois pad in several densities and breathable mesh bib straps ' +
+      'all sit under a full digital print. Silicone leg grippers and flatlock stitching hold ' +
+      'you in an aero race position over long distances.'
+    const LONG = { ...PRODUCT, shortDescription: FIRST + REST } as unknown as ViewerProduct
+
+    function laidOut(charsPerLine: number): () => void {
+      const scrollSpy = vi
+        .spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+        .mockImplementation(function (this: HTMLElement) {
+          return Math.ceil((this.textContent?.length ?? 0) / charsPerLine) * 24
+        })
+      const clientSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(72)
+      return () => {
+        scrollSpy.mockRestore()
+        clientSpy.mockRestore()
+      }
+    }
+
+    const mount = () =>
+      act(() =>
+        root.render(
+          <ProductIdentity product={LONG} selected={SELECTED} selectedIndex={0} clampDescription />,
+        ),
+      )
+
+    it('shows whole sentences, keeps every word in the page, and opens to all of them', () => {
+      const restore = laidOut(45)
+      try {
+        mount()
+        const paragraph = host.querySelector('.product-info__statement') as HTMLElement
+        const button = host.querySelector('.product-info__more') as HTMLButtonElement
+        // What a visitor sees is the text outside the visually-hidden span.
+        expect(paragraph.firstChild?.textContent).toBe(FIRST)
+        expect(paragraph.querySelector('.visually-hidden')?.textContent).toBe(REST)
+        // A screen reader and a search robot still get every word.
+        expect(paragraph.textContent).toBe(FIRST + REST)
+        expect(button.textContent).toBe('Read more')
+
+        act(() => button.click())
+        expect(paragraph.querySelector('.visually-hidden')).toBeNull()
+        expect(paragraph.textContent).toBe(FIRST + REST)
+        expect(paragraph.hasAttribute('data-clamped')).toBe(false)
+
+        act(() => button.click())
+        expect(paragraph.firstChild?.textContent).toBe(FIRST)
+        expect(paragraph.querySelector('.visually-hidden')?.textContent).toBe(REST)
+      } finally {
+        restore()
+      }
+    })
+
+    it('leaves the browser’s own cut when not even the first sentence fits in three lines', () => {
+      const restore = laidOut(15)
+      try {
+        mount()
+        const paragraph = host.querySelector('.product-info__statement') as HTMLElement
+        expect(paragraph.querySelector('.visually-hidden')).toBeNull()
+        expect(paragraph.textContent).toBe(FIRST + REST)
+        expect(paragraph.hasAttribute('data-clamped')).toBe(true)
+        expect(host.querySelector('.product-info__more')?.textContent).toBe('Read more')
+      } finally {
+        restore()
+      }
+    })
+
+    it('adds nothing when the whole text fits (the control)', () => {
+      const restore = laidOut(400)
+      try {
+        mount()
+        const paragraph = host.querySelector('.product-info__statement') as HTMLElement
+        expect(paragraph.querySelector('.visually-hidden')).toBeNull()
+        expect(paragraph.textContent).toBe(FIRST + REST)
+        expect(host.querySelector('.product-info__more')).toBeNull()
+      } finally {
+        restore()
+      }
+    })
+
+    it('leaves no measuring copy behind in the page', () => {
+      const restore = laidOut(45)
+      try {
+        mount()
+        expect(host.querySelectorAll('.product-info__statement')).toHaveLength(1)
+      } finally {
+        restore()
+      }
+    })
+  })
+
   it('never clamps the description under the garment', () => {
     const restore = overflowing(200, 72)
     try {
