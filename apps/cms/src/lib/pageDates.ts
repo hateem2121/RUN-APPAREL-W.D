@@ -42,11 +42,16 @@ const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
-/** The dye: the home page draws the island that turns №02's cards colour (2026-10-26). */
-const DYE = '2026-10-26T21:46:41+05:00'
+/** One phone number for the company (2026-10-26): the Contact page's call line and the structured data. */
+const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
+/**
+ * The dye (the home page draws the island that turns №02's cards colour), met with the one phone
+ * number from `main` (2026-10-26).
+ */
+const DYE = '2026-10-26T23:49:22+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(DYE, '72ba63f289f5'),
+  '/': page(DYE, 'fdc1280c79a4'),
   '/products': page(SITE_CHECK, '033a56dfbd1f'),
   '/custom-teamwear-manufacturer': page(SITE_CHECK, '18a602bbf355'),
   '/custom-activewear-manufacturer': page(SITE_CHECK, '0668dfbc51a4'),
@@ -65,7 +70,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/glossary': page(SITE_CHECK, '92789da87f82'),
   '/journal': page(BUYER_GUIDE_LINKS, '70ef49791a5f'),
   '/case-studies': page(FINDABILITY, '41b19e1d9a71'),
-  '/contact': page(SITE_CHECK, 'f5b6b49e1f0e'),
+  '/contact': page(ONE_NUMBER, 'c601c0541d6a'),
   '/privacy': page(SITE_CHECK, '0a96254ac2f9'),
   '/terms': page(SITE_CHECK, '6d0e930fcd18'),
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { BYLINES } from './bylines'
-import { CALL_NUMBER, PARENT_COMPANY } from './companyFacts'
+import { PARENT_COMPANY } from './companyFacts'
 import { GUIDES } from './guides'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
 import { GARMENT_PAGES, SITE_NAME, SITE_ORIGIN } from './seo'
@@ -169,30 +169,28 @@ describe('organisation', () => {
   })
 
   /*
-   * Both numbers, and only numbers the Contact page shows: Google's structured-data policy
-   * (updated 2026-07-10) says not to mark up what a visitor cannot see.
+   * One number, the one the Contact page shows (owner, 2026-10-26). Google's structured-data
+   * policy (updated 2026-07-10) says not to mark up what a visitor cannot see.
    */
-  it('gives both phone numbers, the WhatsApp one first', () => {
-    const org = organizationJsonLd(settings({ whatsappNumber: '+92 336 1777313' }))
-    expect(org.telephone).toEqual(['+92 336 1777313', CALL_NUMBER])
-    expect(CALL_NUMBER).toBe('+92 305 6161313')
+  it('gives the one phone number as a single string', () => {
+    const org = organizationJsonLd(settings({ whatsappNumber: '+923361777313' }))
+    expect(org.telephone).toBe('+92 336 1777313')
   })
 
-  it('drops the WhatsApp number when the CMS has none, and keeps the call line', () => {
-    expect(organizationJsonLd(settings({ whatsappNumber: '' })).telephone).toEqual([CALL_NUMBER])
+  it('states no phone number when the CMS has none', () => {
+    expect(organizationJsonLd(settings({ whatsappNumber: '' }))).not.toHaveProperty('telephone')
   })
 
   it('claims no number the Contact page does not show', () => {
-    // The call line is a constant the page must render; the WhatsApp number is the CMS value
-    // the page renders through formatPhoneForDisplay. Remove either from the page and the
-    // structured data would describe a number nobody can see.
+    // The number is the CMS value the page renders through formatPhoneForDisplay, and dials
+    // through telHref. Remove either from the page and the structured data would describe a
+    // number nobody can see or call.
     const page = readFileSync(
       fileURLToPath(new URL('../app/(frontend)/contact/page.tsx', import.meta.url)),
       'utf8',
     )
-    expect(page).toContain('{CALL_NUMBER}')
-    expect(page).toContain('href={telHref(CALL_NUMBER)}')
     expect(page).toContain('{formatPhoneForDisplay(settings.whatsappNumber)}')
+    expect(page).toContain('href={telHref(settings.whatsappNumber)}')
   })
 
   it('states the address in parts, from the same constant the page renders', () => {

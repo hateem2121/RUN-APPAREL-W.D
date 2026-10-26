@@ -1,7 +1,7 @@
 import { askedGarment, formatPhoneForDisplay, normalizeWhatsAppNumber } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { resolveAskedGarment } from '../../../lib/askAboutGarment'
-import { CALL_NUMBER, telHref } from '../../../lib/companyFacts'
+import { telHref } from '../../../lib/companyFacts'
 import { getProductCards, getSiteSettings } from '../../../lib/content'
 import { CONTACT_HERO_PHOTO, contactHeroSrc, HERO_PHOTO } from '../../../lib/factoryPhotos'
 import { COUNTRIES } from '../../../lib/dialCodes'
@@ -536,21 +536,19 @@ export default async function ContactPage({
               </a>
               <p className="contact-block__note">New programs, quotes and samples.</p>
             </div>
-            <div className="contact-block">
-              <p className="field-label">[ WhatsApp ]</p>
+            {/* ONE number for calls and WhatsApp (owner, 2026-10-26: "only have a single
+                number"). A second call line had its own [ Call ] box from
+                2026-10-08; it is gone from the site and the structured data, and
+                singlePhoneNumber.test.ts fails if any other real number comes back. */}
+            <div className="contact-block contact-block--stack">
+              <p className="field-label">[ Call or WhatsApp ]</p>
               <a className="contact-block__value" href={whatsapp} rel="noopener">
                 {formatPhoneForDisplay(settings.whatsappNumber)}
               </a>
-              <p className="contact-block__note">Fastest for a quick question.</p>
-            </div>
-            {/* Owner, 2026-10-08: the second number is shown here, then named in the structured
-                data, which may only state what a visitor can see (companyFacts.ts). */}
-            <div className="contact-block">
-              <p className="field-label">[ Call ]</p>
-              <a className="contact-block__value" href={telHref(CALL_NUMBER)}>
-                {CALL_NUMBER}
+              <a className="contact-block__value" href={telHref(settings.whatsappNumber)}>
+                Call this number
               </a>
-              <p className="contact-block__note">To talk to us directly.</p>
+              <p className="contact-block__note">Fastest for a quick question.</p>
             </div>
             {/* No address here: "Where we are" below shows it once, with its directions link
                 (owner, 2026-10-26, the site check's one-place rule). */}

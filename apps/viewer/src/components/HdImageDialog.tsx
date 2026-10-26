@@ -144,17 +144,17 @@ export default function HdImageDialog({
     // Not when the view opens, and only from a copy of the picture that was actually showing.
     if (!open || !renderUrl || !before || before === renderUrl || !picture || !layer) return
     if (!old || old.url !== before || viewRef.current.scale !== 1) return
-    const drawn = containedBox(
+    const fitted = containedBox(
       { width: picture.offsetWidth, height: picture.offsetHeight },
       { top: 0, right: 0, bottom: 0, left: 0 },
       { width: old.canvas.width, height: old.canvas.height },
     )
-    if (!drawn) return
+    if (!fitted) return
     Object.assign(layer.style, {
-      left: `${drawn.x}px`,
-      top: `${drawn.y}px`,
-      width: `${drawn.width}px`,
-      height: `${drawn.height}px`,
+      left: `${fitted.x}px`,
+      top: `${fitted.y}px`,
+      width: `${fitted.width}px`,
+      height: `${fitted.height}px`,
     })
     const arrow =
       delta === null
@@ -298,7 +298,7 @@ export default function HdImageDialog({
     return () => el.removeEventListener('wheel', onWheel)
   }, [layerEl, box])
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: KeyboardEvent) => {
     const centre = { x: box.width / 2, y: box.height / 2 }
     const zoomed = view.scale > 1
     const act = (next: View) => {
@@ -331,6 +331,26 @@ export default function HdImageDialog({
     }
   }
 
+  /*
+   * ⚠️ THE KEYS ARE HEARD ON THE DOCUMENT, ON THE WAY DOWN, NOT ON THE POPUP. base-ui moves focus
+   * into the view a frame after it opens (a microtask, then a frame: FloatingFocusManager.tsx), and
+   * a key pressed in that frame lands on the button behind it. A handler on the popup never heard
+   * it: an arrow pressed at once after opening was lost in 40 of 40 runs across the four engines
+   * (2026-10-26), the same race that blocked a deploy on the factory viewer (#270). Capture,
+   * because a key pressed inside the view does not bubble back to the document. The latest
+   * handler sits in a ref, so the listener is added once per opening.
+   */
+  const keyHandler = useRef(onKeyDown)
+  keyHandler.current = onKeyDown
+  // Only while the view is drawn: with no render this component draws nothing (below).
+  const drawn = open && render != null
+  useEffect(() => {
+    if (!drawn) return
+    const onKey = (event: KeyboardEvent) => keyHandler.current(event)
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [drawn])
+
   if (!render) return null
   const poster = selected.poster
   const title = `Studio render: ${productName} in ${selected.displayName}`
@@ -343,7 +363,7 @@ export default function HdImageDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="hd-image__backdrop" />
-        <Dialog.Popup className="hd-image" finalFocus={returnFocusTo} onKeyDown={onKeyDown}>
+        <Dialog.Popup className="hd-image" finalFocus={returnFocusTo}>
           <div className="hd-image__bar">
             <Dialog.Title className="hd-image__title">{title}</Dialog.Title>
             <Dialog.Close className="hd-image__close" aria-label="Close the studio render">
