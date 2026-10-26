@@ -622,7 +622,7 @@ Two measures, on purpose (owner, 2026-10-01: document, do not merge):
 | Surface | Content width | Why |
 |---|---|---|
 | The website | `--site-max` **1180px**, **1440px** from a 1280px screen, **1600px** from 1920px | polish D1 (2026-10-04): at 1440 wide the 1180px page left 194px empty each side, and its words used the left half of what was left. The room goes to the heading beside its words and to the card grids; prose stays at `--site-measure` (31.5em, 55ch of Archivo). In `tokens.css` since 2026-10-02 (VA-31) |
-| A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that. `.page` sets `--site-max` and `--site-gutter` to this column and `.content` is drawn from them, so the shared footer, which reads the same two, lines up with it (D1; it had missed by 26px at 1440). The website's width steps live in `site.css`, so a garment page never downloads them |
+| A garment page | **1200px** (`page.css`) | tied to the stage: the canvas is 800px in the two-column layout, and its drawing buffer is sized from that. `.page` sets `--site-max` and `--site-gutter` to this column and `.content` is drawn from them, so the shared footer, which reads the same two, lines up with it (D1; it had missed by 26px at 1440). Since 2026-10-26 (the owner, site check) the 1200px is the width of the WORDS and `--site-max` is that plus the two gutters, so from 1296px wide the trail, the sections and the footer's words start where the 3D stage starts (x=120 at 1440px; they began at x=168 while the gutters were inside the 1200px) The website's width steps live in `site.css`, so a garment page never downloads them |
 
 ### A section's head: the heading beside its words
 
