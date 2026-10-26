@@ -12,7 +12,7 @@ import { CustomisationSection } from './CustomisationSection'
  *
  * The garment pages' two labels read "№02 — CUSTOMIZATION — №02" and "№03 — START THE
  * CONVERSATION — №03": the number at both ends, which reads as a typo. The website's labels
- * carry it once, in sentence case ("№02 — What we make"), and `.section-number`
+ * carry it once, in sentence case ("№02 · What we make"), and `.section-number`
  * (packages/ui/src/base.css, `text-transform: uppercase`) decides the capitals on screen. So a
  * label is checked here as SOURCE TEXT, which is what a screen reader reads (MDN, text-transform,
  * read 2026-10-02: the property changes the drawing, not the text).
@@ -62,12 +62,12 @@ afterEach(() => {
 })
 
 describe('the garment pages’ section labels (VA-39)', () => {
-  it('the customisation label is "№02 — Customization", the number once', () => {
+  it('the customisation label is "№02 · Customization", the number once', () => {
     const data = {
       product: { customisationIntroHtml: '', customisationSteps: [] },
     } as unknown as ViewerApiSuccess
     act(() => root.render(<CustomisationSection data={data} />))
-    expect(host.querySelector('.section-number')?.textContent).toBe('№02 — Customization')
+    expect(host.querySelector('.section-number')?.textContent).toBe('№02 · Customization')
   })
 
   it('finds the labels it is meant to guard (a scan that finds none passes vacuously)', () => {
@@ -81,7 +81,7 @@ describe('the garment pages’ section labels (VA-39)', () => {
 
   for (const { file, label } of LABELS) {
     it(`${file}: "${label}" starts with its number and carries it once`, () => {
-      expect(label).toMatch(/^(?:&#8470;|№)\s*\d{2} — \S/)
+      expect(label).toMatch(/^(?:&#8470;|№)\s*\d{2} · \S/)
       expect(label.match(NUMBER)?.length, 'the number appears more than once').toBe(1)
     })
 

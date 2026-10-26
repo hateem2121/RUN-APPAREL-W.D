@@ -463,7 +463,7 @@ export function LiveGarment({
               ref: attach,
               className: 'live-garment__model',
               src: model.url,
-              alt: `${label} — a 3D model you can turn`,
+              alt: `${label}, a 3D model you can turn`,
               'camera-controls': '',
               'camera-orbit': model.camera.orbit,
               'camera-target': model.camera.target,

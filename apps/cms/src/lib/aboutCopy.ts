@@ -55,7 +55,7 @@ export const ABOUT = {
   // "buildings" ended a 76-character line at 768 and 1440px, one over FA-C-52’s 75
   // (apps/cms/e2e/legibility.spec.ts, 2026-10-15); tied, the longest line is 73 at 768, 1180 and 1440px.
   body:
-    'We produce on the DURUS INDUSTRIES site — our parent company’s six buildings in Sialkot — ' +
+    'We produce on the DURUS INDUSTRIES site, our parent company’s six buildings in Sialkot, ' +
     'so the cutting, printing, stitching, checking and packing of your order all happen in one ' +
     'place, with one team answerable for it.',
   // Four since 2026-10-16 (option C, owner): the floor area and the solar share joined 1889 and

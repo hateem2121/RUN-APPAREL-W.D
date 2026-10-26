@@ -1441,7 +1441,9 @@ test.describe('the mono/caps register is genuinely uppercase everywhere (CR-06)'
 })
 
 test.describe('the bracket label above each headline is in normal letters (VA-44)', () => {
-  for (const path of PAGES) {
+  // The factory page joined on 2026-10-26: built after VA-44, it shipped its label in capitals
+  // and nothing here looked at it (site check, impeccable I-13).
+  for (const path of [...PAGES, '/inside-the-factory']) {
     test(`${path}: its hero label is set in normal letters, same words`, async ({ page }) => {
       await page.goto(path)
       await settle(page)

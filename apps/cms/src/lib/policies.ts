@@ -30,8 +30,10 @@ export type PolicySection = {
 
 export type Policy = {
   readonly path: string
-  /** The `<title>`; the layout adds " — RUN APPAREL". */
+  /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
+  /** The search-result `<title>`, when the short `title` says too little (owner, 2026-10-26). */
+  readonly metaTitle?: string
   /** ≤ 160 characters: the meta description. */
   readonly description: string
   /** The one `<h1>`, in two parts: plain, then the single serif accent. */
@@ -73,6 +75,7 @@ export const POLICIES: readonly Policy[] = [
   {
     path: '/policies/workplace-conduct',
     title: 'Workplace Conduct',
+    metaTitle: 'Workplace Conduct Policy',
     description:
       'How we treat each other at work: the rules of the floor, what happens when one is broken, and how a concern reaches the HR office.',
     heading: 'How we treat each other,',
@@ -105,6 +108,7 @@ export const POLICIES: readonly Policy[] = [
   {
     path: '/policies/health-and-safety',
     title: 'Health and Safety',
+    metaTitle: 'Health and Safety Policy',
     description:
       'Safety gear where the work needs it, safety training and fire drills every 6 months, marked fire exits, and every accident on record.',
     heading: 'Safe work,',
@@ -150,6 +154,7 @@ export const POLICIES: readonly Policy[] = [
   {
     path: '/policies/health-and-vaccination',
     title: 'Health and Vaccination',
+    metaTitle: 'Health and Vaccination Policy',
     description:
       'A first-aid room, family medical coverage, voluntary and free vaccination drives, and no vaccination requirement for employment at RUN APPAREL.',
     heading: 'Good health,',
@@ -189,6 +194,7 @@ export const POLICIES: readonly Policy[] = [
   {
     path: '/policies/equal-opportunity',
     title: 'Equal Opportunity',
+    metaTitle: 'Equal Opportunity Policy',
     description:
       'How RUN APPAREL hires and promotes: a skills trial, performance, equal pay for equal work, and women and men hired for every role.',
     heading: 'Fair chances,',
@@ -262,6 +268,7 @@ export const POLICIES: readonly Policy[] = [
   {
     path: '/policies/quality',
     title: 'Quality',
+    metaTitle: 'Quality Policy: Checks on Every Order',
     description:
       'The checks every RUN APPAREL order passes: fabric on arrival, work in sewing, measurements, and a final inspection signed off before packing.',
     heading: 'Checked,',
@@ -305,6 +312,7 @@ export const POLICIES: readonly Policy[] = [
   {
     path: '/policies/environmental',
     title: 'Environmental',
+    metaTitle: 'Environmental Policy: Solar Power and Scraps',
     description:
       'Solar power for about 80% of the factory’s electricity, scraps recycled or reused, and few chemicals and little waste water at our works.',
     heading: 'What we use,',
@@ -348,6 +356,7 @@ export const POLICIES: readonly Policy[] = [
 export const POLICIES_INDEX = {
   path: '/policies',
   title: 'Policies',
+  metaTitle: 'Factory Policies: Labor, Safety, Quality',
   description:
     'The policies that govern how RUN APPAREL treats its people, makes garments and runs the business, practiced daily at our works in Sialkot.',
   heading: 'How we work,',

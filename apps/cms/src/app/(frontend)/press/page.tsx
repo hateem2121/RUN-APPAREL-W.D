@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { PressPage as PressLayout } from '../../../components/site/PressPage'
 import { PRESS_PAGE } from '../../../lib/companyPages'
 import { getJournalPosts, getSiteSettings } from '../../../lib/content'
-import { buildMetadata } from '../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 const PATH = '/press'
 
 export const metadata: Metadata = buildMetadata({
-  title: PRESS_PAGE.title,
+  title: metaTitleOf(PRESS_PAGE),
   description: PRESS_PAGE.description,
   path: PATH,
 })

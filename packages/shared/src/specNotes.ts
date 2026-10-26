@@ -287,6 +287,20 @@ export const FEATURE_NOTES: Record<string, string> = {
 }
 
 /**
+ * The bands `weightNote` sorts a fabric into, by the middle of its range: a fabric belongs to the
+ * first band whose `below` its middle is under. One list, read by the garment pages here and by the
+ * fabrics guide (`apps/cms/src/lib/guides.ts`, "Reading a weight"; owner, 2026-10-26, site check),
+ * so the guide's thresholds cannot drift from what a garment page says.
+ */
+export const WEIGHT_BANDS: readonly { readonly below: number; readonly band: string }[] = [
+  { below: 120, band: 'very light and thin' },
+  { below: 170, band: 'light, an easy layer' },
+  { below: 230, band: 'mid-weight, solid yet easy to move in' },
+  { below: 300, band: 'heavier, sturdy and hard-wearing' },
+  { below: Number.POSITIVE_INFINITY, band: 'heavy and thick, for warmth' },
+]
+
+/**
  * A sentence for the weight. Neoprene and leather are sold by thickness and padding by its own
  * grams; a fabric's grams per square meter are put in a band by the middle of the range, in the
  * words of the site's own GSM guide ("how heavy a fabric is", apps/cms/src/lib/guides.ts, whose
@@ -307,16 +321,7 @@ export function weightNote(gsm: string): string | null {
     return 'The weight of the padding inside, in grams per square meter: more grams, more warmth.'
   }
   const middle = (Math.min(...numbers) + Math.max(...numbers)) / 2
-  const band =
-    middle < 120
-      ? 'very light and thin'
-      : middle < 170
-        ? 'light, an easy layer'
-        : middle < 230
-          ? 'mid-weight, solid yet easy to move in'
-          : middle < 300
-            ? 'heavier, sturdy and hard-wearing'
-            : 'heavy and thick, for warmth'
+  const band = WEIGHT_BANDS.find((entry) => middle < entry.below)?.band
   return `How heavy the fabric is, in grams per square meter: ${band}.`
 }
 

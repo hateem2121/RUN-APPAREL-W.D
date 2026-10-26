@@ -732,6 +732,71 @@ test.describe('no label row and no name line over the garment (D8, M5)', () => {
   }
 })
 
+/**
+ * ONE NAME LINE OVER A PHONE'S GARMENT (owner, 2026-10-26, site check). The block above holds that
+ * the 2026-10-04 line (`.stage-block__name`, "CODE · NAME") stays gone; the owner has since asked
+ * for the name on a phone's first screen, so `.stage-block__title` ("NAME · CODE", ProductNameLine)
+ * shows at 699px wide and under and 501px tall and over, inside the band, and nowhere else.
+ * `styles/phoneNameLine.test.ts` holds the declarations; this measures what the visitor gets.
+ */
+test.describe('the name line over a phone’s garment (owner, 2026-10-26)', () => {
+  for (const [width, height] of [
+    [320, 640],
+    [375, 812],
+    [390, 844],
+    [430, 932],
+  ] as const) {
+    test(`a phone shows "NAME · CODE" above the garment at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await serveGarment(page, LONGEST_COPY)
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const line = page.locator('.stage-block__title')
+      await expect(line).toBeVisible()
+      await expect(line).toHaveAttribute('aria-hidden', 'true')
+      await expect(line).toHaveText(/^THE VELOCITY MATRIX JACKET\s*·\s*N001$/i)
+      const m = await line.evaluate((el) => {
+        const box = el.getBoundingClientRect()
+        const code = (
+          el.querySelector('.stage-block__title-code') as Element
+        ).getBoundingClientRect()
+        const canvas = (document.querySelector('.stage__canvas') as Element).getBoundingClientRect()
+        const bar = (document.querySelector('.notch') as Element).getBoundingClientRect()
+        return {
+          oneLine: box.height < 24,
+          codeInside: code.right <= innerWidth && code.left >= 0,
+          aboveGarment: box.bottom <= canvas.top,
+          underBar: box.top >= bar.bottom,
+          overflowX: document.documentElement.scrollWidth > innerWidth,
+        }
+      })
+      expect(m.oneLine, 'the name line wrapped onto a second line').toBe(true)
+      expect(m.codeInside, 'the code is cut off or pushed off the screen').toBe(true)
+      expect(m.aboveGarment, 'the line is not above the 3D window').toBe(true)
+      expect(m.underBar, 'the line is under the bar, not over it').toBe(true)
+      expect(m.overflowX, 'the line made the page scroll sideways').toBe(false)
+    })
+  }
+
+  for (const [width, height] of [
+    [768, 1024],
+    [1024, 1366],
+    [1440, 900],
+    [844, 390],
+  ] as const) {
+    test(`a tablet, a computer and a sideways phone do not get it at ${width}x${height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.locator('.stage-block__title')).toBeHidden()
+    })
+  }
+})
+
 test.describe('layout invariants', () => {
   for (const viewport of VIEWPORTS) {
     test(`no horizontal overflow at ${viewport.name} (${viewport.width}px)`, async ({ page }) => {
@@ -2286,18 +2351,24 @@ test.describe("the garment's name on the first screen (D8, F11, M5)", () => {
         }
       })
       // 58%, not the 61-66% measured: a line put back over the garment costs it about 32px, 4%.
-      expect(m.share, 'the garment window lost its room').toBeGreaterThanOrEqual(0.58)
+      // ⚠️ THE NAME LINE CAME BACK ON 2026-10-26 (`.stage-block__title`, owner, site check): 17px
+      // of text and 8px above it. Measured that day in Chromium, WebKit and mobile Safari: 56.8-57.6%
+      // at 375x812, 58.5-59.2% at 390x844, 62.4-63.0% at 430x932. The floor is 54%, about 3 points
+      // under the lowest, the same margin 58% kept under the 61% measured before.
+      expect(m.share, 'the garment window lost its room').toBeGreaterThanOrEqual(0.54)
       expect(m.headingAfterBand, 'the name is no longer after the garment').toBe(true)
     })
   }
 
-  test('a phone held sideways keeps its band to one screen and draws no name line', async ({
+  test('a phone held sideways keeps its band to one screen and shows no name line', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 844, height: 390 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.locator('.stage-block__name')).toHaveCount(0)
+    // The upright phone's line (owner, 2026-10-26) is refused here, for the band has no row to spare.
+    await expect(page.locator('.stage-block__title')).toBeHidden()
     await expect(page.getByTestId('product-identity-aside')).toHaveCount(0)
   })
 })
@@ -2908,9 +2979,11 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
           range.selectNodeContents(el)
           return Math.round(range.getBoundingClientRect().left)
         }
-        // Since polish D8 and M5 (2026-10-04) the garment is the first thing under the bar: the
-        // label and the product line that stood between them are gone.
+        // Since polish D8 and M5 (2026-10-04) the label and the product line that stood between
+        // the bar and the garment were gone; since the site check (owner, 2026-10-26) one line
+        // with the name and code stands there again, part of the garment's group (8px each side).
         const bar = box('.notch')
+        const name = box('.stage-block__title')
         const canvas = box('.stage__canvas')
         const controls = box('.stage__plinth')
         const colour = box('.colourways__name')
@@ -2918,7 +2991,8 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
         const gap = (a?: DOMRect, b?: DOMRect) => (a && b ? Math.round(b.top - a.bottom) : null)
         return {
           gaps: {
-            'bar > garment': gap(bar, canvas),
+            'bar > name': gap(bar, name),
+            'name > garment': gap(name, canvas),
             'garment > controls': gap(canvas, controls),
             'controls > colour name': gap(controls, colour),
             'colour name > colours': gap(colour, dot),
@@ -2928,7 +3002,8 @@ test.describe('the phone stack keeps one rhythm (VA-35)', () => {
         }
       })
       expect(m.gaps).toEqual({
-        'bar > garment': 8,
+        'bar > name': 8,
+        'name > garment': 8,
         'garment > controls': 16,
         'controls > colour name': 16,
         'colour name > colours': 8,
@@ -3286,6 +3361,10 @@ test.describe('the longest copy never pushes the contact buttons off screen (D8)
  * and under the garment, where nothing needs bounding, the description is whole.
  */
 test.describe('the description beside the garment opens with Read more (D8)', () => {
+  /** The words a visitor can see: the paragraph's text outside its visually-hidden remainder. */
+  const visibleSummary = (statement: import('@playwright/test').Locator) =>
+    statement.evaluate((el) => (el.firstChild?.textContent ?? '').trim())
+
   const lines = (statement: import('@playwright/test').Locator) =>
     statement.evaluate((el) =>
       Math.round(
@@ -3301,7 +3380,11 @@ test.describe('the description beside the garment opens with Read more (D8)', ()
     const statement = page.locator('.product-info--aside .product-info__statement')
     const more = page.getByRole('button', { name: 'Read more' })
     await expect(more).toHaveAttribute('aria-expanded', 'false')
-    expect(await lines(statement)).toBe(3)
+    // Three lines at most, and the summary ends at a full stop, not inside a word (owner,
+    // 2026-10-26: "…a chamois pad in sever…"). One whole sentence of LONGEST_COPY is two lines here,
+    // so it is "at most", not "exactly", since the sentence rule.
+    expect(await lines(statement)).toBeLessThanOrEqual(3)
+    expect(await visibleSummary(statement), 'the summary stops inside a sentence').toMatch(/[.!?]$/)
     // The clipped lines are still text in the page, for a screen reader and for search.
     await expect(statement).toContainText('rain, grit and cold.')
     const box = await more.boundingBox()
@@ -3317,7 +3400,8 @@ test.describe('the description beside the garment opens with Read more (D8)', ()
 
     await less.click()
     await expect(page.getByRole('button', { name: 'Read more' })).toBeVisible()
-    expect(await lines(statement)).toBe(3)
+    expect(await lines(statement)).toBeLessThanOrEqual(3)
+    expect(await visibleSummary(statement)).toMatch(/[.!?]$/)
   })
 
   test('a description that fits in three lines has no Read more (the control)', async ({
@@ -4134,5 +4218,54 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
       cue.hintAt - cue.loadedAt,
       'the cue did not wait its idle pause (CUE_IDLE_MS, 3000)',
     ).toBeGreaterThanOrEqual(2900)
+  })
+})
+
+/**
+ * THE №02 STEPS IN TWO COLUMNS ON A WIDE SCREEN (owner, 2026-10-26, site check). In one column the
+ * four steps used only the left ~60% of their card at 1440px. `styles/stepsColumns.test.ts` holds
+ * the declarations; this measures the card. The fixture serves four steps, as production does.
+ */
+test.describe('the №02 steps lie in two columns on a wide screen', () => {
+  const measureSteps = (page: Page) =>
+    page.evaluate(() => {
+      const card = (document.querySelector('.steps') as Element).getBoundingClientRect()
+      const boxes = [...document.querySelectorAll('.step')].map((el) => el.getBoundingClientRect())
+      return {
+        card: { left: card.left, right: card.right },
+        boxes: boxes.map((b) => ({ left: b.left, right: b.right, top: b.top, bottom: b.bottom })),
+      }
+    })
+
+  test('1440x900: 1 and 2 share a row, 3 and 4 the next, and the card is filled', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.step')).toHaveCount(4)
+    const m = await measureSteps(page)
+    const [one, two, three, four] = m.boxes
+    if (!one || !two || !three || !four) throw new Error('fewer than four steps measured')
+    expect(Math.abs(one.top - two.top), 'step 2 is not beside step 1').toBeLessThan(1)
+    expect(two.left, 'step 2 is not to the right of step 1').toBeGreaterThanOrEqual(one.right - 1)
+    expect(three.top, 'step 3 does not start a second row').toBeGreaterThanOrEqual(one.bottom - 1)
+    expect(Math.abs(three.top - four.top), 'step 4 is not beside step 3').toBeLessThan(1)
+    // The card is used edge to edge: the right column ends where the card does.
+    expect(four.right).toBeGreaterThanOrEqual(m.card.right - 2)
+    expect(one.left).toBeLessThanOrEqual(m.card.left + 2)
+  })
+
+  test('a phone keeps one column, in order', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await page.getByRole('button', { name: /How we build your product/ }).click()
+    const m = await measureSteps(page)
+    for (let i = 1; i < m.boxes.length; i += 1) {
+      expect(m.boxes[i]?.top ?? 0, `step ${i + 1} is not under step ${i}`).toBeGreaterThanOrEqual(
+        (m.boxes[i - 1]?.bottom ?? 0) - 1,
+      )
+    }
   })
 })

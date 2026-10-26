@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { CommunityPage as CommunityLayout } from '../../../components/site/CommunityPage'
 import { COMMUNITY_PAGE } from '../../../lib/companyPages'
-import { buildMetadata } from '../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 const PATH = '/community'
 
 export const metadata: Metadata = buildMetadata({
-  title: COMMUNITY_PAGE.title,
+  title: metaTitleOf(COMMUNITY_PAGE),
   description: COMMUNITY_PAGE.description,
   path: PATH,
 })

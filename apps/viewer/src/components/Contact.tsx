@@ -114,7 +114,7 @@ export function ContactSection({
   }
   return (
     <section className="contact" aria-labelledby="contact-heading" data-reveal>
-      <p className="section-number">&#8470;04 — Start the conversation</p>
+      <p className="section-number">&#8470;04 · Start the conversation</p>
       <h2 id="contact-heading" className="display display--section">
         Develop this with <span className="serif-accent">us</span>.
       </h2>

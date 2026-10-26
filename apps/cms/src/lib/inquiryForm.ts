@@ -11,8 +11,12 @@ import { checkFiles, formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFi
  * left with it. Every new line of wording below was approved by the owner as W1–W10.
  */
 
-/** "25 MB", as the page and the note under the picker say it (formatBytes would give "25.0 MB"). */
-const LIMIT = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
+/**
+ * "25 MB", as the page and the note under the picker say it (formatBytes would give "25.0 MB").
+ * Exported, with `ACCEPTED_KINDS`, for the guides (owner, 2026-10-26, site check): they say what the
+ * form takes from these words.
+ */
+export const LIMIT = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
 
 /**
  * The line at the top of the form that says what the red * means (polish D7, the owner's answer
@@ -129,10 +133,10 @@ export function fieldError(
  */
 export function pickProblem(files: readonly { size: number }[]): string | null {
   if (files.length > MAX_FILES)
-    return `You chose ${files.length} files. Up to ${MAX_FILES} can be attached — email the rest, or paste a WeTransfer or Drive link in your message.`
+    return `You chose ${files.length} files. Up to ${MAX_FILES} can be attached. Email the rest, or paste a WeTransfer or Drive link in your message.`
   const total = files.reduce((sum, file) => sum + file.size, 0)
   if (total > MAX_TOTAL_BYTES)
-    return `These files come to ${formatBytes(total)}. Up to ${LIMIT} in total can be attached — for larger files, paste a WeTransfer or Drive link in your message.`
+    return `These files come to ${formatBytes(total)}. Up to ${LIMIT} in total can be attached. For larger files, paste a WeTransfer or Drive link in your message.`
   return null
 }
 
@@ -143,7 +147,7 @@ export function pickProblem(files: readonly { size: number }[]): string | null {
  * buyer with an old .doc was told it was a kind we take and then refused (site check-up,
  * 2026-10-22; owner chose to keep refusing and fix the wording).
  */
-const ACCEPTED_KINDS =
+export const ACCEPTED_KINDS =
   'photos (JPG, PNG, WebP, HEIC), PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Keynote, Illustrator and Photoshop files'
 
 /** The line under the file box, from the same words. */
@@ -165,7 +169,7 @@ export async function pickedFileProblem(files: readonly File[]): Promise<string 
   if (counted) return counted
   const check = await checkFiles(files)
   if (check.ok) return null
-  if (check.reason === 'empty') return `“${check.name}” is empty — please choose it again.`
+  if (check.reason === 'empty') return `“${check.name}” is empty. Please choose it again.`
   if (check.reason === 'type')
     return `“${check.name}” is not a kind we accept, or its contents do not match its name. We accept ${ACCEPTED_KINDS}.`
   return pickProblem(files)
@@ -183,9 +187,9 @@ const NOT_SENT = 'Your message has not been sent.'
 const WRONG_KIND = `${NOT_SENT} One of the files is not a kind we accept, or could not be read. We accept ${ACCEPTED_KINDS}.`
 
 const FILE_REASONS: Record<string, string> = {
-  'too-many': `${NOT_SENT} Up to ${MAX_FILES} files can be attached — please send it again with fewer, or email the rest.`,
-  'too-big': `${NOT_SENT} The files came to more than ${LIMIT} in total — please send it again with smaller files, or paste a WeTransfer or Drive link in your message.`,
-  empty: `${NOT_SENT} One of the files was empty — please choose it again and send.`,
+  'too-many': `${NOT_SENT} Up to ${MAX_FILES} files can be attached. Please send it again with fewer, or email the rest.`,
+  'too-big': `${NOT_SENT} The files came to more than ${LIMIT} in total. Please send it again with smaller files, or paste a WeTransfer or Drive link in your message.`,
+  empty: `${NOT_SENT} One of the files was empty. Please choose it again and send.`,
   type: WRONG_KIND,
 }
 
@@ -195,7 +199,7 @@ export function inquiryNotice(query: {
   reason?: string
 }): Notice | null {
   if (query.sent) {
-    return { kind: 'ok', text: 'Thank you — your inquiry is with us. We reply within 24 hours.' }
+    return { kind: 'ok', text: 'Thank you. Your inquiry is with us. We reply within 24 hours.' }
   }
   if (!query.error) return null
   if (query.error === 'files') {
@@ -210,7 +214,7 @@ export function inquiryNotice(query: {
   if (query.error === 'storage') {
     return {
       kind: 'bad',
-      text: 'We could not save your message — please email us directly so it is not lost.',
+      text: 'We could not save your message. Please email us directly so it is not lost.',
     }
   }
   return {

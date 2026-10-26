@@ -21,7 +21,7 @@ const ctx = {
 
 describe('buildEnquirySubject', () => {
   it('matches the locked template', () => {
-    expect(buildEnquirySubject(ctx)).toBe('Product Inquiry — Velocity Performance Tee / Navy')
+    expect(buildEnquirySubject(ctx)).toBe('Product Inquiry: Velocity Performance Tee / Navy')
   })
 })
 
@@ -51,7 +51,7 @@ describe('buildMailtoUrl', () => {
   it('encodes subject and body', () => {
     const url = buildMailtoUrl('inquiry@wear-run.com', ctx)
     expect(url.startsWith('mailto:inquiry@wear-run.com?subject=')).toBe(true)
-    expect(url).toContain(encodeURIComponent('Product Inquiry — Velocity Performance Tee / Navy'))
+    expect(url).toContain(encodeURIComponent('Product Inquiry: Velocity Performance Tee / Navy'))
     expect(url).toContain('&body=')
     expect(url).not.toContain('\n')
   })

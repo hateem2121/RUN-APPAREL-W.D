@@ -7,6 +7,8 @@ import { GUIDE_PATHS } from './guides'
 import { COMPANY_PATHS } from './companyPages'
 import { FAQ_PATHS } from './faqs'
 import { GLOSSARY_INDEX } from './glossary'
+import { FAMILIES } from './families'
+import { pageDateFor } from './pageDates'
 import { POLICY_PATHS } from './policies'
 
 /**
@@ -64,7 +66,9 @@ export function robotsFor(visibility: SearchVisibility): Metadata['robots'] | un
  * `lastModified`: a date nobody updates is worse than none", and that still holds for the pages
  * with no honest date. The guides, policies and careers have one since 2026-10-08: the time
  * their words last changed, from `bylines.ts`, whose test fails when the words move without
- * it. A garment's is the database's own: the
+ * it. Every other page of the site has one since 2026-10-26, from `pageDates.ts`, held the same
+ * way; a page that also shows garments or posts takes the newest one's date when it is later. A
+ * garment's is the database's own: the
  * product's `updatedAt`, which Payload moves on every save. Google reads `lastmod` to decide
  * what to fetch again and ignores `changefreq` and `priority` outright, so until this day
  * the sitemap said nothing Google uses about 205 pages. A missing or unreadable date emits
@@ -100,6 +104,8 @@ export interface SitemapGarment {
   defaultColourSlug?: string
   /** The product's `updatedAt` as the database wrote it. Absent or unreadable: no date. */
   updatedAt?: string | null
+  /** The family's name (`Family.name`), so a buyer page is dated by its own garments. */
+  category?: string
   colours: ReadonlyArray<{ slug: string; image?: { url: string } | null }>
 }
 
@@ -116,12 +122,20 @@ function isListablePicture(url: string): boolean {
 }
 
 /**
- * A page's `lastModified` from its byline (2026-10-08): the time its words last changed, which
- * `bylines.test.ts` keeps true. A page with no byline (an index, the home page) states none.
+ * A page's `lastModified`: the time its words last changed, from its byline (2026-10-08) or, for a
+ * page with none, `pageDates.ts` (2026-10-26), both kept true by their tests. A page that also
+ * shows garments or posts takes the newest one's date when it is later. A page with no readable
+ * date states none.
  */
-function wordsChanged(path: string): { lastModified?: Date } {
-  const changed = realDate(bylineFor(path)?.changed.on)
-  return changed ? { lastModified: changed } : {}
+function wordsChanged(
+  path: string,
+  items: ReadonlyArray<string | null | undefined> = [],
+): { lastModified?: Date } {
+  const dates = [bylineFor(path)?.changed.on ?? pageDateFor(path)?.on, ...items]
+    .map(realDate)
+    .filter((date): date is Date => date !== null)
+  if (dates.length === 0) return {}
+  return { lastModified: new Date(Math.max(...dates.map((date) => date.getTime()))) }
 }
 
 function realDate(value: string | null | undefined): Date | null {
@@ -148,7 +162,15 @@ function articleEntries(
   articles: ReadonlyArray<SitemapArticle> = [],
 ): MetadataRoute.Sitemap {
   return [
-    { url: `${origin}${hub}`, changeFrequency: 'weekly', priority: 0.6 },
+    {
+      url: `${origin}${hub}`,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+      ...wordsChanged(
+        hub,
+        articles.map((article) => article.updatedAt),
+      ),
+    },
     ...articles.map((article) => {
       const changed = realDate(article.updatedAt)
       return {
@@ -171,15 +193,28 @@ export function sitemapFor(
   } = {},
 ): MetadataRoute.Sitemap {
   if (visibility === 'hidden') return []
+  const saved = garments.map((garment) => garment.updatedAt)
+  const familySaved = (slug: string) => {
+    const name = FAMILIES.find((family) => family.slug === slug)?.name
+    return garments
+      .filter((garment) => garment.category === name)
+      .map((garment) => garment.updatedAt)
+  }
   return [
-    { url: origin, changeFrequency: 'monthly', priority: 1 },
-    { url: `${origin}/products`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: origin, changeFrequency: 'monthly', priority: 1, ...wordsChanged('/', saved) },
+    {
+      url: `${origin}/products`,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+      ...wordsChanged('/products', saved),
+    },
     // The buyer pages (2026-09-30), read from the list that holds their words, so a page
     // the owner approves is offered to crawlers in the same change that creates it.
     ...FAMILY_PAGES.map((page) => ({
       url: `${origin}${page.path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.8,
+      ...wordsChanged(page.path, familySaved(page.familySlug)),
     })),
     ...GUIDE_PATHS.map((path) => ({
       url: `${origin}${path}`,
@@ -207,12 +242,23 @@ export function sitemapFor(
       url: `${origin}${path}`,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
+      ...wordsChanged(path),
     })),
     ...articleEntries(origin, '/journal', content.posts),
     ...articleEntries(origin, '/case-studies', content.caseStudies),
-    { url: `${origin}/contact`, changeFrequency: 'yearly', priority: 0.5 },
-    { url: `${origin}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
-    { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2 },
+    {
+      url: `${origin}/contact`,
+      changeFrequency: 'yearly',
+      priority: 0.5,
+      ...wordsChanged('/contact'),
+    },
+    {
+      url: `${origin}/privacy`,
+      changeFrequency: 'yearly',
+      priority: 0.2,
+      ...wordsChanged('/privacy'),
+    },
+    { url: `${origin}/terms`, changeFrequency: 'yearly', priority: 0.2, ...wordsChanged('/terms') },
     ...garments.flatMap((garment) => {
       const colour = garment.defaultColourSlug || garment.colours[0]?.slug
       if (!colour) return []

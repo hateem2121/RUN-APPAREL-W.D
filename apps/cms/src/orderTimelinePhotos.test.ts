@@ -367,7 +367,7 @@ describe('the factory strip is gone, and the numbering closed up (VA-29)', () =>
   })
 
   it('numbers the sections №01 to №05, with the works (and the ask) last', () => {
-    const numbers = [...HOME_PAGE.matchAll(/section-number">(№\d+) — ([^<]+)</g)].map((match) => [
+    const numbers = [...HOME_PAGE.matchAll(/section-number">(№\d+) · ([^<]+)</g)].map((match) => [
       match[1],
       match[2],
     ])

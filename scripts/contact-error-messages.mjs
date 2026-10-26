@@ -19,12 +19,12 @@
  * @returns {string | null} the rendered notice text, or null if neither param is set.
  */
 export function expectedContactNotice({ sent, error }) {
-  if (sent) return 'Thank you — your inquiry is with us. We reply within 24 hours.'
+  if (sent) return 'Thank you. Your inquiry is with us. We reply within 24 hours.'
   if (error === 'too-many') {
     return 'That is several inquiries in a short time. Please wait a few minutes, or email us directly.'
   }
   if (error === 'storage') {
-    return 'We could not save your message — please email us directly so it is not lost.'
+    return 'We could not save your message. Please email us directly so it is not lost.'
   }
   if (error) return 'Something in the form was not filled in. Please check and send again.'
   return null

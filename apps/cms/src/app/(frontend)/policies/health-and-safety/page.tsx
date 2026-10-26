@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { PolicyPage } from '../../../../components/site/PolicyPage'
 import { policyAt } from '../../../../lib/policies'
-import { buildMetadata } from '../../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 const PATH = '/policies/health-and-safety'
 
 export const metadata: Metadata = buildMetadata({
-  title: policyAt(PATH).title,
+  title: metaTitleOf(policyAt(PATH)),
   description: policyAt(PATH).description,
   path: PATH,
 })

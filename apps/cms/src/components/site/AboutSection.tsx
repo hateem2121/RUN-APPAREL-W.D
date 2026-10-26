@@ -68,7 +68,7 @@ export function AboutSection() {
       ) : null}
       <div className="site-container about" data-site-reveal>
         <div className="about__copy">
-          <p className="section-number">№01 — Who we are</p>
+          <p className="section-number">№01 · Who we are</p>
           <h2 className="display display--section">
             {ABOUT.heading} <span className="serif-accent">{ABOUT.accent}</span>
           </h2>

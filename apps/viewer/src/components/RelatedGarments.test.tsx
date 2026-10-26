@@ -61,11 +61,11 @@ describe('RelatedGarments', () => {
     expect(host.innerHTML).toBe('')
   })
 
-  it('is a labelled section: "№03 — More from this category", and the category in its heading', () => {
+  it('is a labelled section: "№03 · More from this category", and the category in its heading', () => {
     draw([garment('r1')])
     const section = host.querySelector('section')
     const heading = host.querySelector('h2')
-    expect(host.querySelector('.section-number')?.textContent).toBe('№03 — More from this category')
+    expect(host.querySelector('.section-number')?.textContent).toBe('№03 · More from this category')
     expect(heading?.textContent).toBe('More Teamwear & Uniforms in 3D.')
     expect(section?.getAttribute('aria-labelledby')).toBe(heading?.id)
   })

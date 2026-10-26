@@ -8,7 +8,7 @@ import { formatAddress } from '../../../lib/structuredData'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Privacy',
+  title: 'Privacy Notice: What We Collect and Why',
   description:
     'What RUN APPAREL does with personal data. Nothing is stored on your device, and no tracker runs, unless you choose it.',
   path: '/privacy',

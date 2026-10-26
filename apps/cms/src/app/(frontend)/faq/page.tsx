@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { FaqHubPage } from '../../../components/site/FaqPages'
 import { FAQ_INDEX } from '../../../lib/faqs'
-import { buildMetadata } from '../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  * `FAQ_PATHS`, and `newPagesWiring.test.ts` to every list a public page must be in.
  */
 export const metadata: Metadata = buildMetadata({
-  title: FAQ_INDEX.title,
+  title: metaTitleOf(FAQ_INDEX),
   description: FAQ_INDEX.description,
   path: FAQ_INDEX.path,
 })

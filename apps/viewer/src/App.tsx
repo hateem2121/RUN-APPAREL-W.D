@@ -17,6 +17,7 @@ import { GarmentTrail } from './components/GarmentTrail'
 import { Header } from './components/Header'
 import { Preloader } from './components/Preloader'
 import { ProductIdentity } from './components/ProductIdentity'
+import { ProductNameLine } from './components/ProductNameLine'
 import { ProductPanel } from './components/ProductPanel'
 import { RelatedGarments } from './components/RelatedGarments'
 import { Stage } from './components/Stage'
@@ -531,14 +532,17 @@ export default function App() {
           */}
           <div className="stage-block">
             {/*
-              ⚠️ NO NAME LINE OVER THE GARMENT ANY MORE (polish M5, F11 and X1, owner-approved
-              2026-10-04). `.stage-block__name` put "R-GTD · GEOVENT TENNIS DRESS" here from
-              2026-09-04 so the name was on a phone's first screen; it cost the garment 20px and
-              was cut to "GEOVENT TENN…" on laptops (X1). Now: on a phone the garment has the
-              room and the name follows it; an upright tablet's garment is shortened so the
-              name below it is on the first screen (page.css, F11); every computer has the name
-              beside the garment (useIdentityInAside.ts, D8).
+              ⚠️ ONE NAME LINE OVER THE GARMENT, ON A PHONE ONLY (owner, 2026-10-26, site check).
+              Polish M5, F11 and X1 (owner-approved 2026-10-04) had taken the earlier
+              `.stage-block__name` away: it cost the garment 20px and was cut to "GEOVENT TENN…"
+              on laptops (X1). The owner has since looked at a phone's first screen without the
+              garment's name and asked for it back, "NAME · CODE". `page.css` shows it only at
+              699px wide and under and 501px tall and over, so an upright tablet (garment
+              shortened so the heading is on the first screen, F11) and every computer (name
+              beside the garment, useIdentityInAside.ts, D8) stay as they were. It renders only
+              where the heading is not beside the garment. `aria-hidden`: the <h1> is the name.
             */}
+            {!identityInAside && <ProductNameLine product={data.product} />}
             {/* The panel half of <ColourwayTabs>'s tablist. Labelled by whichever
                 tab is selected, so a screen reader reaching the stage is told
                 which colourway it is showing. */}

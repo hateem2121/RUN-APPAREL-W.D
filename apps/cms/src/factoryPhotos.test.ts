@@ -10,6 +10,7 @@ import {
   HERO_SOURCES,
 } from '../../../scripts/build-factory-photos.mjs'
 import { AboutSection } from './components/site/AboutSection'
+import { FULL_COLUMN_SIZES } from './components/site/FactoryFigure'
 import { OrderSteps } from './components/site/OrderSteps'
 import {
   ABOUT_HERO_PHOTO,
@@ -19,6 +20,8 @@ import {
   FACTORY_PHOTO_ASPECT,
   FACTORY_PHOTO_WIDTHS,
   FACTORY_PHOTOS,
+  factoryPhotoFileWidths,
+  factoryPhotoImage,
   factoryPhotoWidths,
   HERO_PHOTO,
   HERO_SHAPES,
@@ -66,7 +69,7 @@ describe('the factory photos (OI-3)', () => {
   it('every picture the page names exists, at each of its widths, at its tile shape', () => {
     const wrong: string[] = []
     for (const photo of FACTORY_PHOTOS) {
-      for (const width of factoryPhotoWidths(photo)) {
+      for (const width of factoryPhotoFileWidths(photo)) {
         const file = `${photo.slug}-${width}.webp`
         let size: { width: number; height: number }
         try {
@@ -89,7 +92,7 @@ describe('the factory photos (OI-3)', () => {
   it('no picture sits in public/factory that the page does not show', () => {
     const named = new Set([
       ...FACTORY_PHOTOS.flatMap((photo) =>
-        factoryPhotoWidths(photo).map((width) => `${photo.slug}-${width}.webp`),
+        factoryPhotoFileWidths(photo).map((width) => `${photo.slug}-${width}.webp`),
       ),
       ...HERO_SHAPES.flatMap((shape) =>
         HERO_PHOTO.widths[shape].map((width) =>
@@ -129,6 +132,10 @@ describe('the factory photos (OI-3)', () => {
     expect(SOURCES.map((source) => source.widths ?? SHAPES[source.shape].widths)).toEqual(
       FACTORY_PHOTOS.map((photo) => [...factoryPhotoWidths(photo)]),
     )
+    // The full-width files (2026-10-26) are written exactly where the page offers them.
+    expect(SOURCES.map((source) => source.fullWidths ?? [])).toEqual(
+      FACTORY_PHOTOS.map((photo) => [...(photo.fullWidths ?? [])]),
+    )
   })
 
   /*
@@ -145,12 +152,13 @@ describe('the factory photos (OI-3)', () => {
         focus: [number, number]
         original: [number, number]
         widths?: number[]
+        fullWidths?: number[]
       }[],
     ) =>
       sources.flatMap((source) => {
         const shape = SHAPES[source.shape]
         const box = cropBox(...source.original, shape.aspect, source.focus)
-        return (source.widths ?? shape.widths)
+        return [...(source.widths ?? shape.widths), ...(source.fullWidths ?? [])]
           .filter((width) => width > box.width)
           .map((width) => `${source.slug}-${width}: the original's crop is ${box.width}px wide`)
       })
@@ -162,6 +170,11 @@ describe('the factory photos (OI-3)', () => {
     expect(tagging?.original).toEqual([1280, 896])
     expect(tooWide(tagging ? [{ ...tagging, widths: [640, 1200, 1600] }] : [])).toEqual([
       "tagging-1600: the original's crop is 1280px wide",
+    ])
+    // And a full-width file is held to the same crop: the exterior's 8:5 crop stops at 3,200.
+    const exterior = SOURCES.find((source) => source.slug === 'exterior')
+    expect(tooWide(exterior ? [{ ...exterior, fullWidths: [3600] }] : [])).toEqual([
+      "exterior-3600: the original's crop is 3200px wide",
     ])
   })
 
@@ -521,5 +534,37 @@ describe('phone heroes come in AVIF too', () => {
         tsx.indexOf("'heroTall', tall640)"),
       )
     }
+  })
+})
+
+/*
+ * The factory gallery's closing photo draws across the column (owner, 2026-10-26, "Building full
+ * width"), where a 2x laptop asks 2,624 px and the wide shape's widest file is 1,600. Its wider
+ * files are offered by that figure ONLY, so the home page's step 05, the same photo, downloads
+ * nothing new. What would have to break: a `fullWidths` file removed, the full figure handed the
+ * ordinary srcset, or the ordinary srcset growing the wide files.
+ */
+describe('the full-width gallery photo is sharp, and only it gets the wide files', () => {
+  const exterior = FACTORY_PHOTOS.find((photo) => photo.slug === 'exterior')
+  if (!exterior) throw new Error('the exterior photo is missing from FACTORY_PHOTOS')
+  const WIDE_SCREENS = [900, 1024, 1180, 1280, 1366, 1440, 1512, 1728, 1920, 2560]
+  const shortOn = (srcSet: string) =>
+    WIDE_SCREENS.filter((width) => {
+      const hint = hintAt(FULL_COLUMN_SIZES, width)
+      return pickedWidth(srcSet, hint, 2) < hint * 2 - 0.5
+    })
+
+  it('every wide 2x screen gets a file at least as wide as the figure asks', () => {
+    expect(shortOn(factoryPhotoImage(exterior, { full: true }).srcSet)).toEqual([])
+  })
+
+  it('NEGATIVE CONTROL: the ordinary files are short at full width', () => {
+    expect(shortOn(factoryPhotoImage(exterior).srcSet)).toContain(1440)
+  })
+
+  it('the ordinary srcset (the home page step) offers none of the wide files', () => {
+    const ordinary = factoryPhotoImage(exterior).srcSet
+    for (const width of exterior.fullWidths ?? []) expect(ordinary).not.toContain(`-${width}.webp`)
+    expect(exterior.fullWidths).toEqual([2400, 3200])
   })
 })

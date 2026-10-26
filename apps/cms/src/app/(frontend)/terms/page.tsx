@@ -6,7 +6,7 @@ import { buildMetadata } from '../../../lib/seo'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Terms',
+  title: 'Website and 3D Reference Terms',
   description:
     'The terms on which RUN APPAREL publishes this site and its 3D garment references. A reference is indicative; color is confirmed against a physical sample.',
   path: '/terms',

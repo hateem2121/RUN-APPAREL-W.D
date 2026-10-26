@@ -1,4 +1,10 @@
-import { FACTS, LEAD_TIME } from './companyFacts'
+import { WEIGHT_BANDS } from '@run-apparel/shared'
+import { ABOUT } from './aboutCopy'
+import { FACTORY_PAGE } from './aboutPages'
+import { CERTIFICATION_LINES, FACTS, LEAD_TIME, PAYMENT_TERMS } from './companyFacts'
+import { faqEntryById, OWNER_FIGURES } from './faqs'
+import { MAX_FILES } from './inquiryFiles'
+import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
 
 /**
  * The buyer guides: short pages that answer one question a buyer asks before writing in.
@@ -37,6 +43,10 @@ export type GuideBlock =
    * point's title and the others that point's own words, so the table says nothing the guide does
    * not (`guides.test.ts` checks every cell). Drawn with a caption, a header per column and a row
    * header per row (`GuidePage.tsx`).
+   *
+   * The fabrics guide's table of reference garments (owner, 2026-10-26, site check) is the other
+   * kind: its rows are garments' own published specs, not points of the guide. The printing guide's
+   * check does not apply to it; `guides.test.ts` holds it to its own.
    */
   | {
       kind: 'table'
@@ -85,7 +95,7 @@ export type GuideSource = {
 export type Guide = {
   /** Root-relative, under `/guides/`. Public: a sent link must keep working. */
   readonly path: string
-  /** The `<title>`; the layout adds " — RUN APPAREL". */
+  /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
   readonly description: string
   /** The one `<h1>`, in two parts: plain, then the single serif accent. */
@@ -103,6 +113,76 @@ const fact = (prefix: string): string =>
 const MINIMUM = fact('Minimum')
 const SAMPLE_DAYS = fact('Working days')
 const CAPACITY = fact('Pieces per month')
+const PEOPLE = fact('People')
+const FLOOR = fact('Sq m')
+
+/**
+ * ⚠️ THE ADDITIONS OF 2026-10-26 (owner, site check: "longer buyer guides") TYPE NO COUNT. Every
+ * figure they state comes from a constant the site already reads (`FACTS`, `LEAD_TIME`,
+ * `OWNER_FIGURES`, `WEIGHT_BANDS`, the inquiry form's own limits) or from an FAQ answer or a
+ * factory-page line used word for word, so a guide cannot go stale against the page it came from.
+ * The catalogue's counts (how many garments, how many in a family, how many colorways, how many use
+ * a method) are NOT here: they live in the database, a guide is static, and a typed count is
+ * wrong the day a garment is added. `guides.test.ts` holds every guide to it.
+ */
+
+/** "six", from the figure the home page's №01 and the about page show for the works. */
+const BUILDINGS = (
+  ABOUT.points.find((point) => point.label.startsWith('Buildings'))?.value ?? ''
+).toLowerCase()
+
+/**
+ * Some garments' own published fabric and weight (owner, 2026-10-26, site check), read from the
+ * public garment data that day and typed, because a guide is static: a garment whose fabric is
+ * edited in the CMS needs its row edited here (owner's choice, same day).
+ *
+ * ⚠️ TWO COLUMNS ON THE PAGE, NOT THREE: the weight joins the fabric's cell. Three columns ran 38px
+ * past a 320px phone (measured 2026-10-26), and the two ways a wider table fits, a sideways scroll
+ * or a stacked layout that changes each part's `display`, are both refused at `GuideTable`.
+ */
+export const GARMENT_FABRICS: readonly (readonly [
+  garment: string,
+  composition: string,
+  weight: string,
+])[] = [
+  ['Men’s training pullover', '88% polyester, 12% spandex', '160 to 210 GSM'],
+  ['High-support sports bra', '95% nylon, 5% spandex', '200 to 240 GSM'],
+  ['Quarter-zip running shirt', '100% recycled polyester', '180 to 220 GSM'],
+  ['V-neck soccer jersey', '100% polyester', '140 to 180 GSM'],
+  ['Polo-collar soccer jersey', '50% polyester, 50% cotton', '160 to 220 GSM'],
+  ['Training bib', '100% polyester', '80 to 100 GSM'],
+  ['Women’s crop hoodie', '98% recycled polyester, 2% spandex', '340 to 380 GSM'],
+  ['Men’s tracksuit', '100% organic cotton', '280 to 350 GSM'],
+  ['Men’s sherpa fleece jacket', '80% cotton, 20% polyester', '320 to 440 GSM'],
+  ['Windbreaker', '100% nylon', '40 to 70 GSM'],
+  ['Neoprene wetsuit', '88% polychloroprene, 12% nylon', '3 mm, about 700 g/m²'],
+  ['Leather utility jacket', '100% genuine leather (cowhide)', '1.2 mm'],
+]
+
+/** What the inquiry form takes, in the form's own words and limits (`inquiryForm.ts`). */
+const FORM_TAKES = `The inquiry form takes ${ACCEPTED_KINDS}, up to ${MAX_FILES} files and ${LIMIT} in total.`
+const LARGER_FILES = 'For larger files, paste a WeTransfer or Drive link in your message.'
+
+/** An FAQ answer, word for word (`faqs.ts`): the guide and the FAQ say it the same way. */
+const faqAnswer = (id: string): string => faqEntryById(id).entry.answer
+
+/** A factory-page stage's line, word for word (`aboutPages.ts`), found by its title's start. */
+function factoryStage(titleStart: string): string {
+  const stage = FACTORY_PAGE.walkthrough.stages.find((entry) => entry.title.startsWith(titleStart))
+  if (!stage) throw new Error(`guides.ts: the factory page has no stage "${titleStart}"`)
+  return stage.body
+}
+
+/**
+ * How the garment pages put a weight into words (`WEIGHT_BANDS`, packages/shared): "Under 120 GSM
+ * is very light and thin. From 120 to 170 is light, an easy layer." and so on to the heaviest.
+ */
+const WEIGHT_BAND_TEXT = WEIGHT_BANDS.map((entry, index) => {
+  const from = WEIGHT_BANDS[index - 1]?.below
+  if (from === undefined) return `Under ${entry.below} GSM is ${entry.band}.`
+  if (!Number.isFinite(entry.below)) return `From ${from} up is ${entry.band}.`
+  return `From ${from} to ${entry.below} is ${entry.band}.`
+}).join(' ')
 
 /** The guides' own index page. */
 export const GUIDES_INDEX = {
@@ -181,6 +261,24 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+      /*
+       * Owner, 2026-10-26, site check: the guides were short. The example is the Apex Flex Pullover's
+       * own page, read the same day (fabric, weight, fit, features); the note on a waffle knit is
+       * the garment pages' own (`specNotes.ts`).
+       */
+      {
+        heading: 'What each garment page states',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Most terms on a garment page open a one-line note that says what the term means. A waffle knit, for example, is a grid-textured knit that feels soft and holds warmth.',
+          },
+          {
+            kind: 'text',
+            text: 'Take the Apex Flex Pullover. It is 88% polyester and 12% spandex, 160 to 210 GSM, in a sleek athletic cut. Its features are a waffle knit, an invisible zip, a convertible stand collar, eco-poly stretch and a DTF print.',
+          },
+        ],
+      },
       {
         heading: 'What it cannot settle',
         blocks: [
@@ -209,6 +307,29 @@ export const GUIDES: readonly Guide[] = [
         heading: 'Is a 3D reference part of every order?',
         blocks: [{ kind: 'text', text: 'No. It is available on request.' }],
       },
+      /*
+       * No counts (owner, 2026-10-26): "41 reference garments", "19 teamwear", "five colorways" were
+       * in the draft and are database figures. The "own garment" block of the draft is left out
+       * (owner: gap 1 left out).
+       */
+      {
+        heading: 'Which garments have one',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Our reference garments cover teamwear and uniforms, sportswear, outerwear and casual wear. Sports accessories are made too, and their 3D pages are still to come.',
+          },
+        ],
+      },
+      {
+        heading: 'Ask from the garment page',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Every garment page ends with Ask about this garment. It opens the contact form with that garment and its color already filled in.',
+          },
+        ],
+      },
     ],
     // One garment from three ranges, under the first step's own words (owner, 2026-10-08).
     garments: {
@@ -236,6 +357,31 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+      /*
+       * The additions of 2026-10-26 (owner, site check), each from the FAQ's own answer (`faqs.ts`:
+       * fewer than the minimum, splitting it, the sample fee, a Pantone match, own fabric) or the
+       * order process. The sample fee's amount is not stated: it "depends on the style and its
+       * print, and we quote it with the sample" (owner's words). A reorder keeps the minimum and
+       * the deposit and balance are the owner's too (same date).
+       */
+      {
+        heading: 'Below the minimum',
+        blocks: [
+          {
+            kind: 'text',
+            text: `You can order fewer than ${MINIMUM} pieces of a style. The price per piece is higher.`,
+          },
+        ],
+      },
+      {
+        heading: 'Splitting the minimum',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Within the ${MINIMUM} you can typically split across sizes, for example ${OWNER_FIGURES.sizeSplit}. Color splits depend on the fabric and the printing method. Your quote confirms the exact split.`,
+          },
+        ],
+      },
       {
         heading: 'The sample',
         blocks: [
@@ -246,6 +392,24 @@ export const GUIDES: readonly Guide[] = [
               'The fee is credited back against your bulk order.',
               'Bulk production starts only after you approve it.',
             ],
+          },
+        ],
+      },
+      {
+        heading: 'If you do not order bulk',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'If no bulk order follows the sample, we keep the sample fee. The sample fee depends on the style and its print, and we quote it with the sample.',
+          },
+        ],
+      },
+      {
+        heading: 'Matching a color before bulk',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'If you need a Pantone color matched, you approve a lab dip, which is dyed fabric, or a strike-off, which is a print sample, before bulk production starts.',
           },
         ],
       },
@@ -265,6 +429,33 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             // The terms page's sentence, word for word (owner, 2026-09-30: "keep the terms wording").
             text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
+          },
+        ],
+      },
+      {
+        // `LEAD_TIME` word for word: the draft's "usually takes 2 to 4 weeks" typed the figure again.
+        heading: 'How long bulk production takes',
+        blocks: [{ kind: 'text', text: LEAD_TIME }],
+      },
+      {
+        heading: 'Fabric you send us',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'You can send your own fabric. We cut, make and trim garments from it.',
+          },
+        ],
+      },
+      {
+        heading: 'Reorders and payment',
+        blocks: [
+          {
+            kind: 'text',
+            text: `We keep your patterns and samples for your next order. A reorder has the same minimum: ${MINIMUM} pieces per style.`,
+          },
+          {
+            kind: 'text',
+            text: PAYMENT_TERMS,
           },
         ],
       },
@@ -360,6 +551,63 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+      /*
+       * The additions of 2026-10-26 (owner, site check). Each garment's words are its own page's
+       * (the customization steps and the fact lines, read the same day), and the counts of the
+       * draft ("sublimation on nine of them") are left out: they are database figures.
+       */
+      {
+        heading: 'Which methods our reference garments use',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The feature lines of our reference garments name the method each one uses. Sublimation, DTF, screen printing, silicone printing, digital printing and embroidery all appear there.',
+          },
+        ],
+      },
+      {
+        heading: 'Why the fabric decides',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The Aero-Tech Windbreaker is a nylon shell at 40 to 70 GSM. Full sublimation carries the artwork across every panel, including the yoke, with no added weight and no stiffening. We use it there in place of an applied transfer, which would work against a shell that exists to be light.',
+          },
+          {
+            kind: 'text',
+            text: 'The Armor-Tech Jacket is 1.2 mm cowhide. Its mark is screen-printed onto the hide, which holds a crisp edge on leather where a heat transfer would not survive the surface.',
+          },
+          {
+            kind: 'text',
+            text: 'The Aggressor football jersey uses two methods together. Digital sublimation carries the full-body graphic and the distressed brushstroke work. Silicone printing adds raised numbers and marks with grip and depth that a flat print cannot produce.',
+          },
+          {
+            kind: 'text',
+            text: 'The Terra Active Zip polo is made ready for custom sublimation or embroidery. Sublimation suits an all-over or tonal design. Embroidery suits a crest that should look stitched rather than printed.',
+          },
+        ],
+      },
+      {
+        heading: 'A placement print',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A placement print sits in one fixed position, such as a chest logo or a back number, rather than across the whole fabric.',
+          },
+        ],
+      },
+      {
+        heading: 'Check the print before bulk',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Before bulk production starts, you approve a strike-off, which is a print sample.',
+          },
+        ],
+      },
+      {
+        heading: 'Sending your artwork',
+        blocks: [{ kind: 'text', text: `${FORM_TAKES} ${LARGER_FILES}` }],
+      },
       {
         heading: 'See the print before a sample is cut',
         blocks: [
@@ -451,6 +699,16 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
       {
+        // The bands are the garment pages' own (`WEIGHT_BANDS`), never retyped (owner, 2026-10-26).
+        heading: 'Reading a weight',
+        blocks: [
+          {
+            kind: 'text',
+            text: `The garment pages put a weight into words, using the middle of its range. ${WEIGHT_BAND_TEXT} Neoprene and leather are sold by thickness in millimeters instead.`,
+          },
+        ],
+      },
+      {
         heading: 'The fibers',
         blocks: [
           {
@@ -468,11 +726,67 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
       {
+        // The garment pages' own notes on these materials (`specNotes.ts`), as the owner approved them.
+        heading: 'Five more materials we use',
+        blocks: [
+          {
+            kind: 'list',
+            items: [
+              'Organic cotton is grown without synthetic pesticides or fertilizers.',
+              'Neoprene, whose chemical name is polychloroprene, is a rubbery foam that keeps you warm when wet.',
+              'Taslon is a textured woven polyester for an outer shell: light, tough and wind-resistant.',
+              'Taffeta is a smooth, light woven lining that slides easily over other clothes.',
+              'Cowhide is hard-wearing, keeps the wind out and softens with wear.',
+            ],
+          },
+        ],
+      },
+      {
+        // The FAQ's answers word for word: the owner's F10 and F11 (2026-10-07).
+        heading: 'Recycled and organic fabric',
+        blocks: [
+          {
+            kind: 'text',
+            text: `${faqAnswer('recycled-organic').replace(/^Yes\. /, '')} You can also send your own fabric, and we cut, make and trim garments from it.`,
+          },
+        ],
+      },
+      {
         heading: 'Made to your spec',
         blocks: [
           {
             kind: 'text',
             text: 'These are starting points, not limits. Tell us the structure, weight, blend and properties you need, and the fabric is made to match.',
+          },
+        ],
+      },
+      /*
+       * Some garments' own published fabric and weight (owner, 2026-10-26, site check), read from the
+       * public garment data the same day. Typed, because a guide is static: `guides.test.ts` pins the
+       * rows, and a garment whose fabric is edited in the CMS needs its row edited here.
+       */
+      {
+        heading: 'Fabric and weight, garment by garment',
+        blocks: [
+          {
+            kind: 'table',
+            caption: 'What each garment is made of',
+            columns: ['Garment', 'Made of'],
+            rows: GARMENT_FABRICS.map(([garment, composition, weight]) => [
+              garment,
+              `${composition}, ${weight}`,
+            ]),
+          },
+        ],
+      },
+      {
+        // The factory page's lines word for word (`aboutPages.ts`, stages 2 and 3), and the policies
+        // page's "dyeing and finishing at our fabric suppliers".
+        heading: 'What happens when fabric arrives',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Our fabric suppliers do the dyeing and finishing. ${factoryStage('Material Preparation')} ${factoryStage('Cutting')}`,
           },
         ],
       },
@@ -535,6 +849,30 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+      /*
+       * The additions of 2026-10-26 (owner, site check). Labels: "Labels, barcodes and carton
+       * markings are agreed with each customer" is the owner's whole answer; the other label facts
+       * (types, makers, lead time, barcode stickers) were not given and are not stated. The draft's
+       * "Attach your artwork or a photo of a sample" is left out: "How it works" says it above.
+       */
+      {
+        heading: 'What the form takes',
+        blocks: [
+          {
+            kind: 'text',
+            text: `${FORM_TAKES} ${LARGER_FILES} Packaging artwork stays yours, like all artwork you send us.`,
+          },
+        ],
+      },
+      {
+        heading: 'Barcodes and markings',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Labels, barcodes and carton markings are agreed with each customer.',
+          },
+        ],
+      },
       {
         heading: 'Where it happens',
         // "Tagging, the final check and packing": the tagging table (polish X22).
@@ -543,6 +881,33 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'Tagging, the final check and packing happen on the same site as the rest of your order.',
+          },
+        ],
+      },
+      {
+        heading: 'Where packing sits in the order',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Packing comes last. Every batch is inspected in line and again at AQL final inspection. Rework, labels and traceability records follow. The QC manager and the merchandiser sign off together before anything is packed. You choose the AQL level, and you get photos before the order ships.',
+          },
+        ],
+      },
+      {
+        heading: 'What arrives with the order',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Each shipment comes with a commercial invoice, a packing list, a certificate of origin, and the air waybill or bill of lading.',
+          },
+        ],
+      },
+      {
+        heading: 'Who you talk to',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'You have one point of contact, a merchandiser, from tech pack to shipment. Questions about packaging go to the same person.',
           },
         ],
       },
@@ -590,6 +955,24 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+      /*
+       * The additions of 2026-10-26 (owner, site check). The ports and "the buyer pays a sample's
+       * courier" are the owner's words of that day. The draft's customs tariff code is left out (not
+       * given). The bulk lead time is `LEAD_TIME` itself; the problem window is the FAQ's own answer.
+       */
+      {
+        heading: 'Where shipments leave from',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Air shipments leave from Sialkot International Airport and sea freight from Karachi.',
+          },
+        ],
+      },
+      {
+        heading: 'Who pays for a sample',
+        blocks: [{ kind: 'text', text: 'The buyer pays a sample’s courier.' }],
+      },
       {
         heading: 'The price terms we quote',
         // EXW: "You collect the goods from our buildings." One of them, in the photo (polish X22).
@@ -622,11 +1005,51 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
       {
+        heading: 'Choosing a term',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'If you want nothing to arrange on arrival, ask for DDP. If you have your own forwarder, ask for EXW. If you arrange the sea freight yourself, ask for FOB. If you want us to handle the sea leg to your port, ask for CFR or CIF.',
+          },
+        ],
+      },
+      {
         heading: 'Who pays import duty',
         blocks: [
           {
             kind: 'text',
             text: 'Under EXW, FOB, CFR and CIF, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
+          },
+        ],
+      },
+      {
+        heading: 'How long shipping takes',
+        blocks: [
+          {
+            kind: 'text',
+            text: `It depends on the route your order takes: air courier, air freight or sea. We confirm the transit time in your quote. Bulk production comes first. ${LEAD_TIME}`,
+          },
+        ],
+      },
+      {
+        heading: 'What comes with the shipment',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A commercial invoice, a packing list, a certificate of origin, and the air waybill or bill of lading.',
+          },
+        ],
+      },
+      {
+        heading: 'If something is wrong on arrival',
+        blocks: [{ kind: 'text', text: faqAnswer('order-problem') }],
+      },
+      {
+        heading: 'Which rules the terms follow',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The terms follow the Incoterms 2020 edition. This page gives no duty rates. For what official sources say about the EU and the UK, read the guide on Pakistan, China and Türkiye.',
           },
         ],
       },
@@ -664,6 +1087,19 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             // The minimum order guide's words.
             text: `${MINIMUM} pieces per style. The same site, the same team and the same standard make the order whether it is a hundred pieces or a hundred thousand.`,
+          },
+        ],
+      },
+      /*
+       * The additions of 2026-10-26 (owner, site check), each from an FAQ answer or the order process;
+       * the split and the 14-day window are `OWNER_FIGURES`, the deposit is the owner's of that day.
+       */
+      {
+        heading: 'A first order, in pieces',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Take one style at the minimum, split ${OWNER_FIGURES.sizeSplit}. You can also order fewer than ${MINIMUM} pieces of a style, at a higher price per piece.`,
           },
         ],
       },
@@ -709,6 +1145,15 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
       {
+        heading: 'Why there are no prices on this site',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Every garment is made to order, so every price is quoted for that order.',
+          },
+        ],
+      },
+      {
         heading: 'Shipping and import duty',
         blocks: [
           {
@@ -723,12 +1168,48 @@ export const GUIDES: readonly Guide[] = [
         blocks: [{ kind: 'text', text: LEAD_TIME }],
       },
       {
+        heading: 'Order of events',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The order runs in this sequence: sample, your sign-off, bulk production, shipping. Transit time depends on how the order travels, and your quote confirms it.',
+          },
+        ],
+      },
+      {
         heading: 'See it before a sample is cut',
         blocks: [
           {
             kind: 'text',
             // The 3D guide's words.
             text: 'A 3D reference lets you and your team check the construction, the fit and where the artwork sits before a sample is cut. We can build one of your garment on request.',
+          },
+        ],
+      },
+      {
+        heading: 'Payment',
+        blocks: [
+          {
+            kind: 'text',
+            text: PAYMENT_TERMS,
+          },
+        ],
+      },
+      {
+        heading: 'See the factory before you order',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'You can visit. Email us to arrange it. If you cannot travel, we can show you the factory on a video call.',
+          },
+        ],
+      },
+      {
+        heading: 'Protecting your idea',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Only the team working on your order sees your files. Your patterns and artwork are never made for anyone else. We sign a buyer’s NDA, and we have our own if you need one.',
           },
         ],
       },
@@ -748,10 +1229,10 @@ export const GUIDES: readonly Guide[] = [
     path: '/guides/pakistan-vs-china-vs-turkey',
     title: 'Pakistan vs China vs Turkey for Sportswear',
     description:
-      'Making sportswear in Pakistan, China or Türkiye: what you pay at the EU and UK border, from official sources, and the questions to ask any factory.',
+      'Making sportswear in Pakistan, China or Türkiye: the duty in six markets, from official sources, and the questions to ask any factory.',
     heading: 'Pakistan, China or Türkiye,',
     headingAccent: 'side by side.',
-    lede: "We make sportswear in Sialkot, Pakistan, so read this knowing that. What it says about each country's trade terms comes from official sources, named with the date we read them. What it says about us is what our own pages say.",
+    lede: "We make sportswear in Sialkot, Pakistan, so read this knowing that. What it says about each country's trade terms comes from official sources, named with the date we read them. What it says about us is what our own pages say. Each rate is for the sportswear tariff codes we checked.",
     sections: [
       {
         heading: 'Bringing it into the European Union',
@@ -759,8 +1240,8 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'From Pakistan',
-            // Source 1.
-            text: "More than 85% of Pakistan's exports, including textiles and clothing, enter the EU duty and quota free under the EU's GSP+ scheme.",
+            // Sources 1, 7 and 8 (TARIC and Access2Markets, 2026-10-26).
+            text: "More than 85% of Pakistan's exports, including textiles and clothing, enter the EU duty and quota free under the EU's GSP+ scheme. That is 0%, with a statement of origin from the exporter.",
           },
           {
             kind: 'text',
@@ -770,14 +1251,14 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'From Türkiye',
-            // Source 3.
-            text: 'Türkiye and the EU are in a customs union that removed tariffs on all industrial goods between them.',
+            // Sources 3 and 7.
+            text: 'Türkiye and the EU are in a customs union that removed tariffs on all industrial goods between them, so the rate is 0%.',
           },
           {
             kind: 'point',
             title: 'From China',
-            // Source 4: Delegated Regulation 1421/2013, recital 7 and Article 2.
-            text: "China has been outside the EU's GSP preferences since 1 January 2015, when the EU removed it from the list of beneficiary countries.",
+            // Source 4: Delegated Regulation 1421/2013, recital 7 and Article 2; source 7 for the rate.
+            text: "China has been outside the EU's GSP preferences since 1 January 2015, when the EU removed it from the list of beneficiary countries. Its garments pay the EU's standard duty of 12%.",
           },
         ],
       },
@@ -787,14 +1268,75 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'From Pakistan',
-            // Source 5.
-            text: "Pakistan is in the Enhanced Preferences tier of the UK's Developing Countries Trading Scheme, which gives 0% import tariffs on 92% of product lines.",
+            // Source 5; sources 9 and 10 for the rate and the proof.
+            text: "Pakistan is in the Enhanced Preferences tier of the UK's Developing Countries Trading Scheme, which gives 0% import tariffs on 92% of product lines. Its garments pay 0%; the exporter gives an origin declaration or a Form A.",
           },
           {
             kind: 'point',
             title: 'From Türkiye',
-            // Source 6. No line for China: no official UK page was found to quote (2026-10-08).
-            text: "Goods that meet the UK–Turkey trade agreement's rules of origin trade at its preferential tariff rates.",
+            // Sources 6 and 9.
+            text: "Goods that meet the UK–Turkey trade agreement's rules of origin trade at its preferential tariff rates: 0%, with the exporter's declaration on origin.",
+          },
+          {
+            kind: 'point',
+            title: 'From China',
+            // Source 9: the UK tariff shows China no preference on these codes (2026-10-26).
+            text: "Garments from China pay the UK's standard duty: 12%.",
+          },
+        ],
+      },
+      /*
+       * Four more markets (owner, 2026-10-26, site check: "research all the rates; for those you
+       * find nothing, do not mention"). Every rate is one an official page prints for the codes read
+       * that day; nothing adds them up, because no official page prints a total.
+       */
+      {
+        heading: 'Bringing it into the US',
+        blocks: [
+          {
+            kind: 'text',
+            // Source 11.
+            text: 'Garments pay the general rate in the US tariff schedule: about 7% to 32%, set by the fiber and the garment.',
+          },
+          {
+            kind: 'text',
+            // Sources 11 and 12.
+            text: 'Since July 24, 2026, a Section 301 duty is added on top: 10% on goods from Pakistan, 12.5% from Türkiye and 12.5% from China. Most Chinese garment codes pay a further 7.5% under an older Section 301 action.',
+          },
+          {
+            kind: 'text',
+            // Sources 13 and 14.
+            text: 'The US GSP program lists Pakistan, but it expired on December 31, 2020, and has not been renewed. The "reciprocal" tariffs stopped on February 24, 2026.',
+          },
+        ],
+      },
+      {
+        heading: 'Bringing it into Canada',
+        blocks: [
+          {
+            kind: 'text',
+            // Sources 15 and 16.
+            text: "Pakistan is on Canada's General Preferential Tariff list; China and Türkiye are not. On T-shirts, sweatshirts, track suits, trousers and jackets the preference sets no rate, so all three pay the general rate, mostly 16% to 18%.",
+          },
+        ],
+      },
+      {
+        heading: 'Bringing it into Australia',
+        blocks: [
+          {
+            kind: 'text',
+            // Sources 17, 18, 19 and 20.
+            text: 'Australia has no free trade agreement with Pakistan or Türkiye, so the general rate applies: 5% or free, by code. Garments that qualify as Chinese under the China–Australia agreement enter free, with a certificate or declaration of origin.',
+          },
+        ],
+      },
+      {
+        heading: 'Bringing it into New Zealand',
+        blocks: [
+          {
+            kind: 'text',
+            // Sources 21 and 22.
+            text: "New Zealand's list of free trade agreements does not include Pakistan or Türkiye. Their garments pay the normal rate, 10% on almost every garment code. Chinese-origin garments enter free under the New Zealand–China agreement.",
           },
         ],
       },
@@ -835,7 +1377,39 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'Whose name is each certificate in?',
-            text: 'Our pages name the holder of each one.',
+            // The company's three lines, word for word (owner, 2026-10-26, site check); they name
+            // each holder, and SMETA stays an audit (`CERTIFICATION_LINES`, `companyFacts.ts`).
+            text: CERTIFICATION_LINES.join(' '),
+          },
+          /*
+           * Six more (owner, 2026-10-26): the works from the figures the site states, the rest the
+           * FAQ's own answers word for word. Nothing here says anything about another country.
+           */
+          {
+            kind: 'point',
+            title: 'How big is the works?',
+            text: `The works has ${PEOPLE} people and ${FLOOR} square meters under roof, in ${BUILDINGS} buildings on one site.`,
+          },
+          {
+            kind: 'point',
+            title: 'Are cutting, printing, stitching, checking and packing in one place?',
+            text: 'Yes. They all happen in one place, with one team answerable for your order.',
+          },
+          {
+            kind: 'point',
+            title: 'Can I visit, or see it on video?',
+            text: faqAnswer('factory-visit'),
+          },
+          { kind: 'point', title: 'Will you sign an NDA?', text: faqAnswer('nda') },
+          {
+            kind: 'point',
+            title: 'Can I get certificates and test reports?',
+            text: faqAnswer('order-certificates'),
+          },
+          {
+            kind: 'point',
+            title: 'What if something is wrong when it arrives?',
+            text: faqAnswer('order-problem'),
           },
         ],
       },
@@ -876,6 +1450,103 @@ export const GUIDES: readonly Guide[] = [
         url: 'https://www.gov.uk/guidance/summary-of-the-uk-turkey-trade-agreement',
         date: '2022-11-21',
         kind: 'updated',
+      },
+      // 7 to 22: read on 2026-10-26 for the rates (owner, site check), each with the page's own date.
+      {
+        name: 'European Commission, TARIC: duties on garment codes from China, Pakistan and Türkiye',
+        url: 'https://ec.europa.eu/taxation_customs/dds2/taric/measures.jsp?Lang=en&SimDate=20261026&Taric=6109100010&Area=PK&LangDescr=en',
+        date: '2026-10-23',
+        kind: 'updated',
+      },
+      {
+        name: 'European Commission, Access2Markets: origin documentation for GSP',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/results?product=6109100010&origin=PK&destination=DE',
+        date: '2026-10-24',
+        kind: 'updated',
+      },
+      {
+        name: 'UK Integrated Online Tariff: duties on garment codes by country of origin',
+        url: 'https://www.trade-tariff.service.gov.uk/commodities/6109100010?country=PK&day=26&month=10&year=2026',
+        date: '2026-10-26',
+        kind: 'read',
+      },
+      {
+        name: 'GOV.UK: How to claim preferences under the Developing Countries Trading Scheme',
+        url: 'https://www.gov.uk/guidance/how-to-claim-preferences-under-the-developing-countries-trading-scheme-dcts',
+        date: '2023-08-17',
+        kind: 'updated',
+      },
+      {
+        name: 'USITC: Harmonized Tariff Schedule of the United States, 2026 Revision 21, Chapters 61, 62 and 99',
+        url: 'https://hts.usitc.gov/',
+        date: '2026-10-09',
+        kind: 'published',
+      },
+      {
+        name: 'U.S. Customs and Border Protection, CSMS 69326983: Section 301 Forced Labor Import Duties',
+        url: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/421d887',
+        date: '2026-07-23',
+        kind: 'published',
+      },
+      {
+        name: 'U.S. Customs and Border Protection: Generalized System of Preferences (GSP)',
+        url: 'https://www.cbp.gov/trade/priority-issues/trade-agreements/special-trade-legislation/generalized-system-preferences',
+        date: '2026-08-06',
+        kind: 'updated',
+      },
+      {
+        name: 'U.S. Customs and Border Protection, CSMS 67834313: Ending Collection of IEEPA Duties',
+        url: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/40b11c9',
+        date: '2026-02-22',
+        kind: 'published',
+      },
+      {
+        name: 'Canada Border Services Agency: Customs Tariff 2026-2, countries and tariff treatments',
+        url: 'https://www.cbsa-asfc.gc.ca/trade-commerce/tariff-tarif/2026/html/countries-pays-2-eng.html',
+        date: '2026-09-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Canada Border Services Agency: Customs Tariff 2026-2, Chapters 61 and 62',
+        url: 'https://www.cbsa-asfc.gc.ca/trade-commerce/tariff-tarif/2026/html/tblmod-2-eng.html',
+        date: '2026-09-01',
+        kind: 'published',
+      },
+      {
+        name: 'Australian Border Force: Free Trade Agreements',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/fta/free-trade-agreements',
+        date: '2026-10-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force: Customs Tariff, Schedule 3, Chapter 61',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-3/section-xi/chapter-61',
+        date: '2026-07-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force: Customs Tariff, Schedule 12, Chinese originating goods',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-12',
+        date: '2026-10-20',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force: China-Australia FTA Rules of Origin, Instruction and Guideline',
+        url: 'https://www.abf.gov.au/free-trade-agreements/files/instructions-guidelines-australia-china-fta.pdf',
+        date: '2015-12-14',
+        kind: 'published',
+      },
+      {
+        name: 'New Zealand Customs Service: Working Tariff Document, Section XI, effective 20 October 2026',
+        url: 'https://www.customs.govt.nz/media/rxuexxcm/section-xi-effective-20-october-2026.pdf',
+        date: '2026-10-26',
+        kind: 'read',
+      },
+      {
+        name: 'New Zealand Customs Service: New Zealand–China Free Trade Agreement',
+        url: 'https://www.customs.govt.nz/information-releases-and-legislation/legislation/international-agreements/free-trade-agreements/new-zealand-china-free-trade-agreement',
+        date: '2026-10-26',
+        kind: 'read',
       },
     ],
   },

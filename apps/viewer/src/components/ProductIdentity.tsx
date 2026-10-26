@@ -1,5 +1,6 @@
 import type { ViewerProduct, ViewerColourway } from '@run-apparel/shared'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { longestFittingSentences } from '../lib/sentenceCut'
 import { headingWithAccent } from './SerifAccent'
 
 interface ProductIdentityProps {
@@ -12,6 +13,39 @@ interface ProductIdentityProps {
 
 const STANDARD_DESCRIPTION =
   'This is a development reference, not a finished stock product. We can change the fabric, color, fit, trims, branding and performance details to suit your brand.'
+
+/** What the clamped paragraph shows now: whether it overflows three lines, and its summary. */
+interface ClampMeasure {
+  overflows: boolean
+  /** Length of the whole-sentence summary, or null to leave the cut to the browser. */
+  cut: number | null
+}
+
+/**
+ * Measure `text` in the width and type of the clamped paragraph `p`: on a hidden copy of it that
+ * holds `text` and then each candidate summary (see `Statement`), and gone again before the
+ * browser paints. Same class and so the same font, clamp and 50ch cap as `p`.
+ */
+function measureClamp(p: HTMLElement, text: string): ClampMeasure {
+  const probe = p.cloneNode(false) as HTMLElement
+  probe.removeAttribute('id')
+  probe.setAttribute('aria-hidden', 'true')
+  probe.style.position = 'absolute'
+  probe.style.visibility = 'hidden'
+  probe.style.pointerEvents = 'none'
+  probe.style.width = `${p.getBoundingClientRect().width}px`
+  p.after(probe)
+  try {
+    const fits = (candidate: string) => {
+      probe.textContent = candidate
+      return probe.scrollHeight <= probe.clientHeight + 1
+    }
+    if (fits(text)) return { overflows: false, cut: null }
+    return { overflows: true, cut: longestFittingSentences(text, fits) }
+  } finally {
+    probe.remove()
+  }
+}
 
 /**
  * THE DESCRIPTION, AT THREE LINES BESIDE THE GARMENT (polish D8, owner-approved 2026-10-04).
@@ -29,17 +63,31 @@ const STANDARD_DESCRIPTION =
  * The button shows only when the text is longer than three lines, measured, and re-measured
  * when the column changes width or the site's fonts arrive (a font swap can make three lines
  * four). The paragraph keeps its full text in the DOM either way.
+ *
+ * ⚠️ THE THREE LINES END AT A FULL STOP (owner, 2026-10-26, site check). The browser's clamp cuts
+ * where the third line runs out, and the live R-XPS summary ended "…a chamois pad in sever…". So
+ * when the text runs past three lines, the longest run of whole sentences that fits is the
+ * summary (`lib/sentenceCut.ts`) and the rest follows it in a visually-hidden span: a screen
+ * reader and a search robot still get every word, "Read more" shows them all. If not even the
+ * first sentence fits in three lines the paragraph is left to the browser's cut, as before.
+ * Fitting is measured on a copy of the paragraph that holds each candidate in turn, never on
+ * the paragraph itself, because the paragraph's own height changes with the summary chosen.
  */
 function Statement({ text, clamp }: { text: string; clamp: boolean }) {
   const id = useId()
   const paragraph = useRef<HTMLParagraphElement>(null)
   const [expanded, setExpanded] = useState(false)
   const [overflows, setOverflows] = useState(false)
+  const [cut, setCut] = useState<number | null>(null)
 
   useLayoutEffect(() => {
     const p = paragraph.current
     if (!clamp || !p || expanded) return
-    const measure = () => setOverflows(p.scrollHeight > p.clientHeight + 1)
+    const measure = () => {
+      const result = measureClamp(p, text)
+      setOverflows(result.overflows)
+      setCut(result.cut)
+    }
     measure()
     let live = true
     void document.fonts?.ready.then(() => {
@@ -50,15 +98,24 @@ function Statement({ text, clamp }: { text: string; clamp: boolean }) {
         live = false
       }
     }
-    const observer = new ResizeObserver(measure)
+    // Only a change of WIDTH can change where three lines end. The summary changes the
+    // paragraph's height, and measuring on that would answer our own change with another round.
+    let lastWidth = -1
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? -1
+      if (width === lastWidth) return
+      lastWidth = width
+      measure()
+    })
     observer.observe(p)
     return () => {
       live = false
       observer.disconnect()
     }
-  }, [clamp, expanded])
+  }, [clamp, expanded, text])
 
   if (!clamp) return <p className="product-info__statement">{text}</p>
+  const summary = !expanded && cut !== null
   return (
     <>
       <p
@@ -67,7 +124,14 @@ function Statement({ text, clamp }: { text: string; clamp: boolean }) {
         className="product-info__statement"
         data-clamped={expanded ? undefined : ''}
       >
-        {text}
+        {summary ? (
+          <>
+            {text.slice(0, cut)}
+            <span className="visually-hidden">{text.slice(cut)}</span>
+          </>
+        ) : (
+          text
+        )}
       </p>
       {(overflows || expanded) && (
         <button

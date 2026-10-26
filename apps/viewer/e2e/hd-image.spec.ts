@@ -86,7 +86,7 @@ test('opens full screen, closes on Escape, and gives focus back to the button', 
 
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
-  await expect(dialog).toContainText('Studio render — Velocity Performance Tee in Wine')
+  await expect(dialog).toContainText('Studio render: Velocity Performance Tee in Wine')
   const picture = dialog.locator('.hd-image__render')
   await expect(picture).toHaveAttribute('data-loaded', 'true')
   expect(await picture.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1200)

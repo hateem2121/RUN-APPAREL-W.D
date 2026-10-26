@@ -542,7 +542,6 @@ p:where(
   .field-label,
   .footer-eyebrow,
   .footer-dim,
-  .result-count,
   .product-card__meta,
   .subhead,
   .mono,
@@ -2486,8 +2485,7 @@ a.contact-block__value:active {
  * that is not made to the other fails rather than drifting.
  */
 .subhead,
-.field-label,
-.result-count {
+.field-label {
   font-family: var(--font-mono);
   font-size: var(--text-mono-sm);
   letter-spacing: var(--tracking-caps-wide);
@@ -2497,14 +2495,12 @@ a.contact-block__value:active {
 
 .section-number + *,
 .subhead + *,
-.field-label + *,
-.result-count + * {
+.field-label + * {
   margin-block-start: 8px;
 }
 
 /* A subhead is read as a line, so it is set in normal letters (visual audit VA-44, owner's choice 2026-10-02): "The 3D references are
-   indicative" on Terms was 32 capitals. The rule above stays shared with the form labels and the
-   result count, which keep their short capitals; this only lifts the subhead out of it. */
+   indicative" on Terms was 32 capitals. The rule above stays shared with the form labels, which keep their short capitals; this only lifts the subhead out of it. */
 .subhead {
   text-transform: none;
   letter-spacing: inherit;
@@ -2515,7 +2511,6 @@ a.contact-block__value:active {
    above stays a copy of `.section-number` (publicSite.test.ts holds the two together), and the
    bracketed labels on /contact keep its 10px, as every bracket label does. */
 .subhead,
-.result-count,
 .works-slab .field-label {
   font-size: var(--text-mono-lg);
 }
@@ -3281,10 +3276,6 @@ a.contact-block__value:active {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px 24px;
-}
-
-.gallery-group__head .result-count + * {
-  margin-block-start: 0;
 }
 
 /* A real 44px box (navbar.spec.ts measures every link on the page): a plain link inside the
@@ -4493,6 +4484,13 @@ a.contact-block__value:active {
 
 .site-hero--photo {
   background: var(--bg);
+}
+
+/* The label has no chip here (`--label-bg: transparent` above), so its 8px side padding only moved
+   the words 8px in from the headline under them (site check, impeccable I-11, 2026-10-26). Here,
+   not in base.css: the garment pages' stylesheet budget pays for every byte of that file. */
+.site-hero--photo .label {
+  padding-inline: 0;
 }
 
 /*
@@ -5869,14 +5867,29 @@ a.contact-block__value:active {
    * OrderStagesList.tsx), and `visibility: hidden` otherwise: a sticky full-width box at the foot is
    * what Safari keeps, and one left visible after the stack would bring back the 2026-10-20 strip.
    */
+  .site-section:has(> .order-stages) {
+    --foot-fade: 120px;
+  }
+
+  /*
+   * ⚠️ THE WORDS END ABOVE THE FADE (site check, 2026-10-26). A stopped card is a screen tall, so
+   * its foot IS the screen's foot, and the last line sat 28-29px above it, where the fade is solid
+   * paper: on cards 1-7 it was never readable (a 20px-step walk at iPhone 15, iPhone SE and iPad
+   * sizes; card 8 has no next card, so it scrolls up and was fine). The words keep the fade's own
+   * height clear under their last line; the card's ground still runs to its foot.
+   */
+  .order-stage__steps .order-step__words {
+    padding-block-end: calc(24px + var(--foot-fade));
+  }
+
   .site-section:has(> .order-stages)::after {
     content: "";
     display: block;
     position: sticky;
     bottom: 0;
     z-index: var(--z-card-control);
-    height: 120px;
-    margin-block-start: -120px;
+    height: var(--foot-fade);
+    margin-block-start: calc(-1 * var(--foot-fade));
     background: linear-gradient(to bottom, transparent, var(--bg) 70%);
     pointer-events: none;
     visibility: hidden;
@@ -6360,17 +6373,6 @@ a.contact-block__value:active {
   margin-block-start: 64px;
 }
 
-/*
- * ⚠️ THE ADDRESS IS LEFT OUT BESIDE THE FORM ON A PHONE ONLY. The section straight after this
- * one is the map with the same address and its directions link, so on a phone it would be read
- * twice in a row (VA-41); the approved phone mockup shows email and WhatsApp alone.
- */
-@media (width < 1000px) {
-  .inquiry-layout__details .contact-block:has(address) {
-    display: none;
-  }
-}
-
 @media (width >= 1000px) {
   .inquiry-layout {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
@@ -6541,6 +6543,16 @@ a.contact-block__value:active {
   border: 0;
   border-radius: var(--radius-button);
   outline: none;
+}
+
+/* The two names over the one phone box: "Code" as wide as the code's part of it (5.5em of the
+   17px field text, below), "Phone" over the number (site check I-09, 2026-10-26). */
+.inquiry-form__phone-labels {
+  display: flex;
+}
+
+.inquiry-form__phone-labels > .inquiry-form__label:first-child {
+  flex: 0 0 calc(5.5 * var(--text-body));
 }
 
 .inquiry-form__code {

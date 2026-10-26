@@ -35,7 +35,19 @@ const guideWords = (guide: Guide) =>
     sources: guide.sources,
   })
 
-const pageWords = ({ path: _path, ...visible }: { path: string }) => sha(visible)
+/*
+ * The search title (`metaTitle`) is left out: a policy's date is the day the owner approved its
+ * words, and its page prints it as "Last reviewed" (owner, 2026-10-26: a new search title is not a
+ * new review). Leaving out a key the measured entries never had keeps their fingerprints.
+ */
+const pageWords = ({
+  path: _path,
+  metaTitle: _metaTitle,
+  ...visible
+}: {
+  path: string
+  metaTitle?: string
+}) => sha(visible)
 
 const PAGES: ReadonlyArray<{ path: string; words: string }> = [
   ...GUIDES.map((guide) => ({ path: guide.path, words: guideWords(guide) })),

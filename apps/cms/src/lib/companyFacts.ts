@@ -53,7 +53,7 @@ export const CUTTING_LINES: CompanyFact = { value: '3', label: 'Cutting lines' }
  * and South America, and Oceania"): "customers can be new and from anywhere", so a list of
  * regions told a buyer outside it that they were not served.
  */
-export const SHIPS_TO = 'Worldwide — wherever your team is.'
+export const SHIPS_TO = 'Worldwide, wherever your team is.'
 
 /**
  * ⚠️ THE CERTIFICATE HOLDER IS NAMED, DELIBERATELY. RUN APPAREL holds none in its own
@@ -118,6 +118,14 @@ export const LINEAGE =
  * quote. It replaces nothing in `FACTS` (the home page shows five numbers); the 21–45 day window
  * the owner removed on 2026-09-29 stays refused by `companyFacts.test.ts`.
  */
+/**
+ * The payment terms (owner, 2026-10-26, site check: "50% deposit, 50% before ship"), in the guides
+ * and the FAQ alike. They replace "We agree payment terms with each buyer" (owner F4, 2026-10-07),
+ * which the owner dropped the same day so the site says one thing.
+ */
+export const PAYMENT_TERMS =
+  'Production starts on a 50% deposit; the balance is due before shipment.'
+
 export const LEAD_TIME =
   'Usually 2–4 weeks from order confirmation; your quote states the exact date.'
 

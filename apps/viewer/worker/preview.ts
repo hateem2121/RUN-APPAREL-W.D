@@ -8,6 +8,7 @@ import {
   type ViewerApiSuccess,
 } from '@run-apparel/shared'
 import type { OgCard } from './og-cards'
+import { richTextParagraphs } from './richText'
 
 /**
  * What a shared link should say, for one garment in one colourway.
@@ -295,8 +296,9 @@ function esc(value: string): string {
  * ⚠️ ONLY WHAT THE LOADED PAGE SHOWS. Text served to a robot and not to a visitor is
  * cloaking, which search engines penalise. Every line here is printed by the page itself:
  * the family and code label, the name (the page's one `<h1>`), the colour, the owner's
- * description, the specification lines and the colour list. Nothing is reworded for
- * search, and a field the CMS leaves empty is left out rather than filled.
+ * description, the specification lines, the colour list and, since 2026-10-26, the
+ * customization section's intro and steps (see below). Nothing is reworded for search, and a
+ * field the CMS leaves empty is left out rather than filled.
  *
  * ⚠️ IT GOES INSIDE `#root`, AFTER THE STATIC PRELOADER. `createRoot().render()` replaces
  * that element's content the moment the app starts, so a robot that DOES run JavaScript
@@ -355,6 +357,33 @@ function buildCrawlerBody(
         `<li><a href="${esc(`${origin}${buildViewerPath(p.slug, c.slug, prefix)}`)}">${esc(c.displayName.trim())}</a></li>`,
     )
   if (colours.length > 1) parts.push(`<h2>Colorways</h2><ul>${colours.join('')}</ul>`)
+
+  // The garment's own customization section (CustomisationSection.tsx), owner 2026-10-26 (site
+  // check). Live on R-XPS the phrase "custom cycling skinsuit manufacturer" was only inside the
+  // #viewer-payload JSON: this copy printed the description and the facts and left out the intro
+  // and four steps a visitor reads below them. Both come from the fields the page prints
+  // (customisationIntroHtml, customisationSteps), so it is the page's own text and not cloaking
+  // (Google, "Dynamic rendering as a workaround", updated 2025-12-10, read 2026-10-26: similar
+  // content is not cloaking, substantially different content is). The intro is HTML from the CMS, so it is read for its words (richText.ts) and
+  // escaped like every other line. When the owner has written neither, nothing is printed: the
+  // page's stock sentence is the same on every garment and is no more than filler here.
+  const intro = richTextParagraphs(p.customisationIntroHtml ?? '')
+  const steps = (p.customisationSteps ?? [])
+    .map((step) => ({ number: step.number, title: step.title.trim(), body: step.body.trim() }))
+    .filter((step) => step.title || step.body)
+  if (intro.length > 0 || steps.length > 0) {
+    parts.push('<h2>From idea to production.</h2>')
+    for (const paragraph of intro) parts.push(`<p>${esc(paragraph)}</p>`)
+    if (steps.length > 0) {
+      const items = steps.map((step) => {
+        const value = Number.isInteger(step.number) ? ` value="${step.number}"` : ''
+        const title = step.title ? `<h3>${esc(step.title)}</h3>` : ''
+        const body = step.body ? `<p>${esc(step.body)}</p>` : ''
+        return `<li${value}>${title}${body}</li>`
+      })
+      parts.push(`<ol>${items.join('')}</ol>`)
+    }
+  }
 
   // "More from this category" (polish S6), in the page's own words (RelatedGarments.tsx): each
   // garment the CMS sent, linked to its page, then the category's gallery. These links are how a

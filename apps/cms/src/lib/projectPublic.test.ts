@@ -205,7 +205,7 @@ describe('toProductCard', () => {
       )
       expect(card?.posterUrl).toBeNull()
       // and the card still names itself, so the designed placeholder is what renders
-      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
+      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit, 3D product reference')
     })
 
     /*
@@ -240,7 +240,7 @@ describe('toProductCard', () => {
       // garment. The card draws a placeholder instead.
       const card = toProductCard(product())
       expect(card?.posterUrl).toBeNull()
-      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
+      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit, 3D product reference')
     })
 
     it('ignores a numeric ID, which is what a depth-0 read returns', () => {
@@ -256,7 +256,7 @@ describe('toProductCard', () => {
       const card = toProductCard(
         product({ colourways: [{ slug: 'wine', posterPreview: { url: '/c.webp' } }] }),
       )
-      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit — 3D product reference')
+      expect(card?.posterAlt).toBe('Velocity Performance Cycling Suit, 3D product reference')
     })
   })
 

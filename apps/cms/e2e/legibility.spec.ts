@@ -197,7 +197,7 @@ test.describe('FA-I-11 — the copy stays readable by someone reading English se
             continue
           }
           if (
-            ['section-number', 'subhead', 'field-label', 'result-count', 'label'].some((name) =>
+            ['section-number', 'subhead', 'field-label', 'label'].some((name) =>
               el.classList.contains(name),
             )
           ) {

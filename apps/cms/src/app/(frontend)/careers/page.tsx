@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { CareersForm } from '../../../components/site/CareersForm'
 import { CareersPage as CareersLayout } from '../../../components/site/CareersPage'
 import { CAREERS_PAGE } from '../../../lib/companyPages'
-import { buildMetadata } from '../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic'
 const PATH = '/careers'
 
 export const metadata: Metadata = buildMetadata({
-  title: CAREERS_PAGE.title,
+  title: metaTitleOf(CAREERS_PAGE),
   description: CAREERS_PAGE.description,
   path: PATH,
 })

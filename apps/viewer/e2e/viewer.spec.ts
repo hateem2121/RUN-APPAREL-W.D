@@ -246,9 +246,7 @@ test.describe('RUN APPAREL 3D viewer', () => {
     const email = page.locator('.contact a', { hasText: 'Email Us' })
     const mailto = await email.getAttribute('href')
     expect(mailto).toContain('mailto:inquiry@wear-run.com')
-    expect(mailto).toContain(
-      encodeURIComponent('Product Inquiry — Velocity Performance Tee / Wine'),
-    )
+    expect(mailto).toContain(encodeURIComponent('Product Inquiry: Velocity Performance Tee / Wine'))
     expect(mailto).toContain(
       encodeURIComponent('I am interested in Velocity Performance Tee (N001) in Wine.'),
     )
