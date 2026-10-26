@@ -1422,6 +1422,12 @@ US, Canada, Australia and New Zealand, each rate one an official page printed fo
 that day and nothing added up (owner: "research all the rates; for those you find nothing, do not
 mention"); the US section includes the Section 301 duty of 24 July 2026.
 
+Tried and taken out (owner, same day): a two-line name band (`min-block-size`) so the product
+cards of a row end together (impeccable I-08). In CI's Linux WebKit it moved the row below 0.8px
+while a ticket opened, and `apps/cms/e2e/productTickets.spec.ts` allows 0.5px; with the rule off the
+test passed 3 of 3, with it on it failed 5 of 5 (`lh` or `em`, the same). Mac WebKit, Chromium and
+Firefox showed no shift. I-08 stays open, to be tried another way.
+
 Left for after the merge, each write approved first: five dots and 200 poster alt texts in the CMS,
 49 em dashes in garment customization copy, and R-MM's literal asterisks.
 

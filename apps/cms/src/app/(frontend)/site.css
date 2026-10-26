@@ -1691,17 +1691,6 @@ html {
   overflow-wrap: anywhere;
 }
 
-/* An upright ticket's name keeps room for two lines, so a one-line name ends where a two-line one
-   does and the cards of a row end together (site check, impeccable I-08, 2026-10-26: 237 against
-   264px). The cards still start-align (FA-B-04, below); only the name band is fixed. Scoped to the
-   garment grid: `.product-card__name` is also the card-title type of guides, policies, the FAQ and
-   the closing link lists, whose one-line headings must not grow. */
-@media (min-width: 560px) {
-  .product-grid .product-card__name {
-    min-block-size: 2lh;
-  }
-}
-
 /*
  * A hyphenated word (V-NECK, ZIP-UP) in one piece: it moves to the next line whole, and still wraps
  * inside itself when it alone is wider than the card, so nothing is clipped (`lib/cardName.ts`;
