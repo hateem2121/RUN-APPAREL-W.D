@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
-import type { ViewerColourway } from '@run-apparel/shared'
+import { containedBox, playDye, readDyeTiming, type ViewerColourway } from '@run-apparel/shared'
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { type Box, IDENTITY, panBy, toggleZoomAt, type View, zoomAt } from '../lib/zoomPan'
 // Loaded with this lazy chunk only — see the header of hd-image.css.
@@ -100,11 +100,97 @@ export default function HdImageDialog({
     return () => observer.disconnect()
   }, [frameEl])
 
+  // ── The colour change ───────────────────────────────────────────────────
+  /*
+   * The full-screen view changes colour with the same dye as everywhere else (owner, 2026-10-26:
+   * "Dye it too"), the way the HD picture in the 3D window does (Stage.tsx, `keepHdCopy`): React
+   * swaps the render's address in place, so a copy is kept each time one loads, laid over the new
+   * one, held until it has decoded, then soaked away from the arrow that asked for it.
+   *
+   * ⚠️ THE COPY IS SCREEN-SIZED, not the render's own: renders run to several thousand pixels a side,
+   * and a full-size copy would hold tens of MB per colour on a phone for a picture drawn fitted.
+   * That is also why a change while zoomed in swaps at once: the copy only holds the fitted picture,
+   * and the view resets to fitted on every colour, so a dye there would start with a jump.
+   */
+  const renderRef = useRef<HTMLImageElement | null>(null)
+  const dyeRef = useRef<HTMLCanvasElement | null>(null)
+  const copyRef = useRef<{ url: string; canvas: HTMLCanvasElement } | null>(null)
+  const shownRef = useRef<string | null>(null)
+  /** Which arrow asked for the change (-1, 1), so the dye opens from it; `null` for none. */
+  const stepRef = useRef<number | null>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  const keepCopy = () => {
+    setLoaded(true)
+    const picture = renderRef.current
+    if (!picture?.naturalWidth || !renderUrl || box.width <= 0) return
+    const scale = Math.min(1, (box.width * window.devicePixelRatio) / picture.naturalWidth)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(picture.naturalWidth * scale)
+    canvas.height = Math.round(picture.naturalHeight * scale)
+    canvas.getContext('2d')?.drawImage(picture, 0, 0, canvas.width, canvas.height)
+    copyRef.current = { url: renderUrl, canvas }
+  }
+
+  useLayoutEffect(() => {
+    const before = shownRef.current
+    shownRef.current = open ? (renderUrl ?? null) : null
+    const delta = stepRef.current
+    stepRef.current = null
+    const picture = renderRef.current
+    const layer = dyeRef.current
+    const old = copyRef.current
+    // Not when the view opens, and only from a copy of the picture that was actually showing.
+    if (!open || !renderUrl || !before || before === renderUrl || !picture || !layer) return
+    if (!old || old.url !== before || viewRef.current.scale !== 1) return
+    const drawn = containedBox(
+      { width: picture.offsetWidth, height: picture.offsetHeight },
+      { top: 0, right: 0, bottom: 0, left: 0 },
+      { width: old.canvas.width, height: old.canvas.height },
+    )
+    if (!drawn) return
+    Object.assign(layer.style, {
+      left: `${drawn.x}px`,
+      top: `${drawn.y}px`,
+      width: `${drawn.width}px`,
+      height: `${drawn.height}px`,
+    })
+    const arrow =
+      delta === null
+        ? null
+        : layer
+            .closest('.hd-image')
+            ?.querySelector(`[data-step="${delta}"]`)
+            ?.getBoundingClientRect()
+    const at = layer.getBoundingClientRect()
+    // The new render must not fade in under the dye as well: it is decoded before the front opens.
+    picture.setAttribute('data-dyeing', '')
+    const run = playDye({
+      layer,
+      old: old.canvas,
+      point: arrow
+        ? { x: arrow.left + arrow.width / 2 - at.left, y: arrow.top + arrow.height / 2 - at.top }
+        : null,
+      swatch: selected.hexSwatch || null,
+      kind: 'full',
+      timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+      after: picture.decode().catch(() => undefined),
+    })
+    run.finished.then(() => picture.removeAttribute('data-dyeing'))
+    return () => {
+      run.cancel()
+      picture.removeAttribute('data-dyeing')
+    }
+  }, [open, renderUrl, selected.hexSwatch])
+
   const step = useCallback(
     (delta: number) => {
       if (!canStep || !onSelectColourway) return
       const next = withRenders[(index + delta + withRenders.length) % withRenders.length]
-      if (next) onSelectColourway(next)
+      if (!next) return
+      stepRef.current = delta
+      onSelectColourway(next)
     },
     [canStep, onSelectColourway, withRenders, index],
   )
@@ -324,6 +410,7 @@ export default function HdImageDialog({
                     />
                   )}
                   <img
+                    ref={renderRef}
                     className="hd-image__render"
                     data-loaded={loaded ? 'true' : undefined}
                     src={render.url}
@@ -332,8 +419,11 @@ export default function HdImageDialog({
                     height={render.height ?? undefined}
                     decoding="async"
                     draggable={false}
-                    onLoad={() => setLoaded(true)}
+                    onLoad={keepCopy}
                   />
+                  {/* The colour change (keepCopy, above): a copy of what is already on screen. */}
+                  {/* biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (as the stage's dye canvas). */}
+                  <canvas ref={dyeRef} className="dye-layer hd-image__dye" aria-hidden="true" />
                 </div>
               </div>
             )}
@@ -347,6 +437,7 @@ export default function HdImageDialog({
               <button
                 type="button"
                 className="hd-image__step"
+                data-step="-1"
                 aria-label={`Previous colour: ${previous.displayName}`}
                 onClick={() => step(-1)}
               >
@@ -366,6 +457,7 @@ export default function HdImageDialog({
               <button
                 type="button"
                 className="hd-image__step"
+                data-step="1"
                 aria-label={`Next colour: ${next.displayName}`}
                 onClick={() => step(1)}
               >

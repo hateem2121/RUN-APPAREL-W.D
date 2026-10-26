@@ -637,3 +637,90 @@ test('under reduced motion the HD picture changes colour at once', async ({ page
   await page.waitForTimeout(400)
   expect(await page.evaluate(() => (window as unknown as { __dyed: boolean }).__dyed)).toBe(false)
 })
+
+/*
+ * The full-screen view changes colour with the dye too (owner, 2026-10-26: "Dye it too"). What
+ * would have to break: the old picture cut in one frame, a layer that runs but shows nothing (a
+ * blank copy), a dye left over the picture, one when the view first opens, one while zoomed in
+ * (the copy is drawn fitted, so it would jump), or one for a visitor who asked for less motion.
+ */
+async function watchFullDye(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __frames: number; __inked: boolean }
+    w.__frames = 0
+    w.__inked = false
+    const tick = () => {
+      const layer = document.querySelector<HTMLCanvasElement>('.hd-image__dye')
+      if (layer?.hasAttribute('data-running')) {
+        w.__frames++
+        const pixels = layer.getContext('2d')?.getImageData(0, 0, layer.width, layer.height).data
+        if (pixels?.some((value, i) => i % 4 === 3 && value > 0)) w.__inked = true
+      }
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+}
+const fullDye = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as { __frames: number; __inked: boolean }
+    return { frames: w.__frames, inked: w.__inked }
+  })
+
+test('the full-screen view changes colour with the dye, and leaves nothing over it', async ({
+  page,
+}) => {
+  await openReady(page, 'wine')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await openFull(page)
+  const dialog = page.getByRole('dialog')
+  const picture = dialog.locator('.hd-image__render')
+  await expect(picture).toHaveAttribute('data-loaded', 'true')
+  await watchFullDye(page)
+  expect((await fullDye(page)).frames, 'opening the view is not a colour change').toBe(0)
+
+  await dialog.getByRole('button', { name: 'Next colour: Pebble / Optic White' }).click()
+  await expect(picture).toHaveAttribute('src', /blush/)
+  const layer = dialog.locator('.hd-image__dye')
+  await expect(layer).toHaveAttribute('data-running', '', { timeout: 2000 })
+  await expect(layer).not.toHaveAttribute('data-running', { timeout: 5000 })
+  const seen = await fullDye(page)
+  expect(seen.frames, 'the old picture was cut, not soaked away').toBeGreaterThan(5)
+  expect(seen.inked, 'the dye ran over a blank layer').toBe(true)
+  expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
+  await expect(picture).toHaveAttribute('data-loaded', 'true')
+})
+
+test('zoomed in, the full-screen view changes colour at once', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'the mouse double-click zooms here; the phone path is the double-tap test')
+  await openReady(page, 'wine')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await openFull(page)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.locator('.hd-image__render')).toHaveAttribute('data-loaded', 'true')
+  await dialog.locator('.hd-image__viewport').dblclick()
+  await expect
+    .poll(() =>
+      dialog
+        .locator('.hd-image__layer')
+        .evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a as number),
+    )
+    .toBeGreaterThan(1)
+  await watchFullDye(page)
+  await dialog.getByRole('button', { name: 'Next colour: Pebble / Optic White' }).click()
+  await expect(dialog.locator('.hd-image__render')).toHaveAttribute('src', /blush/)
+  await page.waitForTimeout(400)
+  expect((await fullDye(page)).frames).toBe(0)
+})
+
+test('under reduced motion the full-screen view changes colour at once', async ({ page }) => {
+  await openReady(page, 'wine')
+  await openFull(page)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.locator('.hd-image__render')).toHaveAttribute('data-loaded', 'true')
+  await watchFullDye(page)
+  await dialog.getByRole('button', { name: 'Next colour: Pebble / Optic White' }).click()
+  await expect(dialog.locator('.hd-image__render')).toHaveAttribute('src', /blush/)
+  await page.waitForTimeout(400)
+  expect((await fullDye(page)).frames).toBe(0)
+})
