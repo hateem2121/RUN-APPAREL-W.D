@@ -1438,6 +1438,57 @@ home page, /products and its own buyer page only), `apps/cms/src/lib/aboutPages.
 said once per page), `apps/cms/src/factoryPhotos.test.ts` (the full-width photo is sharp) and
 `apps/cms/src/lib/bylines.test.ts`. Each had a fault planted and failed on it.
 
+## 2026-10-26 — one colour change everywhere
+
+### D49 · Every colour change soaks in from its dot like dye, on the site and the garment pages — amends D47
+
+**Decision: wherever a garment changes colour, the new colour soaks in from the dot (or arrow) that
+chose it, along an uneven front stretched up the cloth like dye wicking along a knit, with a darker
+wet edge. One player draws it everywhere (`packages/shared/src/dyePlayer.ts`, its maths in
+`packages/shared/src/dye.ts`): №03's 3D garment and still picture, the garment page's 3D garment
+(a short dye on hover, the full one on a click), its HD picture in the 3D window and in the
+full-screen view, the gallery cards' dots and arrows, and №02's family cards (full as a card opens,
+short as it closes). Its length scales with the distance it travels, between `--dye-min` (320 ms)
+and `--dye-max` (640 ms); a hover's is `--dye-short` (240 ms). Owner, 2026-10-26.**
+
+It replaces D47's perfect circle (a CSS `radial-gradient` mask, which recorded as a screen wipe),
+the garment page's 200 ms fade, the HD picture's instant swap, the cards' sideways glide on a dot
+or arrow (a finger swipe still slides) and №02's cross-fade, which the owner had turned down as a
+double image. A visitor who asks for less motion gets the new colour at once, everywhere.
+
+On №03 the time from a press to the first visible change fell from 283 ms to 74–86 ms (median,
+three runs at the reference machine's speed): the old picture is now copied straight from
+model-viewer's canvas instead of encoded and decoded as a file, and the new colour is applied one
+frame after the dye's first frame, behind it. The first pick of a visit still takes 142–170 ms.
+
+The owner's calls on the recordings, the same day:
+- **The wet edge fades on pale colours.** At one strength it left a tan ring on blush → butter (it
+  moved the old cloth by 18.0, CIEDE2000); it now fades with the dye's OKLab lightness, so every
+  light pair of the seeded colours stays at 8 or under while wine and black keep the full edge
+  (`wetStrength`).
+- **The full-screen HD view dyes too** (`apps/viewer/src/components/HdImageDialog.tsx`), from the
+  arrow that asked. Zoomed in, it still swaps at once: its copy is screen-sized and fitted, and a
+  colour change resets the view to fitted.
+- **No colour dot changes.** `scripts/colour-accuracy.mjs` compares every live dot with its poster
+  (read-only) and flagged 120 of 200 above 10, but set lightness aside and only 2 stay above 10;
+  both are two-tone garments whose dot matches the stronger panel. The render's studio lighting is
+  darker than the dot in 193 of 200.
+
+Decided in the build and reported to the owner: a gallery card holds the old picture until the next
+one has loaded (at most 1.5 s), because a clipped neighbour is often not fetched yet; a studio
+render beside a poster still slides, because the two are framed differently; the dye on №03 waits
+for model-viewer's `variant-applied` before it opens past a fifth (at most 1.5 s), so a heavy
+garment is never swept over its old colour; and a change while a dye runs continues from what is
+on screen.
+
+**Guard:** `packages/shared/src/dye.test.ts` and `packages/shared/src/dyePlayer.test.ts` (the
+front, the timing, the wet edge's strength, a change during a change, reduced motion);
+`apps/cms/e2e/liveGarment.spec.ts`, `apps/cms/e2e/proofShowcase.spec.ts`,
+`apps/cms/e2e/cardDye.spec.ts` and `apps/cms/e2e/familyTickets.spec.ts` on the site;
+`apps/viewer/e2e/colour-dye-webgl.spec.ts` and `apps/viewer/e2e/hd-image.spec.ts` on the garment
+pages; `packages/shared/src/deltaE.test.ts` (Sharma's 34 published pairs) and
+`scripts/colour-accuracy.test.mjs` for the report. Each had a fault planted and failed on it.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap
