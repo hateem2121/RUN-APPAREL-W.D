@@ -80,15 +80,21 @@ that is exactly the check that catches a wrong slug:
 node -e "const d=require('/tmp/rxps-wine-before.json'); if (d.error) { console.error('REFUSED: got an error payload, not the product:', d); process.exit(1) } console.log(d.product.productCode, d.colourways.length + ' colourways,', JSON.stringify(d).length + ' bytes')"
 ```
 
-Expect `R-XPS 5 colourways, ~10100 bytes` — measured 2026-10-23 (it was ~5265 on 2026-09-08
-and 2026-09-24; the customisation copy and related garments have joined the payload since).
-The size moves as the product's content does; the code and the colourway count are the check.
+Expect `R-XPS 5 colourways, ~10000 bytes` — measured 2026-10-26: 10,002 (it was ~5265 on
+2026-09-08 and 2026-09-24, and ~10100 from 2026-10-19 to 2026-10-24; the customisation copy and
+related garments joined the payload in between, and #249 dropped the two `catalogueUrl` fields,
+98 bytes, on 2026-10-25). The size moves as the product's content does; the code and the
+colourway count are the check.
 
 ⚠️ **Longer is fine; SHORTER, or a non-zero exit, is a stop.** The payload grows when
 sales copy is added (it did on 2026-09-08), so "longer than expected" is the reading
 that gets waved through. Re-measure this line whenever `slug` or `productCode` changes:
 they are different fields, and a stale expected value leaves the reader unable to tell
 a real regression from a documentation lag.
+🟡 **A code change can shorten it on purpose, so a SHORTER reading means: diff before deciding.**
+Compare it field by field with the last saved capture (`backups/`) and find the commit that
+removed each missing field. On 2026-10-26 the before-capture read 98 bytes short; the diff showed
+only the two `catalogueUrl` fields, removed by #249 the day before on the owner's decision.
 
 ⚠️ A **403 from a `wear-run.help` host is inconclusive, not a failure** — free-plan
 Bot Fight Mode intermittently blocks datacenter traffic. From a laptop it should be
