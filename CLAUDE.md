@@ -171,8 +171,8 @@ Longer reading: `docs/README.md` (every document), `docs/RUNBOOK.md` (operations
 ## Deploying
 
 A merge to `main` backs up D1, applies migrations, then deploys the apex Worker, the CMS
-and the viewer (plus the shrink Worker when `apps/shrink` changed). To undo one,
-`wrangler rollback` or the dashboard's Deployments → Rollback restores a recent version.
+and the viewer, plus the shrink when `apps/shrink` changed; a docs-or-tests-only merge deploys
+nothing. To undo one, `wrangler rollback` or Deployments → Rollback restores a recent version.
 
 - 🟡 **Check `git config user.email` before the first commit.** An unset one makes the
   commit unattributed, and `main`'s ruleset then blocks the merge.

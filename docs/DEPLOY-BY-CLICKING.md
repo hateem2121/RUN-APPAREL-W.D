@@ -22,7 +22,8 @@ In short:
 1. You create a scoped **Cloudflare API token** (dashboard, ~5 minutes).
 2. Claude stores it as GitHub repo secrets `CLOUDFLARE_API_TOKEN` +
    `CLOUDFLARE_ACCOUNT_ID`, and sets the repo variable `DEPLOY_ENABLED=true`.
-3. From then on, every push to `main` deploys automatically after tests pass.
+3. From then on, every push to `main` deploys automatically after tests pass, except one
+   that changes only documents, tests or other workflows (since 2026-10-26).
 
 > ⚠️ **The token must be a Custom one, and must include Containers + Cloudchamber.**
 > Without those two, everything appears to work — the CMS and viewer deploy fine —

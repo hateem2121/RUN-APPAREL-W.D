@@ -1179,10 +1179,14 @@ jobs:
     permissions:
       contents: read
       issues: write
-    needs: [verify, e2e, audit, secrets, artwork]
+    # `changes` is not a gate: it only tells this job whether there is anything to ship, so
+    # scripts/check-required-checks.mjs leaves it out of the ruleset comparison
+    # (OUTPUT_ONLY_NEEDS). It answers `true` whenever it cannot be sure, and a by-hand run
+    # (`gh workflow run ci.yml --ref main`) always deploys.
+    needs: [verify, e2e, audit, secrets, artwork, changes]
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
-    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true' && needs.changes.outputs.site == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
@@ -1782,13 +1786,23 @@ jobs:
   # the CMS that receives the shrink's writes goes first).
   #
   # `changes` says whether anything the shrink is built from changed; the two jobs below
-  # it run only then. The rules and their negative controls live in
-  # scripts/ci-changed-paths.mjs and apps/cms/src/ciChangedPaths.test.ts.
+  # it run only then. Since 2026-10-26 it also says whether `deploy` has anything to ship
+  # (`site`): a push to main that changes only documents, tests or other workflows no longer
+  # redeploys, because every deploy empties the shared page store in every region. The
+  # rules and their negative controls live in scripts/ci-changed-paths.mjs and
+  # apps/cms/src/ciChangedPaths.test.ts.
   changes:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
+    # `deployments: read` lets the script find the last commit that deployed (the
+    # `production` records), so a failed deploy is never skipped over by a docs push.
+    # A job-level block REPLACES the workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      deployments: read
     outputs:
       shrink: ${{ steps.paths.outputs.shrink }}
+      site: ${{ steps.paths.outputs.site }}
     steps:
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
@@ -1805,12 +1819,15 @@ jobs:
           # Nothing is installed here: one script, node built-ins only.
           cache: ''
           package-manager-cache: false
-      - name: Did anything the shrink service is built from change?
+      - name: Did anything the shrink service or the deployed site is built from change?
         id: paths
         env:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/ci-changed-paths.mjs >> "$GITHUB_OUTPUT"
 
   # THE CONTAINER'S BASE IMAGE, SCANNED — on pull requests too since 2026-09-29, not only

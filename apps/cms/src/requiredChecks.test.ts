@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ACTIONS_INTEGRATION_ID,
   compareRequiredChecks,
+  OUTPUT_ONLY_NEEDS,
   parseDeployNeeds,
   readBranchRules,
   requiredChecksFromBranchRules,
@@ -117,6 +118,25 @@ describe('compareRequiredChecks', () => {
     const result = compareRequiredChecks({ deployNeeds: renamed, required })
     expect(result.notInDeployNeeds).toEqual(['verify'])
     expect(result.missingFromRuleset).toEqual(['checks'])
+  })
+
+  it('leaves out `changes`, which the deploy needs for its answer, not as a gate', () => {
+    expect(OUTPUT_ONLY_NEEDS).toEqual(['changes'])
+    const withChanges = compareRequiredChecks({
+      deployNeeds: [...deployNeeds, 'changes'],
+      required,
+    })
+    expect(withChanges.missingFromRuleset).toEqual([])
+    // Negative control: any other job the deploy waits for must still be required.
+    const withOther = compareRequiredChecks({ deployNeeds: [...deployNeeds, 'changed'], required })
+    expect(withOther.missingFromRuleset).toEqual(['changed'])
+  })
+
+  it("agrees with the REAL ci.yml's deploy.needs against the live ruleset", async () => {
+    const source = await readFile(join(REPO_ROOT, '.github', 'workflows', 'ci.yml'), 'utf8')
+    const result = compareRequiredChecks({ deployNeeds: parseDeployNeeds(source), required })
+    expect(result.missingFromRuleset).toEqual([])
+    expect(result.notInDeployNeeds).toEqual([])
   })
 
   it('compares a required check with no app pinned, since a job could post it', () => {

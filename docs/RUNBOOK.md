@@ -22,8 +22,12 @@ push and requires the checks `verify`, `e2e`, `audit`, `secrets`, `artwork` and 
    build, bundle weight), `e2e` (the browser tests; since 2026-09-29 they run on separate
    `e2e-shard` machines, seven since 2026-10-05: three viewer, four website; `e2e` passes only if every one did), `audit`, `secrets`
    and `artwork`.
-2. **deploy**, on `main` only, when every gate passed *and*
-   `vars.DEPLOY_ENABLED == 'true'` — backs up D1 and proves the backup restores,
+2. **deploy**, on `main` only, when every gate passed, `vars.DEPLOY_ENABLED == 'true'`
+   *and* something a Worker is built from changed since the last successful deploy.
+   Since 2026-10-26 a merge of only documents, tests or other workflows deploys nothing,
+   because every deploy empties the shared page store (the `changes` job's `site` answer,
+   `scripts/ci-changed-paths.mjs`); `gh workflow run ci.yml --ref main` deploys anyway.
+   It backs up D1 and proves the backup restores,
    applies migrations, deploys the apex Worker and the CMS worker, builds + deploys
    the viewer to the **`run-apparel-viewer-site` Worker** (Static Assets; its only
    target since the 2026-07-22 cutover), then runs the live checks. To undo a deploy,
@@ -231,8 +235,8 @@ interchangeable:
 | Use when | the site is broken *right now* | anything less urgent |
 
 `wrangler rollback` is the fire extinguisher. **Always follow it with a
-`git revert`**, or the next push to `main` silently redeploys the bad build on
-top of your rollback.
+`git revert`**, or the next push to `main` that changes code silently redeploys the
+bad build on top of your rollback (a docs-only push deploys nothing since 2026-10-26).
 
 ### The commands
 
