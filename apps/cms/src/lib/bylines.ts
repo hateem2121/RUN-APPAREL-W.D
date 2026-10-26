@@ -26,11 +26,25 @@
  */
 
 export type Author =
-  | { readonly kind: 'person'; readonly name: string }
+  | {
+      readonly kind: 'person'
+      readonly name: string
+      /** Google's Article guide: the role in `jobTitle`, never in the name. */
+      readonly jobTitle: string
+      /** The site page that identifies the person (Google: `author.url`). */
+      readonly path: string
+    }
   | { readonly kind: 'role'; readonly role: string }
 
 export const AUTHORS = {
-  hateem: { kind: 'person', name: 'M. Hateem Jamshaid' },
+  // One name and one title everywhere, About included (owner, 2026-10-26, site check S-04: the
+  // guides said "M. Hateem Jamshaid" with no title and About "M. Hateem Jamshaid Iqbal").
+  hateem: {
+    kind: 'person',
+    name: 'M. Hateem Jamshaid',
+    jobTitle: 'Business Development Director',
+    path: '/about',
+  },
   merchandiser: { kind: 'role', role: 'Merchandiser, RUN APPAREL' },
   production: { kind: 'role', role: 'Production in-charge, RUN APPAREL' },
   hr: { kind: 'role', role: 'HR, RUN APPAREL' },

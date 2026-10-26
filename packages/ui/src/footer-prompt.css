@@ -34,6 +34,13 @@
   align-items: center;
   justify-content: center;
   min-height: var(--target-min);
+  /*
+   * ⚠️ `max-content`, BECAUSE `inset-inline-start: 50%` HALVES THE ROOM (site check, 2026-10-26).
+   * An absolute box sized by its content may only use the space right of its left edge, so the
+   * label wrapped in 197px on a 393px phone while the cap below allowed 357px (measured, WebKit).
+   * It now takes its one-line width up to the cap, and still wraps past it (200% text at 320px).
+   */
+  width: max-content;
   max-width: calc(100% - var(--notch-r) * 2);
   padding-inline: 24px;
   background: var(--volt);
@@ -47,7 +54,7 @@
    * ⚠️ IT MAY WRAP (site check-up, 2026-10-22). It was `nowrap`, so with the reader's text at twice
    * the size on a 320px phone "START A CONVERSATION" ran past the tab and the screen (52px of
    * sideways scroll on every page, in WebKit, Firefox and Chromium). The label now takes a second
-   * line instead; at the usual size it still fits on one, so nothing moves there.
+   * line instead; at the usual size it fits on one (the `width` above), so nothing moves there.
    */
   text-align: center;
   /* Rounded on top, square at the foot where the tab joins the slab. All four corners are stated:

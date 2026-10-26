@@ -49,6 +49,14 @@ export type FactoryPhoto = {
    * original holds (never an upscale; `scripts/build-factory-photos.mjs` records each original's size).
    */
   widths?: readonly number[]
+  /**
+   * Wider files, written only for a photo the page also draws across the whole column, and offered
+   * ONLY by that figure (`factoryPhotoImage(photo, { full: true })`): the factory gallery's closing
+   * photo since 2026-10-26 (owner, "Building full width"). A 2x laptop asks 2,624 px of it in the
+   * 1,312 px column, where the shape's widest file is 1,600. Every other place that shows the same
+   * photo keeps its own files, so the home page's step 05 downloads nothing new.
+   */
+  fullWidths?: readonly number[]
 }
 
 /**
@@ -82,6 +90,9 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
     focus: [50, 50],
     alt: 'A red-brick factory building with wide steps in front, under a cloudy sky.',
     caption: 'The DURUS INDUSTRIES building in Sialkot, where RUN APPAREL produces',
+    // The gallery closes on it across the column; 3,200 is the widest 8:5 crop its 3,555x2,000
+    // original holds (the crop is the full 2,000 px height).
+    fullWidths: [2400, 3200],
   },
   {
     slug: 'solar-roof',
@@ -259,18 +270,26 @@ export function factoryPhotoWidths(photo: FactoryPhoto): readonly number[] {
   return photo.widths ?? FACTORY_PHOTO_WIDTHS[photo.shape]
 }
 
+/** Every width written for `photo`: its own, then the wider ones a full-width figure offers. */
+export function factoryPhotoFileWidths(photo: FactoryPhoto): readonly number[] {
+  return [...factoryPhotoWidths(photo), ...(photo.fullWidths ?? [])]
+}
+
 /**
  * What an `<img>` of `photo` carries: every width to choose from, and the smallest as `src` and as
  * the reserved size (only its ratio matters there). The page names the `sizes`, as only the page
  * knows how wide it draws the photo.
  */
-export function factoryPhotoImage(photo: FactoryPhoto): {
+export function factoryPhotoImage(
+  photo: FactoryPhoto,
+  { full = false }: { full?: boolean } = {},
+): {
   src: string
   srcSet: string
   width: number
   height: number
 } {
-  const widths = factoryPhotoWidths(photo)
+  const widths = full ? factoryPhotoFileWidths(photo) : factoryPhotoWidths(photo)
   const smallest = widths[0] ?? FACTORY_PHOTO_WIDTHS[photo.shape][0] ?? 0
   return {
     src: factoryPhotoSrc(photo, smallest),

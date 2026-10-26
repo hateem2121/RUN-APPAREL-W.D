@@ -168,6 +168,10 @@ export const CAREERS_PAGE: CompanyPage = {
     { href: '/community', name: 'Community' },
     { href: '/policies', name: 'Policies' },
     { href: '/policies/equal-opportunity', name: 'Equal opportunity' },
+    // The two policies a new hire lives by, linked from here (owner, 2026-10-26: each had 1-2
+    // links pointing to it; claude-seo S-14).
+    { href: '/policies/workplace-conduct', name: 'Workplace conduct' },
+    { href: '/policies/health-and-vaccination', name: 'Health and vaccination' },
     { href: '/contact', name: 'Contact' },
   ],
 }

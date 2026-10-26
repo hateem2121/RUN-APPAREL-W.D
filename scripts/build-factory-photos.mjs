@@ -125,6 +125,8 @@ export const SOURCES = [
     file: 'factory exterior image.png',
     original: [3555, 2000],
     shape: 'wide',
+    // For the factory gallery's full-width closing photo only (`fullWidths`, lib/factoryPhotos.ts).
+    fullWidths: [2400, 3200],
     focus: [0.5, 0.6],
   },
   {
@@ -239,7 +241,7 @@ async function main() {
       )
     }
     const box = cropBox(width, height, shape.aspect, source.focus)
-    for (const w of source.widths ?? shape.widths) {
+    for (const w of [...(source.widths ?? shape.widths), ...(source.fullWidths ?? [])]) {
       if (w > box.width) {
         throw new Error(
           `${source.slug}-${w}: the crop is ${box.width}px wide, so that is an upscale`,

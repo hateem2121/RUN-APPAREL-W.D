@@ -19,6 +19,17 @@ export const HALF_COLUMN_SIZES =
   '(max-width: 1919px) 624px, 704px'
 
 /**
+ * How wide a photo draws across the whole column, in the same page widths: the column itself below
+ * 900 px as above, then 90vw to 1,279 (the page's 5vw gutters), `100vw - 128px` to 1,439, and the
+ * 1,312 / 1,472 px columns. The factory gallery's closing photo (2026-10-26) draws this wide, and
+ * offers its `fullWidths` files for it (lib/factoryPhotos.ts).
+ */
+export const FULL_COLUMN_SIZES =
+  '(max-width: 399px) calc(100vw - 40px), (max-width: 899px) calc(90vw + 2px), ' +
+  '(max-width: 1279px) 90vw, (max-width: 1439px) calc(100vw - 128px), ' +
+  '(max-width: 1919px) 1312px, 1472px'
+
+/**
  * One factory photo placed inside a section (owner, 2026-09-29: "each section should have its
  * own media"). A server component: the picture is complete with scripting off, and the wipe and
  * drift of `.photo-wipe` / `.photo-parallax` in site.css are scroll-driven CSS that a browser

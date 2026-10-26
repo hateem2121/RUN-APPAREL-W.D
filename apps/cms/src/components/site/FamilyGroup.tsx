@@ -14,8 +14,8 @@ type FamilyGroupProps = {
 }
 
 /**
- * One family's group on `/products`: the heading that opens the family's own page (Q25), its count
- * or the owner's "[ ask us ]" words (Q21), and its garments.
+ * One family's group on `/products`: the heading that opens the family's own page (Q25), the
+ * owner's "[ ask us ]" words for a family with no garments yet (Q21), and its garments.
  *
  * ⚠️ ITS OWN FILE SO A TEST CAN DRAW IT (11 Oct 2026). CI's database holds no Teamwear garment, so
  * the page there never has a group long enough to show how the groups stack.
@@ -47,11 +47,9 @@ export function FamilyGroup({ entry, page, products, soon, start }: FamilyGroupP
               <span aria-hidden="true">&rarr;</span>
             </Link>
           </p>
-        ) : (
-          <p className="result-count">
-            {products.length} reference{products.length === 1 ? '' : 's'}
-          </p>
-        )}
+        ) : null}
+        {/* No count here: the family's chip above the groups says it (owner, 2026-10-26, site
+            check: "SPORTSWEAR 10" and "10 REFERENCES" on one screen; D17/D27 keep the chips'). */}
       </div>
       {products.length > 0 ? (
         <ul className="product-grid">

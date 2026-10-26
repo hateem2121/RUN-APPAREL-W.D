@@ -328,6 +328,30 @@
   max-width: var(--site-measure);
 }
 
+/*
+ * The opening words in one section (owner, 2026-10-26, site check H-12): the answer, the byline and
+ * the categories on the left, the mission beside them on a wide screen, under them on a phone.
+ * They were three bands of 25-40 words, each under half the width, 120px of paper apart.
+ */
+.about-intro {
+  display: grid;
+  gap: 32px;
+}
+
+.about-intro__words {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+@media (width >= 900px) {
+  .about-intro {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    column-gap: 64px;
+    align-items: start;
+  }
+}
+
 /* The mission, word for word, drawn as the quote it is (owner, 2026-10-09). */
 .about-mission {
   margin: 0;
@@ -361,6 +385,10 @@
   padding-block-start: 16px;
   display: grid;
   gap: 8px;
+  /* `start`: the entries are stretched to the tallest one in the row, and a stretched grid shared
+     the spare height between its rows, so the titles sat at y 492, 501 and 509 (site check,
+     Hallmark H-05, 2026-10-26). */
+  align-content: start;
 }
 
 .about-timeline__year {
@@ -696,7 +724,7 @@
   margin-block-start: 24px;
 }
 
-/* The gallery: each set a heading and its photos; wide files span the row, tall files pair. */
+/* The gallery: each set a heading and its photos, one column on a phone (the wide layout below). */
 .factory-gallery__set {
   margin-block-start: 32px;
   display: grid;
@@ -718,10 +746,53 @@
   margin: 0;
 }
 
+/*
+ * ⚠️ ON WIDE SCREENS THE SETS FLOW DOWN TWO COLUMNS (owner, 2026-10-26, "two flowing columns").
+ * A two-column grid per set left half the row empty beside a set of one photo: Printing,
+ * Stitching and The Building each hold one, and Quality Control's third photo sat alone
+ * (site check, Hallmark H-01 / impeccable I-06). Inside a column a pair of tall photos sits side
+ * by side and every other photo takes the column's width, so no photo has an empty half beside it.
+ * The space above a set is PADDING, not margin: a margin at the top of a column is dropped where
+ * the browser breaks to the next one, and the second column would start 32px higher.
+ */
 @media (width >= 900px) {
+  .factory-gallery__sets {
+    columns: 2;
+    column-gap: 16px;
+  }
+
+  /* A set may continue in the next column between its photos, never between its label and its
+     first photo: whole sets left the right column 482px short (2026-10-26, 1440px). The last set
+     closes the gallery across both columns (`full` in lib/aboutPages.ts). */
+  .factory-gallery__set {
+    margin-block-start: 0;
+    padding-block-start: 32px;
+  }
+
+  .factory-gallery__label {
+    break-after: avoid;
+  }
+
+  .factory-gallery__open {
+    break-inside: avoid;
+  }
+
+  .factory-gallery__set--full {
+    column-span: all;
+  }
+
   .factory-gallery__photos {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+  }
+
+  .factory-gallery__open {
+    grid-column: 1 / -1;
+  }
+
+  .factory-gallery__open[data-shape="single"]:has(+ [data-shape="single"]),
+  .factory-gallery__open[data-shape="single"] + [data-shape="single"] {
+    grid-column: auto;
   }
 }
 
@@ -741,6 +812,13 @@
 .factory-run__words h2,
 .factory-run__words .label {
   margin: 0;
+}
+
+/* The chip fits its words, as every other label does: a grid item stretches, and this one ran
+   644px wide for 215px of text (site check, Hallmark H-06, 2026-10-26; the timeline stage had
+   the same bug, fixed with `align-items: flex-start`). */
+.factory-run__words .label {
+  justify-self: start;
 }
 
 .factory-run__stat {

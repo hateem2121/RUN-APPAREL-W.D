@@ -14,6 +14,8 @@ export declare const SOURCES: {
   original: [number, number]
   shape: 'wide' | 'single'
   widths?: number[]
+  /** Wider files for a full-width figure only (`fullWidths` in apps/cms/src/lib/factoryPhotos.ts). */
+  fullWidths?: number[]
   focus: [number, number]
 }[]
 

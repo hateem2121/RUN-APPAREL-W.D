@@ -529,7 +529,13 @@ describe('a buyer guide’s Article data', () => {
 
   it('is by the person when the byline names one', () => {
     const data = guideArticleJsonLd(guide('/guides/3d-garment-reference'))
-    expect(data.author).toEqual({ '@type': 'Person', name: 'M. Hateem Jamshaid' })
+    // Name alone, the role as `jobTitle`, and the page that identifies him (site check S-04).
+    expect(data.author).toEqual({
+      '@type': 'Person',
+      name: 'M. Hateem Jamshaid',
+      jobTitle: 'Business Development Director',
+      url: `${SITE_ORIGIN}/about`,
+    })
   })
 
   it('is the company’s when the byline is a role, never a role written as a name', () => {
