@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fadeWhenApplied, frameRegion, holdFrame } from './colourCrossFade'
+import { fadeWhenApplied, holdFrame } from './colourCrossFade'
 
 /**
  * MO2 (polish, 2026-10-04): a colour change fades from the garment's old frame. The browser half
@@ -16,42 +16,7 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
-describe('frameRegion', () => {
-  it('takes the top-left box at the canvas’s own pixels per CSS pixel', () => {
-    // A shared canvas sized for a 500px-wide view at 2x, holding a 400 x 300 garment.
-    expect(
-      frameRegion(
-        { width: 1000, height: 800, style: { width: '500px' } },
-        { width: 400, height: 300 },
-      ),
-    ).toEqual({ width: 800, height: 600 })
-  })
-
-  it('follows a lowered render scale, so the copy is never stretched', () => {
-    // model-viewer drew at half resolution while the GPU was busy: 500 CSS px, 500 buffer px.
-    expect(
-      frameRegion(
-        { width: 500, height: 400, style: { width: '500px' } },
-        { width: 400, height: 300 },
-      ),
-    ).toEqual({ width: 400, height: 300 })
-  })
-
-  it('has nothing to copy from a canvas with no size yet, or a box larger than the canvas', () => {
-    expect(
-      frameRegion({ width: 0, height: 0, style: { width: '' } }, { width: 400, height: 300 }),
-    ).toBeNull()
-    expect(
-      frameRegion({ width: 800, height: 600, style: { width: '' } }, { width: 400, height: 300 }),
-    ).toBeNull()
-    expect(
-      frameRegion(
-        { width: 400, height: 300, style: { width: '200px' } },
-        { width: 400, height: 300 },
-      ),
-    ).toBeNull()
-  })
-})
+// `frameRegion` moved to packages/shared/src/frameCopy.ts with its tests (2026-10-26).
 
 /** A model-viewer stand-in: its shadow root holds the displayed WebGL canvas. */
 function model(canvas: { width: number; height: number; cssWidth: string } | null) {
