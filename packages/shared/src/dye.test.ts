@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrivalField, coverAt, dyeDuration, dyeOrigin, wetShade } from './dye'
+import { arrivalField, containedBox, coverAt, dyeDuration, dyeOrigin, wetShade } from './dye'
 
 const TIMING = { min: 320, max: 640, short: 240 }
 
@@ -104,5 +104,35 @@ describe('coverAt', () => {
       expect(cover).toBeLessThanOrEqual(last)
       last = cover
     }
+  })
+})
+
+describe('containedBox', () => {
+  const none = { top: 0, right: 0, bottom: 0, left: 0 }
+
+  it('fits a picture inside its box as `object-fit: contain` does, centred', () => {
+    // A 4:5 picture in a wide box: full height, centred across.
+    expect(containedBox({ width: 400, height: 200 }, none, { width: 800, height: 1000 })).toEqual({
+      x: 120,
+      y: 0,
+      width: 160,
+      height: 200,
+    })
+  })
+
+  it('fits it inside the padding, as the gallery cards inset their pictures', () => {
+    const inset = { top: 25, right: 20, bottom: 25, left: 20 }
+    expect(containedBox({ width: 400, height: 500 }, inset, { width: 1200, height: 1500 })).toEqual(
+      {
+        x: 20,
+        y: 25,
+        width: 360,
+        height: 450,
+      },
+    )
+  })
+
+  it('has no box for a picture with no size yet', () => {
+    expect(containedBox({ width: 400, height: 500 }, none, { width: 0, height: 0 })).toBeNull()
   })
 })

@@ -1,6 +1,6 @@
 /**
  * A copy of the 3D garment's current frame, for a colour change to start from. Moved here from the
- * viewer's `lib/colourCrossFade.ts` on 2026-10-26 so the website's №03 copies the same way: it took
+ * viewer's `lib/colourCrossFade.ts` (deleted the same day) on 2026-10-26 so the website's №03 copies the same way: it took
  * a `toBlob` picture until then, which encodes and decodes a WebP before anything can move.
  *
  * ⚠️ THE COPY IS A REGION OF model-viewer's CANVAS, NOT ALL OF IT. With one garment on the page
@@ -27,7 +27,7 @@ export function frameRegion(
   if (!(cssWidth > 0) || source.width <= 0 || source.height <= 0) return null
   const ratio = source.width / cssWidth
   // Truncated, as model-viewer's own crop is (a fractional box measured 801.6px wide; rounding
-  // took a column past what its `toBlob` copies, e2e/colour-crossfade-webgl.spec.ts).
+  // took a column past what its `toBlob` copies, apps/viewer/e2e/colour-dye-webgl.spec.ts).
   const width = Math.floor(box.width * ratio)
   const height = Math.floor(box.height * ratio)
   if (width <= 0 || height <= 0 || width > source.width || height > source.height) return null

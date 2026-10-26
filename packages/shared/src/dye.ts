@@ -148,3 +148,30 @@ export function coverAt(arrival: number, t: number, soft = 0.06): number {
   const k = Math.min(Math.max((arrival - (t - soft)) / soft, 0), 1)
   return k * k * (3 - 2 * k)
 }
+
+/**
+ * Where a picture is actually drawn inside its box under `object-fit: contain` (centred, the default
+ * `object-position`), inside its padding: the gallery cards inset their pictures by padding (VA-55),
+ * so the dye's layer lies on the drawn picture, not on the card. In px from the box's top-left;
+ * `null` for a picture with no size yet.
+ */
+export function containedBox(
+  box: { width: number; height: number },
+  padding: { top: number; right: number; bottom: number; left: number },
+  natural: { width: number; height: number },
+): { x: number; y: number; width: number; height: number } | null {
+  const inner = {
+    width: box.width - padding.left - padding.right,
+    height: box.height - padding.top - padding.bottom,
+  }
+  if (!(natural.width > 0 && natural.height > 0 && inner.width > 0 && inner.height > 0)) return null
+  const scale = Math.min(inner.width / natural.width, inner.height / natural.height)
+  const width = natural.width * scale
+  const height = natural.height * scale
+  return {
+    x: padding.left + (inner.width - width) / 2,
+    y: padding.top + (inner.height - height) / 2,
+    width,
+    height,
+  }
+}

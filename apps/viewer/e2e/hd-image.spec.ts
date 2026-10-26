@@ -585,3 +585,55 @@ test.describe(() => {
     await expect(note).toBeVisible()
   })
 })
+
+/*
+ * The HD picture in the 3D window changes colour with the dye (one colour change everywhere,
+ * 2026-10-26; Stage.tsx, `keepHdCopy`). What would have to break: the old picture cut in one frame
+ * (the layer must run across many frames), a dye that never ends or is left showing, the picture
+ * left on the old colour, or a dye for a visitor who asked for less motion.
+ */
+test('the HD picture changes colour with the dye, and leaves nothing over it', async ({ page }) => {
+  await openReady(page, 'wine')
+  test.skip(await stageFallsBack(page), 'without 3D, HD IMAGE opens the full-screen view instead')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await hdButton(page).click()
+  const picture = page.locator('.stage__hd')
+  await expect(picture).toBeVisible()
+  await picture.evaluate((img: HTMLImageElement) => img.decode())
+  await page.evaluate(() => {
+    const w = window as unknown as { __frames: number }
+    w.__frames = 0
+    const tick = () => {
+      if (document.querySelector('.stage__hd-dye')?.hasAttribute('data-running')) w.__frames++
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+  await page.getByRole('tab', { name: 'Pebble / Optic White' }).click()
+  await expect(picture).toHaveAttribute('src', /blush/)
+  const layer = page.locator('.stage__hd-dye')
+  await expect(layer).not.toHaveAttribute('data-running', { timeout: 5000 })
+  expect(
+    await page.evaluate(() => (window as unknown as { __frames: number }).__frames),
+    'the old picture was cut, not soaked away',
+  ).toBeGreaterThan(5)
+  expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
+})
+
+test('under reduced motion the HD picture changes colour at once', async ({ page }) => {
+  await openReady(page, 'wine')
+  test.skip(await stageFallsBack(page), 'without 3D, HD IMAGE opens the full-screen view instead')
+  await hdButton(page).click()
+  await expect(page.locator('.stage__hd')).toBeVisible()
+  await page.evaluate(() => {
+    const w = window as unknown as { __dyed: boolean }
+    w.__dyed = false
+    new MutationObserver(() => {
+      if (document.querySelector('.stage__hd-dye[data-running]')) w.__dyed = true
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-running'] })
+  })
+  await page.getByRole('tab', { name: 'Pebble / Optic White' }).click()
+  await expect(page.locator('.stage__hd')).toHaveAttribute('src', /blush/)
+  await page.waitForTimeout(400)
+  expect(await page.evaluate(() => (window as unknown as { __dyed: boolean }).__dyed)).toBe(false)
+})

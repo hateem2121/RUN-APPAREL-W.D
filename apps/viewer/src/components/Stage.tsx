@@ -1,11 +1,17 @@
-import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import {
+  containedBox,
+  copyModelFrame,
+  playDye,
+  readDyeTiming,
+  type ViewerApiSuccess,
+  type ViewerColourway,
+} from '@run-apparel/shared'
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { boundingRadius, installAdaptiveNearPlane, internalCamera } from '../lib/camera-near-plane'
 import { applyDecalDepthBias, correlatedThreeMaterials } from '../lib/decal-depth-bias'
 import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion, savesData } from '../lib/capabilities'
-import { fadeWhenApplied, holdFrame } from '../lib/colourCrossFade'
 import { displayedColourway } from '../lib/colourwayPreview'
 import { diagnostic } from '../lib/diagnostic'
 import {
@@ -26,8 +32,23 @@ import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { usePrinting } from '../lib/usePrinting'
 import { LoadingTitle } from './LoadingTitle'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
+import { colourwayTabId } from './ColourwayTabs'
 import { HdImageButton } from './HdImageButton'
 import { SpecGroups } from './SpecGroups'
+
+/**
+ * A colour's dot, in px from the top-left of `layer`'s box, for the dye to start from: found by its
+ * tab's id (`colourwayTabId`, which the stage panel already names). `null` where it has none.
+ */
+function dotIn(layer: HTMLElement, slug: string): { x: number; y: number } | null {
+  const dot = document
+    .getElementById(colourwayTabId(slug))
+    ?.querySelector('.colourway-tab__swatch')
+    ?.getBoundingClientRect()
+  if (!dot) return null
+  const box = layer.getBoundingClientRect()
+  return { x: dot.left + dot.width / 2 - box.left, y: dot.top + dot.height / 2 - box.top }
+}
 import { type CameraView, StageControls } from './StageControls'
 import {
   applyAdaptivePan,
@@ -106,9 +127,18 @@ export function Stage({
   const displayed = displayedColourway(separateMode, preview, selected)
 
   const mvRef = useRef<ModelViewerEl | null>(null)
-  /** MO2: the canvas a colour change fades out from, and the colour last applied to the model. */
-  const crossFadeRef = useRef<HTMLCanvasElement | null>(null)
+  /**
+   * The dye's canvas (one colour change everywhere, 2026-10-26), the colour last applied to the model,
+   * and the colour last CHOSEN, so a change of choice plays the full dye and a hover the short one.
+   */
+  const dyeRef = useRef<HTMLCanvasElement | null>(null)
+  // The HD picture's dye: its own layer, a copy of the picture last drawn, and that picture's address.
+  const hdRef = useRef<HTMLImageElement | null>(null)
+  const hdDyeRef = useRef<HTMLCanvasElement | null>(null)
+  const hdCopyRef = useRef<HTMLCanvasElement | null>(null)
+  const hdShownRef = useRef<string | null>(null)
   const appliedVariantRef = useRef<string | null>(null)
+  const committedRef = useRef<string | null>(null)
   // Where keyboard focus goes when TRY 3D AGAIN unmounts itself on press (issue #41).
   const canvasRef = useRef<HTMLDivElement | null>(null)
   /** Last `panSensitivity` written. See PAN_SENS_STEP — one gesture fires ~165 events. */
@@ -663,27 +693,53 @@ export function Stage({
     if (!mv || !modelLoaded) return
     if (separateMode) return // handled via src/poster attributes below
     const available = mv.availableVariants ?? []
-    let stopFade: (() => void) | undefined
+    let stopDye: (() => void) | undefined
+    // A change of choice, not a hover: the full dye.
+    const chosen = committedRef.current !== null && committedRef.current !== selected.slug
+    committedRef.current = selected.slug
     if (available.includes(displayed.variantId)) {
       /*
-       * MO2 (polish, 2026-10-04): the old colour's frame is held over the garment while the new
-       * one is applied, then fades over --fast (lib/colourCrossFade.ts). Not the first colour a
-       * page applies (nothing was showing to fade from), not under reduced motion (the change is
-       * instant, as it was), and not while the HD picture covers the model (`data-hd`).
+       * The new colour soaks in from its dot like dye (owner, 2026-10-26: one dye everywhere a garment
+       * changes colour, packages/shared/src/dyePlayer.ts; MO2's 200ms cross-fade from 2026-10-04 until
+       * then). The old colour's frame is copied over the garment and erased from the dot, the full dye
+       * for a pick and the short one for a hover's preview. Not the first colour a page applies
+       * (nothing was showing to change from), not under reduced motion (the change is instant, as it
+       * was), and not while the HD picture covers the model (`data-hd`).
+       *
+       * ⚠️ THE NEW COLOUR GOES ON ONE FRAME AFTER THE DYE'S FIRST FRAME. Its first render is the
+       * heaviest frame model-viewer draws (121-131 ms of main thread on the live garment, the
+       * viewer-model-viewer rule), and drawn with the dye's first opening it held a pick's first
+       * change back (website №03, measured 2026-10-26: 160-178 ms against 74-86 ms this way).
        */
-      const overlay = crossFadeRef.current
-      if (
-        overlay &&
+      const layer = dyeRef.current
+      const old = document.createElement('canvas')
+      const run =
+        layer &&
         appliedVariantRef.current !== null &&
         mv.variantName !== displayed.variantId &&
         !reduceMotion &&
         !canvasRef.current?.hasAttribute('data-hd') &&
-        holdFrame(mv, overlay)
-      ) {
-        stopFade = fadeWhenApplied(mv, overlay)
-      }
+        copyModelFrame(mv, old)
+          ? playDye({
+              layer,
+              old,
+              point: dotIn(layer, displayed.slug),
+              swatch: displayed.hexSwatch || null,
+              kind: chosen ? 'full' : 'short',
+              timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+            })
+          : null
       appliedVariantRef.current = displayed.variantId
-      mv.variantName = displayed.variantId
+      let alive = true
+      const apply = () => {
+        if (alive) mv.variantName = displayed.variantId
+      }
+      if (run) run.firstFrame.then(() => requestAnimationFrame(apply))
+      else apply()
+      stopDye = () => {
+        alive = false
+        run?.cancel()
+      }
       setNotice(null)
     } else {
       // Keep the current model visible; never a blank stage.
@@ -700,12 +756,13 @@ export function Stage({
         })
       }
     }
-    // A stage that changes before the colour lands lets the held frame go at once, never leaves it.
-    return () => stopFade?.()
+    // A newer colour, or a stage that changes before the colour lands, clears the dye at once.
+    return () => stopDye?.()
   }, [
     modelLoaded,
     displayed.variantId,
     displayed.slug,
+    displayed.hexSwatch,
     selected.slug,
     separateMode,
     product.productCode,
@@ -1073,6 +1130,59 @@ export function Stage({
   const [hdShown, setHdShown] = useState(false)
   const hdPicture = selected.renderScreen ?? selected.render ?? null
   const showHd = hdShown && hdPicture !== null && !fallback
+  /*
+   * The HD picture changes colour with the same dye (one colour change everywhere, 2026-10-26). React
+   * swaps the picture's address in place, so the old pixels are gone by the time an effect runs: a
+   * copy is kept each time a picture loads, and laid over the new one, on the rectangle the picture
+   * is drawn in (`object-fit: contain`), held until the new one has decoded, then soaked away from
+   * its dot. Not when the picture first opens (D9's view transition does that), only between colours.
+   */
+  const keepHdCopy = useCallback(() => {
+    const picture = hdRef.current
+    if (!picture?.naturalWidth) return
+    const copy = document.createElement('canvas')
+    copy.width = picture.naturalWidth
+    copy.height = picture.naturalHeight
+    copy.getContext('2d')?.drawImage(picture, 0, 0)
+    hdCopyRef.current = copy
+  }, [])
+  const hdUrl = showHd ? (hdPicture?.url ?? null) : null
+  useLayoutEffect(() => {
+    const before = hdShownRef.current
+    hdShownRef.current = hdUrl
+    const picture = hdRef.current
+    const layer = hdDyeRef.current
+    const old = hdCopyRef.current
+    if (!hdUrl || !before || before === hdUrl || !picture || !layer || !old) return
+    const style = getComputedStyle(picture)
+    const drawn = containedBox(
+      { width: picture.offsetWidth, height: picture.offsetHeight },
+      {
+        top: Number.parseFloat(style.paddingTop) || 0,
+        right: Number.parseFloat(style.paddingRight) || 0,
+        bottom: Number.parseFloat(style.paddingBottom) || 0,
+        left: Number.parseFloat(style.paddingLeft) || 0,
+      },
+      { width: old.width, height: old.height },
+    )
+    if (!drawn) return
+    Object.assign(layer.style, {
+      left: `${picture.offsetLeft + drawn.x}px`,
+      top: `${picture.offsetTop + drawn.y}px`,
+      width: `${drawn.width}px`,
+      height: `${drawn.height}px`,
+    })
+    const run = playDye({
+      layer,
+      old,
+      point: dotIn(layer, selected.slug),
+      swatch: selected.hexSwatch || null,
+      kind: 'full',
+      timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+      after: picture.decode().catch(() => undefined),
+    })
+    return () => run.cancel()
+  }, [hdUrl, selected.slug, selected.hexSwatch])
   // F14 (above): eager once held or printing; no copy at all while the same picture is still
   // arriving for the download placeholder (which is painted only while the HD picture is not).
   const printHeld = printPicture !== null && heldPosters.has(printPicture.url)
@@ -1252,19 +1362,21 @@ export function Stage({
             </model-viewer>
           )}
 
-          {/* MO2: the old colour's frame while the new one is applied (lib/colourCrossFade.ts).
-              A copy of what is already on screen, so hidden from screen readers; it never takes
-              a pointer, so a drag during the fade turns the garment. */}
+          {/* The dye: the old colour's frame soaking away while the new one is applied
+              (packages/shared/src/dyePlayer.ts). A copy of what is already on screen, so hidden
+              from screen readers; it never takes a pointer, so a drag during it turns the garment. */}
           {libReady && resolvedSrc && !fallback && (
             // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (the website's globe canvas carries the same note).
-            <canvas ref={crossFadeRef} className="stage__crossfade" aria-hidden="true" />
+            <canvas ref={dyeRef} className="dye-layer stage__dye" aria-hidden="true" />
           )}
 
           {/* D9: the colour's studio render in the window, the screen-sized copy (F16). A real
               picture with a real description, unlike the decorative download placeholder. */}
           {showHd && hdPicture && (
             <img
+              ref={hdRef}
               className="stage__hd"
+              onLoad={keepHdCopy}
               src={hdPicture.url}
               alt={
                 hdPicture.alt || `${product.productName} in ${selected.displayName}, studio render`
@@ -1275,6 +1387,13 @@ export function Stage({
                 ? { width: hdPicture.width, height: hdPicture.height }
                 : {})}
             />
+          )}
+
+          {showHd && hdPicture && (
+            // The HD picture's colour change (keepHdCopy, above): a copy of what is already on
+            // screen, so hidden from screen readers.
+            // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (as the dye's canvas above).
+            <canvas ref={hdDyeRef} className="dye-layer stage__hd-dye" aria-hidden="true" />
           )}
 
           {showPlaceholder && placeholder && !showHd && (

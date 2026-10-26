@@ -234,6 +234,31 @@ describe('playDye', () => {
     await still.firstFrame
   })
 
+  it('holds the old picture until the new one is ready, then starts its clock', async () => {
+    const h = harness()
+    let ready = () => {}
+    const after = new Promise<void>((done) => {
+      ready = done
+    })
+    const run = playDye(
+      { layer: h.layer, old: OLD, point: null, swatch: null, kind: 'full', timing: TIMING, after },
+      h.env,
+    )
+    // Held: covered, running, and no first change however long the new picture takes.
+    expect(h.attributes.has('data-running')).toBe(true)
+    h.step(1000)
+    expect(h.marks).toEqual([])
+    ready()
+    await after
+    await Promise.resolve()
+    // Its clock starts now, so the whole dye is still to come.
+    h.step(16)
+    expect(h.marks).toEqual(['dye-first-frame'])
+    for (let i = 0; i < 40; i++) h.step(16)
+    await run.finished
+    expect(h.attributes.has('data-running')).toBe(false)
+  })
+
   it('a hover’s short dye ends at the short token, whatever the distance', async () => {
     const h = harness()
     let done = false

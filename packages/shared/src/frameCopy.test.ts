@@ -5,7 +5,7 @@ import { type CopyTarget, copyModelFrame, frameRegion, type ModelLike } from './
  * The garment's current frame, copied from model-viewer's canvas so a colour change can start from
  * it (moved here from the viewer's colourCrossFade.ts on 2026-10-26, so №03 copies the same way). The
  * browser half (the copy lying exactly on the frame, in a real WebGL canvas) is the viewer's
- * e2e/colour-crossfade-webgl.spec.ts. What would have to break for these to fail: a copy taken from
+ * apps/viewer/e2e/colour-dye-webgl.spec.ts. What would have to break for these to fail: a copy taken from
  * the whole shared canvas (stretched or shifted), or one that throws on an empty canvas.
  */
 

@@ -71,6 +71,11 @@ export type DyeOptions = {
   swatch: string | null
   kind: 'full' | 'short'
   timing: DyeTiming
+  /**
+   * Hold the old picture over the change until this settles (the new picture decoding), then start
+   * the dye's clock: a picture still on its way would otherwise be soaked onto a blank box.
+   */
+  after?: Promise<unknown>
 }
 
 /** The mask's cell, in CSS px: 8, so a 1440px screen's garment is about 100 × 125 cells a frame. */
@@ -163,7 +168,7 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   let frameId = 0
   let marked = false
   let over = false
-  const start = env.now()
+  let start = env.now()
   const end = () => {
     if (over) return
     over = true
@@ -194,7 +199,13 @@ export function playDye(options: DyeOptions, env: DyeEnv = browserDyeEnv()): Dye
   layer.setAttribute('data-running', '')
   // The old picture covers the change from this very moment: the caller swaps the colour next.
   draw(0)
-  frameId = env.frame(tick)
+  const go = () => {
+    if (over) return
+    start = env.now()
+    frameId = env.frame(tick)
+  }
+  if (options.after) options.after.then(go, go)
+  else go()
   return { finished, firstFrame, cancel: end }
 }
 
