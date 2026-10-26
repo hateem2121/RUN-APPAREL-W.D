@@ -42,9 +42,11 @@ const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
+/** One phone number for the company (2026-10-26): the Contact page's call line and the structured data. */
+const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(SITE_CHECK, 'f1b6d4e6e9a2'),
+  '/': page(ONE_NUMBER, 'ab071c0acb93'),
   '/products': page(SITE_CHECK, '033a56dfbd1f'),
   '/custom-teamwear-manufacturer': page(SITE_CHECK, '18a602bbf355'),
   '/custom-activewear-manufacturer': page(SITE_CHECK, '0668dfbc51a4'),
@@ -63,7 +65,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/glossary': page(SITE_CHECK, '92789da87f82'),
   '/journal': page(BUYER_GUIDE_LINKS, '70ef49791a5f'),
   '/case-studies': page(FINDABILITY, '41b19e1d9a71'),
-  '/contact': page(SITE_CHECK, 'f5b6b49e1f0e'),
+  '/contact': page(ONE_NUMBER, 'c601c0541d6a'),
   '/privacy': page(SITE_CHECK, '0a96254ac2f9'),
   '/terms': page(SITE_CHECK, '6d0e930fcd18'),
 }

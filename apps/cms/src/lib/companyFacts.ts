@@ -153,18 +153,14 @@ export const WHAT_WE_MAKE = 'teamwear, activewear, casual wear, outerwear and sp
  */
 export const LEGAL_NAME = 'RUN APPAREL (PRIVATE) LIMITED'
 
-/**
- * The second number, for a call. The first is the CMS `whatsappNumber`.
- *
- * The owner asked for both numbers in the company's structured data (2026-10-08), and then for
- * this one to be shown on /contact first, because Google's structured-data policy (updated
- * 2026-07-10) says not to mark up anything a visitor cannot see. A constant for now: a CMS field
- * needs a D1 migration, and one for another change was in progress that day. Move it into
- * `SiteSettings` with the next migration, so the owner can edit it.
+/*
+ * The company has ONE phone number, the CMS `whatsappNumber`, for calls and WhatsApp alike
+ * (owner, 2026-10-26: "only have a single number, +92-336-1777313"). A second call line
+ * lived here as `CALL_NUMBER` from 2026-10-08 and was removed that day;
+ * `src/singlePhoneNumber.test.ts` fails if another real number is added anywhere.
  */
-export const CALL_NUMBER = '+92 305 6161313'
 
-/** `tel:` link for a number written with spaces, as `CALL_NUMBER` is. */
+/** `tel:` link for a number however it is written (`+92 336 1777313` → `tel:+923361777313`). */
 export function telHref(number: string): string {
   return `tel:${number.replace(/[^\d+]/g, '')}`
 }

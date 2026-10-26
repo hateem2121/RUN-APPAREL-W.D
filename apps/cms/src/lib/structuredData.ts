@@ -1,5 +1,5 @@
 import { formatPhoneForDisplay, normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
-import { CALL_NUMBER, LEGAL_NAME, PARENT_COMPANY, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
+import { LEGAL_NAME, PARENT_COMPANY, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
 import { bylineFor } from './bylines'
@@ -73,15 +73,14 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
   }
 
   /*
-   * Both numbers the Contact page shows (owner, 2026-10-08): the WhatsApp one from the CMS and
-   * the call line from `companyFacts.ts`. Only numbers a visitor can see — Google's policy
-   * (updated 2026-07-10) is not to mark up what a visitor cannot.
+   * The company's one number, the CMS one the Contact page shows for calls and WhatsApp
+   * (owner, 2026-10-26). Google's Organization guide (updated 2026-09-08) reads `telephone` as
+   * "the primary contact method", so it is one string, not a list. Left out when the CMS has
+   * none: Google's policy (updated 2026-07-10) is not to mark up what a visitor cannot see.
    */
-  const whatsapp = normalizeWhatsAppNumber(settings.whatsappNumber)
-  const telephone = [
-    ...(whatsapp ? [formatPhoneForDisplay(settings.whatsappNumber)] : []),
-    CALL_NUMBER,
-  ]
+  const telephone = normalizeWhatsAppNumber(settings.whatsappNumber)
+    ? formatPhoneForDisplay(settings.whatsappNumber)
+    : undefined
 
   return {
     '@context': 'https://schema.org',
@@ -102,7 +101,7 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
     // The home page's share picture (polish X14): `og-default.png` showed the old address.
     image: shareImageUrl(shareCardFor('/'), SITE_ORIGIN),
     email: settings.email,
-    telephone,
+    ...(telephone ? { telephone } : {}),
     address: {
       '@type': 'PostalAddress',
       streetAddress: POSTAL_ADDRESS.street,
