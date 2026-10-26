@@ -1,0 +1,18 @@
+/*
+ * The colour change's layer (owner, 2026-10-26: one dye everywhere a garment changes colour). A canvas
+ * laid exactly over the picture it changes, on which packages/shared/src/dyePlayer.ts draws the OLD
+ * colour and erases it as the new one soaks in. It never takes the pointer, so a click or a drag
+ * during a change reaches the garment or the link underneath, and it is not drawn at all between
+ * changes. Each place positions its own layer's box (site.css, page.css); this holds what all share.
+ */
+.dye-layer {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  pointer-events: none;
+}
+
+.dye-layer:not([data-running]) {
+  visibility: hidden;
+}

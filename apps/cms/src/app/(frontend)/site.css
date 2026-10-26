@@ -6,6 +6,8 @@
  * here, they ride inside this sheet wherever it goes. An @import must come before every rule.
  */
 @import "@run-apparel/ui/fallback-faces.css";
+/* The colour change's layer, shared with the garment pages (2026-10-26), here for the same reason. */
+@import "@run-apparel/ui/dye.css";
 
 /*
  * Public marketing site chrome — header, footer, page sections, product grid.

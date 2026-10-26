@@ -1250,6 +1250,9 @@ same class of defect as the 1.00:1 skip link `tokens.test.ts` was written for.
 | `--settle` | 500ms |
 | `--slow` | 800ms |
 | `--showpiece` | 1400ms |
+| `--dye-min` | 320ms |
+| `--dye-max` | 640ms |
+| `--dye-short` | 240ms |
 | `--stagger` | 40ms |
 | `--reveal-y` | 24px |
 
@@ -1279,6 +1282,7 @@ So the lock holds and the scale grows:
 | The site's showpieces only: the numbers counting up and the contact globe's routes (the order timeline's drawn line was the third until polish D4 replaced the timeline with stacking cards, 2026-10-05) | `--showpiece` (owner decision 2026-09-29, D26 in `docs/DECISIONS-BETA-WEBSITE.md`) |
 | Retargeted progress fills | `--fast` (see `page.css`'s note — a fill retargeted several times a second visibly trails the number beside it at anything slower) |
 | The phone contact bar fading away while the page's own Email and WhatsApp, or the footer, are on screen (VA-54, 2026-10-02; the footer 2026-10-03) | `--fast`, as the audit's fix text asks. It follows the scroll position, which a visitor can reverse at any moment, so it is the retargeted case above rather than a state a finger is waiting on (`--ui`, 20ms slower). See "The phone contact bar" |
+| A garment changing colour, anywhere: the dye soaking in from the chosen dot (owner, 2026-10-26; `packages/shared/src/dyePlayer.ts`). A full dye scales with its distance, so a gallery card finishes near `--dye-min` and the 3D garment near `--dye-max`; a hover on a garment page previews with the short one | `--dye-min` to `--dye-max`, and `--dye-short` |
 | The pause between rows that arrive one after another — the phone menu's rows only (visual audit VA-51, 2026-10-01); never the page's entrance reveals (D8) | `--stagger` |
 
 **Do not "simplify" this by collapsing `--fast` and `--ui`.** They are 20ms apart
