@@ -1020,7 +1020,14 @@ describe('the 404, the policy, and analytics', () => {
      * build, which is the wrong direction for a security guard to point.
      */
     // `isSignedInPerson` (2026-09-26) is `isAuthenticated` minus API keys, so stricter still.
-    const GATED = ['isAuthenticated', 'isSignedInPerson', 'isAdminOrEditor', 'isAdmin']
+    // `isAdminPerson` (2026-10-26) is `isAdmin` minus API keys: Events moved to it that day.
+    const GATED = [
+      'isAuthenticated',
+      'isSignedInPerson',
+      'isAdminOrEditor',
+      'isAdmin',
+      'isAdminPerson',
+    ]
     const roles = code(join(CMS_ROOT, 'src', 'access'), 'roles.ts')
     for (const helper of GATED) expect(roles).toContain(`export const ${helper}`)
 

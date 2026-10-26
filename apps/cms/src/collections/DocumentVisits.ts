@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { isAdmin } from '../access/roles'
+import { isAdmin, isAdminPerson } from '../access/roles'
 
 /**
  * One row per day, document, visitor code and kind — written only by the documents
@@ -36,7 +36,8 @@ export const DocumentVisits: CollectionConfig = {
   },
   defaultSort: '-lastAt',
   access: {
-    read: isAdmin,
+    // A person, never an API key: the robot's key is an admin's too (roles.ts, isAdminPerson).
+    read: isAdminPerson,
     create: () => false,
     update: () => false,
     delete: isAdmin,

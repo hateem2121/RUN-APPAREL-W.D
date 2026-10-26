@@ -4,6 +4,7 @@ import {
   isAdmin,
   isAdminFieldLevel,
   isAdminOrEditor,
+  isAdminPerson,
   isAuthenticated,
   isSignedInPerson,
 } from './roles'
@@ -102,5 +103,25 @@ describe('role access matrix', () => {
     expect(call(isSignedInPerson, null)).toBe(false)
     // Negative control: the rule it replaced on Inquiries lets the same key straight in.
     expect(call(isAuthenticated, robot)).toBe(true)
+    // The robot as it really is in production since at least 2026-10-26: an ADMIN key.
+    expect(call(isSignedInPerson, { role: 'admin', _strategy: 'api-key' })).toBe(false)
+  })
+
+  /**
+   * The production robot is an ADMIN that signs in with an API key (D1 `users`, read
+   * 2026-10-26), so `isAdmin` alone admits it. `isAdminPerson` must admit only an admin
+   * signed in as a person.
+   */
+  it('isAdminPerson admits a signed-in admin and refuses every API key, the admin robot included', () => {
+    const adminRobot = { role: 'admin', _strategy: 'api-key' }
+    expect(call(isAdminPerson, { role: 'admin', _strategy: 'local-jwt' })).toBe(true)
+    expect(call(isAdminPerson, { role: 'admin' })).toBe(true)
+    expect(call(isAdminPerson, adminRobot)).toBe(false)
+    expect(call(isAdminPerson, { role: 'editor', _strategy: 'local-jwt' })).toBe(false)
+    expect(call(isAdminPerson, { role: 'editor', _strategy: 'api-key' })).toBe(false)
+    expect(call(isAdminPerson, null)).toBe(false)
+    expect(call(isAdminPerson, { role: 'administrator' })).toBe(false)
+    // Negative control: the rule it replaced lets the admin robot's key straight in.
+    expect(call(isAdmin, adminRobot)).toBe(true)
   })
 })

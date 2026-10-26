@@ -473,9 +473,13 @@ existing 40 MB guardrail applies.
    `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`. Set the real endpoint in
    `apps/shrink/wrangler.jsonc` (`R2_INGEST_S3_ENDPOINT`).
 
-4. **Create the robot CMS user:** in the CMS, add a user with role **Editor**
-   (e.g. `robot@wear-run.help`), open it, enable **API Key**, and copy the key.
-   (API-key auth is already enabled on the Users collection.)
+4. **Create the robot CMS user:** in the CMS, add a user with role **Admin**
+   (e.g. `robot@wear-run.help`), open it, enable **API Key**, copy the key, and click
+   **Save**. (API-key auth is already enabled on the Users collection.) Admin, not
+   Editor: the robot deletes the unused models it leaves behind, and deleting media is
+   admin-only; as an Editor those deletes are refused and the files pile up (checked
+   2026-10-26). Customer and visitor data stay closed to its key (`isSignedInPerson`,
+   `isAdminPerson` in `apps/cms/src/access/roles.ts`).
 
 5. **Set the shrink worker secrets:**
    ```bash

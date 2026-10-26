@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { isAdmin } from '../access/roles'
+import { isAdminPerson } from '../access/roles'
 
 /**
  * One row per Monday–Sunday week — the weekly-email guard and its outcome (Task 8).
@@ -11,7 +11,8 @@ export const DocumentVisitEmails: CollectionConfig = {
   versions: false,
   admin: { group: 'System', hidden: true },
   access: {
-    read: isAdmin,
+    // A person, never an API key: the robot's key is an admin's too (roles.ts, isAdminPerson).
+    read: isAdminPerson,
     create: () => false,
     update: () => false,
     delete: () => false,
