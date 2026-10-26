@@ -145,13 +145,42 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
     [strip, count],
   )
 
+  // The photo the viewer shows or is going to, for a key heard between renders.
+  const indexNow = useRef(index)
+  indexNow.current = index
+
   const goTo = useCallback(
     (next: number) => {
+      if (!strip) return
       slide(next, false)
+      indexNow.current = next
       setIndex(next)
     },
-    [slide],
+    [slide, strip],
   )
+
+  /*
+   * ⚠️ THE ARROWS ARE HEARD ON THE DOCUMENT, NOT ONLY IN THE VIEWER (2026-10-26). base-ui moves focus
+   * into the viewer a moment after it opens (`initialFocus` says where, not when), and a key pressed
+   * in that moment went to the photo link behind, so the viewer never heard it: main's run
+   * 40319113023 (WebKit, "3 / 8" where "4 / 8" was due, on both tries), and in 2 of 6 recorded runs in
+   * CI's image the key's target was the gallery link, not the viewer. While the viewer is open nothing
+   * else on the page takes the arrows, so it listens for them wherever they land.
+   * ⚠️ ON THE WAY DOWN (capture), NOT ON THE WAY UP: a key pressed inside the viewer never bubbles
+   * back to the document (recorded in CI's WebKit: the window's capture listener heard it, its bubble
+   * listener did not), so a bubbling listener stepped nothing once focus had arrived.
+   */
+  useEffect(() => {
+    if (!open) return
+    const onKey = (event: KeyboardEvent) => {
+      const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+      if (step === 0) return
+      event.preventDefault()
+      goTo(stepIndex(indexNow.current, step, count))
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [open, goTo, count])
 
   const onScroll = () => {
     if (!strip) return
@@ -166,16 +195,6 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
     heading.current = null
   }
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault()
-      goTo(stepIndex(index, -1, count))
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault()
-      goTo(stepIndex(index, 1, count))
-    }
-  }
-
   if (count === 0) return null
   const load = photosToLoad(index, count)
 
@@ -183,11 +202,7 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Backdrop className="photo-viewer__backdrop" />
-        <Dialog.Popup
-          className="photo-viewer"
-          finalFocus={() => opener.current}
-          onKeyDown={onKeyDown}
-        >
+        <Dialog.Popup className="photo-viewer" finalFocus={() => opener.current}>
           <div className="photo-viewer__bar">
             <Dialog.Title className="visually-hidden">{viewerTitle(index, count)}</Dialog.Title>
             <p className="photo-viewer__count" aria-live="polite">
