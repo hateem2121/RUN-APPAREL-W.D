@@ -476,6 +476,27 @@ test.describe('the factory photo viewer', () => {
   })
 
   /*
+   * A key pressed before the viewer has focus. base-ui moves focus in a moment after the viewer
+   * opens, and in that moment a key lands on the photo link behind it: main's run 40319113023 lost
+   * the press that way ("3 / 8" where "4 / 8" was due), and in 2 of 6 recorded runs in CI's image the
+   * key's target was `factory-gallery__open`. Here the key is sent to that link on purpose, in every
+   * engine, so the test does not depend on how fast focus arrives.
+   */
+  test('an arrow pressed before the viewer has focus still steps the photos', async ({ page }) => {
+    await page.goto('/inside-the-factory')
+    const count = await links(page).count()
+    const third = links(page).nth(2)
+    await third.scrollIntoViewIfNeeded()
+    await third.click()
+    const counter = page.getByRole('dialog').locator('.photo-viewer__count')
+    await expect(counter).toHaveText(`3 / ${count}`)
+    await third.evaluate((link) =>
+      link.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
+    )
+    await expect(counter).toHaveText(`4 / ${count}`)
+  })
+
+  /*
    * While the strip slides to the next photo, the counter says that photo and nothing else. The
    * slide's own scroll events once set it back to the photo being left for half the slide
    * ("3 / 8", "4 / 8", "3 / 8": PR #154's WebKit job, 2026-10-09), so a second key press in that
