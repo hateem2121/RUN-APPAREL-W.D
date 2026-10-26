@@ -622,6 +622,116 @@ describe('buildPreview — the readable page body for robots', () => {
     expect(html).toContain('&lt;/div&gt;&lt;script&gt;alert(1)&lt;/script&gt;')
   })
 
+  /**
+   * The garment's own customization section (CustomisationSection.tsx), owner 2026-10-26 (site
+   * check). Live on R-XPS, the phrase "custom cycling skinsuit manufacturer" was only inside the
+   * `#viewer-payload` JSON: the copy for robots printed the description and the facts and left out
+   * the section the visitor reads below them. The fields are the ones the page prints, so this is
+   * the page's own text and not cloaking. Invented words in the live copy's shape.
+   */
+  describe('the customization section', () => {
+    const custom = () =>
+      payload({
+        product: {
+          customisationIntroHtml:
+            '<div class="payload-richtext"><p>We work as a custom cycling skinsuit manufacturer ' +
+            'for brands &amp; teams. Test orders start at 50 pieces.</p></div>',
+          customisationSteps: [
+            { number: 1, title: 'START WHERE YOU ARE', body: 'A tech pack, a sample or a sketch.' },
+            { number: 2, title: 'LOCK THE SPECIFICATION', body: 'We fix the knit, fit and pad.' },
+          ],
+        },
+      })
+
+    it('prints the intro the page shows, as visible text', () => {
+      const html = onSite(custom())
+      expect(html).toContain(
+        '<p>We work as a custom cycling skinsuit manufacturer for brands &amp; teams. ' +
+          'Test orders start at 50 pieces.</p>',
+      )
+      expect(html).toContain('<h2>From idea to production.</h2>')
+      // Text, not the CMS's markup: no wrapper div or class reaches the robots' copy.
+      expect(html).not.toContain('payload-richtext')
+    })
+
+    it('prints every step, in the order the page lists them, with its number kept', () => {
+      const html = onSite(custom())
+      expect(html).toContain(
+        '<ol><li value="1"><h3>START WHERE YOU ARE</h3><p>A tech pack, a sample or a sketch.</p></li>' +
+          '<li value="2"><h3>LOCK THE SPECIFICATION</h3><p>We fix the knit, fit and pad.</p></li></ol>',
+      )
+    })
+
+    it('sits after the facts and before "More from this category", as on the page', () => {
+      const html = onSite(
+        payload({
+          product: {
+            ...custom().product,
+            performanceFeatures: ['Four-way stretch'],
+          },
+          related: [
+            {
+              slug: 'r-xmp',
+              colourSlug: 'black',
+              productName: 'X-Max Pro',
+              productCode: 'R-XMP',
+              imageUrl: null,
+            },
+          ],
+        }),
+      )
+      expect(html.indexOf('<dl>')).toBeLessThan(html.indexOf('From idea to production.'))
+      expect(html.indexOf('From idea to production.')).toBeLessThan(
+        html.indexOf('More Sportswear in 3D.'),
+      )
+    })
+
+    it('is on the website and the old viewer host alike, like the description', () => {
+      expect(build(custom()).bodyHtml).toContain('custom cycling skinsuit manufacturer')
+    })
+
+    it('escapes what the CMS typed, in the intro and in a step', () => {
+      const html = onSite(
+        payload({
+          product: {
+            customisationIntroHtml:
+              '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p><script>alert(2)</script>',
+            customisationSteps: [{ number: 1, title: '<b>X</b>', body: '"quoted" & <i>raw</i>' }],
+          },
+        }),
+      )
+      expect(html).not.toContain('<script')
+      expect(html).not.toContain('<b>X')
+      expect(html).not.toContain('<i>')
+      expect(html).toContain('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>')
+      expect(html).toContain('<h3>&lt;b&gt;X&lt;/b&gt;</h3>')
+      expect(html).toContain('&quot;quoted&quot; &amp; &lt;i&gt;raw&lt;/i&gt;')
+    })
+
+    it('says nothing when the owner wrote neither: no heading, no list, no stock sentence', () => {
+      const html = onSite(payload({}))
+      expect(html).not.toContain('From idea to production')
+      expect(html).not.toContain('<ol>')
+      // The page's stock fallback sentence is the same on every garment; it is not a robot's copy.
+      expect(html).not.toContain('Send us a finished design')
+    })
+
+    it('skips a step with no words and keeps the rest', () => {
+      const html = onSite(
+        payload({
+          product: {
+            customisationSteps: [
+              { number: 1, title: '  ', body: '' },
+              { number: 2, title: 'SAMPLE', body: 'Approve it.' },
+            ],
+          },
+        }),
+      )
+      expect(html).toContain('<ol><li value="2"><h3>SAMPLE</h3><p>Approve it.</p></li></ol>')
+      expect(html).not.toContain('value="1"')
+    })
+  })
+
   it('states no price, like the structured data beside it', () => {
     expect(onSite(full())).not.toMatch(/price|\$|USD|PKR/i)
   })
