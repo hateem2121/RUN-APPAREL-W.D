@@ -131,9 +131,15 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   entrypoint stamps each answer with its own nonce. 🟡 Never switch caching on for `default` (it
   would hand one visitor's nonce to the next, and it serves the admin) and keep the HOST in the
   key (`sharedCacheKey`: Workers Cache ignores hosts). A local preview keeps nothing (measured
-  2026-10-24); only the live site shows `page-cache;desc="hit"`. The key holds the deploy (`CF_VERSION_METADATA`) and a
-  content version that every save of a product, a picture or the site settings rewrites in KV
-  (`SITE_CACHE`, `src/lib/contentVersion.ts`). Behind it, `src/lib/content.ts` keeps content in
+  2026-10-24); only the live site shows `page-cache;desc="hit"`. The key holds the deploy (`CF_VERSION_METADATA`).
+  🟡 Since 2026-10-25 a save no longer changes the key: `src/lib/contentVersion.ts` calls
+  `SitePages.invalidateKept` (Workers Cache `invalidate()`, which works only inside the cached
+  entrypoint) and each copy carries `Cache-Tag` + `stale-while-revalidate`, so a region is served
+  the old copy while the new one is drawn. KV `page-store-mode` = `versioned` puts the content
+  version back in the key without a deploy (the off switch; saves still write it). 🟡 In
+  practice each REGION keeps its own copy (25 Oct: Marseille and Muscat each drew the sitemap the
+  US already held), and a fresh Worker copy's first request costs ~8x a warm one (local profile,
+  208 vs 24 ms; live `/privacy` 34 ms warm, up to 1,157 ms cold). Behind it, `src/lib/content.ts` keeps content in
   memory for 60 seconds per isolate; a page drawn to be kept skips that memory, and a page drawn
   from the fallbacks is never kept. A CMS edit reaches the site within about a minute.
   🟡 Do NOT switch on OpenNext's incremental cache instead: Next pre-builds `/sitemap.xml`

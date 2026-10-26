@@ -22,6 +22,12 @@
  * SitePages; a visitor's is empty), so the timings read the empty ones and the draws are counted
  * by name. Splitting on the user-agent instead loses the 26 visitors that send none.
  *
+ * ⚠️ PEOPLE APART TOO (2026-10-25, owner's plan). Of 612 home-page opens on 25 Oct 08:00-18:40 UTC,
+ * 279 were our own checks and 270 robots; 63 were people. The targets are about people, so their
+ * line reads only requests with no robot label (`cf.verifiedBotCategory` empty) and none of our own
+ * agents (OWN_AGENTS). Checked live that day: the filter counted the same 63, p90 3,032 ms, as a
+ * request-by-request reading of the same window.
+ *
  * ⚠️ NUMBERS AND FIXED WORDS ONLY. On a public repository every Actions log is public (root
  * CLAUDE.md, the 2026-09-11 incident), and the summary is also written into a GitHub issue. Nothing
  * from the API response is printed except the numbers this module picks out, and an error is a
@@ -33,6 +39,22 @@ export const CMS_SERVICE = 'run-apparel-viewer-cms'
 
 /** The store's entrypoint (worker.mjs): the only requests that carry an entrypoint name. */
 export const STORE_ENTRYPOINT = 'SitePages'
+
+/**
+ * Our own checks and robots that carry no robot label: uptime, the probes, the README badge, the
+ * scripts. A request carrying any of these in its user agent is never counted as a person.
+ */
+export const OWN_AGENTS = Object.freeze([
+  'run-apparel',
+  'RUN APPAREL',
+  'UptimeRobot',
+  'Shields.io',
+  'curl/',
+  'node',
+  'Go-http-client',
+  'HeadlessChrome',
+  'Lighthouse',
+])
 
 /** The four targets, from the plan the owner approved on 24 Oct. */
 export const TARGETS = Object.freeze({
@@ -56,7 +78,8 @@ export const ROUTES = Object.freeze({
  * @param {keyof typeof ROUTES} route
  * @param {number} from epoch ms
  * @param {number} to epoch ms
- * @param {'visitors' | 'draws'} [who] the visitors' requests (timed), or the store's own draws
+ * @param {'visitors' | 'draws' | 'people'} [who] the visitors' requests (timed), the store's own
+ *   draws, or the visitors that are people
  */
 export function queryBody(route, from, to, who = 'visitors') {
   const { match, url } = ROUTES[route]
@@ -64,6 +87,25 @@ export function queryBody(route, from, to, who = 'visitors') {
     who === 'draws'
       ? { key: '$workers.entrypoint', operation: 'eq', type: 'string', value: STORE_ENTRYPOINT }
       : { key: '$workers.entrypoint', operation: 'is_null', type: 'string' }
+  const agent = '$workers.event.request.headers.user-agent'
+  const people =
+    who === 'people'
+      ? [
+          {
+            key: '$workers.event.request.cf.verifiedBotCategory',
+            operation: 'eq',
+            type: 'string',
+            value: '',
+          },
+          { key: agent, operation: 'exists', type: 'string' },
+          ...OWN_AGENTS.map((value) => ({
+            key: agent,
+            operation: 'not_includes',
+            type: 'string',
+            value,
+          })),
+        ]
+      : []
   return {
     queryId: `weekly-digest-page-store-${route}-${who}`,
     view: 'calculations',
@@ -74,6 +116,7 @@ export function queryBody(route, from, to, who = 'visitors') {
         { key: '$metadata.service', operation: 'eq', type: 'string', value: CMS_SERVICE },
         { key: '$workers.event.request.url', operation: match, type: 'string', value: url },
         entrypoint,
+        ...people,
       ],
       calculations: [
         { operator: 'count', alias: 'requests' },
@@ -117,9 +160,11 @@ const verdict = (value, target) =>
  *
  * @param {{ home: ReturnType<typeof readCalculations>, sitemap: ReturnType<typeof readCalculations>, data: ReturnType<typeof readCalculations> }} r
  * @param {{ home?: number, sitemap?: number, data?: number }} [draws] how many the store drew fresh
+ * @param {{ home?: ReturnType<typeof readCalculations>, data?: ReturnType<typeof readCalculations> }} [people]
+ *   the same readings for people only
  * @returns {{ requests: number, summary: string }}
  */
-export function summarizePageStore(r, draws = {}) {
+export function summarizePageStore(r, draws = {}, people = {}) {
   const requests = r.home.requests + r.sitemap.requests + r.data.requests
   if (requests === 0) {
     return {
@@ -140,6 +185,12 @@ export function summarizePageStore(r, draws = {}) {
     `- Garment data: p90 ${ms(r.data.p90)} (${verdict(r.data.p90, TARGETS.dataP90)}, target under ${TARGETS.dataP90} ms), ${over('data')}. Before: 677 ms.`,
     `- Sitemap processor time: median ${ms(r.sitemap.cpuP50)} (${verdict(r.sitemap.cpuP50, TARGETS.sitemapCpuP50)}, target under ${TARGETS.sitemapCpuP50} ms), ${over('sitemap')}. Before: 595 ms.`,
   ]
+  if (people.home && people.data) {
+    const { home, data } = people
+    lines.push(
+      `- People only (no robot label, none of our own checks): home page p90 ${ms(home.p90)} (${verdict(home.p90, TARGETS.homeP90)}, under ${TARGETS.homeP90} ms) over ${home.requests} requests; garment data p90 ${ms(data.p90)} (${verdict(data.p90, TARGETS.dataP90)}, under ${TARGETS.dataP90} ms) over ${data.requests} requests.`,
+    )
+  }
   return { requests, summary: lines.join('\n') }
 }
 
@@ -186,6 +237,7 @@ async function main() {
         sitemap: (await read('sitemap', 'draws')).requests,
         data: (await read('data', 'draws')).requests,
       },
+      { home: await read('home', 'people'), data: await read('data', 'people') },
     )
     console.log(`requests=${requests}`)
     console.log(summary)

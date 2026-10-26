@@ -35,8 +35,8 @@ function stripComments(source: string): string {
 const ORIGIN = 'https://viewer.wear-run.help'
 
 const CARDS: Record<string, OgCard> = {
-  'n001/wine': { width: 1200, height: 1500 },
-  'n001/blush': { width: 1200, height: 1500 },
+  'n001/wine': { width: 1200, height: 630, hash: 'a1b2c3d4e5', source: 'render' },
+  'n001/blush': { width: 1200, height: 630, hash: 'f6a7b8c9d0', source: 'snapshot' },
 }
 
 /** Shaped from the real live payload for n001/wine, captured 2026-08-08. */
@@ -131,10 +131,20 @@ function payload(overrides: {
 const build = (p: ViewerApiSuccess) => buildPreview(p, { origin: ORIGIN, cards: CARDS })
 
 describe('buildPreview — title', () => {
-  it('leads with the product code and ends with the colour', () => {
-    // The code is what is printed on the physical tag and quoted back in email;
-    // the colour is last because it is the part that differs between two links
-    // someone has been sent side by side.
+  /**
+   * 2026-10-25 (owner's plan): the card's title is the page's own title without the brand,
+   * as Meta asks ("without any branding such as your site name"). It led with the product
+   * code until then; the code moved to the front of the description (tested below).
+   */
+  it('is the page title without the brand, for a garment with a garment type', () => {
+    const preview = build(payload({ product: { garmentType: "Women's Cycling Skinsuit" } }))
+    expect(preview.title).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Wine")
+    expect(preview.title).not.toContain('RUN APPAREL')
+    expect(preview.title).not.toContain('N001')
+  })
+
+  it('keeps the code-led title for a garment with no garment type yet, like its page title', () => {
+    // NEGATIVE CONTROL for the case above: same payload, no type.
     expect(build(payload({})).title).toBe('N001 Velocity Performance Skinsuit — Wine')
   })
 
@@ -166,8 +176,8 @@ describe('buildPreview — the page title search engines show', () => {
   it('says the garment type when the owner has typed one, and ends with the brand', () => {
     const preview = build(payload({ product: { garmentType: "Women's Cycling Skinsuit" } }))
     expect(preview.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Wine")
-    // …and the link preview still leads with the code.
-    expect(preview.title).toBe('N001 Velocity Performance Skinsuit — Wine')
+    // …and the link preview says the same, without the brand (2026-10-25).
+    expect(preview.title).toBe(preview.pageTitle.replace(/ \| RUN APPAREL$/, ''))
   })
 
   it('keeps the code-led title, with the brand, for a garment with no type yet', () => {
@@ -230,6 +240,16 @@ describe('buildPreview — description', () => {
     const { description } = build(payload({ colourways: [live], selectedColourway: live }))
     expect(description).toContain('Wine')
     expect(description).not.toContain(retired.displayName)
+  })
+
+  it('leads with the product code once the code has left the title (2026-10-25)', () => {
+    const typed = build(payload({ product: { garmentType: "Women's Cycling Skinsuit" } }))
+    expect(typed.description).toBe(
+      'N001 · Race fit · 80% recycled polyester / 20% elastane, 160 GSM. ' +
+        'Shown in Wine. See all 3 colorways in 3D.',
+    )
+    // NEGATIVE CONTROL: with no type the title carries the code, so it is not said twice.
+    expect(build(payload({})).description.startsWith('Race fit')).toBe(true)
   })
 
   it('never returns an empty description, however little the CMS holds', () => {
@@ -360,17 +380,29 @@ describe('buildPreview — canonical url', () => {
       prefix: '/products',
     })
     expect(preview.url).toBe('https://wear-run.com/products/n001/wine')
-    expect(preview.image!.url).toBe('https://wear-run.com/og/n001/wine.jpg')
+    expect(preview.image!.url).toBe('https://wear-run.com/og/n001/wine.jpg?v=a1b2c3d4e5')
   })
 })
 
 describe('buildPreview — image', () => {
   it('prefers the shipped JPEG card, with the manifest’s real dimensions', () => {
     const image = build(payload({})).image!
-    expect(image.url).toBe('https://viewer.wear-run.help/og/n001/wine.jpg')
+    expect(image.url).toBe('https://viewer.wear-run.help/og/n001/wine.jpg?v=a1b2c3d4e5')
     expect(image.type).toBe('image/jpeg')
     expect(image.width).toBe(1200)
-    expect(image.height).toBe(1500)
+    expect(image.height).toBe(630)
+  })
+
+  it('gives each card the address of its own bytes, so an app that stored the old one fetches again', () => {
+    const blush = colourway({ displayName: 'Blush', slug: 'blush' })
+    const url = build(payload({ selectedColourway: blush })).image!.url
+    expect(url).toBe('https://viewer.wear-run.help/og/n001/blush.jpg?v=f6a7b8c9d0')
+    // NEGATIVE CONTROL: a card regenerated with other bytes gets another address.
+    const changed = buildPreview(payload({ selectedColourway: blush }), {
+      origin: ORIGIN,
+      cards: { ...CARDS, 'n001/blush': { ...CARDS['n001/blush']!, hash: '0000000000' } },
+    })
+    expect(changed.image!.url).not.toBe(url)
   })
 
   it('falls back to the colourway’s own poster when no card was generated', () => {
@@ -502,9 +534,9 @@ describe('buildPreview — the readable page body for robots', () => {
 
   it('shows the picture of this colour, with its description and real size', () => {
     const html = onSite(full())
-    expect(html).toContain('<img src="https://wear-run.com/og/n001/wine.jpg"')
+    expect(html).toContain('<img src="https://wear-run.com/og/n001/wine.jpg?v=a1b2c3d4e5"')
     expect(html).toContain('alt="Velocity Performance Skinsuit in Wine"')
-    expect(html).toContain('width="1200" height="1500"')
+    expect(html).toContain('width="1200" height="630"')
     const none = onSite(
       payload({ product: { slug: 'zzz' }, selectedColourway: colourway({ poster: null }) }),
     )

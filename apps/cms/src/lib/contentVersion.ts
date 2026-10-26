@@ -4,14 +4,16 @@ import type {
   CollectionAfterDeleteHook,
   GlobalAfterChangeHook,
 } from 'payload'
-import { CONTENT_VERSION_KEY } from '../../pageCache.mjs'
+import { CONTENT_VERSION_KEY, KEPT_TAGS } from '../../pageCache.mjs'
 
 /**
  * A save to anything the website shows (a product, a picture, the site settings) leaves every
- * kept page out of date. This writes a new content version, so the next visitor in each data
- * centre gets the page drawn again (pageCache.mjs, polish X15, 2026-10-04). Other data centres
- * see the new value through KV's 30-second read cache. Cloudflare allows up to 60 seconds,
- * the same delay the 60-second memory cache in content.ts already allowed.
+ * kept page and every kept garment answer out of date. Since 2026-10-25 this marks them stale
+ * in the shared store (SitePages.invalidateKept in worker.mjs, both tags), so each is served once
+ * more while its new copy is drawn, instead of every region's next visitor waiting (pageCache.mjs
+ * has the measurements). It still writes a new content version too: that is what the store's off
+ * switch keys copies by (STORE_MODE_KEY = 'versioned'), and other data centres see it through
+ * KV's 30-second read cache.
  *
  * A random value, never a clock reading: two saves in the same millisecond (the robot writes
  * in quick runs) would otherwise share a version, and a page drawn between them would be kept
@@ -22,6 +24,11 @@ import { CONTENT_VERSION_KEY } from '../../pageCache.mjs'
  * runs after the response (`waitUntil`), so a save is not slowed either. Without the binding
  * (tests, `next dev`, a preview with no KV) it does nothing.
  */
+/** The part of the Worker's context this needs: worker.mjs's SitePages entrypoint, over RPC. */
+type SitePagesContext = {
+  exports?: { SitePages?: { invalidateKept: (tags: string[]) => Promise<boolean> } }
+}
+
 export async function recordContentChange(): Promise<void> {
   try {
     const context = await getCloudflareContext({ async: true }).catch(() => null)
@@ -30,8 +37,16 @@ export async function recordContentChange(): Promise<void> {
     const write = kv
       .put(CONTENT_VERSION_KEY, crypto.randomUUID())
       .catch((err: unknown) => console.error('[page-cache] could not record a save', err))
-    if (context?.ctx) context.ctx.waitUntil(write)
-    else await write
+    // The store's own entrypoint, the one place Workers Cache lets the copies be marked stale.
+    const store = (context?.ctx as SitePagesContext | undefined)?.exports?.SitePages
+    // Inside an async function, so even a stub that throws at once becomes a logged rejection.
+    const stale = (async () =>
+      store?.invalidateKept([KEPT_TAGS.pages, KEPT_TAGS.garmentData]))().catch((err: unknown) =>
+      console.error('[page-cache] could not mark the kept copies stale', err),
+    )
+    const both = Promise.all([write, stale])
+    if (context?.ctx) context.ctx.waitUntil(both)
+    else await both
   } catch (err) {
     console.error('[page-cache] could not record a save', err)
   }

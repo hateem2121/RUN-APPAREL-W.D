@@ -56,7 +56,7 @@ export interface PreviewImage {
 }
 
 export interface Preview {
-  /** The link-preview title (`og:title`, `twitter:title`): code first, what a buyer quotes. */
+  /** The link-preview title (`og:title`, `twitter:title`): the page title without the brand. */
   title: string
   /**
    * The page's own `<title>`, which a search result prints: name, garment type, colour,
@@ -97,17 +97,24 @@ function truncate(text: string, limit = MAX_DESCRIPTION): string {
 }
 
 /**
- * "N001 Velocity Performance Skinsuit — Wine".
+ * "X-MILO PRO SKIN-SUIT — Women's Cycling Skinsuit, Claret Red": the page's own title
+ * without the brand (2026-10-25, owner's plan).
  *
- * The product CODE leads because it is what is printed on the physical tag and
- * what a buyer quotes back in an email; the colour is last because that is the
- * part that differs between two links someone has been sent side by side.
+ * Until that day the card led with the product code ("R-XPS X-MILO PRO SKIN-SUIT — Claret
+ * Red") while the page, Google and the browser tab said what the garment IS. Meta asks for
+ * the title "without any branding such as your site name" (Sharing for Webmasters, read
+ * 2026-10-25), and the site name is already printed beside every card. The code a buyer
+ * quotes moved to the front of the description, so it is still on the card. A garment with
+ * no garment type keeps the code-led title, as its page title does (pageTitle.ts).
  */
 function buildTitle(payload: ViewerApiSuccess): string {
-  const { productCode, productName } = payload.product
-  const name = [productCode, productName].filter(Boolean).join(' ').trim()
-  const colour = payload.selectedColourway.displayName.trim()
-  return colour ? `${name} — ${colour}` : name
+  return garmentPageTitle({
+    productName: payload.product.productName,
+    productCode: payload.product.productCode,
+    garmentType: payload.product.garmentType,
+    colour: payload.selectedColourway.displayName,
+    brand: '',
+  })
 }
 
 /**
@@ -156,7 +163,12 @@ function buildDescription(payload: ViewerApiSuccess): string {
   // "Shown in Wine." rather than prefixing the specs: the specs are what a trade
   // buyer scans for, and pushing them behind the colour buries the useful half.
   const shown = colour ? `Shown in ${colour}.` : ''
-  return truncate([specs ? `${specs}.` : '', shown, tail].filter(Boolean).join(' '))
+  // The product code leads (2026-10-25): it left the card's title, and it is what is printed
+  // on the tag and quoted back in an email. Unless the title already carries it, which is
+  // the case for a garment with no garment type yet.
+  const code = p.garmentType.trim() ? p.productCode.trim() : ''
+  const lead = [code, specs].filter(Boolean).join(' · ')
+  return truncate([lead ? `${lead}.` : '', shown, tail].filter(Boolean).join(' '))
 }
 
 /**
@@ -197,7 +209,10 @@ function pickImage(
   const card = cards[key]
   if (card) {
     return {
-      url: `${origin}/og/${key}.jpg`,
+      // `?v=` is the card's own hash (og-cards.ts): Facebook, WhatsApp and X keep a picture
+      // under its address, so a card whose bytes change must change address too. The tall
+      // 1200x1500 cards they stored before 2026-10-25 would otherwise outlive the new ones.
+      url: `${origin}/og/${key}.jpg?v=${card.hash}`,
       type: 'image/jpeg',
       width: card.width,
       height: card.height,

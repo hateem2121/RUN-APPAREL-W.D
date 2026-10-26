@@ -31,8 +31,8 @@ import openNext from './.open-next/worker.js'
 import { newNonce, nonceable, noncedHeaders } from './cspNonce.mjs'
 import { filmResponse, servesFilm } from './filmRange.mjs'
 import {
-  CONTENT_VERSION_KEY,
   KEPT_FILES,
+  KEPT_TAGS,
   keepableFile,
   keepablePage,
   keepablePageRequest,
@@ -40,12 +40,12 @@ import {
   keptHeaders,
   keptRenderRequest,
   keptRenders,
+  keptStoreKey,
   pageCacheTiming,
   servedHeaders,
-  sharedCacheKey,
+  storeLookupRequest,
   storeState,
   unkeptHeaders,
-  VERSION_CACHE_SECONDS,
   wholeFile,
   wholePage,
 } from './pageCache.mjs'
@@ -88,6 +88,26 @@ export class SitePages extends WorkerEntrypoint {
     const headers = whole ? keptHeaders(response.headers) : unkeptHeaders(response.headers)
     return new Response(text, { ...init, headers })
   }
+
+  /**
+   * Mark every kept copy with these tags stale (2026-10-25): src/lib/contentVersion.ts calls this
+   * after a CMS save, through `ctx.exports.SitePages`. It has to run HERE because Workers Cache
+   * scopes purge and invalidate to the entrypoint that owns the copies; Cloudflare's own example
+   * (Workers Cache, "Examples", leaderboard) does exactly this. An RPC method, so the call never
+   * goes through the cache itself. Returns false where the runtime has no Workers Cache (a local
+   * preview), and never throws: a save must never fail because the store could not be told.
+   */
+  async invalidateKept(tags = Object.values(KEPT_TAGS)) {
+    const cache = this.ctx?.cache
+    if (typeof cache?.invalidate !== 'function') return false
+    try {
+      await cache.invalidate({ tags: [...tags] })
+      return true
+    } catch (error) {
+      console.error('[page-cache] could not mark the kept copies stale', error)
+      return false
+    }
+  }
 }
 
 /**
@@ -98,14 +118,14 @@ export class SitePages extends WorkerEntrypoint {
  * never be the reason a page fails.
  */
 async function fromSharedStore(request, env, ctx) {
-  if (!keepablePageRequest(request) && !keptFileRequest(request)) return null
+  // A HEAD is looked up as the GET it describes, and answered without the body (storeLookupRequest).
+  const asked = storeLookupRequest(request)
+  if (!keepablePageRequest(asked) && !keptFileRequest(asked)) return null
   const deploy = env.CF_VERSION_METADATA?.id
   const store = ctx?.exports?.SitePages
   if (!deploy || !env.SITE_CACHE || !store) return null
   try {
-    const content =
-      (await env.SITE_CACHE.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS })) ?? 'none'
-    const cacheKey = sharedCacheKey(request.url, deploy, content)
+    const cacheKey = await keptStoreKey(request.url, deploy, env.SITE_CACHE)
     // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
     const cf = { cacheKey }
     // ⚠️ `redirect: 'manual'`, or a 308 from the store is FOLLOWED: this call has Fetch semantics
@@ -113,9 +133,10 @@ async function fromSharedStore(request, env, ctx) {
     // methods"). Live on 2026-10-25 (#247), /factory answered 200 with the factory page instead of
     // its 308. Manual hands the redirect back to withRedirectHeaders below, as before the store.
     const kept = await store.fetch(keptRenderRequest(request, cf), { cf, redirect: 'manual' })
+    if (request.method === 'HEAD') await kept.body?.cancel()
     return {
       state: storeState(kept.headers),
-      response: new Response(kept.body, {
+      response: new Response(request.method === 'HEAD' ? null : kept.body, {
         status: kept.status,
         statusText: kept.statusText,
         headers: servedHeaders(kept.headers),

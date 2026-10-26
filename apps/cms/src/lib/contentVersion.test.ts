@@ -63,6 +63,51 @@ describe('recording a save for the page cache', () => {
     await expect(recordContentChange()).resolves.toBeUndefined()
   })
 
+  /*
+   * 2026-10-25: a save marks the kept pages and garment answers stale, through the store's own
+   * entrypoint (worker.mjs SitePages.invalidateKept), so each is served once more while it is
+   * drawn again instead of every region's next visitor waiting.
+   */
+  it('marks both kinds of kept copy stale, after the response', async () => {
+    const kv = fakeKv()
+    const invalidateKept = vi.fn().mockResolvedValue(true)
+    let pending: Promise<unknown> | undefined
+    const waitUntil = vi.fn((promise: Promise<unknown>) => {
+      pending = promise
+    })
+    getCloudflareContext.mockResolvedValue({
+      env: { SITE_CACHE: kv },
+      ctx: { waitUntil, exports: { SitePages: { invalidateKept } } },
+    })
+    await recordContentChange()
+    await pending
+    expect(invalidateKept).toHaveBeenCalledWith(['site-pages', 'garment-data'])
+    expect(waitUntil).toHaveBeenCalledTimes(1)
+    // The content version is still written: the store's off switch keys copies by it.
+    expect(kv.put).toHaveBeenCalledTimes(1)
+  })
+
+  it('never fails a save when the store cannot be told, or is not there', async () => {
+    const kv = fakeKv()
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (const invalidateKept of [
+      vi.fn().mockRejectedValue(new Error('RPC failed')),
+      vi.fn(() => {
+        throw new Error('stub threw at once')
+      }),
+    ]) {
+      getCloudflareContext.mockResolvedValue({
+        env: { SITE_CACHE: kv },
+        ctx: { exports: { SitePages: { invalidateKept } } },
+      })
+      await expect(recordContentChange()).resolves.toBeUndefined()
+    }
+    getCloudflareContext.mockResolvedValue({ env: { SITE_CACHE: kv }, ctx: { waitUntil: vi.fn() } })
+    await expect(recordContentChange()).resolves.toBeUndefined()
+    expect(kv.put).toHaveBeenCalledTimes(3)
+    quiet.mockRestore()
+  })
+
   it('the hooks record the change and hand the document back untouched', async () => {
     const kv = fakeKv()
     getCloudflareContext.mockResolvedValue({ env: { SITE_CACHE: kv } })

@@ -26,7 +26,10 @@
  * 1. A 403, 429 or 503 FROM A RUNNER IS INCONCLUSIVE, not a failure: Free-plan Bot Fight
  *    Mode blocks datacenter IPs intermittently, and an alarm that fires on Cloudflare's
  *    mood gets muted.
- * 2. A RANGED GET, NEVER HEAD: HEAD reads a different edge cache entry on this zone.
+ * 2. A RANGED GET, NEVER HEAD: HEAD reads a different edge cache entry on this zone. Except the
+ *    site's own page, asked for whole (probeHeaders): the CMS ignores Range anyway, and the page
+ *    store refuses a ranged request, so every probe of the home page drew it from scratch (9 of
+ *    the home page's 84 slow opens, 25 Oct 08:00-18:40 UTC, at 234-860 ms of processor time).
  * 3. THE BYTES DECIDE. A PDF starts `%PDF-`; an address that returns those bytes is
  *    serving the file, whatever its content-type says.
  */
@@ -213,6 +216,17 @@ export function evaluate(observations) {
 }
 
 /**
+ * The probe's request headers. A ranged GET caps what a PDF address that has gone wrong can send
+ * (4 KB), but the site's page is asked for whole: the store answers only an unranged GET.
+ *
+ * @param {ApexTarget} target
+ */
+export function probeHeaders(target) {
+  const agent = { 'user-agent': 'run-apparel-apex-probe' }
+  return target.kind === 'site' ? agent : { Range: 'bytes=0-4095', ...agent }
+}
+
+/**
  * @param {ApexTarget} target
  * @returns {Promise<Observation>}
  */
@@ -220,10 +234,10 @@ async function probe(target) {
   try {
     const response = await fetch(target.url, {
       redirect: 'manual',
-      headers: { Range: 'bytes=0-4095', 'user-agent': 'run-apparel-apex-probe' },
+      headers: probeHeaders(target),
     })
-    // The CMS ignores Range, so the site's whole page arrives (~30 KB); everything else
-    // here is a small page, or 4 KB of a PDF if something has gone badly wrong.
+    // The site's whole page arrives (~30 KB); everything else here is a small page, or 4 KB
+    // of a PDF if something has gone badly wrong.
     const text = new TextDecoder().decode(
       await response.arrayBuffer().catch(() => new ArrayBuffer(0)),
     )

@@ -1,6 +1,12 @@
 import type { PayloadRequest } from 'payload'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { drawingToKeep, keptRenders, PAGE_CACHE_SECONDS, sharedCacheKey } from '../pageCache.mjs'
+import {
+  drawingToKeep,
+  KEPT_CACHE_CONTROL,
+  keptRenders,
+  STORE_MODE_KEY,
+  sharedCacheKey,
+} from '../pageCache.mjs'
 import { PUBLIC_VIEWER_VARY } from '../publicViewerHeaders.mjs'
 import {
   API_HOST,
@@ -113,9 +119,10 @@ const fakeStore = (draw: (request: Request) => Promise<Response>) => {
 
 const setup = (draw = payloadLike()) => {
   let version = 'v1'
+  let mode: string | null = null
   const env = {
     CF_VERSION_METADATA: { id: 'deploy-1' },
-    SITE_CACHE: { get: vi.fn(async () => version) },
+    SITE_CACHE: { get: vi.fn(async (key: string) => (key === STORE_MODE_KEY ? mode : version)) },
     VIEWER_ALLOWED_ORIGINS: ALLOWED,
   }
   const ctx = { waitUntil: () => {} }
@@ -130,6 +137,10 @@ const setup = (draw = payloadLike()) => {
     ask,
     save: (next: string) => {
       version = next
+    },
+    /** The off switch (pageCache.mjs STORE_MODE_KEY): 'versioned' is the key before 2026-10-25. */
+    switchTo: (next: string | null) => {
+      mode = next
     },
   }
 }
@@ -193,12 +204,20 @@ describe('which requests the garment-data cache may answer', () => {
 })
 
 describe('the store key', () => {
-  it('is the shared key: the API host, the deploy, the content version and the address', async () => {
+  it('is the shared key: the API host, the deploy and the address, not the content version', async () => {
     const { ask, store } = setup()
     await ask()
     const [, init] = store.fetch.mock.calls[0] as [Request, { cf: { cacheKey: string } }]
-    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, 'deploy-1', 'v1'))
+    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, 'deploy-1', 'live'))
     expect(init.cf.cacheKey).toContain(API_HOST)
+  })
+
+  it('switched to "versioned", names the content version again', async () => {
+    const { ask, store, switchTo } = setup()
+    switchTo('versioned')
+    await ask()
+    const [, init] = store.fetch.mock.calls[0] as [Request, { cf: { cacheKey: string } }]
+    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, 'deploy-1', 'v1'))
   })
 })
 
@@ -217,8 +236,18 @@ describe('a miss draws and keeps, a hit answers without drawing', () => {
     expect(draw).toHaveBeenCalledTimes(1)
   })
 
-  it('a CMS save (a new content version) makes the next request draw again', async () => {
+  it('a CMS save no longer changes the key: the kept copy answers, and the save marks it stale', async () => {
     const { ask, draw, save } = setup()
+    await ask()
+    save('v2')
+    expect((await ask())?.headers.get('server-timing')).toContain('hit')
+    expect(draw).toHaveBeenCalledTimes(1)
+  })
+
+  // NEGATIVE CONTROL: with the switch off, a save is a new key and the next request draws again.
+  it('switched to "versioned", a CMS save makes the next request draw again, as before', async () => {
+    const { ask, draw, save, switchTo } = setup()
+    switchTo('versioned')
     await ask()
     await ask()
     expect(draw).toHaveBeenCalledTimes(1)
@@ -232,7 +261,8 @@ describe('a miss draws and keeps, a hit answers without drawing', () => {
     await ask()
     const kept = store.only()
     const keptHeaders = new Headers(kept.headers)
-    expect(keptHeaders.get('cache-control')).toBe(`public, max-age=${PAGE_CACHE_SECONDS}`)
+    expect(keptHeaders.get('cache-control')).toBe(KEPT_CACHE_CONTROL)
+    expect(keptHeaders.get('cache-tag')).toBe('garment-data')
     const hit = await ask()
     expect(hit?.headers.get('cache-control')).toBe(
       'public, s-maxage=60, stale-while-revalidate=300',

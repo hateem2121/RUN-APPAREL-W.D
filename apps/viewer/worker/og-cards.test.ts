@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -115,6 +116,34 @@ describe('the preview-card manifest', () => {
     // crawlers use to lay the card out before the image arrives. A wrong value is
     // a lie that goes stale the moment a poster is re-rendered at another size.
     expect(jpegSize(path)).toEqual({ width: OG_CARDS[key]!.width, height: OG_CARDS[key]!.height })
+  })
+
+  it.each(Object.keys(OG_CARDS))('%s carries the hash of its own bytes', (key) => {
+    // The hash is the card's address (`?v=`, preview.ts). A stale one would leave a changed
+    // card at an address Facebook, WhatsApp and X already stored the old picture under.
+    const bytes = readFileSync(join(ogDir, `${key}.jpg`))
+    const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 10)
+    expect(OG_CARDS[key]!.hash, 'regenerate with pnpm og:cards --from-site').toBe(hash)
+  })
+
+  /**
+   * 2026-10-25 (owner's plan): every card is the wide 1200x630 shape. The tall 1200x1500
+   * card it replaced was cut to a band of torso or leg by every app that shows a wide
+   * picture (Facebook, LinkedIn, X). LinkedIn's minimum is 1200x627 at 1.91:1.
+   */
+  it.each(Object.keys(OG_CARDS))('%s is the wide 1200x630 card', (key) => {
+    expect({ width: OG_CARDS[key]!.width, height: OG_CARDS[key]!.height }).toEqual({
+      width: 1200,
+      height: 630,
+    })
+  })
+
+  it('draws nearly every card from the owner’s uploaded render, not the 3D snapshot', () => {
+    // 198 of 205 colours had a render on 2026-10-25; the rest fall back to the snapshot.
+    // A floor, not an exact count: a newly published garment arrives without renders.
+    const sources = Object.values(OG_CARDS).map((card) => card.source)
+    const renders = sources.filter((source) => source === 'render').length
+    expect(renders / sources.length, 'most cards fell back to the snapshot').toBeGreaterThan(0.9)
   })
 
   it.each(Object.keys(OG_CARDS))('%s stays small enough for every client to fetch it', (key) => {

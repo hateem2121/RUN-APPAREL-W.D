@@ -14,8 +14,9 @@
  * plain type per product (`garmentType` in the CMS, e.g. "Women's Tennis Dress") and
  * approved this format: `NAME — Garment Type, Colour | BRAND`.
  *
- * The link-preview title (`og:title`) is NOT this one: a shared link leads with the
- * product code, which is what a buyer quotes back. `preview.ts` keeps that separately.
+ * The link-preview title (`og:title`) is this one without the brand since 2026-10-25
+ * (`preview.ts`, called with `brand: ''`): Meta asks for a title with no site name, and the
+ * product code moved to the front of the card's description.
  */
 
 /** About what a search result shows before it cuts the title with an ellipsis. */

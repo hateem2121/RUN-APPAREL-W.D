@@ -57,13 +57,11 @@
          one page. Both are per-page values or they are wrong, which is why the
          Worker APPENDS them per request rather than overwriting them here.
 
-         og:image is a real render of the shipped garment (N001 wine, the default
-         colourway), 1200x1500 with its own "[ N001 / WINE ]" caption baked in.
-         Portrait rather than the 1.91:1 card ratio: platforms that letterbox
-         (WhatsApp, iMessage, Slack) keep the caption, and platforms that
-         centre-crop land on the chest wordmark, which is the detail worth showing.
-         Regenerate with: sips -s format jpeg output/posters/n001-wine-poster.webp
-           --out apps/viewer/public/og-default.jpg -->
+         og:image is the rxps/wine garment card (the default colourway), the owner's
+         uploaded render: 1200x630, the whole garment on the paper ground, the same
+         shape as every garment card since 2026-10-25 (tools/asset-pipeline/scripts/
+         og-cards.mjs says why: a tall card was cut to a band of torso by wide apps).
+         Regenerate with: cp apps/viewer/public/og/rxps/wine.jpg apps/viewer/public/og-default.jpg -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="RUN APPAREL" />
     <meta property="og:title" content="RUN APPAREL — 3D Product Reference" />
@@ -74,10 +72,10 @@
     <meta property="og:image" content="https://wear-run.com/og-default.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="1500" />
+    <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="The RUN APPAREL X-MILO PRO SKIN-SUIT in wine, shown front-on."
+      content="The RUN APPAREL X-MILO PRO SKIN-SUIT in Claret Red, shown front-on."
     />
     <meta property="og:locale" content="en_GB" />
     <meta name="twitter:card" content="summary_large_image" />

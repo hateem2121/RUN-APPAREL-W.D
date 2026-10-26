@@ -27,9 +27,11 @@ import { POLICIES, POLICIES_INDEX } from './policies'
  * when a page's words do, so `scripts/gen-share-images.mjs` draws them from this file and they are
  * committed under `public/share/`, served as static files before the Worker runs.
  *
- * Every word on a card is the page's own (its label and headline), and every picture is a file
- * already in the repository: the garment posters in `apps/viewer/public/og/` and the contact
- * page's photo. `shareImages.test.ts` checks both, and the file sizes.
+ * Every word on a card is the page's own (its label and headline). The garments are the owner's
+ * uploaded CLO renders since 2026-10-25 (owner's plan), each read from the colour's public garment
+ * answer when the cards are drawn; until then they were crops of the 3D snapshot cards in
+ * `apps/viewer/public/og/`, which became wide 1200x630 cards that day. The contact card is the
+ * contact page's photo. `shareImages.test.ts` checks the words, the garments and the file sizes.
  */
 
 export const SHARE_IMAGE = {
@@ -43,8 +45,11 @@ export const SHARE_IMAGE = {
   host: 'wear-run.com',
 } as const
 
-/** A garment on a card: a poster in `apps/viewer/public/og/`, and its approved garment type. */
-type ShareGarment = { poster: string; type: string }
+/**
+ * A garment on a card: a live colour, `<product>/<colour>`, drawn from its uploaded render, and its
+ * approved garment type. Only colours whose garment card is a render (`og-cards.ts`) are used.
+ */
+type ShareGarment = { colour: string; type: string }
 
 export type ShareCard = {
   /** The file in `public/share/`. */
@@ -112,33 +117,33 @@ function garmentsCard(
 
 /**
  * Four garments per category page, all of that family (`scripts/catalogue-products.json`), each a
- * different garment, and none whose print carries another organisation's mark. The poster is the
- * garment's own card for link previews (`pnpm og:cards`), 1200x1500 on the paper ground.
+ * different garment, and none whose print carries another organisation's mark. Each is shown whole,
+ * from its uploaded render, on a paper tile.
  */
 const FAMILY_GARMENTS: Record<string, readonly ShareGarment[]> = {
   'teamwear-uniforms': [
-    { poster: 'r-vpj/purple', type: 'Soccer Jersey' },
-    { poster: 'r-mrp/aqua', type: 'Tennis and Pickleball Shirt' },
-    { poster: 'r-xmp/lavender', type: "Men's Cycling Bib Shorts" },
-    { poster: 'r-bcd/denim', type: 'Tennis Bra and Skirt Set' },
+    { colour: 'r-vpj/purple', type: 'Soccer Jersey' },
+    { colour: 'r-mrp/aqua', type: 'Tennis and Pickleball Shirt' },
+    { colour: 'r-xmp/lavender', type: "Men's Cycling Bib Shorts" },
+    { colour: 'r-bcd/denim', type: 'Tennis Bra and Skirt Set' },
   ],
   sportswear: [
-    { poster: 'r-asb/petrol', type: 'High-Support Sports Bra' },
-    { poster: 'r-hfj/aqua', type: "Men's Long-Sleeve Training Jersey" },
-    { poster: 'r-prs/olive', type: 'Quarter-Zip Running Shirt' },
-    { poster: 'r-ect/lilac', type: "Women's Crop Top and Shorts Set" },
+    { colour: 'r-asb/petrol', type: 'High-Support Sports Bra' },
+    { colour: 'r-hfj/aqua', type: "Men's Long-Sleeve Training Jersey" },
+    { colour: 'r-prs/olive', type: 'Quarter-Zip Running Shirt' },
+    { colour: 'r-ect/lilac', type: "Women's Crop Top and Shorts Set" },
   ],
   outerwear: [
-    { poster: 'r-atw/bone', type: 'Sublimated Windbreaker Jacket' },
-    { poster: 'r-kmj/orange', type: "Men's Softshell Jacket" },
-    { poster: 'r-vcj/burgundy', type: "Men's Softshell Tech Jacket" },
-    { poster: 'r-atj/ash', type: "Men's Leather Utility Jacket" },
+    { colour: 'r-atw/bone', type: 'Sublimated Windbreaker Jacket' },
+    { colour: 'r-kmj/orange', type: "Men's Softshell Jacket" },
+    { colour: 'r-vcj/burgundy', type: "Men's Softshell Tech Jacket" },
+    { colour: 'r-atj/ash', type: "Men's Leather Utility Jacket" },
   ],
   'casual-wear': [
-    { poster: 'r-taz/charcoal', type: "Men's Half-Zip Polo Shirt" },
-    { poster: 'r-csp/mauve', type: "Men's Half-Zip Fleece Pullover" },
-    { poster: 'r-cch/powder-blue', type: "Women's Crop Hoodie" },
-    { poster: 'r-et/sage', type: "Men's Tracksuit" },
+    { colour: 'r-taz/charcoal', type: "Men's Half-Zip Polo Shirt" },
+    { colour: 'r-csp/mauve', type: "Men's Half-Zip Fleece Pullover" },
+    { colour: 'r-cch/powder-blue', type: "Women's Crop Hoodie" },
+    { colour: 'r-et/sage', type: "Men's Tracksuit" },
   ],
 }
 
@@ -163,10 +168,10 @@ const PRODUCTS = garmentsCard(
   'turnable.',
   // One from each family that has a page of its own, in the order of `FAMILIES`.
   [
-    { poster: 'r-asb/blush', type: 'High-Support Sports Bra' },
-    { poster: 'r-vpj/blue', type: 'Soccer Jersey' },
-    { poster: 'r-cch/wine', type: "Women's Crop Hoodie" },
-    { poster: 'r-kmj/lime', type: "Men's Softshell Jacket" },
+    { colour: 'r-asb/blush', type: 'High-Support Sports Bra' },
+    { colour: 'r-vpj/blue', type: 'Soccer Jersey' },
+    { colour: 'r-cch/wine', type: "Women's Crop Hoodie" },
+    { colour: 'r-kmj/lime', type: "Men's Softshell Jacket" },
   ],
 )
 
@@ -325,7 +330,13 @@ export const SHARE_CARDS: readonly ShareCard[] = [...new Set(CARDS.values())]
 
 /** The card a page shares; a page with none of its own (privacy, terms) shares the home page's. */
 /**
- * ⚠️ PAGES WHOSE CARD LINKEDIN KEPT AT A SMALL SIZE, AND THE VERSION THAT MADE IT FETCH AGAIN.
+ * ⚠️ A NEW ADDRESS FOR A CARD WHOSE PICTURE CHANGED, OR WHOSE COPY LINKEDIN KEPT SMALL.
+ *
+ * Changed picture (2026-10-25): /products and the four category cards were redrawn from the
+ * renders. Facebook, WhatsApp and LinkedIn keep a picture under its address, so a redrawn card at
+ * the old address would go on showing the old one wherever it was shared; each moved up one.
+ *
+ * Kept small:
  * Post Inspector, 2026-10-07/08: LinkedIn stored some cards from its first fetch at 160 or 480 px
  * wide (`articleshare-shrink_160` / `_480`) and drew them stretched and blurry, although every file
  * is 1200 x 630 (LinkedIn help a521928: at least 1200 x 627, under 5 MB). Neither the file's size
@@ -333,19 +344,22 @@ export const SHARE_CARDS: readonly ShareCard[] = [...new Set(CARDS.values())]
  * /community went from `shrink_160` to `shrink_1280_800` once it was `?v=2`. Raise a page's number
  * only after Post Inspector shows its copy small; never for a card stored at `shrink_1280_800`.
  */
-const LINKEDIN_REFETCH: Readonly<Record<string, number>> = {
+const CARD_VERSION: Readonly<Record<string, number>> = {
   '/community': 2,
   '/press': 2,
   '/faq': 2,
-  '/products': 2,
+  '/products': 3,
   '/': 2,
-  '/custom-teamwear-manufacturer': 2,
+  '/custom-teamwear-manufacturer': 3,
+  '/custom-activewear-manufacturer': 2,
+  '/custom-outerwear-manufacturer': 2,
+  '/private-label-casual-wear-manufacturer': 2,
   '/policies/equal-opportunity': 2,
 }
 
 export function shareCardFor(path: string): ShareCard {
   const card = CARDS.get(path) ?? HOME
-  const version = LINKEDIN_REFETCH[CARDS.has(path) ? path : '/']
+  const version = CARD_VERSION[CARDS.has(path) ? path : '/']
   return version ? { ...card, version } : card
 }
 

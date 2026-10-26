@@ -16,10 +16,11 @@
  * (publicViewer.ts) shortens a miss; this removes the trips from every answer after the first in
  * each data centre.
  *
- * ⚠️ THE SAME TWO VERSIONS IN THE KEY AS THE PAGES. The deploy (CF_VERSION_METADATA) and the
- * content version every save of a product, a picture or the site settings rewrites in KV
- * (src/lib/contentVersion.ts). A save reaches every data centre within about a minute (KV's
- * 30-second read cache), as it does for the pages.
+ * ⚠️ THE SAME KEY AND THE SAME SAVE RULE AS THE PAGES (pageCache.mjs keptStoreKey). The deploy is
+ * in the key; since 2026-10-25 a save marks the copies stale (tag KEPT_TAGS.garmentData) instead of
+ * changing the key, so a garment page is answered at once while the new copy is drawn, and the
+ * same off switch puts the content version back in the key. Garment data, 25 Oct: p90 721 ms
+ * against a 250 ms target, from the same per-region drawings as the pages.
  *
  * ⚠️ THE ANSWER'S CORS HEADERS ARE NEVER KEPT; THEY ARE WORKED OUT FOR EACH REQUEST. Payload
  * answers `Access-Control-Allow-Origin: <the visitor's Origin>` only to an origin on
@@ -47,14 +48,13 @@
  * faster, it must never be the reason one fails.
  */
 import {
-  CONTENT_VERSION_KEY,
+  KEPT_TAGS,
   keptHeaders,
   keptRenders,
+  keptStoreKey,
   servedHeaders,
-  sharedCacheKey,
   storeState,
   unkeptHeaders,
-  VERSION_CACHE_SECONDS,
 } from './pageCache.mjs'
 import { PUBLIC_VIEWER_VARY } from './publicViewerHeaders.mjs'
 
@@ -150,7 +150,7 @@ export function keepableApiAnswer(response, text) {
 export function keptApiHeaders(headers) {
   const out = new Headers(headers)
   for (const name of NEVER_KEPT_HEADERS) out.delete(name)
-  return keptHeaders(out)
+  return keptHeaders(out, Date.now(), KEPT_TAGS.garmentData)
 }
 
 /** A kept copy's headers, made an answer's again, for this request's Origin. */
@@ -196,9 +196,7 @@ export async function serveViewerApi(request, env, ctx, store = ctx?.exports?.Si
 
   let kept
   try {
-    const content =
-      (await env.SITE_CACHE.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS })) ?? 'none'
-    const cf = { cacheKey: sharedCacheKey(request.url, deploy, content) }
+    const cf = { cacheKey: await keptStoreKey(request.url, deploy, env.SITE_CACHE) }
     // Never follow a redirect from the store (worker.mjs's call says why: #247, 2026-10-25).
     kept = await store.fetch(apiRenderRequest(request), { cf, redirect: 'manual' })
   } catch (error) {

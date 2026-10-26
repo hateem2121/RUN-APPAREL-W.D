@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   CMS_SERVICE,
+  OWN_AGENTS,
   queryBody,
   readCalculations,
   STORE_ENTRYPOINT,
@@ -78,6 +79,64 @@ describe('the query asks about the CMS Worker and the right addresses', () => {
       value: STORE_ENTRYPOINT,
     })
     expect(filters.some((f) => f.operation === 'is_null')).toBe(false)
+  })
+})
+
+/*
+ * 2026-10-25: of 612 home-page opens that day, 279 were our own checks and 270 robots, 63 people.
+ * The targets are about people, so they get a line of their own.
+ */
+describe('people are read apart from robots and our own checks', () => {
+  it('asks for visitors with no robot label and none of our agents', () => {
+    const filters = queryBody('home', 1, 2, 'people').parameters.filters
+    expect(filters).toContainEqual({
+      key: '$workers.entrypoint',
+      operation: 'is_null',
+      type: 'string',
+    })
+    expect(filters).toContainEqual({
+      key: '$workers.event.request.cf.verifiedBotCategory',
+      operation: 'eq',
+      type: 'string',
+      value: '',
+    })
+    for (const value of ['run-apparel', 'UptimeRobot', 'Shields.io']) {
+      expect(OWN_AGENTS).toContain(value)
+      expect(filters).toContainEqual({
+        key: '$workers.event.request.headers.user-agent',
+        operation: 'not_includes',
+        type: 'string',
+        value,
+      })
+    }
+  })
+
+  // NEGATIVE CONTROL: the plain visitors' query keeps everyone, robots and our checks included.
+  it('the visitors query is unchanged: no robot or agent filter', () => {
+    const keys = queryBody('home', 1, 2).parameters.filters.map((filter) => filter.key)
+    expect(keys).not.toContain('$workers.event.request.cf.verifiedBotCategory')
+    expect(keys).not.toContain('$workers.event.request.headers.user-agent')
+  })
+
+  it('the summary judges people against the same targets, OVER included', () => {
+    const all = {
+      home: readCalculations(answer(612, 121, 1121, 3)),
+      sitemap: readCalculations(answer(40, 60, 90, 1)),
+      data: readCalculations(answer(300, 90, 240, 1)),
+    }
+    const { summary } = summarizePageStore(
+      all,
+      {},
+      {
+        home: readCalculations(answer(63, 206, 3032, 3)),
+        data: readCalculations(answer(40, 80, 200, 1)),
+      },
+    )
+    expect(summary).toContain(
+      'People only (no robot label, none of our own checks): home page p90 3032 ms (OVER target',
+    )
+    expect(summary).toContain('garment data p90 200 ms (within target')
+    expect(summarizePageStore(all).summary).not.toContain('People only')
   })
 })
 
