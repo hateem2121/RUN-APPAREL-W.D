@@ -152,6 +152,14 @@ export function requiredChecksFromBranchRules(rules) {
 }
 
 /**
+ * Jobs `deploy` waits for to READ AN OUTPUT, not as gates, so the ruleset need not require
+ * them. `changes` (2026-10-26) tells the deploy whether a push has anything to ship; it
+ * gates nothing, and making the ruleset require it would add a merge blocker that tests
+ * nothing. Add a job here only with that same reason written beside it.
+ */
+export const OUTPUT_ONLY_NEEDS = Object.freeze(['changes'])
+
+/**
  * Compare the two lists. A required check posted by another app (Socket, for one) gates
  * the merge only and has no job to match, so it is reported as `external`, not as drift.
  * A required check with no app pinned could be posted by a job, so it is compared.
@@ -159,7 +167,8 @@ export function requiredChecksFromBranchRules(rules) {
  * @param {{ deployNeeds: string[], required: { context: string, integrationId: number | null }[] }} lists
  * @returns {{ missingFromRuleset: string[], notInDeployNeeds: string[], external: string[] }}
  */
-export function compareRequiredChecks({ deployNeeds, required }) {
+export function compareRequiredChecks({ deployNeeds: allNeeds, required }) {
+  const deployNeeds = allNeeds.filter((job) => !OUTPUT_ONLY_NEEDS.includes(job))
   const external = required
     .filter((c) => c.integrationId !== null && c.integrationId !== ACTIONS_INTEGRATION_ID)
     .map((c) => c.context)
