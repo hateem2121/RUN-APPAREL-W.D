@@ -780,6 +780,17 @@ describe('the tags index.ts rewrites still exist in index.html', () => {
     expect(smoke).toContain(`const STATIC_TITLE = '${staticTitle}'`)
   })
 
+  /*
+   * The page says American spelling ("colorway", "color", "customization"), and the website's
+   * own cards say en_US (apps/cms/src/lib/seo.ts, FA-Q-06). The garment pages said en_GB until
+   * 2026-10-26 (owner, site check): the same site telling a crawler two languages. The Open
+   * Graph protocol (ogp.me, read 2026-10-26) gives the format as language_TERRITORY, default en_US.
+   */
+  it('declares og:locale as en_US, like the website, and nothing in it says en_GB', () => {
+    expect(html).toMatch(/<meta\s+property="og:locale"\s+content="en_US"\s*\/>/i)
+    expect(html).not.toMatch(/en_GB|en-GB/i)
+  })
+
   // The robot-readable body is appended INSIDE this element, where the app replaces it.
   it('has the #root element the Worker appends the readable body to', () => {
     expect(html).toMatch(/<div id="root">/)
