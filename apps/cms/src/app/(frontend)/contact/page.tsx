@@ -24,7 +24,7 @@ import { JsonLd } from '../../../components/site/JsonLd'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Contact',
+  title: 'Contact a Sialkot Private Label Manufacturer',
   description: CONTACT_DESCRIPTION,
   path: '/contact',
 })
@@ -162,9 +162,23 @@ export default async function ContactPage({
            * Re-run that test in CI's image after any change to this sentence.
            */}
           <p className="site-lede">
-            Reach us directly — by email or on WhatsApp, whichever suits you. We reply within 24
+            Reach us directly by email or on WhatsApp, whichever suits you. We reply within 24
             hours.
           </p>
+          {/*
+           * The two ways the sentence names, as buttons right under it (owner, 2026-10-26, site
+           * check H-08: the address was below the fold on a computer and 2,200px down on a phone,
+           * after the form). The garment pages' names for the same two actions; ghost buttons,
+           * because a screen has one primary action and "Send inquiry" is this page's (CT-08).
+           */}
+          <div className="site-actions">
+            <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
+              Email us
+            </a>
+            <a className="btn btn--ghost" href={whatsapp} rel="noopener">
+              WhatsApp us
+            </a>
+          </div>
         </div>
       </section>
 
@@ -376,13 +390,20 @@ export default async function ContactPage({
                  * fields to the route, which joins them (`joinPhone`, lib/inquiry.ts).
                  */}
                 <div className="inquiry-form__field">
-                  <label className="inquiry-form__label" htmlFor="inquiry-phone">
-                    Phone
-                  </label>
-                  <div className="inquiry-form__phone">
-                    <label className="visually-hidden" htmlFor="inquiry-phone-code">
-                      Country code
+                  {/*
+                   * "Code" over the code, "Phone" over the number (owner, 2026-10-26, site check
+                   * I-09: the code box looked empty and nameless). Its spoken name stays "Country
+                   * code", which holds the word a sighted reader sees (WCAG 2.5.3).
+                   */}
+                  <div className="inquiry-form__phone-labels">
+                    <label className="inquiry-form__label" htmlFor="inquiry-phone-code">
+                      <span className="visually-hidden">Country </span>Code
                     </label>
+                    <label className="inquiry-form__label" htmlFor="inquiry-phone">
+                      Phone
+                    </label>
+                  </div>
+                  <div className="inquiry-form__phone">
                     <input
                       className="inquiry-form__code"
                       id="inquiry-phone-code"
@@ -531,11 +552,8 @@ export default async function ContactPage({
               </a>
               <p className="contact-block__note">To talk to us directly.</p>
             </div>
-            <div className="contact-block">
-              <p className="field-label">[ Address ]</p>
-              <address className="contact-block__value">{ADDRESS}</address>
-              <p className="contact-block__note">{settings.companyName}</p>
-            </div>
+            {/* No address here: "Where we are" below shows it once, with its directions link
+                (owner, 2026-10-26, the site check's one-place rule). */}
           </div>
         </div>
       </section>

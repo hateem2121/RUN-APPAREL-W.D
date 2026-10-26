@@ -312,7 +312,7 @@ describe('CrashedState', () => {
   it('names a page error in the enquiry, not a dead QR tag', () => {
     render(<CrashedState />)
     const mailto = host.querySelector<HTMLAnchorElement>('a[href^="mailto:"]')?.href ?? ''
-    expect(decodeURIComponent(mailto)).toContain('Page error — reference not shown')
+    expect(decodeURIComponent(mailto)).toContain('Page error: reference not shown')
     expect(decodeURIComponent(mailto)).not.toContain('QR reference unavailable')
   })
 })

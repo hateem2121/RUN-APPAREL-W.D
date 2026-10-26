@@ -174,7 +174,7 @@ test.describe('X7 — №05 ends in one slab: where we ship | certification', ()
     // one says nothing about the page; FactsBento.test.ts holds the attribute); the line says it.
     expect(map.alt).toBe('')
     if (!planted) expect(map.hidden).toBe('true')
-    await expect(page.locator('.works-slab')).toContainText('Worldwide — wherever your team is.')
+    await expect(page.locator('.works-slab')).toContainText('Worldwide, wherever your team is.')
   })
 
   test('on a phone the halves stack, and nothing runs past the screen', async ({ page }) => {

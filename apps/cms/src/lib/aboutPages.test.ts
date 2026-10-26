@@ -11,7 +11,7 @@ import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts
  * claims (no founding date, no year count, no "certified") are `siteFacts.test.ts`'s, which walks
  * this module like the other copy modules.
  */
-const BRAND_SUFFIX = ' — RUN APPAREL'
+const BRAND_SUFFIX = ' | RUN APPAREL'
 const factValue = (prefix: string) =>
   FACTS.find((fact) => fact.label.startsWith(prefix))?.value ?? ''
 
@@ -28,7 +28,7 @@ describe('what a search result shows', () => {
 describe("the owner's approved words stay word for word", () => {
   it('timeline card 3 keeps the owner’s words of 2026-10-09 exactly', () => {
     expect(ABOUT_PAGE.timeline.entries[2].body).toBe(
-      "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952 — exporting to Europe by 1958.",
+      "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952. They were exporting to Europe by 1958.",
     )
   })
 
@@ -38,9 +38,10 @@ describe("the owner's approved words stay word for word", () => {
     )
   })
 
-  it('the factory label is built from the shared address, uppercased', () => {
-    expect(FACTORY_PAGE.label).toBe('[ 13 KM DASKA ROAD · SIALKOT · PAKISTAN ]')
-    expect(FACTORY_PAGE.label).toMatch(/SIALKOT/)
+  it('the factory label is built from the shared address, in normal letters (VA-44)', () => {
+    expect(FACTORY_PAGE.label).toBe('[ 13 Km Daska Road · Sialkot · Pakistan ]')
+    const letters = FACTORY_PAGE.label.replace(/[^A-Za-z]/g, '')
+    expect(letters).not.toBe(letters.toUpperCase())
   })
 })
 
@@ -64,6 +65,37 @@ describe('the numbers come from the constants', () => {
   it('the environmental lines are the policy’s own, not a second copy typed here', () => {
     expect(ENVIRONMENTAL_LINES.length).toBe(4)
     expect(ENVIRONMENTAL_LINES[0]).toContain('Solar panels on the roof')
+  })
+})
+
+/*
+ * The owner's rule: a page says nothing twice (2026-10-15). The site check of 2026-10-26 found
+ * About printing 100,000, 200 and 200+ twice and Factory its solar share twice; the owner chose
+ * the count-up band and the stat as each figure's one place.
+ */
+describe('a figure is said once per page', () => {
+  /** True when `text` holds `figure` as a whole number ("200" is not in "200,000"). */
+  const holds = (text: string, figure: string) =>
+    new RegExp(`(^|[^\\d,.])${figure.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d,])`).test(text)
+
+  it('About: no card or table row repeats a figure of the count-up band', () => {
+    const words = [
+      ...ABOUT_PAGE.people.cards.map((card) => card.body),
+      ...ABOUT_PAGE.factsTable.map((row) => `${row.term} ${row.detail}`),
+    ]
+    for (const { value } of ABOUT_PAGE.factsBand.filter(
+      (fact) => fact.label !== 'Manufacturing since',
+    )) {
+      for (const text of words)
+        expect(holds(text, value), `"${value}" again in: ${text}`).toBe(false)
+    }
+    expect(ABOUT_PAGE.people.cards.some((card) => /three cutting/i.test(card.body))).toBe(false)
+  })
+
+  it('Factory: the "How we run it" lines leave the solar share to the stat', () => {
+    expect(FACTORY_PAGE.howWeRunIt.stat).toBe('About 80%')
+    for (const line of FACTORY_PAGE.howWeRunIt.lines) expect(line).not.toContain('80%')
+    expect(FACTORY_PAGE.howWeRunIt.lines.length).toBe(ENVIRONMENTAL_LINES.length - 1)
   })
 })
 

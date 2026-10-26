@@ -25,7 +25,7 @@ export function SiteClosing({ children }: { children?: ReactNode }) {
       <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>
       <div className="section-head__words">
         <p className="site-lede">
-          Send the styles, quantities and specs you have — a sketch is enough to start. We reply
+          Send the styles, quantities and specs you have. A sketch is enough to start. We reply
           within 24 hours.
         </p>
         <div className="site-actions">

@@ -168,11 +168,11 @@ export default async function HomePage() {
           {/* The heading beside its words from 900px (`.section-head`, polish D1). */}
           <div className="section-head">
             <div className="section-head__title">
-              <p className="section-number">№02 — What we make</p>
+              <p className="section-number">№02 · What we make</p>
               <h2 className="display display--section">Five families, one&nbsp;standard.</h2>
             </div>
             <p className="site-lede">
-              One standard means one factory, one set of hands and one set of tolerances — every
+              One standard means one factory, one set of hands and one set of tolerances. Every
               family below is cut, stitched and finished on the same site, to the same
               specification, whether it is a hundred pieces or a hundred thousand.
             </p>
@@ -227,7 +227,7 @@ export default async function HomePage() {
               </div>
             }
           >
-            <p className="section-number">№03 — See it before it exists</p>
+            <p className="section-number">№03 · See it before it exists</p>
             {/* "3D" keeps its capitals inside the lower-casing accent (owner, D43). */}
             <h2 className="display display--section">
               Every reference,{' '}
@@ -284,7 +284,7 @@ export default async function HomePage() {
         <div className="site-container">
           <div className="section-head">
             <div className="section-head__title">
-              <p className="section-number">№05 — The works</p>
+              <p className="section-number">№05 · The works</p>
               <h2 className="display display--section">
                 Numbers you can <span className="serif-accent">hold us&nbsp;to.</span>
               </h2>

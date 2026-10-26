@@ -893,7 +893,7 @@ test.describe('VA-34 — the "Inside the factory" strip is gone, and no photo is
     const labels = await page.locator('.section-number').allTextContents()
     expect(labels.join('\n')).not.toMatch(/inside the factory/i)
     // "Talk to us" was №06 until the owner merged it into №05 (2026-10-16).
-    expect(labels.at(-1)).toBe('№05 — The works')
+    expect(labels.at(-1)).toBe('№05 · The works')
   })
 
   // №01 draws one since D41 (2026-10-16): the roof, as its ground. Since 2026-10-17 №04's step 05

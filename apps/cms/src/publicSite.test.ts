@@ -1098,8 +1098,7 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
   const PAGES = [
     ['home', join(FRONTEND, 'page.tsx')],
     ['products', join(FRONTEND, 'products', 'page.tsx')],
-    // The products page's groups and chips, drawn by FamilyGroup and FamilyChips since 2026-10-11
-    // (the group's count is there).
+    // The products page's groups and chips, drawn by FamilyGroup and FamilyChips since 2026-10-11.
     ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx')],
     ['products chips', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyChips.tsx')],
     ['contact', join(FRONTEND, 'contact', 'page.tsx')],
@@ -1107,7 +1106,7 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
     ['terms', join(FRONTEND, 'terms', 'page.tsx')],
   ] as const
 
-  const MEANING_CLASSES = ['subhead', 'field-label', 'result-count']
+  const MEANING_CLASSES = ['subhead', 'field-label']
 
   it('`.section-number` is only ever on a numbered marker', () => {
     const offenders: string[] = []
@@ -1173,7 +1172,7 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
     const sectionNumber = declarations(base, /\.section-number\s*\{([^}]*)\}/)
     const meaning = declarations(
       read(FRONTEND, 'site.css'),
-      /\.subhead,\s*\.field-label,\s*\.result-count\s*\{([^}]*)\}/,
+      /\.subhead,\s*\.field-label\s*\{([^}]*)\}/,
     )
 
     // Not `toHaveLength(0)` on a diff — name what moved, or the failure says nothing.

@@ -79,7 +79,7 @@ describe('page descriptions (L-06, FI-01)', () => {
  */
 describe('the home page title', () => {
   it('leads with the brand, then the words buyers search', () => {
-    expect(HOME_TITLE).toBe('RUN APPAREL — Private Label Sportswear Manufacturer')
+    expect(HOME_TITLE).toBe('RUN APPAREL | Private Label Sportswear Manufacturer')
   })
 
   it('fits in the 60 characters a result shows whole', () => {

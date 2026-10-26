@@ -32,7 +32,7 @@ test('the products title fits a search result: 60 characters or fewer, brand inc
 }) => {
   const head = headOf(await (await request.get('/products')).text())
   const title = (head.match(/<title>([^<]*)<\/title>/)?.[1] ?? '').replace(/&amp;/g, '&')
-  expect(title, 'the brand fell off the end').toMatch(/— RUN APPAREL$/)
+  expect(title, 'the brand fell off the end').toMatch(/\| RUN APPAREL$/)
   expect([...title].length, title).toBeLessThanOrEqual(60)
 })
 

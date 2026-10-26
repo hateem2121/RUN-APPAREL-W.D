@@ -8,6 +8,7 @@ import {
   PRECISION_MACHINES,
   SHIPS_TO,
 } from './companyFacts'
+import { AUTHORS } from './bylines'
 import { FAMILY_SINCE } from './press'
 import { POLICIES } from './policies'
 
@@ -58,13 +59,15 @@ export type Stage = {
 export type GallerySet = {
   readonly label: string
   readonly photos: readonly string[]
+  /** Drawn across both columns on wide screens, after them (owner, 2026-10-26, "Building full width"). */
+  readonly full?: true
 }
 
 /** The /about page's own words. The hero's two parts sit either side of its card (8.3). */
 export const ABOUT_PAGE = {
   path: '/about',
   title: 'About us: family makers in Sialkot since 1889',
-  description: `The OEM/ODM apparel division of ${PARENT_COMPANY} — private label sportswear from Sialkot, Pakistan, made by a family manufacturing and exporting since ${FAMILY_SINCE}.`,
+  description: `The OEM/ODM apparel division of ${PARENT_COMPANY}: private label sportswear from Sialkot, Pakistan, made by a family manufacturing and exporting since ${FAMILY_SINCE}.`,
   hero: {
     partLeft: 'SINCE 1889',
     partRight: 'STILL',
@@ -72,7 +75,7 @@ export const ABOUT_PAGE = {
     accent: 'running',
     subtitle: `Private label sportswear from Sialkot, Pakistan. The family behind it has made and exported from this city since ${FAMILY_SINCE}.`,
   },
-  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes — first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's apparel division. We engineer and export private label sportswear for partners who go the extra mile.`,
+  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes: first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's apparel division. We engineer and export private label sportswear for partners who go the extra mile.`,
   /** The mission, word for word (owner): rendered as a quote the readability test skips. */
   mission:
     'To empower global partners with sustainable, high-performance apparel that drives unity, endurance, and excellence — combining ethical craftsmanship with technological precision.',
@@ -84,12 +87,12 @@ export const ABOUT_PAGE = {
       { name: 'casual wear', href: '/private-label-casual-wear-manufacturer' },
       { name: 'outerwear', href: '/custom-outerwear-manufacturer' },
     ],
-    close: 'and sports accessories — all made to the same standard.',
+    close: 'and sports accessories, all made to the same standard.',
   },
   /** Decorative, aria-hidden; the same words appear in real text in `whatWeMake`. */
   marquee: ['TEAMWEAR', 'ACTIVEWEAR', 'CASUAL WEAR', 'OUTERWEAR', 'SPORTS ACCESSORIES'] as const,
   timeline: {
-    label: '[ 1889 — TODAY ]',
+    label: '[ 1889 TO TODAY ]',
     heading: 'The long run.',
     entries: [
       {
@@ -107,7 +110,7 @@ export const ABOUT_PAGE = {
         title: 'The scale years.',
         // The owner's own words, 2026-10-09, verbatim: nothing added back (no "leads for 76
         // years", no worker count — both ruled out).
-        body: "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952 — exporting to Europe by 1958.",
+        body: "Allah Ditta Ghafuree helps scale Pakistan's daily football output to 200,000. His sons extend the reach: Sandal Trading Corporation in 1942, Loyal Sports in 1952. They were exporting to Europe by 1958.",
       },
       {
         year: '1956–1992',
@@ -131,19 +134,22 @@ export const ABOUT_PAGE = {
     heading: 'Four generations on.',
     /** The owner's card: a name card with no photo (owner, 2026-10-09). */
     name: {
-      name: 'M. Hateem Jamshaid Iqbal',
-      role: 'Leadership',
+      // The guides' author, by the same name and title (owner, 2026-10-26, site check S-04).
+      name: AUTHORS.hateem.name,
+      role: AUTHORS.hateem.jobTitle,
       line: 'Fourth generation of the founding family',
     },
+    // The figures live once, in the count-up band below (owner, 2026-10-26: "numbers stay in
+    // the band"); the cards say the same thing without them.
     cards: [
       { title: 'Merchandising', body: 'One point of contact from tech pack to shipment.' },
       {
         title: 'Production',
-        body: `Three cutting lines, ${PRECISION_MACHINES.value} precision machines, and a checkpoint at every stage.`,
+        body: 'Cutting lines and precision machines, with a checkpoint at every stage.',
       },
       {
         title: 'HR',
-        body: `${PEOPLE} skilled people work here in one team: artisans, engineers, designers and production specialists.`,
+        body: 'Skilled people work here in one team: artisans, engineers, designers and production specialists.',
       },
     ] as const,
   },
@@ -156,13 +162,13 @@ export const ABOUT_PAGE = {
     { label: 'Pieces per month', value: CAPACITY },
     { label: 'Sq m under roof', value: FLOOR },
   ] as const,
-  /** The `<dl>` table's rows, every value from a constant or the shared address. */
+  /** The `<dl>` table's rows, every value from a constant or the shared address. No Capacity
+      row: the count-up band above says it (owner, 2026-10-26). */
   factsTable: [
     { term: 'Legal name', detail: LEGAL_NAME },
     { term: 'Parent company', detail: PARENT_COMPANY },
     { term: 'Headquarters', detail: formatAddress() },
     { term: 'Business model', detail: 'OEM/ODM private label manufacturing' },
-    { term: 'Capacity', detail: `${CAPACITY} pieces per month` },
     {
       term: 'Minimum order',
       detail: `${MINIMUM} pieces per style is our standard minimum. Fewer is possible at a higher price per piece.`,
@@ -195,9 +201,10 @@ export const FACTORY_PAGE = {
   path: '/inside-the-factory',
   title: 'Inside the factory: manufacturing in Sialkot',
   description: `Cutting, printing, stitching, QC and packing in a ${FLOOR} sq m Sialkot facility, with about 80% of its electricity from solar. Five stages, five checkpoints.`,
-  /** The mono label over the hero, built from the shared address constant (never typed). */
-  label:
-    `[ ${POSTAL_ADDRESS.street} · ${POSTAL_ADDRESS.locality} · ${COUNTRY_NAME} ]`.toUpperCase(),
+  /** The mono label over the hero, built from the shared address constant (never typed), in
+      normal letters as every page's hero label is (VA-44; it was uppercased here until the site
+      check of 2026-10-26, impeccable I-13). */
+  label: `[ ${POSTAL_ADDRESS.street} · ${POSTAL_ADDRESS.locality} · ${COUNTRY_NAME} ]`,
   hero: {
     /** The words before the accent; the page draws `heading` + `accent` as one headline. */
     heading: 'Inside the',
@@ -242,6 +249,13 @@ export const FACTORY_PAGE = {
       },
     ] as const satisfies readonly Stage[],
     /** After the stages, the site keeps telling the order one way (D23, X21): the guide's steps. */
+    /** The policies the five stages run under, linked by their own titles under the close (owner,
+        2026-10-26: each had 1-2 links pointing to it; claude-seo S-14). */
+    policyLinks: [
+      '/policies/health-and-safety',
+      '/policies/quality',
+      '/policies/labor-rights',
+    ] as const,
     close: {
       text: 'These five stages happen on one site, across six buildings. The steps you take as a buyer, from first message to shipment, are in',
       linkName: 'How a private label order works',
@@ -258,7 +272,9 @@ export const FACTORY_PAGE = {
       { label: 'Stitching', photos: ['stitching'] },
       { label: 'Quality Control', photos: ['inspection', 'final-check', 'lab'] },
       { label: 'Packing', photos: ['tagging', 'packing'] },
-      { label: 'The Building', photos: ['exterior'] },
+      // Closes the gallery across the page: the two columns above then end within 133px of each
+      // other, against 482px with it at the foot of the right one (measured 2026-10-26, 1440px).
+      { label: 'The Building', photos: ['exterior'], full: true },
     ] as const satisfies readonly GallerySet[],
   },
   howWeRunIt: {
@@ -266,7 +282,9 @@ export const FACTORY_PAGE = {
     heading: 'How we run it',
     stat: 'About 80%',
     statWords: "of the factory's electricity comes from the solar panels on our roof",
-    lines: ENVIRONMENTAL_LINES,
+    // The policy's own solar line is left out here: the stat and its words above say it
+    // (owner, 2026-10-26). The policy page keeps all four.
+    lines: ENVIRONMENTAL_LINES.filter((line) => !line.startsWith('Solar panels on the roof')),
     link: { name: 'Our environmental policy', href: '/policies/environmental' },
   },
   crossLink: { name: 'Our story since 1889', href: '/about' },

@@ -62,7 +62,7 @@ const ledeMarkup = (html: string) => /<p class="site-lede">(.*?)<\/p>/s.exec(htm
 
 describe('the home hero lede', () => {
   const html = renderToStaticMarkup(createElement(HomeHero))
-  const SAYS = `RUN APPAREL is a ${WHAT_WE_ARE} — ${WHAT_WE_MAKE}, made to order for the brands, teams and organizations that never look back.`
+  const SAYS = `RUN APPAREL is a ${WHAT_WE_ARE}: ${WHAT_WE_MAKE}, made to order for the brands, teams and organizations that never look back.`
 
   it('opens with the definition every profile opens with, and keeps its ending', () => {
     expect(textOf(ledeMarkup(html))).toBe(SAYS)

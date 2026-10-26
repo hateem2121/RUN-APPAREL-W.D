@@ -26,11 +26,25 @@
  */
 
 export type Author =
-  | { readonly kind: 'person'; readonly name: string }
+  | {
+      readonly kind: 'person'
+      readonly name: string
+      /** Google's Article guide: the role in `jobTitle`, never in the name. */
+      readonly jobTitle: string
+      /** The site page that identifies the person (Google: `author.url`). */
+      readonly path: string
+    }
   | { readonly kind: 'role'; readonly role: string }
 
 export const AUTHORS = {
-  hateem: { kind: 'person', name: 'M. Hateem Jamshaid' },
+  // One name and one title everywhere, About included (owner, 2026-10-26, site check S-04: the
+  // guides said "M. Hateem Jamshaid" with no title and About "M. Hateem Jamshaid Iqbal").
+  hateem: {
+    kind: 'person',
+    name: 'M. Hateem Jamshaid',
+    jobTitle: 'Business Development Director',
+    path: '/about',
+  },
   merchandiser: { kind: 'role', role: 'Merchandiser, RUN APPAREL' },
   production: { kind: 'role', role: 'Production in-charge, RUN APPAREL' },
   hr: { kind: 'role', role: 'HR, RUN APPAREL' },
@@ -57,8 +71,6 @@ const byline = (author: Author, published: string, on: string, words: string): B
 const GUIDES_1 = '2026-09-30T20:06:49+05:00'
 const GUIDES_2 = '2026-09-30T20:43:00+05:00'
 const GUIDES_3 = '2026-09-30T22:15:50+05:00'
-/** The reference garments joined the 3D, printing and fabrics guides (findability audit). */
-const GARMENT_LINKS = '2026-10-08T16:26:29+05:00'
 /** The cost guide and the country comparison, approved by the owner (findability audit). */
 const NEW_GUIDES = '2026-10-08T16:38:58+05:00'
 /** The policies, careers and community pages (#141). */
@@ -73,14 +85,21 @@ const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
 const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
 /** Step 05's photo became the front of the works (owner, home page audit 2026-10-17). */
 const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
+/**
+ * The site check's words (owner, 2026-10-26): About's bands merged and its repeated figures cut,
+ * the factory gallery and its policy links, careers' two policy links, the em dashes replaced, and
+ * eight guides' approved sections. It replaced the date of the reference garments' links
+ * (2026-10-08) on the 3D and fabrics guides, so that constant went with it.
+ */
+const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
  * fails again if the words move without this moving.
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
-  '/about': 'e20c171297da',
-  '/inside-the-factory': '6dbbda2a5dae',
+  '/about': 'f2cbaa003c0c',
+  '/inside-the-factory': '6f25fe7879f1',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
@@ -90,48 +109,48 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     STEP_FIVE_PHOTO,
     'fba06078c80f',
   ),
-  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, GARMENT_LINKS, '9afd7f827218'),
+  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, SITE_CHECK, 'e111b660bc6b'),
   '/guides/minimum-order-and-samples': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    SIX_BUILDINGS,
-    '69202031e4bb',
+    SITE_CHECK,
+    '4a8e6bacc216',
   ),
   '/guides/garment-printing-methods': byline(
     AUTHORS.production,
     GUIDES_2,
-    SIX_BUILDINGS,
-    '14f01dcef536',
+    SITE_CHECK,
+    '227e86c56492',
   ),
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
     GUIDES_2,
-    GARMENT_LINKS,
-    'e5d99bfe8009',
+    SITE_CHECK,
+    '2d2a4b0248a6',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
     GUIDES_2,
-    SIX_BUILDINGS,
-    '2fc3ab65674b',
+    SITE_CHECK,
+    '42dd0cb36541',
   ),
   '/guides/shipping-and-import-duties': byline(
     AUTHORS.merchandiser,
     GUIDES_3,
-    SIX_BUILDINGS,
-    'e4a623dd5ca7',
+    SITE_CHECK,
+    '9f6e6164232b',
   ),
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    SIX_BUILDINGS,
-    'bf7e9d7b6282',
+    SITE_CHECK,
+    'de3f9381a9cf',
   ),
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    SIX_BUILDINGS,
-    '4534a342ef7d',
+    SITE_CHECK,
+    '7a63eae92ba6',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),
@@ -145,19 +164,19 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/policies/labor-rights': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e7040ea909d2'),
   '/policies/quality': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e442ac2701ef'),
   '/policies/environmental': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, '2192f91d468f'),
-  '/careers': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, '77747b8b8d27'),
-  // The about and factory pages: the commit that shipped their approved words (092a086), and
-  // its time. The fingerprint is `bylines.test.ts`'s of the words at that moment.
+  '/careers': byline(AUTHORS.hr, POLICIES_LIVE, SITE_CHECK, '998d9a7f5371'),
+  // The about and factory pages: first shipped in 092a086; their words last changed in the site
+  // check. The fingerprint is `bylines.test.ts`'s of the words at that moment.
   '/about': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    ABOUT_FACTORY_WORDS,
+    SITE_CHECK,
     ABOUT_FACTORY_FINGERPRINTS['/about'],
   ),
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    SIX_BUILDINGS,
+    SITE_CHECK,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }

@@ -28,8 +28,10 @@ export type CompanySection = {
 
 export type CompanyPage = {
   readonly path: string
-  /** The `<title>`; the layout adds " — RUN APPAREL". */
+  /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
+  /** The search-result `<title>`, when the short `title` says too little (owner, 2026-10-26). */
+  readonly metaTitle?: string
   /** ≤ 160 characters: the meta description. */
   readonly description: string
   /** The page's mono label, brackets included. */
@@ -99,6 +101,7 @@ export const COMMUNITY_WORKS_PHOTOS = ['solar-roof', 'stitching'] as const
 export const CAREERS_PAGE: CompanyPage = {
   path: '/careers',
   title: 'Careers',
+  metaTitle: 'Careers at a Sialkot Sportswear Factory',
   description:
     'Join a family of makers in Sialkot. A written contract, paid emergency leave, a festival bonus, medical coverage, transport, and training from within.',
   eyebrow: '[ Careers ]',
@@ -168,6 +171,10 @@ export const CAREERS_PAGE: CompanyPage = {
     { href: '/community', name: 'Community' },
     { href: '/policies', name: 'Policies' },
     { href: '/policies/equal-opportunity', name: 'Equal opportunity' },
+    // The two policies a new hire lives by, linked from here (owner, 2026-10-26: each had 1-2
+    // links pointing to it; claude-seo S-14).
+    { href: '/policies/workplace-conduct', name: 'Workplace conduct' },
+    { href: '/policies/health-and-vaccination', name: 'Health and vaccination' },
     { href: '/contact', name: 'Contact' },
   ],
 }
@@ -175,6 +182,7 @@ export const CAREERS_PAGE: CompanyPage = {
 export const COMMUNITY_PAGE: CompanyPage = {
   path: '/community',
   title: 'Community',
+  metaTitle: 'Work and Community in Sialkot Since 1889',
   description:
     'Steady, dignified work is the most important thing RUN APPAREL does for Sialkot — the people, the training and the help in hard times.',
   eyebrow: '[ Community ]',
@@ -248,6 +256,7 @@ export const COMMUNITY_PAGE: CompanyPage = {
 export const PRESS_PAGE: CompanyPage = {
   path: '/press',
   title: 'Press',
+  metaTitle: 'Press Kit: Facts, Photos and Media Contact',
   description: 'Facts, photos and a contact for anyone writing about RUN APPAREL.',
   eyebrow: '[ Press ]',
   heading: 'For journalists, researchers,',

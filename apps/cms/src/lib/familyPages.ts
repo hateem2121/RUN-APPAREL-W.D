@@ -39,7 +39,7 @@ export type FamilyPage = {
   readonly path: string
   /** The family whose garments the page shows: a `slug` in `FAMILIES`. */
   readonly familySlug: string
-  /** The `<title>`; the layout adds " — RUN APPAREL". */
+  /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
   readonly description: string
   /** The mono label above the heading. */
@@ -85,31 +85,140 @@ export const FAMILY_PAGE_ACTION = 'Start a conversation'
  * order guide's job, and the page links to it (`FamilyLanding.tsx`).
  */
 
-/** The questions every buyer asks, after the one about the minimum, which names the family. */
-const questionsFor = (minimumFor: string, ownBrand: string): readonly FamilyPageQuestion[] => [
-  {
-    question: `What is the minimum order for ${minimumFor}?`,
-    answer: `${MINIMUM} pieces per style.`,
-  },
-  {
-    question: 'How long does a sample take?',
-    answer: `${SAMPLE_DAYS} working days. The sample fee is credited back against your bulk order.`,
-  },
-  {
-    question: ownBrand,
-    answer:
-      'Yes. Everything is private label: made to your specification and sent out under your own label.',
-  },
-  {
-    question: 'What do you need from us to quote?',
-    answer: 'A sketch is enough. A reference garment or a tech pack is better. The quote is free.',
-  },
+/*
+ * ⚠️ FOUR OF THE SIX QUESTIONS EVERY PAGE SHARED WERE SAID TWICE (owner, 2026-10-26, site check:
+ * "nothing said twice on one page"). The minimum and the sample time are in the label and the
+ * opening paragraph; "can the garments carry our own brand" is the opening paragraph's "under your
+ * own label"; "what do you need to quote" is the closing band's "A sketch is enough to start". So
+ * those four went, and each page asks its own questions instead. Two shared ones stay: they say
+ * something the page does not.
+ *
+ * ⚠️ NO COUNT OF THE CATALOGUE IS TYPED HERE (the same date). An answer names the garments it
+ * speaks of, and the fabric, weight or method that garment's own page states, all read from the
+ * public garment data on 2026-10-26. A figure for a named garment goes stale only if that garment's
+ * page is edited; "nine of the ten" or "four use DTF" would go stale when a garment is added, so the
+ * drafts' counts are left out.
+ */
+const SHARED_QUESTIONS: readonly FamilyPageQuestion[] = [
   {
     question: 'Do you keep stock designs we can pick from?',
     answer:
       'No. Every order is made to order. The 3D garments on this page are references that show what we can make.',
   },
   { question: 'Where do you ship?', answer: 'Worldwide.' },
+]
+
+const TEAMWEAR_QUESTIONS: readonly FamilyPageQuestion[] = [
+  {
+    question: 'What should a football program send first?',
+    answer:
+      'A team sheet, a numbering font, sponsor artwork or a uniform you want matched. You do not need finished artwork. Most uniform programs begin with a color and a number font, and the panel layout is built around them. We develop the jersey and the padded trouser together.',
+  },
+  {
+    // The owner's own answer of 2026-10-26 (fact 8a), word for word.
+    question: 'Can each piece carry its own name and number?',
+    answer:
+      'Yes. Each piece can carry its own name and number, and they count toward the same minimum.',
+  },
+  {
+    question: 'Which printing methods suit team kit?',
+    answer:
+      'Sublimation suits polyester and all-over designs, such as team jerseys. Heat transfer vinyl suits names and numbers. Embroidery suits logos and badges. On football jerseys, silicone printing adds raised numbers and marks with grip and depth.',
+  },
+  {
+    question: 'What are the soccer jerseys made from?',
+    answer:
+      'The V-neck jersey is 100% polyester at 140 to 180 GSM. The Velocity Performance Jersey is 90% polyester and 10% spandex at 150 to 180 GSM. The polo-collar jersey is a 50/50 polyester and cotton blend at 160 to 220 GSM. The training bib is 100% polyester at 80 to 100 GSM.',
+  },
+  {
+    question: 'Do we need a finished design to start a cycling order?',
+    answer:
+      'No. Most skinsuit programs start from a sponsor sheet, and our team builds the pattern and print layout around it. Bring a tech pack, race artwork, a competitor sample or a sketch.',
+  },
+  {
+    question: 'Is a tennis design different for pickleball?',
+    answer:
+      'The cut stays the same. Only the place where teams want their marks changes. Tell us whether the shirt is for tennis, pickleball or both.',
+  },
+]
+
+const ACTIVEWEAR_QUESTIONS: readonly FamilyPageQuestion[] = [
+  {
+    question: 'What do you need to know to make a sports bra?',
+    answer:
+      'Both the activity and the size range, before pattern work starts. Support comes from the two together, and a bra graded from one sample size is the commonest failure in this category.',
+  },
+  {
+    question: 'Which fabrics do the activewear references use?',
+    answer:
+      'The cropped training top is 75% nylon and 25% spandex at 180 to 260 GSM. The sports bra is 95% nylon and 5% spandex at 200 to 240 GSM.',
+  },
+  {
+    question: 'How are the activewear references printed?',
+    answer:
+      'DTF is on the pullover, the training jersey, the cropped training top and the zip-up vest. Screen printing is on the sports bra and the crop top. The sweatshirt uses digital printing. DTF is printed on film and heat-pressed on, and it works on most fabrics and colors.',
+  },
+  {
+    question: 'What helps when you brief a training top?',
+    answer:
+      'Send a color story or a garment you want bettered, and say what session it is for: studio, lifting or running. For a jersey with two knits, decide which panels carry color and which carry texture, because the two knits read differently in the same shade.',
+  },
+  {
+    question: 'Can you use recycled fabric?',
+    answer:
+      'Yes. The running shirt is 100% recycled polyester, and the zip-up vest is 85% recycled polyester with 15% spandex. We source recycled and organic fabrics from certified suppliers, and you get the certificates that prove it.',
+  },
+]
+
+const OUTERWEAR_QUESTIONS: readonly FamilyPageQuestion[] = [
+  {
+    question: 'How heavy are the jackets?',
+    answer:
+      'The windbreaker and the longline jacket are nylon at 40 to 70 GSM and 40 to 90 GSM. The tech jacket is polyester at 220 to 260 GSM. The sherpa fleece jacket is 80% cotton and 20% polyester at 320 to 440 GSM. The leather jacket is measured by thickness, not by GSM.',
+  },
+  {
+    question: 'How is a brand mark applied to a leather jacket?',
+    answer:
+      'It is screen-printed onto the hide, which holds a crisp edge on leather where a heat transfer would not survive the surface. Branding continues into the build itself: the panel splits, the stitching color and metal or embossed hardware all carry identity.',
+  },
+  {
+    question: 'What do you need to start a leather jacket?',
+    answer:
+      'A tech pack, reference garments, hardware you want matched, or a written brief. A leather jacket is a hardware and construction program as much as a materials one.',
+  },
+  {
+    question: 'What should a jacket brief say first?',
+    answer:
+      'How and where the jacket will be worn, such as training, commuting or outdoor use, and your colors. For a tech jacket the hood system and cuffs are discussed first.',
+  },
+]
+
+const CASUAL_QUESTIONS: readonly FamilyPageQuestion[] = [
+  {
+    question: 'What are the casual pieces made from?',
+    answer:
+      'The crop hoodie is 98% recycled polyester and 2% spandex at 340 to 380 GSM. The tracksuit weighs 280 to 350 GSM. The half-zip fleece is 95% cotton and 5% spandex at 210 to 260 GSM. The lounge set is 65% cotton, 30% polyester and 5% spandex at 220 to 270 GSM. The half-zip polo is 90% nylon and 10% spandex at 140 to 180 GSM.',
+  },
+  {
+    question: 'Can casual wear be made in organic cotton?',
+    answer:
+      'Yes. The tracksuit is 100% organic cotton, which is grown without synthetic pesticides or fertilizers. We source recycled and organic fabrics from certified suppliers, and you get the certificates that prove it.',
+  },
+  {
+    question: 'What decides how a cropped hoodie fits?',
+    answer:
+      'Crop length and hood volume. Those two decisions define the garment, and a photograph of the look you want settles both faster than a spec sheet.',
+  },
+  {
+    question: 'How do you develop a tracksuit or a lounge set?',
+    answer:
+      'We develop the hood and the pant as one set. Whether the top is a hood or a collar is the first decision, and it changes the pattern more than any other choice. For a lounge set, the polo collar and the width of the leg define the set.',
+  },
+  {
+    question: 'Which decoration suits the polo?',
+    answer:
+      'Sublimation suits an all-over or tonal design. Embroidery suits a crest that should look stitched rather than printed.',
+  },
 ]
 
 export const FAMILY_PAGES: readonly FamilyPage[] = [
@@ -138,7 +247,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       { group: 'Water sports', garments: 'Neoprene wetsuits.' },
     ],
     stepsHeading: 'How a team order works',
-    questions: questionsFor('custom teamwear', 'Can the kit carry our own brand?'),
+    questions: [...TEAMWEAR_QUESTIONS, ...SHARED_QUESTIONS],
     closingHeading: 'Have a team that needs kit?',
   },
   /*
@@ -178,7 +287,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       },
     ],
     stepsHeading: 'How an order works',
-    questions: questionsFor('custom activewear', 'Can the garments carry our own brand?'),
+    questions: [...ACTIVEWEAR_QUESTIONS, ...SHARED_QUESTIONS],
     closingHeading: 'Have a range that needs making?',
   },
   {
@@ -201,7 +310,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       { group: 'Leather', garments: 'Utility jackets.' },
     ],
     stepsHeading: 'How an order works',
-    questions: questionsFor('custom jackets', 'Can the jackets carry our own brand?'),
+    questions: [...OUTERWEAR_QUESTIONS, ...SHARED_QUESTIONS],
     closingHeading: 'Have a jacket that needs making?',
   },
   {
@@ -221,7 +330,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       { group: 'Fleece', garments: 'Half-zip fleece pullovers.' },
     ],
     stepsHeading: 'How an order works',
-    questions: questionsFor('private label casual wear', 'Can the garments carry our own brand?'),
+    questions: [...CASUAL_QUESTIONS, ...SHARED_QUESTIONS],
     closingHeading: 'Have a range that needs making?',
   },
 ]

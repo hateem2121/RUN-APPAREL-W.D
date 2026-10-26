@@ -16,6 +16,14 @@ import { hintedWidth } from './sizesHint'
  */
 
 const PRINTING = '/guides/garment-printing-methods'
+/**
+ * Every guide that draws a table, with its row count (the printing guide's, and since 2026-10-26 the
+ * fabrics guide's: its first build had three columns and ran 38px past a 320px phone).
+ */
+const TABLES = GUIDES.flatMap((guide) => {
+  const table = guide.sections.flatMap((section) => section.blocks).find((b) => b.kind === 'table')
+  return table?.kind === 'table' ? [{ path: guide.path, rows: table.rows.length }] : []
+})
 const WITH_PHOTOS = GUIDES.filter((guide) => guide.sections.some((section) => section.photo)).map(
   (guide) => guide.path,
 )
@@ -29,7 +37,7 @@ async function open(page: Page, path: string, width: number, extraCss?: string) 
   await page.evaluate(() => document.fonts.ready)
 }
 
-/** How the printing guide's table sits on the page, and anything in it that does not fit. */
+/** How a guide's table sits on the page, and anything in it that does not fit. */
 const tableFit = (page: Page) =>
   page.evaluate(() => {
     const table = document.querySelector<HTMLTableElement>('main table.guide-table')
@@ -52,20 +60,29 @@ const tableFit = (page: Page) =>
     }
   })
 
-test.describe('X22 — the printing guide’s table fits a phone', () => {
-  for (const width of [320, 390, 1440]) {
-    test(`at ${width}px: inside the column, nothing cut, no sideways scroll`, async ({ page }) => {
-      await open(page, PRINTING, width)
-      const fit = await tableFit(page)
-      expect(fit, 'no table on the printing guide').not.toBeNull()
-      expect(fit?.rows, 'the table has lost its rows').toBe(7)
-      expect(fit?.pageScrollsSideways, 'the page scrolls sideways').toBe(false)
-      expect(fit?.pastTheColumn ?? 99, 'the table runs past the column').toBeLessThanOrEqual(0.5)
-      expect(fit?.clipped, 'a cell is cut').toEqual([])
-      // Read, so 12px or more (VA-11): the column headers are the smallest text in it.
-      expect(fit?.smallest ?? 0).toBeGreaterThanOrEqual(12)
-    })
-  }
+test.describe('X22 — every guide’s table fits a phone', () => {
+  test('the printing and fabrics guides each draw one', () => {
+    expect(TABLES.map((table) => table.path)).toEqual(
+      expect.arrayContaining([PRINTING, '/guides/sportswear-fabrics-and-weights']),
+    )
+  })
+
+  for (const { path, rows } of TABLES)
+    for (const width of [320, 390, 1440]) {
+      test(`${path} at ${width}px: inside the column, nothing cut, no sideways scroll`, async ({
+        page,
+      }) => {
+        await open(page, path, width)
+        const fit = await tableFit(page)
+        expect(fit, `no table on ${path}`).not.toBeNull()
+        expect(fit?.rows, 'the table has lost its rows').toBe(rows)
+        expect(fit?.pageScrollsSideways, 'the page scrolls sideways').toBe(false)
+        expect(fit?.pastTheColumn ?? 99, 'the table runs past the column').toBeLessThanOrEqual(0.5)
+        expect(fit?.clipped, 'a cell is cut').toEqual([])
+        // Read, so 12px or more (VA-11): the column headers are the smallest text in it.
+        expect(fit?.smallest ?? 0).toBeGreaterThanOrEqual(12)
+      })
+    }
 
   test('NEGATIVE CONTROL: a table wider than the phone is caught', async ({ page }) => {
     await open(page, PRINTING, 320, '.guide-table { min-width: 600px; max-width: none; }')

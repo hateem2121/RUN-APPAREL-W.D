@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { POLICY_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
+import { metaTitleOf } from './seo'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE } from './companyFacts'
 import { buildLlmsTxt } from './llmsTxt'
 import {
@@ -23,7 +24,7 @@ import { sitemapFor } from './searchVisibility'
  */
 const FRONTEND = join(import.meta.dirname, '..', 'app', '(frontend)')
 const ORIGIN = 'https://wear-run.com'
-const BRAND_SUFFIX = ' — RUN APPAREL'
+const BRAND_SUFFIX = ' | RUN APPAREL'
 
 describe('every approved policy is wired everywhere a public page must be', () => {
   it('the policy list and the header list name the same addresses, in the same order', () => {
@@ -50,7 +51,7 @@ describe('every approved policy is wired everywhere a public page must be', () =
 describe('what a search result shows', () => {
   for (const page of [POLICIES_INDEX, ...POLICIES]) {
     it(`${page.path}: the whole title fits and the description can be the snippet`, () => {
-      expect(`${page.title}${BRAND_SUFFIX}`.length).toBeLessThanOrEqual(TITLE_MAX)
+      expect(`${metaTitleOf(page)}${BRAND_SUFFIX}`.length).toBeLessThanOrEqual(TITLE_MAX)
       expect(page.description.length).toBeGreaterThanOrEqual(DESCRIPTION_MIN)
       expect(page.description.length).toBeLessThanOrEqual(DESCRIPTION_MAX)
     })

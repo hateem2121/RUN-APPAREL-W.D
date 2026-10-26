@@ -3,6 +3,7 @@ import {
   CERTIFICATION_PROMISE,
   FACTS,
   LEAD_TIME,
+  PAYMENT_TERMS,
   SHIPS_TO,
 } from './companyFacts'
 
@@ -58,7 +59,7 @@ export type FaqEntry = {
 
 export type FaqTopic = {
   readonly path: string
-  /** The `<title>`; the layout adds " — RUN APPAREL". */
+  /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
   readonly description: string
   /** The one `<h1>`, in two parts: plain, then the single serif accent. */
@@ -78,6 +79,7 @@ const CAPACITY = fact('Pieces per month')
 export const FAQ_INDEX = {
   path: '/faq',
   title: 'FAQ',
+  metaTitle: 'Private Label Apparel FAQ for Buyers',
   description:
     'Answers to what buyers ask RUN APPAREL before they write: orders and samples, quality and certifications, shipping, fabrics and printing.',
   heading: 'Questions,',
@@ -136,8 +138,8 @@ const ORDERS: FaqTopic = {
     {
       id: 'payment-terms',
       question: 'What are your payment terms?',
-      answer: 'We agree payment terms with each buyer.',
-      source: 'owner (F4, 2026-10-07): "mutually agreed with the customer"',
+      answer: PAYMENT_TERMS,
+      source: 'owner (site check, 2026-10-26): "50% deposit, 50% before ship"',
     },
     {
       id: 'quote',

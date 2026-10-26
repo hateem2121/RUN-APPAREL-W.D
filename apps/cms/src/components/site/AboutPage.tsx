@@ -112,46 +112,43 @@ export function AboutPage() {
       </section>
 
       {/*
+       * ONE SECTION FOR THE OPENING WORDS (owner, 2026-10-26, site check Hallmark H-12): the
+       * opening answer, the categories and the mission were three bands of 25-40 words, each under
+       * half the width with 120px of paper above and below. Now the answer and the categories sit
+       * on the left and the mission on the right (`.about-intro`, about-factory.css); the words
+       * are unchanged.
+       *
        * The byline sits directly under the opening paragraph, as on the guides, policies and
        * careers (approved with the words). It was in the hero at first; there it did not
        * fit beside the card on a phone's sticky screen.
-       */}
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <p className="site-lede about-lead">{page.quickAnswer}</p>
-          <Byline path={page.path} />
-        </div>
-      </section>
-
-      {/*
+       *
        * The mission, word for word (owner): `[data-quote]` is the readability exception the
        * owner chose on 2026-10-09 — the sentence stays as written, and `legibility.spec.ts`
        * skips it the way it skips the certificate lines.
        */}
       <section className="site-section" data-site-reveal>
-        <div className="site-container">
+        <div className="site-container about-intro">
+          <div className="about-intro__words">
+            <p className="site-lede about-lead">{page.quickAnswer}</p>
+            <Byline path={page.path} />
+            <p className="site-lede about-lead">
+              {lead}{' '}
+              {linked.map((link) => (
+                <span key={link.href}>
+                  <Link href={link.href}>{link.name}</Link>,{' '}
+                </span>
+              ))}
+              {last ? (
+                <>
+                  and <Link href={last.href}>{last.name}</Link>{' '}
+                </>
+              ) : null}
+              {close}
+            </p>
+          </div>
           <blockquote className="about-mission" data-quote>
             <p>{page.mission}</p>
           </blockquote>
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container">
-          <p className="site-lede about-lead">
-            {lead}{' '}
-            {linked.map((link) => (
-              <span key={link.href}>
-                <Link href={link.href}>{link.name}</Link>,{' '}
-              </span>
-            ))}
-            {last ? (
-              <>
-                and <Link href={last.href}>{last.name}</Link>{' '}
-              </>
-            ) : null}
-            {close}
-          </p>
         </div>
       </section>
 
@@ -258,14 +255,13 @@ export function AboutPage() {
             </ul>
             <p className="about-cert__promise">{CERTIFICATION_PROMISE}</p>
           </div>
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container site-actions">
-          <Link className="btn btn--ghost" href={page.crossLink.href}>
-            {page.crossLink.name} <span aria-hidden="true">→</span>
-          </Link>
+          {/* The link to the factory closes this section; it was a band of its own, one button in
+              about 310px of paper (site check, impeccable I-04, 2026-10-26). */}
+          <div className="site-actions">
+            <Link className="btn btn--ghost" href={page.crossLink.href}>
+              {page.crossLink.name} <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       </section>
 

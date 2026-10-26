@@ -2,7 +2,8 @@ import { normalizeSlug } from './slugs.ts'
 
 /**
  * Contact-link builders. The enquiry template is a locked piece of brief
- * copy — B2B/OEM language only, no retail wording.
+ * copy: B2B/OEM language only, no retail wording. Its subject takes a colon, not a dash, since the
+ * owner approved the site check of 2026-10-26 (V7).
  */
 
 export interface EnquiryContext {
@@ -12,7 +13,7 @@ export interface EnquiryContext {
 }
 
 export function buildEnquirySubject({ productName, colourName }: EnquiryContext): string {
-  return `Product Inquiry — ${productName} / ${colourName}`
+  return `Product Inquiry: ${productName} / ${colourName}`
 }
 
 export function buildEnquiryBody({ productName, productCode, colourName }: EnquiryContext): string {

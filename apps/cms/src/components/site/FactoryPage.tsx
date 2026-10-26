@@ -3,11 +3,12 @@ import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { Breadcrumb } from './Breadcrumb'
 import { factoryPhoto } from './CompanyParts'
-import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
+import { FactoryFigure, FULL_COLUMN_SIZES, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { FactoryPhotoViewer, type ViewerPhoto } from './FactoryPhotoViewer'
 import { JsonLd } from './JsonLd'
 import { Marquee } from './Marquee'
 import { FACTORY_PAGE } from '../../lib/aboutPages'
+import { POLICIES } from '../../lib/policies'
 import {
   FACTORY_PHOTO_ASPECT,
   factoryPhotoImage,
@@ -178,6 +179,17 @@ export function FactoryPage() {
             {page.walkthrough.close.text}{' '}
             <Link href={page.walkthrough.close.href}>{page.walkthrough.close.linkName}</Link>.
           </p>
+          <div className="site-actions">
+            {page.walkthrough.policyLinks.map((path) => {
+              const policy = POLICIES.find((entry) => entry.path === path)
+              if (!policy) return null
+              return (
+                <Link className="btn btn--ghost" href={policy.path} key={policy.path}>
+                  {policy.title} <span aria-hidden="true">→</span>
+                </Link>
+              )
+            })}
+          </div>
         </div>
       </section>
 
@@ -187,33 +199,45 @@ export function FactoryPage() {
       <section className="site-section" data-site-reveal>
         <div className="site-container">
           <h2 className="display display--section">{page.gallery.heading}</h2>
-          {page.gallery.sets.map((set) => (
-            <div className="factory-gallery__set" key={set.label}>
-              <h3 className="factory-gallery__label">{set.label}</h3>
-              <div className="factory-gallery__photos">
-                {set.photos.map((slug) => {
-                  const at = GALLERY.findIndex((entry) => entry.slug === slug)
-                  const entry = GALLERY[at]
-                  if (!entry) return null
-                  return (
-                    // Without JavaScript, a link to the largest file; with it, the viewer.
-                    <a
-                      className="factory-gallery__open"
-                      href={entry.largest.src}
-                      data-gallery-index={at}
-                      key={slug}
-                    >
-                      <FactoryFigure
-                        photo={entry.photo}
-                        {...factoryPhotoImage(entry.photo)}
-                        sizes={HALF_COLUMN_SIZES}
-                      />
-                    </a>
-                  )
-                })}
+          {/* The sets flow down two columns on wide screens (about-factory.css), so a set of
+              one photo no longer leaves half the row empty (owner, 2026-10-26). */}
+          <div className="factory-gallery__sets">
+            {page.gallery.sets.map((set) => (
+              <div
+                className={
+                  'full' in set
+                    ? 'factory-gallery__set factory-gallery__set--full'
+                    : 'factory-gallery__set'
+                }
+                key={set.label}
+              >
+                <h3 className="factory-gallery__label">{set.label}</h3>
+                <div className="factory-gallery__photos">
+                  {set.photos.map((slug) => {
+                    const at = GALLERY.findIndex((entry) => entry.slug === slug)
+                    const entry = GALLERY[at]
+                    if (!entry) return null
+                    return (
+                      // Without JavaScript, a link to the largest file; with it, the viewer.
+                      <a
+                        className="factory-gallery__open"
+                        href={entry.largest.src}
+                        data-gallery-index={at}
+                        data-shape={entry.photo.shape}
+                        key={slug}
+                      >
+                        <FactoryFigure
+                          photo={entry.photo}
+                          {...factoryPhotoImage(entry.photo, { full: 'full' in set })}
+                          sizes={'full' in set ? FULL_COLUMN_SIZES : HALF_COLUMN_SIZES}
+                        />
+                      </a>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           <FactoryPhotoViewer photos={VIEWER_PHOTOS} />
         </div>
       </section>
@@ -230,9 +254,14 @@ export function FactoryPage() {
                 <li key={line}>{line}</li>
               ))}
             </ul>
+            {/* "Our story" closes this section; it was a band of its own, one button in about
+                310px of paper (site check, impeccable I-04, 2026-10-26). */}
             <div className="site-actions">
               <Link className="btn btn--ghost" href={page.howWeRunIt.link.href}>
                 {page.howWeRunIt.link.name} <span aria-hidden="true">→</span>
+              </Link>
+              <Link className="btn btn--ghost" href={page.crossLink.href}>
+                {page.crossLink.name} <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>
@@ -248,14 +277,6 @@ export function FactoryPage() {
               )
             })()}
           </div>
-        </div>
-      </section>
-
-      <section className="site-section" data-site-reveal>
-        <div className="site-container site-actions">
-          <Link className="btn btn--ghost" href={page.crossLink.href}>
-            {page.crossLink.name} <span aria-hidden="true">→</span>
-          </Link>
         </div>
       </section>
 

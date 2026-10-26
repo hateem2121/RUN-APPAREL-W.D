@@ -79,7 +79,7 @@ export function HomeHero() {
         </h1>
         {/* The definition every profile opens with (owner, 2026-10-11); `HomeHero.test.ts` holds it. */}
         <p className="site-lede">
-          RUN APPAREL is a {WHAT_WE_ARE} — {WHAT_WE_MAKE}, made to order for the brands, teams and
+          RUN APPAREL is a {WHAT_WE_ARE}: {WHAT_WE_MAKE}, made to order for the brands, teams and
           organizations that never look back.
         </p>
         <div className="site-actions">

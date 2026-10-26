@@ -293,7 +293,7 @@ type ArticleInput = {
   image: { url: string; width: number; height: number } | null
   datePublished: string
   dateModified: string
-  author: { name: string; url?: string | null } | null
+  author: { name: string; url?: string | null; jobTitle?: string | null } | null
 }
 
 /**
@@ -328,6 +328,7 @@ function articleData(type: 'BlogPosting' | 'Article', article: ArticleInput) {
       ? {
           '@type': 'Person',
           name: article.author.name,
+          ...(article.author.jobTitle ? { jobTitle: article.author.jobTitle } : {}),
           ...(article.author.url ? { url: article.author.url } : {}),
         }
       : {
@@ -371,7 +372,14 @@ export function guideArticleJsonLd(guide: { path: string; title: string; descrip
     },
     datePublished: byline?.published ?? '',
     dateModified: byline?.changed.on ?? '',
-    author: byline?.author.kind === 'person' ? { name: byline.author.name } : null,
+    author:
+      byline?.author.kind === 'person'
+        ? {
+            name: byline.author.name,
+            jobTitle: byline.author.jobTitle,
+            url: `${SITE_ORIGIN}${byline.author.path}`,
+          }
+        : null,
   })
 }
 
