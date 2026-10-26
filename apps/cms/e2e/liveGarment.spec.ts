@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { calibratedThrottleRate, cpuBenchmarkInPage } from '@run-apparel/shared'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -430,6 +431,86 @@ test.describe('№03 — the live 3D garment', () => {
     expect(await page.evaluate(() => (window as unknown as { __faded: boolean }).__faded)).toBe(
       false,
     )
+  })
+
+  /*
+   * How long a pick takes to SHOW (owner's target, 2026-10-26: within 100 ms of the press, at the
+   * reference machine's speed). Measured 2026-10-26 before the dye player, on the toBlob → decode →
+   * swap path: 349, 267, 310, 283, 188 ms, median 283, worst 349 (benchmark 532, throttle 3.67x). What would have to break: a pick
+   * that waits on an encode, a decode or the variant swap before anything moves. The first change is
+   * the player's `dye-first-frame` mark, or, on the path it replaced, the old picture starting to go.
+   * Chromium only: the throttle is CDP.
+   */
+  // fixme until the dye player replaces the toBlob path (plan Task 4): measured 283 ms median today.
+  test.fixme('a colour pick starts to show within 100 ms of the press', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'CDP is only available in Chromium')
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('about:blank')
+    const scores: number[] = []
+    for (let i = 0; i < 5; i++) scores.push(await page.evaluate(cpuBenchmarkInPage))
+    const score = scores.sort((a, b) => a - b)[2] as number
+    const rate = calibratedThrottleRate(score)
+    await serveModel(page, true)
+    await openWithGarment(page)
+    await page.locator('.proof__figure').scrollIntoViewIfNeeded()
+    await expect(page.locator('.live-garment')).toHaveAttribute('data-phase', 'shown', {
+      timeout: 30000,
+    })
+    const client = await page.context().newCDPSession(page)
+    await client.send('Emulation.setCPUThrottlingRate', { rate })
+    await page.evaluate(() => {
+      const w = window as unknown as { __pick: { pressed: number; shown: number } }
+      w.__pick = { pressed: -1, shown: -1 }
+      document.addEventListener(
+        'pointerdown',
+        (event) => {
+          if (!(event.target as Element).closest('.proof__pill')) return
+          w.__pick = { pressed: event.timeStamp, shown: -1 }
+          performance.clearMarks('dye-first-frame')
+          const look = () => {
+            const started =
+              performance.getEntriesByName('dye-first-frame').length > 0 ||
+              document.querySelector('.live-garment__fade[data-going]') !== null
+            if (started) w.__pick.shown = performance.now()
+            else requestAnimationFrame(look)
+          }
+          requestAnimationFrame(look)
+        },
+        true,
+      )
+    })
+    const waits: number[] = []
+    for (const index of [1, 2, 3, 4, 0]) {
+      await page
+        .locator('.proof__pill')
+        .nth(index)
+        .click({ position: { x: 22, y: 22 } })
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => (window as unknown as { __pick: { shown: number } }).__pick.shown),
+          { timeout: 10000 },
+        )
+        .toBeGreaterThan(0)
+      const pick = await page.evaluate(
+        () => (window as unknown as { __pick: { pressed: number; shown: number } }).__pick,
+      )
+      waits.push(pick.shown - pick.pressed)
+      // Let the change finish before the next press.
+      await expect(page.locator('.live-garment__fade, .dye-layer[data-running]')).toHaveCount(0, {
+        timeout: 10000,
+      })
+    }
+    const sorted = [...waits].sort((a, b) => a - b)
+    const median = sorted[2] as number
+    // Printed on a pass too, so the numbers are readable in the job log.
+    console.log(
+      `№03 pick → first change: ${waits.map((w) => w.toFixed(0)).join(', ')} ms; median ${median.toFixed(0)} ms, worst ${(sorted[4] as number).toFixed(0)} ms (benchmark ${score}, throttle ${rate.toFixed(2)}x)`,
+    )
+    expect(median).toBeLessThanOrEqual(100)
   })
 
   /*
