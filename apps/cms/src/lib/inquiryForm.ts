@@ -11,8 +11,12 @@ import { checkFiles, formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from './inquiryFi
  * left with it. Every new line of wording below was approved by the owner as W1–W10.
  */
 
-/** "25 MB", as the page and the note under the picker say it (formatBytes would give "25.0 MB"). */
-const LIMIT = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
+/**
+ * "25 MB", as the page and the note under the picker say it (formatBytes would give "25.0 MB").
+ * Exported, with `ACCEPTED_KINDS`, for the guides (owner, 2026-10-26, site check): they say what the
+ * form takes from these words.
+ */
+export const LIMIT = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
 
 /**
  * The line at the top of the form that says what the red * means (polish D7, the owner's answer
@@ -143,7 +147,7 @@ export function pickProblem(files: readonly { size: number }[]): string | null {
  * buyer with an old .doc was told it was a kind we take and then refused (site check-up,
  * 2026-10-22; owner chose to keep refusing and fix the wording).
  */
-const ACCEPTED_KINDS =
+export const ACCEPTED_KINDS =
   'photos (JPG, PNG, WebP, HEIC), PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Keynote, Illustrator and Photoshop files'
 
 /** The line under the file box, from the same words. */
