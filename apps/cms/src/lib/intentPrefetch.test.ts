@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shouldPrefetchOnIntent } from './intentPrefetch'
+import { intentPrefetchProp, shouldPrefetchOnIntent } from './intentPrefetch'
 
 /**
  * When a website link fetches its whole page ahead (faster-taps spec, Part 2): only on intent
@@ -35,5 +35,26 @@ describe('shouldPrefetchOnIntent', () => {
     ['the current page with only a fragment', { href: '/faq#shipping' }],
   ])('never for %s', (_name, overrides) => {
     expect(intent(overrides)).toBe(false)
+  })
+})
+
+/**
+ * The `prefetch` IntentLink hands `next/link` (review of 27 Oct): intent upgrades the default to a
+ * whole-page fetch, and never overrides a link its author set to `prefetch={false}`.
+ */
+describe('intentPrefetchProp', () => {
+  it('fetches the whole page once intent is shown', () => {
+    expect(intentPrefetchProp(true, undefined)).toBe(true)
+    expect(intentPrefetchProp(true, null)).toBe(true)
+  })
+
+  it("leaves Next's own default before intent", () => {
+    expect(intentPrefetchProp(false, undefined)).toBeUndefined()
+    expect(intentPrefetchProp(false, true)).toBe(true)
+  })
+
+  it('never prefetches a link set to prefetch={false}, intent or not', () => {
+    expect(intentPrefetchProp(true, false)).toBe(false)
+    expect(intentPrefetchProp(false, false)).toBe(false)
   })
 })
