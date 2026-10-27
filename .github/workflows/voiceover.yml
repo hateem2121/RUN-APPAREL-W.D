@@ -15,8 +15,12 @@ name: VoiceOver (macOS)
 # 25.6.0 — squarely inside the supported range. The newer `xcode-27` preview image runs
 # macOS 27 as of 2026-09-10 (GitHub Changelog) and would hit the IDENTICAL
 # "no manifest asset for this platform" error this Mac's own macOS 27 does today. A fix
-# (guidepup/guidepup#151) is drafted but unmerged as of 2026-09-23 — do not "upgrade" this
-# runner to chase it.
+# (guidepup/guidepup#151) was drafted but unmerged as of 2026-09-23.
+# 🟢 UPDATE 2026-10-27: #151 merged 2026-10-01 and shipped in 0.35.0; the 0.38.0 now pinned
+# carries a Darwin 27 asset (`guidepup-voiceover-preferences-xcode-27.dmg`), read from its
+# installed manifest. The runner stays macos-26 anyway: it is the newest generally available
+# macOS label (actions/runner-images README, read the same day), and its Darwin 25 asset is
+# byte-for-byte the one below (same sha256).
 #
 # WHY workflow_dispatch AND pull_request, UNLIKE android-chrome.yml's dispatch-only. That
 # workflow deliberately has no automatic trigger because wiring a device-lab robot into a
@@ -126,6 +130,15 @@ jobs:
       #   .github/ci-installs/guidepup (Scorecard Pinned-Dependencies): the versions above
       #   are pinned there, and so are their 48 dependencies, which used to float. Dependabot
       #   updates that folder; move playwright there when the workspace's @playwright/test moves.
+      #   🟢 BUMPED 2026-10-27 to @guidepup/guidepup 0.38.0, @guidepup/setup 0.29.2 and
+      #   playwright 1.64.1 (the paragraphs above describe the earlier pins). The same legs
+      #   were re-run: SLSA v1 provenance from GitHub Actions OIDC on all three, no install
+      #   scripts, zero advisories from the npm bulk endpoint. guidepup gained one dependency,
+      #   dbus-native (Linux/Orca only); 0.38.0's one BREAKING change renames the Linux
+      #   `unstable_orca` export. 🟡 setup is held at 0.29.2, NOT 0.29.3: 0.29.3 is the only
+      #   release in the 0.25-0.29 line published from a personal npm account with NO
+      #   provenance, and its whole diff (npm diff) is one Linux apt package plus README text,
+      #   so the macOS code this run uses is identical. `.github/dependabot.yml` ignores it.
       - name: Install Guidepup for this run only
         run: |
           mkdir -p "${RUNNER_TEMP}/guidepup-deps"
