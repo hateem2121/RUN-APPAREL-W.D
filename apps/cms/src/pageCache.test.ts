@@ -634,7 +634,7 @@ describe('what the cache relies on', () => {
     for (const [name, kind] of [
       ['async function fromSharedStore(', 'page'],
       ['async function fromTapStore(', 'tap'],
-    ]) {
+    ] as const) {
       const start = worker.indexOf(name)
       expect(start, `worker.mjs has no ${name}`).toBeGreaterThan(-1)
       const method = worker.slice(start, worker.indexOf('\n}\n', start))
