@@ -100,7 +100,8 @@ export const STALE_SECONDS = 604_800
 /** The lifetime a kept copy carries for the store (never sent to a browser: servedHeaders). */
 export const KEPT_CACHE_CONTROL = `public, max-age=${PAGE_CACHE_SECONDS}, stale-while-revalidate=${STALE_SECONDS}`
 
-const NEVER_KEPT_PATHS = /^\/(?:admin|api|_next|cdn-cgi|film|\.well-known)(?:\/|$)/
+/** Paths never kept, as pages or as tap data (tapStore.mjs). */
+export const NEVER_KEPT_PATHS = /^\/(?:admin|api|_next|cdn-cgi|film|\.well-known)(?:\/|$)/
 const REQUEST_HEADERS_NEVER_KEPT = [
   'rsc',
   'next-router-prefetch',
@@ -108,7 +109,8 @@ const REQUEST_HEADERS_NEVER_KEPT = [
   'next-action',
   'range',
 ]
-const SIGNED_IN_OR_DRAFT = /(?:^|;\s*)(?:payload-token|__prerender_bypass)=/
+/** A visitor signed in to the CMS, or previewing a draft: never served or kept (tapStore.mjs too). */
+export const SIGNED_IN_OR_DRAFT = /(?:^|;\s*)(?:payload-token|__prerender_bypass)=/
 
 /** May this request be answered from a kept copy, and its answer kept? */
 export function keepablePageRequest(request) {
