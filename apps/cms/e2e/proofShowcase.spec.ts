@@ -228,51 +228,41 @@ test.describe('№03 — the colours, a growing pill (D43)', () => {
   })
 
   /*
-   * The dye (owner, 2026-10-19, option A): with the 3D off the old picture is wiped away from the
-   * chosen dot, over `--slow`. What would have to break: a wipe from the wrong place (the dots sit
-   * left of the garment at 1440, so it must open on the frame's left edge, level with the dot), or
-   * no wipe at all (the old picture cut in one frame, or faded): the circle's size is read every
-   * frame and must grow through many values, not jump.
+   * The dye (owner, 2026-10-19; one dye everywhere since 2026-10-26): with the 3D off the old picture
+   * soaks away from the chosen dot. The pictures come from the media host, so the layer cannot be read
+   * back (a canvas holding another origin's picture is tainted); where it opens is held by
+   * e2e/liveGarment.spec.ts, whose garment copy can be read, and by packages/shared's dye tests. What
+   * would have to break here: the old picture cut in one frame (the layer must run across many frames
+   * and stop within the dye's longest time), or a layer left showing once the colour has landed.
    */
-  test('with the 3D off, the old picture is wiped away from the chosen dot, not cut', async ({
+  test('with the 3D off, the old picture soaks away over many frames, and nothing is left', async ({
     page,
   }) => {
     await openHome(page, 1440, 900)
-    // `openHome` asks for reduced motion, which makes every animation instant (base.css).
+    // `openHome` asks for reduced motion, under which the colour simply changes.
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     const pills = await pillsReady(page)
     await page.evaluate(() => {
-      const w = window as unknown as { __wipe: { sizes: string[]; origin: string[] } }
-      w.__wipe = { sizes: [], origin: [] }
+      const w = window as unknown as { __dye: number[] }
+      w.__dye = []
       const start = performance.now()
       const tick = () => {
-        const leaving = document.querySelector<HTMLElement>(
-          '.proof__frame > [data-still="leaving"]',
-        )
-        if (leaving) {
-          const style = getComputedStyle(leaving)
-          w.__wipe.sizes.push(style.getPropertyValue('--wipe'))
-          w.__wipe.origin = [style.getPropertyValue('--wipe-x'), style.getPropertyValue('--wipe-y')]
-        }
+        const layer = document.querySelector('.proof__frame .dye-layer')
+        if (layer?.hasAttribute('data-running')) w.__dye.push(performance.now())
         if (performance.now() - start < 2000) requestAnimationFrame(tick)
       }
       requestAnimationFrame(tick)
     })
-    const target = pills.nth((await pills.count()) - 1)
-    await target.click({ position: { x: 22, y: 22 } })
+    await pills.nth((await pills.count()) - 1).click({ position: { x: 22, y: 22 } })
     await page.waitForTimeout(2100)
-    const wipe = await page.evaluate(
-      () => (window as unknown as { __wipe: { sizes: string[]; origin: string[] } }).__wipe,
-    )
-    const frame = await page.locator('.proof__frame').boundingBox()
-    const dot = await target.locator('i').boundingBox()
-    if (!frame || !dot) throw new Error('no frame or dot')
-    const expectedX = Math.min(Math.max(dot.x + dot.width / 2, frame.x), frame.x + frame.width)
-    const expectedY = Math.min(Math.max(dot.y + dot.height / 2, frame.y), frame.y + frame.height)
-    expect(Number.parseFloat(wipe.origin[0] ?? 'NaN')).toBeCloseTo(expectedX - frame.x, 0)
-    expect(Number.parseFloat(wipe.origin[1] ?? 'NaN')).toBeCloseTo(expectedY - frame.y, 0)
-    const distinct = new Set(wipe.sizes).size
-    expect(distinct, `the circle took only ${distinct} sizes: cut, not wiped`).toBeGreaterThan(10)
+    const frames = await page.evaluate(() => (window as unknown as { __dye: number[] }).__dye)
+    expect(frames.length, 'the dye ran for too few frames: cut, not soaked').toBeGreaterThan(5)
+    const lasted = (frames.at(-1) ?? 0) - (frames[0] ?? 0)
+    // --dye-max, plus frames of slack for the machine.
+    expect(lasted, `the dye ran ${lasted.toFixed(0)} ms`).toBeLessThan(640 + 200)
+    const layer = page.locator('.proof__frame .dye-layer')
+    await expect(layer).not.toHaveAttribute('data-running')
+    expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
   })
 
   // WAI-ARIA APG, "Radio Group" (read 2026-10-16): Tab lands on the chosen one; the arrows move and

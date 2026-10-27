@@ -11,9 +11,10 @@ import {
   useRef,
   useState,
 } from 'react'
+import { type DyeRun, playDye, readDyeTiming } from '@run-apparel/shared'
 import type { CardColour, LiveModel } from '../../lib/projectPublic'
 import { pillPaint } from '../../lib/proofShowcase'
-import { LiveGarment, type PickedFrom, wipeFrom, wipeStyle } from './LiveGarment'
+import { LiveGarment, type PickedFrom, pointIn } from './LiveGarment'
 import { ProductPoster } from './ProductPoster'
 
 /** What №03 needs of its garment: one published product with a poster. */
@@ -98,8 +99,7 @@ export function ProofShowcase({
   const variant = colour && product?.model ? (product.model.variants[colour.slug] ?? null) : null
   // A colour the one model cannot switch to (a model per colour) shows its still instead.
   const live = product?.model && (chosen === 0 || variant) ? product.model : null
-  const { shown, leaving } = useArrivingStill(still)
-  // A colour's dot, read as its colour lands, so its wipe opens from it (LiveGarment.tsx).
+  // A colour's dot, read as its colour lands, so its dye opens from it (LiveGarment.tsx).
   const pick = useRef<HTMLDivElement>(null)
   const dotFrom = useCallback((dot: HTMLElement | null | undefined): PickedFrom | null => {
     if (!dot?.parentElement) return null
@@ -110,26 +110,53 @@ export function ProofShowcase({
       swatch: getComputedStyle(dot.parentElement).getPropertyValue('--swatch').trim(),
     }
   }, [])
+  /*
+   * The dot that was PRESSED, read at the press: once chosen, its pill grows and the row moves, so a
+   * dot read later sits somewhere the visitor never touched (the first still wipe began with no size
+   * for the same reason, 2026-10-19). A keyboard pick reads the chosen dot instead.
+   */
+  const pressed = useRef<PickedFrom | null>(null)
   const pickedFrom = useCallback(
-    () => dotFrom(pick.current?.querySelector<HTMLElement>('[aria-checked="true"] > i')),
+    () =>
+      pressed.current ??
+      dotFrom(pick.current?.querySelector<HTMLElement>('[aria-checked="true"] > i')),
     [dotFrom],
   )
-  /*
-   * With the 3D off, the old picture is wiped away from the dot the same way (site.css, `data-still`).
-   * Measured at the pick, from the dot that was pressed, so the old picture has its circle's place and
-   * size from its first frame: measured once it was marked to leave, the first build began the wipe
-   * with no size and the old picture was cut at the end instead (2026-10-19,
-   * e2e/proofShowcase.spec.ts).
-   */
-  const frame = useRef<HTMLSpanElement>(null)
-  const [stillWipe, setStillWipe] = useState<CSSProperties | undefined>(undefined)
   const choose = (index: number) => {
     const dot = pick.current
       ?.querySelectorAll<HTMLElement>('.proof__pill')
-      [index]?.querySelector('i')
-    if (frame.current) setStillWipe(wipeStyle(wipeFrom(frame.current, dotFrom(dot))))
+      [index]?.querySelector<HTMLElement>('i')
+    pressed.current = dotFrom(dot)
     setChosen(index)
   }
+  /*
+   * With the 3D off, the old picture soaks away the same way (dyePlayer.ts; owner, 2026-10-19, as the
+   * 3D garment's colour does). Not under a shown model, which covers the still: a dye there would draw
+   * the old picture around the garment's edges.
+   */
+  const frame = useRef<HTMLSpanElement>(null)
+  const stillDye = useRef<HTMLCanvasElement>(null)
+  const stillRun = useRef<DyeRun | null>(null)
+  const dyeStill = () => {
+    stillRun.current?.cancel()
+    stillRun.current = null
+    const box = frame.current
+    const canvas = stillDye.current
+    const old = box?.querySelector('img')
+    if (!box || !canvas || !old?.complete || !old.naturalWidth) return
+    if (box.closest('.proof__figure')?.querySelector('.live-garment[data-phase="shown"]')) return
+    const picked = pressed.current
+    stillRun.current = playDye({
+      layer: canvas,
+      old,
+      point: pointIn(canvas, picked),
+      swatch: picked?.swatch || null,
+      kind: 'full',
+      timing: readDyeTiming((token) => getComputedStyle(canvas).getPropertyValue(token)),
+    })
+  }
+  useEffect(() => () => stillRun.current?.cancel(), [])
+  const { shown, leaving } = useArrivingStill(still, dyeStill)
   // Fetch every colour's picture once the visitor reaches for the colours, so a pick has its picture.
   const warmed = useRef(false)
   const warm = () => {
@@ -146,22 +173,21 @@ export function ProofShowcase({
       {product ? (
         <figure className="proof__figure">
           <a className="proof__link" href={`${garmentPages}/${product.slug}/${colour?.slug ?? ''}`}>
-            <span className="proof__frame" ref={frame} style={stillWipe}>
+            <span className="proof__frame" ref={frame}>
               {/* The leaving picture keeps its key, so it stays the very element already drawn:
-                  remounted, Firefox drew no picture at all for a frame (measured 2026-10-17). */}
+                  remounted, Firefox drew no picture at all for a frame (measured 2026-10-17, and
+                  again 2026-10-26 when this hand-off was first dropped). */}
               {leaving?.src ? (
-                <ProductPoster key={leaving.key} src={leaving.src} alt="" still="leaving" />
+                <ProductPoster key={leaving.key} src={leaving.src} alt="" leaving />
               ) : null}
               {shown.src ? (
-                <ProductPoster
-                  key={shown.key}
-                  src={shown.src}
-                  alt={shown.alt}
-                  still={leaving ? 'arriving' : undefined}
-                />
+                <ProductPoster key={shown.key} src={shown.src} alt={shown.alt} />
               ) : (
                 <span className="product-card__placeholder">[ 3D reference ]</span>
               )}
+              {/* The old colour soaking away (dyeStill, above); silent, as the picture names it. */}
+              {/* biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (as LiveGarment.tsx's). */}
+              <canvas className="dye-layer" ref={stillDye} aria-hidden="true" />
             </span>
             <figcaption className="proof__caption" translate="no">
               {label}
@@ -209,31 +235,35 @@ export function ProofShowcase({
 /** The picture under the garment: which, from where, and its words. */
 type Still = { key: string; src: string | null; alt: string }
 
-/** How long the old picture takes to be wiped away: `--slow` (tokens.css), plus a frame of slack. */
-const STILL_WIPE_MS = 840
-
 /**
  * ⚠️ A NEW COLOUR'S PICTURE ARRIVES OVER THE OLD ONE, NEVER OVER AN EMPTY BOX (home page audit,
  * 2026-10-17). The still was keyed by colour, so a pick threw the old picture away and drew a new,
  * lazy one: with the 3D off (data saver, 2G, a failed load), the box stood empty and white for
- * 0.4–1.2 s on the live site. Now the old picture stays until the new one is fetched and decoded,
- * then the old one is wiped away over it from the chosen dot (site.css, `data-still`; owner,
- * 2026-10-19, as the 3D garment's colour is) and goes. A picture that
- * fails to load still arrives, and ProductPoster draws its placeholder.
+ * 0.4–1.2 s on the live site. Now the old picture stays until the new one is fetched and decoded;
+ * then `beforeArrive` lays the old one over it to soak away (owner, 2026-10-19), and the new one is
+ * shown. The old element stays over the new one for two frames, because a newly drawn picture is
+ * blank for a frame in Firefox. A picture that fails to load still arrives, and ProductPoster draws
+ * its placeholder.
  */
-function useArrivingStill(still: Still): { shown: Still; leaving: Still | null } {
+function useArrivingStill(
+  still: Still,
+  beforeArrive: () => void,
+): { shown: Still; leaving: Still | null } {
   const [shown, setShown] = useState(still)
   const [leaving, setLeaving] = useState<Still | null>(null)
   const current = useRef(shown)
   current.current = shown
   const target = useRef(still)
   target.current = still
+  const before = useRef(beforeArrive)
+  before.current = beforeArrive
 
   useEffect(() => {
     if (still.key === current.current.key) return
     let alive = true
     const arrive = () => {
       if (!alive) return
+      before.current()
       setLeaving(current.current)
       setShown(target.current)
     }
@@ -249,11 +279,13 @@ function useArrivingStill(still: Still): { shown: Still; leaving: Still | null }
     }
   }, [still.key, still.src])
 
-  // The old picture goes once it has been wiped away.
+  // The old element goes once the new one has had two frames to draw.
   useEffect(() => {
     if (!leaving) return
-    const timer = setTimeout(() => setLeaving(null), STILL_WIPE_MS)
-    return () => clearTimeout(timer)
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => setLeaving(null))
+    })
+    return () => cancelAnimationFrame(frame)
   }, [leaving])
 
   return { shown, leaving }

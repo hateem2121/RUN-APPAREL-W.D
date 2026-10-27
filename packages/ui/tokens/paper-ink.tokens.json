@@ -233,6 +233,27 @@
         "unit": "ms"
       }
     },
+    "dye-min": {
+      "$type": "duration",
+      "$value": {
+        "value": 320,
+        "unit": "ms"
+      }
+    },
+    "dye-max": {
+      "$type": "duration",
+      "$value": {
+        "value": 640,
+        "unit": "ms"
+      }
+    },
+    "dye-short": {
+      "$type": "duration",
+      "$value": {
+        "value": 240,
+        "unit": "ms"
+      }
+    },
     "stagger": {
       "$type": "duration",
       "$value": {

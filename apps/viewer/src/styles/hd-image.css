@@ -130,6 +130,12 @@
   opacity: 1;
 }
 
+/* During a colour change the dye shows the new render arriving (HdImageDialog.tsx), so it does not
+   fade in under it as well. */
+.hd-image__render[data-dyeing] {
+  transition: none;
+}
+
 .hd-image__status {
   position: absolute;
   bottom: 16px;

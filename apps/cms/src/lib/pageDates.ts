@@ -44,9 +44,14 @@ const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /** One phone number for the company (2026-10-26): the Contact page's call line and the structured data. */
 const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
+/**
+ * The dye (the home page draws the island that turns №02's cards colour), met with the one phone
+ * number from `main` (2026-10-26).
+ */
+const DYE = '2026-10-26T23:49:22+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(ONE_NUMBER, 'ab071c0acb93'),
+  '/': page(DYE, 'fdc1280c79a4'),
   '/products': page(SITE_CHECK, '033a56dfbd1f'),
   '/custom-teamwear-manufacturer': page(SITE_CHECK, '18a602bbf355'),
   '/custom-activewear-manufacturer': page(SITE_CHECK, '0668dfbc51a4'),

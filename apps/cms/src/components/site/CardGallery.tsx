@@ -1,5 +1,6 @@
 'use client'
 
+import { containedBox, type DyeRun, playDye, readDyeTiming } from '@run-apparel/shared'
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   afterScroll,
@@ -16,6 +17,37 @@ import { cardImage } from '../../lib/cardImage'
 import type { CardColour } from '../../lib/projectPublic'
 import { ProductPoster } from './ProductPoster'
 import { ViewerCue } from './ViewerCue'
+
+/** The pressed control's centre, in px from the top-left of `layer`. */
+function pointFrom(from: Element, layer: Element): { x: number; y: number } {
+  const pressed = from.getBoundingClientRect()
+  const box = layer.getBoundingClientRect()
+  return {
+    x: pressed.left + pressed.width / 2 - box.left,
+    y: pressed.top + pressed.height / 2 - box.top,
+  }
+}
+
+/** The longest the old picture is held over a new one still loading (CardGallery's header). */
+const HOLD_MS = 1500
+
+/**
+ * Settles once `slide`'s picture has loaded, or after `HOLD_MS`: the slide may not even have its
+ * picture yet (`slidesToLoad` adds it on the press), and a lazy one is asked for at once.
+ */
+function arrived(slide: HTMLElement): Promise<void> {
+  return new Promise((done) => {
+    const started = performance.now()
+    const look = () => {
+      const picture = slide.querySelector('img')
+      if (picture?.complete && picture.naturalWidth > 0) return done()
+      if (picture?.loading === 'lazy') picture.loading = 'eager'
+      if (performance.now() - started > HOLD_MS) return done()
+      requestAnimationFrame(look)
+    }
+    look()
+  })
+}
 
 /**
  * A gallery card's pictures, one per colour, that a visitor swipes between (owner's call,
@@ -68,6 +100,19 @@ import { ViewerCue } from './ViewerCue'
  * a mouse could change colour only through the small dots. They appear on hover and whenever
  * the card holds keyboard focus, are real buttons in the tab order, and wrap from the last
  * colour to the first. A touch screen has the swipe, so they are hidden there (site.css).
+ *
+ * ⚠️ A DOT OR AN ARROW CHANGES THE COLOUR WITH THE DYE, NOT THE GLIDE (owner, 2026-10-26: one dye
+ * everywhere a garment changes colour; packages/shared/src/dyePlayer.ts). The strip jumps to the new
+ * colour at once, as it does under reduced motion, and the old picture is laid over it on the
+ * rectangle it is drawn in and soaks away from the pressed control. A finger, the wheel and the
+ * keyboard still glide the strip: a swipe is a slide. And a press still glides where the dye cannot
+ * start cleanly: a render beside a poster (two framings would show both garments), the showing
+ * picture not loaded, or a visitor who asked for less motion.
+ *
+ * ⚠️ THE NEW PICTURE IS OFTEN NOT THERE YET, SO THE OLD ONE IS HELD OVER IT UNTIL IT IS (2026-10-26).
+ * A neighbouring slide's picture is lazy and clipped by the strip, and Chromium had not fetched it
+ * 10 s after the card was engaged (e2e/cardDye.spec.ts, local run). The press asks for it at once
+ * (`loading` turned eager) and the dye starts once it has loaded, or after `HOLD_MS` whatever came.
  */
 export function CardGallery({
   productSlug,
@@ -226,24 +271,90 @@ export function CardGallery({
     want(next.show)
   }
 
+  /** The dye a press plays over the picture (see the header), and the canvas it is drawn on. */
+  const dyeLayer = useRef<HTMLCanvasElement>(null)
+  const dyeRun = useRef<DyeRun | null>(null)
+  useEffect(() => () => dyeRun.current?.cancel(), [])
+  /** Starts the dye from the showing picture to `target`'s, from `from`'s centre; false if it cannot. */
+  const dyeTo = (target: number, from: Element): boolean => {
+    dyeRun.current?.cancel()
+    dyeRun.current = null
+    const el = strip.current
+    const layer = dyeLayer.current
+    if (!el || !layer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
+    const slides = el.querySelectorAll<HTMLElement>('.card-gallery__slide')
+    const now = slides[slideAt(el.scrollLeft, slideWidth(el), colours.length)]
+    const next = slides[target]
+    const old = now?.querySelector('img')
+    if (!now || !next || now === next || now.dataset.kind !== next.dataset.kind) return false
+    if (!old?.complete || !old.naturalWidth) {
+      // A press during a dye still holding for its picture: the new dye takes over from what is on
+      // screen, where the layer already lies (whole-branch review, 2026-10-26: it glided over a
+      // blank slide).
+      if (!layer.hasAttribute('data-running')) return false
+      dyeRun.current = playDye({
+        layer,
+        old: null,
+        point: pointFrom(from, layer),
+        swatch: colours[target]?.swatch || null,
+        kind: 'full',
+        timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+        after: arrived(next),
+      })
+      return true
+    }
+    const style = getComputedStyle(old)
+    const drawn = containedBox(
+      { width: old.offsetWidth, height: old.offsetHeight },
+      {
+        top: Number.parseFloat(style.paddingTop) || 0,
+        right: Number.parseFloat(style.paddingRight) || 0,
+        bottom: Number.parseFloat(style.paddingBottom) || 0,
+        left: Number.parseFloat(style.paddingLeft) || 0,
+      },
+      { width: old.naturalWidth, height: old.naturalHeight },
+    )
+    if (!drawn) return false
+    Object.assign(layer.style, {
+      left: `${el.offsetLeft + drawn.x}px`,
+      top: `${el.offsetTop + drawn.y}px`,
+      width: `${drawn.width}px`,
+      height: `${drawn.height}px`,
+    })
+    dyeRun.current = playDye({
+      layer,
+      old,
+      point: pointFrom(from, layer),
+      swatch: colours[target]?.swatch || null,
+      kind: 'full',
+      timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+      after: arrived(next),
+    })
+    return true
+  }
+
   /** A smooth glide, or an instant move when the visitor asks for reduced motion. */
   const glide = (): ScrollBehavior =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 
-  const show = (target: number) => {
+  /** Shows `target`; `from` is the dot or arrow pressed, whose press plays the dye (the header). */
+  const show = (target: number, from?: Element) => {
     const el = strip.current
     if (!el) return
+    // Before the strip moves: the dye starts from the picture showing now.
+    const dyed = from ? dyeTo(target, from) : false
     heading.current = target
     // A press is a new glide, not the settling one: its own rest may be corrected again (review,
     // 11 Oct 2026: a dot pressed while a correction ran skipped the correction it needed).
     settling.current = false
-    el.scrollTo({ left: target * slideWidth(el), behavior: glide() })
+    el.scrollTo({ left: target * slideWidth(el), behavior: dyed ? 'auto' : glide() })
     watchRest(target)
     setActive(target)
     want(target)
   }
   /** One colour on, either way, round from the last to the first, counted from where it is going. */
-  const step = (by: number) => show(stepColour(heading.current, active, by, colours.length))
+  const step = (by: number, from: Element) =>
+    show(stepColour(heading.current, active, by, colours.length), from)
 
   return (
     <>
@@ -299,12 +410,17 @@ export function CardGallery({
           ))}
         </div>
         {colours.length > 1 ? (
+          // The old colour soaking away after a press (dyeTo): a copy of what is on screen, so silent.
+          // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (as LiveGarment.tsx's).
+          <canvas className="dye-layer" ref={dyeLayer} aria-hidden="true" />
+        ) : null}
+        {colours.length > 1 ? (
           <>
             <button
               type="button"
               className="card-gallery__arrow card-gallery__arrow--prev"
               aria-label={`Previous colour of ${productName}`}
-              onClick={() => step(-1)}
+              onClick={(event) => step(-1, event.currentTarget)}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
                 <path
@@ -321,7 +437,7 @@ export function CardGallery({
               type="button"
               className="card-gallery__arrow card-gallery__arrow--next"
               aria-label={`Next colour of ${productName}`}
-              onClick={() => step(1)}
+              onClick={(event) => step(1, event.currentTarget)}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
                 <path
@@ -363,7 +479,7 @@ export function CardGallery({
                 className="card-gallery__dot"
                 aria-label={`Show ${colour.name}`}
                 aria-pressed={slide === active}
-                onClick={() => show(slide)}
+                onClick={(event) => show(slide, event.currentTarget)}
                 // The colour itself, read by `.card-gallery__dot::before`; none, an empty ring.
                 style={colour.swatch ? ({ '--swatch': colour.swatch } as CSSProperties) : undefined}
               />

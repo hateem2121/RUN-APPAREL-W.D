@@ -119,6 +119,11 @@ export function FamilyCard({
                 decoding="async"
               />
             ) : null}
+            {garment && second ? (
+              // The colour change's layer (FamilyDye.tsx): a copy of a picture already on screen.
+              // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (as LiveGarment.tsx's).
+              <canvas className="dye-layer" aria-hidden="true" />
+            ) : null}
           </span>
         ) : (
           /*
