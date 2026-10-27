@@ -74,6 +74,11 @@ the gates.
 > the *image* moved and not just the Worker script. ⚠️ Do not judge it by `LAST MODIFIED`
 > in `wrangler containers list`: on 2026-10-14 that column lagged a deploy by 3.5 minutes,
 > then did not move at all for one (issues #177, #179).
+> ⚠️ The digest itself can take up to about 16 minutes to move: Cloudflare replaces a busy
+> container by sending SIGTERM, then SIGKILL after 15 minutes. Deploys usually move in about
+> 73 s; on 2026-10-27 one took 11 minutes, and the old 3-minute check failed a good deploy
+> (issue #279). The check now waits 17 minutes. A "did NOT move" before that is not a verdict:
+> read the digest again.
 >
 > **The token this needs** (recorded because it took a live failure to work out,
 > and Cloudflare documents none of it). There is no permission template for

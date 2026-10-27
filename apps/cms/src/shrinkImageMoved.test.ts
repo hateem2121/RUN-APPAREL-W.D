@@ -100,7 +100,8 @@ describe('reading the image', () => {
  *   old/new/third  the container runs that image
  *   fail           `containers list` fails      infofail  `containers info` fails
  *   none           this container's row is missing from the list
- * `sleep` is a no-op stub, so the 20 s and 240 s waits cost nothing.
+ * `sleep` is a stub that only writes down how long it was asked to wait, so the waits cost nothing
+ * and the step's patience can still be measured.
  */
 function harness(plan: string[]) {
   const dir = mkdtempSync(join(tmpdir(), 'drift-'))
@@ -136,10 +137,18 @@ function harness(plan: string[]) {
     ].join('\n'),
     { mode: 0o755 },
   )
-  writeFileSync(join(bin, 'sleep'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 })
+  writeFileSync(join(dir, 'sleeps'), '')
+  writeFileSync(join(bin, 'sleep'), `#!/usr/bin/env bash\necho "$1" >> "${dir}/sleeps"\n`, {
+    mode: 0o755,
+  })
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` }
   const reads = () => readFileSync(join(dir, 'reads'), 'utf8').split('\n').filter(Boolean).length
-  return { dir, env, reads }
+  const slept = () =>
+    readFileSync(join(dir, 'sleeps'), 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .reduce((sum, seconds) => sum + Number(seconds), 0)
+  return { dir, env, reads, slept }
 }
 
 describe('the command the workflow runs', { timeout: 30_000 }, () => {
@@ -204,6 +213,7 @@ function runStep(title: string, plan: string[], extraEnv: Record<string, string>
     status: r.status,
     out: r.stdout + r.stderr,
     reads: h.reads(),
+    slept: h.slept(),
     outputs: readFileSync(output, 'utf8'),
   }
 }
@@ -245,11 +255,37 @@ describe('ci.yml: the drift check after the deploy, under bash -e', { timeout: 3
     expect(r.status).toBe(0)
   })
 
-  it('fails after nine reads when the image never changes', () => {
+  it('fails after 35 reads when the image never changes', () => {
     const r = drift(['old'])
-    expect(r.reads).toBe(9)
+    expect(r.reads).toBe(35)
     expect(r.out).toContain('did NOT move')
     expect(r.status).toBe(1)
+  })
+
+  /*
+   * Issue #279, 27 Oct: deploy 29c5f596 moved the image (wrangler: "SUCCESS Modified application")
+   * and the record named it 11 minutes later (updated_at 12:20:12, read through the API), but this
+   * step gave up after its 9 reads, 3 minutes in. Earlier deploys moved in about 73 s. Cloudflare
+   * replaces a running container by sending SIGTERM and waiting up to 15 minutes before SIGKILL
+   * (Containers, "Rollouts", read 2026-10-27), so a busy container can take that long.
+   */
+  it('waits through a rollout as slow as the one of 27 Oct, 11.5 minutes', () => {
+    const r = drift([...Array(23).fill('old'), 'new'])
+    expect(r.out).toContain(`Image after this deploy: ${NEW} (read 24)`)
+    expect(r.status).toBe(0)
+  })
+
+  it("waits at least 17 minutes before calling the image unmoved: Cloudflare's 15-minute stop, then a start", () => {
+    expect(drift(['old']).slept).toBeGreaterThanOrEqual(17 * 60)
+  })
+
+  it("has a time limit that fits the longest wait, the 4-minute check and the reads' own time", () => {
+    const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8').split('\n')
+    const at = ci.indexOf(`      - name: ${DRIFT}`)
+    const limit = Number(/^ {8}timeout-minutes: (\d+)$/.exec(ci[at + 1] ?? '')?.[1])
+    const longest = drift([...Array(34).fill('old'), 'new']).slept
+    // 36 reads of two wrangler calls each, at up to 5 s a read on a runner.
+    expect(limit * 60).toBeGreaterThanOrEqual(longest + 36 * 5)
   })
 
   it('fails when the old image is put back after the deploy', () => {
@@ -262,10 +298,10 @@ describe('ci.yml: the drift check after the deploy, under bash -e', { timeout: 3
     expect(drift(['fail', 'infofail', 'new']).status).toBe(0)
   })
 
-  it('fails, naming the read and not the image, when wrangler fails all nine times', () => {
+  it('fails, naming the read and not the image, when wrangler fails every time', () => {
     const r = drift(['fail'])
-    expect(r.reads).toBe(9)
-    expect(r.out).toContain('wrangler failed on all 9 reads')
+    expect(r.reads).toBe(35)
+    expect(r.out).toContain('wrangler failed on all 35 reads')
     expect(r.status).toBe(1)
   })
 

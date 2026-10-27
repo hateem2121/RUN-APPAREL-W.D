@@ -2043,14 +2043,19 @@ jobs:
       # ⚠️ IT COMPARES THE IMAGE DIGEST, NOT A TIMESTAMP (2026-10-14, issues #177 and #179):
       # `containers list`'s LAST MODIFIED does not follow a deploy, and three good deploys
       # failed on it. scripts/shrink-image-moved.mjs reads this container's own record and
-      # prints its digest. The first loop gives Cloudflare up to 3 minutes to show the new
-      # image; the read 4 minutes later would catch the old one being put back (none has been
-      # seen: wrangler's own deploy diff names a stale "before", see the script).
+      # prints its digest. The first loop gives Cloudflare up to 17 minutes to show the new
+      # image, reading every 30 s; the read 4 minutes later would catch the old one being put
+      # back (none has been seen: wrangler's own deploy diff names a stale "before", see the
+      # script).
+      # ⚠️ 17 MINUTES, NOT 3 (issue #279, 2026-10-27): the record moves when the rollout has
+      # replaced the running container, and Cloudflare stops one with SIGTERM, then SIGKILL after
+      # 15 minutes (Containers, "Rollouts", read 2026-10-27). Deploys had moved in about 73 s;
+      # 29c5f596's moved after 11 minutes, so the old 3-minute loop failed a good deploy.
       # ⚠️ GITHUB RUNS THIS UNDER `bash -e` (issue #179): every exit code is captured with
       # `|| code=$?`, and no `&&` list is left in it. apps/cms/src/shrinkImageMoved.test.ts runs
       # this block under `bash -e` against stub wrangler reads.
       - name: Assert the container image actually moved (drift check)
-        timeout-minutes: 10
+        timeout-minutes: 30
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -2073,7 +2078,8 @@ jobs:
           fi
           echo "Image before this deploy: $IMAGE_BEFORE"
           moved=""
-          for attempt in 1 2 3 4 5 6 7 8 9; do
+          reads=35
+          for attempt in $(seq 1 "$reads"); do
             read_image
             if [ "$code" -eq 2 ]; then
               echo "::warning::$name or its image is missing from wrangler's record — drift NOT verified. Fix scripts/shrink-image-moved.mjs."
@@ -2084,14 +2090,14 @@ jobs:
               echo "Image after this deploy: $moved (read $attempt) — the deploy moved it."
               break
             fi
-            if [ "$attempt" -lt 9 ]; then sleep 20; fi
+            if [ "$attempt" -lt "$reads" ]; then sleep 30; fi
           done
           if [ -z "$moved" ]; then
             if [ "$code" -eq 3 ]; then
-              echo "::error::wrangler failed on all 9 reads, so the drift was NOT verified."
+              echo "::error::wrangler failed on all $reads reads, so the drift was NOT verified."
               exit 1
             fi
-            echo "::error::The container image did NOT move: still $IMAGE_BEFORE. The Worker script deployed but the image that actually processes garments is the one from before this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
+            echo "::error::The container image did NOT move in 17 minutes: still $IMAGE_BEFORE. The Worker script deployed but the image that actually processes garments is the one from before this run — a pipeline fix has shipped to nothing. See docs/RUNBOOK.md."
             exit 1
           fi
           sleep 240
