@@ -34,42 +34,37 @@ const page = (on: string, words: string): PageDate => ({ on, words })
  * that still matched. (A byline's date is its branch commit's time instead, a few hours earlier
  * for #192; this file follows `main`, where the live page changed.)
  */
-/** #152: the case studies hub's words. */
-const FINDABILITY = '2026-10-08T21:50:32+05:00'
-/** #231: the Journal hub's links to two buyer guides. */
-const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
-/** #246: the closing block written once, on every FAQ topic. */
-const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /** One phone number for the company (2026-10-26): the Contact page's call line and the structured data. */
 const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
 /**
- * The dye (the home page draws the island that turns №02's cards colour), met with the one phone
- * number from `main` (2026-10-26).
+ * Every website link fetches its page ahead on intent (faster-taps plan, Task 4): the pages' `Link`
+ * import changed and no word did; by the markup rule above, their dates move. The branch commit's
+ * time, so a little early against the merge: the lesser fault, as above.
  */
-const DYE = '2026-10-26T23:49:22+05:00'
+const INTENT_LINKS = '2026-10-27T14:34:06+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(DYE, 'fdc1280c79a4'),
-  '/products': page(SITE_CHECK, '033a56dfbd1f'),
-  '/custom-teamwear-manufacturer': page(SITE_CHECK, '18a602bbf355'),
-  '/custom-activewear-manufacturer': page(SITE_CHECK, '0668dfbc51a4'),
-  '/custom-outerwear-manufacturer': page(SITE_CHECK, 'ea2b3c2c32f9'),
-  '/private-label-casual-wear-manufacturer': page(SITE_CHECK, 'b58e00722144'),
-  '/guides': page(SITE_CHECK, '68291ef27bac'),
-  '/policies': page(SITE_CHECK, '77c728cd6d39'),
+  '/': page(INTENT_LINKS, '682bf7ddb306'),
+  '/products': page(INTENT_LINKS, '81709183ae7a'),
+  '/custom-teamwear-manufacturer': page(INTENT_LINKS, '620a2842a2e4'),
+  '/custom-activewear-manufacturer': page(INTENT_LINKS, '2586bf0653f1'),
+  '/custom-outerwear-manufacturer': page(INTENT_LINKS, '071526119777'),
+  '/private-label-casual-wear-manufacturer': page(INTENT_LINKS, 'c185d514ae86'),
+  '/guides': page(INTENT_LINKS, '84660324572d'),
+  '/policies': page(INTENT_LINKS, 'b14fb0ec8b5c'),
   '/community': page(SITE_CHECK, '82a687c86d9d'),
   '/press': page(SITE_CHECK, '2b73a863f26b'),
-  '/faq': page(SITE_CHECK, 'f03571679b6c'),
-  '/faq/orders-and-samples': page(SITE_CHECK, '1b5f9ca8c410'),
-  '/faq/quality-and-certifications': page(CLOSING_BLOCK, 'cfb7053a641d'),
-  '/faq/shipping-and-importing': page(SITE_CHECK, 'f0d4229b86ec'),
-  '/faq/fabrics-and-printing': page(CLOSING_BLOCK, '2b50b5a34a59'),
-  '/faq/working-with-us': page(CLOSING_BLOCK, '9e2d6a850e39'),
-  '/glossary': page(SITE_CHECK, '92789da87f82'),
-  '/journal': page(BUYER_GUIDE_LINKS, '70ef49791a5f'),
-  '/case-studies': page(FINDABILITY, '41b19e1d9a71'),
+  '/faq': page(INTENT_LINKS, '1037a183463a'),
+  '/faq/orders-and-samples': page(INTENT_LINKS, 'aa6b6b2803cd'),
+  '/faq/quality-and-certifications': page(INTENT_LINKS, '6cc9e5ebc9a9'),
+  '/faq/shipping-and-importing': page(INTENT_LINKS, 'c07a7ae21176'),
+  '/faq/fabrics-and-printing': page(INTENT_LINKS, 'ce6aee0a2e22'),
+  '/faq/working-with-us': page(INTENT_LINKS, 'f008fc651146'),
+  '/glossary': page(INTENT_LINKS, '22c7e8401aa3'),
+  '/journal': page(INTENT_LINKS, 'bea6738e8040'),
+  '/case-studies': page(INTENT_LINKS, 'aa7a1068fc2e'),
   '/contact': page(ONE_NUMBER, 'c601c0541d6a'),
   '/privacy': page(SITE_CHECK, '0a96254ac2f9'),
   '/terms': page(SITE_CHECK, '6d0e930fcd18'),
