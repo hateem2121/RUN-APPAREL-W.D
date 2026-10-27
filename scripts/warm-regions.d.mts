@@ -23,6 +23,14 @@ export declare function regionWarmPlan(
   countries: string[],
   probesPerCountry: number,
 ): RegionMeasurementBody[]
+export declare function regionTimings(
+  measurements: {
+    results?: {
+      probe?: { country?: string }
+      result?: { timings?: { firstByte?: number; total?: number } }
+    }[]
+  }[],
+): Record<string, { n: number; firstByteP75: number; totalP75: number }>
 export declare function regionVerdict(
   measurements: {
     results?: {

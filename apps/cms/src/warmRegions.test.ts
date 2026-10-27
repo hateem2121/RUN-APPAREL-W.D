@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   REGION_TARGETS_MAX,
   regionTargets,
+  regionTimings,
   regionVerdict,
   regionWarmPlan,
 } from '../../../scripts/warm-regions.mjs'
@@ -122,6 +123,30 @@ describe('regionVerdict', () => {
     expect(verdict).toEqual({
       PK: { hit: 2, miss: 1, other: 1 },
       AE: { hit: 0, miss: 1, other: 0 },
+    })
+  })
+})
+
+describe('regionTimings (the weekly watch, --measure)', () => {
+  it("gives each country's p75 of the time to the first byte and to the last, nearest rank", () => {
+    const answer = (country: string, firstByte: number, total: number) => ({
+      probe: { country },
+      result: { timings: { firstByte, total } },
+    })
+    const timings = regionTimings([
+      {
+        results: [
+          answer('PK', 100, 300),
+          answer('PK', 200, 400),
+          answer('PK', 300, 500),
+          answer('PK', 900, 1200),
+        ],
+      },
+      { results: [answer('AE', 50, 80), { probe: { country: 'AE' }, result: {} }] },
+    ])
+    expect(timings).toEqual({
+      PK: { n: 4, firstByteP75: 300, totalP75: 500 },
+      AE: { n: 1, firstByteP75: 50, totalP75: 80 },
     })
   })
 })

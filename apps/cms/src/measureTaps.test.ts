@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { percentile, storeStateOf, verdict } from '../scripts/measure-taps.mjs'
+import { percentile, storeStateOf, summaryLines, verdict } from '../scripts/measure-taps.mjs'
 
 /**
  * The live tap measurement (faster-taps plan, Task 1): the before/after judge for G1 (a tap shows
@@ -52,5 +52,21 @@ describe('verdict', () => {
   it('fails when a route has no warm tap at all, rather than passing on nothing', () => {
     const rows = [{ ...warm(3700), state: 'miss' }]
     expect(verdict(rows, 400).pass).toBe(false)
+  })
+})
+
+describe('summaryLines (the weekly watch prints these, never the rows)', () => {
+  it('gives one line per route and engine: warm p50 and p75, and every tap counted', () => {
+    const lines = summaryLines({
+      taps: { pass: false, byRoute: { '/ chromium': { p50: 120, p75: 150, n: 10 } } },
+      garment: {
+        pass: true,
+        byRoute: { 'card → garment webkit-phone': { p50: null, p75: null, n: 10 } },
+      },
+    })
+    expect(lines).toEqual([
+      '/ chromium: warm p50 120 ms, p75 150 ms (10 taps)',
+      'card → garment webkit-phone: no warm tap (10 taps)',
+    ])
   })
 })

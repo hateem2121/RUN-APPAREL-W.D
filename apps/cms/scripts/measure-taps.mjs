@@ -21,6 +21,7 @@
  * probe is not a slow site). Blocks 3D model files: nothing measured here waits on them.
  *
  * Usage: node apps/cms/scripts/measure-taps.mjs --origin=https://wear-run.com [--taps=20] [--refuse-store]
+ *   [--summary]  one line per route and engine instead of the JSON document (the weekly watch)
  */
 import { realpathSync } from 'node:fs'
 
@@ -81,12 +82,30 @@ export function verdict(rows, targetMs) {
   return { pass, byRoute }
 }
 
+/**
+ * The weekly watch's lines (`--summary`, perf-watch.yml): one per route and engine, never the rows,
+ * because an Actions log is public and the rows are noise there.
+ *
+ * @typedef {{ p50: number | null, p75: number | null, n: number }} RouteNumbers
+ * @param {{ taps: { pass?: boolean, byRoute: Record<string, RouteNumbers> }, garment: { pass?: boolean, byRoute: Record<string, RouteNumbers> } }} verdicts
+ * @returns {string[]}
+ */
+export function summaryLines(verdicts) {
+  return Object.entries({ ...verdicts.taps.byRoute, ...verdicts.garment.byRoute }).map(
+    ([key, { p50, p75, n }]) =>
+      Number.isFinite(p75)
+        ? `${key}: warm p50 ${p50} ms, p75 ${p75} ms (${n} taps)`
+        : `${key}: no warm tap (${n} taps)`,
+  )
+}
+
 function options(argv) {
   const get = (name) => argv.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1]
   return {
     origin: get('origin') ?? 'https://wear-run.com',
     taps: Number(get('taps') ?? 20),
     refuseStore: argv.includes('--refuse-store'),
+    summary: argv.includes('--summary'),
   }
 }
 
@@ -272,7 +291,9 @@ async function main() {
     },
     rows: all,
   }
-  console.log(JSON.stringify(result, null, 1))
+  console.log(
+    opts.summary ? summaryLines(result.verdict).join('\n') : JSON.stringify(result, null, 1),
+  )
   if (blocked) process.exit(2)
   process.exit(result.verdict.taps.pass && result.verdict.garment.pass ? 0 : 1)
 }

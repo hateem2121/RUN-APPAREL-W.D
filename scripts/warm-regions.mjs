@@ -93,6 +93,34 @@ export function regionVerdict(measurements) {
   return verdict
 }
 
+/**
+ * The weekly watch's numbers (`--measure`, perf-watch.yml): per probe country, the p75 (nearest
+ * rank) of the time to the first byte and to the whole answer, from Globalping's own timings.
+ */
+export function regionTimings(measurements) {
+  const seen = {}
+  for (const measurement of measurements) {
+    for (const { probe, result } of measurement.results ?? []) {
+      const { firstByte, total } = result?.timings ?? {}
+      if (!Number.isFinite(firstByte) || !Number.isFinite(total)) continue
+      const country = probe?.country ?? '??'
+      seen[country] ??= { firstByte: [], total: [] }
+      seen[country].firstByte.push(firstByte)
+      seen[country].total.push(total)
+    }
+  }
+  const p75 = (values) => {
+    const sorted = [...values].sort((a, b) => a - b)
+    return sorted[Math.ceil(0.75 * sorted.length) - 1]
+  }
+  return Object.fromEntries(
+    Object.entries(seen).map(([country, { firstByte, total }]) => [
+      country,
+      { n: firstByte.length, firstByteP75: p75(firstByte), totalP75: p75(total) },
+    ]),
+  )
+}
+
 /** Create one measurement and wait for it; throws a fixed sentence, never the response body. */
 async function measure(body) {
   const created = await fetch(API, {
@@ -115,7 +143,10 @@ async function measure(body) {
 }
 
 async function main() {
-  const origin = process.argv[2] ?? SITE_ORIGIN
+  const args = process.argv.slice(2)
+  // `--measure` (perf-watch.yml, weekly): the same asks, reported as each country's timings.
+  const measuring = args.includes('--measure')
+  const origin = args.find((arg) => !arg.startsWith('--')) ?? SITE_ORIGIN
   let xml
   try {
     const sitemap = await fetch(`${origin}/sitemap.xml`, { signal: AbortSignal.timeout(20_000) })
@@ -156,10 +187,17 @@ async function main() {
       `::warning::${error.message}; ${done.length} of ${plan.length} addresses were warmed`,
     )
   }
+  const timings = regionTimings(done)
   for (const [country, { hit, miss, other }] of Object.entries(regionVerdict(done))) {
     console.log(
       `[warm-regions] ${country}: ${hit + miss + other} asked — ${miss} drawn now (miss), ${hit} already kept (hit), ${other} other`,
     )
+    const timed = timings[country]
+    if (measuring && timed) {
+      console.log(
+        `[warm-regions] ${country}: p75 ${timed.firstByteP75} ms to the first byte, ${timed.totalP75} ms to the whole answer (${timed.n} answers)`,
+      )
+    }
   }
 }
 
