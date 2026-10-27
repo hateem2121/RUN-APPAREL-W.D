@@ -206,12 +206,23 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   ⚠️ CI READS 25 B MORE THAN THIS MAC for the same commit (main: 15,768 here, 15,793 in run
  *   39589018065), so main had 13 B left in CI and this branch about 0 (it failed `verify`). Measure
  *   headroom on CI's figure, never a local one. First paint was not re-measured for 13 bytes.
+ *   ⚠️ 2026-10-26, one dye colour change everywhere (D49; owner chose the raise over loading the
+ *   dye after the page shows). Built from main (64e90741) and from this branch, both with
+ *   VITE_API_BASE_URL as CI sets it, gzip level 9, every .js, on this Mac:
+ *       script     index-*.js  30,044 -> 33,455 B  (+3,411: the dye player, its noise field and
+ *                  OKLab edge, less the 200 ms cross-fade it replaced)
+ *                  HdImageDialog-*.js  21,386 -> 21,985 B  (+599: the full-screen view's dye)
+ *                  every other chunk  +6 B in all
+ *       script total  +4,016 B gzip                       budget 474,000 -> 478,016
+ *   CI read the branch 1.4 KB over the old budget (464.3 KB, run 40383159564), so main's CI
+ *   headroom carries over unchanged. Nothing else rode in: the report-only CIEDE2000 code is
+ *   absent from the app files and OKLab's conversion appears once. First paint not re-measured.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
-  script: { bytes: 474_000, note: 'app chunks + the meshopt decoder every model needs' },
+  script: { bytes: 478_016, note: 'app chunks + the meshopt decoder every model needs' },
   decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
   wasm: {
     bytes: 20_000,
