@@ -217,6 +217,15 @@ describe('keepableTapAnswer', () => {
     const broken = `0:["$","div",null,{}]\n1a:E{"digest":"2471862035"}\n`
     expect(keepableTapAnswer(answer(200), broken)).toBe(false)
   })
+
+  // What a tap on a MISSING journal post really gets (review of 27 Oct: the unit case above was a
+  // 404 status, which a tap never sees). Asked of wear-run.com that day, twice, with the tree a
+  // browser on /journal sends: a 200 of tap data whose rows include this one (twice, ids b and d),
+  // the store answering "skip" both times, never "hit". The rows here are the live ones.
+  it('refuses a missing post: a 200 that carries Next’s not-found row', () => {
+    const missingPost = `0:["$","div",null,{}]\nb:E{"digest":"NEXT_HTTP_ERROR_FALLBACK;404"}\nd:E{"digest":"NEXT_HTTP_ERROR_FALLBACK;404"}\n`
+    expect(keepableTapAnswer(answer(200), missingPost)).toBe(false)
+  })
 })
 
 describe('kept and served headers', () => {

@@ -1,4 +1,4 @@
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 
 /**
  * The loading line (site check-up #3, 2026-10-22): a tap on a link inside the site waited 2.3–2.8 s
@@ -86,21 +86,49 @@ test.describe('the loading line', () => {
 
   /*
    * Faster-taps spec, Part 4 (owner, 27 Oct): the line waits 0.4 s, so a tap that arrives sooner
-   * shows none. Every page-data answer is held to about 0.2 s, server time included (fetched, then
-   * topped up), so the tap lands between the old 0.12 s and the new 0.4 s whatever the server does;
-   * a run that missed that window says so with its number instead of passing on nothing.
+   * shows none. Both tests run on the PAGE'S OWN CLOCK (Playwright's `page.clock`): the tap's data is
+   * held until the test lets it go, and time moves only when the test moves it. Review of 27 Oct:
+   * the test before timed the tap with the real clock and skipped itself outside 150–380 ms, so on
+   * CI's slower machines it could skip every run and pass on nothing; the logs could not tell.
    */
-  test('a tap that arrives within 0.4 s shows no line', async ({ page }) => {
-    await page.goto('/faq')
-    await expect(page.locator('h1')).toBeVisible()
+  const holdTheTap = async (page: Page) => {
+    let release = () => {}
+    const released = new Promise<void>((resolve) => {
+      release = resolve
+    })
     let held = 0
     await page.route(/[?&]_rsc=/, async (route) => {
       held++
-      const started = Date.now()
       const response = await route.fetch()
-      await new Promise((resolve) => setTimeout(resolve, Math.max(0, 200 - (Date.now() - started))))
+      await released
       await route.fulfill({ response })
     })
+    return { release, held: () => held }
+  }
+  const lineState = (page: Page) =>
+    page.locator('.nav-progress').evaluate((line) => line.getAttribute('data-state'))
+  const onFaqWithClock = async (page: Page) => {
+    await page.clock.install()
+    await page.goto('/faq')
+    await expect(page.locator('h1')).toBeVisible()
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 100)
+  }
+
+  test('a tap still waiting shows the line at 0.4 s, not before', async ({ page }) => {
+    await onFaqWithClock(page)
+    const tap = await holdTheTap(page)
+    await page.locator('.notch__wordmark').click()
+    await page.clock.runFor(390)
+    expect(await lineState(page), 'the line showed before 0.4 s').not.toBe('loading')
+    await page.clock.runFor(20)
+    expect(await lineState(page), 'the line did not show at 0.4 s').toBe('loading')
+    expect(tap.held(), 'no client navigation was held').toBeGreaterThan(0)
+    tap.release()
+  })
+
+  test('a tap that arrives within 0.4 s shows no line', async ({ page }) => {
+    await onFaqWithClock(page)
+    const tap = await holdTheTap(page)
     await page.evaluate(() => {
       const w = window as unknown as { __lineShown: boolean }
       w.__lineShown = false
@@ -108,19 +136,16 @@ test.describe('the loading line', () => {
         if (document.querySelector('.nav-progress[data-state="loading"]')) w.__lineShown = true
       }).observe(document.documentElement, { subtree: true, childList: true, attributes: true })
     })
-    const tapped = Date.now()
     await page.locator('.notch__wordmark').click()
+    await page.clock.runFor(300)
+    expect(tap.held(), 'no client navigation was held').toBeGreaterThan(0)
+    tap.release()
     await page.waitForURL((url) => url.pathname === '/', { timeout: 15_000 })
-    const arrivedAfter = Date.now() - tapped
-    await page.waitForTimeout(300)
-    expect(held, 'no client navigation was held').toBeGreaterThan(0)
-    test.skip(
-      arrivedAfter < 150 || arrivedAfter > 380,
-      `the tap arrived after ${arrivedAfter} ms, outside 150–380 ms, so it cannot tell the delays apart`,
-    )
+    // The line watches for the arrival once a frame, then the clock passes the 0.4 s mark.
+    await page.clock.runFor(400)
     expect(
       await page.evaluate(() => (window as unknown as { __lineShown: boolean }).__lineShown),
-      `a tap that arrived after ${arrivedAfter} ms showed the line`,
+      'a tap that arrived after 0.3 s showed the line',
     ).toBe(false)
   })
 })

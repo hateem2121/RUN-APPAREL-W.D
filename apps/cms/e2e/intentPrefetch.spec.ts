@@ -67,6 +67,9 @@ test('with Save-Data the same hover fetches nothing ahead', async ({ page }) => 
   expect(seen.length).toBe(0)
 })
 
+// On `next start` there is no shared store, so this cannot fail the way production would (one
+// visitor's drawing kept and served to the next). src/websiteRequestHeaders.test.ts holds the rule
+// that prevents that: nothing the website draws reads the visitor's request (review of 27 Oct).
 test('a dark-mode visitor arrives on the dark page', async ({ browser }) => {
   const context = await browser.newContext({ colorScheme: 'dark' })
   const page = await context.newPage()
