@@ -8563,7 +8563,8 @@ a.contact-block__value:active {
 /*
  * ⚠️ A TAP ON A LINK SHOWS AT ONCE THAT IT WAS HEARD (site check-up #3, 2026-10-22: in-site taps
  * waited 2.3–2.8 s with nothing on screen moving). A 3px volt line along the top of the screen,
- * over the bar's status strip, from 120 ms after the tap until the page arrives: it runs most of
+ * over the bar's status strip, from 0.4 s after the tap until the page arrives (120 ms until the
+ * faster-taps work of 27 Oct, Part 4: a tap answered sooner now shows none): it runs most of
  * the way on --slow and completes on --ui when the page is there, then fades. Not a box: nothing
  * moves, and it covers no control. Volt in both themes, the colour the menu button already uses.
  */

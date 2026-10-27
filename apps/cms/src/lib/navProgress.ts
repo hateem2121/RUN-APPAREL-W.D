@@ -51,8 +51,13 @@ export function clientNavigationTarget(click: ClickLike, here: URL): URL | null 
 export const arrived = (to: URL, now: URL) =>
   now.pathname === to.pathname && now.search === to.search
 
-/** Shown only after this, so a fast page never flashes it (useLinkStatus.md suggests ~100 ms). */
-export const NAV_PROGRESS_DELAY_MS = 120
+/**
+ * Shown only after this, so a fast page never flashes it. 120 ms until 27 Oct (useLinkStatus.md
+ * suggests ~100 ms); 400 ms since (faster-taps spec, Part 4, the owner's call), once taps were
+ * answered from the shared store: Nielsen Norman Group shows no indicator for a wait under about
+ * a second, and a tap that lands inside 0.4 s already feels immediate.
+ */
+export const NAV_PROGRESS_DELAY_MS = 400
 
 /** Given up after this, so a navigation that was cancelled never leaves the line running. */
 export const NAV_PROGRESS_GIVE_UP_MS = 15_000
