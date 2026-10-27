@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 
 /**
  * The visible breadcrumb trail on the new company pages. It MUST match the page's

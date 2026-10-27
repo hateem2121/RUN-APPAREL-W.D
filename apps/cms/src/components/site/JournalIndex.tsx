@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import {
   formatPostDate,
   JOURNAL_CLUSTERS,

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import type { CSSProperties } from 'react'
 import { cardImage, FAMILY_SIZES } from '../../lib/cardImage'
 import type { Family, FamilyGarment, FamilyPicture } from '../../lib/families'

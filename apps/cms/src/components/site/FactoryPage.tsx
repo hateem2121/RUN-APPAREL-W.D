@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { Breadcrumb } from './Breadcrumb'

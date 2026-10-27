@@ -1,5 +1,5 @@
 import { type FooterHours, logosFor, markBox, POSTAL_ADDRESS } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import type { CSSProperties } from 'react'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE, FACTS, SHIPS_TO } from '../../lib/companyFacts'
 import { parseCoordinates } from '../../lib/globe'

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import type { CSSProperties } from 'react'
 import { AboutPreloader } from './AboutPreloader'
 import { SiteClosing } from './ArticleParts'

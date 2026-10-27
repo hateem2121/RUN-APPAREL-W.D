@@ -1,7 +1,7 @@
 'use client'
 
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from '../../components/site/IntentLink'
 
 /**
  * The branded crash page for the public site. Until 2026-09-26 there was none, so a page

@@ -1,6 +1,6 @@
 import type { SerializedEditorState } from '@payloadcms/richtext-lexical/lexical'
 import { type JSXConvertersFunction, RichText } from '@payloadcms/richtext-lexical/react'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { publicImage, richTextHref } from '../../lib/journalPublic'
 import { ArticleImage } from './ArticleParts'
 

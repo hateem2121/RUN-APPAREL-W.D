@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import type { Family } from '../../lib/families'
 import { FAMILY_SOON, type FamilyPage } from '../../lib/familyPages'
 import type { ProductCard } from '../../lib/projectPublic'

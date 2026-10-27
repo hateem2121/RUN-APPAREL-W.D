@@ -8,7 +8,7 @@ import {
   SITE_MENU_LINKS,
   SITE_NAV_LINKS,
 } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 

@@ -1,5 +1,5 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import type { ProductCard, PublicSiteSettings } from '../../lib/content'
 import { FAMILIES, familyPictures } from '../../lib/families'
 import {
