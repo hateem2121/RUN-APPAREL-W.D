@@ -333,9 +333,13 @@ function ownSize(source: object): { width: number; height: number } | null {
     : null
 }
 
-/** A duration token as `getComputedStyle` gives it: `240ms`, or `.24s` (tokenContract.ts says why). */
+/**
+ * A duration token as `getComputedStyle` gives it: `240ms`, or `.24s` (tokenContract.ts says why).
+ * Each digit can be read one way only: `\d*\.?\d+` let a run with no point split between its two
+ * halves in every place, and refusing 50,000 zeros took a second (CodeQL #93).
+ */
 export function parseDuration(text: string): number | null {
-  const match = /^\s*(\d*\.?\d+)(ms|s)\s*$/.exec(text)
+  const match = /^\s*(\d+(?:\.\d+)?|\.\d+)(ms|s)\s*$/.exec(text)
   if (!match) return null
   return Math.round(Number(match[1]) * (match[2] === 's' ? 1000 : 1))
 }

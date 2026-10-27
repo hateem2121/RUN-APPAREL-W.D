@@ -421,6 +421,14 @@ describe('parseDuration', () => {
     expect(parseDuration('')).toBeNull()
     expect(parseDuration('fast')).toBeNull()
   })
+
+  it('refuses a long run of digits with no unit at once, not after trying every split (CodeQL #93)', () => {
+    // A computed style is the page's own CSS, but the pattern must not depend on that: an
+    // ambiguous `\d*\.?\d+` took time growing with the square of the run.
+    const start = Date.now()
+    expect(parseDuration(`${'0'.repeat(50_000)}x`)).toBeNull()
+    expect(Date.now() - start).toBeLessThan(100)
+  })
 })
 
 describe('browserDyeEnv', () => {
