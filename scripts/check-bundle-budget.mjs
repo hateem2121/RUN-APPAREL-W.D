@@ -206,7 +206,7 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   ⚠️ CI READS 25 B MORE THAN THIS MAC for the same commit (main: 15,768 here, 15,793 in run
  *   39589018065), so main had 13 B left in CI and this branch about 0 (it failed `verify`). Measure
  *   headroom on CI's figure, never a local one. First paint was not re-measured for 13 bytes.
- *   ⚠️ 2026-10-26, one dye colour change everywhere (D49; owner chose the raise over loading the
+ *   ⚠️ 2026-10-26, one dye colour change everywhere (D50; owner chose the raise over loading the
  *   dye after the page shows). Built from main (64e90741) and from this branch, both with
  *   VITE_API_BASE_URL as CI sets it, gzip level 9, every .js, on this Mac:
  *       script     index-*.js  30,044 -> 33,455 B  (+3,411: the dye player, its noise field and
