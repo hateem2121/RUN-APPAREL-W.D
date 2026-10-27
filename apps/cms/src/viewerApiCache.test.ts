@@ -1,3 +1,4 @@
+import { isValidSlug } from '@run-apparel/shared'
 import type { PayloadRequest } from 'payload'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -518,9 +519,25 @@ describe('warmGarmentTarget: the same-origin address that warms one garment’s 
     ['a query', 'https://wear-run.com/__warm/garment/a/b?x=1'],
     ['the admin host', `https://${API_HOST}/__warm/garment/a/b`],
     ['another warm path', 'https://wear-run.com/__warm/other/a/b'],
+    ['capitals', 'https://wear-run.com/__warm/garment/R-ASB/petrol'],
+    ['an encoded character', 'https://wear-run.com/__warm/garment/r-asb/pet%2Frol'],
+    ['an underscore', 'https://wear-run.com/__warm/garment/r_asb/petrol'],
+    ['a doubled hyphen', 'https://wear-run.com/__warm/garment/r--asb/petrol'],
+    ['a leading hyphen', 'https://wear-run.com/__warm/garment/r-asb/-petrol'],
   ])('refuses %s', (_name, address) => {
     expect(warm(address)).toBeNull()
   })
+
+  // Review of 27 Oct: the path took any characters. It now takes what a product or colour slug can
+  // be (packages/shared slugs.ts), so a crafted address is refused before the store is asked.
+  it.each(['r-asb', 'rxps', 'wine', 'R-ASB', 'r_asb', 'r--asb', '-wine', 'wine-', '2026'])(
+    'takes %s exactly when it is a slug',
+    (slug) => {
+      expect(warm(`https://wear-run.com/__warm/garment/${slug}/${slug}`) !== null).toBe(
+        isValidSlug(slug),
+      )
+    },
+  )
 })
 
 describe('answerWarmRequest: what the Worker does with a warm request', () => {
@@ -529,13 +546,13 @@ describe('answerWarmRequest: what the Worker does with a warm request', () => {
     return { ctx: { waitUntil: (p: Promise<unknown>) => waited.push(p) }, waited }
   }
 
-  it('answers 204 at once and asks the store for the garment’s data in the background', async () => {
+  it('asks the store for the garment’s data and answers 204 once the answer is read', async () => {
     const asked: string[] = []
     const serve = async (request: Request) => {
       asked.push(request.url)
       return new Response('{"product":{}}')
     }
-    const { ctx, waited } = fakeCtx()
+    const { ctx } = fakeCtx()
     const answer = await answerWarmRequest(
       new Request('https://wear-run.com/__warm/garment/r-asb/petrol'),
       {},
@@ -544,8 +561,50 @@ describe('answerWarmRequest: what the Worker does with a warm request', () => {
     )
     expect(answer?.status).toBe(204)
     expect(answer?.headers.get('cache-control')).toBe('no-store')
-    await Promise.all(waited)
     expect(asked).toEqual([`https://${API_HOST}/api/public/viewer/r-asb/petrol`])
+  })
+
+  // Review of 27 Oct: it answered 204 at once, so one client could start drawings without waiting
+  // for any of them. Now each warm request holds its connection until its answer is read in full.
+  it('does not answer before the store’s answer has been read to the end', async () => {
+    let finish = () => {}
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"product":'))
+        finish = () => {
+          controller.enqueue(new TextEncoder().encode('{}}'))
+          controller.close()
+        }
+      },
+    })
+    const { ctx } = fakeCtx()
+    let answered = false
+    const answer = answerWarmRequest(
+      new Request('https://wear-run.com/__warm/garment/r-asb/petrol'),
+      {},
+      ctx,
+      async () => new Response(body),
+    ).then((response) => {
+      answered = true
+      return response
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(answered).toBe(false)
+    finish()
+    expect((await answer)?.status).toBe(204)
+  })
+
+  it('still answers 204 when the store fails: a warm-up that fails changes nothing for a visitor', async () => {
+    const { ctx } = fakeCtx()
+    const answer = await answerWarmRequest(
+      new Request('https://wear-run.com/__warm/garment/r-asb/petrol'),
+      {},
+      ctx,
+      async () => {
+        throw new Error('the store is unreachable')
+      },
+    )
+    expect(answer?.status).toBe(204)
   })
 
   it('leaves every other request alone, and a warm address asked with anything but GET', async () => {

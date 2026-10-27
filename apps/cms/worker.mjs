@@ -229,8 +229,9 @@ export default {
     // Its CORS headers are worked out per request there; null = not one to keep, serve as before.
     const garmentData = await serveViewerApi(request, env, ctx)
     if (garmentData) return garmentData
-    // A touched garment card's warm request (faster-taps plan, Task 5): 204 at once, the store
-    // asked in the background, so the garment page's own data request finds it drawn or drawing.
+    // A touched garment card's warm request (faster-taps plan, Task 5): the store is asked and
+    // read, then 204, so the garment page's own data request finds it drawn or drawing. The card
+    // sends it with `keepalive` and never waits on it (viewerApiCache.mjs answerWarmRequest).
     const warmed = await answerWarmRequest(request, env, ctx)
     if (warmed) return warmed
 
