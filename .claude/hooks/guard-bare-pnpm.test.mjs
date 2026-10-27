@@ -25,7 +25,7 @@
  */
 import { execFileSync } from 'node:child_process'
 
-const P = 'npx --yes pnpm@12.6.0'
+const P = 'npx --yes pnpm@12.15.0'
 
 /** [outcome, command, expectedRewrite?, expectedDecision?] */
 const cases = [

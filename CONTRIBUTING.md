@@ -64,7 +64,7 @@ them were invisible to anyone reading only this page:
 Every documented `pnpm <script>` in this repository means:
 
 ```bash
-npx --yes pnpm@12.6.0 <script>
+npx --yes pnpm@12.15.0 <script>
 ```
 
 Bare `pnpm` has measured absent, present, and present-but-broken on the
@@ -85,16 +85,16 @@ the docs index, the CMS Worker build and its size limit, which this list leaves 
 stops at the first failure.
 
 ```bash
-npx --yes pnpm@12.6.0 install --frozen-lockfile   # the lockfile moves often
-npx --yes pnpm@12.6.0 lint                        # biome check .
-npx --yes pnpm@12.6.0 typecheck                   # 5 workspaces
-npx --yes pnpm@12.6.0 test:coverage                # NOT `test` — see below
+npx --yes pnpm@12.15.0 install --frozen-lockfile   # the lockfile moves often
+npx --yes pnpm@12.15.0 lint                        # biome check .
+npx --yes pnpm@12.15.0 typecheck                   # 5 workspaces
+npx --yes pnpm@12.15.0 test:coverage                # NOT `test` — see below
 bash scripts/test-alert-shell.sh                   # the alert branch nothing else exercises
-npx --yes pnpm@12.6.0 --filter @run-apparel/viewer test:e2e   # its OWN required check
-npx --yes pnpm@12.6.0 seed:assets
-npx --yes pnpm@12.6.0 build                       # catches dependency breaks typecheck misses
+npx --yes pnpm@12.15.0 --filter @run-apparel/viewer test:e2e   # its OWN required check
+npx --yes pnpm@12.15.0 seed:assets
+npx --yes pnpm@12.15.0 build                       # catches dependency breaks typecheck misses
 node scripts/check-bundle-budget.mjs               # deterministic shell-weight gate
-npx --yes pnpm@12.6.0 eval:artwork                # separate CI job — gates the deploy
+npx --yes pnpm@12.15.0 eval:artwork                # separate CI job — gates the deploy
 
 # NOT a workspace member — pnpm -r skips it entirely, CI runs it separately:
 cd apps/shrink/container && npm ci --no-audit --no-fund && npx tsc --noEmit

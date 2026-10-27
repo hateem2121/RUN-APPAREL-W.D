@@ -203,7 +203,8 @@ Dependencies are pinned to the latest stable releases. Deliberate exceptions:
   `tools/asset-pipeline/src/glb-report.ts` instead, and `dependencyPolicy.test.ts` fails if
   `apps/shrink` reaches `validate.ts` again — even through `import type`, which still pulls
   the whole file into the typecheck. History: `docs/DEPENDENCY-HOLDS.md`.
-- `packageManager` is pinned to **pnpm 12.6.0** (since 2026-09-26; 10.34.5 before).
+- `packageManager` is pinned to **pnpm 12.15.0** (since 2026-10-27, for the supply-chain fixes in 12.7,
+  12.10 and 12.15; 12.6.0 from 2026-09-26; 10.34.5 before).
   The `minimumReleaseAge` supply-chain policy is declared **in-repo**
   (`pnpm-workspace.yaml` → `minimumReleaseAge: 1440`, i.e. 24h, with the trusted
   fast-moving build toolchain excluded), so it does not depend on a machine-global

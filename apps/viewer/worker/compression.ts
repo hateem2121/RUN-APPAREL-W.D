@@ -13,7 +13,7 @@ import { isDocumentResponse } from './documentHeaders'
  * So the Worker compresses instead. When a Worker's response carries `Content-Encoding`
  * and `encodeBody` is left at its default ("automatic"), the runtime compresses the body
  * itself (https://developers.cloudflare.com/workers/runtime-apis/response/). `br` is
- * available because wrangler.jsonc's compatibility_date (2026-07-01) is past 2024-04-29,
+ * available because wrangler.jsonc's compatibility_date (2026-10-23) is past 2024-04-29,
  * when the `brotli_content_encoding` flag became the default. Measured 2026-09-17 on a bare
  * workerd with that date: `br` and `gzip` both arrived compressed and decoded to the exact
  * page, WHATEVER the client offered, while an `encodeBody: 'manual'` control arrived

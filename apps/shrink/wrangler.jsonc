@@ -6,7 +6,7 @@
   // writes results back to the CMS via an internal service binding.
   "name": "run-apparel-viewer-shrink",
   "main": "src/index.ts",
-  "compatibility_date": "2026-07-01",
+  "compatibility_date": "2026-10-23",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   // Off, as before wrangler 4.150.0 made uploading them the default (why: apps/cms/wrangler.jsonc).

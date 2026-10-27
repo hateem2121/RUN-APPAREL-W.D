@@ -25,7 +25,7 @@ import { describe, expect, it } from 'vitest'
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 const RUNNER = join(REPO_ROOT, '.claude', 'skills', 'gates', 'run-gates.mjs')
 const GATE_JOBS = ['verify', 'e2e-shard']
-const PNPM = 'npx --yes pnpm@12.6.0'
+const PNPM = 'npx --yes pnpm@12.15.0'
 
 type Step = { job: string; name: string; commands: string[] }
 type Runner = {

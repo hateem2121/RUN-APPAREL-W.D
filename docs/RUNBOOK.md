@@ -2,7 +2,7 @@
 
 **In plain words:** How to run the live site: go live, undo a change, fix a problem.
 
-**`pnpm` in this runbook means `npx --yes pnpm@12.6.0`.** Bare `pnpm` is missing or broken on the
+**`pnpm` in this runbook means `npx --yes pnpm@12.15.0`.** Bare `pnpm` is missing or broken on the
 maintainer's Mac (absent on 2026-10-24); root `CLAUDE.md` → Commands says why.
 
 Day-to-day operations for the live stack. For first-time setup see
@@ -165,7 +165,7 @@ Still supported and sometimes the right answer — from any machine with real up
 bandwidth, with Docker running:
 
 ```bash
-CLOUDFLARE_API_TOKEN=$(cat ~/cf_token.txt) DOCKER_DEFAULT_PLATFORM=linux/amd64 npx --yes pnpm@12.6.0 --filter @run-apparel/shrink exec wrangler deploy
+CLOUDFLARE_API_TOKEN=$(cat ~/cf_token.txt) DOCKER_DEFAULT_PLATFORM=linux/amd64 npx --yes pnpm@12.15.0 --filter @run-apparel/shrink exec wrangler deploy
 ```
 
 ⚠️ `DOCKER_DEFAULT_PLATFORM` is **not optional on an Apple Silicon Mac**. Cloudflare
@@ -245,15 +245,15 @@ bad build on top of your rollback (a docs-only push deploys nothing since 2026-1
 
 ### The commands
 
-Verified against the pinned wrangler **4.152.0** (`wrangler rollback --help`), not
+Verified against the pinned wrangler **4.153.0** (`wrangler rollback --help`, 2026-10-27), not
 recalled:
 
 ```bash
 # 1. See what you can go back to (10 most recent):
-npx wrangler@4.152.0 versions list --name run-apparel-viewer-site
+npx wrangler@4.153.0 versions list --name run-apparel-viewer-site
 
 # 2. Roll back. Omit the version-id to take the previous one:
-npx wrangler@4.152.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
+npx wrangler@4.153.0 rollback <version-id> --name run-apparel-viewer-site -m "why"
 ```
 
 The four Worker names:
@@ -310,7 +310,7 @@ likely to turn a visible outage into a data problem.** Check first:
 
 ```bash
 cd apps/cms   # where wrangler.jsonc declares the database, as for every D1 command here
-npx wrangler@4.152.0 d1 migrations list run-apparel-viewer-db --remote
+npx wrangler@4.153.0 d1 migrations list run-apparel-viewer-db --remote
 ```
 
 ### Not yet verified here
@@ -400,10 +400,10 @@ inspect what's applied, then re-run the migrate or apply the SQL by hand:
 ```bash
 node scripts/backup-d1.mjs
 cd apps/cms
-npx wrangler@4.152.0 d1 execute run-apparel-viewer-db --remote \
+npx wrangler@4.153.0 d1 execute run-apparel-viewer-db --remote \
   --command "SELECT id, name, batch, created_at FROM payload_migrations ORDER BY id"
 # last-resort manual apply of a specific migration's SQL:
-npx wrangler@4.152.0 d1 execute run-apparel-viewer-db --remote --file src/migrations/<file>.sql
+npx wrangler@4.153.0 d1 execute run-apparel-viewer-db --remote --file src/migrations/<file>.sql
 ```
 
 ### Canonicalising migration history
@@ -421,7 +421,7 @@ Verify the live table matches (run after a backup):
 
 ```bash
 cd apps/cms
-npx wrangler@4.152.0 d1 execute run-apparel-viewer-db --remote \
+npx wrangler@4.153.0 d1 execute run-apparel-viewer-db --remote \
   --command "SELECT id, name, batch FROM payload_migrations ORDER BY id"
 ```
 
@@ -430,7 +430,7 @@ If a `dev`/`NULL` marker row is present, or the batch numbers differ, reconcile 
 
 ```bash
 cd apps/cms
-npx wrangler@4.152.0 d1 execute run-apparel-viewer-db --remote --command "
+npx wrangler@4.153.0 d1 execute run-apparel-viewer-db --remote --command "
   DELETE FROM payload_migrations WHERE name IS NULL OR name = 'dev';
   UPDATE payload_migrations SET batch = 1 WHERE name = '20260720_185735_initial';
   UPDATE payload_migrations SET batch = 2 WHERE name = '20260721_084024_add_events';
@@ -880,7 +880,7 @@ Do all of it in one sitting, in this order, with `CLOUDFLARE_API_TOKEN` and
    in a later step cannot lose the value:
 
    ```bash
-   s="$(openssl rand -hex 32)" && security add-generic-password -U -a payload -s run-apparel-payload-secret -w "$s" && printf '%s' "$s" | npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET && printf '%s' "$s" | gh secret set PAYLOAD_SECRET --env production && unset s
+   s="$(openssl rand -hex 32)" && security add-generic-password -U -a payload -s run-apparel-payload-secret -w "$s" && printf '%s' "$s" | npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec wrangler secret put PAYLOAD_SECRET && printf '%s' "$s" | gh secret set PAYLOAD_SECRET --env production && unset s
    ```
 
    Read the value back later with
@@ -891,7 +891,7 @@ Do all of it in one sitting, in this order, with `CLOUDFLARE_API_TOKEN` and
    the key was generated but not saved, and `users.updated_at` stayed at the day the
    robot was created. Check that *Last Modified* changed.
 4. Give the SAVED key to the robot, pasting it at the prompt:
-   `npx --yes pnpm@12.6.0 --filter @run-apparel/shrink exec wrangler secret put CMS_ROBOT_API_KEY`
+   `npx --yes pnpm@12.15.0 --filter @run-apparel/shrink exec wrangler secret put CMS_ROBOT_API_KEY`
 5. **Only then**, tick *Try this again* on a finished raw upload whose product is already
    published (the robot will not attach to it), and wait for **Ready to review**.
    Ticking it before step 4 strands the row on Queued.
@@ -903,7 +903,7 @@ one only if something actually uses it.
 enqueues nothing, then retry it from the admin:
 
 ```bash
-npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
+npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec wrangler d1 execute run-apparel-viewer-db --remote --command "UPDATE raw_uploads SET status = 'failed' WHERE id = <id> AND status = 'queued'"
 ```
 
 ## security.txt — renewing it once a year
@@ -1008,7 +1008,7 @@ external uptime monitors, nowhere else.
 2. Set the secret to the chosen words — the words alone, not the whole link — through the
    Cloudflare API (`PUT /accounts/{account_id}/workers/scripts/run-apparel-apex-404/secrets`
    with `{"name": "CATALOGUE_CODE", "text": "<code>", "type": "secret_text"}`), or with
-   `npx wrangler@4.152.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
+   `npx wrangler@4.153.0 secret put CATALOGUE_CODE --name run-apparel-apex-404`. Either
    creates and deploys a new Worker version.
 3. Check with a plain GET, never HEAD, **on both addresses** (`.help` and `.com`): the old
    link must answer **404** and the new one **200**. If the old one still opens, run `pnpm deploy:apex` from a clean, up-to-date
@@ -1025,7 +1025,7 @@ external uptime monitors, nowhere else.
    Open `<dir>/contact-sheet.jpg`; if a spread's artwork crosses its red centre line,
    re-run with `--whole <page numbers>`.
 2. Upload every `<dir>/<version>/*.webp` to `run-assets/documents/<doc>/<version>/` with
-   `npx wrangler@4.152.0 r2 object put run-assets/<key> --file <file> --content-type image/webp --remote`,
+   `npx wrangler@4.153.0 r2 object put run-assets/<key> --file <file> --content-type image/webp --remote`,
    then list that prefix and check the count is three per part in the manifest.
 3. Upload the new PDF over the SAME key — `RUN PRODUCT CATALOUGE.pdf` or
    `Company Profile.pdf`, spelled exactly — and confirm its etag equals the `--md5` you
@@ -1049,7 +1049,7 @@ external uptime monitors, nowhere else.
   the word rule, decided 2026-09-15 — it starts with the retired word `catalogue` or
   `profile`, or equals the other document's own secret. Only the Worker's own
   `[apex] … cannot be served` log line says which of these it is.
-  `npx wrangler@4.152.0 secret list --name run-apparel-apex-404` shows names only.
+  `npx wrangler@4.153.0 secret list --name run-apparel-apex-404` shows names only.
 - **"Temporarily unavailable" (503):** the manifest is missing or invalid, or a file it
   lists is missing. Workers Logs carry the reason (`[apex] … manifest rejected: …`).
   ⚠️ **Workers Logs' REQUEST lines carry the full address, words included** — if you
@@ -1708,16 +1708,16 @@ the colourway's poster in the CMS (`posterPreview`), falling back to the product
 "Backup picture". Posters are rendered locally, free, from the finished model:
 
 ```bash
-npx --yes pnpm@12.6.0 pipeline posters output/<garment>.glb --product rxps \
+npx --yes pnpm@12.15.0 pipeline posters output/<garment>.glb --product rxps \
   --colours "Colorway 2=wine,Colorway 3=blush,Colorway 4=butter,Colorway 5=lime,Colorway 6=black"
-npx --yes pnpm@12.6.0 og:cards rxps
+npx --yes pnpm@12.15.0 og:cards rxps
 ```
 
 Once the garment is live and its CLO renders are uploaded, redraw its cards from the renders
 (2026-10-25: a card is 1200x630 with the whole garment, from the render when there is one):
 
 ```bash
-npx --yes pnpm@12.6.0 og:cards --from-site rxps
+npx --yes pnpm@12.15.0 og:cards --from-site rxps
 ```
 
 Judge the set on one sheet before uploading anything — the posters are transparent, so
@@ -1874,7 +1874,7 @@ Recommendation 4, 2026-09-23).
 
 ```bash
 cd ~/Sites/Model-Viewer-main && git switch main && git pull --ff-only && \
-  npx --yes pnpm@12.6.0 install --frozen-lockfile && \
+  npx --yes pnpm@12.15.0 install --frozen-lockfile && \
   node scripts/shrink-posters-gently.mjs
 ```
 
@@ -2163,7 +2163,7 @@ only forwards there (301), for the printed QR tags.
 
 1. Dashboard → **Workers & Pages** → `run-apparel-viewer-site` → **Deployments** → the
    three dots on the last good version → **Rollback**. Or from a checkout:
-   `npx --yes pnpm@12.6.0 --filter @run-apparel/viewer exec wrangler rollback` (the version
+   `npx --yes pnpm@12.15.0 --filter @run-apparel/viewer exec wrangler rollback` (the version
    before the latest), or `… wrangler rollback <version-id> --message "why"`.
 2. Any of the 100 most recent versions can be restored; the rollback is live at once on
    every route and domain. It does not change bindings or data.
@@ -2408,7 +2408,7 @@ share card per page is drawn by `apps/cms/scripts/gen-share-images.mjs` from
 `src/lib/shareImages.ts` into `apps/cms/public/share/` — run it with
 `tools/asset-pipeline/node_modules/.bin/tsx apps/cms/scripts/gen-share-images.mjs --force`
 and LOOK at the result. After any routing or header change:
-`npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`, then
+`npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec opennextjs-cloudflare build`, then
 `test:routes` and `test:built-config`. The careers "How to apply" line names the
 applications inbox, `APPLICATIONS_TO` in `apps/cms/src/lib/application.ts` (since Phase 2,
 next section) — never type an address into `companyPages.ts` (`companyPages.test.ts`

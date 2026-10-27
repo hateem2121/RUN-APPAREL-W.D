@@ -1734,8 +1734,8 @@ jobs:
             echo "If this deploy is wrong, roll back the affected Worker:"
             echo
             echo '```bash'
-            echo "npx wrangler@4.152.0 versions list --name run-apparel-viewer-site"
-            echo "npx wrangler@4.152.0 rollback --name run-apparel-viewer-site -m 'why'"
+            echo "npx wrangler@4.153.0 versions list --name run-apparel-viewer-site"
+            echo "npx wrangler@4.153.0 rollback --name run-apparel-viewer-site -m 'why'"
             echo '```'
             echo
             echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-viewer-shrink\` (processing only) · \`run-apparel-apex-404\` (apex catalogue + profile PDFs)"
