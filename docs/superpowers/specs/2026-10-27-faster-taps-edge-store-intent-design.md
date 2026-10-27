@@ -66,8 +66,7 @@ Measured from Pakistan, each route and each browser engine on its own (Part 5 sa
   (26 Oct, local only). This design reduces how often a cold copy is needed; that plan cuts
   what one costs. They do not conflict. If the website ever moves to its own Worker, the
   store described here moves with the page store.
-- Warming the store from several regions. No free way to choose where a request runs was
-  found; the deploy warm-up runs from one CI runner.
+- Warming every page in every region after every deploy (Part 6 says why, with the cost).
 - The 3D model download (1.8–7.8 MB per garment, measured 4 Sep).
 
 ## Must never happen
@@ -311,8 +310,9 @@ A new script, measure-taps.mjs in the scripts folder, grows from the 26 Oct prob
   no issue, as the repository's other live checks already treat it.
 - **Negative control.** The same script with a flag that sends a cookie the store refuses,
   which makes every tap a drawing. It must report a failure, or the robot proves nothing.
-- **Weekly robot.** GitHub Actions runs it against the live site. The run prints timings
-  only; the repository's logs are public. It opens or updates one issue when G1 or G2 fails.
+- **Weekly robot.** It runs inside the existing weekly `perf-watch.yml` against the live site,
+  and reports the way that workflow already does: by failing the run when G1 or G2 fails,
+  with no issue written. The run prints timings only; the repository's logs are public.
 
 ## How it is judged
 
@@ -342,7 +342,8 @@ A new script, measure-taps.mjs in the scripts folder, grows from the 26 Oct prob
 
 - **The first buyer in a region after a deploy.** Each destination pays one drawing per
   region per deploy before anyone there gains. With one key per destination that is about
-  one drawing per website page. Parts 2 and 3 act from the buyer's own browser, so they help
+  one drawing per website page. Part 6 warms the buyer regions after each deploy and makes
+  every remaining miss shorter. Parts 2 and 3 act from the buyer's own browser, so they help
   even then.
 - **A visitor arriving with a query string.** That visitor's state tree may differ, which
   costs that visitor a hit but never correctness: the code, Next's check and the added `Vary`
@@ -354,16 +355,91 @@ A new script, measure-taps.mjs in the scripts folder, grows from the 26 Oct prob
   builder checks the viewer Worker and the weekly digests for document counts before Part 3
   ships.
 
-## Warming more regions — research, 27 Oct (nothing chosen yet)
+## Part 6 — The warming pipeline (free), researched 27 Oct
 
-The owner asked for this before anything is built. Why regions miss: Workers Cache is
-"tiered by default" (Cloudflare docs, Workers Cache, "Tiered cache"). A data centre's miss
-asks an upper tier before the Worker runs, and that tier is not configurable. On 25 Oct,
-Marseille and Muscat each drew copies the US already held (`apps/cms/pageCache.mjs`), so in
-practice there is an upper tier per region. Warming a region therefore takes one request
-from inside it.
+The owner asked for this before anything is built: "go for all the frees" and build a
+proper pipeline. Why regions miss: Workers Cache is "tiered by default" with "a generic
+tiered cache topology", which is not configurable (Cloudflare docs, Workers Cache, "Tiered
+cache" and "Limitations"). A data centre's miss asks an upper tier before the Worker runs.
+On 25 Oct, Marseille and Muscat each drew copies the US already held
+(`apps/cms/pageCache.mjs`), so in practice there is an upper tier per region. Warming a
+region therefore takes one request from inside it.
 
-**What it costs: the account's real usage, read 27 Oct (Cloudflare GraphQL, last 30 days).**
+**Where buyers are (Cloudflare Web Analytics, real browsers only, 30 days to 27 Oct).**
+
+- The website: US 7,020 page loads, Pakistan 4,970, then Denmark, Norway and France at 30
+  each, and fewer than 20 from any other country.
+- The garment pages: US 880, Pakistan 180.
+
+Robots are excluded, because the beacon is not added for automated browsers. CI's warm-up
+already runs from GitHub's US runners, so the gap is Pakistan.
+
+**What a Pakistan probe showed (Globalping, 27 Oct).** One GET from an Islamabad probe with
+an `rsc: 1` header got Next's 307 to `?_rsc`, so custom headers reach the site. It was
+served by Cloudflare's Singapore data centre (`cf-ray …-SIN`), while this Mac's requests run
+in Islamabad (`cf-placement: local-ISB`). Pakistani networks reach different data centres,
+so whether warming one route helps another must be measured, not assumed.
+
+### The pipeline, after every deploy that changes the website
+
+1. **US region (exists).** `scripts/warm-shared-store.mjs` asks for every page and every
+   garment's data from the CI runner. Part 1 adds each page's tap data.
+2. **Buyer regions outside the US (new).** A new CI step asks Globalping's free API to send
+   the same requests from probes on home and mobile networks (Globalping's `eyeball-network`
+   tag) in each buyer country. It sends custom headers too, so tap data needs no special
+   address. The countries come from a short committed list, Pakistan first, reviewed against
+   Web Analytics when the weekly robot reports.
+
+   Scope per deploy: about 30 addresses (the main pages, their tap data and the most-opened
+   garments' data), from 2 probes in each country, then a second pass that reads each
+   answer's `Server-Timing` and prints hit or miss per country. Under 100 tests per deploy,
+   inside the anonymous 250 an hour; a free Globalping account raises that to 500 if deploys
+   bunch up.
+
+   Like the existing warm-up, it never fails a deploy. It prints only timings and store
+   states, because the logs are public, and it never sends a secret.
+3. **Every region, including the ones nobody warms: D1 read replicas (new, free).**
+   Cloudflare keeps read-only copies of the database in ENAM, WNAM, WEUR, EEUR, APAC and OC
+   at no extra cost (D1 docs, "Global read replication", updated 10 Aug 2026). A cold drawing
+   then reads nearby instead of making about ten trips to Eastern North America (~0.4 s each,
+   recorded 7 Oct). Payload 3.92's D1 adapter supports it (`readReplicas: 'first-primary'`):
+   each drawing starts at the main copy, so it is never older than the database when it
+   started, and a kept copy cannot freeze content from before a save. It needs replication
+   switched on for the database, a Cloudflare setting the owner approves. The gain is
+   measured before and after, from Workers logs (drawing wall time by data centre) and the
+   measure-taps script.
+4. **The buyer's own browser (Parts 2 and 3).** Fetch ahead on intent, and warm a garment's
+   data when its card is touched. This helps even where nothing was warmed.
+5. **Measured weekly from where buyers are.** The weekly robot (Part 5) adds Globalping
+   measurements from the buyer countries, so G1 and G2 are judged from Pakistan by machines
+   other than this Mac, for free.
+
+**The proof that warming works (a spike before Step 2 ships).** After a deploy:
+
+1. Warm from 2 Pakistan home-network probes.
+2. Measure the same addresses from 3 other Pakistan probes and from this Mac.
+3. Pass: at least 4 of the 5 report `page-cache;desc="hit"`.
+
+If warming a Singapore route does not help an Islamabad one, the step warms from more
+probes, chosen by the data centre each one reaches.
+
+**Not chosen, kept as fallbacks:**
+
+- **Warmer Workers placed near a region.** Placement Hints (`placement.region`, added
+  22 Jan 2026) run a Worker's `fetch` handler near a named cloud region, inside the $5 plan.
+  Whether such a Worker fills that region's cache through a service binding is untested.
+  This is the fallback if Globalping becomes unavailable.
+- **Durable Objects pinned with location hints.** Same untested question.
+- **Checkly's free plan** (10,000 API checks a month, 6 locations) and **Grafana Cloud's**
+  (100,000 executions a month). Both need an account the owner would create.
+- **Keeping kept copies across deploys** (`cache.cross_version_cache`). The docs say it
+  stops each deploy from emptying the cache, which would remove most cold starts outright.
+  But the site's kept pages name script files that each deploy renames, so it is safe only
+  with a key that changes exactly when the website's output changes. A separate design,
+  later.
+
+**What it costs.** These numbers come from the account's real usage, read 27 Oct
+(Cloudflare GraphQL, last 30 days).
 
 - The site's Worker served 810,627 requests and used 81.6 million CPU-milliseconds. The
   whole account used about 82.2 million.
@@ -376,18 +452,22 @@ from inside it.
 - A cache hit costs no CPU; a drawing does. Drawing the home page took about 739 ms of CPU
   (recorded 26 Oct).
 
-| Option | What it does | Cost | Status |
-|---|---|---|---|
-| **A. D1 read replicas** | Cloudflare keeps free read-only copies of the database in six regions, Asia-Pacific included. A cold drawing then reads nearby instead of making about ten trips to Eastern North America (~0.4 s each, recorded 7 Oct). It shortens every miss, in every region, with no warming. Payload 3.92's D1 adapter supports it (`readReplicas: 'first-primary'`, which starts each drawing at the main copy, so a drawing is never older than the database when it started). | Free (Cloudflare D1 docs, "Global read replication", updated 10 Aug 2026). Needs replication switched on for the database, a Cloudflare change the owner approves. | Gain not measured; the docs still describe it as a public beta. |
-| **B. Warm from inside each region with Durable Objects** | A small object pinned near each region (location hints: `wnam`, `enam`, `weur`, `eeur`, `apac`, `oc`; `sam`, `afr` and `me` land in a nearby supported region) asks for the main pages after each deploy. | Durable Object requests are well inside the included million. Each drawing costs CPU: about 3,000 drawings a deploy for every page and garment in 9 regions, or about 80 for 20 top pages in 4 regions. | Untested whether an object's request fills that region's cache. Needs a small spike first. |
-| **C. Warm from probes in chosen countries (Globalping)** | A free network of probes sends plain GETs from countries we choose, run from CI after a deploy. | Free: 250 tests an hour anonymously, 500 with a free account (third-party figures). Same CPU per drawing as B. | Custom headers unconfirmed, so tap data would need a plain-GET warm address. The official limits were not read. |
+- **Step 2's cost.** Misses in the warmed region only: about 30 drawings a deploy at well
+  under a second of CPU each, about 16,000 CPU-milliseconds. At 10 deploys a day that is
+  about 5 million a month, about $0.10 at the listed overage price. Part 1 removes drawings
+  from every repeated tap, which should more than pay for it; the weekly robot reports both.
+- **Steps 1, 3, 4 and 5 cost nothing extra.** D1 replicas are free, and Globalping's anonymous
+  tier and GitHub's runners are free for this public repository.
+- **Not done, on purpose:** every page in every region after every deploy, about 3,000
+  drawings a deploy, which the $5 budget does not cover at today's deploy rate.
 
-**Recommended:** A first, because it is free and shrinks every miss everywhere without
-choosing regions. Then measure. Then, only if the first buyer in a region still waits too
-long, B or C for about 20 top pages in the regions buyers come from. Those regions are not
-yet checked in the site's analytics. Warming every page in every region after every deploy
-would cost about 3,000 drawings per deploy, which the $5 budget does not cover at today's
-deploy rate.
+Sources, read 27 Oct:
+- Cloudflare docs: Workers Cache ("Tiered cache", "Limitations", "Cache keys",
+  "Configuration"), Placement (updated 12 Oct 2026), D1 "Global read replication",
+  Durable Objects "Data location", Workers pricing.
+- Globalping README (jsdelivr/globalping): limits and locations. Its live probe list showed
+  14 probes in Pakistan, 1,077 in the US and 523 in Germany.
+- Checkly's pricing page and Grafana Cloud's synthetic-monitoring page, via search results.
 
 ## Order of work
 
@@ -396,8 +476,10 @@ deploy rate.
    its deploy.
 3. Part 2, without waiting for that week; it helps whatever the hit rate.
 4. Part 3: the warm address first, the speculation rules second.
-5. Part 5's weekly robot and its negative control.
-6. Part 4.
+5. Part 6: D1 read replicas (after the owner switches replication on), then the Globalping
+   warm step after its spike passes.
+6. Part 5's weekly robot and its negative control, with the Globalping measurements.
+7. Part 4.
 
 Before a merge that touches the CMS Worker, the usual preflight applies: a D1 backup and the
 `rxps/wine` before-copy (root `CLAUDE.md`, "Deploying").
@@ -408,8 +490,8 @@ Before a merge that touches the CMS Worker, the usual preflight applies: a D1 ba
   keep today's first-arrival screens.
 - 27 Oct, owner: edge store + intent, admin untouched.
 - 27 Oct, owner: the loading line shows only after 0.4 s (Part 4), with this work.
-- 27 Oct, owner: research warming the store in every region before deciding; bring the
-  numbers first (see "Warming more regions").
+- 27 Oct, owner: research warming further and "go for all the frees" with a proper pipeline
+  (Part 6); write the build plan.
 
 ## My calls, for the owner to check
 
@@ -421,7 +503,10 @@ Before a merge that touches the CMS Worker, the usual preflight applies: a D1 ba
 - The deploy warm-up also warms tap data.
 - The measurement rules in Part 5, and 50% as the "low hit rate" line.
 
-## Open: the owner's answer
+- Part 6 uses Globalping's anonymous tier and Pakistan as the first buyer country.
 
-- Which of the warming options (A, B, C, or none) to pursue, given the numbers in "Warming
-  more regions".
+## Needs the owner's yes when the build reaches it
+
+- Switching on D1 read replication for the database (a Cloudflare setting).
+- A free Globalping account, only if deploys bunch up beyond the anonymous limit. The owner
+  creates it.
