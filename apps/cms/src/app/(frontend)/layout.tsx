@@ -45,6 +45,7 @@ import { Analytics } from '../../components/site/Analytics'
 import { CardOpening } from '../../components/site/CardOpening'
 import { ConsentBanner } from '../../components/site/ConsentBanner'
 import { Cursor } from '../../components/site/Cursor'
+import { GarmentWarm } from '../../components/site/GarmentWarm'
 import { SmoothScroll } from '../../components/site/SmoothScroll'
 import { JsonLd } from '../../components/site/JsonLd'
 import { NavProgress } from '../../components/site/NavProgress'
@@ -184,6 +185,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <SmoothScroll />
         {/* A card's picture grows into the garment page; every other link loads as before (MO3). */}
         <CardOpening />
+        {/* A card the visitor reaches for starts its garment's data drawing (faster-taps Part 3). */}
+        <GarmentWarm siteOrigin={SITE_ORIGIN} />
       </body>
     </html>
   )

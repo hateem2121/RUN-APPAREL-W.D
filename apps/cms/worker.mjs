@@ -59,7 +59,12 @@ import {
   tapDrawRequest,
   tapStoreOn,
 } from './tapStore.mjs'
-import { keepableApiRequest, keepApiAnswer, serveViewerApi } from './viewerApiCache.mjs'
+import {
+  answerWarmRequest,
+  keepableApiRequest,
+  keepApiAnswer,
+  serveViewerApi,
+} from './viewerApiCache.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
 export * from './.open-next/worker.js'
@@ -217,6 +222,10 @@ export default {
     // Its CORS headers are worked out per request there; null = not one to keep, serve as before.
     const garmentData = await serveViewerApi(request, env, ctx)
     if (garmentData) return garmentData
+    // A touched garment card's warm request (faster-taps plan, Task 5): 204 at once, the store
+    // asked in the background, so the garment page's own data request finds it drawn or drawing.
+    const warmed = await answerWarmRequest(request, env, ctx)
+    if (warmed) return warmed
 
     // The shared page store (SitePages above): Cloudflare answers a kept copy, or SitePages draws.
     const kept = await fromSharedStore(request, env, ctx)

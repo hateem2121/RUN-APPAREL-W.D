@@ -84,6 +84,41 @@ export const API_RENDER_HEADERS = Object.freeze({
   'user-agent': 'RUN APPAREL api cache',
 })
 
+/** The website's own host, where a card touch asks for a garment to be warmed. */
+const SITE_HOST = 'wear-run.com'
+const WARM_PATH = /^\/__warm\/garment\/([^/]+)\/([^/]+)$/
+
+/**
+ * The garment-data address a same-origin warm request names, or null (faster-taps plan, Task 5).
+ * A website page may not call this host itself (its `connect-src` does not list it, and widening
+ * it was refused before: src/lib/formSubmission.ts), so a touched card asks
+ * `wear-run.com/__warm/garment/<product>/<colour>` and worker.mjs asks the store for this address.
+ * The caller checks the method (GET).
+ */
+export function warmGarmentTarget(url) {
+  if (url.hostname !== SITE_HOST || url.search !== '') return null
+  const match = WARM_PATH.exec(url.pathname)
+  return match ? new URL(`https://${API_HOST}/api/public/viewer/${match[1]}/${match[2]}`) : null
+}
+
+/**
+ * worker.mjs's answer to a warm request: 204 at once, while the garment's data is asked of the
+ * store in the background and read to the end (the store keeps an answer only once it is read in
+ * full, as scripts/warm-shared-store.mjs found). Null for any other request. `serve` is
+ * serveViewerApi (a parameter for the tests).
+ */
+export async function answerWarmRequest(request, env, ctx, serve = serveViewerApi) {
+  if (request.method !== 'GET') return null
+  const target = warmGarmentTarget(new URL(request.url))
+  if (!target) return null
+  const drawn = (async () => {
+    const answer = await serve(new Request(target, { method: 'GET' }), env, ctx)
+    await answer?.arrayBuffer()
+  })().catch((error) => console.error('[api-cache] could not warm a garment', error))
+  ctx?.waitUntil?.(drawn)
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } })
+}
+
 /** May this request be answered from a kept copy, and its answer kept? */
 export function keepableApiRequest(request) {
   if (request.method !== 'GET') return false

@@ -18,6 +18,8 @@ import {
   keptApiHeaders,
   serveViewerApi,
   servedApiHeaders,
+  answerWarmRequest,
+  warmGarmentTarget,
   withViewerCors,
 } from '../viewerApiCache.mjs'
 import { publicViewerEndpoint } from './endpoints/publicViewer'
@@ -496,5 +498,69 @@ describe('the handler while a copy is being drawn to keep', () => {
     const render = { spoiled: false }
     await keptRenders().run(render, () => publishedCards(failing as never, { fresh: true }))
     expect(render.spoiled).toBe(true)
+  })
+})
+
+// Faster-taps plan, Task 5: a website page may not call cms.wear-run.help (its connect-src does not
+// list it), so a card touch asks the site's own address and the Worker asks the store.
+describe('warmGarmentTarget: the same-origin address that warms one garment’s data', () => {
+  const warm = (address: string) => warmGarmentTarget(new URL(address))?.href ?? null
+
+  it('maps a garment to its data address on the admin host', () => {
+    expect(warm('https://wear-run.com/__warm/garment/r-asb/petrol')).toBe(
+      `https://${API_HOST}/api/public/viewer/r-asb/petrol`,
+    )
+  })
+
+  it.each([
+    ['a product without a colour', 'https://wear-run.com/__warm/garment/a'],
+    ['a deeper path', 'https://wear-run.com/__warm/garment/a/b/c'],
+    ['a query', 'https://wear-run.com/__warm/garment/a/b?x=1'],
+    ['the admin host', `https://${API_HOST}/__warm/garment/a/b`],
+    ['another warm path', 'https://wear-run.com/__warm/other/a/b'],
+  ])('refuses %s', (_name, address) => {
+    expect(warm(address)).toBeNull()
+  })
+})
+
+describe('answerWarmRequest: what the Worker does with a warm request', () => {
+  const fakeCtx = () => {
+    const waited: Promise<unknown>[] = []
+    return { ctx: { waitUntil: (p: Promise<unknown>) => waited.push(p) }, waited }
+  }
+
+  it('answers 204 at once and asks the store for the garment’s data in the background', async () => {
+    const asked: string[] = []
+    const serve = async (request: Request) => {
+      asked.push(request.url)
+      return new Response('{"product":{}}')
+    }
+    const { ctx, waited } = fakeCtx()
+    const answer = await answerWarmRequest(
+      new Request('https://wear-run.com/__warm/garment/r-asb/petrol'),
+      {},
+      ctx,
+      serve,
+    )
+    expect(answer?.status).toBe(204)
+    expect(answer?.headers.get('cache-control')).toBe('no-store')
+    await Promise.all(waited)
+    expect(asked).toEqual([`https://${API_HOST}/api/public/viewer/r-asb/petrol`])
+  })
+
+  it('leaves every other request alone, and a warm address asked with anything but GET', async () => {
+    const serve = async () => new Response('')
+    const { ctx } = fakeCtx()
+    expect(
+      await answerWarmRequest(new Request('https://wear-run.com/products'), {}, ctx, serve),
+    ).toBeNull()
+    expect(
+      await answerWarmRequest(
+        new Request('https://wear-run.com/__warm/garment/a/b', { method: 'POST' }),
+        {},
+        ctx,
+        serve,
+      ),
+    ).toBeNull()
   })
 })
