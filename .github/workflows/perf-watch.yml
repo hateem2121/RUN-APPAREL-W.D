@@ -94,7 +94,13 @@ jobs:
   # Part 5), weekly: in real browsers against the live site, how long a tap on a link waits and how
   # soon a garment card's page shows, judged on the taps the shared store answered (G1: under 0.4 s,
   # 3 in 4; G2: under 1.5 s). measure-taps.mjs exits 1 when either misses and 2 when the site
-  # blocked the probe (403/429/503): inconclusive, a warning, green. Its negative control is
+  # blocked the probe (403/429/503): inconclusive, a warning, green.
+  # ⚠️ REPORT-ONLY SINCE 2026-10-27 (owner): its first run missed 7 of 12 targets from this runner
+  # while the same targets passed from the owner's Mac in Pakistan; garment opens took 862-4,045 ms
+  # here with the data answered from the store, 229-317 ms there. With no runner baseline, a red run
+  # each Monday would trip heartbeat.yml's "success within 192 hours" on the runner's speed. A missed
+  # target is a warning with the numbers; a run that printed no numbers still fails. Read four weekly
+  # runs before making it judge again (apps/cms/src/perfWatchTaps.test.ts). Its negative control is
   # `--refuse-store` (a cookie the store refuses), which must exit 1. Then the same pages from
   # Pakistan's home networks (Globalping, free), as timings only: no target was set for them, so
   # that step reports and never fails. Both print timings and counts only; the log is public.
@@ -122,11 +128,21 @@ jobs:
           HOME: /root
         run: |
           set +e
-          node apps/cms/scripts/measure-taps.mjs --origin=https://wear-run.com --taps=10 --summary
+          out=$(mktemp)
+          node apps/cms/scripts/measure-taps.mjs --origin=https://wear-run.com --taps=10 --summary > "$out" 2>&1
           code=$?
+          cat "$out"
           if [ "$code" = 2 ]; then
             echo "::warning::the live site blocked the probe (403, 429 or 503): inconclusive"
             exit 0
+          fi
+          if [ "$code" = 1 ]; then
+            if grep -qE 'warm p50|no warm tap' "$out"; then
+              echo "::warning::a tap or garment target was missed from this runner; report-only since 2026-10-27, the numbers are above"
+              exit 0
+            fi
+            echo "::error::the tap measurement printed no numbers, so it measured nothing"
+            exit 1
           fi
           exit "$code"
       - name: Measure the buyer regions from home networks (Globalping)
