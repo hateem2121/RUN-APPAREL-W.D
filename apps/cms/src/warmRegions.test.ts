@@ -2,12 +2,19 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   cardGarments,
+  READ_BACK_BUDGET_MS,
+  READ_BACK_MAX,
   REGION_GARMENTS_MAX,
   REGION_TARGETS_MAX,
+  readBackPlan,
+  regionJudgement,
+  regionReport,
   regionTargets,
   regionTimings,
   regionVerdict,
   regionWarmPlan,
+  STORE_FIRST_BYTE_P75_MS,
+  WARM_BUDGET_MS,
   warmWithin,
 } from '../../../scripts/warm-regions.mjs'
 import { intentTreeFor, stateTreeFor } from '../tapStore.mjs'
@@ -185,6 +192,15 @@ describe('ci.yml', () => {
     const body = ci.slice(at, ci.indexOf('\n      - name:', at + 1))
     expect(body).toMatch(/\n {8}continue-on-error: true\n/)
   })
+
+  // The second pass runs in the same step, so the step's limit must outlast both budgets, or
+  // Actions kills it mid-pass (the 27 Oct review found that shape once already).
+  it('gives the step more time than the warm-up and the second pass together', () => {
+    const at = step('Post-deploy warm-up of the buyer regions')
+    const body = ci.slice(at, ci.indexOf('\n      - name:', at + 1))
+    const minutes = Number(/\n {8}timeout-minutes: (\d+)\n/.exec(body)?.[1])
+    expect(minutes * 60_000).toBeGreaterThan(WARM_BUDGET_MS + READ_BACK_BUDGET_MS + 30_000)
+  })
 })
 
 describe('regionWarmPlan', () => {
@@ -270,27 +286,145 @@ describe('regionVerdict', () => {
   })
 })
 
+/** One probe's answer: its country, the store's verdict (or none) and Globalping's timings. */
+const timed = (
+  country: string,
+  state: string | null,
+  firstByte: number,
+  total = firstByte + 200,
+) => ({
+  probe: { country },
+  result: {
+    headers: state ? { 'server-timing': `page-cache;desc="${state}"` } : {},
+    timings: { firstByte, total },
+  },
+})
+
+/*
+ * Review of 27 Oct: Pakistan's timings pooled the store's answers with fresh drawings, so a store
+ * that stopped answering there only moved a pooled number. Each state now has its own p75.
+ */
 describe('regionTimings (the weekly watch, --measure)', () => {
-  it("gives each country's p75 of the time to the first byte and to the last, nearest rank", () => {
-    const answer = (country: string, firstByte: number, total: number) => ({
-      probe: { country },
-      result: { timings: { firstByte, total } },
-    })
+  it("gives each country's p75 per store state, to the first byte and to the last, nearest rank", () => {
     const timings = regionTimings([
       {
         results: [
-          answer('PK', 100, 300),
-          answer('PK', 200, 400),
-          answer('PK', 300, 500),
-          answer('PK', 900, 1200),
+          timed('PK', 'hit', 100, 300),
+          timed('PK', 'hit', 200, 400),
+          timed('PK', 'hit', 300, 500),
+          timed('PK', 'hit', 900, 1200),
+          timed('PK', 'miss', 2500, 3000),
         ],
       },
-      { results: [answer('AE', 50, 80), { probe: { country: 'AE' }, result: {} }] },
+      { results: [timed('AE', null, 50, 80), { probe: { country: 'AE' }, result: {} }] },
     ])
     expect(timings).toEqual({
-      PK: { n: 4, firstByteP75: 300, totalP75: 500 },
-      AE: { n: 1, firstByteP75: 50, totalP75: 80 },
+      PK: {
+        hit: { n: 4, firstByteP75: 300, totalP75: 500 },
+        miss: { n: 1, firstByteP75: 2500, totalP75: 3000 },
+      },
+      AE: { other: { n: 1, firstByteP75: 50, totalP75: 80 } },
     })
+  })
+})
+
+/*
+ * Review of 27 Oct, spec Part 6 Step 2: a second pass after the warm-up, from the same probes, says
+ * whether the region then finds the pages kept. The deploy's log showed only "drawn now".
+ */
+describe('readBackPlan', () => {
+  const plan = Array.from({ length: 30 }, (_, i) => ({ type: 'http', target: `t${i}` }))
+
+  it(`asks the first ${READ_BACK_MAX} addresses again, from the probes the warm-up used`, () => {
+    const again = readBackPlan(plan, 'warm-id')
+    expect(again.length).toBe(READ_BACK_MAX)
+    expect(again.map((body) => body.target)).toEqual(
+      plan.slice(0, READ_BACK_MAX).map((b) => b.target),
+    )
+    expect(again.every((body) => body.locations === 'warm-id')).toBe(true)
+  })
+
+  it('stays inside the free 250 tests an hour with the warm-up: 60 plus 30, one country, 2 probes', () => {
+    expect(REGION_TARGETS_MAX * 2 + READ_BACK_MAX * 2).toBe(90)
+  })
+})
+
+/*
+ * Pakistan's own pass mark (owner, 27 Oct): the second pass must find the store answering, and the
+ * store's answers must reach the first byte within 1 s at p75. No Globalping answers at all is
+ * inconclusive, never a failure: a probe network that did not answer is not a slow site.
+ */
+describe('regionJudgement', () => {
+  it(`passes when the second pass finds pages kept and kept answers start within ${STORE_FIRST_BYTE_P75_MS} ms`, () => {
+    const readBack = [
+      { results: [timed('PK', 'hit', 400), timed('PK', 'hit', 600), timed('PK', 'miss', 2000)] },
+    ]
+    expect(regionJudgement(readBack, readBack)).toEqual({
+      PK: { verdict: 'pass', hits: 2, asked: 3, firstByteP75: 600 },
+    })
+  })
+
+  it('fails when the second pass finds nothing kept: the store or the warm-up is broken there', () => {
+    const readBack = [{ results: [timed('PK', 'miss', 2000), timed('PK', 'miss', 2100)] }]
+    expect(regionJudgement(readBack, readBack).PK).toEqual({
+      verdict: 'fail',
+      hits: 0,
+      asked: 2,
+      firstByteP75: null,
+    })
+  })
+
+  it(`fails when the kept answers take over ${STORE_FIRST_BYTE_P75_MS} ms to the first byte at p75`, () => {
+    const readBack = [
+      { results: [timed('PK', 'hit', 900), timed('PK', 'hit', 1100), timed('PK', 'hit', 1300)] },
+    ]
+    expect(regionJudgement(readBack, readBack).PK).toEqual({
+      verdict: 'fail',
+      hits: 3,
+      asked: 3,
+      firstByteP75: 1300,
+    })
+  })
+
+  it("times the store's answers from both passes", () => {
+    const warmed = [
+      { results: [timed('PK', 'hit', 300), timed('PK', 'hit', 300), timed('PK', 'hit', 300)] },
+    ]
+    const readBack = [{ results: [timed('PK', 'hit', 1500)] }]
+    expect(regionJudgement(readBack, [...warmed, ...readBack]).PK?.firstByteP75).toBe(300)
+  })
+
+  it('is inconclusive for a country the second pass got no answer from', () => {
+    expect(regionJudgement([{ results: [] }], [])).toEqual({})
+  })
+})
+
+describe('regionReport: what the log says, and the exit code', () => {
+  const pass = [{ results: [timed('PK', 'hit', 400), timed('PK', 'hit', 500)] }]
+  const nothingKept = [{ results: [timed('PK', 'miss', 2400)] }]
+
+  it('the weekly watch fails on a broken pass mark, naming the numbers', () => {
+    const report = regionReport({ warmed: nothingKept, readBack: nothingKept, measuring: true })
+    expect(report.exitCode).toBe(1)
+    expect(report.lines.join('\n')).toMatch(/::error::.*PK.*0 of 1/)
+  })
+
+  it('the weekly watch passes quietly, printing each state on its own', () => {
+    const report = regionReport({ warmed: pass, readBack: pass, measuring: true })
+    expect(report.exitCode).toBe(0)
+    expect(report.lines.join('\n')).not.toMatch(/::error::|::warning::/)
+    expect(report.lines.join('\n')).toMatch(/PK: kept answers p75 500 ms to the first byte/)
+  })
+
+  it('after a deploy it only warns, and never fails the deploy', () => {
+    const report = regionReport({ warmed: nothingKept, readBack: nothingKept, measuring: false })
+    expect(report.exitCode).toBe(0)
+    expect(report.lines.join('\n')).toMatch(/::warning::.*PK/)
+  })
+
+  it('prints counts and timings only: the Actions log is public', () => {
+    const report = regionReport({ warmed: pass, readBack: pass, measuring: true })
+    for (const line of report.lines) expect(line).not.toMatch(/https?:\/\/|wear-run|token|cookie/i)
   })
 })
 

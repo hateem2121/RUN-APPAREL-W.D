@@ -1699,16 +1699,18 @@ jobs:
       # buyer in Pakistan after a deploy still waited for a drawing (first taps 2.85-3.75 s,
       # 26 Oct). This asks two home-network probes in each buyer country
       # (scripts/warm-regions.countries.json) for the five pages the speed targets are judged on,
-      # the tap into each, the first garments' data and then the other top-level pages, through
-      # Globalping's free probes (60 tests; 250 an hour are free). The spike of 2026-10-27: 21 cold
-      # pages, then 84 of 84 other Pakistan probes found them kept. It prints only counts and store
-      # states per country. It never fails the deploy: a Globalping error or limit is a warning,
-      # the script stops waiting at 4 minutes and cancels what is in flight, and it runs after the
-      # checks that gate the deploy with `continue-on-error`, because a review of 27 Oct found that
-      # slow measurements could outlive the old budget, have the step killed and turn a good
-      # deploy red.
+      # the tap and the hover into each, the first garments' data and then the other top-level
+      # pages, through Globalping's free probes, then asks the first 15 again from the same probes
+      # and prints how many the region now finds kept (90 tests; 250 an hour are free). The spike
+      # of 2026-10-27: 21 cold pages, then 84 of 84 other Pakistan probes found them kept. It prints
+      # only counts and store states per country. It never fails the deploy: a Globalping error or
+      # limit, or a second pass that finds nothing kept, is a warning; the two passes stop waiting
+      # at 4 minutes and 1.5 minutes and cancel what is in flight, inside this step's 7 (held by
+      # apps/cms/src/warmRegions.test.ts); and it runs after the checks that gate the deploy with
+      # `continue-on-error`, because a review of 27 Oct found that slow measurements could outlive
+      # the old budget, have the step killed and turn a good deploy red.
       - name: Post-deploy warm-up of the buyer regions
-        timeout-minutes: 5
+        timeout-minutes: 7
         continue-on-error: true
         run: node scripts/warm-regions.mjs https://wear-run.com
 
