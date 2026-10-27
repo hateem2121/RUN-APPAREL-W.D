@@ -50,14 +50,17 @@ export function storeStateOf(serverTiming) {
 
 /**
  * Warm: the store answered (`hit`), or the browser answered the tap itself with no request at all
- * (`client`: measured 27 Oct, /about, /contact and /faq arrived in 33-71 ms that way, because Next
- * prefetches a static page whole).
+ * (`client`, which Next can do for a page it has already prefetched whole).
  */
 const WARM = new Set(['hit', 'client'])
 
 /**
  * p50/p75 per route and engine over WARM taps; `n` counts every tap. A route with no warm tap
  * fails: a pass must rest on something measured.
+ *
+ * @param {Array<{ route: string, engine: string, ms: number, state: string }>} rows
+ * @param {number} targetMs
+ * @returns {{ pass: boolean, byRoute: Record<string, { p50: number, p75: number, n: number }> }}
  */
 export function verdict(rows, targetMs) {
   const groups = new Map()
@@ -66,6 +69,7 @@ export function verdict(rows, targetMs) {
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push(row)
   }
+  /** @type {Record<string, { p50: number, p75: number, n: number }>} */
   const byRoute = {}
   let pass = groups.size > 0
   for (const [key, group] of groups) {
