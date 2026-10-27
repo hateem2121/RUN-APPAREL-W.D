@@ -1,7 +1,7 @@
 import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import { FAQ_INDEX, faqTopicAt, faqTopicForGuide } from '../../lib/faqs'
 import { GLOSSARY_INDEX } from '../../lib/glossary'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { Fragment } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'

@@ -10,7 +10,7 @@ import './(frontend)/site.css'
 
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import type { Metadata, Viewport } from 'next'
-import Link from 'next/link'
+import { IntentLink as Link } from '../components/site/IntentLink'
 import { Cursor } from '../components/site/Cursor'
 import { SiteFooter } from '../components/site/SiteFooter'
 import { SiteHeader } from '../components/site/SiteHeader'

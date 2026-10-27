@@ -54,6 +54,8 @@ export const OWN_AGENTS = Object.freeze([
   'Go-http-client',
   'HeadlessChrome',
   'Lighthouse',
+  // The buyer regions' warm-up after each deploy (scripts/warm-regions.mjs): Globalping's probes.
+  'globalping probe',
 ])
 
 /** The four targets, from the plan the owner approved on 24 Oct. */

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import { IntentLink as Link } from '../../components/site/IntentLink'
 import type { ReactNode } from 'react'
 import { AboutSection } from '../../components/site/AboutSection'
 import { FactsBento } from '../../components/site/FactsBento'

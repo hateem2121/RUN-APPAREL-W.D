@@ -13,7 +13,7 @@ import {
   splitLastWord,
   standardsLines,
 } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import type { PublicSiteSettings } from '../../lib/projectPublic'
 import { formatAddress } from '../../lib/structuredData'
 import { ConsentLink } from './ConsentLink'

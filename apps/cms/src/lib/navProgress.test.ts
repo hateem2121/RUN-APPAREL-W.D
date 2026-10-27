@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { arrived, type ClickLike, clientNavigationTarget } from './navProgress'
+import {
+  arrived,
+  type ClickLike,
+  clientNavigationTarget,
+  NAV_PROGRESS_DELAY_MS,
+} from './navProgress'
+
+describe('NAV_PROGRESS_DELAY_MS', () => {
+  it('waits 0.4 s, so a tap that arrives sooner shows no line (faster-taps spec, Part 4)', () => {
+    expect(NAV_PROGRESS_DELAY_MS).toBe(400)
+  })
+})
 
 const here = new URL('https://wear-run.com/faq')
 const click = (over: Partial<ClickLike> = {}): ClickLike => ({

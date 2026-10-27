@@ -50,7 +50,21 @@ import {
   wholePage,
 } from './pageCache.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
-import { keepableApiRequest, keepApiAnswer, serveViewerApi } from './viewerApiCache.mjs'
+import {
+  keepableTapAnswer,
+  keepableTapRequest,
+  keptTapHeaders,
+  keptTapStoreKey,
+  servedTapHeaders,
+  tapDrawRequest,
+  tapStoreOn,
+} from './tapStore.mjs'
+import {
+  answerWarmRequest,
+  keepableApiRequest,
+  keepApiAnswer,
+  serveViewerApi,
+} from './viewerApiCache.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
 export * from './.open-next/worker.js'
@@ -77,6 +91,17 @@ export class SitePages extends WorkerEntrypoint {
     const response = await keptRenders().run(render, () =>
       openNext.fetch(request, this.env, this.ctx),
     )
+    // Tap data (tapStore.mjs): only fromSharedStore sends an `rsc` request here, already checked.
+    if (request.headers.get('rsc') === '1') {
+      const init = { status: response.status, statusText: response.statusText }
+      if (response.status !== 200 || response.body === null) {
+        return new Response(response.body, { ...init, headers: unkeptHeaders(response.headers) })
+      }
+      const text = await response.text()
+      const keep = !render.spoiled && keepableTapAnswer(response, text)
+      const headers = keep ? keptTapHeaders(response.headers) : unkeptHeaders(response.headers)
+      return new Response(text, { ...init, headers })
+    }
     const { pathname } = new URL(request.url)
     const file = KEPT_FILES.includes(pathname)
     const init = { status: response.status, statusText: response.statusText }
@@ -118,6 +143,8 @@ export class SitePages extends WorkerEntrypoint {
  * never be the reason a page fails.
  */
 async function fromSharedStore(request, env, ctx) {
+  // Tap data first (faster-taps plan, Task 3): an `rsc` request is never a page or a kept file.
+  if (await keepableTapRequest(request)) return fromTapStore(request, env, ctx)
   // A HEAD is looked up as the GET it describes, and answered without the body (storeLookupRequest).
   const asked = storeLookupRequest(request)
   if (!keepablePageRequest(asked) && !keptFileRequest(asked)) return null
@@ -148,6 +175,42 @@ async function fromSharedStore(request, env, ctx) {
   }
 }
 
+/**
+ * A tap's data from the shared store (tapStore.mjs): one copy per destination, drawn from a clean
+ * request and keyed by the deploy. Null when the off switch (KV `rsc-store` = 'off') or a missing
+ * binding says so, and on any failure: the tap is then drawn as it was before.
+ */
+async function fromTapStore(request, env, ctx) {
+  const deploy = env.CF_VERSION_METADATA?.id
+  const store = ctx?.exports?.SitePages
+  if (!deploy || !env.SITE_CACHE || !store) return null
+  try {
+    if (!(await tapStoreOn(env.SITE_CACHE))) return null
+    const draw = await tapDrawRequest(request)
+    const cf = { cacheKey: await keptTapStoreKey(draw.url, deploy, env.SITE_CACHE) }
+    // Never follow a redirect from the store: Next answers a wrong code with a 307 (#247's lesson).
+    const kept = await store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
+    // SitePages never keeps a redirect, so one here came from this drawing alone. Handed on, a code
+    // Next read differently in the drawing would bounce every tap to this page between two codes
+    // (review, 27 Oct); the visitor's own request is drawn instead, as before the store.
+    if (kept.status >= 300 && kept.status < 400) {
+      await kept.body?.cancel()
+      return null
+    }
+    return {
+      state: storeState(kept.headers),
+      response: new Response(kept.body, {
+        status: kept.status,
+        statusText: kept.statusText,
+        headers: servedTapHeaders(kept.headers),
+      }),
+    }
+  } catch (error) {
+    console.error('[tap-store] could not reach the shared store; drawing the tap', error)
+    return null
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     // Garment pages and the viewer's files go to the viewer Worker unchanged, BEFORE
@@ -166,6 +229,10 @@ export default {
     // Its CORS headers are worked out per request there; null = not one to keep, serve as before.
     const garmentData = await serveViewerApi(request, env, ctx)
     if (garmentData) return garmentData
+    // A touched garment card's warm request (faster-taps plan, Task 5): 204 at once, the store
+    // asked in the background, so the garment page's own data request finds it drawn or drawing.
+    const warmed = await answerWarmRequest(request, env, ctx)
+    if (warmed) return warmed
 
     // The shared page store (SitePages above): Cloudflare answers a kept copy, or SitePages draws.
     const kept = await fromSharedStore(request, env, ctx)
@@ -175,7 +242,18 @@ export default {
       // The old addresses and www. answer redirects, which OpenNext sends bare
       // (redirectHeaders.mjs). A redirect is never a page, so the nonce guard has no work.
       if (response.status >= 300 && response.status < 400) return withRedirectHeaders(response)
-      if (!nonceable(response)) return response
+      if (!nonceable(response)) {
+        // Tap data and kept files are not HTML, so they need no nonce, but they still say whether
+        // the store answered (the measure-taps script and the warm-up read it).
+        if (!cacheState) return response
+        const headers = new Headers(response.headers)
+        headers.append('server-timing', pageCacheTiming(cacheState))
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        })
+      }
       const nonce = newNonce()
       const headers = noncedHeaders(response.headers, nonce)
       if (headers === null) {

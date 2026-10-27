@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import type { ReactNode } from 'react'
 import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
 import type { PublicImage } from '../../lib/journalPublic'

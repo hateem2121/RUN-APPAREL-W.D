@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { POLICIES, POLICIES_INDEX, POLICY_ACTION, type PolicyGroup } from '../../lib/policies'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { Breadcrumb } from './Breadcrumb'

@@ -136,7 +136,9 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   `SitePages.invalidateKept` (Workers Cache `invalidate()`, which works only inside the cached
   entrypoint) and each copy carries `Cache-Tag` + `stale-while-revalidate`, so a region is served
   the old copy while the new one is drawn. KV `page-store-mode` = `versioned` puts the content
-  version back in the key without a deploy (the off switch; saves still write it). 🟡 In
+  version back in the key without a deploy (the off switch; saves still write it). Taps between
+  pages have their own (since 2026-10-27, `apps/cms/tapStore.mjs`): KV `rsc-store` = `off` draws
+  every tap again, as before the store, within 30 seconds (`VERSION_CACHE_SECONDS`). 🟡 In
   practice each REGION keeps its own copy (25 Oct: Marseille and Muscat each drew the sitemap the
   US already held), and a fresh Worker copy's first request costs ~8x a warm one (local profile,
   208 vs 24 ms; live `/privacy` 34 ms warm, up to 1,157 ms cold). Behind it, `src/lib/content.ts` keeps content in

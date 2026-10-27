@@ -100,7 +100,9 @@ describe('people are read apart from robots and our own checks', () => {
       type: 'string',
       value: '',
     })
-    for (const value of ['run-apparel', 'UptimeRobot', 'Shields.io']) {
+    // 'globalping probe': the buyer regions' warm-up after each deploy (faster-taps Task 8). Its
+    // probes carry no robot label, and the spike of 27 Oct sent 153 such requests in two hours.
+    for (const value of ['run-apparel', 'UptimeRobot', 'Shields.io', 'globalping probe']) {
       expect(OWN_AGENTS).toContain(value)
       expect(filters).toContainEqual({
         key: '$workers.event.request.headers.user-agent',

@@ -1,7 +1,7 @@
 'use client'
 
 import { CONSENT_COPY, CONSENT_OPEN_EVENT } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 
 /**
  * The footer's "Cookies" link, on every page of the website (2026-09-30).

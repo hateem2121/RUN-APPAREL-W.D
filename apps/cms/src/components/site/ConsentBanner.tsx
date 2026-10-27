@@ -14,7 +14,7 @@ import {
   startTrackers,
   type TrackerWindow,
 } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { useEffect, useRef, useState } from 'react'
 
 const storage = () => safeStorage(() => window.localStorage)

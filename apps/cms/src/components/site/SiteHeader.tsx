@@ -1,5 +1,5 @@
 import { SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '@run-apparel/shared'
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { NavLinks } from './NavLinks'
 import { ThemeSwitch } from './ThemeSwitch'
 

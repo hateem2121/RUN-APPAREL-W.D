@@ -6,6 +6,10 @@ import { expect, test } from './offlineMedia'
  * Next makes for a client navigation) is held back 2 s, the way a slow server answer is, and the
  * line must show within 0.6 s of the tap and be gone once the page is there. Without NavProgress
  * there is no `.nav-progress` at all, so the first assertion fails.
+ *
+ * The 0.6 s is measured IN THE PAGE, from the click event to the line appearing. It was the test's
+ * own clock until 27 Oct, which also counted Playwright's click and its retry loop: once the line
+ * waited 0.4 s (faster-taps spec, Part 4), Firefox read 701 ms for a line that came on time.
  */
 const HELD_MS = 2_000
 
@@ -21,12 +25,30 @@ test.describe('the loading line', () => {
       await new Promise((resolve) => setTimeout(resolve, HELD_MS))
       await route.continue()
     })
-    const tapped = Date.now()
+    await page.evaluate(() => {
+      const w = window as unknown as { __line: { tapped: number; shown: number } }
+      w.__line = { tapped: -1, shown: -1 }
+      document.addEventListener(
+        'click',
+        (event) => {
+          w.__line.tapped = event.timeStamp
+        },
+        { capture: true, once: true },
+      )
+      new MutationObserver(() => {
+        if (w.__line.shown < 0 && document.querySelector('.nav-progress[data-state="loading"]'))
+          w.__line.shown = performance.now()
+      }).observe(document.documentElement, { subtree: true, childList: true, attributes: true })
+    })
     await page.locator('.notch__wordmark').click()
     await expect(page.locator('.nav-progress[data-state="loading"]')).toBeAttached({
-      timeout: 600,
+      timeout: 2_000,
     })
-    const shownAfter = Date.now() - tapped
+    const line = await page.evaluate(
+      () => (window as unknown as { __line: { tapped: number; shown: number } }).__line,
+    )
+    expect(line.tapped, 'the page never saw the tap').toBeGreaterThanOrEqual(0)
+    const shownAfter = line.shown - line.tapped
     await page.waitForURL((url) => url.pathname === '/', { timeout: 15_000 })
     await expect(page.locator('.nav-progress[data-state="loading"]')).toHaveCount(0, {
       timeout: 5_000,
@@ -60,5 +82,45 @@ test.describe('the loading line', () => {
       'the window did not cancel the plain load, so the test left the page',
     ).toBe('/faq')
     await expect(page.locator('.nav-progress[data-state="loading"]')).toHaveCount(0)
+  })
+
+  /*
+   * Faster-taps spec, Part 4 (owner, 27 Oct): the line waits 0.4 s, so a tap that arrives sooner
+   * shows none. Every page-data answer is held to about 0.2 s, server time included (fetched, then
+   * topped up), so the tap lands between the old 0.12 s and the new 0.4 s whatever the server does;
+   * a run that missed that window says so with its number instead of passing on nothing.
+   */
+  test('a tap that arrives within 0.4 s shows no line', async ({ page }) => {
+    await page.goto('/faq')
+    await expect(page.locator('h1')).toBeVisible()
+    let held = 0
+    await page.route(/[?&]_rsc=/, async (route) => {
+      held++
+      const started = Date.now()
+      const response = await route.fetch()
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, 200 - (Date.now() - started))))
+      await route.fulfill({ response })
+    })
+    await page.evaluate(() => {
+      const w = window as unknown as { __lineShown: boolean }
+      w.__lineShown = false
+      new MutationObserver(() => {
+        if (document.querySelector('.nav-progress[data-state="loading"]')) w.__lineShown = true
+      }).observe(document.documentElement, { subtree: true, childList: true, attributes: true })
+    })
+    const tapped = Date.now()
+    await page.locator('.notch__wordmark').click()
+    await page.waitForURL((url) => url.pathname === '/', { timeout: 15_000 })
+    const arrivedAfter = Date.now() - tapped
+    await page.waitForTimeout(300)
+    expect(held, 'no client navigation was held').toBeGreaterThan(0)
+    test.skip(
+      arrivedAfter < 150 || arrivedAfter > 380,
+      `the tap arrived after ${arrivedAfter} ms, outside 150–380 ms, so it cannot tell the delays apart`,
+    )
+    expect(
+      await page.evaluate(() => (window as unknown as { __lineShown: boolean }).__lineShown),
+      `a tap that arrived after ${arrivedAfter} ms showed the line`,
+    ).toBe(false)
   })
 })

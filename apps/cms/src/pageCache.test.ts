@@ -579,6 +579,23 @@ describe('what the cache relies on', () => {
     expect(method.slice(0, method.indexOf('\n  }\n'))).toMatch(/catch \(error\)/)
   })
 
+  /*
+   * Review, 27 Oct: SitePages never keeps a tap answer that is not a 200, but fromTapStore handed
+   * the visitor whatever status the store returned. Had a drawing ever met Next's 307 (a code it
+   * reads differently from the visitor's), every tap to that page would bounce between two codes.
+   * A redirect from the store is dropped instead, and the visitor's own request is drawn as it was
+   * before the store; a real redirect is never kept, so nothing that worked is lost.
+   */
+  it('worker.mjs never hands a visitor a redirect from the tap store', () => {
+    const start = worker.indexOf('async function fromTapStore(')
+    expect(start, 'worker.mjs has no fromTapStore').toBeGreaterThan(-1)
+    const method = worker.slice(start, worker.indexOf('\n}\n', start))
+    const guard =
+      /if \(kept\.status >= 300 && kept\.status < 400\) \{\s*await kept\.body\?\.cancel\(\)\s*return null\s*\}/
+    expect(method).toMatch(guard)
+    expect(method.search(guard)).toBeLessThan(method.indexOf('return {'))
+  })
+
   it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
     expect(worker).not.toMatch(/CONTENT_VERSION_KEY/)
     expect(worker).toMatch(/await keptStoreKey\(request\.url, deploy, env\.SITE_CACHE\)/)

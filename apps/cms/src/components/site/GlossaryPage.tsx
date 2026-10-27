@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { FAQ_TOPICS } from '../../lib/faqs'
 import {
   GLOSSARY_CATEGORIES,

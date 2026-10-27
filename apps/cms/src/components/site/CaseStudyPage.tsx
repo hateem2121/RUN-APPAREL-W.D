@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from '../../lib/caseStudies'
 import type { CaseStudyView } from '../../lib/caseStudyPublic'
 import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'

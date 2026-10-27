@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { IntentLink as Link } from './IntentLink'
 import { FACTS, WHAT_WE_ARE, WHAT_WE_MAKE } from '../../lib/companyFacts'
 import { HERO_PHOTO, heroPhotoSrc } from '../../lib/factoryPhotos'
 

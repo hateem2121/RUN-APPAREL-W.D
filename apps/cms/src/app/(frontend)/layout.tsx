@@ -45,6 +45,7 @@ import { Analytics } from '../../components/site/Analytics'
 import { CardOpening } from '../../components/site/CardOpening'
 import { ConsentBanner } from '../../components/site/ConsentBanner'
 import { Cursor } from '../../components/site/Cursor'
+import { GarmentWarm } from '../../components/site/GarmentWarm'
 import { SmoothScroll } from '../../components/site/SmoothScroll'
 import { JsonLd } from '../../components/site/JsonLd'
 import { NavProgress } from '../../components/site/NavProgress'
@@ -55,6 +56,7 @@ import { getSiteSettings } from '../../lib/content'
 import { HOME_TITLE } from '../../lib/pageDescriptions'
 import { robotsFor, searchVisibility } from '../../lib/searchVisibility'
 import { SITE_ORIGIN } from '../../lib/seo'
+import { GARMENT_PREFETCH_RULES } from '../../lib/speculationRules'
 import { organizationJsonLd } from '../../lib/structuredData'
 import { THEME_COLOR } from '../../lib/themeColor'
 
@@ -151,6 +153,13 @@ export default async function FrontendLayout({ children }: { children: React.Rea
             reader resolves the rest of the page against. The other blocks reference
             this node by @id rather than redescribing the company. */}
         <JsonLd data={organizationJsonLd(settings)} />
+        {/* Chrome fetches a garment page's document when its card is pressed (speculationRules.ts).
+            worker.mjs gives it the page's nonce, as it does every script. */}
+        <script
+          type="speculationrules"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant written in lib/speculationRules.ts, never content; the only way to put speculation rules in the page.
+          dangerouslySetInnerHTML={{ __html: GARMENT_PREFETCH_RULES }}
+        />
         <a className="skip-link" href="#main">
           Skip to main content
         </a>
@@ -184,6 +193,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <SmoothScroll />
         {/* A card's picture grows into the garment page; every other link loads as before (MO3). */}
         <CardOpening />
+        {/* A card the visitor reaches for starts its garment's data drawing (faster-taps Part 3). */}
+        <GarmentWarm siteOrigin={SITE_ORIGIN} />
       </body>
     </html>
   )
