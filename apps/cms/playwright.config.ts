@@ -118,11 +118,13 @@ export default defineConfig({
      * `navProgress` joined 2026-10-22 (site check-up #3): the silent 2.3–2.8 s taps were measured in
      * Safari on an iPhone, so the loading line that answers them is proven in its engine.
      * `bigText` the same day: twice-size text on a 320px phone ran off the side in WebKit as well.
+     * `garmentPrefetch` joined 2026-10-27 (faster-taps Task 6): the speculation rule is held to what
+     * each engine says it supports, and most buyers open a garment from an iPhone.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText|garmentPrefetch)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

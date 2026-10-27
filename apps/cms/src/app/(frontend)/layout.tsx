@@ -56,6 +56,7 @@ import { getSiteSettings } from '../../lib/content'
 import { HOME_TITLE } from '../../lib/pageDescriptions'
 import { robotsFor, searchVisibility } from '../../lib/searchVisibility'
 import { SITE_ORIGIN } from '../../lib/seo'
+import { GARMENT_PREFETCH_RULES } from '../../lib/speculationRules'
 import { organizationJsonLd } from '../../lib/structuredData'
 import { THEME_COLOR } from '../../lib/themeColor'
 
@@ -152,6 +153,13 @@ export default async function FrontendLayout({ children }: { children: React.Rea
             reader resolves the rest of the page against. The other blocks reference
             this node by @id rather than redescribing the company. */}
         <JsonLd data={organizationJsonLd(settings)} />
+        {/* Chrome fetches a garment page's document when its card is pressed (speculationRules.ts).
+            worker.mjs gives it the page's nonce, as it does every script. */}
+        <script
+          type="speculationrules"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant written in lib/speculationRules.ts, never content; the only way to put speculation rules in the page.
+          dangerouslySetInnerHTML={{ __html: GARMENT_PREFETCH_RULES }}
+        />
         <a className="skip-link" href="#main">
           Skip to main content
         </a>
