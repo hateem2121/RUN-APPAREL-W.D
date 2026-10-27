@@ -27,6 +27,7 @@ import {
   spoilKeptRender,
   STALE_SECONDS,
   STORE_MODE_KEY,
+  storeAnswerLog,
   storeLookupRequest,
   storeState,
   unkeptHeaders,
@@ -495,6 +496,21 @@ describe('the headers', () => {
     expect(servedHeaders(keptHeaders(new Headers())).has('x-run-kept')).toBe(false)
     expect(servedHeaders(unkeptHeaders(new Headers())).has('x-run-kept')).toBe(false)
   })
+
+  // Step 0.1 of the slow-miss design: an object, so Workers Logs indexes each field (Cloudflare,
+  // Workers Logs, "Logging structured JSON objects"), and nothing about the visitor in it.
+  it('logs a store answer as its kind, its state and whole milliseconds, and nothing more', () => {
+    expect(storeAnswerLog('page', 'hit', 12.6)).toEqual({
+      storeAnswer: 'page',
+      state: 'hit',
+      ms: 13,
+    })
+    expect(storeAnswerLog('tap', 'miss', 1_988)).toEqual({
+      storeAnswer: 'tap',
+      state: 'miss',
+      ms: 1_988,
+    })
+  })
 })
 
 describe('the signal from worker.mjs to content.ts', () => {
@@ -607,6 +623,30 @@ describe('what the cache relies on', () => {
     const calls = [...worker.matchAll(/store\.fetch\(([^)]*\([^)]*\)[^)]*)\)/g)].map((m) => m[1])
     expect(calls.length).toBeGreaterThan(0)
     for (const call of calls) expect(call).toMatch(/redirect:\s*'manual'/)
+  })
+
+  /*
+   * Slow-miss design, step 0.1 (owner's yes, 27 Oct): the hedge's head start must sit above nearly
+   * every hit, and nothing measured a hit INSIDE the Worker (measure-taps' numbers carry the
+   * network too). Each store answer logs its time, for pages and for taps alike.
+   */
+  it('worker.mjs logs how long each store answer took, for pages and for taps', () => {
+    for (const [name, kind] of [
+      ['async function fromSharedStore(', 'page'],
+      ['async function fromTapStore(', 'tap'],
+    ]) {
+      const start = worker.indexOf(name)
+      expect(start, `worker.mjs has no ${name}`).toBeGreaterThan(-1)
+      const method = worker.slice(start, worker.indexOf('\n}\n', start))
+      const clock = method.indexOf('const askedAt = Date.now()')
+      const asked = method.indexOf('await store.fetch(')
+      const logged = method.indexOf(`console.log(storeAnswerLog('${kind}', `)
+      expect(clock, `${kind}: no clock is started before the store is asked`).toBeGreaterThan(-1)
+      expect(clock).toBeLessThan(asked)
+      expect(logged, `${kind}: the answer's time is not logged after it arrives`).toBeGreaterThan(
+        asked,
+      )
+    }
   })
 
   it('binds the KV namespace holding the content version, by a real id', () => {

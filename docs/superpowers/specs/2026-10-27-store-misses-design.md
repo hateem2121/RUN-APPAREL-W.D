@@ -117,6 +117,22 @@ copy would ask for files the new deploy no longer has, the failure behind the 3D
    `waitUntil`? On a throwaway Worker with Workers Cache, never the site's.
 3. **What a doubled drawing costs in CPU**, from the same day's logs.
 
+### Step 0 results
+
+- **0.2, measured 27 Oct ~23:55 Pakistan time: YES, the store keeps an answer its caller stopped
+  waiting for.** A throwaway Worker shaped like the site (a default entrypoint with caching off
+  calling a cached entrypoint through `ctx.exports`, whose answer took 1.5 s and was finished
+  before its headers left, as SitePages' is) was asked three ways, three rounds each, then asked
+  again for the same key 3 s later: plain (first 1,629–1,653 ms, then 1–3 ms), hedged at 150 ms
+  with the losing answer read to the end in `waitUntil` (150 ms, then 1–3 ms) and hedged with it
+  dropped unread (150 ms, then 1–2 ms). Kept 9 of 9, all in Muscat (MCT). Reading the loser to the
+  end is therefore a belt-and-braces step, kept because it costs nothing. Not tested: a body that
+  streams or breaks halfway (option B's question). A hit took 1–3 ms inside that Worker for a
+  small body. The Worker was deleted the same night (its address answered 404 after).
+- **0.1, shipped with this step:** every store answer logs `{ storeAnswer, state, ms }`
+  (`storeAnswerLog` in `apps/cms/pageCache.mjs`), for pages and taps. After a day of real
+  traffic, the head start is the p95 of `ms` where `state` is `hit`.
+
 ## How we will know it worked (the judge)
 
 - **Misses:** measure-taps on the first asks after a deploy, before and after: a miss's p75 no
