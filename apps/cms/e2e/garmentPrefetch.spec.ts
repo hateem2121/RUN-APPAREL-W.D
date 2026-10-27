@@ -102,3 +102,26 @@ test('pressing a garment card fetches its page ahead where the browser supports 
     expect(ahead).toEqual([])
   }
 })
+
+/**
+ * Never on Save-Data (review of 27 Oct; lib/speculationRules.ts `withdrawOnSaveData`). Chrome itself
+ * runs no speculation under Save-Data, so the page also removes the rule, for any browser that
+ * does not. Both ways, so the pass is not the rule simply never rendering: the page keeps it when
+ * the browser does not ask to save data.
+ */
+for (const saveData of [true, false]) {
+  test(`${saveData ? 'removes' : 'keeps'} the speculation rule when the browser ${saveData ? 'asks' : 'does not ask'} to save data`, async ({
+    page,
+  }) => {
+    await page.addInitScript((value) => {
+      Object.defineProperty(navigator, 'connection', {
+        value: { saveData: value },
+        configurable: true,
+      })
+    }, saveData)
+    await page.goto('/products')
+    await expect(page.locator('.product-card').first()).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await expect(page.locator('script[type="speculationrules"]')).toHaveCount(saveData ? 0 : 1)
+  })
+}

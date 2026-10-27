@@ -209,16 +209,33 @@ Since 2026-10-24 the website's pages, `sitemap.xml`, `llms.txt`, `robots.txt` an
 data are kept in Workers Cache, a store shared by every Cloudflare data centre, in front of the
 CMS Worker's `SitePages` entrypoint (`apps/cms/worker.mjs`, `apps/cms/pageCache.mjs`).
 
-- **A CMS save reaches every page within about a minute.** Every save of a product, a picture or
-  the site settings writes a new content version, and the store's keys include it.
+- **A CMS save reaches every page within about a minute.** Since 2026-10-25 every save of a
+  product, a picture or the site settings marks the kept copies stale (`SitePages.invalidateKept`,
+  from `apps/cms/src/lib/contentVersion.ts`), and a region is served the old copy while the new one
+  is drawn. A page a link fetched ahead in the visitor's browser is reused for at most 60 seconds
+  (`staleTimes.static` in `apps/cms/next.config.mjs`).
+- **Since 2026-10-27 taps between pages are kept too** (`apps/cms/tapStore.mjs`): the data a
+  tap fetches, and the data a hovered link fetches ahead, which has a key of its own.
 - **A deploy starts an empty store**, which the CI step "Post-deploy warm-up of the shared page
   store" fills straight away (`scripts/warm-shared-store.mjs`; its log says how many pages came
-  from the store on the second pass).
+  from the store on the second pass), and "Post-deploy warm-up of the buyer regions" fills
+  Pakistan's copies (`scripts/warm-regions.mjs`; its log says how many a second pass found kept).
 - **To empty the store by hand**, save anything in the CMS, or redeploy. ⚠️ The zone's
   **Caching → Purge** button does NOT touch it: Workers Cache belongs to the Worker, not the zone.
 - **To see whether a page came from the store**, read its `Server-Timing` header with a plain
   GET: `page-cache;desc="hit"` (the store), `"miss"` (just drawn) or `"skip"` (drawn and
   deliberately not kept: an error page, a page drawn from the fallbacks).
+- **To switch only the taps' store off, without a deploy**, set the KV key `rsc-store` to `off`
+  in the namespace the CMS Worker binds as `SITE_CACHE` (`apps/cms/wrangler.jsonc`): every tap is
+  drawn again, as before 2026-10-27. Delete the key to switch it back on. Measured 2026-10-27:
+  it took effect within 17 seconds and cleared within 7 (the Worker reads it with a 30-second
+  cache, `VERSION_CACHE_SECONDS`). From `apps/cms`:
+  `npx wrangler kv key put rsc-store off --binding SITE_CACHE --remote`, and
+  `npx wrangler kv key delete rsc-store --binding SITE_CACHE --remote`; or Storage & Databases →
+  KV in the dashboard.
+- **To put the content version back in the pages' keys, without a deploy**, set the KV key
+  `page-store-mode` to `versioned` in the same namespace (`apps/cms/pageCache.mjs`
+  `STORE_MODE_KEY`): each save then starts fresh keys instead of marking copies stale.
 - **To switch the store off**, set `"SitePages": { …, "cache": { "enabled": false } }` in
   `apps/cms/wrangler.jsonc` and deploy, or roll back to a version from before 2026-10-24: a
   rollback restores that version's cache setting too.

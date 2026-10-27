@@ -42,7 +42,7 @@ function step(title: string): string {
 }
 
 /** The step, with `node` printing `printed` and exiting `code`. */
-function measure(code: number, printed: string) {
+function measure(code: number, printed: string, title = TITLE) {
   const dir = mkdtempSync(join(tmpdir(), 'perf-watch-'))
   const bin = join(dir, 'bin')
   mkdirSync(bin)
@@ -51,7 +51,7 @@ function measure(code: number, printed: string) {
     mode: 0o755,
   })
   const script = join(dir, 'step.sh')
-  writeFileSync(script, step(TITLE))
+  writeFileSync(script, step(title))
   const r = spawnSync('bash', ['-e', script], {
     cwd: ROOT,
     encoding: 'utf8',
@@ -84,5 +84,55 @@ describe('perf-watch.yml: the weekly tap measurement, under bash -e', { timeout:
     const r = measure(0, SUMMARY)
     expect(r.out).not.toMatch(/::warning::|::error::/)
     expect(r.status).toBe(0)
+  })
+
+  // Review of 27 Oct: the spec (Part 5) measures 20 taps per route; the robot ran 10.
+  it('measures 20 taps per route, as the spec does', () => {
+    expect(step(TITLE)).toMatch(/--taps=20\b/)
+  })
+})
+
+/**
+ * The negative control, every week (review of 27 Oct: it ran once by hand). The store is refused
+ * (`--refuse-store`, a cookie it never answers), so every tap is drawn and the judge MUST fail. A
+ * judge that passes here would pass on anything, so this is the one place a pass is an error.
+ */
+const CONTROL = 'Negative control — the store refused, so the judge must fail'
+
+describe('perf-watch.yml: the weekly negative control, under bash -e', { timeout: 30_000 }, () => {
+  it('stays green when the judge fails, as it must', () => {
+    const r = measure(1, SUMMARY, CONTROL)
+    expect(r.out).toContain('/about chromium')
+    expect(r.out).not.toMatch(/::error::/)
+    expect(r.status).toBe(0)
+  })
+
+  it('fails when the judge passes with the store refused: its passes prove nothing', () => {
+    const r = measure(0, SUMMARY, CONTROL)
+    expect(r.out).toMatch(/::error::.*passed with the store refused/)
+    expect(r.status).toBe(1)
+  })
+
+  it('fails when the control printed no numbers (a judge that cannot measure)', () => {
+    const r = measure(1, 'browserType.launch: Executable does not exist', CONTROL)
+    expect(r.out).toMatch(/::error::/)
+    expect(r.status).toBe(1)
+  })
+
+  it('stays green, with its warning, when the live site blocked the probe', () => {
+    const r = measure(2, SUMMARY, CONTROL)
+    expect(r.out).toContain('inconclusive')
+    expect(r.status).toBe(0)
+  })
+
+  it('runs the store-refused measurement, briefly', () => {
+    expect(step(CONTROL)).toMatch(/--refuse-store\b/)
+    expect(step(CONTROL)).toMatch(/--taps=3\b/)
+  })
+
+  it('leaves the job time for 20 taps, the control and the Pakistan passes', () => {
+    const yml = readFileSync(join(ROOT, '.github', 'workflows', 'perf-watch.yml'), 'utf8')
+    const taps = yml.slice(yml.indexOf('\n  taps:'))
+    expect(Number(/\n {4}timeout-minutes: (\d+)\n/.exec(taps)?.[1])).toBeGreaterThanOrEqual(40)
   })
 })

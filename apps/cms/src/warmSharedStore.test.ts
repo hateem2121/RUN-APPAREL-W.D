@@ -5,7 +5,7 @@ import {
   warmTapTargets,
   warmTargets,
 } from '../../../scripts/warm-shared-store.mjs'
-import { keepableTapRequest, rscCode, stateTreeFor } from '../tapStore.mjs'
+import { intentTreeFor, keepableTapRequest, rscCode, stateTreeFor } from '../tapStore.mjs'
 
 /**
  * The post-deploy warm-up (W1-A, 2026-10-24): after each deploy Workers Cache starts empty for the
@@ -59,30 +59,41 @@ describe('what the warm-up asks for', () => {
 
 // Tap data (faster-taps plan, Task 3): one copy per destination, so one settled tap per page fills it.
 describe('the tap data the warm-up asks for', () => {
-  it('one settled tap per static page; a dynamic route and a kept file are skipped', async () => {
+  it('a settled tap and a hover per static page; a dynamic route and a kept file are skipped', async () => {
     const targets = await warmTapTargets(
       ['/', '/products', '/journal/x', '/llms.txt'],
       'https://wear-run.com',
     )
-    expect(targets.map(({ url }) => new URL(url).pathname)).toEqual(['/', '/products'])
+    expect(targets.map(({ url }) => new URL(url).pathname)).toEqual([
+      '/',
+      '/',
+      '/products',
+      '/products',
+    ])
+    expect(targets.map(({ headers }) => headers['next-router-state-tree'])).toEqual([
+      stateTreeFor('/'),
+      intentTreeFor('/'),
+      stateTreeFor('/products'),
+      intentTreeFor('/products'),
+    ])
     for (const { url, headers } of targets) {
-      const { pathname, searchParams } = new URL(url)
       expect(headers.rsc).toBe('1')
-      expect(headers['next-router-state-tree']).toBe(stateTreeFor(pathname))
-      expect(searchParams.get('_rsc')).toBe(
+      expect(new URL(url).searchParams.get('_rsc')).toBe(
         await rscCode({ stateTree: headers['next-router-state-tree'] }),
       )
     }
   })
 
-  it('a nested page is also asked for as a tap from its parent, which sends a different tree', async () => {
+  it('a nested page is also asked for from its parent, which sends different trees', async () => {
     const targets = await warmTapTargets(
       ['/guides/garment-printing-methods'],
       'https://wear-run.com',
     )
     expect(targets.map(({ headers }) => headers['next-router-state-tree'])).toEqual([
       stateTreeFor('/guides/garment-printing-methods', '/'),
+      intentTreeFor('/guides/garment-printing-methods', '/'),
       stateTreeFor('/guides/garment-printing-methods', '/guides'),
+      intentTreeFor('/guides/garment-printing-methods', '/guides'),
     ])
   })
 

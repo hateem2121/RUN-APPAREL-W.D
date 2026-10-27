@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { type ComponentProps, type SyntheticEvent, useState } from 'react'
-import { shouldPrefetchOnIntent } from '../../lib/intentPrefetch'
+import { intentPrefetchProp, shouldPrefetchOnIntent } from '../../lib/intentPrefetch'
 
 type LinkProps = ComponentProps<typeof Link>
 
@@ -27,7 +27,7 @@ export function IntentLink({
   const [intent, setIntent] = useState(false)
 
   const shown = (event: SyntheticEvent<HTMLAnchorElement>) => {
-    if (intent) return
+    if (intent || prefetch === false) return
     const link = event.currentTarget
     const saveData = Boolean(
       (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData,
@@ -45,7 +45,7 @@ export function IntentLink({
   return (
     <Link
       {...props}
-      prefetch={intent ? true : prefetch}
+      prefetch={intentPrefetchProp(intent, prefetch)}
       onPointerEnter={(event) => {
         onPointerEnter?.(event)
         if (event.pointerType === 'mouse') shown(event)
