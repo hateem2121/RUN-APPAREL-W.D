@@ -10,6 +10,7 @@ import {
   regionWarmPlan,
   warmWithin,
 } from '../../../scripts/warm-regions.mjs'
+import { intentTreeFor, stateTreeFor } from '../tapStore.mjs'
 
 /**
  * The buyer regions' warm-up (faster-taps plan, Task 8): after each deploy, home-network probes in
@@ -45,13 +46,16 @@ const pathOf = (target: { url: string }) => new URL(target.url).pathname
  * (Part 6, Step 2) names "the main pages, their tap data and the most-opened garments' data".
  */
 describe('regionTargets', () => {
-  it('asks first for the five pages the speed targets are judged on, then the tap into each, Home included', async () => {
+  it('asks first for the five pages the speed targets are judged on, then the tap and the hover into each, Home included', async () => {
     const targets = await regionTargets({ pages, garments }, ORIGIN)
     const first = ['/', '/products', '/about', '/contact', '/faq']
     expect(targets.slice(0, 5).map(pathOf)).toEqual(first)
     expect(targets.slice(0, 5).every((target) => target.headers.rsc === undefined)).toBe(true)
-    expect(targets.slice(5, 10).map(pathOf)).toEqual(first)
-    for (const tap of targets.slice(5, 10)) {
+    expect(targets.slice(5, 15).map(pathOf)).toEqual(first.flatMap((path) => [path, path]))
+    expect(targets.slice(5, 15).map((target) => target.headers['next-router-state-tree'])).toEqual(
+      first.flatMap((path) => [stateTreeFor(path), intentTreeFor(path)]),
+    )
+    for (const tap of targets.slice(5, 15)) {
       expect(tap.headers.rsc).toBe('1')
       expect(new URL(tap.url).searchParams.get('_rsc')).toMatch(/^.{16}$/)
     }
@@ -59,8 +63,8 @@ describe('regionTargets', () => {
 
   it("then the first garments' data in the order given, then the other top-level pages", async () => {
     const targets = await regionTargets({ pages, garments }, ORIGIN)
-    expect(targets.slice(10, 13).map((target) => target.url)).toEqual(garments)
-    expect(targets.slice(13).map(pathOf)).toEqual([
+    expect(targets.slice(15, 18).map((target) => target.url)).toEqual(garments)
+    expect(targets.slice(18).map(pathOf)).toEqual([
       '/custom-teamwear-manufacturer',
       '/guides',
       '/press',
