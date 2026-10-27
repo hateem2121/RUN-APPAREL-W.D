@@ -43,3 +43,13 @@ export function shouldPrefetchOnIntent({
   // The same page, or only its #fragment: nothing would load.
   return !(to.pathname === here.pathname && to.search === here.search)
 }
+
+/**
+ * The `prefetch` IntentLink hands `next/link`: the whole page once intent is shown, Next's own
+ * default before. A link set to `prefetch={false}` stays unfetched either way (review of 27 Oct:
+ * intent overrode it, which no caller relied on yet but any later one would have been surprised by).
+ */
+export function intentPrefetchProp<P>(intent: boolean, prefetch: P): P | boolean {
+  if (prefetch === false) return false
+  return intent ? true : prefetch
+}

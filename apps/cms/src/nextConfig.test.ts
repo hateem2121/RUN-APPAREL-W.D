@@ -16,6 +16,14 @@ import { describe, expect, it } from 'vitest'
 const CONFIG = join(import.meta.dirname, '..', 'next.config.mjs')
 
 describe('next.config.mjs', () => {
+  it('keeps a page fetched ahead for 60 seconds, the time a CMS edit takes to show', async () => {
+    // Review of 27 Oct: an intent prefetch is `prefetch={true}`, which Next 16.4.3 reuses for
+    // `staleTimes.static`, 5 minutes by default (its installed staleTimes.md), so a buyer who
+    // hovered a link and clicked minutes later saw the page as it was then.
+    const source = await readFile(CONFIG, 'utf8')
+    expect(source).toMatch(/staleTimes:\s*\{\s*static:\s*60\s*\}/)
+  })
+
   it('does not advertise the stack in x-powered-by', async () => {
     // L3, 2026-08-18. Measured live: `x-powered-by: Next.js, Payload` on
     // cms.wear-run.help, absent on viewer.wear-run.help. Next sets it by default

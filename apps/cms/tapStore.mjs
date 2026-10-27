@@ -187,15 +187,37 @@ export async function tapStoreOn(kv) {
  * e2e/tapTree.spec.ts holds it to Chromium's own headers.
  */
 export function stateTreeFor(pathname, fromPathname = '/') {
+  return routerTree(pathname, fromPathname, (segment) => segment)
+}
+
+/**
+ * The `next-router-state-tree` a link sends when IntentLink fetches its whole page on a hover, focus
+ * or touch, or null for a dynamic route. Review of 27 Oct asked whether it matches a tap's, so that
+ * a hover meets the copy the warm-ups keep: checked live that day, it does NOT. It is the tap's tree
+ * with each of the page's segments ending at its last non-empty value (no trailing `null` or `0`),
+ * the same from /faq, /products or a sibling page, so it too is one key per destination and start,
+ * and the warm-ups keep both (scripts/warm-shared-store.mjs warmTapTargets). Before that, every
+ * hover in a fresh region was drawn: 3 of 3 in that check, while the taps were kept.
+ */
+export function intentTreeFor(pathname, fromPathname = '/') {
+  return routerTree(pathname, fromPathname, (segment) => {
+    const trimmed = [...segment]
+    while (trimmed.length > 2 && (trimmed.at(-1) === null || trimmed.at(-1) === 0)) trimmed.pop()
+    return trimmed
+  })
+}
+
+/** The route under `(frontend)`, each page segment passed through `shape`, URL-encoded. */
+function routerTree(pathname, fromPathname, shape) {
   const segments = pathname.split('/').filter(Boolean)
   if (segments.some((_, i) => i > 0 && DYNAMIC_SEGMENT_PARENTS.includes(segments[i - 1])))
     return null
   const from = fromPathname.split('/').filter(Boolean)
   let common = 0
   while (common < segments.length && segments[common] === from[common]) common++
-  let child = ['__PAGE__', {}, null, common === segments.length ? 'refetch' : null, 0]
+  let child = shape(['__PAGE__', {}, null, common === segments.length ? 'refetch' : null, 0])
   for (let i = segments.length - 1; i >= 0; i--) {
-    child = [segments[i], { children: child }, null, i === common ? 'refetch' : null, 0]
+    child = shape([segments[i], { children: child }, null, i === common ? 'refetch' : null, 0])
   }
   const root = [
     '',

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { KEPT_RENDER_HEADERS } from '../pageCache.mjs'
 import {
   BROWSER_VARY,
+  intentTreeFor,
   keepableTapAnswer,
   keepableTapRequest,
   keptTapHeaders,
@@ -33,6 +34,17 @@ const HOME_FROM_FAQ = enc(
 )
 const GUIDE_FROM_GUIDES = enc(
   '["",{"children":["(frontend)",{"children":["guides",{"children":["how-a-private-label-order-works",{"children":["__PAGE__",{},null,null,0]},null,"refetch",0]},null,null,0]},null,null,16]},null,null,16]',
+)
+/**
+ * What a link HOVERED on the live site sends (IntentLink's whole-page fetch), captured in Chromium on
+ * 27 Oct after the review asked whether it matches a tap: it does not. The same tree with each
+ * segment's trailing empty values left off, and the same from /faq and from /products.
+ */
+const CONTACT_ON_INTENT = enc(
+  '["",{"children":["(frontend)",{"children":["contact",{"children":["__PAGE__",{}]},null,"refetch"]},null,null,16]},null,null,16]',
+)
+const FAQ_TOPIC_ON_INTENT = enc(
+  '["",{"children":["(frontend)",{"children":["faq",{"children":["orders-and-samples",{"children":["__PAGE__",{}]},null,"refetch"]}]},null,null,16]},null,null,16]',
 )
 
 const kv = (values: Record<string, string | null>) => ({
@@ -205,6 +217,15 @@ describe('keepableTapAnswer', () => {
     const broken = `0:["$","div",null,{}]\n1a:E{"digest":"2471862035"}\n`
     expect(keepableTapAnswer(answer(200), broken)).toBe(false)
   })
+
+  // What a tap on a MISSING journal post really gets (review of 27 Oct: the unit case above was a
+  // 404 status, which a tap never sees). Asked of wear-run.com that day, twice, with the tree a
+  // browser on /journal sends: a 200 of tap data whose rows include this one (twice, ids b and d),
+  // the store answering "skip" both times, never "hit". The rows here are the live ones.
+  it('refuses a missing post: a 200 that carries Next’s not-found row', () => {
+    const missingPost = `0:["$","div",null,{}]\nb:E{"digest":"NEXT_HTTP_ERROR_FALLBACK;404"}\nd:E{"digest":"NEXT_HTTP_ERROR_FALLBACK;404"}\n`
+    expect(keepableTapAnswer(answer(200), missingPost)).toBe(false)
+  })
 })
 
 describe('kept and served headers', () => {
@@ -252,5 +273,24 @@ describe('stateTreeFor: the header a settled tap sends', () => {
   it('cannot build a dynamic route, so it returns null', () => {
     expect(stateTreeFor('/journal/some-post', '/')).toBeNull()
     expect(stateTreeFor('/case-studies/x', '/')).toBeNull()
+  })
+})
+
+describe('intentTreeFor: the header a hovered, focused or touched link sends', () => {
+  it('builds the trees captured from real hovers on the live site', () => {
+    expect(intentTreeFor('/contact', '/faq')).toBe(CONTACT_ON_INTENT)
+    expect(intentTreeFor('/contact', '/products')).toBe(CONTACT_ON_INTENT)
+    expect(intentTreeFor('/faq/orders-and-samples', '/faq')).toBe(FAQ_TOPIC_ON_INTENT)
+    expect(intentTreeFor('/faq/orders-and-samples', '/faq/shipping-and-importing')).toBe(
+      FAQ_TOPIC_ON_INTENT,
+    )
+  })
+
+  it("differs from the tap's tree, so a hover asks the store under a key of its own", () => {
+    expect(intentTreeFor('/contact', '/faq')).not.toBe(stateTreeFor('/contact', '/faq'))
+  })
+
+  it('cannot build a dynamic route, so it returns null', () => {
+    expect(intentTreeFor('/journal/some-post', '/')).toBeNull()
   })
 })

@@ -141,8 +141,16 @@ const nextConfig = {
    * paint went from 1.1 s to 3.5 s on the local harness, past RO-08's 3 s, because the sheet is
    * now 127 KB raw (22 KB gzip); `e2e/firstPaint.spec.ts` holds that number until a smaller
    * sheet brings it back.
+   *
+   * `staleTimes.static` (review of 27 Oct): a website link fetches its whole page once a visitor
+   * shows intent (IntentLink.tsx, `prefetch={true}`), and Next 16.4.3 reuses such a page for
+   * `staleTimes.static`, 5 minutes by default (its installed staleTimes.md). A buyer who hovered a
+   * link and clicked minutes later saw the page as it was then, where a CMS edit otherwise shows
+   * within about a minute (content.ts keeps content 60 s). 60 keeps that promise; an older copy is
+   * fetched again from the shared store, so it costs a store answer, not a drawing. `dynamic`
+   * stays Next's 0: it reaches the admin too, and Payload warns against raising it.
    */
-  experimental: { inlineCss: false },
+  experimental: { inlineCss: false, staleTimes: { static: 60 } },
   /*
    * THE SENTRY RELEASE IS BAKED IN AT BUILD TIME, NOT READ FROM THE WORKER (2026-10-25).
    * The viewer tags each event with the commit that built it (VITE_SENTRY_RELEASE in ci.yml);

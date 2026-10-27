@@ -86,7 +86,13 @@ export const API_RENDER_HEADERS = Object.freeze({
 
 /** The website's own host, where a card touch asks for a garment to be warmed. */
 const SITE_HOST = 'wear-run.com'
-const WARM_PATH = /^\/__warm\/garment\/([^/]+)\/([^/]+)$/
+/**
+ * A product slug, then a colour slug: packages/shared/src/slugs.ts's pattern (lowercase letters and
+ * digits in runs joined by single hyphens), which src/viewerApiCache.test.ts holds this to. Review of
+ * 27 Oct: the path took any characters, so a crafted address reached the store.
+ */
+const SLUG = '[a-z0-9]+(?:-[a-z0-9]+)*'
+const WARM_PATH = new RegExp(`^/__warm/garment/(${SLUG})/(${SLUG})$`)
 
 /**
  * The garment-data address a same-origin warm request names, or null (faster-taps plan, Task 5).
@@ -102,10 +108,16 @@ export function warmGarmentTarget(url) {
 }
 
 /**
- * worker.mjs's answer to a warm request: 204 at once, while the garment's data is asked of the
- * store in the background and read to the end (the store keeps an answer only once it is read in
- * full, as scripts/warm-shared-store.mjs found). Null for any other request. `serve` is
- * serveViewerApi (a parameter for the tests).
+ * worker.mjs's answer to a warm request: the garment's data is asked of the store and read to the
+ * end (the store keeps an answer only once it is read in full, as scripts/warm-shared-store.mjs
+ * found), then 204. Null for any other request. `serve` is serveViewerApi (a parameter for the
+ * tests).
+ *
+ * It answers only once the data is read (review of 27 Oct: it answered 204 at once, so one client
+ * could start any number of drawings without waiting for one). The visitor never waits on it:
+ * GarmentWarm.tsx fires it with `keepalive` and reads nothing back. The work is also handed to
+ * `waitUntil`, so a browser that drops the connection (the tap that opens the garment) does not cut
+ * the store fill short. A failed warm-up is still 204.
  */
 export async function answerWarmRequest(request, env, ctx, serve = serveViewerApi) {
   if (request.method !== 'GET') return null
@@ -116,6 +128,7 @@ export async function answerWarmRequest(request, env, ctx, serve = serveViewerAp
     await answer?.arrayBuffer()
   })().catch((error) => console.error('[api-cache] could not warm a garment', error))
   ctx?.waitUntil?.(drawn)
+  await drawn
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } })
 }
 

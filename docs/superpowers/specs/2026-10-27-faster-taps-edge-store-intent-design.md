@@ -240,6 +240,11 @@ Never on:
 The first live check confirms that an intent prefetch sends the same headers as a tap, and so
 hits the same key.
 
+> **Checked live, 27 Oct (after the review): it does NOT.** A hover sends the tap's tree with each
+> page segment's trailing empty values left off, the same from every start page tested. Contact,
+> Products and Home hovers were all drawn while their taps were kept. `apps/cms/tapStore.mjs`
+> `intentTreeFor` builds that tree, and the warm-ups keep both copies.
+
 Effect: on desktop, the hover-to-click gap (usually several hundred milliseconds) hides that
 much of the wait. With the store hit from Part 1, the click is served from the browser's
 router cache. On a phone the touch-to-click gap is shorter, so Part 1 carries most of the gain.

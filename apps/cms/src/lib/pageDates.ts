@@ -13,8 +13,9 @@
  * computes of what the page shows; it fails when the words differ, so they cannot change while the
  * date stands still. When it fails, set `on` to the time of your change and `words` to the
  * fingerprint the failure prints. A page drawn in JSX is fingerprinted from its source with the
- * comments and spaces taken out, so a change to its markup moves the date too: a date a little
- * early to move is the lesser fault, beside one that stays put while the words change.
+ * imports, comments and spaces taken out, so a change to its markup moves the date too: a date a
+ * little early to move is the lesser fault, beside one that stays put while the words change.
+ * Imports are left out since 27 Oct: where a page takes a component from is not its words.
  *
  * A page that also shows garments or posts (the home page, /products, a buyer page, the Journal,
  * the case studies) is dated by whichever is newer: its words or its newest item
@@ -34,40 +35,52 @@ const page = (on: string, words: string): PageDate => ({ on, words })
  * that still matched. (A byline's date is its branch commit's time instead, a few hours earlier
  * for #192; this file follows `main`, where the live page changed.)
  */
+/** #152: the case studies hub's words. */
+const FINDABILITY = '2026-10-08T21:50:32+05:00'
+/** #231: the Journal hub's links to two buyer guides. */
+const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
+/** #246: the closing block written once, on every FAQ topic. */
+const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /** One phone number for the company (2026-10-26): the Contact page's call line and the structured data. */
 const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
 /**
- * Every website link fetches its page ahead on intent (faster-taps plan, Task 4): the pages' `Link`
- * import changed and no word did; by the markup rule above, their dates move. The branch commit's
- * time, so a little early against the merge: the lesser fault, as above.
+ * The dye (the home page draws the island that turns №02's cards colour), met with the one phone
+ * number from `main` (2026-10-26).
  */
-const INTENT_LINKS = '2026-10-27T14:34:06+05:00'
+const DYE = '2026-10-26T23:49:22+05:00'
 
+/*
+ * 27 Oct: the faster-taps work (#278) changed one line, the `Link` import, in 13 of the files
+ * these fingerprints read, and the markup rule moved 17 of these dates to that day. Checked with
+ * `git diff` against a7191f72 (the commit before it): no other line of those files changed.
+ * Imports are now left out of the fingerprint, and each of the 17 is back on the date its words
+ * last changed.
+ */
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(INTENT_LINKS, '682bf7ddb306'),
-  '/products': page(INTENT_LINKS, '81709183ae7a'),
-  '/custom-teamwear-manufacturer': page(INTENT_LINKS, '620a2842a2e4'),
-  '/custom-activewear-manufacturer': page(INTENT_LINKS, '2586bf0653f1'),
-  '/custom-outerwear-manufacturer': page(INTENT_LINKS, '071526119777'),
-  '/private-label-casual-wear-manufacturer': page(INTENT_LINKS, 'c185d514ae86'),
-  '/guides': page(INTENT_LINKS, '84660324572d'),
-  '/policies': page(INTENT_LINKS, 'b14fb0ec8b5c'),
-  '/community': page(SITE_CHECK, '82a687c86d9d'),
-  '/press': page(SITE_CHECK, '2b73a863f26b'),
-  '/faq': page(INTENT_LINKS, '1037a183463a'),
-  '/faq/orders-and-samples': page(INTENT_LINKS, 'aa6b6b2803cd'),
-  '/faq/quality-and-certifications': page(INTENT_LINKS, '6cc9e5ebc9a9'),
-  '/faq/shipping-and-importing': page(INTENT_LINKS, 'c07a7ae21176'),
-  '/faq/fabrics-and-printing': page(INTENT_LINKS, 'ce6aee0a2e22'),
-  '/faq/working-with-us': page(INTENT_LINKS, 'f008fc651146'),
-  '/glossary': page(INTENT_LINKS, '22c7e8401aa3'),
-  '/journal': page(INTENT_LINKS, 'bea6738e8040'),
-  '/case-studies': page(INTENT_LINKS, 'aa7a1068fc2e'),
-  '/contact': page(ONE_NUMBER, 'c601c0541d6a'),
-  '/privacy': page(SITE_CHECK, '0a96254ac2f9'),
-  '/terms': page(SITE_CHECK, '6d0e930fcd18'),
+  '/': page(DYE, '75c60e311c5a'),
+  '/products': page(SITE_CHECK, '6c05164a0d6a'),
+  '/custom-teamwear-manufacturer': page(SITE_CHECK, '4caf5da43ee7'),
+  '/custom-activewear-manufacturer': page(SITE_CHECK, '055b40459284'),
+  '/custom-outerwear-manufacturer': page(SITE_CHECK, '1acfba47d9a7'),
+  '/private-label-casual-wear-manufacturer': page(SITE_CHECK, 'fa4adcdef29b'),
+  '/guides': page(SITE_CHECK, 'bc271cb03a6b'),
+  '/policies': page(SITE_CHECK, '4858c8669cda'),
+  '/community': page(SITE_CHECK, 'aa8161150adb'),
+  '/press': page(SITE_CHECK, '9b7eeaf6a7f9'),
+  '/faq': page(SITE_CHECK, 'f1bd5f772454'),
+  '/faq/orders-and-samples': page(SITE_CHECK, '6ad5f92a5cb5'),
+  '/faq/quality-and-certifications': page(CLOSING_BLOCK, 'f21148cdf235'),
+  '/faq/shipping-and-importing': page(SITE_CHECK, 'd589cfcdf9ba'),
+  '/faq/fabrics-and-printing': page(CLOSING_BLOCK, 'd838e1a06292'),
+  '/faq/working-with-us': page(CLOSING_BLOCK, '39eb383bf2dc'),
+  '/glossary': page(SITE_CHECK, '5f4675bd3f09'),
+  '/journal': page(BUYER_GUIDE_LINKS, '3d5ef0fd9256'),
+  '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
+  '/contact': page(ONE_NUMBER, '360e3b9976c6'),
+  '/privacy': page(SITE_CHECK, '76870651f92b'),
+  '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 
 /** The date of a page this registry holds. */
