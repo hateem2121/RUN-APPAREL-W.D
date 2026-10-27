@@ -1438,6 +1438,22 @@ home page, /products and its own buyer page only), `apps/cms/src/lib/aboutPages.
 said once per page), `apps/cms/src/factoryPhotos.test.ts` (the full-width photo is sharp) and
 `apps/cms/src/lib/bylines.test.ts`. Each had a fault planted and failed on it.
 
+### D49 · The cards of a row end together after all — amends D48
+
+The two-line name band of D48 is back (impeccable I-08, owner's yes, 2026-10-26). The 0.8px that
+took it out was not the band. Measured in CI's image: the row below never moved in layout
+(`offsetTop` held), and its card's own `translate` went from `none` to 0.8px with no pointer
+anywhere near it. That was the cards' scroll-in rise (`card-rise`, polish MO4) resolving about 600ms
+after the test copied the cards, inside its 700ms watch. Without the band the same rise read 0.34px,
+under the 0.5px allowed. Rounding the band to whole pixels changed nothing, which ruled out the
+first suspect. `apps/cms/e2e/productTickets.spec.ts` now reads that test with the rise off and keeps
+its 0.5px: with the band it passes 5 of 5, and a 1px growth planted in the ticket or in a neighbour
+fails 5 of 5.
+
+What the band costs (owner's call): a row whose names all fit on one line keeps the empty line,
+28px a row. On the live page it took the rows that ended apart from 4 of 22 to 0 at 700px, 8 of 16
+to 0 at 1000px and 3 of 12 to 0 at 1440px; at 1280px no row was uneven.
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

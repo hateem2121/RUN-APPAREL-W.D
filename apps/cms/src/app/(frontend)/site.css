@@ -1692,6 +1692,26 @@ html {
 }
 
 /*
+ * An upright ticket's name keeps room for two lines, so a one-line name ends where a two-line one does
+ * and the cards of a row end together (site check, impeccable I-08, 2026-10-26: on the live page 4 of
+ * 22 rows at 700px, 8 of 16 at 1000px and 3 of 12 at 1440px ended 28px apart; 0 with this). The cost,
+ * the owner's call: a row of one-line names keeps the empty line too, 28px a row. Scoped to the garment
+ * grid: `.product-card__name` is also the card-title type of guides, policies, the FAQ and the closing
+ * link lists, whose one-line headings must not grow.
+ *
+ * ⚠️ IT WAS TAKEN OUT ONCE FOR A FAULT IT DID NOT HAVE. `e2e/productTickets.spec.ts` saw the row below
+ * an opening ticket move 0.8px in CI's Linux WebKit, but that row never moved in layout: its cards'
+ * scroll-in rise (`card-rise`, below) resolved about 600ms after the test copied them, inside the
+ * test's 700ms watch. The band only put that row 28px further into its rise (0.34px without it). The
+ * test now reads with the rise off (measured 2026-10-26 in CI's image, 5 of 5 each way).
+ */
+@media (min-width: 560px) {
+  .product-grid .product-card__name {
+    min-block-size: 2lh;
+  }
+}
+
+/*
  * A hyphenated word (V-NECK, ZIP-UP) in one piece: it moves to the next line whole, and still wraps
  * inside itself when it alone is wider than the card, so nothing is clipped (`lib/cardName.ts`;
  * owner's call 2026-10-02, after "V-" ended a line at 390px).

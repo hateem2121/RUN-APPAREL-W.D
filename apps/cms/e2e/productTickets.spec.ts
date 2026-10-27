@@ -335,6 +335,16 @@ test.describe('from 560px: the upright ticket that opens (D3b, X9)', () => {
   }) => {
     await openProducts(page, 1280, { motion: true })
     await fill(page, 6)
+    /*
+     * ⚠️ WITH THE CARDS' SCROLL-IN RISE OFF (`card-rise`, site.css). It moves each card by `translate`,
+     * which the layout never sees but `getBoundingClientRect()` does, and in CI's Linux WebKit the rise
+     * of the cards `fill` copies resolved about 600ms later, inside this test's 700ms watch: the row
+     * below "moved" 0.34px, and 0.8px once the name band (I-08) put it further into its rise, while its
+     * layout stayed put (offsetTop 882 throughout; measured 2026-10-26). The opening is transitions, so
+     * this still sees every frame of it: a 1px growth planted in the ticket, or in a neighbour on
+     * hover, fails here with the rise off (5 of 5 each).
+     */
+    await page.addStyleTag({ content: '.product-grid > .product-card { animation: none; }' })
     const first = cards(page).first()
     const below = cards(page).nth(3)
     const before = { card: (await parts(first)).card.height, below: (await parts(below)).card.top }
