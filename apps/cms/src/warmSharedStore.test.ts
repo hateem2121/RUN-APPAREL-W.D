@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { storeVerdict, summarize, warmTargets } from '../../../scripts/warm-shared-store.mjs'
+import {
+  storeVerdict,
+  summarize,
+  warmTapTargets,
+  warmTargets,
+} from '../../../scripts/warm-shared-store.mjs'
+import { keepableTapRequest, rscCode, stateTreeFor } from '../tapStore.mjs'
 
 /**
  * The post-deploy warm-up (W1-A, 2026-10-24): after each deploy Workers Cache starts empty for the
@@ -48,6 +54,45 @@ describe('what the warm-up asks for', () => {
   it('asks for nothing when the sitemap is empty or not a sitemap', () => {
     expect(warmTargets('').pages).toEqual([])
     expect(warmTargets('<html>Just a moment…</html>').garments).toEqual([])
+  })
+})
+
+// Tap data (faster-taps plan, Task 3): one copy per destination, so one settled tap per page fills it.
+describe('the tap data the warm-up asks for', () => {
+  it('one settled tap per static page; a dynamic route and a kept file are skipped', async () => {
+    const targets = await warmTapTargets(
+      ['/', '/products', '/journal/x', '/llms.txt'],
+      'https://wear-run.com',
+    )
+    expect(targets.map(({ url }) => new URL(url).pathname)).toEqual(['/', '/products'])
+    for (const { url, headers } of targets) {
+      const { pathname, searchParams } = new URL(url)
+      expect(headers.rsc).toBe('1')
+      expect(headers['next-router-state-tree']).toBe(stateTreeFor(pathname))
+      expect(searchParams.get('_rsc')).toBe(
+        await rscCode({ stateTree: headers['next-router-state-tree'] }),
+      )
+    }
+  })
+
+  it('a nested page is also asked for as a tap from its parent, which sends a different tree', async () => {
+    const targets = await warmTapTargets(
+      ['/guides/garment-printing-methods'],
+      'https://wear-run.com',
+    )
+    expect(targets.map(({ headers }) => headers['next-router-state-tree'])).toEqual([
+      stateTreeFor('/guides/garment-printing-methods', '/'),
+      stateTreeFor('/guides/garment-printing-methods', '/guides'),
+    ])
+  })
+
+  it('every target is a tap the store will keep', async () => {
+    for (const { url, headers } of await warmTapTargets(
+      ['/', '/faq/orders-and-samples'],
+      'https://wear-run.com',
+    )) {
+      expect(await keepableTapRequest(new Request(url, { headers }))).toBe(true)
+    }
   })
 })
 

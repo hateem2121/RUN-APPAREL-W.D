@@ -50,6 +50,15 @@ import {
   wholePage,
 } from './pageCache.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
+import {
+  keepableTapAnswer,
+  keepableTapRequest,
+  keptTapHeaders,
+  keptTapStoreKey,
+  servedTapHeaders,
+  tapDrawRequest,
+  tapStoreOn,
+} from './tapStore.mjs'
 import { keepableApiRequest, keepApiAnswer, serveViewerApi } from './viewerApiCache.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
@@ -77,6 +86,17 @@ export class SitePages extends WorkerEntrypoint {
     const response = await keptRenders().run(render, () =>
       openNext.fetch(request, this.env, this.ctx),
     )
+    // Tap data (tapStore.mjs): only fromSharedStore sends an `rsc` request here, already checked.
+    if (request.headers.get('rsc') === '1') {
+      const init = { status: response.status, statusText: response.statusText }
+      if (response.status !== 200 || response.body === null) {
+        return new Response(response.body, { ...init, headers: unkeptHeaders(response.headers) })
+      }
+      const text = await response.text()
+      const keep = !render.spoiled && keepableTapAnswer(response, text)
+      const headers = keep ? keptTapHeaders(response.headers) : unkeptHeaders(response.headers)
+      return new Response(text, { ...init, headers })
+    }
     const { pathname } = new URL(request.url)
     const file = KEPT_FILES.includes(pathname)
     const init = { status: response.status, statusText: response.statusText }
@@ -118,6 +138,8 @@ export class SitePages extends WorkerEntrypoint {
  * never be the reason a page fails.
  */
 async function fromSharedStore(request, env, ctx) {
+  // Tap data first (faster-taps plan, Task 3): an `rsc` request is never a page or a kept file.
+  if (await keepableTapRequest(request)) return fromTapStore(request, env, ctx)
   // A HEAD is looked up as the GET it describes, and answered without the body (storeLookupRequest).
   const asked = storeLookupRequest(request)
   if (!keepablePageRequest(asked) && !keptFileRequest(asked)) return null
@@ -144,6 +166,35 @@ async function fromSharedStore(request, env, ctx) {
     }
   } catch (error) {
     console.error('[page-cache] could not reach the shared store; drawing the page', error)
+    return null
+  }
+}
+
+/**
+ * A tap's data from the shared store (tapStore.mjs): one copy per destination, drawn from a clean
+ * request and keyed by the deploy. Null when the off switch (KV `rsc-store` = 'off') or a missing
+ * binding says so, and on any failure: the tap is then drawn as it was before.
+ */
+async function fromTapStore(request, env, ctx) {
+  const deploy = env.CF_VERSION_METADATA?.id
+  const store = ctx?.exports?.SitePages
+  if (!deploy || !env.SITE_CACHE || !store) return null
+  try {
+    if (!(await tapStoreOn(env.SITE_CACHE))) return null
+    const draw = await tapDrawRequest(request)
+    const cf = { cacheKey: await keptTapStoreKey(draw.url, deploy, env.SITE_CACHE) }
+    // Never follow a redirect from the store: Next answers a wrong code with a 307 (#247's lesson).
+    const kept = await store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
+    return {
+      state: storeState(kept.headers),
+      response: new Response(kept.body, {
+        status: kept.status,
+        statusText: kept.statusText,
+        headers: servedTapHeaders(kept.headers),
+      }),
+    }
+  } catch (error) {
+    console.error('[tap-store] could not reach the shared store; drawing the tap', error)
     return null
   }
 }
@@ -175,7 +226,18 @@ export default {
       // The old addresses and www. answer redirects, which OpenNext sends bare
       // (redirectHeaders.mjs). A redirect is never a page, so the nonce guard has no work.
       if (response.status >= 300 && response.status < 400) return withRedirectHeaders(response)
-      if (!nonceable(response)) return response
+      if (!nonceable(response)) {
+        // Tap data and kept files are not HTML, so they need no nonce, but they still say whether
+        // the store answered (the measure-taps script and the warm-up read it).
+        if (!cacheState) return response
+        const headers = new Headers(response.headers)
+        headers.append('server-timing', pageCacheTiming(cacheState))
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        })
+      }
       const nonce = newNonce()
       const headers = noncedHeaders(response.headers, nonce)
       if (headers === null) {

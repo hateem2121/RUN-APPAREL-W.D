@@ -7,6 +7,10 @@ export declare function warmTargets(
   sitemapXml: string,
   origin?: string,
 ): { pages: string[]; garments: string[] }
+export declare function warmTapTargets(
+  paths: string[],
+  origin?: string,
+): Promise<{ url: string; headers: Record<string, string> }[]>
 export declare function storeVerdict(status: number, serverTiming: string): StoreVerdict
 export declare function summarize(
   results: { url: string; status?: number; verdict: StoreVerdict }[],
