@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { percentile, storeStateOf, summaryLines, verdict } from '../scripts/measure-taps.mjs'
+import { OWN_AGENTS } from '../../../scripts/page-store-digest.mjs'
+import {
+  engines,
+  judge,
+  percentile,
+  storeStateOf,
+  summaryLines,
+  verdict,
+} from '../scripts/measure-taps.mjs'
 
 /**
  * The live tap measurement (faster-taps plan, Task 1): the before/after judge for G1 (a tap shows
@@ -52,6 +60,83 @@ describe('verdict', () => {
   it('fails when a route has no warm tap at all, rather than passing on nothing', () => {
     const rows = [{ ...warm(3700), state: 'miss' }]
     expect(verdict(rows, 400).pass).toBe(false)
+  })
+
+  it('leaves a tap the edge refused out of the judgement: one among measured taps changes nothing', () => {
+    const rows = [warm(200), warm(200), warm(200), { ...warm(0), state: 'none', blocked: true }]
+    const result = verdict(rows, 400)
+    expect(result).toMatchObject({ pass: true, inconclusive: false })
+    expect(result.byRoute['/products chromium']).toEqual({ p50: 200, p75: 200, n: 4 })
+  })
+
+  it('calls a route measured only through refusals inconclusive, never a pass or a fail', () => {
+    const refused = { route: '/faq', engine: 'webkit-phone', blocked: true }
+    expect(verdict([warm(200), refused], 400)).toMatchObject({ pass: true, inconclusive: true })
+  })
+})
+
+/*
+ * Review, 27 Oct: the run judged only the rows that carried a number, so a route whose every tap
+ * failed (a moved link, a timeout) dropped out and the weekly watch passed on what remained. And
+ * any 403/429/503 on any file of any tap page made the whole run "inconclusive", which the
+ * workflow shows as a green warning: one refused picture voided a week's verdict.
+ */
+describe('judge (the exit code the weekly watch reads)', () => {
+  const warm = (route: string, ms = 200) => ({ route, engine: 'chromium', ms, state: 'hit' })
+  const garments = [1, 2, 3].map(() => ({ ...warm('card → garment', 900), state: 'hit' }))
+
+  it('fails the run when every tap to one route failed, and still reports that route', () => {
+    const failed = { route: '/about', engine: 'chromium', error: 'no start page links here' }
+    const result = judge([warm('/'), warm('/'), failed, failed], garments)
+    expect(result.exitCode).toBe(1)
+    expect(result.taps.byRoute['/about chromium']?.n).toBe(2)
+  })
+
+  it('passes a run whose routes were measured, though one tap was refused', () => {
+    const refused = { route: '/', engine: 'chromium', blocked: true }
+    expect(judge([warm('/'), warm('/'), warm('/'), refused], garments).exitCode).toBe(0)
+  })
+
+  it('makes a passing run inconclusive (exit 2) when a route was measured only through refusals', () => {
+    const refused = { route: '/faq', engine: 'chromium', blocked: true }
+    expect(judge([warm('/'), refused], garments).exitCode).toBe(2)
+  })
+
+  it('lets a real failure win over an inconclusive route', () => {
+    const refused = { route: '/faq', engine: 'chromium', blocked: true }
+    expect(judge([warm('/', 3000), refused], garments).exitCode).toBe(1)
+  })
+})
+
+/*
+ * Review, 27 Oct: WebKit's "iPhone 15" profile sends a real Safari user agent (measured: "Mozilla/5.0
+ * (iPhone; CPU iPhone OS 17_5 …) … Safari/604.1"), so the weekly watch's phone page loads counted as
+ * people in the visitor digest. Headless Chromium already says "HeadlessChrome/156…" (measured).
+ */
+describe('engines', () => {
+  const devices = {
+    'iPhone 15': {
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Safari/604.1',
+      viewport: { width: 393, height: 659 },
+      isMobile: true,
+      hasTouch: true,
+    },
+  }
+
+  it('drives only browsers the visitor digest counts as ours', () => {
+    for (const engine of engines(devices)) {
+      const agent = engine.context.userAgent ?? 'HeadlessChrome'
+      expect(
+        OWN_AGENTS.some((own: string) => agent.includes(own)),
+        engine.name,
+      ).toBe(true)
+    }
+  })
+
+  it("keeps the iPhone profile's own agent and screen, so the site still serves a phone", () => {
+    const phone = engines(devices).find((engine) => engine.name === 'webkit-phone')
+    expect(phone?.context).toMatchObject({ viewport: { width: 393, height: 659 }, hasTouch: true })
+    expect(phone?.context.userAgent?.startsWith(devices['iPhone 15'].userAgent)).toBe(true)
   })
 })
 

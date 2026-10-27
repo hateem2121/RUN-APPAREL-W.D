@@ -17,8 +17,9 @@
  * (pageCache.mjs SIGNED_IN_OR_DRAFT), so every answer is drawn and the verdict must FAIL. A
  * measurement that passes with it proves nothing.
  *
- * Prints one JSON document; exit 0 pass, 1 fail, 2 inconclusive (a 403, 429 or 503: a blocked
- * probe is not a slow site). Blocks 3D model files: nothing measured here waits on them.
+ * Prints one JSON document; exit 0 pass, 1 fail, 2 inconclusive (a route measured only through
+ * refusals: a 403, 429 or 503 on its start page or on its own answer, because a blocked probe is not
+ * a slow site). Blocks 3D model files: nothing measured here waits on them.
  *
  * Usage: node apps/cms/scripts/measure-taps.mjs --origin=https://wear-run.com [--taps=20] [--refuse-store]
  *   [--summary]  one line per route and engine instead of the JSON document (the weekly watch)
@@ -30,7 +31,8 @@ export const TAP_TARGET_MS = 400
 /** G2: a card's garment loading screen starts to lift within 1.5 s. */
 export const GARMENT_TARGET_MS = 1500
 
-const DESTINATIONS = ['/', '/products', '/about', '/contact', '/faq']
+/** The pages G1 is judged on; the buyer regions' warm-up asks for these first (warm-regions.mjs). */
+export const DESTINATIONS = Object.freeze(['/', '/products', '/about', '/contact', '/faq'])
 const START_PAGES = ['/faq', '/contact', '/']
 const GARMENT_PATH = /^\/products\/[^/]+\/[^/]+$/
 const BLOCKED_STATUS = new Set([403, 429, 503])
@@ -57,11 +59,13 @@ const WARM = new Set(['hit', 'client'])
 
 /**
  * p50/p75 per route and engine over WARM taps; `n` counts every tap. A route with no warm tap
- * fails: a pass must rest on something measured.
+ * fails: a pass must rest on something measured, and a tap that failed (no number) is not warm.
+ * A tap the edge refused (`blocked`: a 403, 429 or 503 on its start page or its own answer) is
+ * neither: it is left out, and a route made only of those is `inconclusive`, never failed.
  *
- * @param {Array<{ route: string, engine: string, ms: number, state: string }>} rows
+ * @param {Array<{ route: string, engine: string, ms?: number, state?: string, blocked?: boolean, error?: string }>} rows
  * @param {number} targetMs
- * @returns {{ pass: boolean, byRoute: Record<string, { p50: number, p75: number, n: number }> }}
+ * @returns {{ pass: boolean, inconclusive: boolean, byRoute: Record<string, { p50: number, p75: number, n: number }> }}
  */
 export function verdict(rows, targetMs) {
   const groups = new Map()
@@ -73,13 +77,33 @@ export function verdict(rows, targetMs) {
   /** @type {Record<string, { p50: number, p75: number, n: number }>} */
   const byRoute = {}
   let pass = groups.size > 0
+  let inconclusive = false
   for (const [key, group] of groups) {
-    const warm = group.filter((row) => WARM.has(row.state)).map((row) => row.ms)
+    const judged = group.filter((row) => !row.blocked)
+    const warm = judged.filter((row) => WARM.has(row.state)).map((row) => row.ms)
     const p75 = percentile(warm, 75)
     byRoute[key] = { p50: percentile(warm, 50), p75, n: group.length }
-    if (!(p75 < targetMs)) pass = false
+    if (judged.length === 0) inconclusive = true
+    else if (!(p75 < targetMs)) pass = false
   }
-  return { pass, byRoute }
+  return { pass, inconclusive, byRoute }
+}
+
+/**
+ * The run's two verdicts and its exit code: 1 when a route misses its target, a route whose every
+ * tap failed included; else 2 when a route was measured only through refusals; else 0. Every row
+ * is judged (review, 27 Oct: the run judged only rows that carried a number, so a route whose taps
+ * all failed dropped out and the weekly watch passed on what remained).
+ *
+ * @param {Parameters<typeof verdict>[0]} rows
+ * @param {Parameters<typeof verdict>[0]} garmentRows
+ */
+export function judge(rows, garmentRows) {
+  const taps = verdict(rows, TAP_TARGET_MS)
+  const garment = verdict(garmentRows, GARMENT_TARGET_MS)
+  const exitCode =
+    !taps.pass || !garment.pass ? 1 : taps.inconclusive || garment.inconclusive ? 2 : 0
+  return { taps, garment, exitCode }
 }
 
 /**
@@ -109,10 +133,29 @@ function options(argv) {
   }
 }
 
-const ENGINES = (devices) => [
-  { name: 'chromium', launcher: 'chromium', context: { viewport: { width: 1440, height: 900 } } },
-  { name: 'webkit-phone', launcher: 'webkit', context: { ...devices['iPhone 15'] } },
-]
+/** Tells the visitor digest these page loads are ours: page-store-digest.mjs OWN_AGENTS has 'run-apparel'. */
+const OWN_AGENT_MARK = 'run-apparel-measure-taps'
+
+/**
+ * The two browsers every tap runs in. Headless Chromium already names itself ("HeadlessChrome/156…",
+ * measured 27 Oct), which the digest counts as ours. WebKit's iPhone profile sends a real Safari
+ * user agent, so it carries OWN_AGENT_MARK after it (review, 27 Oct: the weekly watch's phone page
+ * loads counted as people). Appended, never replacing: the site still sees an iPhone.
+ *
+ * @param {Record<string, { userAgent: string } & Record<string, unknown>>} devices
+ * @returns {Array<{ name: string, launcher: 'chromium' | 'webkit', context: Record<string, unknown> & { userAgent?: string } }>}
+ */
+export function engines(devices) {
+  const phone = devices['iPhone 15']
+  return [
+    { name: 'chromium', launcher: 'chromium', context: { viewport: { width: 1440, height: 900 } } },
+    {
+      name: 'webkit-phone',
+      launcher: 'webkit',
+      context: { ...phone, userAgent: `${phone.userAgent} ${OWN_AGENT_MARK}` },
+    },
+  ]
+}
 
 async function freshPage(browser, engine, opts) {
   const context = await browser.newContext(engine.context)
@@ -144,18 +187,21 @@ async function oneTap(browser, engine, destination, opts) {
   try {
     // No tap answer at all means the browser answered from its own router cache: 'client'.
     let state = 'client'
-    let blocked = false
+    let refused = false
     page.on('response', async (response) => {
-      if (BLOCKED_STATUS.has(response.status())) blocked = true
       const url = new URL(response.url())
       if (!url.searchParams.has('_rsc') || url.pathname !== destination) return
       // The tap's own data, or a full intent prefetch of it; never the 2 KB layout prefetch.
       if (response.request().headers()['next-router-prefetch']) return
+      // Only the tap's own answer makes it refused: a 403 on a picture is not a slow tap (review,
+      // 27 Oct: one such answer anywhere on any page voided the whole run).
+      if (BLOCKED_STATUS.has(response.status())) refused = true
       state = storeStateOf(await response.headerValue('server-timing'))
     })
+    const refusedRow = { route: destination, engine: engine.name, blocked: true }
     for (const start of START_PAGES.filter((path) => path !== destination)) {
       const answer = await page.goto(opts.origin + start, { waitUntil: 'load', timeout: 60_000 })
-      if (answer && BLOCKED_STATUS.has(answer.status())) return { blocked: true }
+      if (answer && BLOCKED_STATUS.has(answer.status())) return refusedRow
       // A link a finger can reach: on a phone the menu's links are hidden until it opens.
       const link = page.locator(`a[href="${destination}"]`).filter({ visible: true }).first()
       if ((await link.count()) === 0) continue
@@ -177,16 +223,21 @@ async function oneTap(browser, engine, destination, opts) {
         )
       }, destination)
       await intentClick(link, engine)
-      await page.waitForFunction(() => window.__tap?.t1 !== null, null, { timeout: 30_000 })
+      try {
+        await page.waitForFunction(() => window.__tap?.t1 !== null, null, { timeout: 30_000 })
+      } catch (error) {
+        if (refused) return refusedRow
+        throw error
+      }
       const tap = await page.evaluate(() => window.__tap)
       await page.waitForTimeout(300)
+      if (refused) return refusedRow
       return {
         route: destination,
         engine: engine.name,
         from: start,
         ms: Math.round(tap.t1 - tap.t0),
         state,
-        blocked,
       }
     }
     return { route: destination, engine: engine.name, error: 'no start page links here' }
@@ -199,16 +250,24 @@ async function oneGarmentOpen(browser, engine, opts) {
   const { context, page } = await freshPage(browser, engine, opts)
   try {
     let state = 'none'
+    let refused = false
     page.on('response', async (response) => {
+      const { pathname } = new URL(response.url())
+      // The garment page itself and its data are this open's own answers; nothing else refuses it.
+      const own =
+        response.url().includes('/api/public/viewer/') ||
+        (response.request().isNavigationRequest() && GARMENT_PATH.test(pathname))
+      if (own && BLOCKED_STATUS.has(response.status())) refused = true
       if (response.url().includes('/api/public/viewer/')) {
         state = storeStateOf(await response.headerValue('server-timing'))
       }
     })
+    const refusedRow = { route: 'card → garment', engine: engine.name, blocked: true }
     const answer = await page.goto(`${opts.origin}/products`, {
       waitUntil: 'load',
       timeout: 60_000,
     })
-    if (answer && BLOCKED_STATUS.has(answer.status())) return { blocked: true }
+    if (answer && BLOCKED_STATUS.has(answer.status())) return refusedRow
     await page.waitForTimeout(1500)
     // The card's showing picture: the one slide in the tab order (CardGallery.tsx), the link a
     // finger lands on. Its href is a full address, so the path is read, never matched as text.
@@ -231,16 +290,23 @@ async function oneGarmentOpen(browser, engine, opts) {
       )
     })
     await intentClick(link, engine)
-    await page.waitForURL((url) => url.pathname === href, { timeout: 60_000 })
-    const lifted = await page.waitForFunction(
-      () => {
-        const screen = document.querySelector('.preloader')
-        if (screen && !screen.classList.contains('preloader--exit')) return false
-        return Date.now() - Number(sessionStorage.getItem('__tapT0'))
-      },
-      null,
-      { timeout: 60_000, polling: 'raf' },
-    )
+    let lifted
+    try {
+      await page.waitForURL((url) => url.pathname === href, { timeout: 60_000 })
+      lifted = await page.waitForFunction(
+        () => {
+          const screen = document.querySelector('.preloader')
+          if (screen && !screen.classList.contains('preloader--exit')) return false
+          return Date.now() - Number(sessionStorage.getItem('__tapT0'))
+        },
+        null,
+        { timeout: 60_000, polling: 'raf' },
+      )
+    } catch (error) {
+      if (refused) return refusedRow
+      throw error
+    }
+    if (refused) return refusedRow
     const ms = await lifted.jsonValue()
     return { route: 'card → garment', engine: engine.name, garment: href, ms, state }
   } finally {
@@ -253,7 +319,7 @@ async function main() {
   const playwright = await import('@playwright/test')
   const rows = []
   const garmentRows = []
-  for (const engine of ENGINES(playwright.devices)) {
+  for (const engine of engines(playwright.devices)) {
     const browser = await playwright[engine.launcher].launch()
     try {
       // One failed measurement is a row with its error, never the end of the run.
@@ -277,25 +343,19 @@ async function main() {
       await browser.close()
     }
   }
-  const all = [...rows, ...garmentRows]
-  const blocked = all.some((row) => row.blocked)
-  const measured = (list) => list.filter((row) => Number.isFinite(row.ms))
+  const { taps, garment, exitCode } = judge(rows, garmentRows)
   const result = {
     origin: opts.origin,
     at: new Date().toISOString(),
     taps: opts.taps,
     refuseStore: opts.refuseStore,
-    verdict: {
-      taps: verdict(measured(rows), TAP_TARGET_MS),
-      garment: verdict(measured(garmentRows), GARMENT_TARGET_MS),
-    },
-    rows: all,
+    verdict: { taps, garment },
+    rows: [...rows, ...garmentRows],
   }
   console.log(
     opts.summary ? summaryLines(result.verdict).join('\n') : JSON.stringify(result, null, 1),
   )
-  if (blocked) process.exit(2)
-  process.exit(result.verdict.taps.pass && result.verdict.garment.pass ? 0 : 1)
+  process.exit(exitCode)
 }
 
 if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
