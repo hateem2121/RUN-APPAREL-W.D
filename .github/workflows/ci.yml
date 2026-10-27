@@ -1231,7 +1231,8 @@ jobs:
       # step-security/agent config.go parseEndpoints — so a final newline would make the last
       # port 0 and block it). The list is the union of what Harden-Runner recorded for this
       # job on four real deploys (24-25 Oct: #245, #246, #250, #257) plus `api.indexnow.org`,
-      # which ping-indexnow.mjs calls only when a public page changed; every call is https on
+      # which ping-indexnow.mjs calls only when a public page changed, and `api.globalping.io`,
+      # which warm-regions.mjs calls after every deploy (since 2026-10-27); every call is https on
       # 443. Each deploy's Worker preview URL is a fresh random `<hex>.hateemjamshaid.workers.dev`,
       # hence the wildcard. In watch mode the agent ignores an allow-list (harden-runner
       # action.yml: "Only these endpoints will be allowed if egress-policy is set to block"),
@@ -1263,6 +1264,7 @@ jobs:
       #   catalogue.wear-run.help:443
       #   profile.wear-run.help:443
       #   api.indexnow.org:443
+      #   api.globalping.io:443
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
@@ -1659,6 +1661,18 @@ jobs:
       - name: Post-deploy warm-up of the shared page store
         timeout-minutes: 5
         run: node scripts/warm-shared-store.mjs https://wear-run.com
+
+      # The store keeps a copy per region, and the step above warms the runner's, in the United
+      # States: the first buyer in Pakistan after a deploy still waited for a drawing (first taps
+      # 2.85-3.75 s, 26 Oct). This asks two home-network probes in each buyer country
+      # (scripts/warm-regions.countries.json) for the top-level pages and the tap into each, through
+      # Globalping's free probes (about 60 tests; 250 an hour are free). The spike of 2026-10-27:
+      # 21 cold pages, then 84 of 84 other Pakistan probes found them kept. It never fails the
+      # deploy (a Globalping error or limit is a warning; the script stops itself after 4 minutes)
+      # and prints only counts and store states per country.
+      - name: Post-deploy warm-up of the buyer regions
+        timeout-minutes: 5
+        run: node scripts/warm-regions.mjs https://wear-run.com
 
       # The per-garment link preview is produced by an HTMLRewriter in
       # apps/viewer/worker/index.ts, and HTMLRewriter does not exist under vitest —
