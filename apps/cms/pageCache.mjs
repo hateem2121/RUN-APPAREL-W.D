@@ -370,13 +370,21 @@ export function keptRenders() {
   return globalThis.__runKeptRenders
 }
 
+/**
+ * The drawing in progress that worker.mjs means to keep, or undefined. One object per drawing:
+ * `spoiled` below, and the drawing's own database session (src/lib/drawingDatabase.ts).
+ */
+export function keptRender() {
+  return globalThis.__runKeptRenders?.getStore()
+}
+
 /** True while drawing a page that worker.mjs means to keep. */
 export function drawingToKeep() {
-  return globalThis.__runKeptRenders?.getStore() !== undefined
+  return keptRender() !== undefined
 }
 
 /** The page fell back to defaults (the database was unhappy): never keep it. */
 export function spoilKeptRender() {
-  const render = globalThis.__runKeptRenders?.getStore()
+  const render = keptRender()
   if (render) render.spoiled = true
 }

@@ -29,6 +29,7 @@ import { publicViewerDefaultColourEndpoint, publicViewerEndpoint } from './endpo
 import { BuildProcess } from './globals/BuildProcess'
 import { CatalogueDefaults } from './globals/CatalogueDefaults'
 import { SiteSettings } from './globals/SiteSettings'
+import { drawingDatabase } from './lib/drawingDatabase'
 import { reportServerErrors } from './lib/reportServerError'
 
 const CMS_TRUSTED = {
@@ -233,7 +234,10 @@ export default buildConfig({
   },
   db: sqliteD1Adapter({
     // Cast: the binding is absent only in CLI contexts that never open the DB.
-    binding: env?.D1 as D1Database,
+    // A drawing the shared store keeps reads through its own session, so the database's nearby
+    // copies can answer it without ever serving content older than a save (lib/drawingDatabase.ts,
+    // which says why Payload's own read-replica switch stays off).
+    binding: drawingDatabase(env?.D1 as D1Database),
     // Drizzle "push" (auto-sync the dev database from the config) defaults to ON
     // outside production. It silently competes with the migrations below for the
     // role of source-of-truth, and it does not run their data backfills — on
