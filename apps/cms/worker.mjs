@@ -190,6 +190,13 @@ async function fromTapStore(request, env, ctx) {
     const cf = { cacheKey: await keptTapStoreKey(draw.url, deploy, env.SITE_CACHE) }
     // Never follow a redirect from the store: Next answers a wrong code with a 307 (#247's lesson).
     const kept = await store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
+    // SitePages never keeps a redirect, so one here came from this drawing alone. Handed on, a code
+    // Next read differently in the drawing would bounce every tap to this page between two codes
+    // (review, 27 Oct); the visitor's own request is drawn instead, as before the store.
+    if (kept.status >= 300 && kept.status < 400) {
+      await kept.body?.cancel()
+      return null
+    }
     return {
       state: storeState(kept.headers),
       response: new Response(kept.body, {
