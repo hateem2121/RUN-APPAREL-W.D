@@ -16,6 +16,8 @@ import '@run-apparel/ui/notch.css'
 import '@run-apparel/ui/footer.css'
 // The two stand-in faces shared with the website (2026-10-25); page.css names them.
 import '@run-apparel/ui/fallback-faces.css'
+// The colour change's layer, shared with the website (2026-10-26).
+import '@run-apparel/ui/dye.css'
 import './styles/page.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

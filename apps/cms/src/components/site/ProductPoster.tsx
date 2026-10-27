@@ -35,7 +35,7 @@ export function ProductPoster({
   index,
   srcSet,
   sizes,
-  still,
+  leaving,
 }: {
   src: string
   alt: string
@@ -44,8 +44,8 @@ export function ProductPoster({
   /** Card-sized copies to choose between (`lib/cardImage.ts`); absent, the one file serves all. */
   srcSet?: string
   sizes?: string
-  /** №03's colour change: the picture fading in over the old one, or the old one under it. */
-  still?: 'arriving' | 'leaving'
+  /** №03's old picture, held over the new one for its first frames (ProofShowcase.tsx). */
+  leaving?: boolean
 }) {
   const { loading, fetchPriority } =
     index === undefined ? ({ loading: 'lazy' } as PosterLoading) : posterLoading(index)
@@ -107,8 +107,8 @@ export function ProductPoster({
       decoding="async"
       width={1200}
       height={1500}
-      data-still={still}
-      aria-hidden={still === 'leaving' ? true : undefined}
+      data-still={leaving ? 'leaving' : undefined}
+      aria-hidden={leaving ? true : undefined}
       onError={() => setFailed(true)}
     />
   )
