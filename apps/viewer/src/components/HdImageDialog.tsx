@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog'
-import type { ViewerColourway } from '@run-apparel/shared'
+import { containedBox, playDye, readDyeTiming, type ViewerColourway } from '@run-apparel/shared'
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { type Box, IDENTITY, panBy, toggleZoomAt, type View, zoomAt } from '../lib/zoomPan'
 // Loaded with this lazy chunk only — see the header of hd-image.css.
@@ -100,11 +100,97 @@ export default function HdImageDialog({
     return () => observer.disconnect()
   }, [frameEl])
 
+  // ── The colour change ───────────────────────────────────────────────────
+  /*
+   * The full-screen view changes colour with the same dye as everywhere else (owner, 2026-10-26:
+   * "Dye it too"), the way the HD picture in the 3D window does (Stage.tsx, `keepHdCopy`): React
+   * swaps the render's address in place, so a copy is kept each time one loads, laid over the new
+   * one, held until it has decoded, then soaked away from the arrow that asked for it.
+   *
+   * ⚠️ THE COPY IS SCREEN-SIZED, not the render's own: renders run to several thousand pixels a side,
+   * and a full-size copy would hold tens of MB per colour on a phone for a picture drawn fitted.
+   * That is also why a change while zoomed in swaps at once: the copy only holds the fitted picture,
+   * and the view resets to fitted on every colour, so a dye there would start with a jump.
+   */
+  const renderRef = useRef<HTMLImageElement | null>(null)
+  const dyeRef = useRef<HTMLCanvasElement | null>(null)
+  const copyRef = useRef<{ url: string; canvas: HTMLCanvasElement } | null>(null)
+  const shownRef = useRef<string | null>(null)
+  /** Which arrow asked for the change (-1, 1), so the dye opens from it; `null` for none. */
+  const stepRef = useRef<number | null>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  const keepCopy = () => {
+    setLoaded(true)
+    const picture = renderRef.current
+    if (!picture?.naturalWidth || !renderUrl || box.width <= 0) return
+    const scale = Math.min(1, (box.width * window.devicePixelRatio) / picture.naturalWidth)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(picture.naturalWidth * scale)
+    canvas.height = Math.round(picture.naturalHeight * scale)
+    canvas.getContext('2d')?.drawImage(picture, 0, 0, canvas.width, canvas.height)
+    copyRef.current = { url: renderUrl, canvas }
+  }
+
+  useLayoutEffect(() => {
+    const before = shownRef.current
+    shownRef.current = open ? (renderUrl ?? null) : null
+    const delta = stepRef.current
+    stepRef.current = null
+    const picture = renderRef.current
+    const layer = dyeRef.current
+    const old = copyRef.current
+    // Not when the view opens, and only from a copy of the picture that was actually showing.
+    if (!open || !renderUrl || !before || before === renderUrl || !picture || !layer) return
+    if (!old || old.url !== before || viewRef.current.scale !== 1) return
+    const fitted = containedBox(
+      { width: picture.offsetWidth, height: picture.offsetHeight },
+      { top: 0, right: 0, bottom: 0, left: 0 },
+      { width: old.canvas.width, height: old.canvas.height },
+    )
+    if (!fitted) return
+    Object.assign(layer.style, {
+      left: `${fitted.x}px`,
+      top: `${fitted.y}px`,
+      width: `${fitted.width}px`,
+      height: `${fitted.height}px`,
+    })
+    const arrow =
+      delta === null
+        ? null
+        : layer
+            .closest('.hd-image')
+            ?.querySelector(`[data-step="${delta}"]`)
+            ?.getBoundingClientRect()
+    const at = layer.getBoundingClientRect()
+    // The new render must not fade in under the dye as well: it is decoded before the front opens.
+    picture.setAttribute('data-dyeing', '')
+    const run = playDye({
+      layer,
+      old: old.canvas,
+      point: arrow
+        ? { x: arrow.left + arrow.width / 2 - at.left, y: arrow.top + arrow.height / 2 - at.top }
+        : null,
+      swatch: selected.hexSwatch || null,
+      kind: 'full',
+      timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
+      after: picture.decode().catch(() => undefined),
+    })
+    run.finished.then(() => picture.removeAttribute('data-dyeing'))
+    return () => {
+      run.cancel()
+      picture.removeAttribute('data-dyeing')
+    }
+  }, [open, renderUrl, selected.hexSwatch])
+
   const step = useCallback(
     (delta: number) => {
       if (!canStep || !onSelectColourway) return
       const next = withRenders[(index + delta + withRenders.length) % withRenders.length]
-      if (next) onSelectColourway(next)
+      if (!next) return
+      stepRef.current = delta
+      onSelectColourway(next)
     },
     [canStep, onSelectColourway, withRenders, index],
   )
@@ -212,7 +298,7 @@ export default function HdImageDialog({
     return () => el.removeEventListener('wheel', onWheel)
   }, [layerEl, box])
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: KeyboardEvent) => {
     const centre = { x: box.width / 2, y: box.height / 2 }
     const zoomed = view.scale > 1
     const act = (next: View) => {
@@ -245,6 +331,26 @@ export default function HdImageDialog({
     }
   }
 
+  /*
+   * ⚠️ THE KEYS ARE HEARD ON THE DOCUMENT, ON THE WAY DOWN, NOT ON THE POPUP. base-ui moves focus
+   * into the view a frame after it opens (a microtask, then a frame: FloatingFocusManager.tsx), and
+   * a key pressed in that frame lands on the button behind it. A handler on the popup never heard
+   * it: an arrow pressed at once after opening was lost in 40 of 40 runs across the four engines
+   * (2026-10-26), the same race that blocked a deploy on the factory viewer (#270). Capture,
+   * because a key pressed inside the view does not bubble back to the document. The latest
+   * handler sits in a ref, so the listener is added once per opening.
+   */
+  const keyHandler = useRef(onKeyDown)
+  keyHandler.current = onKeyDown
+  // Only while the view is drawn: with no render this component draws nothing (below).
+  const drawn = open && render != null
+  useEffect(() => {
+    if (!drawn) return
+    const onKey = (event: KeyboardEvent) => keyHandler.current(event)
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [drawn])
+
   if (!render) return null
   const poster = selected.poster
   const title = `Studio render: ${productName} in ${selected.displayName}`
@@ -257,7 +363,7 @@ export default function HdImageDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="hd-image__backdrop" />
-        <Dialog.Popup className="hd-image" finalFocus={returnFocusTo} onKeyDown={onKeyDown}>
+        <Dialog.Popup className="hd-image" finalFocus={returnFocusTo}>
           <div className="hd-image__bar">
             <Dialog.Title className="hd-image__title">{title}</Dialog.Title>
             <Dialog.Close className="hd-image__close" aria-label="Close the studio render">
@@ -324,6 +430,7 @@ export default function HdImageDialog({
                     />
                   )}
                   <img
+                    ref={renderRef}
                     className="hd-image__render"
                     data-loaded={loaded ? 'true' : undefined}
                     src={render.url}
@@ -332,8 +439,11 @@ export default function HdImageDialog({
                     height={render.height ?? undefined}
                     decoding="async"
                     draggable={false}
-                    onLoad={() => setLoaded(true)}
+                    onLoad={keepCopy}
                   />
+                  {/* The colour change (keepCopy, above): a copy of what is already on screen. */}
+                  {/* biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (as the stage's dye canvas). */}
+                  <canvas ref={dyeRef} className="dye-layer hd-image__dye" aria-hidden="true" />
                 </div>
               </div>
             )}
@@ -347,6 +457,7 @@ export default function HdImageDialog({
               <button
                 type="button"
                 className="hd-image__step"
+                data-step="-1"
                 aria-label={`Previous colour: ${previous.displayName}`}
                 onClick={() => step(-1)}
               >
@@ -366,6 +477,7 @@ export default function HdImageDialog({
               <button
                 type="button"
                 className="hd-image__step"
+                data-step="1"
                 aria-label={`Next colour: ${next.displayName}`}
                 onClick={() => step(1)}
               >

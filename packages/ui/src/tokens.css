@@ -108,6 +108,13 @@
      until polish D4 replaced the timeline, 2026-10-05) — read as broken at 800ms. Those only;
      reduced motion stops all of them. */
   --showpiece: 1400ms;
+  /* The colour change, one dye everywhere a garment changes colour (owner, 2026-10-26; packages/shared/
+     src/dyePlayer.ts reads these). A full dye scales with its distance from --dye-min to --dye-max;
+     a hover on the garment pages plays --dye-short. Faster than --slow (800ms, №03 until then): a
+     colour pick is a control a finger waits on, so a short trip finishes near --ui. */
+  --dye-min: 320ms;
+  --dye-max: 640ms;
+  --dye-short: 240ms;
   /* The pause between rows that arrive one after another: the phone menu's rows (visual audit
      VA-51, owner-approved 2026-10-01: "the links fading in 30-50 ms apart"). A 60ms stagger
      token lived here from 2026-08-14 to 2026-09-07 with nothing reading it — three audits

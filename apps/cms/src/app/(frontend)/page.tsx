@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { AboutSection } from '../../components/site/AboutSection'
 import { FactsBento } from '../../components/site/FactsBento'
 import { FamilyCard } from '../../components/site/FamilyCard'
+import { FamilyDye } from '../../components/site/FamilyDye'
 import { HomeHero } from '../../components/site/HomeHero'
 import { JsonLd } from '../../components/site/JsonLd'
 import { OrderTimeline } from '../../components/site/OrderTimeline'
@@ -199,8 +200,10 @@ export default async function HomePage() {
               )
             })}
           </ul>
-          {/* Escape closes an open card; everything else about the cards is CSS (polish D3). */}
+          {/* Escape closes an open card; everything else about the cards is CSS (polish D3), but for
+              the dye their pictures change colour with (FamilyDye.tsx, 2026-10-26). */}
           <TicketDismiss />
+          <FamilyDye />
         </div>
       </section>
 

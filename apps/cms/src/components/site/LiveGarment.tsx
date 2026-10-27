@@ -1,6 +1,7 @@
 'use client'
 
-import { type CSSProperties, createElement, useCallback, useEffect, useRef, useState } from 'react'
+import { copyModelFrame, playDye, readDyeTiming } from '@run-apparel/shared'
+import { createElement, useCallback, useEffect, useRef, useState } from 'react'
 import { autoLoadAllowed, type ConnectionHint, garmentTouchAction } from '../../lib/liveGarment'
 import type { LiveModel } from '../../lib/projectPublic'
 import {
@@ -71,18 +72,17 @@ import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
  * that passed. Panning is off here, so the dot is never needed; an empty element in its
  * `pan-target` slot takes its place and takes no pointer at all.
  *
- * ⚠️ A NEW COLOUR SPREADS OVER THE GARMENT FROM THE DOT THAT CHOSE IT, LIKE DYE (owner, 2026-10-19,
- * option A of two recorded on the live hoodie; the 2026-10-17 cross-fade "just changes"). model-viewer
- * swaps a variant in one frame (21–28 ms after the pick on an M4 Pro, measured 2026-10-17). Before the
- * swap, a picture of the garment as it is (`toBlob`, which returns real pixels where `toDataURL` is
- * blank: `.claude/rules/pipeline-evals.md`) is laid over the canvas; the new colour is applied under
- * it, and a circle opening from the chosen dot's nearest point on the frame (`from`) wipes the old
- * picture away over `--slow`, the tokens' "wipes and reveals", with a wet edge of the new colour
- * riding the circle, masked to the garment's own outline so it never stains the paper. While the
- * garment still turns by itself it turns a little further with the pick; once a visitor has turned it,
- * it stays where they left it. A wipe, not a fade: the garment keeps turning under the still picture,
- * and a fade showed both at once (option B's double image, the owner's recording).
- * Under reduced motion, or if the picture cannot be taken, the colour simply changes.
+ * ⚠️ A NEW COLOUR SOAKS INTO THE GARMENT FROM THE DOT THAT CHOSE IT, LIKE DYE (owner, 2026-10-19,
+ * option A of two recorded on the live hoodie; the 2026-10-17 cross-fade "just changes"; one dye
+ * everywhere a garment changes colour since 2026-10-26, packages/shared/src/dyePlayer.ts). The garment's
+ * current frame is copied from model-viewer's canvas (`copyModelFrame`, a synchronous `drawImage` of
+ * the preserved buffer), laid over it on a canvas, the new colour applied under it, and the copy erased
+ * from the chosen dot outwards along a noisy front with a darker wet edge. The copy replaced a
+ * `toBlob` picture that encoded and decoded a WebP first: a pick took 283 ms median to show anything
+ * at the reference machine's speed (measured 2026-10-26, e2e/liveGarment.spec.ts), against the owner's
+ * 100 ms. While the garment still turns by itself it turns a little further with the pick; once a
+ * visitor has turned it, it stays where they left it. Under reduced motion, or with no frame to copy,
+ * the colour simply changes.
  *
  * ⚠️ IT TURNS UNTIL TOUCHED, THEN STAYS STILL (polish F7, the owner's answer Q20). The first
  * press, drag or arrow key stops the turning for the rest of the visit: model-viewer's own
@@ -98,23 +98,13 @@ type ModelViewerElement = HTMLElement & {
   getDimensions?: () => { x: number; y: number; z: number }
   getCameraOrbit?: () => { theta: number; phi: number; radius: number }
   cameraOrbit?: string
-  toBlob?: (options?: { mimeType?: string; idealAspect?: boolean }) => Promise<Blob>
-}
-
-/**
- * The picture of the old colour laid over the garment while the new one is applied under it, and,
- * once it is, where its wipe opens from and how far it travels (px in the garment's box).
- */
-type Fade = {
-  url: string
-  wipe: { x: number; y: number; reach: number; swatch: string } | null
 }
 
 /** Where a pick came from: the chosen dot's centre on the screen, and its colour. */
 export type PickedFrom = { x: number; y: number; swatch: string }
 
-/** How far past the box's far corner the wipe runs: its soft edge must clear it too (site.css). */
-const WIPE_FEATHER_PX = 80
+/** How far the dye opens, as a share of its trip, before model-viewer has drawn the new colour. */
+const DYE_GATE = 0.2
 
 /** How far an untouched, turning garment turns with a pick (about 29°). */
 const PICK_TURN_RAD = 0.5
@@ -122,40 +112,14 @@ const PICK_TURN_RAD = 0.5
 /** A press that moves further than this is a drag that turned the garment, not a click. */
 const CLICK_SLOP_PX = 6
 
-/** Wait for the browser to paint what React just drew: two frames. */
-const nextPaint = () =>
-  new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
-
-/**
- * The wipe in the garment's box: from the chosen dot's nearest point on it (the dots sit beside the
- * garment from 900px and under it on a phone, so it opens from that side), to past its far corner.
- * No dot to read (a keyboard pick before the row is measured): from the box's foot, in the middle.
- */
-export function wipeFrom(
-  element: HTMLElement,
+/** A pick's dot, in px from the top-left of `element`'s box; `null` when there is none to read. */
+export function pointIn(
+  element: { getBoundingClientRect(): { left: number; top: number } },
   picked: PickedFrom | null,
-): NonNullable<Fade['wipe']> {
+): { x: number; y: number } | null {
+  if (!picked) return null
   const box = element.getBoundingClientRect()
-  const x = picked ? Math.min(Math.max(picked.x, box.left), box.right) - box.left : box.width / 2
-  const y = picked ? Math.min(Math.max(picked.y, box.top), box.bottom) - box.top : box.height
-  const reach =
-    Math.max(
-      Math.hypot(x, y),
-      Math.hypot(box.width - x, y),
-      Math.hypot(x, box.height - y),
-      Math.hypot(box.width - x, box.height - y),
-    ) + WIPE_FEATHER_PX
-  return { x, y, reach, swatch: picked?.swatch ?? 'transparent' }
-}
-
-/** The wipe's numbers as the custom properties site.css reads. */
-export function wipeStyle(wipe: NonNullable<Fade['wipe']>): CSSProperties {
-  return {
-    '--wipe-x': `${wipe.x}px`,
-    '--wipe-y': `${wipe.y}px`,
-    '--wipe-reach': `${wipe.reach}px`,
-    '--wipe-swatch': wipe.swatch,
-  } as CSSProperties
+  return { x: picked.x - box.left, y: picked.y - box.top }
 }
 
 let libraryLoading: Promise<void> | null = null
@@ -199,8 +163,9 @@ export function LiveGarment({
   const [touchAction, setTouchAction] = useState<'none' | 'pan-y'>('pan-y')
   // Zoom is on only after a click on the garment (owner, 2026-10-17); see the header.
   const [zoom, setZoom] = useState(false)
-  const [fade, setFade] = useState<Fade | null>(null)
   const layer = useRef<HTMLDivElement>(null)
+  // The canvas the dye is drawn on, laid over the garment.
+  const dye = useRef<HTMLCanvasElement>(null)
   // The visitor's reduced-motion setting, followed live (see the effect below). The state draws
   // the model's attributes; the ref is the same value for the colour swap's callback.
   const [reducedMotion, setReducedMotion] = useState(false)
@@ -215,55 +180,60 @@ export function LiveGarment({
   const turning = useRef(true)
   turning.current = !touched
 
-  // A colour chosen once the model is up switches it in place: model-viewer 4.3.1 applies a
+  // A colour chosen once the model is up switches it in place: model-viewer 4.4.0 applies a
   // `variantName` set at any time, and fires `variant-applied`, which re-applies the depth bias.
-  // The old colour's picture lies over the swap and is wiped away from the dot (see the header).
+  // The old colour's frame lies over the swap and soaks away from the dot (see the header).
   useEffect(() => {
     const mv = viewer.current
     const name = variant ?? model.variantId
     if (phase !== 'shown' || !mv || !name || !mv.availableVariants?.includes(name)) return
     if (mv.variantName === name) return
+    const canvas = dye.current
+    const old = document.createElement('canvas')
+    const picked = pickedFrom.current?.() ?? null
+    /*
+     * ⚠️ THE FRONT WAITS AT THE DOT UNTIL model-viewer HAS DRAWN THE NEW COLOUR (whole-branch review,
+     * 2026-10-26): the old path waited for `variant-applied` before wiping, and without that a heavy
+     * garment's dye could sweep over cloth still in the old colour, then snap. And a pick mid-dye
+     * starts from what is on screen (the player's takeover), never from a cleared garment.
+     */
+    const applied = new Promise((done) =>
+      mv.addEventListener('variant-applied', done, { once: true }),
+    )
+    const run =
+      !reduced.current && canvas && copyModelFrame(mv, old)
+        ? playDye({
+            layer: canvas,
+            old,
+            point: pointIn(canvas, picked),
+            swatch: picked?.swatch || null,
+            kind: 'full',
+            timing: readDyeTiming((token) => getComputedStyle(canvas).getPropertyValue(token)),
+            gate: { until: applied, at: DYE_GATE },
+          })
+        : null
+    /*
+     * ⚠️ THE NEW COLOUR GOES ON ONE FRAME AFTER THE DYE'S FIRST FRAME, NOT WITH IT (2026-10-26). The
+     * first render of a new variant is model-viewer's heaviest frame, and drawn together with the
+     * dye's first opening it held the visitor's first change back: 160-178 ms from the press at the
+     * reference machine's speed (e2e/liveGarment.spec.ts). The dye's wet front shows at the dot first;
+     * the colour is applied under the overlay a frame later, while the dye spreads.
+     */
     let alive = true
-    let url: string | null = null
-    const swap = () => {
-      if (alive) mv.variantName = name
-    }
-    if (reduced.current || typeof mv.toBlob !== 'function') {
-      swap()
-      return () => {
-        alive = false
+    const apply = () => {
+      if (!alive) return
+      mv.variantName = name
+      const orbit = mv.getCameraOrbit?.()
+      if (run && turning.current && orbit) {
+        mv.cameraOrbit = `${orbit.theta + PICK_TURN_RAD}rad ${orbit.phi}rad ${orbit.radius}m`
       }
     }
-    mv.toBlob({ mimeType: 'image/webp' })
-      .then(async (blob) => {
-        if (!alive) return
-        url = URL.createObjectURL(blob)
-        const picture = new Image()
-        picture.src = url
-        await picture.decode()
-        if (!alive) return
-        setFade({ url, wipe: null })
-        await nextPaint()
-        if (!alive) return
-        const applied = new Promise<void>((done) =>
-          mv.addEventListener('variant-applied', () => done(), { once: true }),
-        )
-        swap()
-        await applied
-        await nextPaint()
-        if (!alive) return
-        setFade({ url, wipe: wipeFrom(mv, pickedFrom.current?.() ?? null) })
-        const orbit = mv.getCameraOrbit?.()
-        if (turning.current && orbit) {
-          mv.cameraOrbit = `${orbit.theta + PICK_TURN_RAD}rad ${orbit.phi}rad ${orbit.radius}m`
-        }
-      })
-      .catch(swap)
+    if (run) run.firstFrame.then(() => requestAnimationFrame(apply))
+    else apply()
+    // A newer pick, or the garment leaving: clear this pick's dye at once.
     return () => {
       alive = false
-      // A newer pick, or the garment leaving: drop this pick's picture at once.
-      setFade(null)
-      if (url) URL.revokeObjectURL(url)
+      run?.cancel()
     }
   }, [phase, variant, model.variantId])
 
@@ -496,32 +466,11 @@ export function LiveGarment({
           <span className="live-garment__scroll live-garment__scroll--end" aria-hidden="true" />
         </>
       ) : null}
-      {fade ? (
-        // The old colour, wiped away over the new one (the header). Decorative: the model's own
-        // label already names the garment.
-        // biome-ignore lint/performance/noImgElement: a blob: picture of the canvas, made in the browser a moment ago; next/image cannot serve it.
-        <img
-          className="live-garment__fade"
-          src={fade.url}
-          alt=""
-          aria-hidden="true"
-          data-going={fade.wipe ? '' : undefined}
-          style={fade.wipe ? wipeStyle(fade.wipe) : undefined}
-          onAnimationEnd={(event) => {
-            if (event.target !== event.currentTarget) return
-            URL.revokeObjectURL(fade.url)
-            setFade(null)
-          }}
-        />
-      ) : null}
-      {fade?.wipe ? (
-        // The wet edge: the new colour riding the circle, held to the garment's outline by the old
-        // picture as a mask (its background is see-through).
-        <span
-          className="live-garment__edge"
-          aria-hidden="true"
-          style={{ ...wipeStyle(fade.wipe), maskImage: `url(${fade.url})` } as CSSProperties}
-        />
+      {live ? (
+        // The dye's canvas (dyePlayer.ts): a copy of what is already on screen, so hidden from screen
+        // readers; it never takes the pointer, so a drag during a change turns the garment.
+        // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (the garment pages' colour canvas and the website's globe carry the same note).
+        <canvas className="dye-layer" ref={dye} aria-hidden="true" />
       ) : null}
       {phase === 'shown' && !touched ? (
         // The garment pages' hint (`.stage__hint` in apps/viewer), in this page's words. Hidden from

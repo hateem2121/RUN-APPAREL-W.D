@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright'
 import { FAMILY_PAGES } from '../src/lib/familyPages'
+import { answerCardPictures } from './cardPictures'
 import { expect, type Locator, type Page, test } from './offlineMedia'
+import { slowDye } from './slowDye'
 
 /**
  * Polish D3, M1 and F1, rebuilt as D44 (the owner's option C2 of 15 October 2026): the home page's
@@ -231,6 +233,102 @@ test.describe('the row of five, from 1440px where a pointer can hover (D3; D44)'
     await expect(first.locator('.family-card__garment')).toHaveText(/\S/)
     await expect(first.locator('.family-card__colour .family-card__label')).toHaveText(/\S/)
     await expect(first.locator('.family-card__dots i.is-shown')).toHaveCount(1)
+  })
+
+  /*
+   * The dye (owner, 2026-10-26: one dye everywhere a garment changes colour; FamilyDye.tsx): an
+   * opening soaks the other colour in from its dot, a closing soaks it back, and nothing is left. What
+   * would have to break: the two pictures cross-fading again (no dye running over many frames), a
+   * layer left showing, or any dye for a visitor who asked for less motion.
+   */
+  test('opening a card soaks its other colour in, closing soaks it back, and nothing is left', async ({
+    page,
+  }) => {
+    await answerCardPictures(page)
+    await openRow(page, 1440, true)
+    const first = cards(page).first()
+    if ((await first.locator('.family-card__img--open').count()) === 0) {
+      if (process.env.CI) throw new Error('the seeded garment has no second colour to show')
+      test.skip(true, 'no garment with a second colour in this local database')
+    }
+    const pictures = first.locator('.family-card__img')
+    await expect
+      .poll(() =>
+        pictures.evaluateAll((all) =>
+          all.every(
+            (img) =>
+              (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0,
+          ),
+        ),
+      )
+      .toBe(true)
+    // Its script must own the card before the pointer arrives.
+    await page.waitForFunction(() => document.readyState === 'complete')
+    const layer = first.locator('.family-card__media > .dye-layer')
+    await layer.evaluate((element) => {
+      const w = window as unknown as { __frames: number }
+      w.__frames = 0
+      const tick = () => {
+        if (element.hasAttribute('data-running')) w.__frames++
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    const frames = () => page.evaluate(() => (window as unknown as { __frames: number }).__frames)
+    const reset = () =>
+      page.evaluate(() => {
+        ;(window as unknown as { __frames: number }).__frames = 0
+      })
+    // CI's WebKit drew 2 frames of the real one (PR #274); the timing tests hold its speed.
+    await slowDye(page)
+    await restOn(page, first)
+    await expect.poll(() => isOpen(first)).toBe(true)
+    await expect.poll(frames).toBeGreaterThan(5)
+    await expect(layer).not.toHaveAttribute('data-running', { timeout: 15000 })
+    expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
+    await reset()
+    await away(page)
+    await expect.poll(frames).toBeGreaterThan(2)
+    await expect(layer).not.toHaveAttribute('data-running', { timeout: 15000 })
+    expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
+  })
+
+  test('where the dye runs, the two pictures no longer cross-fade under it', async ({ page }) => {
+    await openRow(page, 1440, true)
+    const first = cards(page).first()
+    if ((await first.locator('.family-card__img--open').count()) === 0) {
+      if (process.env.CI) throw new Error('the seeded garment has no second colour to show')
+      test.skip(true, 'no garment with a second colour in this local database')
+    }
+    // The island turns the cross-fade off once it runs (FamilyDye.tsx): a double image under the dye.
+    await expect
+      .poll(() =>
+        first
+          .locator('.family-card__img')
+          .evaluateAll((all) => all.map((img) => getComputedStyle(img).transitionDuration)),
+      )
+      .toEqual(['0s', '0s'])
+  })
+
+  test('under reduced motion a card opens with no dye', async ({ page }) => {
+    await answerCardPictures(page)
+    await openRow(page)
+    const first = cards(page).first()
+    if ((await first.locator('.family-card__img--open').count()) === 0) {
+      if (process.env.CI) throw new Error('the seeded garment has no second colour to show')
+      test.skip(true, 'no garment with a second colour in this local database')
+    }
+    await page.evaluate(() => {
+      const w = window as unknown as { __dyed: boolean }
+      w.__dyed = false
+      new MutationObserver(() => {
+        if (document.querySelector('.family-card .dye-layer[data-running]')) w.__dyed = true
+      }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-running'] })
+    })
+    await restOn(page, first)
+    await expect.poll(() => isOpen(first)).toBe(true)
+    await page.waitForTimeout(600)
+    expect(await page.evaluate(() => (window as unknown as { __dyed: boolean }).__dyed)).toBe(false)
   })
 
   test('the pointer moving onto the opened words keeps it open; leaving the row closes it at once', async ({

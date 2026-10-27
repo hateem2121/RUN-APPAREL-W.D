@@ -19,9 +19,11 @@ const PLACEHOLDER = '923001234567'
 
 /*
  * A word boundary on both sides, so a number inside a longer run of digits or hex (a SHA-256,
- * the Google Maps `cid=4820576127932193003` in the footer) is not read as a phone number.
+ * the Google Maps `cid=4820576127932193003` in the footer) is not read as a phone number. A
+ * leading 0 straight before a decimal point is a fraction, never a trunk prefix: OKLab's
+ * `0.3963377774` in `packages/shared/src/dye.ts` was read as 0396 3377774 (2026-10-26).
  */
-const PK_MOBILE = /(?<![\w+])(?:\+?92|0)[\s().-]*3\d{2}(?:[\s().-]*\d){7}(?!\d)/g
+const PK_MOBILE = /(?<![\w+.])(?:\+?92|0(?!\.\d))[\s().-]*3\d{2}(?:[\s().-]*\d){7}(?!\d)/g
 
 /** Every Pakistani mobile number in `text` other than the two allowed, as 92XXXXXXXXXX. */
 function otherNumbers(text: string): string[] {
@@ -62,6 +64,12 @@ describe('the company has a single phone number', () => {
     expect(
       otherNumbers('551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'),
     ).toEqual([])
+  })
+
+  it('does not read a number out of a decimal fraction', () => {
+    // OKLab's matrices in packages/shared/src/dye.ts (Ottosson, 2020): "0." and ten digits from 3.
+    expect(otherNumbers('(L + 0.3963377774 * A + 0.2158037573 * B)')).toEqual([])
+    expect(otherNumbers('- 0.3413193965 * s2')).toEqual([])
   })
 
   it('finds no other number anywhere in the repository', () => {
