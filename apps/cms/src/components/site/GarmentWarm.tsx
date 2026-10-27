@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { garmentWarmPath } from '../../lib/garmentWarm'
+import { withdrawOnSaveData } from '../../lib/speculationRules'
 
 /**
  * Warms a garment's data the moment a visitor shows intent on its card (faster-taps spec, Part 3):
@@ -14,9 +15,16 @@ import { garmentWarmPath } from '../../lib/garmentWarm'
  * rather than `pointerenter`, because only the first reaches a listener on the document.
  * `siteOrigin` comes from the server layout (seo.ts SITE_ORIGIN), so seo.ts stays out of the
  * browser's bundle.
+ *
+ * It also withdraws the garment pages' speculation rule when the browser asks to save data
+ * (speculationRules.ts), the same "never on Save-Data" the card warming keeps below.
  */
+const asksToSaveData = () =>
+  Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData)
+
 export function GarmentWarm({ siteOrigin }: { siteOrigin: string }) {
   useEffect(() => {
+    withdrawOnSaveData(document, asksToSaveData())
     const warmed = new Set<string>()
     const intent = (event: Event) => {
       if (
@@ -29,10 +37,12 @@ export function GarmentWarm({ siteOrigin }: { siteOrigin: string }) {
       const link =
         event.target instanceof Element ? event.target.closest('.product-card a[href]') : null
       if (!(link instanceof HTMLAnchorElement)) return
-      const saveData = Boolean(
-        (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData,
+      const path = garmentWarmPath(
+        link.href,
+        new URL(window.location.href),
+        asksToSaveData(),
+        siteOrigin,
       )
-      const path = garmentWarmPath(link.href, new URL(window.location.href), saveData, siteOrigin)
       if (!path || warmed.has(path)) return
       warmed.add(path)
       // Fire and forget: a warm request that fails changes nothing for the visitor.

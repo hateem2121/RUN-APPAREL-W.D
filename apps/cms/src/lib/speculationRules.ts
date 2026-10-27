@@ -19,3 +19,21 @@
 export const GARMENT_PREFETCH_RULES = JSON.stringify({
   prefetch: [{ where: { href_matches: '/products/*/*' }, eagerness: 'conservative' }],
 })
+
+/**
+ * Removes the page's speculation rules when the browser asks to save data, and says how many it
+ * removed. Removing the script withdraws its rules (the after-deploy prefetch check of 27 Oct used
+ * exactly that as its control). Chrome already runs no speculation under Save-Data
+ * (developer.chrome.com, "Prerender pages", updated 23 Jan 2026); this holds the spec's "never on
+ * Save-Data" in the site's own code too, for any browser that does not (review of 27 Oct).
+ * GarmentWarm.tsx calls it once the page has loaded, before any card can be pressed.
+ */
+export function withdrawOnSaveData(
+  root: { querySelectorAll: (selector: string) => ArrayLike<{ remove: () => void }> },
+  saveData: boolean,
+): number {
+  if (!saveData) return 0
+  const rules = Array.from(root.querySelectorAll('script[type="speculationrules"]'))
+  for (const rule of rules) rule.remove()
+  return rules.length
+}
