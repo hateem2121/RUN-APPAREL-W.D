@@ -25,7 +25,7 @@
  * Usage: node scripts/warm-shared-store.mjs [https://wear-run.com]
  */
 import { realpathSync } from 'node:fs'
-import { rscCode, stateTreeFor } from '../apps/cms/tapStore.mjs'
+import { intentTreeFor, rscCode, stateTreeFor } from '../apps/cms/tapStore.mjs'
 
 export const SITE_ORIGIN = 'https://wear-run.com'
 export const API_ORIGIN = 'https://cms.wear-run.help'
@@ -57,8 +57,11 @@ export function warmTargets(sitemapXml, origin = SITE_ORIGIN) {
 }
 
 /**
- * The settled taps that fill each static page's tap data: `{ url, headers }`, the code computed for
- * exactly the headers sent. Kept files and dynamic routes (stateTreeFor gives null) are skipped.
+ * The settled taps that fill each static page's tap data, each followed by the hover that fetches
+ * the same page ahead: `{ url, headers }`, the code computed for exactly the headers sent. A hover
+ * sends another tree (tapStore.mjs intentTreeFor, checked live 27 Oct), so it has its own copy, and
+ * until this kept it too every hover in a fresh region was drawn while the tap beside it was kept.
+ * Kept files and dynamic routes (a tree of null) are skipped.
  */
 export async function warmTapTargets(paths, origin = SITE_ORIGIN) {
   const targets = []
@@ -67,13 +70,14 @@ export async function warmTapTargets(paths, origin = SITE_ORIGIN) {
     const segments = path.split('/').filter(Boolean)
     const starts = segments.length > 1 ? ['/', `/${segments.slice(0, -1).join('/')}`] : ['/']
     for (const from of starts) {
-      const tree = stateTreeFor(path, from)
-      if (tree === null) continue
-      const code = await rscCode({ stateTree: tree })
-      targets.push({
-        url: `${origin}${path}?_rsc=${code}`,
-        headers: { rsc: '1', 'next-router-state-tree': tree },
-      })
+      for (const tree of [stateTreeFor(path, from), intentTreeFor(path, from)]) {
+        if (tree === null) continue
+        const code = await rscCode({ stateTree: tree })
+        targets.push({
+          url: `${origin}${path}?_rsc=${code}`,
+          headers: { rsc: '1', 'next-router-state-tree': tree },
+        })
+      }
     }
   }
   return targets

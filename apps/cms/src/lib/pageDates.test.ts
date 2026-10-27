@@ -35,12 +35,29 @@ const sha = (value: unknown) =>
 const APP = join(__dirname, '..', 'app', '(frontend)')
 const SITE = join(__dirname, '..', 'components', 'site')
 
-/** Source with comments and spaces taken out, so a comment or a reformat moves no date. */
-const code = (file: string) =>
-  readFileSync(file, 'utf8')
+/**
+ * Source without its import statements (one line or several): where a page takes a component from
+ * is not its words (review of 27 Oct: 17 dates moved when the faster-taps work changed only the
+ * `Link` import). Read line by line, so no pattern can backtrack.
+ */
+const withoutImports = (source: string) => {
+  const kept: string[] = []
+  let inImport = false
+  for (const line of source.split('\n')) {
+    if (!inImport && /^import[\s{'"]/.test(line)) inImport = true
+    if (!inImport) kept.push(line)
+    else if (/(?:from\s*|^import\s*)['"][^'"]*['"];?\s*$/.test(line)) inImport = false
+  }
+  return kept.join('\n')
+}
+
+/** Source with imports, comments and spaces taken out, so none of them moves a date. */
+const stripped = (source: string) =>
+  withoutImports(source)
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|[\s;{}(),])\/\/[^\n]*/g, '$1')
     .replace(/\s+/g, '')
+const code = (file: string) => stripped(readFileSync(file, 'utf8'))
 const pageCode = (folder: string) => code(join(APP, folder, 'page.tsx'))
 const components = (...names: string[]) => names.map((name) => code(join(SITE, `${name}.tsx`)))
 
@@ -151,6 +168,20 @@ describe('page dates', () => {
       PAGE_DATES[path]?.words,
       `${path}'s words changed. In pageDates.ts set it to page(<now, ISO with zone>, '${words}')`,
     ).toBe(words)
+  })
+
+  // Review of 27 Oct: the faster-taps work changed one line in 13 page files, the `Link` import,
+  // and 17 sitemap dates moved though no word changed. Where a page takes its link from is not
+  // its words, so an import line (one line or several) moves no date.
+  it('a change to an import line alone moves no date', () => {
+    const before =
+      "import Link from 'next/link'\nimport type { A } from './a'\nexport const P = () => <Link href=\"/x\">x</Link>\n"
+    const after =
+      "import {\n  IntentLink as Link,\n} from './IntentLink'\nimport type { A } from './a'\nexport const P = () => <Link href=\"/x\">x</Link>\n"
+    expect(stripped(after)).toBe(stripped(before))
+    expect(stripped(after.replace('>x<', '>y<')), 'a word change must still show').not.toBe(
+      stripped(before),
+    )
   })
 
   it('dates every page in ISO 8601 with its zone, never in the future', () => {

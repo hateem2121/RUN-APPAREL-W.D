@@ -13,13 +13,20 @@
  * then 4 OTHER Pakistan probes found every one kept, 84 of 84 (Karachi 58, Islamabad 14, Lahore 12
  * data centres). Globalping returns only the first 10 KB of a body, and the store still kept them.
  *
- * ⚠️ IT NEVER FAILS A DEPLOY, and prints only counts and store states per country: the Actions log
- * is public. A Globalping error or limit is a GitHub warning and exit 0, and at 4 minutes it stops
- * waiting and cancels what is still in flight (warmWithin). It sends no cookie and no
- * credential (regionWarmPlan drops them), and its probes say who they are ("globalping probe"),
- * which page-store-digest.mjs counts as one of our own robots, never as a visitor.
+ * Then a second pass asks the first 15 addresses again from the same probes and prints how many the
+ * region now finds kept (review of 27 Oct; spec Part 6, Step 2).
  *
- * Usage: node scripts/warm-regions.mjs https://wear-run.com
+ * ⚠️ IT NEVER FAILS A DEPLOY, and prints only counts, store states and timings per country: the
+ * Actions log is public. A Globalping error or limit is a GitHub warning and exit 0, and each pass
+ * stops waiting at its budget and cancels what is still in flight (warmWithin). It sends no cookie
+ * and no credential (regionWarmPlan drops them), and its probes say who they are ("globalping
+ * probe"), which page-store-digest.mjs counts as one of our own robots, never as a visitor.
+ *
+ * `--measure` (perf-watch.yml, weekly) prints each state's timings and DOES fail, on Pakistan's own
+ * pass mark (owner, 27 Oct; regionJudgement): the second pass must find pages kept, and the
+ * store's answers must reach the first byte within 1 s at p75. No answers at all stays a warning.
+ *
+ * Usage: node scripts/warm-regions.mjs https://wear-run.com [--measure]
  */
 import { readFileSync, realpathSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -62,8 +69,24 @@ const NEVER_SENT = new Set(['cookie', 'authorization'])
 const CONCURRENCY = 3
 const POLL_MS = 1_000
 const POLLS = 30
-/** Inside the CI step's 5 minutes, so a slow Globalping ends in a warning, never a killed step. */
-const BUDGET_MS = 240_000
+/**
+ * The warm-up's and the second pass's budgets: together inside the CI step's limit (ci.yml, held
+ * by warmRegions.test.ts), so a slow Globalping ends in a warning, never a killed step.
+ */
+export const WARM_BUDGET_MS = 240_000
+export const READ_BACK_BUDGET_MS = 90_000
+/**
+ * The second pass (review of 27 Oct; spec Part 6, Step 2): the first addresses again, the five
+ * judged pages and their taps and hovers, from the probes the warm-up used, to say whether the
+ * region then finds them kept. 15 addresses × 2 probes: 90 tests with the warm-up's 60.
+ */
+export const READ_BACK_MAX = 15
+/**
+ * Pakistan's own pass mark (owner, 27 Oct): the store's answers there reach the first byte within
+ * 1 s at p75. Set before a store-only baseline existed (that day's pooled p75 was 1,877 ms, with
+ * 23 of 60 drawn), on the owner's call; the 23 Nov read of four weekly runs revisits it.
+ */
+export const STORE_FIRST_BYTE_P75_MS = 1_000
 
 /**
  * What to warm, in order, at most `max` (`{ url, headers }`): the five pages the speed targets are
@@ -121,25 +144,37 @@ export function regionWarmPlan(targets, countries, probesPerCountry) {
   })
 }
 
+/** One answer's store state from its `page-cache` or `api-cache` timing: hit, miss or other. */
+function storeState(result) {
+  const timing = [result?.headers?.['server-timing'] ?? ''].flat().join(', ')
+  const state = /(?:page|api)-cache;desc="(hit|miss|skip)"/.exec(timing)?.[1]
+  return state === 'hit' || state === 'miss' ? state : 'other'
+}
+
 /** Store states per probe country, from each answer's `page-cache` or `api-cache` timing. */
 export function regionVerdict(measurements) {
   const verdict = {}
   for (const measurement of measurements) {
     for (const { probe, result } of measurement.results ?? []) {
       const country = probe?.country ?? '??'
-      const timing = [result?.headers?.['server-timing'] ?? ''].flat().join(', ')
-      const state = /(?:page|api)-cache;desc="(hit|miss|skip)"/.exec(timing)?.[1]
       verdict[country] ??= { hit: 0, miss: 0, other: 0 }
-      if (state === 'hit' || state === 'miss') verdict[country][state] += 1
-      else verdict[country].other += 1
+      verdict[country][storeState(result)] += 1
     }
   }
   return verdict
 }
 
+/** Nearest-rank p75. */
+const p75 = (values) => {
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted[Math.ceil(0.75 * sorted.length) - 1]
+}
+
 /**
- * The weekly watch's numbers (`--measure`, perf-watch.yml): per probe country, the p75 (nearest
- * rank) of the time to the first byte and to the whole answer, from Globalping's own timings.
+ * The weekly watch's numbers (`--measure`, perf-watch.yml): per probe country and store state, the
+ * p75 (nearest rank) of the time to the first byte and to the whole answer, from Globalping's own
+ * timings. Review of 27 Oct: one pooled number per country hid a store that stopped answering
+ * behind the drawings around it, so the store's answers and fresh drawings are never pooled.
  */
 export function regionTimings(measurements) {
   const seen = {}
@@ -148,21 +183,101 @@ export function regionTimings(measurements) {
       const { firstByte, total } = result?.timings ?? {}
       if (!Number.isFinite(firstByte) || !Number.isFinite(total)) continue
       const country = probe?.country ?? '??'
-      seen[country] ??= { firstByte: [], total: [] }
-      seen[country].firstByte.push(firstByte)
-      seen[country].total.push(total)
+      const state = storeState(result)
+      seen[country] ??= {}
+      seen[country][state] ??= { firstByte: [], total: [] }
+      seen[country][state].firstByte.push(firstByte)
+      seen[country][state].total.push(total)
     }
   }
-  const p75 = (values) => {
-    const sorted = [...values].sort((a, b) => a - b)
-    return sorted[Math.ceil(0.75 * sorted.length) - 1]
-  }
   return Object.fromEntries(
-    Object.entries(seen).map(([country, { firstByte, total }]) => [
+    Object.entries(seen).map(([country, states]) => [
       country,
-      { n: firstByte.length, firstByteP75: p75(firstByte), totalP75: p75(total) },
+      Object.fromEntries(
+        Object.entries(states).map(([state, { firstByte, total }]) => [
+          state,
+          { n: firstByte.length, firstByteP75: p75(firstByte), totalP75: p75(total) },
+        ]),
+      ),
     ]),
   )
+}
+
+/** The second pass's bodies: the first READ_BACK_MAX addresses, from the warm-up's probes. */
+export function readBackPlan(plan, probes) {
+  return plan.slice(0, READ_BACK_MAX).map((body) => ({ ...body, locations: probes }))
+}
+
+/**
+ * Each country's pass mark: the second pass found pages kept, and the store's answers (from both
+ * passes) reach the first byte within STORE_FIRST_BYTE_P75_MS at p75. A country the second pass got
+ * no answer from is left out: a probe network that did not answer is not a slow site.
+ *
+ * @returns {Record<string, { verdict: 'pass' | 'fail', hits: number, asked: number, firstByteP75: number | null }>}
+ */
+export function regionJudgement(readBack, all) {
+  const timings = regionTimings(all)
+  const judged = {}
+  for (const [country, { hit, miss, other }] of Object.entries(regionVerdict(readBack))) {
+    const asked = hit + miss + other
+    if (asked === 0) continue
+    const firstByteP75 = timings[country]?.hit?.firstByteP75 ?? null
+    const pass = hit > 0 && firstByteP75 !== null && firstByteP75 <= STORE_FIRST_BYTE_P75_MS
+    judged[country] = { verdict: pass ? 'pass' : 'fail', hits: hit, asked, firstByteP75 }
+  }
+  return judged
+}
+
+const STATE_LABELS = [
+  ['hit', 'kept answers'],
+  ['miss', 'fresh drawings'],
+  ['other', 'other answers'],
+]
+
+/**
+ * What the run prints, and its exit code. Counts and timings only: the Actions log is public. The
+ * weekly watch (`measuring`) fails on a missed pass mark; after a deploy it only warns, because the
+ * warm-up must never fail a deploy.
+ */
+export function regionReport({ warmed, readBack, measuring }) {
+  const lines = []
+  let exitCode = 0
+  for (const [country, { hit, miss, other }] of Object.entries(regionVerdict(warmed))) {
+    lines.push(
+      `[warm-regions] ${country}: ${hit + miss + other} asked — ${miss} drawn now (miss), ${hit} already kept (hit), ${other} other`,
+    )
+  }
+  for (const [country, { hit, miss, other }] of Object.entries(regionVerdict(readBack))) {
+    lines.push(
+      `[warm-regions] ${country}: read back ${hit + miss + other} — ${hit} kept (hit), ${miss} drawn (miss), ${other} other`,
+    )
+  }
+  const all = [...warmed, ...readBack]
+  if (measuring) {
+    for (const [country, states] of Object.entries(regionTimings(all))) {
+      for (const [state, label] of STATE_LABELS) {
+        const timed = states[state]
+        if (!timed) continue
+        lines.push(
+          `[warm-regions] ${country}: ${label} p75 ${timed.firstByteP75} ms to the first byte, ${timed.totalP75} ms to the whole answer (${timed.n} answers)`,
+        )
+      }
+    }
+  }
+  for (const [country, judged] of Object.entries(regionJudgement(readBack, all))) {
+    if (judged.verdict === 'pass') continue
+    const why =
+      judged.hits === 0
+        ? `the second pass found ${judged.hits} of ${judged.asked} kept`
+        : `kept answers took ${judged.firstByteP75} ms to the first byte at p75, over ${STORE_FIRST_BYTE_P75_MS} ms`
+    if (measuring) {
+      lines.push(`::error::${country}: ${why}`)
+      exitCode = 1
+    } else {
+      lines.push(`::warning::${country}: ${why}; the deploy stands`)
+    }
+  }
+  return { lines, exitCode }
 }
 
 /**
@@ -254,23 +369,27 @@ async function main() {
     console.log('::warning::the sitemap listed no website pages; the buyer regions were not warmed')
     return
   }
-  const { done, stopped } = await warmWithin(plan, measure, BUDGET_MS)
+  const { done, stopped } = await warmWithin(plan, measure, WARM_BUDGET_MS)
   if (stopped !== null) {
     const why = stopped === 'budget' ? 'the 4-minute budget ran out' : stopped
     console.log(`::warning::${why}; ${done.length} of ${plan.length} addresses were warmed`)
   }
-  const timings = regionTimings(done)
-  for (const [country, { hit, miss, other }] of Object.entries(regionVerdict(done))) {
-    console.log(
-      `[warm-regions] ${country}: ${hit + miss + other} asked — ${miss} drawn now (miss), ${hit} already kept (hit), ${other} other`,
-    )
-    const timed = timings[country]
-    if (measuring && timed) {
+  // The second pass, from the probes the warm-up used (its first measurement picked them).
+  let readBack = []
+  if (done.length > 0) {
+    const again = readBackPlan(plan, done[0].id)
+    const second = await warmWithin(again, measure, READ_BACK_BUDGET_MS)
+    readBack = second.done
+    if (second.stopped !== null) {
+      const why = second.stopped === 'budget' ? 'its budget ran out' : second.stopped
       console.log(
-        `[warm-regions] ${country}: p75 ${timed.firstByteP75} ms to the first byte, ${timed.totalP75} ms to the whole answer (${timed.n} answers)`,
+        `::warning::the second pass stopped (${why}); ${readBack.length} of ${again.length} read back`,
       )
     }
   }
+  const report = regionReport({ warmed: done, readBack, measuring })
+  for (const line of report.lines) console.log(line)
+  process.exitCode = report.exitCode
 }
 
 if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
