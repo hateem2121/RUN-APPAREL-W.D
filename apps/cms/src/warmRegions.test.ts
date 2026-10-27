@@ -292,13 +292,11 @@ const timed = (
   state: string | null,
   firstByte: number,
   total = firstByte + 200,
-) => ({
-  probe: { country },
-  result: {
-    headers: state ? { 'server-timing': `page-cache;desc="${state}"` } : {},
-    timings: { firstByte, total },
-  },
-})
+) => {
+  const headers: Record<string, string> = {}
+  if (state) headers['server-timing'] = `page-cache;desc="${state}"`
+  return { probe: { country }, result: { headers, timings: { firstByte, total } } }
+}
 
 /*
  * Review of 27 Oct: Pakistan's timings pooled the store's answers with fresh drawings, so a store
