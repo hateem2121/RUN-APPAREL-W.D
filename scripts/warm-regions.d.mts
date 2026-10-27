@@ -11,13 +11,23 @@ export type RegionMeasurementBody = {
   }
 }
 
+export type RegionMeasurement = { id: string; results: unknown[] }
+
 export declare const REGION_TARGETS_MAX: number
+export declare const REGION_GARMENTS_MAX: number
 export declare const PROBES_PER_COUNTRY: number
+export declare function cardGarments(productsHtml: string): string[]
 export declare function regionTargets(
-  pages: string[],
+  sitemap: { pages: string[]; garments?: string[] },
   origin?: string,
   max?: number,
 ): Promise<RegionTarget[]>
+export declare function warmWithin(
+  plan: object[],
+  measureOne: (body: object, budget: AbortSignal) => Promise<RegionMeasurement>,
+  budgetMs: number,
+  concurrency?: number,
+): Promise<{ done: RegionMeasurement[]; stopped: null | string }>
 export declare function regionWarmPlan(
   targets: RegionTarget[],
   countries: string[],

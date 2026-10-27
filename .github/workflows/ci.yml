@@ -1662,18 +1662,6 @@ jobs:
         timeout-minutes: 5
         run: node scripts/warm-shared-store.mjs https://wear-run.com
 
-      # The store keeps a copy per region, and the step above warms the runner's, in the United
-      # States: the first buyer in Pakistan after a deploy still waited for a drawing (first taps
-      # 2.85-3.75 s, 26 Oct). This asks two home-network probes in each buyer country
-      # (scripts/warm-regions.countries.json) for the top-level pages and the tap into each, through
-      # Globalping's free probes (about 60 tests; 250 an hour are free). The spike of 2026-10-27:
-      # 21 cold pages, then 84 of 84 other Pakistan probes found them kept. It never fails the
-      # deploy (a Globalping error or limit is a warning; the script stops itself after 4 minutes)
-      # and prints only counts and store states per country.
-      - name: Post-deploy warm-up of the buyer regions
-        timeout-minutes: 5
-        run: node scripts/warm-regions.mjs https://wear-run.com
-
       # The per-garment link preview is produced by an HTMLRewriter in
       # apps/viewer/worker/index.ts, and HTMLRewriter does not exist under vitest —
       # so the unit tests cover every decision and NOTHING covers the rewrite. This
@@ -1706,6 +1694,23 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
         run: node scripts/ping-indexnow.mjs
+
+      # The store keeps a copy per region, and the US warm-up above warms the runner's: the first
+      # buyer in Pakistan after a deploy still waited for a drawing (first taps 2.85-3.75 s,
+      # 26 Oct). This asks two home-network probes in each buyer country
+      # (scripts/warm-regions.countries.json) for the five pages the speed targets are judged on,
+      # the tap into each, the first garments' data and then the other top-level pages, through
+      # Globalping's free probes (60 tests; 250 an hour are free). The spike of 2026-10-27: 21 cold
+      # pages, then 84 of 84 other Pakistan probes found them kept. It prints only counts and store
+      # states per country. It never fails the deploy: a Globalping error or limit is a warning,
+      # the script stops waiting at 4 minutes and cancels what is in flight, and it runs after the
+      # checks that gate the deploy with `continue-on-error`, because a review of 27 Oct found that
+      # slow measurements could outlive the old budget, have the step killed and turn a good
+      # deploy red.
+      - name: Post-deploy warm-up of the buyer regions
+        timeout-minutes: 5
+        continue-on-error: true
+        run: node scripts/warm-regions.mjs https://wear-run.com
 
       # Put the rollback command where someone will actually be looking.
       #

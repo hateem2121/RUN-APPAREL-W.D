@@ -5,25 +5,55 @@
  * copy per region (apps/cms/CLAUDE.md: Marseille and Muscat each drew the sitemap the US already
  * held, 25 Oct). So the first buyer in Pakistan after a deploy still waited for a drawing: 2.85 to
  * 3.75 s for a first tap on 26 Oct. Here two home-network probes in each buyer country
- * (warm-regions.countries.json) ask for the main pages and the tap into each, through Globalping
- * (jsDelivr's free probe network; anonymous use allows 250 tests an hour, this asks about 60).
+ * (warm-regions.countries.json) ask, in this order, for the five pages the speed targets are judged
+ * on, the tap into each, the first garments' data and then the other top-level pages, through
+ * Globalping (jsDelivr's free probe network; anonymous use allows 250 tests an hour, this asks 60).
  *
  * MEASURED BEFORE BUILDING (the spike of 27 Oct): 21 pages, all cold when two Pakistan probes asked;
  * then 4 OTHER Pakistan probes found every one kept, 84 of 84 (Karachi 58, Islamabad 14, Lahore 12
  * data centres). Globalping returns only the first 10 KB of a body, and the store still kept them.
  *
  * ⚠️ IT NEVER FAILS A DEPLOY, and prints only counts and store states per country: the Actions log
- * is public. A Globalping error or limit is a GitHub warning and exit 0. It sends no cookie and no
+ * is public. A Globalping error or limit is a GitHub warning and exit 0, and at 4 minutes it stops
+ * waiting and cancels what is still in flight (warmWithin). It sends no cookie and no
  * credential (regionWarmPlan drops them), and its probes say who they are ("globalping probe"),
  * which page-store-digest.mjs counts as one of our own robots, never as a visitor.
  *
  * Usage: node scripts/warm-regions.mjs https://wear-run.com
  */
 import { readFileSync, realpathSync } from 'node:fs'
-import { SITE_ORIGIN, warmTapTargets, warmTargets } from './warm-shared-store.mjs'
+import { setTimeout as sleep } from 'node:timers/promises'
+import { DESTINATIONS } from '../apps/cms/scripts/measure-taps.mjs'
+import { API_ORIGIN, SITE_ORIGIN, warmTapTargets, warmTargets } from './warm-shared-store.mjs'
 
 /** At most this many addresses, so one deploy uses well under Globalping's free hour. */
 export const REGION_TARGETS_MAX = 30
+/**
+ * At most this many garments' data: the first cards of the products page, the ones a buyer sees
+ * and opens first (cardGarments). The rest of the 41 are warmed in the buyer's own browser when a
+ * card is touched (GarmentWarm.tsx).
+ */
+export const REGION_GARMENTS_MAX = 10
+
+const GARMENT_PAGE = /^\/products\/([^/]+)\/([^/]+)$/
+
+/**
+ * The garments' data addresses in the order the products page shows its cards: each card's showing
+ * colour, its slide link in the tab order (CardGallery.tsx). Measured 27 Oct: the page leads with
+ * r-asb, r-wzu, r-ect…, which the sitemap lists 20th to 30th, so the sitemap's order is not it.
+ *
+ * @param {string} productsHtml
+ */
+export function cardGarments(productsHtml) {
+  const garments = []
+  for (const [tag] of productsHtml.matchAll(/<a\b[^>]*>/g)) {
+    if (!tag.includes('card-gallery__slide') || !tag.includes('tabindex="0"')) continue
+    const href = /\bhref="([^"]+)"/.exec(tag)?.[1]
+    const garment = href ? GARMENT_PAGE.exec(new URL(href, SITE_ORIGIN).pathname) : null
+    if (garment) garments.push(`${API_ORIGIN}/api/public/viewer/${garment[1]}/${garment[2]}`)
+  }
+  return garments
+}
 /** Home-network probes asked per country. */
 export const PROBES_PER_COUNTRY = 2
 
@@ -36,22 +66,36 @@ const POLLS = 30
 const BUDGET_MS = 240_000
 
 /**
- * The top-level website pages, then the tap into each from the home page (`{ url, headers }`),
- * at most `max`. The pages a buyer opens first; a nested page and the kept files are left to the
- * US warm-up.
+ * What to warm, in order, at most `max` (`{ url, headers }`): the five pages the speed targets are
+ * judged on (measure-taps.mjs DESTINATIONS), the tap into each, the first garments' data, then the
+ * other top-level pages. The spec (Part 6, Step 2) names "the main pages, their tap data and the
+ * most-opened garments' data". A nested page and the kept files are left to the US warm-up.
+ * Review, 27 Oct: this followed the sitemap's order and dropped the tap into Home, so the taps
+ * warmed were the buyer pages', /guides', /careers' and /press', never About, Contact, FAQ or Home.
+ * A tap's key does not depend on its start page (stateTreeFor('/', from) is the same for every
+ * start, checked that day), so the tap into Home from Home warms it from everywhere.
+ *
+ * @param {{ pages: string[], garments?: string[] }} sitemap warmTargets()' lists
  */
-export async function regionTargets(pages, origin = SITE_ORIGIN, max = REGION_TARGETS_MAX) {
+export async function regionTargets(
+  { pages, garments = [] },
+  origin = SITE_ORIGIN,
+  max = REGION_TARGETS_MAX,
+) {
+  const pathOf = (url) => new URL(url).pathname
   const top = pages.filter((url) => {
-    const { pathname } = new URL(url)
+    const pathname = pathOf(url)
     return !/\.[a-z]+$/i.test(pathname) && pathname.split('/').filter(Boolean).length <= 1
   })
-  const taps = (
-    await warmTapTargets(
-      top.map((url) => new URL(url).pathname),
-      origin,
-    )
-  ).filter((tap) => new URL(tap.url).pathname !== '/')
-  return [...top.map((url) => ({ url, headers: {} })), ...taps].slice(0, max)
+  const measured = DESTINATIONS.flatMap((path) => top.filter((url) => pathOf(url) === path))
+  const others = top.filter((url) => !DESTINATIONS.includes(pathOf(url)))
+  const asked = (url) => ({ url, headers: {} })
+  return [
+    ...measured.map(asked),
+    ...(await warmTapTargets(measured.map(pathOf), origin)),
+    ...garments.slice(0, REGION_GARMENTS_MAX).map(asked),
+    ...others.map(asked),
+  ].slice(0, max)
 }
 
 /** One Globalping measurement body per address: home-network probes in each country, a plain GET. */
@@ -121,25 +165,63 @@ export function regionTimings(measurements) {
   )
 }
 
-/** Create one measurement and wait for it; throws a fixed sentence, never the response body. */
-async function measure(body) {
+/**
+ * Create one measurement and wait for it; throws a fixed sentence, never the response body. Every
+ * request and every wait ends when `budget` does.
+ */
+async function measure(body, budget) {
+  const within = (ms) => AbortSignal.any([budget, AbortSignal.timeout(ms)])
   const created = await fetch(API, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(20_000),
+    signal: within(20_000),
   })
   if (created.status === 429) throw new Error('Globalping limit reached (429)')
   if (!created.ok) throw new Error(`Globalping answered ${created.status}`)
   const { id } = await created.json()
   for (let i = 0; i < POLLS; i++) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS))
-    const answer = await (
-      await fetch(`${API}/${id}`, { signal: AbortSignal.timeout(20_000) })
-    ).json()
+    await sleep(POLL_MS, undefined, { signal: budget })
+    const answer = await (await fetch(`${API}/${id}`, { signal: within(20_000) })).json()
     if (answer.status !== 'in-progress') return { id, results: answer.results ?? [] }
   }
   throw new Error('a Globalping measurement did not finish')
+}
+
+/**
+ * Runs the plan: the first measurement picks the probes and every later one asks the same probes
+ * again, at most `concurrency` at once. At `budgetMs` it stops waiting, even for a measurement that
+ * never ends, and every measurement holds the budget's signal so its requests are cancelled.
+ * Review, 27 Oct: the budget was checked only before a NEW measurement started, so slow ones could
+ * carry the CI step past its 5 minutes; Actions would kill it and turn a good deploy red.
+ *
+ * @param {object[]} plan regionWarmPlan()'s bodies
+ * @param {(body: object, budget: AbortSignal) => Promise<{ id: string, results: unknown[] }>} measureOne
+ * @param {number} budgetMs
+ * @returns {Promise<{ done: Array<{ id: string, results: unknown[] }>, stopped: null | string }>}
+ *   `stopped`: null when every address was asked, 'budget', or the error's fixed sentence.
+ */
+export async function warmWithin(plan, measureOne, budgetMs, concurrency = CONCURRENCY) {
+  const done = []
+  const budget = AbortSignal.timeout(budgetMs)
+  const outOfTime = new Promise((resolve) =>
+    budget.addEventListener('abort', () => resolve('budget'), { once: true }),
+  )
+  const work = (async () => {
+    const first = await measureOne(plan[0], budget)
+    done.push(first)
+    const queue = plan.slice(1).map((body) => ({ ...body, locations: first.id }))
+    await Promise.all(
+      Array.from({ length: concurrency }, async () => {
+        while (queue.length > 0 && !budget.aborted) {
+          done.push(await measureOne(queue.shift(), budget))
+        }
+      }),
+    )
+    return budget.aborted && queue.length > 0 ? 'budget' : null
+  })().catch((error) => (budget.aborted ? 'budget' : error.message))
+  const stopped = await Promise.race([work, outOfTime])
+  return { done: [...done], stopped }
 }
 
 async function main() {
@@ -159,33 +241,23 @@ async function main() {
   const countries = JSON.parse(
     readFileSync(new URL('./warm-regions.countries.json', import.meta.url), 'utf8'),
   )
-  const targets = await regionTargets(warmTargets(xml, origin).pages, origin)
+  const listed = warmTargets(xml, origin)
+  // The garments in the order a buyer sees their cards; the sitemap's order when that page fails.
+  const shown = await fetch(`${origin}/products`, { signal: AbortSignal.timeout(20_000) })
+    .then((answer) => (answer.ok ? answer.text() : ''))
+    .then(cardGarments)
+    .catch(() => [])
+  const garments = shown.length > 0 ? shown : listed.garments
+  const targets = await regionTargets({ pages: listed.pages, garments }, origin)
   const plan = regionWarmPlan(targets, countries, PROBES_PER_COUNTRY)
   if (plan.length === 0) {
     console.log('::warning::the sitemap listed no website pages; the buyer regions were not warmed')
     return
   }
-  const done = []
-  const deadline = Date.now() + BUDGET_MS
-  try {
-    // The first measurement picks the probes; every later one asks the same probes again.
-    const first = await measure(plan[0])
-    done.push(first)
-    const queue = plan.slice(1).map((body) => ({ ...body, locations: first.id }))
-    await Promise.all(
-      Array.from({ length: CONCURRENCY }, async () => {
-        while (queue.length > 0 && Date.now() < deadline) done.push(await measure(queue.shift()))
-      }),
-    )
-    if (queue.length > 0) {
-      console.log(
-        `::warning::the 4-minute budget ran out; ${done.length} of ${plan.length} addresses were warmed`,
-      )
-    }
-  } catch (error) {
-    console.log(
-      `::warning::${error.message}; ${done.length} of ${plan.length} addresses were warmed`,
-    )
+  const { done, stopped } = await warmWithin(plan, measure, BUDGET_MS)
+  if (stopped !== null) {
+    const why = stopped === 'budget' ? 'the 4-minute budget ran out' : stopped
+    console.log(`::warning::${why}; ${done.length} of ${plan.length} addresses were warmed`)
   }
   const timings = regionTimings(done)
   for (const [country, { hit, miss, other }] of Object.entries(regionVerdict(done))) {
