@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { calibratedThrottleRate, cpuBenchmarkInPage, isReferenceClass } from '@run-apparel/shared'
 import { expect, type Page, test } from './offlineMedia'
+import { slowDye } from './slowDye'
 
 /**
  * №03's live garment (decision D24, 2026-09-29). What would have to break for these to fail:
@@ -328,6 +329,9 @@ test.describe('№03 — the live 3D garment', () => {
     if (!box || !dot) throw new Error('no garment or dot')
     const ox = Math.min(Math.max(dot.x + dot.width / 2, box.x), box.x + box.width) - box.x
     const oy = Math.min(Math.max(dot.y + dot.height / 2, box.y), box.y + box.height) - box.y
+    // Ten times longer, so a slow machine still samples the front on its way: CI's runner drew 4
+    // frames of a 640 ms dye, none of them mid-way (PR #274). The timing tests hold its speed.
+    await slowDye(page)
     await page.evaluate(
       ({ ox, oy }) => {
         const w = window as unknown as {
@@ -351,7 +355,7 @@ test.describe('№03 — the live 3D garment', () => {
             const farX = ox < width / 2 ? width * 0.7 : width * 0.3
             w.__dye.push({ near: at(nearX), far: at(farX), opaque })
           }
-          if (performance.now() - start < 2500) requestAnimationFrame(tick)
+          if (performance.now() - start < 9000) requestAnimationFrame(tick)
         }
         requestAnimationFrame(tick)
       },
@@ -368,7 +372,7 @@ test.describe('№03 — the live 3D garment', () => {
       )
       .toBe('N001-BUTTER')
     await expect(page.locator('.live-garment .dye-layer[data-running]')).toHaveCount(0, {
-      timeout: 3000,
+      timeout: 15000,
     })
     await page.waitForTimeout(2600)
     const dye = await page.evaluate(

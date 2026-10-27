@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { slowDye } from './slowDye'
 import { stageFallsBack } from './stage'
 
 /**
@@ -622,6 +623,8 @@ test('the HD picture changes colour with the dye, and leaves nothing over it', a
   const picture = page.locator('.stage__hd')
   await expect(picture).toBeVisible()
   await picture.evaluate((img: HTMLImageElement) => img.decode())
+  // CI's Linux WebKit drew 2 or 3 frames of the real one (PR #274); the timing tests hold its speed.
+  await slowDye(page)
   await page.evaluate(() => {
     const w = window as unknown as { __frames: number }
     w.__frames = 0
@@ -634,7 +637,7 @@ test('the HD picture changes colour with the dye, and leaves nothing over it', a
   await page.getByRole('tab', { name: 'Pebble / Optic White' }).click()
   await expect(picture).toHaveAttribute('src', /blush/)
   const layer = page.locator('.stage__hd-dye')
-  await expect(layer).not.toHaveAttribute('data-running', { timeout: 5000 })
+  await expect(layer).not.toHaveAttribute('data-running', { timeout: 15000 })
   expect(
     await page.evaluate(() => (window as unknown as { __frames: number }).__frames),
     'the old picture was cut, not soaked away',
@@ -698,6 +701,7 @@ test('the full-screen view changes colour with the dye, and leaves nothing over 
   const dialog = page.getByRole('dialog')
   const picture = dialog.locator('.hd-image__render')
   await expect(picture).toHaveAttribute('data-loaded', 'true')
+  await slowDye(page)
   await watchFullDye(page)
   expect((await fullDye(page)).frames, 'opening the view is not a colour change').toBe(0)
 
@@ -705,7 +709,7 @@ test('the full-screen view changes colour with the dye, and leaves nothing over 
   await expect(picture).toHaveAttribute('src', /blush/)
   const layer = dialog.locator('.hd-image__dye')
   await expect(layer).toHaveAttribute('data-running', '', { timeout: 2000 })
-  await expect(layer).not.toHaveAttribute('data-running', { timeout: 5000 })
+  await expect(layer).not.toHaveAttribute('data-running', { timeout: 15000 })
   const seen = await fullDye(page)
   expect(seen.frames, 'the old picture was cut, not soaked away').toBeGreaterThan(5)
   expect(seen.inked, 'the dye ran over a blank layer').toBe(true)

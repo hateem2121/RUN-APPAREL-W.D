@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { slowDye } from './slowDye'
 
 /**
  * A colour change soaks into the garment like dye (owner, 2026-10-26: one dye everywhere a garment
@@ -181,6 +182,9 @@ test.describe('a colour change soaks into the garment like dye', () => {
   test('a hover previews with the short dye; a click plays the full one', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await openStill(page)
+    // Ten times longer, so a frame's slack is small beside the gap between the two kinds: CI's
+    // software 3D measured the 240 ms hover at 408 ms (PR #274), past the 320 ms a pick starts at.
+    await slowDye(page)
     // How long each dye runs, from its layer's data-running.
     await page.evaluate(() => {
       const w = window as unknown as { __lengths: number[] }
@@ -199,18 +203,17 @@ test.describe('a colour change soaks into the garment like dye', () => {
     const lengths = () =>
       page.evaluate(() => (window as unknown as { __lengths: number[] }).__lengths)
     await page.getByRole('tab', { name: /black/i }).hover()
-    await expect.poll(lengths, { timeout: 5000 }).toHaveLength(1)
+    await expect.poll(lengths, { timeout: 15000 }).toHaveLength(1)
     // The pointer leaves the dots: back to the chosen colour, short again.
     await page.mouse.move(5, 5)
-    await expect.poll(lengths, { timeout: 5000 }).toHaveLength(2)
+    await expect.poll(lengths, { timeout: 15000 }).toHaveLength(2)
     await page.getByRole('tab', { name: /butter/i }).click()
-    await expect.poll(lengths, { timeout: 5000 }).toHaveLength(3)
+    await expect.poll(lengths, { timeout: 15000 }).toHaveLength(3)
     const [hover, back, click] = await lengths()
-    // --dye-short is 240 ms; frames on software 3D add up to ~150 ms of slack.
-    expect(hover, 'the hover').toBeLessThan(240 + 150)
-    expect(back, 'leaving the dots').toBeLessThan(240 + 150)
-    // A pick is the full dye, at least --dye-min (320 ms).
-    expect(click, 'the click').toBeGreaterThanOrEqual(320)
+    // Slowed, --dye-short is 2,400 ms and a pick at least --dye-min, 3,200 ms: 800 ms apart.
+    expect(hover, 'the hover').toBeLessThan(2400 + 600)
+    expect(back, 'leaving the dots').toBeLessThan(2400 + 600)
+    expect(click, 'the click').toBeGreaterThanOrEqual(3200)
     expect(click).toBeGreaterThan(hover as number)
   })
 

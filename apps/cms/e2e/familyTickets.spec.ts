@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { FAMILY_PAGES } from '../src/lib/familyPages'
 import { answerCardPictures } from './cardPictures'
 import { expect, type Locator, type Page, test } from './offlineMedia'
+import { slowDye } from './slowDye'
 
 /**
  * Polish D3, M1 and F1, rebuilt as D44 (the owner's option C2 of 15 October 2026): the home page's
@@ -278,15 +279,17 @@ test.describe('the row of five, from 1440px where a pointer can hover (D3; D44)'
       page.evaluate(() => {
         ;(window as unknown as { __frames: number }).__frames = 0
       })
+    // CI's WebKit drew 2 frames of the real one (PR #274); the timing tests hold its speed.
+    await slowDye(page)
     await restOn(page, first)
     await expect.poll(() => isOpen(first)).toBe(true)
     await expect.poll(frames).toBeGreaterThan(5)
-    await expect(layer).not.toHaveAttribute('data-running', { timeout: 3000 })
+    await expect(layer).not.toHaveAttribute('data-running', { timeout: 15000 })
     expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
     await reset()
     await away(page)
     await expect.poll(frames).toBeGreaterThan(2)
-    await expect(layer).not.toHaveAttribute('data-running', { timeout: 3000 })
+    await expect(layer).not.toHaveAttribute('data-running', { timeout: 15000 })
     expect(await layer.evaluate((element) => getComputedStyle(element).visibility)).toBe('hidden')
   })
 
