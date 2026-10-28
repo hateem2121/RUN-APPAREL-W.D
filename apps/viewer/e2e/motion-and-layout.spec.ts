@@ -4269,3 +4269,42 @@ test.describe('the №02 steps lie in two columns on a wide screen', () => {
     }
   })
 })
+
+/**
+ * THE LOWER SECTIONS START WHERE THE 3D STAGE STARTS (owner, 2026-10-26, site check). At 1440px the
+ * stage began at x=120 and the trail and every section at x=168, because `--site-max` counted the
+ * 48px gutters inside its 1200px. `styles/columnEdges.test.ts` holds the arithmetic. Exact from
+ * 1296px wide; under it the stage's own 3vw gutter still differs from the page's 4vw by up to 10px,
+ * so only widths from 1296px are asserted (see the comment on `.page` in page.css).
+ */
+test.describe('the lower sections start where the stage starts (wide screens)', () => {
+  for (const width of [1296, 1440, 1920, 2560]) {
+    test(`${width}px wide: the trail, the steps card and the footer's words share the stage's left edge`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.goto('/n001/wine')
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      const edges = await page.evaluate(() => {
+        const left = (selector: string) =>
+          (document.querySelector(selector) as Element).getBoundingClientRect().left
+        return {
+          stage: left('.stage-block > [role="tabpanel"]'),
+          trail: left('.trail'),
+          steps: left('.steps'),
+          footer: left('.site-footer__inner'),
+        }
+      })
+      for (const [name, x] of [
+        ['trail', edges.trail],
+        ['steps card', edges.steps],
+        ['footer words', edges.footer],
+      ] as const) {
+        expect(
+          Math.abs(x - edges.stage),
+          `the ${name} starts at x=${x}, the stage at x=${edges.stage}`,
+        ).toBeLessThanOrEqual(2)
+      }
+    })
+  }
+})

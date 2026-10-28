@@ -2331,7 +2331,18 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
 
     const measured = await page.evaluate(() => ({
       headerWidth: document.querySelector('.notch-shell')?.getBoundingClientRect().width ?? 0,
-      contentWidth: document.querySelector('.content')?.getBoundingClientRect().width ?? 0,
+      // The WORDS' width: since 2026-10-28 the 1,200px counts the words and the gutters sit
+      // outside it (page.css, the edge line-up), so the box itself is 1,296px at this width.
+      contentWidth: (() => {
+        const content = document.querySelector('.content')
+        if (!content) return 0
+        const style = getComputedStyle(content)
+        return (
+          content.getBoundingClientRect().width -
+          Number.parseFloat(style.paddingLeft) -
+          Number.parseFloat(style.paddingRight)
+        )
+      })(),
       // document.documentElement.clientWidth, NOT window.innerWidth: innerWidth includes a
       // classic scrollbar's track, which the full-bleed bar shell does not paint under (I5,
       // same fix as apps/cms/e2e/composition.spec.ts's SZ-15 — see that file's header for
@@ -2345,8 +2356,10 @@ test.describe('the content column stays capped at ultrawide (SZ-15)', () => {
     ).toBeGreaterThanOrEqual(measured.viewportWidth - 1)
     expect(
       measured.contentWidth,
-      `.content is ${measured.contentWidth}px wide at 2560px — it should stay at or under 1200px`,
+      `.content's words are ${measured.contentWidth}px wide at 2560px — they should stay at or under 1200px`,
     ).toBeLessThanOrEqual(1200)
+    // …and reach it: a column that shrank back to 1,104px of words would also pass the cap.
+    expect(measured.contentWidth).toBeGreaterThanOrEqual(1199)
   })
 })
 

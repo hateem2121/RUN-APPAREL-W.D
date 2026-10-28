@@ -185,9 +185,18 @@ test.describe('the larger stage keeps the page whole (VA-12)', () => {
 
   test('the content column below the stage keeps its 1200px', async ({ page }) => {
     await openGarment(page, 3840, 2160)
-    const content = await page.evaluate(
-      () => document.querySelector('.content')?.getBoundingClientRect().width ?? 0,
-    )
-    expect(content).toBeLessThanOrEqual(1200)
+    // The words' width: the 1,200px counts words, with the gutters outside (page.css, 2026-10-28).
+    const words = await page.evaluate(() => {
+      const content = document.querySelector('.content')
+      if (!content) return 0
+      const style = getComputedStyle(content)
+      return (
+        content.getBoundingClientRect().width -
+        Number.parseFloat(style.paddingLeft) -
+        Number.parseFloat(style.paddingRight)
+      )
+    })
+    expect(words).toBeLessThanOrEqual(1200)
+    expect(words).toBeGreaterThanOrEqual(1199)
   })
 })

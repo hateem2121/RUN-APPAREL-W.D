@@ -40,8 +40,23 @@
  * (measured 2026-10-04, `e2e/siteFooter.spec.ts`). Now the footer's first word sits under the
  * trail's, at every width.
  */
+/*
+ * ⚠️ 1200px OF WORDS, WITH THE GUTTERS OUTSIDE IT (owner, 2026-10-26, site check). `--site-max`
+ * was 1200px, so the box held the gutters and its words were 1,104px wide, 48px in from each
+ * edge of the 3D stage above them: at 1440px wide the stage began at x=120 and the trail, every
+ * section and the footer's words at x=168. The stage band centres 1200px of ITS OWN
+ * (`.stage-block`, below), so the page's column is now 1200px plus the two gutters and both
+ * start at x=120. The widths are the same two numbers DESIGN.md §4 fixes, 1200px for a garment
+ * page; what changed is what the 1200px counts. The footer reads these same two tokens, so its
+ * words moved with the content (`e2e/siteFooter.spec.ts` holds them to each other).
+ *
+ * Exact from 1296px wide (1200px + two 48px gutters). Between 900px and 1296px the stage's
+ * padding is its `--stage-gutter` (3vw, up to 40px) against this gutter (4vw, up to 48px), so
+ * the two still differ by up to 10px there, as they did before. Left as it was on purpose: the
+ * stage's width is what its height floors were measured against (`useIdentityInAside.ts`).
+ */
 .page {
-  --site-max: 1200px;
+  --site-max: calc(1200px + 2 * var(--site-gutter));
   --site-gutter: clamp(16px, 4vw, 48px);
 }
 
