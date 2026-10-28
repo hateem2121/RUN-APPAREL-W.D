@@ -15,7 +15,13 @@
  */
 import http from 'node:http'
 import https from 'node:https'
-import { headProblems, payloadCopyProblems, readHead, runVerdict } from './live-copy.mjs'
+import {
+  attemptResult,
+  headProblems,
+  payloadCopyProblems,
+  readHead,
+  runVerdict,
+} from './live-copy.mjs'
 import { LIVE_PRODUCTS } from './live-products.mjs'
 
 // The website's garment folder since the domain move of 2026-09-28.
@@ -103,7 +109,8 @@ async function check() {
 
 let result = { problems: [], refusedCount: 0, pages: 0 }
 for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
-  result = await check()
+  // A cut connection is one more problem to ask again, not a crash (live-copy.mjs, attemptResult).
+  result = await attemptResult(check)
   if (result.refusedCount === -1 || result.problems.length === 0 || attempt === ATTEMPTS) break
   console.log(
     `   attempt ${attempt}/${ATTEMPTS}: ${result.problems.length} problem(s), retrying in ${RETRY_DELAY_MS / 1000}s…`,

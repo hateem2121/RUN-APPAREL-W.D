@@ -118,9 +118,31 @@ const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
  */
 const API_RETRY_MS = Number(process.env.SMOKE_API_RETRY_MS || 5000)
 
+/**
+ * A cut connection is asked once more too (issue #285, 27 Oct 2026): after #282 deployed, one
+ * poster fetch from the GitHub runner ended in `fetch failed` with no answer at all, and the same
+ * poster answered 200 three times from Pakistan straight after; the failed check stopped the
+ * deploy before its warm-ups. Node's fetch throws `TypeError: fetch failed` for a cut connection;
+ * a timeout throws a TimeoutError, which is not asked again, and any answer is judged as before.
+ * Every network call here goes through this, with the same pause and a visible `::warning::`.
+ */
+async function fetchOnceMore(url, init = {}) {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
+  } catch (err) {
+    if (!(err instanceof TypeError && err.message === 'fetch failed')) throw err
+    console.log(
+      `::warning::the connection to ${url} dropped before an answer; asking once more in ` +
+        `${API_RETRY_MS / 1000} s before calling it a failure.`,
+    )
+    await new Promise((resolve) => setTimeout(resolve, API_RETRY_MS))
+    return fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
+  }
+}
+
 async function getJson(url) {
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+    const res = await fetchOnceMore(url)
     if (INCONCLUSIVE_STATUSES.has(res.status)) {
       const err = new Error(`HTTP ${res.status} ${res.statusText}`)
       err.inconclusive = true
@@ -228,15 +250,14 @@ if (expectComingSoon && !modelUrl) {
   let headVerdict = 'unknown'
 
   try {
-    let res = await fetch(modelUrl, { method: 'HEAD', signal: AbortSignal.timeout(TIMEOUT_MS) })
+    let res = await fetchOnceMore(modelUrl, { method: 'HEAD' })
 
     // Some edges do not answer HEAD for R2 objects. Fall back to a 1-byte range
     // rather than the whole file: content-range still carries the true size.
     if (res.status === 405 || res.status === 501) {
-      res = await fetch(modelUrl, {
+      res = await fetchOnceMore(modelUrl, {
         method: 'GET',
         headers: { range: 'bytes=0-0' },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
       })
     }
 
@@ -330,7 +351,7 @@ if (expectComingSoon && !modelUrl) {
   // a different cache entry, which is the exact bug being tested for.
   if (BROWSER_GET && modelUrl) {
     try {
-      const res = await fetch(modelUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+      const res = await fetchOnceMore(modelUrl)
       await res.body?.cancel().catch(() => {})
 
       if (res.status === 403) {
@@ -384,10 +405,7 @@ if (expectComingSoon && !modelUrl) {
   }
   for (const c of withPoster) {
     try {
-      const res = await fetch(c.poster.url, {
-        method: 'GET',
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      })
+      const res = await fetchOnceMore(c.poster.url, { method: 'GET' })
       if (res.status === 403) {
         console.log(
           `  posters   WARN: ${c.slug} HTTP 403 (Bot Fight Mode) — not verified from here`,

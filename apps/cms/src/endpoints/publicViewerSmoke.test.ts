@@ -67,8 +67,15 @@ async function startOrigin({
   comingSoon,
   apiFailures = [],
   apiCalls,
+  drop,
 }: {
   getStatus: number
+  /**
+   * Paths (by prefix) whose connection is cut without an answer: on the `first` request only, or on
+   * `every` one. Node's fetch then throws `TypeError: fetch failed`, as it did from a GitHub runner
+   * for one poster on 27 Oct (issue #285).
+   */
+  drop?: { paths: string[]; every?: boolean; seen?: Map<string, number> }
   /** Statuses the garment API answers with first, one per call, before the real payload. */
   apiFailures?: number[]
   /** Counts the garment API calls, for asserting how many asks there were. */
@@ -84,6 +91,15 @@ async function startOrigin({
   server = createServer((req, res) => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname
     const port = (server!.address() as { port: number }).port
+
+    const dropped = drop?.paths.find((prefix) => path.startsWith(prefix))
+    if (drop && dropped !== undefined) {
+      if (!drop.seen) drop.seen = new Map()
+      const seen = drop.seen
+      const count = (seen.get(dropped) ?? 0) + 1
+      seen.set(dropped, count)
+      if (drop.every || count === 1) return void req.socket.destroy()
+    }
 
     if (path.startsWith('/api/public/viewer/')) {
       const call = apiCalls ? apiCalls.n++ : 0
@@ -254,6 +270,48 @@ describe('post-deploy smoke test — one more ask after a server error (#189)', 
     expect(code).not.toBe(0)
     expect(output).toContain('HTTP 404')
     expect(apiCalls.n).toBe(1)
+  }, 30_000)
+})
+
+/*
+ * Issue #285 (27 Oct 2026): after #282 deployed, one poster fetch from the GitHub runner ended in
+ * `fetch failed`, a cut connection rather than an answer. The same poster answered 200 three times
+ * from Pakistan straight after, and the failed check stopped the deploy before its warm-ups. A cut
+ * connection is asked once more, like a 5xx (#189); one that is cut again still fails.
+ */
+describe('post-deploy smoke test — one more ask after a dropped connection (#285)', () => {
+  it('passes when a poster’s first connection drops and the second answers, with a warning', async () => {
+    const drop = { paths: ['/poster.webp'] }
+    const port = await startOrigin({
+      getStatus: 200,
+      comingSoon: { flag: true, pictures: 2 },
+      drop,
+    })
+    const { code, output } = await runSmoke(port, { browserGet: true, listSaysComingSoon: true })
+    expect(code, output).toBe(0)
+    expect(output).toContain('::warning::the connection to')
+    expect(output).toContain('every colourway serves its picture')
+  }, 30_000)
+
+  it('still fails when the poster’s connection drops every time', async () => {
+    const drop = { paths: ['/poster.webp'], every: true, seen: new Map<string, number>() }
+    const port = await startOrigin({
+      getStatus: 200,
+      comingSoon: { flag: true, pictures: 2 },
+      drop,
+    })
+    const { code, output } = await runSmoke(port, { browserGet: true, listSaysComingSoon: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('could not be fetched')
+    // Two posters, two asks each: one more ask, not a loop.
+    expect(drop.seen.get('/poster.webp')).toBe(4)
+  }, 30_000)
+
+  it('passes when the garment data’s first connection drops', async () => {
+    const port = await startOrigin({ getStatus: 200, drop: { paths: ['/api/public/viewer/'] } })
+    const { code, output } = await runSmoke(port, { browserGet: true })
+    expect(code, output).toBe(0)
+    expect(output).toContain('serves a real, fetchable model')
   }, 30_000)
 })
 

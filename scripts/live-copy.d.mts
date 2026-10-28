@@ -11,3 +11,11 @@ export declare function runVerdict(result: {
   refusedCount?: number
   pages?: number
 }): 'problems' | 'inconclusive' | 'clean'
+export interface CopyResult {
+  problems: string[]
+  refusedCount: number
+  pages: number
+}
+export declare function attemptResult<T extends CopyResult>(
+  check: () => Promise<T>,
+): Promise<T | CopyResult>
