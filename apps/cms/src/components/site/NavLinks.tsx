@@ -9,6 +9,7 @@ import {
   SITE_NAV_LINKS,
 } from '@run-apparel/shared'
 import { IntentLink as Link } from './IntentLink'
+import { LinkPending } from './LinkPending'
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -110,6 +111,7 @@ export function NavLinks() {
           aria-current={pathname === href ? 'page' : undefined}
         >
           {label}
+          <LinkPending />
         </Link>
       ))}
       {/* In the phone menu only (VA-37): `nav-link--menu` is hidden in the wide bar (notch.css). */}
@@ -121,6 +123,7 @@ export function NavLinks() {
           aria-current={pathname === href ? 'page' : undefined}
         >
           {label}
+          <LinkPending />
         </Link>
       ))}
     </>

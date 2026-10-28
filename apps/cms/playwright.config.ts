@@ -120,11 +120,13 @@ export default defineConfig({
      * `bigText` the same day: twice-size text on a 320px phone ran off the side in WebKit as well.
      * `garmentPrefetch` joined 2026-10-27 (faster-taps Task 6): the speculation rule is held to what
      * each engine says it supports, and most buyers open a garment from an iPhone.
+     * `pressedLink` the same day (look B): the tapped link's mark is drawn through `:has()`, as the
+     * sport filter's chips are, and a buyer on a Mac taps the bar in Safari.
      */
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText|garmentPrefetch)\.spec\.ts/,
+        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText|garmentPrefetch|pressedLink)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],
