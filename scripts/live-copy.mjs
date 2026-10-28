@@ -108,3 +108,40 @@ export function runVerdict({ problems = [], refusedCount = 0, pages = 0 }) {
   if (refusedCount === -1 || (pages === 0 && refusedCount > 0)) return 'inconclusive'
   return 'clean'
 }
+
+/**
+ * Codes Node gives a request whose connection was cut or never made, as opposed to one the server
+ * answered. A refused connection and a DNS hiccup are included: each is asked again by the loop,
+ * and a host that stays unreachable still fails every attempt.
+ */
+const CUT_CONNECTION = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ECONNABORTED',
+  'EPIPE',
+  'ETIMEDOUT',
+  'EAI_AGAIN',
+  'UND_ERR_SOCKET',
+])
+
+/**
+ * One attempt of the check, with a cut connection turned into a problem the attempt loop asks
+ * again (uptime run 40414925189, 26 Oct 2026: every check passed, then `read ECONNRESET` crashed
+ * the script and the run counted as an outage). `fetch` reports a cut connection as
+ * `TypeError: fetch failed` (issue #285, 27 Oct); any other error is a bug and goes through.
+ */
+export async function attemptResult(check) {
+  try {
+    return await check()
+  } catch (error) {
+    const cut =
+      (error instanceof TypeError && error.message === 'fetch failed') ||
+      CUT_CONNECTION.has(error?.code)
+    if (!cut) throw error
+    return {
+      problems: [`the connection dropped before every check ran: ${error.message}`],
+      refusedCount: 0,
+      pages: 0,
+    }
+  }
+}

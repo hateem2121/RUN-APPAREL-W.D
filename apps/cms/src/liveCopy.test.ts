@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  attemptResult,
   headProblems,
   payloadCopyProblems,
   readHead,
@@ -110,5 +113,52 @@ describe('runVerdict — a refusal never overrules a finding', () => {
   it('passes a clean run, including one where only some requests were refused', () => {
     expect(runVerdict({ problems: [], refusedCount: 0, pages: 80 })).toBe('clean')
     expect(runVerdict({ problems: [], refusedCount: 3, pages: 77 })).toBe('clean')
+  })
+})
+
+/*
+ * Uptime run 40414925189 (26 Oct 2026): every check passed, then this script crashed on
+ * `read ECONNRESET` and the run counted as an outage. A cut connection is now a problem the
+ * script's own attempt loop asks again; one that is cut on every attempt still fails the run.
+ */
+describe('attemptResult — a cut connection is asked again, not a crash', () => {
+  const reset = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })
+
+  it('turns a cut connection into a problem the loop retries', async () => {
+    const result = await attemptResult(async () => {
+      throw reset
+    })
+    expect(result.problems).toEqual([
+      'the connection dropped before every check ran: read ECONNRESET',
+    ])
+    expect(runVerdict(result)).toBe('problems')
+  })
+
+  it('treats a cut fetch the same way', async () => {
+    const result = await attemptResult(async () => {
+      throw new TypeError('fetch failed')
+    })
+    expect(result.problems).toHaveLength(1)
+  })
+
+  it('hands back a finished check unchanged', async () => {
+    const clean = { problems: [], refusedCount: 0, pages: 80 }
+    expect(await attemptResult(async () => clean)).toBe(clean)
+  })
+
+  it('lets any other error through, so a bug is never mistaken for the network', async () => {
+    await expect(
+      attemptResult(async () => {
+        throw new ReferenceError('check is not defined')
+      }),
+    ).rejects.toThrow('check is not defined')
+  })
+
+  it('smoke-live-copy.mjs runs every attempt through it', () => {
+    const script = readFileSync(
+      join(import.meta.dirname, '..', '..', '..', 'scripts', 'smoke-live-copy.mjs'),
+      'utf8',
+    )
+    expect(script).toMatch(/result = await attemptResult\(check\)/)
   })
 })
