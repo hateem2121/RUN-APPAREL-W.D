@@ -36,7 +36,7 @@ the capture is what makes it *noticed*. Do not skip step 2 because step 1 succee
 ## Steps
 
 Run every command from the repo root. Every command below uses the
-`npx --yes pnpm@12.6.0` form, because bare `pnpm` is unreliable here (a guard rewrites a
+`npx --yes pnpm@12.15.0` form, because bare `pnpm` is unreliable here (a guard rewrites a
 bare one typed into the Bash tool, but not one a script runs).
 
 ### 1. Back up D1
@@ -103,7 +103,7 @@ fine; if you get one, retry rather than concluding anything.
 ### 3. Verify the branch is actually green
 
 ```bash
-npx --yes pnpm@12.6.0 lint && npx --yes pnpm@12.6.0 typecheck && npx --yes pnpm@12.6.0 test && npx --yes pnpm@12.6.0 build
+npx --yes pnpm@12.15.0 lint && npx --yes pnpm@12.15.0 typecheck && npx --yes pnpm@12.15.0 test && npx --yes pnpm@12.15.0 build
 ```
 
 `pnpm build` is not optional and is not covered by typecheck — that gap is
@@ -119,7 +119,7 @@ If a preset or anything under `tools/asset-pipeline/` changed, also run the
 artwork eval **on an idle machine** (a busy one reads ~0.48pp low):
 
 ```bash
-npx --yes pnpm@12.6.0 eval:artwork
+npx --yes pnpm@12.15.0 eval:artwork
 ```
 
 ### 4. Merge
@@ -158,7 +158,7 @@ that key — `--remote` is required, or wrangler reads LOCAL storage and reports
 object as missing (`<key>` is the URL's path without the leading `/`):
 
 ```bash
-npx --yes wrangler@4.152.0 r2 object get "run-apparel-viewer-media/<key>" --remote --file /tmp/r2-check
+npx --yes wrangler@4.153.0 r2 object get "run-apparel-viewer-media/<key>" --remote --file /tmp/r2-check
 ```
 
 A **Custom Purge of that one URL** should not be needed for a 404 any more; it still

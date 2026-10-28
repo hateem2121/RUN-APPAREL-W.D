@@ -8,7 +8,7 @@ negative control (counted 2026-09-29), so a failure names the file and line. Run
 workflow edit:
 
 ```bash
-npx --yes pnpm@12.6.0 --filter @run-apparel/cms exec vitest run src/workflowHardening.test.ts
+npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHardening.test.ts
 ```
 
 ## Traps

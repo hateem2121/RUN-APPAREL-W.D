@@ -14,7 +14,7 @@
     {
       "id": 3,
       "prompt": "/gates — e2e failed with 'Timed out waiting 120000ms from config.webServer'. Debug the web server config.",
-      "expected_output": "Recognises a bare pnpm exiting 127 inside a child process, not a web server problem. Uses the npx --yes pnpm@12.6.0 form before reading any code. Resumes with --from instead of re-running the whole sequence."
+      "expected_output": "Recognises a bare pnpm exiting 127 inside a child process, not a web server problem. Uses the npx --yes pnpm@12.15.0 form before reading any code. Resumes with --from instead of re-running the whole sequence."
     }
   ]
 }

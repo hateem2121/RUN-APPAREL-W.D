@@ -89,19 +89,15 @@ updates:
       # install with ERR_PNPM_UNUSED_PATCH, so Dependabot could not even build the PR.
       # docs/DEPENDENCY-HOLDS.md says when to drop the patch.
       - dependency-name: "@google/model-viewer"
-      # Held by other packages' own ranges (docs/DEPENDENCY-HOLDS.md, 2026-09-26):
-      # model-viewer 4.4.0 declares three ^0.183.0, and payload 3.92.0 declares
-      # graphql ^16.8.1. Release each when that range widens.
+      # Held by another package's own range (docs/DEPENDENCY-HOLDS.md, 2026-09-26):
+      # model-viewer 4.4.0 declares three ^0.183.0. Release it when that range widens.
+      # graphql was held here too until 2026-10-27, when 17 was taken with GraphQL
+      # switched off in the CMS (same document).
       - dependency-name: three
-      - dependency-name: graphql
-        update-types:
-          - version-update:semver-major
-      # Held at 1.5.7 (docs/DEPENDENCY-HOLDS.md, 2026-10-23): 1.5.8's decoder no longer puts
-      # HEAPF32/HEAPU16/HEAPU32 on the module, and @gltf-transform/extensions 4.5.1 reads
-      # them to decode, so every Draco file failed to read back. Release when a
-      # glTF-Transform release reads Draco 1.5.8.
+      # draco3dgltf was ignored >=1.5.8 from 2026-10-23 to 2026-10-27; 1.5.9 puts the heap
+      # views back and is pinned (docs/DEPENDENCY-HOLDS.md). 1.5.8 alone stays out.
       - dependency-name: draco3dgltf
-        versions: [">=1.5.8"]
+        versions: ["1.5.8"]
 
   # The shrink container's own packages (apps/shrink/container), since 2026-10-03: the one
   # package list Dependabot did not reach. It is not a pnpm workspace member and keeps its
@@ -148,6 +144,11 @@ updates:
       ci-installs:
         patterns:
           - "*"
+    # 0.29.3 alone in the 0.25-0.29 line was published from a personal npm account with no
+    # provenance (checked 2026-10-27); 0.29.2 has the same macOS code. voiceover.yml has more.
+    ignore:
+      - dependency-name: "@guidepup/setup"
+        versions: ["0.29.3"]
 
   # The shrink container's base image (apps/shrink/Dockerfile), since 2026-10-03 (owner
   # decision, told that CI does not render garments inside this image). The pin is a

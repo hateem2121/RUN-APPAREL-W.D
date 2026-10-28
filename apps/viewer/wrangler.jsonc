@@ -48,7 +48,12 @@
    * it must be deployed against a confirmed `https://viewer.wear-run.help/rxps/wine`
    * 200 with the garment payload — a plain GET, never a HEAD.
    */
-  "compatibility_date": "2026-07-01",
+  // 2026-10-23 since 2026-10-27: the newest date wrangler 4.153.0's bundled workerd
+  // (1.20261023.1) knows, and no default changes between it and that day. `no_nodejs_compat`
+  // keeps this Worker as it was: from 2026-08-04 the runtime turns Node.js APIs on by
+  // default, and lint already bars Node builtins from worker/ and src/.
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": ["no_nodejs_compat"],
   // ⚠️ MISSING UNTIL 2026-08-30, ON THE ONLY PUBLIC-FACING WORKER. `apps/cms`,
   // `apps/shrink` and `infra/apex-404` all declared this; the viewer — the one a
   // customer's QR scan actually lands on — did not, so its `console.warn`s and any
@@ -74,7 +79,7 @@
   // front of every asset request and `/assets/*.js` would lose the zero-overhead path it
   // had before the script existed. That reasoning was sound and the conclusion was wrong,
   // because it was reasoning about `run_worker_first: true`. Cloudflare's docs for
-  // Advanced routing control (wrangler >= 4.20.0; this repo pins 4.152.0):
+  // Advanced routing control (wrangler >= 4.20.0; this repo pins 4.153.0):
   //
   //   "you can use run_worker_first with an array of route patterns. This approach
   //    DISABLES the automatic Sec-Fetch-Mode: navigate detection and gives you explicit
