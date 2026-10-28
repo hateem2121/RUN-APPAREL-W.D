@@ -279,6 +279,19 @@ export function storeState(headers, now = Date.now()) {
   return drawnAt > 0 && now - drawnAt > STORED_AFTER_MS ? 'hit' : 'miss'
 }
 
+/**
+ * One Workers Logs line per answer from the shared store: a page or a tap, its state, and how long
+ * the store took to answer INSIDE the Worker (slow-miss design, step 0.1, owner's yes 27 Oct). The
+ * hedge's head start must sit above nearly every hit, and the only numbers until now carried the
+ * network as well. An object, so Workers Logs indexes each field (Cloudflare, Workers Logs,
+ * "Logging structured JSON objects"); nothing about the visitor is in it. Date.now() in a Worker
+ * "returns the time of the last I/O" (Cloudflare, Workers security model), and the store's answer
+ * is I/O, so the difference is the wait for it.
+ */
+export function storeAnswerLog(kind, state, ms) {
+  return { storeAnswer: kind, state, ms: Math.round(ms) }
+}
+
 /** The cache key: the page, the deploy that drew it, and the content it was drawn from. */
 export function pageCacheKey(url, deployVersion, contentVersion) {
   const { pathname } = new URL(url)

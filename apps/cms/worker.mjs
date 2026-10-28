@@ -43,6 +43,7 @@ import {
   keptStoreKey,
   pageCacheTiming,
   servedHeaders,
+  storeAnswerLog,
   storeLookupRequest,
   storeState,
   unkeptHeaders,
@@ -159,7 +160,9 @@ async function fromSharedStore(request, env, ctx) {
     // and follows a redirect out over the internet by default (Cloudflare, Workers RPC "Reserved
     // methods"). Live on 2026-10-25 (#247), /factory answered 200 with the factory page instead of
     // its 308. Manual hands the redirect back to withRedirectHeaders below, as before the store.
+    const askedAt = Date.now()
     const kept = await store.fetch(keptRenderRequest(request, cf), { cf, redirect: 'manual' })
+    console.log(storeAnswerLog('page', storeState(kept.headers), Date.now() - askedAt))
     if (request.method === 'HEAD') await kept.body?.cancel()
     return {
       state: storeState(kept.headers),
@@ -189,7 +192,9 @@ async function fromTapStore(request, env, ctx) {
     const draw = await tapDrawRequest(request)
     const cf = { cacheKey: await keptTapStoreKey(draw.url, deploy, env.SITE_CACHE) }
     // Never follow a redirect from the store: Next answers a wrong code with a 307 (#247's lesson).
+    const askedAt = Date.now()
     const kept = await store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
+    console.log(storeAnswerLog('tap', storeState(kept.headers), Date.now() - askedAt))
     // SitePages never keeps a redirect, so one here came from this drawing alone. Handed on, a code
     // Next read differently in the drawing would bounce every tap to this page between two codes
     // (review, 27 Oct); the visitor's own request is drawn instead, as before the store.
