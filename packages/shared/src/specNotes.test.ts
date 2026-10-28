@@ -26,6 +26,20 @@ describe('the notes', () => {
       for (const key of Object.keys(notes)) expect(noteKey(key), key).toBe(key)
     })
   }
+  /*
+   * The deploy of 28 Oct (run 40644827726) said, for three live garments, "1 of 8 facts have no
+   * explanation line": their fit drew as a plain bullet with nothing to open. Typed here as the CMS
+   * holds them, so the lookup's own normalising is what is tested.
+   */
+  it('gives the three fits the 28 Oct deploy named a line, as the CMS types them', () => {
+    for (const fit of [
+      'High-stretch, unrestricted fit', // R-PRS
+      'Relaxed, flexible fit', // R-BCD
+      'Compression belt, conical skirt', // R-WSA
+    ]) {
+      expect(specNote('fit', fit), fit).not.toBeNull()
+    }
+  })
   it('spells out each abbreviation where it is used', () => {
     for (const note of Object.values(FEATURE_NOTES)) {
       if (/\bDWR\b/.test(note)) expect(note).toContain('durable water-repellent (DWR)')

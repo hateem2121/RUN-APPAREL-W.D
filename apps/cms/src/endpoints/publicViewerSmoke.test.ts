@@ -50,6 +50,8 @@ let server: Server | undefined
 
 afterEach(async () => {
   if (!server) return
+  // A stalled answer (the `stall` option) would otherwise hold `close` open.
+  server.closeAllConnections()
   await new Promise((resolve) => server!.close(resolve))
   server = undefined
 })
@@ -68,8 +70,16 @@ async function startOrigin({
   apiFailures = [],
   apiCalls,
   drop,
+  stall,
 }: {
   getStatus: number
+  /**
+   * Paths (by prefix) that send their 200 headers and then stop partway through the body, on the
+   * first request only or on `every` one, until the script's time-out ends the wait. That is what
+   * the CMS Worker logged for r-cat/maroon on 28 Oct (issue #289): 200 in 1,307 ms, outcome
+   * `canceled`, while the GitHub runner waited 30 s for a body that never finished arriving.
+   */
+  stall?: { paths: string[]; every?: boolean; seen?: Map<string, number> }
   /**
    * Paths (by prefix) whose connection is cut without an answer: on the `first` request only, or on
    * `every` one. Node's fetch then throws `TypeError: fetch failed`, as it did from a GitHub runner
@@ -99,6 +109,20 @@ async function startOrigin({
       const count = (seen.get(dropped) ?? 0) + 1
       seen.set(dropped, count)
       if (drop.every || count === 1) return void req.socket.destroy()
+    }
+
+    const stalled = stall?.paths.find((prefix) => path.startsWith(prefix))
+    if (stall && stalled !== undefined) {
+      if (!stall.seen) stall.seen = new Map()
+      const seen = stall.seen
+      const count = (seen.get(stalled) ?? 0) + 1
+      seen.set(stalled, count)
+      if (stall.every || count === 1) {
+        const json = path.startsWith('/api/')
+        res.writeHead(200, { 'content-type': json ? 'application/json' : 'image/webp' })
+        // A first piece of the body, then nothing: the answer never ends.
+        return void res.write(json ? '{"product":' : Buffer.alloc(16))
+      }
     }
 
     if (path.startsWith('/api/public/viewer/')) {
@@ -193,6 +217,8 @@ async function runSmoke(
         SMOKE_COMING_SOON: listSaysComingSoon ? '1' : '',
         // The 5 s pause before asking again after a 5xx, shortened so a test takes no time.
         SMOKE_API_RETRY_MS: '50',
+        // The 30 s wait for an answer, shortened so a stalled answer (`stall`) ends in no time.
+        SMOKE_TIMEOUT_MS: '500',
       },
     },
   )
@@ -312,6 +338,63 @@ describe('post-deploy smoke test — one more ask after a dropped connection (#2
     const { code, output } = await runSmoke(port, { browserGet: true })
     expect(code, output).toBe(0)
     expect(output).toContain('serves a real, fetchable model')
+  }, 30_000)
+})
+
+/*
+ * Issue #289 (28 Oct 2026): two deploys in a row stopped at this check on a TIME-OUT, not a cut
+ * connection. In the first, 5 of 41 garments passed the 30 s limit while the CMS Worker answered
+ * every request within 8.0 s; in the second, r-cat/maroon's 200 left the Worker in 1,307 ms and the
+ * runner was still waiting 30 s later. Both during Cloudflare's "Network Performance Issues in
+ * Ashburn, IAD". The same garments answered at once from Pakistan. A time-out, while the answer
+ * is arriving or before it starts, is asked once more like a cut connection (#285).
+ */
+describe('post-deploy smoke test — one more ask after a time-out (#289)', () => {
+  it('passes when the garment data stalls once after its 200, with a warning', async () => {
+    const stall = { paths: ['/api/public/viewer/'], seen: new Map<string, number>() }
+    const port = await startOrigin({ getStatus: 200, stall })
+    const { code, output } = await runSmoke(port, { browserGet: true })
+    expect(code, output).toBe(0)
+    expect(output).toContain('::warning::')
+    expect(output).toContain('did not finish within')
+    expect(output).toContain('serves a real, fetchable model')
+    expect(stall.seen.get('/api/public/viewer/')).toBe(2)
+  }, 30_000)
+
+  it('still fails when the garment data stalls every time, after exactly one more ask', async () => {
+    const stall = { paths: ['/api/public/viewer/'], every: true, seen: new Map<string, number>() }
+    const port = await startOrigin({ getStatus: 200, stall })
+    const { code, output } = await runSmoke(port, { browserGet: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('the viewer endpoint did not return JSON')
+    expect(stall.seen.get('/api/public/viewer/'), 'one more ask, not a loop').toBe(2)
+  }, 30_000)
+
+  it('passes when a poster stalls once', async () => {
+    const stall = { paths: ['/poster.webp'], seen: new Map<string, number>() }
+    const port = await startOrigin({
+      getStatus: 200,
+      comingSoon: { flag: true, pictures: 2 },
+      stall,
+    })
+    const { code, output } = await runSmoke(port, { browserGet: true, listSaysComingSoon: true })
+    expect(code, output).toBe(0)
+    expect(output).toContain('did not finish within')
+    expect(output).toContain('every colourway serves its picture')
+  }, 30_000)
+
+  it('still fails when a poster stalls every time', async () => {
+    const stall = { paths: ['/poster.webp'], every: true, seen: new Map<string, number>() }
+    const port = await startOrigin({
+      getStatus: 200,
+      comingSoon: { flag: true, pictures: 2 },
+      stall,
+    })
+    const { code, output } = await runSmoke(port, { browserGet: true, listSaysComingSoon: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('could not be fetched')
+    // Two posters, two asks each: one more ask, not a loop.
+    expect(stall.seen.get('/poster.webp')).toBe(4)
   }, 30_000)
 })
 

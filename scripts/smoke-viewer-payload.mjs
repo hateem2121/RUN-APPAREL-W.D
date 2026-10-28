@@ -81,7 +81,8 @@ const MIN_MODEL_BYTES = Number(process.env.SMOKE_MIN_MODEL_BYTES || 102400)
  */
 const BROWSER_GET = process.env.SMOKE_BROWSER_GET === '1'
 
-const TIMEOUT_MS = 30000
+/** How long one ask may take, answer and body together. `SMOKE_TIMEOUT_MS` exists only for the tests. */
+const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS || 30000)
 
 const failures = []
 const fail = (msg) => failures.push(msg)
@@ -122,34 +123,57 @@ const API_RETRY_MS = Number(process.env.SMOKE_API_RETRY_MS || 5000)
  * A cut connection is asked once more too (issue #285, 27 Oct 2026): after #282 deployed, one
  * poster fetch from the GitHub runner ended in `fetch failed` with no answer at all, and the same
  * poster answered 200 three times from Pakistan straight after; the failed check stopped the
- * deploy before its warm-ups. Node's fetch throws `TypeError: fetch failed` for a cut connection;
- * a timeout throws a TimeoutError, which is not asked again, and any answer is judged as before.
- * Every network call here goes through this, with the same pause and a visible `::warning::`.
+ * deploy before its warm-ups. Node's fetch throws `TypeError: fetch failed` for a cut connection.
+ *
+ * A TIME-OUT is asked once more too (issue #289, 28 Oct): two deploys in a row stopped here while
+ * the CMS Worker had answered in time, 5 of 41 garments past 30 s with every Worker answer under
+ * 8.0 s, then r-cat/maroon's 200 sent in 1,307 ms and still unread by the runner 30 s later, both
+ * during Cloudflare's "Network Performance Issues in Ashburn, IAD". The time-out was firing while
+ * the BODY was arriving, after `fetch` had returned, so `ask` gets the signal and reads the body
+ * inside it: the retry covers the whole ask, not only its first byte. Any answer, 403, 404, wrong
+ * type or bad JSON, is judged exactly as before; a second cut or time-out still fails. Every
+ * network call here goes through this, with the same pause and a visible `::warning::`.
  */
-async function fetchOnceMore(url, init = {}) {
+async function askOnceMore(url, ask) {
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
+    return await ask(AbortSignal.timeout(TIMEOUT_MS))
   } catch (err) {
-    if (!(err instanceof TypeError && err.message === 'fetch failed')) throw err
+    const cut = err instanceof TypeError && err.message === 'fetch failed'
+    const timedOut = err?.name === 'TimeoutError'
+    if (!cut && !timedOut) throw err
     console.log(
-      `::warning::the connection to ${url} dropped before an answer; asking once more in ` +
-        `${API_RETRY_MS / 1000} s before calling it a failure.`,
+      `::warning::${
+        cut
+          ? `the connection to ${url} dropped before an answer`
+          : `the answer from ${url} did not finish within ${TIMEOUT_MS / 1000} s`
+      }; asking once more in ${API_RETRY_MS / 1000} s before calling it a failure.`,
     )
     await new Promise((resolve) => setTimeout(resolve, API_RETRY_MS))
-    return fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
+    return ask(AbortSignal.timeout(TIMEOUT_MS))
   }
 }
 
+/** One ask whose body is not read here (a HEAD, or a GET cancelled once its status is in). */
+const fetchOnceMore = (url, init = {}) =>
+  askOnceMore(url, (signal) => fetch(url, { ...init, signal }))
+
 async function getJson(url) {
   for (let attempt = 1; ; attempt++) {
-    const res = await fetchOnceMore(url)
+    // The JSON is read inside the ask, so a body that stops arriving is asked again (#289).
+    const { res, json } = await askOnceMore(url, async (signal) => {
+      const answer = await fetch(url, { signal })
+      if (!answer.ok) {
+        await answer.body?.cancel().catch(() => {})
+        return { res: answer }
+      }
+      return { res: answer, json: await answer.json() }
+    })
     if (INCONCLUSIVE_STATUSES.has(res.status)) {
       const err = new Error(`HTTP ${res.status} ${res.statusText}`)
       err.inconclusive = true
       throw err
     }
     if (res.status >= 500 && attempt === 1) {
-      await res.body?.cancel()
       console.log(
         `::warning::the viewer endpoint answered HTTP ${res.status} ${res.statusText} for ` +
           `${url}; asking once more in ${API_RETRY_MS / 1000} s before calling it a failure.`,
@@ -158,7 +182,7 @@ async function getJson(url) {
       continue
     }
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
-    return res.json()
+    return json
   }
 }
 
@@ -405,7 +429,13 @@ if (expectComingSoon && !modelUrl) {
   }
   for (const c of withPoster) {
     try {
-      const res = await fetchOnceMore(c.poster.url, { method: 'GET' })
+      // The picture is read inside the ask, so one that stops arriving is asked again (#289).
+      const res = await askOnceMore(c.poster.url, async (signal) => {
+        const answer = await fetch(c.poster.url, { method: 'GET', signal })
+        if (answer.status === 403) await answer.body?.cancel().catch(() => {})
+        else await answer.arrayBuffer()
+        return answer
+      })
       if (res.status === 403) {
         console.log(
           `  posters   WARN: ${c.slug} HTTP 403 (Bot Fight Mode) — not verified from here`,
@@ -418,7 +448,6 @@ if (expectComingSoon && !modelUrl) {
           `the poster for "${c.slug}" returned HTTP ${res.status} ${type} — the viewer paints nothing while that colourway downloads`,
         )
       }
-      await res.arrayBuffer()
     } catch (err) {
       fail(`the poster for "${c.slug}" could not be fetched: ${err.message}`)
     }

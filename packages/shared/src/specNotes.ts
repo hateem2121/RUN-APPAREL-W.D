@@ -68,6 +68,13 @@ export const FIT_NOTES: Record<string, string> = {
   'race fit': 'Very close to the body, so nothing flaps or holds you back.',
   // R-SPS (lounge set; the owner approved its six lines on 2026-10-08)
   'tailored lounge fit': 'Relaxed enough to lounge in, cut neatly enough to wear out.',
+  // R-PRS, R-BCD, R-WSA: named by the 28 Oct deploy as fits with no line; each drawn from that
+  // garment's own description, and approved by the owner on 2026-10-28.
+  'high-stretch, unrestricted fit':
+    'A stretchy fit that lets you move freely, in training or everyday wear.',
+  'relaxed, flexible fit': 'Easy on the body and stretchy, so it moves with every shot.',
+  'compression belt, conical skirt':
+    'A snug band at the waist, with a skirt that widens into a cone below it.',
 }
 
 const DWR = 'A durable water-repellent (DWR) coating that makes rain bead up and roll off.'
