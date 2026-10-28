@@ -143,7 +143,7 @@ fails. Both directions have controls.
 ## How the hold was re-tested (history; the hold was released 2026-10-03)
 
 1. **Negative control first.** In a real `git worktree` at the held version, run
-   `npx --yes pnpm@12.6.0 --filter @run-apparel/shrink typecheck` and confirm it exits 0.
+   `npx --yes pnpm@12.15.0 --filter @run-apparel/shrink typecheck` and confirm it exits 0.
    A synthetic harness is not good enough — the 2026-08-17 audit built one, could not
    reproduce the passing baseline, and correctly discarded its own result.
 2. Then bump to the newest release older than 24h and run the same command.
@@ -159,13 +159,22 @@ one. Measured from the installed `package.json` files on 2026-09-26.
 
 | held | at | newest | why | release it when |
 | --- | --- | --- | --- | --- |
-| `graphql` (`apps/cms`) | 16.14.2, newest 16 | 17.0.2 | `payload` 3.92.0 and `@payloadcms/next` 3.92.0 both declare `graphql: ^16.8.1` (re-read 2026-10-24) | a Payload release widens that range to include 17 |
-| `three` (`apps/viewer`, `tools/asset-pipeline`) | 0.183.2 | 0.186.1 | `@google/model-viewer` 4.4.0, its newest release (re-read 2026-10-24), declares `three: ^0.183.0` | a model-viewer release accepts a newer `three` |
+| ~~`graphql` (`apps/cms`)~~ RELEASED 2026-10-27 to 17.0.2 | — | — | `payload` 3.92.0 still declares `graphql: ^16.8.1`, but the CMS sets `graphQL: { disable: true }` (`apps/cms/src/payload.config.ts`), and pnpm does not refuse it as npm refuses `three` below. Measured that day: Payload loads with graphql 17.0.2 as the only graphql in the tree; 4,804 CMS tests, `pnpm build`, the OpenNext Worker build and the size gate passed. The website's browser tests (CI `e2e-shard`) are the last judge. | if a Payload release breaks on it, go back to 16.14.2 |
+| `three` (`apps/viewer`, `tools/asset-pipeline`) | 0.183.2 | 0.186.1 | `@google/model-viewer` 4.4.0, its newest release (re-read 2026-10-24), declares `three: ^0.183.0` (re-read 2026-10-27; that day `npm install --package-lock-only` for `tools/asset-pipeline` REFUSED 0.186.1 with ERESOLVE, so the shrink image's `npm ci` could not build it) | a model-viewer release accepts a newer `three` |
 
 To re-check either: `npm view payload peerDependencies.graphql` and
 `npm view @google/model-viewer peerDependencies.three`, against the newest versions.
 
-## `draco3dgltf` held at 1.5.7 (2026-10-23)
+## `draco3dgltf` held at 1.5.7 (2026-10-23) — RELEASED to 1.5.9 on 2026-10-27
+
+**Released.** 1.5.9 (published 2026-10-16) assigns the heap views onto the module again
+(`c.HEAPF32=new Float32Array(l)` in its `draco_decoder_gltf_nodejs.js`; 1.5.7 wrote `a.HEAPF32=`,
+1.5.8 neither). Measured 2026-10-27 with glTF-Transform still at 4.5.1, the check named below
+run both ways: on 1.5.8 `src/pipeline.test.ts` failed 1 of 110 with the recorded
+`TypeError: Cannot read properties of undefined (reading 'buffer')`; on 1.5.9 it passed
+110 of 110. Run the whole file, not `-t`: a filtered run skips the setup that writes the
+fixture GLB and fails with ENOENT for that reason alone. `.github/dependabot.yml` now
+ignores only 1.5.8. The history below is kept as written.
 
 **In plain words:** the newest Draco (the 3D compression library) changed how it hands its
 memory to other code, and the library we read 3D files with has not caught up, so we stay on

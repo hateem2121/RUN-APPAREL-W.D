@@ -48,7 +48,7 @@
    * (src/endpoints/publicViewer.ts) and from keeping the answer (viewerApiCache.mjs).
    * Before adding placement back, measure `cf-placement` on a live answer first.
    */
-  "compatibility_date": "2026-07-01",
+  "compatibility_date": "2026-10-23",
   "compatibility_flags": ["nodejs_compat"],
   /**
    * THE SHARED PAGE STORE (W1-A, 2026-10-24): Workers Cache in front of ONE entrypoint only.

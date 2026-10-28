@@ -608,7 +608,7 @@ export function lighthouseArgs(
 function runLighthouse(url, formFactor, file, extraDisabledFeatures) {
   if (!existsSync(LIGHTHOUSE_BIN)) {
     throw new Error(
-      `Lighthouse is not installed at ${LIGHTHOUSE_BIN}; run \`npx --yes pnpm@12.6.0 install\`. ` +
+      `Lighthouse is not installed at ${LIGHTHOUSE_BIN}; run \`npx --yes pnpm@12.15.0 install\`. ` +
         'It is a pinned devDependency on purpose, and this robot will not fetch it with npx.',
     )
   }

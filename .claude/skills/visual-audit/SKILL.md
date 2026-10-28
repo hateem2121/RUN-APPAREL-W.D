@@ -21,9 +21,9 @@ Pinned in this repo, so use these and do not install other versions:
 - **Playwright** and **@axe-core/playwright**: `apps/cms/package.json` (website) and
   `apps/viewer/package.json` (garment pages).
 - **Lighthouse**: the root `package.json`.
-- Install them with `npx --yes pnpm@12.6.0 install --frozen-lockfile`. Playwright's
+- Install them with `npx --yes pnpm@12.15.0 install --frozen-lockfile`. Playwright's
   browsers are not installed here and a missing one fails at 0 ms:
-  `npx --yes pnpm@12.6.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
+  `npx --yes pnpm@12.15.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
 
 ## Before anything else, read the decisions
 
