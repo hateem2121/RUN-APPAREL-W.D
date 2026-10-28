@@ -451,6 +451,34 @@
 }
 
 /*
+ * THE TAPPED LINK TAKES THE UNDERLINE AT ONCE (look B, the owner's yes on 27 Oct after a live
+ * demo). While its page is on the way, the link a visitor tapped wears the current page's mark and
+ * the page being left gives it up, so the mark moves the moment they tap; a slow first visit took
+ * 0.4–3.8 s longer than a warm one that day. `data-pending` comes from LinkPending.tsx, inside the
+ * link, which is why the link is styled through `:has()`. High contrast keeps the same cue as the
+ * current page (the forced-colors rule below). apps/cms/e2e/pressedLink.spec.ts holds all three.
+ */
+.nav-link:has(> .link-pending[data-pending]) {
+  color: var(--notch-text, var(--text));
+  text-decoration: underline;
+  text-decoration-color: var(--volt);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.notch:has(.link-pending[data-pending])
+  .nav-link[aria-current]:not(:has(> .link-pending[data-pending])) {
+  color: var(--notch-muted, var(--muted));
+  text-decoration: none;
+}
+
+@media (forced-colors: active) {
+  .nav-link:has(> .link-pending[data-pending]) {
+    text-decoration-color: LinkText;
+  }
+}
+
+/*
  * ⚠️ A BUTTON IN THE NOTCH MUST INVERT, which is why the menu button below is volt on ink.
  *
  * `.btn--primary` is ink-background/volt-text in light mode, which is the same ink the
