@@ -94,7 +94,8 @@ async function startOrigin({
 
     const dropped = drop?.paths.find((prefix) => path.startsWith(prefix))
     if (drop && dropped !== undefined) {
-      const seen = drop.seen ?? (drop.seen = new Map())
+      if (!drop.seen) drop.seen = new Map()
+      const seen = drop.seen
       const count = (seen.get(dropped) ?? 0) + 1
       seen.set(dropped, count)
       if (drop.every || count === 1) return void req.socket.destroy()
