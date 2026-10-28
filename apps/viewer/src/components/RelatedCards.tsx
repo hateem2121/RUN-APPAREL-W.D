@@ -11,15 +11,18 @@ import '../styles/related-cards.css'
 /**
  * How wide a card's picture draws, from `.related__list` (related-cards.css) and `.content`
  * (page.css): two columns below 900px and four from it, inside `.content`'s gutters
- * (clamp(16px, 4vw, 48px)) and its 1,200px cap, less the card's two 1px borders. Below 900 that
- * is (100vw − two 4vw gutters − a 12px gap) / 2 − 2px = 46vw − 8px, exact from 400px and 3px wide
- * at 320px; from 900 it is (92vw − three 16px gaps) / 4 − 2px = 23vw − 14px, until the column
- * stops at 1,200px and the picture at 262px. The browser only uses it to choose between the three
- * copies (`CARD_WIDTHS`), and `e2e/related.spec.ts` measures it against the drawn picture at seven
- * widths, so a layout change that forgets this line fails there.
+ * (clamp(16px, 4vw, 48px)) and its 1,200px of words, less the card's two 1px borders. Below 900
+ * that is (100vw − two 4vw gutters − a 12px gap) / 2 − 2px = 46vw − 8px, exact from 400px and 3px
+ * wide at 320px; from 900 it is (92vw − three 16px gaps) / 4 − 2px = 23vw − 14px; from 1200 the
+ * gutters stop at 48px, so (100vw − 96px − 48px) / 4 − 2px = 25vw − 38px; and from 1296 the words
+ * stop at 1,200px and the picture at 286px. Since 2026-10-28 the 1,200px counts words only (the
+ * edge line-up, page.css), which moved the last two terms: they were 262px from 1200 wide, and the
+ * drawn card measured 282px at 1280 and 286px at 1920. The browser only uses it to choose between
+ * the three copies (`CARD_WIDTHS`), and `e2e/related.spec.ts` measures it against the drawn
+ * picture at seven widths, so a layout change that forgets this line fails there, as that one did.
  */
 export const RELATED_CARD_SIZES =
-  '(max-width: 899px) calc(46vw - 8px), (max-width: 1199px) calc(23vw - 14px), 262px'
+  '(max-width: 899px) calc(46vw - 8px), (max-width: 1199px) calc(23vw - 14px), (max-width: 1295px) calc(25vw - 38px), 286px'
 
 /**
  * The cards of "More from this category" (polish S6), loaded after the page's first paint with
