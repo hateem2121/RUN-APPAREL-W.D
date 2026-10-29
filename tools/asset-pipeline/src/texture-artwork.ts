@@ -4,6 +4,7 @@ import { findArtworkTexturesByGeometry, isThreadOrHardwareName } from './artwork
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import { createTransform, listTextureSlots } from '@gltf-transform/functions'
 import sharp, { type OutputInfo } from 'sharp'
+import { rasterProcessingError } from './raster-processing-refusal'
 import {
   type AlphaProfile,
   ARTWORK_ASPECT_RATIO,
@@ -668,10 +669,7 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
         } catch (error) {
           // 29 October: a 335-million-pixel PNG survived this catch and reached phones.
           // Keep the source intact, but refuse this output; never silently bless skipped raster data.
-          throw new Error(
-            `Could not process texture ${texture.getName() || texture.getURI() || '(unnamed)'}. The original is preserved. Re-export oversized artwork or prepare it in a bounded local job.`,
-            { cause: error },
-          )
+          throw rasterProcessingError(texture.getName() || texture.getURI() || '(unnamed)', error)
         }
       }
 

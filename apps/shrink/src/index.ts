@@ -19,7 +19,7 @@ import { cmsFetch, isMediaReferenced } from './cms'
 import { planColourImport } from './colourImport'
 import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 import { type ShrinkFailure, reportFailure } from './sentry'
-import { decodeReportHeader, missingRawExport, readContainerFailure } from './containerFailure'
+import { decodeReportHeader, containerFailureError } from './containerFailure'
 import { appendToError, retireOrphanedMedia } from './orphanGuard'
 import {
   alphaRefusal,
@@ -455,12 +455,7 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
     // since 2026-08-19 (CodeQL js/stack-trace-exposure); this branch used to read the
     // body ONLY, so genericising it without this change would have reduced every
     // container failure to "Container returned 500: " with nothing to say so.
-    const detail = await readContainerFailure(containerRes)
-    // An upload the ingest bucket has already expired will not reappear on a retry
-    // (fix plan Rank 12, audit CI-01): say what to do, and stop.
-    const expired = missingRawExport(detail)
-    if (expired) throw new PermanentJobError(expired)
-    throw new Error(`Container returned ${containerRes.status}: ${detail}`)
+    throw await containerFailureError(containerRes)
   }
 
   const report = decodeReport(containerRes.headers.get('x-shrink-report'))

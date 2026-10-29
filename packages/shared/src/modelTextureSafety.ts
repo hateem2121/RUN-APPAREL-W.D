@@ -80,6 +80,131 @@ export function rasterDimensions(bytes: Uint8Array): [number, number] | null {
   return null
 }
 
+interface TextureDefinition {
+  source?: number
+  sampler?: number
+  extensions?: {
+    EXT_texture_webp?: { source?: number }
+    KHR_texture_basisu?: { source?: number }
+  }
+}
+interface TextureJson {
+  asset?: { version?: string }
+  textures?: TextureDefinition[]
+  samplers?: { magFilter?: number; minFilter?: number; wrapS?: number; wrapT?: number }[]
+  materials?: unknown[]
+  buffers?: { byteLength: number; uri?: string }[]
+  images?: { bufferView?: number; uri?: string }[]
+  bufferViews?: {
+    buffer?: number
+    byteOffset?: number
+    byteLength: number
+    extensions?: Record<string, unknown>
+  }[]
+}
+
+const textureSource = (texture: TextureDefinition) =>
+  texture.extensions?.EXT_texture_webp?.source ??
+  texture.extensions?.KHR_texture_basisu?.source ??
+  texture.source
+
+/** Header-only allocation bound, following THREE 0.183.2 rather than deduplicating image bytes. */
+function textureAllocationBytes(gltf: TextureJson, images: ModelTextureCheck['images']): number {
+  const roles = new Map<number, Set<string>>()
+  const pending: unknown[] = [...(gltf.materials ?? [])]
+  const colourSlots = new Set([
+    'baseColorTexture',
+    'emissiveTexture',
+    'sheenColorTexture',
+    'specularColorTexture',
+  ])
+  // Include every material/variant and extension texture slot: these can accumulate
+  // during a visit. UV/transform clones share Source; colour-space copies may not
+  // share the GPU allocation. Counting both roles is conservative when no clone occurs.
+  while (pending.length) {
+    const value = pending.pop()
+    if (!value || typeof value !== 'object') continue
+    for (const [name, child] of Object.entries(value)) {
+      if (name.endsWith('Texture') && child && typeof child === 'object') {
+        const index = (child as { index?: number }).index
+        if (index !== undefined && Number.isInteger(index)) {
+          const set = roles.get(index) ?? new Set<string>()
+          set.add(colourSlots.has(name) ? 'srgb' : 'data')
+          roles.set(index, set)
+        }
+      }
+      if (child && typeof child === 'object') pending.push(child)
+    }
+  }
+  const caches = new Map<
+    string,
+    { source: number; pixels: number; ambiguous: boolean; sampler: string; roles: Set<string> }
+  >()
+  const referenced = new Set<number>()
+  const referencedViews = new Set<number>()
+  for (const [index, texture] of (gltf.textures ?? []).entries()) {
+    const source = textureSource(texture)
+    if (source === undefined || !images[source]?.pixels) continue
+    referenced.add(source)
+    const image = gltf.images?.[source]
+    if (image?.bufferView !== undefined) referencedViews.add(image.bufferView)
+    // GLTFLoader.loadTextureImage caches by URI/bufferView ID + sampler ID.
+    // Distinct views over identical byte ranges still create independent Sources.
+    const key = `${image?.uri || image?.bufferView}:${texture.sampler}`
+    const sampler = gltf.samplers?.[texture.sampler ?? -1]
+    const effective = [
+      [9728, 9729].includes(sampler?.magFilter ?? 0) ? sampler?.magFilter : 9729,
+      [9728, 9729, 9984, 9985, 9986, 9987].includes(sampler?.minFilter ?? 0)
+        ? sampler?.minFilter
+        : 9987,
+      [33071, 33648, 10497].includes(sampler?.wrapS ?? 0) ? sampler?.wrapS : 10497,
+      [33071, 33648, 10497].includes(sampler?.wrapT ?? 0) ? sampler?.wrapT : 10497,
+    ].join(':')
+    const cache = caches.get(key) ?? {
+      source,
+      pixels: images[source]?.pixels ?? 0,
+      ambiguous: false,
+      sampler: effective,
+      roles: new Set<string>(),
+    }
+    cache.ambiguous ||= cache.source !== source
+    cache.pixels = Math.max(cache.pixels, images[source]?.pixels ?? 0)
+    for (const role of roles.get(index) ?? ['data']) cache.roles.add(role)
+    caches.set(key, cache)
+  }
+  const allocations = new Set<string>()
+  let bytes = 0
+  for (const [key, cache] of caches) {
+    // Texture.clone preserves Source. WebGLTextures keys GPU allocations by
+    // Source + effective sampler parameters + colour space, not sampler ID.
+    // Aliased image IDs competing for one loader cache entry depend on load order;
+    // keep that entry separate to bound either possible Source selection safely.
+    const identity = cache.ambiguous ? `cache:${key}` : `source:${cache.source}`
+    for (const role of cache.roles) {
+      const allocation = `${identity}:${cache.sampler}:${role}`
+      if (allocations.has(allocation)) continue
+      allocations.add(allocation)
+      bytes += Math.round(cache.pixels * 4 * (4 / 3))
+    }
+  }
+  // Keep the existing conservative floor for embedded images without a texture
+  // reference. Sharing requires the same view ID, never just equal byte ranges.
+  const unreferenced = new Set<number>()
+  for (const image of images) {
+    const view = gltf.images?.[image.index]?.bufferView
+    if (
+      referenced.has(image.index) ||
+      view === undefined ||
+      referencedViews.has(view) ||
+      unreferenced.has(view)
+    )
+      continue
+    unreferenced.add(view)
+    bytes += Math.round((image.pixels ?? 0) * 4 * (4 / 3))
+  }
+  return bytes
+}
+
 /** The bytes being uploaded are checked, never a client-supplied “passed” field. */
 export function checkModelTextures(bytes: Uint8Array): ModelTextureCheck {
   const result: ModelTextureCheck = {
@@ -102,24 +227,10 @@ export function checkModelTextures(bytes: Uint8Array): ModelTextureCheck {
       throw new Error('Invalid GLB header.')
     const jsonEnd = 20 + v.getUint32(12, true)
     if (jsonEnd > bytes.length) throw new Error('Truncated GLB JSON.')
-    const gltf = JSON.parse(new TextDecoder().decode(bytes.subarray(20, jsonEnd))) as {
-      asset?: { version?: string }
-      textures?: {
-        source?: number
-        extensions?: {
-          EXT_texture_webp?: { source?: number }
-          KHR_texture_basisu?: { source?: number }
-        }
-      }[]
-      images?: { bufferView?: number; uri?: string }[]
-      bufferViews?: { buffer?: number; byteOffset?: number; byteLength: number }[]
-    }
+    const gltf = JSON.parse(new TextDecoder().decode(bytes.subarray(20, jsonEnd))) as TextureJson
     if (gltf.asset?.version !== '2.0') throw new Error('Unsupported glTF version.')
     for (const [index, texture] of (gltf.textures ?? []).entries()) {
-      const source =
-        texture.extensions?.EXT_texture_webp?.source ??
-        texture.extensions?.KHR_texture_basisu?.source ??
-        texture.source
+      const source = textureSource(texture)
       if (!Number.isInteger(source) || source === undefined || source < 0 || !gltf.images?.[source])
         result.problems.push(`Texture ${index}: its required image could not be verified.`)
     }
@@ -128,20 +239,34 @@ export function checkModelTextures(bytes: Uint8Array): ModelTextureCheck {
       binStart <= bytes.length &&
       v.getUint32(jsonEnd + 4, true) === 0x004e4942 &&
       binStart + v.getUint32(jsonEnd, true) <= bytes.length
-    const measured = new Set<string>()
+    const binLength = hasBin ? v.getUint32(jsonEnd, true) : 0
+    const embeddedBuffer = gltf.buffers?.[0]
+    // GLTFLoader follows buffer 0's URI when present, even inside a GLB. Measuring
+    // a decoy BIN in that case would approve different bytes from those the viewer loads.
+    const verifiedEmbeddedBuffer =
+      hasBin &&
+      embeddedBuffer?.uri === undefined &&
+      Number.isSafeInteger(embeddedBuffer?.byteLength) &&
+      (embeddedBuffer?.byteLength ?? 0) > 0 &&
+      (embeddedBuffer?.byteLength ?? 0) <= binLength &&
+      binLength - (embeddedBuffer?.byteLength ?? 0) <= 3
     for (const [index, image] of (gltf.images ?? []).entries()) {
       const view = image.bufferView === undefined ? undefined : gltf.bufferViews?.[image.bufferView]
       const offset = view?.byteOffset ?? 0
       let dimensions: [number, number] | null = null
       if (
-        hasBin &&
+        verifiedEmbeddedBuffer &&
         view &&
-        (view.buffer ?? 0) === 0 &&
+        // Meshopt (or another transforming extension) can replace the fallback
+        // bytes. A small PNG header there cannot verify the image the loader uses.
+        Object.keys(view.extensions ?? {}).length === 0 &&
+        view.buffer === 0 &&
         Number.isSafeInteger(offset) &&
         offset >= 0 &&
         Number.isSafeInteger(view.byteLength) &&
         view.byteLength > 0 &&
-        offset + view.byteLength <= v.getUint32(jsonEnd, true)
+        offset + view.byteLength <= (embeddedBuffer?.byteLength ?? 0) &&
+        offset + view.byteLength <= binLength
       ) {
         dimensions = rasterDimensions(
           bytes.subarray(binStart + offset, binStart + offset + view.byteLength),
@@ -158,16 +283,12 @@ export function checkModelTextures(bytes: Uint8Array): ModelTextureCheck {
         )
         continue
       }
-      const key = `${offset}:${view?.byteLength}`
-      if (!measured.has(key)) {
-        measured.add(key)
-        result.estimatedTextureBytes += Math.round(pixels * 4 * (4 / 3))
-      }
       if ((width ?? 0) > MODEL_TEXTURE_MAX_EDGE || (height ?? 0) > MODEL_TEXTURE_MAX_EDGE)
         result.problems.push(
           `Image ${index}: ${width} × ${height} exceeds the ${MODEL_TEXTURE_MAX_EDGE}-pixel output limit. Rebuild from the original CLO export and review the print.`,
         )
     }
+    result.estimatedTextureBytes = textureAllocationBytes(gltf, result.images)
     if (result.estimatedTextureBytes > MODEL_TEXTURE_REVIEW_BYTES)
       result.problems.push(
         'Combined raster texture estimate exceeds the project’s 256 MiB review budget. Rebuild from the original export, review artwork and test the target phone before replacement.',

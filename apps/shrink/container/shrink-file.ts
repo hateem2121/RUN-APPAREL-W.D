@@ -1,4 +1,5 @@
 import { checkModelTextures } from '../../../packages/shared/src/modelTextureSafety'
+import { ModelImageRefusal } from './failure'
 /**
  * The robot's processing body, from a raw GLB on disk to the finished GLB and its report.
  *
@@ -197,8 +198,7 @@ export async function shrinkFile(
   const glb = await inspectGlb(outPath)
   const bytes = await readFile(outPath)
   const textureCheck = checkModelTextures(new Uint8Array(bytes))
-  if (!textureCheck.ok)
-    throw new Error(`Model image verification failed: ${textureCheck.problems.join(' ')}`)
+  if (!textureCheck.ok) throw new ModelImageRefusal(textureCheck.problems)
 
   const filename = suggestedFilename(key)
   const found = glb.variantsInFileOrder.length ? glb.variantsInFileOrder : glb.variants

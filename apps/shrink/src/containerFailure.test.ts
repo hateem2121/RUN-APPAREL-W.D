@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { missingRawExport, readContainerFailure, decodeReportHeader } from './containerFailure'
+import { containerFailureResponse, ModelImageRefusal } from '../container/failure'
+import {
+  RasterProcessingRefusal,
+  rasterProcessingError,
+} from '../../../tools/asset-pipeline/src/raster-processing-refusal'
+import {
+  missingRawExport,
+  readContainerFailure,
+  decodeReportHeader,
+  containerFailureError,
+} from './containerFailure'
+import { PermanentJobError } from './permanentJobError'
+import { outcomeFor } from './queueDecisions'
 
 /**
  * The container's 500 BODY used to echo `error.message`, which CodeQL flagged as
@@ -34,6 +46,14 @@ describe('readContainerFailure', () => {
         }),
       ),
     ).resolves.toBe('legacy text')
+    await expect(
+      readContainerFailure(
+        new Response('legacy text', {
+          status: 500,
+          headers: { 'x-shrink-report': btoa(JSON.stringify({ ok: false })) },
+        }),
+      ),
+    ).resolves.toBe('legacy text')
   })
 
   it('caps the fallback at 500 characters so a huge body cannot flood a log line', async () => {
@@ -53,6 +73,103 @@ describe('readContainerFailure', () => {
       },
     })
     await expect(readContainerFailure(new Response(stream, { status: 500 }))).resolves.toBe('')
+  })
+})
+
+describe('container refusal over the HTTP report boundary', () => {
+  // Use the same status, body and encoded report that server.ts writes, rather
+  // than fabricating a decoded verdict that cannot show the old transport bug.
+  const wireResponse = (error: unknown) => {
+    const response = containerFailureResponse(error)
+    return new Response(response.body, response)
+  }
+
+  it('stops after a deterministic image refusal while keeping the response failed', async () => {
+    const res = wireResponse(new ModelImageRefusal(['Image 19: 17787 × 18856 exceeds 4096.']))
+    expect(res.status).toBe(422)
+    expect(res.ok).toBe(false)
+    expect(await res.clone().text()).toBe('Shrink failed.')
+    const report = JSON.parse(decodeReportHeader(res.headers.get('x-shrink-report') ?? ''))
+    expect(report).toEqual({
+      ok: false,
+      code: 'model-images-refused',
+      error: 'Model image verification failed: Image 19: 17787 × 18856 exceeds 4096.',
+    })
+    const error = await containerFailureError(res)
+    expect(error).toBeInstanceOf(PermanentJobError)
+    expect(error.message).toContain('17787 × 18856')
+    expect(outcomeFor(error)).toBe('ack')
+  })
+
+  it('retries infrastructure failures and never sends a stack in the report or body', async () => {
+    const infrastructure = new Error('R2 connection reset')
+    infrastructure.stack = 'private stack /tmp/shrink-private/trace'
+    const res = wireResponse(infrastructure)
+    expect(res.status).toBe(500)
+    expect(await res.clone().text()).toBe('Shrink failed.')
+    expect(decodeReportHeader(res.headers.get('x-shrink-report') ?? '')).not.toContain('private')
+    const error = await containerFailureError(res)
+    expect(error.message).toBe('Container returned 500: R2 connection reset')
+    expect(outcomeFor(error)).toBe('retry')
+  })
+
+  it('stops a typed raster encoder refusal without importing the encoder into the Worker', async () => {
+    const res = wireResponse(new RasterProcessingRefusal('required-print', new Error('bad PNG')))
+    expect(res.status).toBe(422)
+    expect(outcomeFor(await containerFailureError(res))).toBe('ack')
+  })
+
+  it('CONTROL: the old untyped HTTP 500 contract retries the same refused images', async () => {
+    const refusal = new ModelImageRefusal(['Image 19 exceeds 4096.'])
+    const res = wireResponse(new Error(refusal.message))
+    expect(outcomeFor(await containerFailureError(res))).toBe('retry')
+  })
+
+  it.each([
+    'Input image exceeds pixel limit',
+    'Input buffer contains unsupported image format',
+    'Input buffer has corrupt header: pngload_buffer: end of stream',
+    'VipsJpeg: Premature end of input file',
+  ])('stops a confirmed decoder input defect: %s', async (message) => {
+    const error = rasterProcessingError('required-print', new Error(message))
+    expect(error).toBeInstanceOf(RasterProcessingRefusal)
+    const response = wireResponse(error)
+    expect(response.status).toBe(422)
+    expect(outcomeFor(await containerFailureError(response))).toBe('ack')
+  })
+
+  it.each([
+    new Error('Input buffer has corrupt header: unable to allocate memory'),
+    Object.assign(new Error('Input buffer has corrupt header:'), { code: 'ENOMEM' }),
+    new Error('native encoder failed unexpectedly'),
+    'unknown native failure',
+  ])('retains retry for resource and unknown processing failures: %s', async (cause) => {
+    const error = rasterProcessingError('required-print', cause)
+    expect(error).not.toBeInstanceOf(RasterProcessingRefusal)
+    expect(error.message).toContain('original is preserved')
+    const response = wireResponse(error)
+    expect(response.status).toBe(500)
+    expect(outcomeFor(await containerFailureError(response))).toBe('retry')
+  })
+
+  it.each([
+    { status: 422, report: { ok: false, error: 'refused' } },
+    { status: 500, report: { ok: false, code: 'model-images-refused', error: 'refused' } },
+    { status: 422, report: { ok: true, code: 'model-images-refused', error: 'refused' } },
+  ])('requires the complete typed refusal contract: %j', async ({ status, report }) => {
+    const res = new Response('Shrink failed.', {
+      status,
+      headers: { 'x-shrink-report': Buffer.from(JSON.stringify(report)).toString('base64') },
+    })
+    expect(outcomeFor(await containerFailureError(res))).toBe('retry')
+  })
+
+  it('keeps expired exports permanent and unknown thrown values retryable', async () => {
+    const expired = wireResponse(new Error('Could not read raw object "a.glb" from ingest (404).'))
+    expect(outcomeFor(await containerFailureError(expired))).toBe('ack')
+    const error = await containerFailureError(wireResponse('service unavailable'))
+    expect(error.message).toContain('service unavailable')
+    expect(outcomeFor(error)).toBe('retry')
   })
 })
 
