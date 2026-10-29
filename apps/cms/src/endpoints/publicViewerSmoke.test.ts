@@ -71,8 +71,10 @@ async function startOrigin({
   apiCalls,
   drop,
   stall,
+  completeModel,
 }: {
   getStatus: number
+  completeModel?: { body: Buffer; cut?: 'first' | 'every'; gets: number }
   /**
    * Paths (by prefix) that send their 200 headers and then stop partway through the body, on the
    * first request only or on `every` one, until the script's time-out ends the wait. That is what
@@ -180,10 +182,20 @@ async function startOrigin({
 
     if (path === '/model.glb') {
       if (req.method === 'HEAD') {
-        res.writeHead(200, { 'content-length': '28271780' })
+        res.writeHead(200, { 'content-length': String(completeModel?.body.length ?? 28271780) })
         return res.end()
       }
       if (getStatus === 200) {
+        if (completeModel) {
+          completeModel.gets++
+          res.writeHead(200, { 'content-length': String(completeModel.body.length) })
+          if (completeModel.cut === 'every' || (completeModel.cut && completeModel.gets === 1)) {
+            res.write(completeModel.body.subarray(0, 40))
+            setTimeout(() => res.destroy(), 10)
+            return
+          }
+          return res.end(completeModel.body)
+        }
         res.writeHead(200, { 'content-length': '28271780' })
         return res.end(Buffer.alloc(1024))
       }
@@ -204,7 +216,11 @@ async function startOrigin({
 
 async function runSmoke(
   port: number,
-  { browserGet, listSaysComingSoon = false }: { browserGet: boolean; listSaysComingSoon?: boolean },
+  {
+    browserGet,
+    listSaysComingSoon = false,
+    completeTransfer = false,
+  }: { browserGet: boolean; listSaysComingSoon?: boolean; completeTransfer?: boolean },
 ) {
   const child = spawn(
     process.execPath,
@@ -213,6 +229,7 @@ async function runSmoke(
       env: {
         ...process.env,
         SMOKE_BROWSER_GET: browserGet ? '1' : '',
+        SMOKE_COMPLETE_MODEL: completeTransfer ? '1' : '',
         // What smoke-live-products.mjs passes for a `modelComingSoon` row of live-products.mjs.
         SMOKE_COMING_SOON: listSaysComingSoon ? '1' : '',
         // The 5 s pause before asking again after a 5xx, shortened so a test takes no time.
@@ -228,6 +245,61 @@ async function runSmoke(
   const [code] = (await once(child, 'exit')) as [number]
   return { code, output }
 }
+
+describe('post-deploy smoke test — complete model transfers', () => {
+  // A complete texture-free GLB, padded with legal JSON whitespace above the
+  // probe's minimum size. This measures transport/acceptance, not rendering.
+  const completeGlb = () => {
+    const bytes = Buffer.alloc(128 * 1024, 32)
+    bytes.writeUInt32LE(0x46546c67, 0)
+    bytes.writeUInt32LE(2, 4)
+    bytes.writeUInt32LE(bytes.length, 8)
+    bytes.writeUInt32LE(bytes.length - 20, 12)
+    bytes.writeUInt32LE(0x4e4f534a, 16)
+    bytes.write('{"asset":{"version":"2.0"}}', 20)
+    return bytes
+  }
+
+  it('retries one cut after headers and verifies the complete second response', async () => {
+    const completeModel = { body: completeGlb(), cut: 'first' as const, gets: 0 }
+    const port = await startOrigin({
+      getStatus: 200,
+      glbBytes: completeModel.body.length,
+      completeModel,
+    })
+    const { code, output } = await runSmoke(port, { browserGet: true, completeTransfer: true })
+    expect(code, output).toBe(0)
+    expect(output).toContain('::warning::the connection to')
+    expect(output).toContain('complete GET: 131072 bytes')
+    expect(completeModel.gets).toBe(2)
+  }, 30_000)
+
+  it('fails after two cut bodies instead of retrying indefinitely', async () => {
+    const completeModel = { body: completeGlb(), cut: 'every' as const, gets: 0 }
+    const port = await startOrigin({
+      getStatus: 200,
+      glbBytes: completeModel.body.length,
+      completeModel,
+    })
+    const { code, output } = await runSmoke(port, { browserGet: true, completeTransfer: true })
+    expect(code, output).not.toBe(0)
+    expect(output).toContain('could not be fetched')
+    expect(completeModel.gets).toBe(2)
+  }, 30_000)
+
+  it('does not retry a complete response whose model bytes are invalid', async () => {
+    const completeModel = { body: Buffer.alloc(128 * 1024), gets: 0 }
+    const port = await startOrigin({
+      getStatus: 200,
+      glbBytes: completeModel.body.length,
+      completeModel,
+    })
+    const { code, output } = await runSmoke(port, { browserGet: true, completeTransfer: true })
+    expect(code).not.toBe(0)
+    expect(output).toContain('model-image-check')
+    expect(completeModel.gets).toBe(1)
+  }, 30_000)
+})
 
 describe('post-deploy smoke test — cached 404', () => {
   it('fails when HEAD says 200 and a plain GET says 404', async () => {

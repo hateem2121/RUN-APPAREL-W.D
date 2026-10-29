@@ -64,7 +64,10 @@ describe('downloadWithRetries (issue #41)', () => {
 })
 
 describe('temporary connection recovery', () => {
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
   it.each([new TypeError('Load failed'), new ModelFetchError('busy', 'http 503', 503)])(
     'recovers within the same bounded loader',
     async (error) => {
@@ -97,6 +100,27 @@ describe('temporary connection recovery', () => {
     await rejection
     await vi.runAllTimersAsync()
     expect(fetcher).toHaveBeenCalledOnce()
+  })
+  it('carries the real HTTP Retry-After header through the counted loader before retrying', async () => {
+    vi.useFakeTimers()
+    const bytes = new Uint8Array([0x67, 0x6c, 0x54, 0x46])
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('busy', { status: 429, headers: { 'Retry-After': '2' } }))
+      .mockResolvedValueOnce(
+        new Response(bytes, { headers: { 'content-type': 'model/gltf-binary' } }),
+      )
+    vi.stubGlobal('fetch', fetch)
+    // No injected fetcher: a dropped header in fetchWithProgress must fail this check.
+    const result = downloadWithRetries('https://media.example/garment.glb', {
+      onProgress: () => {},
+    })
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(fetch).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    const blob = await result
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes)
   })
   it('gives up after three network failures without a fourth direct-loader request', async () => {
     vi.useFakeTimers()

@@ -140,13 +140,18 @@ async function askOnceMore(url, ask) {
   try {
     return await ask(AbortSignal.timeout(TIMEOUT_MS))
   } catch (err) {
-    const cut = err instanceof TypeError && err.message === 'fetch failed'
+    // A body cut happens after fetch has returned: Node reports `terminated`
+    // with UND_ERR_SOCKET. Do not retry JSON/content-validation errors.
+    const cut =
+      err instanceof TypeError &&
+      (err.message === 'fetch failed' ||
+        ['UND_ERR_SOCKET', 'ECONNRESET', 'EPIPE', 'UND_ERR_BODY_TIMEOUT'].includes(err.cause?.code))
     const timedOut = err?.name === 'TimeoutError'
     if (!cut && !timedOut) throw err
     console.log(
       `::warning::${
         cut
-          ? `the connection to ${url} dropped before an answer`
+          ? `the connection to ${url} dropped before the transfer completed`
           : `the answer from ${url} did not finish within ${TIMEOUT_MS / 1000} s`
       }; asking once more in ${API_RETRY_MS / 1000} s before calling it a failure.`,
     )
