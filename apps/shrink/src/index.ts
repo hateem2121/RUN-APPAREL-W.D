@@ -21,7 +21,13 @@ import { DEAD_LETTER_QUEUE, deadLetterReport } from './deadLetter'
 import { type ShrinkFailure, reportFailure } from './sentry'
 import { decodeReportHeader, missingRawExport, readContainerFailure } from './containerFailure'
 import { appendToError, retireOrphanedMedia } from './orphanGuard'
-import { alphaRefusal, artworkRefusal, repairRefusal, sizeRefusal } from './refusals'
+import {
+  alphaRefusal,
+  artworkRefusal,
+  repairRefusal,
+  sizeRefusal,
+  textureRefusal,
+} from './refusals'
 
 /**
  * One container instance, shared by every job.
@@ -101,6 +107,7 @@ interface Env {
 
 /** JSON the container returns in the `x-shrink-report` header (base64). */
 interface ShrinkReport {
+  textureCheck?: { version: number; ok: boolean; problems: string[] }
   ok: boolean
   suggestedFilename: string
   sizeBytes: number
@@ -541,6 +548,9 @@ async function processJob(job: ShrinkJobMessage, env: Env): Promise<void> {
   // 3. Create the guardrailed Media doc from the SHRUNK output. The CMS media
   //    rules still run — safe filename + < 40 MB — so a bad output is rejected
   //    there too rather than published.
+  const unsafeTextures = textureRefusal(report.textureCheck)
+  if (unsafeTextures) throw new PermanentJobError(unsafeTextures)
+
   const media = await createMedia(env, containerRes, report, {
     productCode: target?.productCode ?? null,
     detail,

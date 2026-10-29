@@ -80,3 +80,14 @@ export function repairRefusal(
     'saved. Re-export from CLO with its textures included.'
   )
 }
+
+/** Missing verification is unverified, never a silent pass from an older container. */
+export function textureRefusal(
+  check: { version: number; ok: boolean; problems: readonly string[] } | undefined,
+): string | null {
+  if (check?.version !== 1)
+    return 'The model images were not verified, so the file was not saved. Reprocess with the updated image checker.'
+  if (!check.ok)
+    return `The model images did not pass verification, so the file was not saved. ${check.problems.join(' ')}`
+  return null
+}

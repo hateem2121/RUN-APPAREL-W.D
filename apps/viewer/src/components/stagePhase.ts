@@ -23,7 +23,8 @@ export type PosterReason =
   | 'module-failed'
   | 'context-lost'
   | 'load-failed'
-  /** The download answered and then stopped sending, three times running (issue #41). The one retryable reason. */
+  | 'connection-failed'
+  /** The download answered and then stopped sending, three times running (issue #41). Retryable by the visitor. */
   | 'stalled'
   /**
    * No model ON PURPOSE: the garment is live on its pictures while its 3D file is redone
@@ -55,7 +56,7 @@ export type StageEvent =
   | { type: 'swap-started' }
   | { type: 'context-lost' }
   | { type: 'load-failed'; reason: PosterReason }
-  /** The visitor pressed TRY 3D AGAIN. Honoured only from a `stalled` poster. */
+  /** The visitor pressed TRY 3D AGAIN. Honoured only after a stall or recoverable connection failure. */
   | { type: 'retry' }
 
 /**
@@ -67,14 +68,17 @@ export type StageEvent =
  * it — which is the same class of bug as the one this module exists to prevent,
  * approached from the other side.
  *
- * ⚠️ ONE EXCEPTION, AND ONLY ON THE VISITOR'S OWN PRESS (issue #41): a `stalled` poster leaves for `loading` on
+ * ⚠️ ONE EXCEPTION, AND ONLY ON THE VISITOR'S OWN PRESS (issue #41): a stalled or connection-failed poster leaves for `loading` on
  * `retry`. A device state (no WebGL, a lost context, a missing model) does not change because someone asked again;
  * a network route does — the 2026-09-24 Islamabad stall recovered within hours. No automatic event can leave any
  * poster, so the late-event protection above still holds for every reason, `stalled` included.
  */
 export function stagePhase(current: StagePhase, event: StageEvent): StagePhase {
   if (current.kind === 'poster') {
-    return event.type === 'retry' && current.reason === 'stalled' ? { kind: 'loading' } : current
+    return event.type === 'retry' &&
+      (current.reason === 'stalled' || current.reason === 'connection-failed')
+      ? { kind: 'loading' }
+      : current
   }
 
   switch (event.type) {

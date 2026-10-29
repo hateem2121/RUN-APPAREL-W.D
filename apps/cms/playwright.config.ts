@@ -123,10 +123,11 @@ export default defineConfig({
      * `pressedLink` the same day (look B): the tapped link's mark is drawn through `:has()`, as the
      * sport filter's chips are, and a buyer on a Mac taps the bar in Safari.
      */
+    // Footer fitting joins WebKit after the 29 October resize-loop reproduction.
     {
       name: 'webkit',
       testMatch:
-        /(navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText|garmentPrefetch|pressedLink)\.spec\.ts/,
+        /(footerResize|navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText|garmentPrefetch|pressedLink)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

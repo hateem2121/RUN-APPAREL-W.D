@@ -32,6 +32,7 @@
  *                           (default 5000; see getJson, issue #189)
  */
 
+import { inspectModelResponse, responseCategory } from './model-response.mjs'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 import { measureModelBytes } from './model-size.mjs'
 
@@ -79,7 +80,8 @@ const MIN_MODEL_BYTES = Number(process.env.SMOKE_MIN_MODEL_BYTES || 102400)
  * schedule left 15 minutes on 2026-08-18 and the request is cheap (the body is
  * cancelled once the status line arrives), so uptime.yml opts in too.
  */
-const BROWSER_GET = process.env.SMOKE_BROWSER_GET === '1'
+const COMPLETE_MODEL = process.env.SMOKE_COMPLETE_MODEL === '1'
+const BROWSER_GET = COMPLETE_MODEL || process.env.SMOKE_BROWSER_GET === '1'
 
 /** How long one ask may take, answer and body together. `SMOKE_TIMEOUT_MS` exists only for the tests. */
 const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS || 30000)
@@ -100,7 +102,7 @@ const fail = (msg) => failures.push(msg)
  * to be rolled back within the hour. Root CLAUDE.md: such a 403 is *inconclusive,
  * never a failed assertion*.
  */
-const INCONCLUSIVE_STATUSES = new Set([403, 429, 503])
+const INCONCLUSIVE_STATUSES = new Set([403, 429])
 
 /**
  * A 5xx is asked ONCE more, 5 s later, before it counts as a failure (issue #189).
@@ -162,14 +164,16 @@ async function getJson(url) {
     // The JSON is read inside the ask, so a body that stops arriving is asked again (#289).
     const { res, json } = await askOnceMore(url, async (signal) => {
       const answer = await fetch(url, { signal })
-      if (!answer.ok) {
+      if (!answer.ok || responseCategory(answer) === 'security-challenge') {
         await answer.body?.cancel().catch(() => {})
         return { res: answer }
       }
       return { res: answer, json: await answer.json() }
     })
-    if (INCONCLUSIVE_STATUSES.has(res.status)) {
-      const err = new Error(`HTTP ${res.status} ${res.statusText}`)
+    if (INCONCLUSIVE_STATUSES.has(res.status) || responseCategory(res) === 'security-challenge') {
+      const err = new Error(
+        `${responseCategory(res)}; HTTP ${res.status}; request ${res.headers.get('cf-ray') ?? 'unavailable'}`,
+      )
       err.inconclusive = true
       throw err
     }
@@ -197,8 +201,7 @@ try {
     // Exit 0. An alarm that fires on Cloudflare's mood gets muted, and a muted
     // alarm is how the uptime check sat dead for 17 days.
     console.log(
-      `SKIP  ${err.message} from a datacenter IP — Bot Fight Mode blocks these ` +
-        'intermittently. Inconclusive, not a failure.',
+      `SKIP  ${err.message}. This client did not verify availability; no outage cause established.`,
     )
     process.exit(0)
   }
@@ -285,23 +288,14 @@ if (expectComingSoon && !modelUrl) {
       })
     }
 
-    if (res.status === 403) {
+    if ([403, 429].includes(res.status) || responseCategory(res) === 'security-challenge') {
       headVerdict = 'blocked'
-      // NOT a failure, and this is the one exception in this script.
-      //
-      // Free-plan Bot Fight Mode intermittently 403s datacenter traffic to
-      // wear-run.help hosts. It is documented in HARDENING-LOG.md — it already
-      // forced the `cms.wear-run.help` API cutover to be rolled back within the
-      // hour. A GitHub runner is datacenter traffic, so failing here would fail
-      // deploys at random for a reason that has nothing to do with the garment,
-      // and a gate the owner learns to override is worse than no gate.
-      //
-      // The payload assertions above still fail hard — those are what actually
-      // catch a product with no model.
-      console.log(`  model     WARN: HTTP 403 fetching the model (free-plan Bot Fight Mode blocks`)
+      // Access denial or a confirmed challenge does not establish an outage cause.
+      // Keep the result visibly unverified; do not invent a security-rule diagnosis.
       console.log(
-        `            datacenter traffic — see docs/HARDENING-LOG.md). Payload checks passed;`,
+        `  model     WARN: ${responseCategory(res)}; request ${res.headers.get('cf-ray') ?? 'unavailable'}`,
       )
+      console.log(`            HTTP ${res.status}; cause not established. Payload checks passed;`)
       console.log(`            the model URL itself was NOT verified from here.`)
     } else if (!res.ok && res.status !== 206) {
       headVerdict = 'bad'
@@ -375,14 +369,20 @@ if (expectComingSoon && !modelUrl) {
   // a different cache entry, which is the exact bug being tested for.
   if (BROWSER_GET && modelUrl) {
     try {
-      const res = await fetchOnceMore(modelUrl)
-      await res.body?.cancel().catch(() => {})
+      const { res, inspection } = await askOnceMore(modelUrl, async (signal) => {
+        const response = await fetch(modelUrl, { signal })
+        if (COMPLETE_MODEL && response.ok && responseCategory(response) !== 'security-challenge') {
+          const declared = separateMode ? selected?.glbBytes : product.glbBytes
+          return { res: response, inspection: await inspectModelResponse(response, declared) }
+        }
+        await response.body?.cancel().catch(() => {})
+        return { res: response }
+      })
 
-      if (res.status === 403) {
-        // Same Bot Fight Mode exception as check 3, and for the same reason: a
-        // datacenter 403 is inconclusive, never a failed assertion.
+      if ([403, 429].includes(res.status) || responseCategory(res) === 'security-challenge') {
+        // Access/rate denial or a confirmed challenge leaves availability unverified.
         console.log(
-          '  browser   WARN: HTTP 403 on the bare GET (free-plan Bot Fight Mode). Not verified.',
+          `  browser   WARN: ${responseCategory(res)}; request ${res.headers.get('cf-ray') ?? 'unavailable'}. Not verified.`,
         )
       } else if (!res.ok) {
         if (headVerdict === 'ok') {
@@ -399,7 +399,11 @@ if (expectComingSoon && !modelUrl) {
           )
         }
       } else {
-        console.log('  browser   bare GET 200 — reachable the way a QR scan reaches it')
+        console.log(
+          inspection
+            ? `  browser   complete GET: ${inspection.bytes} bytes; ${inspection.imageCount} images verified; estimated texture memory ${Math.round(inspection.estimatedTextureBytes / 1048576)} MiB`
+            : '  browser   bare GET 200 — headers verified; transfer completion not checked',
+        )
       }
     } catch (err) {
       fail(`the model URL could not be fetched with a plain GET: ${err.message}`)
@@ -432,13 +436,14 @@ if (expectComingSoon && !modelUrl) {
       // The picture is read inside the ask, so one that stops arriving is asked again (#289).
       const res = await askOnceMore(c.poster.url, async (signal) => {
         const answer = await fetch(c.poster.url, { method: 'GET', signal })
-        if (answer.status === 403) await answer.body?.cancel().catch(() => {})
+        if ([403, 429].includes(answer.status) || responseCategory(answer) === 'security-challenge')
+          await answer.body?.cancel().catch(() => {})
         else await answer.arrayBuffer()
         return answer
       })
-      if (res.status === 403) {
+      if ([403, 429].includes(res.status) || responseCategory(res) === 'security-challenge') {
         console.log(
-          `  posters   WARN: ${c.slug} HTTP 403 (Bot Fight Mode) — not verified from here`,
+          `  posters   WARN: ${c.slug} ${responseCategory(res)} HTTP ${res.status}; cause not established — not verified from here`,
         )
         continue
       }

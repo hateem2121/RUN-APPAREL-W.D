@@ -87,6 +87,8 @@ WORKDIR /app/tools/asset-pipeline
 COPY tools/asset-pipeline/package.json tools/asset-pipeline/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY tools/asset-pipeline ./
+# Header-only acceptance is shared with the CMS; no workspace runtime dependency.
+COPY packages/shared/src/modelTextureSafety.ts packages/shared/src/media.ts /app/packages/shared/src/
 
 # --- Container service --------------------------------------------------------
 # Installs its own deps (aws4fetch) plus tsx, used to run the TypeScript server

@@ -33,3 +33,5 @@ export * from './analyticsBeacon.ts'
 export * from './dye.ts'
 export * from './frameCopy.ts'
 export * from './dyePlayer.ts'
+
+export * from './modelTextureSafety.ts'

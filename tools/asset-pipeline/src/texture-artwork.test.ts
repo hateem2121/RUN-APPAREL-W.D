@@ -291,6 +291,19 @@ describe('compressTexturesForArtwork', () => {
     expect(result!.artworkResized).toEqual([])
   })
 
+  it('refuses an unreadable raster instead of silently preserving it in successful output', async () => {
+    const document = new Document()
+    const original = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+    const texture = document
+      .createTexture('required-print')
+      .setImage(original)
+      .setMimeType('image/png')
+    await expect(document.transform(compressTexturesForArtwork(options))).rejects.toThrow(
+      'Could not process texture required-print',
+    )
+    expect(texture.getImage()).toEqual(original)
+  })
+
   it('leaves a texture it cannot decode exactly as it was', async () => {
     // A missing logo is worse than an unoptimised one, so KTX2 and friends pass
     // through untouched rather than being dropped.

@@ -105,3 +105,9 @@ describe('retry', () => {
     })
   })
 })
+
+it('allows explicit retry of a connection failure but ignores late loader events', () => {
+  const failed = { kind: 'poster', reason: 'connection-failed' } as const
+  expect(stagePhase(failed, { type: 'loaded' })).toEqual(failed)
+  expect(stagePhase(failed, { type: 'retry' })).toEqual({ kind: 'loading' })
+})

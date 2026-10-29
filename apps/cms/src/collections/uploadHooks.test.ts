@@ -394,3 +394,39 @@ describe('RawUploads.afterChange — Retry only when it can work', () => {
     expect(send).not.toHaveBeenCalled()
   })
 })
+
+describe('Media image verification on new or replacement models', () => {
+  const data = { filename: 'garment.glb', mimeType: 'model/gltf-binary', filesize: 1024 }
+  it('refuses a metadata-only create instead of trusting a supplied pass flag', () => {
+    expect(() =>
+      mediaValidate({
+        data: { ...data, textureCheck: { ok: true } },
+        req: reqWith(),
+        operation: 'create',
+      }),
+    ).toThrow('bytes are missing')
+  })
+  it('inspects replacement bytes even on update and refuses an unreadable container', () => {
+    expect(() =>
+      mediaValidate({
+        data,
+        req: { ...reqWith(), file: { name: 'garment.glb', data: Buffer.from('not a model') } },
+        operation: 'update',
+      }),
+    ).toThrow('not saved')
+  })
+  it('leaves existing metadata-only updates usable', () => {
+    expect(mediaValidate({ data, req: reqWith(), operation: 'update' })).toBeDefined()
+  })
+  it('accepts an inspectable untextured GLB without changing existing references', () => {
+    const json = Buffer.from('{"asset":{"version":"2.0"}}'.padEnd(28))
+    const header = Buffer.alloc(20)
+    header.writeUInt32LE(0x46546c67, 0)
+    header.writeUInt32LE(2, 4)
+    header.writeUInt32LE(20 + json.length, 8)
+    header.writeUInt32LE(json.length, 12)
+    header.writeUInt32LE(0x4e4f534a, 16)
+    const file = { name: 'garment.glb', data: Buffer.concat([header, json]) }
+    expect(mediaValidate({ data, req: { ...reqWith(), file }, operation: 'create' })).toBeDefined()
+  })
+})
