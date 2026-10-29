@@ -64,6 +64,10 @@ timeline
 
 ### Fixed
 
+- A garment's 3D download now retries temporary connection failures within one three-attempt limit, then offers the picture and a way to try again. A failed picture can also be retried.
+- New and replacement 3D files are refused when their embedded images cannot be checked or exceed the image limits. The shrink robot stops if it cannot process a texture, instead of silently keeping that texture in the finished file. Real-phone artwork and memory checks are still required.
+- The RUN APPAREL footer lettering keeps its fit when the page changes width or the font finishes loading, including with reduced motion switched on.
+- The scheduled live check now completes selected garment downloads and checks their image limits. Access denials remain visibly unverified; repeated server failures fail the check.
 - The website no longer fails with Error 1101 under heavy traffic ([#145](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/145)).
 - Google Analytics visits are no longer lost ([#176](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/176)).
 - A crash no longer tells buyers a garment was discontinued ([#188](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/188)).

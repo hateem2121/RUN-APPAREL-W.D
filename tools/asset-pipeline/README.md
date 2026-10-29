@@ -278,6 +278,15 @@ plain-English reason naming the materials involved.
 All three are **structural**: a stated fact about the output file, with no
 false-positive case. That is what makes them safe to block on.
 
+Finished-file image checks also block automatic saving and new/replacement Media
+uploads: every image must be embedded PNG, JPEG or WebP, at most 4096 pixels on
+either edge, with a combined raster texture estimate at or below 256 MiB.
+`packages/shared/src/modelTextureSafety.ts` defines this check. `validate --strict`
+fails if it cannot verify acceptance; sources above the 40 MiB finished-file ceiling
+are explicitly unverified. A texture decoding/resizing error now stops processing
+instead of silently keeping the original texture. These checks bound image sizes;
+they do not prove artwork legibility or memory use on a particular phone.
+
 `crushedArtwork` (an artwork texture below `CRUSHED_BYTES_PER_PIXEL` = 0.02) is
 reported as a **warning only**. Measured on a 1024² fixture:
 
@@ -346,8 +355,8 @@ export is caught before upload even if the step was skipped.
 
 ### KTX2 / Basis Universal (`--ktx2`)
 
-`KHR_texture_basisu` — GPU-compressed textures with the smallest VRAM footprint,
-the best-practice production target, decoded natively by `<model-viewer>` v4.3+
+`KHR_texture_basisu` — GPU-compressed textures for local experiments, currently
+refused by the upload image gate, decoded natively by `<model-viewer>` v4.3+
 (its Basis transcoder loads from `gstatic`, already allowed by the viewer CSP).
 Encoding runs fully in-process via the WASM `ktx2-encoder` (no native `toktx`
 binary in CI) with `sharp` decoding the source images. Two passes follow Basis
@@ -357,7 +366,9 @@ best practice automatically:
 - **colour / data maps → ETC1S** (far higher compression where it is safe).
 
 WebP remains the no-flag default: universal, needs no runtime decoder, and fast to
-encode. Reach for `--ktx2` on final production assets where GPU memory matters most.
+encode. Keep production output on WebP: the finished-file image gate cannot verify
+KTX2 and refuses it. `--ktx2` remains available for local experiments; it needs a
+supported acceptance check and artwork review before it can be used for uploads.
 KTX2 encoding is slower — expect a few seconds per 2K texture.
 
 ## Workflow (must run before any product is published)
