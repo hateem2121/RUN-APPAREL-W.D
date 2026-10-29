@@ -115,6 +115,9 @@ describe('and the merge command builds exactly those', () => {
       }
     ).scripts['seed:assets']
     expect(script, 'no seed:assets script to check').toBeTruthy()
+    // Raw fixtures intentionally exceed the Media image gate. Without this step a
+    // fresh CMS fails, even when the merged GLB and an already-seeded machine work.
+    expect(script).toContain('--upload-out output/seed-colours')
     for (const { slug, variantId } of seed) {
       expect(script, `seed:assets never builds n001-${slug}`).toContain(`n001-${slug}.glb`)
       expect(script, `seed:assets never binds ${variantId}`).toContain(variantId)
