@@ -79,8 +79,10 @@ async function readFailureReport(res: Response): Promise<FailureReport & { error
   if (header) {
     try {
       const report = JSON.parse(decodeReportHeader(header)) as FailureReport
-      if (typeof report?.error === 'string' && report.error)
+      if (typeof report?.error === 'string' && report.error) {
+        await res.body?.cancel().catch(() => {})
         return { ...report, error: report.error }
+      }
     } catch {
       // Unparsable header falls through to the body, below.
     }

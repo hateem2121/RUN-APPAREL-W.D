@@ -13,6 +13,21 @@ import {
 import { PermanentJobError } from './permanentJobError'
 import { outcomeFor } from './queueDecisions'
 
+it('releases the response body after accepting a refusal report from its header', async () => {
+  let cancelled = 0
+  const body = new ReadableStream<Uint8Array>({
+    cancel: () => {
+      cancelled++
+    },
+  })
+  const failure = containerFailureResponse(new ModelImageRefusal(['unverified image']))
+  const error = await containerFailureError(
+    new Response(body, { status: failure.status, headers: failure.headers }),
+  )
+  expect(error).toBeInstanceOf(PermanentJobError)
+  expect(cancelled).toBe(1)
+})
+
 /**
  * The container's 500 BODY used to echo `error.message`, which CodeQL flagged as
  * js/stack-trace-exposure and which could carry mkdtemp paths. The body is now
