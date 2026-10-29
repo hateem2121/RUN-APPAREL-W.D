@@ -1,4 +1,6 @@
-import { readFile, stat } from 'node:fs/promises'
+import { GLB_HARD_MAX_BYTES } from '../../../packages/shared/src/media'
+import { checkModelTextures } from '../../../packages/shared/src/modelTextureSafety'
+import { open, readFile } from 'node:fs/promises'
 import type { Primitive } from '@gltf-transform/core'
 import type { KHRMaterialsVariants, MappingList } from '@gltf-transform/extensions'
 import { type GlbReport, SIZE_WARNING_BYTES, describeSoftArtwork } from './glb-report'
@@ -40,6 +42,26 @@ export async function readGlbGenerator(file: string): Promise<string> {
     return typeof json.asset?.generator === 'string' ? json.asset.generator : ''
   } catch {
     return ''
+  }
+}
+
+/**
+ * The file's size and, when it fits, its mobile image verdict. Finished files are capped at
+ * 40 MiB, so a 1.3 GiB raw export is never buffered just to report acceptance; a missing
+ * verdict is reported as unverified. One descriptor does both the size check and the read:
+ * `stat(path)` followed by `readFile(path)` is a check-then-use race that GitHub's code scan
+ * flagged on PR #294 (js/file-system-race, 2026-10-29).
+ */
+async function sizeAndTextureCheck(
+  file: string,
+): Promise<{ size: number; textureCheck: ReturnType<typeof checkModelTextures> | undefined }> {
+  const handle = await open(file, 'r')
+  try {
+    const { size } = await handle.stat()
+    if (size > GLB_HARD_MAX_BYTES) return { size, textureCheck: undefined }
+    return { size, textureCheck: checkModelTextures(new Uint8Array(await handle.readFile())) }
+  } finally {
+    await handle.close()
   }
 }
 
@@ -87,7 +109,7 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
     .map((variant) => variant.getName())
     .filter((name) => name !== '' && variants.has(name))
 
-  const { size } = await stat(file)
+  const { size, textureCheck } = await sizeAndTextureCheck(file)
   const generator = await readGlbGenerator(file)
   const textures = root.listTextures()
   const uncompressedTextureCount = textures.filter((t) =>
@@ -102,7 +124,9 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   const { texCoordsInUse, usagesOffUv0, materialsWithMultipleUvSets, alphaModeCounts } =
     summariseUvSets(document)
 
-  const warnings: string[] = []
+  const warnings: string[] = textureCheck
+    ? textureCheck.problems.map((problem) => `Model image acceptance: ${problem}`)
+    : ['Model image acceptance: not verified — this source exceeds the finished-file size ceiling.']
   // A raw CLO export must never be published — it has not been merged,
   // variant-bound, or compressed. This is the single most common failure.
   if (/\bCLO\b/i.test(generator)) {
@@ -175,6 +199,7 @@ export async function inspectGlb(file: string): Promise<GlbReport> {
   return {
     file,
     bytes: size,
+    ...(textureCheck ? { textureCheck } : {}),
     variants: [...variants].sort(),
     variantsInFileOrder,
     meshCount: root.listMeshes().length,

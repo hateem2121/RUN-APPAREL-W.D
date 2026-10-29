@@ -66,6 +66,10 @@ overrides:
   body-parser@2: ^2.4.0
   zod@4: ^4.6.6
   happy-dom: ^21.0.4
+  # GHSA-x8rm-f576-gq67: registry range includes Payload's old, linear-regex 1.22.2.
+  # Only this parent uses the package; its two imported scalars are compatible with 2.0.1.
+  # Evidence and removal condition: docs/DEPENDENCY-HOLDS.md (2026-10-29).
+  '@payloadcms/graphql>graphql-scalars': 2.0.1
 
 # Which dependencies may run install scripts (pnpm 11 replaced
 # `onlyBuiltDependencies` with this map). `true` = allowed, the same four that

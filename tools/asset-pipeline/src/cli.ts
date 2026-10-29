@@ -54,8 +54,9 @@ USAGE
       One poster per colourway, from the front, under production lighting, on a
       transparent background, no caption — 1200×1500 WebP + PNG named the way
       og:cards and the CMS expect (<product>-<colour>-poster.webp). Fix plan Rank 6.
-  pnpm pipeline placeholders [--out <dir>]
-      Generate placeholder seed assets (per-colour GLBs + posters) for N001.
+  pnpm pipeline placeholders [--out <dir>] [--upload-out <dir>]
+      Generate raw placeholder GLBs + posters for N001. With --upload-out, also
+      process per-colour GLBs once into a distinct directory for CMS uploads.
 
 DIAGNOSTICS — for looking at artwork instead of guessing at it
   pnpm pipeline describe <file.glb> [...] [--json]
@@ -1049,10 +1050,18 @@ async function main(): Promise<void> {
     const outIdx = rest.indexOf('--out')
     const outDir =
       outIdx === -1 ? 'output/placeholders' : (rest[outIdx + 1] ?? 'output/placeholders')
-    const result = await generatePlaceholders(outDir)
+    const uploadIdx = rest.indexOf('--upload-out')
+    const uploadOutDir = uploadIdx === -1 ? undefined : rest[uploadIdx + 1]
+    if (uploadIdx !== -1 && (!uploadOutDir || uploadOutDir.startsWith('--'))) {
+      fail('--upload-out needs a distinct output directory for finished per-colour GLBs.')
+    }
+    const result = await generatePlaceholders(outDir, uploadOutDir)
     console.log(
       `Generated ${result.glbFiles.length} GLBs and ${result.posterFiles.length} posters in ${outDir}`,
     )
+    if (uploadOutDir) {
+      console.log(`Processed ${result.uploadGlbFiles.length} upload-ready GLBs in ${uploadOutDir}`)
+    }
     return
   }
 

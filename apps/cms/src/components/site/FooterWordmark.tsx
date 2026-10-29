@@ -1,6 +1,6 @@
 'use client'
 
-import { fitScale } from '@run-apparel/shared'
+import { watchWordmarkFit } from '@run-apparel/shared'
 import { useEffect, useRef } from 'react'
 
 /**
@@ -19,21 +19,9 @@ export function FooterWordmark({ text }: { text: string }) {
 
   useEffect(() => {
     const el = wrap.current
-    if (!el) return
-    const base = el.querySelector<HTMLElement>('.footer-mark__layer')
-    if (!base) return
-
-    const fit = () => {
-      el.style.fontSize = ''
-      const scale = fitScale(el.clientWidth, base.scrollWidth)
-      el.style.fontSize = `${Number.parseFloat(getComputedStyle(el).fontSize) * scale}px`
-    }
-    const ready = document.fonts?.ready ?? Promise.resolve()
-    void ready.then(fit)
-    const observer = new ResizeObserver(fit)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
+    if (!el || !text) return
+    return watchWordmarkFit(el)
+  }, [text])
 
   return (
     <div className="footer-mark" ref={wrap} data-lit="false" translate="no">

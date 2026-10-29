@@ -103,20 +103,23 @@ export function buildReportText(
 
   return [
     `Shrunk ${mb(opt.bytesBefore)} MB → ${mb(opt.bytesAfter)} MB.`,
+    glb.textureCheck
+      ? `Model image verification: ${glb.textureCheck.ok ? 'passed' : 'FAILED'}; ${glb.textureCheck.images.length} image(s), ${glb.textureCheck.unmeasured} unmeasured, approximately ${mb(glb.textureCheck.estimatedTextureBytes)} MiB including mipmaps. This estimate excludes geometry and temporary loading memory.`
+      : 'Model image verification: not checked in this report.',
     overMobileBudget
-      ? `⚠️ Still over the ${guidelineMb} MB mobile guideline. It will publish and work, but ` +
-        'it is a slow load over phone data, which is how most people reach this page. ' +
+      ? `⚠️ Still over the ${guidelineMb} MB mobile guideline. Review its loading performance before publishing; ` +
+        'it may load slowly over phone data, which is how most people reach this page. ' +
         'Most of a CLO export is geometry, so the lever is a lower Detail setting or a lighter mesh from CLO.'
       : `Within the ${guidelineMb} MB mobile guideline.`,
     // Phone graphics memory beside the file size (fix plan Rank 10, audit TEX-04): a
-    // 3.4 MB file can need 83 MB of a phone's GPU, and iOS drops the 3D view past ~256 MB.
+    // 3.4 MB file can need 83 MB of a phone's GPU, and the project uses 256 MiB as a review budget, not a device guarantee.
     // The file size never said this; the owner published five garments over the line.
     opt.gpu
       ? `Phone graphics memory: about ${(opt.gpu.totalBytes / 1048576).toFixed(0)} MB of texture memory ` +
         `(artwork ${(opt.gpu.artworkBytes / 1048576).toFixed(0)}, fabric ${(opt.gpu.fabricBytes / 1048576).toFixed(0)}, shading maps ${(opt.gpu.shadingBytes / 1048576).toFixed(0)})` +
         (opt.gpu.overBudget
-          ? ' ⚠️ OVER THE 256 MB PHONE BUDGET — iPhones can drop the 3D view on this file. Fewer or smaller pictures in CLO, or a lower Detail setting.'
-          : ' — within the phone budget.')
+          ? ' ⚠️ OVER THE 256 MiB PROJECT REVIEW BUDGET — rebuild with fewer or smaller images, review the artwork and test the target phone before replacement.'
+          : ' — within the project review budget; target-phone checks are still needed.')
       : 'Phone graphics memory: not estimated for this job.',
     familyReason ? `Budget family: ${familyReason}.` : '',
     // What CLO wrote (fix plan Rank 13): duplicate and oversized pictures, thread by both

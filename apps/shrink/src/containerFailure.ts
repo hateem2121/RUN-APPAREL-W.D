@@ -7,6 +7,7 @@
  * 'cloudflare:workers'". Same reason the container's pure half lives in
  * container/report.ts.
  */
+import { PermanentJobError } from './permanentJobError'
 
 /**
  * Decode the container's base64 `x-shrink-report` back into text.
@@ -39,6 +40,7 @@ export function decodeReportHeader(header: string): string {
 interface FailureReport {
   ok?: boolean
   error?: string
+  code?: string
 }
 
 /**
@@ -72,16 +74,33 @@ export function missingRawExport(detail: string): string | null {
   )
 }
 
-export async function readContainerFailure(res: Response): Promise<string> {
+async function readFailureReport(res: Response): Promise<FailureReport & { error: string }> {
   const header = res.headers.get('x-shrink-report')
   if (header) {
     try {
       const report = JSON.parse(decodeReportHeader(header)) as FailureReport
-      if (report?.error) return report.error
+      if (typeof report?.error === 'string' && report.error) {
+        await res.body?.cancel().catch(() => {})
+        return { ...report, error: report.error }
+      }
     } catch {
       // Unparsable header falls through to the body, below.
     }
   }
   const body = await res.text().catch(() => '')
-  return body.slice(0, 500)
+  return { error: body.slice(0, 500) }
+}
+
+export async function readContainerFailure(res: Response): Promise<string> {
+  return (await readFailureReport(res)).error
+}
+
+/** Only a typed refusal stops the queue; infrastructure and older containers still retry. */
+export async function containerFailureError(res: Response): Promise<Error> {
+  const report = await readFailureReport(res)
+  if (res.status === 422 && report.ok === false && report.code === 'model-images-refused')
+    return new PermanentJobError(report.error)
+  const expired = missingRawExport(report.error)
+  if (expired) return new PermanentJobError(expired)
+  return new Error(`Container returned ${res.status}: ${report.error}`)
 }

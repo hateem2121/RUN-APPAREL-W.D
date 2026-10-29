@@ -4,6 +4,7 @@ import { findArtworkTexturesByGeometry, isThreadOrHardwareName } from './artwork
 import { EXTTextureWebP } from '@gltf-transform/extensions'
 import { createTransform, listTextureSlots } from '@gltf-transform/functions'
 import sharp, { type OutputInfo } from 'sharp'
+import { rasterProcessingError } from './raster-processing-refusal'
 import {
   type AlphaProfile,
   ARTWORK_ASPECT_RATIO,
@@ -665,10 +666,10 @@ export function compressTexturesForArtwork(options: ArtworkTextureOptions): Tran
           } else {
             result.standard++
           }
-        } catch {
-          // A texture that will not decode is left exactly as it was, rather than
-          // dropped — a missing logo is worse than an unoptimised one.
-          result.skipped++
+        } catch (error) {
+          // 29 October: a 335-million-pixel PNG survived this catch and reached phones.
+          // Keep the source intact, but refuse this output; never silently bless skipped raster data.
+          throw rasterProcessingError(texture.getName() || texture.getURI() || '(unnamed)', error)
         }
       }
 

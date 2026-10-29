@@ -1,4 +1,9 @@
-import { DownloadStalledError, type FetchProgress, fetchWithProgress } from './fetchWithProgress'
+import {
+  DownloadStalledError,
+  ModelFetchError,
+  type FetchProgress,
+  fetchWithProgress,
+} from './fetchWithProgress'
 
 /**
  * No new bytes for this long means the download has stopped — issue #41.
@@ -12,16 +17,31 @@ export const STALL_MS = 12_000
 /** Tries in total, the first included. The visitor reads "TRYING AGAIN (2 OF 3)" and then "(3 OF 3)". */
 export const MAX_ATTEMPTS = 3
 
-/**
- * Download a model, retrying ONLY when it stalls.
- *
- * ⚠️ THE SAME URL EVERY TIME, DELIBERATELY. A cache-busting query would skip the edge's copy and go back to R2 — and
- * on 2026-09-24 the edge's copies were the only ones still being delivered from Islamabad, while every fresh fetch
- * from R2 stalled. A retry opens a new connection, which is what has a chance of taking a working route.
- *
- * Every other failure is rethrown at once, so the caller keeps its old contract: hand the plain URL to
- * `<model-viewer>`, which can still succeed where the counted fetch could not.
- */
+/** Temporary failures share one attempt budget; permanent responses and cancellation never retry. */
+export function retryableDownload(error: unknown): boolean {
+  return (
+    error instanceof DownloadStalledError ||
+    error instanceof TypeError ||
+    (error instanceof ModelFetchError && [408, 429, 500, 502, 503, 504].includes(error.status ?? 0))
+  )
+}
+
+function waitForRetry(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const aborted = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', aborted)
+      reject(new DOMException('Download cancelled', 'AbortError'))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', aborted)
+      resolve()
+    }, ms)
+    if (signal?.aborted) aborted()
+    else signal?.addEventListener('abort', aborted, { once: true })
+  })
+}
+
 export async function downloadWithRetries(
   url: string,
   opts: {
@@ -30,6 +50,7 @@ export async function downloadWithRetries(
     onAttempt?: (attempt: number) => void
     /** Called on each stall, with the bytes that had arrived — for the diagnostic. */
     onStall?: (attempt: number, loaded: number) => void
+    onFailure?: (attempt: number, error: unknown) => void
     signal?: AbortSignal
     stallMs?: number
     attempts?: number
@@ -39,7 +60,11 @@ export async function downloadWithRetries(
   },
 ): Promise<Blob> {
   const { stallMs = STALL_MS, attempts = MAX_ATTEMPTS, fetcher = fetchWithProgress } = opts
+  const limit = Number.isFinite(attempts)
+    ? Math.max(1, Math.min(MAX_ATTEMPTS, Math.floor(attempts)))
+    : MAX_ATTEMPTS
   for (let attempt = 1; ; attempt++) {
+    if (opts.signal?.aborted) throw new DOMException('Download cancelled', 'AbortError')
     opts.onAttempt?.(attempt)
     try {
       return await fetcher(url, opts.onProgress, opts.signal, {
@@ -47,9 +72,15 @@ export async function downloadWithRetries(
         expectedBytes: opts.expectedBytes,
       })
     } catch (error) {
-      if (!(error instanceof DownloadStalledError)) throw error
-      opts.onStall?.(attempt, error.loaded)
-      if (attempt >= attempts) throw error
+      if (opts.signal?.aborted) throw new DOMException('Download cancelled', 'AbortError')
+      opts.onFailure?.(attempt, error)
+      if (error instanceof DownloadStalledError) opts.onStall?.(attempt, error.loaded)
+      if (!retryableDownload(error) || attempt >= limit) throw error
+      const retryAfter = error instanceof ModelFetchError ? error.retryAfterMs : undefined
+      // Never retry before Retry-After; a long server pause leaves an explicit visitor retry.
+      if (retryAfter !== undefined && retryAfter > 30_000) throw error
+      const backoff = 250 * 2 ** (attempt - 1) + Math.floor(Math.random() * 250)
+      await waitForRetry(Math.max(backoff, retryAfter ?? 0), opts.signal)
     }
   }
 }

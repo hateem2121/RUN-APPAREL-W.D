@@ -46,8 +46,10 @@ test('a download that stops sending retries, then offers TRY 3D AGAIN, which loa
   const retryLine = page.locator('.stage__loading-detail', { hasText: 'DOWNLOAD STOPPED' })
   await expect(retryLine).toHaveCount(0)
   await page.clock.fastForward(12_500)
+  await page.clock.runFor(750)
   await expect(page.getByText('DOWNLOAD STOPPED · TRYING AGAIN (2 OF 3)')).toBeVisible()
   await page.clock.fastForward(12_500)
+  await page.clock.runFor(750)
   await expect(page.getByText('DOWNLOAD STOPPED · TRYING AGAIN (3 OF 3)')).toBeVisible()
   await page.clock.fastForward(12_500)
 
@@ -76,4 +78,47 @@ test('a download that stops sending retries, then offers TRY 3D AGAIN, which loa
     null,
     { timeout: 90_000 },
   )
+})
+
+test('connection failures stop at three requests and an explicit retry restores the real model', async ({
+  page,
+}) => {
+  let requests = 0
+  let broken = true
+  await page.route('**/fixtures/*.glb', async (route) => {
+    requests++
+    if (broken) await route.abort('failed')
+    else await route.continue()
+  })
+  await page.goto('/n001/wine')
+  const retry = page.getByRole('button', { name: 'TRY 3D AGAIN' })
+  await expect(retry).toBeVisible()
+  expect(requests).toBe(3)
+  await expect(page.locator('.stage__picture')).toBeVisible()
+  broken = false
+  await retry.click()
+  await page.waitForFunction(
+    () => (document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded === true,
+  )
+  expect(requests).toBe(4)
+  await expect(retry).toHaveCount(0)
+})
+
+test('a missing model is requested once and failed pictures show deliberate recovery', async ({
+  page,
+}) => {
+  let models = 0
+  await page.route('**/fixtures/*.glb', async (route) => {
+    models++
+    await route.fulfill({ status: 404, body: 'missing' })
+  })
+  await page.route(/\/fixtures\/.*\.(webp|png|jpg)/, (route) =>
+    route.fulfill({ status: 404, body: '' }),
+  )
+  await page.goto('/n001/wine')
+  await expect(page.getByRole('button', { name: 'TRY PICTURE AGAIN' })).toBeVisible()
+  await expect(page.locator('.stage__picture')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'TRY 3D AGAIN' })).toHaveCount(0)
+  expect(models).toBe(1)
+  await expect(page.getByRole('link', { name: /email/i }).first()).toBeVisible()
 })

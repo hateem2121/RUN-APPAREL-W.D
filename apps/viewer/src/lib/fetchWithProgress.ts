@@ -8,10 +8,8 @@ export interface FetchProgress {
 /**
  * The download answered, then stopped sending bytes for `stallMs`.
  *
- * ⚠️ A DIFFERENT KIND OF FAILURE FROM EVERY OTHER ONE HERE, and the caller must NOT treat it like them. Every
- * other rejection means "hand the plain URL to `<model-viewer>`", which can still work. A stall would not: the
- * element fetches the same file over the same route and stalls the same way, except with no readout at all.
- * `downloadWithRetries` retries this error and nothing else.
+ * Kept distinct from HTTP errors and browser network errors so the recovery notice
+ * can say that bytes stopped arriving. All transient failures share one retry budget.
  */
 export class DownloadStalledError extends Error {
   override readonly name = 'DownloadStalledError'
@@ -31,6 +29,8 @@ export class ModelFetchError extends Error {
   constructor(
     message: string,
     readonly reason: string,
+    readonly status?: number,
+    readonly retryAfterMs?: number,
   ) {
     super(message)
   }
@@ -71,13 +71,16 @@ export function fetchFailureReason(error: unknown): string {
  * left vanished. The garment data now carries the model's size (`expectedBytes`, from
  * `glbBytes`); see the total below.
  *
- * ⚠️ The caller MUST treat a rejection as "use the plain URL instead", never as
- * an error to show. Every failure mode here — offline, CORS, a 5xx, an aborted
- * navigation — is one where handing the URL straight to `<model-viewer>` still
- * works, because that is exactly what shipped before this function existed.
- * The ONE exception is `DownloadStalledError` (above), and only when the caller
- * passes `stallMs`.
+ * The caller uses downloadWithRetries for one bounded attempt budget and preserves
+ * failure categories for the picture fallback and explicit visitor retry.
  */
+export function retryAfterMs(value: string | null, now = Date.now()): number | undefined {
+  if (!value?.trim()) return undefined
+  const seconds = Number(value)
+  const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - now
+  return Number.isFinite(delay) && delay >= 0 ? delay : undefined
+}
+
 export async function fetchWithProgress(
   url: string,
   onProgress: (progress: FetchProgress) => void,
@@ -103,8 +106,9 @@ export async function fetchWithProgress(
    * only by the timer, so a deliberate cancel is never retried as though the network had failed.
    */
   const internal = new AbortController()
-  if (signal?.aborted) internal.abort(signal.reason)
-  else signal?.addEventListener('abort', () => internal.abort(signal.reason), { once: true })
+  const onAbort = () => internal.abort(signal?.reason)
+  if (signal?.aborted) onAbort()
+  else signal?.addEventListener('abort', onAbort, { once: true })
   let loaded = 0
   let stalled = false
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -141,6 +145,7 @@ export async function fetchWithProgress(
     throw error
   } finally {
     clearTimeout(timer)
+    signal?.removeEventListener('abort', onAbort)
     if (typeof document !== 'undefined')
       document.removeEventListener('visibilitychange', onVisibility)
   }
@@ -157,9 +162,12 @@ async function readCounted(
   const response = await fetch(url, { signal })
   onHeaders()
   if (!response.ok) {
+    await response.body?.cancel().catch(() => {})
     throw new ModelFetchError(
       `fetchWithProgress: ${url} responded ${response.status}`,
       `http ${response.status}`,
+      response.status,
+      retryAfterMs(response.headers.get('retry-after')),
     )
   }
 
@@ -187,6 +195,7 @@ async function readCounted(
    */
   const contentType = response.headers.get('content-type') ?? ''
   if (contentType.includes('text/html')) {
+    await response.body?.cancel().catch(() => {})
     throw new ModelFetchError(
       `fetchWithProgress: ${url} returned an HTML page (${contentType}), not a model. ` +
         'The object is probably missing from storage — R2 answers a missing key with ' +

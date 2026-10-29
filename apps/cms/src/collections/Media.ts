@@ -1,3 +1,4 @@
+import { checkModelTextures } from '@run-apparel/shared'
 import { APIError, type CollectionConfig } from 'payload'
 import {
   isAdmin,
@@ -100,13 +101,29 @@ export const Media: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [
-      ({ data, req }) => {
+      ({ data, req, operation }) => {
         const filename = (data?.filename ?? '') as string
         const { sizeWarning } = checkMediaUpload({
           filename,
           mimeType: (data?.mimeType ?? '') as string,
           filesize: (data?.filesize ?? 0) as number,
         })
+        // Verify the uploaded bytes, not a caller's verdict. Existing metadata-only updates
+        // stay usable; every new/replacement model must pass the same raster gate as processing.
+        const file = req.file
+        const isModel =
+          (file?.name ?? filename).toLowerCase().endsWith('.glb') ||
+          (file?.mimetype ?? data?.mimeType) === 'model/gltf-binary'
+        if (isModel && (file || operation === 'create')) {
+          if (!file?.data)
+            throw new APIError(
+              'The 3D file bytes are missing, so its images could not be verified. Upload the complete processed GLB.',
+              400,
+            )
+          const check = checkModelTextures(new Uint8Array(file.data))
+          if (!check.ok)
+            throw new APIError(`This 3D file was not saved. ${check.problems.join(' ')}`, 400)
+        }
         if (sizeWarning) {
           req.payload.logger.warn(
             `Media upload "${filename}" is ${(((data?.filesize ?? 0) as number) / 1024 / 1024).toFixed(1)} MB — heavier than the ${SIZE_WARNING_BYTES / 1024 / 1024} MB mobile guideline.`,

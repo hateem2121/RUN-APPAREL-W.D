@@ -226,7 +226,17 @@ test.describe('№01 meets the hero: no light line, no gap', () => {
       content:
         '.about-ground { animation: site-reveal var(--settle) var(--ease-out-expo) both; animation-timeline: view(); animation-range: entry 0% entry 60%; }',
     })
-    await expect.poll(async () => (await joinGaps(page))[0]?.gap ?? 0).toBeGreaterThan(1)
+    await expect
+      .poll(async () => {
+        // Every reading scrolls to the end of the reveal. Reset before each poll;
+        // otherwise a missed first frame hides the planted fault forever (29 October).
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+        await page.evaluate(
+          () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+        )
+        return Math.max(...(await joinGaps(page)).map((read) => Math.abs(read.gap)))
+      })
+      .toBeGreaterThan(1)
   })
 })
 

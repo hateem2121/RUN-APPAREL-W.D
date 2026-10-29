@@ -249,7 +249,7 @@ ShrinkContainer (Node, standard-4)
    • returns shrunk GLB bytes + base64 report header
    ▼
 shrink Worker → env.CMS.fetch (service binding, robot API key)
-   • POST /api/media   (guardrails run: safe name + < 40 MB → shrunk file passes)
+   • POST /api/media   (safe name + size limit + embedded-image checks)
    • PATCH /api/raw-uploads/:id  { status: ready, resultGlb, report }
    ▼
 Owner reviews + publishes (publishGating.ts unchanged)
@@ -266,6 +266,10 @@ Owner reviews + publishes (publishGating.ts unchanged)
   the shrink Worker cannot drift.
 - `packages/shared/src/media.ts` — `GLB_HARD_MAX_BYTES`, enforced by the CMS *and*
   pre-flighted by the shrink Worker before it POSTs.
+- `packages/shared/src/modelTextureSafety.ts` — checks finished GLB image headers:
+  embedded PNG/JPEG/WebP only, at most 4096 pixels on either edge, with a combined
+  raster texture estimate no greater than 256 MiB. Both processing and new/replacement
+  Media uploads enforce it; it is not a measured phone-memory guarantee.
 - `tools/asset-pipeline/src/simplify-textured.ts` — texture-aware decimation.
 - `apps/shrink/` — the shrink Worker (`src/index.ts`), the Container
   (`container/server.ts` + `Dockerfile`), and its `wrangler.jsonc`.
@@ -375,7 +379,7 @@ whatever version regressed it; this section's history is the precedent for how.
 **Why a raw file can never go live:** the ingest bucket has no custom domain and no
 public access; `RawUploads` is admin/editor-only; the public viewer endpoint reads
 only products/colourways/media. Only the shrunk output re-enters Media, where the
-existing 40 MB guardrail applies.
+40 MB guardrail and embedded-image checks apply.
 
 ---
 
@@ -552,6 +556,14 @@ lifecycle-expire).
   since "Smallest file" was removed on 2026-08-05: it bought its size by damaging
   printed artwork, and passed every gate while doing so. Trading a visible failure
   for an invisible one is not a remedy this system offers any more.
+- **Failed: "Model image verification failed"** → the finished file has oversized
+  or unmeasurable images, or exceeds the combined texture estimate. This refusal
+  saves no model and is not retried automatically. Rebuild from the original CLO
+  export, review the printed artwork, and test the target phone before replacement.
+- **Failed: "Could not process texture"** → processing could not decode or resize
+  a texture. It now stops instead of silently preserving an unchecked texture in
+  the finished file. Keep the original; re-export the artwork or ask a developer
+  to prepare it locally with controlled memory use.
 - **Printed graphics look smeared or torn** → re-upload with **Detail: Highest
   quality**. If that is not enough, raise `--uv-weight` for the level in
   `packages/shared/src/shrink.ts` (this one *does* need a container redeploy only

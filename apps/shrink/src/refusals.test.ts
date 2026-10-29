@@ -1,6 +1,12 @@
 import { GLB_HARD_MAX_BYTES } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { alphaRefusal, artworkRefusal, repairRefusal, sizeRefusal } from './refusals'
+import {
+  alphaRefusal,
+  artworkRefusal,
+  repairRefusal,
+  sizeRefusal,
+  textureRefusal,
+} from './refusals'
 
 describe('the refusals, pure (fix plan Rank 13, Q-01)', () => {
   it('size: only over the ceiling, with the detail advice', () => {
@@ -47,4 +53,13 @@ describe('repairRefusal (HG-06)', () => {
       }),
     ).toMatch(/\(emissiveTexture\)/)
   })
+})
+
+it('refuses absent, unsupported and failed image verification', () => {
+  expect(textureRefusal(undefined)).toContain('not verified')
+  expect(textureRefusal({ version: 2, ok: true, problems: [] })).toContain('not verified')
+  expect(textureRefusal({ version: 1, ok: false, problems: ['Oversized image 19'] })).toContain(
+    'Oversized image 19',
+  )
+  expect(textureRefusal({ version: 1, ok: true, problems: [] })).toBeNull()
 })

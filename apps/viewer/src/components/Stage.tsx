@@ -35,6 +35,7 @@ import { LoadingTitle } from './LoadingTitle'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { colourwayTabId } from './ColourwayTabs'
 import { HdImageButton } from './HdImageButton'
+import { RecoverablePicture } from './RecoverablePicture'
 import { SpecGroups } from './SpecGroups'
 
 /** How far the dye opens, as a share of its trip, before model-viewer has drawn the new colour. */
@@ -164,6 +165,7 @@ export function Stage({
   const modelLoaded = isLive(phase)
   const swapping = isSwapping(phase)
   const stalled = phase.kind === 'poster' && phase.reason === 'stalled'
+  const connectionFailed = phase.kind === 'poster' && phase.reason === 'connection-failed'
   const comingSoon = phase.kind === 'poster' && phase.reason === 'coming-soon'
   // App.tsx keeps the garment's facts out of the corners while there is no garment (polish D10).
   useEffect(() => {
@@ -821,11 +823,8 @@ export function Stage({
    * Fetch the GLB ourselves so the readout can show real megabytes and a real
    * time remaining.
    *
-   * ⚠️ EVERY failure here falls back to handing <model-viewer> the plain URL,
-   * which is precisely the behaviour that shipped before this existed. Offline,
-   * CORS, a 5xx, an aborted navigation — none of them may produce an error
-   * screen, because none of them stops the element from loading the file itself.
-   * That fallback is what makes counting bytes a safe thing to do at all.
+   * One counted loader owns all network attempts. Temporary failures retry within its
+   * budget; permanent failures show the picture. There is no uncounted second fetch.
    */
   useEffect(() => {
     // `canRender3D()`, NOT `libReady`. The model download used to wait for the
@@ -899,6 +898,12 @@ export function Stage({
           lastAt = performance.now()
           lastLoaded = 0
         },
+        onFailure: (attempt, error) => {
+          diagnostic('model-download-failed', {
+            product: product.productCode,
+            reason: `${fetchFailureReason(error)}; attempt ${attempt} of ${MAX_ATTEMPTS}`,
+          })
+        },
         onStall: (attempt, bytes) => {
           // Every stall, not only the last: a stall that a retry cured is the early
           // warning, and on 2026-09-24 no signal of any kind reached us before a
@@ -927,14 +932,16 @@ export function Stage({
             dispatchPhase({ type: 'load-failed', reason: 'stalled' })
             return
           }
-          // WHY it failed, since 2026-10-21. Every one of the 13 rows in the 30 days before
-          // read only "falling back…", and each was followed by `model-load-error`, so the
-          // largest cause of "The 3D view is not available" could not be told apart.
-          diagnostic('model-prefetch-failed', {
-            product: product.productCode,
-            reason: `falling back to direct model-viewer fetch (${fetchFailureReason(error)})`,
+          // All network attempts belong to the counted loader. A second direct loader
+          // would repeat permanent failures and bypass both the budget and the watchdog.
+          dispatchPhase({
+            type: 'load-failed',
+            reason:
+              error instanceof TypeError ||
+              /^http (408|429|500|502|503|504)$/.test(fetchFailureReason(error))
+                ? 'connection-failed'
+                : 'load-failed',
           })
-          setResolvedSrc(glbUrl)
         })
     }
 
@@ -1113,9 +1120,11 @@ export function Stage({
       ? null
       : comingSoon
         ? COMING_SOON_NOTICE
-        : stalled
-          ? STALL_NOTICE
-          : LOAD_NOTICE
+        : connectionFailed
+          ? 'The 3D view could not connect. You can try again or use the garment picture.'
+          : stalled
+            ? STALL_NOTICE
+            : LOAD_NOTICE
 
   /*
    * POLISH F14: ON PAPER THE WINDOW HOLDS THE CHOSEN COLOUR'S PICTURE, NOT THE 3D. A browser
@@ -1429,7 +1438,11 @@ export function Stage({
 
           {showPlaceholder && placeholder && !showHd && (
             <img
+              key={placeholder.url}
               ref={placeholderRef}
+              onError={(event) => {
+                event.currentTarget.style.visibility = 'hidden'
+              }}
               className={`stage__placeholder${
                 placeholderStage === 'leaving' ? ' stage__placeholder--leaving' : ''
               }`}
@@ -1642,18 +1655,12 @@ export function Stage({
           <div className="stage__failure">
             {/* Inside the note's box, first: the picture takes the height the note and
                 TRY 3D AGAIN leave, so neither ever covers the garment (VA-03). */}
-            {fallbackPicture && (
-              <img
+            {fallback && (
+              <RecoverablePicture
+                key={selected.slug}
+                pictures={[fallbackPicture, selected.poster]}
+                description={`${product.productName} in ${selected.displayName}`}
                 className="stage__picture"
-                src={fallbackPicture.url}
-                alt={fallbackPicture.alt || `${product.productName} in ${displayed.displayName}`}
-                decoding="async"
-                // With no 3D, this is the page's main picture (polish F13).
-                fetchPriority="high"
-                draggable={false}
-                {...(fallbackPicture.width && fallbackPicture.height
-                  ? { width: fallbackPicture.width, height: fallbackPicture.height }
-                  : {})}
               />
             )}
             <p
@@ -1664,9 +1671,9 @@ export function Stage({
               {notice ?? (fallback ? failureNotice : '')}
             </p>
             {/*
-            TRY 3D AGAIN — issue #41, the owner's label. Only after a stall: every
-            other failure is a device that cannot do 3D, where the button would be a
-            promise the page cannot keep. It starts three fresh tries.
+            TRY 3D AGAIN: only a stall or temporary connection failure. Device limits,
+            malformed files and permanent responses remain terminal. A visitor's press
+            starts a fresh, bounded download and restores focus to the stage.
 
             ⚠️ FOCUS: the press unmounts the button, which would drop a keyboard
             visitor's focus to <body>. It goes to the stage instead — where the model
@@ -1674,12 +1681,14 @@ export function Stage({
             scroll call (apps/viewer/CLAUDE.md). The stage is made focusable only for
             that moment (tabindex -1, removed on blur), so it never joins the tab order.
           */}
-            {stalled && (
+            {(stalled || connectionFailed) && (
               <button
                 type="button"
                 className="stage__retry"
                 onClick={() => {
                   setDownloadAttempt(1)
+                  setResolvedSrc(null)
+                  setNotice(null)
                   dispatchPhase({ type: 'retry' })
                   const canvas = canvasRef.current
                   if (!canvas) return

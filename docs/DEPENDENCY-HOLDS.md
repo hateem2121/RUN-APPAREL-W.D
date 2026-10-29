@@ -11,6 +11,63 @@ trusting the dates.
 
 ---
 
+## `graphql-scalars` under Payload: exact security override (2026-10-29)
+
+The release gate for PR #294 began failing on
+[GHSA-x8rm-f576-gq67](https://github.com/advisories/GHSA-x8rm-f576-gq67), reviewed and
+updated 2026-10-28. Its machine-readable range is `<=2.0.0`, first patched `2.0.1`,
+but its description says the exponential PhoneNumber pattern was introduced in
+`1.24.1`; earlier releases use a linear pattern. The installed `1.22.2` source does
+use that earlier pattern, and rejects 100,001 characters (digits followed by `x`)
+immediately. This is a disagreement in the advisory data, not evidence that our
+installed version contains the reported bad expression.
+
+The two reported paths are the CMS's `@payloadcms/next` and
+`@payloadcms/richtext-lexical`, through `@payloadcms/graphql`. The CMS disables
+GraphQL in `apps/cms/src/payload.config.ts`; moreover Payload 3.92.0 imports only
+`DateTimeResolver` and `EmailAddressResolver` from this package, never PhoneNumber.
+Those facts explain exposure, but the gate still needs an explicit resolution.
+
+**Resolution:** `pnpm-workspace.yaml` overrides only
+`@payloadcms/graphql>graphql-scalars` to exactly `2.0.1`. No advisory exemption or
+gate relaxation. Compatibility was checked before crossing the major version:
+
+- The [2.0.0 release](https://github.com/graphql-hive/graphql-scalars/releases/tag/v2.0.0)
+  names dropping GraphQL versions below 16 and Node 20 as its breaking changes.
+  This repository runs Node 26 in CI and GraphQL 17.0.2; 2.0.1's declared GraphQL
+  peer range explicitly includes 17. The registry still declares Node `>=10`,
+  so the stricter release note was used when checking Node compatibility.
+- Published EmailAddress code is byte-identical to 1.22.2; DateTime differs only
+  in the name of an unused catch variable. Its helper differences retain the
+  same behavior on GraphQL 17. All 140 comparisons of serialization, variable
+  parsing and literal parsing matched, including invalid dates/emails and types.
+- After installation, Payload's actual field and filter builders constructed
+  date/email fields successfully. A GraphQL 17 schema built from those fields
+  accepted valid literals and variables and rejected invalid inputs. Both old
+  and fixed PhoneNumber implementations rejected the long failing input in
+  under 2 ms in the local comparison.
+
+**Supply chain:** the [npm registry](https://registry.npmjs.org/graphql-scalars/2.0.1)
+reports publication at `2026-10-15T08:28:56.695Z`, so the existing 24-hour cooldown
+needed no exception. Publisher: `theguild-bot`; no install scripts; the same sole
+runtime dependency, `tslib: ^2.5.0`. The downloaded tarball's SHA-512 matches its
+registry integrity, and both registry signatures verified against npm's public
+signing key. No npm provenance attestation is advertised; the attestations endpoint
+returns 404, so no OIDC/provenance claim is made. The
+[2.0.1 release](https://github.com/graphql-hive/graphql-scalars/releases/tag/v2.0.1)
+links the regex fix and a GitHub-verified release commit.
+
+**Measured result:** frozen install passed, the unchanged audit gate passed, and
+all 16 existing dependency-policy, advisory-reach and OSV-config tests passed.
+The lockfile changes only this package, its parent edge and the matching override;
+all other resolved versions and supply-chain settings are unchanged. Full build
+and release checks remain required by `.claude/rules/dependencies.md`.
+
+**Remove the override** when Payload itself requires `graphql-scalars >=2.0.1`;
+recheck these imports and the gate whenever Payload is upgraded.
+
+---
+
 ## RELEASED 2026-10-03 — `@cloudflare/workers-types` is one version everywhere again
 
 The owner chose to fix the cause after Dependabot's pull request #126 proposed raising

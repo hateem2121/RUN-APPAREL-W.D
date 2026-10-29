@@ -37,6 +37,8 @@ throttled "Slow 4G" network profile.
 - [ ] FRONT / BACK / SIDE animate smoothly to the CMS-configured positions; free rotation still works afterwards
 - [ ] No AR button anywhere
 - [ ] With WebGL disabled (or `saveData` on), the static poster fallback appears and specs/tabs/contacts/catalogue all remain
+- [ ] A temporary connection failure or stalled model download makes at most three automatic attempts, then shows the picture and **TRY 3D AGAIN**; a permanent failure does not start another hidden download
+- [ ] If the fallback picture fails, its small alternative is tried once; if both fail, **TRY PICTURE AGAIN** restores the picture after the connection recovers
 
 ## Colourway UX
 
@@ -191,7 +193,8 @@ visitor would put ~2 s in front of every QR scan. See `apps/viewer/CLAUDE.md`.
 
 - [ ] Poster visible well before the model on Slow 4G
 - [ ] GLB used is the **pipeline-processed** one (`pnpm pipeline validate --strict` passed, and "Colours checked" shows green — it is derived and read-only, not a box you tick)
-- [ ] GLB is **under the size budget** (well under 8 MB; the CMS hard-blocks over 40 MB) — textures are **WebP or KTX2**, not raw PNG/JPEG
+- [ ] GLB is **under the size budget** (well under 8 MB; the CMS hard-blocks over 40 MB) — processed textures use WebP; every image is embedded and inspectable, with neither edge above 4096 pixels and the combined texture estimate at or below 256 MiB
+- [ ] New/replacement uploads with an oversized or unmeasurable image are refused. This estimate does not prove the model will fit a particular phone's memory; complete the real-phone render checks below
 - [ ] Geometry was **simplified** for raw CLO exports (`--simplify`) — a raw cloth-sim mesh runs to millions of triangles; the mesh, not the textures, is the size cost
 - [ ] Filename is **URL-safe** (letters, numbers, `. _ -` only — no spaces/brackets), or the CMS rejects the upload regardless of size
 - [ ] Poster images are WebP/AVIF and reasonably sized

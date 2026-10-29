@@ -3,11 +3,11 @@ import path from 'node:path'
 import type { Payload } from 'payload'
 
 /**
- * Seed dataset: product N001 "Velocity Performance Tee" with three colours,
+ * Seed dataset: product N001 "Velocity Performance Tee" with five colours,
  * wired to demonstrate BOTH variant modes:
  *
  * - published as `single-glb-variants` with the pipeline-merged GLB
- *   (variants N001-NAVY / N001-BLACK / N001-CRIMSON), and
+ *   (variants N001-WINE / N001-BLUSH / N001-BUTTER / N001-LIME / N001-BLACK), and
  * - each colour also carries its own per-colour GLB, so switching the product
  *   to `separate-glb-per-colour` in the admin works immediately.
  *
@@ -86,10 +86,20 @@ const COLOURWAYS: SeedColourway[] = [
 
 export async function seed(payload: Payload, assetsDir: string): Promise<void> {
   const placeholderDir = path.join(assetsDir, 'placeholders')
+  const colourGlbDir = path.join(assetsDir, 'seed-colours')
   const mergedGlb = path.join(assetsDir, 'n001.glb')
-  if (!existsSync(mergedGlb) || !existsSync(placeholderDir)) {
+  // Check every upload before writing anything. An old local product masked the CI
+  // failure: raw placeholders retain 4608px images and cannot be uploaded to Media.
+  const requiredFiles = [
+    mergedGlb,
+    ...COLOURWAYS.flatMap(({ slug }) => [
+      path.join(placeholderDir, `n001-${slug}-poster.webp`),
+      path.join(colourGlbDir, `n001-${slug}.glb`),
+    ]),
+  ]
+  if (requiredFiles.some((file) => !existsSync(file))) {
     throw new Error(
-      `Seed assets not found under ${assetsDir}.\nRun "pnpm seed:assets" from the repo root first (generates placeholder GLBs/posters and the merged production GLB).`,
+      `Seed assets not found under ${assetsDir}.\nRun "pnpm seed:assets" from the repo root first (generates raw fixtures, upload-ready per-colour GLBs/posters and the merged production GLB).`,
     )
   }
 
@@ -216,7 +226,7 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
     const glb = await payload.create({
       collection: 'media',
       data: { alt: `Velocity Performance Tee in ${colourway.displayName} — 3D model` },
-      filePath: path.join(placeholderDir, `n001-${colourway.slug}.glb`),
+      filePath: path.join(colourGlbDir, `n001-${colourway.slug}.glb`),
     })
     colourGlbIds[colourway.slug] = glb.id
   }
@@ -267,7 +277,7 @@ export async function seed(payload: Payload, assetsDir: string): Promise<void> {
         altText: `Velocity Performance Tee in ${colourway.displayName}`,
         hexSwatch: colourway.hexSwatch,
       })),
-      posterFallback: posterIds.navy,
+      posterFallback: posterIds[firstColour!.slug]!,
       fabricComposition: 'Recycled polyester / elastane',
       gsm: '160 GSM',
       performanceFeatures: [

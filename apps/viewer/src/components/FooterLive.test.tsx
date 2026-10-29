@@ -82,7 +82,13 @@ describe('FooterWordmark', () => {
     expect(layers.every((l) => l.getAttribute('aria-hidden') === 'true')).toBe(true)
   })
 
-  it('refits on every resize, and stops watching when it leaves the page', () => {
+  it('schedules fitting outside resize delivery, and stops watching when it leaves', () => {
+    let frame: FrameRequestCallback | undefined
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frame = callback
+      return 1
+    })
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
     const observed: Element[] = []
     let refit = () => {}
     let disconnected = false
@@ -105,8 +111,10 @@ describe('FooterWordmark', () => {
     expect(observed).toEqual([mark])
     if (mark) mark.style.fontSize = '99px'
     act(() => refit())
-    // Each fit starts from the stylesheet's size, never from the last fit's.
-    expect(mark?.style.fontSize).not.toBe('99px')
+    // The observer itself must never write layout (the mobile WebKit loop).
+    expect(mark?.style.fontSize).toBe('99px')
+    expect(frame).toBeTypeOf('function')
+    act(() => frame?.(0))
     act(() => root.unmount())
     root = createRoot(host)
     expect(disconnected).toBe(true)

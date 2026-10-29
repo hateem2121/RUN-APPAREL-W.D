@@ -1,3 +1,5 @@
+import { MODEL_TEXTURE_REVIEW_BYTES } from '../../../packages/shared/src/modelTextureSafety'
+import { PHONE_GPU_BUDGET_BYTES } from './texture-fold'
 import { SIZE_WARNING_BYTES as SHARED_SIZE_WARNING_BYTES } from '../../../packages/shared/src/media'
 import { describe, expect, it } from 'vitest'
 import { SIZE_WARNING_BYTES } from './validate'
@@ -26,4 +28,8 @@ describe('SIZE_WARNING_BYTES does not drift from the shared copy', () => {
   it('is the 8 MB mobile guideline both sides document', () => {
     expect(SIZE_WARNING_BYTES).toBe(8 * 1024 * 1024)
   })
+})
+
+it('the image acceptance review budget matches the existing project estimate', () => {
+  expect(MODEL_TEXTURE_REVIEW_BYTES).toBe(PHONE_GPU_BUDGET_BYTES)
 })

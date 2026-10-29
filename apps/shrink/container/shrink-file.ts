@@ -1,3 +1,5 @@
+import { checkModelTextures } from '../../../packages/shared/src/modelTextureSafety'
+import { ModelImageRefusal } from './failure'
 /**
  * The robot's processing body, from a raw GLB on disk to the finished GLB and its report.
  *
@@ -195,6 +197,8 @@ export async function shrinkFile(
   // 3. Validate the result for the report (variants, warnings, translucency).
   const glb = await inspectGlb(outPath)
   const bytes = await readFile(outPath)
+  const textureCheck = checkModelTextures(new Uint8Array(bytes))
+  if (!textureCheck.ok) throw new ModelImageRefusal(textureCheck.problems)
 
   const filename = suggestedFilename(key)
   const found = glb.variantsInFileOrder.length ? glb.variantsInFileOrder : glb.variants
@@ -203,12 +207,14 @@ export async function shrinkFile(
   // Wrapped because reporting must never fail a job that otherwise succeeded.
   let composition: string[] | undefined
   try {
-    composition = formatAttributeBytes(attributeBytes(await readGltfJson(outPath), opt.bytesAfter))
+    composition = formatAttributeBytes(attributeBytes(await readGltfJson(outPath), bytes.length))
   } catch {
     composition = undefined
   }
+  // Overlay annotations can grow the JSON after optimization. Report and gate the
+  // actual delivered bytes; the Velocity repair exposed a 10,940-byte difference.
   const text = buildReportText(
-    opt,
+    { ...opt, bytesAfter: bytes.length },
     glb,
     filename,
     composition,
@@ -220,7 +226,8 @@ export async function shrinkFile(
   const report = {
     ok: true,
     suggestedFilename: filename,
-    sizeBytes: opt.bytesAfter,
+    sizeBytes: bytes.length,
+    textureCheck,
     variants: glb.variants,
     variantsInFileOrder: found,
     warnings: glb.warnings,

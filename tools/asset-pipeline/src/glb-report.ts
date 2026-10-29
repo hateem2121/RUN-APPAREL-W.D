@@ -1,3 +1,4 @@
+import type { ModelTextureCheck } from '../../../packages/shared/src/modelTextureSafety'
 import type { SpecCheck } from './gltf-spec'
 import type { ArtworkAlphaProblem, CrushedArtwork, SoftArtworkOnBlend } from './texture-artwork'
 import type { VariantColour } from './variant-colour'
@@ -36,6 +37,8 @@ export const SIZE_WARNING_BYTES = 8 * 1024 * 1024
 
 export interface GlbReport {
   file: string
+  /** Bounded image acceptance; absent when a raw source is too large to inspect as a publishable file. */
+  textureCheck?: ModelTextureCheck
   bytes: number
   /** KHR_materials_variants names actually bound to primitives — what <model-viewer> will report as availableVariants. Sorted; use `variantsInFileOrder` when position matters. */
   variants: string[]

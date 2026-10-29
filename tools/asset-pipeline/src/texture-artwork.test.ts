@@ -1,6 +1,10 @@
 import { Document } from '@gltf-transform/core'
 import sharp from 'sharp'
-import { describe, expect, it } from 'vitest'
+import { containerFailureResponse } from '../../../apps/shrink/container/failure'
+import { containerFailureError } from '../../../apps/shrink/src/containerFailure'
+import { outcomeFor } from '../../../apps/shrink/src/queueDecisions'
+import { RasterProcessingRefusal } from './raster-processing-refusal'
+import { describe, expect, it, vi } from 'vitest'
 import { CRUSHED_BYTES_PER_PIXEL } from './textures'
 import {
   auditArtworkAlpha,
@@ -290,6 +294,57 @@ describe('compressTexturesForArtwork', () => {
 
     expect(result!.artworkResized).toEqual([])
   })
+
+  it('refuses an unreadable raster instead of silently preserving it in successful output', async () => {
+    const document = new Document()
+    const original = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+    const texture = document
+      .createTexture('required-print')
+      .setImage(original)
+      .setMimeType('image/png')
+    const error = await document
+      .transform(compressTexturesForArtwork(options))
+      .catch((error) => error)
+    expect(error).toBeInstanceOf(RasterProcessingRefusal)
+    expect(error.message).toContain('Could not process texture required-print')
+    expect(texture.getImage()).toEqual(original)
+    const failure = containerFailureResponse(error)
+    expect(failure.status).toBe(422)
+    expect(outcomeFor(await containerFailureError(new Response(failure.body, failure)))).toBe('ack')
+    // CONTROL: losing the type at the encoder boundary recreates the repeated job.
+    const legacy = containerFailureResponse(new Error(error.message))
+    expect(legacy.status).toBe(500)
+    expect(outcomeFor(await containerFailureError(new Response(legacy.body, legacy)))).toBe('retry')
+  })
+
+  it.each(['unable to allocate memory temporarily', 'unrecognized native encoder failure'])(
+    'preserves retries when valid image processing fails: %s',
+    async (message) => {
+      const document = new Document()
+      const original = await png(64, 32)
+      const texture = document.createTexture('logo').setImage(original).setMimeType('image/png')
+      const encoder = vi.spyOn(sharp.prototype, 'webp').mockImplementationOnce(() => {
+        throw new Error(message)
+      })
+      let error: unknown
+      try {
+        error = await document
+          .transform(compressTexturesForArtwork(options))
+          .catch((error) => error)
+      } finally {
+        encoder.mockRestore()
+      }
+      expect(error).toBeInstanceOf(Error)
+      expect(error).not.toBeInstanceOf(RasterProcessingRefusal)
+      expect((error as Error).message).toContain(message)
+      expect(texture.getImage()).toEqual(original)
+      const failure = containerFailureResponse(error)
+      expect(failure.status).toBe(500)
+      expect(outcomeFor(await containerFailureError(new Response(failure.body, failure)))).toBe(
+        'retry',
+      )
+    },
+  )
 
   it('leaves a texture it cannot decode exactly as it was', async () => {
     // A missing logo is worse than an unoptimised one, so KTX2 and friends pass

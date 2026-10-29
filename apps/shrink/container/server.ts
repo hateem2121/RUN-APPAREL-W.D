@@ -22,6 +22,7 @@ import { pipeline } from 'node:stream/promises'
 import { AwsClient } from 'aws4fetch'
 import { objectUrl } from './report'
 import { shrinkFile } from './shrink-file'
+import { containerFailureResponse } from './failure'
 
 const PORT = Number(process.env.PORT ?? 8080)
 
@@ -107,19 +108,14 @@ const server = createServer((req, res) => {
         })
         res.end(bytes)
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        res.writeHead(500, {
-          'content-type': 'text/plain',
-          'x-shrink-report': Buffer.from(JSON.stringify({ ok: false, error: message })).toString(
-            'base64',
-          ),
-        })
-        // Generic on purpose. `message` can carry mkdtemp paths and stack text
+        const failure = containerFailureResponse(error)
+        res.writeHead(failure.status, failure.headers)
+        // Generic on purpose. Error messages can carry mkdtemp paths and stack text
         // (CodeQL js/stack-trace-exposure). The full detail is already in the
         // `x-shrink-report` header set above, which the Worker now reads via
         // readContainerFailure() in apps/shrink/src/containerFailure.ts.
         // Do not put it back in the body.
-        res.end('Shrink failed.')
+        res.end(failure.body)
       }
     })()
   })
