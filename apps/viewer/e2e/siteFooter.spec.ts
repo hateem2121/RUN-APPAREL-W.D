@@ -276,20 +276,25 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await page.evaluate(() => document.fonts.ready)
-      const fit = await page.evaluate(() => {
-        const mark = document.querySelector('.footer-mark') as HTMLElement
-        const layer = mark.querySelector('.footer-mark__layer') as HTMLElement
-        return {
-          needed: layer.scrollWidth,
-          room: mark.clientWidth,
-          page: document.documentElement.scrollWidth,
-          viewport: document.documentElement.clientWidth,
-        }
-      })
-      // FITTED: the name spans the slab (the website's FooterWordmark rule), never past it.
-      expect(fit.needed).toBeLessThanOrEqual(fit.room + 1)
-      expect(fit.needed).toBeGreaterThan(fit.room * 0.9)
-      expect(fit.page).toBeLessThanOrEqual(fit.viewport)
+      // Font readiness schedules fitting in the next animation frame (29 October).
+      // Wait for its actual geometry; an absent/broken fit must still fail all the
+      // original bounds, rather than measuring the unfitted CSS size on a fast load.
+      await expect(async () => {
+        const fit = await page.evaluate(() => {
+          const mark = document.querySelector('.footer-mark') as HTMLElement
+          const layer = mark.querySelector('.footer-mark__layer') as HTMLElement
+          return {
+            needed: layer.scrollWidth,
+            room: mark.clientWidth,
+            page: document.documentElement.scrollWidth,
+            viewport: document.documentElement.clientWidth,
+          }
+        })
+        // FITTED: the name spans the slab (the website's FooterWordmark rule), never past it.
+        expect(fit.needed).toBeLessThanOrEqual(fit.room + 1)
+        expect(fit.needed).toBeGreaterThan(fit.room * 0.9)
+        expect(fit.page).toBeLessThanOrEqual(fit.viewport)
+      }).toPass({ timeout: 5_000 })
     })
   }
 })
