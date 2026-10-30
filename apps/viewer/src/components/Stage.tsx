@@ -1609,7 +1609,6 @@ export function Stage({
               bytesLoaded={bytesLoaded}
               bytesTotal={bytesTotal}
               reduceMotion={reduceMotion}
-              name={product.productName}
               retryNote={
                 retryWaiting && load.phase === 'downloading'
                   ? `DOWNLOAD STOPPED · TRYING AGAIN (${downloadAttempt} OF ${MAX_ATTEMPTS})`

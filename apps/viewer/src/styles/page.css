@@ -1686,14 +1686,20 @@ model-viewer.stage__model {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
+/* Two fixed rows, whatever the words: a row that wrapped when the font arrived moved the page, 0.026
+   against the 0.02 floor at 390px (fontSwap.spec.ts, CI, 31 Oct). The height never changes. */
 .working__meta {
   grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 1lh 1lh;
   gap: 4px 12px;
   font-size: var(--text-mono-lg);
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.working__meta > :last-child {
+  grid-column: 1 / -1;
 }
 /* A very small window has room for the numbers or the mark, and the numbers are the point: measured
    31 Oct, the full block took 63% of the 3D window at 320x568 and 73% at 568x320. */
@@ -1707,6 +1713,17 @@ model-viewer.stage__model {
   }
   .stage__loading-title {
     grid-column: 1 / 3;
+  }
+}
+/* Sideways phones have the width for one row of numbers. */
+@media (max-height: 420px) and (min-width: 480px) {
+  .working__meta {
+    grid-template-columns: auto auto 1fr;
+    grid-template-rows: 1lh;
+  }
+  .working__meta > :last-child {
+    grid-column: auto;
+    text-align: right;
   }
 }
 .stage:has(.working) .stage__placeholder,

@@ -46,8 +46,6 @@ interface WorkingBlockProps {
   bytesLoaded: number
   bytesTotal: number
   reduceMotion: boolean
-  /** The garment's name, until the first byte. */
-  name: string
   /** "Download stopped, trying again", when it did. */
   retryNote: string | null
 }
@@ -69,7 +67,6 @@ export function WorkingBlock({
   bytesLoaded,
   bytesTotal,
   reduceMotion,
-  name,
   retryNote,
 }: WorkingBlockProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -137,9 +134,7 @@ export function WorkingBlock({
       <span className="working__meta">
         <span>
           {pending
-            ? name
-              ? `Preparing ${name}…`
-              : 'Preparing…'
+            ? 'Preparing…'
             : preparing
               ? `${formatMb(bytesTotal)} MB downloaded`
               : `${formatMb(bytesLoaded)} MB done`}
