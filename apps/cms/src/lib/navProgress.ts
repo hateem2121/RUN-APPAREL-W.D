@@ -61,3 +61,22 @@ export const NAV_PROGRESS_DELAY_MS = 400
 
 /** Given up after this, so a navigation that was cancelled never leaves the line running. */
 export const NAV_PROGRESS_GIVE_UP_MS = 15_000
+
+/** One pick is 24 px tall, at least 3: the mark's own band at the preloader's size (D51). */
+export const weavePicks = (height: number) => Math.max(3, Math.round(height / 24))
+
+/** Picks start --stagger (40 ms) apart, spread over no more than --ui (220 ms); each lasts --ui. */
+export function weaveSpread(picks: number) {
+  const gap = picks > 1 ? Math.min(40, 220 / (picks - 1)) : 0
+  return { gap, total: 220 + Math.round((picks - 1) * gap) }
+}
+
+/** The satin order: a pick's turn when stepping through by about 2n/5, as a 5-end satin steps by 2. */
+export function satinOrder(picks: number): number[] {
+  const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a)
+  let step = Math.max(1, Math.round((picks * 2) / 5))
+  while (gcd(step, picks) !== 1) step++
+  const turn: number[] = []
+  for (let k = 0; k < picks; k++) turn[(k * step) % picks] = k
+  return turn
+}

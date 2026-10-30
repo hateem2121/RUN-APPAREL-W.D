@@ -583,6 +583,10 @@
       "$type": "number",
       "$value": 1
     },
+    "z-nav-weave": {
+      "$type": "number",
+      "$value": 39
+    },
     "z-header": {
       "$type": "number",
       "$value": 40

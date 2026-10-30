@@ -8608,8 +8608,150 @@ a.contact-block__value:active {
   }
 }
 
-@media print {
+/* T7, the woven tap (D51): under the header, so logo and menu stay. Below the consent card too. */
+.nav-weave {
+  --lay: 0ms;
+  --lift: 0ms;
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
   .nav-progress {
+    display: none;
+  }
+
+  .nav-weave[data-weave] {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-nav-weave);
+    display: block;
+    pointer-events: none;
+  }
+
+  .nav-weave__picks i {
+    position: absolute;
+    inset-inline: 0;
+    background: var(--bg);
+    transform: scaleX(0);
+    transition: transform var(--ui) var(--ease) var(--lay);
+  }
+
+  .nav-weave__picks i.from-left {
+    transform-origin: 0 50%;
+  }
+
+  .nav-weave__picks i.from-right {
+    transform-origin: 100% 50%;
+  }
+
+  .nav-weave[data-weave="cover"] i,
+  .nav-weave[data-weave="hold"] i {
+    transform: scaleX(1);
+  }
+
+  /* Passes on through the way it came: the far side lets go first. */
+  .nav-weave[data-weave="lift"] i {
+    transition-delay: var(--lift);
+  }
+
+  .nav-weave[data-weave="lift"] i.from-left {
+    transform-origin: 100% 50%;
+  }
+
+  .nav-weave[data-weave="lift"] i.from-right {
+    transform-origin: 0 50%;
+  }
+
+  .nav-weave__wait {
+    display: none;
+  }
+
+  .nav-weave[data-weave="hold"] .nav-weave__wait {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-5, 20px);
+    padding-inline: 16px;
+    color: var(--text);
+    text-align: center;
+  }
+
+  .nav-weave .loom-mark {
+    display: block;
+    width: min(300px, 60vw);
+    height: auto;
+    fill: currentColor;
+  }
+
+  .nav-weave .loom-mark__bed {
+    opacity: 0.5;
+  }
+
+  .nav-weave .loom-mark__pick {
+    transform-box: fill-box;
+    shape-rendering: crispEdges;
+    animation: pick-loop calc(var(--settle) * 2 + var(--stagger) * 10) var(--ease) infinite;
+  }
+
+  .nav-weave .loom-mark__pick--0,
+  .nav-weave .loom-mark__pick--2,
+  .nav-weave .loom-mark__pick--4 {
+    --from: 0% 50%;
+    --to: 100% 50%;
+  }
+
+  .nav-weave .loom-mark__pick--1,
+  .nav-weave .loom-mark__pick--3 {
+    --from: 100% 50%;
+    --to: 0% 50%;
+  }
+
+  .nav-weave .loom-mark__pick--1 {
+    animation-delay: var(--stagger);
+  }
+
+  .nav-weave .loom-mark__pick--2 {
+    animation-delay: calc(var(--stagger) * 2);
+  }
+
+  .nav-weave .loom-mark__pick--3 {
+    animation-delay: calc(var(--stagger) * 3);
+  }
+
+  .nav-weave .loom-mark__pick--4 {
+    animation-delay: calc(var(--stagger) * 4);
+  }
+
+  @keyframes pick-loop {
+    0% {
+      transform: scaleX(0);
+      transform-origin: var(--from);
+    }
+
+    35.71%,
+    50% {
+      transform: scaleX(1);
+      transform-origin: var(--from);
+    }
+
+    50.01% {
+      transform: scaleX(1);
+      transform-origin: var(--to);
+    }
+
+    85.71%,
+    100% {
+      transform: scaleX(0);
+      transform-origin: var(--to);
+    }
+  }
+}
+
+@media print {
+  .nav-progress,
+  .nav-weave {
     display: none;
   }
 }
