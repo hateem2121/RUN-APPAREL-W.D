@@ -1362,6 +1362,51 @@ html {
 }
 
 /*
+ * R1, dye first (D51): each card in its own colour until its picture lands, then the colour passes
+ * off in 24 px picks from alternating sides. It is BEHIND the picture, so a picture that landed
+ * before the scripts arrived is never hidden, and with no script at all the colour stays behind it.
+ */
+.card-gallery__slide[style]::before,
+.card-gallery__slide[style]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hero-grid);
+  background: var(--dye);
+  pointer-events: none;
+}
+
+.card-gallery__slide[style]::before {
+  mask: repeating-linear-gradient(#000 0 24px, transparent 24px 48px);
+}
+
+.card-gallery__slide[style]::after {
+  mask: repeating-linear-gradient(transparent 0 24px, #000 24px 48px);
+}
+
+.card-gallery__slide[data-landed]::before,
+.card-gallery__slide[data-landed]::after {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card-gallery__slide[style]::before,
+  .card-gallery__slide[style]::after {
+    transition:
+      translate var(--ui) var(--ease),
+      visibility var(--instant) var(--ui);
+  }
+
+  .card-gallery__slide[data-landed]::before {
+    translate: 100% 0;
+  }
+
+  .card-gallery__slide[data-landed]::after {
+    translate: -100% 0;
+  }
+}
+
+/*
  * ⚠️ THE COLOUR STRIP IS A NATIVE SCROLL-SNAP ROW (`CardGallery.tsx` says why: no gesture
  * handler can fight the page's vertical scroll, and it swipes with scripting off).
  *
@@ -1410,7 +1455,10 @@ html {
 }
 
 .card-gallery__slide {
+  --dye: transparent;
   position: relative;
+  isolation: isolate;
+  overflow: clip;
   flex: 0 0 100%;
   height: 100%;
   scroll-snap-align: start;

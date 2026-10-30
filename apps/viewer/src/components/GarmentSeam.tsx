@@ -153,6 +153,8 @@ export function GarmentSeam({ url, hex, fraction, done, reduceMotion }: GarmentS
 
       draw.current = () => {
         if (!poly || !weave) return
+        // The picture's blur showed as a halo round the dyed piece (live, 31 Oct): page.css drops it.
+        canvas.dataset.drawn = 'true'
         context.clearRect(0, 0, cssW, cssH)
         context.fillStyle = weave
         context.fill(poly)
