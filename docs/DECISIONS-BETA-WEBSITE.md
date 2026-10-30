@@ -1562,3 +1562,12 @@ fixed positions failed 50 of 162 plays across 27 screens, measured 31 Oct).
 
 **Guard:** `apps/viewer/e2e/working-block.spec.ts`, 18 screen sizes with a control, and the seam on a
 transparent and an opaque picture, run both ways.
+
+**Second piece, the woven tap (T7).** A tap on a website link lays threads of the paper over the page
+under the header, shows S4 and "Loading Home…" after 1 s, and passes on through when the page has
+arrived. **What this removes, with motion allowed:** the 0.4 s line at the top of the screen. Every
+tap now takes at least about 0.4 s longer to show its page, which the owner accepted on 29 Oct.
+Under reduced motion the line stays. A card's picture still grows into its garment page (MO3, owner,
+31 Oct). **Not done here:** the title rise and card rise still play on arrival (the demo's woven
+arrival was to replace them), so `apps/cms/e2e/motion.spec.ts` stays as it is.
+**Guard:** `apps/cms/e2e/navWeave.spec.ts`, 10 screen sizes.

@@ -4,6 +4,9 @@ import {
   type ClickLike,
   clientNavigationTarget,
   NAV_PROGRESS_DELAY_MS,
+  satinOrder,
+  weavePicks,
+  weaveSpread,
 } from './navProgress'
 
 describe('NAV_PROGRESS_DELAY_MS', () => {
@@ -75,5 +78,24 @@ describe('arrived', () => {
     expect(arrived(to, new URL('https://wear-run.com/products?family=x#top'))).toBe(true)
     expect(arrived(to, new URL('https://wear-run.com/products'))).toBe(false)
     expect(arrived(to, new URL('https://wear-run.com/faq'))).toBe(false)
+  })
+})
+
+describe('the woven tap', () => {
+  it('has one pick per 24 px, on any screen', () => {
+    expect(weavePicks(844)).toBe(35)
+    expect(weavePicks(320)).toBe(13)
+    expect(weavePicks(2160)).toBe(90)
+    expect(weavePicks(20)).toBe(3)
+  })
+  it('is laid within two --ui on every screen, so a tall screen waits no longer', () => {
+    for (const h of [320, 844, 2160])
+      expect(weaveSpread(weavePicks(h)).total).toBeLessThanOrEqual(440)
+  })
+  it('gives every pick its own turn', () => {
+    for (const n of [3, 13, 35, 90]) {
+      expect(new Set(satinOrder(n)).size).toBe(n)
+      expect(Math.max(...satinOrder(n))).toBe(n - 1)
+    }
   })
 })
