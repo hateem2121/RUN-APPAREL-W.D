@@ -1585,47 +1585,157 @@ model-viewer.stage__model {
 
 .stage__loading {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: min(320px, 78%);
-  font-family: var(--font-mono);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  text-align: center;
-  color: var(--text);
-  background: color-mix(in oklab, var(--surface) 85%, transparent);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  padding: 18px 20px;
-  /* A readout, never a control (it holds no button; TRY 3D AGAIN lives in .stage__failure).
-     It sits on the middle of the garment until the render after the model loads, and a press
-     there landed on its text, so the colour panel took focus and the garment never turned
+  /* A readout, never a control (it holds no button; TRY 3D AGAIN lives in .stage__failure). A press
+     on it landed on its text, so the colour panel took focus and the garment never turned
      (AC-14, 11 Oct 2026: 2 of 40 under load). `loading-readout-webgl.spec.ts` holds it on screen. */
   pointer-events: none;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 8px;
+  width: min(520px, calc(100% - 16px));
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-caps-tight);
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--text);
+  border-radius: var(--radius-panel);
+  z-index: var(--z-stage-control);
+}
+
+/*
+ * The Working block (owner, 30 Oct 2026). At the foot of the stage, never on the garment: the block
+ * writes its height to --working-h and the picture and seam stand above it. Numbers WRAP rather than
+ * cut off: a nowrap row needed 328px of 322px on a 390px phone (31 Oct, devicecheck, 13 of 27 screens).
+ */
+.working__mark {
+  display: block;
+  width: 56px;
+}
+.loom-mark {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: currentColor;
+}
+.loom-mark__bed {
+  opacity: 0.5;
+}
+.loom-mark__pick {
+  transform-box: fill-box;
+  shape-rendering: crispEdges;
+  animation: pick-loop calc(var(--settle) * 2 + var(--stagger) * 10) var(--ease) infinite;
+}
+.loom-mark__pick--0,
+.loom-mark__pick--2,
+.loom-mark__pick--4 {
+  --from: 0% 50%;
+  --to: 100% 50%;
+}
+.loom-mark__pick--1,
+.loom-mark__pick--3 {
+  --from: 100% 50%;
+  --to: 0% 50%;
+}
+.loom-mark__pick--1 {
+  animation-delay: var(--stagger);
+}
+.loom-mark__pick--2 {
+  animation-delay: calc(var(--stagger) * 2);
+}
+.loom-mark__pick--3 {
+  animation-delay: calc(var(--stagger) * 3);
+}
+.loom-mark__pick--4 {
+  animation-delay: calc(var(--stagger) * 4);
+}
+.working--rest .loom-mark__pick {
+  animation: none;
+  transform: scaleX(0);
+}
+@keyframes pick-loop {
+  0% {
+    transform: scaleX(0);
+    transform-origin: var(--from);
+  }
+  35.71%,
+  50% {
+    transform: scaleX(1);
+    transform-origin: var(--from);
+  }
+  50.01% {
+    transform: scaleX(1);
+    transform-origin: var(--to);
+  }
+  85.71%,
+  100% {
+    transform: scaleX(0);
+    transform-origin: var(--to);
+  }
+}
+.working__pct {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-card-title);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.working__meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: var(--text-mono-lg);
+  font-variant-numeric: tabular-nums;
+}
+/* A very small window has room for the numbers or the mark, and the numbers are the point: measured
+   31 Oct, the full block took 63% of the 3D window at 320x568 and 73% at 568x320. */
+@media (max-width: 340px), (max-height: 420px) {
+  .stage__loading {
+    row-gap: 4px;
+    padding: 8px 10px;
+  }
+  .working__mark {
+    display: none;
+  }
+  .stage__loading-title {
+    grid-column: 1 / 3;
+  }
+}
+.stage:has(.working) .stage__placeholder,
+.stage__seam {
+  height: calc(100% - var(--working-h, 0px) - 8px);
+}
+.stage__seam {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  pointer-events: none;
+  z-index: var(--z-stage-control);
 }
 
 .stage__loading-title {
   font-size: var(--text-mono-lg);
-  /* The percentage climbs while the line is centred; without tabular digits the
-     whole readout shifts sideways on every tick. */
-  font-variant-numeric: tabular-nums;
 }
 
 .stage__loading-detail {
+  grid-column: 1 / -1;
   font-size: var(--text-mono-lg);
-  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .stage__loading-bar {
+  grid-column: 1 / -1;
   width: 100%;
   height: 3px;
-  background: var(--wash);
+  background: color-mix(in srgb, var(--bg) 28%, transparent);
   border-radius: var(--radius-chip);
   overflow: hidden;
 }
@@ -1658,18 +1768,16 @@ model-viewer.stage__model {
  * all. An indeterminate sweep rather than a percentage: inventing one here is
  * exactly the habit this change removes.
  */
-.stage__loading-bar--indeterminate span {
-  width: 40%;
-  transform-origin: left center;
-  transition: none;
-  /* `linear`, not `--ease`. An ease-out curve on a LOOPING sweep decelerates
-     into its own restart, so the bar visibly stalls at the right edge and jumps
-     — the discontinuity reads as a stutter rather than as motion. An
-     indeterminate sweep is the one place in this system that wants no easing at
-     all. Same change on the preloader's sweep below. */
-  animation: preloader-sweep calc(var(--slow) * 2) linear infinite;
-}
 
+.stage__loading-bar span {
+  background: var(--bg);
+}
+.stage__loading-bar--indeterminate span {
+  width: 100%;
+  --from: 0% 50%;
+  --to: 100% 50%;
+  animation: pick-loop calc(var(--settle) * 2 + var(--stagger) * 10) var(--ease) infinite;
+}
 /* The note, and after a stalled download the TRY 3D AGAIN button under it (issue #41), share one positioned
    box: two separately positioned elements would overlap on a 328px phone stage once the note wraps. The box is
    where `.stage__error` alone used to sit. Empty while the note is `hidden`, so it covers nothing. */
@@ -2838,11 +2946,6 @@ summary.spec-item__row:focus-visible {
  * translucent, so it needs this block to opt out (the blurred header it also served
  * was replaced by the website's opaque bar on 2026-09-24).
  */
-@media (prefers-reduced-transparency: reduce) {
-  .stage__loading {
-    background: var(--surface);
-  }
-}
 
 /*
  * The fourth and fifth preferences: forced colours, and a request for more contrast.

@@ -243,7 +243,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 16_006, note: 'CSS' },
+  stylesheet: { bytes: 16_400, note: 'CSS' },
 }
 
 /**

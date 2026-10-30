@@ -40,9 +40,7 @@ test('a download that stops sending retries, then offers TRY 3D AGAIN, which loa
   // data now names the model's size (86,100 bytes here), so the readout shows a total, and both round to 0.1.
   // The time left (" · ~1S LEFT") shows only when those 64 KB arrive in more than one piece, since a rate
   // needs two readings; that varies run to run (1 run in 5 had it, 2026-10-05), so it may or may not be there.
-  await expect(page.locator('.stage__loading-detail').first()).toHaveText(
-    /^0\.1 \/ 0\.1 MB( · ~\d+S LEFT)?$/,
-  )
+  await expect(page.locator('.working__meta')).toContainText('0.1 MB done')
   const retryLine = page.locator('.stage__loading-detail', { hasText: 'DOWNLOAD STOPPED' })
   await expect(retryLine).toHaveCount(0)
   await page.clock.fastForward(12_500)

@@ -24,11 +24,11 @@ test('a press on the middle of the stage is never taken by the loading readout (
   await page.goto('/n001/wine')
   await expect(page.locator('.stage__loading'), 'the readout this asks about').toBeVisible()
   const hit = await page.evaluate(() => {
-    const box = document.querySelector('.stage__canvas')?.getBoundingClientRect()
     const readout = document.querySelector('.stage__loading')?.getBoundingClientRect()
-    if (!box || !readout) return 'no stage or no readout'
-    const x = box.x + box.width / 2
-    const y = box.y + box.height / 2
+    if (!readout) return 'no readout'
+    // The block sits at the foot of the stage since 31 Oct 2026, so the press lands on the block itself.
+    const x = readout.x + readout.width / 2
+    const y = readout.y + readout.height / 2
     // Not vacuous: the point is on screen, and the readout covers it.
     if (y < 0 || y > window.innerHeight) return `the centre (${Math.round(y)}) is off screen`
     if (x < readout.left || x > readout.right || y < readout.top || y > readout.bottom)

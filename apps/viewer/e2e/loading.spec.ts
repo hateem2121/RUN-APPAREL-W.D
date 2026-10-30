@@ -58,7 +58,7 @@ test.describe('MO-20 — the stage readout is correct for its phase', () => {
         const text = block.querySelector('.stage__loading-title')?.textContent ?? ''
         const fill = block.querySelector('.stage__loading-bar span') as HTMLElement | null
         const scale = /scaleX\(([\d.]+)\)/.exec(fill?.style.transform ?? '')
-        const percent = /(\d+)%/.exec(text)
+        const percent = /(\d+)%/.exec(block.querySelector('.working__pct')?.textContent ?? '')
         return {
           text,
           percent: percent ? Number(percent[1]) : null,
@@ -84,7 +84,7 @@ test.describe('MO-20 — the stage readout is correct for its phase', () => {
       )
       .toBe(true)
 
-    const downloading = samples.filter((x) => x.text.startsWith('LOADING'))
+    const downloading = samples.filter((x) => x.text.startsWith('Working'))
     const counted = downloading.filter((x) => x.percent !== null)
     expect(
       counted.length,
@@ -92,7 +92,9 @@ test.describe('MO-20 — the stage readout is correct for its phase', () => {
     ).toBeGreaterThanOrEqual(3)
 
     for (const x of downloading) {
-      expect(x.text, `"${x.text}" is not the downloading-phase title`).toMatch(/^LOADING 3D MODEL/)
+      expect(x.text, `"${x.text}" is not the downloading-phase title`).toMatch(
+        /^Working · 3D garment/,
+      )
     }
     for (let i = 1; i < counted.length; i++) {
       const [before, now] = [counted[i - 1]?.percent ?? 0, counted[i]?.percent ?? 0]
@@ -108,10 +110,11 @@ test.describe('MO-20 — the stage readout is correct for its phase', () => {
       }
     }
     console.log(
-      `MO-20 observed: ${counted.map((x) => `${x.percent}%`).join(' → ')}${samples.some((y) => y.text.startsWith('PREPARING')) ? ' → PREPARING' : ''}`,
+      `MO-20 observed: ${counted.map((x) => `${x.percent}%`).join(' → ')}${samples.some((y) => y.text.startsWith('Preparing')) ? ' → PREPARING' : ''}`,
     )
-    for (const x of samples.filter((y) => y.text.startsWith('PREPARING'))) {
-      expect(x.text, `"${x.text}": preparing shows an invented percentage`).not.toMatch(/\d+%/)
+    // Every byte is in: 100% is the download's true figure, and decoding gets no number of its own.
+    for (const x of samples.filter((y) => y.text.startsWith('Preparing'))) {
+      expect(x.percent, `"${x.text}": preparing shows an invented percentage`).toBe(100)
     }
   })
 })
@@ -151,7 +154,7 @@ test.describe('SPEC §5.1 — screen readers hear the progress now and then', ()
         for (const el of document.querySelectorAll('[role="status"]')) {
           push(log.spoken, el.textContent?.trim() ?? '')
         }
-        push(log.shown, document.querySelector('.stage__loading-title')?.textContent ?? '')
+        push(log.shown, document.querySelector('.working__pct')?.textContent ?? '')
       }).observe(document, { subtree: true, childList: true, characterData: true })
     })
     const cdp = await page.context().newCDPSession(page)

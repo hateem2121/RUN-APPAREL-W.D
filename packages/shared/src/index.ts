@@ -36,3 +36,4 @@ export * from './frameCopy.ts'
 export * from './dyePlayer.ts'
 
 export * from './modelTextureSafety.ts'
+export * from './loomMark.ts'

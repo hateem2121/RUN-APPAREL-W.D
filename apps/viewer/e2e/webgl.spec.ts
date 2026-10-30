@@ -1235,12 +1235,19 @@ for (const withSize of [true, false]) {
       const percents: number[] = []
       const deadline = Date.now() + 60_000
       while (Date.now() < deadline) {
-        const title = await page.evaluate(
-          () => document.querySelector('.stage__loading-title')?.textContent ?? null,
-        )
+        const title = await page.evaluate(() => {
+          const block = document.querySelector('.stage__loading')
+          if (!block) return null
+          const started = !block
+            .querySelector('.working__meta')
+            ?.textContent?.startsWith('Preparing')
+          return started
+            ? `${block.querySelector('.stage__loading-title')?.textContent} ${block.querySelector('.working__pct')?.textContent}`
+            : ''
+        })
         if (title === null) break // the readout left: the model is in
         const percent = /(\d+)%/.exec(title)
-        if (percent && title.startsWith('LOADING')) percents.push(Number(percent[1]))
+        if (percent && title.startsWith('Working')) percents.push(Number(percent[1]))
         await page.waitForTimeout(60)
       }
       await expect(page.locator('model-viewer'), 'the model never arrived').toBeVisible()
