@@ -44,6 +44,7 @@ import type React from 'react'
 import { Analytics } from '../../components/site/Analytics'
 import { CardOpening } from '../../components/site/CardOpening'
 import { ConsentBanner } from '../../components/site/ConsentBanner'
+import { ContactClicks } from '../../components/site/ContactClicks'
 import { Cursor } from '../../components/site/Cursor'
 import { GarmentWarm } from '../../components/site/GarmentWarm'
 import { SmoothScroll } from '../../components/site/SmoothScroll'
@@ -170,6 +171,9 @@ export default async function FrontendLayout({ children }: { children: React.Rea
             only after every link on the page and in the footer, while it covered the foot of
             the screen the whole time (visual audit, WCAG 2.2 SC 2.4.11). */}
         <ConsentBanner />
+        {/* Counts a tap on the WhatsApp, phone or inquiry-email link for Google Analytics, only
+            for a visitor who accepted (ContactClicks.tsx). Draws nothing. */}
+        <ContactClicks email={settings.email} />
         {/* The loading line for a tap on a link inside the site (NavProgress.tsx). */}
         <NavProgress />
         <SiteHeader wordmark={settings.temporaryWordmark} />
