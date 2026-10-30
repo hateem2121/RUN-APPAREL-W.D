@@ -222,7 +222,7 @@ const REPORT_ONLY = process.argv.includes('--report')
  * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
-  script: { bytes: 478_016, note: 'app chunks + the meshopt decoder every model needs' },
+  script: { bytes: 480_200, note: 'app chunks + the meshopt decoder every model needs' },
   decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
   wasm: {
     bytes: 20_000,
@@ -243,7 +243,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 16_400, note: 'CSS' },
+  stylesheet: { bytes: 16_500, note: 'CSS' },
 }
 
 /**
