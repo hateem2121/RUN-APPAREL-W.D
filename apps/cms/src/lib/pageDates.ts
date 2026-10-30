@@ -50,6 +50,12 @@ const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
  * number from `main` (2026-10-26).
  */
 const DYE = '2026-10-26T23:49:22+05:00'
+/**
+ * The privacy page's cookie paragraph now says Google Analytics sees whether a visitor taps the
+ * WhatsApp, phone or email link (2026-10-30, branch `site/contact-click-events`; the branch
+ * commit's time, as a byline's is, a little before the page changes live).
+ */
+const CONTACT_TAPS = '2026-10-30T10:50:04+05:00'
 
 /*
  * 27 Oct: the faster-taps work (#278) changed one line, the `Link` import, in 13 of the files
@@ -79,7 +85,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/journal': page(BUYER_GUIDE_LINKS, '3d5ef0fd9256'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(ONE_NUMBER, '360e3b9976c6'),
-  '/privacy': page(SITE_CHECK, '76870651f92b'),
+  '/privacy': page(CONTACT_TAPS, '10fe05331ee5'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 

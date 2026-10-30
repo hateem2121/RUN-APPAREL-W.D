@@ -148,17 +148,18 @@ export default async function PrivacyPage() {
             <p id="cookies">
               <strong>If you accept the cookie question.</strong> Three more services start, and
               only then. Google Analytics, from Google, sets cookies named <code>_ga</code> so that
-              it can tell us how many people visit, which pages they read, which country they are in
-              and which website sent them. We have switched off its advertising features. Apollo, a
-              service based in the United States, stores an identifier in your browser and tells us
-              which companies visited, by matching your connection to a company. We use it to
-              recognize companies, not people, and our pages block the part of it that identifies
-              individuals. PostHog, a service based in the United States, stores an identifier in
-              your browser and records how you use our pages (where you click, scroll and move the
-              pointer) as a replay we can watch, so that we can see which parts of our pages are
-              hard to use. Anything you type into a form is hidden in your browser before the
-              recording leaves it, and we never tell PostHog who you are. If you decline, or never
-              answer, none of these services is loaded and nothing is stored.
+              it can tell us how many people visit, which pages they read, whether they tap our
+              WhatsApp, phone or email link, which country they are in and which website sent them.
+              We have switched off its advertising features. Apollo, a service based in the United
+              States, stores an identifier in your browser and tells us which companies visited, by
+              matching your connection to a company. We use it to recognize companies, not people,
+              and our pages block the part of it that identifies individuals. PostHog, a service
+              based in the United States, stores an identifier in your browser and records how you
+              use our pages (where you click, scroll and move the pointer) as a replay we can watch,
+              so that we can see which parts of our pages are hard to use. Anything you type into a
+              form is hidden in your browser before the recording leaves it, and we never tell
+              PostHog who you are. If you decline, or never answer, none of these services is loaded
+              and nothing is stored.
             </p>
             <p>
               You can change your mind at any time. Declining after accepting removes what the three

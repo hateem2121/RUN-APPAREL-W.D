@@ -10,6 +10,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLOURWAY_PANEL_ID, ColourwayTabs, colourwayTabId } from './components/ColourwayTabs'
 import { ConsentBanner } from './components/ConsentBanner'
+import { ContactClicks } from './components/ContactClicks'
 import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
@@ -505,6 +506,9 @@ export default function App() {
             or containment, so it is still an overlay and no part of the layout the stage band
             is measured against. */}
         <ConsentBanner />
+        {/* Counts a tap on the WhatsApp, phone or inquiry-email link for Google Analytics, only
+            for a visitor who accepted (ContactClicks.tsx). Draws nothing. */}
+        <ContactClicks email={data.siteSettings.email} />
         <Header wordmark={data.siteSettings.temporaryWordmark} />
         {/* `tabIndex={-1}` is what makes the skip link actually skip. <main> is not
             focusable by default, so following the fragment moves the SCROLL
