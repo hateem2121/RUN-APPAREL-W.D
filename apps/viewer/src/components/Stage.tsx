@@ -23,7 +23,7 @@ import {
 } from '../lib/interactionCue'
 import { downloadWithRetries, MAX_ATTEMPTS } from '../lib/downloadWithRetries'
 import { DownloadStalledError, fetchFailureReason } from '../lib/fetchWithProgress'
-import { describeLoad, showsIndeterminateSweep, smoothRate } from '../lib/loadProgress'
+import { describeLoad, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
 import { pictureHeadStart } from '../lib/pictureFirst'
 import { reloadForStaleChunk } from '../lib/staleChunkReload'
@@ -31,7 +31,8 @@ import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { usePrinting } from '../lib/usePrinting'
-import { LoadingTitle } from './LoadingTitle'
+import { GarmentSeam } from './GarmentSeam'
+import { WorkingBlock } from './WorkingBlock'
 import { isLive, isPoster, isSwapping, type StagePhase, stagePhase } from './stagePhase'
 import { colourwayTabId } from './ColourwayTabs'
 import { HdImageButton } from './HdImageButton'
@@ -1479,6 +1480,17 @@ export function Stage({
             />
           )}
 
+          {showPlaceholder && placeholder && !showHd && !swapping && (
+            <GarmentSeam
+              key={`seam-${placeholder.url}`}
+              url={placeholder.url}
+              hex={selected.hexSwatch ?? null}
+              fraction={bytesTotal > 0 ? Math.min(1, bytesLoaded / bytesTotal) : 0}
+              done={!loading}
+              reduceMotion={reduceMotion}
+            />
+          )}
+
           {/* F14: paper only (page.css). `loading` before `src`, so it is lazy from the start. */}
           {printPicture && !printWaits && (
             <img
@@ -1591,57 +1603,18 @@ export function Stage({
             assistive technology hears.
           */}
           {loading && !showHd && (
-            <div className="stage__loading" aria-hidden="true">
-              <LoadingTitle phase={load.phase} percent={load.percent} />
-              {/*
-                ⚠️ THE SWEEP IS OMITTED UNDER REDUCED MOTION, NOT COLLAPSED, and the
-                preloader next door already learned this the hard way.
-
-                `base.css` collapses every animation to a single 0.01ms iteration for
-                a reduced-motion visitor. On a LOOPING sweep with no fill-mode that
-                leaves a static bar frozen at its 40% width — which reads as a
-                stalled download, on the one screen where a visitor is already
-                waiting and looking for reassurance. `page.css` and `Preloader.tsx`
-                both record that exact conclusion ("a sweep that cannot sweep is a
-                bar frozen at one width"), and the preloader solved it by not
-                rendering its sweep at all. This is the same keyframe with the same
-                problem; it simply did not get the same treatment.
-
-                Full, not empty, and that is the honest reading rather than a
-                cosmetic choice: `preparing` means every byte has arrived and the
-                model is decoding. The download IS complete. A full bar beside
-                "PREPARING 3D MODEL…" tells the truth; a 40% stub does not.
-              */}
-              <span
-                className={`stage__loading-bar${
-                  showsIndeterminateSweep(load.phase, reduceMotion)
-                    ? ' stage__loading-bar--indeterminate'
-                    : ''
-                }`}
-              >
-                {/* scaleX, not width. `width` is a layout property and this is
-                    retargeted at ~10 Hz for the ~23s a 27 MB model takes on
-                    average 4G — roughly 230 layout passes during the single
-                    heaviest thing the page does, on the phone that is also
-                    decoding the model. The fill is width:100% and scaled; see
-                    `.stage__loading-bar span` in page.css. */}
-                <span
-                  style={
-                    load.phase === 'downloading' && load.percent !== null
-                      ? { transform: `scaleX(${load.percent / 100})` }
-                      : undefined
-                  }
-                />
-              </span>
-              {load.detail && <span className="stage__loading-detail">{load.detail}</span>}
-              {/* Issue #41. The count is the point: "trying again" with no end in
-                  sight reads as the same stuck screen it replaces. */}
-              {retryWaiting && load.phase === 'downloading' && (
-                <span className="stage__loading-detail">
-                  {`DOWNLOAD STOPPED · TRYING AGAIN (${downloadAttempt} OF ${MAX_ATTEMPTS})`}
-                </span>
-              )}
-            </div>
+            <WorkingBlock
+              phase={load.phase}
+              percent={load.percent}
+              bytesLoaded={bytesLoaded}
+              bytesTotal={bytesTotal}
+              reduceMotion={reduceMotion}
+              retryNote={
+                retryWaiting && load.phase === 'downloading'
+                  ? `DOWNLOAD STOPPED · TRYING AGAIN (${downloadAttempt} OF ${MAX_ATTEMPTS})`
+                  : null
+              }
+            />
           )}
 
           {/* Mounted UNCONDITIONALLY, with only its text driven. A live region

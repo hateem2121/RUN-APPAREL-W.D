@@ -1538,3 +1538,27 @@ API key on the Worker is still valid. Both are behind a login. The cheap proof i
 submission after launch — and the inquiry is stored before the email is attempted, with
 the failure written onto the row, so a wrong answer costs a notification and never a lead.
 `docs/OWNER-CHECKLIST.md` §7a.
+
+### D51 · One woven loading system, starting with the garment page's Working block — amends D8
+
+**Decision: the owner's seven loader picks of 29-30 Oct 2026 go live one at a time, each only when
+its own checks pass (owner, 31 Oct).** One moving part, the pick: a band laid from its side and lifted
+by passing on through. Existing tokens only (`--ui`, `--fast`, `--settle`, `--stagger`, `--ease`);
+nothing moves under reduced motion. The one amendment to D8: `--stagger` also times the mark's picks.
+
+**First piece, the garment page.** The readout becomes the Working block: S4 (the woven mark), %, MB
+done, MB left, time left. It sits at the foot of the 3D window and the picture stands above it. The
+picture is overlaid with a pattern piece in the colour's own dye and a stitch runs round its real
+outline as far as the model has downloaded.
+
+**What this removes:** the centred readout over the garment, "LOADING 3D MODEL", the blur being what
+a visitor sees of the picture, and the "16.7 / 27.0 MB · ~2 MIN LEFT" line (the same figures stay,
+apart).
+
+**Two differences from the approved demo, both because the demo had no real data:** after the last
+byte the block says "Preparing" at 100%, not "Ready", because the model is still being decoded; and
+the block does not move beside the garment, because a fixed spot is what fits every screen (the demo's
+fixed positions failed 50 of 162 plays across 27 screens, measured 31 Oct).
+
+**Guard:** `apps/viewer/e2e/working-block.spec.ts`, 18 screen sizes with a control, and the seam on a
+transparent and an opaque picture, run both ways.
