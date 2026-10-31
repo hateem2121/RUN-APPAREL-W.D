@@ -1571,3 +1571,16 @@ Under reduced motion the line stays. A card's picture still grows into its garme
 31 Oct). **Not done here:** the title rise and card rise still play on arrival (the demo's woven
 arrival was to replace them), so `apps/cms/e2e/motion.spec.ts` stays as it is.
 **Guard:** `apps/cms/e2e/navWeave.spec.ts`, 10 screen sizes.
+
+**Third piece, dye first (R1).** Each card's colour sits behind its transparent picture until the
+picture lands, then passes off in 24 px picks. **Guard:** `apps/cms/e2e/dyeFirst.spec.ts`.
+
+**Fourth piece, the first-arrival curtain (P2 + N1).** On a visit from outside, every website page
+opens on the RUN mark woven by the page's real files, with the year counting from 1889, for at most
+3 s, and the paper passes off in picks. **What this removes:** /about's own 1889 curtain, and with it
+its 0.8 s lift (now the same curtain as every page). **What differs from the approved demo:** the logo
+does not fly into the header, because the live header shows the words RUN APPAREL, not the mark; and
+the counter counts finished files, not bytes, because no page knows its byte total in advance. Google's
+largest paint does not move: live Home on Slow 4G measured 1,268 ms with and without a curtain, against
+4,104 ms when the page itself is hidden (control). **Guard:** `apps/cms/e2e/firstArrival.spec.ts`, 11
+screen sizes.

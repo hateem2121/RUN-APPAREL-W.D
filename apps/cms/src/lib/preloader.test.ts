@@ -113,8 +113,8 @@ describe('when the curtain lifts', () => {
 
   it('waits for a slow photo, but never past 2.2 s', () => {
     expect(preloaderLiftAt({ decodedAt: 1800, showpiece: 1400 })).toBe(1800)
-    expect(preloaderLiftAt({ decodedAt: 9000, showpiece: 1400 })).toBe(2200)
-    expect(preloaderLiftAt({ decodedAt: null, showpiece: 1400 })).toBe(2200)
+    expect(preloaderLiftAt({ decodedAt: 9000, showpiece: 1400 })).toBe(3000)
+    expect(preloaderLiftAt({ decodedAt: null, showpiece: 1400 })).toBe(3000)
   })
 })
 
@@ -137,12 +137,12 @@ describe('the counter keeps pace with the lift', () => {
 })
 
 describe("the CSS fallback lifts at the script's ceiling", () => {
-  it('about-factory.css delays the fallback curtain by exactly PRELOADER_CEILING_MS', () => {
+  it('site.css delays the fallback curtain by exactly PRELOADER_CEILING_MS', () => {
     const css = readFileSync(
-      join(import.meta.dirname, '..', 'app', '(frontend)', 'about-factory.css'),
+      join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'),
       'utf8',
     )
-    const rule = /html\[data-preload="on"\] \.preloader \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    const rule = /html\[data-preload="on"\] \.preloader__lockup \{([^}]*)\}/.exec(css)?.[1] ?? ''
     expect(rule, 'the fallback rule was not found, so nothing was measured').not.toBe('')
     expect(/animation-delay:\s*(\d+)ms/.exec(rule)?.[1]).toBe(String(PRELOADER_CEILING_MS))
   })

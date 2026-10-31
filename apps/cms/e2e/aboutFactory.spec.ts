@@ -813,7 +813,7 @@ test.describe('the /about preloader', () => {
       return getComputedStyle(overlay).display !== 'none' && box.bottom > 1
     })
 
-  test('shows on an arrival from outside, lands on this year, and is gone by 2.2 s and the curtain', async ({
+  test('shows on an arrival from outside, lands on this year, and is gone by 3 s and the curtain', async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
@@ -826,9 +826,9 @@ test.describe('the /about preloader', () => {
     await expect.poll(() => mark(page), { timeout: 4000 }).not.toBe('on')
     const landed = await page.locator('.preloader__year').textContent()
     expect(landed).toBe(String(new Date().getFullYear()))
-    // 2.2 s ceiling + the --slow curtain (0.8 s), and a margin for a busy machine.
+    // 3 s ceiling + the picks (0.6 s), and a margin for a busy machine.
     await expect.poll(() => covering(page), { timeout: 4000 }).toBe(false)
-    expect(Date.now() - started).toBeLessThan(6000)
+    expect(Date.now() - started).toBeLessThan(7000)
     // `animationend` can land a frame after the curtain has left the screen (WebKit, measured).
     await expect
       .poll(() => mark(page), { message: 'the mark stayed after the curtain', timeout: 1000 })
