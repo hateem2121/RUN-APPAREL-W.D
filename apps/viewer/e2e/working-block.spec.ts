@@ -150,7 +150,7 @@ test.describe('the seam round the garment', () => {
   test('draws the dyed piece on a transparent picture', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'one engine: canvas pixels are not engine-specific here')
     await page.route('**/fixtures/n001.glb*', () => {})
-    await page.route('**/*-poster.webp', (route) =>
+    await page.route('**/*-poster.webp*', (route) =>
       route.fulfill({ contentType: 'image/svg+xml', body: TEE }),
     )
     await page.goto('/n001/wine')
@@ -166,7 +166,7 @@ test.describe('the seam round the garment', () => {
   }) => {
     test.skip(browserName !== 'chromium', 'one engine: canvas pixels are not engine-specific here')
     await page.route('**/fixtures/n001.glb*', () => {})
-    await page.route('**/*-poster.webp', (route) =>
+    await page.route('**/*-poster.webp*', (route) =>
       route.fulfill({
         contentType: 'image/svg+xml',
         body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#825353"/></svg>',

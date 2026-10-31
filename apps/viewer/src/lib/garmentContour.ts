@@ -88,20 +88,14 @@ export function threadFor(rgb: readonly [number, number, number]): [number, numb
 }
 
 /**
- * Sets a cross-origin picture going, asking once more at an address of its own if it is refused.
+ * The address the seam reads its picture from: the same file, kept apart in the browser's cache.
  *
- * ⚠️ THE PAGE'S PLAIN IMAGE POISONS THE SAME ADDRESS. Media sends `Vary: Origin` only to a request that
- * has an Origin, so the browser keeps the plain copy without it and answers this picture's cross-origin
- * request from that copy, which has no permission header (live Chromium, 31 Oct 2026). Only the refused
- * browser pays for the second copy, 57 KB on r-vpj, and a second refusal leaves the photo as it was.
+ * ⚠️ THE PAGE'S PLAIN IMAGE POISONS ITS OWN ADDRESS. Media sends `Vary: Origin` only to a request that
+ * has an Origin, so the browser keeps the plain copy without it and answers a cross-origin request from
+ * that copy, which has no permission header. Live Chromium, 31 Oct 2026: 4 of 4 garment pages refused,
+ * no seam since #296, and a console error that failed Lighthouse 5 runs of 5. Retrying after the refusal
+ * (#302) drew the seam but kept the error. Costs one second copy of the picture, 57 KB on r-vpj.
  */
-export function askForPicture(
-  picture: { src: string; onerror: ((...args: never[]) => unknown) | null },
-  url: string,
-): void {
-  picture.onerror = () => {
-    picture.onerror = null
-    picture.src = `${url}${url.includes('?') ? '&' : '?'}seam=1`
-  }
-  picture.src = url
+export function seamPictureUrl(url: string): string {
+  return `${url}${url.includes('?') ? '&' : '?'}seam=1`
 }
