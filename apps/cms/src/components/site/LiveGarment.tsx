@@ -9,7 +9,11 @@ import {
   installAdaptiveNearPlane,
   internalCamera,
 } from '../../lib/render/camera-near-plane'
-import { applyDecalDepthBias, correlatedThreeMaterials } from '../../lib/render/decal-depth-bias'
+import {
+  applyDecalDepthBias,
+  askForFrame,
+  correlatedThreeMaterials,
+} from '../../lib/render/decal-depth-bias'
 import { LIVE_RENDER } from '../../lib/render/liveRender'
 import { webglAvailable } from '../../lib/webglAvailable'
 import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
@@ -344,7 +348,9 @@ export function LiveGarment({
     viewer.current = mv
     const bias = () => {
       const materials = mv.model?.materials
-      if (materials) applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
+      if (!materials) return
+      applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
+      askForFrame(materials)
     }
     const onLoad = () => {
       const name = chosen.current

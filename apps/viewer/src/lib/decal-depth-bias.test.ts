@@ -9,6 +9,7 @@ import {
   OFFSET_UNITS,
   type DepthBiasTarget,
   applyDecalDepthBias,
+  askForFrame,
   backingThreeMaterial,
   correlatedThreeMaterials,
   readOverlayBias,
@@ -485,5 +486,59 @@ describe('⚠️ GUARD — model-viewer still binds materials the way DV-01 depe
     // enough. If this moves, re-measure with the e2e scene count before trusting either.
     const source = readFileSync(join(sceneGraph, 'nodes', 'primitive-node.js'), 'utf8')
     expect(source).toContain('backingMaterials.add(this.mesh.material)')
+  })
+})
+
+describe('askForFrame', () => {
+  type Colour = [number, number, number, number]
+  const material = (isLoaded: boolean, mode: string) => {
+    const cutoffs: number[] = []
+    const colours: Colour[] = []
+    const guard = () => {
+      if (!isLoaded) throw new Error('not loaded')
+    }
+    return {
+      cutoffs,
+      colours,
+      isLoaded,
+      getAlphaMode: () => {
+        guard()
+        return mode
+      },
+      getAlphaCutoff: () => {
+        guard()
+        return 0.5
+      },
+      setAlphaCutoff: (value: number) => cutoffs.push(value),
+      pbrMetallicRoughness: {
+        baseColorFactor: [0.1, 0.2, 0.3, 1] as const,
+        setBaseColorFactor: (colour: Colour) => colours.push(colour),
+      },
+    }
+  }
+
+  it('writes a cut-out its own cutoff, passing a lazy colourway by', () => {
+    const [lazy, opaque, cutout] = [
+      material(false, 'MASK'),
+      material(true, 'OPAQUE'),
+      material(true, 'MASK'),
+    ]
+    askForFrame([lazy, opaque, cutout])
+    expect(cutout.cutoffs).toEqual([0.5])
+    expect(lazy.cutoffs).toEqual([])
+    expect(opaque.colours).toEqual([])
+  })
+
+  it('never writes a cutoff on an opaque garment: its own colour goes back instead', () => {
+    const opaque = material(true, 'OPAQUE')
+    askForFrame([opaque])
+    expect(opaque.cutoffs).toEqual([])
+    expect(opaque.colours).toEqual([[0.1, 0.2, 0.3, 1]])
+  })
+
+  it('does nothing when no material is loaded yet', () => {
+    const lazy = material(false, 'MASK')
+    expect(() => askForFrame([lazy])).not.toThrow()
+    expect(lazy.cutoffs).toEqual([])
   })
 })

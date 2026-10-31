@@ -347,3 +347,36 @@ export function backingThreeMaterial<T extends object = DepthBiasTarget>(
   }
   return null
 }
+
+/**
+ * Asks model-viewer for a frame, so a nudge just written is on screen at once.
+ *
+ * ⚠️ WRITING A three.js PROPERTY SCHEDULES NOTHING. The nudge went on at `load` and the frame already
+ * drawn stood until something moved: on the live iPhone simulator (31 Oct 2026) r-vpj's "SPONSOR" stood cut
+ * up with no "17" for its first moment, and covered-print-webgl.spec.ts measured both files identical
+ * (13,793 blue pixels each). A no-op write through model-viewer's own setter asks for a frame without
+ * moving the camera, as the review page has done since August (viewer-page.ts): the cutoff on a cut-out,
+ * because that setter would CHANGE an opaque material, and otherwise the base colour written back to
+ * itself. Only LOADED materials: a lazy colourway's getters throw.
+ */
+export function askForFrame(
+  materials: Iterable<{
+    isLoaded?: boolean
+    getAlphaMode?: () => string
+    getAlphaCutoff?: () => number
+    setAlphaCutoff?: (cutoff: number) => void
+    pbrMetallicRoughness?: {
+      baseColorFactor: readonly [number, number, number, number]
+      setBaseColorFactor: (color: [number, number, number, number]) => void
+    }
+  }>,
+): void {
+  const loaded = [...materials].filter((material) => material.isLoaded !== false)
+  const cutout = loaded.find((material) => material.getAlphaMode?.() === 'MASK')
+  if (cutout?.getAlphaCutoff && cutout.setAlphaCutoff) {
+    cutout.setAlphaCutoff(cutout.getAlphaCutoff())
+    return
+  }
+  const pbr = loaded[0]?.pbrMetallicRoughness
+  if (pbr) pbr.setBaseColorFactor([...pbr.baseColorFactor])
+}
