@@ -210,7 +210,14 @@ test.describe('a buyer page is its family’s list, and copies nothing (polish S
       await expect(
         browser.getByRole('heading', { level: 2, name: page.stepsHeading }),
       ).toBeVisible()
-      const guide = browser.getByRole('link', { name: 'How a Private Label Clothing Order Works' })
+      // An accessory is no clothing, so its pages name the same guide in plainer words.
+      const guide = browser.getByRole('link', {
+        name:
+          page.familySlug === 'sports-accessories'
+            ? 'How an order works'
+            : 'How a Private Label Clothing Order Works',
+        exact: true,
+      })
       await expect(guide).toHaveAttribute('href', '/guides/how-a-private-label-order-works')
       // It sends nobody to a filter address, its own or another family's.
       await expect(browser.locator('a[href*="family="]')).toHaveCount(0)

@@ -65,6 +65,8 @@ export type FamilyPage = {
    * owner 2026-10-31). The family's links and its garment pages' trail keep opening its own page.
    */
   readonly productLine?: { readonly words: RegExp }
+  /** A headline word too wide for a 320px phone at the display size ("ACCESSORIES,"). */
+  readonly headingWideWord?: boolean
   /** The paragraph over the 3D cards, where "fabric, weight and fit" would not describe them. */
   readonly garmentsLede?: string
 }
@@ -378,6 +380,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     description: `Custom sports accessories under your own label: soccer balls, bags, caps, socks and gloves, from ${MINIMUM} pieces per style. Made in Sialkot, Pakistan.`,
     eyebrow: `[ Sports Accessories · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom sports accessories,',
+    headingWideWord: true,
     headingAccent: 'made under your label.',
     lede: `RUN APPAREL makes custom sports accessories in Sialkot, Pakistan, from ${MINIMUM} pieces per style: the supporting pieces that finish a program, under your own label.`,
     makesHeading: 'What we make',

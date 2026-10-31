@@ -114,7 +114,9 @@ export function FamilyLanding({
           <p className="label">{page.eyebrow}</p>
           {/* `hero-family`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
               `display--long`: 45-53 characters, so a phone sets it with more air (base.css, VA-45). */}
-          <h1 className="display display--hero display--long hero-family">
+          <h1
+            className={`display display--hero display--long hero-family${page.headingWideWord ? ' hero-family--wide-word' : ''}`}
+          >
             {page.heading} <span className="serif-accent">{page.headingAccent}</span>
           </h1>
           {picture ? (
