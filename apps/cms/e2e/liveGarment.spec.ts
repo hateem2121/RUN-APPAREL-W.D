@@ -442,11 +442,16 @@ test.describe('№03 — the live 3D garment', () => {
         const layer = document.querySelector('.live-garment .dye-layer') as HTMLCanvasElement
         const context = layer.getContext('2d') as CanvasRenderingContext2D
         const read = (x: number, y: number) => [...context.getImageData(x, y, 1, 1).data]
-        if (spot) return { ...spot, rgba: read(spot.x, spot.y) }
+        // As a share of the layer: it takes the model's buffer size, which a busy machine lowers between
+        // the two reads (main run 41181597909, twice: a fixed pixel fell off the end and read 0,0,0,0).
+        if (spot) {
+          const rgba = read(Math.floor(spot.x * layer.width), Math.floor(spot.y * layer.height))
+          return { ...spot, rgba }
+        }
         for (let y = Math.floor(layer.height * 0.45); y < layer.height * 0.55; y += 4) {
           for (let x = Math.floor(layer.width * 0.62); x < layer.width * 0.75; x += 4) {
             const rgba = read(x, y)
-            if (rgba[3] === 255) return { x, y, rgba }
+            if (rgba[3] === 255) return { x: x / layer.width, y: y / layer.height, rgba }
           }
         }
         return { x: -1, y: -1, rgba: [0, 0, 0, 0] }

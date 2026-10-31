@@ -82,18 +82,10 @@ async function render(
     undefined,
     { timeout: 60_000 },
   )
-  // The nudge is written on `load`, and WRITING A three.js PROPERTY DOES NOT SCHEDULE A FRAME
-  // (tools/asset-pipeline/CLAUDE.md): without this the screenshot is the frame drawn BEFORE
-  // the nudge, and both files measured identical (11,813 blue pixels each, 2026-09-27). A
-  // no-op write through model-viewer's own setter asks for a frame without moving the camera.
-  await page.evaluate(async () => {
-    const mv = document.querySelector('model-viewer') as unknown as {
-      model?: { materials: { getAlphaCutoff(): number; setAlphaCutoff(v: number): void }[] }
-    } | null
-    const m = mv?.model?.materials[0]
-    m?.setAlphaCutoff(m.getAlphaCutoff())
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))))
-  })
+  // No frame is asked for here, on purpose. The nudge is written on `load`, and writing a three.js
+  // property schedules none, so this test once had to ask itself or both files measured identical
+  // (11,813 blue pixels each, 2026-09-27). A visitor saw that same frame: on 31 Oct 2026 the live
+  // iPhone simulator showed "SPONSOR" cut up and no "17" until something moved. The page now asks.
   await page.waitForTimeout(1000)
   // COVER_SHOTS=<dir> saves both frames so a person can LOOK — a pixel count is a hint,
   // the picture is the judge (it is how the missing-frame problem above was found).

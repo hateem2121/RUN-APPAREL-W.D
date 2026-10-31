@@ -156,7 +156,7 @@ files keep working until they are re-processed. **Cut-outs (MASK/BLEND) keep −
 was measured on solid layers only, and re-processing the Bib would have moved 7 cut-outs
 nobody measured. `apps/viewer/e2e/covered-print-webgl.spec.ts` renders the covered print
 with both records in one run — the old one must punch through, the new one must not.
-🟡 **The viewer applies the nudge on `load` but schedules NO redraw**, so the first
-frame is drawn un-nudged until anything moves (the camera settle hides it). Writing a
-three.js property never schedules a frame — that spec forces one with
-`setAlphaCutoff(getAlphaCutoff())`, or both files measured identical. REPORTED, not fixed.
+🟢 **The viewer applied the nudge on `load` and scheduled NO redraw until 31 Oct 2026**, so the
+first frame stood un-nudged until anything moved (live r-vpj: "SPONSOR" cut up, no "17"). Writing a
+three.js property never schedules a frame; `askForFrame` (`decal-depth-bias.ts`) now does, and
+that spec no longer asks for one itself, so it fails if the page stops asking.

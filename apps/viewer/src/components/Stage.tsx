@@ -10,7 +10,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { boundingRadius, installAdaptiveNearPlane, internalCamera } from '../lib/camera-near-plane'
-import { applyDecalDepthBias, correlatedThreeMaterials } from '../lib/decal-depth-bias'
+import { applyDecalDepthBias, askForFrame, correlatedThreeMaterials } from '../lib/decal-depth-bias'
 import { track } from '../lib/analytics'
 import { canRender3D, prefersReducedMotion, savesData } from '../lib/capabilities'
 import { displayedColourway } from '../lib/colourwayPreview'
@@ -450,6 +450,7 @@ export function Stage({
         // EVERY three.js material behind each wrapper, not the first (audit DV-01): a
         // colourway switch draws another entry of the same set, and the bib drew 0 of 5.
         const result = applyDecalDepthBias(materials, (m) => correlatedThreeMaterials(m))
+        if (result.biased.length > 0) askForFrame(materials)
         // `pending` is the normal case — those materials belong to colourways the
         // visitor has not opened, and the next `variant-applied` catches them. Only
         // a LOADED material with no backing means the internal symbol has gone, and
