@@ -767,7 +767,7 @@ describe('mergeVariants — Draco', () => {
     const report = await inspectGlb(out)
     expect(report.variants).toEqual(VARIANT_IDS_SORTED)
     expect(report.primitiveCount).toBe(PLACEHOLDER_PRIMITIVES)
-  })
+  }, 60_000) // an encoder test: 5,069 ms on a slow runner against vitest's 5 s default (PR #302, 31 Oct)
 })
 
 describe('inspectGlb — publish-readiness warnings', () => {

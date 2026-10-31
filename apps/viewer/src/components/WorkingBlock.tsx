@@ -81,7 +81,8 @@ export function WorkingBlock({
         <LoomMark id="stage-loom" />
       </span>
       <span className="stage__loading-title">
-        {preparing ? 'Preparing · 3D garment' : 'Working · 3D garment'}
+        <span>{preparing ? 'Preparing' : 'Working'}</span>
+        <span> · 3D garment</span>
       </span>
       <span className="working__pct">
         {preparing ? '100%' : started && percent === null ? '' : `${percent ?? 0}%`}

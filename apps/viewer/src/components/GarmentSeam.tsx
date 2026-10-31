@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { threadFor, traceContour } from '../lib/garmentContour'
+import { askForPicture, threadFor, traceContour } from '../lib/garmentContour'
 
 interface GarmentSeamProps {
   /** The picture whose alpha gives the outline. */
@@ -202,7 +202,7 @@ export function GarmentSeam({ url, hex, fraction, done, reduceMotion }: GarmentS
         observer.observe(canvas)
       }
     }
-    picture.src = url
+    askForPicture(picture, url)
     return () => {
       cancelled = true
       observer?.disconnect()

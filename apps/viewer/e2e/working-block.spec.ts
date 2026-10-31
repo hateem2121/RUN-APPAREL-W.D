@@ -79,6 +79,36 @@ test.describe('the Working block fits the screen', () => {
     })
   }
 
+  // iPhone simulator, live, 31 Oct: "Preparing · 3D garment" took two lines at 402 px, so the block grew
+  // and the garment above it shrank just as the model arrived. The fixture's `Preparing` state is forced
+  // by writing the longer words: only the lines they take matter here.
+  for (const width of [280, 320, 360, 390, 402, 440, 768]) {
+    test(`${width} px: the title holds one line in both states`, async ({ page, browserName }) => {
+      test.skip(browserName !== 'chromium', 'layout rule; the other engines run the live check')
+      await page.setViewportSize({ width, height: 844 })
+      await page.route('**/fixtures/n001.glb*', () => {})
+      await page.goto('/n001/wine')
+      const title = page.locator('.stage__loading-title')
+      await expect(title).toBeVisible({ timeout: 30_000 })
+      const measure = (word: string) =>
+        title.evaluate((el, text) => {
+          if (el.firstElementChild) el.firstElementChild.textContent = text
+          else el.textContent = `${text} · 3D garment`
+          const block = el.closest('.working') as HTMLElement
+          const line = Number.parseFloat(getComputedStyle(el).lineHeight)
+          return {
+            lines: Math.round(el.getBoundingClientRect().height / line),
+            h: block.offsetHeight,
+          }
+        }, word)
+      const working = await measure('Working')
+      const preparing = await measure('Preparing')
+      expect(working.lines).toBe(1)
+      expect(preparing.lines).toBe(1)
+      expect(preparing.h, 'the block must not change height').toBe(working.h)
+    })
+  }
+
   test('control: a block pushed off the screen is caught', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'one engine proves the instrument')
     await page.setViewportSize({ width: 320, height: 568 })
