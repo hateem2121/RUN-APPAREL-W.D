@@ -913,9 +913,7 @@ describe('pointer-only styling', () => {
  * dimension lines to volt-deep in light and volt in dark — which is exactly the
  * `--dimension` token. A progress fill is a dimension line.
  */
-const PROGRESS_FILLS = [
-  { file: 'page.css', selector: '.stage__loading-bar span' },
-]
+const PROGRESS_FILLS = [{ file: 'page.css', selector: '.stage__loading-bar span' }]
 
 /** sRGB relative luminance, per WCAG. */
 function luminance(hex: string): number {
