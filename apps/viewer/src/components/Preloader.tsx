@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion } from '../lib/capabilities'
 import { PRELOADER_MIN_DWELL_MS, PRELOADER_WIPE_MS } from '../lib/motion'
+import { LoomMark } from './LoomMark'
 
 interface PreloaderProps {
   /** Data is ready — begin the exit. */
@@ -87,14 +88,14 @@ export function Preloader({ done, onExited }: PreloaderProps) {
           [ 3D PRODUCT REFERENCE ]
         </span>
         {/*
-          Indeterminate, not a percentage: a sweep says "working" without claiming
+          S4, the woven mark, since 31 Oct 2026 (D51). Indeterminate, not a percentage: it says "working" without claiming
           an amount nobody has measured. Omitted entirely under reduced motion —
           a sweep that cannot sweep is a bar frozen at one width, which reads as
           a stalled download. The sentence below carries the meaning either way.
         */}
         {!reduce && (
           <span className="preloader__rule preloader__rule--indeterminate" aria-hidden="true">
-            <span />
+            <LoomMark id="opening-loom" />
           </span>
         )}
         {/* "PREPARING…" — this covers the CMS data fetch, and naming nothing is

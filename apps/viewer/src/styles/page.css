@@ -3197,33 +3197,8 @@ summary.spec-item__row:focus-visible {
    counter went on purpose rather than went missing. */
 .preloader__rule {
   display: block;
-  width: min(240px, 60vw);
-  /* Matches `.stage__loading-bar` exactly — same height, same track token, same
-     radius. A visitor sees these two bars about a second apart and they are two
-     frames of ONE continuous event: the preloader covers the CMS fetch, then
-     hands over to the stage readout for the model download. They were 2px on
-     --line here and 3px on --wash there, so the handover read as one thing
-     stopping and a different thing starting. Unified 2026-08-14. */
-  height: 3px;
-  background: var(--wash);
-  border-radius: var(--radius-chip);
-  overflow: hidden;
-}
-.preloader__rule > span {
-  display: block;
-  height: 100%;
-  /* `--dimension`, not `--volt`. Measured 2026-08-13: raw volt on the light `--bg`
-     is 1.11:1 — the fill was invisible in the default theme while the counter
-     above it animated convincingly, which was one of the five reasons the loading
-     status read as absent. `--dimension` is 4.57:1 in light and resolves to volt
-     in dark, so nothing changes there. DESIGN.md: volt is illegible on
-     paper-white, and a progress fill is a dimension line. */
-  background: var(--dimension);
-  /* The `transform-origin` and `transition` that used to sit here were dead:
-     <Preloader> renders ONLY the indeterminate variant below, which overrides
-     both. They were the remains of the determinate fill that 06f0951 removed.
-     The composited-fill pattern they described now lives on `.stage__loading-bar
-     span`, which is the bar that actually runs — for ~23s on a phone. */
+  width: min(300px, 60vw);
+  color: var(--text);
 }
 
 /*
@@ -3236,13 +3211,6 @@ summary.spec-item__row:focus-visible {
  * render this element there at all — a sweep that cannot sweep is a bar frozen
  * at one width, which reads as a stalled download.
  */
-.preloader__rule--indeterminate > span {
-  width: 40%;
-  transform-origin: left center;
-  transition: none;
-  /* `linear`, not `--ease` — see .stage__loading-bar--indeterminate. */
-  animation: preloader-sweep calc(var(--slow) * 2) linear infinite;
-}
 
 /*
  * …and the copy of the preloader drawn from index.html before React runs (RO-08) carries
