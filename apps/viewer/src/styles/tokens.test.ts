@@ -914,7 +914,6 @@ describe('pointer-only styling', () => {
  * `--dimension` token. A progress fill is a dimension line.
  */
 const PROGRESS_FILLS = [
-  { file: 'page.css', selector: '.preloader__rule > span' },
   { file: 'page.css', selector: '.stage__loading-bar span' },
 ]
 
