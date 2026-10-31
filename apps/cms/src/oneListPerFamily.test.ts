@@ -38,12 +38,13 @@ const family = (slug: string) => {
   return found
 }
 
-/** The four families with a page, and the page each one's list now lives on. */
+/** The families with a page, and the page each one's list now lives on. */
 const LISTS = [
   ['sportswear', '/custom-activewear-manufacturer'],
   ['teamwear-uniforms', '/custom-teamwear-manufacturer'],
   ['casual-wear', '/private-label-casual-wear-manufacturer'],
   ['outerwear', '/custom-outerwear-manufacturer'],
+  ['sports-accessories', '/custom-sports-accessories-manufacturer'],
 ] as const
 
 describe('a family’s one list', () => {
@@ -53,11 +54,6 @@ describe('a family’s one list', () => {
       expect(familyPageFor(family(slug))?.path).toBe(path)
     })
   }
-
-  it('Sports Accessories, which has no page, is its group on the products page', () => {
-    expect(familyPageFor(family('sports-accessories'))).toBeNull()
-    expect(familyHref(family('sports-accessories'))).toBe('/products#sports-accessories')
-  })
 
   // The garment pages build their trail and their "See all … in 3D" in packages/shared, which
   // cannot read `families.ts`: the two must send every category to the same place.
@@ -69,21 +65,15 @@ describe('a family’s one list', () => {
 
   it('every page the families name is a buyer page the owner approved', () => {
     expect(LISTS.map(([slug]) => slug).sort()).toEqual(
-      FAMILY_PAGES.map((page) => page.familySlug).sort(),
+      FAMILY_PAGES.filter((page) => !page.productLine)
+        .map((page) => page.familySlug)
+        .sort(),
     )
   })
 })
 
 // Polish F8 (Q21): "[ ask us ]" and "Ask what we make →", on the products page and the home page alike.
 describe('a family says "[ ask us ]" only with no page and no garment', () => {
-  it('Sports Accessories, today: no page, no garment', () => {
-    expect(familyIsSoon(family('sports-accessories'), 0)).toBe(true)
-  })
-
-  it('not once a garment of it is published', () => {
-    expect(familyIsSoon(family('sports-accessories'), 1)).toBe(false)
-  })
-
   it('never for a family with a page, even with no garment', () => {
     for (const [slug] of LISTS) expect(familyIsSoon(family(slug), 0), slug).toBe(false)
   })
@@ -109,8 +99,10 @@ describe('the old filter addresses forward (polish S3)', () => {
     })
   }
 
-  it('?family=sports-accessories forwards to its group on the products page', () => {
-    expect(familyFilterForward('sports-accessories')).toBe('/products#sports-accessories')
+  it('?family=sports-accessories forwards to its page', () => {
+    expect(familyFilterForward('sports-accessories')).toBe(
+      '/custom-sports-accessories-manufacturer',
+    )
   })
 
   it('an empty or unknown value forwards to the whole products page', () => {
@@ -173,7 +165,7 @@ describe('a buyer page copies nothing (polish S4)', () => {
   it('links the order guide instead, in the guide’s own words', () => {
     expect(landing).toContain("guideAt('/guides/how-a-private-label-order-works')")
     expect(landing).toMatch(/href=\{ORDER_GUIDE\.path\}/)
-    expect(landing).toMatch(/\{ORDER_GUIDE\.title\}/)
+    expect(landing).toMatch(/ORDER_GUIDE\.title/)
   })
 
   // NEGATIVE CONTROL: the check sees the numbers drawn again.

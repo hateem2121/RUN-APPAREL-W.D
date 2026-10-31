@@ -64,13 +64,18 @@ const CONTACT_TAPS = '2026-10-30T10:50:04+05:00'
  * Imports are now left out of the fingerprint, and each of the 17 is back on the date its words
  * last changed.
  */
+/** The soccer ball and accessories pages, and the buyer pages' template (2026-10-31). */
+const KAIZEN = '2026-10-31T22:30:00+05:00'
+
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(DYE, '75c60e311c5a'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
-  '/custom-teamwear-manufacturer': page(SITE_CHECK, '4caf5da43ee7'),
-  '/custom-activewear-manufacturer': page(SITE_CHECK, '055b40459284'),
-  '/custom-outerwear-manufacturer': page(SITE_CHECK, '1acfba47d9a7'),
-  '/private-label-casual-wear-manufacturer': page(SITE_CHECK, 'fa4adcdef29b'),
+  '/custom-teamwear-manufacturer': page(KAIZEN, '1bcc53e60af2'),
+  '/custom-activewear-manufacturer': page(KAIZEN, '55815c8f740a'),
+  '/custom-outerwear-manufacturer': page(KAIZEN, 'e5e639f81d3b'),
+  '/custom-sports-accessories-manufacturer': page(KAIZEN, 'caab32f26b8d'),
+  '/custom-soccer-ball-manufacturer': page(KAIZEN, 'b8752210517b'),
+  '/private-label-casual-wear-manufacturer': page(KAIZEN, '3a491e7927d3'),
   '/guides': page(SITE_CHECK, 'bc271cb03a6b'),
   '/policies': page(SITE_CHECK, '4858c8669cda'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
@@ -82,7 +87,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/fabrics-and-printing': page(CLOSING_BLOCK, 'd838e1a06292'),
   '/faq/working-with-us': page(CLOSING_BLOCK, '39eb383bf2dc'),
   '/glossary': page(SITE_CHECK, '5f4675bd3f09'),
-  '/journal': page(BUYER_GUIDE_LINKS, '3d5ef0fd9256'),
+  '/journal': page(KAIZEN, 'e34315afc7aa'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(ONE_NUMBER, '360e3b9976c6'),
   '/privacy': page(CONTACT_TAPS, '10fe05331ee5'),

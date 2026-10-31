@@ -16,7 +16,8 @@ describe('categoryPath', () => {
   })
 
   it('sends a category with no page to its group on the products page (polish S1)', () => {
-    expect(categoryPath('Sports Accessories')).toBe('/products#sports-accessories')
+    expect(categoryPath('Sports Accessories')).toBe('/custom-sports-accessories-manufacturer')
+    expect(categoryPath('Kites')).toBe('/products#kites')
   })
 
   it('never sends anyone to the old family filter, which now forwards (polish S3)', () => {

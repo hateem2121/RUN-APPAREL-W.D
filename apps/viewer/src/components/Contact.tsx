@@ -83,6 +83,8 @@ function ContactButtons({
 export interface AskedGarment {
   productSlug: string
   colourSlug: string
+  /** "product" for an accessory: a ball is no garment. Clothing keeps the owner's words (Q42). */
+  noun?: 'garment' | 'product'
 }
 
 /**
@@ -119,13 +121,13 @@ export function ContactSection({
         Develop this with <span className="serif-accent">us</span>.
       </h2>
       <p className="contact__micro">
-        We have already filled in this garment&rsquo;s code and colorway. Please add your company,
-        your market and the quantity you need, then send.
+        We have already filled in this {garment.noun ?? 'garment'}&rsquo;s code and colorway. Please
+        add your company, your market and the quantity you need, then send.
       </p>
       <div className="contact__buttons">
         {/* `contact__ask`: what the phone's bar steps aside for (lib/actionBarStepsAside.ts). */}
         <a className={askClass} href={ask} onClick={onAsk}>
-          Ask about this garment
+          Ask about this {garment.noun ?? 'garment'}
         </a>
         <ContactButtons {...props} quiet />
       </div>

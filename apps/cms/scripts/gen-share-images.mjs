@@ -45,6 +45,8 @@ const REPO = join(CMS, '..', '..')
 const OUT = join(CMS, 'public', SHARE_IMAGE.folder)
 const API_ORIGIN = 'https://cms.wear-run.help'
 const force = process.argv.includes('--force')
+/** Draws only the cards with no file yet, leaving every committed picture exactly as it is. */
+const missing = process.argv.includes('--missing')
 
 /** A WhatsApp preview is reported to vanish above this (see the header). */
 const MAX_BYTES = 300 * 1024
@@ -115,6 +117,10 @@ async function pictureMarkup(card, sharp) {
     }
     return `<div class="tiles">${tiles.join('')}</div>`
   }
+  if (card.picture.kind === 'ball') {
+    const file = join(CMS, 'public', 'families', 'kaizen-orange-1200.webp')
+    return `<img class="ball" src="${dataUri(file, 'image/webp')}" alt="">`
+  }
   if (card.picture.kind === 'photo') {
     // The contact page's own hero, its widest crop.
     const widest = Math.max(...CONTACT_HERO_PHOTO.widths.heroWide)
@@ -126,7 +132,7 @@ async function pictureMarkup(card, sharp) {
 
 async function page(card, sharp) {
   const wordsWidth =
-    card.picture.kind === 'garments'
+    card.picture.kind === 'garments' || card.picture.kind === 'ball'
       ? SHARE_IMAGE.width - TILE.inset - TILES_WIDTH - 56
       : SHARE_IMAGE.width - 80
   /*
@@ -158,6 +164,7 @@ h1 em{font-family:Instrument,serif;font-style:italic;font-weight:400;font-stretc
 .foot{display:flex;justify-content:space-between;align-items:flex-end}
 .mark{font-size:34px;font-weight:800;font-stretch:122%;letter-spacing:-.01em}
 .host{font-family:Plex,monospace;font-size:22px;color:${PAPER}b3}
+.ball{position:absolute;top:50%;right:-10px;width:600px;height:600px;transform:translateY(-50%)}
 .tiles{position:absolute;top:${TILE.inset}px;right:${TILE.inset}px;display:grid;grid-template-columns:repeat(2,${TILE.width}px);grid-auto-rows:${TILE.height}px;gap:${TILE.gap}px}
 .tiles img{display:block;width:100%;height:100%;object-fit:contain;padding:14px;background:${PAPER};border-radius:12px}
 </style></head><body>
@@ -208,7 +215,7 @@ async function fitHeadline(browserPage) {
 async function main() {
   mkdirSync(OUT, { recursive: true })
   const existing = SHARE_CARDS.filter((card) => existsSync(join(OUT, card.file)))
-  if (existing.length > 0 && !force) {
+  if (existing.length > 0 && !force && !missing) {
     console.error(
       `gen-share-images: ${existing.length} file(s) already exist in public/share/; ` +
         'pass --force to remake them (and look at every one before committing).',
@@ -225,6 +232,7 @@ async function main() {
       viewport: { width: SHARE_IMAGE.width, height: SHARE_IMAGE.height },
     })
     for (const card of SHARE_CARDS) {
+      if (missing && existing.includes(card)) continue
       await browserPage.setContent(await page(card, sharp), { waitUntil: 'load' })
       await browserPage.evaluate(() => document.fonts.ready)
       const size = await fitHeadline(browserPage)

@@ -153,7 +153,7 @@ describe('who carries the class', () => {
   it('the headlines that carry it really are long: the shortest is 36 characters', () => {
     // The four buyer pages' run 45-53; the guides' 36-46.
     const families = headlines('apps/cms/src/lib/familyPages.ts')
-    expect(families, 'the matcher found no buyer-page headlines').toHaveLength(4)
+    expect(families, 'the matcher found no buyer-page headlines').toHaveLength(6)
     // The guides' file lists the index page's headline first; the index is not a carrier.
     const [, ...guides] = headlines('apps/cms/src/lib/guides.ts')
     // Nine since 2026-10-08: the cost guide (43 characters) and the country comparison (41).

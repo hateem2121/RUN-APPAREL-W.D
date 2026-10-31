@@ -2371,10 +2371,11 @@ exactly one thing: 200 garment pages with no heading for a robot.
 ### The buyer pages (since 2026-09-30)
 
 A buyer page is a page for one product family, written for the words a buyer searches.
-There are four: `/custom-teamwear-manufacturer`, `/custom-activewear-manufacturer` (the
+There are six: `/custom-teamwear-manufacturer`, `/custom-activewear-manufacturer` (the
 Sportswear family; "activewear" so it does not compete with the home page's title),
-`/custom-outerwear-manufacturer` and `/private-label-casual-wear-manufacturer`. Sports
-Accessories has no garments and no page. The owner approves every page's words before it is
+`/custom-outerwear-manufacturer`, `/private-label-casual-wear-manufacturer`,
+`/custom-sports-accessories-manufacturer` and `/custom-soccer-ball-manufacturer`, the one page
+for a product line inside a family (`productLine` in `familyPages.ts`). The owner approves every page's words before it is
 built; nothing on one may state a fact the home page does not.
 
 To add one, after the owner has approved its text:

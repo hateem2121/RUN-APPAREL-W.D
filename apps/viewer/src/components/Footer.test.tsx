@@ -186,7 +186,7 @@ describe('Footer', () => {
     expect(made.map((a) => [a.textContent, a.getAttribute('href')])).toEqual(
       SITE_FOOTER_MADE.map((link) => [link.label, `${SITE_ORIGIN}${link.href}`]),
     )
-    expect(made).toHaveLength(4)
+    expect(made).toHaveLength(5)
   })
 
   it('draws no claim block for a blank claim, and each claim block once it is set', () => {

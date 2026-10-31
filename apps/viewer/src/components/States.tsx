@@ -82,7 +82,7 @@ export function UnreachableState({
       */}
       <p style={{ color: 'var(--muted)' }}>
         {offline
-          ? 'The garment is still here. Your device just has no connection right now. This page will load itself as soon as the signal returns.'
+          ? 'This page is still here. Your device just has no connection right now. This page will load itself as soon as the signal returns.'
           : 'Nothing has been discontinued: we could not reach the reference just now. Please try again in a moment.'}
       </p>
       {/*

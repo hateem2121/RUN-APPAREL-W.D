@@ -44,7 +44,7 @@ const card = (over: Partial<ProductCard>): ProductCard => ({
   productName: 'P',
   productCode: 'R-P',
   category: 'Sportswear',
-  garmentType: '',
+  garmentType: 'Pro Match Soccer Ball',
   shortDescription: '',
   posterUrl: 'https://media.wear-run.com/poster.webp',
   posterAlt: 'poster alt',
@@ -111,25 +111,29 @@ describe('the hero shows the picture the family’s card shows (VA-48)', () => {
       expect(heroImg(html)).toContain('the-poster.webp')
     })
 
-    it(`${page.path}: nothing at all when the family has no picture, and the hero is the words alone`, () => {
-      // Another family's garment is no picture for this one.
-      const other = FAMILIES.find(
-        (entry) => entry.slug !== family.slug && entry.slug !== 'sports-accessories',
-      )
-      const html = landing(page, [card({ category: other?.name ?? 'Outerwear' })])
-      expect(
-        familyPictures([card({ category: other?.name ?? 'Outerwear' })])[family.slug],
-      ).toBeNull()
-      expect(html).not.toContain('family-hero')
-      expect(heroImg(html)).toBe('')
-      // Today's hero, in today's order: label, headline, lede, buttons.
-      const hero = html.match(/<section class="site-hero">[\s\S]*?<\/section>/)?.[0] ?? ''
-      const at = (needle: string) => hero.indexOf(needle)
-      expect(at('class="label"')).toBeGreaterThan(-1)
-      expect(at('<h1')).toBeGreaterThan(at('class="label"'))
-      expect(at('class="site-lede"')).toBeGreaterThan(at('<h1'))
-      expect(at('class="site-actions"')).toBeGreaterThan(at('class="site-lede"'))
-    })
+    // Sports Accessories always has a picture: its own backpack photo until a product takes over.
+    it.skipIf(family.slug === 'sports-accessories')(
+      `${page.path}: nothing at all when the family has no picture, and the hero is the words alone`,
+      () => {
+        // Another family's garment is no picture for this one.
+        const other = FAMILIES.find(
+          (entry) => entry.slug !== family.slug && entry.slug !== 'sports-accessories',
+        )
+        const html = landing(page, [card({ category: other?.name ?? 'Outerwear' })])
+        expect(
+          familyPictures([card({ category: other?.name ?? 'Outerwear' })])[family.slug],
+        ).toBeNull()
+        expect(html).not.toContain('family-hero')
+        expect(heroImg(html)).toBe('')
+        // Today's hero, in today's order: label, headline, lede, buttons.
+        const hero = html.match(/<section class="site-hero">[\s\S]*?<\/section>/)?.[0] ?? ''
+        const at = (needle: string) => hero.indexOf(needle)
+        expect(at('class="label"')).toBeGreaterThan(-1)
+        expect(at('<h1')).toBeGreaterThan(at('class="label"'))
+        expect(at('class="site-lede"')).toBeGreaterThan(at('<h1'))
+        expect(at('class="site-actions"')).toBeGreaterThan(at('class="site-lede"'))
+      },
+    )
   }
 
   it('the family’s own photo is the last resort, and only Sports Accessories has one', () => {

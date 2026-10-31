@@ -105,6 +105,8 @@ export const TARGETS = [
     '/custom-activewear-manufacturer',
     '/custom-outerwear-manufacturer',
     '/private-label-casual-wear-manufacturer',
+    '/custom-sports-accessories-manufacturer',
+    '/custom-soccer-ball-manufacturer',
     '/guides',
     '/guides/how-a-private-label-order-works',
     '/guides/3d-garment-reference',

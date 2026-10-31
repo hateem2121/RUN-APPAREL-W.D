@@ -64,6 +64,8 @@ export type ShareCard = {
     | { kind: 'words' }
     | { kind: 'garments'; garments: readonly ShareGarment[] }
     | { kind: 'photo'; photo: 'contact-hero' }
+    /** The Kaizen ball beside the words: the two pages with no four garments to show (2026-10-31). */
+    | { kind: 'ball' }
   /** `og:image:alt`: what is in the picture, not a caption (ogp.me). */
   alt: string
   /**
@@ -193,13 +195,22 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
     (page) =>
       [
         page.path,
-        garmentsCard(
-          fileFor(page.path),
-          page.eyebrow,
-          page.heading,
-          page.headingAccent,
-          FAMILY_GARMENTS[page.familySlug] ?? [],
-        ),
+        page.familySlug === 'sports-accessories'
+          ? {
+              file: fileFor(page.path),
+              label: page.eyebrow,
+              heading: page.heading,
+              accent: page.headingAccent,
+              picture: { kind: 'ball' as const },
+              alt: `${headline(page.heading, page.headingAccent)} The orange Kaizen soccer ball. ${BRAND}`,
+            }
+          : garmentsCard(
+              fileFor(page.path),
+              page.eyebrow,
+              page.heading,
+              page.headingAccent,
+              FAMILY_GARMENTS[page.familySlug] ?? [],
+            ),
       ] as const,
   ),
   [

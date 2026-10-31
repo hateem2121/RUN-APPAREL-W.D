@@ -203,25 +203,11 @@ describe('a family card (D44)', () => {
  * "Ask what we make →".
  */
 describe('a family with nothing to show: its card says "[ ask us ]" and goes to Contact (polish F8)', () => {
-  it('Sports Accessories opens Contact, says "[ ask us ]", and its link names where it goes', () => {
-    const html = cardOf('sports-accessories', 0, { list: ['Bags & backpacks', 'Socks'] })
-    // The link's words are its name: "Ask what we make" is in them, hidden from sight, or a screen
-    // reader would hear "Sports Accessories" and land on Contact (WCAG 2.4.4).
-    expect(linksOf(html)).toEqual([
-      { href: '/contact', text: 'Sports Accessories. Ask what we make' },
-    ])
-    expect(textOf(html, 'family-card__count')).toBe('[ ask us ]')
-    expect(textOf(html, 'family-card__meta')).toBe('[ ask us ]')
-    expect(html).toMatch(/aria-hidden="true">Ask what we make <b>→<\/b>/)
-    // Its list is the owner's (D44): what the family will hold.
-    expect(itemsOf(html)).toEqual(['Bags & backpacks', 'Socks'])
-  })
-
   // NEGATIVE CONTROL: a family with a page opens it, says nothing of "soon", and keeps its cue,
   // even with no garment (CI's database holds one).
   it('a family with a page opens that page, with no "[ ask us ]"', () => {
     const withPage = FAMILIES.filter((family) => familyPageFor(family))
-    expect(withPage).toHaveLength(4)
+    expect(withPage).toHaveLength(5)
     for (const family of withPage) {
       const html = cardOf(family.slug, 0)
       expect(linksOf(html), family.slug).toEqual([
@@ -233,12 +219,11 @@ describe('a family with nothing to show: its card says "[ ask us ]" and goes to 
   })
 
   // Once a garment of it is published, "soon" would sit over a garment on show.
-  it('Sports Accessories with a garment opens its group, with no "[ ask us ]"', () => {
+  it('Sports Accessories with a garment opens its page, with no "[ ask us ]"', () => {
     const html = cardOf('sports-accessories', 1)
     expect(linksOf(html)).toEqual([
-      { href: '/products#sports-accessories', text: 'Sports Accessories' },
+      { href: '/custom-sports-accessories-manufacturer', text: 'Sports Accessories' },
     ])
     expect(html).not.toContain('[ ask us ]')
-    expect(textOf(html, 'family-card__meta')).toBe('1 reference')
   })
 })

@@ -79,7 +79,7 @@ test.describe('the Working block fits the screen', () => {
     })
   }
 
-  // iPhone simulator, live, 31 Oct: "Preparing · 3D garment" took two lines at 402 px, so the block grew
+  // iPhone simulator, live, 31 Oct: the old "Preparing · 3D garment" took two lines at 402 px, so the block grew
   // and the garment above it shrank just as the model arrived. The fixture's `Preparing` state is forced
   // by writing the longer words: only the lines they take matter here.
   for (const width of [280, 320, 360, 390, 402, 440, 768]) {
@@ -93,7 +93,7 @@ test.describe('the Working block fits the screen', () => {
       const measure = (word: string) =>
         title.evaluate((el, text) => {
           if (el.firstElementChild) el.firstElementChild.textContent = text
-          else el.textContent = `${text} · 3D garment`
+          else el.textContent = `${text} · 3D view`
           const block = el.closest('.working') as HTMLElement
           const line = Number.parseFloat(getComputedStyle(el).lineHeight)
           return {

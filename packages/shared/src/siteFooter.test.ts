@@ -74,6 +74,7 @@ describe('the shared footer (VA-31)', () => {
       { label: 'Sportswear', href: '/custom-activewear-manufacturer' },
       { label: 'Outerwear', href: '/custom-outerwear-manufacturer' },
       { label: 'Casual Wear', href: '/private-label-casual-wear-manufacturer' },
+      { label: 'Sports Accessories', href: '/custom-sports-accessories-manufacturer' },
     ])
     expect(SITE_FOOTER_MADE).toHaveLength(Object.keys(CATEGORY_PAGE_PATHS).length)
   })

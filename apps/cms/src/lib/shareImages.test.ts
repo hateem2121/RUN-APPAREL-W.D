@@ -77,7 +77,7 @@ describe('every website page shares a picture of its own type (X14, Q11)', () =>
     // + 7 policies + careers + community + press + the FAQ hub + 5 FAQ topics + the glossary
     // + the Journal's and the case studies' hubs. (9 guides since 2026-10-08: the cost guide
     // and the country comparison. +2 on 2026-10-09: the about and factory pages.)
-    expect(OWN_PICTURE).toHaveLength(39)
+    expect(OWN_PICTURE).toHaveLength(41)
     expect(new Set(files).size, 'two page types share a picture').toBe(OWN_PICTURE.length)
   })
 
@@ -216,7 +216,7 @@ describe('the pictures on a card come from the repository, and say what they sho
   })
 
   it('a category page shows four of its own family’s garments', () => {
-    for (const page of FAMILY_PAGES) {
+    for (const page of FAMILY_PAGES.filter((entry) => entry.familySlug !== 'sports-accessories')) {
       const family = FAMILIES.find((entry) => entry.slug === page.familySlug)
       const garments = garmentsOf(page.path)
       expect(garments, page.path).toHaveLength(4)
@@ -229,7 +229,7 @@ describe('the pictures on a card come from the repository, and say what they sho
 
   it('products shows one garment from each family that has a page', () => {
     const shown = garmentsOf('/products').map((garment) => categoryOf(garment.colour))
-    const families = FAMILY_PAGES.map(
+    const families = FAMILY_PAGES.filter((page) => page.familySlug !== 'sports-accessories').map(
       (page) => FAMILIES.find((family) => family.slug === page.familySlug)?.name,
     )
     expect([...shown].sort()).toEqual([...families].sort())

@@ -9,14 +9,15 @@ import type { ProductCategory } from './types.ts'
  * between apps), so the addresses are repeated here, and `apps/cms/src/lib/familyPages.test.ts`
  * fails when the two lists differ in either direction.
  *
- * Sports Accessories has no garments and no page, so it has no entry: `categoryPath` sends it to
- * its group on the products page instead, as the website's own `familyHref` does.
+ * A category with no entry goes to its group on the products page, as the website's `familyHref`
+ * does.
  */
 export const CATEGORY_PAGE_PATHS: Readonly<Partial<Record<ProductCategory, string>>> = {
   'Teamwear & Uniforms': '/custom-teamwear-manufacturer',
   Sportswear: '/custom-activewear-manufacturer',
   Outerwear: '/custom-outerwear-manufacturer',
   'Casual Wear': '/private-label-casual-wear-manufacturer',
+  'Sports Accessories': '/custom-sports-accessories-manufacturer',
 }
 
 /**
@@ -46,7 +47,7 @@ export function familySlug(category: string): string {
  * ONLY list of its garments. The family filter (`/products?family=…`) showed the same garments under
  * a second address and now forwards to the category's page, so the garment pages' trail, their
  * search-result breadcrumb and "See all … in 3D" all open the page itself. A category with no page
- * (Sports Accessories) goes to its group on the products page.
+ * goes to its group on the products page.
  */
 export function categoryPath(category: string): string {
   const name = category.trim()

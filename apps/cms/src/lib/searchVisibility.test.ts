@@ -78,6 +78,8 @@ describe('what the switch does', () => {
       'https://wear-run.com/custom-activewear-manufacturer',
       'https://wear-run.com/custom-outerwear-manufacturer',
       'https://wear-run.com/private-label-casual-wear-manufacturer',
+      'https://wear-run.com/custom-sports-accessories-manufacturer',
+      'https://wear-run.com/custom-soccer-ball-manufacturer',
       'https://wear-run.com/guides',
       'https://wear-run.com/guides/how-a-private-label-order-works',
       'https://wear-run.com/guides/3d-garment-reference',

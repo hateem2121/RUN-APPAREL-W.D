@@ -46,6 +46,8 @@ const CORE_URLS = [
   '/custom-activewear-manufacturer',
   '/custom-outerwear-manufacturer',
   '/private-label-casual-wear-manufacturer',
+  '/custom-sports-accessories-manufacturer',
+  '/custom-soccer-ball-manufacturer',
   ...GUIDE_PAGE_SOURCES,
   '/contact',
 ]

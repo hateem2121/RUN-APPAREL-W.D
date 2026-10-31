@@ -21,7 +21,7 @@ export function RecoverablePicture({
   if (!picture)
     return candidates.length ? (
       <div className="stage__picture-recovery">
-        <p role="status">The garment picture could not load.</p>
+        <p role="status">The picture could not load.</p>
         <button
           type="button"
           className="stage__retry"

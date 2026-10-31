@@ -1130,7 +1130,7 @@ export function Stage({
       : comingSoon
         ? COMING_SOON_NOTICE
         : connectionFailed
-          ? 'The 3D view could not connect. You can try again or use the garment picture.'
+          ? 'The 3D view could not connect. You can try again or use the picture.'
           : stalled
             ? STALL_NOTICE
             : LOAD_NOTICE
