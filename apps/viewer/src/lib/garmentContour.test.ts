@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { threadFor, traceContour } from './garmentContour'
+import { askForPicture, threadFor, traceContour } from './garmentContour'
 
 /** Draws a map from rows of '#' and '.'. */
 function map(rows: string[]) {
@@ -30,5 +30,35 @@ describe('threadFor', () => {
   it('chooses dark on a pale dye and light on a dark one', () => {
     expect(threadFor([247, 205, 205])).toEqual([29, 31, 26])
     expect(threadFor([38, 39, 39])).toEqual([241, 239, 234])
+  })
+})
+
+describe('askForPicture', () => {
+  const start = (url: string) => {
+    const picture = { src: '', onerror: null as (() => unknown) | null }
+    askForPicture(picture, url)
+    return picture
+  }
+
+  it('asks at the plain address first', () => {
+    expect(start('https://m/a.webp').src).toBe('https://m/a.webp')
+  })
+
+  it('asks again at its own address when refused', () => {
+    const picture = start('https://m/a.webp')
+    picture.onerror?.()
+    expect(picture.src).toBe('https://m/a.webp?seam=1')
+  })
+
+  it('keeps a query the address already has', () => {
+    const picture = start('https://m/a.webp?v=2')
+    picture.onerror?.()
+    expect(picture.src).toBe('https://m/a.webp?v=2&seam=1')
+  })
+
+  it('stops after the second refusal, never looping', () => {
+    const picture = start('https://m/a.webp')
+    picture.onerror?.()
+    expect(picture.onerror).toBeNull()
   })
 })

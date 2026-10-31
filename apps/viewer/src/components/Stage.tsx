@@ -224,6 +224,9 @@ export function Stage({
    * has one value and it is always the current one.
    */
   const downloadTotalRef = useRef(0)
+  /** The colour to open on, a ref for the reason above: `attachRef` must not re-run when it changes. */
+  const firstVariantRef = useRef(displayed.variantId)
+  firstVariantRef.current = displayed.variantId
 
   // Real bytes, counted by us. See `fetchWithProgress` for why model-viewer's own
   // `progress` event cannot supply them.
@@ -416,6 +419,10 @@ export function Stage({
     (el: HTMLElement | null) => {
       mvRef.current = el as ModelViewerEl | null
       if (!el) return
+      // The colour goes on before the model does: model-viewer applies it as the model loads. Set after
+      // `load`, as it was until 31 Oct 2026, the file's own default stood for 13-22 ms on a fast Mac with
+      // the picture already gone (live r-vpj/blue: purple, no "17"; every garment, longer on a phone).
+      if (!separateMode) (el as ModelViewerEl).variantName = firstVariantRef.current
 
       /**
        * Pull printed cut-outs toward the camera so they win the depth test.
@@ -693,7 +700,7 @@ export function Stage({
     },
     // `dismissCue` is a `useCallback([])`, so it is stable and cannot re-run this
     // ref callback — which would detach and reattach every model event listener.
-    [product.productCode, dismissCue],
+    [product.productCode, separateMode, dismissCue],
   )
 
   // Apply the colourway currently being displayed — the hovered one if there is

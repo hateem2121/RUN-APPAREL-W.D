@@ -86,3 +86,22 @@ export function threadFor(rgb: readonly [number, number, number]): [number, numb
   }
   return contrast(dark) >= contrast(light) ? dark : light
 }
+
+/**
+ * Sets a cross-origin picture going, asking once more at an address of its own if it is refused.
+ *
+ * ⚠️ THE PAGE'S PLAIN IMAGE POISONS THE SAME ADDRESS. Media sends `Vary: Origin` only to a request that
+ * has an Origin, so the browser keeps the plain copy without it and answers this picture's cross-origin
+ * request from that copy, which has no permission header (live Chromium, 31 Oct 2026). Only the refused
+ * browser pays for the second copy, 57 KB on r-vpj, and a second refusal leaves the photo as it was.
+ */
+export function askForPicture(
+  picture: { src: string; onerror: ((...args: never[]) => unknown) | null },
+  url: string,
+): void {
+  picture.onerror = () => {
+    picture.onerror = null
+    picture.src = `${url}${url.includes('?') ? '&' : '?'}seam=1`
+  }
+  picture.src = url
+}

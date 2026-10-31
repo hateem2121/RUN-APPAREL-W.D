@@ -1741,8 +1741,18 @@ model-viewer.stage__model {
   z-index: var(--z-stage-control);
 }
 
+/* One line, always. "Preparing · 3D garment" took two at 402 px (iPhone simulator, live, 31 Oct), so the
+   block grew and the garment shrank as the model arrived. Short of room, the second part wraps onto a
+   row this height hides; no width has to be guessed for any phone's font. */
 .stage__loading-title {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1ch;
+  min-width: 0;
+  height: 1lh;
+  overflow: hidden;
   font-size: var(--text-mono-lg);
+  white-space: nowrap;
 }
 
 .stage__loading-detail {
