@@ -380,8 +380,8 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     description: `Custom sports accessories under your own label: soccer balls, bags, caps, socks and gloves, from ${MINIMUM} pieces per style. Made in Sialkot, Pakistan.`,
     eyebrow: `[ Sports Accessories · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom sports accessories,',
-    headingWideWord: true,
     headingAccent: 'made under your label.',
+    headingWideWord: true,
     lede: `RUN APPAREL makes custom sports accessories in Sialkot, Pakistan, from ${MINIMUM} pieces per style: the supporting pieces that finish a program, under your own label.`,
     makesHeading: 'What we make',
     makes: [

@@ -73,7 +73,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-teamwear-manufacturer': page(KAIZEN, 'd83e54955668'),
   '/custom-activewear-manufacturer': page(KAIZEN, 'c5bdd0685268'),
   '/custom-outerwear-manufacturer': page(KAIZEN, '1ac29316a8f2'),
-  '/custom-sports-accessories-manufacturer': page(KAIZEN, '4671eb2785bb'),
+  '/custom-sports-accessories-manufacturer': page(KAIZEN, '3e7625dfd853'),
   '/custom-soccer-ball-manufacturer': page(KAIZEN, '8deb7a3781fd'),
   '/private-label-casual-wear-manufacturer': page(KAIZEN, 'fb078ffdb3ad'),
   '/guides': page(SITE_CHECK, 'bc271cb03a6b'),

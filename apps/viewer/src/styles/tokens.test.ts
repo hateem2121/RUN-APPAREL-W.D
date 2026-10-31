@@ -658,6 +658,11 @@ describe('raw values in component stylesheets', () => {
    * also be named in docs/DESIGN.md §3, so the prose index cannot drift from the CSS.
    */
   const DISPLAY_RANGES = [
+    {
+      file: 'site.css',
+      selector: '.display.display--hero.hero-family--wide-word',
+      value: '8.6vw',
+    },
     { file: 'base.css', selector: '.display--hero', value: 'clamp(2.125rem, 5.4vw, 4.5rem)' },
     {
       file: 'base.css',
