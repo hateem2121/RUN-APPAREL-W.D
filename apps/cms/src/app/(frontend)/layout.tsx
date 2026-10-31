@@ -41,6 +41,7 @@ import './site.css'
 
 import type { Metadata, Viewport } from 'next'
 import type React from 'react'
+import { AboutPreloader } from '../../components/site/AboutPreloader'
 import { Analytics } from '../../components/site/Analytics'
 import { CardOpening } from '../../components/site/CardOpening'
 import { ConsentBanner } from '../../components/site/ConsentBanner'
@@ -150,6 +151,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeBoot />
+        {/* The first-arrival curtain: right after the theme, so it is drawn in the visitor's colours. */}
+        <AboutPreloader />
         {/* Site-wide, so every page carries the company identity a crawler or an AI
             reader resolves the rest of the page against. The other blocks reference
             this node by @id rather than redescribing the company. */}

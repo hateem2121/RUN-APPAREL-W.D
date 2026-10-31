@@ -1049,6 +1049,8 @@ test.describe('MO-09 — a footer hover sweep costs no more layout than the hero
     // layouts' once on CI, and 3 of 10 runs here under a 6x CPU throttle. A page that never
     // goes quiet fails loudly rather than being measured mid-settle.
     const waitForLayoutQuiet = async () => {
+      // The gate lifted above also lets the first-arrival curtain run; its leaving is one layout.
+      await page.waitForFunction(() => !document.documentElement.hasAttribute('data-preload'))
       let last = await layoutCount()
       let stable = 0
       for (let i = 0; i < 50 && stable < 3; i++) {

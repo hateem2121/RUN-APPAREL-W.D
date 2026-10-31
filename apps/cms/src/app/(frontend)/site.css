@@ -8803,3 +8803,162 @@ a.contact-block__value:active {
     display: none;
   }
 }
+
+/*
+ * The first-arrival curtain (P2 + N1, D51). Hidden unless the pre-paint script marked <html>. The paper
+ * is two combs of 24 px picks that pass off to opposite sides, at once when the driver calls it
+ * (`lifting`), or on their own at the ceiling (`on`; preloader.test.ts holds the delay equal to
+ * PRELOADER_CEILING_MS). Sized by the screen's both sides, so it fits a folded phone, a sideways phone
+ * and a 4K screen: the demo's fixed positions failed 50 of 162 plays across 27 screens (31 Oct).
+ */
+@keyframes preloader-out-a {
+  to {
+    translate: 100% 0;
+  }
+}
+
+@keyframes preloader-out-b {
+  to {
+    translate: -100% 0;
+  }
+}
+
+@keyframes preloader-leave {
+  to {
+    visibility: hidden;
+  }
+}
+
+.preloader {
+  display: none;
+}
+
+html[data-preload] .preloader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-preloader);
+  display: grid;
+  place-items: center;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.preloader__paper {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+}
+
+.preloader__paper--a {
+  mask: repeating-linear-gradient(#000 0 25px, transparent 25px 48px);
+}
+
+.preloader__paper--b {
+  mask: repeating-linear-gradient(transparent 0 24px, #000 24px 48px);
+}
+
+.preloader__lockup {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  width: min(1100px, calc(100vw - 32px), calc((100svh - 32px) * 1.6));
+  color: var(--heading);
+}
+
+.preloader__year {
+  margin: 0;
+  color: var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.preloader__count {
+  display: grid;
+  gap: 8px;
+}
+
+.preloader__meta {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.preloader__mark {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: currentColor;
+}
+
+.preloader .loom-mark__pick {
+  transform: scaleX(0);
+  transform-box: fill-box;
+  shape-rendering: crispEdges;
+  transition: transform var(--fast) var(--ease);
+}
+
+.preloader .loom-mark__pick--l {
+  transform-origin: 0 50%;
+}
+
+.preloader .loom-mark__pick--r {
+  transform-origin: 100% 50%;
+}
+
+/* A sideways phone: the year beside the mark, since stacked they need more height than it has. */
+@media (max-height: 500px) {
+  .preloader__lockup {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 24px;
+    width: calc(100vw - 48px);
+  }
+
+  .preloader__year {
+    font-size: var(--text-card-title);
+  }
+}
+
+html[data-preload="on"] .preloader__paper--a,
+html[data-preload="on"] .preloader__paper--b,
+html[data-preload="on"] .preloader__lockup {
+  animation-duration: var(--ui);
+  animation-timing-function: var(--ease);
+  animation-fill-mode: both;
+  animation-delay: 3000ms;
+}
+
+html[data-preload="on"] .preloader__paper--a {
+  animation-name: preloader-out-a;
+}
+
+html[data-preload="on"] .preloader__paper--b {
+  animation-name: preloader-out-b;
+}
+
+html[data-preload="on"] .preloader__lockup {
+  animation-name: preloader-leave;
+}
+
+html[data-preload="lifting"] .preloader__paper--a {
+  animation: preloader-out-a var(--ui) var(--ease) both;
+}
+
+html[data-preload="lifting"] .preloader__paper--b {
+  animation: preloader-out-b var(--ui) var(--ease) both;
+}
+
+html[data-preload="lifting"] .preloader__lockup {
+  visibility: hidden;
+}
+
+/* A visitor who turns reduced motion on mid-visit, and paper, never get the curtain. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-preload] .preloader {
+    display: none;
+  }
+}
+
+@media print {
+  html[data-preload] .preloader {
+    display: none;
+  }
+}

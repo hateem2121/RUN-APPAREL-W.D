@@ -1,6 +1,5 @@
 import { IntentLink as Link } from './IntentLink'
 import type { CSSProperties } from 'react'
-import { AboutPreloader } from './AboutPreloader'
 import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { Breadcrumb } from './Breadcrumb'
@@ -40,7 +39,6 @@ export function AboutPage() {
   return (
     <>
       {/* First on the page: its script decides before anything below can paint. */}
-      <AboutPreloader />
       <JsonLd data={aboutPageJsonLd(page)} />
       <JsonLd data={breadcrumbTrailJsonLd(trail)} />
 
