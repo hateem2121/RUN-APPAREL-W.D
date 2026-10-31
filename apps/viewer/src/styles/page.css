@@ -3202,32 +3202,13 @@ summary.spec-item__row:focus-visible {
 }
 
 /*
- * Indeterminate sweep — says "working", claims no amount.
- *
- * It replaced a fill driven by a fake percentage. The duration is derived from
- * the locked `--slow` rather than picked, so it cannot drift away from the
- * motion system; 2x reads as calm at this width. `base.css` already collapses
- * every animation to 0.01ms under reduced motion, and <Preloader> does not
- * render this element there at all — a sweep that cannot sweep is a bar frozen
- * at one width, which reads as a stalled download.
- */
-
-/*
- * …and the copy of the preloader drawn from index.html before React runs (RO-08) carries
- * the element regardless, so under reduced motion CSS hides it: the same frozen-bar reason.
+ * The woven mark (S4, D51) says "working" and claims no amount. <Preloader> does not render it
+ * under reduced motion, and the copy drawn from index.html before React runs (RO-08) carries it
+ * regardless, so CSS hides it there: a loop that cannot move reads as a stalled download.
  */
 @media (prefers-reduced-motion: reduce) {
   .preloader__rule--indeterminate {
     display: none;
-  }
-}
-
-@keyframes preloader-sweep {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(250%);
   }
 }
 
