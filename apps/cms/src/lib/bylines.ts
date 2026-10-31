@@ -92,6 +92,8 @@ const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
  * (2026-10-08) on the 3D and fabrics guides, so that constant went with it.
  */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
+/** The guide's line on sports accessories: the first has its own 3D page (2026-10-31). */
+const KAIZEN = '2026-10-31T22:30:00+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -109,7 +111,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     STEP_FIVE_PHOTO,
     'fba06078c80f',
   ),
-  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, SITE_CHECK, 'e111b660bc6b'),
+  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, KAIZEN, 'e212b4e342b4'),
   '/guides/minimum-order-and-samples': byline(
     AUTHORS.merchandiser,
     GUIDES_1,

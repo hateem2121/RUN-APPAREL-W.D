@@ -231,7 +231,7 @@ export function buildViewerResponse(
       ...specFields,
       // The page's four fact groups with the glossary's notes (polish D10). Built here, not in
       // the page, so a corrected note goes live with a CMS deploy and the page stays small.
-      specs: specGroups(specFields, specNote),
+      specs: specGroups({ ...specFields, category: String(product.category ?? '') }, specNote),
       shortDescription: String(product.shortDescription ?? ''),
       garmentType: String(product.garmentType ?? '').trim(),
       customisationIntroHtml: deps.richTextToHtml(product.customisationIntro),

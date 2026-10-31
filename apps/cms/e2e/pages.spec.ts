@@ -25,6 +25,11 @@ import { expect, test } from './offlineMedia'
  * thing both must satisfy — the page is not blank — is asserted unconditionally.
  */
 
+/** The pages a family links to: a product line's page (the soccer ball) is not one of them. */
+const FAMILY_LINKS = FAMILY_PAGE_SOURCES.filter(
+  (path) => path !== '/custom-soccer-ball-manufacturer',
+)
+
 const PAGES = [
   { path: '/', name: 'home', heading: /Made to order/i },
   { path: '/products', name: 'products', heading: /Every garment/i },
@@ -57,6 +62,16 @@ const PAGES = [
     heading: /How a private label order works/i,
   },
   { path: '/guides/3d-garment-reference', name: '3D guide', heading: /The 3D garment reference/i },
+  {
+    path: '/custom-soccer-ball-manufacturer',
+    name: 'soccer ball buyer page',
+    heading: /Custom soccer balls/i,
+  },
+  {
+    path: '/custom-sports-accessories-manufacturer',
+    name: 'accessories buyer page',
+    heading: /Custom sports accessories/i,
+  },
   {
     path: '/guides/minimum-order-and-samples',
     name: 'minimum order guide',
@@ -602,9 +617,8 @@ test.describe('the guides index lists each guide once (VA-47)', () => {
     await page.goto('/guides')
     const foot = page.getByRole('navigation', { name: 'What we make' })
     await expect(foot.getByRole('heading', { level: 2, name: 'What we make' })).toBeVisible()
-    await expect(foot.locator('a')).toHaveCount(FAMILY_PAGE_SOURCES.length)
-    for (const path of FAMILY_PAGE_SOURCES)
-      await expect(foot.locator(`a[href="${path}"]`)).toHaveCount(1)
+    await expect(foot.locator('a')).toHaveCount(FAMILY_LINKS.length)
+    for (const path of FAMILY_LINKS) await expect(foot.locator(`a[href="${path}"]`)).toHaveCount(1)
     for (const guide of GUIDES) await expect(foot.locator(`a[href="${guide.path}"]`)).toHaveCount(0)
   })
 })
@@ -848,7 +862,7 @@ test.describe('the teamwear buyer page, as a search engine receives it', () => {
     page,
   }) => {
     await page.goto('/')
-    for (const path of FAMILY_PAGE_SOURCES) {
+    for (const path of FAMILY_LINKS) {
       await expect(page.locator(`.family-card__link[href="${path}"]`)).toHaveCount(1)
     }
     await page.goto(PATH)

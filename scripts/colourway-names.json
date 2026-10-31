@@ -2025,6 +2025,46 @@
           "needsOwnerEye": false
         }
       ]
+    },
+    "kaizen": {
+      "productName": "KAIZEN",
+      "colours": [
+        {
+          "variantId": "Orange",
+          "displayName": "Blaze Orange",
+          "slug": "orange",
+          "hex": "#C85509",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Pink",
+          "displayName": "Rosette Pink",
+          "slug": "pink",
+          "hex": "#C55C7D",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Aqua",
+          "displayName": "Pool Aqua",
+          "slug": "aqua",
+          "hex": "#64ABA6",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Lavender",
+          "displayName": "Podium Lilac",
+          "slug": "lavender",
+          "hex": "#A094BB",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Blue-grey",
+          "displayName": "Pit Petrol",
+          "slug": "blue-grey",
+          "hex": "#295467",
+          "needsOwnerEye": false
+        }
+      ]
     }
   }
 }

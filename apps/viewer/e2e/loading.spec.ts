@@ -92,9 +92,7 @@ test.describe('MO-20 — the stage readout is correct for its phase', () => {
     ).toBeGreaterThanOrEqual(3)
 
     for (const x of downloading) {
-      expect(x.text, `"${x.text}" is not the downloading-phase title`).toMatch(
-        /^Working · 3D garment/,
-      )
+      expect(x.text, `"${x.text}" is not the downloading-phase title`).toMatch(/^Working · 3D view/)
     }
     for (let i = 1; i < counted.length; i++) {
       const [before, now] = [counted[i - 1]?.percent ?? 0, counted[i]?.percent ?? 0]

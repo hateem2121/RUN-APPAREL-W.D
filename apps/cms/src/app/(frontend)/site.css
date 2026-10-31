@@ -8962,3 +8962,13 @@ html[data-preload="lifting"] .preloader__lockup {
     display: none;
   }
 }
+
+/*
+ * "ACCESSORIES," is about 9.6em wide, and split mid-word at 320 and 340px in CI's Firefox (TY-12,
+ * 2026-10-31). Tied to the screen's width, so it fills the 280px column at 320px and no more.
+ */
+@media (width < 420px) {
+  .display.display--hero.hero-family--wide-word {
+    font-size: 8.6vw;
+  }
+}

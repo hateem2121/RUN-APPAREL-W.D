@@ -18,6 +18,11 @@ import { JsonLd } from './JsonLd'
 /** The guide that tells how an order works, once, for every buyer page (polish S4). */
 const ORDER_GUIDE = guideAt('/guides/how-a-private-label-order-works')
 
+const BALL_PICTURE = {
+  url: '/families/kaizen-orange-1200.webp',
+  alt: 'The orange Kaizen soccer ball with the RUN crest.',
+}
+
 /**
  * A buyer page: one product family, written for the words a buyer searches (2026-09-30).
  *
@@ -65,8 +70,14 @@ export function FamilyLanding({
   settings: PublicSiteSettings
 }) {
   const family = familyOf(page)
-  const garments = products.filter((product) => product.category === family.name)
-  const picture = familyPictures(products)[family.slug] ?? null
+  const line = page.productLine
+  const garments = products.filter(
+    (product) =>
+      product.category === family.name && (!line || line.words.test(product.garmentType ?? '')),
+  )
+  // The ball's page opens on the ball, even in the minutes before its product is published.
+  const picture =
+    line && garments.length === 0 ? BALL_PICTURE : (familyPictures(products)[family.slug] ?? null)
   const others = FAMILIES.filter(
     (entry) =>
       entry.slug !== family.slug && products.some((product) => product.category === entry.name),
@@ -103,7 +114,9 @@ export function FamilyLanding({
           <p className="label">{page.eyebrow}</p>
           {/* `hero-family`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
               `display--long`: 45-53 characters, so a phone sets it with more air (base.css, VA-45). */}
-          <h1 className="display display--hero display--long hero-family">
+          <h1
+            className={`display display--hero display--long hero-family${page.headingWideWord ? ' hero-family--wide-word' : ''}`}
+          >
             {page.heading} <span className="serif-accent">{page.headingAccent}</span>
           </h1>
           {picture ? (
@@ -124,7 +137,9 @@ export function FamilyLanding({
           <div className="spread__body">
             {page.makes.map((entry) => (
               <div key={entry.group}>
-                <h3 className="product-card__name prose__heading">{entry.group}</h3>
+                <h3 className="product-card__name prose__heading">
+                  {entry.href ? <Link href={entry.href}>{entry.group}</Link> : entry.group}
+                </h3>
                 <p>{entry.garments}</p>
               </div>
             ))}
@@ -140,9 +155,8 @@ export function FamilyLanding({
                 See it before a sample <span className="serif-accent">is&nbsp;cut.</span>
               </h2>
               <p className="site-lede">
-                Every garment below has its own 3D page. Turn it, zoom in and check the print, the
-                fabric composition, the weight and the fit. Share the link with your team before
-                anyone pays for a sample.
+                {page.garmentsLede ??
+                  'Every garment below has its own 3D page. Turn it, zoom in and check the print, the fabric composition, the weight and the fit. Share the link with your team before anyone pays for a sample.'}
               </p>
             </div>
             {/* On the Teamwear page, a button for each sport above the cards (polish S7). */}
@@ -159,7 +173,7 @@ export function FamilyLanding({
             <p>{ORDER_GUIDE.description}</p>
             <div className="site-actions">
               <Link className="btn btn--ghost" href={ORDER_GUIDE.path}>
-                {ORDER_GUIDE.title}
+                {family.slug === 'sports-accessories' ? 'How an order works' : ORDER_GUIDE.title}
               </Link>
             </div>
             <ul className="see-also__list">

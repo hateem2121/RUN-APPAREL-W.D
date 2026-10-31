@@ -35,6 +35,11 @@ const PRINTING_QUESTIONS = new Set([
 /** The FAQ's recycled-and-organic sentence (F10, 2026-10-07), as the pages use it. */
 const RECYCLED_ORGANIC = faqEntryById('recycled-organic').entry.answer.replace(/^Yes\. /, '')
 
+/** The clothing families' pages, whose minimum and sample time `FACTS` states. */
+const CLOTHING_PAGES = FAMILY_PAGES.filter((page) => page.familySlug !== 'sports-accessories')
+/** A family's own page: a product line's page is not the family's link. */
+const OWN_PAGES = FAMILY_PAGES.filter((page) => !page.productLine)
+
 const everyWord = (page: (typeof FAMILY_PAGES)[number]): string =>
   [
     page.title,
@@ -78,9 +83,7 @@ describe('every buyer page is wired everywhere a public page must be', () => {
 
   it('the garment pages send each category to its page here, and to no other (polish S5)', () => {
     // packages/shared repeats the addresses, because the garment pages cannot import this file.
-    const fromPages = Object.fromEntries(
-      FAMILY_PAGES.map((page) => [familyOf(page).name, page.path]),
-    )
+    const fromPages = Object.fromEntries(OWN_PAGES.map((page) => [familyOf(page).name, page.path]))
     expect(CATEGORY_PAGE_PATHS).toEqual(fromPages)
     // NEGATIVE CONTROL: the comparison sees a page missing from either side.
     expect({ ...CATEGORY_PAGE_PATHS, Outerwear: undefined }).not.toEqual(fromPages)
@@ -126,9 +129,15 @@ describe('the words state only what the site already states', () => {
   for (const page of FAMILY_PAGES) {
     const words = everyWord(page)
 
+    // The sample time is the clothing's; the owner left the ball's time off the page (2026-10-31).
     it(`${page.path}: the minimum and the sample time are the confirmed ones`, () => {
-      expect(page.description).toContain(`from ${minimum} pieces per style`)
-      expect(page.lede).toContain(`${sampleDays} working days`)
+      expect(page.description).toContain(`from ${minimum} pieces`)
+      if (CLOTHING_PAGES.includes(page)) {
+        expect(page.description).toContain(`from ${minimum} pieces per style`)
+        expect(page.lede).toContain(`${sampleDays} working days`)
+      } else {
+        expect(page.lede).not.toMatch(/working days/i)
+      }
     })
 
     /*
@@ -183,14 +192,28 @@ describe('where a family card leads', () => {
     }
     const teamwear = FAMILIES.find((family) => family.slug === 'teamwear-uniforms')
     expect(teamwear && familyHref(teamwear)).toBe('/custom-teamwear-manufacturer')
-    // Sports Accessories has no garments, so no page (owner, 2026-09-30).
+    // The family's own page, never its product line's (owner, 2026-10-31).
     const accessories = FAMILIES.find((family) => family.slug === 'sports-accessories')
-    expect(accessories && familyHref(accessories)).toBe('/products#sports-accessories')
+    expect(accessories && familyHref(accessories)).toBe('/custom-sports-accessories-manufacturer')
   })
 
   it('a page naming a family that does not exist throws rather than rendering empty', () => {
     const first = FAMILY_PAGES[0] as (typeof FAMILY_PAGES)[number]
     expect(() => familyOf({ ...first, familySlug: 'no-such-family' })).toThrow(/no-such-family/)
+  })
+})
+
+describe('what the ball page must never say', () => {
+  const ball = FAMILY_PAGES.find((page) => page.productLine)
+  const words = ball ? everyWord(ball) : ''
+
+  // FIFA's marks are licensed; the ball holds none, so a buyer has to read that here.
+  it('says the ball holds no FIFA licence wherever it names FIFA', () => {
+    expect(words).toMatch(/Is the Kaizen FIFA licensed\?/)
+    expect(words).toMatch(/does not carry a FIFA mark/)
+    expect(words).not.toMatch(/FIFA[- ](?:approved|certified|inspected)/i)
+    // NEGATIVE CONTROL: the pattern sees the claim it forbids.
+    expect('A FIFA-approved ball').toMatch(/FIFA[- ](?:approved|certified|inspected)/i)
   })
 })
 
@@ -220,7 +243,7 @@ describe('the data a search engine reads', () => {
  * to the country comparison and to the start-up cost guide, against 8–9 for every other guide.
  */
 describe('the guides a buyer page links to', () => {
-  it.each(FAMILY_PAGES)('$path links the printing, fabrics and country guides', (page) => {
+  it.each(OWN_PAGES)('$path links the printing, fabrics and country guides', (page) => {
     expect(rangeGuidePaths(page)).toEqual(
       expect.arrayContaining([
         '/guides/garment-printing-methods',
@@ -228,6 +251,11 @@ describe('the guides a buyer page links to', () => {
         '/guides/pakistan-vs-china-vs-turkey',
       ]),
     )
+  })
+
+  it('keeps the guides about cloth off the soccer ball page', () => {
+    const ball = FAMILY_PAGES.find((page) => page.productLine)
+    expect(ball && rangeGuidePaths(ball)).toEqual(['/guides/pakistan-vs-china-vs-turkey'])
   })
 
   it('links the start-up cost guide from the activewear page, and only there', () => {

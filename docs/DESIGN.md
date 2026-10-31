@@ -266,6 +266,8 @@ These ranges, and the narrower variants below, are the only `clamp()` font sizes
 stylesheets may use: `apps/viewer/src/styles/tokens.test.ts` (TY-03) lists each one by
 selector and fails on any other, or on one of them that this file stops naming.
 
+**One headline scales with the screen.** Below 420px `.display.display--hero.hero-family--wide-word` is `8.6vw`, so "ACCESSORIES," stays whole.
+
 **The marketing site lowers the hero floor on the narrowest phones (owner decision
 2026-09-11).** Its `.site-hero .display--hero` is `clamp(min(34px, 9.6vw), 5.4vw, 72px)`:
 30.72px at 320px, 32.64px at 340px, and unchanged from 355px up. (9.6, not the 9.8 first

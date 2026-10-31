@@ -661,7 +661,11 @@ export default function App() {
             <ContactSection
               settings={data.siteSettings}
               enquiry={enquiry}
-              garment={{ productSlug: data.product.slug, colourSlug: selected.slug }}
+              garment={{
+                productSlug: data.product.slug,
+                colourSlug: selected.slug,
+                noun: data.product.category === 'Sports Accessories' ? 'product' : 'garment',
+              }}
               actionGlow={actionGlow}
             />
           </div>

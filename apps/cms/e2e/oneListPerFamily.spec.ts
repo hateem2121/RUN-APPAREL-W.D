@@ -19,7 +19,8 @@ import { expect, type Page, test } from './offlineMedia'
  * here holds for an empty group as for a full one.
  */
 
-const WITH_A_PAGE = FAMILY_PAGES.map((page) => {
+// A product line's page (the soccer ball) is not its family's link.
+const WITH_A_PAGE = FAMILY_PAGES.filter((page) => !page.productLine).map((page) => {
   const family = FAMILIES.find((entry) => entry.slug === page.familySlug)
   if (!family) throw new Error(`no family ${page.familySlug}`)
   return { family, page }
@@ -50,12 +51,12 @@ test.describe('the old filter addresses forward, permanently (polish S3)', () =>
     })
   }
 
-  test('a family with no page forwards to its group, and an unknown value to the whole page', async ({
+  test('Sports Accessories forwards to its page, and an unknown value to the whole page', async ({
     page,
   }) => {
     expect(await forwardOf(page, '/products?family=sports-accessories')).toEqual({
       status: 308,
-      to: '/products#sports-accessories',
+      to: '/custom-sports-accessories-manufacturer',
     })
     expect(await forwardOf(page, '/products?family=nonsense')).toEqual({
       status: 308,
@@ -87,18 +88,7 @@ test.describe('the products page shows every family under a heading that opens i
     }
   })
 
-  test('Sports Accessories says "[ ask us ]" and how to ask, in the owner’s words (Q21, Q13)', async ({
-    page,
-  }) => {
-    await page.goto('/products')
-    const group = page.locator('#sports-accessories')
-    await expect(group.locator('.label')).toHaveText('[ ask us ]')
-    const ask = group.getByRole('link', { name: 'Ask what we make' })
-    await expect(ask).toHaveAttribute('href', '/contact')
-  })
-
-  // Polish F8: the home page's card said "View the range" and opened an empty group.
-  test('the home page’s Sports Accessories card says the same, and goes to Contact (F8)', async ({
+  test('no family card says "[ ask us ]" now every family has a page (owner, 2026-10-31)', async ({
     page,
   }) => {
     await page.goto('/')
@@ -107,17 +97,7 @@ test.describe('the products page shows every family under a heading that opens i
       page
         .locator('.family-card')
         .filter({ has: page.locator(`a.family-card__link[href="${href}"]`) })
-    const accessories = cardOf('/contact')
-    await expect(accessories).toHaveCount(1)
-    await expect(accessories.locator('.family-card__meta')).toContainText('[ ask us ]')
-    await expect(accessories.locator('.family-card__cue')).toContainText('Ask what we make')
-    // The link's name must say where it goes (WCAG 2.4.4): "Ask what we make" is in it, out of
-    // sight, while the other cards' "View the range" only repeats where their names lead.
-    // A pattern, not the exact words: engines join a link's words and its hidden span with
-    // different spacing ("Accessories. Ask" or "Accessories . Ask").
-    const link = page.getByRole('link', { name: /^Sports Accessories\W+Ask what we make$/ })
-    await expect(link).toHaveAttribute('href', '/contact')
-    // CONTROL: every family with a page still opens it, and says nothing of "[ ask us ]".
+    // Every family with a page opens it, and says nothing of "[ ask us ]".
     for (const { page: buyerPage } of WITH_A_PAGE) {
       const card = cardOf(buyerPage.path)
       await expect(card).toHaveCount(1)
@@ -230,7 +210,14 @@ test.describe('a buyer page is its family’s list, and copies nothing (polish S
       await expect(
         browser.getByRole('heading', { level: 2, name: page.stepsHeading }),
       ).toBeVisible()
-      const guide = browser.getByRole('link', { name: 'How a Private Label Clothing Order Works' })
+      // An accessory is no clothing, so its pages name the same guide in plainer words.
+      const guide = browser.getByRole('link', {
+        name:
+          page.familySlug === 'sports-accessories'
+            ? 'How an order works'
+            : 'How a Private Label Clothing Order Works',
+        exact: true,
+      })
       await expect(guide).toHaveAttribute('href', '/guides/how-a-private-label-order-works')
       // It sends nobody to a filter address, its own or another family's.
       await expect(browser.locator('a[href*="family="]')).toHaveCount(0)

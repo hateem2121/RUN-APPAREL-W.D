@@ -927,7 +927,9 @@ describe('buildPreview — breadcrumbs on the website', () => {
         onSite(payload({ product: { category: category as never } })).breadcrumbJsonLd ?? 'null',
       ).itemListElement[2].item
     expect(categoryStep('Teamwear & Uniforms')).toBe(`${SITE}/custom-teamwear-manufacturer`)
-    expect(categoryStep('Sports Accessories')).toBe(`${SITE}/products#sports-accessories`)
+    expect(categoryStep('Sports Accessories')).toBe(
+      `${SITE}/custom-sports-accessories-manufacturer`,
+    )
   })
 
   it('skips the category step when a garment has none, rather than inventing one', () => {

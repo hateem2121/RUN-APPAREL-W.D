@@ -317,7 +317,7 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'Our reference garments cover teamwear and uniforms, sportswear, outerwear and casual wear. Sports accessories are made too, and their 3D pages are still to come.',
+            text: 'Our reference garments cover teamwear and uniforms, sportswear, outerwear and casual wear. Sports accessories are made too, and the first with its own 3D page is the Kaizen soccer ball.',
           },
         ],
       },

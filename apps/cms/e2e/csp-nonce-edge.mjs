@@ -36,6 +36,8 @@ const PAGES = [
   ['/custom-activewear-manufacturer', 200],
   ['/custom-outerwear-manufacturer', 200],
   ['/private-label-casual-wear-manufacturer', 200],
+  ['/custom-sports-accessories-manufacturer', 200],
+  ['/custom-soccer-ball-manufacturer', 200],
   ['/guides', 200],
   ['/guides/how-a-private-label-order-works', 200],
   ['/guides/3d-garment-reference', 200],

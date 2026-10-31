@@ -67,7 +67,7 @@ describe('GarmentTrail', () => {
     draw('Sports Accessories')
     expect(steps()[2]).toEqual([
       'Sports Accessories',
-      'https://wear-run.com/products#sports-accessories',
+      'https://wear-run.com/custom-sports-accessories-manufacturer',
     ])
   })
 

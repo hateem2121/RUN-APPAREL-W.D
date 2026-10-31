@@ -88,6 +88,8 @@ export const FAMILY_PAGE_SOURCES = [
   '/custom-activewear-manufacturer',
   '/custom-outerwear-manufacturer',
   '/private-label-casual-wear-manufacturer',
+  '/custom-sports-accessories-manufacturer',
+  '/custom-soccer-ball-manufacturer',
 ]
 
 /** The buyer guides and their index (2026-09-30). Held to `src/lib/guides.ts` by `guides.test.ts`. */

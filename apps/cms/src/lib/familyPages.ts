@@ -12,8 +12,8 @@ import { FAMILIES, type Family, familyBySlug } from './families'
  * words, and this site had no page that did.
  *
  * ⚠️ THE OWNER APPROVES EVERY PAGE'S WORDS BEFORE IT IS BUILT. Teamwear, Sportswear,
- * Outerwear and Casual Wear were approved on 2026-09-30. Sports Accessories has no garments,
- * so it has no page. A family with no entry here simply has no page yet: while it has no garments
+ * Outerwear and Casual Wear were approved on 2026-09-30, Sports Accessories and the soccer ball
+ * page on 2026-10-31. A family with no entry here simply has no page yet: while it has no garments
  * either, its home-page card and its group on the products page say "[ ask us ]" and lead to Contact
  * (`familyIsSoon`), and its links elsewhere open that group (`familyHref`). Do not add an entry
  * from a draft.
@@ -51,7 +51,7 @@ export type FamilyPage = {
   /** The heading over `makes`. */
   readonly makesHeading: string
   /** What is made, in the groups a buyer asks by. */
-  readonly makes: ReadonlyArray<{ group: string; garments: string }>
+  readonly makes: ReadonlyArray<{ group: string; garments: string; href?: string }>
   /**
    * The heading over the link to the order guide. The page listed its own five steps under it until
    * polish S4 (2026-10-05); the guide tells how an order works, once, for every page.
@@ -60,6 +60,15 @@ export type FamilyPage = {
   readonly questions: readonly FamilyPageQuestion[]
   /** The heading over the last call to action. */
   readonly closingHeading: string
+  /**
+   * A page for one product line inside a family, not the family's own page (the soccer ball page,
+   * owner 2026-10-31). The family's links and its garment pages' trail keep opening its own page.
+   */
+  readonly productLine?: { readonly words: RegExp }
+  /** A headline word too wide for a 320px phone at the display size ("ACCESSORIES,"). */
+  readonly headingWideWord?: boolean
+  /** The paragraph over the 3D cards, where "fabric, weight and fit" would not describe them. */
+  readonly garmentsLede?: string
 }
 
 const fact = (prefix: string): string =>
@@ -221,6 +230,37 @@ const CASUAL_QUESTIONS: readonly FamilyPageQuestion[] = [
   },
 ]
 
+/*
+ * ⚠️ THE BALL'S NUMBERS LIVE ON ITS 3D PAGE, IN THE CMS (owner, 2026-10-31, "nothing said twice").
+ * The owner confirmed the lab tests and ruled the wording "according to FIFA Quality Pro"; the ball
+ * holds no FIFA licence, so no FIFA mark is drawn and the answer below says so, because a mark is
+ * what a FIFA competition requires (IFAB Law 2; FIFA Quality Programme page, 10 February 2026).
+ */
+const BALL_QUESTIONS: readonly FamilyPageQuestion[] = [
+  {
+    question: 'What size is the Kaizen?',
+    answer: 'Size 5, with a 69 cm circumference. The Laws of the Game allow 68 to 70 cm.',
+  },
+  {
+    question: 'Is the Kaizen FIFA licensed?',
+    answer:
+      'No. It is lab tested according to FIFA Quality Pro limits, and it does not carry a FIFA mark. Competitions that require a mark need a licensed ball.',
+  },
+  {
+    question: 'What is Trinity Technology?',
+    answer:
+      'Our name for building one ball in four stages. Panels are thermobonded, then machine stitched. The last panel is closed by hand, and the seams are then sealed.',
+  },
+]
+
+const ACCESSORIES_QUESTIONS: readonly FamilyPageQuestion[] = [
+  {
+    question: 'Which accessories can we see in 3D?',
+    answer:
+      'The Kaizen soccer ball, in five colors. For bags, caps, socks and gloves, tell us what you need and we will talk you through it.',
+  },
+]
+
 export const FAMILY_PAGES: readonly FamilyPage[] = [
   {
     path: '/custom-teamwear-manufacturer',
@@ -333,6 +373,56 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     questions: [...CASUAL_QUESTIONS, ...SHARED_QUESTIONS],
     closingHeading: 'Have a range that needs making?',
   },
+  {
+    path: '/custom-sports-accessories-manufacturer',
+    familySlug: 'sports-accessories',
+    title: 'Custom Sports Accessories Manufacturer',
+    description: `Custom sports accessories under your own label: soccer balls, bags, caps, socks and gloves, from ${MINIMUM} pieces per style. Made in Sialkot, Pakistan.`,
+    eyebrow: `[ Sports Accessories · From ${MINIMUM} pieces per style ]`,
+    heading: 'Custom sports accessories,',
+    headingAccent: 'made under your label.',
+    headingWideWord: true,
+    lede: `RUN APPAREL makes custom sports accessories in Sialkot, Pakistan, from ${MINIMUM} pieces per style: the supporting pieces that finish a program, under your own label.`,
+    makesHeading: 'What we make',
+    makes: [
+      {
+        group: 'Soccer balls',
+        garments: 'The Kaizen, a 16-panel pro match ball in size 5.',
+        href: '/custom-soccer-ball-manufacturer',
+      },
+      { group: 'Bags and backpacks', garments: 'Team and training bags.' },
+      { group: 'Caps and headwear', garments: 'Caps and other headwear.' },
+      { group: 'Socks and gloves', garments: 'Socks and gloves for your program.' },
+    ],
+    stepsHeading: 'How an accessories order works',
+    questions: [...ACCESSORIES_QUESTIONS, ...SHARED_QUESTIONS],
+    closingHeading: 'Have a program to finish?',
+    garmentsLede:
+      'Each product below has its own 3D page. Turn it, zoom in and check the print and the specification. Share the link with your team before anyone pays for a sample.',
+  },
+  {
+    path: '/custom-soccer-ball-manufacturer',
+    familySlug: 'sports-accessories',
+    title: 'Custom Soccer Ball Manufacturer, Private Label',
+    description: `Custom soccer balls made in Sialkot, Pakistan, under your own label from ${MINIMUM} pieces. Choose your logo, colors, artwork and materials. See the ball in 3D first.`,
+    eyebrow: `[ Soccer Balls · From ${MINIMUM} pieces per style ]`,
+    heading: 'Custom soccer balls,',
+    headingAccent: 'made to your spec.',
+    lede: `RUN APPAREL makes pro match soccer balls under your label in Sialkot, Pakistan, with orders from ${MINIMUM} pieces. Turn the Kaizen in 3D, check every panel, then tell us what to change: the logo, the colors, the full artwork, the materials or the size.`,
+    makesHeading: 'What you can change',
+    makes: [
+      { group: 'Your logo', garments: 'Your team, club or brand logo on the panels.' },
+      { group: 'Colors', garments: 'Colors beyond the five shown in 3D.' },
+      { group: 'Full artwork', garments: 'A new design across all 16 panels.' },
+      { group: 'Materials and size', garments: 'Other covers, foam, bladders or sizes.' },
+    ],
+    stepsHeading: 'How a ball order works',
+    questions: [...BALL_QUESTIONS, ...SHARED_QUESTIONS],
+    closingHeading: 'Have a ball to make?',
+    productLine: { words: /\bball\b/i },
+    garmentsLede:
+      'Turn the Kaizen, zoom in and check the print on every panel. Its page lists the full specification. Share the link with your team before anyone pays for a sample.',
+  },
 ]
 
 /**
@@ -349,17 +439,21 @@ const RANGE_GUIDE_PATHS = [
   '/guides/pakistan-vs-china-vs-turkey',
 ] as const
 
+/** The printing and fabric guides speak of cloth, so the ball page keeps only the country guide. */
+const BALL_GUIDE_PATHS = ['/guides/pakistan-vs-china-vs-turkey'] as const
+
 const FAMILY_GUIDE_PATHS: Readonly<Record<string, readonly string[]>> = {
   sportswear: ['/guides/cost-to-start-an-activewear-brand'],
 }
 
 export function rangeGuidePaths(page: FamilyPage): readonly string[] {
+  if (page.productLine) return BALL_GUIDE_PATHS
   return [...RANGE_GUIDE_PATHS, ...(FAMILY_GUIDE_PATHS[page.familySlug] ?? [])]
 }
 
 /** The buyer page for a family, or null when the owner has not approved one yet. */
 export function familyPageFor(family: Family): FamilyPage | null {
-  return FAMILY_PAGES.find((page) => page.familySlug === family.slug) ?? null
+  return FAMILY_PAGES.find((page) => page.familySlug === family.slug && !page.productLine) ?? null
 }
 
 /** The family a buyer page shows. Throws on a slug `FAMILIES` does not hold: a typo, caught at build. */
@@ -376,8 +470,7 @@ export function familyOf(page: FamilyPage): Family {
  * listed twice, on its buyer page and on its filtered gallery (`/products?family=<slug>`), and the
  * two linked to each other (visual audit VA-33). The buyer page is the ONLY list of its family now;
  * the products page shows every family under its own heading, which links here; and the filter's
- * addresses forward (`familyFilterForward`). Sports Accessories has no page, so its link is its
- * group on the products page, where "[ ask us ]" leads to Contact (Q21).
+ * addresses forward (`familyFilterForward`).
  */
 export function familyHref(family: Family): string {
   return familyPageFor(family)?.path ?? `/products#${family.slug}`

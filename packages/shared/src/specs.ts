@@ -71,7 +71,19 @@ export function noteKey(text: string): string {
   )
 }
 
+/**
+ * A ball has no fabric or fit, so its groups take other headings (owner's approved table,
+ * 2026-10-31). Only the words change: the fields and the corners stay the same.
+ */
+const ACCESSORY_HEADINGS: Record<SpecGroupKey, string> = {
+  fabric: 'Materials',
+  weight: 'Weight',
+  fit: 'Size',
+  performance: 'According to FIFA Quality Pro',
+}
+
 type SpecFields = {
+  category?: string
   fabricComposition: string
   gsm: string
   garmentFit: string
@@ -101,7 +113,9 @@ export function specGroups(
   return (Object.keys(SPEC_HEADINGS) as SpecGroupKey[])
     .map((key) => ({
       key,
-      heading: SPEC_HEADINGS[key],
+      heading: (product.category === 'Sports Accessories' ? ACCESSORY_HEADINGS : SPEC_HEADINGS)[
+        key
+      ],
       items: lists[key].map((text) => item(key, text)),
     }))
     .filter((group) => group.items.length > 0)

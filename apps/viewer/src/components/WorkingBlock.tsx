@@ -82,7 +82,7 @@ export function WorkingBlock({
       </span>
       <span className="stage__loading-title">
         <span>{preparing ? 'Preparing' : 'Working'}</span>
-        <span> · 3D garment</span>
+        <span> · 3D view</span>
       </span>
       <span className="working__pct">
         {preparing ? '100%' : started && percent === null ? '' : `${percent ?? 0}%`}
