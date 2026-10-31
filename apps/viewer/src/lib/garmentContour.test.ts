@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { askForPicture, threadFor, traceContour } from './garmentContour'
+import { seamPictureUrl, threadFor, traceContour } from './garmentContour'
 
 /** Draws a map from rows of '#' and '.'. */
 function map(rows: string[]) {
@@ -33,32 +33,12 @@ describe('threadFor', () => {
   })
 })
 
-describe('askForPicture', () => {
-  const start = (url: string) => {
-    const picture = { src: '', onerror: null as (() => unknown) | null }
-    askForPicture(picture, url)
-    return picture
-  }
-
-  it('asks at the plain address first', () => {
-    expect(start('https://m/a.webp').src).toBe('https://m/a.webp')
-  })
-
-  it('asks again at its own address when refused', () => {
-    const picture = start('https://m/a.webp')
-    picture.onerror?.()
-    expect(picture.src).toBe('https://m/a.webp?seam=1')
+describe('seamPictureUrl', () => {
+  it('never asks at the address the page itself asks at', () => {
+    expect(seamPictureUrl('https://m/a.webp')).toBe('https://m/a.webp?seam=1')
   })
 
   it('keeps a query the address already has', () => {
-    const picture = start('https://m/a.webp?v=2')
-    picture.onerror?.()
-    expect(picture.src).toBe('https://m/a.webp?v=2&seam=1')
-  })
-
-  it('stops after the second refusal, never looping', () => {
-    const picture = start('https://m/a.webp')
-    picture.onerror?.()
-    expect(picture.onerror).toBeNull()
+    expect(seamPictureUrl('https://m/a.webp?v=2')).toBe('https://m/a.webp?v=2&seam=1')
   })
 })
