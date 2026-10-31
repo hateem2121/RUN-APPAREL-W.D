@@ -388,6 +388,15 @@ export function CardGallery({
               href={colourHref(garmentPages, productSlug, colour.slug)}
               tabIndex={slide === active ? 0 : -1}
               data-kind={colour.image?.kind ?? 'none'}
+              // R1, dye first (D51): the colour shows at once, behind the transparent picture, and
+              // passes off in picks when the picture has landed. A cached picture never fires load.
+              style={colour.swatch ? ({ '--dye': colour.swatch } as CSSProperties) : undefined}
+              ref={(el) => {
+                if (el?.querySelector('img')?.complete) el.dataset.landed = 'true'
+              }}
+              onLoadCapture={(event) => {
+                event.currentTarget.dataset.landed = 'true'
+              }}
             >
               {!loaded.has(slide) ? (
                 // Its name, until its picture (whose alt says the same) is allowed to load.

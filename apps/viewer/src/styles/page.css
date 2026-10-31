@@ -1730,6 +1730,9 @@ model-viewer.stage__model {
 .stage__seam {
   height: calc(100% - var(--working-h, 0px) - 8px);
 }
+.stage:has(.stage__seam[data-drawn]) .stage__placeholder {
+  filter: none !important;
+}
 .stage__seam {
   position: absolute;
   inset: 0;
