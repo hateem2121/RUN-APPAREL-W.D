@@ -9,6 +9,7 @@
 const WINDOW_MS = 6000
 const SAMPLE_MS = 300
 const FIRST_AT = 0.1
+const ALMOST_DONE_AT = 0.9
 
 export const ESTIMATING = 'Estimating time'
 
@@ -43,9 +44,13 @@ export function createTimeLeft(): TimeLeft {
       shown = ticking === null || estimate > ticking * 2 ? estimate : Math.min(ticking, estimate)
       shownAt = now
       const value = shown >= 20 ? Math.ceil(shown / 5) * 5 : Math.ceil(shown)
+      // "Almost done" beside "19%, 3.0 MB left" (iPhone simulator, live, 31 Oct 2026) was true of
+      // the clock and false of the numbers next to it: a fast line can have 80% to go in 4 s.
       line =
         value < 5
-          ? 'Almost done'
+          ? fraction >= ALMOST_DONE_AT
+            ? 'Almost done'
+            : 'Seconds left'
           : value >= 90
             ? `About ${Math.ceil(value / 60)} min left`
             : `About ${value} sec left`

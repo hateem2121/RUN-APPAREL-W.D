@@ -43,6 +43,20 @@ describe('the Working block time left', () => {
     expect(createTimeLeft().read(1, 0)).toBe('')
   })
 
+  // iPhone simulator, live, 31 Oct 2026: "19%, 3.0 MB left, Almost done" on a fast line.
+  it('says Almost done only when nearly every byte is in, however fast the line', () => {
+    const clock = createTimeLeft()
+    const seen: Array<{ fraction: number; line: string }> = []
+    for (let at = 0; at <= 3000; at += 300) {
+      const fraction = at / 3000
+      seen.push({ fraction, line: clock.read(fraction, at) })
+    }
+    const early = seen.filter((s) => s.fraction >= 0.1 && s.fraction < 0.9)
+    expect(early.length).toBeGreaterThan(0)
+    for (const s of early) expect(s.line).toBe('Seconds left')
+    expect(seen.find((s) => s.fraction >= 0.9 && s.fraction < 1)?.line).toBe('Almost done')
+  })
+
   it('names minutes on a very long wait', () => {
     const clock = createTimeLeft()
     let line = ''
