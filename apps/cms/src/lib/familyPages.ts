@@ -165,6 +165,12 @@ const SHARED_QUESTIONS: readonly FamilyPageQuestion[] = [
   { question: 'Where do you ship?', answer: 'Worldwide.' },
 ]
 
+/** The same two questions for the accessory pages: a ball is no garment (owner, 2026-11-01). */
+const ACCESSORY_SHARED_QUESTIONS: readonly FamilyPageQuestion[] = SHARED_QUESTIONS.map((entry) => ({
+  ...entry,
+  answer: entry.answer.replace('3D garments', '3D products'),
+}))
+
 const TEAMWEAR_QUESTIONS: readonly FamilyPageQuestion[] = [
   {
     question: 'What should a football program send first?',
@@ -440,10 +446,10 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       },
       { group: 'Bags and backpacks', garments: 'Team and training bags.', plain: true },
       { group: 'Caps and headwear', garments: 'Caps and other headwear.', plain: true },
-      { group: 'Socks and gloves', garments: 'Socks and gloves for your program.', plain: true },
+      { group: 'Socks and gloves', garments: '', plain: true },
     ],
     stepsHeading: 'How an accessories order works',
-    questions: [...ACCESSORIES_QUESTIONS, ...SHARED_QUESTIONS],
+    questions: [...ACCESSORIES_QUESTIONS, ...ACCESSORY_SHARED_QUESTIONS],
     closingHeading: 'Have a program to finish?',
     garmentsLede:
       'Each product below has its own 3D page. Turn it, zoom in and check the print and the specification. Share the link with your team before anyone pays for a sample.',
@@ -452,7 +458,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     path: '/custom-soccer-ball-manufacturer',
     familySlug: 'sports-accessories',
     title: 'Custom Soccer Ball Manufacturer, Private Label',
-    description: `Custom soccer balls made in Sialkot, Pakistan, under your own label from ${MINIMUM} pieces. Choose your logo, colors, artwork and materials. See the ball in 3D first.`,
+    description: `Custom soccer balls with your logo, made in bulk in Sialkot, Pakistan, from ${MINIMUM} pieces. Choose your colors, artwork and materials. See the ball in 3D first.`,
     eyebrow: `[ Soccer Balls · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom soccer balls,',
     headingAccent: 'made to your spec.',
@@ -469,7 +475,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
       },
     ],
     stepsHeading: 'How a ball order works',
-    questions: [...BALL_QUESTIONS, ...SHARED_QUESTIONS],
+    questions: [...BALL_QUESTIONS, ...ACCESSORY_SHARED_QUESTIONS],
     closingHeading: 'Have a ball to make?',
     productLine: { words: /\bball\b/i },
     garmentsLede:
