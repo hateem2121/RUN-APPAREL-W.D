@@ -144,7 +144,7 @@ export function FamilyLanding({
               const words = (
                 <>
                   <h3 className="product-card__name prose__heading">{entry.group}</h3>
-                  <p>{entry.garments}</p>
+                  {entry.garments ? <p>{entry.garments}</p> : null}
                 </>
               )
               return href ? (

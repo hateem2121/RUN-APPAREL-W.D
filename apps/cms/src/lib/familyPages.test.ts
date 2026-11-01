@@ -203,6 +203,18 @@ describe('where a family card leads', () => {
   })
 })
 
+describe('the accessory pages speak of products, never garments', () => {
+  const accessory = FAMILY_PAGES.filter((page) => page.familySlug === 'sports-accessories')
+  it.each(accessory)('$path', (page) => {
+    expect(everyWord(page)).not.toMatch(/garment/i)
+    expect(page.questions.map((entry) => entry.answer).join(' ')).toContain('3D products')
+  })
+  // NEGATIVE CONTROL: a clothing page keeps its word, so the check can see it.
+  it('sees the word on a clothing page', () => {
+    expect(everyWord(CLOTHING_PAGES[0] as (typeof FAMILY_PAGES)[number])).toMatch(/garment/i)
+  })
+})
+
 describe('what the ball page must never say', () => {
   const ball = FAMILY_PAGES.find((page) => page.productLine)
   const words = ball ? everyWord(ball) : ''
