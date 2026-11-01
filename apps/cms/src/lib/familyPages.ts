@@ -1,5 +1,7 @@
+import { colourHref } from './cardGallery'
 import { FACTS } from './companyFacts'
 import { FAMILIES, type Family, familyBySlug } from './families'
+import type { ProductCard } from './projectPublic'
 
 /**
  * The buyer pages, one per product family: a real page with its own address, written for
@@ -34,6 +36,52 @@ import { FAMILIES, type Family, familyBySlug } from './families'
 
 export type FamilyPageQuestion = { question: string; answer: string }
 
+/**
+ * One line of "What we make". `garment` is the slug of the ONE garment the line names, when the
+ * catalogue has exactly one; a line naming several has none and jumps to the cards instead.
+ * Matched on 2026-10-29 from each garment's own words in the CMS (Leather: the only outerwear
+ * garment whose data says leather; casual Fleece: the only one both fleece and half-zip; Polos
+ * names two garments, so it jumps).
+ */
+export type FamilyMake = {
+  group: string
+  garments: string
+  garment?: string
+  /** Where the line leads when that is another page of this site (Soccer balls, 2026-11-01). */
+  href?: string
+  /**
+   * A line with nothing on this page to open: a jump to the cards would land a buyer who tapped
+   * "Bags and backpacks" on a ball, and "Your logo" names a choice, not a product.
+   */
+  plain?: boolean
+}
+
+/**
+ * Where a "What we make" line leads (2026-10-29). PostHog, 26 and 27 Oct: a buyer on a phone tapped
+ * "Sherpa fleece jackets." three times over two visits, and the words were plain text; the first
+ * visit found the jacket only by way of /products. So a line naming one garment opens it, in its
+ * first colour (row order is the default, root CLAUDE.md), and any other line jumps to `#garments`.
+ *
+ * ⚠️ ONLY A GARMENT THE PAGE LISTS. `garments` is the family's cards as drawn; a slug not among
+ * them (unpublished, moved family) falls back to the jump rather than linking to a missing page.
+ * No cards means no `#garments` section, so nothing to link to: `null`, and the line stays words.
+ */
+export function makesHref(
+  entry: FamilyMake,
+  garments: readonly ProductCard[],
+  // `GARMENT_PAGES` from `seo.ts`, passed in: importing it here closes a loop (seo → shareImages
+  // → journal → this file) and `FAMILY_PAGES` is undefined when the journal reads it.
+  garmentPages: string,
+): string | null {
+  if (entry.plain) return null
+  if (entry.href) return entry.href
+  const named = entry.garment
+    ? garments.find((product) => product.slug === entry.garment)
+    : undefined
+  if (named) return colourHref(garmentPages, named.slug, named.defaultColourSlug)
+  return garments.length > 0 ? '#garments' : null
+}
+
 export type FamilyPage = {
   /** Root-relative, never under `/products/`. Public: a sent link must keep working. */
   readonly path: string
@@ -50,8 +98,8 @@ export type FamilyPage = {
   readonly lede: string
   /** The heading over `makes`. */
   readonly makesHeading: string
-  /** What is made, in the groups a buyer asks by. */
-  readonly makes: ReadonlyArray<{ group: string; garments: string; href?: string }>
+  /** What is made, in the groups a buyer asks by. Each line is a link: `makesHref` says where. */
+  readonly makes: ReadonlyArray<FamilyMake>
   /**
    * The heading over the link to the order guide. The page listed its own five steps under it until
    * polish S4 (2026-10-05); the guide tells how an order works, once, for every page.
@@ -316,7 +364,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
         group: 'Training',
         garments: 'Pullovers, long-sleeve jerseys, cropped tops and sweatshirts.',
       },
-      { group: 'Running', garments: 'Quarter-zip shirts.' },
+      { group: 'Running', garments: 'Quarter-zip shirts.', garment: 'r-prs' },
       {
         group: 'Yoga and studio',
         garments: 'Compression tights, yoga tights and high-support sports bras.',
@@ -345,9 +393,9 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
         group: 'Softshell',
         garments: 'Jackets, longline jackets, tech jackets and a commuter suit.',
       },
-      { group: 'Windbreakers', garments: 'Printed windbreaker jackets.' },
-      { group: 'Fleece', garments: 'Sherpa fleece jackets.' },
-      { group: 'Leather', garments: 'Utility jackets.' },
+      { group: 'Windbreakers', garments: 'Printed windbreaker jackets.', garment: 'r-atw' },
+      { group: 'Fleece', garments: 'Sherpa fleece jackets.', garment: 'r-pps' },
+      { group: 'Leather', garments: 'Utility jackets.', garment: 'r-atj' },
     ],
     stepsHeading: 'How an order works',
     questions: [...OUTERWEAR_QUESTIONS, ...SHARED_QUESTIONS],
@@ -364,10 +412,10 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     lede: `RUN APPAREL is a private label casual wear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make everyday clothing to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
     makesHeading: 'What we make in casual wear',
     makes: [
-      { group: 'Hoodies', garments: 'Women’s crop hoodies.' },
-      { group: 'Tracksuits', garments: 'Men’s tracksuits.' },
+      { group: 'Hoodies', garments: 'Women’s crop hoodies.', garment: 'r-cch' },
+      { group: 'Tracksuits', garments: 'Men’s tracksuits.', garment: 'r-et' },
       { group: 'Polos', garments: 'Half-zip polo shirts.' },
-      { group: 'Fleece', garments: 'Half-zip fleece pullovers.' },
+      { group: 'Fleece', garments: 'Half-zip fleece pullovers.', garment: 'r-csp' },
     ],
     stepsHeading: 'How an order works',
     questions: [...CASUAL_QUESTIONS, ...SHARED_QUESTIONS],
@@ -390,9 +438,9 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
         garments: 'The Kaizen, a 16-panel pro match ball in size 5.',
         href: '/custom-soccer-ball-manufacturer',
       },
-      { group: 'Bags and backpacks', garments: 'Team and training bags.' },
-      { group: 'Caps and headwear', garments: 'Caps and other headwear.' },
-      { group: 'Socks and gloves', garments: 'Socks and gloves for your program.' },
+      { group: 'Bags and backpacks', garments: 'Team and training bags.', plain: true },
+      { group: 'Caps and headwear', garments: 'Caps and other headwear.', plain: true },
+      { group: 'Socks and gloves', garments: 'Socks and gloves for your program.', plain: true },
     ],
     stepsHeading: 'How an accessories order works',
     questions: [...ACCESSORIES_QUESTIONS, ...SHARED_QUESTIONS],
@@ -411,10 +459,14 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     lede: `RUN APPAREL makes pro match soccer balls under your label in Sialkot, Pakistan, with orders from ${MINIMUM} pieces. Turn the Kaizen in 3D, check every panel, then tell us what to change: the logo, the colors, the full artwork, the materials or the size.`,
     makesHeading: 'What you can change',
     makes: [
-      { group: 'Your logo', garments: 'Your team, club or brand logo on the panels.' },
-      { group: 'Colors', garments: 'Colors beyond the five shown in 3D.' },
-      { group: 'Full artwork', garments: 'A new design across all 16 panels.' },
-      { group: 'Materials and size', garments: 'Other covers, foam, bladders or sizes.' },
+      { group: 'Your logo', garments: 'Your team, club or brand logo on the panels.', plain: true },
+      { group: 'Colors', garments: 'Colors beyond the five shown in 3D.', plain: true },
+      { group: 'Full artwork', garments: 'A new design across all 16 panels.', plain: true },
+      {
+        group: 'Materials and size',
+        garments: 'Other covers, foam, bladders or sizes.',
+        plain: true,
+      },
     ],
     stepsHeading: 'How a ball order works',
     questions: [...BALL_QUESTIONS, ...SHARED_QUESTIONS],

@@ -956,6 +956,31 @@ html {
 }
 
 /*
+ * A "What we make" line is one link, heading and words together (2026-10-29, `makesHref` in
+ * `familyPages.ts`): a buyer tapped the plain words three times, so they must read as a link. The
+ * words keep their size and colour and take a ruled underline that darkens on hover; the whole
+ * line is the target, taller than the 44px floor.
+ */
+.makes-link {
+  display: block;
+  min-height: var(--target-min);
+  color: inherit;
+  text-decoration: none;
+}
+
+.makes-link p {
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .makes-link:hover p {
+    text-decoration-color: currentColor;
+  }
+}
+
+/*
  * ⚠️ A BUYER PAGE'S HERO OPENS ON THE FAMILY'S PICTURE (visual audit VA-48, owner's choice
  * 2026-10-02; `FamilyLanding.tsx` says why it is beside the lede and not behind the headline). The
  * label and the headline run the full column as they always did; under them the lede and the

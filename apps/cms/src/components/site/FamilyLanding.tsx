@@ -7,9 +7,11 @@ import {
   type FamilyPage,
   familyHref,
   familyOf,
+  makesHref,
   rangeGuidePaths,
 } from '../../lib/familyPages'
 import { guideAt } from '../../lib/guides'
+import { GARMENT_PAGES } from '../../lib/seo'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
 import { GarmentGrid } from './GarmentGrid'
@@ -135,14 +137,24 @@ export function FamilyLanding({
         <div className="site-container prose spread">
           <h2 className="display display--section">{page.makesHeading}</h2>
           <div className="spread__body">
-            {page.makes.map((entry) => (
-              <div key={entry.group}>
-                <h3 className="product-card__name prose__heading">
-                  {entry.href ? <Link href={entry.href}>{entry.group}</Link> : entry.group}
-                </h3>
-                <p>{entry.garments}</p>
-              </div>
-            ))}
+            {/* Each line is one link, heading and words together, so a tap on either opens it and
+                the target is the line's full height (`makesHref` says where it leads, and why). */}
+            {page.makes.map((entry) => {
+              const href = makesHref(entry, garments, GARMENT_PAGES)
+              const words = (
+                <>
+                  <h3 className="product-card__name prose__heading">{entry.group}</h3>
+                  <p>{entry.garments}</p>
+                </>
+              )
+              return href ? (
+                <a key={entry.group} className="makes-link" href={href}>
+                  {words}
+                </a>
+              ) : (
+                <div key={entry.group}>{words}</div>
+              )
+            })}
           </div>
         </div>
       </section>
