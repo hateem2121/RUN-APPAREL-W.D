@@ -325,6 +325,12 @@ export const LIVE_PRODUCTS = [
     productCode: 'R-SPS',
     modelComingSoon: true,
   },
+  {
+    slug: 'kaizen',
+    colourway: 'orange',
+    colourways: ['orange', 'pink', 'aqua', 'lavender', 'blue-grey'],
+    productCode: 'R-KZN',
+  },
 ]
 
 /**

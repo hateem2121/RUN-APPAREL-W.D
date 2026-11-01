@@ -37,6 +37,7 @@ export const GARMENT_TYPES = {
   'r-afp': "Men's Training Pullover",
   'r-aj': "Women's American Football Jersey",
   'r-ajm': "Men's American Football Jersey",
+  kaizen: 'Pro Match Soccer Ball',
   'r-alj': "Men's Longline Softshell Jacket",
   'r-asb': 'High-Support Sports Bra',
   'r-atj': "Men's Leather Utility Jacket",

@@ -26,6 +26,7 @@ describe('live products', () => {
     // which is what `publish-garment.mjs` now refuses to let anyone skip.
     expect(LIVE_PRODUCTS.map((p) => p.slug).sort()).toEqual(
       [
+        'kaizen',
         'r-afp',
         'r-aj',
         'r-ajm',
