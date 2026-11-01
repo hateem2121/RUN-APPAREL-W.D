@@ -123,7 +123,12 @@ export default function App() {
    * ONE value, handed to both places, so the facts are drawn exactly once at every width.
    */
   const [stageFallback, setStageFallback] = useState(false)
-  const specsInCorners = identityInAside && !stageFallback
+  // A ball fills the window, and its 12 long facts covered the print (Kaizen, live, 2026-11-01):
+  // an accessory lists its facts under the description at every width.
+  const specsInCorners =
+    identityInAside &&
+    !stageFallback &&
+    !(state.kind === 'ready' && state.data.product.category === 'Sports Accessories')
   /**
    * The page came from the Worker's copy for a search robot (the payload was embedded), so the
    * stage shows the garment's picture and fetches no 3D file (`PosterReason` 'crawler' says why).

@@ -40,6 +40,7 @@ const WIDTHS = [390, 1440] as const
 
 /** Every live garment's name, as `GET /api/public/viewer/<slug>` served it on 2026-09-17. */
 const HEADLINES: Readonly<Record<string, string>> = {
+  kaizen: 'KAIZEN',
   rxps: 'X-MILO PRO SKIN-SUIT',
   'r-xmp': 'X-MILO PRO BIB',
   'r-afp': 'APEX FLEX PULLOVER',
