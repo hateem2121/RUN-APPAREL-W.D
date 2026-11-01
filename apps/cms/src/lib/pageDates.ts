@@ -56,6 +56,8 @@ const DYE = '2026-10-26T23:49:22+05:00'
  * commit's time, as a byline's is, a little before the page changes live).
  */
 const CONTACT_TAPS = '2026-10-30T10:50:04+05:00'
+/** The buyer pages' "What we make" lines became links (`makesHref`, written 2026-10-29, landed on 2026-11-01). */
+const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
 
 /*
  * 27 Oct: the faster-taps work (#278) changed one line, the `Link` import, in 13 of the files
@@ -70,12 +72,12 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(DYE, '75c60e311c5a'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
-  '/custom-teamwear-manufacturer': page(KAIZEN, 'd83e54955668'),
-  '/custom-activewear-manufacturer': page(KAIZEN, 'c5bdd0685268'),
-  '/custom-outerwear-manufacturer': page(KAIZEN, '1ac29316a8f2'),
-  '/custom-sports-accessories-manufacturer': page(KAIZEN, '3e7625dfd853'),
-  '/custom-soccer-ball-manufacturer': page(KAIZEN, '8deb7a3781fd'),
-  '/private-label-casual-wear-manufacturer': page(KAIZEN, 'fb078ffdb3ad'),
+  '/custom-teamwear-manufacturer': page(MAKES_LINKS, 'c80cfa44e495'),
+  '/custom-activewear-manufacturer': page(MAKES_LINKS, 'bed8051bde31'),
+  '/custom-outerwear-manufacturer': page(MAKES_LINKS, '41988d23cbcd'),
+  '/custom-sports-accessories-manufacturer': page(MAKES_LINKS, '56b9e1bbc90f'),
+  '/custom-soccer-ball-manufacturer': page(MAKES_LINKS, 'fc031f8d8a34'),
+  '/private-label-casual-wear-manufacturer': page(MAKES_LINKS, 'fbacab83b4f8'),
   '/guides': page(SITE_CHECK, 'bc271cb03a6b'),
   '/policies': page(SITE_CHECK, '4858c8669cda'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
