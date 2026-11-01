@@ -870,4 +870,24 @@
     <loc>https://viewer.wear-run.help/r-sps/powder-blue</loc>
     <changefreq>monthly</changefreq>
   </url>
+  <url>
+    <loc>https://viewer.wear-run.help/kaizen/orange</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/kaizen/pink</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/kaizen/aqua</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/kaizen/lavender</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://viewer.wear-run.help/kaizen/blue-grey</loc>
+    <changefreq>monthly</changefreq>
+  </url>
 </urlset>

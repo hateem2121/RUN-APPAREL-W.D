@@ -16,6 +16,11 @@ export interface OgCard {
 }
 
 export const OG_CARDS: Record<string, OgCard> = {
+  'kaizen/aqua': { width: 1200, height: 630, hash: '07b7ad9485', source: 'render' },
+  'kaizen/blue-grey': { width: 1200, height: 630, hash: '09fdc85520', source: 'render' },
+  'kaizen/lavender': { width: 1200, height: 630, hash: '3bf9ed8c56', source: 'render' },
+  'kaizen/orange': { width: 1200, height: 630, hash: '1a17a2d58f', source: 'render' },
+  'kaizen/pink': { width: 1200, height: 630, hash: 'a557b7e555', source: 'render' },
   'r-afp/butter': { width: 1200, height: 630, hash: 'faf316e43a', source: 'render' },
   'r-afp/mauve': { width: 1200, height: 630, hash: '6938bf79cf', source: 'render' },
   'r-afp/mustard': { width: 1200, height: 630, hash: '67a288a5ad', source: 'render' },
