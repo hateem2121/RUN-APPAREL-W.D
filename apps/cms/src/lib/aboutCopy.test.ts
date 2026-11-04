@@ -27,7 +27,7 @@ describe('the "Who we are" section', () => {
     expect(ABOUT.accent).toBe('for generations.')
     expect(ABOUT.points[0]).toEqual({
       value: '1889',
-      label: 'Manufacturing since',
+      label: 'Family in manufacturing since',
       labelFirst: true,
     })
   })
@@ -62,15 +62,19 @@ describe('the "Who we are" section', () => {
   })
 
   // The owner, 2026-10-09: the 1889 label says "Manufacturing since", the lineage's own verb, where
-  // it said "Making clothes since" (the family made footballs before clothes).
-  it('labels 1889 with the lineage verb, manufacturing', () => {
+  // it said "Making clothes since" (the family made footballs before clothes). "Family in" since
+  // 2026-11-04 (legal review): 1889 is the family's year, not RUN APPAREL's.
+  it('labels 1889 with the lineage verb, as the family’s year', () => {
     expect(LINEAGE_HERE).toMatch(/\bmanufacturing\b/)
-    expect(ABOUT.points.find((point) => point.value === '1889')?.label).toBe('Manufacturing since')
+    expect(ABOUT.points.find((point) => point.value === '1889')?.label).toBe(
+      'Family in manufacturing since',
+    )
   })
 
-  it('names the parent company as the building it shares, not as a certificate', () => {
+  it('names DURUS INDUSTRIES as the site it shares, not as a parent or a certificate', () => {
     const text = JSON.stringify(ABOUT)
     expect(text).toContain('DURUS INDUSTRIES')
     expect(text).not.toMatch(/certified/i)
+    expect(text).not.toMatch(/parent/i)
   })
 })

@@ -231,10 +231,10 @@ describe('Footer', () => {
     expect(host.textContent).toContain('32.4945° N, 74.5229° E')
     // The marks follow from the entry's words, in the order named, from the website's files.
     const marks = [...host.querySelectorAll<HTMLImageElement>('.footer-marks img')]
-    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', 'GOTS', CLIMATE_COMMITMENT.logo.alt])
+    // No GOTS mark since 2026-11-04 (standardsLogos.ts), though the entry still names it in text.
+    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', CLIMATE_COMMITMENT.logo.alt])
     expect(marks.map((img) => img.getAttribute('src'))).toEqual([
       '/standards/oeko-tex.svg',
-      '/standards/gots.svg',
       CLIMATE_COMMITMENT.logo.src,
     ])
     // A new tab, and it says so, seen ("↗") and heard (owner, 2026-10-17; W3C G201).

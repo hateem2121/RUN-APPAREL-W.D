@@ -4,8 +4,9 @@
  *
  * ⚠️ THIS IS AN ALLOW-LIST OF WHAT THE COMPANY MAY SHOW, NOT A LIBRARY OF EVERY MARK ON
  * DISK. RUN APPAREL holds no certification in its own name (`lib/companyFacts.ts`
- * CERTIFICATION): the parent, DURUS INDUSTRIES, is SEDEX-registered and SMETA-audited, and
- * the fabric and trim suppliers hold ISO 9001, OEKO-TEX, GOTS, GRS and amfori BSCI. Each record below is a body the owner has named for one of those, so a
+ * CERTIFICATION): DURUS INDUSTRIES, a separate family company whose site RUN produces at, is
+ * SEDEX-registered and SMETA-audited, and the fabric and trim suppliers hold ISO 9001, OEKO-TEX,
+ * GRS and amfori BSCI. Each record below is a body the owner has named for one of those, so a
  * mark appears only when an entry names it.
  *
  * ⚠️ amfori BSCI IS TEXT ONLY (owner, 2026-09-29). The only file on hand was the OLD
@@ -15,6 +16,13 @@
  * in TEXT only — the Securities and Exchange Commission of Pakistan, a regulator, whose
  * emblem beside a supplier list would read as endorsement (owner, 2026-09-29). None of
  * them has a record, and `standardsLogos.test.ts` fails if one appears.
+ *
+ * ⚠️ NO GOTS MARK SINCE 2026-11-04 (owner's go-ahead, legal review that day). GOTS's
+ * Conditions for Use of Signs v4.0, s.3.3.1 (in force 2026-08-01): "Uncertified processors,
+ * manufacturers, Traders shall not use GOTS Signs or make any claims referring to GOTS", and its
+ * s.1.3 counts a website as off-product use. RUN APPAREL is not GOTS-certified, so a supplier's
+ * certificate does not let it show the mark. The CMS footer may still name GOTS in text; with no
+ * record here it draws no picture, and a test pins that.
  *
  * ADDING ONE IS ONE TABLE ENTRY: a file in `apps/cms/public/standards/`, its size, and the
  * words that name it. `apps/cms/src/lib/standardsLogos.test.ts` then checks the file exists
@@ -83,15 +91,6 @@ export const STANDARDS_LOGOS: readonly StandardLogoEntry[] = [
     alt: 'OEKO-TEX',
     source: 'OEKO TEX Standart 100.ai',
     words: word('OEKO[-\\s]?TEX'),
-  },
-  {
-    slug: 'gots',
-    src: '/standards/gots.svg',
-    width: 56,
-    height: 56,
-    alt: 'GOTS',
-    source: 'GOTS Global Organic Textile Standard.ai',
-    words: word('GOTS'),
   },
   {
     slug: 'grs',

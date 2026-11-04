@@ -42,7 +42,7 @@ describe('FactsBento — where we ship | certification, then the ask', () => {
 
   it('sets every line beside the marks it names, and closes on the promise', () => {
     const out = html(null)
-    expect(out.match(/class="cert__mark"/g)).toHaveLength(6)
+    expect(out.match(/class="cert__mark"/g)).toHaveLength(5)
     for (const line of CERTIFICATION_LINES) expect(out).toContain(line)
     expect(out).toContain(CERTIFICATION_PROMISE)
     // The map is decoration (its line says it), and each mark is named for a screen reader.

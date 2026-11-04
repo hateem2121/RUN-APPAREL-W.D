@@ -271,7 +271,7 @@ export const PRESS_PAGE: CompanyPage = {
         {
           kind: 'text',
           // The families in the words every profile uses (`WHAT_WE_MAKE`, owner 2026-10-11).
-          text: `It makes ${WHAT_WE_MAKE} to order on the site of its parent company, DURUS INDUSTRIES: six buildings in Sialkot, where all cutting, printing, stitching, checking and packing happen.`,
+          text: `It makes ${WHAT_WE_MAKE} to order in the buildings of its sister company, DURUS INDUSTRIES: six buildings in Sialkot, where all cutting, printing, stitching, checking and packing happen.`,
         },
         { kind: 'list', items: CERTIFICATION_LINES },
       ],

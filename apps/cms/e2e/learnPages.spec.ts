@@ -29,8 +29,8 @@ test.describe('the FAQ', () => {
   test('"More detail" opens in place, and an answer link lands on its question', async ({
     page,
   }) => {
-    await page.goto('/faq/quality-and-certifications#gots')
-    const entry = page.locator('#gots')
+    await page.goto('/faq/quality-and-certifications#grs')
+    const entry = page.locator('#grs')
     await expect(entry).toBeInViewport()
     const more = entry.locator('details')
     await expect(more.locator('p')).toBeHidden()

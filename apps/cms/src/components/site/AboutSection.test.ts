@@ -49,7 +49,7 @@ function problemsWith(html: string): string[] {
   return problems
 }
 
-describe('№01 reads "Manufacturing since 1889", not "1889, making clothes since" (VA-58)', () => {
+describe('№01 reads "Family in manufacturing since 1889", not "1889, making clothes since" (VA-58)', () => {
   const html = renderToStaticMarkup(createElement(AboutSection))
 
   it('puts the 1889 label before the year in the markup, and leaves the other figure as it was', () => {
@@ -57,7 +57,7 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
       ABOUT.points.length,
     )
     expect(groupsIn(html)).toEqual([
-      ['Manufacturing since', '1889'],
+      ['Family in manufacturing since', '1889'],
       ['Six', 'Buildings, first stitch to sealed bag'],
       ['193,000', 'Sq m under roof'],
       ['About 80%', 'Of our electricity, from the solar roof'],
@@ -67,7 +67,7 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
 
   it('keeps the same words, and marks only the first figure label-first', () => {
     expect(ABOUT.points.map((point) => point.label)).toEqual([
-      'Manufacturing since',
+      'Family in manufacturing since',
       'Buildings, first stitch to sealed bag',
       'Sq m under roof',
       'Of our electricity, from the solar roof',
@@ -90,12 +90,12 @@ describe('№01 reads "Manufacturing since 1889", not "1889, making clothes sinc
   // NEGATIVE CONTROL: the old order, and a label that has lost its words, are both caught.
   it('sees the fault: the figure first, as it was', () => {
     const old = html.replace(
-      /<dt class="fact__label">Manufacturing since<\/dt><dd class="fact__value display display--section">1889<\/dd>/,
-      '<dt class="fact__value display display--section">1889</dt><dd class="fact__label">Manufacturing since</dd>',
+      /<dt class="fact__label">Family in manufacturing since<\/dt><dd class="fact__value display display--section">1889<\/dd>/,
+      '<dt class="fact__value display display--section">1889</dt><dd class="fact__label">Family in manufacturing since</dd>',
     )
     expect(old, 'the planted markup did not land, so this control proves nothing').not.toBe(html)
     expect(problemsWith(old)).toEqual([
-      '"Manufacturing since" reads 1889 then Manufacturing since, not Manufacturing since then 1889',
+      '"Family in manufacturing since" reads 1889 then Family in manufacturing since, not Family in manufacturing since then 1889',
     ])
   })
 })

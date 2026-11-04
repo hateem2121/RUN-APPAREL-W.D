@@ -34,14 +34,18 @@ const content = (footer: FooterSettings): SiteFooterContent => ({
   footerLine: DEFAULT_SITE_SETTINGS.footerLine,
 })
 
-/** Two entries for one holder, as the live footer has (polish X23 draws them as one line). */
+/**
+ * Two entries for one holder, as the live footer has (polish X23 draws them as one line). The rows
+ * are the live footer's since 2026-11-04: "Sister company", never "Parent", and no GOTS
+ * (`scripts/apply-footer-facts.mjs`).
+ */
 const CLAIMS: FooterSettings = {
   ...EMPTY_FOOTER,
   capacity: { moq: '300 pieces', leadTime: '6 weeks', hours: null },
   worksCoordinates: '32.4945° N, 74.5229° E',
   certifications: [
-    'Parent: SEDEX-registered, SMETA-audited',
-    'Suppliers: OEKO-TEX, GOTS',
+    'Sister company: SEDEX-registered, SMETA-audited',
+    'Suppliers: OEKO-TEX, GRS',
     'Suppliers: amfori BSCI audits',
   ],
   socialLinks: [{ label: 'LinkedIn', url: 'https://www.linkedin.com/company/run-apparel' }],
@@ -141,7 +145,7 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     }
     // The two supplier entries are one line (polish X23); the snapshot above holds the rest.
     await expect(
-      footer(page).getByText('Suppliers: OEKO-TEX, GOTS; amfori BSCI audits'),
+      footer(page).getByText('Suppliers: OEKO-TEX, GRS; amfori BSCI audits'),
     ).toHaveCount(1)
     // One area for every mark, not one height (X23): Sedex is a wide wordmark, OEKO-TEX a tall
     // label, and at one 32px height their areas were 3,804 and 726 square pixels.

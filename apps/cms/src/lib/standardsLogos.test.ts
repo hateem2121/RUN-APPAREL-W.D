@@ -32,34 +32,34 @@ describe('logosFor', () => {
     expect(slugs('Parent: SEDEX-registered, SMETA-audited')).toEqual(['sedex', 'smeta'])
   })
 
-  it('finds the suppliers entry: OEKO-TEX, GOTS, GRS in the order they are written', () => {
-    expect(slugs('Suppliers: OEKO-TEX, GOTS, GRS')).toEqual(['oeko-tex', 'gots', 'grs'])
+  it('finds the suppliers entry: OEKO-TEX then GRS, in the order they are written', () => {
+    expect(slugs('Suppliers: OEKO-TEX, GRS')).toEqual(['oeko-tex', 'grs'])
   })
 
   it('follows the order of appearance, not the order of the table', () => {
-    expect(slugs('GRS, GOTS and SMETA')).toEqual(['grs', 'gots', 'smeta'])
+    expect(slugs('GRS, OEKO-TEX and SMETA')).toEqual(['grs', 'oeko-tex', 'smeta'])
   })
 
   // NEGATIVE CONTROL: a token inside a longer word is not the standard. Without the
   // whole-word rule "GRSX" would print the GRS mark, a claim nobody made.
   it('matches whole words only', () => {
     expect(slugs('GRSX')).toEqual([])
-    expect(slugs('XGOTS')).toEqual([])
+    expect(slugs('XOEKO-TEX')).toEqual([])
     expect(slugs('NONSEDEXISH')).toEqual([])
     expect(slugs('SMETAS audits')).toEqual([])
   })
 
   it('and the same tokens ARE found once they stand alone (the control runs both ways)', () => {
     expect(slugs('GRS')).toEqual(['grs'])
-    expect(slugs('(GOTS)')).toEqual(['gots'])
+    expect(slugs('(OEKO-TEX)')).toEqual(['oeko-tex'])
   })
 
   it('is case-insensitive', () => {
-    expect(slugs('suppliers: oeko-tex, gots, Grs')).toEqual(['oeko-tex', 'gots', 'grs'])
+    expect(slugs('suppliers: oeko-tex, Grs')).toEqual(['oeko-tex', 'grs'])
   })
 
   it('removes duplicates', () => {
-    expect(slugs('GOTS, GOTS and gots again, then SEDEX')).toEqual(['gots', 'sedex'])
+    expect(slugs('GRS, GRS and grs again, then SEDEX')).toEqual(['grs', 'sedex'])
   })
 
   it('returns nothing for an entry naming no body, and for an empty one', () => {
@@ -68,15 +68,15 @@ describe('logosFor', () => {
   })
 
   it('returns the five fields the footer draws and nothing else', () => {
-    const [logo] = logosFor('GOTS')
+    const [logo] = logosFor('GRS')
     expect(Object.keys(logo ?? {}).sort()).toEqual(['alt', 'height', 'slug', 'src', 'width'])
-    expect(logo?.alt).toBe('GOTS')
+    expect(logo?.alt).toBe('GRS')
   })
 
   // TEXT ONLY until the owner sends a current amfori file (owner, 2026-09-29): the only file
   // on hand was the OLD pre-amfori "Member of BSCI" ring, beside text that says "amfori BSCI".
   it('draws no logo for amfori BSCI, however the entry spells it', () => {
-    expect(slugs('Suppliers: amfori BSCI, GOTS')).toEqual(['gots'])
+    expect(slugs('Suppliers: amfori BSCI, GRS')).toEqual(['grs'])
     expect(slugs('BSCI')).toEqual([])
     expect(slugs('amfori BSCI')).toEqual([])
   })
@@ -102,9 +102,23 @@ describe('logosFor', () => {
   // The owner's ruling (2026-09-29): only the bodies the company names. The other marks
   // in the owner's folder (ISO 22000, SECP, Made in Green, RCS/OCS, sgi) are not claimed
   // as logos and must not appear as records.
-  it('carries exactly the six bodies the owner named for a logo', () => {
+  // GOTS LEFT 2026-11-04 (legal review): its sign rules, s.3.3.1, bar an uncertified maker from
+  // using the mark or any claim referring to GOTS. NEGATIVE CONTROL both ways: the live CMS footer
+  // still names GOTS in text, and the marks around it are still found.
+  it('draws no GOTS mark, even where an entry names it', () => {
+    expect(slugs('GOTS')).toEqual([])
+    expect(slugs('Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS')).toEqual([
+      'iso-9001',
+      'oeko-tex',
+      'grs',
+    ])
+    expect(
+      STANDARDS_LOGOS.some((logo) => /gots/i.test(`${logo.slug} ${logo.src} ${logo.alt}`)),
+    ).toBe(false)
+  })
+
+  it('carries exactly the five bodies the company may show a logo for', () => {
     expect(STANDARDS_LOGOS.map((logo) => logo.slug).sort()).toEqual([
-      'gots',
       'grs',
       'iso-9001',
       'oeko-tex',
@@ -128,16 +142,16 @@ describe('marksFor: the one row of marks under the footer facts (owner, 2026-09-
       'smeta',
       'iso-9001',
       'oeko-tex',
-      'gots',
       'grs',
     ])
   })
 
   // NEGATIVE CONTROL: two entries naming the same body must not print it twice.
   it('draws each body once, however many entries name it', () => {
-    expect(
-      marksFor(['Parent: SEDEX', 'Suppliers: GOTS, SEDEX', 'GOTS']).map((l) => l.slug),
-    ).toEqual(['sedex', 'gots'])
+    expect(marksFor(['Holder: SEDEX', 'Suppliers: GRS, SEDEX', 'GRS']).map((l) => l.slug)).toEqual([
+      'sedex',
+      'grs',
+    ])
   })
 
   it('is empty when no entry names a body', () => {
@@ -247,8 +261,8 @@ describe('markBox', () => {
   it('draws a wide wordmark shorter than a square badge, and a tall label taller', () => {
     const height = (slug: string) =>
       markBox(STANDARDS_LOGOS.find((logo) => logo.slug === slug) ?? { width: 1, height: 1 }).height
-    expect(height('sedex')).toBeLessThan(height('gots'))
-    expect(height('oeko-tex')).toBeGreaterThan(height('gots'))
+    expect(height('sedex')).toBeLessThan(height('iso-9001'))
+    expect(height('oeko-tex')).toBeGreaterThan(height('iso-9001'))
     // NEGATIVE CONTROL: the old rule, one 32px height for every mark, fails the area check.
     const sedex = STANDARDS_LOGOS.find((logo) => logo.slug === 'sedex')
     const oneHeightArea = 32 * 32 * ((sedex?.width ?? 1) / (sedex?.height ?? 1))

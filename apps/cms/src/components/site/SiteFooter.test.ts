@@ -145,7 +145,7 @@ describe('SiteFooter', () => {
     expect(out.indexOf('footer-marks')).toBeGreaterThan(out.indexOf('footer-block--standards'))
     expect(out.match(/footer-marks/g)).toHaveLength(1)
     const imgs = row.match(/<img [^>]*>/g) ?? []
-    expect(imgs).toHaveLength(6)
+    expect(imgs).toHaveLength(5)
     for (const img of imgs) {
       expect(img).toContain('loading="lazy"')
       expect(img).toContain('decoding="async"')
@@ -153,17 +153,17 @@ describe('SiteFooter', () => {
       expect(img).toMatch(/height="\d+"/)
       expect(img).toContain('class="footer-logo"')
     }
-    // BSCI is text only (owner, 2026-09-29): named in the line, never drawn
+    // BSCI is text only (owner, 2026-09-29): named in the line, never drawn. So is GOTS since
+    // 2026-11-04 (its sign rules, s.3.3.1): the line still names it, and no mark follows.
     // ... and the company's own climate commitment last (owner, 2026-10-17)
     expect(imgs.map((img) => img.match(/alt="([^"]*)"/)?.[1])).toEqual([
       'Sedex',
       'SMETA',
       'OEKO-TEX',
-      'GOTS',
       'GRS',
       CLIMATE_COMMITMENT.logo.alt,
     ])
-    expect(out.match(/<img [^>]*>/g)).toHaveLength(6)
+    expect(out.match(/<img [^>]*>/g)).toHaveLength(5)
     // the heading stays "Standards" beside real logos: SMETA is an audit, not a certificate
     expect(out).toContain('<h3>Standards</h3>')
     expect(out).not.toMatch(/certified/i)

@@ -113,13 +113,14 @@ test.describe('IM-12 — the home page shows a garment and the factory, nothing 
         .map((image) => image.src),
       'a picture that is neither the factory nor a garment from the CMS (IM-12)',
     ).toEqual([])
-    // №05's slab: the map and the marks, and nothing else (polish X7).
+    // №05's slab: the map and the marks, and nothing else (polish X7). Five marks since 2026-11-04,
+    // when GOTS left (its sign rules, s.3.3.1): Sedex, SMETA, ISO 9001, OEKO-TEX, GRS.
     expect(
       images
         .filter((image) => image.slab)
         .map((image) => (image.src.startsWith('/standards/') ? '/standards/' : image.src)),
       'the slab shows something besides the map and the marks (IM-12, X7)',
-    ).toEqual(['/world-map.svg', ...Array(6).fill('/standards/')])
+    ).toEqual(['/world-map.svg', ...Array(5).fill('/standards/')])
 
     const timeline = await page
       .locator('.order-stages img')

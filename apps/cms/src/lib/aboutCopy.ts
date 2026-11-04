@@ -55,15 +55,14 @@ export const ABOUT = {
   // "buildings" ended a 76-character line at 768 and 1440px, one over FA-C-52’s 75
   // (apps/cms/e2e/legibility.spec.ts, 2026-10-15); tied, the longest line is 73 at 768, 1180 and 1440px.
   body:
-    'We produce on the DURUS INDUSTRIES site, our parent company’s six buildings in Sialkot, ' +
-    'so the cutting, printing, stitching, checking and packing of your order all happen in one ' +
-    'place, with one team answerable for it.',
+    'We make your order in the six buildings of our sister company, DURUS INDUSTRIES, in ' +
+    'Sialkot. The cutting, printing, stitching, checking and packing all happen in one place.',
   // Four since 2026-10-16 (option C, owner): the floor area and the solar share joined 1889 and
   // the six buildings. The floor area is also one of №05's figures; the owner chose to show it in
   // both. The label's word changed 2026-10-09 (owner): "Manufacturing since" matches the lineage's
   // own verb.
   points: [
-    { value: '1889', label: 'Manufacturing since', labelFirst: true },
+    { value: '1889', label: 'Family in manufacturing since', labelFirst: true },
     // "Six" since 2026-10-15 (owner): the works are six buildings on one site. It said "One"
     // building until then, which a buyer looking at the aerial photo beside it could see was wrong.
     { value: 'Six', label: 'Buildings, first stitch to sealed bag' },

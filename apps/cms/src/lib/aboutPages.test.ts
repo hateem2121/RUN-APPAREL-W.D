@@ -84,7 +84,7 @@ describe('a figure is said once per page', () => {
       ...ABOUT_PAGE.factsTable.map((row) => `${row.term} ${row.detail}`),
     ]
     for (const { value } of ABOUT_PAGE.factsBand.filter(
-      (fact) => fact.label !== 'Manufacturing since',
+      (fact) => fact.label !== 'Family in manufacturing since',
     )) {
       for (const text of words)
         expect(holds(text, value), `"${value}" again in: ${text}`).toBe(false)

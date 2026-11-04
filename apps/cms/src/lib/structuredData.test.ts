@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 import { DEFAULT_SITE_SETTINGS } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { BYLINES } from './bylines'
-import { PARENT_COMPANY } from './companyFacts'
 import { GUIDES } from './guides'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './projectPublic'
 import { GARMENT_PAGES, SITE_NAME, SITE_ORIGIN } from './seo'
@@ -402,17 +401,17 @@ describe('the breadcrumb trail of any depth', () => {
 })
 
 /**
- * PLAN.md E2/T7 — the site states the parent company in words (CERTIFICATION, ABOUT), and
- * Google's Organization guide (updated 2026-09-08) recommends it as `parentOrganization`.
- * No foundingDate anywhere: 1889 is the family's trade, not this entity's founding.
+ * DURUS INDUSTRIES is NOT RUN APPAREL's parent (legal review, 2026-11-04): it is not
+ * RUN's holding company, so `parentOrganization` (schema.org: "the larger organization that this organization is a
+ * subOrganization of") stated an untrue ownership to every crawler. It was here from PLAN.md
+ * E2/T7 until that day. No foundingDate anywhere: 1889 is the family's trade, not this entity's
+ * founding.
  */
-describe('the parent company in the organisation data', () => {
-  it('names DURUS INDUSTRIES as parentOrganization', () => {
+describe('no parent company in the organisation data', () => {
+  it('declares no parentOrganization and does not name DURUS INDUSTRIES as one', () => {
     const org = organizationJsonLd(settings())
-    expect(org.parentOrganization).toEqual({
-      '@type': 'Organization',
-      name: PARENT_COMPANY,
-    })
+    expect(org).not.toHaveProperty('parentOrganization')
+    expect(JSON.stringify(org)).not.toMatch(/parentOrganization|subOrganization/)
   })
 
   it('still declares no foundingDate', () => {

@@ -75,13 +75,23 @@ export const SHIPS_TO = 'Worldwide, wherever your team is.'
  * us; the ruling kept every holder named and put the SECP in a sentence of its own, because a
  * regulator's registration is a legal fact about the companies, not a standard they meet —
  * which is also why the footer shows it as text and never as a logo.
+ *
+ * ⚠️ NOT "PARENT COMPANY", AND NO GOTS (owner's go-ahead 2026-11-04, legal review that day).
+ * On the owner's facts of 2026-11-04, DURUS INDUSTRIES is not RUN APPAREL's holding company: the
+ * two are separate companies of one family. Companies Act 2017 s.2(68) makes a company a subsidiary only where
+ * the other "controls the composition of the board" or "more than one-half of its voting
+ * securities", so "parent company" was untrue, and Competition Act 2010 s.10(2)(b) forbids
+ * misleading information about the "place of production". GOTS's Conditions for Use of Signs
+ * v4.0, s.3.3.1 (in force 2026-08-01): "Uncertified processors, manufacturers, Traders shall not
+ * use GOTS Signs or make any claims referring to GOTS". `companyFacts.test.ts` refuses all three.
  */
 export const CERTIFICATION =
-  'RUN APPAREL operates under our parent company, DURUS INDUSTRIES, which is SEDEX-registered ' +
-  'and SMETA-audited. We operate within the same facility, and our fabric and trim suppliers ' +
-  'hold ISO 9001, OEKO-TEX, GOTS, and GRS certifications, as well as amfori BSCI audits. Both companies are registered with the Securities and Exchange Commission of ' +
-  'Pakistan (SECP). We are fully prepared to pursue any program-specific certifications ' +
-  'required for your needs.'
+  'RUN APPAREL holds no certificates or audits in its own name. Our sister company, DURUS ' +
+  'INDUSTRIES, is SEDEX-registered and SMETA-audited, and we make our clothes in its buildings. ' +
+  'Our fabric and trim suppliers hold ISO 9001, OEKO-TEX ' +
+  'and GRS certifications, as well as amfori BSCI audits. Both companies are registered with ' +
+  'the Securities and Exchange Commission of Pakistan (SECP). We are fully prepared to pursue ' +
+  'any program-specific certifications required for your needs.'
 
 /**
  * ⚠️ THE SAME CLAIMS, AS THE HOME PAGE SHOWS THEM SINCE POLISH X7 (2026-10-05): one line per
@@ -93,8 +103,8 @@ export const CERTIFICATION =
  * paragraph: a mark or a holder the paragraph does not name fails it.
  */
 export const CERTIFICATION_LINES = [
-  'Our parent company, DURUS INDUSTRIES, in the same facility: SEDEX-registered and SMETA-audited.',
-  'Our fabric and trim suppliers: ISO 9001, OEKO-TEX, GOTS and GRS certifications, and amfori BSCI audits.',
+  'Our sister company, DURUS INDUSTRIES, whose buildings we make our clothes in: SEDEX-registered and SMETA-audited.',
+  'Our fabric and trim suppliers: ISO 9001, OEKO-TEX and GRS certifications, and amfori BSCI audits.',
   'Both companies are registered with the Securities and Exchange Commission of Pakistan (SECP).',
 ] as const
 
@@ -129,8 +139,26 @@ export const PAYMENT_TERMS =
 export const LEAD_TIME =
   'Usually 2–4 weeks from order confirmation; your quote states the exact date.'
 
-/** The parent company, named as `CERTIFICATION` and `ABOUT` already name it. */
-export const PARENT_COMPANY = 'DURUS INDUSTRIES'
+/**
+ * The company whose site RUN APPAREL produces at, named as `CERTIFICATION` and `ABOUT` name it.
+ * Called `PARENT_COMPANY` until 2026-11-04, which it is not (see `CERTIFICATION`).
+ */
+export const SITE_COMPANY = 'DURUS INDUSTRIES'
+
+/**
+ * How the two companies relate, in words a 10-year-old can follow, which every page, profile and
+ * answer engine copies. The owner chose "sister company" and less detail (2026-11-04, question
+ * tool). True on the owner's facts of that day: two separate companies of one family, and RUN makes
+ * its clothes in the DURUS INDUSTRIES buildings. "Sister company" has no meaning in the Companies
+ * Act 2017; the legal review of that day flagged that a buyer may read it as "same owner", which is
+ * why the second and third sentences stay.
+ *
+ * Flesch–Kincaid grade 4.0 (`readingLevel.ts`) with each company's name counted as one word, 6.1
+ * without; the sentence it replaced scored 14.7. `companyRelationship.test.ts` holds it at 5.
+ */
+export const RELATIONSHIP =
+  'RUN APPAREL and DURUS INDUSTRIES are sister companies. The same family is behind both. ' +
+  'Each one is its own company. We make our clothes in the DURUS INDUSTRIES buildings in Sialkot.'
 
 /**
  * What the company is, in the phrase every profile opens with (owner, 2026-10-11, question tool:
