@@ -178,7 +178,7 @@ const QUALITY: FaqTopic = {
   path: '/faq/quality-and-certifications',
   title: 'FAQ: Quality and Certifications',
   description:
-    'Which certifications and audits cover RUN APPAREL’s production, who holds each one, and what Sedex, SMETA, ISO 9001, OEKO-TEX, GOTS, GRS and amfori BSCI mean.',
+    'Which certifications and audits cover RUN APPAREL’s production, who holds each one, and what Sedex, SMETA, ISO 9001, OEKO-TEX, GRS and amfori BSCI mean.',
   heading: 'Quality',
   headingAccent: 'and certifications.',
   entries: [
@@ -196,7 +196,7 @@ const QUALITY: FaqTopic = {
       answer:
         'Sedex runs a platform where suppliers share information about working conditions with their customers. SMETA is Sedex’s social audit: an auditor visits a site and checks labor, health and safety, environment and business ethics.',
       detail:
-        'Our parent company, DURUS INDUSTRIES, is SEDEX-registered and SMETA-audited. SMETA is an audit, not a certificate.',
+        'DURUS INDUSTRIES, the separate family company whose site we produce at, is SEDEX-registered and SMETA-audited. RUN APPAREL holds no audit in its own name. SMETA is an audit, not a certificate.',
       source: 'sedex.com (read 2026-10-07) + CERTIFICATION_LINES',
     },
     {
@@ -213,15 +213,9 @@ const QUALITY: FaqTopic = {
         'OEKO-TEX STANDARD 100 is a label for textiles tested for harmful substances, from yarn to the finished item. Our fabric and trim suppliers hold OEKO-TEX certification.',
       source: 'oeko-tex.com (read 2026-10-07) + CERTIFICATION_LINES',
     },
-    {
-      id: 'gots',
-      question: 'What is GOTS?',
-      answer:
-        'GOTS, the Global Organic Textile Standard, certifies textiles made with organic fibers, with environmental and social rules for every company that processes them.',
-      detail:
-        'A product can be labeled GOTS-certified only when every company in its production is certified, including the garment maker. Our fabric and trim suppliers hold GOTS certification; RUN APPAREL does not.',
-      source: 'global-standards.org (read 2026-10-07) + CERTIFICATION_LINES',
-    },
+    // No GOTS entry since 2026-11-04 (legal review): GOTS's Conditions for Use of Signs v4.0,
+    // s.3.3.1, bar an uncertified maker from "any claims referring to GOTS", and RUN APPAREL is
+    // not certified. `companyRelationship.test.ts` refuses the word on every page.
     {
       id: 'grs',
       question: 'What is GRS?',

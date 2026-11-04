@@ -1,5 +1,5 @@
 import { formatPhoneForDisplay, normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
-import { LEGAL_NAME, PARENT_COMPANY, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
+import { LEGAL_NAME, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
 import { bylineFor } from './bylines'
@@ -135,9 +135,12 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
       'can turn and inspect before a sample is cut is available on request.',
     numberOfEmployees: { '@type': 'QuantitativeValue', value: 200 },
     areaServed: 'Worldwide',
-    // The parent company, as the site already states in words (CERTIFICATION, ABOUT). Google's
-    // Organization guide (updated 2026-09-08) lists parentOrganization as a recommended property.
-    parentOrganization: { '@type': 'Organization', name: PARENT_COMPANY },
+    // ⚠️ NO `parentOrganization` (removed 2026-11-04). It said DURUS INDUSTRIES, which is not RUN
+    // APPAREL's holding company (`RELATIONSHIP` in companyFacts.ts), and schema.org defines it as "the
+    // larger organization that this organization is a subOrganization of". The comment that added
+    // it said Google's Organization guide recommends it; that guide (updated 2026-09-08) never
+    // names the property. schema.org has no sister-company property, so the relationship is
+    // stated in words only. `structuredData.test.ts` refuses it coming back.
     ...(sameAs.length > 0 ? { sameAs } : {}),
   }
 }

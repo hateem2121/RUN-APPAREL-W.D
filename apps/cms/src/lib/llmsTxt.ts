@@ -1,7 +1,15 @@
 import { TRAINING_ONLY_UAS } from '../../htmlLimitedBots.mjs'
 import { ABOUT_PAGE, FACTORY_PAGE } from './aboutPages'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from './caseStudies'
-import { CERTIFICATION, FACTS, LINEAGE, SHIPS_TO, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
+import {
+  CERTIFICATION,
+  FACTS,
+  LINEAGE,
+  RELATIONSHIP,
+  SHIPS_TO,
+  WHAT_WE_ARE,
+  WHAT_WE_MAKE,
+} from './companyFacts'
 import { JOURNAL_HUB, JOURNAL_PATH } from './journal'
 import { COMPANY_PATHS, PRESS_PAGE } from './companyPages'
 import { FAMILIES } from './families'
@@ -105,6 +113,8 @@ export function buildLlmsTxt(siteOrigin: string): string {
 > zoom and inspect before ordering.
 
 ${LINEAGE}
+
+${RELATIONSHIP}
 
 ## What we make
 

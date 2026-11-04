@@ -119,7 +119,7 @@ test.describe('the 1889 wording and the confirmed numbers on the home page (CT-0
  * verb became "Manufacturing since" on 2026-10-09 (owner), to match `LINEAGE`.
  */
 for (const width of [390, 1280]) {
-  test(`№01 reads "Manufacturing since 1889", and its other figure as it did, at ${width}px`, async ({
+  test(`№01 reads "Family in manufacturing since 1889", and its other figure as it did, at ${width}px`, async ({
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -148,7 +148,7 @@ for (const width of [390, 1280]) {
       await read(0),
       'the 1889 figure does not read label first, in markup and on screen',
     ).toEqual({
-      words: ['Manufacturing since', '1889'],
+      words: ['Family in manufacturing since', '1889'],
       markup: ['label', 'value'],
       firstIsAbove: true,
     })

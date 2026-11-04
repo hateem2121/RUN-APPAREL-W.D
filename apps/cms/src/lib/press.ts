@@ -54,7 +54,7 @@ export const FAMILY_SINCE = LINEAGE.match(/\b(1[89]\d\d)\b/)?.[1] ?? ''
  */
 export const PRESS_FACTS: readonly { label: string; value: string }[] = [
   { label: 'Family trade since', value: FAMILY_SINCE },
-  { label: 'Parent company', value: 'DURUS INDUSTRIES' },
+  { label: 'Production site', value: 'DURUS INDUSTRIES, a separate company of the same family' },
   { label: 'People', value: `About ${fact('People')}` },
   { label: 'Capacity', value: `${fact('Pieces per month')} pieces a month` },
   // sq m since 2026-10-09 (owner): the FACTS entry's unit was corrected the same day.

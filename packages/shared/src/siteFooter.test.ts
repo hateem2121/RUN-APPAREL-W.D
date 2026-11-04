@@ -173,10 +173,10 @@ describe('siteFooterAriaSnapshot', () => {
     expect(at('"Standards"')).toBeGreaterThan(at('"Capacity"'))
     // One holder, one line.
     expect(snapshot).toContain('listitem: "Suppliers: OEKO-TEX; GOTS"')
-    // The marks follow from the entries' words: OEKO-TEX, then GOTS, in the order named.
-    expect(snapshot).toContain(
-      `  - group "${SITE_FOOTER_WORDS.marks}":\n    - img "OEKO-TEX"\n    - img "GOTS"`,
-    )
+    // The marks follow from the entries' words: OEKO-TEX only, because GOTS has no mark since
+    // 2026-11-04 (standardsLogos.ts) although an entry may still name it in text.
+    expect(snapshot).toContain(`  - group "${SITE_FOOTER_WORDS.marks}":\n    - img "OEKO-TEX"`)
+    expect(snapshot).not.toContain('img "GOTS"')
     expect(at('group')).toBeGreaterThan(at('"Standards"'))
     expect(at('link "Products"')).toBeGreaterThan(at('group'))
   })

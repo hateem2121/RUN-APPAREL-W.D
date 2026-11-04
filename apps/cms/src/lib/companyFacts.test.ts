@@ -7,9 +7,10 @@ import {
   CUTTING_LINES,
   FACTS,
   LEAD_TIME,
-  PARENT_COMPANY,
   PRECISION_MACHINES,
+  RELATIONSHIP,
   SHIPS_TO,
+  SITE_COMPANY,
   WHAT_WE_ARE,
   WHAT_WE_MAKE,
 } from './companyFacts'
@@ -83,11 +84,10 @@ describe('the certification lines on the home page', () => {
   it('name no mark the owner’s paragraph does not', () => {
     expect(unbacked(CERTIFICATION, CERTIFICATION_LINES)).toEqual([])
     // CONTROL: held to a paragraph that names SEDEX alone, every other mark is reported.
-    expect(unbacked('Our parent is SEDEX-registered.', CERTIFICATION_LINES)).toEqual([
+    expect(unbacked('DURUS INDUSTRIES is SEDEX-registered.', CERTIFICATION_LINES)).toEqual([
       'SMETA',
       'ISO 9001',
       'OEKO-TEX',
-      'GOTS',
       'GRS',
     ])
   })
@@ -95,15 +95,10 @@ describe('the certification lines on the home page', () => {
   it('show every mark once, beside the holder that holds it', () => {
     const marks = CERTIFICATION_LINES.flatMap((line) => logosFor(line).map((logo) => logo.slug))
     expect([...marks].sort()).toEqual(STANDARDS_LOGOS.map((logo) => logo.slug).sort())
-    const [parent, suppliers, registry] = CERTIFICATION_LINES
-    expect(logosFor(parent).map((logo) => logo.slug)).toEqual(['sedex', 'smeta'])
-    expect(parent).toContain('DURUS INDUSTRIES')
-    expect(logosFor(suppliers).map((logo) => logo.slug)).toEqual([
-      'iso-9001',
-      'oeko-tex',
-      'gots',
-      'grs',
-    ])
+    const [site, suppliers, registry] = CERTIFICATION_LINES
+    expect(logosFor(site).map((logo) => logo.slug)).toEqual(['sedex', 'smeta'])
+    expect(site).toContain('DURUS INDUSTRIES')
+    expect(logosFor(suppliers).map((logo) => logo.slug)).toEqual(['iso-9001', 'oeko-tex', 'grs'])
     expect(suppliers).toContain('suppliers')
     // A regulator's registration is a legal fact, not a standard: text, never a mark.
     expect(logosFor(registry)).toEqual([])
@@ -113,7 +108,7 @@ describe('the certification lines on the home page', () => {
     const lines = CERTIFICATION_LINES.join(' ')
     for (const words of [
       'DURUS INDUSTRIES',
-      'same facility',
+      'separate',
       'fabric and trim suppliers',
       'amfori BSCI audits',
       'Securities and Exchange Commission of Pakistan (SECP)',
@@ -133,7 +128,7 @@ describe('the certification lines on the home page', () => {
  * decision of 2026-10-06 (question tool, A1 #2); the refused 21–45 window of 2026-09-29
  * stays refused above, so the constant must say "your quote states the exact date".
  */
-describe('the lead time and the parent company', () => {
+describe('the lead time and the production site', () => {
   it('state the lead time in the owner’s words, and never as a fixed promise', () => {
     expect(LEAD_TIME).toBe(
       'Usually 2–4 weeks from order confirmation; your quote states the exact date.',
@@ -143,9 +138,10 @@ describe('the lead time and the parent company', () => {
     expect(LEAD_TIME).not.toMatch(/21\s*[–-]\s*45/)
   })
 
-  it('name the parent company the certification paragraph names', () => {
-    expect(PARENT_COMPANY).toBe('DURUS INDUSTRIES')
-    expect(CERTIFICATION).toContain(PARENT_COMPANY)
+  it('name the production site’s company the certification paragraph names', () => {
+    expect(SITE_COMPANY).toBe('DURUS INDUSTRIES')
+    expect(CERTIFICATION).toContain(SITE_COMPANY)
+    expect(RELATIONSHIP).toContain(SITE_COMPANY)
   })
 })
 

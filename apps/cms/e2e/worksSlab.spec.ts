@@ -99,7 +99,6 @@ test.describe('X7 — №05 ends in one slab: where we ship | certification', ()
         'SMETA',
         'ISO 9001',
         'OEKO-TEX',
-        'GOTS',
         'GRS',
       ])
       for (const row of rows) {
@@ -109,7 +108,7 @@ test.describe('X7 — №05 ends in one slab: where we ship | certification', ()
           )
         }
       }
-      // The parent's marks name the parent, and the registry stands as text, with no mark.
+      // The production site's marks name DURUS INDUSTRIES, and the registry stands as text, with no mark.
       expect(rows[0]?.line).toContain('DURUS INDUSTRIES')
       expect(rows.at(-1)?.marks).toEqual([])
 

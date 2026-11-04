@@ -75,13 +75,23 @@ export const SHIPS_TO = 'Worldwide, wherever your team is.'
  * us; the ruling kept every holder named and put the SECP in a sentence of its own, because a
  * regulator's registration is a legal fact about the companies, not a standard they meet —
  * which is also why the footer shows it as text and never as a logo.
+ *
+ * ⚠️ NOT "PARENT COMPANY", AND NO GOTS (owner's go-ahead 2026-11-04, legal review that day).
+ * On the owner's facts of 2026-11-04, DURUS INDUSTRIES is not RUN APPAREL's holding company: the
+ * two are separate companies of one family. Companies Act 2017 s.2(68) makes a company a subsidiary only where
+ * the other "controls the composition of the board" or "more than one-half of its voting
+ * securities", so "parent company" was untrue, and Competition Act 2010 s.10(2)(b) forbids
+ * misleading information about the "place of production". GOTS's Conditions for Use of Signs
+ * v4.0, s.3.3.1 (in force 2026-08-01): "Uncertified processors, manufacturers, Traders shall not
+ * use GOTS Signs or make any claims referring to GOTS". `companyFacts.test.ts` refuses all three.
  */
 export const CERTIFICATION =
-  'RUN APPAREL operates under our parent company, DURUS INDUSTRIES, which is SEDEX-registered ' +
-  'and SMETA-audited. We operate within the same facility, and our fabric and trim suppliers ' +
-  'hold ISO 9001, OEKO-TEX, GOTS, and GRS certifications, as well as amfori BSCI audits. Both companies are registered with the Securities and Exchange Commission of ' +
-  'Pakistan (SECP). We are fully prepared to pursue any program-specific certifications ' +
-  'required for your needs.'
+  'RUN APPAREL holds no certificates or audits in its own name. We produce at the site of ' +
+  'DURUS INDUSTRIES, a separate company owned by members of the same family, which is ' +
+  'SEDEX-registered and SMETA-audited. Our fabric and trim suppliers hold ISO 9001, OEKO-TEX ' +
+  'and GRS certifications, as well as amfori BSCI audits. Both companies are registered with ' +
+  'the Securities and Exchange Commission of Pakistan (SECP). We are fully prepared to pursue ' +
+  'any program-specific certifications required for your needs.'
 
 /**
  * ⚠️ THE SAME CLAIMS, AS THE HOME PAGE SHOWS THEM SINCE POLISH X7 (2026-10-05): one line per
@@ -93,8 +103,8 @@ export const CERTIFICATION =
  * paragraph: a mark or a holder the paragraph does not name fails it.
  */
 export const CERTIFICATION_LINES = [
-  'Our parent company, DURUS INDUSTRIES, in the same facility: SEDEX-registered and SMETA-audited.',
-  'Our fabric and trim suppliers: ISO 9001, OEKO-TEX, GOTS and GRS certifications, and amfori BSCI audits.',
+  'DURUS INDUSTRIES, a separate family company whose site we produce at: SEDEX-registered and SMETA-audited.',
+  'Our fabric and trim suppliers: ISO 9001, OEKO-TEX and GRS certifications, and amfori BSCI audits.',
   'Both companies are registered with the Securities and Exchange Commission of Pakistan (SECP).',
 ] as const
 
@@ -129,8 +139,23 @@ export const PAYMENT_TERMS =
 export const LEAD_TIME =
   'Usually 2–4 weeks from order confirmation; your quote states the exact date.'
 
-/** The parent company, named as `CERTIFICATION` and `ABOUT` already name it. */
-export const PARENT_COMPANY = 'DURUS INDUSTRIES'
+/**
+ * The company whose site RUN APPAREL produces at, named as `CERTIFICATION` and `ABOUT` name it.
+ * Called `PARENT_COMPANY` until 2026-11-04, which it is not (see `CERTIFICATION`).
+ */
+export const SITE_COMPANY = 'DURUS INDUSTRIES'
+
+/**
+ * How the two companies relate, in ONE sentence every page, profile and answer engine copies
+ * (legal review of 2026-11-04, its option A; owner's go-ahead that day). True on the owner's facts
+ * of that day: two separate companies, one site, and production split — some steps by DURUS
+ * INDUSTRIES, some by RUN's own team. Add "under a written production agreement" only once the
+ * owner confirms one is signed.
+ */
+export const RELATIONSHIP =
+  'RUN APPAREL (PRIVATE) LIMITED is a separate company owned by members of the family behind ' +
+  'DURUS INDUSTRIES. We produce at the DURUS INDUSTRIES site in Sialkot, where some steps are ' +
+  'carried out by DURUS INDUSTRIES and some by our own team.'
 
 /**
  * What the company is, in the phrase every profile opens with (owner, 2026-10-11, question tool:
