@@ -79,9 +79,13 @@ test.describe('a tap on a contact link on a garment page', () => {
     await whatsapp(page).click()
     await email(page).click()
 
-    const events = await contactEvents(page)
-    expect(events).toEqual([{ method: 'whatsapp' }, { method: 'email' }])
-    expect(JSON.stringify(events)).not.toMatch(/\d{8}|@|wear-run/)
+    // Polled: since 4 Nov 2026 the trackers start at the browser's first idle moment after Accept
+    // (2 s at most, `startTrackers`), and a tap in between is queued and sent once Google's tag
+    // starts. WebKit's taps landed in that wait and read an empty queue straight away.
+    await expect
+      .poll(() => contactEvents(page))
+      .toEqual([{ method: 'whatsapp' }, { method: 'email' }])
+    expect(JSON.stringify(await contactEvents(page))).not.toMatch(/\d{8}|@|wear-run/)
   })
 
   test('DECLINE: a tap queues nothing', async ({ page, context }) => {
