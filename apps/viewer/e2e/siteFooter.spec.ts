@@ -122,10 +122,11 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(footer(page)).toMatchAriaSnapshot(siteFooterAriaSnapshot(content(CLAIMS)))
-    // Every mark arrived and decodes: the files are the website's, by the same path. Four bodies'
-    // marks, then the company's own climate commitment badge (owner, 2026-10-17).
+    // Every mark arrived and decodes: the files are the website's, by the same path. Since
+    // 2026-11-05 no body's mark is drawn (none is RUN APPAREL's to show; standardsLogos.ts quotes
+    // each scheme's rule), so the one picture is the company's own climate commitment badge.
     const marks = footer(page).locator('.footer-marks img')
-    await expect(marks).toHaveCount(5)
+    await expect(marks).toHaveCount(1)
     await expect(marks.last()).toHaveAttribute('src', CLIMATE_COMMITMENT.logo.src)
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     for (const img of await marks.all()) {
@@ -147,18 +148,12 @@ test.describe("the website's footer on the garment pages (VA-31)", () => {
     await expect(
       footer(page).getByText('Suppliers: OEKO-TEX, GRS; amfori BSCI audits'),
     ).toHaveCount(1)
-    // One area for every mark, not one height (X23): Sedex is a wide wordmark, OEKO-TEX a tall
-    // label, and at one 32px height their areas were 3,804 and 726 square pixels.
-    // The badge is a link, drawn 44px tall for the touch floor, so it is not held to the area.
-    const areas = await footer(page)
-      .locator('.footer-marks > img')
-      .evaluateAll((all) =>
-        all.map((img) => {
-          const box = img.getBoundingClientRect()
-          return Math.round(box.width * box.height)
-        }),
-      )
-    for (const area of areas) expect(Math.abs(area - 36 * 36) / (36 * 36)).toBeLessThan(0.06)
+    // The entries still name Sedex, SMETA, OEKO-TEX and GRS in words, and no body's mark is drawn
+    // for them (the badge is a link, so it is not a direct `img` child of the row).
+    await expect(footer(page).locator('.footer-marks > img')).toHaveCount(0)
+    await expect(
+      footer(page).getByText('Sister company: SEDEX-registered, SMETA-audited'),
+    ).toHaveCount(1)
   })
 
   // Polish X23: on a phone two short columns, and the link groups side by side. Since the
