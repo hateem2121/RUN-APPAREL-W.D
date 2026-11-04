@@ -2,6 +2,7 @@ import { withPayload } from '@payloadcms/next/withPayload'
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare'
 import { HTML_LIMITED_BOTS } from './htmlLimitedBots.mjs'
 import { withPublicViewerVary } from './publicViewerHeaders.mjs'
+import { siteSourceBuildId } from './siteBuild.mjs'
 import { siteRedirects, siteRewrites } from './siteHostRules.mjs'
 
 // Makes wrangler.jsonc bindings (local D1/R2 emulation) available during `next dev`.
@@ -84,6 +85,14 @@ const nextConfig = {
   // and it narrows an attacker's search space for version-specific advisories
   // against the side of this system that holds the password.
   poweredByHeader: false,
+  /*
+   * THE BUILD ID IS THE WEBSITE SOURCE'S FINGERPRINT (siteBuild.mjs, 4 Nov 2026). Every page and
+   * every tap answer names it, and the page store keeps pages across deploys that did not change
+   * the website; Next's default, a random ID per build, would make a kept page's links load whole
+   * pages instead of taps. Null (Next's random ID) when git cannot answer or the code is not
+   * committed.
+   */
+  generateBuildId: () => siteSourceBuildId(),
   /*
    * `next dev` APPENDS A BLOCK TO apps/cms/CLAUDE.md ON EVERY RUN, and that file is
    * hand-maintained and test-gated (src/claudeMd.test.ts checks its citations, and
