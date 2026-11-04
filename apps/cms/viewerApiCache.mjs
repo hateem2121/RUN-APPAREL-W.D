@@ -224,6 +224,21 @@ export async function keepApiAnswer(request, draw) {
   return new Response(text, { ...init, headers })
 }
 
+/**
+ * What a kept garment-data copy is keyed by, in place of the deploy: a fingerprint of the code that
+ * shapes the answer (the files and package versions listed in src/viewerApiCache.test.ts).
+ *
+ * ⚠️ WHY NOT THE DEPLOY (4 Nov 2026). Keyed by the deploy, every deploy emptied the store, and 26
+ * runs reached main in the week to 4 Nov. The warm-up refills all 42 garments in the US but only
+ * 10 in Pakistan, so the first QR scan of each other garment there waited for a fresh drawing:
+ * Workers Logs that day, SitePages drawing r-au/bone in 2,629 ms (1,437 ms of processor time) and
+ * a robot's garment page waiting 2-5 s. With `cross_version_cache` on (wrangler.jsonc) this key
+ * alone decides, so a deploy that leaves these files alone leaves every region's copies warm; a CMS
+ * save still marks them stale at once (Cache-Tag, contentVersion.ts). The test recomputes the
+ * fingerprint and fails until it is updated, so a changed answer can never meet an old copy.
+ */
+export const VIEWER_API_SHAPE = 'shape-c564f77b8a3f1d83'
+
 /** For the network panel and a `curl -D -`: did this answer come from a kept copy? */
 function apiCacheTiming(state) {
   return `api-cache;desc="${state}"`
@@ -244,7 +259,8 @@ export async function serveViewerApi(request, env, ctx, store = ctx?.exports?.Si
 
   let kept
   try {
-    const cf = { cacheKey: await keptStoreKey(request.url, deploy, env.SITE_CACHE) }
+    // The deploy id above only says this is the deployed Worker; the key names the data's shape.
+    const cf = { cacheKey: await keptStoreKey(request.url, VIEWER_API_SHAPE, env.SITE_CACHE) }
     // Never follow a redirect from the store (worker.mjs's call says why: #247, 2026-10-25).
     kept = await store.fetch(apiRenderRequest(request), { cf, redirect: 'manual' })
   } catch (error) {
