@@ -92,7 +92,11 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   🟡 **Why exact commits matter, measured: on 2026-03-19 attackers force-pushed 76 of
   77 `aquasecurity/trivy-action` tags to credential-stealing commits (CVE-2026-33634).**
   Our pin `ed142fd…` is v0.36.0, released 2026-04-22 after the clean-up, signed and
-  verified (checked 2026-10-01); it installs Trivy v0.70.0. Never Trivy v0.69.4, the
+  verified (checked 2026-10-01). 🟡 **Since 2026-11-04 the action does NOT install Trivy:** its
+  installer downloads from `get.trivy.dev`, which stopped resolving on 3 Nov (NXDOMAIN; curl exit 6
+  read as a failed audit), so `ci.yml` and `security-scans.yml` install it from the GitHub release
+  with pinned SHA-256s and pass `skip-setup-trivy: 'true'`. Bump `TRIVY_VERSION` and both hashes in
+  BOTH files; `apps/cms/src/toolVersions.test.ts` fails if they differ. Never Trivy v0.69.4, the
   malicious release. 🟡 `security-scans.yml` (2026-10-01) publishes Scorecard, which
   forbids workflow/job-level `env` or `defaults`, containers, write permissions at the
   workflow level, and any action in its job beyond checkout, upload-artifact,

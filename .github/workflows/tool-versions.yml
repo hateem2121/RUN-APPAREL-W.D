@@ -1,7 +1,7 @@
 name: Tool versions
 
-# Says when a newer actionlint, zizmor or gitleaks has been out a week. ci.yml downloads those
-# three by a version number in an `env:` value, which Dependabot cannot see (zizmor sat ten
+# Says when a newer actionlint, zizmor, gitleaks or Trivy has been out a week. ci.yml downloads those
+# four by a version number in an `env:` value, which Dependabot cannot see (zizmor sat ten
 # days behind until the 25 Oct 2026 CI audit). scripts/check-tool-versions.mjs has the rule;
 # a red run names the tool and both versions. Bumping one stays a person's job: a new version
 # needs its checksum and a clean run against these workflows first.

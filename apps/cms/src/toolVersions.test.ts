@@ -59,6 +59,7 @@ describe('the verdict follows the same 7-day wait as Dependabot', () => {
     ACTIONLINT_VERSION: '1.7.12',
     ZIZMOR_VERSION: '1.30.1',
     GITLEAKS_VERSION: '8.30.1',
+    TRIVY_VERSION: '0.70.0',
   }
 
   it('NEGATIVE CONTROL: a newer release out a week is behind; out less is waiting', () => {
@@ -68,10 +69,11 @@ describe('the verdict follows the same 7-day wait as Dependabot', () => {
         'rhysd/actionlint': released('v1.7.12', 200),
         'zizmorcore/zizmor': released('v1.31.1', COOLDOWN_DAYS),
         'gitleaks/gitleaks': released('v8.31.0', COOLDOWN_DAYS - 1),
+        'aquasecurity/trivy': released('v0.70.0', 200),
       },
       NOW,
     )
-    expect(rows.map((r) => r.state)).toEqual(['current', 'behind', 'waiting'])
+    expect(rows.map((r) => r.state)).toEqual(['current', 'behind', 'waiting', 'current'])
     const { failing, text } = summarize(rows)
     expect(failing).toBe(1)
     expect(text).toContain('zizmor: 1.31.1 has been out 7 days, pinned 1.30.1. Bump ZIZMOR_VERSION')
@@ -90,11 +92,68 @@ describe('the verdict follows the same 7-day wait as Dependabot', () => {
         'rhysd/actionlint': null,
         'zizmorcore/zizmor': released('nightly', 1),
         'gitleaks/gitleaks': { tag: 'v8.31.0', publishedAt: 'not a date' },
+        'aquasecurity/trivy': null,
       },
       NOW,
     )
-    expect(rows.map((r) => r.state)).toEqual(['unreadable', 'unreadable', 'unreadable'])
-    expect(summarize(rows).failing).toBe(3)
+    expect(rows.map((r) => r.state)).toEqual([
+      'unreadable',
+      'unreadable',
+      'unreadable',
+      'unreadable',
+    ])
+    expect(summarize(rows).failing).toBe(4)
+  })
+})
+
+/*
+ * TRIVY HAS TWO COPIES (4 Nov 2026). trivy-action's installer downloads from get.trivy.dev, which
+ * stopped resolving on 3 Nov, so ci.yml and security-scans.yml each install Trivy from its GitHub
+ * release with pinned checksums. What would have to break: one copy bumped and the other not (the
+ * gitleaks fix lived in one of two workflows for three months, .github/CLAUDE.md), or a Trivy step
+ * left on the action's own installer, which fails with curl exit 6 before scanning anything.
+ */
+const TRIVY_PINS = /^\s+(TRIVY_VERSION|TRIVY_SHA256_X64|TRIVY_SHA256_ARM64):\s*(\S+)\s*$/gm
+const trivyPins = (source: string) =>
+  Object.fromEntries([...source.matchAll(TRIVY_PINS)].map((m) => [m[1], m[2]]))
+/** Every trivy-action step's text, from its `uses:` line to the next step. */
+const trivySteps = (source: string) =>
+  source.split(/\n(?= {6}- )/).filter((step) => step.includes('aquasecurity/trivy-action@'))
+const workflows = ['ci.yml', 'security-scans.yml'].map((name) => ({
+  name,
+  source: readFileSync(join(root, '.github', 'workflows', name), 'utf8'),
+}))
+
+describe('Trivy is installed the same way in both workflows that run it', () => {
+  it('pins the same version and both checksums in each', () => {
+    const [ci, scans] = workflows.map(({ source }) => trivyPins(source))
+    expect(Object.keys(ci ?? {}).sort()).toEqual([
+      'TRIVY_SHA256_ARM64',
+      'TRIVY_SHA256_X64',
+      'TRIVY_VERSION',
+    ])
+    expect(ci?.TRIVY_SHA256_X64).toMatch(/^[0-9a-f]{64}$/)
+    expect(ci?.TRIVY_SHA256_ARM64).toMatch(/^[0-9a-f]{64}$/)
+    expect(scans).toEqual(ci)
+    expect(readPins(ciYml).TRIVY_VERSION).toBe(ci?.TRIVY_VERSION)
+  })
+
+  it('no Trivy step falls back to the action installer', () => {
+    for (const { name, source } of workflows) {
+      const steps = trivySteps(source)
+      expect(steps.length, name).toBeGreaterThan(0)
+      for (const step of steps) expect(step, name).toContain("skip-setup-trivy: 'true'")
+    }
+  })
+
+  it('NEGATIVE CONTROL: a drifted copy or a step without the skip is caught', () => {
+    const [ci, scans] = workflows
+    const bumped = (scans?.source ?? '').replace(/(TRIVY_VERSION:\s*)\S+/, '$10.71.0')
+    expect(trivyPins(bumped)).not.toEqual(trivyPins(ci?.source ?? ''))
+    const unskipped = (ci?.source ?? '').replace("skip-setup-trivy: 'true'\n", '')
+    expect(trivySteps(unskipped).every((step) => step.includes("skip-setup-trivy: 'true'"))).toBe(
+      false,
+    )
   })
 })
 

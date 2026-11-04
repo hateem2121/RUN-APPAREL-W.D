@@ -1882,6 +1882,37 @@ jobs:
           fi
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "Scanning $ref"
+      # ⚠️ TRIVY IS INSTALLED HERE, NOT BY THE ACTION (4 Nov 2026). trivy-action's own installer
+      # (setup-trivy) downloads the binary from get.trivy.dev, and that name stopped resolving
+      # on 3 Nov: NXDOMAIN on 1.1.1.1 and 8.8.8.8, trivy.dev answering with a parking page, and
+      # aquasecurity/trivy#11537 closed "not planned". curl exited 6 ("could not resolve host")
+      # before anything was scanned, which read as a failed audit and was a failed download.
+      # So the binary comes from the GitHub release, checked against a SHA-256 pinned here
+      # (read 4 Nov from the release's checksums file, GitHub's asset digest and a local hash:
+      # all three agree), and every Trivy step below says `skip-setup-trivy: 'true'`.
+      # 0.76.1, not the action's default 0.70.0: the weekly check found it 13 days old (released
+      # 21 Oct, signed commit e713f67f), and both scans ran clean on it locally on 4 Nov.
+      # security-scans.yml carries the SAME pins: apps/cms/src/toolVersions.test.ts fails if
+      # the two drift, and scripts/check-tool-versions.mjs says weekly when a newer Trivy is out.
+      # Never v0.69.4, the malicious release (.github/CLAUDE.md, CVE-2026-33634).
+      - name: Install Trivy from its GitHub release (checksum pinned)
+        env:
+          TRIVY_VERSION: 0.76.1
+          TRIVY_SHA256_X64: c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0
+          TRIVY_SHA256_ARM64: e174dff2a6dba5e3ae41f8d0537a6324405bd08132497340304c6b20e0f16a1f
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64|amd64) TV_ARCH=64bit; TV_SHA="${TRIVY_SHA256_X64}" ;;
+            aarch64|arm64) TV_ARCH=ARM64; TV_SHA="${TRIVY_SHA256_ARM64}" ;;
+            *) echo "::error::unsupported arch $(uname -m) for Trivy"; exit 1 ;;
+          esac
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors -o /tmp/trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${TV_ARCH}.tar.gz"
+          echo "${TV_SHA}  /tmp/trivy.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/trivy.tar.gz -C /tmp trivy
+          sudo install -m 0755 /tmp/trivy /usr/local/bin/trivy
+          trivy --version
       # SCAN THE REGISTRY, NOT A LOCAL DAEMON (`TRIVY_IMAGE_SRC: remote`): this audits the
       # UPSTREAM image we pinned, not whatever a Docker daemon happens to hold under that
       # tag (on 2026-09-08 a daemon holding the arm64 variant made the scan die with
@@ -1896,6 +1927,7 @@ jobs:
           TRIVY_IMAGE_SRC: remote
         continue-on-error: true
         with:
+          skip-setup-trivy: 'true'
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
           format: table
@@ -1912,6 +1944,7 @@ jobs:
         env:
           TRIVY_IMAGE_SRC: remote
         with:
+          skip-setup-trivy: 'true'
           scan-type: image
           image-ref: ${{ steps.baseimage.outputs.ref }}
           format: table
