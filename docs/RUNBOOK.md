@@ -236,6 +236,12 @@ CMS Worker's `SitePages` entrypoint (`apps/cms/worker.mjs`, `apps/cms/pageCache.
 - **To put the content version back in the pages' keys, without a deploy**, set the KV key
   `page-store-mode` to `versioned` in the same namespace (`apps/cms/pageCache.mjs`
   `STORE_MODE_KEY`): each save then starts fresh keys instead of marking copies stale.
+- **To key the pages by the deploy again, without a deploy**, set the KV key `page-store-build`
+  to `per-deploy` in the same namespace (`apps/cms/pageCache.mjs` `STORE_BUILD_KEY`): every deploy
+  then retires every kept page and tap, as before 2026-11-04. Since then they are keyed by the
+  website build's fingerprint (`apps/cms/siteBuild.mjs`), which the deploy hands the Worker as
+  `SITE_BUILD`, so a deploy that leaves the website alone keeps them. A page's Server-Timing names
+  it (`site-build;desc="site-…"`). Delete the key to switch back.
 - **To switch the store off**, set `"SitePages": { …, "cache": { "enabled": false } }` in
   `apps/cms/wrangler.jsonc` and deploy, or roll back to a version from before 2026-10-24: a
   rollback restores that version's cache setting too.
