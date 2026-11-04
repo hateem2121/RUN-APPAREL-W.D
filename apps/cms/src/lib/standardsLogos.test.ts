@@ -129,11 +129,12 @@ describe('logosFor', () => {
 })
 
 describe('marksFor: the one row of marks under the footer facts (owner, 2026-09-29)', () => {
+  // What the live footer stores since 2026-11-04 (written and read back that day).
   const PRODUCTION = [
-    'Parent: SEDEX-registered, SMETA-audited',
-    'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+    'Sister company: SEDEX-registered, SMETA-audited',
+    'Suppliers: ISO 9001, OEKO-TEX, GRS',
     'Suppliers: amfori BSCI audits',
-    'Group: registered with the SECP',
+    'Both companies: registered with the SECP',
   ]
 
   it("gathers every entry's marks in the order the entries name them", () => {

@@ -105,7 +105,7 @@ describe('the footer facts the owner supplied, 2026-09-16', () => {
       // would be 53 characters, five over the field's 48.
       'Suppliers: ISO 9001, OEKO-TEX, GRS',
       'Suppliers: amfori BSCI audits',
-      'Group: registered with the SECP',
+      'Both companies: registered with the SECP',
     ])
     expect(
       problems(
@@ -117,7 +117,7 @@ describe('the footer facts the owner supplied, 2026-09-16', () => {
   })
 
   // Owner, 2026-11-04. NEGATIVE CONTROL: the two rows the live footer carried until that day.
-  it('refuse "Parent" and any GOTS claim', () => {
+  it('refuse "Parent", "Group" and any GOTS claim', () => {
     expect(problems(FOOTER_FACTS)).toEqual([])
     expect(
       problems(
@@ -140,6 +140,18 @@ describe('the footer facts the owner supplied, 2026-09-16', () => {
       ),
     ).toEqual([
       'certification "Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS" names GOTS, which RUN APPAREL may not claim',
+    ])
+    // The SECP row said "Group" until 2026-11-04 (owner): the two are not a corporate group.
+    expect(
+      problems(
+        variant((f) =>
+          Object.assign(f.certifications[3] as { name: string }, {
+            name: 'Group: registered with the SECP',
+          }),
+        ),
+      ),
+    ).toEqual([
+      'certification "Group: registered with the SECP" says "Group": say "Both companies"',
     ])
   })
 

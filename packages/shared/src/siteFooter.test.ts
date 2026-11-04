@@ -85,15 +85,15 @@ describe('standardsLines', () => {
   it("joins the owner's two supplier entries into one line and keeps the rest as they are", () => {
     expect(
       standardsLines([
-        'Parent: SEDEX-registered, SMETA-audited',
-        'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+        'Sister company: SEDEX-registered, SMETA-audited',
+        'Suppliers: ISO 9001, OEKO-TEX, GRS',
         'Suppliers: amfori BSCI audits',
-        'Group: registered with the SECP',
+        'Both companies: registered with the SECP',
       ]),
     ).toEqual([
-      'Parent: SEDEX-registered, SMETA-audited',
-      'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS; amfori BSCI audits',
-      'Group: registered with the SECP',
+      'Sister company: SEDEX-registered, SMETA-audited',
+      'Suppliers: ISO 9001, OEKO-TEX, GRS; amfori BSCI audits',
+      'Both companies: registered with the SECP',
     ])
   })
 
