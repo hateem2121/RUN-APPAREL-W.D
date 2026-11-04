@@ -54,7 +54,7 @@ const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
  * named as a separate family company, never a parent; RUN never a division; no GOTS claim; 1889
  * labelled the family's. `companyRelationship.test.ts` holds the words.
  */
-const LEGAL_FRAMING = '2026-11-04T21:14:51+05:00'
+const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
 /**
  * The privacy page's cookie paragraph now says Google Analytics sees whether a visitor taps the
  * WhatsApp, phone or email link (2026-10-30, branch `site/contact-click-events`; the branch
@@ -78,7 +78,7 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
 const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(LEGAL_FRAMING, '792ff87f7032'),
+  '/': page(LEGAL_FRAMING, 'cf1148e20f75'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
   '/custom-teamwear-manufacturer': page(MAKES_LINKS, '15dc346441b8'),
   '/custom-activewear-manufacturer': page(MAKES_LINKS, '698eb59f3b36'),
@@ -87,16 +87,16 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-soccer-ball-manufacturer': page(ACCESSORY_WORDS, '1fa9ca7abf31'),
   '/private-label-casual-wear-manufacturer': page(MAKES_LINKS, 'de93b5cf2716'),
   '/guides': page(SITE_CHECK, 'bc271cb03a6b'),
-  '/policies': page(LEGAL_FRAMING, '04c3d4e44710'),
+  '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
-  '/press': page(LEGAL_FRAMING, 'd4601927885a'),
-  '/faq': page(LEGAL_FRAMING, 'dc30764bd40b'),
+  '/press': page(LEGAL_FRAMING, '5143d1505a09'),
+  '/faq': page(LEGAL_FRAMING, '977d847bbe71'),
   '/faq/orders-and-samples': page(SITE_CHECK, '6ad5f92a5cb5'),
-  '/faq/quality-and-certifications': page(LEGAL_FRAMING, '15681b03e74e'),
+  '/faq/quality-and-certifications': page(LEGAL_FRAMING, '9a644e472e7e'),
   '/faq/shipping-and-importing': page(SITE_CHECK, 'd589cfcdf9ba'),
   '/faq/fabrics-and-printing': page(CLOSING_BLOCK, 'd838e1a06292'),
-  '/faq/working-with-us': page(CLOSING_BLOCK, '39eb383bf2dc'),
-  '/glossary': page(LEGAL_FRAMING, '9dd93b649205'),
+  '/faq/working-with-us': page(LEGAL_FRAMING, 'b2c2f9e7c29e'),
+  '/glossary': page(LEGAL_FRAMING, '90d509da86b8'),
   '/journal': page(KAIZEN, 'e34315afc7aa'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),

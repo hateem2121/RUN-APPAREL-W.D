@@ -12,6 +12,7 @@ import { buildLlmsFullTxt } from './llmsFullTxt'
 import { buildLlmsTxt } from './llmsTxt'
 import { POLICIES } from './policies'
 import { PRESS_FACTS } from './press'
+import { readability } from './readingLevel'
 import { EMPTY_FOOTER, type PublicSiteSettings } from './projectPublic'
 import { organizationJsonLd } from './structuredData'
 
@@ -97,7 +98,8 @@ describe('how the site describes RUN APPAREL and DURUS INDUSTRIES', () => {
     }
     // DURUS INDUSTRIES is still named where it belongs: the site, and the audits it holds.
     expect(PUBLISHED['/about']).toContain(SITE_COMPANY)
-    expect(PUBLISHED['llms.txt']).toContain('DURUS INDUSTRIES, a separate company')
+    expect(PUBLISHED['llms.txt']).toContain(RELATIONSHIP)
+    expect(PUBLISHED['/faq']).toContain('Is RUN APPAREL part of DURUS INDUSTRIES?')
   })
 
   it('never calls DURUS INDUSTRIES a parent, RUN a division, or names GOTS', () => {
@@ -119,10 +121,26 @@ describe('how the site describes RUN APPAREL and DURUS INDUSTRIES', () => {
   })
 
   it('states the relationship as the owner’s facts allow', () => {
-    expect(RELATIONSHIP).toContain('separate company')
-    expect(RELATIONSHIP).toContain('family behind DURUS INDUSTRIES')
-    expect(RELATIONSHIP).toContain('some by our own team')
+    expect(RELATIONSHIP).toContain('sister companies')
+    // "Sister company" alone may read as "same owner" (legal review, 2026-11-04): these two stay.
+    expect(RELATIONSHIP).toContain('The same family is behind both.')
+    expect(RELATIONSHIP).toContain('Each one is its own company.')
     // Only once the owner confirms a written agreement is signed.
     expect(RELATIONSHIP).not.toMatch(/agreement|contract/i)
+  })
+
+  /*
+   * A 10-year-old can follow it (owner, 2026-11-04: "even a 5th grader"). Flesch–Kincaid counts
+   * "INDUSTRIES" as three syllables, so each company's name is counted as one word here: a reader
+   * reads a name as a name. Measured 4.0 that way and 6.1 raw; the sentence it replaced, 14.7.
+   */
+  it('reads at grade 5 or below, names counted as names', () => {
+    const asNames = (text: string) =>
+      text.replaceAll('RUN APPAREL', 'RUN').replaceAll('DURUS INDUSTRIES', 'DURUS')
+    expect(readability(asNames(RELATIONSHIP))?.grade).toBeLessThanOrEqual(5)
+    // NEGATIVE CONTROL: the certification sentence the site carried until 2026-11-04 fails it.
+    const old =
+      'RUN APPAREL operates under our parent company, DURUS INDUSTRIES, which is SEDEX-registered and SMETA-audited.'
+    expect(readability(asNames(old))?.grade).toBeGreaterThan(5)
   })
 })

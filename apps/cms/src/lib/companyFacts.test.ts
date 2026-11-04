@@ -108,7 +108,7 @@ describe('the certification lines on the home page', () => {
     const lines = CERTIFICATION_LINES.join(' ')
     for (const words of [
       'DURUS INDUSTRIES',
-      'separate',
+      'sister company',
       'fabric and trim suppliers',
       'amfori BSCI audits',
       'Securities and Exchange Commission of Pakistan (SECP)',

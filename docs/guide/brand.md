@@ -23,7 +23,7 @@ So never write as if we run a shop.
 ## ⚠️ One rule we never break
 
 RUN APPAREL does not hold any certificates in its own name.
-They belong to Durus Industries, a separate company of our family whose site we produce at, and to the firms that supply our fabric and trims.
+They belong to our sister company, Durus Industries, and to the firms that supply our fabric and trims.
 So say we work **within** a certified group.
 Never say RUN APPAREL itself is certified.
 

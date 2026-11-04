@@ -67,7 +67,7 @@ export type GallerySet = {
 export const ABOUT_PAGE = {
   path: '/about',
   title: 'About us: family makers in Sialkot since 1889',
-  description: `OEM/ODM private label sportswear from Sialkot, Pakistan, by a separate company of a family manufacturing and exporting since ${FAMILY_SINCE}.`,
+  description: `OEM/ODM private label sportswear from Sialkot, Pakistan, by a sister company of ${SITE_COMPANY}, from a family manufacturing and exporting since ${FAMILY_SINCE}.`,
   hero: {
     partLeft: 'SINCE 1889',
     partRight: 'STILL',
@@ -75,7 +75,7 @@ export const ABOUT_PAGE = {
     accent: 'running',
     subtitle: `Private label sportswear from Sialkot, Pakistan. The family behind it has made and exported from this city since ${FAMILY_SINCE}.`,
   },
-  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes: first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's separate apparel company. We engineer and export private label sportswear for partners who go the extra mile.`,
+  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes: first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's apparel company, and a sister company of DURUS INDUSTRIES. We engineer and export private label sportswear for partners who go the extra mile.`,
   /** The mission, word for word (owner): rendered as a quote the readability test skips. */
   mission:
     'To empower global partners with sustainable, high-performance apparel that drives unity, endurance, and excellence — combining ethical craftsmanship with technological precision.',
@@ -125,7 +125,7 @@ export const ABOUT_PAGE = {
       {
         year: 'Today',
         title: 'RUN.',
-        body: 'Members of the family found RUN APPAREL, a separate company for apparel, apart from sports equipment. It produces at the DURUS INDUSTRIES site. It is built for athletic brands, teams, corporate programs and fitness organizations. The fourth generation of the family leads the company today. The city is the same; the standard is too.',
+        body: 'Members of the family start RUN APPAREL, a sister company of DURUS INDUSTRIES, for apparel, apart from sports equipment. It makes its clothes in the DURUS INDUSTRIES buildings. It is built for athletic brands, teams, corporate programs and fitness organizations. The fourth generation of the family leads the company today. The city is the same; the standard is too.',
       },
     ] as const satisfies readonly TimelineEntry[],
   },
@@ -166,7 +166,7 @@ export const ABOUT_PAGE = {
       row: the count-up band above says it (owner, 2026-10-26). */
   factsTable: [
     { term: 'Legal name', detail: LEGAL_NAME },
-    { term: 'Production site', detail: `${SITE_COMPANY}, a separate company of the same family` },
+    { term: 'Sister company', detail: `${SITE_COMPANY}, whose buildings we make our clothes in` },
     { term: 'Headquarters', detail: formatAddress() },
     { term: 'Business model', detail: 'OEM/ODM private label manufacturing' },
     {

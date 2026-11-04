@@ -2,6 +2,7 @@ import {
   CERTIFICATION_LINES,
   CERTIFICATION_PROMISE,
   FACTS,
+  RELATIONSHIP,
   LEAD_TIME,
   PAYMENT_TERMS,
   SHIPS_TO,
@@ -196,7 +197,7 @@ const QUALITY: FaqTopic = {
       answer:
         'Sedex runs a platform where suppliers share information about working conditions with their customers. SMETA is Sedex’s social audit: an auditor visits a site and checks labor, health and safety, environment and business ethics.',
       detail:
-        'DURUS INDUSTRIES, the separate family company whose site we produce at, is SEDEX-registered and SMETA-audited. RUN APPAREL holds no audit in its own name. SMETA is an audit, not a certificate.',
+        'Our sister company, DURUS INDUSTRIES, is SEDEX-registered and SMETA-audited, and we make our clothes in its buildings. RUN APPAREL holds no audit in its own name. SMETA is an audit, not a certificate.',
       source: 'sedex.com (read 2026-10-07) + CERTIFICATION_LINES',
     },
     {
@@ -412,10 +413,18 @@ const WORKING: FaqTopic = {
   path: '/faq/working-with-us',
   title: 'FAQ: Working with Us',
   description:
-    'How working with RUN APPAREL goes: the order steps, who owns your artwork, how designs are protected, factory visits, NDAs and order problems.',
+    'How working with RUN APPAREL goes: our sister company DURUS INDUSTRIES, the order steps, who owns your artwork, factory visits, NDAs and order problems.',
   heading: 'Working',
   headingAccent: 'with us.',
   entries: [
+    {
+      // Owner, 2026-11-04: say plainly how the two companies relate, for buyers and answer engines
+      // alike. The answer is `RELATIONSHIP`, word for word, so the site says it one way.
+      id: 'durus-industries',
+      question: 'Is RUN APPAREL part of DURUS INDUSTRIES?',
+      answer: `No. ${RELATIONSHIP}`,
+      source: 'RELATIONSHIP, word for word (owner, 2026-11-04)',
+    },
     {
       id: 'order-steps',
       question: 'How does an order work, step by step?',

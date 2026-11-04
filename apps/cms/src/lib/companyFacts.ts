@@ -86,9 +86,9 @@ export const SHIPS_TO = 'Worldwide, wherever your team is.'
  * use GOTS Signs or make any claims referring to GOTS". `companyFacts.test.ts` refuses all three.
  */
 export const CERTIFICATION =
-  'RUN APPAREL holds no certificates or audits in its own name. We produce at the site of ' +
-  'DURUS INDUSTRIES, a separate company owned by members of the same family, which is ' +
-  'SEDEX-registered and SMETA-audited. Our fabric and trim suppliers hold ISO 9001, OEKO-TEX ' +
+  'RUN APPAREL holds no certificates or audits in its own name. Our sister company, DURUS ' +
+  'INDUSTRIES, is SEDEX-registered and SMETA-audited, and we make our clothes in its buildings. ' +
+  'Our fabric and trim suppliers hold ISO 9001, OEKO-TEX ' +
   'and GRS certifications, as well as amfori BSCI audits. Both companies are registered with ' +
   'the Securities and Exchange Commission of Pakistan (SECP). We are fully prepared to pursue ' +
   'any program-specific certifications required for your needs.'
@@ -103,7 +103,7 @@ export const CERTIFICATION =
  * paragraph: a mark or a holder the paragraph does not name fails it.
  */
 export const CERTIFICATION_LINES = [
-  'DURUS INDUSTRIES, a separate family company whose site we produce at: SEDEX-registered and SMETA-audited.',
+  'Our sister company, DURUS INDUSTRIES, whose buildings we make our clothes in: SEDEX-registered and SMETA-audited.',
   'Our fabric and trim suppliers: ISO 9001, OEKO-TEX and GRS certifications, and amfori BSCI audits.',
   'Both companies are registered with the Securities and Exchange Commission of Pakistan (SECP).',
 ] as const
@@ -146,16 +146,19 @@ export const LEAD_TIME =
 export const SITE_COMPANY = 'DURUS INDUSTRIES'
 
 /**
- * How the two companies relate, in ONE sentence every page, profile and answer engine copies
- * (legal review of 2026-11-04, its option A; owner's go-ahead that day). True on the owner's facts
- * of that day: two separate companies, one site, and production split — some steps by DURUS
- * INDUSTRIES, some by RUN's own team. Add "under a written production agreement" only once the
- * owner confirms one is signed.
+ * How the two companies relate, in words a 10-year-old can follow, which every page, profile and
+ * answer engine copies. The owner chose "sister company" and less detail (2026-11-04, question
+ * tool). True on the owner's facts of that day: two separate companies of one family, and RUN makes
+ * its clothes in the DURUS INDUSTRIES buildings. "Sister company" has no meaning in the Companies
+ * Act 2017; the legal review of that day flagged that a buyer may read it as "same owner", which is
+ * why the second and third sentences stay.
+ *
+ * Flesch–Kincaid grade 4.0 (`readingLevel.ts`) with each company's name counted as one word, 6.1
+ * without; the sentence it replaced scored 14.7. `companyRelationship.test.ts` holds it at 5.
  */
 export const RELATIONSHIP =
-  'RUN APPAREL (PRIVATE) LIMITED is a separate company owned by members of the family behind ' +
-  'DURUS INDUSTRIES. We produce at the DURUS INDUSTRIES site in Sialkot, where some steps are ' +
-  'carried out by DURUS INDUSTRIES and some by our own team.'
+  'RUN APPAREL and DURUS INDUSTRIES are sister companies. The same family is behind both. ' +
+  'Each one is its own company. We make our clothes in the DURUS INDUSTRIES buildings in Sialkot.'
 
 /**
  * What the company is, in the phrase every profile opens with (owner, 2026-10-11, question tool:

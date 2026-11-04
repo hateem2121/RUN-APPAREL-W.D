@@ -97,7 +97,7 @@ const SITE_CHECK = '2026-10-26T16:22:42+05:00'
  * named as a separate family company, never a parent; RUN never a division; no GOTS claim; 1889
  * labelled the family's. `companyRelationship.test.ts` holds the words.
  */
-const LEGAL_FRAMING = '2026-11-04T21:14:51+05:00'
+const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
 /** The guide's line on sports accessories: the first has its own 3D page (2026-10-31). */
 const KAIZEN = '2026-10-31T22:30:00+05:00'
 /*
@@ -106,7 +106,7 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
  * fails again if the words move without this moving.
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
-  '/about': 'a219ec7d738e',
+  '/about': '4ad00a8234d6',
   '/inside-the-factory': '6f25fe7879f1',
 } as const
 
@@ -158,7 +158,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.hateem,
     NEW_GUIDES,
     LEGAL_FRAMING,
-    '0bffd9ce5432',
+    '376249ef196b',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),

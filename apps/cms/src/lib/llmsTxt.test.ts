@@ -47,13 +47,13 @@ describe('every confirmed fact reaches the file', () => {
     // and GRS — and since 2026-11-04 (legal review) never as RUN's parent, and with no GOTS.
     expect(text).toContain('RUN APPAREL holds no certificates or audits in its own name.')
     expect(text).toContain(
-      'DURUS INDUSTRIES, a separate company owned by members of the same family',
+      'Our sister company, DURUS INDUSTRIES, is SEDEX-registered and SMETA-audited',
     )
     expect(text).toContain('SMETA-audited')
     // Owner, 2026-09-29 (corrected the same evening): ISO 9001 and amfori BSCI are the
     // SUPPLIERS', not DURUS's; both companies are registered with the SECP (a regulator, so
     // named, never a logo).
-    expect(text).toContain('same family, which is SEDEX-registered and SMETA-audited.')
+    expect(text).toContain('RUN APPAREL and DURUS INDUSTRIES are sister companies.')
     expect(text).toContain('Our fabric and trim suppliers hold ISO 9001, OEKO-TEX and GRS')
     expect(text).not.toMatch(/DURUS[^.]*ISO 9001/)
     expect(text).toContain('as well as amfori BSCI audits')
