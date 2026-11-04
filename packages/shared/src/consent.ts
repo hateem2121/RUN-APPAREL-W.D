@@ -194,10 +194,10 @@ interface TrackerScript {
  */
 type PendingTrackers = [string, Record<string, string>][]
 
-/** The longest the trackers wait for an idle moment before starting anyway. */
+/** The longest each tracker waits for an idle moment before starting anyway. */
 export const TRACKERS_IDLE_TIMEOUT_MS = 2000
-/** Where `requestIdleCallback` is missing, a plain timer: no idle signal, so a shorter wait. */
-export const TRACKERS_FALLBACK_DELAY_MS = 1000
+/** How long after Accept the first tracker may start: past a visitor's first taps (`startTrackers`). */
+export const TRACKERS_DELAY_MS = 3000
 
 /** The part of `window` the trackers touch. */
 export interface TrackerWindow {
@@ -309,33 +309,47 @@ export function posthogConfig(hostname: string | undefined): Record<string, unkn
 export function startTrackers(win: TrackerWindow): void {
   if (win.runTrackersStarted || win.runTrackersPending) return
 
-  // ⚠️ NO CANCEL CALL, ON PURPOSE (4 Nov 2026). The queue is this wait's identity: a Decline
-  // deletes it, so the callback that still fires later finds another queue, or none, and does
-  // nothing. Handles and cancelIdleCallback/clearTimeout put the viewer's scripts 103 bytes
-  // (gzip) over their budget in CI.
+  // ⚠️ 3 SECONDS, THEN ONE TRACKER PER QUIET MOMENT (4 Nov 2026). Waiting only for the first idle
+  // moment (#312) moved nothing: the page is quiet 0.1-0.2 s after the tap, and each tracker's
+  // start-up is its own work wherever it lands. Measured live that day (Chromium, CPU x4, beacons
+  // blocked): Google's tag 135-152 ms busy, PostHog 134-137 ms, Apollo none, and with all three at
+  // once /products was busy 370-470 ms in the 8 s after Accept. So the first starts 3 s after Accept
+  // and each of the others in a later idle moment, which keeps every one in a task of its own,
+  // as web.dev's "Optimize long tasks" (updated 19 Dec 2024) asks: split the work, yield between.
+  // Google goes first, so a visit is counted soonest. A visitor who leaves inside 3 s of Accept is
+  // not counted; that is the price.
+  // ⚠️ NO CANCEL CALL, ON PURPOSE. The queue is the whole sequence's identity: a Decline deletes
+  // it, so every step still waiting finds another queue, or none, and does nothing. Handles and
+  // cancelIdleCallback/clearTimeout put the viewer's scripts 103 B (gzip) over budget in CI.
   const pending: PendingTrackers = []
-  const go = () => {
-    if (win.runTrackersPending !== pending) return
-    delete win.runTrackersPending
-    runTrackers(win)
-    for (const [name, params] of pending) trackerEvent(win, name, params)
-  }
   win.runTrackersPending = pending
-  if (win.requestIdleCallback) win.requestIdleCallback(go, { timeout: TRACKERS_IDLE_TIMEOUT_MS })
-  else if (win.setTimeout) win.setTimeout(go, TRACKERS_FALLBACK_DELAY_MS)
-  // Nothing to wait with (a test window): start now.
-  else go()
+  const steps = [startGoogle, startApollo, startPostHog]
+  const next = (i: number) => {
+    const run = () => {
+      if (win.runTrackersPending !== pending) return
+      steps[i]?.(win, pending)
+      if (i < steps.length - 1) next(i + 1)
+      else delete win.runTrackersPending
+    }
+    if (win.requestIdleCallback) win.requestIdleCallback(run, { timeout: TRACKERS_IDLE_TIMEOUT_MS })
+    else if (win.setTimeout) win.setTimeout(run, 0)
+    // Nothing to wait with (a test window): start now.
+    else run()
+  }
+  if (win.setTimeout) win.setTimeout(() => next(0), TRACKERS_DELAY_MS)
+  else next(0)
 }
 
 /**
- * Stop trackers that were accepted but have not started yet. A Decline in the first moments
- * after Accept lands here: nothing was loaded, so nothing needs undoing and no reload.
+ * Stop trackers that were accepted but have not all started yet. A Decline before the first has
+ * started loaded nothing, so nothing needs undoing and no reload; after it, the rest never load.
  */
 export function cancelTrackers(win: TrackerWindow): void {
   delete win.runTrackersPending
 }
 
-function runTrackers(win: TrackerWindow): void {
+/** Google's tag, then the taps queued while it waited, in the order they were made. */
+function startGoogle(win: TrackerWindow, pending: PendingTrackers): void {
   win.runTrackersStarted = true
 
   const gtag = gtagOn(win)
@@ -357,13 +371,18 @@ function runTrackers(win: TrackerWindow): void {
   if (win.location?.hostname === LIVE_HOSTNAME) gtag('config', GA_MEASUREMENT_ID)
   else gtag('config', GA_MEASUREMENT_ID, { traffic_type: 'internal' })
   loadScript(win, `${GA_SCRIPT}?id=${GA_MEASUREMENT_ID}`)
+  for (const [name, params] of pending.splice(0)) gtag('event', name, params)
+}
 
+function startApollo(win: TrackerWindow): void {
   // Apollo's own snippet adds a random `nocache` value; kept, so its script is never stale.
   const nocache = Math.random().toString(36).substring(7)
   loadScript(win, `${APOLLO_SCRIPT}?nocache=${nocache}`, () => {
     win.trackingFunctions?.onLoad({ appId: APOLLO_APP_ID })
   })
+}
 
+function startPostHog(win: TrackerWindow): void {
   /*
    * PostHog's snippet, minus everything this site does not use. Its script reads
    * `window.posthog._i`, a list of `[token, config, name]`, and starts each one; the rest of
@@ -390,12 +409,9 @@ export function trackerEvent(
   name: string,
   params: Record<string, string> = {},
 ): void {
-  if (win.runTrackersPending) {
-    win.runTrackersPending.push([name, params])
-    return
-  }
-  if (!win.runTrackersStarted) return
-  gtagOn(win)('event', name, params)
+  // Before Google's tag has started a tap waits in the queue; once it has, it goes straight in.
+  if (!win.runTrackersStarted) win.runTrackersPending?.push([name, params])
+  else gtagOn(win)('event', name, params)
 }
 
 /** How `forgetTrackers` reaches cookies, so it can be tested without a browser. */
