@@ -217,12 +217,22 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   CI read the branch 1.4 KB over the old budget (464.3 KB, run 40383159564), so main's CI
  *   headroom carries over unchanged. Nothing else rode in: the report-only CIEDE2000 code is
  *   absent from the app files and OKLab's conversion appears once. First paint not re-measured.
+ *   ⚠️ 2026-11-04, visitor counting starts when the page is quiet (#312; the owner chose a 300 B
+ *   raise over dropping the timer fallback or the taps made while waiting). The three trackers
+ *   now start at the browser's first idle moment after Accept (2 s at most), which removed 152 ms
+ *   (home) and 401 ms (/products) of busy time measured live on 3 Nov after the tap. Built from
+ *   main (b1f77fcf) and from this branch, gzip level 9, on this Mac:
+ *       script     index-*.js  38,020 -> 38,165 B  (+145, after trimming the first draft's +209:
+ *                  no cancel handles, the event queue is the wait's identity)
+ *       script total  +145 B gzip                         budget 480,200 -> 480,500
+ *   CI read the first draft 103 B over (469.0 KB, run 41786277471), so main had about 100 B left
+ *   in CI; 300 B covers this growth and CI measuring larger than this Mac.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
-  script: { bytes: 480_200, note: 'app chunks + the meshopt decoder every model needs' },
+  script: { bytes: 480_500, note: 'app chunks + the meshopt decoder every model needs' },
   decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
   wasm: {
     bytes: 20_000,
