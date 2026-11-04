@@ -98,6 +98,8 @@ const SITE_CHECK = '2026-10-26T16:22:42+05:00'
  * labelled the family's. `companyRelationship.test.ts` holds the words.
  */
 const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
+/** The factory page's quality stage names the garment wash tests (2026-11-05, owner's own tests). */
+const WASH_TESTS = '2026-11-05T00:09:00+05:00'
 /** The guide's line on sports accessories: the first has its own 3D page (2026-10-31). */
 const KAIZEN = '2026-10-31T22:30:00+05:00'
 /*
@@ -107,7 +109,7 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
   '/about': '4ad00a8234d6',
-  '/inside-the-factory': '6f25fe7879f1',
+  '/inside-the-factory': '6933686bef5e',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
@@ -184,7 +186,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    SITE_CHECK,
+    WASH_TESTS,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }
