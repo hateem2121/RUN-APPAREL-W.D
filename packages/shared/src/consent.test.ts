@@ -684,10 +684,6 @@ describe('starting the trackers when the browser is idle', () => {
       timers.set(handle, setTimeout(run, options?.timeout ?? 0))
       return handle
     }
-    win.cancelIdleCallback = (handle) => {
-      queue.delete(handle)
-      clearTimeout(timers.get(handle))
-    }
     const goIdle = () => {
       for (const [handle, cb] of [...queue]) {
         queue.delete(handle)
@@ -732,7 +728,6 @@ describe('starting the trackers when the browser is idle', () => {
   it('a browser without requestIdleCallback starts from a plain timer', () => {
     const { win, scripts } = fakeWindow()
     win.setTimeout = (callback, ms) => setTimeout(callback, ms) as unknown as number
-    win.clearTimeout = (handle) => clearTimeout(handle)
     startTrackers(win)
     expect(scripts).toHaveLength(0)
     vi.advanceTimersByTime(TRACKERS_FALLBACK_DELAY_MS)
@@ -764,7 +759,8 @@ describe('starting the trackers when the browser is idle', () => {
     acceptTrackers(win, storage)
     expect(waiting()).toBe(1)
     expect(declineTrackers(win, storage, jar)).toBe(false)
-    expect(waiting()).toBe(0)
+    // The callback is NOT cancelled: it still fires here, finds its queue gone, and does nothing.
+    expect(waiting()).toBe(1)
     goIdle()
     vi.advanceTimersByTime(TRACKERS_IDLE_TIMEOUT_MS * 2)
     expect(scripts).toHaveLength(0)
@@ -776,7 +772,6 @@ describe('starting the trackers when the browser is idle', () => {
   it('Decline before the timer fires cancels the fallback too', () => {
     const { win, scripts } = fakeWindow()
     win.setTimeout = (callback, ms) => setTimeout(callback, ms) as unknown as number
-    win.clearTimeout = (handle) => clearTimeout(handle)
     const storage = fakeStorage()
     acceptTrackers(win, storage)
     expect(declineTrackers(win, storage, jar)).toBe(false)

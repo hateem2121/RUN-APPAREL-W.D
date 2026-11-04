@@ -188,12 +188,11 @@ interface TrackerScript {
   onload: (() => void) | null
 }
 
-/** What waits between Accept and the browser's first idle moment. */
-interface PendingTrackers {
-  cancel(): void
-  /** Named events asked for meanwhile; sent after the tag starts, never before its consent default. */
-  events: [string, Record<string, string>][]
-}
+/**
+ * Named events asked for between Accept and the trackers' start: sent after the tag starts,
+ * never before its consent default. The queue is also the wait's identity (`startTrackers`).
+ */
+type PendingTrackers = [string, Record<string, string>][]
 
 /** The longest the trackers wait for an idle moment before starting anyway. */
 export const TRACKERS_IDLE_TIMEOUT_MS = 2000
@@ -209,11 +208,9 @@ export interface TrackerWindow {
   runTrackersStarted?: boolean
   /** Set while the trackers wait for an idle moment; `cancelTrackers` clears it. */
   runTrackersPending?: PendingTrackers
-  /** Absent in old browsers (Safari before 2026) and in a test that does not care. */
+  /** Absent in some browsers, and in a test that does not care. */
   requestIdleCallback?(callback: () => void, options?: { timeout: number }): number
-  cancelIdleCallback?(handle: number): void
   setTimeout?(callback: () => void, ms: number): number
-  clearTimeout?(handle: number): void
   document: {
     createElement(tag: 'script'): TrackerScript
     head: { appendChild(node: TrackerScript): unknown }
@@ -312,28 +309,22 @@ export function posthogConfig(hostname: string | undefined): Record<string, unkn
 export function startTrackers(win: TrackerWindow): void {
   if (win.runTrackersStarted || win.runTrackersPending) return
 
-  const idle = win.requestIdleCallback
-  const timer = win.setTimeout
-  if (!idle && !timer) {
-    // Nothing to wait with (a test window): start now.
-    runTrackers(win)
-    return
-  }
-  const pending: PendingTrackers = { cancel: () => {}, events: [] }
+  // ⚠️ NO CANCEL CALL, ON PURPOSE (4 Nov 2026). The queue is this wait's identity: a Decline
+  // deletes it, so the callback that still fires later finds another queue, or none, and does
+  // nothing. Handles and cancelIdleCallback/clearTimeout put the viewer's scripts 103 bytes
+  // (gzip) over their budget in CI.
+  const pending: PendingTrackers = []
   const go = () => {
     if (win.runTrackersPending !== pending) return
     delete win.runTrackersPending
     runTrackers(win)
-    for (const [name, params] of pending.events) trackerEvent(win, name, params)
-  }
-  if (idle) {
-    const handle = idle.call(win, go, { timeout: TRACKERS_IDLE_TIMEOUT_MS })
-    pending.cancel = () => win.cancelIdleCallback?.(handle)
-  } else if (timer) {
-    const handle = timer.call(win, go, TRACKERS_FALLBACK_DELAY_MS)
-    pending.cancel = () => win.clearTimeout?.(handle)
+    for (const [name, params] of pending) trackerEvent(win, name, params)
   }
   win.runTrackersPending = pending
+  if (win.requestIdleCallback) win.requestIdleCallback(go, { timeout: TRACKERS_IDLE_TIMEOUT_MS })
+  else if (win.setTimeout) win.setTimeout(go, TRACKERS_FALLBACK_DELAY_MS)
+  // Nothing to wait with (a test window): start now.
+  else go()
 }
 
 /**
@@ -341,10 +332,7 @@ export function startTrackers(win: TrackerWindow): void {
  * after Accept lands here: nothing was loaded, so nothing needs undoing and no reload.
  */
 export function cancelTrackers(win: TrackerWindow): void {
-  const pending = win.runTrackersPending
-  if (!pending) return
   delete win.runTrackersPending
-  pending.cancel()
 }
 
 function runTrackers(win: TrackerWindow): void {
@@ -403,7 +391,7 @@ export function trackerEvent(
   params: Record<string, string> = {},
 ): void {
   if (win.runTrackersPending) {
-    win.runTrackersPending.events.push([name, params])
+    win.runTrackersPending.push([name, params])
     return
   }
   if (!win.runTrackersStarted) return
