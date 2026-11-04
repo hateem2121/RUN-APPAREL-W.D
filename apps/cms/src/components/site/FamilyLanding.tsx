@@ -1,6 +1,7 @@
 import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import { IntentLink as Link } from './IntentLink'
 import type { ProductCard, PublicSiteSettings } from '../../lib/content'
+import { FACTORY_PAGE } from '../../lib/aboutPages'
 import { FAMILIES, familyPictures } from '../../lib/families'
 import {
   FAMILY_PAGE_ACTION,
@@ -198,6 +199,11 @@ export function FamilyLanding({
                     <p className="see-also__why">{guide.description}</p>
                   </li>
                 ))}
+              {/* How every order is checked: the factory page, with its own approved description. */}
+              <li>
+                <Link href={FACTORY_PAGE.path}>{FACTORY_PAGE.title}</Link>
+                <p className="see-also__why">{FACTORY_PAGE.description}</p>
+              </li>
             </ul>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { FACTORY_PAGE } from '../src/lib/aboutPages'
 import { FAMILIES } from '../src/lib/families'
 import { FAMILY_PAGES, familyHref } from '../src/lib/familyPages'
 import { expect, type Page, test } from './offlineMedia'
@@ -219,6 +220,10 @@ test.describe('a buyer page is its family’s list, and copies nothing (polish S
         exact: true,
       })
       await expect(guide).toHaveAttribute('href', '/guides/how-a-private-label-order-works')
+      // The factory page, where every order's checks are told, by its own approved title (2026-11-05).
+      await expect(
+        browser.getByRole('link', { name: FACTORY_PAGE.title, exact: true }),
+      ).toHaveAttribute('href', FACTORY_PAGE.path)
       // It sends nobody to a filter address, its own or another family's.
       await expect(browser.locator('a[href*="family="]')).toHaveCount(0)
       // The other ranges it names lead to their own lists.

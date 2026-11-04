@@ -77,15 +77,21 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
 /** The accessory pages say products, and the ball page leads with a logo (2026-11-01). */
 const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
+/**
+ * Every buyer page links to the factory page, "Inside the factory", under "How an order works"
+ * (2026-11-05, the order-checks change; the branch's time, a little before the pages change live).
+ */
+const FACTORY_LINK = '2026-11-05T00:09:00+05:00'
+
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(LEGAL_FRAMING, 'cf1148e20f75'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
-  '/custom-teamwear-manufacturer': page(MAKES_LINKS, '15dc346441b8'),
-  '/custom-activewear-manufacturer': page(MAKES_LINKS, '698eb59f3b36'),
-  '/custom-outerwear-manufacturer': page(MAKES_LINKS, '7cae3607c1da'),
-  '/custom-sports-accessories-manufacturer': page(ACCESSORY_WORDS, 'f4bd524e4701'),
-  '/custom-soccer-ball-manufacturer': page(ACCESSORY_WORDS, '1fa9ca7abf31'),
-  '/private-label-casual-wear-manufacturer': page(MAKES_LINKS, 'de93b5cf2716'),
+  '/custom-teamwear-manufacturer': page(FACTORY_LINK, '426bc8a7d7b7'),
+  '/custom-activewear-manufacturer': page(FACTORY_LINK, '8f4aa178f931'),
+  '/custom-outerwear-manufacturer': page(FACTORY_LINK, 'ddc4a254eb48'),
+  '/custom-sports-accessories-manufacturer': page(FACTORY_LINK, '7b8219dab97a'),
+  '/custom-soccer-ball-manufacturer': page(FACTORY_LINK, '477eba48b4ab'),
+  '/private-label-casual-wear-manufacturer': page(FACTORY_LINK, 'f32346f82c55'),
   '/guides': page(SITE_CHECK, 'bc271cb03a6b'),
   '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
