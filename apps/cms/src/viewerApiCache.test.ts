@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { isValidSlug } from '@run-apparel/shared'
 import type { PayloadRequest } from 'payload'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,6 +22,7 @@ import {
   keptApiHeaders,
   serveViewerApi,
   servedApiHeaders,
+  VIEWER_DATA_SHAPE,
   answerWarmRequest,
   warmGarmentTarget,
   withViewerCors,
@@ -207,12 +211,13 @@ describe('which requests the garment-data cache may answer', () => {
 })
 
 describe('the store key', () => {
-  it('is the shared key: the API host, the deploy and the address, not the content version', async () => {
+  it('is the shared key: the API host, the data shape and the address, not the deploy', async () => {
     const { ask, store } = setup()
     await ask()
     const [, init] = store.fetch.mock.calls[0] as [Request, { cf: { cacheKey: string } }]
-    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, 'deploy-1', 'live'))
+    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, VIEWER_DATA_SHAPE, 'live'))
     expect(init.cf.cacheKey).toContain(API_HOST)
+    expect(init.cf.cacheKey).not.toContain('deploy-1')
   })
 
   it('switched to "versioned", names the content version again', async () => {
@@ -220,7 +225,67 @@ describe('the store key', () => {
     switchTo('versioned')
     await ask()
     const [, init] = store.fetch.mock.calls[0] as [Request, { cf: { cacheKey: string } }]
-    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, 'deploy-1', 'v1'))
+    expect(init.cf.cacheKey).toBe(sharedCacheKey(`${API}/rxps/wine`, VIEWER_DATA_SHAPE, 'v1'))
+  })
+})
+
+/*
+ * THE DATA'S SHAPE, FINGERPRINTED (4 Nov 2026). Garment-data copies outlive deploys
+ * (`cross_version_cache`, wrangler.jsonc), so the key must change whenever the code that shapes the
+ * answer changes, or a new deploy would serve an old shape. What would have to break: a change to
+ * one of these files, or to the Payload packages that render rich text, deployed with the key it
+ * replaced. This recomputes the fingerprint from the files themselves; a mismatch names the value.
+ */
+const SHAPE_SOURCES = [
+  'src/endpoints/publicViewer.ts',
+  'src/endpoints/projectViewer.ts',
+  'src/endpoints/relatedGarments.ts',
+  'src/lib/colourwayAccess.ts',
+  'src/lib/projectPublic.ts',
+  'src/lib/families.ts',
+  'src/lib/siteMedia.ts',
+  '../../packages/shared/src/types.ts',
+]
+const SHAPE_PACKAGES = ['payload', '@payloadcms/richtext-lexical']
+const cmsRoot = join(import.meta.dirname, '..')
+
+function shapeFingerprint(read: (file: string) => string, versions: Record<string, string>) {
+  const hash = createHash('sha256')
+  for (const file of SHAPE_SOURCES) hash.update(`${file}\0${read(file)}\0`)
+  for (const name of SHAPE_PACKAGES) hash.update(`${name}@${versions[name] ?? 'missing'}\0`)
+  return `shape-${hash.digest('hex').slice(0, 16)}`
+}
+
+describe("the garment data's shape version", () => {
+  const read = (file: string) => readFileSync(join(cmsRoot, file), 'utf8')
+  const pkg = JSON.parse(read('package.json')) as {
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+  }
+  const versions = { ...pkg.devDependencies, ...pkg.dependencies }
+
+  it('names every file the endpoint builds its answer from, and each exists', () => {
+    for (const file of SHAPE_SOURCES) expect(() => read(file), file).not.toThrow()
+    for (const name of SHAPE_PACKAGES) expect(versions[name], name).toBeTruthy()
+  })
+
+  it('equals the fingerprint of those files and packages today', () => {
+    const expected = shapeFingerprint(read, versions)
+    expect(
+      VIEWER_DATA_SHAPE,
+      `The code that shapes the garment data changed: set VIEWER_DATA_SHAPE in viewerApiCache.mjs to '${expected}'`,
+    ).toBe(expected)
+  })
+
+  it('NEGATIVE CONTROL: a one-character change to a file, or a package bump, changes it', () => {
+    const base = shapeFingerprint(read, versions)
+    const edited = shapeFingerprint(
+      (file) => read(file) + (file.endsWith('projectViewer.ts') ? ' ' : ''),
+      versions,
+    )
+    const bumped = shapeFingerprint(read, { ...versions, payload: '9.9.9' })
+    expect(edited).not.toBe(base)
+    expect(bumped).not.toBe(base)
   })
 })
 

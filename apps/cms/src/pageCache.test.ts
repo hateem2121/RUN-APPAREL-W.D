@@ -625,9 +625,19 @@ describe('what the cache relies on', () => {
     expect(wrangler.exports?.SitePages).toEqual({ type: 'worker', cache: { enabled: true } })
   })
 
-  // A page drawn by the last deploy names script files the new deploy no longer has.
-  it('never serves one deploy’s copies to another', () => {
-    expect(wrangler.cache?.cross_version_cache ?? false).toBe(false)
+  // A page drawn by the last deploy names script files the new deploy no longer has. Since
+  // 4 Nov 2026 `cross_version_cache` is on (so the garment data, keyed by its shape, survives a
+  // deploy), and what keeps a page or tap inside its own deploy is our key, which names it.
+  it('never serves one deploy’s page or tap to another: every page and tap key names the deploy', async () => {
+    expect(wrangler.cache?.cross_version_cache).toBe(true)
+    const kv = { get: async () => null }
+    expect(await keptStoreKey('https://wear-run.com/about', 'deploy-A', kv)).not.toBe(
+      await keptStoreKey('https://wear-run.com/about', 'deploy-B', kv),
+    )
+    // worker.mjs builds every page and tap key from the deploy id, never from anything else.
+    const pageAndTapKeys = [...worker.matchAll(/kept(?:Tap)?StoreKey\(([^)]*)\)/g)].map((m) => m[1])
+    expect(pageAndTapKeys.length).toBeGreaterThanOrEqual(2)
+    for (const args of pageAndTapKeys) expect(args).toMatch(/,\s*deploy,/)
   })
 
   const worker = readFileSync(join(import.meta.dirname, '..', 'worker.mjs'), 'utf8')
