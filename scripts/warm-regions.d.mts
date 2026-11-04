@@ -74,3 +74,16 @@ export declare function regionVerdict(
     }[]
   }[],
 ): Record<string, { hit: number; miss: number; other: number }>
+/** The website build a page answer was kept under, from its Server-Timing, or null. */
+export declare function siteBuildOf(serverTiming: string | null | undefined): string | null
+/** The live home page's site build, or null. */
+export declare function liveSiteBuild(
+  origin: string,
+  fetchImpl?: typeof fetch,
+): Promise<string | null>
+/** Every target unless the build is known and unchanged; then only the garments' data. */
+export declare function stillCold<Target extends { url: string }>(
+  targets: Target[],
+  before: string | null,
+  now: string | null,
+): Target[]
