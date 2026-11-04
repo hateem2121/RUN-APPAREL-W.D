@@ -128,9 +128,11 @@ test.describe('the Working block fits the screen', () => {
 })
 
 /**
- * The fixture's posters are opaque, so the seam correctly draws nothing on them, and a suite using
- * only those could never see it work. Production's are transparent (rxps-wine-poster.webp: 56% clear,
- * read 31 Oct 2026), so this serves a transparent one. Run both ways.
+ * A known shape, so the seam's pixels can be counted against it: a transparent tee and, for the
+ * control, an opaque card. Production's posters are transparent (rxps-wine-poster.webp: 56% clear,
+ * read 31 Oct 2026), and so are the fixture's own: all five `n001-*-poster.webp` in
+ * tools/asset-pipeline/output/placeholders are 82.1% clear (measured 4 Nov 2026), so the seam
+ * draws on every fixture page too (placeholder-webgl.spec.ts waits for it). Run both ways.
  */
 const TEE =
   '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><path d="M120 60 L280 60 L380 160 L320 220 L300 200 L300 460 L100 460 L100 200 L80 220 L20 160 Z" fill="#825353"/></svg>'
