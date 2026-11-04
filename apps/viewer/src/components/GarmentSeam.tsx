@@ -23,9 +23,9 @@ const ALLOWANCE = 5
  * the photo stays painted under it, so it remains the page's largest paint. If the picture cannot be
  * read (no CORS, no transparency, no dye) this draws nothing and the photo shows, as it did before.
  *
- * ⚠️ ITS OWN COPY OF THE PICTURE, WITH crossOrigin. Putting crossOrigin on the page's main image would
- * make the garment's first picture depend on the media host's CORS answer; this way a wrong answer
- * costs only the decoration.
+ * ⚠️ THE SAME DOWNLOAD AS THE PAGE'S PICTURE (3 Nov 2026). The stage's poster loads `seamPictureUrl`
+ * with crossOrigin too, so this Image is answered from the browser's cache. `seamPictureUrl` has the
+ * measurement and the trade (a wrong CORS answer now hides the photo as well as the seam).
  */
 export function GarmentSeam({ url, hex, fraction, done, reduceMotion }: GarmentSeamProps) {
   const ref = useRef<HTMLCanvasElement>(null)

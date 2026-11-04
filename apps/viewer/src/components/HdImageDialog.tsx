@@ -1,6 +1,7 @@
 import { Dialog } from '@base-ui/react/dialog'
 import { containedBox, playDye, readDyeTiming, type ViewerColourway } from '@run-apparel/shared'
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { posterPicture } from '../lib/garmentContour'
 import { type Box, IDENTITY, panBy, toggleZoomAt, type View, zoomAt } from '../lib/zoomPan'
 // Loaded with this lazy chunk only — see the header of hd-image.css.
 import '../styles/hd-image.css'
@@ -423,7 +424,7 @@ export default function HdImageDialog({
                   {poster && (
                     <img
                       className="hd-image__poster"
-                      src={poster.url}
+                      {...posterPicture(poster.url)}
                       alt=""
                       aria-hidden="true"
                       draggable={false}

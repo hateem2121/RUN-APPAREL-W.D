@@ -160,6 +160,32 @@ test.describe('the seam round the garment', () => {
       .toBeGreaterThan(1000)
   })
 
+  /*
+   * ONE DOWNLOAD FOR THE PHOTO AND THE SEAM (3 Nov 2026). The photo asked for the plain address
+   * and the seam for `?seam=1`, so every poster came down twice: 243,042 bytes extra on the Kaizen
+   * ball, competing with the visible copy on a slow line. Counted by distinct address, because a
+   * second request for the SAME address is answered from the browser's cache. Run both ways: with
+   * the photo back on its plain `src`, this saw two addresses.
+   */
+  test('the photo and the seam share one download', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one engine: request counting is not engine-specific')
+    await page.route('**/fixtures/n001.glb*', () => {})
+    await page.route('**/*-poster.webp*', (route) =>
+      route.fulfill({ contentType: 'image/svg+xml', body: TEE }),
+    )
+    const addresses = new Set<string>()
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname.endsWith('-poster.webp')) addresses.add(request.url())
+    })
+    await page.goto('/n001/wine')
+    await expect(page.locator('.stage__seam')).toBeVisible({ timeout: 30_000 })
+    await expect
+      .poll(async () => (await seamPixels(page)).drawn, { timeout: 10_000 })
+      .toBeGreaterThan(1000)
+    await expect(page.locator('.stage__placeholder')).toHaveAttribute('crossorigin', 'anonymous')
+    expect([...addresses]).toHaveLength(1)
+  })
+
   test('control: an opaque picture draws nothing, and the photo stays', async ({
     page,
     browserName,
