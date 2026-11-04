@@ -45,10 +45,22 @@ test.describe('the colourway photo while the model downloads', () => {
     await expect(placeholder).toBeVisible({ timeout: 20_000 })
     await expect(readout).toBeVisible()
 
-    // Blurred by the bytes still to come: a positive radius, and the photo itself.
-    const blur = await placeholder.evaluate((el) => getComputedStyle(el).filter)
+    // Blurred by the bytes still to come: a positive radius, set on the photo itself.
+    //
+    // ⚠️ READ THE PHOTO'S OWN STYLE, THEN THE COMPUTED ONE ONCE THE SEAM HAS DRAWN (4 Nov 2026).
+    // Two features set this filter: Stage gives the photo `blur(Npx)` from the bytes still to
+    // come, and page.css drops it (`filter: none !important`) once the seam round the piece has
+    // drawn, because the blur showed as a halo (#298). This test read the COMPUTED filter at an
+    // arbitrary moment, so it raced the seam. It won while the seam fetched its own copy of the
+    // picture (seconds later on this throttle); since #311 the seam reads the same download from
+    // cache and draws as the photo lands, and `main`'s run 41793615919 read `none` twice. Proven
+    // by waiting for the seam first: the old assertion then failed with that same `none`.
+    const blur = await placeholder.evaluate((el) => (el as HTMLElement).style.filter)
     expect(blur).toMatch(/blur\((\d+(\.\d+)?)px\)/)
     expect(Number.parseFloat(blur.match(/blur\((\d+(\.\d+)?)px\)/)?.[1] ?? '0')).toBeGreaterThan(0)
+    // The fixture poster is 82% transparent, as production's are, so the seam does draw here.
+    await page.locator('.stage__seam[data-drawn]').waitFor({ state: 'attached', timeout: 20_000 })
+    expect(await placeholder.evaluate((el) => getComputedStyle(el).filter)).toBe('none')
     await expect(placeholder).toHaveAttribute('src', /n001-wine-poster\.webp\?seam=1$/)
     // CORS, so the seam reads this same download (garmentContour.ts, posterPicture).
     await expect(placeholder).toHaveAttribute('crossorigin', 'anonymous')
