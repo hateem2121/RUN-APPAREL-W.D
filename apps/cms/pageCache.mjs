@@ -30,9 +30,12 @@
  * redraw it on every visit (live: 217 URLs, `x-nextjs-cache: MISS`). An R2 incremental cache
  * would have served the build's copy and dropped all 200 garment pages from the sitemap.
  *
- * ⚠️ THE DEPLOY IS IN EVERY KEY, so an old copy becomes unreachable instead of being deleted:
- * the Worker's version (the CF_VERSION_METADATA binding). A deploy renames every script file,
- * so a page from the last build would ask for files that no longer exist.
+ * ⚠️ THE BUILD IS IN EVERY KEY, so an old copy becomes unreachable instead of being deleted. Until
+ * 4 Nov 2026 that was the Worker's version (the CF_VERSION_METADATA binding), because a page from
+ * another build would ask for script files that no longer exist; then every deploy retired every
+ * page, and 33 of 43 website pages were found cold after a deploy that changed only garment pages.
+ * Now it is the website build's fingerprint (keptBuild, siteBuild.mjs): the same exactly when the
+ * source and the built file names are the same, and the deploy again when there is none.
  *
  * ⚠️ A SAVE NO LONGER EMPTIES THE STORE (2026-10-25, owner's plan); IT MARKS THE COPIES OLD.
  * Until then every save of a product, a picture or the site settings wrote a new content
@@ -197,21 +200,53 @@ export function storeLookupRequest(request) {
 }
 
 /**
- * The key for this request in the shared store: the deploy, and the content version only when
- * the off switch says 'versioned' (see the note at the top). A switch that cannot be read is
- * left as it was set: on, the new behaviour.
+ * The KV key of the second off switch (site speed plan, 4 Nov 2026): 'per-deploy' keys pages and
+ * taps by the deploy again, as before SITE_BUILD, within VERSION_CACHE_SECONDS and with no deploy.
+ */
+export const STORE_BUILD_KEY = 'page-store-build'
+export const PER_DEPLOY = 'per-deploy'
+
+/** SITE_BUILD's only shape (siteBuild.mjs SITE_BUILD_PATTERN; src/siteBuild.test.ts pins the two). */
+export const SITE_BUILD_PATTERN = /^site-[0-9a-f]{20}\.[0-9a-f]{12}$/
+
+/**
+ * What a kept page or tap names in place of the deploy: the website build's fingerprint
+ * (siteBuild.mjs), handed over by the deploy as SITE_BUILD, so a deploy that did not change the
+ * website leaves every region's pages kept. Measured 4 Nov 2026: 33 of 43 website pages were cold
+ * 45 minutes after a deploy that changed only garment pages. Anything but a fingerprint (a local
+ * build, uncommitted code, the deploy script's `per-deploy`) falls back to the deploy, as before.
+ * Null when neither exists: nothing is kept.
+ *
+ * @param {{ SITE_BUILD?: unknown, CF_VERSION_METADATA?: { id?: string } } | undefined} env
+ */
+export function keptBuild(env) {
+  const build = env?.SITE_BUILD
+  if (typeof build === 'string' && SITE_BUILD_PATTERN.test(build)) return build
+  return env?.CF_VERSION_METADATA?.id ?? null
+}
+
+/**
+ * The key for this request in the shared store: the build (keptBuild), and the content version
+ * only when the off switch says 'versioned' (see the note at the top). A switch that cannot be
+ * read is left as it was set: on, the new behaviour. `deployId` is what the second switch
+ * (STORE_BUILD_KEY) puts back in place of the build.
  *
  * @param {string} url
- * @param {string} deployVersion
+ * @param {string} build
  * @param {{ get: (key: string, options: { cacheTtl: number }) => Promise<string | null> }} kv
+ * @param {string} [deployId]
  */
-export async function keptStoreKey(url, deployVersion, kv) {
-  const [mode, content] = await Promise.all([
+export async function keptStoreKey(url, build, kv, deployId) {
+  const [mode, content, keying] = await Promise.all([
     kv.get(STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null),
     kv.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }),
+    deployId
+      ? kv.get(STORE_BUILD_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null)
+      : null,
   ])
   const versioned = mode === VERSIONED_MODE
-  return sharedCacheKey(url, deployVersion, versioned ? (content ?? 'none') : 'live')
+  const named = keying === PER_DEPLOY && deployId ? deployId : build
+  return sharedCacheKey(url, named, versioned ? (content ?? 'none') : 'live')
 }
 
 /**
@@ -394,9 +429,16 @@ export function servedHeaders(headers) {
   return out
 }
 
-/** For the browser's network panel: did this answer come from a kept copy? */
-export function pageCacheTiming(state) {
-  return `page-cache;desc="${state}"`
+/**
+ * For the browser's network panel: did this answer come from a kept copy, and which build is it
+ * kept under? The build is a hash of public source (siteBuild.mjs); the warm-up after a deploy
+ * reads it to skip warming pages that the deploy did not change (scripts/warm-regions.mjs).
+ */
+export function pageCacheTiming(state, build) {
+  const kept = `page-cache;desc="${state}"`
+  return typeof build === 'string' && SITE_BUILD_PATTERN.test(build)
+    ? `${kept}, site-build;desc="${build}"`
+    : kept
 }
 
 /**

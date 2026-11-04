@@ -19,6 +19,9 @@ declare global {
     // rewrites, and the deploy version, which together key every kept page.
     SITE_CACHE?: KVNamespace
     CF_VERSION_METADATA?: WorkerVersionMetadata
+    // The website build's fingerprint, which keys kept pages in place of the deploy (siteBuild.mjs;
+    // `--var` on the deploy, 2026-11-04). Absent or `per-deploy`: the deploy keys them, as before.
+    SITE_BUILD?: string
     CMS_PUBLIC_URL?: string
     PUBLIC_MEDIA_BASE_URL?: string
     VIEWER_ALLOWED_ORIGINS?: string

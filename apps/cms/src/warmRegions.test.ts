@@ -14,6 +14,8 @@ import {
   regionVerdict,
   regionWarmPlan,
   STORE_FIRST_BYTE_P75_MS,
+  siteBuildOf,
+  stillCold,
   WARM_BUDGET_MS,
   warmWithin,
 } from '../../../scripts/warm-regions.mjs'
@@ -68,21 +70,41 @@ describe('regionTargets', () => {
     }
   })
 
-  it("then the first garments' data in the order given, then the other top-level pages", async () => {
+  /*
+   * 4 Nov 2026: with nested pages left to the US warm-up, 33 of 43 website pages were cold from
+   * Lahore 45 minutes after a deploy, every guide, policy and FAQ page among them.
+   */
+  it("then the first garments' data in the order given, the other top-level pages, then every nested page", async () => {
     const targets = await regionTargets({ pages, garments }, ORIGIN)
     expect(targets.slice(15, 18).map((target) => target.url)).toEqual(garments)
     expect(targets.slice(18).map(pathOf)).toEqual([
       '/custom-teamwear-manufacturer',
       '/guides',
       '/press',
+      '/guides/how-a-private-label-order-works',
     ])
-    expect(targets.map(pathOf)).not.toContain('/guides/how-a-private-label-order-works')
     expect(targets.map(pathOf)).not.toContain('/llms.txt')
+  })
+
+  it('fits every website page of the live sitemap of 4 Nov (43 pages, 10 taps, 10 garments)', async () => {
+    const live = {
+      pages: [
+        ...pages.slice(0, 7),
+        ...Array.from({ length: 16 }, (_, i) => `${ORIGIN}/top-${i}`),
+        ...Array.from({ length: 20 }, (_, i) => `${ORIGIN}/guides/nested-${i}`),
+      ],
+      garments: Array.from({ length: 41 }, (_, i) => `${API}/r-${i}/wine`),
+    }
+    const targets = await regionTargets(live, ORIGIN)
+    expect(
+      targets.filter((target) => !target.headers.rsc && !target.url.startsWith(API)),
+    ).toHaveLength(43)
+    expect(targets.length).toBeLessThanOrEqual(REGION_TARGETS_MAX)
   })
 
   it(`asks for at most ${REGION_GARMENTS_MAX} garments, and never more than ${REGION_TARGETS_MAX} addresses`, async () => {
     const many = {
-      pages: Array.from({ length: 40 }, (_, i) => `${ORIGIN}/page-${i}`),
+      pages: Array.from({ length: 80 }, (_, i) => `${ORIGIN}/page-${i}`),
       garments: Array.from({ length: 41 }, (_, i) => `${API}/r-${i}/wine`),
     }
     const targets = await regionTargets(many, ORIGIN)
@@ -342,8 +364,9 @@ describe('readBackPlan', () => {
     expect(again.every((body) => body.locations === 'warm-id')).toBe(true)
   })
 
-  it('stays inside the free 250 tests an hour with the warm-up: 60 plus 30, one country, 2 probes', () => {
-    expect(REGION_TARGETS_MAX * 2 + READ_BACK_MAX * 2).toBe(90)
+  it('stays inside the free 250 tests an hour with the warm-up: 140 plus 30, one country, 2 probes', () => {
+    expect(REGION_TARGETS_MAX * 2 + READ_BACK_MAX * 2).toBe(170)
+    expect(REGION_TARGETS_MAX * 2 + READ_BACK_MAX * 2).toBeLessThan(250)
   })
 })
 
@@ -430,5 +453,37 @@ describe('warm-regions.countries.json', () => {
   it('names the buyer regions the owner chose: Pakistan', () => {
     const file = new URL('../../../scripts/warm-regions.countries.json', import.meta.url)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(['PK'])
+  })
+})
+
+/*
+ * A deploy that did not change the website build (apps/cms/siteBuild.mjs) leaves every region's
+ * pages kept, so warming them again would only spend Globalping's free hour (4 Nov 2026).
+ */
+describe('the skip when the website build is unchanged', () => {
+  const build = `site-${'0123456789abcdef0123'}.${'0123456789ab'}`
+  const targets = [
+    { url: `${ORIGIN}/`, headers: {} },
+    { url: `${ORIGIN}/about?_rsc=x`, headers: { rsc: '1' } },
+    { url: `${API}/rxps/wine`, headers: {} },
+  ]
+
+  it('reads the build off the page answer’s Server-Timing, and nothing else', () => {
+    expect(siteBuildOf(`page-cache;desc="hit", site-build;desc="${build}"`)).toBe(build)
+    expect(siteBuildOf('page-cache;desc="hit"')).toBeNull()
+    expect(siteBuildOf('site-build;desc="per-deploy"')).toBeNull()
+    expect(siteBuildOf(null)).toBeNull()
+  })
+
+  it('warms only the garments when the build is known and the same', () => {
+    expect(stillCold(targets, build, build).map(pathOf)).toEqual(['/api/public/viewer/rxps/wine'])
+  })
+
+  // NEGATIVE CONTROL: any doubt warms everything, as before.
+  it('warms everything when the build changed or either side is unknown', () => {
+    const other = build.replace('0123', 'ffff')
+    expect(stillCold(targets, build, other)).toEqual(targets)
+    expect(stillCold(targets, null, build)).toEqual(targets)
+    expect(stillCold(targets, build, null)).toEqual(targets)
   })
 })

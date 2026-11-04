@@ -30,8 +30,10 @@ import {
   KEPT_TAGS,
   keptHeaders,
   NEVER_KEPT_PATHS,
+  PER_DEPLOY,
   SIGNED_IN_OR_DRAFT,
   SITE_HOST,
+  STORE_BUILD_KEY,
   STORE_MODE_KEY,
   servedHeaders,
   VERSION_CACHE_SECONDS,
@@ -132,13 +134,18 @@ export async function tapDrawRequest(request, cf) {
 }
 
 /** The shared store's key for a drawing: like pageCache.mjs keptStoreKey, with the code. */
-export async function keptTapStoreKey(drawUrl, deployVersion, kv) {
-  const [mode, content] = await Promise.all([
+export async function keptTapStoreKey(drawUrl, build, kv, deployId) {
+  const [mode, content, keying] = await Promise.all([
     kv.get(STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null),
     kv.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }),
+    deployId
+      ? kv.get(STORE_BUILD_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null)
+      : null,
   ])
   const { hostname, pathname, searchParams } = new URL(drawUrl)
-  const deploy = encodeURIComponent(deployVersion)
+  // The same build as the pages (pageCache.mjs keptBuild): a tap answer names the build ID, so a
+  // kept tap from another build would make Next load the whole page instead.
+  const deploy = encodeURIComponent(keying === PER_DEPLOY && deployId ? deployId : build)
   const version = encodeURIComponent(mode === VERSIONED_MODE ? (content ?? 'none') : 'live')
   return `/__kept-rsc/${hostname}/${deploy}/${version}${pathname}?_rsc=${searchParams.get('_rsc') ?? ''}`
 }

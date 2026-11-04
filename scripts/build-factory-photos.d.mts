@@ -53,3 +53,6 @@ export declare function cropBox(
   aspect: number,
   focus: [number, number],
 ): { left: number; top: number; width: number; height: number }
+
+/** The AVIF quality per hero shape (the wide crops' 55 measured 2026-11-04 against the originals). */
+export declare const AVIF_QUALITY: { heroTall: number; heroWide: number }

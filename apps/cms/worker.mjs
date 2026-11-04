@@ -36,6 +36,7 @@ import {
   keepableFile,
   keepablePage,
   keepablePageRequest,
+  keptBuild,
   keptFileRequest,
   keptHeaders,
   keptRenderRequest,
@@ -149,11 +150,18 @@ async function fromSharedStore(request, env, ctx) {
   // A HEAD is looked up as the GET it describes, and answered without the body (storeLookupRequest).
   const asked = storeLookupRequest(request)
   if (!keepablePageRequest(asked) && !keptFileRequest(asked)) return null
-  const deploy = env.CF_VERSION_METADATA?.id
+  // The website build, not the deploy (pageCache.mjs keptBuild, 4 Nov 2026): a deploy that left the
+  // website alone leaves every region’s pages kept.
+  const deploy = keptBuild(env)
   const store = ctx?.exports?.SitePages
   if (!deploy || !env.SITE_CACHE || !store) return null
   try {
-    const cacheKey = await keptStoreKey(request.url, deploy, env.SITE_CACHE)
+    const cacheKey = await keptStoreKey(
+      request.url,
+      deploy,
+      env.SITE_CACHE,
+      env.CF_VERSION_METADATA?.id,
+    )
     // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
     const cf = { cacheKey }
     // ⚠️ `redirect: 'manual'`, or a 308 from the store is FOLLOWED: this call has Fetch semantics
@@ -184,13 +192,14 @@ async function fromSharedStore(request, env, ctx) {
  * binding says so, and on any failure: the tap is then drawn as it was before.
  */
 async function fromTapStore(request, env, ctx) {
-  const deploy = env.CF_VERSION_METADATA?.id
+  const deploy = keptBuild(env)
   const store = ctx?.exports?.SitePages
   if (!deploy || !env.SITE_CACHE || !store) return null
   try {
     if (!(await tapStoreOn(env.SITE_CACHE))) return null
     const draw = await tapDrawRequest(request)
-    const cf = { cacheKey: await keptTapStoreKey(draw.url, deploy, env.SITE_CACHE) }
+    const deployId = env.CF_VERSION_METADATA?.id
+    const cf = { cacheKey: await keptTapStoreKey(draw.url, deploy, env.SITE_CACHE, deployId) }
     // Never follow a redirect from the store: Next answers a wrong code with a 307 (#247's lesson).
     const askedAt = Date.now()
     const kept = await store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
@@ -253,7 +262,7 @@ export default {
         // the store answered (the measure-taps script and the warm-up read it).
         if (!cacheState) return response
         const headers = new Headers(response.headers)
-        headers.append('server-timing', pageCacheTiming(cacheState))
+        headers.append('server-timing', pageCacheTiming(cacheState, keptBuild(env)))
         return new Response(response.body, {
           status: response.status,
           statusText: response.statusText,
@@ -268,7 +277,7 @@ export default {
         )
         return response
       }
-      if (cacheState) headers.append('server-timing', pageCacheTiming(cacheState))
+      if (cacheState) headers.append('server-timing', pageCacheTiming(cacheState, keptBuild(env)))
       const init = { status: response.status, statusText: response.statusText, headers }
       if (response.body === null) return new Response(null, init)
       /*

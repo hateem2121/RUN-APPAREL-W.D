@@ -16,9 +16,11 @@ import {
   keptFileRequest,
   keptHeaders,
   keptRenderRequest,
+  keptBuild,
   keptRenders,
   keptStoreKey,
   PAGE_CACHE_SECONDS,
+  PER_DEPLOY,
   pageCacheKey,
   pageCacheTiming,
   SITE_HOST,
@@ -26,6 +28,7 @@ import {
   sharedCacheKey,
   spoilKeptRender,
   STALE_SECONDS,
+  STORE_BUILD_KEY,
   STORE_MODE_KEY,
   storeAnswerLog,
   storeLookupRequest,
@@ -345,6 +348,23 @@ describe('the key a request is kept under, and its off switch', () => {
     expect(await keptStoreKey(url, 'd1', kv(off))).toBe(sharedCacheKey(url, 'd1', 'none'))
   })
 
+  /*
+   * Site speed plan, 4 Nov 2026: the website build keys the pages, and KV `page-store-build` =
+   * `per-deploy` puts the deploy back without a deploy.
+   */
+  it('switched to "per-deploy", names the deploy in place of the build', async () => {
+    const build = `site-${'a'.repeat(20)}.${'b'.repeat(12)}`
+    expect(await keptStoreKey(url, build, kv({}), 'deploy-1')).toBe(
+      sharedCacheKey(url, build, 'live'),
+    )
+    const switched = kv({ [STORE_BUILD_KEY]: PER_DEPLOY })
+    expect(await keptStoreKey(url, build, switched, 'deploy-1')).toBe(
+      sharedCacheKey(url, 'deploy-1', 'live'),
+    )
+    // Without a deploy id (the garment data passes its data shape), the switch is never read.
+    expect(await keptStoreKey(url, build, switched)).toBe(sharedCacheKey(url, build, 'live'))
+  })
+
   it('a switch that cannot be read leaves the new behaviour on', async () => {
     const broken = {
       get: async (key: string) => {
@@ -501,6 +521,37 @@ describe('the headers', () => {
 
   it('labels the answer for the network panel', () => {
     expect(pageCacheTiming('hit')).toBe('page-cache;desc="hit"')
+  })
+
+  // The warm-up after a deploy reads the build here (scripts/warm-regions.mjs); a deploy id or any
+  // other string is never printed into a public header.
+  it('names the site build it was kept under, and only a real fingerprint', () => {
+    const build = `site-${'a'.repeat(20)}.${'b'.repeat(12)}`
+    expect(pageCacheTiming('hit', build)).toBe(`page-cache;desc="hit", site-build;desc="${build}"`)
+    expect(pageCacheTiming('miss', '7c1e2f0a-uuid-of-a-deploy')).toBe('page-cache;desc="miss"')
+    expect(pageCacheTiming('miss', `${build}"; x="y`)).toBe('page-cache;desc="miss"')
+  })
+
+  // keptBuild: what a kept page names in place of the deploy (4 Nov 2026).
+  const siteBuild = `site-${'0123456789abcdef0123'}.${'0123456789ab'}`
+  const deploy = { id: 'f3c2a1b0-0000-4000-8000-000000000000' }
+
+  it('is the website build when the deploy handed one over', () => {
+    expect(keptBuild({ SITE_BUILD: siteBuild, CF_VERSION_METADATA: deploy })).toBe(siteBuild)
+  })
+
+  // NEGATIVE CONTROL: a deploy without a fingerprint keys by the deploy, exactly as before.
+  it('is the deploy for `per-deploy`, a malformed value, or none', () => {
+    for (const SITE_BUILD of ['per-deploy', 'site-short', `${siteBuild}x`, undefined, 42]) {
+      expect(keptBuild({ SITE_BUILD, CF_VERSION_METADATA: deploy }), String(SITE_BUILD)).toBe(
+        deploy.id,
+      )
+    }
+  })
+
+  it('is null with neither, so nothing is kept', () => {
+    expect(keptBuild({})).toBeNull()
+    expect(keptBuild(undefined)).toBeNull()
   })
 
   // The store obeys the kept lifetime; the browser must still get the answer's own rule
@@ -684,7 +735,12 @@ describe('what the cache relies on', () => {
 
   it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
     expect(worker).not.toMatch(/CONTENT_VERSION_KEY/)
-    expect(worker).toMatch(/await keptStoreKey\(request\.url, deploy, env\.SITE_CACHE\)/)
+    expect(worker).toMatch(
+      /await keptStoreKey\(\s*request\.url,\s*deploy,\s*env\.SITE_CACHE,\s*env\.CF_VERSION_METADATA\?\.id,?\s*\)/,
+    )
+    // The build, not the deploy, names a kept page (keptBuild, 4 Nov 2026), for pages and taps.
+    expect(worker.match(/const deploy = keptBuild\(env\)/g)).toHaveLength(2)
+    expect(worker).not.toMatch(/const deploy = env\.CF_VERSION_METADATA/)
     expect(worker).toMatch(/storeLookupRequest\(request\)/)
     expect(worker).toMatch(/request\.method === 'HEAD' \? null : kept\.body/)
   })

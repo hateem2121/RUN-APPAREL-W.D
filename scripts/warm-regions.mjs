@@ -7,7 +7,7 @@
  * 3.75 s for a first tap on 26 Oct. Here two home-network probes in each buyer country
  * (warm-regions.countries.json) ask, in this order, for the five pages the speed targets are judged
  * on, the tap into each, the first garments' data and then the other top-level pages, through
- * Globalping (jsDelivr's free probe network; anonymous use allows 250 tests an hour, this asks 60).
+ * Globalping (jsDelivr's free probe network; anonymous use allows 250 tests an hour, this asks up to 140).
  *
  * MEASURED BEFORE BUILDING (the spike of 27 Oct): 21 pages, all cold when two Pakistan probes asked;
  * then 4 OTHER Pakistan probes found every one kept, 84 of 84 (Karachi 58, Islamabad 14, Lahore 12
@@ -33,8 +33,14 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { DESTINATIONS } from '../apps/cms/scripts/measure-taps.mjs'
 import { API_ORIGIN, SITE_ORIGIN, warmTapTargets, warmTargets } from './warm-shared-store.mjs'
 
-/** At most this many addresses, so one deploy uses well under Globalping's free hour. */
-export const REGION_TARGETS_MAX = 30
+/**
+ * At most this many addresses, so one deploy stays inside Globalping's free hour (250 tests; 70 × 2
+ * probes + the second pass's 30 = 170). 30 until 4 Nov 2026, when the cap and the top-level-only
+ * rule left every nested page to the US warm-up: 45 minutes after a deploy, 33 of the 43 website
+ * pages were cold from Lahore (0.66-3.12 s to the first byte, every guide, policy and FAQ page among
+ * them). 43 pages + 10 taps + 10 garments = 63 today, so 70 leaves room for a few new pages.
+ */
+export const REGION_TARGETS_MAX = 70
 /**
  * At most this many garments' data: the first cards of the products page, the ones a buyer sees
  * and opens first (cardGarments). The rest of the 41 are warmed in the buyer's own browser when a
@@ -78,7 +84,7 @@ export const READ_BACK_BUDGET_MS = 90_000
 /**
  * The second pass (review of 27 Oct; spec Part 6, Step 2): the first addresses again, the five
  * judged pages and their taps and hovers, from the probes the warm-up used, to say whether the
- * region then finds them kept. 15 addresses × 2 probes: 90 tests with the warm-up's 60.
+ * region then finds them kept. 15 addresses × 2 probes: 30 tests, 170 with the warm-up's 140.
  */
 export const READ_BACK_MAX = 15
 /**
@@ -92,7 +98,7 @@ export const STORE_FIRST_BYTE_P75_MS = 1_000
  * What to warm, in order, at most `max` (`{ url, headers }`): the five pages the speed targets are
  * judged on (measure-taps.mjs DESTINATIONS), the tap into each, the first garments' data, then the
  * other top-level pages. The spec (Part 6, Step 2) names "the main pages, their tap data and the
- * most-opened garments' data". A nested page and the kept files are left to the US warm-up.
+ * most-opened garments' data". Since 4 Nov 2026 the nested pages follow; the kept files stay with the US warm-up.
  * Review, 27 Oct: this followed the sitemap's order and dropped the tap into Home, so the taps
  * warmed were the buyer pages', /guides', /careers' and /press', never About, Contact, FAQ or Home.
  * A tap's key does not depend on its start page (stateTreeFor('/', from) is the same for every
@@ -112,13 +118,53 @@ export async function regionTargets(
   })
   const measured = DESTINATIONS.flatMap((path) => top.filter((url) => pathOf(url) === path))
   const others = top.filter((url) => !DESTINATIONS.includes(pathOf(url)))
+  // Every nested page too (4 Nov 2026): a guide, a policy and an FAQ page is a page a buyer opens
+  // from a search result, and each was cold in Pakistan after a deploy.
+  const nested = pages.filter((url) => {
+    const pathname = pathOf(url)
+    return !/\.[a-z]+$/i.test(pathname) && pathname.split('/').filter(Boolean).length > 1
+  })
   const asked = (url) => ({ url, headers: {} })
   return [
     ...measured.map(asked),
     ...(await warmTapTargets(measured.map(pathOf), origin)),
     ...garments.slice(0, REGION_GARMENTS_MAX).map(asked),
     ...others.map(asked),
+    ...nested.map(asked),
   ].slice(0, max)
+}
+
+/**
+ * The website build a page answer was kept under, from its Server-Timing (pageCache.mjs
+ * pageCacheTiming, 4 Nov 2026), or null. A deploy that leaves it the same leaves every kept page
+ * in place (apps/cms/siteBuild.mjs), so the pages need no warming.
+ */
+export function siteBuildOf(serverTiming) {
+  const found = /(?:^|,)\s*site-build;desc="(site-[0-9a-f]{20}\.[0-9a-f]{12})"/.exec(
+    serverTiming ?? '',
+  )
+  return found ? found[1] : null
+}
+
+/** The live home page's site build (a plain GET: a HEAD reads another edge entry), or null. */
+export async function liveSiteBuild(origin, fetchImpl = fetch) {
+  try {
+    const answer = await fetchImpl(`${origin}/`, { signal: AbortSignal.timeout(20_000) })
+    await answer.body?.cancel()
+    return siteBuildOf(answer.headers.get('server-timing'))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * What still needs warming when the website build is `before` and is now `now`: everything,
+ * unless both are known and equal; then only the garments' data, which has its own key
+ * (viewerApiCache.mjs VIEWER_DATA_SHAPE) and costs 20 tests.
+ */
+export function stillCold(targets, before, now) {
+  if (before === null || now === null || before !== now) return targets
+  return targets.filter((target) => target.url.startsWith(`${API_ORIGIN}/`))
 }
 
 /** One Globalping measurement body per address: home-network probes in each country, a plain GET. */
@@ -344,6 +390,13 @@ async function main() {
   // `--measure` (perf-watch.yml, weekly): the same asks, reported as each country's timings.
   const measuring = args.includes('--measure')
   const origin = args.find((arg) => !arg.startsWith('--')) ?? SITE_ORIGIN
+  // `--print-build` (ci.yml, BEFORE the deploy): the live site build, for $GITHUB_OUTPUT.
+  if (args.includes('--print-build')) {
+    console.log(`build=${(await liveSiteBuild(origin)) ?? ''}`)
+    return
+  }
+  // `--built-before=<build>` (ci.yml, after the deploy): skip the pages if the build is unchanged.
+  const before = args.find((arg) => arg.startsWith('--built-before='))?.slice(15) || null
   let xml
   try {
     const sitemap = await fetch(`${origin}/sitemap.xml`, { signal: AbortSignal.timeout(20_000) })
@@ -363,7 +416,13 @@ async function main() {
     .then(cardGarments)
     .catch(() => [])
   const garments = shown.length > 0 ? shown : listed.garments
-  const targets = await regionTargets({ pages: listed.pages, garments }, origin)
+  const all = await regionTargets({ pages: listed.pages, garments }, origin)
+  const targets = measuring ? all : stillCold(all, before, await liveSiteBuild(origin))
+  if (targets.length < all.length) {
+    console.log(
+      `The website build did not change (${before}): its pages stay kept in every region, so ${all.length - targets.length} page and tap addresses were not warmed.`,
+    )
+  }
   const plan = regionWarmPlan(targets, countries, PROBES_PER_COUNTRY)
   if (plan.length === 0) {
     console.log('::warning::the sitemap listed no website pages; the buyer regions were not warmed')

@@ -43,13 +43,12 @@ const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
-/** One phone number for the company (2026-10-26): the Contact page's call line and the structured data. */
-const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
 /**
- * The dye (the home page draws the island that turns №02's cards colour), met with the one phone
- * number from `main` (2026-10-26).
+ * The hero picture offered to wide screens in AVIF as well (site speed, 2026-11-04): markup only,
+ * the words the same, moved by the rule at the top of this file. Home was dated by the dye
+ * (2026-10-26T23:49:22+05:00) and Contact by the one phone number (2026-10-26T20:13:15+05:00).
  */
-const DYE = '2026-10-26T23:49:22+05:00'
+const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
 /**
  * The privacy page's cookie paragraph now says Google Analytics sees whether a visitor taps the
  * WhatsApp, phone or email link (2026-10-30, branch `site/contact-click-events`; the branch
@@ -73,7 +72,7 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
 const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(DYE, '75c60e311c5a'),
+  '/': page(WIDE_AVIF, 'acc49c639050'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
   '/custom-teamwear-manufacturer': page(MAKES_LINKS, '15dc346441b8'),
   '/custom-activewear-manufacturer': page(MAKES_LINKS, '698eb59f3b36'),
@@ -94,7 +93,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/glossary': page(SITE_CHECK, '5f4675bd3f09'),
   '/journal': page(KAIZEN, 'e34315afc7aa'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
-  '/contact': page(ONE_NUMBER, '360e3b9976c6'),
+  '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
   '/privacy': page(CONTACT_TAPS, '10fe05331ee5'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }

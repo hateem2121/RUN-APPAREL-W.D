@@ -48,6 +48,14 @@ export function HomeHero() {
           width={tall640}
           height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
         />
+        {/* The wide crops in AVIF too (4 Nov 2026): 13-35% lighter than the WebP at the same SSIM. */}
+        <source
+          type="image/avif"
+          srcSet={`${heroPhotoSrc('heroWide', wide1280, 'avif')} ${wide1280}w, ${heroPhotoSrc('heroWide', wide1920, 'avif')} ${wide1920}w, ${heroPhotoSrc('heroWide', wide2560, 'avif')} ${wide2560}w`}
+          sizes="100vw"
+          width={wide1280}
+          height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
+        />
         {/* A plain <img>: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the crops are pre-built files, picked by srcSet. */}
         <img
           className="site-hero__img"
