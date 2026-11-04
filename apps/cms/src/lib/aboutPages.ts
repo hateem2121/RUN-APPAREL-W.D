@@ -243,7 +243,7 @@ export const FACTORY_PAGE = {
       },
       {
         title: 'Quality Assurance, Packaging & Delivery',
-        body: 'Every batch is inspected in line and again at AQL final inspection. Rework, labels and traceability records follow, and feedback keeps improving the process.',
+        body: 'Every batch is inspected in line and again at AQL final inspection. Finished garments are wash-tested for shrinkage, colorfastness to washing and appearance after washing. Rework, labels and traceability records follow, and feedback keeps improving the process.',
         badge: 'Batch accepted, shipment authorized.',
         photos: ['inspection', 'final-check', 'tagging', 'packing'],
       },
