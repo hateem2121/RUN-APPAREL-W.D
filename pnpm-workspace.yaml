@@ -61,7 +61,14 @@ overrides:
   proxy-addr: ^2.0.8
   compression: ^1.8.2
   source-map-js: ^1.2.2
-  glob@10: ^10.5.0
+  # ^14.0.3 since 2026-11-04: GHSA-3g3m-2fjr-6pw4 (an aborted walk kept reading) covers 9.0.0-14.0.1,
+  # and GHSA-g3hv-75wg-m249 (minimatch DoS) everything under 11.0.1, so no 10.x or 13.x is safe.
+  # The callers (OpenNext, @node-minify/core, Sentry's bundler plugin) use only glob()/globSync().
+  # glob@7 (rimraf 3 under @lhci/cli, a CI tool) is outside the glob range and needs minimatch 3.
+  glob@10: ^14.0.3
+  glob@13: ^14.0.3
+  minimatch@9: ^11.0.4
+  minimatch@10: ^11.0.4
   body-parser@1: ^1.20.9
   body-parser@2: ^2.4.0
   zod@4: ^4.6.6
