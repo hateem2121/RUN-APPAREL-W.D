@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { HTML_LIMITED_BOTS } from '../htmlLimitedBots.mjs'
@@ -34,6 +34,7 @@ import {
   VERSION_CACHE_SECONDS,
   wholeFile,
   wholePage,
+  withoutTracking,
 } from '../pageCache.mjs'
 import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
 import { hostPattern, siteRedirects } from '../siteHostRules.mjs'
@@ -72,7 +73,10 @@ describe('which requests may be answered from a kept copy', () => {
     ['the old host', new Request('https://wear-run.help/')],
     ['a family filter', page('/products?family=teamwear')],
     ['a client navigation', page('/products?_rsc=abc')],
-    ['an advert link', page('/?utm_source=linkedin')],
+    ['a family filter with a tag', page('/products?utm_source=x&family=teamwear')],
+    ['a tag with a client navigation', page('/products?fbclid=a&_rsc=abc')],
+    ['an unknown parameter', page('/?x=1')],
+    ['a tag-like name that is not one', page('/?utm=1')],
     ['an RSC request', page('/products', { headers: { rsc: '1' } })],
     ['a prefetch', page('/products', { headers: { 'next-router-prefetch': '1' } })],
     ['a router state', page('/products', { headers: { 'next-router-state-tree': '[]' } })],
@@ -88,6 +92,57 @@ describe('which requests may be answered from a kept copy', () => {
     ['an image transform', page('/cdn-cgi/image/width=400/x.webp')],
   ])('never %s', (_label, request) => {
     expect(keepablePageRequest(request)).toBe(false)
+  })
+
+  /*
+   * 3 Nov 2026: a tagged link skipped the store and was drawn every time, 2.2–3.7 s live
+   * (`?utm_source=chatgpt.com` from Karachi and Muscat). Tracking tags alone now use the plain copy.
+   */
+  it.each([
+    '/?utm_source=linkedin',
+    '/?utm_source=chatgpt.com',
+    '/custom-outerwear-manufacturer?utm_source=chatgpt.com',
+    '/?fbclid=IwAR0abc',
+    '/products?utm_source=ig&utm_medium=social&utm_content=link_in_bio',
+    '/?gclid=x&srsltid=y&msclkid=z',
+    '/?UTM_SOURCE=upper',
+  ])('keeps the tagged link %s as the plain page', (path) => {
+    expect(keepablePageRequest(page(path))).toBe(true)
+  })
+
+  it('removes only the tracking tags, keeping every other parameter in order', () => {
+    expect(withoutTracking(`https://${SITE_HOST}/?utm_source=a&fbclid=b`)).toBe(
+      `https://${SITE_HOST}/`,
+    )
+    expect(withoutTracking(`https://${SITE_HOST}/products?family=x&utm_medium=y&b=2`)).toBe(
+      `https://${SITE_HOST}/products?family=x&b=2`,
+    )
+    // NEGATIVE CONTROL: an address without tags is returned unchanged, query and all.
+    expect(withoutTracking(`https://${SITE_HOST}/products?family=x`)).toBe(
+      `https://${SITE_HOST}/products?family=x`,
+    )
+  })
+
+  /*
+   * The tags may be ignored only while no page reads them. A page that starts reading the address
+   * must be added here on purpose, after checking it never reads a tracking tag.
+   */
+  it('has exactly the pages that read the address, and none reads a tracking tag', () => {
+    const root = join(__dirname, 'app', '(frontend)')
+    const readers: string[] = []
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name)
+        if (entry.isDirectory()) walk(path)
+        else if (/\.tsx?$/.test(entry.name) && !/\.test\./.test(entry.name)) {
+          const source = readFileSync(path, 'utf8')
+          if (/searchParams|useSearchParams/.test(source)) readers.push(path.slice(root.length + 1))
+          expect(source, path).not.toMatch(/utm_|fbclid|gclid|srsltid|msclkid/)
+        }
+      }
+    }
+    walk(root)
+    expect(readers.sort()).toEqual(['careers/page.tsx', 'contact/page.tsx', 'products/page.tsx'])
   })
 
   it('reads a cookie that merely CONTAINS the name as no login', () => {
@@ -135,6 +190,11 @@ describe('the request a kept page is drawn from', () => {
     const clean = keptRenderRequest(crafted)
     expect(clean.url).toBe(`https://${SITE_HOST}/products`)
     expect(clean.method).toBe('GET')
+  })
+
+  it('draws a tagged link from the plain address, so the copy is the plain page', () => {
+    const tagged = page('/?utm_source=chatgpt.com&fbclid=x')
+    expect(keptRenderRequest(tagged).url).toBe(`https://${SITE_HOST}/`)
   })
 
   it('carries none of the visitor’s headers, only the fixed ones', () => {

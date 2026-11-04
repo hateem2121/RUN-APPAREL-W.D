@@ -54,7 +54,7 @@
  * no deploy. Every save still writes a new content version, so the switch works either way.
  *
  * ⚠️ IT KEEPS ONLY WHAT IS THE SAME FOR EVERYONE. Never a request with a query string
- * (`?family=`, `?_rsc=`, an advert's `?utm_…`), an RSC or prefetch request, a Range, or a
+ * (`?family=`, `?_rsc=`) other than tracking tags alone (TRACKING_PARAM), an RSC or prefetch request, a Range, or a
  * visitor carrying a CMS login or a draft cookie. Only a 200 page under the public-page
  * policy, with no cookie of its own, that arrived whole and was drawn from the database
  * rather than from the fallbacks (spoilKeptRender). Pages do not differ between browsers
@@ -112,10 +112,39 @@ const REQUEST_HEADERS_NEVER_KEPT = [
 /** A visitor signed in to the CMS, or previewing a draft: never served or kept (tapStore.mjs too). */
 export const SIGNED_IN_OR_DRAFT = /(?:^|;\s*)(?:payload-token|__prerender_bypass)=/
 
+/**
+ * Tags a link carries to say where a visitor came from. No page reads them: the pages read only
+ * `family`, `sent`, `error` and `reason` (src/pageCache.test.ts pins that list).
+ *
+ * ⚠️ WHY A TAGGED ADDRESS IS KEPT AS THE PLAIN ONE (3 Nov 2026). Until then any query string
+ * skipped the store, so every visit from a tagged link had its page drawn again. Measured live:
+ * `/` 0.18 s to the first byte, `/?utm_source=linkedin` 2.27 and 2.49 s, `/?fbclid=abc` 2.20 s;
+ * Workers logs held real visits to `/?utm_source=chatgpt.com` at 2.4–3.7 s (Karachi, Muscat).
+ * ChatGPT adds `utm_source=chatgpt.com` to every link it gives, and GA4 had chatgpt.com level
+ * with Google as a source (27 sessions each, 30 days). PostHog: 31 of 241 first visits carried
+ * `utm_` or `fbclid`. Cloudflare's Workers Cache keys page shows this same pattern, a key with
+ * `utm_source` deleted (read 3 Nov 2026). Only these exact names are removed: any other
+ * parameter still skips the store, so nothing that might change a page is served from the
+ * plain copy. The visitor's own address keeps its tags, so analytics still sees the source.
+ */
+export const TRACKING_PARAM =
+  /^(?:utm_[a-z_]+|fbclid|gclid|gbraid|wbraid|msclkid|srsltid|li_fat_id|mc_cid|mc_eid|ttclid|igshid)$/i
+
+/** The address with its tracking tags removed; every other parameter stays, in its order. */
+export function withoutTracking(address) {
+  const url = new URL(address)
+  for (const name of [...url.searchParams.keys()]) {
+    if (TRACKING_PARAM.test(name)) url.searchParams.delete(name)
+  }
+  // `searchParams.delete` leaves a bare `?` behind when it empties the query.
+  if (url.searchParams.size === 0) url.search = ''
+  return url.href
+}
+
 /** May this request be answered from a kept copy, and its answer kept? */
 export function keepablePageRequest(request) {
   if (request.method !== 'GET') return false
-  const url = new URL(request.url)
+  const url = new URL(withoutTracking(request.url))
   if (url.hostname !== SITE_HOST || url.search !== '') return false
   if (NEVER_KEPT_PATHS.test(url.pathname)) return false
   if (REQUEST_HEADERS_NEVER_KEPT.some((name) => request.headers.has(name))) return false
@@ -147,12 +176,13 @@ export const KEPT_RENDER_HEADERS = Object.freeze({
 })
 
 /**
- * The request a kept page is drawn from: the visitor's address and nothing else of theirs.
- * `cf` carries the shared store's key (sharedCacheKey) on the call into SitePages.
+ * The request a kept page is drawn from: the visitor's address without its tracking tags
+ * (withoutTracking), and nothing else of theirs. `cf` carries the shared store's key
+ * (sharedCacheKey) on the call into SitePages.
  */
 export function keptRenderRequest(request, cf) {
   const init = { method: 'GET', headers: KEPT_RENDER_HEADERS }
-  return new Request(request.url, cf ? { ...init, cf } : init)
+  return new Request(withoutTracking(request.url), cf ? { ...init, cf } : init)
 }
 
 /**
