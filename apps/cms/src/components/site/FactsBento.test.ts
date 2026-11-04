@@ -42,12 +42,13 @@ describe('FactsBento — where we ship | certification, then the ask', () => {
 
   it('sets every line beside the marks it names, and closes on the promise', () => {
     const out = html(null)
-    expect(out.match(/class="cert__mark"/g)).toHaveLength(5)
+    // No body's mark since 2026-11-05: none is RUN APPAREL's to show (standardsLogos.ts quotes
+    // each scheme's rule). Every line still names its holder in words.
+    expect(out).not.toContain('cert__mark')
     for (const line of CERTIFICATION_LINES) expect(out).toContain(line)
     expect(out).toContain(CERTIFICATION_PROMISE)
-    // The map is decoration (its line says it), and each mark is named for a screen reader.
+    // The map is decoration (its line says it).
     expect(out).toMatch(/class="ship-map__land"[^>]*alt=""/)
-    expect(out).not.toMatch(/class="cert__mark"[^>]*alt=""/)
   })
 
   /*

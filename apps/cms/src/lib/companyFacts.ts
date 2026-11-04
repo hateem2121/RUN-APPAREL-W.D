@@ -95,12 +95,13 @@ export const CERTIFICATION =
 
 /**
  * ⚠️ THE SAME CLAIMS, AS THE HOME PAGE SHOWS THEM SINCE POLISH X7 (2026-10-05): one line per
- * holder, each beside the marks it names (`logosFor`, the footer's logos), because the paragraph
+ * holder (each beside the marks it named until 2026-11-05, when the bodies' marks left the site:
+ * none is RUN APPAREL's to show, `standardsLogos.ts`), because the paragraph
  * above sat seven lines deep beside a one-line "Where we ship" (audit of 3 October). The owner's
  * paragraph stays whole in /llms.txt. The lines keep every holder named and SMETA an audit; the
  * SECP and the closing promise are the owner's own sentences, word for word. New wording, so it
  * goes to the owner with the end approvals. `companyFacts.test.ts` holds every line to the
- * paragraph: a mark or a holder the paragraph does not name fails it.
+ * paragraph: a standard or a holder the paragraph does not name fails it.
  */
 export const CERTIFICATION_LINES = [
   'Our sister company, DURUS INDUSTRIES, whose buildings we make our clothes in: SEDEX-registered and SMETA-audited.',

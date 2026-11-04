@@ -637,6 +637,19 @@ real model's variant).
 
 ### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
 
+> **Superseded 2026-11-05: no body's logo is drawn any more.** On the owner's go-ahead ("You do
+> everything": check each scheme's own logo rules and remove any mark they forbid), each scheme's
+> rule was read at its source that night. Every one gives the right to its mark to the
+> organisation that holds the certificate or membership, and RUN APPAREL holds none in its own
+> name: ISO forbids its logo "in connection with certification" (iso.org/certification.html);
+> OEKO-TEX's logo is for certificate holders (Labelling Guide → Logo usage); Textile Exchange
+> prohibits any Standard logo "without prior authorization" (TE-301 V1.3); Sedex's artwork is for
+> members promoting their own membership (sedex.com/ambassador-toolkit), and DURUS INDUSTRIES is
+> the member; SMETA, the least certain, is Sedex's audit brand under the same terms. GOTS left on
+> 2026-11-04. The entries' TEXT stays, naming each holder; `STANDARDS_LOGOS` is empty and
+> `apps/cms/src/lib/standardsLogos.test.ts` refuses all six coming back. The SME Climate Hub badge
+> stays: that commitment is the company's own. What follows is the history.
+
 **Decision: the footer draws the logos of the bodies its "Standards" entries name, in ONE row
 of small marks under the facts, each body once; every entry keeps its text line. Owner,
 2026-09-29**, after being told the marks' usage rules: GOTS, OEKO-TEX and Textile
