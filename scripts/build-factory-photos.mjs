@@ -40,6 +40,15 @@ export const SHAPES = {
 }
 
 /**
+ * The AVIF quality per hero shape. The wide crops' 55 was measured on 4 Nov 2026 against the
+ * originals (SSIM on luma, 11 px Gaussian window): the smallest quality at which all eight wide
+ * crops score at least as well as their WebP (0.950–0.969). At 45, three scored below it; at 55 the
+ * eight weigh 838 KB against the WebPs' 1,043 KB. A crop shifted by 8 px scored 0.65, so the score
+ * sees a wrong crop.
+ */
+export const AVIF_QUALITY = { heroTall: 45, heroWide: 55 }
+
+/**
  * The hero's two crops of the stitching floor (a 4875x2403 original). The tall crop sits right
  * of centre, where the nearest operators are, so a phone shows people rather than crates.
  * Their files are `hero-wide-<w>.webp` / `hero-tall-<w>.webp` (`heroPhotoSrc` in the page's list).
@@ -255,14 +264,16 @@ async function main() {
         .webp({ quality: 72, effort: 6, smartSubsample: true })
         .toFile(target)
       console.log(`${source.slug}-${w}.webp  ${info.width}x${info.height}  ${info.size} bytes`)
-      // The phone crops also in AVIF (2026-09-29): 36–43% lighter than the WebP at quality 45,
-      // the same behind the hero's ink wash, and each is its page's largest paint on a phone.
-      if (source.shape === 'heroTall') {
+      // The heroes also in AVIF, each its page's largest paint: the phone crops since 2026-09-29
+      // (36–43% lighter than the WebP at quality 45, the same behind the hero's ink wash), the wide
+      // crops since 2026-11-04 (AVIF_QUALITY says why theirs is 55).
+      const avifQuality = AVIF_QUALITY[source.shape]
+      if (avifQuality !== undefined) {
         const avif = join(out, `${source.slug}-${w}.avif`)
         const a = await sharp(join(from, source.file))
           .extract(box)
           .resize(w, h)
-          .avif({ quality: 45, effort: 6 })
+          .avif({ quality: avifQuality, effort: 6 })
           .toFile(avif)
         console.log(`${source.slug}-${w}.avif  ${a.width}x${a.height}  ${a.size} bytes`)
       }

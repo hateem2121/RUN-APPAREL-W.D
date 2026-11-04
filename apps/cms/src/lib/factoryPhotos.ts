@@ -198,8 +198,9 @@ export const HERO_PHOTO = {
 const HERO_FILE: Record<HeroShape, string> = { heroWide: 'hero-wide', heroTall: 'hero-tall' }
 
 /**
- * `/factory/hero-wide-<width>.webp` or `/factory/hero-tall-<width>.webp`. The tall (phone)
- * crops also exist as `.avif` (2026-09-29: 36–43% lighter, the phone's largest paint).
+ * `/factory/hero-wide-<width>.webp` or `/factory/hero-tall-<width>.webp`. Both also exist as
+ * `.avif`: the tall (phone) crops since 2026-09-29 (36–43% lighter, the phone's largest paint), the
+ * wide crops since 2026-11-04 (13–35% lighter at the same SSIM).
  */
 export function heroPhotoSrc(
   shape: HeroShape,
@@ -227,7 +228,7 @@ const CONTACT_HERO_FILE: Record<HeroShape, string> = {
   heroTall: 'contact-hero-tall',
 }
 
-/** `/factory/contact-hero-wide-<width>.webp` or `…-tall-<width>.webp`; the tall crops in `.avif` too. */
+/** `/factory/contact-hero-wide-<width>.webp` or `…-tall-<width>.webp`; every crop in `.avif` too. */
 export function contactHeroSrc(
   shape: HeroShape,
   width: number,
@@ -251,7 +252,7 @@ const ABOUT_HERO_FILE: Record<HeroShape, string> = {
   heroTall: 'about-hero-tall',
 }
 
-/** `/factory/about-hero-wide-<width>.webp` or `…-tall-<width>.webp`; the tall crops in `.avif` too. */
+/** `/factory/about-hero-wide-<width>.webp` or `…-tall-<width>.webp`; every crop in `.avif` too. */
 export function aboutHeroSrc(
   shape: HeroShape,
   width: number,

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import { AVIF_QUALITY, cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
 import {
   ABOUT_HERO_SOURCES,
   CONTACT_HERO_SOURCES,
@@ -116,6 +116,12 @@ describe('the factory photos (OI-3)', () => {
         contactHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
         aboutHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
       ]),
+      // The wide crops' AVIF twins (4 Nov 2026).
+      ...HERO_PHOTO.widths.heroWide.map((w) => heroPhotoSrc('heroWide', w, 'avif').slice(9)),
+      ...CONTACT_HERO_PHOTO.widths.heroWide.map((w) =>
+        contactHeroSrc('heroWide', w, 'avif').slice(9),
+      ),
+      ...ABOUT_HERO_PHOTO.widths.heroWide.map((w) => aboutHeroSrc('heroWide', w, 'avif').slice(9)),
     ])
     expect(readdirSync(DIR).filter((file) => !named.has(file))).toEqual([])
   })
@@ -566,5 +572,63 @@ describe('the full-width gallery photo is sharp, and only it gets the wide files
     const ordinary = factoryPhotoImage(exterior).srcSet
     for (const width of exterior.fullWidths ?? []) expect(ordinary).not.toContain(`-${width}.webp`)
     expect(exterior.fullWidths).toEqual([2400, 3200])
+  })
+})
+
+/*
+ * THE WIDE HEROES IN AVIF TOO (4 Nov 2026). Desktop screens were offered only the WebP, 48–284 KB
+ * each, and a real desktop visit's largest paint that day was hero-wide-2560.webp. Encoded from the
+ * originals at AVIF_QUALITY.heroWide, every wide crop scored at least its WebP's SSIM (luma, against
+ * the original), and the eight weigh 838 KB against 1,043 KB. What would have to break: a file
+ * missing or heavier than its WebP, a page no longer offering it, or the phone crops losing their
+ * place before it.
+ */
+describe('wide heroes come in AVIF too', () => {
+  const pairs = [
+    ...HERO_PHOTO.widths.heroWide.map((w) => [
+      heroPhotoSrc('heroWide', w, 'avif'),
+      heroPhotoSrc('heroWide', w),
+    ]),
+    ...CONTACT_HERO_PHOTO.widths.heroWide.map((w) => [
+      contactHeroSrc('heroWide', w, 'avif'),
+      contactHeroSrc('heroWide', w),
+    ]),
+    ...ABOUT_HERO_PHOTO.widths.heroWide.map((w) => [
+      aboutHeroSrc('heroWide', w, 'avif'),
+      aboutHeroSrc('heroWide', w),
+    ]),
+  ]
+
+  it('every wide crop has an AVIF twin, lighter than its WebP', () => {
+    expect(pairs).toHaveLength(8)
+    for (const [avif, webp] of pairs) {
+      const a = join(DIR, (avif ?? '').slice('/factory/'.length))
+      const b = join(DIR, (webp ?? '').slice('/factory/'.length))
+      expect(existsSync(a), `${a} is missing`).toBe(true)
+      expect(readFileSync(a).length, a).toBeLessThan(readFileSync(b).length)
+      expect(String.fromCharCode(...readFileSync(a).subarray(4, 12))).toBe('ftypavif')
+    }
+  })
+
+  it('the build script makes them at the measured quality, and the phone crops at theirs', () => {
+    expect(AVIF_QUALITY).toEqual({ heroTall: 45, heroWide: 55 })
+  })
+
+  it('all three pages offer the wide AVIF after the phone sources and before the <img>', () => {
+    for (const [page, src] of [
+      ['src/components/site/HomeHero.tsx', 'heroPhotoSrc'],
+      ['src/app/(frontend)/contact/page.tsx', 'contactHeroSrc'],
+      ['src/components/site/AboutPage.tsx', 'aboutHeroSrc'],
+    ] as const) {
+      const tsx = readFileSync(join(import.meta.dirname, '..', page), 'utf8')
+      const wide = tsx.indexOf(`${src}('heroWide', wide1280, 'avif')`)
+      expect(wide, `${page} offers no wide AVIF`).toBeGreaterThan(-1)
+      expect(wide, `${page}: a phone source must come first`).toBeGreaterThan(
+        tsx.indexOf(`${src}('heroTall', tall640)`),
+      )
+      expect(wide, `${page}: the AVIF must come before the <img>`).toBeLessThan(
+        tsx.indexOf('className="site-hero__img"'),
+      )
+    }
   })
 })

@@ -81,6 +81,13 @@ export function AboutPage() {
               width={tall640}
               height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
             />
+            <source
+              type="image/avif"
+              srcSet={`${aboutHeroSrc('heroWide', wide1280, 'avif')} ${wide1280}w, ${aboutHeroSrc('heroWide', wide1920, 'avif')} ${wide1920}w, ${aboutHeroSrc('heroWide', wide2560, 'avif')} ${wide2560}w`}
+              sizes="100vw"
+              width={wide1280}
+              height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
+            />
             {/* A plain <img>: pre-built crops picked by srcSet, as the home hero's note says. */}
             <img
               className="site-hero__img"
