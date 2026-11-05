@@ -1792,7 +1792,8 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             // "Bounces less" was cut after the fact check (owner, 2026-11-05): only the futsal law
             // sets a bounce, so no rule compares the two.
-            text: 'The Laws of the Game set these limits. A futsal ball is smaller, and only the futsal law sets how high it must bounce.',
+            // FIFA's marks test a match ball's bounce too (Testing Manual 2026, page 26).
+            text: 'The Laws of the Game set these limits. A futsal ball is smaller, and only the futsal law sets how high it must bounce. FIFA’s quality marks also test a match ball’s bounce.',
           },
           {
             kind: 'table',
@@ -1838,16 +1839,20 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'FIFA’s quality program has three marks: FIFA Quality Pro, FIFA Quality and FIFA Basic. Every ball used in an international match organized by FIFA or a confederation must carry one.',
+            // FIFA's Testing Manual, 2026 edition (March 2026), page 5: "official matches", the three
+            // marks; page 26: Quality Pro and Quality run seven tests (the eighth, balance, is for
+            // instrumented balls), Basic six, and Pro's limits are tighter. Owner approved, 2026-11-05.
+            text: 'FIFA’s quality program has three marks: FIFA Quality Pro, FIFA Quality and FIFA Basic. Every ball used in an official match organized by FIFA or a confederation must carry one.',
           },
           {
             kind: 'text',
-            text: 'To earn a mark, a ball passes seven tests: weight, circumference, roundness, bounce, water absorption, loss of pressure, and shape and size retention. A Quality Pro ball passes the same tests under more demanding conditions.',
+            text: 'To earn FIFA Quality or FIFA Quality Pro, a ball passes seven tests: weight, circumference, roundness, bounce, water absorption, loss of pressure, and shape and size retention. FIFA Basic leaves out shape and size retention. A Quality Pro ball passes the same tests with tighter limits.',
           },
           {
             kind: 'text',
-            // The Kaizen page's answer (`familyPages.ts`), "It" made "Our Kaizen" (owner approved).
-            text: 'Our Kaizen is lab tested according to FIFA Quality Pro limits, and it does not carry a FIFA mark. Competitions that require a mark need a licensed ball.',
+            // The Kaizen page's answer (`familyPages.ts`), "It" made "Our Kaizen" (owner approved). The
+            // manual's page 5: Basic needs only a passed test; Quality and Quality Pro need an agreement.
+            text: 'Our Kaizen is lab tested according to FIFA Quality Pro limits, and it does not carry a FIFA mark. Competitions that require a mark need a ball that carries one. The FIFA Quality and Quality Pro marks also need an agreement with FIFA.',
           },
         ],
       },
@@ -1857,7 +1862,7 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             // The agreement's text (signed 14 February 1997) and the ILO's news of 5 January 2021.
-            // Nothing is said about RUN and IMAC: the owner has confirmed no such fact.
+            // RUN's own IMAC fact is in "On our floor" (owner, 2026-11-05).
             // The IMAC line says only what IMAC's own page says (fact check, owner, 2026-11-05): it
             // took over the ILO's monitoring system in March 2003. No page read says it still monitors.
             // The owner approved "Since 2003 … has run"; the order changed because the test above
@@ -1874,7 +1879,8 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'We make hand-stitched, machine-stitched, thermobonded and hybrid balls.',
+            // The owner's words, 2026-11-05: all ball stitching is in RUN's own hall, monitored by IMAC.
+            text: 'We make hand-stitched, machine-stitched, thermobonded and hybrid balls. Our balls are stitched in our own hall, which IMAC monitors.',
           },
         ],
       },
@@ -1925,6 +1931,13 @@ export const GUIDES: readonly Guide[] = [
         url: 'https://inside.fifa.com/innovation/standards/footballs/fifa-quality-programme-for-footballs',
         date: '2026-02-10',
         kind: 'updated',
+      },
+      {
+        // Opened with the owner's okay, 2026-11-05: the only file downloaded for this guide.
+        name: 'FIFA, Quality Programme for Footballs, Testing Manual (2026 edition)',
+        url: 'https://digitalhub.fifa.com/m/5d88f22cfef8c799/original/FIFA-Quality-Programme-for-Football-Testing-Manual.pdf',
+        date: '2026-03-13',
+        kind: 'published',
       },
       {
         name: 'Hong and Asai, Effect of panel shape of soccer ball on its flight characteristics, Scientific Reports',

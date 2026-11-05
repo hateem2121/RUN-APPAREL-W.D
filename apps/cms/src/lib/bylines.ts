@@ -109,11 +109,12 @@ const WAVE_ONE = '2026-11-05T20:07:40+05:00'
  */
 const AI_CHECK = '2026-11-05T20:46:11+05:00'
 /**
- * The soccer-ball guide after its fact check (owner approved the fixes, 2026-11-05): the IMAC line says
- * only what IMAC's own page says, the futsal line no longer compares bounces, and England's size 5
- * ages stop at Under 16, where The FA's table stops.
+ * The soccer-ball guide after its fact checks (owner approved every fix, 2026-11-05): the IMAC line says
+ * only what IMAC's own page says, the futsal line no longer compares bounces, England's size 5 ages stop
+ * at Under 16, the FIFA section follows FIFA's Testing Manual of March 2026 (Basic's six tests, Pro's
+ * tighter limits, the licence line), and RUN's stitching hall is monitored by IMAC (owner's words).
  */
-const BALL_FACT_CHECK = '2026-11-05T21:18:21+05:00'
+const BALL_FACT_CHECK = '2026-11-05T22:10:20+05:00'
 /**
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". It replaced
@@ -186,7 +187,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.production,
     WAVE_ONE,
     BALL_FACT_CHECK,
-    'f138ec4adc8b',
+    '8f54d6ec6c82',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,
