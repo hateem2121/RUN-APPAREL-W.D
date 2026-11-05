@@ -83,7 +83,6 @@ const DTF = 'Direct-to-film (DTF): the design is printed on film, then heat-pres
 const EVA = 'Light foam padding that softens knocks and keeps its shape.'
 const SCREEN = 'Ink pressed through a stencil: bold, solid color that lasts.'
 const SUBLIMATION = 'The design is dyed into the fabric, so it will not crack or peel.'
-const STRETCH_POLY = 'A stretchy polyester knit made to move with you.'
 const STRETCH_RECYCLED_POLY = 'A stretchy recycled-polyester knit made to move with you.'
 const NOT_SEE_THROUGH = 'Holds its shape, and does not turn see-through with wear.'
 
@@ -221,7 +220,9 @@ export const FEATURE_NOTES: Record<string, string> = {
     'Breathable fabric shaped to the body, so you are covered but cool.',
   'matching high-waist shorts':
     'Shorts in the same fabric that sit high on the waist, worn as a set.',
-  'eco-power mesh': 'A strong, stretchy mesh that keeps you cool.',
+  // Was "eco-power mesh" until 2026-11-06 (owner: R-WZU's 85% recycled polyester; no "eco" words).
+  'recycled-polyester power mesh':
+    'A strong, stretchy recycled-polyester mesh that keeps you cool.',
   'reversible zip': 'A zip that works from either side, so you can wear the vest two ways.',
   'mesh panel construction': 'Mesh panels that let air through where you heat up most.',
   'elastane strap': 'A strap made with elastane (spandex): it holds firm and stretches with you.',
@@ -265,12 +266,13 @@ export const FEATURE_NOTES: Record<string, string> = {
   'v-shape collar': 'A V-shaped collar that opens at the neck.',
   'folded sleeve and waist hems':
     'Folded, stitched hems at the sleeves and waist, for a clean finish.',
-  'eco velocity jersey interlock': 'A smooth, light double-knit jersey.',
+  // Was "eco velocity jersey interlock" until 2026-11-06 (owner: R-SRS is 100% recycled polyester).
+  'recycled-polyester velocity jersey interlock':
+    'A smooth, light double-knit jersey made from recycled polyester.',
   // R-MRP, R-TTP, R-GTD, R-BCD, R-MM, R-WSA (tennis)
   'suitable for tennis and pickleball':
     'Made for the court: it works for both tennis and pickleball.',
   'recycled interlock knit': 'A smooth double knit made from recycled polyester.',
-  'eco poly stretch': STRETCH_POLY,
   'engineered seam placement': 'Seams placed to support movement and stay out of the way.',
   'flex jersey panels': 'Stretchy jersey panels where the body bends.',
   'poly-stretch interlock': 'A stretchy polyester double knit that keeps its shape.',

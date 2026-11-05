@@ -133,7 +133,7 @@
       "garmentFit": "",
       "shortDescription": "A well-engineered piece of athletic wear built to meet the demands of tennis performance while keeping a stylish look. Every seam and panel is thoughtfully placed, supporting athletic movement and a flattering silhouette at the same time. It blends high-tech function with contemporary design for competitive play and active lifestyles alike.",
       "performanceFeatures": [
-        "Eco poly stretch",
+        "Recycled polyester stretch",
         "Engineered seam placement",
         "Digital sublimation print",
         "Flex jersey panels"
@@ -234,7 +234,7 @@
       "slug": "r-srs",
       "productName": "SHORT RAGLAN SLEEVE",
       "category": "Teamwear & Uniforms",
-      "fabricComposition": "100% Polyester",
+      "fabricComposition": "100% Recycled Polyester",
       "gsm": "140-180 GSM",
       "garmentFit": "",
       "shortDescription": "A soccer tee built from six panels in total: two matching side panels, a front and a back panel, and two matching arm gussets with sleeves. Cylindrical piping in the same fabric runs along the sleeves to move air around the neck, a V-shaped collar is attached, and folded hems finish the sleeve and waist.",
@@ -243,7 +243,7 @@
         "Cylindrical sleeve piping for airflow",
         "V-shape collar",
         "Folded sleeve and waist hems",
-        "Eco velocity jersey interlock"
+        "Recycled-polyester velocity jersey interlock"
       ]
     },
     {
@@ -589,9 +589,9 @@
       "fabricComposition": "85% Recycled Polyester / 15% Spandex",
       "gsm": "150-220 GSM",
       "garmentFit": "",
-      "shortDescription": "A women’s bra zip-up vest combining the security of a high-performance sports bra with the coverage of a crop vest. Breathable, flexible eco-power mesh keeps you cool through a workout or a day out, and a reversible zip adds a second way to wear it.",
+      "shortDescription": "A women’s bra zip-up vest combining the security of a high-performance sports bra with the coverage of a crop vest. Breathable, flexible recycled-polyester power mesh keeps you cool through a workout or a day out, and a reversible zip adds a second way to wear it.",
       "performanceFeatures": [
-        "Eco-power mesh",
+        "Recycled-polyester power mesh",
         "Reversible zip",
         "Mesh panel construction",
         "Elastane strap",
@@ -1157,10 +1157,10 @@
       "fabricComposition": "100% Polyester",
       "gsm": "70-110 GSM",
       "garmentFit": "Windproof athletic fit",
-      "shortDescription": "A women’s thermal jacket built on an engineered matrix-ripstop shell with a high-loft eco-synthetic fill. An insulated storm hood with toggles, a weather-resistant DWR finish and elasticised bound cuffs seal out the weather, while a heat-retention lining and reinforced quilted baffles hold warmth in. Articulated sleeve panels keep movement free in extreme conditions.",
+      "shortDescription": "A women’s thermal jacket built on an engineered matrix-ripstop shell with a high-loft synthetic fill. An insulated storm hood with toggles, a weather-resistant DWR finish and elasticised bound cuffs seal out the weather, while a heat-retention lining and reinforced quilted baffles hold warmth in. Articulated sleeve panels keep movement free in extreme conditions.",
       "performanceFeatures": [
         "Matrix-ripstop shell",
-        "High-loft eco-synthetic fill",
+        "High-loft synthetic fill",
         "Insulated storm hood with toggles",
         "Reinforced quilted baffles",
         "Articulated sleeve panels"
