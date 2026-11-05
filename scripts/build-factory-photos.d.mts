@@ -47,6 +47,17 @@ export declare const ABOUT_HERO_SOURCES: {
   focus: [number, number]
 }[]
 
+/**
+ * The whole pictures (owner, 2026-11-05: never cut): two portraits and the four buyer pages' photos,
+ * resized to the original's own shape. `original` is the pixel size and every width stays within it.
+ */
+export declare const WHOLE_SOURCES: {
+  slug: string
+  file: string
+  original: [number, number]
+  widths: number[]
+}[]
+
 export declare function cropBox(
   width: number,
   height: number,

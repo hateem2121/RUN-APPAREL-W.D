@@ -504,6 +504,32 @@ const FAMILY_GUIDE_PATHS: Readonly<Record<string, readonly string[]>> = {
   sportswear: ['/guides/cost-to-start-an-activewear-brand'],
 }
 
+/**
+ * The factory photo that is the whole background of "How an order works" on four buyer pages
+ * (owner, 2026-11-05: one different photo per page, picked from the pictures the site already has,
+ * none repeated; then "I do not want the images to be cut" and the photo as the whole background,
+ * so each is a WHOLE picture, `WHOLE_PHOTOS` in `factoryPhotos.ts`). Keyed by family, so the soccer
+ * ball page (the accessories family's second page, `productLine`) and the accessories page draw
+ * none: the owner chose the four main pages.
+ *
+ * ⚠️ THESE ARE PICTURES OF ROOMS, NOT OF THE GARMENT: a printing room on the teamwear page is true
+ * of the factory, it is not a photo of a team shirt being made (the owner accepted this for now,
+ * 2026-11-05; swap a slug here when garment-specific photos exist). A test fails if a slug names
+ * no whole photo, or two pages share one.
+ */
+export const ORDER_PHOTO_BY_FAMILY: Readonly<Record<string, string>> = {
+  'teamwear-uniforms': 'whole-screen-printing',
+  sportswear: 'whole-stitching',
+  outerwear: 'whole-inspection',
+  'casual-wear': 'whole-tagging',
+}
+
+/** The slug of the whole photo a buyer page draws behind its order block, or null for none. */
+export function orderPhotoSlug(page: FamilyPage): string | null {
+  if (page.productLine) return null
+  return ORDER_PHOTO_BY_FAMILY[page.familySlug] ?? null
+}
+
 export function rangeGuidePaths(page: FamilyPage): readonly string[] {
   if (page.productLine) return BALL_GUIDE_PATHS
   return [...RANGE_GUIDE_PATHS, ...(FAMILY_GUIDE_PATHS[page.familySlug] ?? [])]

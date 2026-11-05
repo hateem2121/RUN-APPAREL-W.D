@@ -3,17 +3,26 @@ import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { AVIF_QUALITY, cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import {
+  AVIF_QUALITY,
+  cropBox,
+  SHAPES,
+  SOURCES,
+  WHOLE_SOURCES,
+} from '../../../scripts/build-factory-photos.mjs'
 import {
   ABOUT_HERO_SOURCES,
   CONTACT_HERO_SOURCES,
   HERO_SOURCES,
 } from '../../../scripts/build-factory-photos.mjs'
 import { AboutSection } from './components/site/AboutSection'
+import { PhotoStage } from './components/site/PhotoStage'
 import { FULL_COLUMN_SIZES } from './components/site/FactoryFigure'
 import { OrderSteps } from './components/site/OrderSteps'
+import { ABOUT_PAGE } from './lib/aboutPages'
 import {
   ABOUT_HERO_PHOTO,
+  ABOUT_PORTRAITS,
   aboutHeroSrc,
   CONTACT_HERO_PHOTO,
   contactHeroSrc,
@@ -26,6 +35,9 @@ import {
   HERO_PHOTO,
   HERO_SHAPES,
   heroPhotoSrc,
+  WHOLE_PHOTOS,
+  wholePhoto,
+  wholePhotoImage,
 } from './lib/factoryPhotos'
 import { ORDER_PHASES } from './lib/orderProcess'
 import { hintAt, pickedWidth } from './sizesAt'
@@ -109,6 +121,10 @@ describe('the factory photos (OI-3)', () => {
         ABOUT_HERO_PHOTO.widths[shape].map((width) =>
           aboutHeroSrc(shape, width).slice('/factory/'.length),
         ),
+      ),
+      // The whole pictures (2026-11-05): the two portraits and the four buyer pages' photos.
+      ...WHOLE_PHOTOS.flatMap((photo) =>
+        photo.widths.map((width) => `${photo.slug}-${width}.webp`),
       ),
       // The phone crops' AVIF twins, which both pages offer first (2026-09-29).
       ...HERO_PHOTO.widths.heroTall.flatMap((width) => [
@@ -630,5 +646,151 @@ describe('wide heroes come in AVIF too', () => {
         tsx.indexOf('className="site-hero__img"'),
       )
     }
+  })
+})
+
+/*
+ * THE WHOLE PICTURES (owner, 2026-11-05: "I do not want the images to be cut"). What would have to
+ * break for these to fail: a file written to a tidy 4:5 or 8:5 instead of the original's own shape
+ * (the picture is cut again, and nothing on the page looks wrong until someone notices a missing
+ * hand), a file missing, an upscale, a stage that crops in CSS, or the portraits' alt text drifting
+ * from the name the timeline prints.
+ */
+describe('the whole pictures are never cut (2026-11-05)', () => {
+  /** True when a file of `size` has the shape of an original `ratio`, within a pixel of rounding. */
+  const hasShape = (size: { width: number; height: number }, ratio: readonly [number, number]) =>
+    Math.abs(size.height - (size.width * ratio[1]) / ratio[0]) <= 1
+
+  it('every file exists at the original’s own shape, not a tidy one', () => {
+    for (const photo of WHOLE_PHOTOS) {
+      for (const width of photo.widths) {
+        const file = `${photo.slug}-${width}.webp`
+        expect(existsSync(join(DIR, file)), file).toBe(true)
+        const size = webpSize(readFileSync(join(DIR, file)))
+        expect(size.width, file).toBe(width)
+        expect(hasShape(size, photo.ratio), `${file} is ${size.width}x${size.height}`).toBe(true)
+      }
+    }
+  })
+
+  // NEGATIVE CONTROL: the check sees a cut file. The screen-printing photo's ordinary file is the
+  // 4:5 cut of a 0.545:1 original, so it does not have the whole picture's shape.
+  it('sees a picture cut to 4:5', () => {
+    const cut = webpSize(readFileSync(join(DIR, 'screen-printing-800.webp')))
+    expect(cut.width / cut.height).toBeCloseTo(0.8, 2)
+    expect(hasShape(cut, wholePhoto('whole-screen-printing').ratio)).toBe(false)
+    const whole = webpSize(readFileSync(join(DIR, 'whole-screen-printing-800.webp')))
+    expect(hasShape(whole, wholePhoto('whole-screen-printing').ratio)).toBe(true)
+  })
+
+  it('the build script and the page list the same pictures, shapes and widths', () => {
+    expect(
+      WHOLE_SOURCES.map((source) => ({
+        slug: source.slug,
+        ratio: source.original,
+        widths: source.widths,
+      })),
+    ).toEqual(
+      WHOLE_PHOTOS.map((photo) => ({
+        slug: photo.slug,
+        ratio: [...photo.ratio],
+        widths: [...photo.widths],
+      })),
+    )
+  })
+
+  it('writes no file wider than its original', () => {
+    for (const photo of WHOLE_PHOTOS) {
+      expect(Math.max(...photo.widths), photo.slug).toBeLessThanOrEqual(photo.ratio[0])
+    }
+  })
+
+  it('draws a file’s srcset, a reserved size of the same shape and a hint wide enough', () => {
+    for (const photo of WHOLE_PHOTOS) {
+      const image = wholePhotoImage(photo)
+      expect(image.src, photo.slug).toBe(`/factory/${photo.slug}-${photo.widths[0]}.webp`)
+      expect(image.srcSet.split(', '), photo.slug).toHaveLength(photo.widths.length)
+      expect(hasShape({ width: image.width, height: image.height }, photo.ratio), photo.slug).toBe(
+        true,
+      )
+      expect(image.sizes, photo.slug).toMatch(
+        /^\(max-width: 899px\) 100vw, min\(100vw, [\d.]+svh\)$/,
+      )
+    }
+  })
+
+  it('the portraits follow the timeline cards that name them, in the spelling the page prints', () => {
+    const names = {
+      'portrait-ghafuree': 'Allah Ditta Ghafuree',
+      'portrait-sandal': 'M. Iqbal Sandal',
+    } as const
+    expect(ABOUT_PORTRAITS.map((portrait) => portrait.slug)).toEqual(Object.keys(names))
+    for (const portrait of ABOUT_PORTRAITS) {
+      const entry = ABOUT_PAGE.timeline.entries.find((card) => card.year === portrait.year)
+      const name = names[portrait.slug]
+      expect(entry?.body, `${portrait.year}: no card names ${name}`).toContain(name)
+      expect(wholePhoto(portrait.slug).alt).toContain(name)
+    }
+  })
+
+  it('a buyer photo has the alt text of the factory picture it is a whole copy of', () => {
+    const copies = {
+      'whole-screen-printing': 'screen-printing',
+      'whole-inspection': 'inspection',
+      'whole-stitching': 'stitching',
+      'whole-tagging': 'tagging',
+    } as const
+    for (const [whole, cut] of Object.entries(copies)) {
+      const alt = FACTORY_PHOTOS.find((photo) => photo.slug === cut)?.alt
+      expect(alt, cut).toBeTruthy()
+      expect(wholePhoto(whole).alt).toBe(alt)
+    }
+  })
+
+  /** The stage's own CSS: between its heading comment and the next section's. */
+  const stageCss = () => {
+    const css = readFileSync(join(import.meta.dirname, 'app/(frontend)/site.css'), 'utf8')
+    const from = css.indexOf("a whole photo as a screen's background")
+    const to = css.indexOf('№02 the family cards')
+    return css.slice(from, to).replace(/\/\*[\s\S]*?\*\//g, '')
+  }
+
+  it('the stage fits a picture whole in CSS, and never covers', () => {
+    const css = stageCss()
+    expect(css).toMatch(/\.photo-stage__img \{[^}]*object-fit: contain/)
+    expect(css).not.toMatch(/object-fit:\s*cover/)
+  })
+
+  // NEGATIVE CONTROL: the CSS check sees a stage that crops.
+  it('sees a stage that crops', () => {
+    expect(`${stageCss()} .photo-stage__img { object-fit: cover; }`).toMatch(/object-fit:\s*cover/)
+  })
+
+  it('draws the picture lazily, sized, with its alt text and no caption', () => {
+    const html = renderToStaticMarkup(
+      createElement(PhotoStage, { photo: wholePhoto('portrait-ghafuree'), copy: 'year' }),
+    )
+    const img = html.match(/<img\b[^>]*>/)?.[0] ?? ''
+    expect(img).toContain('loading="lazy"')
+    expect(img).toContain('width="400"')
+    expect(img).toContain('height="536"')
+    expect(img).toContain('alt="Black-and-white portrait of Allah Ditta Ghafuree."')
+    expect(html).not.toContain('<figcaption')
+  })
+
+  it('hides a portrait’s year from screen readers, and draws a buyer page’s words as text', () => {
+    const portrait = renderToStaticMarkup(
+      createElement(
+        PhotoStage,
+        { photo: wholePhoto('portrait-sandal'), copy: 'year' },
+        '1956–1992',
+      ),
+    )
+    expect(portrait).toMatch(/class="photo-stage__year" aria-hidden="true"/)
+    const buyer = renderToStaticMarkup(
+      createElement(PhotoStage, { photo: wholePhoto('whole-tagging') }, 'How an order works'),
+    )
+    expect(buyer).toMatch(/class="photo-stage__copy"/)
+    expect(buyer).not.toContain('aria-hidden="true">How')
   })
 })

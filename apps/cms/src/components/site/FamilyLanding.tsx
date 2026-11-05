@@ -2,6 +2,7 @@ import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import { IntentLink as Link } from './IntentLink'
 import type { ProductCard, PublicSiteSettings } from '../../lib/content'
 import { FACTORY_PAGE } from '../../lib/aboutPages'
+import { wholePhoto } from '../../lib/factoryPhotos'
 import { FAMILIES, familyPictures } from '../../lib/families'
 import {
   FAMILY_PAGE_ACTION,
@@ -9,6 +10,7 @@ import {
   familyHref,
   familyOf,
   makesHref,
+  orderPhotoSlug,
   rangeGuidePaths,
 } from '../../lib/familyPages'
 import { guideAt } from '../../lib/guides'
@@ -17,6 +19,7 @@ import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/struct
 import { FamilyHeroPicture } from './FamilyHeroPicture'
 import { GarmentGrid } from './GarmentGrid'
 import { JsonLd } from './JsonLd'
+import { PhotoStage } from './PhotoStage'
 
 /** The guide that tells how an order works, once, for every buyer page (polish S4). */
 const ORDER_GUIDE = guideAt('/guides/how-a-private-label-order-works')
@@ -43,6 +46,9 @@ const BALL_PICTURE = {
  * family under a heading that opens this page, and its old filter address forwards here. The page
  * no longer repeats the home page's numbers and factory photos, nor its own five order steps: "how
  * an order works" is one sentence and a link to the order guide, which tells it once for every page.
+ * One exception since 2026-11-05 (owner: one different photo per page, never cut, as the whole
+ * background): the four main pages show one WHOLE factory photo behind that block (`PhotoStage`,
+ * chosen by `ORDER_PHOTO_BY_FAMILY`); the accessories and soccer ball pages show none.
  *
  * ⚠️ ONE PRIMARY BUTTON PER SCREEN, and the same words both times (`e2e/copy.spec.ts`,
  * CT-08). The second way in is a quiet link.
@@ -84,6 +90,34 @@ export function FamilyLanding({
   const others = FAMILIES.filter(
     (entry) =>
       entry.slug !== family.slug && products.some((product) => product.category === entry.name),
+  )
+
+  // The order block's parts, drawn on paper or over a whole photo (2026-11-05).
+  const orderHeading = <h2 className="display display--section">{page.stepsHeading}</h2>
+  const orderSlug = orderPhotoSlug(page)
+  const orderPhoto = orderSlug ? wholePhoto(orderSlug) : null
+  const orderButton = (
+    <Link className="btn btn--ghost" href={ORDER_GUIDE.path}>
+      {family.slug === 'sports-accessories' ? 'How an order works' : ORDER_GUIDE.title}
+    </Link>
+  )
+  const orderList = (
+    <ul className="see-also__list">
+      {/* Each guide with its own approved description as the reason to open it. */}
+      {rangeGuidePaths(page)
+        .map(guideAt)
+        .map((guide) => (
+          <li key={guide.path}>
+            <Link href={guide.path}>{guide.title}</Link>
+            <p className="see-also__why">{guide.description}</p>
+          </li>
+        ))}
+      {/* How every order is checked: the factory page, with its own approved description. */}
+      <li>
+        <Link href={FACTORY_PAGE.path}>{FACTORY_PAGE.title}</Link>
+        <p className="see-also__why">{FACTORY_PAGE.description}</p>
+      </li>
+    </ul>
   )
 
   // The lede and the two buttons: one definition for the hero with a picture and the hero without.
@@ -178,36 +212,34 @@ export function FamilyLanding({
         </section>
       ) : null}
 
-      {/* How an order works: the order guide's own description, and the way to it (polish S4). */}
-      <section className="site-section" data-site-reveal>
-        <div className="site-container prose spread">
-          <h2 className="display display--section">{page.stepsHeading}</h2>
-          <div className="spread__body">
+      {/*
+       * How an order works: the order guide's own description, and the way to it (polish S4). On
+       * the four main pages the factory photo is this block's whole background, shown whole
+       * (2026-11-05; `PhotoStage.tsx`); the links under it stay on paper, below, where they read.
+       */}
+      {orderPhoto ? (
+        <>
+          <PhotoStage photo={orderPhoto}>
+            {orderHeading}
             <p>{ORDER_GUIDE.description}</p>
-            <div className="site-actions">
-              <Link className="btn btn--ghost" href={ORDER_GUIDE.path}>
-                {family.slug === 'sports-accessories' ? 'How an order works' : ORDER_GUIDE.title}
-              </Link>
+            <div className="site-actions">{orderButton}</div>
+          </PhotoStage>
+          <section className="site-section" data-site-reveal>
+            <div className="site-container prose">{orderList}</div>
+          </section>
+        </>
+      ) : (
+        <section className="site-section" data-site-reveal>
+          <div className="site-container prose spread">
+            {orderHeading}
+            <div className="spread__body">
+              <p>{ORDER_GUIDE.description}</p>
+              <div className="site-actions">{orderButton}</div>
+              {orderList}
             </div>
-            <ul className="see-also__list">
-              {/* Each guide with its own approved description as the reason to open it. */}
-              {rangeGuidePaths(page)
-                .map(guideAt)
-                .map((guide) => (
-                  <li key={guide.path}>
-                    <Link href={guide.path}>{guide.title}</Link>
-                    <p className="see-also__why">{guide.description}</p>
-                  </li>
-                ))}
-              {/* How every order is checked: the factory page, with its own approved description. */}
-              <li>
-                <Link href={FACTORY_PAGE.path}>{FACTORY_PAGE.title}</Link>
-                <p className="see-also__why">{FACTORY_PAGE.description}</p>
-              </li>
-            </ul>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">

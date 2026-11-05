@@ -717,6 +717,10 @@ describe('raw values in component stylesheets', () => {
       selector: '.related__body .related__name',
       value: 'clamp(var(--text-xs), 12.3cqi, var(--text-card-title))',
     },
+    // The About page's portrait screens (owner, 2026-11-05): a portrait's year, drawn huge and quiet
+    // behind the picture. Decoration only, hidden from screen readers (`PhotoStage.tsx`), so the
+    // range is a look and not a reading size: 72px to 210px.
+    { file: 'site.css', selector: '.photo-stage__year', value: 'clamp(4.5rem, 13vw, 13.125rem)' },
     // Site check-up (2026-10-22): a careers step's name shrinks with its step when the reader's
     // text is large, rather than run off a 320px phone or break inside a word. The step is the
     // container; `apps/cms/e2e/bigText.spec.ts` sets seven pages at twice the text.
