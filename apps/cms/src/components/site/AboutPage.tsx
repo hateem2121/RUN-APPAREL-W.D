@@ -9,7 +9,14 @@ import { JsonLd } from './JsonLd'
 import { Marquee } from './Marquee'
 import { ABOUT_PAGE } from '../../lib/aboutPages'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE } from '../../lib/companyFacts'
-import { ABOUT_HERO_PHOTO, HERO_PHOTO, aboutHeroSrc } from '../../lib/factoryPhotos'
+import {
+  ABOUT_HERO_PHOTO,
+  ABOUT_PORTRAITS,
+  HERO_PHOTO,
+  aboutHeroSrc,
+  wholePhoto,
+} from '../../lib/factoryPhotos'
+import { PhotoStage } from './PhotoStage'
 import { aboutPageJsonLd, breadcrumbTrailJsonLd } from '../../lib/structuredData'
 
 /**
@@ -186,6 +193,20 @@ export function AboutPage() {
           </ol>
         </div>
       </section>
+
+      {/*
+       * The two archive portraits (owner, 2026-11-05): one whole screen each, after the timeline
+       * that names them and unchanged by them. Photo and year only, no words of their own, so
+       * nothing the timeline says is told twice; the year is the card's, drawn huge and hidden
+       * from screen readers (`PhotoStage.tsx`, "year").
+       */}
+      <div className="about-portraits">
+        {ABOUT_PORTRAITS.map((portrait) => (
+          <PhotoStage key={portrait.slug} photo={wholePhoto(portrait.slug)} copy="year">
+            <p>{portrait.year}</p>
+          </PhotoStage>
+        ))}
+      </div>
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">

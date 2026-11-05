@@ -260,6 +260,7 @@ not do — swapping the import silently flattens every headline back to normal w
 .display--hero    clamp(34px, 5.4vw, 72px) · --tracking-display-lg · colour --headline
 .display--section clamp(26px, 4vw, 46px)  · --tracking-display-sm
 .footer-q         clamp(27px, 4.3vw, 52px) · --tracking-display-sm · the site footer's question
+.photo-stage__year clamp(72px, 13vw, 210px) · --tracking-display-large · a portrait's year on /about, decoration only (2026-11-05)
 ```
 
 These ranges, and the narrower variants below, are the only `clamp()` font sizes the
