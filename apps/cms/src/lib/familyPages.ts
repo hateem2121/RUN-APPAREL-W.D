@@ -320,11 +320,11 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     path: '/custom-teamwear-manufacturer',
     familySlug: 'teamwear-uniforms',
     title: 'Custom Teamwear & Team Uniform Manufacturer',
-    description: `Custom teamwear and team uniforms made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
+    description: `Custom teamwear and team uniforms made to order under your own label, from ${MINIMUM} pieces per style. Sample usually in ${SAMPLE_DAYS} working days. Inspect every garment in 3D.`,
     eyebrow: `[ Teamwear & Uniforms · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom teamwear and team uniforms,',
     headingAccent: 'made to your spec.',
-    lede: `RUN APPAREL is a private label teamwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make team kit to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    lede: `RUN APPAREL is a private label teamwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make team kit to that specification, under your own label, from ${MINIMUM} pieces per style. A sample usually takes ${SAMPLE_DAYS} working days.`,
     makesHeading: 'What we make for teams',
     makes: [
       {
@@ -359,11 +359,11 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     path: '/custom-activewear-manufacturer',
     familySlug: 'sportswear',
     title: 'Private Label Activewear Manufacturer',
-    description: `Custom activewear and sportswear made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
+    description: `Custom activewear and sportswear made to order under your own label, from ${MINIMUM} pieces per style. Sample usually in ${SAMPLE_DAYS} working days. Inspect every garment in 3D.`,
     eyebrow: `[ Sportswear · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom activewear and sportswear',
     headingAccent: 'made to your spec.',
-    lede: `RUN APPAREL is a private label activewear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make sportswear to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    lede: `RUN APPAREL is a private label activewear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make sportswear to that specification, under your own label, from ${MINIMUM} pieces per style. A sample usually takes ${SAMPLE_DAYS} working days.`,
     makesHeading: 'What we make for active brands',
     makes: [
       {
@@ -388,11 +388,11 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     path: '/custom-outerwear-manufacturer',
     familySlug: 'outerwear',
     title: 'Custom Outerwear & Jacket Manufacturer',
-    description: `Custom jackets and outerwear made to order under your own label, from ${MINIMUM} pieces per style. Sample in ${SAMPLE_DAYS} working days. Inspect every garment in 3D first.`,
+    description: `Custom jackets and outerwear made to order under your own label, from ${MINIMUM} pieces per style. Sample usually in ${SAMPLE_DAYS} working days. Inspect every garment in 3D.`,
     eyebrow: `[ Outerwear · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom jackets and outerwear,',
     headingAccent: 'made to your spec.',
-    lede: `RUN APPAREL is a private label outerwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make jackets to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    lede: `RUN APPAREL is a private label outerwear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make jackets to that specification, under your own label, from ${MINIMUM} pieces per style. A sample usually takes ${SAMPLE_DAYS} working days.`,
     makesHeading: 'What we make in outerwear',
     makes: [
       {
@@ -411,11 +411,11 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     path: '/private-label-casual-wear-manufacturer',
     familySlug: 'casual-wear',
     title: 'Private Label Casual Wear Manufacturer',
-    description: `Private label casual wear made to order, from ${MINIMUM} pieces per style: hoodies, tracksuits, polos and fleece. Sample in ${SAMPLE_DAYS} working days. See each garment in 3D.`,
+    description: `Private label casual wear made to order, from ${MINIMUM} pieces per style: hoodies, tracksuits, polos, fleece. Sample usually in ${SAMPLE_DAYS} working days. See each garment in 3D.`,
     eyebrow: `[ Casual Wear · From ${MINIMUM} pieces per style ]`,
     heading: 'Private label casual wear,',
     headingAccent: 'made to your spec.',
-    lede: `RUN APPAREL is a private label casual wear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make everyday clothing to that specification, under your own label, from ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days.`,
+    lede: `RUN APPAREL is a private label casual wear manufacturer in Sialkot, Pakistan. You send a style, a quantity and a specification. We make everyday clothing to that specification, under your own label, from ${MINIMUM} pieces per style. A sample usually takes ${SAMPLE_DAYS} working days.`,
     makesHeading: 'What we make in casual wear',
     makes: [
       { group: 'Hoodies', garments: 'Women’s crop hoodies.', garment: 'r-cch' },
@@ -497,8 +497,15 @@ const RANGE_GUIDE_PATHS = [
   '/guides/pakistan-vs-china-vs-turkey',
 ] as const
 
-/** The printing and fabric guides speak of cloth, so the ball page keeps only the country guide. */
-const BALL_GUIDE_PATHS = ['/guides/pakistan-vs-china-vs-turkey'] as const
+/**
+ * The printing and fabric guides speak of cloth, so the ball page keeps the country guide, and since
+ * 2026-11-05 the soccer-ball guide (wave 1 of the buyer library): the one page that explains the
+ * builds, sizes and FIFA marks this page sells.
+ */
+const BALL_GUIDE_PATHS = [
+  '/guides/how-soccer-balls-are-made',
+  '/guides/pakistan-vs-china-vs-turkey',
+] as const
 
 const FAMILY_GUIDE_PATHS: Readonly<Record<string, readonly string[]>> = {
   sportswear: ['/guides/cost-to-start-an-activewear-brand'],

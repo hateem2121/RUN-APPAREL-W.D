@@ -90,6 +90,8 @@ describe('what the switch does', () => {
       'https://wear-run.com/guides/shipping-and-import-duties',
       'https://wear-run.com/guides/cost-to-start-an-activewear-brand',
       'https://wear-run.com/guides/pakistan-vs-china-vs-turkey',
+      'https://wear-run.com/guides/how-soccer-balls-are-made',
+      'https://wear-run.com/guides/how-we-write-our-guides',
       'https://wear-run.com/policies',
       'https://wear-run.com/policies/workplace-conduct',
       'https://wear-run.com/policies/health-and-safety',

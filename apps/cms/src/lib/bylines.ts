@@ -102,13 +102,19 @@ const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
 const WASH_TESTS = '2026-11-05T00:09:00+05:00'
 /** The guide's line on sports accessories: the first has its own 3D page (2026-10-31). */
 const KAIZEN = '2026-10-31T22:30:00+05:00'
+/**
+ * Wave 1 of the buyer library (owner approved the words, 2026-11-05): the soccer-ball guide and the
+ * page on how the guides are written are new; the order and minimum-order guides gained sections;
+ * and a sample "usually" takes its days on every page that says so (owner: sample time varies).
+ */
+const WAVE_ONE = '2026-11-05T20:07:40+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
  * fails again if the words move without this moving.
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
-  '/about': '4ad00a8234d6',
+  '/about': 'cafca5ef2989',
   '/inside-the-factory': '6933686bef5e',
 } as const
 
@@ -116,15 +122,15 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-a-private-label-order-works': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    STEP_FIVE_PHOTO,
-    'fba06078c80f',
+    WAVE_ONE,
+    '9183271e007c',
   ),
   '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, KAIZEN, 'e212b4e342b4'),
   '/guides/minimum-order-and-samples': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    SITE_CHECK,
-    '4a8e6bacc216',
+    WAVE_ONE,
+    'e3c4c1fc01d8',
   ),
   '/guides/garment-printing-methods': byline(
     AUTHORS.production,
@@ -153,14 +159,28 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    SITE_CHECK,
-    'de3f9381a9cf',
+    WAVE_ONE,
+    '9db815b568a3',
   ),
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    LEGAL_FRAMING,
-    '376249ef196b',
+    WAVE_ONE,
+    'c1a93eac0097',
+  ),
+  // Writers chosen by the owner, 2026-11-05: the ball guide by production, the page on how the
+  // guides are written by the Content Team.
+  '/guides/how-soccer-balls-are-made': byline(
+    AUTHORS.production,
+    WAVE_ONE,
+    WAVE_ONE,
+    'efeb4bd890ef',
+  ),
+  '/guides/how-we-write-our-guides': byline(
+    AUTHORS.contentTeam,
+    WAVE_ONE,
+    WAVE_ONE,
+    '41ed5548fc87',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),
@@ -180,7 +200,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/about': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    LEGAL_FRAMING,
+    WAVE_ONE,
     ABOUT_FACTORY_FINGERPRINTS['/about'],
   ),
   '/inside-the-factory': byline(

@@ -1,7 +1,14 @@
 import { WEIGHT_BANDS } from '@run-apparel/shared'
 import { ABOUT } from './aboutCopy'
 import { FACTORY_PAGE } from './aboutPages'
-import { CERTIFICATION_LINES, FACTS, LEAD_TIME, PAYMENT_TERMS } from './companyFacts'
+import {
+  CERTIFICATION_LINES,
+  FACTS,
+  LEAD_TIME,
+  LEGAL_NAME,
+  PAYMENT_TERMS,
+  SAMPLE_TIME,
+} from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
@@ -63,6 +70,13 @@ export type GuideSection = {
    * a sentence and claims nothing new; `guides.test.ts` lists each one with those words.
    */
   photo?: string
+  /**
+   * One of the owner's WHOLE photos (a slug in `WHOLE_PHOTOS`), drawn as this section's whole
+   * background with its words on the ink panel over it (`PhotoStage.tsx`), as the buyer pages draw
+   * their order block. The owner's rule of 2026-11-05: a new picture is never cut and is the whole
+   * background of its screen. `guides.test.ts` lists each one with the words that name it.
+   */
+  stage?: string
   blocks: readonly GuideBlock[]
 }
 
@@ -166,6 +180,16 @@ const LARGER_FILES = 'For larger files, paste a WeTransfer or Drive link in your
 /** An FAQ answer, word for word (`faqs.ts`): the guide and the FAQ say it the same way. */
 const faqAnswer = (id: string): string => faqEntryById(id).entry.answer
 
+/** An FAQ answer's longer detail, word for word; throws on an entry that has none. */
+function faqDetail(id: string): string {
+  const detail = faqEntryById(id).entry.detail
+  if (!detail) throw new Error(`guides.ts: the FAQ entry "${id}" has no detail`)
+  return detail
+}
+
+/** An FAQ answer's first sentence, word for word (`how-we-ship` goes on to the quote, said elsewhere). */
+const faqFirstSentence = (id: string): string => `${faqAnswer(id).split('. ')[0] ?? ''}.`
+
 /** A factory-page stage's line, word for word (`aboutPages.ts`), found by its title's start. */
 function factoryStage(titleStart: string): string {
   const stage = FACTORY_PAGE.walkthrough.stages.find((entry) => entry.title.startsWith(titleStart))
@@ -209,6 +233,24 @@ export const GUIDES: readonly Guide[] = [
         heading: 'The eight steps',
         blocks: [{ kind: 'orderSteps' }],
       },
+      /*
+       * Wave 1 of the buyer library (owner approved the words on 2026-11-05, "Approve as written",
+       * and gave the facts the same day by question tool). Buyers' own inquiry emails asked these:
+       * what is checked, how to pay safely, what happens if something is wrong, who owns what. The
+       * checks and the problem window are the FAQ's and the factory page's words, reused exactly.
+       */
+      {
+        heading: 'What is checked before your order ships',
+        blocks: [
+          { kind: 'text', text: faqDetail('checks') },
+          { kind: 'text', text: factoryStage('Material') },
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: a buyer's own inspector may check the order at the works.
+            text: 'Your own inspector, for example from SGS, Intertek or QIMA, can check the order at our works before it ships.',
+          },
+        ],
+      },
       {
         heading: 'What helps us quote faster',
         blocks: [
@@ -228,11 +270,57 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
       {
+        heading: 'Paying for your order',
+        blocks: [
+          { kind: 'text', text: PAYMENT_TERMS },
+          {
+            kind: 'text',
+            // Owner, 2026-11-05 (question tool): all three ways are true.
+            text: 'You can pay by bank transfer (T/T), by letter of credit (L/C), or by card or online.',
+          },
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: the account is in the registered name ("Yes, publish it").
+            text: `Pay only into an account in our registered name, ${LEGAL_NAME}. If an email ever gives you new bank details, call us before you pay.`,
+          },
+        ],
+      },
+      {
+        heading: 'If something is wrong',
+        blocks: [{ kind: 'text', text: faqAnswer('order-problem') }],
+      },
+      {
+        heading: 'Shipping and the papers that travel with it',
+        blocks: [
+          { kind: 'text', text: faqFirstSentence('how-we-ship') },
+          { kind: 'text', text: faqAnswer('shipping-documents') },
+        ],
+      },
+      {
         heading: 'Your artwork stays yours',
         blocks: [
           {
             kind: 'text',
             text: 'Tech packs, artwork and samples you send us remain your property. We use them only to quote and to manufacture for you.',
+          },
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: "Depends on the quote".
+            text: 'Who owns a pattern we make for you is agreed in your quote.',
+          },
+        ],
+      },
+      {
+        heading: 'Blank garments and single orders',
+        blocks: [
+          {
+            kind: 'text',
+            /*
+             * Owner, 2026-11-05: blank garments yes, dropshipping yes, ready stock no, stock abroad no.
+             * "decorate" where the approved draft said "print or embroider": a printing method is named
+             * only in the printing guide (`guides.test.ts`, the owner's facts of 2026-09-30).
+             */
+            text: 'We make every order to your spec, including blank garments for buyers who decorate them elsewhere. We can also ship single orders straight to your customers, at a cost we quote. We do not hold ready stock, here or abroad.',
           },
         ],
       },
@@ -341,10 +429,11 @@ export const GUIDES: readonly Guide[] = [
   {
     path: '/guides/minimum-order-and-samples',
     title: 'Minimum Order & Samples for Custom Apparel',
-    description: `The minimum order is ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days and its fee is credited back against your bulk order. Here is how both work.`,
+    // "usually" since 2026-11-05 (owner: sample time varies product to product; `SAMPLE_TIME`).
+    description: `The minimum order is ${MINIMUM} pieces per style. A sample usually takes ${SAMPLE_DAYS} working days and its fee is credited back against your bulk order. Here is how both work.`,
     heading: 'Minimum order and samples,',
     headingAccent: 'in plain numbers.',
-    lede: `The minimum order at RUN APPAREL is ${MINIMUM} pieces per style. A sample takes ${SAMPLE_DAYS} working days, and the sample fee is credited back against your bulk order. Nothing goes into bulk until you sign off the sample.`,
+    lede: `The minimum order at RUN APPAREL is ${MINIMUM} pieces per style. A sample usually takes ${SAMPLE_DAYS} working days, and the sample fee is credited back against your bulk order. Nothing goes into bulk until you sign off the sample.`,
     sections: [
       {
         heading: 'The minimum order',
@@ -373,12 +462,41 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+      /*
+       * Wave 1 of the buyer library (owner approved the words on 2026-11-05, "Approve as written"; the
+       * pricing sentence confirmed the same day: "Yes, publish it"). In RUN's own inquiries, 11 of 11
+       * buyers asked about the minimum and 8 about the price at small quantities and the samples.
+       */
+      {
+        heading: 'Why fewer pieces cost more each',
+        blocks: [
+          {
+            kind: 'text',
+            text: `Some work is done once per style, whatever the quantity: the pattern, the cutting plan, the sample and, for screen printing, one screen for each ink color. Over ${MINIMUM} pieces, each piece carries a larger share of that work than it would over 500.`,
+          },
+        ],
+      },
+      {
+        heading: 'Prices at more than one quantity',
+        blocks: [
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: several quantities in one quote is true.
+            text: `Ask for two or three quantities in one quote, for example ${MINIMUM}, 100 and 250 pieces. You see what each piece costs at each quantity before you decide.`,
+          },
+        ],
+      },
       {
         heading: 'Splitting the minimum',
         blocks: [
           {
             kind: 'text',
             text: `Within the ${MINIMUM} you can typically split across sizes, for example ${OWNER_FIGURES.sizeSplit}. Color splits depend on the fabric and the printing method. Your quote confirms the exact split.`,
+          },
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: any size is made, quoted per order.
+            text: 'For a team, the team list sets the sizes, one per player. For a new brand, your customers’ past orders are the best guide to how many of each size to make. We make any size; your quote states any extra cost for the largest ones.',
           },
         ],
       },
@@ -388,10 +506,47 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'list',
             items: [
-              `Made in ${SAMPLE_DAYS} working days.`,
+              // The owner's sentence of 2026-11-05 (`SAMPLE_TIME`): sample time varies by product.
+              SAMPLE_TIME,
               'The fee is credited back against your bulk order.',
               'Bulk production starts only after you approve it.',
             ],
+          },
+        ],
+      },
+      {
+        heading: 'The samples you will see',
+        blocks: [
+          // Owner, 2026-11-05: a typical order has all four.
+          { kind: 'text', text: 'A typical order has four samples:' },
+          {
+            kind: 'list',
+            items: [
+              'A first sample shows the style, fabric and print in one size.',
+              'A size set is the style in every size, so you can check the fit across the range.',
+              'A pre-production sample is made from the bulk fabric and trims.',
+              'A top-of-production sample is taken from the bulk run itself.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Feeling the fabric first',
+        blocks: [
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: swatches before the sample is true.
+            text: 'We can send swatches of the fabric before the sample, so you can feel its weight and see its color.',
+          },
+        ],
+      },
+      {
+        heading: 'Samples of several products at once',
+        blocks: [
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: a mixed sample batch is true.
+            text: 'You can order samples of several styles in one batch, each in the size you choose.',
           },
         ],
       },
@@ -445,6 +600,11 @@ export const GUIDES: readonly Guide[] = [
             text: 'You can send your own fabric. We cut, make and trim garments from it.',
           },
         ],
+      },
+      {
+        heading: 'Who owns the pattern',
+        // Owner, 2026-11-05: "Depends on the quote".
+        blocks: [{ kind: 'text', text: 'Your quote states who owns a pattern we make for you.' }],
       },
       {
         heading: 'Reorders and payment',
@@ -1110,7 +1270,8 @@ export const GUIDES: readonly Guide[] = [
             kind: 'list',
             // The minimum order guide's list.
             items: [
-              `Made in ${SAMPLE_DAYS} working days.`,
+              // `SAMPLE_TIME` since 2026-11-05 (owner: sample time varies product to product).
+              SAMPLE_TIME,
               'The fee is credited back against your bulk order.',
               'Bulk production starts only after you approve it.',
             ],
@@ -1361,7 +1522,7 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'point',
             title: 'How long does a sample take, and is its fee credited back?',
-            text: `Ours takes ${SAMPLE_DAYS} working days, and the fee is credited back against your bulk order.`,
+            text: `Ours usually takes ${SAMPLE_DAYS} working days, and the fee is credited back against your bulk order.`,
           },
           {
             kind: 'point',
@@ -1550,6 +1711,321 @@ export const GUIDES: readonly Guide[] = [
       },
     ],
   },
+  /*
+   * ⚠️ WAVE 1 OF THE BUYER LIBRARY: THE OWNER APPROVED THESE WORDS ON 2026-11-05 ("Approve as
+   * written") and gave its facts by question tool the same day: RUN makes all four builds; covers PU,
+   * PVC and TPU; bladders latex, butyl and wound; thermobonded is "heat and glue"; the Sialkot section
+   * goes in; the stitching photo is RUN's and its people agreed. Every outside fact was read on its
+   * primary page on 2026-11-05 (listed under `sources`); nothing is from a ball maker or a seller (the
+   * owner's rule: never research from other manufacturers). A comparison of builds, covers or
+   * bladders is NOT here: no neutral source makes one, and sellers' claims are excluded.
+   */
+  {
+    path: '/guides/how-soccer-balls-are-made',
+    title: 'How Soccer Balls Are Made: Builds and Sizes',
+    description:
+      'Hand-stitched, machine-stitched, thermobonded and hybrid soccer balls: what each is made of, the ball size for each age, and what FIFA’s quality marks test.',
+    heading: 'How a soccer ball is made,',
+    headingAccent: 'panel by panel.',
+    lede: 'A soccer ball is built in one of four ways: stitched by hand, stitched by machine, thermobonded, or a hybrid of these. We make all four in Sialkot. This guide explains each build, the materials inside a ball, the size for each age, and what FIFA’s quality marks test.',
+    sections: [
+      {
+        heading: 'Four ways to build a ball',
+        blocks: [
+          {
+            kind: 'point',
+            title: 'Hand-stitched',
+            text: 'The panels are stitched together by hand.',
+          },
+          {
+            kind: 'point',
+            title: 'Machine-stitched',
+            text: 'A machine stitches the panels together.',
+          },
+          {
+            kind: 'point',
+            title: 'Thermobonded',
+            text: 'The panels are joined with heat and glue, with no stitches.',
+          },
+          {
+            kind: 'point',
+            title: 'Hybrid',
+            // The Kaizen page's own "Trinity Technology" answer (`familyPages.ts`), another page.
+            text: 'Two or more builds in one ball. Our Kaizen is one: its panels are thermobonded, then machine stitched; the last panel is closed by hand, and the seams are sealed.',
+          },
+        ],
+      },
+      {
+        heading: 'What a ball is made of',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'From the outside in: the cover you kick, the backing layers under it that give the ball its shape and feel, and the bladder that holds the air.',
+          },
+          {
+            kind: 'text',
+            text: 'We make balls with three kinds of cover, PU (polyurethane), PVC and TPU (thermoplastic polyurethane), and three kinds of bladder: latex, butyl, and wound bladders, which are wrapped in thread before the cover goes on.',
+          },
+        ],
+      },
+      {
+        heading: 'Why the panels matter',
+        blocks: [
+          {
+            kind: 'text',
+            // Hong and Asai, Scientific Reports 2014 and Heliyon 2017 (both under `sources`).
+            text: 'Researchers at the University of Tsukuba in Japan tested balls in a wind tunnel. They found that the shape of a ball’s panels affects how it flies, and that dimples on the surface change the air force acting on it.',
+          },
+        ],
+      },
+      {
+        heading: 'Match balls and futsal balls',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The Laws of the Game set these limits. A futsal ball is smaller and bounces less.',
+          },
+          {
+            kind: 'table',
+            // IFAB Law 2 and the Futsal Laws' Law 2, as published (read 2026-11-05).
+            caption: 'Match ball and futsal ball limits',
+            columns: ['Measure', 'Match ball', 'Futsal ball'],
+            rows: [
+              ['Around the ball', '68 to 70 cm', '62 to 64 cm'],
+              ['Weight at kick-off', '410 to 450 g', '400 to 440 g'],
+              ['Air pressure at sea level', '0.6 to 1.1 atmosphere', '0.6 to 0.9 atmosphere'],
+              ['Bounce when dropped from 2 m', 'Not set', '50 to 65 cm'],
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Ball size by age',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'England and the United States set different ages for each ball size:',
+          },
+          {
+            kind: 'table',
+            // The FA's FutureFit table and US Youth Soccer's Rule 303 (as of June 23, 2026).
+            caption: 'Ball size by age',
+            columns: ['Ball size', 'England (The FA)', 'United States (US Youth Soccer)'],
+            rows: [
+              ['Size 3', 'Under 7 to Under 11', '8 and under'],
+              ['Size 4', 'Under 12 and Under 13', '10 and under to 12 and under'],
+              ['Size 5', 'Under 14 and older', '13 and under, and older'],
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'Other countries and leagues set their own ages, so check your league’s rules.',
+          },
+        ],
+      },
+      {
+        heading: 'What FIFA’s quality marks mean',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'FIFA’s quality program has three marks: FIFA Quality Pro, FIFA Quality and FIFA Basic. Every ball used in an international match organized by FIFA or a confederation must carry one.',
+          },
+          {
+            kind: 'text',
+            text: 'To earn a mark, a ball passes seven tests: weight, circumference, roundness, bounce, water absorption, loss of pressure, and shape and size retention. A Quality Pro ball passes the same tests under more demanding conditions.',
+          },
+          {
+            kind: 'text',
+            // The Kaizen page's answer (`familyPages.ts`), "It" made "Our Kaizen" (owner approved).
+            text: 'Our Kaizen is lab tested according to FIFA Quality Pro limits, and it does not carry a FIFA mark. Competitions that require a mark need a licensed ball.',
+          },
+        ],
+      },
+      {
+        heading: 'Soccer balls and Sialkot',
+        blocks: [
+          {
+            kind: 'text',
+            // The agreement's text (signed 14 February 1997) and the ILO's news of 5 January 2021.
+            // Nothing is said about RUN and IMAC: the owner has confirmed no such fact.
+            text: 'In 1997 the International Labour Organization, UNICEF and the Sialkot Chamber of Commerce and Industry signed the Atlanta Agreement, a program to remove child labor from soccer ball making in Sialkot. An independent body, the Independent Monitoring Association for Child Labour (IMAC), has continued the monitoring.',
+          },
+        ],
+      },
+      {
+        heading: 'On our floor',
+        // The owner's photo of the ball stitching hall, whole, two marks that are not RUN's blurred
+        // (owner, 2026-11-05: "Whole, blur the two marks"; `WHOLE_SOURCES`).
+        stage: 'whole-ball-stitching',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'We make hand-stitched, machine-stitched, thermobonded and hybrid balls.',
+          },
+        ],
+      },
+      {
+        heading: 'Ordering custom balls',
+        blocks: [
+          {
+            kind: 'text',
+            // Owner, 2026-11-05: ball sample time varies product to product, so no figure here.
+            text: `Orders start at ${MINIMUM} pieces. Your quote states how long your ball sample takes. Your logo, colors, full artwork, covers, bladders and sizes can change.`,
+          },
+        ],
+      },
+    ],
+    // The one ball with its own 3D page (2026-10-31): the only accessory there is to link.
+    garments: {
+      heading: 'Turn the Kaizen in 3D',
+      after: 'On our floor',
+      picks: [{ slug: 'kaizen' }],
+    },
+    sources: [
+      {
+        name: 'IFAB, Laws of the Game, Law 2: The Ball',
+        url: 'https://www.theifab.com/laws/chapter/22/section/32/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'The FA, Futsal Laws of the Game, Law 2: The Ball',
+        url: 'https://www.thefa.com/football-rules-governance/lawsandrules/laws/futsal/law-2---the-ball',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'The FA, FutureFit: Has the ball size changed for different age groups?',
+        url: 'https://futurefit.englandfootball.com/futurefit/faqs/has-the-ball-size-changed-for-different-age-groups/index.html',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'US Youth Soccer, Policy on Players and Playing Rules, Rule 303',
+        url: 'https://usyouthsoccer.org/wp-content/uploads/sites/160/2026/06/Policy-on-Players-and-Playing-Rules_APP-06.23.2026.pdf',
+        date: '2026-06-23',
+        kind: 'updated',
+      },
+      {
+        name: 'FIFA, Quality Programme for Footballs',
+        url: 'https://inside.fifa.com/innovation/standards/footballs/fifa-quality-programme-for-footballs',
+        date: '2026-02-10',
+        kind: 'updated',
+      },
+      {
+        name: 'Hong and Asai, Effect of panel shape of soccer ball on its flight characteristics, Scientific Reports',
+        url: 'https://doi.org/10.1038/srep05068',
+        date: '2014-05-29',
+        kind: 'published',
+      },
+      {
+        name: 'Hong and Asai, Aerodynamic effects of dimples on soccer ball surfaces, Heliyon',
+        url: 'https://doi.org/10.1016/j.heliyon.2017.e00432',
+        date: '2017-10-31',
+        kind: 'published',
+      },
+      {
+        name: 'IMAC, the Atlanta Agreement',
+        url: 'https://imacpak.org/atlanta.htm',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'International Labour Organization, continued efforts to end child labour in sports goods',
+        url: 'https://www.ilo.org/resource/news/highlighting-continued-efforts-elimination-child-labour-sports-goods',
+        date: '2021-01-05',
+        kind: 'published',
+      },
+    ],
+  },
+  /*
+   * How the guides are made (owner approved 2026-11-05; written by the Content Team, his choice).
+   * Two sentences are corrected from the approved draft to match the site: the guides are signed by
+   * four writers (`bylines.ts`), not one, and only a guide that uses outside facts lists sources. The
+   * reviewer's line joins when the owner names the reviewer; nothing publishes before that.
+   */
+  {
+    path: '/guides/how-we-write-our-guides',
+    title: 'How We Write Our Buyer Guides',
+    description:
+      'Who writes our buyer guides, where each fact comes from, what we show from our own floor, how AI helps, and how to tell us about a mistake.',
+    heading: 'How we write our guides,',
+    headingAccent: 'and check them.',
+    lede: 'Each guide answers one question buyers ask us. Here is who writes it, who checks it, and where its facts come from.',
+    sections: [
+      {
+        heading: 'Who writes them',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Each guide names who wrote it: our merchandiser, our production in-charge, our content team, or M. Hateem Jamshaid, Business Development Director.',
+          },
+        ],
+      },
+      {
+        heading: 'Where the facts come from',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Laws come from the body that wrote them, standards from the standards body, research from the published paper, and figures from the organization that measured them. A guide that uses outside facts lists its sources and the date we read them. We never use another manufacturer’s page as a source.',
+          },
+        ],
+      },
+      {
+        heading: 'What we show from our own floor',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'When a guide describes our own work, it is work done on our floor in Sialkot, shown in our own photos and 3D pages.',
+          },
+        ],
+      },
+      {
+        heading: 'Numbers',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A range in a guide is a published or usual range for that kind of product. The numbers for your order are in your quote.',
+          },
+        ],
+      },
+      {
+        heading: 'How AI helps',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'We use AI tools to research and draft. A person checks every fact against its source, and M. Hateem Jamshaid approves every word before it is published.',
+          },
+        ],
+      },
+      {
+        heading: 'Dates and reviews',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Each guide shows the date its words last changed. Guides on laws and rules are reviewed every three months; the others at least once a year.',
+          },
+        ],
+      },
+      {
+        heading: 'Found a mistake?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Tell us through the contact page. We correct it and the guide’s date changes.',
+          },
+        ],
+      },
+    ],
+    sources: [
+      {
+        name: 'Google Search Central, Guidance on using generative AI content',
+        url: 'https://developers.google.com/search/docs/fundamentals/using-gen-ai-content',
+        date: '2026-10-01',
+        kind: 'updated',
+      },
+    ],
+  },
 ]
 
 /**
@@ -1599,6 +2075,16 @@ export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
     '/guides/shipping-and-import-duties',
     '/guides/minimum-order-and-samples',
     '/guides/how-a-private-label-order-works',
+  ],
+  // Wave 1 (2026-11-05): a ball buyer's next questions are the minimum, the order and the 3D page.
+  '/guides/how-soccer-balls-are-made': [
+    '/guides/minimum-order-and-samples',
+    '/guides/how-a-private-label-order-works',
+    '/guides/3d-garment-reference',
+  ],
+  '/guides/how-we-write-our-guides': [
+    '/guides/how-a-private-label-order-works',
+    '/guides/pakistan-vs-china-vs-turkey',
   ],
 }
 

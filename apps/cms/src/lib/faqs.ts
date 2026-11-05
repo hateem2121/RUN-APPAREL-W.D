@@ -5,6 +5,7 @@ import {
   RELATIONSHIP,
   LEAD_TIME,
   PAYMENT_TERMS,
+  SAMPLE_TIME,
   SHIPS_TO,
 } from './companyFacts'
 
@@ -100,7 +101,7 @@ export const FAQ_TOPIC_LEDE = 'If your question isn’t here, ask us — we repl
 const ORDERS: FaqTopic = {
   path: '/faq/orders-and-samples',
   title: 'FAQ: Orders and Samples',
-  description: `RUN APPAREL's minimum order is ${MINIMUM} pieces per style, a sample takes ${SAMPLE_DAYS} working days, and the quote is free. Answers on orders and samples.`,
+  description: `RUN APPAREL's minimum order is ${MINIMUM} pieces per style, a sample usually takes ${SAMPLE_DAYS} working days, and the quote is free. Answers on orders and samples.`,
   heading: 'Orders',
   headingAccent: 'and samples.',
   entries: [
@@ -114,7 +115,8 @@ const ORDERS: FaqTopic = {
     {
       id: 'sample-time',
       question: 'How long does a sample take?',
-      answer: `A sample takes ${SAMPLE_DAYS} working days. Bulk production starts only after you approve it.`,
+      // `SAMPLE_TIME` since 2026-11-05 (owner: sample time varies product to product).
+      answer: `${SAMPLE_TIME} Bulk production starts only after you approve it.`,
       source: 'minimum-order guide, ORDER_PHASES',
     },
     {
@@ -485,6 +487,8 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
   '/faq/working-with-us': [
     '/guides/how-a-private-label-order-works',
     '/guides/3d-garment-reference',
+    // Wave 1 (2026-11-05): how the guides are written answers to "Working with us".
+    '/guides/how-we-write-our-guides',
   ],
   '/faq/orders-and-samples': [
     '/guides/minimum-order-and-samples',
@@ -492,7 +496,11 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
     // The two guides of 2026-10-08, each beside the questions it answers.
     '/guides/cost-to-start-an-activewear-brand',
   ],
-  '/faq/quality-and-certifications': ['/guides/how-a-private-label-order-works'],
+  // Wave 1 (2026-11-05): the soccer-ball guide, whose FIFA quality marks and tests are quality.
+  '/faq/quality-and-certifications': [
+    '/guides/how-a-private-label-order-works',
+    '/guides/how-soccer-balls-are-made',
+  ],
   '/faq/shipping-and-importing': [
     '/guides/shipping-and-import-duties',
     '/guides/private-label-packaging',

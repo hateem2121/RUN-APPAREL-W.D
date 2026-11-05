@@ -76,8 +76,9 @@ describe('every website page shares a picture of its own type (X14, Q11)', () =>
     // 1 home + products + contact + 4 category + guides index + 9 guides + policies hub
     // + 7 policies + careers + community + press + the FAQ hub + 5 FAQ topics + the glossary
     // + the Journal's and the case studies' hubs. (9 guides since 2026-10-08: the cost guide
-    // and the country comparison. +2 on 2026-10-09: the about and factory pages.)
-    expect(OWN_PICTURE).toHaveLength(41)
+    // and the country comparison. +2 on 2026-10-09: the about and factory pages. +2 on 2026-11-05:
+    // the soccer-ball guide and the page on how the guides are written, wave 1 of the library.)
+    expect(OWN_PICTURE).toHaveLength(43)
     expect(new Set(files).size, 'two page types share a picture').toBe(OWN_PICTURE.length)
   })
 

@@ -26,7 +26,10 @@ export type CompanyFact = { value: string; label: string }
 export const FACTS: CompanyFact[] = [
   { value: '100,000', label: 'Pieces per month' },
   { value: '50', label: 'Minimum order, per style' },
-  { value: '7', label: 'Working days to a sample' },
+  // ", usually" since 2026-11-05 (owner, question tool): sample time varies product to product, so
+  // the 7 is typical, not a promise (`SAMPLE_TIME`). The label still starts "Working days", which is
+  // how a dozen readers find this figure.
+  { value: '7', label: 'Working days to a sample, usually' },
   { value: '200', label: 'People at the works' },
   // The unit was "Sq ft" until the owner confirmed on 2026-10-09 that the figure is square
   // METERS; the value is unchanged. `/llms.txt` and the press page read this label.
@@ -139,6 +142,17 @@ export const PAYMENT_TERMS =
 
 export const LEAD_TIME =
   'Usually 2–4 weeks from order confirmation; your quote states the exact date.'
+
+/**
+ * How long a sample takes, where a page states it on its own (owner, 2026-11-05, question tool).
+ * The owner: sample time "vary product to product", for soccer balls and apparel alike, and he chose
+ * "Usually 7 working days; your quote states the exact time." over keeping a fixed 7 or dropping the
+ * number: a typical figure a buyer and an answer engine can quote, and the order's own in its quote,
+ * the same shape as `LEAD_TIME` on purpose. The figure is `FACTS`', never typed here.
+ */
+export const SAMPLE_TIME = `Usually ${
+  FACTS.find((entry) => entry.label.startsWith('Working days'))?.value ?? ''
+} working days; your quote states the exact time.`
 
 /**
  * The company whose site RUN APPAREL produces at, named as `CERTIFICATION` and `ABOUT` name it.

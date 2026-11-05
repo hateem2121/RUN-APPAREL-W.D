@@ -60,6 +60,6 @@ export const PRESS_FACTS: readonly { label: string; value: string }[] = [
   // sq m since 2026-10-09 (owner): the FACTS entry's unit was corrected the same day.
   { label: 'Under roof', value: `${fact('Sq m')} sq m` },
   { label: 'Minimum order', value: `${fact('Minimum')} pieces per style` },
-  { label: 'Sample', value: `${fact('Working days')} working days` },
+  { label: 'Sample', value: `Usually ${fact('Working days')} working days` },
   { label: 'Lead time', value: LEAD_TIME },
 ]

@@ -173,7 +173,7 @@ export const ABOUT_PAGE = {
       term: 'Minimum order',
       detail: `${MINIMUM} pieces per style is our standard minimum. Fewer is possible at a higher price per piece.`,
     },
-    { term: 'Sampling', detail: `${SAMPLE_DAYS} working days to a sample` },
+    { term: 'Sampling', detail: `Usually ${SAMPLE_DAYS} working days to a sample` },
     { term: 'Ships to', detail: SHIPS_TO },
     { term: 'Lead time', detail: LEAD_TIME },
   ] as const,
