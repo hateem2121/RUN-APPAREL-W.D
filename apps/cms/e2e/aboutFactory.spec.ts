@@ -309,7 +309,9 @@ test.describe('the /about portraits (owner, 2026-11-05: whole, never cut)', () =
       // The year is decoration: the card above already says it, so screen readers skip it.
       const year = stage.locator('.photo-stage__year')
       await expect(year).toHaveAttribute('aria-hidden', 'true')
-      await expect(year).toHaveText(portrait.year)
+      // ONE year, never a range (owner, 2026-11-05: "only keep a single year, no –").
+      await expect(year).toHaveText(portrait.shownYear)
+      expect(await year.textContent()).toMatch(/^\d{4}$/)
       // Its tone follows what it sits over (owner, 2026-11-05: "darken it"): Sandal's is over a
       // bright wall, so ink; Ghafuree's is over dark ground, so paper. Read off the computed colour.
       const luma = await year.evaluate((el) => {

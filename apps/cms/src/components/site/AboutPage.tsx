@@ -208,7 +208,7 @@ export function AboutPage() {
             copy="year"
             tone={portrait.yearTone}
           >
-            <p>{portrait.year}</p>
+            <p>{portrait.shownYear}</p>
           </PhotoStage>
         ))}
       </div>
