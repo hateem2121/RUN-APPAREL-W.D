@@ -157,7 +157,8 @@ describe('who carries the class', () => {
     // The guides' file lists the index page's headline first; the index is not a carrier.
     const [, ...guides] = headlines('apps/cms/src/lib/guides.ts')
     // Nine since 2026-10-08: the cost guide (43 characters) and the country comparison (41).
-    expect(guides, 'the matcher found no guide headlines').toHaveLength(9)
+    // Eleven since 2026-11-05: the soccer-ball guide (42) and how the guides are written (40).
+    expect(guides, 'the matcher found no guide headlines').toHaveLength(11)
     for (const headline of [...families, ...guides]) {
       expect(
         headline.length,

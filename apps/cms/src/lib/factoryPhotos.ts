@@ -243,6 +243,14 @@ export const WHOLE_PHOTOS: readonly WholePhoto[] = [
     widths: [640, 1280],
     alt: altOf('tagging'),
   },
+  // The soccer-ball guide's "On our floor" (2026-11-05): RUN's hand-stitching hall, whole, with two
+  // marks that are not RUN's blurred (`WHOLE_SOURCES` in the script says which and why).
+  {
+    slug: 'whole-ball-stitching',
+    ratio: [5482, 4000],
+    widths: [640, 1280, 1920, 2560],
+    alt: 'Rows of workers stitching soccer balls by hand at white benches in a long, bright hall.',
+  },
 ]
 
 /**

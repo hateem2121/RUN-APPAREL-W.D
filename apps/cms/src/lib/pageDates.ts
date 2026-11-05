@@ -71,9 +71,6 @@ const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
  * Imports are now left out of the fingerprint, and each of the 17 is back on the date its words
  * last changed.
  */
-/** The soccer ball and accessories pages, and the buyer pages' template (2026-10-31). */
-const KAIZEN = '2026-10-31T22:30:00+05:00'
-
 /** The accessory pages say products, and the ball page leads with a logo (2026-11-01). */
 const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
@@ -85,27 +82,36 @@ const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
  */
 const ORDER_PHOTO = '2026-11-05T09:21:13+05:00'
 
+/**
+ * Wave 1 of the buyer library (owner approved the words, 2026-11-05): a sample "usually" takes its
+ * days everywhere the site says so (the owner: sample time varies product to product), and the two
+ * new guides join the guides index, the FAQ topics that point back at them, and the lists that name
+ * every guide (the home page's and the journal's among them). It replaced the journal's date of
+ * 2026-10-31 (the Kaizen), its last use, so that constant went with it.
+ */
+const WAVE_ONE = '2026-11-05T20:07:40+05:00'
+
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(LEGAL_FRAMING, 'cf1148e20f75'),
+  '/': page(WAVE_ONE, 'e7dceb9bb5e3'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
-  '/custom-teamwear-manufacturer': page(ORDER_PHOTO, 'a61b3aaf97c2'),
-  '/custom-activewear-manufacturer': page(ORDER_PHOTO, 'e5e4554ea7d4'),
-  '/custom-outerwear-manufacturer': page(ORDER_PHOTO, '6717eb5b3d3a'),
+  '/custom-teamwear-manufacturer': page(WAVE_ONE, '16390fbc1582'),
+  '/custom-activewear-manufacturer': page(WAVE_ONE, '9ec97e679558'),
+  '/custom-outerwear-manufacturer': page(WAVE_ONE, 'bcea85c40063'),
   '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
-  '/private-label-casual-wear-manufacturer': page(ORDER_PHOTO, 'cfcc2d6052c4'),
-  '/guides': page(SITE_CHECK, 'bc271cb03a6b'),
+  '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
+  '/guides': page(WAVE_ONE, '24d1c90782c8'),
   '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
-  '/press': page(LEGAL_FRAMING, '5143d1505a09'),
-  '/faq': page(LEGAL_FRAMING, '977d847bbe71'),
-  '/faq/orders-and-samples': page(SITE_CHECK, '6ad5f92a5cb5'),
-  '/faq/quality-and-certifications': page(LEGAL_FRAMING, '9a644e472e7e'),
+  '/press': page(WAVE_ONE, 'ae0578799d9e'),
+  '/faq': page(WAVE_ONE, '8d6b61211358'),
+  '/faq/orders-and-samples': page(WAVE_ONE, '2f29b364c1dd'),
+  '/faq/quality-and-certifications': page(WAVE_ONE, 'fd7cbf5f245a'),
   '/faq/shipping-and-importing': page(SITE_CHECK, 'd589cfcdf9ba'),
   '/faq/fabrics-and-printing': page(CLOSING_BLOCK, 'd838e1a06292'),
-  '/faq/working-with-us': page(LEGAL_FRAMING, 'b2c2f9e7c29e'),
-  '/glossary': page(LEGAL_FRAMING, '90d509da86b8'),
-  '/journal': page(KAIZEN, 'e34315afc7aa'),
+  '/faq/working-with-us': page(WAVE_ONE, 'c2f1d2e929ce'),
+  '/glossary': page(WAVE_ONE, 'e0eb045bbe15'),
+  '/journal': page(WAVE_ONE, 'd6d12f55d1b3'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
   '/privacy': page(CONTACT_TAPS, '10fe05331ee5'),

@@ -105,6 +105,9 @@ export const GUIDE_PAGE_SOURCES = [
   // The cost guide and the country comparison (owner's approval, 2026-10-08).
   '/guides/cost-to-start-an-activewear-brand',
   '/guides/pakistan-vs-china-vs-turkey',
+  // Wave 1 of the buyer library (owner's approval, 2026-11-05).
+  '/guides/how-soccer-balls-are-made',
+  '/guides/how-we-write-our-guides',
 ]
 
 /**

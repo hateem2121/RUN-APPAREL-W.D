@@ -117,6 +117,8 @@ export const TARGETS = [
     '/guides/shipping-and-import-duties',
     '/guides/cost-to-start-an-activewear-brand',
     '/guides/pakistan-vs-china-vs-turkey',
+    '/guides/how-soccer-balls-are-made',
+    '/guides/how-we-write-our-guides',
     '/policies',
     '/policies/workplace-conduct',
     '/policies/health-and-safety',

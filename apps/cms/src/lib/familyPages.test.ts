@@ -267,7 +267,11 @@ describe('the guides a buyer page links to', () => {
 
   it('keeps the guides about cloth off the soccer ball page', () => {
     const ball = FAMILY_PAGES.find((page) => page.productLine)
-    expect(ball && rangeGuidePaths(ball)).toEqual(['/guides/pakistan-vs-china-vs-turkey'])
+    // The soccer-ball guide joined on 2026-11-05 (wave 1): it speaks of balls, not cloth.
+    expect(ball && rangeGuidePaths(ball)).toEqual([
+      '/guides/how-soccer-balls-are-made',
+      '/guides/pakistan-vs-china-vs-turkey',
+    ])
   })
 
   it('links the start-up cost guide from the activewear page, and only there', () => {

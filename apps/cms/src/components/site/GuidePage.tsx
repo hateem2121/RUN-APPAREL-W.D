@@ -3,7 +3,7 @@ import { FAQ_INDEX, faqTopicAt, faqTopicForGuide } from '../../lib/faqs'
 import { GLOSSARY_INDEX } from '../../lib/glossary'
 import { IntentLink as Link } from './IntentLink'
 import { Fragment } from 'react'
-import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoImage, wholePhoto } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
 import { familyPageFor } from '../../lib/familyPages'
 import {
@@ -23,6 +23,15 @@ import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
 import { OrderSteps } from './OrderSteps'
+import { PhotoStage } from './PhotoStage'
+
+/** A block's React key: its own first words, so a list of blocks keys without an index. */
+function blockKey(block: GuideBlock): string {
+  if (block.kind === 'orderSteps') return 'order-steps'
+  if (block.kind === 'table') return block.caption
+  if (block.kind === 'list') return block.items[0] ?? 'list'
+  return 'title' in block ? block.title : block.text
+}
 
 /**
  * One buyer guide (2026-09-30). Every word comes from `lib/guides.ts`, which the owner
@@ -330,6 +339,24 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
           guide.garments?.after === section.heading ? (
             <GuideGarmentsSection garments={guide.garments} cards={cards} />
           ) : null
+        /*
+         * A section with a whole photo (the owner's rule of 2026-11-05: a new picture is never cut and
+         * is the whole background of its screen): the photo fills the stage and the section's heading
+         * and words sit on its ink panel, as the buyer pages draw their order block (`PhotoStage`).
+         */
+        if (section.stage) {
+          return (
+            <Fragment key={section.heading}>
+              <PhotoStage photo={wholePhoto(section.stage)}>
+                {heading}
+                {section.blocks.map((block) => (
+                  <Block key={blockKey(block)} block={block} />
+                ))}
+              </PhotoStage>
+              {garments}
+            </Fragment>
+          )
+        }
         // The order steps are four full-screen cards (D42; the owner chose the guide's to match the
         // home page's, 2026-10-16): the heading in the column, the cards the screen's width under
         // it, as №04 draws them. `guides.test.ts` holds the steps alone in their section.
@@ -367,20 +394,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
                 )}
                 <div className="spread__body">
                   {section.blocks.map((block) => (
-                    <Block
-                      key={
-                        block.kind === 'orderSteps'
-                          ? 'order-steps'
-                          : block.kind === 'table'
-                            ? block.caption
-                            : block.kind === 'list'
-                              ? block.items[0]
-                              : 'title' in block
-                                ? block.title
-                                : block.text
-                      }
-                      block={block}
-                    />
+                    <Block key={blockKey(block)} block={block} />
                   ))}
                 </div>
               </div>

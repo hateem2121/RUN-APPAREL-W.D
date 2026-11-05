@@ -177,7 +177,64 @@ export const WHOLE_SOURCES = [
     original: [1280, 896],
     widths: [640, 1280],
   },
+  /*
+   * The soccer-ball guide's stitching hall (owner, 2026-11-05: the photo is RUN's and its people
+   * agreed). Kept whole, so two marks that are not RUN's stay in frame: a red emblem on boxes at the
+   * bottom right and a poster and notice on a pillar at the top right, both unreadable. The owner
+   * chose "Whole, blur the two marks" (2026-11-05), so `blur` softens exactly those boxes, given as
+   * fractions of the original's width and height and found by looking at full-size crops.
+   */
+  {
+    slug: 'whole-ball-stitching',
+    file: 'Soccer stitching Center.png',
+    original: [5482, 4000],
+    widths: [640, 1280, 1920, 2560],
+    // The first box reaches 0.90 across: at 0.87 a red shape at its right edge stayed sharp (looked
+    // at in the built file).
+    blur: [
+      [0.75, 0.84, 0.9, 1],
+      [0.91, 0.13, 1, 0.26],
+    ],
+  },
 ]
+
+/** How strongly a `blur` box is softened, in pixels of the original (5,482 px wide for the hall). */
+export const BLUR_SIGMA = 40
+/** How far a box's edge fades, in pixels of the original: a hard edge read as a pasted patch. */
+export const BLUR_FEATHER = 30
+
+/**
+ * The original with each `blur` box softened, as one PNG in memory: the original file is never
+ * written to, and the web sizes are cut from this. A box is `[left, top, right, bottom]` as
+ * fractions of the original's width and height. The blurred copy shows through a mask of the boxes
+ * whose edges are themselves blurred, so each box fades into the photo instead of ending in a line.
+ */
+async function withBlurs(sharp, path, boxes, width, height) {
+  const blurred = await sharp(path).blur(BLUR_SIGMA).png().toBuffer()
+  const rects = boxes
+    .map(([x0, y0, x1, y1]) => {
+      const x = Math.round(x0 * width)
+      const y = Math.round(y0 * height)
+      const w = Math.round((x1 - x0) * width)
+      const h = Math.round((y1 - y0) * height)
+      return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff"/>`
+    })
+    .join('')
+  const mask = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+      `<filter id="f"><feGaussianBlur stdDeviation="${BLUR_FEATHER}"/></filter>` +
+      `<g filter="url(#f)">${rects}</g></svg>`,
+  )
+  const patch = await sharp(blurred)
+    .ensureAlpha()
+    .composite([{ input: mask, blend: 'dest-in' }])
+    .png()
+    .toBuffer()
+  return sharp(path)
+    .composite([{ input: patch }])
+    .png()
+    .toBuffer()
+}
 
 /*
  * Two originals are narrower than their shape's widest file, so they list their own `widths`
@@ -344,13 +401,17 @@ async function main() {
           'update `original` and check which widths it can give',
       )
     }
+    // A source with `blur` boxes is cut from its softened copy, made once (`withBlurs`).
+    const input = source.blur
+      ? await withBlurs(sharp, join(from, source.file), source.blur, width, height)
+      : join(from, source.file)
     for (const w of source.widths) {
       if (w > width)
         throw new Error(
           `${source.slug}-${w}: the original is ${width}px wide, so that is an upscale`,
         )
       const h = Math.round((w * height) / width)
-      const info = await sharp(join(from, source.file))
+      const info = await sharp(input)
         .resize(w, h)
         .webp({ quality: 72, effort: 6, smartSubsample: true })
         .toFile(join(out, `${source.slug}-${w}.webp`))

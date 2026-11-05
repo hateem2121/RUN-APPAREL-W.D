@@ -196,6 +196,8 @@ describe('TARGETS', () => {
       '/guides/cost-to-start-an-activewear-brand',
       '/guides/garment-printing-methods',
       '/guides/how-a-private-label-order-works',
+      '/guides/how-soccer-balls-are-made',
+      '/guides/how-we-write-our-guides',
       '/guides/minimum-order-and-samples',
       '/guides/pakistan-vs-china-vs-turkey',
       '/guides/private-label-packaging',
@@ -445,6 +447,9 @@ describe('the script guard, seen from outside (SE-04)', () => {
         // The cost and country guides, live since #152 (2026-10-08), probed since 2026-10-24.
         '/guides/cost-to-start-an-activewear-brand',
         '/guides/pakistan-vs-china-vs-turkey',
+        // Wave 1 of the buyer library (owner's approval, 2026-11-05).
+        '/guides/how-soccer-balls-are-made',
+        '/guides/how-we-write-our-guides',
         // The company pages, added after #141 went live (2026-10-07).
         '/policies',
         '/policies/workplace-conduct',

@@ -8,7 +8,7 @@ import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts
 import { FACTORY_PAGE } from './aboutPages'
 import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
-import { FACTORY_PHOTOS } from './factoryPhotos'
+import { FACTORY_PHOTOS, WHOLE_PHOTOS } from './factoryPhotos'
 import { GARMENT_FABRICS, GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from './guides'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
@@ -338,7 +338,29 @@ describe('a guide shows a factory photo only beside words that name it (polish X
       expect(new Set(slugs).size, guide.path).toBe(slugs.length)
     }
     const order = guideAt('/guides/how-a-private-label-order-works')
-    expect(order.sections.filter((section) => section.photo)).toEqual([])
+    expect(order.sections.filter((section) => section.photo || section.stage)).toEqual([])
+  })
+
+  /*
+   * A WHOLE photo as a section's background (the owner's rule of 2026-11-05: never cut, the whole
+   * background), held to the same idea as the cut photos above: only beside words that name it.
+   */
+  const STAGED_BY = [
+    ['/guides/how-soccer-balls-are-made', 'On our floor', 'whole-ball-stitching', 'hand-stitched'],
+  ] as const
+
+  it('shows exactly the whole photos listed, in the sections listed, each a real whole photo', () => {
+    const staged = GUIDES.flatMap((guide) =>
+      guide.sections.flatMap((section) =>
+        section.stage ? [[guide.path, section.heading, section.stage] as const] : [],
+      ),
+    )
+    expect(staged).toEqual(STAGED_BY.map(([path, heading, slug]) => [path, heading, slug]))
+    for (const [path, heading, slug, words] of STAGED_BY) {
+      expect(WHOLE_PHOTOS.map((photo) => photo.slug)).toContain(slug)
+      const section = guideAt(path).sections.find((entry) => entry.heading === heading)
+      expect(everyWord({ ...guideAt(path), sections: section ? [section] : [] })).toContain(words)
+    }
   })
 })
 
@@ -386,19 +408,24 @@ describe('the shipping guide (owner, 2026-09-30)', () => {
  * section, and 2–3 guides to read next after every guide.
  */
 describe('garments and read-next links (2026-10-08)', () => {
-  it('links garments from the 3D, printing and fabrics guides only, each after a real section', () => {
+  // The soccer-ball guide links the one ball with a 3D page (wave 1, owner's approval 2026-11-05):
+  // a catalogue with one ball cannot give three picks, so it links that one.
+  const ONE_PICK = new Set(['/guides/how-soccer-balls-are-made'])
+
+  it('links garments from the 3D, printing, fabrics and ball guides only, each after a real section', () => {
     const withGarments = GUIDES.filter((guide) => guide.garments).map((guide) => guide.path)
     expect(withGarments).toEqual([
       '/guides/3d-garment-reference',
       '/guides/garment-printing-methods',
       '/guides/sportswear-fabrics-and-weights',
+      '/guides/how-soccer-balls-are-made',
     ])
     for (const guide of GUIDES) {
       if (!guide.garments) continue
       const headings = guide.sections.map((section) => section.heading)
       expect(headings, guide.path).toContain(guide.garments.after)
       const slugs = guide.garments.picks.map((pick) => pick.slug)
-      expect(slugs.length, guide.path).toBe(3)
+      expect(slugs.length, guide.path).toBe(ONE_PICK.has(guide.path) ? 1 : 3)
       expect(new Set(slugs).size, guide.path).toBe(slugs.length)
       for (const slug of slugs) expect(slug, guide.path).toMatch(/^[a-z0-9-]+$/)
     }
@@ -438,15 +465,31 @@ describe('garments and read-next links (2026-10-08)', () => {
 describe('a guide’s sources (2026-10-08)', () => {
   const OFFICIAL =
     /^https:\/\/(?:(?:[a-z0-9-]+\.)*(?:europa\.eu|gov\.uk|gov|gc\.ca|gov\.au|govt\.nz)\/|content\.govdelivery\.com\/accounts\/USDHSCBP\/)/
+  /*
+   * Wave 1 (owner's approval, 2026-11-05; his rule for the library: never a manufacturer's or a
+   * seller's page). The ball guide quotes the bodies that set the game's rules (IFAB, FIFA, The FA,
+   * US Youth Soccer), two peer-reviewed papers by DOI, and the ILO and the Atlanta Agreement's text.
+   * The page on how the guides are written quotes Google's own guidance.
+   */
+  const BALL_BODIES =
+    /^https:\/\/(?:www\.)?(?:theifab\.com|thefa\.com|futurefit\.englandfootball\.com|usyouthsoccer\.org|inside\.fifa\.com|doi\.org|imacpak\.org|ilo\.org)\//
+  const GOOGLE_GUIDANCE = /^https:\/\/developers\.google\.com\/search\/docs\//
+  const HOSTS_FOR: Readonly<Record<string, RegExp>> = {
+    '/guides/pakistan-vs-china-vs-turkey': OFFICIAL,
+    '/guides/how-soccer-balls-are-made': BALL_BODIES,
+    '/guides/how-we-write-our-guides': GOOGLE_GUIDANCE,
+  }
 
-  it('lists only official government pages, each dated', () => {
+  it('lists only the pages each guide may quote, each dated', () => {
     const quoting = GUIDES.filter((guide) => guide.sources)
-    expect(quoting.map((guide) => guide.path)).toEqual(['/guides/pakistan-vs-china-vs-turkey'])
-    for (const source of quoting.flatMap((guide) => guide.sources ?? [])) {
-      expect(source.url, source.name).toMatch(OFFICIAL)
-      expect(source.date, source.name).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-      expect(Date.parse(source.date), source.name).not.toBeGreaterThan(Date.now())
-      expect(['read', 'published', 'updated']).toContain(source.kind)
+    expect(quoting.map((guide) => guide.path)).toEqual(Object.keys(HOSTS_FOR))
+    for (const guide of quoting) {
+      for (const source of guide.sources ?? []) {
+        expect(source.url, source.name).toMatch(HOSTS_FOR[guide.path] as RegExp)
+        expect(source.date, source.name).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+        expect(Date.parse(source.date), source.name).not.toBeGreaterThan(Date.now())
+        expect(['read', 'published', 'updated']).toContain(source.kind)
+      }
     }
   })
 
@@ -455,6 +498,10 @@ describe('a guide’s sources (2026-10-08)', () => {
     expect('https://europa.eu.example.com/x').not.toMatch(OFFICIAL)
     expect('https://cbp.gov.example.com/x').not.toMatch(OFFICIAL)
     expect('https://content.govdelivery.com/accounts/SOMEONE/bulletins/1').not.toMatch(OFFICIAL)
+    // A ball maker's or seller's page, and a look-alike host, are refused for the ball guide.
+    expect('https://www.soccerballshop.com/how-balls-are-made').not.toMatch(BALL_BODIES)
+    expect('https://inside.fifa.com.example.com/x').not.toMatch(BALL_BODIES)
+    expect('https://developers.google.com.example.com/search/docs/x').not.toMatch(GOOGLE_GUIDANCE)
   })
 })
 
@@ -513,13 +560,15 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     expect(words).toContain(LEAD_TIME)
   })
 
-  // One sentence for the terms, in the two guides that speak of payment and nowhere else.
-  it('the deposit and the balance are stated by the minimum-order and cost guides only', () => {
+  // One sentence for the terms, in the guides that speak of payment and nowhere else. The order
+  // guide joined on 2026-11-05 (owner approved its "Paying for your order"), in the same words.
+  it('the deposit and the balance are stated by the order, minimum-order and cost guides only', () => {
     const terms = 'Production starts on a 50% deposit; the balance is due before shipment.'
     const saying = GUIDES.filter((guide) => everyWord(guide).includes(terms)).map(
       (guide) => guide.path,
     )
     expect(saying).toEqual([
+      '/guides/how-a-private-label-order-works',
       '/guides/minimum-order-and-samples',
       '/guides/cost-to-start-an-activewear-brand',
     ])
@@ -691,6 +740,9 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     'the shipping method terms and cost are stated in',
     'and the import duty and tax',
     'before a sample is cut',
+    // The owner's two parallel sentences, `LEAD_TIME` and `SAMPLE_TIME` (2026-11-05: "Usually 7;
+    // quote states it", chosen to read like the lead-time line), on a guide that states both.
+    'your quote states the exact',
   ]
 
   it('no guide says a run of five words twice, apart from the older words', () => {

@@ -82,7 +82,10 @@ export const ORDER_PHASES: readonly OrderPhase[] = [
         actor: 'We',
         title: 'Your sample',
         photo: 'screen-printing',
-        body: `Made in ${fact('Working days')} working days. The sample fee is credited back against your bulk order.`,
+        // "Usually" since 2026-11-05 (owner: sample time varies product to product). Not the whole
+        // `SAMPLE_TIME`: the card beside it says "your quote states the exact date", and the owner's
+        // rule is nothing said twice on a page.
+        body: `Usually made in ${fact('Working days')} working days. The sample fee is credited back against your bulk order.`,
         detail: 'Matching a Pantone color? You approve a lab dip or a strike-off before bulk.',
       },
       {

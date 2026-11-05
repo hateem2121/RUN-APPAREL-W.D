@@ -47,7 +47,7 @@ describe('the glossary terms', () => {
       'The document that describes a garment for the factory: its measurements, fabrics, trims, colors and artwork. A sketch is enough to start; a reference garment or a tech pack is better.',
     moq: 'The fewest pieces a factory makes in one order. At RUN APPAREL it is 50 pieces per style.',
     sample:
-      'One garment made before bulk production, for you to approve. A sample takes 7 working days, and its fee is credited back against your bulk order.',
+      'One garment made before bulk production, for you to approve. A sample usually takes 7 working days, and its fee is credited back against your bulk order.',
     'lead-time':
       'The time from order confirmation to a finished order. Usually 2–4 weeks from order confirmation; your quote states the exact date.',
     '3d-garment-reference':

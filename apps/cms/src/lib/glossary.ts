@@ -341,7 +341,7 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     id: 'sample',
     name: 'Sample',
     category: 'Ordering and production',
-    definition: `One garment made before bulk production, for you to approve. A sample takes ${SAMPLE_DAYS} working days, and its fee is credited back against your bulk order.`,
+    definition: `One garment made before bulk production, for you to approve. A sample usually takes ${SAMPLE_DAYS} working days, and its fee is credited back against your bulk order.`,
     seeAlso: [MINIMUM_GUIDE],
   },
   {
