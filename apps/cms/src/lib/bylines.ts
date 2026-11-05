@@ -83,8 +83,6 @@ const ABOUT_FACTORY_WORDS = '2026-10-09T12:15:37+05:00'
  * on every page it touched, so those three constants went with it.
  */
 const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
-/** Step 05's photo became the front of the works (owner, home page audit 2026-10-17). */
-const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
 /**
  * The site check's words (owner, 2026-10-26): About's bands merged and its repeated figures cut,
  * the factory gallery and its policy links, careers' two policy links, the em dashes replaced, and
@@ -92,12 +90,6 @@ const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
  * (2026-10-08) on the 3D and fabrics guides, so that constant went with it.
  */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
-/**
- * The legal framing of 2026-11-04 (owner's go-ahead after the legal review): DURUS INDUSTRIES
- * named as a separate family company, never a parent; RUN never a division; no GOTS claim; 1889
- * labelled the family's. `companyRelationship.test.ts` holds the words.
- */
-const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
 /** The factory page's quality stage names the garment wash tests (2026-11-05, owner's own tests). */
 const WASH_TESTS = '2026-11-05T00:09:00+05:00'
 /** The guide's line on sports accessories: the first has its own 3D page (2026-10-31). */
@@ -106,6 +98,8 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
  * Wave 1 of the buyer library (owner approved the words, 2026-11-05): the soccer-ball guide and the
  * page on how the guides are written are new; the order and minimum-order guides gained sections;
  * and a sample "usually" takes its days on every page that says so (owner: sample time varies).
+ * It replaced the dates of step 05's photo (2026-10-17, the order guide) and of the legal framing
+ * (2026-11-04, the country guide and About), their last uses, so those constants went with them.
  */
 const WAVE_ONE = '2026-11-05T20:07:40+05:00'
 /*

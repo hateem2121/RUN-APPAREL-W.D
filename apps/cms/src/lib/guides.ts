@@ -464,8 +464,8 @@ export const GUIDES: readonly Guide[] = [
       },
       /*
        * Wave 1 of the buyer library (owner approved the words on 2026-11-05, "Approve as written"; the
-       * pricing sentence confirmed the same day: "Yes, publish it"). In RUN's own inquiries, 11 of 11
-       * buyers asked about the minimum and 8 about the price at small quantities and the samples.
+       * pricing sentence confirmed the same day: "Yes, publish it"). Buyers ask most about the minimum,
+       * the price at small quantities and the samples.
        */
       {
         heading: 'Why fewer pieces cost more each',

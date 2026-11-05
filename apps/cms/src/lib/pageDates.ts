@@ -71,9 +71,6 @@ const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
  * Imports are now left out of the fingerprint, and each of the 17 is back on the date its words
  * last changed.
  */
-/** The soccer ball and accessories pages, and the buyer pages' template (2026-10-31). */
-const KAIZEN = '2026-10-31T22:30:00+05:00'
-
 /** The accessory pages say products, and the ball page leads with a logo (2026-11-01). */
 const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
@@ -89,7 +86,8 @@ const ORDER_PHOTO = '2026-11-05T09:21:13+05:00'
  * Wave 1 of the buyer library (owner approved the words, 2026-11-05): a sample "usually" takes its
  * days everywhere the site says so (the owner: sample time varies product to product), and the two
  * new guides join the guides index, the FAQ topics that point back at them, and the lists that name
- * every guide (the home page's and the journal's among them).
+ * every guide (the home page's and the journal's among them). It replaced the journal's date of
+ * 2026-10-31 (the Kaizen), its last use, so that constant went with it.
  */
 const WAVE_ONE = '2026-11-05T20:07:40+05:00'
 
