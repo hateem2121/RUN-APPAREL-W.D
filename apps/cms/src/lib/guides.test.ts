@@ -472,7 +472,7 @@ describe('a guide’s sources (2026-10-08)', () => {
    * The page on how the guides are written quotes Google's own guidance.
    */
   const BALL_BODIES =
-    /^https:\/\/(?:www\.)?(?:theifab\.com|thefa\.com|futurefit\.englandfootball\.com|usyouthsoccer\.org|inside\.fifa\.com|doi\.org|imacpak\.org|ilo\.org)\//
+    /^https:\/\/(?:www\.)?(?:theifab\.com|thefa\.com|futurefit\.englandfootball\.com|usyouthsoccer\.org|inside\.fifa\.com|digitalhub\.fifa\.com|doi\.org|imacpak\.org|ilo\.org)\//
   const GOOGLE_GUIDANCE = /^https:\/\/developers\.google\.com\/search\/docs\//
   const HOSTS_FOR: Readonly<Record<string, RegExp>> = {
     '/guides/pakistan-vs-china-vs-turkey': OFFICIAL,
@@ -501,6 +501,7 @@ describe('a guide’s sources (2026-10-08)', () => {
     // A ball maker's or seller's page, and a look-alike host, are refused for the ball guide.
     expect('https://www.soccerballshop.com/how-balls-are-made').not.toMatch(BALL_BODIES)
     expect('https://inside.fifa.com.example.com/x').not.toMatch(BALL_BODIES)
+    expect('https://digitalhub.fifa.com.example.com/x').not.toMatch(BALL_BODIES)
     expect('https://developers.google.com.example.com/search/docs/x').not.toMatch(GOOGLE_GUIDANCE)
   })
 })

@@ -270,8 +270,11 @@ export default async function PrivacyPage() {
               .
             </p>
             <p>
+              {/* The Information Commission since 30 September 2026: the Data (Use and Access) Act
+                  2025, section 118, abolished the office of Information Commissioner on that day (SI
+                  2026/1015, legislation.gov.uk, read 2026-11-05). Its site is still ico.org.uk. */}
               <strong>Complaints.</strong> You may complain to the data protection authority in your
-              country. In the UK that is the Information Commissioner’s Office (
+              country. In the UK that is the Information Commission (
               <a className="prose__link" href="https://ico.org.uk">
                 ico.org.uk
               </a>

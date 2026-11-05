@@ -92,8 +92,13 @@ const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /** The factory page's quality stage names the garment wash tests (2026-11-05, owner's own tests). */
 const WASH_TESTS = '2026-11-05T00:09:00+05:00'
-/** The guide's line on sports accessories: the first has its own 3D page (2026-10-31). */
-const KAIZEN = '2026-10-31T22:30:00+05:00'
+/**
+ * "Eco-poly" gone (owner, 2026-11-05/06): the Apex Flex Pullover is 88% recycled polyester, and EU law
+ * has banned generic environmental words such as "eco" since 27 Sep 2026. On the 3D guide it replaced
+ * the date of the line on sports accessories (the Kaizen, 2026-10-31), so that constant went with it;
+ * on the fabrics guide (the garment table's pullover row) it replaced the fiber-lines date.
+ */
+const RECYCLED_POLY = '2026-11-06T00:58:56+05:00'
 /**
  * Wave 1 of the buyer library (owner approved the words, 2026-11-05): the soccer-ball guide and the
  * page on how the guides are written are new; the order and minimum-order guides gained sections;
@@ -108,6 +113,18 @@ const WAVE_ONE = '2026-11-05T20:07:40+05:00'
  * guide, so the page no longer says one does.
  */
 const AI_CHECK = '2026-11-05T20:46:11+05:00'
+/**
+ * The soccer-ball guide after its fact checks (owner approved every fix, 2026-11-05): the IMAC line says
+ * only what IMAC's own page says, the futsal line no longer compares bounces, England's size 5 ages stop
+ * at Under 16, the FIFA section follows FIFA's Testing Manual of March 2026 (Basic's six tests, Pro's
+ * tighter limits, the licence line), and RUN's stitching hall is monitored by IMAC (owner's words).
+ */
+const BALL_FACT_CHECK = '2026-11-05T22:10:20+05:00'
+/*
+ * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
+ * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
+ * RECYCLED_POLY above, the same branch's later change to this guide.
+ */
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -125,7 +142,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     WAVE_ONE,
     '9183271e007c',
   ),
-  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, KAIZEN, 'e212b4e342b4'),
+  '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, RECYCLED_POLY, '36ec04abfa9a'),
   '/guides/minimum-order-and-samples': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
@@ -141,8 +158,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
     GUIDES_2,
-    SITE_CHECK,
-    '2d2a4b0248a6',
+    RECYCLED_POLY,
+    'a167602f99d0',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
@@ -173,8 +190,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-soccer-balls-are-made': byline(
     AUTHORS.production,
     WAVE_ONE,
-    WAVE_ONE,
-    'efeb4bd890ef',
+    BALL_FACT_CHECK,
+    '8f54d6ec6c82',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,

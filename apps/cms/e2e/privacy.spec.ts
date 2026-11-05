@@ -83,7 +83,8 @@ test.describe('privacy page — when we write to you first', () => {
       'up to four short emails',
       '2 years after our last email',
       'do-not-contact list',
-      'Information Commissioner’s Office (ico.org.uk)',
+      // The Information Commission replaced the Information Commissioner's Office on 30 Sep 2026.
+      'Information Commission (ico.org.uk)',
     ]) {
       await expect(main).toContainText(fact)
     }

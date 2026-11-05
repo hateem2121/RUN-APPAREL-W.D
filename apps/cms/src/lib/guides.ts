@@ -159,7 +159,7 @@ export const GARMENT_FABRICS: readonly (readonly [
   composition: string,
   weight: string,
 ])[] = [
-  ['Men’s training pullover', '88% polyester, 12% spandex', '160 to 210 GSM'],
+  ['Men’s training pullover', '88% recycled polyester, 12% spandex', '160 to 210 GSM'],
   ['High-support sports bra', '95% nylon, 5% spandex', '200 to 240 GSM'],
   ['Quarter-zip running shirt', '100% recycled polyester', '180 to 220 GSM'],
   ['V-neck soccer jersey', '100% polyester', '140 to 180 GSM'],
@@ -363,7 +363,9 @@ export const GUIDES: readonly Guide[] = [
           },
           {
             kind: 'text',
-            text: 'Take the Apex Flex Pullover. It is 88% polyester and 12% spandex, 160 to 210 GSM, in a sleek athletic cut. Its features are a waffle knit, an invisible zip, a convertible stand collar, eco-poly stretch and a DTF print.',
+            // "Eco-poly" replaced with the owner's fact, 2026-11-05: all the polyester is recycled (EU law
+            // has banned generic environmental words such as "eco" since 27 Sep 2026). The CMS says the same.
+            text: 'Take the Apex Flex Pullover. It is 88% recycled polyester and 12% spandex, 160 to 210 GSM, in a sleek athletic cut. Its features are a waffle knit, an invisible zip, a convertible stand collar, recycled-polyester stretch and a DTF print.',
           },
         ],
       },
@@ -873,13 +875,20 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'list',
+            /*
+             * Two lines fixed after the wave-2 fact check (owner, 2026-11-05). "Bamboo" is gone: the FTC
+             * says most "bamboo" textiles are really rayon and must be labeled as rayon ("How to Avoid
+             * Bamboozling Your Customers", ftc.gov, read 2026-11-05). Nylon is "hard-wearing": New Mexico
+             * State University's extension guide G-401 says nylon "resists abrasion" (pubs.nmsu.edu,
+             * revised March 2003, read 2026-11-05).
+             */
             items: [
               'Polyester and recycled polyester: light and quick to dry.',
-              'Nylon: strong and stretchy.',
+              'Nylon: strong and hard-wearing.',
               'Spandex, also called elastane: adds stretch, blended in small amounts.',
               'Cotton: soft and breathable.',
               'Merino wool and recycled wool: warm.',
-              'Bamboo, lyocell and modal: soft fibers made from plant or wood pulp.',
+              'Lyocell and modal: soft fibers made from plant or wood pulp.',
               'Hemp: a hard-wearing plant fiber.',
             ],
           },
@@ -1783,7 +1792,10 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'The Laws of the Game set these limits. A futsal ball is smaller and bounces less.',
+            // "Bounces less" was cut after the fact check (owner, 2026-11-05): only the futsal law
+            // sets a bounce, so no rule compares the two.
+            // FIFA's marks test a match ball's bounce too (Testing Manual 2026, page 26).
+            text: 'The Laws of the Game set these limits. A futsal ball is smaller, and only the futsal law sets how high it must bounce. FIFA’s quality marks also test a match ball’s bounce.',
           },
           {
             kind: 'table',
@@ -1814,7 +1826,8 @@ export const GUIDES: readonly Guide[] = [
             rows: [
               ['Size 3', 'Under 7 to Under 11', '8 and under'],
               ['Size 4', 'Under 12 and Under 13', '10 and under to 12 and under'],
-              ['Size 5', 'Under 14 and older', '13 and under, and older'],
+              // The FA's table stops at Under 16 (fact check, owner, 2026-11-05).
+              ['Size 5', 'Under 14 to Under 16', '13 and under, and older'],
             ],
           },
           {
@@ -1828,16 +1841,20 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'FIFA’s quality program has three marks: FIFA Quality Pro, FIFA Quality and FIFA Basic. Every ball used in an international match organized by FIFA or a confederation must carry one.',
+            // FIFA's Testing Manual, 2026 edition (March 2026), page 5: "official matches", the three
+            // marks; page 26: Quality Pro and Quality run seven tests (the eighth, balance, is for
+            // instrumented balls), Basic six, and Pro's limits are tighter. Owner approved, 2026-11-05.
+            text: 'FIFA’s quality program has three marks: FIFA Quality Pro, FIFA Quality and FIFA Basic. Every ball used in an official match organized by FIFA or a confederation must carry one.',
           },
           {
             kind: 'text',
-            text: 'To earn a mark, a ball passes seven tests: weight, circumference, roundness, bounce, water absorption, loss of pressure, and shape and size retention. A Quality Pro ball passes the same tests under more demanding conditions.',
+            text: 'To earn FIFA Quality or FIFA Quality Pro, a ball passes seven tests: weight, circumference, roundness, bounce, water absorption, loss of pressure, and shape and size retention. FIFA Basic leaves out shape and size retention. A Quality Pro ball passes the same tests with tighter limits.',
           },
           {
             kind: 'text',
-            // The Kaizen page's answer (`familyPages.ts`), "It" made "Our Kaizen" (owner approved).
-            text: 'Our Kaizen is lab tested according to FIFA Quality Pro limits, and it does not carry a FIFA mark. Competitions that require a mark need a licensed ball.',
+            // The Kaizen page's answer (`familyPages.ts`), "It" made "Our Kaizen" (owner approved). The
+            // manual's page 5: Basic needs only a passed test; Quality and Quality Pro need an agreement.
+            text: 'Our Kaizen is lab tested according to FIFA Quality Pro limits, and it does not carry a FIFA mark. Competitions that require a mark need a ball that carries one. The FIFA Quality and Quality Pro marks also need an agreement with FIFA.',
           },
         ],
       },
@@ -1847,8 +1864,12 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             // The agreement's text (signed 14 February 1997) and the ILO's news of 5 January 2021.
-            // Nothing is said about RUN and IMAC: the owner has confirmed no such fact.
-            text: 'In 1997 the International Labour Organization, UNICEF and the Sialkot Chamber of Commerce and Industry signed the Atlanta Agreement, a program to remove child labor from soccer ball making in Sialkot. An independent body, the Independent Monitoring Association for Child Labour (IMAC), has continued the monitoring.',
+            // RUN's own IMAC fact is in "On our floor" (owner, 2026-11-05).
+            // The IMAC line says only what IMAC's own page says (fact check, owner, 2026-11-05): it
+            // took over the ILO's monitoring system in March 2003. No page read says it still monitors.
+            // The owner approved "Since 2003 … has run"; the order changed because the test above
+            // refuses "since" + a year on any guide (it keeps founding-year claims off the site).
+            text: 'In 1997 the International Labour Organization, UNICEF and the Sialkot Chamber of Commerce and Industry signed the Atlanta Agreement, a program to remove child labor from soccer ball making in Sialkot. In 2003 the Independent Monitoring Association for Child Labor (IMAC) took over the monitoring system that the ILO set up, and has run it since.',
           },
         ],
       },
@@ -1860,7 +1881,8 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'We make hand-stitched, machine-stitched, thermobonded and hybrid balls.',
+            // The owner's words, 2026-11-05: all ball stitching is in RUN's own hall, monitored by IMAC.
+            text: 'We make hand-stitched, machine-stitched, thermobonded and hybrid balls. Our balls are stitched in our own hall, which IMAC monitors.',
           },
         ],
       },
@@ -1913,6 +1935,13 @@ export const GUIDES: readonly Guide[] = [
         kind: 'updated',
       },
       {
+        // Opened with the owner's okay, 2026-11-05: the only file downloaded for this guide.
+        name: 'FIFA, Quality Programme for Footballs, Testing Manual (2026 edition)',
+        url: 'https://digitalhub.fifa.com/m/5d88f22cfef8c799/original/FIFA-Quality-Programme-for-Football-Testing-Manual.pdf',
+        date: '2026-03-13',
+        kind: 'published',
+      },
+      {
         name: 'Hong and Asai, Effect of panel shape of soccer ball on its flight characteristics, Scientific Reports',
         url: 'https://doi.org/10.1038/srep05068',
         date: '2014-05-29',
@@ -1927,6 +1956,12 @@ export const GUIDES: readonly Guide[] = [
       {
         name: 'IMAC, the Atlanta Agreement',
         url: 'https://imacpak.org/atlanta.htm',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'IMAC, about IMAC',
+        url: 'https://imacpak.org/main.htm',
         date: '2026-11-05',
         kind: 'read',
       },
