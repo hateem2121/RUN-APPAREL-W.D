@@ -1783,7 +1783,9 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'The Laws of the Game set these limits. A futsal ball is smaller and bounces less.',
+            // "Bounces less" was cut after the fact check (owner, 2026-11-05): only the futsal law
+            // sets a bounce, so no rule compares the two.
+            text: 'The Laws of the Game set these limits. A futsal ball is smaller, and only the futsal law sets how high it must bounce.',
           },
           {
             kind: 'table',
@@ -1814,7 +1816,8 @@ export const GUIDES: readonly Guide[] = [
             rows: [
               ['Size 3', 'Under 7 to Under 11', '8 and under'],
               ['Size 4', 'Under 12 and Under 13', '10 and under to 12 and under'],
-              ['Size 5', 'Under 14 and older', '13 and under, and older'],
+              // The FA's table stops at Under 16 (fact check, owner, 2026-11-05).
+              ['Size 5', 'Under 14 to Under 16', '13 and under, and older'],
             ],
           },
           {
@@ -1848,7 +1851,11 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             // The agreement's text (signed 14 February 1997) and the ILO's news of 5 January 2021.
             // Nothing is said about RUN and IMAC: the owner has confirmed no such fact.
-            text: 'In 1997 the International Labour Organization, UNICEF and the Sialkot Chamber of Commerce and Industry signed the Atlanta Agreement, a program to remove child labor from soccer ball making in Sialkot. An independent body, the Independent Monitoring Association for Child Labour (IMAC), has continued the monitoring.',
+            // The IMAC line says only what IMAC's own page says (fact check, owner, 2026-11-05): it
+            // took over the ILO's monitoring system in March 2003. No page read says it still monitors.
+            // The owner approved "Since 2003 … has run"; the order changed because the test above
+            // refuses "since" + a year on any guide (it keeps founding-year claims off the site).
+            text: 'In 1997 the International Labour Organization, UNICEF and the Sialkot Chamber of Commerce and Industry signed the Atlanta Agreement, a program to remove child labor from soccer ball making in Sialkot. In 2003 the Independent Monitoring Association for Child Labor (IMAC) took over the monitoring system that the ILO set up, and has run it since.',
           },
         ],
       },
@@ -1927,6 +1934,12 @@ export const GUIDES: readonly Guide[] = [
       {
         name: 'IMAC, the Atlanta Agreement',
         url: 'https://imacpak.org/atlanta.htm',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'IMAC, about IMAC',
+        url: 'https://imacpak.org/main.htm',
         date: '2026-11-05',
         kind: 'read',
       },

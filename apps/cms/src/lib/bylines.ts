@@ -108,6 +108,12 @@ const WAVE_ONE = '2026-11-05T20:07:40+05:00'
  * guide, so the page no longer says one does.
  */
 const AI_CHECK = '2026-11-05T20:46:11+05:00'
+/**
+ * The soccer-ball guide after its fact check (owner approved the fixes, 2026-11-05): the IMAC line says
+ * only what IMAC's own page says, the futsal line no longer compares bounces, and England's size 5
+ * ages stop at Under 16, where The FA's table stops.
+ */
+const BALL_FACT_CHECK = '2026-11-05T21:18:21+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -173,8 +179,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-soccer-balls-are-made': byline(
     AUTHORS.production,
     WAVE_ONE,
-    WAVE_ONE,
-    'efeb4bd890ef',
+    BALL_FACT_CHECK,
+    'f138ec4adc8b',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,
