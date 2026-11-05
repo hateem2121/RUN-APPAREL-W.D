@@ -873,13 +873,20 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'list',
+            /*
+             * Two lines fixed after the wave-2 fact check (owner, 2026-11-05). "Bamboo" is gone: the FTC
+             * says most "bamboo" textiles are really rayon and must be labeled as rayon ("How to Avoid
+             * Bamboozling Your Customers", ftc.gov, read 2026-11-05). Nylon is "hard-wearing": New Mexico
+             * State University's extension guide G-401 says nylon "resists abrasion" (pubs.nmsu.edu,
+             * revised March 2003, read 2026-11-05).
+             */
             items: [
               'Polyester and recycled polyester: light and quick to dry.',
-              'Nylon: strong and stretchy.',
+              'Nylon: strong and hard-wearing.',
               'Spandex, also called elastane: adds stretch, blended in small amounts.',
               'Cotton: soft and breathable.',
               'Merino wool and recycled wool: warm.',
-              'Bamboo, lyocell and modal: soft fibers made from plant or wood pulp.',
+              'Lyocell and modal: soft fibers made from plant or wood pulp.',
               'Hemp: a hard-wearing plant fiber.',
             ],
           },

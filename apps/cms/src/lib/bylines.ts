@@ -114,6 +114,12 @@ const AI_CHECK = '2026-11-05T20:46:11+05:00'
  * ages stop at Under 16, where The FA's table stops.
  */
 const BALL_FACT_CHECK = '2026-11-05T21:18:21+05:00'
+/**
+ * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
+ * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". It replaced
+ * the site check's date on this guide.
+ */
+const FIBER_LINES = '2026-11-05T21:41:21+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -147,8 +153,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
     GUIDES_2,
-    SITE_CHECK,
-    '2d2a4b0248a6',
+    FIBER_LINES,
+    '85f1140d0c39',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
