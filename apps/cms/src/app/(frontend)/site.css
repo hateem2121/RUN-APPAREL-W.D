@@ -3618,6 +3618,26 @@ a.contact-block__value:active {
   vertical-align: top;
 }
 
+/*
+ * The soccer-ball guide's tables (2026-11-05) are the first with three columns, and the first ran
+ * 18.6px past a 320px phone in all three engines (CI run 42055434614). The space after the last
+ * column only padded the table's right edge, so it goes at every width (16px), and under 420px the
+ * gap between columns is 12px (8px more). `e2e/guides.spec.ts` measures every table at 320px.
+ */
+.guide-table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+@media (width < 420px) {
+  .guide-table :is(th, td) {
+    padding-inline-end: 12px;
+  }
+
+  .guide-table :is(th, td):last-child {
+    padding-inline-end: 0;
+  }
+}
+
 .guide-table thead th {
   padding-block: 8px;
   font-family: var(--font-mono);

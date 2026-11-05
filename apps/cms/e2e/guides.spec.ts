@@ -17,13 +17,18 @@ import { hintedWidth } from './sizesHint'
 
 const PRINTING = '/guides/garment-printing-methods'
 /**
- * Every guide that draws a table, with its row count (the printing guide's, and since 2026-10-26 the
- * fabrics guide's: its first build had three columns and ran 38px past a 320px phone).
+ * Every guide that draws a table, with each table's row count in page order (the printing guide's,
+ * since 2026-10-26 the fabrics guide's: its first build had three columns and ran 38px past a 320px
+ * phone, and since 2026-11-05 the soccer-ball guide's two). Every table is measured, not only the
+ * first: until 2026-11-05 a guide's second table was never checked.
  */
 const TABLES = GUIDES.flatMap((guide) => {
-  const table = guide.sections.flatMap((section) => section.blocks).find((b) => b.kind === 'table')
-  return table?.kind === 'table' ? [{ path: guide.path, rows: table.rows.length }] : []
+  const rows = guide.sections
+    .flatMap((section) => section.blocks)
+    .flatMap((block) => (block.kind === 'table' ? [block.rows.length] : []))
+  return rows.length > 0 ? [{ path: guide.path, rows }] : []
 })
+const BALLS = '/guides/how-soccer-balls-are-made'
 const WITH_PHOTOS = GUIDES.filter((guide) => guide.sections.some((section) => section.photo)).map(
   (guide) => guide.path,
 )
@@ -37,33 +42,42 @@ async function open(page: Page, path: string, width: number, extraCss?: string) 
   await page.evaluate(() => document.fonts.ready)
 }
 
-/** How a guide's table sits on the page, and anything in it that does not fit. */
+/** How each of a guide's tables sits on the page, and anything in one that does not fit. */
 const tableFit = (page: Page) =>
   page.evaluate(() => {
-    const table = document.querySelector<HTMLTableElement>('main table.guide-table')
-    const column = table?.closest('.site-container')
-    if (!table || !column) return null
-    const columnBox = column.getBoundingClientRect()
-    const contentRight = columnBox.right - Number.parseFloat(getComputedStyle(column).paddingRight)
-    const cells = [...table.querySelectorAll<HTMLElement>('caption, th, td')]
+    const tables = [...document.querySelectorAll<HTMLTableElement>('main table.guide-table')]
     return {
       pageScrollsSideways:
         document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      pastTheColumn: table.getBoundingClientRect().right - contentRight,
-      clipped: cells
-        .filter((cell) => cell.scrollWidth > cell.clientWidth + 1)
-        .map((cell) => cell.textContent?.trim() ?? ''),
-      smallest: Math.min(
-        ...cells.map((cell) => Number.parseFloat(getComputedStyle(cell).fontSize)),
-      ),
-      rows: table.tBodies[0]?.rows.length ?? 0,
+      tables: tables.map((table) => {
+        const column = table.closest('.site-container')
+        const columnBox = column?.getBoundingClientRect()
+        const contentRight = columnBox
+          ? columnBox.right - Number.parseFloat(getComputedStyle(column as Element).paddingRight)
+          : Number.NEGATIVE_INFINITY
+        const cells = [...table.querySelectorAll<HTMLElement>('caption, th, td')]
+        return {
+          pastTheColumn: table.getBoundingClientRect().right - contentRight,
+          clipped: cells
+            .filter((cell) => cell.scrollWidth > cell.clientWidth + 1)
+            .map((cell) => cell.textContent?.trim() ?? ''),
+          smallest: Math.min(
+            ...cells.map((cell) => Number.parseFloat(getComputedStyle(cell).fontSize)),
+          ),
+          rows: table.tBodies[0]?.rows.length ?? 0,
+        }
+      }),
     }
   })
 
 test.describe('X22 — every guide’s table fits a phone', () => {
-  test('the printing and fabrics guides each draw one', () => {
-    expect(TABLES.map((table) => table.path)).toEqual(
-      expect.arrayContaining([PRINTING, '/guides/sportswear-fabrics-and-weights']),
+  test('the printing and fabrics guides draw one, and the soccer-ball guide two', () => {
+    expect(TABLES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: PRINTING }),
+        expect.objectContaining({ path: '/guides/sportswear-fabrics-and-weights' }),
+        { path: BALLS, rows: [4, 3] },
+      ]),
     )
   })
 
@@ -74,19 +88,31 @@ test.describe('X22 — every guide’s table fits a phone', () => {
       }) => {
         await open(page, path, width)
         const fit = await tableFit(page)
-        expect(fit, `no table on ${path}`).not.toBeNull()
-        expect(fit?.rows, 'the table has lost its rows').toBe(rows)
-        expect(fit?.pageScrollsSideways, 'the page scrolls sideways').toBe(false)
-        expect(fit?.pastTheColumn ?? 99, 'the table runs past the column').toBeLessThanOrEqual(0.5)
-        expect(fit?.clipped, 'a cell is cut').toEqual([])
-        // Read, so 12px or more (VA-11): the column headers are the smallest text in it.
-        expect(fit?.smallest ?? 0).toBeGreaterThanOrEqual(12)
+        expect(
+          fit.tables.map((table) => table.rows),
+          'a table is missing or has lost its rows',
+        ).toEqual(rows)
+        expect(fit.pageScrollsSideways, 'the page scrolls sideways').toBe(false)
+        for (const [index, table] of fit.tables.entries()) {
+          const which = `table ${index + 1} of ${fit.tables.length}`
+          expect(table.pastTheColumn, `${which} runs past the column`).toBeLessThanOrEqual(0.5)
+          expect(table.clipped, `${which} has a cell cut`).toEqual([])
+          // Read, so 12px or more (VA-11): the column headers are the smallest text in it.
+          expect(table.smallest, `${which} has text under 12px`).toBeGreaterThanOrEqual(12)
+        }
       })
     }
 
   test('NEGATIVE CONTROL: a table wider than the phone is caught', async ({ page }) => {
     await open(page, PRINTING, 320, '.guide-table { min-width: 600px; max-width: none; }')
-    expect((await tableFit(page))?.pastTheColumn ?? 0).toBeGreaterThan(100)
+    expect((await tableFit(page)).tables[0]?.pastTheColumn ?? 0).toBeGreaterThan(100)
+  })
+
+  test('NEGATIVE CONTROL: a guide’s second table is measured too', async ({ page }) => {
+    await open(page, BALLS, 320, '.guide-table { min-width: 600px; max-width: none; }')
+    const { tables } = await tableFit(page)
+    expect(tables).toHaveLength(2)
+    expect(tables[1]?.pastTheColumn ?? 0).toBeGreaterThan(100)
   })
 })
 
