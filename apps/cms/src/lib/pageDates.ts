@@ -56,11 +56,12 @@ const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
  */
 const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
 /**
- * The privacy page's cookie paragraph now says Google Analytics sees whether a visitor taps the
- * WhatsApp, phone or email link (2026-10-30, branch `site/contact-click-events`; the branch
- * commit's time, as a byline's is, a little before the page changes live).
+ * The privacy page names the UK regulator by its new name, the Information Commission (owner approved,
+ * 2026-11-05): the office of Information Commissioner was abolished on 30 Sep 2026 (SI 2026/1015).
+ * It replaced the privacy page's date of 2026-10-30 (the cookie paragraph on contact taps), its last
+ * use, so that constant went with it.
  */
-const CONTACT_TAPS = '2026-10-30T10:50:04+05:00'
+const UK_REGULATOR = '2026-11-05T22:05:04+05:00'
 /** The buyer pages' "What we make" lines became links (`makesHref`, written 2026-10-29, landed on 2026-11-01). */
 const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
 
@@ -114,7 +115,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/journal': page(WAVE_ONE, 'd6d12f55d1b3'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
-  '/privacy': page(CONTACT_TAPS, '10fe05331ee5'),
+  '/privacy': page(UK_REGULATOR, '060578c2bd49'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 
