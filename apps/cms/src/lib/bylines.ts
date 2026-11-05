@@ -102,6 +102,12 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
  * (2026-11-04, the country guide and About), their last uses, so those constants went with them.
  */
 const WAVE_ONE = '2026-11-05T20:07:40+05:00'
+/**
+ * The page on how the guides are written says who really checks (owner, 2026-11-05): AI checks every
+ * outside fact against its source, and the owner approves every word. No person at RUN reviews each
+ * guide, so the page no longer says one does.
+ */
+const AI_CHECK = '2026-11-05T20:46:11+05:00'
 /*
  * The words' fingerprints, as `bylines.test.ts` computes them. Filled from that test's failure
  * output the first time (the same way every date here is measured, never guessed); the test then
@@ -173,8 +179,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,
     WAVE_ONE,
-    WAVE_ONE,
-    '41ed5548fc87',
+    AI_CHECK,
+    'f823fed5cad0',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),

@@ -1941,8 +1941,10 @@ export const GUIDES: readonly Guide[] = [
   /*
    * How the guides are made (owner approved 2026-11-05; written by the Content Team, his choice).
    * Two sentences are corrected from the approved draft to match the site: the guides are signed by
-   * four writers (`bylines.ts`), not one, and only a guide that uses outside facts lists sources. The
-   * reviewer's line joins when the owner names the reviewer; nothing publishes before that.
+   * four writers (`bylines.ts`), not one, and only a guide that uses outside facts lists sources.
+   * "How AI helps" says who really checks (owner, 2026-11-05): AI checks every outside fact against its
+   * source, RUN's own facts come from the team, and the owner approves every word. There is no
+   * "Reviewed by" line, because no person at RUN reads each guide, and the page must not say one does.
    */
   {
     path: '/guides/how-we-write-our-guides',
@@ -1994,7 +1996,7 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'We use AI tools to research and draft. A person checks every fact against its source, and M. Hateem Jamshaid approves every word before it is published.',
+            text: 'We use AI tools to research, draft and check every outside fact against its source. RUN’s own facts come from our team, and M. Hateem Jamshaid approves every word before it is published.',
           },
         ],
       },
