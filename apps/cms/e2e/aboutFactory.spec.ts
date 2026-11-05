@@ -310,6 +310,16 @@ test.describe('the /about portraits (owner, 2026-11-05: whole, never cut)', () =
       const year = stage.locator('.photo-stage__year')
       await expect(year).toHaveAttribute('aria-hidden', 'true')
       await expect(year).toHaveText(portrait.year)
+      // Its tone follows what it sits over (owner, 2026-11-05: "darken it"): Sandal's is over a
+      // bright wall, so ink; Ghafuree's is over dark ground, so paper. Read off the computed colour.
+      const luma = await year.evaluate((el) => {
+        const colour = getComputedStyle(el).color
+        const [r = 0, g = 0, b = 0] = (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+        const scale = colour.startsWith('color(') ? 255 : 1
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) * scale
+      })
+      if (portrait.yearTone === 'dark') expect(luma, `${portrait.slug}'s year`).toBeLessThan(128)
+      else expect(luma, `${portrait.slug}'s year`).toBeGreaterThan(128)
     }
   })
 

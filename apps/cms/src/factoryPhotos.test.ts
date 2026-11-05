@@ -778,6 +778,36 @@ describe('the whole pictures are never cut (2026-11-05)', () => {
     expect(html).not.toContain('<figcaption')
   })
 
+  // The year's tone follows what it sits over (owner, 2026-11-05: "darken it"): Sandal's year is over
+  // a bright wall, where the light one was half readable; Ghafuree's is over dark ground.
+  it('draws Sandal’s year dark and Ghafuree’s light, the dark one in ink', () => {
+    expect(ABOUT_PORTRAITS.map((portrait) => [portrait.slug, portrait.yearTone])).toEqual([
+      ['portrait-ghafuree', 'light'],
+      ['portrait-sandal', 'dark'],
+    ])
+    const dark = renderToStaticMarkup(
+      createElement(
+        PhotoStage,
+        { photo: wholePhoto('portrait-sandal'), copy: 'year', tone: 'dark' },
+        '1956–1992',
+      ),
+    )
+    expect(dark).toMatch(/class="photo-stage__year photo-stage__year--dark" aria-hidden="true"/)
+    const light = renderToStaticMarkup(
+      createElement(PhotoStage, { photo: wholePhoto('portrait-ghafuree'), copy: 'year' }, '1889'),
+    )
+    expect(light).not.toContain('photo-stage__year--dark')
+    const inkRule = (css: string) =>
+      /\.photo-stage__year--dark \{[^}]*color:\s*color-mix\(in srgb, var\(--ink\)/.test(css)
+    expect(inkRule(stageCss())).toBe(true)
+    // NEGATIVE CONTROL: the check sees a dark year drawn in the paper colour again.
+    expect(
+      inkRule(
+        '.photo-stage__year--dark { color: color-mix(in srgb, var(--text) 40%, transparent); }',
+      ),
+    ).toBe(false)
+  })
+
   it('hides a portrait’s year from screen readers, and draws a buyer page’s words as text', () => {
     const portrait = renderToStaticMarkup(
       createElement(

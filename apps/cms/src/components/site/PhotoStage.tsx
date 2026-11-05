@@ -27,11 +27,14 @@ export function PhotoStage({
   photo,
   children,
   copy = 'panel',
+  tone = 'light',
 }: {
   photo: WholePhoto
   children?: ReactNode
   /** `panel`: words on an ink panel. `year`: only a decorative, hidden-from-readers year. */
   copy?: 'panel' | 'year'
+  /** A year's colour: `light` over a dark ground, `dark` over a bright part of the picture. */
+  tone?: 'light' | 'dark'
 }) {
   const image = wholePhotoImage(photo)
   const [ow, oh] = photo.ratio
@@ -60,7 +63,11 @@ export function PhotoStage({
       />
       {children ? (
         <div
-          className={copy === 'year' ? 'photo-stage__year' : 'photo-stage__copy'}
+          className={
+            copy === 'year'
+              ? `photo-stage__year${tone === 'dark' ? ' photo-stage__year--dark' : ''}`
+              : 'photo-stage__copy'
+          }
           aria-hidden={copy === 'year' ? 'true' : undefined}
         >
           {children}
