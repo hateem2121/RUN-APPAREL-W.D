@@ -88,14 +88,26 @@ export function threadFor(rgb: readonly [number, number, number]): [number, numb
 }
 
 /**
- * The address the seam reads its picture from: the same file, kept apart in the browser's cache.
+ * The address of a garment poster for EVERY <img> that shows it on the page, and for the seam.
  *
- * ⚠️ THE PAGE'S PLAIN IMAGE POISONS ITS OWN ADDRESS. Media sends `Vary: Origin` only to a request that
- * has an Origin, so the browser keeps the plain copy without it and answers a cross-origin request from
- * that copy, which has no permission header. Live Chromium, 31 Oct 2026: 4 of 4 garment pages refused,
- * no seam since #296, and a console error that failed Lighthouse 5 runs of 5. Retrying after the refusal
- * (#302) drew the seam but kept the error. Costs one second copy of the picture, 57 KB on r-vpj.
+ * ⚠️ ONE ADDRESS, ONE DOWNLOAD (3 Nov 2026). A plain, non-CORS image poisons its own address: media
+ * sends `Vary: Origin` only to a request that has an Origin, so the browser keeps the plain copy
+ * without it and answers a cross-origin request from that copy, which has no permission header. Live
+ * Chromium, 31 Oct 2026: 4 of 4 garment pages refused, no seam since #296, and a console error that
+ * failed Lighthouse 5 runs of 5. The `?seam=1` address is answered with `access-control-allow-origin`
+ * and `vary: Origin` (curl, 3 Nov 2026; the plain address with an Origin gets neither). That kept the
+ * seam working by downloading every poster TWICE: on the Kaizen ball the second copy was 243,042 bytes
+ * competing with the visible one on slow lines. So the visible poster now loads THIS address with
+ * crossOrigin "anonymous" (`posterPicture`) and the seam reads the same file from the browser's cache.
+ * The trade: the visible poster now depends on the media host's CORS answer. A wrong answer hides it
+ * (Stage's onError) instead of only costing the seam. Social cards (worker/preview.ts, og-cards.ts)
+ * keep the plain address: a crawler is not a browser.
  */
 export function seamPictureUrl(url: string): string {
   return `${url}${url.includes('?') ? '&' : '?'}seam=1`
+}
+
+/** The `src` and `crossOrigin` every poster <img> carries, so the seam's copy is the same download. */
+export function posterPicture(url: string): { src: string; crossOrigin: 'anonymous' } {
+  return { src: seamPictureUrl(url), crossOrigin: 'anonymous' }
 }

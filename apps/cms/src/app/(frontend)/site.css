@@ -4553,6 +4553,7 @@ a.contact-block__value:active {
  */
 .site-hero--photo,
 .order-step,
+.photo-stage,
 .about-ground {
   color-scheme: dark;
   /* The dark halves of tokens.css's pairs, re-declared here (see above). */
@@ -4644,6 +4645,7 @@ a.contact-block__value:active {
 @media print {
   .site-hero--photo,
   .order-step,
+  .photo-stage,
   .about-ground {
     color-scheme: light;
     --bg: inherit;
@@ -4825,6 +4827,147 @@ a.contact-block__value:active {
  */
 .spread__head > .photo-figure {
   margin-block-start: 24px;
+}
+
+/*
+ * ------------------------------------------------ a whole photo as a screen's background
+ *
+ * `PhotoStage.tsx` has the markup and the why (owner, 2026-11-05: the images are never cut, and the
+ * photo is the whole background). It uses the photo hero's DARK token set (the group above), so
+ * its words are paper on ink in both themes, as that hero's are.
+ *
+ * ⚠️ NOTHING IS CUT: `object-fit: contain`, never `cover`. A screen-high box fits the whole picture;
+ * what it leaves over is the picture's own blurred, darkened copy (`__ext`), not bars. A tall
+ * picture sits right of centre (`72%`), so the words' panel stands on the dark ground at the left
+ * and not over the subject. Below 900px the stage takes the picture's own shape (`--stage-ratio`
+ * from `PhotoStage.tsx`), so a phone shows it edge to edge with nothing left over, and the words
+ * follow under it on ink.
+ *
+ * ⚠️ THE WORDS' PANEL IS 84% INK, the photo hero's 80% at the least (the arithmetic above): axe
+ * cannot compute contrast over an image, so no word sits bare on one. `--text` on 84% `--bg` over
+ * the stitching floor's white wall is about 7:1.
+ *
+ * No `z-index`: the blurred copy, the picture and the words are in that order in the markup, and
+ * `isolation` keeps them from reaching the page's layers.
+ */
+.photo-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  display: grid;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.photo-stage__ext,
+.photo-stage__year {
+  display: none;
+}
+
+.photo-stage__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--stage-ratio, 4 / 5);
+}
+
+.photo-stage__copy {
+  display: grid;
+  gap: 14px;
+  padding: 24px 20px;
+  justify-items: start;
+}
+
+.photo-stage__copy .display {
+  margin: 0;
+}
+
+.photo-stage__copy p {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--text);
+}
+
+@media (min-width: 900px) {
+  .photo-stage {
+    display: block;
+    height: clamp(520px, 100svh, 960px);
+  }
+
+  .photo-stage__ext {
+    display: block;
+    position: absolute;
+    inset: -6%;
+    background-position: center;
+    background-size: cover;
+    filter: blur(36px) brightness(0.5) saturate(1.1);
+  }
+
+  .photo-stage__img {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    aspect-ratio: auto;
+    object-fit: contain;
+  }
+
+  .photo-stage--tall .photo-stage__img {
+    object-position: 72% 50%;
+  }
+
+  .photo-stage__copy {
+    position: absolute;
+    inset-inline-start: max(24px, 5vw);
+    inset-block-end: max(28px, 6svh);
+    width: min(560px, calc(100% - 48px));
+    padding: 24px;
+    background: color-mix(in srgb, var(--bg) 84%, transparent);
+  }
+
+  /* A portrait's year: huge, quiet, and the card's own (the timeline above says it small). */
+  .photo-stage__year {
+    display: block;
+    position: absolute;
+    inset-inline-start: 3vw;
+    inset-block-start: 6svh;
+    font-family: var(--font-display);
+    font-size: clamp(4.5rem, 13vw, 13.125rem);
+    font-weight: 800;
+    letter-spacing: var(--tracking-display-large);
+    line-height: 0.8;
+    color: color-mix(in srgb, var(--text) 10%, transparent);
+    pointer-events: none;
+  }
+
+  .photo-stage__year p {
+    margin: 0;
+  }
+
+  /* Over a bright part of the picture (M. Iqbal Sandal's wall), ink instead of paper: the light
+     year was half readable there (owner, 2026-11-05: "darken it"). `--ink` is the page's own. */
+  .photo-stage__year--dark {
+    color: color-mix(in srgb, var(--ink) 40%, transparent);
+  }
+}
+
+@media print {
+  .photo-stage {
+    display: block;
+    height: auto;
+  }
+
+  .photo-stage__ext,
+  .photo-stage__img,
+  .photo-stage__year {
+    display: none;
+  }
+
+  .photo-stage__copy {
+    position: static;
+    width: auto;
+    padding: 0;
+    background: none;
+  }
 }
 
 /* ------------------------------------------------ №02 the family cards (polish D3, M1, F1; D44) */

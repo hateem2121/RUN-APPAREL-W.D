@@ -30,9 +30,12 @@
  * redraw it on every visit (live: 217 URLs, `x-nextjs-cache: MISS`). An R2 incremental cache
  * would have served the build's copy and dropped all 200 garment pages from the sitemap.
  *
- * ⚠️ THE DEPLOY IS IN EVERY KEY, so an old copy becomes unreachable instead of being deleted:
- * the Worker's version (the CF_VERSION_METADATA binding). A deploy renames every script file,
- * so a page from the last build would ask for files that no longer exist.
+ * ⚠️ THE BUILD IS IN EVERY KEY, so an old copy becomes unreachable instead of being deleted. Until
+ * 4 Nov 2026 that was the Worker's version (the CF_VERSION_METADATA binding), because a page from
+ * another build would ask for script files that no longer exist; then every deploy retired every
+ * page, and 33 of 43 website pages were found cold after a deploy that changed only garment pages.
+ * Now it is the website build's fingerprint (keptBuild, siteBuild.mjs): the same exactly when the
+ * source and the built file names are the same, and the deploy again when there is none.
  *
  * ⚠️ A SAVE NO LONGER EMPTIES THE STORE (2026-10-25, owner's plan); IT MARKS THE COPIES OLD.
  * Until then every save of a product, a picture or the site settings wrote a new content
@@ -54,7 +57,7 @@
  * no deploy. Every save still writes a new content version, so the switch works either way.
  *
  * ⚠️ IT KEEPS ONLY WHAT IS THE SAME FOR EVERYONE. Never a request with a query string
- * (`?family=`, `?_rsc=`, an advert's `?utm_…`), an RSC or prefetch request, a Range, or a
+ * (`?family=`, `?_rsc=`) other than tracking tags alone (TRACKING_PARAM), an RSC or prefetch request, a Range, or a
  * visitor carrying a CMS login or a draft cookie. Only a 200 page under the public-page
  * policy, with no cookie of its own, that arrived whole and was drawn from the database
  * rather than from the fallbacks (spoilKeptRender). Pages do not differ between browsers
@@ -112,10 +115,39 @@ const REQUEST_HEADERS_NEVER_KEPT = [
 /** A visitor signed in to the CMS, or previewing a draft: never served or kept (tapStore.mjs too). */
 export const SIGNED_IN_OR_DRAFT = /(?:^|;\s*)(?:payload-token|__prerender_bypass)=/
 
+/**
+ * Tags a link carries to say where a visitor came from. No page reads them: the pages read only
+ * `family`, `sent`, `error` and `reason` (src/pageCache.test.ts pins that list).
+ *
+ * ⚠️ WHY A TAGGED ADDRESS IS KEPT AS THE PLAIN ONE (3 Nov 2026). Until then any query string
+ * skipped the store, so every visit from a tagged link had its page drawn again. Measured live:
+ * `/` 0.18 s to the first byte, `/?utm_source=linkedin` 2.27 and 2.49 s, `/?fbclid=abc` 2.20 s;
+ * Workers logs held real visits to `/?utm_source=chatgpt.com` at 2.4–3.7 s (Karachi, Muscat).
+ * ChatGPT adds `utm_source=chatgpt.com` to every link it gives, and GA4 had chatgpt.com level
+ * with Google as a source (27 sessions each, 30 days). PostHog: 31 of 241 first visits carried
+ * `utm_` or `fbclid`. Cloudflare's Workers Cache keys page shows this same pattern, a key with
+ * `utm_source` deleted (read 3 Nov 2026). Only these exact names are removed: any other
+ * parameter still skips the store, so nothing that might change a page is served from the
+ * plain copy. The visitor's own address keeps its tags, so analytics still sees the source.
+ */
+export const TRACKING_PARAM =
+  /^(?:utm_[a-z_]+|fbclid|gclid|gbraid|wbraid|msclkid|srsltid|li_fat_id|mc_cid|mc_eid|ttclid|igshid)$/i
+
+/** The address with its tracking tags removed; every other parameter stays, in its order. */
+export function withoutTracking(address) {
+  const url = new URL(address)
+  for (const name of [...url.searchParams.keys()]) {
+    if (TRACKING_PARAM.test(name)) url.searchParams.delete(name)
+  }
+  // `searchParams.delete` leaves a bare `?` behind when it empties the query.
+  if (url.searchParams.size === 0) url.search = ''
+  return url.href
+}
+
 /** May this request be answered from a kept copy, and its answer kept? */
 export function keepablePageRequest(request) {
   if (request.method !== 'GET') return false
-  const url = new URL(request.url)
+  const url = new URL(withoutTracking(request.url))
   if (url.hostname !== SITE_HOST || url.search !== '') return false
   if (NEVER_KEPT_PATHS.test(url.pathname)) return false
   if (REQUEST_HEADERS_NEVER_KEPT.some((name) => request.headers.has(name))) return false
@@ -147,12 +179,13 @@ export const KEPT_RENDER_HEADERS = Object.freeze({
 })
 
 /**
- * The request a kept page is drawn from: the visitor's address and nothing else of theirs.
- * `cf` carries the shared store's key (sharedCacheKey) on the call into SitePages.
+ * The request a kept page is drawn from: the visitor's address without its tracking tags
+ * (withoutTracking), and nothing else of theirs. `cf` carries the shared store's key
+ * (sharedCacheKey) on the call into SitePages.
  */
 export function keptRenderRequest(request, cf) {
   const init = { method: 'GET', headers: KEPT_RENDER_HEADERS }
-  return new Request(request.url, cf ? { ...init, cf } : init)
+  return new Request(withoutTracking(request.url), cf ? { ...init, cf } : init)
 }
 
 /**
@@ -167,21 +200,53 @@ export function storeLookupRequest(request) {
 }
 
 /**
- * The key for this request in the shared store: the deploy, and the content version only when
- * the off switch says 'versioned' (see the note at the top). A switch that cannot be read is
- * left as it was set: on, the new behaviour.
+ * The KV key of the second off switch (site speed plan, 4 Nov 2026): 'per-deploy' keys pages and
+ * taps by the deploy again, as before SITE_BUILD, within VERSION_CACHE_SECONDS and with no deploy.
+ */
+export const STORE_BUILD_KEY = 'page-store-build'
+export const PER_DEPLOY = 'per-deploy'
+
+/** SITE_BUILD's only shape (siteBuild.mjs SITE_BUILD_PATTERN; src/siteBuild.test.ts pins the two). */
+export const SITE_BUILD_PATTERN = /^site-[0-9a-f]{20}\.[0-9a-f]{12}$/
+
+/**
+ * What a kept page or tap names in place of the deploy: the website build's fingerprint
+ * (siteBuild.mjs), handed over by the deploy as SITE_BUILD, so a deploy that did not change the
+ * website leaves every region's pages kept. Measured 4 Nov 2026: 33 of 43 website pages were cold
+ * 45 minutes after a deploy that changed only garment pages. Anything but a fingerprint (a local
+ * build, uncommitted code, the deploy script's `per-deploy`) falls back to the deploy, as before.
+ * Null when neither exists: nothing is kept.
+ *
+ * @param {{ SITE_BUILD?: unknown, CF_VERSION_METADATA?: { id?: string } } | undefined} env
+ */
+export function keptBuild(env) {
+  const build = env?.SITE_BUILD
+  if (typeof build === 'string' && SITE_BUILD_PATTERN.test(build)) return build
+  return env?.CF_VERSION_METADATA?.id ?? null
+}
+
+/**
+ * The key for this request in the shared store: the build (keptBuild), and the content version
+ * only when the off switch says 'versioned' (see the note at the top). A switch that cannot be
+ * read is left as it was set: on, the new behaviour. `deployId` is what the second switch
+ * (STORE_BUILD_KEY) puts back in place of the build.
  *
  * @param {string} url
- * @param {string} deployVersion
+ * @param {string} build
  * @param {{ get: (key: string, options: { cacheTtl: number }) => Promise<string | null> }} kv
+ * @param {string} [deployId]
  */
-export async function keptStoreKey(url, deployVersion, kv) {
-  const [mode, content] = await Promise.all([
+export async function keptStoreKey(url, build, kv, deployId) {
+  const [mode, content, keying] = await Promise.all([
     kv.get(STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null),
     kv.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }),
+    deployId
+      ? kv.get(STORE_BUILD_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null)
+      : null,
   ])
   const versioned = mode === VERSIONED_MODE
-  return sharedCacheKey(url, deployVersion, versioned ? (content ?? 'none') : 'live')
+  const named = keying === PER_DEPLOY && deployId ? deployId : build
+  return sharedCacheKey(url, named, versioned ? (content ?? 'none') : 'live')
 }
 
 /**
@@ -364,9 +429,16 @@ export function servedHeaders(headers) {
   return out
 }
 
-/** For the browser's network panel: did this answer come from a kept copy? */
-export function pageCacheTiming(state) {
-  return `page-cache;desc="${state}"`
+/**
+ * For the browser's network panel: did this answer come from a kept copy, and which build is it
+ * kept under? The build is a hash of public source (siteBuild.mjs); the warm-up after a deploy
+ * reads it to skip warming pages that the deploy did not change (scripts/warm-regions.mjs).
+ */
+export function pageCacheTiming(state, build) {
+  const kept = `page-cache;desc="${state}"`
+  return typeof build === 'string' && SITE_BUILD_PATTERN.test(build)
+    ? `${kept}, site-build;desc="${build}"`
+    : kept
 }
 
 /**

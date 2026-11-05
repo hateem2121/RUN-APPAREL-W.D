@@ -79,9 +79,13 @@ test.describe('a tap on a contact link on a garment page', () => {
     await whatsapp(page).click()
     await email(page).click()
 
-    const events = await contactEvents(page)
-    expect(events).toEqual([{ method: 'whatsapp' }, { method: 'email' }])
-    expect(JSON.stringify(events)).not.toMatch(/\d{8}|@|wear-run/)
+    // Polled: since 4 Nov 2026 Google's tag starts 3 s after Accept, then at the next idle moment
+    // (2 s at most, `startTrackers`), and a tap in between is queued and sent once it starts. So
+    // the wait is up to 5 s, the poll's own default: 10 s leaves room on a slow runner.
+    await expect
+      .poll(() => contactEvents(page), { timeout: 10_000 })
+      .toEqual([{ method: 'whatsapp' }, { method: 'email' }])
+    expect(JSON.stringify(await contactEvents(page))).not.toMatch(/\d{8}|@|wear-run/)
   })
 
   test('DECLINE: a tap queues nothing', async ({ page, context }) => {

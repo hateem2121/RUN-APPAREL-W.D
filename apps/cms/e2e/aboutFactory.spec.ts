@@ -1,4 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
+import { ABOUT_PAGE } from '../src/lib/aboutPages'
+import { ABOUT_PORTRAITS, wholePhoto } from '../src/lib/factoryPhotos'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -259,6 +261,82 @@ async function scrollThrough(page: import('@playwright/test').Page, selector: st
 
 const timelinesRun = (page: import('@playwright/test').Page) =>
   page.evaluate(() => CSS.supports('(animation-timeline: view()) and (animation-range: entry)'))
+
+test.describe('the /about portraits (owner, 2026-11-05: whole, never cut)', () => {
+  test('two whole archive portraits follow the timeline, each a screen, with a hidden year', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/about')
+    const stages = page.locator('.about-portraits .photo-stage')
+    await expect(stages).toHaveCount(ABOUT_PORTRAITS.length)
+    // After the timeline, which keeps all of its cards (nothing moved into a portrait's screen).
+    expect(
+      await page.evaluate(() => {
+        const timeline = document.querySelector('.about-timeline-section')
+        const portraits = document.querySelector('.about-portraits')
+        return Boolean(
+          timeline &&
+            portraits &&
+            timeline.compareDocumentPosition(portraits) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      }),
+    ).toBe(true)
+    await expect(page.locator('.about-timeline__entry')).toHaveCount(
+      ABOUT_PAGE.timeline.entries.length,
+    )
+    for (const [index, portrait] of ABOUT_PORTRAITS.entries()) {
+      const photo = wholePhoto(portrait.slug)
+      const stage = stages.nth(index)
+      await stage.scrollIntoViewIfNeeded()
+      const img = stage.locator('img.photo-stage__img')
+      await expect(img).toHaveAttribute('alt', photo.alt)
+      await expect
+        .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0)
+      const drawn = await img.evaluate((el) => {
+        const image = el as HTMLImageElement
+        return {
+          fit: getComputedStyle(image).objectFit,
+          natural: image.naturalWidth / image.naturalHeight,
+        }
+      })
+      expect(drawn.fit, `${portrait.slug} is cropped by CSS`).toBe('contain')
+      expect(drawn.natural, `${portrait.slug} is not the original's shape`).toBeCloseTo(
+        photo.ratio[0] / photo.ratio[1],
+        2,
+      )
+      // The year is decoration: the card above already says it, so screen readers skip it.
+      const year = stage.locator('.photo-stage__year')
+      await expect(year).toHaveAttribute('aria-hidden', 'true')
+      // ONE year, never a range (owner, 2026-11-05: "only keep a single year, no –").
+      await expect(year).toHaveText(portrait.shownYear)
+      expect(await year.textContent()).toMatch(/^\d{4}$/)
+      // Its tone follows what it sits over (owner, 2026-11-05: "darken it"): Sandal's is over a
+      // bright wall, so ink; Ghafuree's is over dark ground, so paper. Read off the computed colour.
+      const luma = await year.evaluate((el) => {
+        const colour = getComputedStyle(el).color
+        const [r = 0, g = 0, b = 0] = (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+        const scale = colour.startsWith('color(') ? 255 : 1
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) * scale
+      })
+      if (portrait.yearTone === 'dark') expect(luma, `${portrait.slug}'s year`).toBeLessThan(128)
+      else expect(luma, `${portrait.slug}'s year`).toBeGreaterThan(128)
+    }
+  })
+
+  test('is one screen each on a phone, the picture edge to edge and whole', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/about')
+    const img = page.locator('.about-portraits .photo-stage__img').first()
+    await img.scrollIntoViewIfNeeded()
+    const box = await img.boundingBox()
+    expect(box?.width).toBeCloseTo(390, 0)
+    // Its own shape, so nothing is cut and nothing is letterboxed.
+    const photo = wholePhoto(ABOUT_PORTRAITS[0].slug)
+    expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(photo.ratio[0] / photo.ratio[1], 1)
+  })
+})
 
 test.describe('the /about timeline', () => {
   test('runs sideways on a wide screen, its last entry ending at the stage edge', async ({

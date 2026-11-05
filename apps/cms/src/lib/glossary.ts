@@ -383,7 +383,6 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
   standard('sedex-smeta', 'Sedex and SMETA', 'sedex-smeta'),
   standard('iso-9001', 'ISO 9001', 'iso-9001'),
   standard('oeko-tex', 'OEKO-TEX STANDARD 100', 'oeko-tex'),
-  standard('gots', 'GOTS', 'gots'),
   standard('grs', 'GRS', 'grs'),
   standard('amfori-bsci', 'amfori BSCI', 'amfori-bsci'),
 

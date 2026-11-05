@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { categoryPath } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
+import { WHOLE_PHOTOS } from './lib/factoryPhotos'
 import { FAMILIES } from './lib/families'
 import {
   FAMILY_PAGES,
@@ -9,6 +10,8 @@ import {
   familyHref,
   familyIsSoon,
   familyPageFor,
+  ORDER_PHOTO_BY_FAMILY,
+  orderPhotoSlug,
 } from './lib/familyPages'
 
 /**
@@ -156,10 +159,18 @@ describe('nothing on the website links to a filter address any more', () => {
 describe('a buyer page copies nothing (polish S4)', () => {
   const landing = code('components/site/FamilyLanding.tsx')
 
-  it('draws no numbers, no factory photos and no steps of its own', () => {
+  it('draws no numbers and no steps of its own', () => {
     expect(landing).not.toMatch(/<FactsBento\b/)
-    expect(landing).not.toMatch(/<FactoryFigure\b/)
     expect(landing).not.toMatch(/page\.steps\b/)
+  })
+
+  // The owner's 2026-11-05 ruling reversed the "no factory photos" half of S4: ONE whole photo, the
+  // order block's background, and only where `ORDER_PHOTO_BY_FAMILY` names one. No second one, and
+  // never the cut `FactoryFigure` the guides use.
+  it('draws one whole factory photo as the order block’s background, chosen by the family’s list', () => {
+    expect(landing.match(/<PhotoStage\b/g)).toHaveLength(1)
+    expect(landing).toContain('orderPhotoSlug(page)')
+    expect(landing).not.toMatch(/<FactoryFigure\b/)
   })
 
   it('links the order guide instead, in the guide’s own words', () => {
@@ -168,8 +179,66 @@ describe('a buyer page copies nothing (polish S4)', () => {
     expect(landing).toMatch(/ORDER_GUIDE\.title/)
   })
 
-  // NEGATIVE CONTROL: the check sees the numbers drawn again.
+  // NEGATIVE CONTROL: the check sees the numbers drawn again, and a second photo.
   it('sees the numbers if they come back', () => {
     expect(`${landing}<FactsBento worksCoordinates={x} />`).toMatch(/<FactsBento\b/)
+    expect(`${landing}<PhotoStage photo={p} />`.match(/<PhotoStage\b/g)).toHaveLength(2)
+    expect(`${landing}<FactoryFigure photo={p} />`).toMatch(/<FactoryFigure\b/)
+  })
+})
+
+/*
+ * One different WHOLE factory photo as the order block's background on each of the four main buyer pages
+ * (owner, 2026-11-05). What would
+ * have to break for these to fail: a slug that names no file (a broken picture), two pages with the
+ * same picture (the owner asked for different ones), a photo on the accessories or soccer ball page
+ * (he chose four), or a page that loses its photo without a test noticing.
+ */
+describe('the photo beside "How an order works" (2026-11-05)', () => {
+  const repeated = (slugs: readonly string[]) => slugs.filter((s, i) => slugs.indexOf(s) !== i)
+
+  it('is named for exactly the four main families', () => {
+    expect(Object.keys(ORDER_PHOTO_BY_FAMILY).sort()).toEqual([
+      'casual-wear',
+      'outerwear',
+      'sportswear',
+      'teamwear-uniforms',
+    ])
+  })
+
+  it('names a photo the site has, for a family that has a page', () => {
+    const known = new Set(WHOLE_PHOTOS.map((photo) => photo.slug))
+    for (const [familySlug, photoSlug] of Object.entries(ORDER_PHOTO_BY_FAMILY)) {
+      expect(known.has(photoSlug), `${familySlug}: no whole photo "${photoSlug}"`).toBe(true)
+      expect(
+        FAMILY_PAGES.some((page) => page.familySlug === familySlug && !page.productLine),
+        `${familySlug} has no buyer page`,
+      ).toBe(true)
+    }
+  })
+
+  it('never gives two pages the same picture', () => {
+    expect(repeated(Object.values(ORDER_PHOTO_BY_FAMILY))).toEqual([])
+  })
+
+  it('gives each page its own, and the accessories and soccer ball pages none', () => {
+    const bySlug = Object.fromEntries(
+      FAMILY_PAGES.map((page) => [page.path, orderPhotoSlug(page)] as const),
+    )
+    expect(bySlug).toEqual({
+      '/custom-teamwear-manufacturer': 'whole-screen-printing',
+      '/custom-activewear-manufacturer': 'whole-stitching',
+      '/custom-outerwear-manufacturer': 'whole-inspection',
+      '/private-label-casual-wear-manufacturer': 'whole-tagging',
+      '/custom-sports-accessories-manufacturer': null,
+      '/custom-soccer-ball-manufacturer': null,
+    })
+  })
+
+  // NEGATIVE CONTROL: the repeat check sees a picture used twice.
+  it('sees a picture used on two pages', () => {
+    expect(repeated(['whole-stitching', 'whole-tagging', 'whole-stitching'])).toEqual([
+      'whole-stitching',
+    ])
   })
 })

@@ -84,7 +84,7 @@ describe('a figure is said once per page', () => {
       ...ABOUT_PAGE.factsTable.map((row) => `${row.term} ${row.detail}`),
     ]
     for (const { value } of ABOUT_PAGE.factsBand.filter(
-      (fact) => fact.label !== 'Manufacturing since',
+      (fact) => fact.label !== 'Family in manufacturing since',
     )) {
       for (const text of words)
         expect(holds(text, value), `"${value}" again in: ${text}`).toBe(false)
@@ -152,5 +152,22 @@ describe('each headline reads its approved words once', () => {
   it('/inside-the-factory: "Inside the factory"', () => {
     const { heading, accent } = FACTORY_PAGE.hero
     expect(drawn(heading, accent)).toBe('inside the factory')
+  })
+})
+
+/**
+ * The owner's garment wash tests (2026-11-05): shrinkage, colorfastness to washing and appearance
+ * after washing, named in the quality stage and nowhere as a promise of a result. The fabric stage
+ * already names colorfastness and shrinkage for incoming fabric; this stage is the finished garment.
+ */
+describe('the quality stage names the garment wash tests', () => {
+  const quality = FACTORY_PAGE.walkthrough.stages[4]
+
+  it('names all three tests, as tests and not as results', () => {
+    expect(quality.title).toContain('Quality Assurance')
+    expect(quality.body).toContain(
+      'Finished garments are wash-tested for shrinkage, colorfastness to washing and appearance after washing.',
+    )
+    expect(quality.body).not.toMatch(/guarantee|promise|never shrink|will not fade/i)
   })
 })

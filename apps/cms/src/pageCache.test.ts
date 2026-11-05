@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { HTML_LIMITED_BOTS } from '../htmlLimitedBots.mjs'
@@ -16,9 +16,11 @@ import {
   keptFileRequest,
   keptHeaders,
   keptRenderRequest,
+  keptBuild,
   keptRenders,
   keptStoreKey,
   PAGE_CACHE_SECONDS,
+  PER_DEPLOY,
   pageCacheKey,
   pageCacheTiming,
   SITE_HOST,
@@ -26,6 +28,7 @@ import {
   sharedCacheKey,
   spoilKeptRender,
   STALE_SECONDS,
+  STORE_BUILD_KEY,
   STORE_MODE_KEY,
   storeAnswerLog,
   storeLookupRequest,
@@ -34,6 +37,7 @@ import {
   VERSION_CACHE_SECONDS,
   wholeFile,
   wholePage,
+  withoutTracking,
 } from '../pageCache.mjs'
 import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
 import { hostPattern, siteRedirects } from '../siteHostRules.mjs'
@@ -72,7 +76,10 @@ describe('which requests may be answered from a kept copy', () => {
     ['the old host', new Request('https://wear-run.help/')],
     ['a family filter', page('/products?family=teamwear')],
     ['a client navigation', page('/products?_rsc=abc')],
-    ['an advert link', page('/?utm_source=linkedin')],
+    ['a family filter with a tag', page('/products?utm_source=x&family=teamwear')],
+    ['a tag with a client navigation', page('/products?fbclid=a&_rsc=abc')],
+    ['an unknown parameter', page('/?x=1')],
+    ['a tag-like name that is not one', page('/?utm=1')],
     ['an RSC request', page('/products', { headers: { rsc: '1' } })],
     ['a prefetch', page('/products', { headers: { 'next-router-prefetch': '1' } })],
     ['a router state', page('/products', { headers: { 'next-router-state-tree': '[]' } })],
@@ -88,6 +95,57 @@ describe('which requests may be answered from a kept copy', () => {
     ['an image transform', page('/cdn-cgi/image/width=400/x.webp')],
   ])('never %s', (_label, request) => {
     expect(keepablePageRequest(request)).toBe(false)
+  })
+
+  /*
+   * 3 Nov 2026: a tagged link skipped the store and was drawn every time, 2.2–3.7 s live
+   * (`?utm_source=chatgpt.com` from Karachi and Muscat). Tracking tags alone now use the plain copy.
+   */
+  it.each([
+    '/?utm_source=linkedin',
+    '/?utm_source=chatgpt.com',
+    '/custom-outerwear-manufacturer?utm_source=chatgpt.com',
+    '/?fbclid=IwAR0abc',
+    '/products?utm_source=ig&utm_medium=social&utm_content=link_in_bio',
+    '/?gclid=x&srsltid=y&msclkid=z',
+    '/?UTM_SOURCE=upper',
+  ])('keeps the tagged link %s as the plain page', (path) => {
+    expect(keepablePageRequest(page(path))).toBe(true)
+  })
+
+  it('removes only the tracking tags, keeping every other parameter in order', () => {
+    expect(withoutTracking(`https://${SITE_HOST}/?utm_source=a&fbclid=b`)).toBe(
+      `https://${SITE_HOST}/`,
+    )
+    expect(withoutTracking(`https://${SITE_HOST}/products?family=x&utm_medium=y&b=2`)).toBe(
+      `https://${SITE_HOST}/products?family=x&b=2`,
+    )
+    // NEGATIVE CONTROL: an address without tags is returned unchanged, query and all.
+    expect(withoutTracking(`https://${SITE_HOST}/products?family=x`)).toBe(
+      `https://${SITE_HOST}/products?family=x`,
+    )
+  })
+
+  /*
+   * The tags may be ignored only while no page reads them. A page that starts reading the address
+   * must be added here on purpose, after checking it never reads a tracking tag.
+   */
+  it('has exactly the pages that read the address, and none reads a tracking tag', () => {
+    const root = join(__dirname, 'app', '(frontend)')
+    const readers: string[] = []
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name)
+        if (entry.isDirectory()) walk(path)
+        else if (/\.tsx?$/.test(entry.name) && !/\.test\./.test(entry.name)) {
+          const source = readFileSync(path, 'utf8')
+          if (/searchParams|useSearchParams/.test(source)) readers.push(path.slice(root.length + 1))
+          expect(source, path).not.toMatch(/utm_|fbclid|gclid|srsltid|msclkid/)
+        }
+      }
+    }
+    walk(root)
+    expect(readers.sort()).toEqual(['careers/page.tsx', 'contact/page.tsx', 'products/page.tsx'])
   })
 
   it('reads a cookie that merely CONTAINS the name as no login', () => {
@@ -135,6 +193,11 @@ describe('the request a kept page is drawn from', () => {
     const clean = keptRenderRequest(crafted)
     expect(clean.url).toBe(`https://${SITE_HOST}/products`)
     expect(clean.method).toBe('GET')
+  })
+
+  it('draws a tagged link from the plain address, so the copy is the plain page', () => {
+    const tagged = page('/?utm_source=chatgpt.com&fbclid=x')
+    expect(keptRenderRequest(tagged).url).toBe(`https://${SITE_HOST}/`)
   })
 
   it('carries none of the visitor’s headers, only the fixed ones', () => {
@@ -283,6 +346,23 @@ describe('the key a request is kept under, and its off switch', () => {
     expect(before).toBe(sharedCacheKey(url, 'd1', 'c1'))
     expect(after).not.toBe(before)
     expect(await keptStoreKey(url, 'd1', kv(off))).toBe(sharedCacheKey(url, 'd1', 'none'))
+  })
+
+  /*
+   * Site speed plan, 4 Nov 2026: the website build keys the pages, and KV `page-store-build` =
+   * `per-deploy` puts the deploy back without a deploy.
+   */
+  it('switched to "per-deploy", names the deploy in place of the build', async () => {
+    const build = `site-${'a'.repeat(20)}.${'b'.repeat(12)}`
+    expect(await keptStoreKey(url, build, kv({}), 'deploy-1')).toBe(
+      sharedCacheKey(url, build, 'live'),
+    )
+    const switched = kv({ [STORE_BUILD_KEY]: PER_DEPLOY })
+    expect(await keptStoreKey(url, build, switched, 'deploy-1')).toBe(
+      sharedCacheKey(url, 'deploy-1', 'live'),
+    )
+    // Without a deploy id (the garment data passes its data shape), the switch is never read.
+    expect(await keptStoreKey(url, build, switched)).toBe(sharedCacheKey(url, build, 'live'))
   })
 
   it('a switch that cannot be read leaves the new behaviour on', async () => {
@@ -443,6 +523,37 @@ describe('the headers', () => {
     expect(pageCacheTiming('hit')).toBe('page-cache;desc="hit"')
   })
 
+  // The warm-up after a deploy reads the build here (scripts/warm-regions.mjs); a deploy id or any
+  // other string is never printed into a public header.
+  it('names the site build it was kept under, and only a real fingerprint', () => {
+    const build = `site-${'a'.repeat(20)}.${'b'.repeat(12)}`
+    expect(pageCacheTiming('hit', build)).toBe(`page-cache;desc="hit", site-build;desc="${build}"`)
+    expect(pageCacheTiming('miss', '7c1e2f0a-uuid-of-a-deploy')).toBe('page-cache;desc="miss"')
+    expect(pageCacheTiming('miss', `${build}"; x="y`)).toBe('page-cache;desc="miss"')
+  })
+
+  // keptBuild: what a kept page names in place of the deploy (4 Nov 2026).
+  const siteBuild = `site-${'0123456789abcdef0123'}.${'0123456789ab'}`
+  const deploy = { id: 'f3c2a1b0-0000-4000-8000-000000000000' }
+
+  it('is the website build when the deploy handed one over', () => {
+    expect(keptBuild({ SITE_BUILD: siteBuild, CF_VERSION_METADATA: deploy })).toBe(siteBuild)
+  })
+
+  // NEGATIVE CONTROL: a deploy without a fingerprint keys by the deploy, exactly as before.
+  it('is the deploy for `per-deploy`, a malformed value, or none', () => {
+    for (const SITE_BUILD of ['per-deploy', 'site-short', `${siteBuild}x`, undefined, 42]) {
+      expect(keptBuild({ SITE_BUILD, CF_VERSION_METADATA: deploy }), String(SITE_BUILD)).toBe(
+        deploy.id,
+      )
+    }
+  })
+
+  it('is null with neither, so nothing is kept', () => {
+    expect(keptBuild({})).toBeNull()
+    expect(keptBuild(undefined)).toBeNull()
+  })
+
   // The store obeys the kept lifetime; the browser must still get the answer's own rule
   // (robots.txt asks for 5 minutes, the sitemap for none).
   it('the answer’s own cache rule travels with the copy and comes back on the way out', () => {
@@ -565,9 +676,19 @@ describe('what the cache relies on', () => {
     expect(wrangler.exports?.SitePages).toEqual({ type: 'worker', cache: { enabled: true } })
   })
 
-  // A page drawn by the last deploy names script files the new deploy no longer has.
-  it('never serves one deploy’s copies to another', () => {
-    expect(wrangler.cache?.cross_version_cache ?? false).toBe(false)
+  // A page drawn by the last deploy names script files the new deploy no longer has. Since
+  // 4 Nov 2026 `cross_version_cache` is on (so the garment data, keyed by its shape, survives a
+  // deploy), and what keeps a page or tap inside its own deploy is our key, which names it.
+  it('never serves one deploy’s page or tap to another: every page and tap key names the deploy', async () => {
+    expect(wrangler.cache?.cross_version_cache).toBe(true)
+    const kv = { get: async () => null }
+    expect(await keptStoreKey('https://wear-run.com/about', 'deploy-A', kv)).not.toBe(
+      await keptStoreKey('https://wear-run.com/about', 'deploy-B', kv),
+    )
+    // worker.mjs builds every page and tap key from the deploy id, never from anything else.
+    const pageAndTapKeys = [...worker.matchAll(/kept(?:Tap)?StoreKey\(([^)]*)\)/g)].map((m) => m[1])
+    expect(pageAndTapKeys.length).toBeGreaterThanOrEqual(2)
+    for (const args of pageAndTapKeys) expect(args).toMatch(/,\s*deploy,/)
   })
 
   const worker = readFileSync(join(import.meta.dirname, '..', 'worker.mjs'), 'utf8')
@@ -614,7 +735,12 @@ describe('what the cache relies on', () => {
 
   it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
     expect(worker).not.toMatch(/CONTENT_VERSION_KEY/)
-    expect(worker).toMatch(/await keptStoreKey\(request\.url, deploy, env\.SITE_CACHE\)/)
+    expect(worker).toMatch(
+      /await keptStoreKey\(\s*request\.url,\s*deploy,\s*env\.SITE_CACHE,\s*env\.CF_VERSION_METADATA\?\.id,?\s*\)/,
+    )
+    // The build, not the deploy, names a kept page (keptBuild, 4 Nov 2026), for pages and taps.
+    expect(worker.match(/const deploy = keptBuild\(env\)/g)).toHaveLength(2)
+    expect(worker).not.toMatch(/const deploy = env\.CF_VERSION_METADATA/)
     expect(worker).toMatch(/storeLookupRequest\(request\)/)
     expect(worker).toMatch(/request\.method === 'HEAD' \? null : kept\.body/)
   })

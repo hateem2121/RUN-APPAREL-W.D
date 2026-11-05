@@ -1,5 +1,7 @@
+import { FACTORY_PAGE } from '../src/lib/aboutPages'
 import { FAMILIES } from '../src/lib/families'
-import { FAMILY_PAGES, familyHref } from '../src/lib/familyPages'
+import { wholePhoto } from '../src/lib/factoryPhotos'
+import { FAMILY_PAGES, familyHref, orderPhotoSlug } from '../src/lib/familyPages'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -199,14 +201,54 @@ test.describe('every group is drawn at once, and a Tab walks from one into the n
   })
 })
 
-test.describe('a buyer page is its family’s list, and copies nothing (polish S1, S4)', () => {
+test.describe('a buyer page is its family’s list, and copies nothing but one whole photo (polish S1, S4; 2026-11-05)', () => {
   for (const { page } of WITH_A_PAGE) {
-    test(`${page.path}: no numbers, no factory photos, no steps; the order guide instead`, async ({
+    test(`${page.path}: no numbers, no steps, one whole photo or none; the order guide instead`, async ({
       page: browser,
     }) => {
       await browser.goto(page.path)
       // `.about-ground`: №01's factory photo since D41 (2026-10-16); `.about__photos` until then.
       await expect(browser.locator('.facts-grid, .works-slab, .about-ground')).toHaveCount(0)
+      // Never the cut figure the guides draw; the order block's background is a whole photo, on the
+      // four main pages only (owner, 2026-11-05: one different photo per page, and never cut).
+      await expect(browser.locator('.photo-figure')).toHaveCount(0)
+      const slug = orderPhotoSlug(page)
+      if (!slug) {
+        await expect(browser.locator('.photo-stage')).toHaveCount(0)
+      } else {
+        const photo = wholePhoto(slug)
+        const stage = browser.locator('.photo-stage')
+        await expect(stage).toHaveCount(1)
+        // The words are the page's own, over the picture.
+        await expect(
+          stage.getByRole('heading', { level: 2, name: page.stepsHeading }),
+        ).toBeVisible()
+        await stage.scrollIntoViewIfNeeded()
+        const img = stage.locator('img.photo-stage__img')
+        await expect(img).toHaveAttribute('alt', photo.alt)
+        await expect
+          .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth), {
+            message: `${slug} did not load`,
+          })
+          .toBeGreaterThan(0)
+        const drawn = await img.evaluate((el) => {
+          const image = el as HTMLImageElement
+          const box = image.getBoundingClientRect()
+          const stageBox = (image.parentElement as HTMLElement).getBoundingClientRect()
+          return {
+            fit: getComputedStyle(image).objectFit,
+            natural: image.naturalWidth / image.naturalHeight,
+            insideStage: box.left >= stageBox.left - 1 && box.right <= stageBox.right + 1,
+          }
+        })
+        // NOT CUT: contained, and the file the browser chose has the original's own shape.
+        expect(drawn.fit, `${slug} is cropped by CSS`).toBe('contain')
+        expect(drawn.natural, `${slug} is not the original's shape`).toBeCloseTo(
+          photo.ratio[0] / photo.ratio[1],
+          2,
+        )
+        expect(drawn.insideStage).toBe(true)
+      }
       await expect(
         browser.getByRole('heading', { level: 2, name: page.stepsHeading }),
       ).toBeVisible()
@@ -219,6 +261,10 @@ test.describe('a buyer page is its family’s list, and copies nothing (polish S
         exact: true,
       })
       await expect(guide).toHaveAttribute('href', '/guides/how-a-private-label-order-works')
+      // The factory page, where every order's checks are told, by its own approved title (2026-11-05).
+      await expect(
+        browser.getByRole('link', { name: FACTORY_PAGE.title, exact: true }),
+      ).toHaveAttribute('href', FACTORY_PAGE.path)
       // It sends nobody to a filter address, its own or another family's.
       await expect(browser.locator('a[href*="family="]')).toHaveCount(0)
       // The other ranges it names lead to their own lists.

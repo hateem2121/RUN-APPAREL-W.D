@@ -4,8 +4,8 @@ import {
   FACTS,
   LEGAL_NAME,
   LEAD_TIME,
-  PARENT_COMPANY,
   PRECISION_MACHINES,
+  SITE_COMPANY,
   SHIPS_TO,
 } from './companyFacts'
 import { AUTHORS } from './bylines'
@@ -67,7 +67,7 @@ export type GallerySet = {
 export const ABOUT_PAGE = {
   path: '/about',
   title: 'About us: family makers in Sialkot since 1889',
-  description: `The OEM/ODM apparel division of ${PARENT_COMPANY}: private label sportswear from Sialkot, Pakistan, made by a family manufacturing and exporting since ${FAMILY_SINCE}.`,
+  description: `OEM/ODM private label sportswear from Sialkot, Pakistan, by a sister company of ${SITE_COMPANY}, from a family manufacturing and exporting since ${FAMILY_SINCE}.`,
   hero: {
     partLeft: 'SINCE 1889',
     partRight: 'STILL',
@@ -75,7 +75,7 @@ export const ABOUT_PAGE = {
     accent: 'running',
     subtitle: `Private label sportswear from Sialkot, Pakistan. The family behind it has made and exported from this city since ${FAMILY_SINCE}.`,
   },
-  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes: first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's apparel division. We engineer and export private label sportswear for partners who go the extra mile.`,
+  quickAnswer: `Since 1889, one family in Sialkot has made gear for the world's athletes: first leather footballs/soccer balls, today performance fabric. RUN APPAREL is that family's apparel company, and a sister company of DURUS INDUSTRIES. We engineer and export private label sportswear for partners who go the extra mile.`,
   /** The mission, word for word (owner): rendered as a quote the readability test skips. */
   mission:
     'To empower global partners with sustainable, high-performance apparel that drives unity, endurance, and excellence — combining ethical craftsmanship with technological precision.',
@@ -120,12 +120,12 @@ export const ABOUT_PAGE = {
       {
         year: '1992',
         title: 'Durus.',
-        body: `The family brings its businesses together as one: ${PARENT_COMPANY}. In Arabic, "Durus" means strength, durability and endurance.`,
+        body: `The family brings its businesses together as one: ${SITE_COMPANY}. In Arabic, "Durus" means strength, durability and endurance.`,
       },
       {
         year: 'Today',
         title: 'RUN.',
-        body: 'Durus spins off RUN APPAREL as an apparel division of its own, separate from sports equipment. It is built for athletic brands, teams, corporate programs and fitness organizations. The fourth generation of the family leads the company today. The city is the same; the standard is too.',
+        body: 'Members of the family start RUN APPAREL, a sister company of DURUS INDUSTRIES, for apparel, apart from sports equipment. It makes its clothes in the DURUS INDUSTRIES buildings. It is built for athletic brands, teams, corporate programs and fitness organizations. The fourth generation of the family leads the company today. The city is the same; the standard is too.',
       },
     ] as const satisfies readonly TimelineEntry[],
   },
@@ -155,7 +155,7 @@ export const ABOUT_PAGE = {
   },
   /** The count-up band: every figure from a constant, label first on the year (VA-58). */
   factsBand: [
-    { label: 'Manufacturing since', value: FAMILY_SINCE, labelFirst: true },
+    { label: 'Family in manufacturing since', value: FAMILY_SINCE, labelFirst: true },
     { label: 'People at the works', value: PEOPLE },
     { label: PRECISION_MACHINES.label, value: PRECISION_MACHINES.value },
     { label: CUTTING_LINES.label, value: CUTTING_LINES.value },
@@ -166,7 +166,7 @@ export const ABOUT_PAGE = {
       row: the count-up band above says it (owner, 2026-10-26). */
   factsTable: [
     { term: 'Legal name', detail: LEGAL_NAME },
-    { term: 'Parent company', detail: PARENT_COMPANY },
+    { term: 'Sister company', detail: `${SITE_COMPANY}, whose buildings we make our clothes in` },
     { term: 'Headquarters', detail: formatAddress() },
     { term: 'Business model', detail: 'OEM/ODM private label manufacturing' },
     {
@@ -243,7 +243,7 @@ export const FACTORY_PAGE = {
       },
       {
         title: 'Quality Assurance, Packaging & Delivery',
-        body: 'Every batch is inspected in line and again at AQL final inspection. Rework, labels and traceability records follow, and feedback keeps improving the process.',
+        body: 'Every batch is inspected in line and again at AQL final inspection. Finished garments are wash-tested for shrinkage, colorfastness to washing and appearance after washing. Rework, labels and traceability records follow, and feedback keeps improving the process.',
         badge: 'Batch accepted, shipment authorized.',
         photos: ['inspection', 'final-check', 'tagging', 'packing'],
       },

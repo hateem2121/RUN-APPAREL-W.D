@@ -145,7 +145,7 @@ describe('SiteFooter', () => {
     expect(out.indexOf('footer-marks')).toBeGreaterThan(out.indexOf('footer-block--standards'))
     expect(out.match(/footer-marks/g)).toHaveLength(1)
     const imgs = row.match(/<img [^>]*>/g) ?? []
-    expect(imgs).toHaveLength(6)
+    expect(imgs).toHaveLength(1)
     for (const img of imgs) {
       expect(img).toContain('loading="lazy"')
       expect(img).toContain('decoding="async"')
@@ -153,17 +153,13 @@ describe('SiteFooter', () => {
       expect(img).toMatch(/height="\d+"/)
       expect(img).toContain('class="footer-logo"')
     }
-    // BSCI is text only (owner, 2026-09-29): named in the line, never drawn
-    // ... and the company's own climate commitment last (owner, 2026-10-17)
+    // Since 2026-11-05 no body's mark is drawn (none is RUN APPAREL's to show; the schemes' rules
+    // are quoted in standardsLogos.ts): the lines still name Sedex, SMETA, OEKO-TEX and GRS, and
+    // the one picture is the company's own climate commitment (owner, 2026-10-17).
     expect(imgs.map((img) => img.match(/alt="([^"]*)"/)?.[1])).toEqual([
-      'Sedex',
-      'SMETA',
-      'OEKO-TEX',
-      'GOTS',
-      'GRS',
       CLIMATE_COMMITMENT.logo.alt,
     ])
-    expect(out.match(/<img [^>]*>/g)).toHaveLength(6)
+    expect(out.match(/<img [^>]*>/g)).toHaveLength(1)
     // the heading stays "Standards" beside real logos: SMETA is an audit, not a certificate
     expect(out).toContain('<h3>Standards</h3>')
     expect(out).not.toMatch(/certified/i)
@@ -253,8 +249,9 @@ describe('SiteFooter and the climate commitment', () => {
     expect(standards.indexOf('SEDEX-registered')).toBeLessThan(
       standards.indexOf(CLIMATE_COMMITMENT.line),
     )
-    expect(out.indexOf('/standards/smeta.svg')).toBeGreaterThan(0)
-    expect(out.indexOf('/standards/smeta.svg')).toBeLessThan(out.indexOf(badgeLink))
+    // No body's mark since 2026-11-05, so the badge is the row's only picture.
+    expect(out).not.toContain('/standards/smeta.svg')
+    expect(out.indexOf(badgeLink)).toBeGreaterThan(out.indexOf('footer-marks'))
   })
 })
 

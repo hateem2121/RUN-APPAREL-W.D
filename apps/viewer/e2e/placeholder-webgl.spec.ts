@@ -45,11 +45,25 @@ test.describe('the colourway photo while the model downloads', () => {
     await expect(placeholder).toBeVisible({ timeout: 20_000 })
     await expect(readout).toBeVisible()
 
-    // Blurred by the bytes still to come: a positive radius, and the photo itself.
-    const blur = await placeholder.evaluate((el) => getComputedStyle(el).filter)
+    // Blurred by the bytes still to come: a positive radius, set on the photo itself.
+    //
+    // ⚠️ READ THE PHOTO'S OWN STYLE, THEN THE COMPUTED ONE ONCE THE SEAM HAS DRAWN (4 Nov 2026).
+    // Two features set this filter: Stage gives the photo `blur(Npx)` from the bytes still to
+    // come, and page.css drops it (`filter: none !important`) once the seam round the piece has
+    // drawn, because the blur showed as a halo (#298). This test read the COMPUTED filter at an
+    // arbitrary moment, so it raced the seam. It won while the seam fetched its own copy of the
+    // picture (seconds later on this throttle); since #311 the seam reads the same download from
+    // cache and draws as the photo lands, and `main`'s run 41793615919 read `none` twice. Proven
+    // by waiting for the seam first: the old assertion then failed with that same `none`.
+    const blur = await placeholder.evaluate((el) => (el as HTMLElement).style.filter)
     expect(blur).toMatch(/blur\((\d+(\.\d+)?)px\)/)
     expect(Number.parseFloat(blur.match(/blur\((\d+(\.\d+)?)px\)/)?.[1] ?? '0')).toBeGreaterThan(0)
-    await expect(placeholder).toHaveAttribute('src', /n001-wine-poster\.webp$/)
+    // The fixture poster is 82% transparent, as production's are, so the seam does draw here.
+    await page.locator('.stage__seam[data-drawn]').waitFor({ state: 'attached', timeout: 20_000 })
+    expect(await placeholder.evaluate((el) => getComputedStyle(el).filter)).toBe('none')
+    await expect(placeholder).toHaveAttribute('src', /n001-wine-poster\.webp\?seam=1$/)
+    // CORS, so the seam reads this same download (garmentContour.ts, posterPicture).
+    await expect(placeholder).toHaveAttribute('crossorigin', 'anonymous')
     await expect(placeholder).toHaveAttribute('aria-hidden', 'true')
     // The page's main picture while the model downloads: asked for at high priority (F13).
     await expect(placeholder).toHaveAttribute('fetchpriority', 'high')
@@ -129,7 +143,9 @@ test.describe('the colourway photo while the model downloads', () => {
     )
     const timing = await page.evaluate(() => {
       const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
-      const picture = entries.find((entry) => entry.name.endsWith('/n001-wine-poster.webp'))
+      const picture = entries.find((entry) =>
+        new URL(entry.name).pathname.endsWith('/n001-wine-poster.webp'),
+      )
       const model = entries.find((entry) => entry.name.endsWith('.glb'))
       return { pictureIn: picture?.responseEnd ?? null, modelAsked: model?.startTime ?? null }
     })
@@ -152,13 +168,16 @@ test.describe('the colourway photo while the model downloads', () => {
   test('a picture that never arrives holds the model no longer than the head start (F13)', async ({
     page,
   }) => {
-    await page.route('**/n001-wine-poster.webp', () => {
-      // Never answered: a picture that hangs.
-    })
+    await page.route(
+      (url) => url.pathname.endsWith('/n001-wine-poster.webp'),
+      () => {
+        // Never answered: a picture that hangs.
+      },
+    )
     const asked: { picture?: number; model?: number } = {}
     page.on('request', (request) => {
       const url = request.url()
-      if (url.endsWith('/n001-wine-poster.webp')) asked.picture ??= Date.now()
+      if (new URL(url).pathname.endsWith('/n001-wine-poster.webp')) asked.picture ??= Date.now()
       if (url.endsWith('.glb')) asked.model ??= Date.now()
     })
     await page.goto('/n001/wine')

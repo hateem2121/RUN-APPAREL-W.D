@@ -1,8 +1,9 @@
 /**
  * Says when a newer release of a tool CI downloads by version number has been out a week.
  *
- * WHY. Dependabot updates every `uses:` pin and every package, but ci.yml downloads three tools
- * by a version number in an `env:` value — actionlint, zizmor and gitleaks — and Dependabot
+ * WHY. Dependabot updates every `uses:` pin and every package, but ci.yml downloads four tools
+ * by a version number in an `env:` value — actionlint, zizmor, gitleaks and (since 4 Nov 2026)
+ * Trivy — and Dependabot
  * cannot see those. On 25 Oct 2026 zizmor sat at 1.30.1 for ten days after 1.31.0 shipped, and
  * nothing said so (CI audit that day). This runs weekly (tool-versions.yml) and fails, naming the
  * tool and both versions, once a newer release is older than the same 7-day wait Dependabot and
@@ -10,7 +11,7 @@
  * `minimumReleaseAge`): long enough for a bad release to be pulled, short enough not to rot.
  *
  * Bumping one is still a person's job: a new version needs its checksum (PyPI for zizmor, the
- * release's checksums file for the other two) and a run on this repository's workflows first.
+ * release's checksums file for the other three; Trivy's pins live in ci.yml AND security-scans.yml) and a run on this repository's workflows first.
  */
 import { readFileSync, realpathSync } from 'node:fs'
 
@@ -19,6 +20,9 @@ export const TOOLS = Object.freeze([
   { pin: 'ACTIONLINT_VERSION', repo: 'rhysd/actionlint' },
   { pin: 'ZIZMOR_VERSION', repo: 'zizmorcore/zizmor' },
   { pin: 'GITLEAKS_VERSION', repo: 'gitleaks/gitleaks' },
+  // Since 4 Nov 2026: trivy-action's installer died with get.trivy.dev, so ci.yml and
+  // security-scans.yml download Trivy themselves, pinned the same way.
+  { pin: 'TRIVY_VERSION', repo: 'aquasecurity/trivy' },
 ])
 
 /** Days a newer release must have been out before it counts as one to adopt. */

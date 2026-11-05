@@ -47,9 +47,23 @@ export declare const ABOUT_HERO_SOURCES: {
   focus: [number, number]
 }[]
 
+/**
+ * The whole pictures (owner, 2026-11-05: never cut): two portraits and the four buyer pages' photos,
+ * resized to the original's own shape. `original` is the pixel size and every width stays within it.
+ */
+export declare const WHOLE_SOURCES: {
+  slug: string
+  file: string
+  original: [number, number]
+  widths: number[]
+}[]
+
 export declare function cropBox(
   width: number,
   height: number,
   aspect: number,
   focus: [number, number],
 ): { left: number; top: number; width: number; height: number }
+
+/** The AVIF quality per hero shape (the wide crops' 55 measured 2026-11-04 against the originals). */
+export declare const AVIF_QUALITY: { heroTall: number; heroWide: number }

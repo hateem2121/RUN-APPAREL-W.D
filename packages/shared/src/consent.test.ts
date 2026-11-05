@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acceptTrackers,
   APOLLO_APP_ID,
   CONSENT_COPY,
   CONSENT_STORAGE_KEY,
+  cancelTrackers,
   declineTrackers,
   followOtherTab,
   forgetTrackers,
@@ -17,6 +18,8 @@ import {
   safeStorage,
   startTrackers,
   TRACKER_CSP,
+  TRACKERS_DELAY_MS,
+  TRACKERS_IDLE_TIMEOUT_MS,
   type TrackerWindow,
   trackerEvent,
   writeConsent,
@@ -221,6 +224,7 @@ describe('starting PostHog', () => {
 
   it('on wear-run.com it records, with typing hidden and no errors, surveys or profiles', () => {
     expect(posthogConfig('wear-run.com')).toEqual({
+      capture_performance: { web_vitals: true, web_vitals_attribution: true },
       api_host: 'https://us.i.posthog.com',
       defaults: '2026-05-30',
       person_profiles: 'identified_only',
@@ -255,6 +259,20 @@ describe('starting PostHog', () => {
     expect(queueOf('localhost')._i[0]?.[1]).toEqual(posthogConfig('localhost'))
     expect(queueOf()._i[0]?.[1]).toEqual(posthogConfig(undefined))
   })
+})
+
+// Field data of 3 Nov 2026: p75 first paint 5.8 s for 16 Pakistani Android Chrome visitors
+// against 1.1-1.8 s in the lab. The attribution build splits that into server / network / page.
+describe('web vitals with attribution', () => {
+  it.each(['wear-run.com', 'localhost', undefined])(
+    'are on, with their breakdown, on %s',
+    (host) => {
+      expect(posthogConfig(host).capture_performance).toEqual({
+        web_vitals: true,
+        web_vitals_attribution: true,
+      })
+    },
+  )
 })
 
 describe('a named event for Google (polish S10, the key event `ask_about_garment`)', () => {
@@ -617,5 +635,248 @@ describe('only the real site counts as a real visit', () => {
 
   it('an unknown place is internal too: the safe direction is to count too little', () => {
     expect(config()).toEqual(['config', GA_MEASUREMENT_ID, { traffic_type: 'internal' }])
+  })
+})
+
+/*
+ * STEP 3 (3 Nov 2026): the trackers start when the browser is idle. Measured live after the
+ * Accept tap: 152 ms (home) and 401 ms (/products) of long tasks, longest 280 ms, just as the
+ * visitor makes first taps. The fake window below has a hand-driven idle queue, plus a timer
+ * for the ceiling, both on vitest's fake clock.
+ */
+describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
+  const jar = { hostname: 'wear-run.com', readCookies: () => '', writeCookie: () => {} }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // This package is typed without DOM or Node globals (it runs in Workers too), so the timers
+  // vi.useFakeTimers() replaces are reached through globalThis with their shape stated here, and
+  // looked up at each call: a copy taken now would be the REAL timer, captured before beforeEach.
+  const timerHost = () =>
+    globalThis as unknown as {
+      setTimeout(callback: () => void, ms: number): number
+      clearTimeout(handle: number | undefined): void
+    }
+  const setTimeout = (callback: () => void, ms: number) => timerHost().setTimeout(callback, ms)
+  const clearTimeout = (handle: number | undefined) => timerHost().clearTimeout(handle)
+
+  /** A window with a timer and `requestIdleCallback` as a browser has them. */
+  function idleWindow() {
+    const { win, scripts } = fakeWindow()
+    win.setTimeout = (callback, ms) => setTimeout(callback, ms)
+    const queue = new Map<number, () => void>()
+    const timers = new Map<number, number>()
+    let next = 1
+    win.requestIdleCallback = (callback, options) => {
+      const handle = next++
+      const run = () => {
+        const cb = queue.get(handle)
+        if (!cb) return
+        queue.delete(handle)
+        clearTimeout(timers.get(handle))
+        cb()
+      }
+      queue.set(handle, callback)
+      timers.set(handle, setTimeout(run, options?.timeout ?? 0))
+      return handle
+    }
+    /** One quiet moment: what is waiting now runs; what it asks for waits for the next. */
+    const goIdle = () => {
+      for (const [handle, cb] of [...queue]) {
+        queue.delete(handle)
+        clearTimeout(timers.get(handle))
+        cb()
+      }
+    }
+    /** The 3 s after Accept, then quiet moments until nothing waits. */
+    const settle = () => {
+      vi.advanceTimersByTime(TRACKERS_DELAY_MS)
+      while (queue.size) goIdle()
+    }
+    return { win, scripts, goIdle, settle, waiting: () => queue.size }
+  }
+
+  it('loads nothing at the tap, nor in the 3 s after it', () => {
+    const { win, scripts, goIdle } = idleWindow()
+    startTrackers(win)
+    goIdle()
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS - 1)
+    goIdle()
+    expect(scripts).toHaveLength(0)
+    expect(win.dataLayer).toBeUndefined()
+    expect(win.runTrackersStarted).toBeFalsy()
+  })
+
+  it('then starts one tracker per quiet moment: Google, Apollo, PostHog', () => {
+    const { win, scripts, goIdle } = idleWindow()
+    startTrackers(win)
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS)
+    expect(scripts).toHaveLength(0)
+    const hosts = () => scripts.map((s) => s.src.replace(/^https?:\/\/([^/]+).*/, '$1'))
+    goIdle()
+    expect(hosts()).toEqual(['www.googletagmanager.com'])
+    expect(win.runTrackersStarted).toBe(true)
+    goIdle()
+    expect(hosts()).toEqual(['www.googletagmanager.com', 'assets.apollo.io'])
+    goIdle()
+    expect(hosts()).toHaveLength(3)
+    expect(hosts()[2]).toMatch(/posthog/)
+    expect(win.runTrackersPending).toBeUndefined()
+  })
+
+  it('never waits past the ceiling when the browser is never idle', () => {
+    const { win, scripts } = idleWindow()
+    startTrackers(win)
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS + TRACKERS_IDLE_TIMEOUT_MS - 1)
+    expect(scripts).toHaveLength(0)
+    vi.advanceTimersByTime(1 + 2 * TRACKERS_IDLE_TIMEOUT_MS)
+    expect(scripts).toHaveLength(3)
+  })
+
+  it('asks the browser for the 2 s ceiling, after the 3 s', () => {
+    const { win } = fakeWindow()
+    win.setTimeout = (callback, ms) => setTimeout(callback, ms)
+    const asked: unknown[] = []
+    win.requestIdleCallback = (_cb, options) => {
+      asked.push(options)
+      return 1
+    }
+    startTrackers(win)
+    expect(asked).toEqual([])
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS)
+    expect(asked).toEqual([{ timeout: 2000 }])
+  })
+
+  it('a browser without requestIdleCallback still gives each tracker a task of its own', () => {
+    const { win, scripts } = fakeWindow()
+    win.setTimeout = (callback, ms) => setTimeout(callback, ms)
+    startTrackers(win)
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS)
+    expect(scripts).toHaveLength(0)
+    vi.advanceTimersToNextTimer()
+    expect(scripts).toHaveLength(1)
+    vi.advanceTimersToNextTimer()
+    expect(scripts).toHaveLength(2)
+    vi.advanceTimersToNextTimer()
+    expect(scripts).toHaveLength(3)
+  })
+
+  it('keeps the order: consent default is queued before config, after the wait too', () => {
+    const { win, settle } = idleWindow()
+    startTrackers(win)
+    settle()
+    const names = (win.dataLayer ?? []).map((entry) => Array.from(entry as ArrayLike<unknown>)[0])
+    expect(names.indexOf('consent')).toBe(0)
+    expect(names.indexOf('consent')).toBeLessThan(names.indexOf('config'))
+  })
+
+  it('counts a second call while waiting as the same wait: three scripts, once', () => {
+    const { win, scripts, settle } = idleWindow()
+    startTrackers(win)
+    startTrackers(win)
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS)
+    startTrackers(win)
+    settle()
+    startTrackers(win)
+    expect(scripts).toHaveLength(3)
+  })
+
+  it('Decline before the first start cancels it: nothing loads, no reload', () => {
+    const { win, scripts, settle } = idleWindow()
+    const storage = fakeStorage()
+    acceptTrackers(win, storage)
+    expect(declineTrackers(win, storage, jar)).toBe(false)
+    // Nothing is cancelled: the timer and the idle callback still fire, find their queue gone,
+    // and do nothing.
+    settle()
+    vi.advanceTimersByTime(TRACKERS_IDLE_TIMEOUT_MS * 4)
+    expect(scripts).toHaveLength(0)
+    expect(win.dataLayer).toBeUndefined()
+    expect(win.runTrackersStarted).toBeFalsy()
+    expect(readConsent(storage)).toBe('declined')
+  })
+
+  it('Decline between two trackers stops the rest and asks for a reload', () => {
+    const { win, scripts, goIdle, settle } = idleWindow()
+    const storage = fakeStorage()
+    acceptTrackers(win, storage)
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS)
+    goIdle()
+    expect(scripts).toHaveLength(1)
+    expect(declineTrackers(win, storage, jar)).toBe(true)
+    settle()
+    vi.advanceTimersByTime(TRACKERS_IDLE_TIMEOUT_MS * 4)
+    expect(scripts).toHaveLength(1)
+  })
+
+  it('Decline after all three behaves as before: asks for a reload', () => {
+    const { win, settle } = idleWindow()
+    const storage = fakeStorage()
+    acceptTrackers(win, storage)
+    settle()
+    expect(declineTrackers(win, storage, jar)).toBe(true)
+  })
+
+  it('another tab declining while we wait cancels the start, with no reload', () => {
+    const { win, scripts, settle } = idleWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
+    startTrackers(win)
+    writeConsent(storage, 'declined')
+    expect(followOtherTab({ key: CONSENT_STORAGE_KEY }, win, storage, jar)).toEqual({
+      answered: true,
+      reload: false,
+    })
+    settle()
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('a Back restore that finds Decline while we wait cancels the start', () => {
+    const { win, scripts, settle } = idleWindow()
+    const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
+    restoreTrackers(win, storage, jar)
+    writeConsent(storage, 'declined')
+    expect(restoreTrackers(win, storage, jar)).toEqual({ answered: true, reload: false })
+    settle()
+    expect(scripts).toHaveLength(0)
+  })
+
+  it('a returning visitor who accepted still gets all three, the same way', () => {
+    const { win, scripts, settle } = idleWindow()
+    startTrackers(win) // what the banner does on load for a stored "accepted"
+    settle()
+    expect(scripts).toHaveLength(3)
+  })
+
+  it('a tap during the wait is sent after the consent default, and dropped by a Decline', () => {
+    const kept = idleWindow()
+    startTrackers(kept.win)
+    trackerEvent(kept.win, 'contact_click', { method: 'whatsapp' })
+    expect(kept.win.dataLayer).toBeUndefined()
+    kept.settle()
+    const queue = (kept.win.dataLayer ?? []).map((e) => Array.from(e as ArrayLike<unknown>))
+    expect(queue.map((e) => e[0])).toEqual(['consent', 'js', 'config', 'event'])
+    expect(queue.at(-1)).toEqual(['event', 'contact_click', { method: 'whatsapp' }])
+
+    const dropped = idleWindow()
+    startTrackers(dropped.win)
+    trackerEvent(dropped.win, 'contact_click', { method: 'whatsapp' })
+    cancelTrackers(dropped.win)
+    dropped.settle()
+    expect(dropped.win.dataLayer).toBeUndefined()
+  })
+
+  it('a tap after Google started but before PostHog goes straight to Google', () => {
+    const { win, goIdle } = idleWindow()
+    startTrackers(win)
+    vi.advanceTimersByTime(TRACKERS_DELAY_MS)
+    goIdle()
+    trackerEvent(win, 'contact_click', { method: 'email' })
+    const last = Array.from((win.dataLayer ?? []).at(-1) as ArrayLike<unknown>)
+    expect(last).toEqual(['event', 'contact_click', { method: 'email' }])
   })
 })

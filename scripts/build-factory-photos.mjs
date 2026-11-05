@@ -40,6 +40,15 @@ export const SHAPES = {
 }
 
 /**
+ * The AVIF quality per hero shape. The wide crops' 55 was measured on 4 Nov 2026 against the
+ * originals (SSIM on luma, 11 px Gaussian window): the smallest quality at which all eight wide
+ * crops score at least as well as their WebP (0.950–0.969). At 45, three scored below it; at 55 the
+ * eight weigh 838 KB against the WebPs' 1,043 KB. A crop shifted by 8 px scored 0.65, so the score
+ * sees a wrong crop.
+ */
+export const AVIF_QUALITY = { heroTall: 45, heroWide: 55 }
+
+/**
  * The hero's two crops of the stitching floor (a 4875x2403 original). The tall crop sits right
  * of centre, where the nearest operators are, so a phone shows people rather than crates.
  * Their files are `hero-wide-<w>.webp` / `hero-tall-<w>.webp` (`heroPhotoSrc` in the page's list).
@@ -111,6 +120,62 @@ export const ABOUT_HERO_SOURCES = [
     original: [3555, 2000],
     shape: 'heroTall',
     focus: [0.5, 0.5],
+  },
+]
+
+/**
+ * THE WHOLE PICTURES (owner, 2026-11-05: "I do not want the images to be cut", and the photo as
+ * the whole background of its screen). Each is resized and NEVER cropped: the file keeps the
+ * original's own proportions, and the page draws it `object-fit: contain` over its own blurred
+ * extension (`PhotoStage.tsx`). Two kinds:
+ *
+ * - the two archive portraits on the /about page, one full screen each (real archive photographs,
+ *   publish OK; both are black and white already, saturation 0.0 and 1.5 of 255, measured
+ *   2026-11-05, so nothing is converted). Allah Ditta Ghafuree's original is 1156 px wide, so his
+ *   widest file is that and no wider (an upscale is bytes with no detail in them).
+ * - the four buyer pages' photos, the same pictures as `SOURCES` above but whole: those are cut to
+ *   8:5 and 4:5, these keep the original's shape (screen printing and inspection are 0.545:1,
+ *   the stitching floor 2.03:1, tagging 1.43:1).
+ *
+ * `original` is the original's size, checked as for every source here; `widths` never pass it.
+ * The smallest width is also the page's blurred backdrop, so it is kept small.
+ */
+export const WHOLE_SOURCES = [
+  {
+    slug: 'portrait-ghafuree',
+    file: 'Allah Ditta Gafuree Image.png',
+    original: [1156, 1548],
+    widths: [400, 800, 1156],
+  },
+  {
+    slug: 'portrait-sandal',
+    file: 'IQBAL SANDAL.png',
+    original: [3780, 2834],
+    widths: [400, 800, 1600, 2400],
+  },
+  {
+    slug: 'whole-screen-printing',
+    file: 'SCREEN PRINTING.png',
+    original: [1536, 2816],
+    widths: [400, 800, 1536],
+  },
+  {
+    slug: 'whole-inspection',
+    file: 'QC.png',
+    original: [1536, 2816],
+    widths: [400, 800, 1536],
+  },
+  {
+    slug: 'whole-stitching',
+    file: 'Apparel Stitching Department.png',
+    original: [4875, 2403],
+    widths: [640, 1280, 1920, 2560],
+  },
+  {
+    slug: 'whole-tagging',
+    file: 'Tagging Department.png',
+    original: [1280, 896],
+    widths: [640, 1280],
   },
 ]
 
@@ -255,17 +320,41 @@ async function main() {
         .webp({ quality: 72, effort: 6, smartSubsample: true })
         .toFile(target)
       console.log(`${source.slug}-${w}.webp  ${info.width}x${info.height}  ${info.size} bytes`)
-      // The phone crops also in AVIF (2026-09-29): 36–43% lighter than the WebP at quality 45,
-      // the same behind the hero's ink wash, and each is its page's largest paint on a phone.
-      if (source.shape === 'heroTall') {
+      // The heroes also in AVIF, each its page's largest paint: the phone crops since 2026-09-29
+      // (36–43% lighter than the WebP at quality 45, the same behind the hero's ink wash), the wide
+      // crops since 2026-11-04 (AVIF_QUALITY says why theirs is 55).
+      const avifQuality = AVIF_QUALITY[source.shape]
+      if (avifQuality !== undefined) {
         const avif = join(out, `${source.slug}-${w}.avif`)
         const a = await sharp(join(from, source.file))
           .extract(box)
           .resize(w, h)
-          .avif({ quality: 45, effort: 6 })
+          .avif({ quality: avifQuality, effort: 6 })
           .toFile(avif)
         console.log(`${source.slug}-${w}.avif  ${a.width}x${a.height}  ${a.size} bytes`)
       }
+    }
+  }
+  // The whole pictures: resized, never cropped (`WHOLE_SOURCES` says why).
+  for (const source of WHOLE_SOURCES) {
+    const { width, height } = await sharp(join(from, source.file)).metadata()
+    if (width !== source.original[0] || height !== source.original[1]) {
+      throw new Error(
+        `${source.file} is ${width}x${height}, recorded as ${source.original.join('x')}: ` +
+          'update `original` and check which widths it can give',
+      )
+    }
+    for (const w of source.widths) {
+      if (w > width)
+        throw new Error(
+          `${source.slug}-${w}: the original is ${width}px wide, so that is an upscale`,
+        )
+      const h = Math.round((w * height) / width)
+      const info = await sharp(join(from, source.file))
+        .resize(w, h)
+        .webp({ quality: 72, effort: 6, smartSubsample: true })
+        .toFile(join(out, `${source.slug}-${w}.webp`))
+      console.log(`${source.slug}-${w}.webp  ${info.width}x${info.height}  ${info.size} bytes`)
     }
   }
 }

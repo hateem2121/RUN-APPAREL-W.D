@@ -85,15 +85,15 @@ describe('standardsLines', () => {
   it("joins the owner's two supplier entries into one line and keeps the rest as they are", () => {
     expect(
       standardsLines([
-        'Parent: SEDEX-registered, SMETA-audited',
-        'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+        'Sister company: SEDEX-registered, SMETA-audited',
+        'Suppliers: ISO 9001, OEKO-TEX, GRS',
         'Suppliers: amfori BSCI audits',
-        'Group: registered with the SECP',
+        'Both companies: registered with the SECP',
       ]),
     ).toEqual([
-      'Parent: SEDEX-registered, SMETA-audited',
-      'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS; amfori BSCI audits',
-      'Group: registered with the SECP',
+      'Sister company: SEDEX-registered, SMETA-audited',
+      'Suppliers: ISO 9001, OEKO-TEX, GRS; amfori BSCI audits',
+      'Both companies: registered with the SECP',
     ])
   })
 
@@ -173,10 +173,14 @@ describe('siteFooterAriaSnapshot', () => {
     expect(at('"Standards"')).toBeGreaterThan(at('"Capacity"'))
     // One holder, one line.
     expect(snapshot).toContain('listitem: "Suppliers: OEKO-TEX; GOTS"')
-    // The marks follow from the entries' words: OEKO-TEX, then GOTS, in the order named.
+    // No body's mark is drawn since 2026-11-05 (none is RUN APPAREL's to show; standardsLogos.ts
+    // quotes each scheme's rule), though the entries still name them in text: the row opens on the
+    // company's own climate commitment.
     expect(snapshot).toContain(
-      `  - group "${SITE_FOOTER_WORDS.marks}":\n    - img "OEKO-TEX"\n    - img "GOTS"`,
+      `  - group "${SITE_FOOTER_WORDS.marks}":\n    - link "${CLIMATE_COMMITMENT.logo.alt}"`,
     )
+    expect(snapshot).not.toContain('img "OEKO-TEX"')
+    expect(snapshot).not.toContain('img "GOTS"')
     expect(at('group')).toBeGreaterThan(at('"Standards"'))
     expect(at('link "Products"')).toBeGreaterThan(at('group'))
   })

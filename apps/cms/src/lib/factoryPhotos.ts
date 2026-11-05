@@ -16,7 +16,7 @@
  * WAS the layout of the strip, and `factoryPhotos.test.ts` once checked that no row had a hole.
  *
  * ⚠️ THE BUILDING IS NAMED IN ITS CAPTION (the owner's ruling on these photos). Its sign reads DURUS;
- * DURUS INDUSTRIES is the parent company and RUN APPAREL produces on its site (six buildings,
+ * DURUS INDUSTRIES is a separate company of the same family and RUN APPAREL produces on its site (six buildings,
  * owner 2026-10-15), which the certification line on this page already says ("the same facility").
  *
  * `alt` says what is in the picture; `caption` says what it is. Neither repeats the other.
@@ -173,6 +173,128 @@ export const FACTORY_PHOTOS: readonly FactoryPhoto[] = [
 ]
 
 /**
+ * THE WHOLE PICTURES (owner, 2026-11-05: "I do not want the images to be cut", and a photo as the
+ * whole background of its screen, after Lando Norris, Awwwards Site of the Year 2025, and Scout
+ * Motors). Six pictures kept in their original's own proportions, drawn by `PhotoStage.tsx`
+ * `object-fit: contain` over a blurred, darkened copy of themselves, so nothing in a picture is
+ * ever cut off and the screen is still all picture. Two kinds:
+ *
+ * - the two archive portraits, one full screen each on /about (real archive photographs, publish
+ *   OK): Allah Ditta Ghafuree, whose year is 1889, and M. Iqbal Sandal, 1956–1992 (the years of the
+ *   timeline cards that name them).
+ * - the four buyer pages' photos, one different picture each (`ORDER_PHOTO_BY_FAMILY`,
+ *   `familyPages.ts`): the same pictures as `FACTORY_PHOTOS`' screen-printing, stitching, inspection
+ *   and tagging, but whole where those are cut to 8:5 and 4:5. Their `alt` is those pictures' own.
+ *
+ * ⚠️ NO CAPTION, NO NEW WORDS on a portrait (the owner's 2026-10-05 rule: "remove all the image
+ * names"); the `alt` is what a screen reader hears, in the spelling the page already prints
+ * ("Ghafuree"). A test fails if a name here drifts from the timeline's text.
+ *
+ * ⚠️ `ratio` IS THE ORIGINAL'S SIZE IN PIXELS, so the file's shape is exact, never rounded to a tidy
+ * 4:5. `scripts/build-factory-photos.mjs` (`WHOLE_SOURCES`) writes `/factory/<slug>-<width>.webp`
+ * at these widths and refuses an upscale; `factoryPhotos.test.ts` fails a missing file, a file of
+ * another shape, or a list that disagrees with the script. Allah Ditta Ghafuree's original is 1156
+ * px wide, so on a sharp laptop his picture is a little soft: the owner's file, not a choice.
+ */
+export type WholePhoto = {
+  slug: string
+  /** The original's width and height in pixels; every file has exactly this shape. */
+  ratio: readonly [width: number, height: number]
+  widths: readonly number[]
+  alt: string
+}
+
+const altOf = (slug: string) => FACTORY_PHOTOS.find((photo) => photo.slug === slug)?.alt ?? ''
+
+export const WHOLE_PHOTOS: readonly WholePhoto[] = [
+  {
+    slug: 'portrait-ghafuree',
+    ratio: [1156, 1548],
+    widths: [400, 800, 1156],
+    alt: 'Black-and-white portrait of Allah Ditta Ghafuree.',
+  },
+  {
+    slug: 'portrait-sandal',
+    ratio: [3780, 2834],
+    widths: [400, 800, 1600, 2400],
+    alt: 'Black-and-white portrait of M. Iqbal Sandal.',
+  },
+  {
+    slug: 'whole-screen-printing',
+    ratio: [1536, 2816],
+    widths: [400, 800, 1536],
+    alt: altOf('screen-printing'),
+  },
+  {
+    slug: 'whole-inspection',
+    ratio: [1536, 2816],
+    widths: [400, 800, 1536],
+    alt: altOf('inspection'),
+  },
+  {
+    slug: 'whole-stitching',
+    ratio: [4875, 2403],
+    widths: [640, 1280, 1920, 2560],
+    alt: altOf('stitching'),
+  },
+  {
+    slug: 'whole-tagging',
+    ratio: [1280, 896],
+    widths: [640, 1280],
+    alt: altOf('tagging'),
+  },
+]
+
+/**
+ * The two archive portraits on /about, in the order of the timeline, each with the card year it
+ * follows and the tone of that year drawn huge behind it (`PhotoStage.tsx`).
+ *
+ * ⚠️ THE TONE FOLLOWS WHAT THE YEAR SITS OVER (owner, 2026-11-05: "darken it"). Ghafuree's year sits
+ * on the dark blurred ground at the left of a tall picture, so a light year reads; Sandal's wide
+ * picture runs the whole screen and his year sits over its bright wall, where a light year was only
+ * half readable ("1956–" showed and "1992" did not), so his is dark.
+ *
+ * ⚠️ `year` IS THE CARD'S LABEL (it finds the card, and a test reads the man's name in it);
+ * `shownYear` IS WHAT IS DRAWN HUGE: ONE YEAR, NEVER A RANGE (owner, 2026-11-05: "only keep a single
+ * year, no –"). A range over a picture reads as two numbers. Sandal's is 1956, the year his card
+ * says he joins Loyal Sports; the card itself keeps its range.
+ */
+export const ABOUT_PORTRAITS = [
+  { slug: 'portrait-ghafuree', year: '1889', shownYear: '1889', yearTone: 'light' },
+  { slug: 'portrait-sandal', year: '1956–1992', shownYear: '1956', yearTone: 'dark' },
+] as const
+
+export function wholePhoto(slug: string): WholePhoto {
+  const photo = WHOLE_PHOTOS.find((entry) => entry.slug === slug)
+  if (!photo) throw new Error(`factoryPhotos: no whole photo "${slug}"`)
+  return photo
+}
+
+/**
+ * What a stage's `<img>` of `photo` carries. `sizes` is how wide it draws: the screen's width below
+ * 900 px (the stage takes the picture's own shape there), and above it the width its height allows,
+ * `min(100vw, height-of-screen x ratio)`, since `contain` fits the whole picture in a screen-high
+ * box. The smallest file is `src`, the reserved size and the blurred backdrop's source.
+ */
+export function wholePhotoImage(photo: WholePhoto): {
+  src: string
+  srcSet: string
+  sizes: string
+  width: number
+  height: number
+} {
+  const [ow, oh] = photo.ratio
+  const smallest = photo.widths[0] ?? ow
+  return {
+    src: `/factory/${photo.slug}-${smallest}.webp`,
+    srcSet: photo.widths.map((w) => `/factory/${photo.slug}-${w}.webp ${w}w`).join(', '),
+    sizes: `(max-width: 899px) 100vw, min(100vw, ${((ow / oh) * 100).toFixed(1)}svh)`,
+    width: smallest,
+    height: Math.round((smallest * oh) / ow),
+  }
+}
+
+/**
  * The home page hero (owner, 2026-09-29: a factory photo under the headline) — the stitching
  * floor, cut twice by `scripts/build-factory-photos.mjs`: 16:9 for wide screens and 4:5 for
  * phones, so a phone never downloads a 2:1 panorama to show its middle.
@@ -198,8 +320,9 @@ export const HERO_PHOTO = {
 const HERO_FILE: Record<HeroShape, string> = { heroWide: 'hero-wide', heroTall: 'hero-tall' }
 
 /**
- * `/factory/hero-wide-<width>.webp` or `/factory/hero-tall-<width>.webp`. The tall (phone)
- * crops also exist as `.avif` (2026-09-29: 36–43% lighter, the phone's largest paint).
+ * `/factory/hero-wide-<width>.webp` or `/factory/hero-tall-<width>.webp`. Both also exist as
+ * `.avif`: the tall (phone) crops since 2026-09-29 (36–43% lighter, the phone's largest paint), the
+ * wide crops since 2026-11-04 (13–35% lighter at the same SSIM).
  */
 export function heroPhotoSrc(
   shape: HeroShape,
@@ -227,7 +350,7 @@ const CONTACT_HERO_FILE: Record<HeroShape, string> = {
   heroTall: 'contact-hero-tall',
 }
 
-/** `/factory/contact-hero-wide-<width>.webp` or `…-tall-<width>.webp`; the tall crops in `.avif` too. */
+/** `/factory/contact-hero-wide-<width>.webp` or `…-tall-<width>.webp`; every crop in `.avif` too. */
 export function contactHeroSrc(
   shape: HeroShape,
   width: number,
@@ -251,7 +374,7 @@ const ABOUT_HERO_FILE: Record<HeroShape, string> = {
   heroTall: 'about-hero-tall',
 }
 
-/** `/factory/about-hero-wide-<width>.webp` or `…-tall-<width>.webp`; the tall crops in `.avif` too. */
+/** `/factory/about-hero-wide-<width>.webp` or `…-tall-<width>.webp`; every crop in `.avif` too. */
 export function aboutHeroSrc(
   shape: HeroShape,
   width: number,

@@ -72,13 +72,18 @@ export const FOOTER_FACTS = {
   },
   worksCoordinates: '32.41° N · 74.46° E',
   certifications: [
-    { name: 'Parent: SEDEX-registered, SMETA-audited' },
-    // Owner, 2026-09-29, corrected the same evening: ISO 9001 is the SUPPLIERS' (not the
-    // parent's), so it joins their row. One supplier row would be 53 characters, five over the
-    // CMS field's 48, hence two. SECP is a regulator: "Group" (both companies).
-    { name: 'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS' },
+    // "Sister company", never "Parent" (owner, 2026-11-04): DURUS INDUSTRIES is not RUN's
+    // holding company. 47 characters, one under the field's 48, which is why it names the
+    // relationship and not the company; the site's pages name DURUS INDUSTRIES.
+    { name: 'Sister company: SEDEX-registered, SMETA-audited' },
+    // Owner, 2026-09-29, corrected the same evening: ISO 9001 is the SUPPLIERS', so it joins
+    // their row. Two supplier rows, because one would run over the field's 48 characters. SECP
+    // is a regulator: "Both companies", 40 characters (owner, 2026-11-04; "Group" until then,
+    // which reads as a corporate group the two companies are not). No GOTS since 2026-11-04 (owner): GOTS's sign
+    // rules v4.0 s.3.3.1 bar an uncertified maker from "any claims referring to GOTS".
+    { name: 'Suppliers: ISO 9001, OEKO-TEX, GRS' },
     { name: 'Suppliers: amfori BSCI audits' },
-    { name: 'Group: registered with the SECP' },
+    { name: 'Both companies: registered with the SECP' },
   ],
   // Kept equal to the CMS list, because --apply REPLACES the whole array: with only the first
   // two rows here, a re-run on 2026-10-11 would have deleted Google Maps and Crunchbase from
@@ -128,8 +133,18 @@ export function problems(facts = FOOTER_FACTS) {
     // The heading above these is "Standards", not "Certified", and the company holds none
     // in its own name. An unqualified standard name under that block is the false claim
     // the whole shape exists to prevent.
-    if (!/^(Parent|Suppliers|Group|Facility):/.test(String(row.name))) {
+    if (/^Parent:/.test(String(row.name))) {
+      // DURUS INDUSTRIES is RUN's sister company, not its parent (owner, 2026-11-04).
+      found.push(`certification "${row.name}" says "Parent": DURUS INDUSTRIES is a sister company`)
+    } else if (/^Group:/.test(String(row.name))) {
+      // Two separate companies of one family are not a corporate group (owner, 2026-11-04).
+      found.push(`certification "${row.name}" says "Group": say "Both companies"`)
+    } else if (!/^(Sister company|Suppliers|Both companies|Facility):/.test(String(row.name))) {
       found.push(`certification "${row.name}" does not say whose standard it is`)
+    }
+    // GOTS's sign rules v4.0 s.3.3.1: no claim referring to GOTS by an uncertified maker.
+    if (/\bGOTS\b/i.test(String(row.name))) {
+      found.push(`certification "${row.name}" names GOTS, which RUN APPAREL may not claim`)
     }
   }
   for (const row of facts.socialLinks) {

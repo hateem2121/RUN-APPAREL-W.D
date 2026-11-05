@@ -92,6 +92,14 @@ const STEP_FIVE_PHOTO = '2026-10-17T20:56:34+05:00'
  * (2026-10-08) on the 3D and fabrics guides, so that constant went with it.
  */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
+/**
+ * The legal framing of 2026-11-04 (owner's go-ahead after the legal review): DURUS INDUSTRIES
+ * named as a separate family company, never a parent; RUN never a division; no GOTS claim; 1889
+ * labelled the family's. `companyRelationship.test.ts` holds the words.
+ */
+const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
+/** The factory page's quality stage names the garment wash tests (2026-11-05, owner's own tests). */
+const WASH_TESTS = '2026-11-05T00:09:00+05:00'
 /** The guide's line on sports accessories: the first has its own 3D page (2026-10-31). */
 const KAIZEN = '2026-10-31T22:30:00+05:00'
 /*
@@ -100,8 +108,8 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
  * fails again if the words move without this moving.
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
-  '/about': 'f2cbaa003c0c',
-  '/inside-the-factory': '6f25fe7879f1',
+  '/about': '4ad00a8234d6',
+  '/inside-the-factory': '6933686bef5e',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
@@ -151,8 +159,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    SITE_CHECK,
-    '7a63eae92ba6',
+    LEGAL_FRAMING,
+    '376249ef196b',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),
@@ -172,13 +180,13 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/about': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    SITE_CHECK,
+    LEGAL_FRAMING,
     ABOUT_FACTORY_FINGERPRINTS['/about'],
   ),
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    SITE_CHECK,
+    WASH_TESTS,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }

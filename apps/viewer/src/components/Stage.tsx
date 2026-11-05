@@ -25,6 +25,7 @@ import { downloadWithRetries, MAX_ATTEMPTS } from '../lib/downloadWithRetries'
 import { DownloadStalledError, fetchFailureReason } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
+import { posterPicture } from '../lib/garmentContour'
 import { pictureHeadStart } from '../lib/pictureFirst'
 import { reloadForStaleChunk } from '../lib/staleChunkReload'
 import { placeholderAsset, placeholderBlurPx, placeholderLeaveMs } from '../lib/placeholder'
@@ -1455,7 +1456,8 @@ export function Stage({
               className={`stage__placeholder${
                 placeholderStage === 'leaving' ? ' stage__placeholder--leaving' : ''
               }`}
-              src={placeholder.url}
+              // The seam's address with crossOrigin: one download for both (posterPicture).
+              {...posterPicture(placeholder.url)}
               alt=""
               aria-hidden="true"
               decoding="async"
@@ -1504,7 +1506,7 @@ export function Stage({
             <img
               className="stage__print"
               loading={printing || printHeld ? 'eager' : 'lazy'}
-              src={printPicture.url}
+              {...posterPicture(printPicture.url)}
               alt={printPicture.alt || `${product.productName} in ${selected.displayName}`}
               draggable={false}
               {...(printPicture.width && printPicture.height

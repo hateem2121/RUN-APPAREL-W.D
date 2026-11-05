@@ -59,12 +59,18 @@
    * 2026-10-24: p75 799 ms, p90 2,338 ms).
    * ⚠️ NEVER CACHE `default`: it also serves the admin and the API, and it stamps each page with
    * its own nonce AFTER the store answers. A cached default would hand one visitor's nonce to the
-   * next. `cross_version_cache` stays off: a page from the last deploy names script files the
-   * new one no longer has. src/pageCache.test.ts pins all three.
+   * next. src/pageCache.test.ts pins both.
+   * ⚠️ `cross_version_cache` IS ON SINCE 4 NOV 2026, AND OUR OWN KEY KEEPS DEPLOYS APART. It drops
+   * the Worker version from Cloudflare's key (developers.cloudflare.com/workers/cache/configuration,
+   * "Cross-version caching", updated 30 Oct 2026), so the key worker.mjs passes decides alone. A
+   * page or tap copy still names the deploy in that key (pageCache.mjs `sharedCacheKey`, tapStore.mjs),
+   * because a page from the last deploy names script files the new one no longer has; the garment
+   * data names its SHAPE instead (viewerApiCache.mjs `VIEWER_DATA_SHAPE`), so a deploy no longer
+   * empties it in every buyer region. src/pageCache.test.ts and src/viewerApiCache.test.ts pin both.
    * ctx.exports needs no flag: it is the default from compatibility_date 2025-11-17.
    * Docs: developers.cloudflare.com/workers/cache/ (updated 12 Oct 2026); needs wrangler 4.107+.
    */
-  "cache": { "enabled": false },
+  "cache": { "enabled": false, "cross_version_cache": true },
   "exports": {
     "default": { "type": "worker", "cache": { "enabled": false } },
     "SitePages": { "type": "worker", "cache": { "enabled": true } }

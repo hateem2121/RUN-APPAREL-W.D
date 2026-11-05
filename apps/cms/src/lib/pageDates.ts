@@ -43,13 +43,18 @@ const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
-/** One phone number for the company (2026-10-26): the Contact page's call line and the structured data. */
-const ONE_NUMBER = '2026-10-26T20:13:15+05:00'
 /**
- * The dye (the home page draws the island that turns №02's cards colour), met with the one phone
- * number from `main` (2026-10-26).
+ * The hero picture offered to wide screens in AVIF as well (site speed, 2026-11-04): markup only,
+ * the words the same, moved by the rule at the top of this file. Home was dated by the dye
+ * (2026-10-26T23:49:22+05:00) and Contact by the one phone number (2026-10-26T20:13:15+05:00).
  */
-const DYE = '2026-10-26T23:49:22+05:00'
+const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
+/**
+ * The legal framing of 2026-11-04 (owner's go-ahead after the legal review): DURUS INDUSTRIES
+ * named as a separate family company, never a parent; RUN never a division; no GOTS claim; 1889
+ * labelled the family's. `companyRelationship.test.ts` holds the words.
+ */
+const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
 /**
  * The privacy page's cookie paragraph now says Google Analytics sees whether a visitor taps the
  * WhatsApp, phone or email link (2026-10-30, branch `site/contact-click-events`; the branch
@@ -72,29 +77,37 @@ const KAIZEN = '2026-10-31T22:30:00+05:00'
 /** The accessory pages say products, and the ball page leads with a logo (2026-11-01). */
 const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
+/**
+ * The order block's photo (owner, 2026-11-05): on the four main buyer pages the factory photo is the
+ * whole background of "How an order works", shown whole; the accessories and soccer ball pages draw
+ * the same component without a photo, and their fingerprints move with its source, as the rule at
+ * the top of this file says (a date a little early to move is the lesser fault).
+ */
+const ORDER_PHOTO = '2026-11-05T09:21:13+05:00'
+
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(DYE, '75c60e311c5a'),
+  '/': page(LEGAL_FRAMING, 'cf1148e20f75'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
-  '/custom-teamwear-manufacturer': page(MAKES_LINKS, '15dc346441b8'),
-  '/custom-activewear-manufacturer': page(MAKES_LINKS, '698eb59f3b36'),
-  '/custom-outerwear-manufacturer': page(MAKES_LINKS, '7cae3607c1da'),
-  '/custom-sports-accessories-manufacturer': page(ACCESSORY_WORDS, 'f4bd524e4701'),
-  '/custom-soccer-ball-manufacturer': page(ACCESSORY_WORDS, '1fa9ca7abf31'),
-  '/private-label-casual-wear-manufacturer': page(MAKES_LINKS, 'de93b5cf2716'),
+  '/custom-teamwear-manufacturer': page(ORDER_PHOTO, 'a61b3aaf97c2'),
+  '/custom-activewear-manufacturer': page(ORDER_PHOTO, 'e5e4554ea7d4'),
+  '/custom-outerwear-manufacturer': page(ORDER_PHOTO, '6717eb5b3d3a'),
+  '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
+  '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
+  '/private-label-casual-wear-manufacturer': page(ORDER_PHOTO, 'cfcc2d6052c4'),
   '/guides': page(SITE_CHECK, 'bc271cb03a6b'),
-  '/policies': page(SITE_CHECK, '4858c8669cda'),
+  '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
-  '/press': page(SITE_CHECK, '9b7eeaf6a7f9'),
-  '/faq': page(SITE_CHECK, 'f1bd5f772454'),
+  '/press': page(LEGAL_FRAMING, '5143d1505a09'),
+  '/faq': page(LEGAL_FRAMING, '977d847bbe71'),
   '/faq/orders-and-samples': page(SITE_CHECK, '6ad5f92a5cb5'),
-  '/faq/quality-and-certifications': page(CLOSING_BLOCK, 'f21148cdf235'),
+  '/faq/quality-and-certifications': page(LEGAL_FRAMING, '9a644e472e7e'),
   '/faq/shipping-and-importing': page(SITE_CHECK, 'd589cfcdf9ba'),
   '/faq/fabrics-and-printing': page(CLOSING_BLOCK, 'd838e1a06292'),
-  '/faq/working-with-us': page(CLOSING_BLOCK, '39eb383bf2dc'),
-  '/glossary': page(SITE_CHECK, '5f4675bd3f09'),
+  '/faq/working-with-us': page(LEGAL_FRAMING, 'b2c2f9e7c29e'),
+  '/glossary': page(LEGAL_FRAMING, '90d509da86b8'),
   '/journal': page(KAIZEN, 'e34315afc7aa'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
-  '/contact': page(ONE_NUMBER, '360e3b9976c6'),
+  '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
   '/privacy': page(CONTACT_TAPS, '10fe05331ee5'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }

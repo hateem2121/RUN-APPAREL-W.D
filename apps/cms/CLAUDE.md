@@ -131,7 +131,9 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   entrypoint stamps each answer with its own nonce. 🟡 Never switch caching on for `default` (it
   would hand one visitor's nonce to the next, and it serves the admin) and keep the HOST in the
   key (`sharedCacheKey`: Workers Cache ignores hosts). A local preview keeps nothing (measured
-  2026-10-24); only the live site shows `page-cache;desc="hit"`. The key holds the deploy (`CF_VERSION_METADATA`).
+  2026-10-24); only the live site shows `page-cache;desc="hit"`. The key holds the website build's fingerprint (`SITE_BUILD`, from `siteBuild.mjs`; since
+  2026-11-04), or the deploy (`CF_VERSION_METADATA`) when there is none or KV `page-store-build` =
+  `per-deploy`.
   🟡 Since 2026-10-25 a save no longer changes the key: `src/lib/contentVersion.ts` calls
   `SitePages.invalidateKept` (Workers Cache `invalidate()`, which works only inside the cached
   entrypoint) and each copy carries `Cache-Tag` + `stale-while-revalidate`, so a region is served

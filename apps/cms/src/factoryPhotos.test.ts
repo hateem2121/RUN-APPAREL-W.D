@@ -3,17 +3,26 @@ import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { cropBox, SHAPES, SOURCES } from '../../../scripts/build-factory-photos.mjs'
+import {
+  AVIF_QUALITY,
+  cropBox,
+  SHAPES,
+  SOURCES,
+  WHOLE_SOURCES,
+} from '../../../scripts/build-factory-photos.mjs'
 import {
   ABOUT_HERO_SOURCES,
   CONTACT_HERO_SOURCES,
   HERO_SOURCES,
 } from '../../../scripts/build-factory-photos.mjs'
 import { AboutSection } from './components/site/AboutSection'
+import { PhotoStage } from './components/site/PhotoStage'
 import { FULL_COLUMN_SIZES } from './components/site/FactoryFigure'
 import { OrderSteps } from './components/site/OrderSteps'
+import { ABOUT_PAGE } from './lib/aboutPages'
 import {
   ABOUT_HERO_PHOTO,
+  ABOUT_PORTRAITS,
   aboutHeroSrc,
   CONTACT_HERO_PHOTO,
   contactHeroSrc,
@@ -26,6 +35,9 @@ import {
   HERO_PHOTO,
   HERO_SHAPES,
   heroPhotoSrc,
+  WHOLE_PHOTOS,
+  wholePhoto,
+  wholePhotoImage,
 } from './lib/factoryPhotos'
 import { ORDER_PHASES } from './lib/orderProcess'
 import { hintAt, pickedWidth } from './sizesAt'
@@ -110,12 +122,22 @@ describe('the factory photos (OI-3)', () => {
           aboutHeroSrc(shape, width).slice('/factory/'.length),
         ),
       ),
+      // The whole pictures (2026-11-05): the two portraits and the four buyer pages' photos.
+      ...WHOLE_PHOTOS.flatMap((photo) =>
+        photo.widths.map((width) => `${photo.slug}-${width}.webp`),
+      ),
       // The phone crops' AVIF twins, which both pages offer first (2026-09-29).
       ...HERO_PHOTO.widths.heroTall.flatMap((width) => [
         heroPhotoSrc('heroTall', width, 'avif').slice('/factory/'.length),
         contactHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
         aboutHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
       ]),
+      // The wide crops' AVIF twins (4 Nov 2026).
+      ...HERO_PHOTO.widths.heroWide.map((w) => heroPhotoSrc('heroWide', w, 'avif').slice(9)),
+      ...CONTACT_HERO_PHOTO.widths.heroWide.map((w) =>
+        contactHeroSrc('heroWide', w, 'avif').slice(9),
+      ),
+      ...ABOUT_HERO_PHOTO.widths.heroWide.map((w) => aboutHeroSrc('heroWide', w, 'avif').slice(9)),
     ])
     expect(readdirSync(DIR).filter((file) => !named.has(file))).toEqual([])
   })
@@ -566,5 +588,255 @@ describe('the full-width gallery photo is sharp, and only it gets the wide files
     const ordinary = factoryPhotoImage(exterior).srcSet
     for (const width of exterior.fullWidths ?? []) expect(ordinary).not.toContain(`-${width}.webp`)
     expect(exterior.fullWidths).toEqual([2400, 3200])
+  })
+})
+
+/*
+ * THE WIDE HEROES IN AVIF TOO (4 Nov 2026). Desktop screens were offered only the WebP, 48–284 KB
+ * each, and a real desktop visit's largest paint that day was hero-wide-2560.webp. Encoded from the
+ * originals at AVIF_QUALITY.heroWide, every wide crop scored at least its WebP's SSIM (luma, against
+ * the original), and the eight weigh 838 KB against 1,043 KB. What would have to break: a file
+ * missing or heavier than its WebP, a page no longer offering it, or the phone crops losing their
+ * place before it.
+ */
+describe('wide heroes come in AVIF too', () => {
+  const pairs = [
+    ...HERO_PHOTO.widths.heroWide.map((w) => [
+      heroPhotoSrc('heroWide', w, 'avif'),
+      heroPhotoSrc('heroWide', w),
+    ]),
+    ...CONTACT_HERO_PHOTO.widths.heroWide.map((w) => [
+      contactHeroSrc('heroWide', w, 'avif'),
+      contactHeroSrc('heroWide', w),
+    ]),
+    ...ABOUT_HERO_PHOTO.widths.heroWide.map((w) => [
+      aboutHeroSrc('heroWide', w, 'avif'),
+      aboutHeroSrc('heroWide', w),
+    ]),
+  ]
+
+  it('every wide crop has an AVIF twin, lighter than its WebP', () => {
+    expect(pairs).toHaveLength(8)
+    for (const [avif, webp] of pairs) {
+      const a = join(DIR, (avif ?? '').slice('/factory/'.length))
+      const b = join(DIR, (webp ?? '').slice('/factory/'.length))
+      expect(existsSync(a), `${a} is missing`).toBe(true)
+      expect(readFileSync(a).length, a).toBeLessThan(readFileSync(b).length)
+      expect(String.fromCharCode(...readFileSync(a).subarray(4, 12))).toBe('ftypavif')
+    }
+  })
+
+  it('the build script makes them at the measured quality, and the phone crops at theirs', () => {
+    expect(AVIF_QUALITY).toEqual({ heroTall: 45, heroWide: 55 })
+  })
+
+  it('all three pages offer the wide AVIF after the phone sources and before the <img>', () => {
+    for (const [page, src] of [
+      ['src/components/site/HomeHero.tsx', 'heroPhotoSrc'],
+      ['src/app/(frontend)/contact/page.tsx', 'contactHeroSrc'],
+      ['src/components/site/AboutPage.tsx', 'aboutHeroSrc'],
+    ] as const) {
+      const tsx = readFileSync(join(import.meta.dirname, '..', page), 'utf8')
+      const wide = tsx.indexOf(`${src}('heroWide', wide1280, 'avif')`)
+      expect(wide, `${page} offers no wide AVIF`).toBeGreaterThan(-1)
+      expect(wide, `${page}: a phone source must come first`).toBeGreaterThan(
+        tsx.indexOf(`${src}('heroTall', tall640)`),
+      )
+      expect(wide, `${page}: the AVIF must come before the <img>`).toBeLessThan(
+        tsx.indexOf('className="site-hero__img"'),
+      )
+    }
+  })
+})
+
+/*
+ * THE WHOLE PICTURES (owner, 2026-11-05: "I do not want the images to be cut"). What would have to
+ * break for these to fail: a file written to a tidy 4:5 or 8:5 instead of the original's own shape
+ * (the picture is cut again, and nothing on the page looks wrong until someone notices a missing
+ * hand), a file missing, an upscale, a stage that crops in CSS, or the portraits' alt text drifting
+ * from the name the timeline prints.
+ */
+describe('the whole pictures are never cut (2026-11-05)', () => {
+  /** True when a file of `size` has the shape of an original `ratio`, within a pixel of rounding. */
+  const hasShape = (size: { width: number; height: number }, ratio: readonly [number, number]) =>
+    Math.abs(size.height - (size.width * ratio[1]) / ratio[0]) <= 1
+
+  it('every file exists at the original’s own shape, not a tidy one', () => {
+    for (const photo of WHOLE_PHOTOS) {
+      for (const width of photo.widths) {
+        const file = `${photo.slug}-${width}.webp`
+        expect(existsSync(join(DIR, file)), file).toBe(true)
+        const size = webpSize(readFileSync(join(DIR, file)))
+        expect(size.width, file).toBe(width)
+        expect(hasShape(size, photo.ratio), `${file} is ${size.width}x${size.height}`).toBe(true)
+      }
+    }
+  })
+
+  // NEGATIVE CONTROL: the check sees a cut file. The screen-printing photo's ordinary file is the
+  // 4:5 cut of a 0.545:1 original, so it does not have the whole picture's shape.
+  it('sees a picture cut to 4:5', () => {
+    const cut = webpSize(readFileSync(join(DIR, 'screen-printing-800.webp')))
+    expect(cut.width / cut.height).toBeCloseTo(0.8, 2)
+    expect(hasShape(cut, wholePhoto('whole-screen-printing').ratio)).toBe(false)
+    const whole = webpSize(readFileSync(join(DIR, 'whole-screen-printing-800.webp')))
+    expect(hasShape(whole, wholePhoto('whole-screen-printing').ratio)).toBe(true)
+  })
+
+  it('the build script and the page list the same pictures, shapes and widths', () => {
+    expect(
+      WHOLE_SOURCES.map((source) => ({
+        slug: source.slug,
+        ratio: source.original,
+        widths: source.widths,
+      })),
+    ).toEqual(
+      WHOLE_PHOTOS.map((photo) => ({
+        slug: photo.slug,
+        ratio: [...photo.ratio],
+        widths: [...photo.widths],
+      })),
+    )
+  })
+
+  it('writes no file wider than its original', () => {
+    for (const photo of WHOLE_PHOTOS) {
+      expect(Math.max(...photo.widths), photo.slug).toBeLessThanOrEqual(photo.ratio[0])
+    }
+  })
+
+  it('draws a file’s srcset, a reserved size of the same shape and a hint wide enough', () => {
+    for (const photo of WHOLE_PHOTOS) {
+      const image = wholePhotoImage(photo)
+      expect(image.src, photo.slug).toBe(`/factory/${photo.slug}-${photo.widths[0]}.webp`)
+      expect(image.srcSet.split(', '), photo.slug).toHaveLength(photo.widths.length)
+      expect(hasShape({ width: image.width, height: image.height }, photo.ratio), photo.slug).toBe(
+        true,
+      )
+      expect(image.sizes, photo.slug).toMatch(
+        /^\(max-width: 899px\) 100vw, min\(100vw, [\d.]+svh\)$/,
+      )
+    }
+  })
+
+  it('the portraits follow the timeline cards that name them, in the spelling the page prints', () => {
+    const names = {
+      'portrait-ghafuree': 'Allah Ditta Ghafuree',
+      'portrait-sandal': 'M. Iqbal Sandal',
+    } as const
+    expect(ABOUT_PORTRAITS.map((portrait) => portrait.slug)).toEqual(Object.keys(names))
+    for (const portrait of ABOUT_PORTRAITS) {
+      const entry = ABOUT_PAGE.timeline.entries.find((card) => card.year === portrait.year)
+      const name = names[portrait.slug]
+      expect(entry?.body, `${portrait.year}: no card names ${name}`).toContain(name)
+      expect(wholePhoto(portrait.slug).alt).toContain(name)
+    }
+  })
+
+  it('a buyer photo has the alt text of the factory picture it is a whole copy of', () => {
+    const copies = {
+      'whole-screen-printing': 'screen-printing',
+      'whole-inspection': 'inspection',
+      'whole-stitching': 'stitching',
+      'whole-tagging': 'tagging',
+    } as const
+    for (const [whole, cut] of Object.entries(copies)) {
+      const alt = FACTORY_PHOTOS.find((photo) => photo.slug === cut)?.alt
+      expect(alt, cut).toBeTruthy()
+      expect(wholePhoto(whole).alt).toBe(alt)
+    }
+  })
+
+  /** The stage's own CSS: between its heading comment and the next section's. */
+  const stageCss = () => {
+    const css = readFileSync(join(import.meta.dirname, 'app/(frontend)/site.css'), 'utf8')
+    const from = css.indexOf("a whole photo as a screen's background")
+    const to = css.indexOf('№02 the family cards')
+    return css.slice(from, to).replace(/\/\*[\s\S]*?\*\//g, '')
+  }
+
+  it('the stage fits a picture whole in CSS, and never covers', () => {
+    const css = stageCss()
+    expect(css).toMatch(/\.photo-stage__img \{[^}]*object-fit: contain/)
+    expect(css).not.toMatch(/object-fit:\s*cover/)
+  })
+
+  // NEGATIVE CONTROL: the CSS check sees a stage that crops.
+  it('sees a stage that crops', () => {
+    expect(`${stageCss()} .photo-stage__img { object-fit: cover; }`).toMatch(/object-fit:\s*cover/)
+  })
+
+  it('draws the picture lazily, sized, with its alt text and no caption', () => {
+    const html = renderToStaticMarkup(
+      createElement(PhotoStage, { photo: wholePhoto('portrait-ghafuree'), copy: 'year' }),
+    )
+    const img = html.match(/<img\b[^>]*>/)?.[0] ?? ''
+    expect(img).toContain('loading="lazy"')
+    expect(img).toContain('width="400"')
+    expect(img).toContain('height="536"')
+    expect(img).toContain('alt="Black-and-white portrait of Allah Ditta Ghafuree."')
+    expect(html).not.toContain('<figcaption')
+  })
+
+  // ONE year over each picture, never a range (owner, 2026-11-05: "only keep a single year, no –").
+  it('draws one four-digit year over each portrait, taken from its own card', () => {
+    const single = (text: string) => /^\d{4}$/.test(text)
+    for (const portrait of ABOUT_PORTRAITS) {
+      expect(single(portrait.shownYear), `${portrait.slug}: "${portrait.shownYear}"`).toBe(true)
+      // It is the card's own year: in its label, and for a range its first year.
+      expect(portrait.year.startsWith(portrait.shownYear), portrait.slug).toBe(true)
+    }
+    expect(ABOUT_PORTRAITS.map((portrait) => portrait.shownYear)).toEqual(['1889', '1956'])
+    // The card keeps its range: only the picture's year changed.
+    expect(ABOUT_PORTRAITS[1]?.year).toBe('1956–1992')
+    // NEGATIVE CONTROL: the check sees a range.
+    expect(single('1956–1992')).toBe(false)
+    expect(single('1956-1992')).toBe(false)
+  })
+
+  // The year's tone follows what it sits over (owner, 2026-11-05: "darken it"): Sandal's year is over
+  // a bright wall, where the light one was half readable; Ghafuree's is over dark ground.
+  it('draws Sandal’s year dark and Ghafuree’s light, the dark one in ink', () => {
+    expect(ABOUT_PORTRAITS.map((portrait) => [portrait.slug, portrait.yearTone])).toEqual([
+      ['portrait-ghafuree', 'light'],
+      ['portrait-sandal', 'dark'],
+    ])
+    const dark = renderToStaticMarkup(
+      createElement(
+        PhotoStage,
+        { photo: wholePhoto('portrait-sandal'), copy: 'year', tone: 'dark' },
+        '1956–1992',
+      ),
+    )
+    expect(dark).toMatch(/class="photo-stage__year photo-stage__year--dark" aria-hidden="true"/)
+    const light = renderToStaticMarkup(
+      createElement(PhotoStage, { photo: wholePhoto('portrait-ghafuree'), copy: 'year' }, '1889'),
+    )
+    expect(light).not.toContain('photo-stage__year--dark')
+    const inkRule = (css: string) =>
+      /\.photo-stage__year--dark \{[^}]*color:\s*color-mix\(in srgb, var\(--ink\)/.test(css)
+    expect(inkRule(stageCss())).toBe(true)
+    // NEGATIVE CONTROL: the check sees a dark year drawn in the paper colour again.
+    expect(
+      inkRule(
+        '.photo-stage__year--dark { color: color-mix(in srgb, var(--text) 40%, transparent); }',
+      ),
+    ).toBe(false)
+  })
+
+  it('hides a portrait’s year from screen readers, and draws a buyer page’s words as text', () => {
+    const portrait = renderToStaticMarkup(
+      createElement(
+        PhotoStage,
+        { photo: wholePhoto('portrait-sandal'), copy: 'year' },
+        '1956–1992',
+      ),
+    )
+    expect(portrait).toMatch(/class="photo-stage__year" aria-hidden="true"/)
+    const buyer = renderToStaticMarkup(
+      createElement(PhotoStage, { photo: wholePhoto('whole-tagging') }, 'How an order works'),
+    )
+    expect(buyer).toMatch(/class="photo-stage__copy"/)
+    expect(buyer).not.toContain('aria-hidden="true">How')
   })
 })

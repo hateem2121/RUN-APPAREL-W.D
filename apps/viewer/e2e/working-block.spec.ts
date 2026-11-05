@@ -128,9 +128,11 @@ test.describe('the Working block fits the screen', () => {
 })
 
 /**
- * The fixture's posters are opaque, so the seam correctly draws nothing on them, and a suite using
- * only those could never see it work. Production's are transparent (rxps-wine-poster.webp: 56% clear,
- * read 31 Oct 2026), so this serves a transparent one. Run both ways.
+ * A known shape, so the seam's pixels can be counted against it: a transparent tee and, for the
+ * control, an opaque card. Production's posters are transparent (rxps-wine-poster.webp: 56% clear,
+ * read 31 Oct 2026), and so are the fixture's own: all five `n001-*-poster.webp` in
+ * tools/asset-pipeline/output/placeholders are 82.1% clear (measured 4 Nov 2026), so the seam
+ * draws on every fixture page too (placeholder-webgl.spec.ts waits for it). Run both ways.
  */
 const TEE =
   '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><path d="M120 60 L280 60 L380 160 L320 220 L300 200 L300 460 L100 460 L100 200 L80 220 L20 160 Z" fill="#825353"/></svg>'
@@ -158,6 +160,32 @@ test.describe('the seam round the garment', () => {
     await expect
       .poll(async () => (await seamPixels(page)).drawn, { timeout: 10_000 })
       .toBeGreaterThan(1000)
+  })
+
+  /*
+   * ONE DOWNLOAD FOR THE PHOTO AND THE SEAM (3 Nov 2026). The photo asked for the plain address
+   * and the seam for `?seam=1`, so every poster came down twice: 243,042 bytes extra on the Kaizen
+   * ball, competing with the visible copy on a slow line. Counted by distinct address, because a
+   * second request for the SAME address is answered from the browser's cache. Run both ways: with
+   * the photo back on its plain `src`, this saw two addresses.
+   */
+  test('the photo and the seam share one download', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one engine: request counting is not engine-specific')
+    await page.route('**/fixtures/n001.glb*', () => {})
+    await page.route('**/*-poster.webp*', (route) =>
+      route.fulfill({ contentType: 'image/svg+xml', body: TEE }),
+    )
+    const addresses = new Set<string>()
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname.endsWith('-poster.webp')) addresses.add(request.url())
+    })
+    await page.goto('/n001/wine')
+    await expect(page.locator('.stage__seam')).toBeVisible({ timeout: 30_000 })
+    await expect
+      .poll(async () => (await seamPixels(page)).drawn, { timeout: 10_000 })
+      .toBeGreaterThan(1000)
+    await expect(page.locator('.stage__placeholder')).toHaveAttribute('crossorigin', 'anonymous')
+    expect([...addresses]).toHaveLength(1)
   })
 
   test('control: an opaque picture draws nothing, and the photo stays', async ({

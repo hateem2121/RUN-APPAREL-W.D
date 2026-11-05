@@ -83,7 +83,7 @@ test.describe('X7 — №05 ends in one slab: where we ship | certification', ()
   })
 
   for (const scheme of ['light', 'dark'] as const) {
-    test(`${scheme}: the marks sit on a dark ground, every one of them drawn, beside the holder that holds it`, async ({
+    test(`${scheme}: the certification lines sit on a dark ground, each naming its holder, with no body's mark`, async ({
       page,
     }) => {
       await settle(page, 1280, scheme)
@@ -94,24 +94,13 @@ test.describe('X7 — №05 ends in one slab: where we ship | certification', ()
           line: (row.querySelector('.works-slab__line')?.textContent ?? '').trim(),
         })),
       )
-      expect(rows.flatMap((row) => row.marks)).toEqual([
-        'Sedex',
-        'SMETA',
-        'ISO 9001',
-        'OEKO-TEX',
-        'GOTS',
-        'GRS',
-      ])
-      for (const row of rows) {
-        for (const mark of row.marks) {
-          expect(row.line.toUpperCase(), `"${mark}" beside a line that does not name it`).toContain(
-            mark.toUpperCase(),
-          )
-        }
-      }
-      // The parent's marks name the parent, and the registry stands as text, with no mark.
+      // No body's mark since 2026-11-05: none is RUN APPAREL's to show (standardsLogos.ts quotes
+      // each scheme's rule). The lines still name each standard beside its holder.
+      expect(rows.flatMap((row) => row.marks)).toEqual([])
+      expect(rows.length).toBeGreaterThanOrEqual(3)
       expect(rows[0]?.line).toContain('DURUS INDUSTRIES')
-      expect(rows.at(-1)?.marks).toEqual([])
+      expect(rows[0]?.line).toContain('SMETA-audited')
+      expect(rows[1]?.line).toContain('OEKO-TEX')
 
       // NEGATIVE CONTROL: on the light page's paper, where the off-white marks would vanish, the
       // reading sees a light slab.

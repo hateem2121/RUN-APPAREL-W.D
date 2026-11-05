@@ -98,19 +98,61 @@ describe('the footer facts the owner supplied, 2026-09-16', () => {
      * the bare names before ruling on the qualified form, so this guard is load-bearing.
      */
     expect(FOOTER_FACTS.certifications.map((r) => r.name)).toEqual([
-      'Parent: SEDEX-registered, SMETA-audited',
+      // "Sister company", never "Parent" (owner, 2026-11-04).
+      'Sister company: SEDEX-registered, SMETA-audited',
       // Owner, 2026-09-29 (corrected the same evening): ISO 9001 and amfori BSCI are the
       // SUPPLIERS', and both companies are SECP-registered. Two supplier rows, because one
       // would be 53 characters, five over the field's 48.
-      'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+      'Suppliers: ISO 9001, OEKO-TEX, GRS',
       'Suppliers: amfori BSCI audits',
-      'Group: registered with the SECP',
+      'Both companies: registered with the SECP',
     ])
     expect(
       problems(
-        variant((f) => Object.assign(f.certifications[0] as { name: string }, { name: 'GOTS' })),
+        variant((f) =>
+          Object.assign(f.certifications[0] as { name: string }, { name: 'OEKO-TEX' }),
+        ),
       ),
-    ).toEqual(['certification "GOTS" does not say whose standard it is'])
+    ).toEqual(['certification "OEKO-TEX" does not say whose standard it is'])
+  })
+
+  // Owner, 2026-11-04. NEGATIVE CONTROL: the two rows the live footer carried until that day.
+  it('refuse "Parent", "Group" and any GOTS claim', () => {
+    expect(problems(FOOTER_FACTS)).toEqual([])
+    expect(
+      problems(
+        variant((f) =>
+          Object.assign(f.certifications[0] as { name: string }, {
+            name: 'Parent: SEDEX-registered, SMETA-audited',
+          }),
+        ),
+      ),
+    ).toEqual([
+      'certification "Parent: SEDEX-registered, SMETA-audited" says "Parent": DURUS INDUSTRIES is a sister company',
+    ])
+    expect(
+      problems(
+        variant((f) =>
+          Object.assign(f.certifications[1] as { name: string }, {
+            name: 'Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS',
+          }),
+        ),
+      ),
+    ).toEqual([
+      'certification "Suppliers: ISO 9001, OEKO-TEX, GOTS, GRS" names GOTS, which RUN APPAREL may not claim',
+    ])
+    // The SECP row said "Group" until 2026-11-04 (owner): the two are not a corporate group.
+    expect(
+      problems(
+        variant((f) =>
+          Object.assign(f.certifications[3] as { name: string }, {
+            name: 'Group: registered with the SECP',
+          }),
+        ),
+      ),
+    ).toEqual([
+      'certification "Group: registered with the SECP" says "Group": say "Both companies"',
+    ])
   })
 
   it('refuse a social link that is not https', () => {

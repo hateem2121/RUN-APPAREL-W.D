@@ -134,6 +134,13 @@ export default async function ContactPage({
             width={tall640}
             height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
           />
+          <source
+            type="image/avif"
+            srcSet={`${contactHeroSrc('heroWide', wide1280, 'avif')} ${wide1280}w, ${contactHeroSrc('heroWide', wide1920, 'avif')} ${wide1920}w`}
+            sizes="100vw"
+            width={wide1280}
+            height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
+          />
           <img
             className="site-hero__img"
             src={contactHeroSrc('heroWide', wide1280)}

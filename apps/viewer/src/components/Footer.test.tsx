@@ -229,14 +229,12 @@ describe('Footer', () => {
     ])
     expect(host.textContent).toContain('MOQ 300 pieces')
     expect(host.textContent).toContain('32.4945° N, 74.5229° E')
-    // The marks follow from the entry's words, in the order named, from the website's files.
+    // No body's mark since 2026-11-05 (none is RUN APPAREL's to show; standardsLogos.ts quotes
+    // each scheme's rule), though the entry still names OEKO-TEX and GOTS in text: the one picture
+    // is the company's own climate commitment, from the website's files.
     const marks = [...host.querySelectorAll<HTMLImageElement>('.footer-marks img')]
-    expect(marks.map((img) => img.alt)).toEqual(['OEKO-TEX', 'GOTS', CLIMATE_COMMITMENT.logo.alt])
-    expect(marks.map((img) => img.getAttribute('src'))).toEqual([
-      '/standards/oeko-tex.svg',
-      '/standards/gots.svg',
-      CLIMATE_COMMITMENT.logo.src,
-    ])
+    expect(marks.map((img) => img.alt)).toEqual([CLIMATE_COMMITMENT.logo.alt])
+    expect(marks.map((img) => img.getAttribute('src'))).toEqual([CLIMATE_COMMITMENT.logo.src])
     // A new tab, and it says so, seen ("↗") and heard (owner, 2026-10-17; W3C G201).
     const linkedIn = byText('LinkedIn ↗ (opens in a new tab)')
     expect(linkedIn?.getAttribute('href')).toBe('https://www.linkedin.com/company/x')
