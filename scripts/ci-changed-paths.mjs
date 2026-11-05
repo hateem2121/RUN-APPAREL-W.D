@@ -73,12 +73,23 @@ export function touchesShrink(file) {
 const NOT_SHIPPED_FOLDERS = ['docs/', '.claude/', '.agents/', '.github/']
 
 /**
+ * Files at the repo root that no Worker is built from. `skills-lock.json` records the
+ * fingerprints of the vendored agent skills; only `scripts/refresh-vendored-skills.mjs`,
+ * `refresh-skills.yml` and tests read it (checked 5 Nov 2026). It is not in a skipped folder, so
+ * the robot's weekly skills PR #309 counted as shipping, ran a full deploy and emptied the page
+ * store in every region for 20 files of skill text. Named by exact path on purpose: a file of
+ * the same name anywhere else is still code.
+ */
+const NOT_SHIPPED_FILES = ['skills-lock.json']
+
+/**
  * @param {string} file a repo-relative path from `git diff --name-only`
  * @returns {boolean} false only for a file that can never change a deployed Worker
  */
 export function touchesSite(file) {
   if (file === '.github/workflows/ci.yml') return true
   if (NOT_SHIPPED_FOLDERS.some((folder) => file.startsWith(folder))) return false
+  if (NOT_SHIPPED_FILES.includes(file)) return false
   if (file.endsWith('.md')) return false
   if (/\.test\.[cm]?[jt]sx?$/.test(file)) return false
   if (/(^|\/)e2e\//.test(file)) return false

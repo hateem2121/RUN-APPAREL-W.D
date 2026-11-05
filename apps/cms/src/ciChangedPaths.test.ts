@@ -92,6 +92,10 @@ describe('which files the deployed Workers are built from', () => {
       // a name that merely CONTAINS a skipped word is still code
       'apps/cms/src/lib/docsLinks.ts',
       'apps/viewer/src/e2eHelpers.ts',
+      // only the root skills-lock.json is exempt, by exact path: look-alikes are still code
+      'apps/cms/skills-lock.json',
+      'skills-lock.jsonc',
+      'my-skills-lock.json',
     ]) {
       expect(touchesSite(file), file).toBe(true)
     }
@@ -123,6 +127,9 @@ describe('which files the deployed Workers are built from', () => {
       'scripts/check-required-checks.test.mjs',
       'apps/cms/e2e/fontSwap.spec.ts',
       'apps/viewer/e2e/fixtures/garment.json',
+      // #309 (5 Nov 2026): the robot's weekly skills PR. Its fingerprint file sits at the root,
+      // so it counted as shipping and a full deploy ran for skill text no Worker reads
+      'skills-lock.json',
     ]) {
       expect(touchesSite(file), file).toBe(false)
     }
@@ -195,6 +202,19 @@ describe('whether the deploy has anything to ship', () => {
   it('skips only a push to main whose changes since the last deploy never reach a Worker', () => {
     expect(siteChanged(push, 'abc', () => ['docs/RUNBOOK.md', '.claude/rules/x.md'])).toBe(false)
     expect(siteChanged(push, 'abc', () => ['docs/RUNBOOK.md', 'apps/cms/worker.mjs'])).toBe(true)
+  })
+
+  it("skips the robot's weekly skills refresh, and still deploys if one code file rides along", () => {
+    // The shape of #309: skill text under .claude/ and .agents/, plus the root fingerprint file.
+    const skillsRefresh = [
+      '.agents/skills/animate/SKILL.md',
+      '.claude/skills/README.md',
+      '.claude/skills/ai-seo/evals/evals.json',
+      '.claude/skills/ai-seo/references/agent-readiness.md',
+      'skills-lock.json',
+    ]
+    expect(siteChanged(push, 'abc', () => skillsRefresh)).toBe(false)
+    expect(siteChanged(push, 'abc', () => [...skillsRefresh, 'apps/cms/worker.mjs'])).toBe(true)
   })
 
   it('deploys whenever it cannot be sure (negative control)', () => {
