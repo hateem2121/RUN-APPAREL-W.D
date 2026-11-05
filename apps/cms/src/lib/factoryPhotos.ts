@@ -253,10 +253,15 @@ export const WHOLE_PHOTOS: readonly WholePhoto[] = [
  * on the dark blurred ground at the left of a tall picture, so a light year reads; Sandal's wide
  * picture runs the whole screen and his year sits over its bright wall, where a light year was only
  * half readable ("1956–" showed and "1992" did not), so his is dark.
+ *
+ * ⚠️ `year` IS THE CARD'S LABEL (it finds the card, and a test reads the man's name in it);
+ * `shownYear` IS WHAT IS DRAWN HUGE: ONE YEAR, NEVER A RANGE (owner, 2026-11-05: "only keep a single
+ * year, no –"). A range over a picture reads as two numbers. Sandal's is 1956, the year his card
+ * says he joins Loyal Sports; the card itself keeps its range.
  */
 export const ABOUT_PORTRAITS = [
-  { slug: 'portrait-ghafuree', year: '1889', yearTone: 'light' },
-  { slug: 'portrait-sandal', year: '1956–1992', yearTone: 'dark' },
+  { slug: 'portrait-ghafuree', year: '1889', shownYear: '1889', yearTone: 'light' },
+  { slug: 'portrait-sandal', year: '1956–1992', shownYear: '1956', yearTone: 'dark' },
 ] as const
 
 export function wholePhoto(slug: string): WholePhoto {

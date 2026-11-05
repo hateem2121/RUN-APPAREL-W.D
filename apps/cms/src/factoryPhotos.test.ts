@@ -778,6 +778,22 @@ describe('the whole pictures are never cut (2026-11-05)', () => {
     expect(html).not.toContain('<figcaption')
   })
 
+  // ONE year over each picture, never a range (owner, 2026-11-05: "only keep a single year, no –").
+  it('draws one four-digit year over each portrait, taken from its own card', () => {
+    const single = (text: string) => /^\d{4}$/.test(text)
+    for (const portrait of ABOUT_PORTRAITS) {
+      expect(single(portrait.shownYear), `${portrait.slug}: "${portrait.shownYear}"`).toBe(true)
+      // It is the card's own year: in its label, and for a range its first year.
+      expect(portrait.year.startsWith(portrait.shownYear), portrait.slug).toBe(true)
+    }
+    expect(ABOUT_PORTRAITS.map((portrait) => portrait.shownYear)).toEqual(['1889', '1956'])
+    // The card keeps its range: only the picture's year changed.
+    expect(ABOUT_PORTRAITS[1]?.year).toBe('1956–1992')
+    // NEGATIVE CONTROL: the check sees a range.
+    expect(single('1956–1992')).toBe(false)
+    expect(single('1956-1992')).toBe(false)
+  })
+
   // The year's tone follows what it sits over (owner, 2026-11-05: "darken it"): Sandal's year is over
   // a bright wall, where the light one was half readable; Ghafuree's is over dark ground.
   it('draws Sandal’s year dark and Ghafuree’s light, the dark one in ink', () => {
