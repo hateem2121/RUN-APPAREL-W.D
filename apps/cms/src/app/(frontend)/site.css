@@ -4942,6 +4942,12 @@ a.contact-block__value:active {
   .photo-stage__year p {
     margin: 0;
   }
+
+  /* Over a bright part of the picture (M. Iqbal Sandal's wall), ink instead of paper: the light
+     year was half readable there (owner, 2026-11-05: "darken it"). `--ink` is the page's own. */
+  .photo-stage__year--dark {
+    color: color-mix(in srgb, var(--ink) 40%, transparent);
+  }
 }
 
 @media print {

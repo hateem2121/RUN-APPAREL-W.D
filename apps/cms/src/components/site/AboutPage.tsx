@@ -202,7 +202,12 @@ export function AboutPage() {
        */}
       <div className="about-portraits">
         {ABOUT_PORTRAITS.map((portrait) => (
-          <PhotoStage key={portrait.slug} photo={wholePhoto(portrait.slug)} copy="year">
+          <PhotoStage
+            key={portrait.slug}
+            photo={wholePhoto(portrait.slug)}
+            copy="year"
+            tone={portrait.yearTone}
+          >
             <p>{portrait.year}</p>
           </PhotoStage>
         ))}

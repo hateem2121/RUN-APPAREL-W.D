@@ -245,10 +245,18 @@ export const WHOLE_PHOTOS: readonly WholePhoto[] = [
   },
 ]
 
-/** The two archive portraits on /about, in the order of the timeline, each with the card year it follows. */
+/**
+ * The two archive portraits on /about, in the order of the timeline, each with the card year it
+ * follows and the tone of that year drawn huge behind it (`PhotoStage.tsx`).
+ *
+ * ⚠️ THE TONE FOLLOWS WHAT THE YEAR SITS OVER (owner, 2026-11-05: "darken it"). Ghafuree's year sits
+ * on the dark blurred ground at the left of a tall picture, so a light year reads; Sandal's wide
+ * picture runs the whole screen and his year sits over its bright wall, where a light year was only
+ * half readable ("1956–" showed and "1992" did not), so his is dark.
+ */
 export const ABOUT_PORTRAITS = [
-  { slug: 'portrait-ghafuree', year: '1889' },
-  { slug: 'portrait-sandal', year: '1956–1992' },
+  { slug: 'portrait-ghafuree', year: '1889', yearTone: 'light' },
+  { slug: 'portrait-sandal', year: '1956–1992', yearTone: 'dark' },
 ] as const
 
 export function wholePhoto(slug: string): WholePhoto {
