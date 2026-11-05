@@ -6,8 +6,9 @@ import { noteKey, type SpecGroupKey } from './specs.ts'
  * Written 2026-10-04 by Claude, one line per term: the 158 different features of the 40 live
  * garments, their 12 fibres and 27 fits, and a sentence per weight band. Each line was checked
  * against the description of every garment that lists the term, and says only what the term
- * means for the buyer: it claims nothing those descriptions do not. So "Eco-poly stretch" does not
- * say "recycled" (R-AFP's fabric is plain polyester), and no fit promises a sport the garment's
+ * means for the buyer: it claims nothing those descriptions do not. So a fabric note says "recycled"
+ * only where the owner has said so (R-AFP and R-WRS since 2026-11-05: "88% recycled polyester";
+ * before that their feature read "Eco-poly stretch"), and no fit promises a sport the garment's
  * description does not name. The owner approves the whole list at the end of the build (Q46),
  * before anything goes live.
  *
@@ -83,6 +84,7 @@ const EVA = 'Light foam padding that softens knocks and keeps its shape.'
 const SCREEN = 'Ink pressed through a stencil: bold, solid color that lasts.'
 const SUBLIMATION = 'The design is dyed into the fabric, so it will not crack or peel.'
 const STRETCH_POLY = 'A stretchy polyester knit made to move with you.'
+const STRETCH_RECYCLED_POLY = 'A stretchy recycled-polyester knit made to move with you.'
 const NOT_SEE_THROUGH = 'Holds its shape, and does not turn see-through with wear.'
 
 export const FEATURE_NOTES: Record<string, string> = {
@@ -196,7 +198,9 @@ export const FEATURE_NOTES: Record<string, string> = {
   'waffle knit': 'A grid-textured knit that feels soft and holds warmth.',
   'invisible zip': 'A zip hidden in the seam, for a clean look.',
   'convertible stand collar': 'A collar that stands up when zipped and falls open when unzipped.',
-  'eco-poly stretch': STRETCH_POLY,
+  // Was "eco-poly stretch" until 2026-11-05: the owner says all of R-AFP's polyester is recycled, and
+  // EU law has banned generic environmental words such as "eco" since 27 Sep 2026. CMS feature renamed.
+  'recycled polyester stretch': STRETCH_RECYCLED_POLY,
   // Printing, on many garments
   'dtf print': DTF,
   'dtf print and embroidery':

@@ -159,7 +159,7 @@ export const GARMENT_FABRICS: readonly (readonly [
   composition: string,
   weight: string,
 ])[] = [
-  ['Men’s training pullover', '88% polyester, 12% spandex', '160 to 210 GSM'],
+  ['Men’s training pullover', '88% recycled polyester, 12% spandex', '160 to 210 GSM'],
   ['High-support sports bra', '95% nylon, 5% spandex', '200 to 240 GSM'],
   ['Quarter-zip running shirt', '100% recycled polyester', '180 to 220 GSM'],
   ['V-neck soccer jersey', '100% polyester', '140 to 180 GSM'],
@@ -363,7 +363,9 @@ export const GUIDES: readonly Guide[] = [
           },
           {
             kind: 'text',
-            text: 'Take the Apex Flex Pullover. It is 88% polyester and 12% spandex, 160 to 210 GSM, in a sleek athletic cut. Its features are a waffle knit, an invisible zip, a convertible stand collar, eco-poly stretch and a DTF print.',
+            // "Eco-poly" replaced with the owner's fact, 2026-11-05: all the polyester is recycled (EU law
+            // has banned generic environmental words such as "eco" since 27 Sep 2026). The CMS says the same.
+            text: 'Take the Apex Flex Pullover. It is 88% recycled polyester and 12% spandex, 160 to 210 GSM, in a sleek athletic cut. Its features are a waffle knit, an invisible zip, a convertible stand collar, recycled-polyester stretch and a DTF print.',
           },
         ],
       },
