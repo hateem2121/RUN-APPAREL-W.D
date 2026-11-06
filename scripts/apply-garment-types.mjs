@@ -58,7 +58,7 @@ export const GARMENT_TYPES = {
   'r-kmj': "Men's Softshell Jacket",
   'r-mm': "Women's Tennis Dress",
   'r-mrp': 'Tennis and Pickleball Shirt',
-  'r-mss': "Men's Softshell Commuter Suit",
+  'r-mss': "Men's Insulated Commuter Suit",
   'r-mxt': "Men's Full-Zip Training Top",
   'r-pps': "Men's Sherpa Fleece Jacket",
   'r-prs': 'Quarter-Zip Running Shirt',

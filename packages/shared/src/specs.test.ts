@@ -7,8 +7,8 @@ describe('fabricParts', () => {
       '85% Recycled Polyester',
       '15% Spandex',
     ])
-    expect(fabricParts('Shell: 100% Polyester Taslon / Lining: 100% Polyester Taffeta')).toEqual([
-      'Shell: 100% Polyester Taslon',
+    expect(fabricParts('Shell: 100% Textured Woven Polyester / Lining: 100% Polyester Taffeta')).toEqual([
+      'Shell: 100% Textured Woven Polyester',
       'Lining: 100% Polyester Taffeta',
     ])
   })

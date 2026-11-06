@@ -33,13 +33,11 @@ export const FIBRE_NOTES: Record<string, string> = {
   'genuine leather (cowhide)':
     'Real cow leather: hard-wearing, it keeps the wind out and softens with wear.',
   polychloroprene: 'The chemical name for neoprene: a rubbery foam that keeps you warm when wet.',
-  'polyester taslon':
-    'A textured woven polyester for the outer shell: light, tough and wind-resistant.',
   /*
    * The Metro-Shield Suit's corrected shell (owner, 2026-11-06): "Taslon" is a trade name, so the CMS
-   * fabric becomes "Shell: 100% Textured Woven Polyester". The approved Taslon note, word for word,
-   * under the new key. It ships before the CMS write, so the page never loses its note; the old key
-   * goes once the write is read back (`.superpowers/waves-2026-11-05/RMSS-DRY-RUN.md`, private).
+   * fabric is "Shell: 100% Textured Woven Polyester", with the approved Taslon note word for word.
+   * The new key shipped first (#331), the CMS write followed and was read back on 6 Nov 2026, and
+   * the old 'polyester taslon' key went then: no product held it any more.
    */
   'textured woven polyester':
     'A textured woven polyester for the outer shell: light, tough and wind-resistant.',
@@ -117,15 +115,12 @@ export const FEATURE_NOTES: Record<string, string> = {
   'waterproof utility zippers': 'Zippers that keep the rain out.',
   'adjustable velcro cuffs': 'Hook-and-loop tabs that tighten the cuffs against wind and rain.',
   '3d articulated shoulder panels': 'Shaped shoulder panels that let you lift and reach freely.',
-  'ripstop softshell outer shell':
-    'A tough outer shell woven with a grid that stops small tears spreading.',
-  'thermal-regulating fleece lining':
-    'A soft fleece lining that keeps you warm without overheating.',
   /*
    * The Metro-Shield Suit's corrected lining (owner, 2026-11-06): a taffeta lining with 40–60 GSM
-   * insulation, not fleece. His words for the note, built from two he had approved (the taffeta
-   * lining's and the insulation weight's). It ships before the CMS write, so the page never loses
-   * its note; the fleece key goes once the write is read back.
+   * insulation, not fleece; his words for the note. Its shell is "Textured woven polyester outer
+   * shell" (that note is under FIBRE_NOTES' 'textured woven polyester'). The old 'ripstop softshell
+   * outer shell' and 'thermal-regulating fleece lining' keys went once the CMS write was read back
+   * on 6 Nov 2026: no product held either any more.
    */
   'insulated taffeta lining': 'A smooth taffeta lining with padding inside, for warmth.',
   'reinforced knee panels': 'Extra layers at the knees, where pants wear out first.',
