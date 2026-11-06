@@ -6,6 +6,7 @@ import { formatPostDate } from '../../lib/journal'
 import { articleJsonLd, breadcrumbTrailJsonLd, caseStudiesJsonLd } from '../../lib/structuredData'
 import { ArticleImage, LinkList, SiteClosing } from './ArticleParts'
 import { Breadcrumb } from './Breadcrumb'
+import { LinkedWords } from './GuidePage'
 import { JsonLd } from './JsonLd'
 
 /**
@@ -42,6 +43,32 @@ export function CaseStudyIndex({ studies }: { studies: readonly CaseStudyView[] 
           </h1>
         </div>
       </section>
+
+      {/* Three questions, each answered first (C9, owner approved 2026-11-06), before and after the
+          first case study: the heading in its half, the answer and its points beside it, as a
+          guide's section is drawn, with an anchor each so a buyer can be sent to one. */}
+      {CASE_STUDIES_HUB.questions.map((question) => (
+        <section className="site-section" data-site-reveal key={question.id}>
+          <div className="site-container prose prose--guide spread">
+            <h2 id={question.id} className="display display--section">
+              {question.heading}
+            </h2>
+            <div className="spread__body">
+              <p>{question.answer}</p>
+              <ul className="prose__list">
+                {question.points.map((point) => (
+                  <li key={point}>
+                    <LinkedWords
+                      text={point}
+                      links={question.links.filter((link) => point.includes(link.phrase))}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      ))}
 
       {studies.length > 0 ? (
         <>

@@ -35,8 +35,6 @@ const page = (on: string, words: string): PageDate => ({ on, words })
  * that still matched. (A byline's date is its branch commit's time instead, a few hours earlier
  * for #192; this file follows `main`, where the live page changed.)
  */
-/** #152: the case studies hub's words. */
-const FINDABILITY = '2026-10-08T21:50:32+05:00'
 /** #231: the Journal hub's links to two buyer guides. */
 const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
@@ -98,7 +96,8 @@ const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
 /**
  * The tech pack guide and its template (C1, owner approved 2026-11-06): it joins the guide index and
  * the "Working with us" topic, and the privacy page gains "Template downloads". It replaced the privacy
- * page's date of 2026-11-05 (the UK regulator's new name), its last use, so that constant went with it.
+ * page's date of 2026-11-05 (the UK regulator's new name) and, with the case studies hub's three
+ * questions (C9), the hub's date of 2026-10-08 (#152): their last uses, so those constants went with them.
  */
 const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 
@@ -123,7 +122,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/working-with-us': page(TECH_PACK_AND_TOOLS, '326403c492f4'),
   '/glossary': page(TECH_PACK_AND_TOOLS, '95668581a1ce'),
   '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
-  '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
+  '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
   '/privacy': page(TECH_PACK_AND_TOOLS, '8ff169a4d426'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
