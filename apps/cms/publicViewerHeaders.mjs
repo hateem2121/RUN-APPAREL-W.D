@@ -108,6 +108,22 @@ export const GUIDE_PAGE_SOURCES = [
   // Wave 1 of the buyer library (owner's approval, 2026-11-05).
   '/guides/how-soccer-balls-are-made',
   '/guides/how-we-write-our-guides',
+  // Waves 2 to 12 of the buyer library (owner approved every word, 2026-11-06), in `GUIDES` order.
+  '/guides/how-to-vet-a-clothing-manufacturer',
+  '/guides/clothing-labels',
+  '/guides/apparel-trims',
+  '/guides/sportswear-fibers',
+  '/guides/yarn-count-and-denier',
+  '/guides/sportswear-pattern-making',
+  '/guides/stitch-and-seam-types',
+  '/guides/outerwear-and-waterproof-fabrics',
+  '/guides/dyeing-and-color-matching',
+  '/guides/garment-cutting',
+  '/guides/sportswear-compliance-by-market',
+  '/guides/apparel-manufacturing-machinery',
+  '/guides/apparel-design-software',
+  '/guides/how-to-order-team-kits',
+  '/guides/apparel-manufacturing-technology',
 ]
 
 /**

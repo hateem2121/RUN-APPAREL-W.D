@@ -2,7 +2,7 @@ import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import { FAQ_INDEX, faqTopicAt, faqTopicForGuide } from '../../lib/faqs'
 import { GLOSSARY_INDEX } from '../../lib/glossary'
 import { IntentLink as Link } from './IntentLink'
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage, wholePhoto } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
 import { familyPageFor } from '../../lib/familyPages'
@@ -11,8 +11,10 @@ import {
   type Guide,
   type GuideBlock,
   type GuideGarments,
+  type GuideLink,
   type GuideSource,
   guideAt,
+  legalLine,
   READ_NEXT,
 } from '../../lib/guides'
 import { formatPostDate } from '../../lib/journal'
@@ -26,11 +28,87 @@ import { OrderSteps } from './OrderSteps'
 import { PhotoStage } from './PhotoStage'
 
 /** A block's React key: its own first words, so a list of blocks keys without an index. */
-function blockKey(block: GuideBlock): string {
+export function blockKey(block: GuideBlock): string {
   if (block.kind === 'orderSteps') return 'order-steps'
   if (block.kind === 'table') return block.caption
   if (block.kind === 'list') return block.items[0] ?? 'list'
+  // One legal line per section, so its date keys it within the section.
+  if (block.kind === 'legal') return `legal-${block.checked}`
   return 'title' in block ? block.title : block.text
+}
+
+/**
+ * One link inside a guide's words (`GuideLink`). A garment (`/products/<slug>`) links to its default
+ * colour's page, read from the live catalogue as the garment links at a guide's end are: the address
+ * without a colour answers only the viewer's empty shell (measured live, 2026-11-06: no title of its
+ * own, no canonical). It is a plain anchor, because the viewer Worker draws garment pages, not Next.
+ * A garment the catalogue does not hold is drawn as plain words, never linked dead. Every other page
+ * is a site page and gets the site's link (`IntentLink`).
+ */
+function GuideAnchor({ link, cards }: { link: GuideLink; cards: readonly ProductCard[] }) {
+  if (link.href.startsWith(`${GARMENT_PATH_PREFIX}/`)) {
+    const slug = link.href.slice(GARMENT_PATH_PREFIX.length + 1)
+    const card = cards.find((entry) => entry.slug === slug)
+    if (!card) return link.phrase
+    return (
+      <a
+        className="guide-link"
+        href={buildViewerPath(card.slug, card.defaultColourSlug, GARMENT_PATH_PREFIX)}
+      >
+        {link.phrase}
+      </a>
+    )
+  }
+  return (
+    <Link className="guide-link" href={link.href}>
+      {link.phrase}
+    </Link>
+  )
+}
+
+/**
+ * Words with their links (`GuideLink`): each phrase becomes a link where it first appears, and the
+ * words around it are drawn as they are. A phrase not found is drawn as plain words (`guides.test.ts`
+ * fails it before it ships), and one inside an earlier link's words is left plain, so links never nest.
+ */
+export function LinkedWords({
+  text,
+  links,
+  cards = [],
+}: {
+  text: string
+  links?: readonly GuideLink[]
+  cards?: readonly ProductCard[]
+}) {
+  if (!links?.length) return text
+  const spots = links
+    .flatMap((link) => {
+      const at = text.indexOf(link.phrase)
+      return at < 0 ? [] : [{ at, end: at + link.phrase.length, link }]
+    })
+    .sort((a, b) => a.at - b.at)
+  const parts: ReactNode[] = []
+  let from = 0
+  for (const spot of spots) {
+    if (spot.at < from) continue
+    parts.push(<Fragment key={`w${from}`}>{text.slice(from, spot.at)}</Fragment>)
+    parts.push(<GuideAnchor key={`a${spot.at}`} link={spot.link} cards={cards} />)
+    from = spot.end
+  }
+  parts.push(<Fragment key={`w${from}`}>{text.slice(from)}</Fragment>)
+  return parts
+}
+
+/** A list's links, each given only to the first item that holds its phrase. */
+function linksByItem(items: readonly string[], links: readonly GuideLink[] = []) {
+  const given = new Set<GuideLink>()
+  return items.map((item) =>
+    links.filter((link) => {
+      if (given.has(link) || !item.includes(link.phrase)) return false
+      given.add(link)
+      return true
+    }),
+  )
 }
 
 /**
@@ -44,11 +122,25 @@ function blockKey(block: GuideBlock): string {
  * `FactsBento.tsx`; №06 until 2026-10-16), so the guides add no claim the site does not
  * already make.
  */
-export function Block({ block }: { block: GuideBlock }) {
+export function Block({
+  block,
+  cards = [],
+}: {
+  block: GuideBlock
+  /** The live catalogue, so a link to a garment finds its default colour (`GuideAnchor`). */
+  cards?: readonly ProductCard[]
+}) {
   // The home page's eight cards, not a copy (polish D4, the owner's answer Q41).
   if (block.kind === 'orderSteps') return <OrderSteps />
   if (block.kind === 'table') return <GuideTable block={block} />
-  if (block.kind === 'text') return <p>{block.text}</p>
+  if (block.kind === 'text') {
+    return (
+      <p>
+        <LinkedWords text={block.text} links={block.links} cards={cards} />
+      </p>
+    )
+  }
+  if (block.kind === 'legal') return <p className="guide-legal">{legalLine(block.checked)}</p>
   if (block.kind === 'label') return <p className="subhead">{block.text}</p>
   if (block.kind === 'point') {
     return (
@@ -59,10 +151,13 @@ export function Block({ block }: { block: GuideBlock }) {
     )
   }
   const List = block.ordered ? 'ol' : 'ul'
+  const itemLinks = linksByItem(block.items, block.links)
   return (
     <List className="prose__list">
-      {block.items.map((item) => (
-        <li key={item}>{item}</li>
+      {block.items.map((item, index) => (
+        <li key={item}>
+          <LinkedWords text={item} links={itemLinks[index]} cards={cards} />
+        </li>
       ))}
     </List>
   )
@@ -325,7 +420,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
             {guide.heading} <span className="serif-accent">{guide.headingAccent}</span>
           </h1>
           <p className="site-lede">{guide.lede}</p>
-          <Byline path={guide.path} />
+          <Byline path={guide.path} reviewed={guide.reviewed} />
         </div>
       </section>
 
@@ -350,7 +445,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
               <PhotoStage photo={wholePhoto(section.stage)}>
                 {heading}
                 {section.blocks.map((block) => (
-                  <Block key={blockKey(block)} block={block} />
+                  <Block key={blockKey(block)} block={block} cards={cards} />
                 ))}
               </PhotoStage>
               {garments}
@@ -394,7 +489,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
                 )}
                 <div className="spread__body">
                   {section.blocks.map((block) => (
-                    <Block key={blockKey(block)} block={block} />
+                    <Block key={blockKey(block)} block={block} cards={cards} />
                   ))}
                 </div>
               </div>

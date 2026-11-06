@@ -13,7 +13,7 @@ import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
 import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
 import { GLOSSARY_CATEGORIES, termsIn } from './glossary'
 import { authorName, bylineFor } from './bylines'
-import { GUIDES, type Guide, type GuideBlock } from './guides'
+import { GUIDES, type Guide, type GuideBlock, legalLine } from './guides'
 import { ORDER_PHASES } from './orderProcess'
 import type { ProductCard } from './projectPublic'
 
@@ -24,6 +24,8 @@ function renderBlock(block: GuideBlock): string {
   switch (block.kind) {
     case 'text':
       return `${block.text}\n`
+    case 'legal':
+      return `*${legalLine(block.checked)}*\n`
     case 'label':
       return `\n*${block.text}*\n`
     case 'point':

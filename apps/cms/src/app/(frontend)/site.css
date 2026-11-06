@@ -3586,6 +3586,31 @@ a.contact-block__value:active {
 }
 
 /*
+ * A link inside a guide's words (the buyer library, 2026-11-06; `GuideLink` in guides.ts says why
+ * it is inline): the words keep their size and colour and take the ruled underline the buyer pages'
+ * "What we make" links use (`.makes-link`), darkening on hover.
+ */
+.guide-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guide-link:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* The owner's legal line under a section that states a law (`legalLine`): small and quiet, as a note. */
+.prose .guide-legal {
+  margin-top: 16px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/*
  * ⚠️ A GUIDE'S TABLE (polish X22): the printing guide's seven methods and what each suits, which
  * the audit of 3 October 2026 found as a paragraph. The first one on the site. A table at the
  * guides' measure, so its right edge is the paragraphs' (28.635em, above), with the caption in the

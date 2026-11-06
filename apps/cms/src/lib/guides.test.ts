@@ -5,11 +5,21 @@ import { describe, expect, it } from 'vitest'
 import { GUIDE_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
+import { escapeRegExp } from '../../regexEscape.mjs'
 import { FACTORY_PAGE } from './aboutPages'
 import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { FACTORY_PHOTOS, WHOLE_PHOTOS } from './factoryPhotos'
-import { GARMENT_FABRICS, GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from './guides'
+import { GLOSSARY_TERMS } from './glossary'
+import {
+  GARMENT_FABRICS,
+  GUIDE_PATHS,
+  GUIDES,
+  GUIDES_INDEX,
+  guideAt,
+  legalLine,
+  READ_NEXT,
+} from './guides'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
 import { ORDER_PHASES } from './orderProcess'
@@ -47,7 +57,9 @@ const everyWord = (guide: (typeof GUIDES)[number]): string =>
                     phase.name,
                     ...phase.steps.flatMap((step) => [step.title, step.body]),
                   ])
-                : [block.text],
+                : block.kind === 'legal'
+                  ? [legalLine(block.checked)]
+                  : [block.text],
       ),
     ]),
   ].join('\n')
@@ -179,6 +191,14 @@ describe('the words state only what the site already states', () => {
     expect(words).toContain('not a color match')
   })
 
+  /*
+   * The vetting guide (buyer library, owner approved 2026-11-06) explains the certificates and social
+   * audits a buyer may be shown, by each scheme's own name (OEKO-TEX, SMETA on Sedex, ISO 9001), so
+   * a buyer can check them. It claims none for RUN, says whose name each is in, and never says
+   * "certified" or names GOTS, which stay refused there as everywhere.
+   */
+  const NAMES_THE_SCHEMES = new Set(['/guides/how-to-vet-a-clothing-manufacturer'])
+
   for (const guide of GUIDES) {
     it(`${guide.path}: no printing method, lead time, certificate, founding year or invented proof`, () => {
       const words = without(everyWord(guide))
@@ -187,11 +207,21 @@ describe('the words state only what the site already states', () => {
         expect(words).not.toMatch(/sublimat|embroider/i)
       }
       expect(words).not.toMatch(/\d+\s*(?:–|-|to)\s*\d+\s*days/i)
-      expect(words).not.toMatch(/certified|OEKO|GOTS|SMETA|SEDEX|ISO\s?9001/i)
-      expect(words).not.toMatch(/1889|since \d{4}|founded|established/i)
+      expect(words).not.toMatch(
+        NAMES_THE_SCHEMES.has(guide.path)
+          ? /certified|GOTS/i
+          : /certified|OEKO|GOTS|SMETA|SEDEX|ISO\s?9001/i,
+      )
+      // 1889 as a year, never inside a standard's number (the pattern-making guide cites ISO 18890).
+      expect(words).not.toMatch(/\b1889\b|since \d{4}|founded|established/i)
       expect(words).not.toMatch(/trusted by|\d+\+?\s*(?:brands|teams|clients|customers)/i)
     })
   }
+
+  it('NEGATIVE CONTROL: the year 1889 is still caught, and a standard’s number is not', () => {
+    expect('The works dates from 1889.').toMatch(/\b1889\b/)
+    expect('ISO 18890 sets the size designation.').not.toMatch(/\b1889\b/)
+  })
 })
 
 describe("the three guides built from the owner's own facts (2026-09-30)", () => {
@@ -347,6 +377,33 @@ describe('a guide shows a factory photo only beside words that name it (polish X
    */
   const STAGED_BY = [
     ['/guides/how-soccer-balls-are-made', 'On our floor', 'whole-ball-stitching', 'hand-stitched'],
+    // The buyer library (owner approved 2026-11-06): the stitching floor, the end of the line and the
+    // ball hall, each behind words that name it.
+    [
+      '/guides/how-to-vet-a-clothing-manufacturer',
+      'What we can show you',
+      'whole-stitching',
+      'stitching floor',
+    ],
+    ['/guides/stitch-and-seam-types', 'On our floor', 'whole-stitching', 'Our stitching floor'],
+    [
+      '/guides/apparel-manufacturing-machinery',
+      'What are the main types of industrial sewing machine?',
+      'whole-stitching',
+      'industrial sewing line',
+    ],
+    [
+      '/guides/apparel-manufacturing-machinery',
+      'How are finished garments checked and packed?',
+      'whole-tagging',
+      'tagged',
+    ],
+    [
+      '/guides/apparel-manufacturing-machinery',
+      'Soccer balls: what does a ball line use?',
+      'whole-ball-stitching',
+      'stitched by hand',
+    ],
   ] as const
 
   it('shows exactly the whole photos listed, in the sections listed, each a real whole photo', () => {
@@ -412,13 +469,15 @@ describe('garments and read-next links (2026-10-08)', () => {
   // a catalogue with one ball cannot give three picks, so it links that one.
   const ONE_PICK = new Set(['/guides/how-soccer-balls-are-made'])
 
-  it('links garments from the 3D, printing, fabrics and ball guides only, each after a real section', () => {
+  it('links garments from the 3D, printing, fabrics, ball and outerwear guides only, each after a real section', () => {
     const withGarments = GUIDES.filter((guide) => guide.garments).map((guide) => guide.path)
     expect(withGarments).toEqual([
       '/guides/3d-garment-reference',
       '/guides/garment-printing-methods',
       '/guides/sportswear-fabrics-and-weights',
       '/guides/how-soccer-balls-are-made',
+      // The buyer library (owner approved 2026-11-06): three outerwear garments, each re-read live.
+      '/guides/outerwear-and-waterproof-fabrics',
     ])
     for (const guide of GUIDES) {
       if (!guide.garments) continue
@@ -474,10 +533,211 @@ describe('a guide’s sources (2026-10-08)', () => {
   const BALL_BODIES =
     /^https:\/\/(?:www\.)?(?:theifab\.com|thefa\.com|futurefit\.englandfootball\.com|usyouthsoccer\.org|inside\.fifa\.com|digitalhub\.fifa\.com|doi\.org|imacpak\.org|ilo\.org)\//
   const GOOGLE_GUIDANCE = /^https:\/\/developers\.google\.com\/search\/docs\//
+  /*
+   * The buyer library (owner approved every word, 2026-11-06; his rule: never a manufacturer’s or a
+   * seller’s page). Each guide may quote only the hosts it was researched on: standards bodies,
+   * governments and their law sites, universities, journals by DOI, the schemes it explains, the
+   * game’s rule makers, and, in the software guide only, each program’s own documentation. A new
+   * source on any other host fails here until its host is added on purpose.
+   */
+  const hosts = (...names: string[]) =>
+    new RegExp(`^https://(?:www\\.)?(?:${names.map(escapeRegExp).join('|')})/`)
   const HOSTS_FOR: Readonly<Record<string, RegExp>> = {
     '/guides/pakistan-vs-china-vs-turkey': OFFICIAL,
     '/guides/how-soccer-balls-are-made': BALL_BODIES,
     '/guides/how-we-write-our-guides': GOOGLE_GUIDANCE,
+    '/guides/how-to-vet-a-clothing-manufacturer': hosts(
+      'amfori.org',
+      'cbp.gov',
+      'content.govdelivery.com',
+      'dhs.gov',
+      'dol.gov',
+      'eservices.secp.gov.pk',
+      'fbr.gov.pk',
+      'gov.uk',
+      'ic3.gov',
+      'ilo.org',
+      'inside.fifa.com',
+      'iso.org',
+      'mywrapcompliance.org',
+      'ncsc.gov.uk',
+      'oecd.org',
+      'oeil.europarl.europa.eu',
+      'oeko-tex.com',
+      'sa-intl.org',
+      'sedex.com',
+      'taxation-customs.ec.europa.eu',
+      'textileexchange.org',
+      'trade.ec.europa.eu',
+      'transition-pathways.europa.eu',
+      'ustr.gov',
+      'wrapcompliance.org',
+    ),
+    '/guides/clothing-labels': hosts(
+      'businesscompanion.info',
+      'competition-bureau.canada.ca',
+      'cpsc.gov',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'europa.eu',
+      'evs.ee',
+      'federalregister.gov',
+      'ftc.gov',
+      'ginetex.net',
+      'gov.uk',
+      'govinfo.gov',
+      'inside.fifa.com',
+      'legislation.gov.au',
+      'legislation.gov.uk',
+      'publications.gc.ca',
+      'single-market-economy.ec.europa.eu',
+      'store.astm.org',
+      'theifab.com',
+    ),
+    '/guides/apparel-trims': hosts(
+      'boutique.afnor.org',
+      'cpsc.gov',
+      'ecc.isc.ac',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'evs.ee',
+      'hts.usitc.gov',
+      'inside.fifa.com',
+      'store.astm.org',
+      'store.uni.com',
+    ),
+    '/guides/sportswear-fibers': hosts(
+      'doi.org',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'ftc.gov',
+      'gov.uk',
+      'iso.org',
+      'textileexchange.org',
+    ),
+    '/guides/yarn-count-and-denier': hosts(
+      'archive.nptel.ac.in',
+      'doi.org',
+      'eur-lex.europa.eu',
+      'iso.org',
+      'nist.gov',
+      'store.astm.org',
+    ),
+    '/guides/sportswear-pattern-making': hosts(
+      'doi.org',
+      'eur-lex.europa.eu',
+      'evs.ee',
+      'iso.org',
+      'sis.se',
+      'store.astm.org',
+      'support.clo3d.com',
+    ),
+    '/guides/stitch-and-seam-types': hosts(
+      'digitalcommons.usu.edu',
+      'doi.org',
+      'inside.fifa.com',
+      'iso.org',
+      'store.astm.org',
+    ),
+    '/guides/outerwear-and-waterproof-fabrics': hosts(
+      'astm.org',
+      'committee.iso.org',
+      'dec.ny.gov',
+      'doi.org',
+      'evs.ee',
+      'members.aatcc.org',
+      'nist.gov',
+      'trade-tariff.service.gov.uk',
+    ),
+    '/guides/dyeing-and-color-matching': hosts(
+      'cie.co.at',
+      'committee.iso.org',
+      'doi.org',
+      'ecfr.gov',
+      'epa.gov',
+      'eur-lex.europa.eu',
+      'members.aatcc.org',
+      'store.astm.org',
+    ),
+    '/guides/garment-cutting': hosts(
+      'arxiv.org',
+      'doi.org',
+      'hdl.handle.net',
+      'onetonline.org',
+      'web.archive.org',
+    ),
+    '/guides/sportswear-compliance-by-market': hosts(
+      'business.gov.au',
+      'cbp.gov',
+      'cbsa-asfc.gc.ca',
+      'competition-bureau.canada.ca',
+      'cpsc.gov',
+      'dec.ny.gov',
+      'dhs.gov',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'federalregister.gov',
+      'gov.uk',
+      'laws-lois.justice.gc.ca',
+      'legifrance.gouv.fr',
+      'legislation.gov.au',
+      'legislation.gov.uk',
+      'legislature.maine.gov',
+      'legislature.vermont.gov',
+      'oeil.europarl.europa.eu',
+      'revisor.mn.gov',
+      'transition-pathways.europa.eu',
+      'ustr.gov',
+    ),
+    '/guides/apparel-manufacturing-machinery': hosts(
+      'catalog.ncsu.edu',
+      'doi.org',
+      'engineeringsport.co.uk',
+      'inside.fifa.com',
+      'iso.org',
+      'jtatm.textiles.ncsu.edu',
+      'onetonline.org',
+    ),
+    '/guides/apparel-design-software': hosts(
+      'catalog.fitnyc.edu',
+      'catalog.ncsu.edu',
+      'doi.org',
+      'freesewing.eu',
+      'github.com',
+      'gitlab.com',
+      'help.browzwear.com',
+      'help.style3d.com',
+      'khronos.org',
+      'npmjs.com',
+      'opensource.org',
+      'store.astm.org',
+      'support.clo3d.com',
+      'support.marvelousdesigner.com',
+    ),
+    '/guides/how-to-order-team-kits': hosts(
+      'bucksfa.freshdesk.com',
+      'iso.org',
+      'nfhs.org',
+      'northumberlandfa.com',
+      'ohsaa.org',
+      'theifab.com',
+    ),
+    '/guides/apparel-manufacturing-technology': hosts(
+      'dec.ny.gov',
+      'doi.org',
+      'eur-lex.europa.eu',
+      'europarl.europa.eu',
+      'gs1us.org',
+      'ideas.repec.org',
+      'ilo.org',
+      'inside.fifa.com',
+      'nfc-forum.org',
+      'ref-pd.gs1.org',
+      'single-market-economy.ec.europa.eu',
+      'supplychain.gs1us.org',
+      'susproc.jrc.ec.europa.eu',
+      'transition-pathways.europa.eu',
+    ),
   }
 
   it('lists only the pages each guide may quote, each dated', () => {
@@ -708,7 +968,9 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
             ? [...block.items]
             : block.kind === 'point'
               ? [block.title, block.text]
-              : block.kind === 'table' || block.kind === 'orderSteps'
+              : // The owner's legal line is one sentence under every law section, by his rule
+                // (the buyer library, 2026-11-05), so it is not a repeat.
+                block.kind === 'table' || block.kind === 'orderSteps' || block.kind === 'legal'
                 ? []
                 : [block.text],
         ),
@@ -766,5 +1028,85 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     }
     expect(repeatsIn(twice).length).toBeGreaterThan(0)
     expect(repeatsIn(guide)).toEqual([])
+  })
+})
+
+/*
+ * Links inside a guide's words (the buyer library, owner approved 2026-11-06; `GuideLink`). Each
+ * one's phrase must be in its own block's words, or the page draws it as plain words and the link
+ * is silently lost; and each must point somewhere real: another guide, a glossary term or FAQ entry
+ * that exists, a garment address, or one of the site's public pages.
+ */
+describe('links inside a guide’s words (buyer library, 2026-11-06)', () => {
+  type Linked = { path: string; phrase: string; href: string; words: readonly string[] }
+  const linkedIn = (guides: readonly (typeof GUIDES)[number][]): Linked[] =>
+    guides.flatMap((guide) =>
+      guide.sections.flatMap((section) =>
+        section.blocks.flatMap((block) =>
+          block.kind === 'text' || block.kind === 'list'
+            ? (block.links ?? []).map((link) => ({
+                path: guide.path,
+                ...link,
+                words: block.kind === 'text' ? [block.text] : block.items,
+              }))
+            : [],
+        ),
+      ),
+    )
+
+  /** The FAQ topic page an entry is on, or null for an id no topic holds. */
+  const faqTopicOf = (id: string): string | null => {
+    try {
+      return faqEntryById(id).topic.path
+    } catch {
+      return null
+    }
+  }
+
+  /** Everything wrong with one link, as sentences. */
+  function linkProblems({ path, phrase, href, words }: Linked): string[] {
+    const problems: string[] = []
+    if (!words.some((entry) => entry.includes(phrase))) {
+      problems.push(`${path}: "${phrase}" is not in its block's words`)
+    }
+    const [page = '', anchor] = href.split('#')
+    if (page === path) problems.push(`${path}: "${phrase}" links to its own page`)
+    if (page.startsWith('/guides/')) {
+      if (!GUIDE_PATHS.includes(page)) problems.push(`${path}: "${phrase}" → no guide ${page}`)
+    } else if (page.startsWith('/products/')) {
+      if (!/^\/products\/[a-z0-9-]+$/.test(page)) problems.push(`${path}: "${phrase}" → ${href}`)
+    } else if (page === '/glossary' && anchor) {
+      if (!GLOSSARY_TERMS.some((term) => term.id === anchor)) {
+        problems.push(`${path}: "${phrase}" → no glossary term ${anchor}`)
+      }
+    } else if (page.startsWith('/faq') && anchor) {
+      if (faqTopicOf(anchor) !== page) problems.push(`${path}: "${phrase}" → no FAQ entry ${href}`)
+    } else if (!PUBLIC_PAGE_SOURCES.includes(page)) {
+      problems.push(`${path}: "${phrase}" → ${href} is not a public page`)
+    }
+    return problems
+  }
+
+  it('every link’s phrase is in its block, and every link points somewhere real', () => {
+    const linked = linkedIn(GUIDES)
+    // The library's new guides link to each other and to the site's pages (140 when built).
+    expect(linked.length).toBeGreaterThan(100)
+    expect(linked.flatMap(linkProblems)).toEqual([])
+  })
+
+  // NEGATIVE CONTROL, run both ways: each kind of wrong link is named; the real links name nothing (above).
+  it('sees a phrase not in its words, a missing guide, term, entry or page', () => {
+    const planted = (phrase: string, href: string): Linked => ({
+      path: '/guides/clothing-labels',
+      phrase,
+      href,
+      words: ['Care symbols are in our trims guide.'],
+    })
+    expect(linkProblems(planted('our fabrics guide', '/guides/apparel-trims'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/guides/no-such-guide'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/glossary#no-such-term'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/faq/working-with-us#no-such'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/no-such-page'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/guides/apparel-trims'))).toEqual([])
   })
 })

@@ -10,6 +10,7 @@ import {
   SAMPLE_TIME,
 } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
+import { LIBRARY_GUIDES } from './guideLibrary'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
 
@@ -33,13 +34,39 @@ import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
  * route folder under `(frontend)/guides/`. `guides.test.ts` fails when the three differ.
  */
 
+/**
+ * A link inside a guide's words (the buyer library, owner approved 2026-11-06): the first time
+ * `phrase` appears in the block's words, it is drawn as a link to `href`. The words stay exactly as
+ * approved; the link only marks some of them. Google's "Link best practices" (updated 2025-12-10)
+ * asks for crawlable `<a href>` links with descriptive anchor text, which a phrase such as "our
+ * fabrics guide" is.
+ *
+ * `href` is another guide, a glossary term (`/glossary#id`), an FAQ entry (`/faq/<topic>#id`), a
+ * garment page (`/products/<slug>`), the contact page or another public page. `guides.test.ts`
+ * checks every one points somewhere real and every phrase is in its block's words.
+ *
+ * A link in a sentence is the "inline" exception of WCAG 2.2's target-size rule (2.5.8): its height
+ * is the line's. The 44px rows stay the rule for the links at a guide's end (`.see-also__list`).
+ */
+export type GuideLink = { readonly phrase: string; readonly href: string }
+
+/**
+ * The owner's line under every section that states a law, a duty or a tax (the buyer library,
+ * 2026-11-05): the date it was checked, and that it is not advice. One sentence on every such
+ * section by his rule, so the repeat check in `guides.test.ts` leaves it out.
+ */
+export const LEGAL_ADVICE = 'Not legal or tax advice; confirm with your customs broker or adviser.'
+export const legalLine = (checked: string): string => `Checked on ${checked}. ${LEGAL_ADVICE}`
+
 export type GuideBlock =
-  | { kind: 'text'; text: string }
+  | { kind: 'text'; text: string; links?: readonly GuideLink[] }
   /** A small mono label over the blocks that follow (a stage of the order). */
   | { kind: 'label'; text: string }
   /** A titled point: a step, or a term and what it means. */
   | { kind: 'point'; title: string; text: string }
-  | { kind: 'list'; ordered?: boolean; items: readonly string[] }
+  | { kind: 'list'; ordered?: boolean; items: readonly string[]; links?: readonly GuideLink[] }
+  /** The owner's legal line (`legalLine`), with the day the section's law was checked. */
+  | { kind: 'legal'; checked: string }
   /**
    * The home page's eight order steps, drawn as they are there (`OrderSteps`; polish D4, the
    * owner's answer Q41): one list for the steps wherever they are told, never a copy typed here.
@@ -119,6 +146,12 @@ export type Guide = {
   readonly sections: readonly GuideSection[]
   readonly garments?: GuideGarments
   readonly sources?: readonly GuideSource[]
+  /**
+   * The day the owner's team last reviewed a guide whose subject moves every quarter (ISO date), drawn
+   * as "Last reviewed" beside the byline's date. Only the technology guide has one (owner's
+   * instruction, 2026-11-06): its words say it "carries two dates", so the page must show both.
+   */
+  readonly reviewed?: string
 }
 
 const fact = (prefix: string): string =>
@@ -2063,6 +2096,8 @@ export const GUIDES: readonly Guide[] = [
       },
     ],
   },
+  // The buyer library's new guides, waves 2 to 12 (owner approved every word, 2026-11-06).
+  ...LIBRARY_GUIDES,
 ]
 
 /**
@@ -2122,6 +2157,82 @@ export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
   '/guides/how-we-write-our-guides': [
     '/guides/how-a-private-label-order-works',
     '/guides/pakistan-vs-china-vs-turkey',
+  ],
+  // The buyer library (owner approved 2026-11-06): each draft's own proposal. The software guide's
+  // third, the tech pack guide, joins when that guide is published with its download.
+  '/guides/how-to-vet-a-clothing-manufacturer': [
+    '/guides/how-a-private-label-order-works',
+    '/guides/pakistan-vs-china-vs-turkey',
+    '/guides/cost-to-start-an-activewear-brand',
+  ],
+  '/guides/clothing-labels': [
+    '/guides/private-label-packaging',
+    '/guides/apparel-trims',
+    '/guides/how-a-private-label-order-works',
+  ],
+  '/guides/apparel-trims': [
+    '/guides/clothing-labels',
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/minimum-order-and-samples',
+  ],
+  '/guides/sportswear-fibers': [
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/yarn-count-and-denier',
+    '/guides/clothing-labels',
+  ],
+  '/guides/yarn-count-and-denier': [
+    '/guides/sportswear-fibers',
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/how-a-private-label-order-works',
+  ],
+  '/guides/sportswear-pattern-making': [
+    '/guides/minimum-order-and-samples',
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/3d-garment-reference',
+  ],
+  '/guides/stitch-and-seam-types': [
+    '/guides/sportswear-pattern-making',
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/how-soccer-balls-are-made',
+  ],
+  '/guides/outerwear-and-waterproof-fabrics': [
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/shipping-and-import-duties',
+    '/guides/apparel-trims',
+  ],
+  '/guides/dyeing-and-color-matching': [
+    '/guides/garment-printing-methods',
+    '/guides/sportswear-fabrics-and-weights',
+    '/guides/minimum-order-and-samples',
+  ],
+  '/guides/garment-cutting': [
+    '/guides/sportswear-pattern-making',
+    '/guides/minimum-order-and-samples',
+    '/guides/garment-printing-methods',
+  ],
+  '/guides/sportswear-compliance-by-market': [
+    '/guides/clothing-labels',
+    '/guides/how-to-vet-a-clothing-manufacturer',
+    '/guides/apparel-trims',
+  ],
+  '/guides/apparel-manufacturing-machinery': [
+    '/guides/stitch-and-seam-types',
+    '/guides/garment-cutting',
+    '/guides/how-to-vet-a-clothing-manufacturer',
+  ],
+  '/guides/apparel-design-software': [
+    '/guides/sportswear-pattern-making',
+    '/guides/3d-garment-reference',
+  ],
+  '/guides/how-to-order-team-kits': [
+    '/guides/minimum-order-and-samples',
+    '/guides/garment-printing-methods',
+    '/guides/how-soccer-balls-are-made',
+  ],
+  '/guides/apparel-manufacturing-technology': [
+    '/guides/3d-garment-reference',
+    '/guides/clothing-labels',
+    '/guides/sportswear-compliance-by-market',
   ],
 }
 
