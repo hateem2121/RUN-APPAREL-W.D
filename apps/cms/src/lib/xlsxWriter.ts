@@ -214,7 +214,8 @@ export function workbookParts(book: Workbook): [string, string][] {
     ['xl/_rels/workbook.xml.rels', workbookRels],
     ['xl/styles.xml', STYLES],
     ...book.sheets.map(
-      (sheet, i) => [`xl/worksheets/sheet${i + 1}.xml`, sheetXml(sheet, i === 0)] as [string, string],
+      (sheet, i) =>
+        [`xl/worksheets/sheet${i + 1}.xml`, sheetXml(sheet, i === 0)] as [string, string],
     ),
   ]
 }
@@ -238,7 +239,8 @@ export function crc32(bytes: Uint8Array): number {
 
 /** A zip of stored (uncompressed) entries, every one dated `date` at midnight. */
 export function storedZip(entries: readonly [string, Uint8Array][], date: Date): Uint8Array {
-  const dosDate = ((date.getUTCFullYear() - 1980) << 9) | ((date.getUTCMonth() + 1) << 5) | date.getUTCDate()
+  const dosDate =
+    ((date.getUTCFullYear() - 1980) << 9) | ((date.getUTCMonth() + 1) << 5) | date.getUTCDate()
   const encoder = new TextEncoder()
   const locals: Uint8Array[] = []
   const centrals: Uint8Array[] = []

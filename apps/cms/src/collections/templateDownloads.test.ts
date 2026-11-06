@@ -35,6 +35,24 @@ describe('who downloaded the tech-pack template', () => {
     )
   })
 
+  it('no save can change what was recorded; only the date to delete by moves', () => {
+    const updateRule = (name: string) => {
+      const field = TemplateDownloads.fields.find((f) => 'name' in f && f.name === name) as
+        | { access?: { update?: (args: unknown) => unknown } }
+        | undefined
+      return field?.access?.update
+    }
+    const named = TemplateDownloads.fields.flatMap((f) => ('name' in f ? [f.name] : []))
+    expect(named.length).toBeGreaterThan(10)
+    for (const name of named) {
+      if (name === 'deleteAfter') continue
+      // A signed-in admin's REST PATCH is refused field by field (security review, 6 Nov 2026).
+      expect(updateRule(name)?.({ req: { user: adminPerson } }), name).toBe(false)
+    }
+    // NEGATIVE CONTROL: the one field a person moves has no such rule.
+    expect(updateRule('deleteAfter')).toBeUndefined()
+  })
+
   it('records the yes to updates as read-only facts', () => {
     const field = (name: string) =>
       TemplateDownloads.fields.find((f) => 'name' in f && f.name === name) as

@@ -46,7 +46,8 @@ export function clientAddress(request: Request): string {
 type MailMessage = {
   /** The sender's display name: "RUN APPAREL inquiries", "RUN APPAREL careers". */
   fromName: string
-  to: string
+  /** One address, or several (the template download's notice goes to two, owner 6 Nov 2026). */
+  to: string | readonly string[]
   /** Hitting Reply in any mail client answers the person, not the robot. Left out when empty. */
   replyTo?: string
   subject: string
@@ -66,7 +67,7 @@ export async function sendNotification(
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         from: `${mail.fromName} <${FROM}>`,
-        to: [mail.to],
+        to: typeof mail.to === 'string' ? [mail.to] : [...mail.to],
         ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
         subject: mail.subject,
         text: mail.text,
@@ -146,7 +147,7 @@ export async function saveFiles(
 
 /** Write the outcome onto the row. Never fails the request: the row exists, and that is what matters. */
 export async function annotate(
-  collection: SubmissionStorage['collection'],
+  collection: SubmissionStorage['collection'] | 'template-downloads',
   id: string | number,
   data: Record<string, unknown>,
 ): Promise<void> {

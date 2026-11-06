@@ -107,22 +107,28 @@ const headerHeight = (text: string, width: number) =>
   Math.max(18, Math.ceil(text.length / Math.max(width - 1, 1)) * 12.5 + 5)
 
 /** A table: one header row, then `count` empty rows (or the given first-column labels). */
-function table(headers: readonly string[], count: number, labels: readonly string[] = []): Cell[][] {
+function table(
+  headers: readonly string[],
+  count: number,
+  labels: readonly string[] = [],
+): Cell[][] {
   const rows: Cell[][] = [headers.map((h) => c(h, 'header'))]
   const n = Math.max(count, labels.length)
   for (let r = 0; r < n; r++) {
     const label = labels[r]
     rows.push(
-      headers.map((_, i) =>
-        i === 0 && label !== undefined ? c(label, 'label') : blank('input'),
-      ),
+      headers.map((_, i) => (i === 0 && label !== undefined ? c(label, 'label') : blank('input'))),
     )
   }
   return rows
 }
 
 /** Two columns: a label and the buyer's answer, merged across the rest of the page. */
-function fields(labels: readonly string[], width: number, startRow: number): {
+function fields(
+  labels: readonly string[],
+  width: number,
+  startRow: number,
+): {
   rows: Cell[][]
   merges: string[]
 } {
@@ -224,8 +230,18 @@ const SHEETS: readonly Sheet[] = [
     const tableStart = start + 4
     return {
       rows: [
-        [blank('plain'), c('Front', 'header'), c('Back', 'header'), c('Side or inside, where it helps', 'header')],
-        [blank('plain'), c('Draw or paste the front here', 'drawing'), c('Draw or paste the back here', 'drawing'), c('Draw or paste it here', 'drawing')],
+        [
+          blank('plain'),
+          c('Front', 'header'),
+          c('Back', 'header'),
+          c('Side or inside, where it helps', 'header'),
+        ],
+        [
+          blank('plain'),
+          c('Draw or paste the front here', 'drawing'),
+          c('Draw or paste the back here', 'drawing'),
+          c('Draw or paste it here', 'drawing'),
+        ],
         spacer(),
         [c('Callouts', 'section')],
         ...callouts,
@@ -250,7 +266,16 @@ const SHEETS: readonly Sheet[] = [
           'Supplied by (you or us)',
         ],
         14,
-        ['Main fabric', 'Contrast fabric', 'Lining', 'Thread', 'Zipper', 'Trims', 'Labels', 'Packaging'],
+        [
+          'Main fabric',
+          'Contrast fabric',
+          'Lining',
+          'Thread',
+          'Zipper',
+          'Trims',
+          'Labels',
+          'Packaging',
+        ],
       ),
       spacer(),
       [c('We can sew in or apply labels and trims you send us.', 'note')],
@@ -259,11 +284,16 @@ const SHEETS: readonly Sheet[] = [
   page(4, [24, 22, 22, 22, 22], () => ({
     rows: [
       [c('Give each color’s Pantone reference.', 'note')],
-      ...table(
-        ['Part', 'Colorway 1', 'Colorway 2', 'Colorway 3', 'Colorway 4'],
-        12,
-        ['Colorway name', 'Body', 'Sleeves', 'Collar or neck', 'Cuffs and hem', 'Trims', 'Thread', 'Print colors'],
-      ),
+      ...table(['Part', 'Colorway 1', 'Colorway 2', 'Colorway 3', 'Colorway 4'], 12, [
+        'Colorway name',
+        'Body',
+        'Sleeves',
+        'Collar or neck',
+        'Cuffs and hem',
+        'Trims',
+        'Thread',
+        'Print colors',
+      ]),
     ],
   })),
   page(5, [8, 26, 34, 18, 22, 22, 26], () => ({
@@ -289,7 +319,11 @@ const SHEETS: readonly Sheet[] = [
       // The tolerance column, said once per row: agreed for each order (approved editorial call).
       return [
         [c(unit, 'section')],
-        ...rows.map((row, r) => (r === 0 ? row : row.map((cell, i) => (i === 3 ? c('Agreed for your order', 'given') : cell)))),
+        ...rows.map((row, r) =>
+          r === 0
+            ? row
+            : row.map((cell, i) => (i === 3 ? c('Agreed for your order', 'given') : cell)),
+        ),
       ]
     }
     return { rows: [...block('In centimeters'), spacer(), ...block('In inches')] }
@@ -310,11 +344,12 @@ const SHEETS: readonly Sheet[] = [
     ),
   })),
   page(8, [24, 30, 26, 16, 26], () => ({
-    rows: table(
-      ['Label', 'Where it goes', 'Artwork file name', 'Size', 'Note'],
-      10,
-      ['Neck label', 'Care label', 'Size label', 'Hang tag'],
-    ),
+    rows: table(['Label', 'Where it goes', 'Artwork file name', 'Size', 'Note'], 10, [
+      'Neck label',
+      'Care label',
+      'Size label',
+      'Hang tag',
+    ]),
   })),
   page(9, [30, 30, 30, 30], (start) =>
     fields(['How each piece is folded', 'Bag', 'Hang tag', 'Carton marks', 'Note'], 4, start),
@@ -322,7 +357,12 @@ const SHEETS: readonly Sheet[] = [
   page(10, [34, 40, 24, 24], (start) => {
     // The "Note" spans the last two columns: the page needs four for its style line.
     const rows = table(['Test, by name', 'The result you need', 'Note', ''], 12)
-    rows[0] = [c('Test, by name', 'header'), c('The result you need', 'header'), c('Note', 'header'), blank('header')]
+    rows[0] = [
+      c('Test, by name', 'header'),
+      c('The result you need', 'header'),
+      c('Note', 'header'),
+      blank('header'),
+    ]
     return { rows, merges: rows.map((_, i) => `C${start + i}:D${start + i}`) }
   }),
   page(11, [26, 30, 30, 30], (start) => {

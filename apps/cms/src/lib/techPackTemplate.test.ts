@@ -62,7 +62,11 @@ describe('the tech-pack template file', () => {
   })
 
   it('gives the same bytes every time, so it never drifts with the clock', () => {
-    const book = { title: 'Tech pack template', creator: 'RUN APPAREL', created: '2026-11-06T00:00:00Z' }
+    const book = {
+      title: 'Tech pack template',
+      creator: 'RUN APPAREL',
+      created: '2026-11-06T00:00:00Z',
+    }
     const a = buildXlsx({ ...book, sheets: TEMPLATE_SHEETS })
     const b = buildXlsx({ ...book, sheets: TEMPLATE_SHEETS })
     expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true)

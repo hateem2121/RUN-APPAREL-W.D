@@ -1,5 +1,14 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Field } from 'payload'
 import { isAdmin, isSignedInPerson } from '../access/roles'
+
+/**
+ * ⚠️ A RECORD, NOT A FORM: NO SAVE MAY CHANGE IT (security review of afba25d2, 6 Nov 2026).
+ * `admin.readOnly` only hides the control on the admin screen; a signed-in person's REST PATCH could
+ * still rewrite what someone typed, or turn an unticked updates box into a recorded yes. Field-level
+ * `update: () => false` makes Payload drop such a change on every path. The download route still
+ * writes the outcome (`notified`), because its local API calls run with `overrideAccess: true`.
+ */
+const recorded = <F extends Field>(field: F): F => ({ ...field, access: { update: () => false } })
 
 /** Kept 2 years from the last contact (owner, 6 Nov 2026, the privacy page's "Template downloads"). */
 export const KEEP_DAYS = 730
@@ -59,75 +68,78 @@ export const TemplateDownloads: CollectionConfig = {
   hooks: {
     beforeChange: [setDeleteAfter],
   },
-  fields: [
-    {
-      name: 'template',
-      type: 'select',
-      required: true,
-      defaultValue: 'tech-pack',
-      options: [{ label: 'Tech pack template', value: 'tech-pack' }],
-      admin: { readOnly: true, description: 'Which template they downloaded.' },
-    },
-    { name: 'name', type: 'text', required: true, admin: { readOnly: true } },
-    {
-      name: 'email',
-      type: 'email',
-      required: true,
-      admin: { readOnly: true, description: 'Their company email, as typed.' },
-    },
-    { name: 'company', type: 'text', required: true, admin: { readOnly: true } },
-    { name: 'country', type: 'text', required: true, admin: { readOnly: true } },
-    { name: 'jobTitle', type: 'text', admin: { readOnly: true } },
-    {
-      name: 'whatsapp',
-      type: 'text',
-      admin: { readOnly: true, description: 'Stored as typed, with the country code first.' },
-    },
-    {
-      name: 'updates',
-      type: 'checkbox',
-      defaultValue: false,
-      label: 'Asked for occasional updates',
-      admin: {
-        readOnly: true,
-        description:
-          'Whether they ticked "Send me occasional updates". Unticked means we send them nothing unless they write to us first.',
+  // Every field is a record (`recorded`, above) except the date to delete by, which a person moves.
+  fields: (
+    [
+      {
+        name: 'template',
+        type: 'select',
+        required: true,
+        defaultValue: 'tech-pack',
+        options: [{ label: 'Tech pack template', value: 'tech-pack' }],
+        admin: { readOnly: true, description: 'Which template they downloaded.' },
       },
-    },
-    {
-      name: 'updatesAt',
-      type: 'date',
-      admin: {
-        readOnly: true,
-        date: { pickerAppearance: 'dayAndTime' },
-        description: 'When they ticked it: the record of their yes.',
+      { name: 'name', type: 'text', required: true, admin: { readOnly: true } },
+      {
+        name: 'email',
+        type: 'email',
+        required: true,
+        admin: { readOnly: true, description: 'Their company email, as typed.' },
       },
-    },
-    {
-      name: 'deleteAfter',
-      type: 'date',
-      admin: {
-        description:
-          '2 years after our last contact with them. Move it on when you write to each other again. Someone who asked for updates keeps their email and their yes until they stop the updates; after that, keep only their email so no update reaches them again.',
+      { name: 'company', type: 'text', required: true, admin: { readOnly: true } },
+      { name: 'country', type: 'text', required: true, admin: { readOnly: true } },
+      { name: 'jobTitle', type: 'text', admin: { readOnly: true } },
+      {
+        name: 'whatsapp',
+        type: 'text',
+        admin: { readOnly: true, description: 'Stored as typed, with the country code first.' },
       },
-    },
-    {
-      name: 'notified',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        readOnly: true,
-        description: 'Whether the notification email was accepted for delivery.',
+      {
+        name: 'updates',
+        type: 'checkbox',
+        defaultValue: false,
+        label: 'Asked for occasional updates',
+        admin: {
+          readOnly: true,
+          description:
+            'Whether they ticked "Send me occasional updates". Unticked means we send them nothing unless they write to us first.',
+        },
       },
-    },
-    {
-      name: 'notifyError',
-      type: 'text',
-      admin: {
-        readOnly: true,
-        description:
-          'Why the notification could not be sent, if it could not. The download itself is unaffected.',
+      {
+        name: 'updatesAt',
+        type: 'date',
+        admin: {
+          readOnly: true,
+          date: { pickerAppearance: 'dayAndTime' },
+          description: 'When they ticked it: the record of their yes.',
+        },
       },
-    },
-  ],
+      {
+        name: 'deleteAfter',
+        type: 'date',
+        admin: {
+          description:
+            '2 years after our last contact with them. Move it on when you write to each other again. Someone who asked for updates keeps their email and their yes until they stop the updates; after that, keep only their email so no update reaches them again.',
+        },
+      },
+      {
+        name: 'notified',
+        type: 'checkbox',
+        defaultValue: false,
+        admin: {
+          readOnly: true,
+          description: 'Whether the notification email was accepted for delivery.',
+        },
+      },
+      {
+        name: 'notifyError',
+        type: 'text',
+        admin: {
+          readOnly: true,
+          description:
+            'Why the notification could not be sent, if it could not. The download itself is unaffected.',
+        },
+      },
+    ] as Field[]
+  ).map((field) => ('name' in field && field.name === 'deleteAfter' ? field : recorded(field))),
 }
