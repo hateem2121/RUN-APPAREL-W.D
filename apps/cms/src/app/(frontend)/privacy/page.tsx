@@ -345,9 +345,10 @@ export default async function PrivacyPage() {
             </p>
             <p>
               <strong>Where they go.</strong> Our website&rsquo;s system runs on Cloudflare. Resend
-              delivers the download notice to us, and Hostinger hosts our mailboxes. We work in
-              Pakistan, and Cloudflare processes data in places including the United States, so your
-              details leave the European Union and the UK.
+              delivers the download notice to us, Hostinger hosts our mailboxes, and Google hosts
+              the copy sent to M. Hateem Jamshaid. We work in Pakistan, and Cloudflare processes
+              data in places including the United States, so your details leave the European Union
+              and the UK.
             </p>
 
             {heading('why-we-are-allowed')}

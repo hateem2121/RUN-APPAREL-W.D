@@ -145,7 +145,13 @@ describe('which requests may be answered from a kept copy', () => {
       }
     }
     walk(root)
-    expect(readers.sort()).toEqual(['careers/page.tsx', 'contact/page.tsx', 'products/page.tsx'])
+    expect(readers.sort()).toEqual([
+      'careers/page.tsx',
+      'contact/page.tsx',
+      // The tech pack guide reads `error` alone, a refused download's code (C1, 2026-11-06).
+      'guides/tech-pack-template/page.tsx',
+      'products/page.tsx',
+    ])
   })
 
   it('reads a cookie that merely CONTAINS the name as no login', () => {

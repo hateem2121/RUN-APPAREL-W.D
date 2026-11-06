@@ -124,7 +124,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
   '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
-  '/privacy': page(TECH_PACK_AND_TOOLS, '8ff169a4d426'),
+  '/privacy': page(TECH_PACK_AND_TOOLS, '716bb9c30b7a'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 
