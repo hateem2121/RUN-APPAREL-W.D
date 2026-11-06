@@ -220,7 +220,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.merchandiser,
     LIBRARY,
     LIBRARY,
-    'c995eabc64b4',
+    'db844b818b57',
   ),
   '/guides/apparel-manufacturing-machinery': byline(
     AUTHORS.production,
@@ -234,7 +234,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.contentTeam,
     LIBRARY,
     LIBRARY,
-    '075ecc70f3df',
+    '26652bbfd4fb',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),

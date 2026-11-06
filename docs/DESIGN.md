@@ -267,7 +267,7 @@ These ranges, and the narrower variants below, are the only `clamp()` font sizes
 stylesheets may use: `apps/viewer/src/styles/tokens.test.ts` (TY-03) lists each one by
 selector and fails on any other, or on one of them that this file stops naming.
 
-**One headline scales with the screen.** Below 420px `.display.display--hero.hero-family--wide-word` is `8.6vw`, so "ACCESSORIES," stays whole.
+**One headline scales with the screen.** Below 420px `.display.display--hero.hero-family--wide-word` is `8.6vw`, so "ACCESSORIES," stays whole. **A guide heading with a very long word fits it.** `.fit-heading > .fit-words` is `min(1em, calc(100cqi / (var(--fit-letters, 14) * 0.9)))`: a heading whose longest word has 11 or more letters keeps its size until that word would not fit its own column, then shrinks just enough (`FitWords` in GuidePage.tsx, measured 2026-11-06).
 
 **The marketing site lowers the hero floor on the narrowest phones (owner decision
 2026-09-11).** Its `.site-hero .display--hero` is `clamp(min(34px, 9.6vw), 5.4vw, 72px)`:

@@ -3903,7 +3903,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           },
           {
             kind: 'table',
-            caption: '',
+            caption: 'Where each rule applies (read 6 November 2026)',
             columns: ['Rule', 'United States', 'European Union', 'United Kingdom', 'Canada'],
             rows: [
               [
@@ -5531,7 +5531,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           },
           {
             kind: 'table',
-            caption: 'The eight clothing changes',
+            caption: 'Eight changes, what each means for your order, and where we stand',
             columns: ['Change', 'For your order', 'When', 'Status'],
             rows: [
               [
@@ -5584,7 +5584,6 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               ],
             ],
           },
-          { kind: 'table', caption: '', columns: [], rows: [] },
         ],
       },
       {
