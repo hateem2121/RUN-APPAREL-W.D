@@ -103,6 +103,14 @@ status. Reference for rebuilding from scratch:
    `npx wrangler secret put RESEND_API_KEY`, then redeploy.
 4. Test: `/admin` → *Forgot password* for a real user → confirm the email lands.
 
+**The tech pack template's download notice (2026-11-06).** Each download is stored first, then
+noticed by Resend to the Site Settings email (inquiry@) and to the owner. The owner's address is
+the CMS Worker secret `TEMPLATE_NOTICE_OWNER` — named here, its value nowhere, because this
+repository is public. With the secret unset, the notice goes to inquiry@ alone and nothing else
+changes (`apps/cms/src/app/(frontend)/guides/tech-pack-template/download/route.ts`). The privacy
+page names the owner as a recipient, so the secret must be set on the Worker for that sentence to
+be true.
+
 **Edge rate-limit on the admin login — ✅ done (2026-07-22).** The free plan
 includes exactly **one** rate-limiting rule with fixed values (read them in the
 dashboard, not here; longer windows need a paid tier), and the

@@ -124,6 +124,8 @@ export const GUIDE_PAGE_SOURCES = [
   '/guides/apparel-design-software',
   '/guides/how-to-order-team-kits',
   '/guides/apparel-manufacturing-technology',
+  // C1 (owner approved, 6 Nov 2026): the tech pack guide and its free template.
+  '/guides/tech-pack-template',
 ]
 
 /**

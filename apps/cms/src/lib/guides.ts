@@ -10,6 +10,7 @@ import {
   SAMPLE_TIME,
 } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
+import { ballSizeRange } from './guideTools'
 import { LIBRARY_GUIDES } from './guideLibrary'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
@@ -58,6 +59,9 @@ export type GuideLink = { readonly phrase: string; readonly href: string }
 export const LEGAL_ADVICE = 'Not legal or tax advice; confirm with your customs broker or adviser.'
 export const legalLine = (checked: string): string => `Checked on ${checked}. ${LEGAL_ADVICE}`
 
+/** The guides' small calculators (C6), each named by its anchor on the page. */
+export type GuideTool = 'gsm-converter' | 'cbm-calculator' | 'ball-size-lookup'
+
 export type GuideBlock =
   | { kind: 'text'; text: string; links?: readonly GuideLink[] }
   /** A small mono label over the blocks that follow (a stage of the order). */
@@ -72,6 +76,19 @@ export type GuideBlock =
    * owner's answer Q41): one list for the steps wherever they are told, never a copy typed here.
    */
   | { kind: 'orderSteps' }
+  /**
+   * The free tech-pack template's download form (C1, owner approved 6 Nov 2026), drawn where the
+   * guide's "The free template" section says "fill in the short form below" (`TemplateDownload.tsx`;
+   * the route is `guides/tech-pack-template/download`). Its words live with the form, not here.
+   */
+  | { kind: 'download'; template: 'tech-pack' }
+  /**
+   * A small calculator in the section that owns its topic (C6, owner approved 6 Nov 2026: "one
+   * topic, one URL"), with an anchor so it can be linked: the GSM converter in the fabrics guide,
+   * the carton volume calculator in the shipping guide, the ball size lookup in the ball guide.
+   * Their words and their sums live with each tool (`GuideTools.tsx`, `guideTools.ts`).
+   */
+  | { kind: 'tool'; tool: GuideTool }
   /**
    * A small table (polish X22): each row is one of the guide's own `point`s, its first cell the
    * point's title and the others that point's own words, so the table says nothing the guide does
@@ -1131,6 +1148,8 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             text: 'The ounces are rounded to one decimal place. Some weights are given per running yard or meter of fabric instead. For some fabrics the two are related simply through the width, so ask which one a quoted weight means.',
           },
+          // C6 (owner approved, 6 Nov 2026): after the table and its paragraph, as the draft places it.
+          { kind: 'tool', tool: 'gsm-converter' },
         ],
       },
       {
@@ -1511,6 +1530,13 @@ export const GUIDES: readonly Guide[] = [
         date: '2026-11-05',
         kind: 'read',
       },
+      // C6's calculator rests on these (the draft's section 3, approved 2026-11-06).
+      {
+        name: 'NIST, Guide for the Use of the SI (Special Publication 811), Appendix B: Conversion factors',
+        url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors',
+        date: '2025-08-18',
+        kind: 'updated',
+      },
     ],
   },
   {
@@ -1870,6 +1896,8 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             text: 'An example carton, not one of ours, measures 60 × 40 × 40 cm: 0.6 × 0.4 × 0.4 = 0.096 cubic meters (CBM).',
           },
+          // C6 (owner approved, 6 Nov 2026): after the example carton, before the closing line.
+          { kind: 'tool', tool: 'cbm-calculator' },
           {
             kind: 'text',
             text: 'Your quote states the cartons for your order. Ask your forwarder for the chargeable weight. Carton markings are covered in our packaging guide.',
@@ -2147,6 +2175,25 @@ export const GUIDES: readonly Guide[] = [
         name: 'Australian Border Force, Sea cargo types',
         url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/cargo-reporting-and-transhipped-goods/cargo-reports/sea-cargo-types',
         date: '2026-10-01',
+        kind: 'updated',
+      },
+      // C6's calculator rests on these (the draft's section 3, approved 2026-11-06).
+      {
+        name: 'NIST, Guide for the Use of the SI (Special Publication 811), Appendix B.9: Factors for units listed by kind of quantity',
+        url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9',
+        date: '2025-08-18',
+        kind: 'updated',
+      },
+      {
+        name: 'NIST, Guide for the Use of the SI (Special Publication 811), Appendix B: Conversion factors',
+        url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors',
+        date: '2025-08-18',
+        kind: 'updated',
+      },
+      {
+        name: 'NIST Office of Weights and Measures, Unit conversion',
+        url: 'https://www.nist.gov/pml/owm/metric-si/unit-conversion',
+        date: '2026-02-06',
         kind: 'updated',
       },
     ],
@@ -2960,19 +3007,25 @@ export const GUIDES: readonly Guide[] = [
             // The FA's FutureFit table and US Youth Soccer's Rule 303 (as of June 23, 2026).
             caption: 'Ball size by age',
             columns: ['Ball size', 'England (The FA)', 'United States (US Youth Soccer)'],
-            rows: [
-              // US rows re-read on the PDF (owner approved the fix, 2026-11-06): Size 3 serves two
-              // age groups, and the table stops at 19 and under.
-              ['Size 3', 'Under 7 to Under 11', '6 and under and 8 and under'],
-              ['Size 4', 'Under 12 and Under 13', '10 and under to 12 and under'],
-              // The FA's table stops at Under 16 (fact check, owner, 2026-11-05).
-              ['Size 5', 'Under 14 to Under 16', '13 and under to 19 and under'],
-            ],
+            /*
+             * From the SAME list as the ball size lookup below (`BALL_SIZES`, guideTools.ts), so the
+             * table and the tool can never disagree (C6's drift guard). The cells read as they did:
+             * Size 3 "Under 7 to Under 11" and "6 and under and 8 and under" (the US rows re-read on
+             * the PDF, owner approved the fix, 2026-11-06), Size 5 ending at Under 16 and at 19 and
+             * under. `guideTools.test.ts` pins every cell.
+             */
+            rows: ([3, 4, 5] as const).map((size) => [
+              `Size ${size}`,
+              ballSizeRange('england', size),
+              ballSizeRange('us', size),
+            ]),
           },
           {
             kind: 'text',
             text: 'Other countries and leagues set their own ages, so check your league’s rules.',
           },
+          // C6 (owner approved, 6 Nov 2026): after the closing line, as the draft places it.
+          { kind: 'tool', tool: 'ball-size-lookup' },
         ],
       },
       {
@@ -3329,6 +3382,8 @@ export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
   '/guides/apparel-design-software': [
     '/guides/sportswear-pattern-making',
     '/guides/3d-garment-reference',
+    // The draft's third, back with the tech pack guide (C1, 2026-11-06).
+    '/guides/tech-pack-template',
   ],
   '/guides/how-to-order-team-kits': [
     '/guides/minimum-order-and-samples',
@@ -3339,6 +3394,12 @@ export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
     '/guides/3d-garment-reference',
     '/guides/clothing-labels',
     '/guides/sportswear-compliance-by-market',
+  ],
+  // C1's read next, as its draft proposed and the owner approved (2026-11-06).
+  '/guides/tech-pack-template': [
+    '/guides/garment-printing-methods',
+    '/guides/minimum-order-and-samples',
+    '/guides/how-a-private-label-order-works',
   ],
 }
 

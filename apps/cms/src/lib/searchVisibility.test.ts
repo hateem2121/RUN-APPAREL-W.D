@@ -107,6 +107,7 @@ describe('what the switch does', () => {
       'https://wear-run.com/guides/apparel-design-software',
       'https://wear-run.com/guides/how-to-order-team-kits',
       'https://wear-run.com/guides/apparel-manufacturing-technology',
+      'https://wear-run.com/guides/tech-pack-template',
       'https://wear-run.com/policies',
       'https://wear-run.com/policies/workplace-conduct',
       'https://wear-run.com/policies/health-and-safety',

@@ -75,6 +75,7 @@ const PUBLISHED_NAMES: Readonly<Record<string, readonly string[]>> = {
   '/guides/garment-cutting': ['A State-of-the-Art Review'],
   '/guides/sportswear-compliance-by-market': ['on empowering consumers for the green transition'],
   '/guides/apparel-manufacturing-technology': ['Joint Research Centre'],
+  '/guides/tech-pack-template': ['colour fastness'],
 }
 
 /** The text with every published name on `path` taken out, by plain string, never a RegExp. */
@@ -241,6 +242,8 @@ const PRIMARY_LABELS = [
   /^Send inquiry$/,
   // The careers form's Send (owner, F23, 2026-10-07).
   /^Send application$/,
+  // The tech pack guide's download form (C1, 2026-11-06): its one action, as the forms' Sends are.
+  /^Download the template$/,
 ]
 
 for (const viewport of [

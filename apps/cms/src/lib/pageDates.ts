@@ -35,10 +35,6 @@ const page = (on: string, words: string): PageDate => ({ on, words })
  * that still matched. (A byline's date is its branch commit's time instead, a few hours earlier
  * for #192; this file follows `main`, where the live page changed.)
  */
-/** #152: the case studies hub's words. */
-const FINDABILITY = '2026-10-08T21:50:32+05:00'
-/** #231: the Journal hub's links to two buyer guides. */
-const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /**
@@ -53,15 +49,6 @@ const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
  * labelled the family's. `companyRelationship.test.ts` holds the words.
  */
 const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
-/**
- * The privacy page names the UK regulator by its new name, the Information Commission (owner approved,
- * 2026-11-05): the office of Information Commissioner was abolished on 30 Sep 2026 (SI 2026/1015).
- * It replaced the privacy page's date of 2026-10-30 (the cookie paragraph on contact taps), its last
- * use, so that constant went with it.
- */
-const UK_REGULATOR = '2026-11-05T22:05:04+05:00'
-/** The buyer pages' "What we make" lines became links (`makesHref`, written 2026-10-29, landed on 2026-11-01). */
-const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
 
 /*
  * 27 Oct: the faster-taps work (#278) changed one line, the `Link` import, in 13 of the files
@@ -70,8 +57,6 @@ const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
  * Imports are now left out of the fingerprint, and each of the 17 is back on the date its words
  * last changed.
  */
-/** The accessory pages say products, and the ball page leads with a logo (2026-11-01). */
-const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
 /**
  * The order block's photo (owner, 2026-11-05): on the four main buyer pages the factory photo is the
@@ -102,6 +87,13 @@ const LIBRARY = '2026-11-06T17:05:02+05:00'
  * home page's order step, the FAQ's Incoterms answer and its topic's description, and the glossary.
  */
 const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
+/**
+ * The tech pack guide and its template (C1, owner approved 2026-11-06): it joins the guide index and
+ * the "Working with us" topic, and the privacy page gains "Template downloads". It replaced the privacy
+ * page's date of 2026-11-05 (the UK regulator's new name) and, with the case studies hub's three
+ * questions (C9), the hub's date of 2026-10-08 (#152): their last uses, so those constants went with them.
+ */
+const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(PRICE_TERMS, '00140939a970'),
@@ -112,7 +104,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
-  '/guides': page(LIBRARY, '427f1f3b71c2'),
+  '/guides': page(TECH_PACK_AND_TOOLS, '8ea40a495c75'),
   '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
@@ -121,12 +113,12 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/quality-and-certifications': page(LIBRARY, '2f8e683d8b4c'),
   '/faq/shipping-and-importing': page(PRICE_TERMS, '3337ef9c9fe5'),
   '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
-  '/faq/working-with-us': page(LIBRARY, 'e6878ac44145'),
-  '/glossary': page(PRICE_TERMS, 'c22e311ba5df'),
-  '/journal': page(LIBRARY, '5791b43c9aea'),
-  '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
+  '/faq/working-with-us': page(TECH_PACK_AND_TOOLS, '326403c492f4'),
+  '/glossary': page(TECH_PACK_AND_TOOLS, '95668581a1ce'),
+  '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
+  '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
-  '/privacy': page(UK_REGULATOR, '060578c2bd49'),
+  '/privacy': page(TECH_PACK_AND_TOOLS, '716bb9c30b7a'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 

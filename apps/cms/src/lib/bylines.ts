@@ -121,6 +121,11 @@ const AI_CHECK = '2026-11-05T20:46:11+05:00'
 const LIBRARY = '2026-11-06T17:05:02+05:00'
 /** The order steps name FCA and DAP among the terms (owner, 2026-11-06); the order guide draws them. */
 const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
+/**
+ * The tech pack guide and its free template (C1), and the three small tools in the fabrics, shipping
+ * and ball guides (C6): owner approved every word on 2026-11-06. The time the words were committed.
+ */
+const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -154,8 +159,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
     GUIDES_2,
-    LIBRARY,
-    'faaed88da37b',
+    TECH_PACK_AND_TOOLS,
+    'c61d9b0785e3',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
@@ -166,8 +171,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/shipping-and-import-duties': byline(
     AUTHORS.merchandiser,
     GUIDES_3,
-    LIBRARY,
-    '52b693013371',
+    TECH_PACK_AND_TOOLS,
+    'a2458d39054a',
   ),
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
@@ -186,8 +191,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-soccer-balls-are-made': byline(
     AUTHORS.production,
     WAVE_ONE,
-    LIBRARY,
-    'ffd85334f47d',
+    TECH_PACK_AND_TOOLS,
+    '00aefc6b61b3',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,
@@ -206,8 +211,18 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, LIBRARY, 'b94de6c5ba53'),
   '/guides/sportswear-fibers': byline(AUTHORS.production, LIBRARY, LIBRARY, '1a47decee35b'),
   '/guides/yarn-count-and-denier': byline(AUTHORS.production, LIBRARY, LIBRARY, '961eae748c05'),
-  '/guides/sportswear-pattern-making': byline(AUTHORS.production, LIBRARY, LIBRARY, 'd0999142c64a'),
-  '/guides/stitch-and-seam-types': byline(AUTHORS.production, LIBRARY, LIBRARY, 'ec090dc47cc8'),
+  '/guides/sportswear-pattern-making': byline(
+    AUTHORS.production,
+    LIBRARY,
+    TECH_PACK_AND_TOOLS,
+    'd07809665122',
+  ),
+  '/guides/stitch-and-seam-types': byline(
+    AUTHORS.production,
+    LIBRARY,
+    TECH_PACK_AND_TOOLS,
+    '3599de0b12a7',
+  ),
   '/guides/outerwear-and-waterproof-fabrics': byline(
     AUTHORS.production,
     LIBRARY,
@@ -225,16 +240,28 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/apparel-manufacturing-machinery': byline(
     AUTHORS.production,
     LIBRARY,
-    LIBRARY,
-    'ae16757f67c8',
+    TECH_PACK_AND_TOOLS,
+    '3106f2c725a8',
   ),
-  '/guides/apparel-design-software': byline(AUTHORS.contentTeam, LIBRARY, LIBRARY, 'e4f24da215d4'),
+  '/guides/apparel-design-software': byline(
+    AUTHORS.contentTeam,
+    LIBRARY,
+    TECH_PACK_AND_TOOLS,
+    '68ac190a4b52',
+  ),
   '/guides/how-to-order-team-kits': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, 'fa70bce55438'),
   '/guides/apparel-manufacturing-technology': byline(
     AUTHORS.contentTeam,
     LIBRARY,
     LIBRARY,
     '26652bbfd4fb',
+  ),
+  // C1, signed by the merchandiser (owner, 2026-11-06).
+  '/guides/tech-pack-template': byline(
+    AUTHORS.merchandiser,
+    TECH_PACK_AND_TOOLS,
+    TECH_PACK_AND_TOOLS,
+    '90d1d0002502',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),

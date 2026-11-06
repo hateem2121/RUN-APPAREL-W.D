@@ -29,6 +29,11 @@ declare global {
     EMAIL_FROM_NAME?: string
     PAYLOAD_SECRET?: string
     RESEND_API_KEY?: string
+    /**
+     * The owner's own copy of each tech-pack template download notice (owner, 6 Nov 2026: the notice
+     * goes to inquiry@ "and the owner"). A Worker secret, so his address is not in this public repo.
+     */
+    TEMPLATE_NOTICE_OWNER?: string
   }
 }
 

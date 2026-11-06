@@ -496,6 +496,8 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
     '/guides/apparel-manufacturing-machinery',
     '/guides/apparel-design-software',
     '/guides/apparel-manufacturing-technology',
+    // C1 (2026-11-06): what to send a factory, and the free template to send it in.
+    '/guides/tech-pack-template',
   ],
   '/faq/orders-and-samples': [
     '/guides/minimum-order-and-samples',

@@ -16,8 +16,9 @@ import type { Guide } from './guides'
  * (the owner's rule, 2026-11-05: "Standard ranges only").
  *
  * Three guides wait for facts from the owner's team (the inspection and testing guides, and the
- * report of what buyers asked), and the tech pack guide waits for its download form. Bullets that
- * point at them are added back when each one is published.
+ * report of what buyers asked). Bullets that point at them are added back when each one is
+ * published, as the tech pack guide's three were when it joined with its download form (C1, the
+ * last entry here, 2026-11-06).
  */
 const fact = (prefix: string): string =>
   FACTS.find((entry) => entry.label.startsWith(prefix))?.value ?? ''
@@ -2308,9 +2309,12 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'A reference garment. If you have one, send it. It is welcome, and we hold on to it so a reorder matches the first run.',
+              // Back with the tech pack guide (C1, 2026-11-06), in the draft's place.
+              'Writing the measurements. How to set out each point of measure in a tech pack is in our tech pack guide.',
               'Who owns the pattern. Our minimum order guide covers pattern ownership.',
             ],
             links: [
+              { phrase: 'our tech pack guide', href: '/guides/tech-pack-template' },
               { phrase: 'Our minimum order guide', href: '/guides/minimum-order-and-samples' },
             ],
           },
@@ -2741,7 +2745,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'An example. Written out, a side seam could read: stitch 514, superimposed seam, ISO 4916 class 1.',
+              // Back with the tech pack guide (C1, 2026-11-06), in the draft's place.
+              'The rest of your spec. Our tech pack guide sets out what else a spec states.',
             ],
+            links: [{ phrase: 'Our tech pack guide', href: '/guides/tech-pack-template' }],
           },
         ],
       },
@@ -4729,7 +4736,9 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'On our floor. Bulk orders run on progressive bundle lines, and small runs are sewn by teams, the modular way.',
               'In our glossary. Both systems have their own entries.',
             ],
-            links: [{ phrase: 'our glossary', href: '/glossary' }],
+            // The two entries joined the glossary with C1 and C6 (2026-11-06); until then this point
+            // named entries the glossary did not have yet.
+            links: [{ phrase: 'our glossary', href: '/glossary#progressive-bundle-system' }],
           },
         ],
       },
@@ -5026,7 +5035,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'What researchers report. PLM comes in modules for many industry processes, and the authors of a 2015 study say it shortens lead times and cuts inventory.',
               'The risk. A 2021 study describes fashion as new to PLM, and warns that a lack of clear implementation guidelines significantly raises the risk of failure.',
               'On our floor. We do not use a PLM system. Our tech packs are made in spreadsheets, as PDF files or with CLO’s tech pack.',
+              // Back with the tech pack guide (C1, 2026-11-06), in the draft's place.
+              'What goes in one. Our tech pack guide lists what a tech pack holds and has a free template.',
             ],
+            links: [{ phrase: 'Our tech pack guide', href: '/guides/tech-pack-template' }],
           },
         ],
       },
@@ -5979,6 +5991,299 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         url: 'https://inside.fifa.com/innovation/world-cup-2022/semi-automated-offside-technology',
         date: '2023-07-17',
         kind: 'updated',
+      },
+    ],
+  },
+  // Wave 5, C1: signed by the merchandiser (owner, 2026-11-06).
+  {
+    path: '/guides/tech-pack-template',
+    title: 'Free Sportswear Tech Pack Template and Guide',
+    description:
+      'What goes in a sportswear tech pack, how to write measurements a factory can follow, which tests to name, and a free template to download.',
+    heading: 'Your tech pack, page by page,',
+    headingAccent: 'with a free template.',
+    lede: 'A tech pack tells a factory how to make your garment, but you can start without one: we complete it for you, free with your order, from your sketch or reference garment. Here is what goes into one, with a free template to fill in.',
+    sections: [
+      {
+        heading: 'What a tech pack is',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A tech pack is the document that gives a factory the instructions and specifications for making a garment. A 2026 study from Pakistan’s National Textile University says it serves as a contract between design, production and the client. Its research found a tech pack’s parts are needed to get the right information from customers.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Written for the maker. The Fashion Institute of Technology in New York teaches its students to describe a garment’s construction in language that is clear to the manufacturer.',
+              'Who owns it. Our FAQ answers who owns the tech pack and artwork you send.',
+              'A tech pack we complete for you. Who owns it is agreed in your quote, like a pattern we make for you.',
+            ],
+            links: [{ phrase: 'Our FAQ', href: '/faq/working-with-us#artwork' }],
+          },
+        ],
+      },
+      {
+        heading: 'The parts of a sportswear tech pack',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'College courses that teach tech packs list these parts: flat drawings, detail callouts, specification sheets and a bill of materials. They also cover construction notes on seams, stitches per inch, thread and findings such as zippers, and fabric qualities with wash standards for pilling, bleeding and shrinkage.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Artwork. Each print’s file, position, size and colors. The decoration method is chosen with our printing guide.',
+              'Colors. Each colorway, with a Pantone reference for every color in it. A lab dip or a strike-off is signed off before bulk.',
+              'Labels and packing. What each label says and where it goes, and how each piece is packed. Our packaging guide covers both.',
+            ],
+            links: [
+              { phrase: 'our printing guide', href: '/guides/garment-printing-methods' },
+              { phrase: 'A lab dip or a strike-off', href: '/guides/minimum-order-and-samples' },
+              { phrase: 'What each label says', href: '/guides/clothing-labels' },
+              { phrase: 'Our packaging guide', href: '/guides/private-label-packaging' },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'The free template',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The template is a blank tech pack with a page for each part, to fill in and send with your inquiry, free to use for your own products; all rights are reserved. To download it, fill in the short form below; your company email is needed.',
+          },
+          {
+            kind: 'list',
+            ordered: true,
+            items: [
+              'Cover: brand, style name and number, garment type, season, quantities, delivery date, size range, the countries you sell in, revision number and date, and your contact details.',
+              'Flats: front and back drawings, plus the side or inside where it helps, with a numbered callout for each detail.',
+              'Bill of materials: each fabric with its composition and its weight in GSM, then thread, trims, labels and packaging, with who supplies each. A yarn count or denier can go here if you want to set one. We can sew in or apply labels and trims you send us.',
+              'Colorways: one column per colorway, giving each color’s Pantone reference.',
+              'Artwork and placement: one row per artwork, with its file name, its position measured from a fixed point on the garment, its size, its colors and its decoration method.',
+              'Measurements: each point of measure, how to measure it, and every size, in centimeters and inches, with a tolerance column marked "agreed for your order".',
+              'Construction: seam by seam, the seam and stitch type, its ISO number if you use one, the thread, the stitches per inch and the finish.',
+              'Labels: which labels you need and where each one goes, with its artwork.',
+              'Packing: how each piece is folded and bagged, with hang tag and carton marks.',
+              'Tests: each test by name, and the result you need.',
+              'Sample comments: a page each for the first sample, the size set, the pre-production sample and the top-of-production sample, with fit notes and photos.',
+              'Revision log: each change, with its date and who made it.',
+            ],
+          },
+          // The form the section's words point to ("fill in the short form below").
+          { kind: 'download', template: 'tech-pack' },
+        ],
+      },
+      {
+        heading: 'Body measurements and garment measurements',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The ISO sizing standards describe the body. ISO 8559-1 sets out how to take body measurements, and ISO 8559-2 sets the body dimensions that name a size, for the garment types it specifies. ISO 8559-3, on body measurement tables, leaves garment dimensions out. Your tech pack gives the finished garment’s own measurements.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Your size chart. Send the chart your customers already know. Without one, we grade from our house chart.',
+              'Extended sizes. For the largest sizes, see Splitting the minimum in our minimum order guide.',
+            ],
+            links: [
+              { phrase: 'our minimum order guide', href: '/guides/minimum-order-and-samples' },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Writing the measurements',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'For each point of measure, write where it is and how to measure it, because the industry measures garments in more than one way. Give the values for one size, then grade them across your full size range on a grading sheet. Put the unit beside every value.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Fit points for tops. One college course lists neck drop, shoulder slope, armhole, chest width, waist and collar spread.',
+              'Stretch and weight. A fabric’s properties change the pattern, the sewing, the finishing and the fit, so name the fabric on the measurement page.',
+              'Tolerance. How far a measurement may vary is agreed for your order, so the template leaves that column blank.',
+              'Fit rounds. After each fit, we send you the results as photos and measurements.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Seams and stitches',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Name the seam and the stitch at every seam, with the stitches per inch, the thread and the seam treatment. A stitch can be named by number as well as by name: ISO 4915 classifies stitch types and ISO 4916 seam types. We work from the ISO or ASTM numbers you write.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Common seams. Our glossary explains several common seams, from flatlock to bar-tack.',
+              'Seam strength. On request, an outside lab tests seam strength, quoted per order.',
+            ],
+            links: [
+              { phrase: 'flatlock', href: '/glossary#flatlock-seam' },
+              { phrase: 'bar-tack', href: '/glossary#bar-tack' },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Tests to name in your tech pack',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'If shrinkage or color matters, write the test into your tech pack, with the result you need. AATCC TM135 measures how a fabric’s length and width change in home laundering; AATCC TM150 does the same for a finished garment. For color, our printing guide explains the tests below.',
+            links: [{ phrase: 'our printing guide', href: '/guides/garment-printing-methods' }],
+          },
+          {
+            kind: 'list',
+            items: [
+              'Stretch garments. AATCC says TM150 may not suit garments made of certain stretch fabrics.',
+              'Color in the wash. AATCC TM61 or ISO 105-C06.',
+              'Color that rubs off. AATCC TM8.',
+              'Color and sweat. AATCC TM15.',
+              'Reports. For a lab report on your order, see our FAQ on certificates and test reports.',
+            ],
+            links: [
+              {
+                phrase: 'our FAQ on certificates and test reports',
+                href: '/faq/quality-and-certifications#order-certificates',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'A spec for a soccer ball',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Our template is for garments. For a soccer ball, list its build, cover material, bladder, valve, size and print colors; you choose the valve for each order. For the panels, give the count: we make 32, 18 and 12 panels, and fewer, such as 8 or 6. How soccer balls are made describes each build.',
+            links: [
+              { phrase: 'How soccer balls are made', href: '/guides/how-soccer-balls-are-made' },
+            ],
+          },
+          { kind: 'list', items: ['New panel designs. More are in development.'] },
+        ],
+      },
+      {
+        heading: 'Starting from a sketch or a sample',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'You do not need a tech pack to get a quote. Send a sketch or a reference garment, and we complete the tech pack for you, free of charge, with your order. If you work in CLO 3D, send its file with your tech pack by a share link, such as WeTransfer or Drive.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'A reference garment is welcome, and we keep it so your reorder matches.',
+              'Before the sample. On request, we can show you your garment in 3D, to turn on screen, before we make the sample.',
+              'What else helps a quote. See What helps us quote faster, in our order guide.',
+              'Sending it back. The inquiry form takes Excel (.xlsx) and PDF files, among others, so you can attach the filled-in template.',
+            ],
+            links: [
+              { phrase: 'show you your garment in 3D', href: '/guides/3d-garment-reference' },
+              { phrase: 'our order guide', href: '/guides/how-a-private-label-order-works' },
+              { phrase: 'The inquiry form', href: '/contact' },
+            ],
+          },
+        ],
+      },
+    ],
+    sources: [
+      {
+        name: 'Ramzan, Maryam, Khawar, Imran, Qureshi and Iqbal, The role of standardized technical packages in ensuring consistency and accuracy in apparel product development, AUTEX Research Journal 26(1)',
+        url: 'https://doi.org/10.1515/aut-2025-0059',
+        date: '2026-01-06',
+        kind: 'read',
+      },
+      {
+        name: 'Fashion Institute of Technology: Technical Design, degree outcomes',
+        url: 'https://www.fitnyc.edu/academics/academic-divisions/business-and-technology/technical-design/degree-details/outcomes.php',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'Coast Community College District: FASH A155 Technical Packages, Course Outline of Record',
+        url: 'https://catalog.cccd.edu/courses/fash-a155/',
+        date: '2026-02-25',
+        kind: 'read',
+      },
+      {
+        name: 'West Valley College: FDAT 066 Technical Design',
+        url: 'https://westvalley.edu/catalog/courses/fashion-design-and-apparel-technology/fdat066.html',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: BS EN ISO 8559-1:2020, identical to ISO 8559-1:2017, Size designation of clothes, anthropometric definitions for body measurement',
+        url: 'https://knowledge.bsigroup.com/products/size-designation-of-clothes-anthropometric-definitions-for-body-measurement',
+        date: '2021-01-31',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: ISO 8559-2:2025, Size designation of clothes, primary and secondary dimension indicators',
+        url: 'https://knowledge.bsigroup.com/products/size-designation-of-clothes-part-2-primary-and-secondary-dimension-indicators',
+        date: '2025-09-18',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: BS ISO 8559-3:2018, Size designation of clothes, methodology for the creation of body measurement tables and intervals',
+        url: 'https://knowledge.bsigroup.com/products/size-designation-of-clothes-methodology-for-the-creation-of-body-measurement-tables-and-intervals',
+        date: '2018-11-30',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: BS 3870-1:1991, identical to ISO 4915:1991, Stitches and seams, classification and terminology of stitch types',
+        url: 'https://knowledge.bsigroup.com/products/stitches-and-seams-classification-and-terminology-of-stitch-types',
+        date: '1991-11-29',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: BS 3870-2:1991, identical to ISO 4916:1991, Stitches and seams, classification and terminology of seam types',
+        url: 'https://knowledge.bsigroup.com/products/stitches-and-seams-classification-and-terminology-of-seam-types',
+        date: '1991-11-29',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM135, dimensional changes of fabrics after home laundering',
+        url: 'https://members.aatcc.org/store/tm135/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM150, dimensional changes of garments after home laundering',
+        url: 'https://members.aatcc.org/store/tm150/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM61, colorfastness to laundering, accelerated',
+        url: 'https://members.aatcc.org/store/tm61/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM8, colorfastness to rubbing',
+        url: 'https://members.aatcc.org/store/tm8/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM15, colorfastness to perspiration',
+        url: 'https://members.aatcc.org/store/tm15/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: BS EN ISO 105-C06:2010, identical to ISO 105-C06:2010, colour fastness to domestic and commercial laundering',
+        url: 'https://knowledge.bsigroup.com/products/textiles-tests-for-colour-fastness-colour-fastness-to-domestic-and-commercial-laundering',
+        date: '2010-04-30',
+        kind: 'read',
       },
     ],
   },

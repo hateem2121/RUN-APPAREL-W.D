@@ -17,6 +17,7 @@ import { ApplicationFiles } from './collections/ApplicationFiles'
 import { Authors } from './collections/Authors'
 import { CaseStudies } from './collections/CaseStudies'
 import { JobApplications } from './collections/JobApplications'
+import { TemplateDownloads } from './collections/TemplateDownloads'
 import { JournalPosts } from './collections/JournalPosts'
 import { Media } from './collections/Media'
 import { Products } from './collections/Products'
@@ -194,6 +195,8 @@ export default buildConfig({
     // The careers form (Phase 2, 2026-10-07): applications and their CVs, as private as inquiries.
     JobApplications,
     ApplicationFiles,
+    // The tech-pack template's downloads (C1, owner approved 6 Nov 2026): as private as inquiries.
+    TemplateDownloads,
     Authors,
     JournalPosts,
     CaseStudies,

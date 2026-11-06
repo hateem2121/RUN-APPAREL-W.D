@@ -27,6 +27,7 @@ import * as migration_20261007_140000_job_applications from './20261007_140000_j
 import * as migration_20261007_160000_journal_case_studies from './20261007_160000_journal_case_studies'
 import * as migration_20261011_120000_site_email_inquiry from './20261011_120000_site_email_inquiry'
 import * as migration_20261016_150000_family_lists from './20261016_150000_family_lists'
+import * as migration_20261106_190000_template_downloads from './20261106_190000_template_downloads'
 
 export const migrations = [
   {
@@ -173,5 +174,10 @@ export const migrations = [
     up: migration_20261016_150000_family_lists.up,
     down: migration_20261016_150000_family_lists.down,
     name: '20261016_150000_family_lists',
+  },
+  {
+    up: migration_20261106_190000_template_downloads.up,
+    down: migration_20261106_190000_template_downloads.down,
+    name: '20261106_190000_template_downloads',
   },
 ];

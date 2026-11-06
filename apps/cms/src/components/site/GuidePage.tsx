@@ -19,13 +19,16 @@ import {
 } from '../../lib/guides'
 import { formatPostDate } from '../../lib/journal'
 import type { ProductCard } from '../../lib/projectPublic'
+import type { TemplateNotice } from '../../lib/templateDownload'
 import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
 import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
+import { GuideToolBlock } from './GuideTools'
 import { OrderSteps } from './OrderSteps'
 import { PhotoStage } from './PhotoStage'
+import { TemplateDownload } from './TemplateDownload'
 
 /** A block's React key: its own first words, so a list of blocks keys without an index. */
 export function blockKey(block: GuideBlock): string {
@@ -34,6 +37,8 @@ export function blockKey(block: GuideBlock): string {
   if (block.kind === 'list') return block.items[0] ?? 'list'
   // One legal line per section, so its date keys it within the section.
   if (block.kind === 'legal') return `legal-${block.checked}`
+  if (block.kind === 'download') return `download-${block.template}`
+  if (block.kind === 'tool') return `tool-${block.tool}`
   return 'title' in block ? block.title : block.text
 }
 
@@ -137,6 +142,87 @@ export function longestWord(text: string): number {
 }
 
 /**
+ * ⚠️ A LETTER IS NOT A UNIT OF WIDTH (C1, 2026-11-06). "MEASUREMENTS" is 12 letters and 11.03em in the
+ * section heading's face (0.919em a letter, past the 0.9 above): its two M's are 1.13em each where an
+ * I is 0.37em, and TY-12 caught it splitting in three of the tech pack guide's headings. So the count
+ * the CSS divides by is the word's real width: each character's advance, measured in Chromium on
+ * 2026-11-06 (uppercase Archivo as the headings draw it, tracking included, in em), plus the same 4%,
+ * in "0.9em letters". Never fewer than the word's letters, so no heading shrinks less than before.
+ */
+const ADVANCE_EM: Readonly<Record<string, number>> = {
+  A: 0.914,
+  B: 0.895,
+  C: 0.91,
+  D: 0.903,
+  E: 0.833,
+  F: 0.776,
+  G: 0.98,
+  H: 0.969,
+  I: 0.372,
+  J: 0.73,
+  K: 0.943,
+  L: 0.748,
+  M: 1.13,
+  N: 0.967,
+  O: 0.977,
+  P: 0.835,
+  Q: 0.977,
+  R: 0.908,
+  S: 0.846,
+  T: 0.836,
+  U: 0.951,
+  V: 0.895,
+  W: 1.185,
+  X: 0.92,
+  Y: 0.914,
+  Z: 0.84,
+  '0': 0.773,
+  '1': 0.702,
+  '2': 0.771,
+  '3': 0.775,
+  '4': 0.775,
+  '5': 0.775,
+  '6': 0.777,
+  '7': 0.713,
+  '8': 0.788,
+  '9': 0.777,
+  '-': 0.396,
+  '’': 0.302,
+  "'": 0.292,
+  ',': 0.353,
+  '.': 0.353,
+  ':': 0.347,
+  ';': 0.354,
+  // biome-ignore lint/suspicious/noApproximativeNumericConstant: the question mark's measured advance, not one over root two
+  '?': 0.707,
+  '!': 0.361,
+  '(': 0.372,
+  ')': 0.372,
+  '&': 1.008,
+  '%': 1.123,
+  '/': 0.298,
+}
+
+/** A word's width in em, as the headings draw it; a character not measured counts as the widest, W. */
+export function wordEm(word: string): number {
+  let width = 0
+  for (const char of word.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase()) {
+    width += ADVANCE_EM[char] ?? 1.185
+  }
+  return width
+}
+
+/** The `--fit-letters` a heading's words need: their widest, in 0.9em letters with a 4% margin. */
+export function fitLetters(text: string): number {
+  return Math.max(
+    0,
+    ...text
+      .split(/\s+/)
+      .map((word) => Math.max(word.length, Math.ceil(((wordEm(word) * 1.04) / 0.9) * 100) / 100)),
+  )
+}
+
+/**
  * " fit-heading" for a heading with a word long enough to need it (`FitWords`), else nothing. A suffix
  * inside the heading's own template literal, so `headlineLeading.test.ts` still reads its classes.
  */
@@ -146,10 +232,9 @@ function fitSuffix(text: string): string {
 
 /** The heading's words inside the span that shrinks them, when it needs to (`fitSuffix`). */
 function FitWords({ text, children }: { text: string; children: ReactNode }) {
-  const letters = longestWord(text)
-  if (letters < FIT_FROM_LETTERS) return children
+  if (longestWord(text) < FIT_FROM_LETTERS) return children
   return (
-    <span className="fit-words" style={{ '--fit-letters': letters } as CSSProperties}>
+    <span className="fit-words" style={{ '--fit-letters': fitLetters(text) } as CSSProperties}>
       {children}
     </span>
   )
@@ -181,13 +266,18 @@ function linksByItem(items: readonly string[], links: readonly GuideLink[] = [])
 export function Block({
   block,
   cards = [],
+  notice = null,
 }: {
   block: GuideBlock
   /** The live catalogue, so a link to a garment finds its default colour (`GuideAnchor`). */
   cards?: readonly ProductCard[]
+  /** A refused template download's message, from the page's address (the download block only). */
+  notice?: TemplateNotice | null
 }) {
   // The home page's eight cards, not a copy (polish D4, the owner's answer Q41).
   if (block.kind === 'orderSteps') return <OrderSteps />
+  if (block.kind === 'download') return <TemplateDownload notice={notice} />
+  if (block.kind === 'tool') return <GuideToolBlock tool={block.tool} />
   if (block.kind === 'table') return <GuideTable block={block} />
   if (block.kind === 'text') {
     return (
@@ -492,7 +582,16 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
  * `cards` is the live catalogue, for the guides that link reference garments (the 3D, printing
  * and fabrics guides' routes read it); without it those links are simply not drawn.
  */
-export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonly ProductCard[] }) {
+export function GuidePage({
+  guide,
+  cards = [],
+  notice = null,
+}: {
+  guide: Guide
+  cards?: readonly ProductCard[]
+  /** A refused template download's message (`templateNotice`), for the tech-pack guide's form. */
+  notice?: TemplateNotice | null
+}) {
   // A headline with a very long word shrinks to fit it (`FitWords`); read before the markup so the
   // className stays one template literal (`headlineLeading.test.ts` reads it).
   const heroFit = fitSuffix(`${guide.heading} ${guide.headingAccent}`)
@@ -546,7 +645,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
               <PhotoStage photo={wholePhoto(section.stage)}>
                 {heading}
                 {section.blocks.map((block) => (
-                  <Block key={blockKey(block)} block={block} cards={cards} />
+                  <Block key={blockKey(block)} block={block} cards={cards} notice={notice} />
                 ))}
               </PhotoStage>
               {garments}
@@ -590,7 +689,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
                 )}
                 <div className="spread__body">
                   {section.blocks.map((block) => (
-                    <Block key={blockKey(block)} block={block} cards={cards} />
+                    <Block key={blockKey(block)} block={block} cards={cards} notice={notice} />
                   ))}
                 </div>
               </div>

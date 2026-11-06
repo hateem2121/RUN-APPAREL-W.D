@@ -11,6 +11,7 @@ import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { FACTORY_PHOTOS, WHOLE_PHOTOS } from './factoryPhotos'
 import { GLOSSARY_TERMS } from './glossary'
+import { toolWords } from './guideTools'
 import {
   GARMENT_FABRICS,
   GUIDE_PATHS,
@@ -23,6 +24,7 @@ import {
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
 import { ORDER_PHASES } from './orderProcess'
+import { templateFormWords } from './templateDownload'
 import { buildLlmsTxt } from './llmsTxt'
 import { sitemapFor } from './searchVisibility'
 import { guideBreadcrumbJsonLd } from './structuredData'
@@ -59,7 +61,12 @@ const everyWord = (guide: (typeof GUIDES)[number]): string =>
                   ])
                 : block.kind === 'legal'
                   ? [legalLine(block.checked)]
-                  : [block.text],
+                  : // The template form and the tools carry fixed words of their own (C1, C6).
+                    block.kind === 'download'
+                    ? templateFormWords()
+                    : block.kind === 'tool'
+                      ? toolWords(block.tool)
+                      : [block.text],
       ),
     ]),
   ].join('\n')
@@ -620,6 +627,8 @@ describe('a guide’s sources (2026-10-08)', () => {
       'hts.usitc.gov',
       'iata.org',
       'iccwbo.org',
+      // C6: the carton calculator's exact inch and foot, and its rounding (NIST, 2026-11-06).
+      'nist.gov',
       'taxation-customs.ec.europa.eu',
       'trade-tariff.service.gov.uk',
       'trade.ec.europa.eu',
@@ -830,6 +839,15 @@ describe('a guide’s sources (2026-10-08)', () => {
       'supplychain.gs1us.org',
       'susproc.jrc.ec.europa.eu',
       'transition-pathways.europa.eu',
+    ),
+    // C1: a peer-reviewed study, three college course pages and two standards bodies (no seller).
+    '/guides/tech-pack-template': hosts(
+      'catalog.cccd.edu',
+      'doi.org',
+      'fitnyc.edu',
+      'knowledge.bsigroup.com',
+      'members.aatcc.org',
+      'westvalley.edu',
     ),
   }
 
@@ -1075,7 +1093,12 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
                 // (the buyer library, 2026-11-05), so it is not a repeat.
                 block.kind === 'table' || block.kind === 'orderSteps' || block.kind === 'legal'
                 ? []
-                : [block.text],
+                : // A form or a tool says nothing a second time either (C1, C6).
+                  block.kind === 'download'
+                  ? templateFormWords()
+                  : block.kind === 'tool'
+                    ? toolWords(block.tool)
+                    : [block.text],
         ),
       ]),
     ]

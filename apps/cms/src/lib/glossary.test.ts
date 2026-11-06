@@ -64,6 +64,20 @@ describe('the glossary terms', () => {
     'bar-tack':
       'A short, dense run of zigzag stitches that strengthens a point under strain, such as a pocket corner or a belt loop.',
     'cut-and-sew': 'Garments made by cutting fabric into pattern pieces and sewing them together.',
+    // The buyer library's terms, in the drafts' own words (owner approved them word for word,
+    // 2026-11-06): the machinery guide's call 9, the software guide's call 9, the team kit guide's
+    // call 10. Each is a full stop added to the draft's sentence and nothing else.
+    'progressive-bundle-system':
+      'A way of organizing a sewing line in which each operator does one small task and bundles of cut pieces move from task to task.',
+    'modular-production':
+      'A way of organizing a sewing line in which a small team of multi-skilled workers sews all or part of a garment.',
+    'dxf-aama':
+      'A form of the DXF file used to send flat pattern pieces between pattern CAD systems, with grading kept in the file or a rule file beside it.',
+    'gltf-glb':
+      'A royalty-free file format for 3D models; a GLB file holds a whole 3D scene in one binary file.',
+    plm: 'Software that shares a product’s data with everyone who works on it, from design to production.',
+    'team-kit':
+      'The shirt, shorts, socks, shin guards and footwear the Laws of the Game make compulsory.',
   }
 
   it('a term written out reads exactly as approved', () => {

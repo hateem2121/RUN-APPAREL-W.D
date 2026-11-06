@@ -131,6 +131,7 @@ export interface Config {
     'inquiry-files': InquiryFile;
     'job-applications': JobApplication;
     'application-files': ApplicationFile;
+    'template-downloads': TemplateDownload;
     authors: Author;
     'journal-posts': JournalPost;
     'case-studies': CaseStudy;
@@ -167,6 +168,7 @@ export interface Config {
     'inquiry-files': InquiryFilesSelect<false> | InquiryFilesSelect<true>;
     'job-applications': JobApplicationsSelect<false> | JobApplicationsSelect<true>;
     'application-files': ApplicationFilesSelect<false> | ApplicationFilesSelect<true>;
+    'template-downloads': TemplateDownloadsSelect<false> | TemplateDownloadsSelect<true>;
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
     'journal-posts': JournalPostsSelect<false> | JournalPostsSelect<true>;
     'case-studies': CaseStudiesSelect<false> | CaseStudiesSelect<true>;
@@ -703,6 +705,53 @@ export interface ApplicationFile {
   height?: number | null;
 }
 /**
+ * Who downloaded the free tech pack template. Each is saved here BEFORE the notification email is attempted. Keep the details for 2 years from your last contact with the person: the "Delete after" date shows when, and you move it on when you write to each other again. Never email, message or call someone who did not tick "Send me occasional updates" unless they write to us first.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "template-downloads".
+ */
+export interface TemplateDownload {
+  id: number;
+  /**
+   * Which template they downloaded.
+   */
+  template: 'tech-pack';
+  name: string;
+  /**
+   * Their company email, as typed.
+   */
+  email: string;
+  company: string;
+  country: string;
+  jobTitle?: string | null;
+  /**
+   * Stored as typed, with the country code first.
+   */
+  whatsapp?: string | null;
+  /**
+   * Whether they ticked "Send me occasional updates". Unticked means we send them nothing unless they write to us first.
+   */
+  updates?: boolean | null;
+  /**
+   * When they ticked it: the record of their yes.
+   */
+  updatesAt?: string | null;
+  /**
+   * 2 years after our last contact with them. Move it on when you write to each other again. Someone who asked for updates keeps their email and their yes until they stop the updates; after that, keep only their email so no update reaches them again.
+   */
+  deleteAfter?: string | null;
+  /**
+   * Whether the notification email was accepted for delivery.
+   */
+  notified?: boolean | null;
+  /**
+   * Why the notification could not be sent, if it could not. The download itself is unaffected.
+   */
+  notifyError?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * People named as the writer of a Journal post. Add someone only after they have signed the consent form. A post with no author is shown as written by RUN APPAREL.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -785,10 +834,30 @@ export interface JournalPost {
     | '/guides/shipping-and-import-duties'
     | '/guides/cost-to-start-an-activewear-brand'
     | '/guides/pakistan-vs-china-vs-turkey'
+    | '/guides/how-soccer-balls-are-made'
+    | '/guides/how-we-write-our-guides'
+    | '/guides/how-to-vet-a-clothing-manufacturer'
+    | '/guides/clothing-labels'
+    | '/guides/apparel-trims'
+    | '/guides/sportswear-fibers'
+    | '/guides/yarn-count-and-denier'
+    | '/guides/sportswear-pattern-making'
+    | '/guides/stitch-and-seam-types'
+    | '/guides/outerwear-and-waterproof-fabrics'
+    | '/guides/dyeing-and-color-matching'
+    | '/guides/garment-cutting'
+    | '/guides/sportswear-compliance-by-market'
+    | '/guides/apparel-manufacturing-machinery'
+    | '/guides/apparel-design-software'
+    | '/guides/how-to-order-team-kits'
+    | '/guides/apparel-manufacturing-technology'
+    | '/guides/tech-pack-template'
     | '/custom-teamwear-manufacturer'
     | '/custom-activewear-manufacturer'
     | '/custom-outerwear-manufacturer'
     | '/private-label-casual-wear-manufacturer'
+    | '/custom-sports-accessories-manufacturer'
+    | '/custom-soccer-ball-manufacturer'
   )[];
   aiAssisted?: boolean | null;
   /**
@@ -957,6 +1026,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'application-files';
         value: number | ApplicationFile;
+      } | null)
+    | ({
+        relationTo: 'template-downloads';
+        value: number | TemplateDownload;
       } | null)
     | ({
         relationTo: 'authors';
@@ -1266,6 +1339,26 @@ export interface ApplicationFilesSelect<T extends boolean = true> {
   filesize?: T;
   width?: T;
   height?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "template-downloads_select".
+ */
+export interface TemplateDownloadsSelect<T extends boolean = true> {
+  template?: T;
+  name?: T;
+  email?: T;
+  company?: T;
+  country?: T;
+  jobTitle?: T;
+  whatsapp?: T;
+  updates?: T;
+  updatesAt?: T;
+  deleteAfter?: T;
+  notified?: T;
+  notifyError?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

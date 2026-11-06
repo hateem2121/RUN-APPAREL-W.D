@@ -3632,6 +3632,86 @@ a.contact-block__value:active {
 }
 
 /*
+ * The tech pack guide's download form (C1, `TemplateDownload.tsx`). Its boxes, labels, errors and
+ * honeypot are the contact form's (`.inquiry-form__*`); what is its own is the updates box and the
+ * notice beside the button. The box is a native checkbox with a 44px row, so it is easy to hit and
+ * a screen reader hears it as a checkbox; `accent-color` draws it in the page's ink.
+ */
+.template-download {
+  margin-top: 24px;
+}
+
+.template-form__updates {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-block-size: var(--target-min);
+  margin-top: 16px;
+}
+
+.template-form__updates input {
+  flex: none;
+  inline-size: 20px;
+  block-size: 20px;
+  margin: 0;
+  accent-color: var(--text);
+}
+
+.prose .template-form__notice {
+  margin-top: 16px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/*
+ * The guides' three small tools (C6, `GuideTools.tsx`): a panel in the section that owns its topic,
+ * with the contact form's boxes and chips. The result line keeps its height while empty, so the
+ * notes under it do not jump as a figure appears.
+ */
+.guide-tool {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.guide-tool__choices {
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.prose .guide-tool__hint {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.guide-tool__result {
+  display: block;
+  min-block-size: 1.55em;
+  margin-top: 16px;
+  font-weight: 700;
+}
+
+.prose .guide-tool__note {
+  margin-top: 12px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* The three measurements side by side once the panel can hold them (the pairs' own width rule). */
+@container inquiry-form (inline-size >= 28rem) {
+  .guide-tool__measures {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+}
+
+/*
  * ⚠️ A GUIDE'S TABLE (polish X22): the printing guide's seven methods and what each suits, which
  * the audit of 3 October 2026 found as a paragraph. The first one on the site. A table at the
  * guides' measure, so its right edge is the paragraphs' (28.635em, above), with the caption in the

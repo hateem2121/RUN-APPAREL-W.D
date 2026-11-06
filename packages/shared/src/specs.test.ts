@@ -7,10 +7,9 @@ describe('fabricParts', () => {
       '85% Recycled Polyester',
       '15% Spandex',
     ])
-    expect(fabricParts('Shell: 100% Polyester Taslon / Lining: 100% Polyester Taffeta')).toEqual([
-      'Shell: 100% Polyester Taslon',
-      'Lining: 100% Polyester Taffeta',
-    ])
+    expect(
+      fabricParts('Shell: 100% Textured Woven Polyester / Lining: 100% Polyester Taffeta'),
+    ).toEqual(['Shell: 100% Textured Woven Polyester', 'Lining: 100% Polyester Taffeta'])
   })
   it('keeps a slash with no spaces inside its part, and drops empty parts', () => {
     expect(fabricParts('100% Poly/Cotton Blend')).toEqual(['100% Poly/Cotton Blend'])
