@@ -851,6 +851,7 @@ export interface JournalPost {
     | '/guides/apparel-design-software'
     | '/guides/how-to-order-team-kits'
     | '/guides/apparel-manufacturing-technology'
+    | '/guides/tech-pack-template'
     | '/custom-teamwear-manufacturer'
     | '/custom-activewear-manufacturer'
     | '/custom-outerwear-manufacturer'
