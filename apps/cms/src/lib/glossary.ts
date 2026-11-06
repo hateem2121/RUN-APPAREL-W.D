@@ -73,6 +73,9 @@ const MACHINERY_GUIDE = '/guides/apparel-manufacturing-machinery'
 const SOFTWARE_GUIDE = '/guides/apparel-design-software'
 const TECH_PACK_GUIDE = '/guides/tech-pack-template'
 const TEAM_KITS_GUIDE = '/guides/how-to-order-team-kits'
+const TECHNOLOGY_GUIDE = '/guides/apparel-manufacturing-technology'
+const DYEING_GUIDE = '/guides/dyeing-and-color-matching'
+const PATTERN_GUIDE = '/guides/sportswear-pattern-making'
 
 /** A guide's point, found by the start of its title. Throws on a missing one: caught at build. */
 function guidePoint(path: string, titleStart: string): { title: string; text: string } {
@@ -386,6 +389,65 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     definition:
       'The shirt, shorts, socks, shin guards and footwear the Laws of the Game make compulsory.',
     seeAlso: [TEAM_KITS_GUIDE],
+  },
+  // Seven terms the technology (B8) and tech pack (C1) guides name without defining. The owner
+  // approved these definitions as proposed on 2026-11-06 (GLOSSARY-PROPOSALS, kept privately);
+  // each is worded apart from the guides' own sentences, so the site's repeat check stays clean.
+  {
+    id: 'digital-product-passport',
+    name: 'Digital Product Passport',
+    category: 'Standards and audits',
+    definition:
+      'A digital record of a product, reached by scanning a code on it, that the EU plans to require for textiles under its ecodesign rules.',
+    seeAlso: [TECHNOLOGY_GUIDE],
+  },
+  {
+    id: 'rfid',
+    name: 'RFID',
+    category: 'Ordering and production',
+    definition:
+      'Radio-frequency identification: a tag read by radio, without needing to be seen, used to track a garment from the factory to the shop.',
+    seeAlso: [TECHNOLOGY_GUIDE],
+  },
+  {
+    id: 'dope-dyeing',
+    name: 'Dope dyeing (spin dyeing)',
+    category: 'Fibers',
+    definition:
+      'Coloring a synthetic fiber by mixing pigment into the melted material before the fiber is spun, so the color runs all the way through.',
+    seeAlso: [TECHNOLOGY_GUIDE, DYEING_GUIDE],
+  },
+  {
+    id: 'point-of-measure',
+    name: 'Point of measure',
+    category: 'Ordering and production',
+    definition:
+      'One place on a garment where it is measured, such as chest width or sleeve length, with a note of how to take it.',
+    seeAlso: [TECH_PACK_GUIDE],
+  },
+  {
+    id: 'bill-of-materials',
+    name: 'Bill of materials',
+    category: 'Ordering and production',
+    definition:
+      'The list of everything a garment is made from: fabrics, thread, trims, labels and packaging.',
+    seeAlso: [TECH_PACK_GUIDE],
+  },
+  {
+    id: 'flat',
+    name: 'Flat (technical drawing)',
+    category: 'Ordering and production',
+    definition:
+      'A line drawing of a garment laid flat, front and back, showing its seams and details.',
+    seeAlso: [TECH_PACK_GUIDE],
+  },
+  {
+    id: 'grading',
+    name: 'Grading',
+    category: 'Ordering and production',
+    definition:
+      'Making a pattern in every size of a range from one base size, by set amounts at each point of measure.',
+    seeAlso: [PATTERN_GUIDE, TECH_PACK_GUIDE],
   },
   {
     id: 'moq',
