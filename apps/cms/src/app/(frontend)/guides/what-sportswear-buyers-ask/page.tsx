@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 import { GuidePage } from '../../../../components/site/GuidePage'
+import { JsonLd } from '../../../../components/site/JsonLd'
+import { COUNT_DATE_ISO, CSV_PATH, WINDOW_START_ISO } from '../../../../lib/buyerQuestions'
 import { getProductCards } from '../../../../lib/content'
 import { guideAt } from '../../../../lib/guides'
 import { buildMetadata } from '../../../../lib/seo'
+import { buyerQuestionsDatasetJsonLd } from '../../../../lib/structuredData'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -25,5 +28,18 @@ export const metadata: Metadata = buildMetadata({
 // The live catalogue, for the reference garments this guide links. It never throws: with no
 // catalogue the links are simply not drawn.
 export default async function WhatSportswearBuyersAskPage() {
-  return <GuidePage guide={guideAt(PATH)} cards={await getProductCards()} />
+  const guide = guideAt(PATH)
+  return (
+    <>
+      {/* The counts as a Dataset (C7 editorial call 4), beside the guide's own article markup. */}
+      <JsonLd
+        data={buyerQuestionsDatasetJsonLd(
+          guide,
+          { start: WINDOW_START_ISO, end: COUNT_DATE_ISO },
+          CSV_PATH,
+        )}
+      />
+      <GuidePage guide={guide} cards={await getProductCards()} />
+    </>
+  )
 }

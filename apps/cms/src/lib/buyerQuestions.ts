@@ -29,6 +29,13 @@ export const COUNT_GAP = '[COUNT]'
 
 /** The end of the counting window, as the page words it ("1 January 2026 and 10 October 2026"). Owed. */
 export const COUNT_DATE: string | null = null
+/**
+ * The same day as COUNT_DATE, as an ISO date ("2026-10-10"), for the Dataset's `temporalCoverage`
+ * (Google: an ISO 8601 interval). Owed with COUNT_DATE; `structuredData.test.ts` holds the two together.
+ */
+export const COUNT_DATE_ISO: string | null = null
+/** The counting window's first day (owner, 6 Nov 2026: "1 January 2026 to the count day"). */
+export const WINDOW_START_ISO = '2026-01-01'
 
 /** True once the team has exported the WhatsApp topics and they are in the counts. Owed. */
 export const WHATSAPP_TOPICS_COUNTED = false
