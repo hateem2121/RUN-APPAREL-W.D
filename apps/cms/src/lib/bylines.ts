@@ -133,6 +133,12 @@ const SECP_QR_LINE = '2026-11-07T00:05:06+05:00'
  * and its sources without the drafting team's "†" (it meant "read through the web-fetch tool").
  */
 const FRANCE_KNIT_LINE = '2026-11-07T12:23:35+05:00'
+/**
+ * The three held guides (C2, C3, C7) and the links to them that came back in the stitches and
+ * machinery guides (owner approved every word on 2026-11-06). The time the words were committed on
+ * `site/held-guides`; it moves again when a team fact is filled in, as the test says.
+ */
+const HELD_GUIDES = '2026-11-06T22:45:00+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -224,12 +230,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     TECH_PACK_AND_TOOLS,
     'd07809665122',
   ),
-  '/guides/stitch-and-seam-types': byline(
-    AUTHORS.production,
-    LIBRARY,
-    TECH_PACK_AND_TOOLS,
-    '3599de0b12a7',
-  ),
+  '/guides/stitch-and-seam-types': byline(AUTHORS.production, LIBRARY, HELD_GUIDES, '74f4c8f28cd2'),
   '/guides/outerwear-and-waterproof-fabrics': byline(
     AUTHORS.production,
     LIBRARY,
@@ -247,8 +248,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/apparel-manufacturing-machinery': byline(
     AUTHORS.production,
     LIBRARY,
-    TECH_PACK_AND_TOOLS,
-    '3106f2c725a8',
+    HELD_GUIDES,
+    '8b889da72798',
   ),
   '/guides/apparel-design-software': byline(
     AUTHORS.contentTeam,
@@ -269,6 +270,21 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     TECH_PACK_AND_TOOLS,
     TECH_PACK_AND_TOOLS,
     '90d1d0002502',
+  ),
+  // C2, C3 and C7, HELD (owner, 2026-11-06): signed by the merchandiser, the production in-charge and
+  // the Content Team.
+  '/guides/aql-inspection': byline(AUTHORS.merchandiser, HELD_GUIDES, HELD_GUIDES, '8b40a7c30ccb'),
+  '/guides/fabric-and-garment-testing': byline(
+    AUTHORS.production,
+    HELD_GUIDES,
+    HELD_GUIDES,
+    '7bc62171ee0d',
+  ),
+  '/guides/what-sportswear-buyers-ask': byline(
+    AUTHORS.contentTeam,
+    HELD_GUIDES,
+    HELD_GUIDES,
+    '9d3cb01db4e8',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),

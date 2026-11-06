@@ -498,6 +498,8 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
     '/guides/apparel-manufacturing-technology',
     // C1 (2026-11-06): what to send a factory, and the free template to send it in.
     '/guides/tech-pack-template',
+    // C7 (2026-11-06, held): what buyers ask us before they order.
+    '/guides/what-sportswear-buyers-ask',
   ],
   '/faq/orders-and-samples': [
     '/guides/minimum-order-and-samples',
@@ -517,6 +519,9 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
     '/guides/how-to-vet-a-clothing-manufacturer',
     '/guides/sportswear-compliance-by-market',
     '/guides/stitch-and-seam-types',
+    // C2 and C3 (2026-11-06, held): inspection and testing are quality.
+    '/guides/aql-inspection',
+    '/guides/fabric-and-garment-testing',
   ],
   '/faq/shipping-and-importing': [
     '/guides/shipping-and-import-duties',
