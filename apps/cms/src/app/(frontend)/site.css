@@ -3579,6 +3579,27 @@ a.contact-block__value:active {
   max-width: 28.635em;
 }
 
+/*
+ * A guide's lede keeps the same 50ch as its running text (6 Nov 2026). At `--site-measure` (31.5em)
+ * two of the buyer library's ledes set 76 and 77 characters at 768px in CI's Firefox, past FA-C-52's
+ * 75 (`legibility.spec.ts`, PR #331). Only the guide hero's lede: the other pages' keep theirs. One
+ * class, so it outranks `.site-lede` by coming later and no later rule's selector "descends" from it.
+ */
+.site-lede--guide {
+  max-width: 28.635em;
+}
+
+/*
+ * A guide's source list, a little narrower again (6 Nov 2026). A source is a name — an author list,
+ * "Légifrance, Décret n° 2022-748", a register's title — so its lines carry more narrow letters,
+ * commas and digits than prose: three set 76 and 77 characters at 28.635em (486.8px) in CI's
+ * Firefox. 27em is 459px there, about 72 characters for the narrowest of them. The same weight as
+ * `.prose--guide li` above, which it follows, so it wins on order alone.
+ */
+.guide-sources li {
+  max-width: 27em;
+}
+
 /* A plain list inside running text (the buyer guides). The browser's own markers, indented. */
 .prose .prose__list {
   margin: 16px 0 0;
@@ -4988,6 +5009,15 @@ a.contact-block__value:active {
   margin: 0;
   max-width: 46ch;
   color: var(--text);
+}
+
+/*
+ * A list on the panel keeps the paragraph's measure (6 Nov 2026). The buyer guides put lists on
+ * their photo sections, and an `li` here had only base.css's 60ch (584px at 768px), so lines of 76
+ * to 82 characters ran past FA-C-52's 75 in CI's Firefox (`legibility.spec.ts`, PR #331).
+ */
+.photo-stage__copy li {
+  max-width: 46ch;
 }
 
 @media (min-width: 900px) {

@@ -155,6 +155,29 @@ describe('what a search result shows', () => {
     })
   }
 
+  /*
+   * ⚠️ A WRAPPED DRAFT FIELD ONCE SHIPPED HALF (6 Nov 2026). The vetting guide's description and lede
+   * wrapped onto a second line in the owner's draft, the converter read only the first, and both
+   * shipped ending "...EU origin papers and" / "...its bank" — the length check passed at 101
+   * characters. A description or lede is whole sentences, so each must end as a sentence ends.
+   */
+  const endsAsASentence = (text: string) => /[.?!][’”)]?$/.test(text.trim())
+  it('every description and lede ends as a sentence ends', () => {
+    const cut = GUIDES.flatMap((guide) =>
+      [guide.description, guide.lede]
+        .filter((text) => !endsAsASentence(text))
+        .map((text) => `${guide.path}: "…${text.slice(-40)}"`),
+    )
+    expect(cut).toEqual([])
+    // NEGATIVE CONTROL: the half-shipped description is caught, the whole one is not.
+    expect(
+      endsAsASentence(
+        'Check a clothing factory before you pay: its company record, bank account, EU origin papers and',
+      ),
+    ).toBe(false)
+    expect(endsAsASentence('Each part is quoted.')).toBe(true)
+  })
+
   it('no two guides share a title or a description', () => {
     expect(new Set(GUIDES.map((guide) => guide.title)).size).toBe(GUIDES.length)
     expect(new Set(GUIDES.map((guide) => guide.description)).size).toBe(GUIDES.length)

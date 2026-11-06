@@ -425,7 +425,7 @@ function GuideSources({ sources }: { sources: readonly GuideSource[] }) {
       <div className="site-container prose prose--guide spread">
         <h2 className="display display--section">Sources</h2>
         <div className="spread__body">
-          <ol className="see-also__list">
+          <ol className="see-also__list guide-sources">
             {sources.map((source) => (
               <li key={source.url}>
                 <a href={source.url} rel="noopener">
@@ -514,7 +514,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
               {guide.heading} <span className="serif-accent">{guide.headingAccent}</span>
             </FitWords>
           </h1>
-          <p className="site-lede">{guide.lede}</p>
+          <p className="site-lede site-lede--guide">{guide.lede}</p>
           <Byline path={guide.path} reviewed={guide.reviewed} />
         </div>
       </section>

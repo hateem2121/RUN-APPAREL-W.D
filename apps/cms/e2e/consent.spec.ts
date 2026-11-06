@@ -82,7 +82,7 @@ test.describe('the cookie choice', () => {
   }) => {
     await liftAutomationGate(context)
     const outside = await watch(page)
-    for (const path of [
+    const pages = [
       '/',
       '/products',
       '/contact',
@@ -90,7 +90,15 @@ test.describe('the cookie choice', () => {
       '/terms',
       ...FAMILY_PAGE_SOURCES,
       ...GUIDE_PAGE_SOURCES,
-    ]) {
+    ]
+    /*
+     * ⚠️ ONE VISIT, EVERY PAGE, SO THE TIME GROWS WITH THE SITE (6 Nov 2026). The default 30 s held
+     * 26 pages; with the buyer library's 15 guides (41 pages) CI's Firefox and WebKit ran out of time
+     * on the 30th, on retry as well (PR #331). It stays one test because "nothing is stored" is a
+     * claim about the whole visit; the budget is per page instead (about 1.2 s each in CI).
+     */
+    test.setTimeout(10_000 + pages.length * 2_500)
+    for (const path of pages) {
       await page.goto(path)
       await expect(banner(page), `no question on ${path}`).toBeVisible()
       await page.waitForLoadState('networkidle')

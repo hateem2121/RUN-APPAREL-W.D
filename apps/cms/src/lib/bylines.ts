@@ -200,7 +200,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.merchandiser,
     LIBRARY,
     LIBRARY,
-    '5518413a4d2d',
+    'b162fd30a8e8',
   ),
   '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, '77895275599e'),
   '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, LIBRARY, 'b94de6c5ba53'),

@@ -34,10 +34,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
     path: '/guides/how-to-vet-a-clothing-manufacturer',
     title: 'How to Vet a Clothing Manufacturer',
     description:
-      'Check a clothing factory before you pay: its company record, bank account, EU origin papers and',
+      'Check a clothing factory before you pay: its company record, bank account, EU origin papers and certificates, where to verify each, and forced-labor rules.',
     heading: 'How to vet a clothing manufacturer,',
     headingAccent: 'before you pay.',
-    lede: 'Before you pay a deposit, check the factory’s papers where they were issued: its company record, its bank',
+    lede: 'Before you pay a deposit, check the factory’s papers where they were issued: its company record, its bank account and each certificate it shows. This guide says where to look, using the regulators’ and the schemes’ own pages, and ends with what we can give you.',
     sections: [
       {
         heading: 'What to ask a factory for before you order',

@@ -49,6 +49,44 @@ const PLAIN_MEANING: Readonly<Record<string, readonly string[]>> = {
   '/community': ['next-generation', 'next-gen'],
 }
 
+/**
+ * A NAME SOMEONE ELSE PUBLISHED, spelled as they publish it, page by page (6 Nov 2026). The buyer
+ * guides cite organisations and titles by their own names — the EU's Joint Research Centre, a BSI
+ * standard's "colour fastness", a paper called "A State-of-the-Art Review", a directive "on
+ * empowering consumers" — and the owner approved keeping a published name as published (the drafts'
+ * self-check, approved word for word on 6 Nov 2026). Our own words keep the rules: each exact name is
+ * removed by plain string, and the test below proves the same word in our prose is still caught.
+ */
+const PUBLISHED_NAMES: Readonly<Record<string, readonly string[]>> = {
+  '/guides/garment-printing-methods': ['colour fastness'],
+  '/guides/how-to-vet-a-clothing-manufacturer': ['National Cyber Security Centre'],
+  '/guides/clothing-labels': ['Estonian Centre for Standardisation'],
+  '/guides/apparel-trims': ['Estonian Centre for Standardisation'],
+  '/guides/sportswear-pattern-making': ['Estonian Centre for Standardisation'],
+  '/guides/outerwear-and-waterproof-fabrics': ['Estonian Centre for Standardisation'],
+  '/guides/dyeing-and-color-matching': ['metameric colour stimuli'],
+  '/guides/garment-cutting': ['A State-of-the-Art Review'],
+  '/guides/sportswear-compliance-by-market': ['on empowering consumers for the green transition'],
+  '/guides/apparel-manufacturing-technology': ['Joint Research Centre'],
+}
+
+/** The text with every published name on `path` taken out, by plain string, never a RegExp. */
+const withoutPublishedNames = (path: string, text: string) =>
+  (PUBLISHED_NAMES[path] ?? []).reduce((rest, name) => rest.split(name).join(' '), text)
+
+// NEGATIVE CONTROL for the name skip: it removes the name and nothing else, so the same word planted
+// in the page's own prose is still caught, and a name no longer on its page fails rather than
+// silently allowing a word.
+test('the spelling check skips only the published names', async ({ page }) => {
+  const path = '/guides/apparel-manufacturing-technology'
+  await page.goto(path)
+  const copy = await page.evaluate(readCopyInPage)
+  expect(findBritishSpellings(copy.body), 'the name no longer holds the word').toContain('centre')
+  expect(findBritishSpellings(withoutPublishedNames(path, copy.body))).toEqual([])
+  const planted = `${copy.body}\nOur cutting centre is in Sialkot.`
+  expect(findBritishSpellings(withoutPublishedNames(path, planted))).toEqual(['centre'])
+})
+
 // NEGATIVE CONTROL for the quote skip: it removes the quote and nothing else, so the same word
 // planted in /about's own prose is still caught.
 test('the buzzword check skips only the quoted mission', async ({ page }) => {
@@ -78,12 +116,21 @@ for (const path of PAGES) {
     // The owner's quoted mission (`[data-quote]`) is kept word for word, so it is the one text
     // this check skips (owner, 2026-10-09). Removed by plain string, never a RegExp.
     const unquoted = copy.quoted.reduce((text, quote) => text.split(quote).join(' '), copy.body)
+    // Every listed name must still be on its page: a stale entry would allow a word for nothing.
+    for (const name of PUBLISHED_NAMES[path] ?? []) {
+      expect(
+        copy.body,
+        `"${name}" is no longer on ${path}; remove it from PUBLISHED_NAMES`,
+      ).toContain(name)
+    }
     expect(
-      findBuzzwords(unquoted, { allow: [...(PLAIN_MEANING[path] ?? [])] }),
+      findBuzzwords(withoutPublishedNames(path, unquoted), {
+        allow: [...(PLAIN_MEANING[path] ?? [])],
+      }),
       'buzzwords in the copy (CT-03)',
     ).toEqual([])
     expect(
-      findBritishSpellings([copy.body, ...copy.decoded].join('\n')),
+      findBritishSpellings([withoutPublishedNames(path, copy.body), ...copy.decoded].join('\n')),
       'British spelling in visible or pre-filled text (CT-05)',
     ).toEqual([])
   })
