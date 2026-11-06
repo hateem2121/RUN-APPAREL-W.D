@@ -35,6 +35,14 @@ export const FIBRE_NOTES: Record<string, string> = {
   polychloroprene: 'The chemical name for neoprene: a rubbery foam that keeps you warm when wet.',
   'polyester taslon':
     'A textured woven polyester for the outer shell: light, tough and wind-resistant.',
+  /*
+   * The Metro-Shield Suit's corrected shell (owner, 2026-11-06): "Taslon" is a trade name, so the CMS
+   * fabric becomes "Shell: 100% Textured Woven Polyester". The approved Taslon note, word for word,
+   * under the new key. It ships before the CMS write, so the page never loses its note; the old key
+   * goes once the write is read back (`.superpowers/waves-2026-11-05/RMSS-DRY-RUN.md`, private).
+   */
+  'textured woven polyester':
+    'A textured woven polyester for the outer shell: light, tough and wind-resistant.',
   'polyester taffeta': 'A smooth, light woven lining that slides easily over other clothes.',
 }
 

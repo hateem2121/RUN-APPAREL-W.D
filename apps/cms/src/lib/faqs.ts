@@ -490,17 +490,29 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
     '/guides/3d-garment-reference',
     // Wave 1 (2026-11-05): how the guides are written answers to "Working with us".
     '/guides/how-we-write-our-guides',
+    // The buyer library (2026-11-06): how the work is done, the machines, the software, what is coming.
+    '/guides/apparel-manufacturing-machinery',
+    '/guides/apparel-design-software',
+    '/guides/apparel-manufacturing-technology',
   ],
   '/faq/orders-and-samples': [
     '/guides/minimum-order-and-samples',
     '/guides/how-a-private-label-order-works',
     // The two guides of 2026-10-08, each beside the questions it answers.
     '/guides/cost-to-start-an-activewear-brand',
+    // The buyer library (2026-11-06): what an order is made of before the sewing starts.
+    '/guides/how-to-order-team-kits',
+    '/guides/sportswear-pattern-making',
+    '/guides/garment-cutting',
   ],
   // Wave 1 (2026-11-05): the soccer-ball guide, whose FIFA quality marks and tests are quality.
   '/faq/quality-and-certifications': [
     '/guides/how-a-private-label-order-works',
     '/guides/how-soccer-balls-are-made',
+    // The buyer library (2026-11-06): checking a factory, the rules by market, and the seams.
+    '/guides/how-to-vet-a-clothing-manufacturer',
+    '/guides/sportswear-compliance-by-market',
+    '/guides/stitch-and-seam-types',
   ],
   '/faq/shipping-and-importing': [
     '/guides/shipping-and-import-duties',
@@ -510,6 +522,13 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
   '/faq/fabrics-and-printing': [
     '/guides/sportswear-fabrics-and-weights',
     '/guides/garment-printing-methods',
+    // The buyer library (2026-11-06): what a garment is made of, and what goes on it.
+    '/guides/sportswear-fibers',
+    '/guides/yarn-count-and-denier',
+    '/guides/outerwear-and-waterproof-fabrics',
+    '/guides/dyeing-and-color-matching',
+    '/guides/clothing-labels',
+    '/guides/apparel-trims',
   ],
 }
 

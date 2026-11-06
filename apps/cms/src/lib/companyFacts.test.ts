@@ -177,7 +177,9 @@ describe('the lead time and the production site', () => {
 const OLD_WORDING = [
   /private label apparel manufacturer/i,
   /private label manufacturer in Sialkot/i,
-  /\bteam wear\b/i,
+  // The old product word, not the verb: the team kits guide quotes the rule that "all players on a team
+  // wear the same color" (buyer library, 2026-11-06), so "a team wear" passes; the control below checks both.
+  /(?<!\ba )\bteam wear\b/i,
   /\bactive wear\b/i,
 ]
 
@@ -240,6 +242,8 @@ describe('one definition of the company, wherever the site summarizes itself', (
     const oldSummary =
       'A private label apparel manufacturer in Sialkot, Pakistan, making team wear, active wear'
     expect(oldWordingIn(oldSummary)).toHaveLength(3)
+    expect(oldWordingIn('all players on a team wear the same color')).toEqual([])
+    expect(oldWordingIn('we make team wear and kits')).toHaveLength(1)
     expect(oldWordingIn('RUN APPAREL is a private label manufacturer in Sialkot — team')).toEqual([
       'private label manufacturer in Sialkot',
     ])
