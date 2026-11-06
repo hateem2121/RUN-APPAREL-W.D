@@ -667,6 +667,7 @@ describe('a guide’s sources (2026-10-08)', () => {
       'oeil.europarl.europa.eu',
       'oeko-tex.com',
       'sa-intl.org',
+      'secp.gov.pk',
       'sedex.com',
       'taxation-customs.ec.europa.eu',
       'textileexchange.org',

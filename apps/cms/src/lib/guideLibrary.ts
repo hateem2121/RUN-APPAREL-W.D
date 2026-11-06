@@ -84,6 +84,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'The record sits on the SECP’s eServices site, eservices.secp.gov.pk. Ask the factory for the link to its record, and check that the link opens there.',
+              'A certificate of incorporation issued from 1 January 2021 carries a QR code and a link to check it against SECP’s own record.',
               'The SECP’s name search is a different tool, for checking whether a name is available.',
               'Anyone can check the FBR’s list of active taxpayers online, by text message with the company’s seven-digit NTN, or by downloading the list.',
               'For a company in another country, use that country’s official register. In the UK, Companies House gives a company’s registered address and date of incorporation for free.',
@@ -355,6 +356,15 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         url: 'https://eservices.secp.gov.pk/eServices/',
         date: '2026-11-06',
         kind: 'read',
+      },
+      {
+        // Owner-approved line, 7 Nov 2026: the release says the electronic certificate (from 1 January
+        // 2021) "includes various security features including SECP monogram, electronic seal of the
+        // registrar, QR code and a hyperlink for instant verification from SECP's record".
+        name: 'Securities and Exchange Commission of Pakistan: press release, SECP Takes a Giant “LEAP” to Promote Ease of Doing Business',
+        url: 'https://www.secp.gov.pk/wp-content/uploads/2021/04/Press-Release-January-6-SECP-Takes-a-Giant-%E2%80%9CLEAP%E2%80%9D-to-Promote-Ease-of-Doing-Business.pdf',
+        date: '2021-01-06',
+        kind: 'published',
       },
       {
         name: 'Securities and Exchange Commission of Pakistan: eServices name search',
