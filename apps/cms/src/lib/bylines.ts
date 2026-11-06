@@ -119,6 +119,8 @@ const AI_CHECK = '2026-11-05T20:46:11+05:00'
  * checks (2026-11-05), their last uses, so those constants went with them.
  */
 const LIBRARY = '2026-11-06T17:05:02+05:00'
+/** The order steps name FCA and DAP among the terms (owner, 2026-11-06); the order guide draws them. */
+const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -138,8 +140,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-a-private-label-order-works': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    WAVE_ONE,
-    '9183271e007c',
+    PRICE_TERMS,
+    'b0ead3f206e3',
   ),
   '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, RECYCLED_POLY, '36ec04abfa9a'),
   '/guides/minimum-order-and-samples': byline(

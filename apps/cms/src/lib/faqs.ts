@@ -264,7 +264,7 @@ const SHIPPING: FaqTopic = {
   path: '/faq/shipping-and-importing',
   title: 'FAQ: Shipping and Importing',
   description:
-    'How RUN APPAREL ships from Pakistan, which Incoterms it quotes (EXW, FOB, CFR, CIF, DDP), who pays import duty, and how garments are packed.',
+    'How RUN APPAREL ships from Pakistan, which Incoterms it quotes (EXW, FCA, FOB, CFR, CIF, DAP, DDP), who pays import duty, and how garments are packed.',
   heading: 'Shipping',
   headingAccent: 'and importing.',
   entries: [
@@ -278,9 +278,11 @@ const SHIPPING: FaqTopic = {
     {
       id: 'incoterms',
       question: 'Which price terms (Incoterms) do you quote?',
-      answer: 'EXW, FOB, CFR, CIF and DDP. FOB, CFR and CIF are used for sea freight.',
+      // FCA (on request) and DAP joined (owner, 2026-11-06), in the shipping guide's own words.
+      answer:
+        'EXW, FCA on request, FOB, CFR, CIF, DAP and DDP. FOB, CFR and CIF are used for sea freight.',
       detail:
-        'EXW: you collect the goods from our works. FOB: we load the goods onto the ship at the port in Pakistan. CFR and CIF: we pay the sea freight to your port, and under CIF the insurance too. DDP: we deliver to your door with the import duty and tax already paid. These terms follow the International Chamber of Commerce rules, called Incoterms.',
+        'EXW: you collect the goods from our works. FCA, on request: we clear the goods for export and hand them to your carrier at the agreed place. FOB: we load the goods onto the ship at the port in Pakistan. CFR and CIF: we pay the sea freight to your port, and under CIF the insurance too. DAP: we deliver to the place named in your quote. DDP: we deliver to your door with the import duty and tax already paid. These terms follow the International Chamber of Commerce rules, called Incoterms.',
       source: 'shipping guide',
     },
     {

@@ -97,9 +97,14 @@ const WAVE_ONE = '2026-11-05T20:07:40+05:00'
  * of the FAQ topics' closing block (#246, 2026-10-25), its last use, so that constant went with it.
  */
 const LIBRARY = '2026-11-06T17:05:02+05:00'
+/**
+ * FCA (on request) and DAP join the price terms wherever the site lists them (owner, 2026-11-06): the
+ * home page's order step, the FAQ's Incoterms answer and its topic's description, and the glossary.
+ */
+const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(WAVE_ONE, 'e7dceb9bb5e3'),
+  '/': page(PRICE_TERMS, '00140939a970'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
   '/custom-teamwear-manufacturer': page(WAVE_ONE, '16390fbc1582'),
   '/custom-activewear-manufacturer': page(WAVE_ONE, '9ec97e679558'),
@@ -111,13 +116,13 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
-  '/faq': page(WAVE_ONE, '8d6b61211358'),
+  '/faq': page(PRICE_TERMS, 'bf487444473d'),
   '/faq/orders-and-samples': page(LIBRARY, 'a085ccb257a2'),
   '/faq/quality-and-certifications': page(LIBRARY, '2f8e683d8b4c'),
-  '/faq/shipping-and-importing': page(LIBRARY, 'c4a531d4a586'),
+  '/faq/shipping-and-importing': page(PRICE_TERMS, '3337ef9c9fe5'),
   '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
   '/faq/working-with-us': page(LIBRARY, 'e6878ac44145'),
-  '/glossary': page(WAVE_ONE, 'e0eb045bbe15'),
+  '/glossary': page(PRICE_TERMS, 'c22e311ba5df'),
   '/journal': page(LIBRARY, '5791b43c9aea'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),

@@ -121,6 +121,13 @@ export const FEATURE_NOTES: Record<string, string> = {
     'A tough outer shell woven with a grid that stops small tears spreading.',
   'thermal-regulating fleece lining':
     'A soft fleece lining that keeps you warm without overheating.',
+  /*
+   * The Metro-Shield Suit's corrected lining (owner, 2026-11-06): a taffeta lining with 40–60 GSM
+   * insulation, not fleece. His words for the note, built from two he had approved (the taffeta
+   * lining's and the insulation weight's). It ships before the CMS write, so the page never loses
+   * its note; the fleece key goes once the write is read back.
+   */
+  'insulated taffeta lining': 'A smooth taffeta lining with padding inside, for warmth.',
   'reinforced knee panels': 'Extra layers at the knees, where pants wear out first.',
   'taped waterproof seams': 'Tape sealed over the seams, so rain cannot get through stitch holes.',
   'windproof membrane': 'A thin layer inside the fabric that stops the wind getting through.',

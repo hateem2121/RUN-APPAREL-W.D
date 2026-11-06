@@ -23,10 +23,6 @@ const fact = (prefix: string): string =>
   FACTS.find((entry) => entry.label.startsWith(prefix))?.value ?? ''
 
 const MINIMUM = fact('Minimum')
-const SAMPLE_DAYS = fact('Working days')
-const CAPACITY = fact('Pieces per month')
-const PEOPLE = fact('People')
-const FLOOR = fact('Sq m')
 /** "three", for a sentence that spells the count (`CUTTING_LINES`, companyFacts.ts). */
 const CUTTING_LINES_WORD =
   ['zero', 'one', 'two', 'three', 'four', 'five'][Number(CUTTING_LINES.value)] ??
