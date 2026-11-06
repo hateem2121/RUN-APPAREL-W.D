@@ -126,6 +126,8 @@ const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
  * and ball guides (C6): owner approved every word on 2026-11-06. The time the words were committed.
  */
 const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
+/** The vetting guide's SECP QR-code line, owner approved as written on 2026-11-07. */
+const SECP_QR_LINE = '2026-11-07T00:05:06+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -204,8 +206,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-to-vet-a-clothing-manufacturer': byline(
     AUTHORS.merchandiser,
     LIBRARY,
-    LIBRARY,
-    'b162fd30a8e8',
+    SECP_QR_LINE,
+    '61d050ce6a67',
   ),
   '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, '77895275599e'),
   '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, LIBRARY, 'b94de6c5ba53'),
