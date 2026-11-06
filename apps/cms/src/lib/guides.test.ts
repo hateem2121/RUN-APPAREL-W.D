@@ -627,6 +627,8 @@ describe('a guide’s sources (2026-10-08)', () => {
       'hts.usitc.gov',
       'iata.org',
       'iccwbo.org',
+      // C6: the carton calculator's exact inch and foot, and its rounding (NIST, 2026-11-06).
+      'nist.gov',
       'taxation-customs.ec.europa.eu',
       'trade-tariff.service.gov.uk',
       'trade.ec.europa.eu',

@@ -1530,6 +1530,13 @@ export const GUIDES: readonly Guide[] = [
         date: '2026-11-05',
         kind: 'read',
       },
+      // C6's calculator rests on these (the draft's section 3, approved 2026-11-06).
+      {
+        name: 'NIST, Guide for the Use of the SI (Special Publication 811), Appendix B: Conversion factors',
+        url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors',
+        date: '2025-08-18',
+        kind: 'updated',
+      },
     ],
   },
   {
@@ -2168,6 +2175,25 @@ export const GUIDES: readonly Guide[] = [
         name: 'Australian Border Force, Sea cargo types',
         url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/cargo-reporting-and-transhipped-goods/cargo-reports/sea-cargo-types',
         date: '2026-10-01',
+        kind: 'updated',
+      },
+      // C6's calculator rests on these (the draft's section 3, approved 2026-11-06).
+      {
+        name: 'NIST, Guide for the Use of the SI (Special Publication 811), Appendix B.9: Factors for units listed by kind of quantity',
+        url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9',
+        date: '2025-08-18',
+        kind: 'updated',
+      },
+      {
+        name: 'NIST, Guide for the Use of the SI (Special Publication 811), Appendix B: Conversion factors',
+        url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors',
+        date: '2025-08-18',
+        kind: 'updated',
+      },
+      {
+        name: 'NIST Office of Weights and Measures, Unit conversion',
+        url: 'https://www.nist.gov/pml/owm/metric-si/unit-conversion',
+        date: '2026-02-06',
         kind: 'updated',
       },
     ],

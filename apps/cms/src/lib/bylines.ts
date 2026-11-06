@@ -160,7 +160,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.production,
     GUIDES_2,
     TECH_PACK_AND_TOOLS,
-    'c19779a157a4',
+    'c61d9b0785e3',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
@@ -172,7 +172,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.merchandiser,
     GUIDES_3,
     TECH_PACK_AND_TOOLS,
-    '2db3ae550610',
+    'a2458d39054a',
   ),
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
