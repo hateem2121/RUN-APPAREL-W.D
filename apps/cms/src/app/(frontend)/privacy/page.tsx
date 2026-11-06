@@ -331,15 +331,15 @@ export default async function PrivacyPage() {
             </p>
             <p>
               <strong>Updates, only if you ask.</strong> A second box, which starts unticked, lets
-              you ask for occasional updates from us. We send them only if you tick it, and we keep a
-              record that you did. Every update carries a link to stop them, and you can withdraw
+              you ask for occasional updates from us. We send them only if you tick it, and we keep
+              a record that you did. Every update carries a link to stop them, and you can withdraw
               your consent at any time by writing to{' '}
               <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. If you leave the box
               unticked, we do not email, message or call you unless you write to us first.
             </p>
             <p>
-              <strong>How long we keep them.</strong> Your details are kept for 2 years from our last
-              contact with you. If you tick the updates box, we keep your email address and the
+              <strong>How long we keep them.</strong> Your details are kept for 2 years from our
+              last contact with you. If you tick the updates box, we keep your email address and the
               record of your yes until you stop the updates. If you stop the updates, we keep just
               your email address, so that no update reaches you again.
             </p>
