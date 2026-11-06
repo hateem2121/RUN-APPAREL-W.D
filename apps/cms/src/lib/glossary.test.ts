@@ -78,6 +78,20 @@ describe('the glossary terms', () => {
     plm: 'Software that shares a product’s data with everyone who works on it, from design to production.',
     'team-kit':
       'The shirt, shorts, socks, shin guards and footwear the Laws of the Game make compulsory.',
+    // Seven terms the owner approved as proposed on 2026-11-06 ("Approve all seven"): the technology
+    // and tech pack guides name them without defining them. Not quoted from any page, so held here.
+    'digital-product-passport':
+      'A digital record of a product, reached by scanning a code on it, that the EU plans to require for textiles under its ecodesign rules.',
+    rfid: 'Radio-frequency identification: a tag read by radio, without needing to be seen, used to track a garment from the factory to the shop.',
+    'dope-dyeing':
+      'Coloring a synthetic fiber by mixing pigment into the melted material before the fiber is spun, so the color runs all the way through.',
+    'point-of-measure':
+      'One place on a garment where it is measured, such as chest width or sleeve length, with a note of how to take it.',
+    'bill-of-materials':
+      'The list of everything a garment is made from: fabrics, thread, trims, labels and packaging.',
+    flat: 'A line drawing of a garment laid flat, front and back, showing its seams and details.',
+    grading:
+      'Making a pattern in every size of a range from one base size, by set amounts at each point of measure.',
   }
 
   it('a term written out reads exactly as approved', () => {

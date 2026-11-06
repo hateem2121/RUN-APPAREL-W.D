@@ -94,6 +94,8 @@ const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
  * questions (C9), the hub's date of 2026-10-08 (#152): their last uses, so those constants went with them.
  */
 const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
+/** Seven glossary terms the owner approved as proposed (2026-11-06 night, "Approve all seven"). */
+const GLOSSARY_SEVEN = '2026-11-06T22:35:29+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(PRICE_TERMS, '00140939a970'),
@@ -114,7 +116,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/shipping-and-importing': page(PRICE_TERMS, '3337ef9c9fe5'),
   '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
   '/faq/working-with-us': page(TECH_PACK_AND_TOOLS, '326403c492f4'),
-  '/glossary': page(TECH_PACK_AND_TOOLS, '95668581a1ce'),
+  '/glossary': page(GLOSSARY_SEVEN, 'd4a7273a6965'),
   '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
   '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
