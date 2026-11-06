@@ -1,3 +1,10 @@
+import {
+  buyerQuestionLinks,
+  buyerQuestionRows,
+  buyerRuleRows,
+  COUNT_DATE,
+  CSV_PATH,
+} from './buyerQuestions'
 import { CUTTING_LINES, FACTS, PRECISION_MACHINES } from './companyFacts'
 import type { Guide } from './guides'
 
@@ -16,9 +23,10 @@ import type { Guide } from './guides'
  * (the owner's rule, 2026-11-05: "Standard ranges only").
  *
  * Three guides wait for facts from the owner's team (the inspection and testing guides, and the
- * report of what buyers asked). Bullets that point at them are added back when each one is
- * published, as the tech pack guide's three were when it joined with its download form (C1, the
- * last entry here, 2026-11-06).
+ * report of what buyers asked): they are the last three entries here, built on the branch
+ * `site/held-guides` and HELD (owner, 2026-11-06: "Build them, publish later"). Each gap is an
+ * explicit `[TEAM: …]` or `[COUNT]` marker, and `heldGuideGaps.test.ts` fails for every one until
+ * the fact arrives. Their links from the stitches and machinery guides are back in those guides.
  */
 const fact = (prefix: string): string =>
   FACTS.find((entry) => entry.label.startsWith(prefix))?.value ?? ''
@@ -2740,7 +2748,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             items: [
               'New edition. ISO 13935-2’s third edition came out in April 2026, replacing the 2014 edition.',
               'Knit seams. A 2026 study of knit sportswear seams tested them by bursting instead.',
+              // Back with the testing guide (C3), in the draft's words (gen.log line 80).
+              'More on testing. Fabric and garment tests are the subject of our testing guide.',
             ],
+            links: [{ phrase: 'our testing guide', href: '/guides/fabric-and-garment-testing' }],
           },
         ],
       },
@@ -4730,11 +4741,16 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           {
             kind: 'list',
             items: [
-              'Our inspections. The inspections made along our line and at its end are listed on our factory page.',
+              // The inspection guide sentence and the "Tests" bullet are back with C2 and C3, in the
+              // draft's words (gen.log lines 148 and 149).
+              'Our inspections. The inspections made along our line and at its end are listed on our factory page. Our inspection guide explains how AQL inspection works.',
+              'Tests. Our testing guide explains how fabric and finished garments are tested.',
               'Packing. Branded packing, and where it happens on our site, is in our packaging guide.',
             ],
             links: [
               { phrase: 'our factory page', href: '/inside-the-factory' },
+              { phrase: 'Our inspection guide', href: '/guides/aql-inspection' },
+              { phrase: 'Our testing guide', href: '/guides/fabric-and-garment-testing' },
               { phrase: 'our packaging guide', href: '/guides/private-label-packaging' },
             ],
           },
@@ -6304,6 +6320,1034 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         name: 'BSI Knowledge: BS EN ISO 105-C06:2010, identical to ISO 105-C06:2010, colour fastness to domestic and commercial laundering',
         url: 'https://knowledge.bsigroup.com/products/textiles-tests-for-colour-fastness-colour-fastness-to-domestic-and-commercial-laundering',
         date: '2010-04-30',
+        kind: 'read',
+      },
+    ],
+  },
+  // Wave 9, C2: signed by the merchandiser (owner, 2026-11-06). HELD: waits for the team’s defect examples.
+  {
+    path: '/guides/aql-inspection',
+    title: 'AQL Inspection and Sampling, Explained',
+    description:
+      'What AQL means, how a random sample decides a whole lot, the two main standards, critical, major and minor defects, and your own inspector.',
+    heading: 'How AQL inspection works,',
+    headingAccent: 'sample by sample.',
+    lede: 'AQL inspection checks a random sample of your order and accepts or rejects the lot on what that sample shows. This guide explains the terms, the standards behind them, how defects are classed, and how inspection works on an order with us.',
+    sections: [
+      {
+        heading: 'What does AQL mean?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'AQL stands for acceptance quality limit, the term in the title of ISO 2859-1. It is the baseline percent defective that a producer’s goods must meet; NIST’s handbook calls it the acceptable quality level. An inspector picks a sample at random, and what the sample shows decides whether the whole lot is accepted or rejected.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'What a sample decides. Acceptance sampling decides whether a lot is likely to be acceptable. It does not measure how good the lot is.',
+              'Between two extremes. It sits between no inspection at all and checking every piece.',
+              'Stricter or looser. The lower the AQL you name, the fewer defects a lot can carry and still pass.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'How does a sampling plan accept or reject a lot?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'By counting defectives in the sample. A single sampling plan is two numbers: n, how many pieces are checked, and c, the most defectives allowed. More than c rejects the lot; c or fewer accepts it. A double plan can decide after one sample or take a second one, judged together with the first.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Two risks in every plan. The producer’s risk is the chance that a plan rejects a lot sitting exactly at the AQL. The consumer’s risk is the probability that it accepts a lot at the LTPD (lot tolerance percent defective), a defect level the buyer would find unacceptable.',
+              'The OC curve. The operating characteristic curve plots the chance of accepting a lot against the lot’s percent defective, so both risks can be read off one line.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'ISO 2859-1 or ANSI/ASQ Z1.4: which standard?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Either, as long as your order names one. Both come from the US military standard MIL-STD-105D, which ANSI adopted as Z1.4 in 1971 and ISO as ISO 2859 in 1974. NIST notes that the standards keep being revised while their basic tables stay the same.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'ISO 2859-1. ISO describes it as designed for a series of lots from one process or supplier. The current edition, the third, dates from January 2026.',
+              'ANSI/ASQ Z1.4. ASQ describes Z1.4-2003 (R2018) as an acceptance sampling system for a continuing stream of lots, used with switching rules, that counts either nonconforming units or nonconformities.',
+              'ASTM E2234. It provides the sampling plans of MIL-STD-105E in ASTM’s format.',
+              'MIL-STD-105E. Its last revision was issued in 1989. When the US Defense Department stopped supporting it in 1995, it recommended Z1.4 in its place.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'How are the sample size and the accept number set?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'In a set order. You and the supplier agree on the AQL and the inspection level, and the lot size is counted. The standard’s table turns these into a sample size code letter, and the code letter, with the type of plan, gives how many pieces to check and how many defectives are allowed.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Inspection level. It sets how the sample grows with the lot size. A standard of this family offers three general levels and four special ones.',
+              'Switching rules. A sampling scheme joins a normal plan, a tightened plan and a reduced plan, with rules for moving from one to another. Inspection begins at normal and follows those rules, including the rule for stopping.',
+              'Your plan. Your quote states the AQL and inspection level; if you have none, we propose them. Our own final AQL inspection follows the standard and AQL level you name, as set out in your quote. We inspect to the edition of the standard you name, can set a separate AQL for each defect class, and work to your own defect manual when you send one.',
+              'Why this page prints no table. ISO’s notice on the page for ISO 2859-1 says any use of its publications, reproduction included, needs ISO’s written permission. ASQ says its standards may not be reproduced, in whole or in part, without permission. For the tables, buy the standard from ISO or ASQ, or ask your inspection company.',
+              'The standards’ own pages. ISO 2859-1 and Z1.4.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Does a one-off order need a different plan?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'It can. Switching rules assume that lots keep coming from the same supplier. ISO 2859-2 is written for lots in isolation, such as a unique lot or a short series, where switching rules like those of ISO 2859-1 do not apply. If your order is a one-off, ask your inspection company which plan fits.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Limiting quality. ISO 2859-2’s plans are indexed by limiting quality (LQ) rather than by AQL, and ISO has the standard under review.',
+              'Choosing a system. ISO 28590 introduces the ISO 2859 series and gives guidance on choosing the right inspection system for a situation.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'What are critical, major and minor defects?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Defects are classed by what they do. In short, US federal buying rules call a nonconformance critical when it is likely to cause hazardous or unsafe conditions for people using the product, major when failure or a material loss of usability is likely, and minor when usability is not likely to be reduced materially.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Where those words come from. They are shortened from the definitions in the US Federal Acquisition Regulation, 48 CFR 46.101, written for government buying, where a fault likely to prevent a vital agency mission is also critical.',
+              'A tighter AQL where it matters most. As NIST quotes him, Harold Dodge stated in 1942 that inspection should vary with how important each characteristic is. NIST adds that, under MIL-STD-105D, producer and buyer are expected to agree on the AQL for each product characteristic.',
+              'Pieces or faults. Say whether your plan counts faulty pieces or every fault, since one piece can carry several; Z1.4 allows either.',
+              'Examples from our QC checklist. Critical: [TEAM: critical defect examples] Major: [TEAM: major defect examples] Minor: [TEAM: minor defect examples]',
+            ],
+          },
+          {
+            kind: 'legal',
+            checked: '6 November 2026',
+          },
+        ],
+      },
+      {
+        heading: 'When is an order inspected?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'At either stage, and at both if you want. We check each batch on the line, then make a final AQL inspection. Your own inspection company can come during production as well as before shipping, on the same terms as its final visit.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Soccer balls. Each finished ball also gets its own end check for weight, size or roundness, pressure and bounce.',
+              'Our sign-off before shipping. The checks behind our final sign-off, and the photos you receive, are set out in our order guide.',
+              'A government preshipment inspection is something else. In the WTO’s terms, it means private companies checking shipment details such as price, quantity and quality of goods ordered overseas. Its purpose is to protect a country’s finances, for example against customs duty evasion. It does not take the place of the quality inspection you order, and your customs broker will know whether your country requires one.',
+            ],
+            links: [
+              {
+                phrase: 'our order guide',
+                href: '/guides/how-a-private-label-order-works',
+              },
+            ],
+          },
+          {
+            kind: 'legal',
+            checked: '6 November 2026',
+          },
+        ],
+      },
+      {
+        heading: 'Can my own inspector check the order?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Yes. You choose and pay the inspection company, and its inspector’s access is free. Inspection bodies can be accredited to ISO/IEC 17020, which sets requirements for their competence, impartiality and consistent operation; its 2026 edition is current. Check that the company is accredited for the inspection you are buying.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Where to check. Accreditation bodies in ILAC’s arrangement keep directories that show which bodies are accredited for which specific inspections.',
+              'The same levels for both sides. Give your inspector the standard, AQL level and inspection level written in your quote, so that your inspector and our team count defects the same way.',
+              'If the lot fails. We rework or replace the faulty pieces, and you book and pay for the re-inspection.',
+              'After delivery. What to do about a fault found once the order has arrived is in our order guide.',
+            ],
+            links: [
+              {
+                phrase: 'our order guide',
+                href: '/guides/how-a-private-label-order-works',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Choosing an inspection plan for your order',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Name in your order the standard, the AQL level and the inspection level. When you have no AQL or inspection level, we propose both, and your quote states them. Add when your own inspector visits, if one does. Lab tests on fabric and garments are a separate step, in our testing guide. Send us your spec.',
+            links: [
+              {
+                phrase: 'Send us your spec',
+                href: '/contact',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    sources: [
+      {
+        name: 'ISO 2859-1:2026, Sampling procedures for inspection by attributes. Part 1: Sampling schemes indexed by acceptance quality limit (AQL) for lot-by-lot inspection',
+        url: 'https://www.iso.org/standard/2859-1',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 2859-2:2020, Sampling procedures for inspection by attributes. Part 2: Sampling plans indexed by limiting quality (LQ) for isolated lot inspection',
+        url: 'https://www.iso.org/standard/64505.html',
+        date: '2025-06-05',
+        kind: 'published',
+      },
+      {
+        name: 'ISO 28590:2017, Sampling procedures for inspection by attributes. Introduction to the ISO 2859 series of standards for sampling for inspection by attributes',
+        url: 'https://www.iso.org/standard/64622.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASQ/ANSI Z1.4-2003 (R2018): Sampling Procedures and Tables for Inspection by Attributes',
+        url: 'https://asq.org/quality-press/display-item?item=T1164',
+        date: '2025-09-12',
+        kind: 'published',
+      },
+      {
+        name: 'ASQ, Attributes and variables sampling',
+        url: 'https://asq.org/quality-resources/sampling/attributes-variables-sampling',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASQ, Copyright',
+        url: 'https://asq.org/copyright',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM E2234-09(2023), Standard Practice for Sampling a Stream of Product by Attributes Indexed by AQL',
+        url: 'https://store.astm.org/e2234-09r23.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'NIST/SEMATECH e-Handbook of Statistical Methods, 6.2.1 What is Acceptance Sampling?',
+        url: 'https://www.itl.nist.gov/div898/handbook/pmc/section2/pmc21.htm',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'NIST/SEMATECH e-Handbook, 6.2.2 What kinds of Lot Acceptance Sampling Plans are there?',
+        url: 'https://www.itl.nist.gov/div898/handbook/pmc/section2/pmc22.htm',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'NIST/SEMATECH e-Handbook, 6.2.3 How do you Choose a Single Sampling Plan?',
+        url: 'https://www.itl.nist.gov/div898/handbook/pmc/section2/pmc23.htm',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'NIST/SEMATECH e-Handbook, 6.2.3.1 Choosing a Sampling Plan: MIL Standard 105D',
+        url: 'https://www.itl.nist.gov/div898/handbook/pmc/section2/pmc231.htm',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'Federal Acquisition Regulation, 48 CFR 46.101, Definitions',
+        url: 'https://www.ecfr.gov/current/title-48/chapter-1/subchapter-E/part-46/subpart-46.1/section-46.101',
+        date: '2026-11-04',
+        kind: 'updated',
+      },
+      {
+        name: 'World Trade Organization, Preshipment inspection',
+        url: 'https://www.wto.org/english/tratop_e/preship_e/preship_e.htm',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO/IEC 17020:2026, Conformity assessment. Requirements for bodies performing inspection',
+        url: 'https://www.iso.org/standard/17020',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO/IEC 17020:2012, Conformity assessment. Requirements for the operation of various types of bodies performing inspection (withdrawn)',
+        url: 'https://www.iso.org/standard/52994.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ILAC, About ILAC',
+        url: 'https://ilac.org/about-ilac/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ILAC, ILAC MRA and signatories',
+        url: 'https://ilac.org/ilac-mra-and-signatories/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+    ],
+  },
+  // Wave 9, C3: signed by the production in-charge (owner, 2026-11-06). HELD: waits for the team’s method for each in-house check.
+  {
+    path: '/guides/fabric-and-garment-testing',
+    title: 'Fabric and Garment Testing, Explained',
+    description:
+      'Which lab tests answer shrinkage, twist, pilling, bursting, seam and wash questions, what a test leaves to you, and how to check a lab report.',
+    heading: 'Fabric and garment testing,',
+    headingAccent: 'test by test.',
+    lede: 'A test method tells a lab exactly how to measure one property of a fabric or garment, such as shrinkage or pilling. This guide names the methods buyers ask for, says what each one covers, and sets out the tests we run on your order.',
+    sections: [
+      {
+        heading: 'Which tests should I ask for?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Start from what your customers will notice: shrinking or twisting in the wash, color that fades or rubs off, pilling, bursting and seams that split. Each has its own test method from ISO, AATCC or ASTM, and the table below names them with the guide that explains each.',
+          },
+          {
+            kind: 'table',
+            caption: 'Which test answers which question',
+            columns: ['Question', 'Test methods, and where they are explained'],
+            rows: [
+              [
+                'Will it shrink?',
+                'ISO 5077, ISO 3759, ISO 6330; AATCC TM135 (fabric), TM150 (garment). This page.',
+              ],
+              [
+                'Will it twist?',
+                'ISO 16322-2 (fabric), ISO 16322-3 (garment); AATCC TM179. This page.',
+              ],
+              [
+                'Will the color wash out or rub off?',
+                'ISO 105-C06, ISO 105-X12; AATCC TM61, TM8. Printing guide.',
+              ],
+              [
+                'Will it fade in daylight or with sweat?',
+                'ISO 105-B02, ISO 105-E04; AATCC TM16.3, TM15. Dyeing and printing guides.',
+              ],
+              ['Will it pill?', 'ISO 12945-1 to 12945-4; ASTM D3512, D4970. This page.'],
+              ['Will it wear through?', 'ISO 12947-2; ASTM D4966. This page.'],
+              ['Will a knit burst?', 'ISO 13938-1, ISO 13938-2; ASTM D3786, D3787. This page.'],
+              ['Will a woven tear?', 'ISO 13934-1; ASTM D5034, D5035. This page.'],
+              [
+                'Will a seam open?',
+                'ISO 13935-1, ISO 13936-1, ISO 13936-2: this page. ISO 13935-2, ASTM D1683: stitches guide.',
+              ],
+              [
+                'How will it look after washing?',
+                'ISO 15487; AATCC TM143, TM124, TM88B. This page.',
+              ],
+              ['Weight, stretch, air flow, wicking', 'Fabrics guide'],
+              ['Rain and breathability', 'Outerwear guide'],
+              ['Yarn count and twist', 'Yarn guide'],
+              ['Zippers, snaps and elastic', 'Trims guide'],
+              ['Chemicals and children’s wear', 'Compliance guide'],
+            ],
+            links: [
+              {
+                phrase: 'Printing guide',
+                href: '/guides/garment-printing-methods',
+              },
+              {
+                phrase: 'Dyeing',
+                href: '/guides/dyeing-and-color-matching',
+              },
+              {
+                phrase: 'printing guides',
+                href: '/guides/garment-printing-methods',
+              },
+              {
+                phrase: 'stitches guide',
+                href: '/guides/stitch-and-seam-types',
+              },
+              {
+                phrase: 'Fabrics guide',
+                href: '/guides/sportswear-fabrics-and-weights',
+              },
+              {
+                phrase: 'Outerwear guide',
+                href: '/guides/outerwear-and-waterproof-fabrics',
+              },
+              {
+                phrase: 'Yarn guide',
+                href: '/guides/yarn-count-and-denier',
+              },
+              {
+                phrase: 'Trims guide',
+                href: '/guides/apparel-trims',
+              },
+              {
+                phrase: 'Compliance guide',
+                href: '/guides/sportswear-compliance-by-market',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'What does a test method leave to you?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The result you need, and often the conditions of the test. A method fixes how a property is measured; the pass level belongs in your spec. Some methods also leave choices to buyer and supplier: ASTM D4970 lets them agree whether fabric is laundered or dry cleaned before it is tested.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Before or after washing. AATCC’s rub test, TM8, may be run before washing, after it, or both.',
+              'A sewn sample or a garment. For ISO 13935-1, the seams tested can come from sewn articles or be sewn from fabric samples, as the parties agree.',
+              'How many washes. In a 2002 study of three all-cotton knits, the fabrics had reached their fully relaxed size after five wash-and-dry cycles. Name the number of cycles in your spec.',
+              'No pass levels on this page. Set the grade or limit you need for every test in your spec before testing starts.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Will it shrink or twist after washing?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Ask for a dimensional-change test. ISO 5077 measures how much fabrics and garments change in size through set washing and drying procedures. AATCC TM135 measures the length and width change of fabric in home laundering, and TM150 of garments. Twist is measured by separate tests, below.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Marking and measuring. ISO 3759 covers getting specimens and garments ready for these tests, from marking to measuring, on woven and knitted fabrics.',
+              'The wash behind the result. ISO 6330 notes that the type of washing machine, detergent and tumble dryer can affect the results, so the report should name them.',
+              'Stretch garments. TM150 may not apply to garments of some stretch fabrics; check with the lab which method it will use for yours.',
+              'Why knits move. In the same 2002 study, the size change after laundering came mostly from the knit loops changing shape, rather than from the yarn shrinking. Agitation in the tumble dryer caused the largest share of it.',
+              'Twist, also called spirality or skew. ISO 16322-2 measures it in woven and knitted fabrics after laundering, by three marking procedures whose results are not always comparable; ISO 16322-3 is the garment version. AATCC TM179 measures skew change in any woven or knitted fabric suited to home laundering.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Will the color hold?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Two other guides explain color tests. The printing guide covers how a print stands up to the wash, rubbing, sunlight and sweat. The dyeing guide covers dyed fabric in daylight, chlorinated water, seawater and sweat, and how a color change is graded. ISO 105-A01 gives general guidance on all these colorfastness methods, including their uses and limits.',
+            links: [
+              {
+                phrase: 'The printing guide',
+                href: '/guides/garment-printing-methods',
+              },
+              {
+                phrase: 'The dyeing guide',
+                href: '/guides/dyeing-and-color-matching',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Will it pill or wear through?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Pilling tests rub or tumble a fabric, and the result is judged by eye. ISO 12945 has four parts: a pilling box, a modified Martindale machine, a random tumble tester, and the visual assessment. ASTM D3512 uses a random tumble tester on woven and knitted apparel fabrics.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Fleece. The random tumble method of ISO 12945-3 suits most woven and knitted fabrics, fleece included, but not fabric that cannot tumble freely.',
+              'Abrasion. ISO 12947-2 finds the point at which a fabric breaks down on the Martindale abrasion machine, and does not apply to coated or laminated fabrics. ASTM D4966 also uses a Martindale tester.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Is the fabric strong enough?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'For knits, ask for a bursting test, which pushes the fabric until it bursts; for wovens, a tensile test, which pulls it until it breaks. ISO 13938-1 covers bursting in knitted, woven, nonwoven and laminated fabrics. ASTM’s grab and strip tensile tests are not recommended for knits.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Air or liquid. ISO 13938-2 is the pneumatic version of the bursting test, and ASTM D3786 uses a hydraulic or pneumatic diaphragm tester.',
+              'Very stretchy fabric. ASTM D3787 is a ball-burst test for textiles or garments that stretch a great deal before they break.',
+              'Tensile tests for wovens. ISO 13934-1 is mainly for woven fabrics, stretch wovens included. ASTM D5034, the grab test, and D5035, the strip test, are also not recommended for fabric that stretches more than 11%.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Will the seams hold?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Ask for a seam strength test, and on woven fabric a seam slippage test as well. ISO 13935-1 pulls across a sewn seam until it ruptures, by the strip method. ISO 13936 measures how well the yarns of a woven fabric resist slipping apart at a sewn seam.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Two slippage methods. ISO 13936-1 works to a fixed seam opening and ISO 13936-2 to a fixed load; Part 2 suits every apparel woven, including stretch fabrics.',
+              'The grab test and knit seams. ISO 13935-2, ASTM D1683 and what knit seams need are covered in our stitches guide.',
+            ],
+            links: [
+              {
+                phrase: 'our stitches guide',
+                href: '/guides/stitch-and-seam-types',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'How will a garment look after washing?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'ISO 15487 rates finished apparel after home washing and drying, for color change, pilling, the smoothness of fabric and seams, and pressed-in creases. AATCC TM143 is its technical equivalent. TM124 rates fabric smoothness on its own, and TM88B seam smoothness. ISO is revising ISO 15487.',
+          },
+        ],
+      },
+      {
+        heading: 'Soccer balls: which lab tests apply?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'In a lab, against FIFA’s limits. FIFA’s quality program assesses balls under laboratory conditions, and our ball guide lists its tests and what each quality mark needs. Any custom ball we make can be lab-tested against FIFA’s limits, at your cost and quoted per order.',
+            links: [
+              {
+                phrase: 'our ball guide',
+                href: '/guides/how-soccer-balls-are-made',
+              },
+            ],
+          },
+          {
+            kind: 'list',
+            items: [
+              'Chemicals in balls. The tests that depend on the market a ball is sold in belong to our compliance guide.',
+            ],
+            links: [
+              {
+                phrase: 'our compliance guide',
+                href: '/guides/sportswear-compliance-by-market',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'How do I check a lab report?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Check the lab, then the report. Accreditation bodies assess testing labs against ISO/IEC 17025. Bodies that sign ILAC’s arrangement accept each other’s accredited results, and their directories show which tests each lab is accredited for. Then check that the report names the method, its edition and the test conditions.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'The edition. Check the year after the method number: ISO 6330’s 2021 edition, for example, replaced the 2012 one.',
+              'The conditions. Look for the wash and dry procedure, and whether the fabric was tested new or after washing.',
+              'Your levels. Compare each result with the level written in your spec.',
+              'The lab. You may name any accredited lab; if you do not, we choose one. The report itself is arranged by us and paid for by you.',
+              'Time. For an outside lab’s report, your quote states the time.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'On our floor',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'We test at three stages: the fabric before cutting, the sample you approve, and bulk garments before shipping. The table lists our in-house checks on fabric and on finished garments, and the method each one follows. On request, a short in-house sheet of our wash tests and our fabric checks on arrival comes with your order.',
+          },
+          {
+            kind: 'table',
+            caption: 'Our in-house checks',
+            columns: ['Check', 'Method'],
+            rows: [
+              ['Fabric on arrival: colorfastness', '[TEAM: method]'],
+              ['Fabric on arrival: shrinkage', '[TEAM: method]'],
+              ['Fabric on arrival: tensile strength', '[TEAM: method]'],
+              ['Finished garments, wash test: shrinkage', '[TEAM: method]'],
+              ['Finished garments, wash test: colorfastness to washing', '[TEAM: method]'],
+              ['Finished garments, wash test: appearance after washing', '[TEAM: method]'],
+            ],
+          },
+          {
+            kind: 'list',
+            items: [
+              'When fabric arrives. Our fabrics guide explains what else happens to fabric before it reaches the cutting table.',
+            ],
+            links: [
+              {
+                phrase: 'Our fabrics guide',
+                href: '/guides/sportswear-fabrics-and-weights',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'Choosing tests for your order',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Write each test into your spec with its method and edition, the stage at which it runs, and the result it must reach. We run our in-house checks and, at your cost, arrange any outside lab report you ask for. Send us your spec with the tests listed, and your quote confirms them.',
+            links: [
+              {
+                phrase: 'Send us your spec',
+                href: '/contact',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    sources: [
+      {
+        name: 'ISO 5077:2007, Textiles. Determination of dimensional change in washing and drying',
+        url: 'https://www.iso.org/standard/41877.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 3759:2011, Textiles. Preparation, marking and measuring of fabric specimens and garments in tests for determination of dimensional change',
+        url: 'https://www.iso.org/standard/57309.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 6330:2021, Textiles. Domestic washing and drying procedures for textile testing',
+        url: 'https://www.iso.org/standard/75934.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM135-2025, Dimensional Changes of Fabrics after Home Laundering',
+        url: 'https://members.aatcc.org/store/tm135/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM150-2025, Dimensional Changes of Garments after Home Laundering',
+        url: 'https://members.aatcc.org/store/tm150/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM179-2025, Skew Change in Fabrics After Home Laundering',
+        url: 'https://members.aatcc.org/store/tm179/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 16322-2:2021, Textiles. Determination of spirality after laundering. Part 2: Woven and knitted fabrics',
+        url: 'https://www.iso.org/standard/78781.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 16322-3:2021, Textiles. Determination of spirality after laundering. Part 3: Woven and knitted garments',
+        url: 'https://www.iso.org/standard/78782.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'Anand, Brown, Higgins, Holmes, Hall and Conrad, Effect of laundering on the dimensional stability and distortion of knitted fabrics, AUTEX Research Journal 2(2):85-100',
+        url: 'https://doi.org/10.1515/aut-2002-020205',
+        date: '2002-06-01',
+        kind: 'published',
+      },
+      {
+        name: 'ISO 105-C06:2010, Textiles. Tests for colour fastness. Part C06: Colour fastness to domestic and commercial laundering',
+        url: 'https://www.iso.org/standard/51276.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM61-2013e(2020)e2, Test Method for Colorfastness to Laundering: Accelerated',
+        url: 'https://members.aatcc.org/store/tm61/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 105-X12:2016, Textiles. Tests for colour fastness. Part X12: Colour fastness to rubbing',
+        url: 'https://www.iso.org/standard/65207.html',
+        date: '2026-07-15',
+        kind: 'published',
+      },
+      {
+        name: 'AATCC TM8-2016e(2022)e, Test Method for Colorfastness to Crocking: Crockmeter',
+        url: 'https://members.aatcc.org/store/tm8/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 105-B02:2014, Textiles. Tests for colour fastness. Part B02: Colour fastness to artificial light: Xenon arc fading lamp test',
+        url: 'https://www.iso.org/standard/65209.html',
+        date: '2026-09-16',
+        kind: 'published',
+      },
+      {
+        name: 'AATCC TM16.3-2020, Test Method for Colorfastness to Light: Xenon-Arc',
+        url: 'https://members.aatcc.org/store/tm16-3/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 105-E04:2013, Textiles. Tests for colour fastness. Part E04: Colour fastness to perspiration',
+        url: 'https://www.iso.org/standard/57973.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM15-2021e, Test Method for Colorfastness to Perspiration',
+        url: 'https://members.aatcc.org/store/tm15/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 105-A01:2010, Textiles. Tests for colour fastness. Part A01: General principles of testing',
+        url: 'https://www.iso.org/standard/45028.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 12945-1:2020, Textiles. Determination of fabric propensity to surface pilling, fuzzing or matting. Part 1: Pilling box method',
+        url: 'https://www.iso.org/standard/75374.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 12945-2:2020, same series, Part 2: Modified Martindale method',
+        url: 'https://www.iso.org/standard/75375.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 12945-3:2020, same series, Part 3: Random tumble pilling method',
+        url: 'https://www.iso.org/standard/75376.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 12945-4:2020, same series, Part 4: Assessment of pilling, fuzzing and matting by visual analysis',
+        url: 'https://www.iso.org/standard/75377.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D3512/D3512M-22(2026), Standard Test Method for Pilling Resistance and Other Related Surface Changes of Textile Fabrics: Random Tumble Pilling Tester',
+        url: 'https://store.astm.org/d3512_d3512m-22r26.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D4970/D4970M-22(2026), Standard Test Method for Pilling Resistance and Other Related Surface Changes of Textile Fabrics: Martindale Tester',
+        url: 'https://store.astm.org/d4970_d4970m-22r26.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 12947-2:2016, Textiles. Determination of the abrasion resistance of fabrics by the Martindale method. Part 2: Determination of specimen breakdown',
+        url: 'https://www.iso.org/standard/61058.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D4966-22(2026), Standard Test Method for Abrasion Resistance of Textile Fabrics (Martindale Abrasion Tester Method)',
+        url: 'https://store.astm.org/d4966-22r26.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 13938-1:2019, Textiles. Bursting properties of fabrics. Part 1: Hydraulic method for determination of bursting strength and bursting distension',
+        url: 'https://www.iso.org/standard/74895.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 13938-2:2019, Textiles. Bursting properties of fabrics. Part 2: Pneumatic method for determination of bursting strength and bursting distension',
+        url: 'https://www.iso.org/standard/74896.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D3786/D3786M-18(2023), Standard Test Method for Bursting Strength of Textile Fabrics. Diaphragm Bursting Strength Tester Method',
+        url: 'https://store.astm.org/d3786_d3786m-18r23.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D3787-16(2020), Standard Test Method for Bursting Strength of Textiles, Constant-Rate-of-Traverse (CRT) Ball Burst Test',
+        url: 'https://store.astm.org/d3787-16r20.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 13934-1:2013, Textiles. Tensile properties of fabrics. Part 1: Determination of maximum force and elongation at maximum force using the strip method',
+        url: 'https://www.iso.org/standard/60676.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D5034-21(2025), Standard Test Method for Breaking Strength and Elongation of Textile Fabrics (Grab Test)',
+        url: 'https://store.astm.org/d5034-21r25.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D5035-11(2024), Standard Test Method for Breaking Force and Elongation of Textile Fabrics (Strip Method)',
+        url: 'https://store.astm.org/d5035-11r24.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 13935-1:2014, Textiles. Seam tensile properties of fabrics and made-up textile articles. Part 1: Determination of maximum force to seam rupture using the strip method',
+        url: 'https://www.iso.org/standard/60678.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 13935-2:2026, Textiles. Seam tensile properties of fabrics and made-up textile articles. Part 2: Determination of maximum force to seam rupture using the grab method',
+        url: 'https://www.iso.org/standard/88344.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 13936-1:2004, Textiles. Determination of the slippage resistance of yarns at a seam in woven fabrics. Part 1: Fixed seam opening method',
+        url: 'https://www.iso.org/standard/36416.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 13936-2:2004, same series, Part 2: Fixed load method',
+        url: 'https://www.iso.org/standard/36357.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D1683/D1683M-22, Standard Test Method for Failure in Sewn Seams of Woven Fabrics',
+        url: 'https://store.astm.org/d1683_d1683m-22.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 15487:2018, Textiles. Method for assessing appearance of apparel and other textile end products after domestic washing and drying',
+        url: 'https://www.iso.org/standard/67602.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM143-2018te, Appearance of Apparel and Other Textile End Products after Home Laundering',
+        url: 'https://members.aatcc.org/store/tm143/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM124-2018, Test Method for Smoothness Appearance of Fabrics after Home Laundering',
+        url: 'https://members.aatcc.org/store/tm124/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC TM88B-2018te, Seam Smoothness in Fabrics after Home Laundering',
+        url: 'https://members.aatcc.org/store/tm88b/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ISO/IEC 17025:2017, General requirements for the competence of testing and calibration laboratories',
+        url: 'https://www.iso.org/standard/66912.html',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'ILAC, ILAC MRA and signatories',
+        url: 'https://ilac.org/ilac-mra-and-signatories/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'FIFA, Quality Programme for Footballs',
+        url: 'https://inside.fifa.com/innovation/standards/footballs/fifa-quality-programme-for-footballs',
+        date: '2026-02-10',
+        kind: 'updated',
+      },
+    ],
+  },
+  // Wave 14, C7: signed by the Content Team (owner, 2026-11-06). HELD: waits for the count date, every count and the WhatsApp topics.
+  {
+    path: '/guides/what-sportswear-buyers-ask',
+    title: 'What Sportswear Buyers Asked Us in 2026',
+    description:
+      'We sorted the inquiries buyers sent RUN APPAREL in 2026 by topic: what they asked about most, how we counted, and the data to download.',
+    heading: 'What sportswear buyers',
+    headingAccent: 'asked us in 2026.',
+    lede: 'We count the topics of the inquiries buyers send us, so you can see what other brands and clubs ask a factory before they order. The counts describe our inquiries, not the whole market.',
+    sections: [
+      {
+        heading: 'What did buyers ask us about most in 2026?',
+        blocks: [
+          {
+            kind: 'text',
+            text:
+              'This table counts the inquiries that asked about each topic between 1 January 2026 and ' +
+              (COUNT_DATE ?? '[TEAM: count date]') +
+              '. An inquiry that asked about several topics counts once under each of them, so the shares can add up to more than 100 percent. The table covers only buyers who contacted us.',
+          },
+          {
+            kind: 'chart',
+            chart: 'buyer-questions',
+          },
+          {
+            kind: 'table',
+            caption: 'Inquiries that asked about each topic',
+            columns: ['Topic', 'Inquiries that asked', 'Share of all inquiries', 'Our guide on it'],
+            rows: buyerQuestionRows(),
+            links: buyerQuestionLinks(),
+          },
+          {
+            kind: 'list',
+            items: [
+              'Small counts. Below 3, a topic’s count is hidden and marked "fewer than 3".',
+              'The data. The same counts are in a CSV file you can download, and the chart above this table draws them.',
+            ],
+            links: [{ phrase: 'a CSV file you can download', href: CSV_PATH }],
+          },
+        ],
+      },
+      {
+        heading: 'How did we count the inquiries?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'We read each buyer inquiry that reached us between those dates through the form on this site, our inquiry email address and WhatsApp. One inquiry is one conversation with one buyer, however many messages it holds. We noted only which topics it asked about, using the rules below.',
+          },
+          {
+            kind: 'table',
+            caption: 'Rules for counting each topic',
+            columns: ['Topic', 'An inquiry counts here when the buyer asks about'],
+            rows: buyerRuleRows(),
+          },
+          {
+            kind: 'list',
+            items: [
+              'Left out. Messages selling something to us, job applications, spam and empty messages.',
+              'Checked before publishing. M. Hateem Jamshaid checks every number before this page shows it.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'How do we keep the buyers who wrote to us private?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'We publish one thing from each inquiry: the topics it asked about. Buyers’ names, companies, countries and words stay in our records. When fewer than 3 inquiries asked about a topic, the table shows "fewer than 3" in place of the number, because a count that small can point to one buyer.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Why 3. Government guidance for statistics producers treats counts of 1 or 2 as unsafe to publish in many tables.',
+              'Your own inquiry. A message you send us counts only as a tally under its topics. Our privacy page explains how we handle inquiries.',
+            ],
+            links: [
+              {
+                phrase: 'Our privacy page',
+                href: '/privacy',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'What do these counts not tell you?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'They show what buyers asked one sportswear and soccer-ball maker in Sialkot during one year. Buyers who never wrote to us are not in them, and a share built on a small number of inquiries can move a long way from one year to the next. Read them as a picture of our inquiries, set beside your own experience.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'A judgment in every row. Sorting a message into topics is a judgment; the rules table shows how we made it.',
+              'A new table each January. Each January we publish the new year’s counts and keep earlier years as downloads.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'How can I use or cite this data?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'You may copy, share and build on the counts, even commercially, as long as you credit RUN APPAREL and link to this page; the data carries the Creative Commons Attribution 4.0 license. Download the CSV file to make your own chart, and cite the report with the date you read it.',
+            links: [{ phrase: 'Download the CSV file', href: CSV_PATH }],
+          },
+          {
+            kind: 'list',
+            items: [
+              'How to cite. RUN APPAREL, "What sportswear buyers asked us in 2026", wear-run.com, [date you read it].',
+              'Questions about the data. Ask us through the inquiry form.',
+            ],
+            links: [
+              {
+                phrase: 'inquiry form',
+                href: '/contact',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    sources: [
+      {
+        name: 'UK Government Analysis Function, SDC for tables produced from administrative data',
+        url: 'https://analysisfunction.civilservice.gov.uk/policy-store/sdc-for-tables-produced-from-administrative-data/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'W3C Web Accessibility Initiative, Complex images',
+        url: 'https://www.w3.org/WAI/tutorials/images/complex/',
+        date: '2026-11-06',
+        kind: 'read',
+      },
+      {
+        name: 'Google Search Central, Dataset structured data',
+        url: 'https://developers.google.com/search/docs/appearance/structured-data/dataset',
+        date: '2026-09-08',
+        kind: 'updated',
+      },
+      {
+        name: 'Creative Commons, Attribution 4.0 International (CC BY 4.0)',
+        url: 'https://creativecommons.org/licenses/by/4.0/',
+        date: '2026-11-06',
         kind: 'read',
       },
     ],

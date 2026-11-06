@@ -9352,3 +9352,59 @@ html[data-preload="lifting"] .preloader__lockup {
     font-size: 8.6vw;
   }
 }
+
+/*
+ * The buyer-questions bar chart (C7, 2026-11-06). Bars are drawn from the table's own numbers
+ * (`BuyerQuestionsChart.tsx`), which stays the accessible source, so the chart is hidden from
+ * assistive technology. A bar's length is its share of the largest count, handed in as `--bar`
+ * (0 to 1). Colors are the tokens only. Each row is a topic over its bar, so nothing runs sideways
+ * on a 320px phone; the value sits on the bar's line, at the end.
+ */
+.buyer-chart {
+  max-width: 28.635em;
+  margin-block: 16px 0;
+  margin-inline: 0;
+}
+
+.buyer-chart__bars {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.buyer-chart__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 4px;
+}
+
+.buyer-chart__topic {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--heading);
+}
+
+.buyer-chart__track {
+  display: block;
+  block-size: 12px;
+  background: var(--wash);
+  border-radius: var(--radius-chip);
+  overflow: hidden;
+}
+
+.buyer-chart__bar {
+  display: block;
+  block-size: 100%;
+  inline-size: calc(var(--bar, 0) * 100%);
+  background: var(--dimension);
+}
+
+.buyer-chart__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  color: var(--muted);
+}
