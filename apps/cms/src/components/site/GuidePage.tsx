@@ -19,13 +19,16 @@ import {
 } from '../../lib/guides'
 import { formatPostDate } from '../../lib/journal'
 import type { ProductCard } from '../../lib/projectPublic'
+import type { TemplateNotice } from '../../lib/templateDownload'
 import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
 import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
+import { GuideToolBlock } from './GuideTools'
 import { OrderSteps } from './OrderSteps'
 import { PhotoStage } from './PhotoStage'
+import { TemplateDownload } from './TemplateDownload'
 
 /** A block's React key: its own first words, so a list of blocks keys without an index. */
 export function blockKey(block: GuideBlock): string {
@@ -34,6 +37,8 @@ export function blockKey(block: GuideBlock): string {
   if (block.kind === 'list') return block.items[0] ?? 'list'
   // One legal line per section, so its date keys it within the section.
   if (block.kind === 'legal') return `legal-${block.checked}`
+  if (block.kind === 'download') return `download-${block.template}`
+  if (block.kind === 'tool') return `tool-${block.tool}`
   return 'title' in block ? block.title : block.text
 }
 
@@ -181,13 +186,18 @@ function linksByItem(items: readonly string[], links: readonly GuideLink[] = [])
 export function Block({
   block,
   cards = [],
+  notice = null,
 }: {
   block: GuideBlock
   /** The live catalogue, so a link to a garment finds its default colour (`GuideAnchor`). */
   cards?: readonly ProductCard[]
+  /** A refused template download's message, from the page's address (the download block only). */
+  notice?: TemplateNotice | null
 }) {
   // The home page's eight cards, not a copy (polish D4, the owner's answer Q41).
   if (block.kind === 'orderSteps') return <OrderSteps />
+  if (block.kind === 'download') return <TemplateDownload notice={notice} />
+  if (block.kind === 'tool') return <GuideToolBlock tool={block.tool} />
   if (block.kind === 'table') return <GuideTable block={block} />
   if (block.kind === 'text') {
     return (
@@ -492,7 +502,16 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
  * `cards` is the live catalogue, for the guides that link reference garments (the 3D, printing
  * and fabrics guides' routes read it); without it those links are simply not drawn.
  */
-export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonly ProductCard[] }) {
+export function GuidePage({
+  guide,
+  cards = [],
+  notice = null,
+}: {
+  guide: Guide
+  cards?: readonly ProductCard[]
+  /** A refused template download's message (`templateNotice`), for the tech-pack guide's form. */
+  notice?: TemplateNotice | null
+}) {
   // A headline with a very long word shrinks to fit it (`FitWords`); read before the markup so the
   // className stays one template literal (`headlineLeading.test.ts` reads it).
   const heroFit = fitSuffix(`${guide.heading} ${guide.headingAccent}`)
@@ -546,7 +565,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
               <PhotoStage photo={wholePhoto(section.stage)}>
                 {heading}
                 {section.blocks.map((block) => (
-                  <Block key={blockKey(block)} block={block} cards={cards} />
+                  <Block key={blockKey(block)} block={block} cards={cards} notice={notice} />
                 ))}
               </PhotoStage>
               {garments}
@@ -590,7 +609,7 @@ export function GuidePage({ guide, cards = [] }: { guide: Guide; cards?: readonl
                 )}
                 <div className="spread__body">
                   {section.blocks.map((block) => (
-                    <Block key={blockKey(block)} block={block} cards={cards} />
+                    <Block key={blockKey(block)} block={block} cards={cards} notice={notice} />
                   ))}
                 </div>
               </div>

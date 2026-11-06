@@ -134,6 +134,7 @@ export const TARGETS = [
     '/guides/apparel-design-software',
     '/guides/how-to-order-team-kits',
     '/guides/apparel-manufacturing-technology',
+    '/guides/tech-pack-template',
     '/policies',
     '/policies/workplace-conduct',
     '/policies/health-and-safety',

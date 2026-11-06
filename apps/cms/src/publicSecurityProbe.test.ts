@@ -217,6 +217,7 @@ describe('TARGETS', () => {
       '/guides/sportswear-fibers',
       '/guides/sportswear-pattern-making',
       '/guides/stitch-and-seam-types',
+      '/guides/tech-pack-template',
       '/guides/yarn-count-and-denier',
       '/inside-the-factory',
       '/journal',
@@ -481,6 +482,7 @@ describe('the script guard, seen from outside (SE-04)', () => {
         '/guides/apparel-design-software',
         '/guides/how-to-order-team-kits',
         '/guides/apparel-manufacturing-technology',
+        '/guides/tech-pack-template',
         // The company pages, added after #141 went live (2026-10-07).
         '/policies',
         '/policies/workplace-conduct',

@@ -75,6 +75,7 @@ const PUBLISHED_NAMES: Readonly<Record<string, readonly string[]>> = {
   '/guides/garment-cutting': ['A State-of-the-Art Review'],
   '/guides/sportswear-compliance-by-market': ['on empowering consumers for the green transition'],
   '/guides/apparel-manufacturing-technology': ['Joint Research Centre'],
+  '/guides/tech-pack-template': ['colour fastness'],
 }
 
 /** The text with every published name on `path` taken out, by plain string, never a RegExp. */

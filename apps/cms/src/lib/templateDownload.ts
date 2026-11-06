@@ -116,6 +116,46 @@ export function templateFieldError(
   return null
 }
 
+/**
+ * The form's fixed words, in one place so the guides' word checks read them (`guides.test.ts`).
+ * The notice beside the button and the box's words are the owner's (approved 6 Nov 2026); the
+ * rest is the form's working words, listed for him with the rest of PR 2.
+ */
+export const TEMPLATE_FORM_WORDS = {
+  key: ['Fields marked', '*', 'are needed.'],
+  labels: {
+    name: 'Name',
+    email: 'Company email',
+    company: 'Company',
+    country: 'Country',
+    jobTitle: 'Job title',
+    whatsapp: 'WhatsApp number',
+  },
+  updates: 'Send me occasional updates',
+  button: 'Download the template',
+  notice:
+    'We use these details to give you the template and to let us know who downloaded it. We keep them for 2 years from our last contact with you, and we do not email, message or call you unless you tick the box or write to us first.',
+  privacyLink: 'Privacy notice.',
+  downloading: 'Your template is downloading.',
+  again: 'Download it again',
+  failed: 'The download did not start. Please check your connection and try again.',
+} as const
+
+/** Every one of them, for the word checks. */
+export const templateFormWords = (): string[] => [
+  TEMPLATE_FORM_WORDS.key.join(' '),
+  ...Object.values(TEMPLATE_FORM_WORDS.labels),
+  TEMPLATE_FORM_WORDS.updates,
+  TEMPLATE_FORM_WORDS.button,
+  TEMPLATE_FORM_WORDS.notice,
+  TEMPLATE_FORM_WORDS.privacyLink,
+  TEMPLATE_FORM_WORDS.downloading,
+  TEMPLATE_FORM_WORDS.again,
+  TEMPLATE_FORM_WORDS.failed,
+  ...Object.values(MISSING),
+  'Enter an email address like name@company.com.',
+]
+
 export type TemplateNotice = { kind: 'bad'; text: string }
 
 /**

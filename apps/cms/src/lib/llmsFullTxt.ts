@@ -13,9 +13,28 @@ import { FAMILY_PAGES, familyHref, familyOf } from './familyPages'
 import { FAQ_TOPICS, faqVisibleAnswer } from './faqs'
 import { GLOSSARY_CATEGORIES, termsIn } from './glossary'
 import { authorName, bylineFor } from './bylines'
-import { GUIDES, type Guide, type GuideBlock, legalLine } from './guides'
+import { GUIDES, type Guide, type GuideBlock, type GuideTool, legalLine } from './guides'
+import { BALL_WORDS, CBM_WORDS, GSM_WORDS } from './guideTools'
 import { ORDER_PHASES } from './orderProcess'
 import type { ProductCard } from './projectPublic'
+
+const TOOL_WORDS: Record<GuideTool, { heading: string; lead: string; notes: readonly string[] }> = {
+  'gsm-converter': {
+    heading: GSM_WORDS.heading,
+    lead: GSM_WORDS.lead,
+    notes: [GSM_WORDS.rounding, GSM_WORDS.credit],
+  },
+  'cbm-calculator': {
+    heading: CBM_WORDS.heading,
+    lead: CBM_WORDS.lead,
+    notes: [CBM_WORDS.rounding, CBM_WORDS.closing, CBM_WORDS.credit],
+  },
+  'ball-size-lookup': {
+    heading: BALL_WORDS.heading,
+    lead: BALL_WORDS.lead,
+    notes: [BALL_WORDS.range, BALL_WORDS.credit],
+  },
+}
 
 /**
  * Render a guide block into clean Markdown for language models.
@@ -39,6 +58,14 @@ function renderBlock(block: GuideBlock): string {
         `\n#### Phase: ${phase.name}`,
         ...phase.steps.map((step) => `- [${step.actor}] **${step.title}:** ${step.body}`),
       ]).join('\n')
+    // The form is a thing to do on the page; the guide's own words already point to it.
+    case 'download':
+      return ''
+    // A tool's approved words: what it does and how it rounds, without the controls.
+    case 'tool': {
+      const words = TOOL_WORDS[block.tool]
+      return `\n**${words.heading}.** ${words.lead}\n\n${words.notes.join(' ')}\n`
+    }
     case 'table': {
       const header = `| ${block.columns.join(' | ')} |`
       const divider = `| ${block.columns.map(() => '---').join(' | ')} |`

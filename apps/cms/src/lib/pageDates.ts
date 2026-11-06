@@ -102,6 +102,8 @@ const LIBRARY = '2026-11-06T17:05:02+05:00'
  * home page's order step, the FAQ's Incoterms answer and its topic's description, and the glossary.
  */
 const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
+/** The tech pack guide joins the index and the "Working with us" topic (C1, owner approved 2026-11-06). */
+const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(PRICE_TERMS, '00140939a970'),
@@ -112,7 +114,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
-  '/guides': page(LIBRARY, '427f1f3b71c2'),
+  '/guides': page(TECH_PACK_AND_TOOLS, '8ea40a495c75'),
   '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
@@ -121,9 +123,9 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/quality-and-certifications': page(LIBRARY, '2f8e683d8b4c'),
   '/faq/shipping-and-importing': page(PRICE_TERMS, '3337ef9c9fe5'),
   '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
-  '/faq/working-with-us': page(LIBRARY, 'e6878ac44145'),
+  '/faq/working-with-us': page(TECH_PACK_AND_TOOLS, '326403c492f4'),
   '/glossary': page(PRICE_TERMS, 'c22e311ba5df'),
-  '/journal': page(LIBRARY, '5791b43c9aea'),
+  '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
   '/privacy': page(UK_REGULATOR, '060578c2bd49'),
