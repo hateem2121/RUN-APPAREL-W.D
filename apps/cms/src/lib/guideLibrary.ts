@@ -4736,7 +4736,9 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'On our floor. Bulk orders run on progressive bundle lines, and small runs are sewn by teams, the modular way.',
               'In our glossary. Both systems have their own entries.',
             ],
-            links: [{ phrase: 'our glossary', href: '/glossary' }],
+            // The two entries joined the glossary with C1 and C6 (2026-11-06); until then this point
+            // named entries the glossary did not have yet.
+            links: [{ phrase: 'our glossary', href: '/glossary#progressive-bundle-system' }],
           },
         ],
       },

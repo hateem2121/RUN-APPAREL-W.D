@@ -240,8 +240,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/apparel-manufacturing-machinery': byline(
     AUTHORS.production,
     LIBRARY,
-    LIBRARY,
-    'ae16757f67c8',
+    TECH_PACK_AND_TOOLS,
+    '3106f2c725a8',
   ),
   '/guides/apparel-design-software': byline(
     AUTHORS.contentTeam,

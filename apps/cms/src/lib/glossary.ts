@@ -66,6 +66,13 @@ const MINIMUM_GUIDE = '/guides/minimum-order-and-samples'
 const REFERENCE_GUIDE = '/guides/3d-garment-reference'
 const PACKAGING_GUIDE = '/guides/private-label-packaging'
 const QUALITY_FAQ = '/faq/quality-and-certifications'
+// The buyer library's guides the glossary points to (drafts' glossary calls, approved 2026-11-06).
+const FIBERS_GUIDE = '/guides/sportswear-fibers'
+const STITCH_GUIDE = '/guides/stitch-and-seam-types'
+const MACHINERY_GUIDE = '/guides/apparel-manufacturing-machinery'
+const SOFTWARE_GUIDE = '/guides/apparel-design-software'
+const TECH_PACK_GUIDE = '/guides/tech-pack-template'
+const TEAM_KITS_GUIDE = '/guides/how-to-order-team-kits'
 
 /** A guide's point, found by the start of its title. Throws on a missing one: caught at build. */
 function guidePoint(path: string, titleStart: string): { title: string; text: string } {
@@ -162,35 +169,35 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     name: 'Polyester',
     category: 'Fibers',
     definition: note(FIBRE_NOTES, 'polyester'),
-    seeAlso: [FABRICS_GUIDE],
+    seeAlso: [FIBERS_GUIDE],
   },
   {
     id: 'recycled-polyester',
     name: 'Recycled polyester',
     category: 'Fibers',
     definition: note(FIBRE_NOTES, 'recycled polyester'),
-    seeAlso: [FABRICS_GUIDE],
+    seeAlso: [FIBERS_GUIDE],
   },
   {
     id: 'nylon',
     name: 'Nylon (polyamide)',
     category: 'Fibers',
     definition: note(FIBRE_NOTES, 'nylon (polyamide)'),
-    seeAlso: [FABRICS_GUIDE],
+    seeAlso: [FIBERS_GUIDE],
   },
   {
     id: 'spandex',
     name: 'Spandex (elastane)',
     category: 'Fibers',
     definition: note(FIBRE_NOTES, 'spandex'),
-    seeAlso: [FABRICS_GUIDE],
+    seeAlso: [FIBERS_GUIDE],
   },
   {
     id: 'cotton',
     name: 'Cotton',
     category: 'Fibers',
     definition: note(FIBRE_NOTES, 'cotton'),
-    seeAlso: [FABRICS_GUIDE],
+    seeAlso: [FIBERS_GUIDE],
   },
   {
     id: 'organic-cotton',
@@ -231,7 +238,7 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     name: 'Flatlock seam',
     category: 'Construction and performance',
     definition: note(FEATURE_NOTES, 'flatlock stitching'),
-    seeAlso: [],
+    seeAlso: [STITCH_GUIDE],
   },
   // F26 (owner, 2026-10-07), as the placement print above.
   {
@@ -240,7 +247,7 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     category: 'Construction and performance',
     definition:
       'A seam whose stitch wraps the fabric’s cut edge, joining and finishing it in one pass so it does not fray.',
-    seeAlso: [],
+    seeAlso: [STITCH_GUIDE],
   },
   {
     id: 'bar-tack',
@@ -248,7 +255,7 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     category: 'Construction and performance',
     definition:
       'A short, dense run of zigzag stitches that strengthens a point under strain, such as a pocket corner or a belt loop.',
-    seeAlso: [],
+    seeAlso: [STITCH_GUIDE],
   },
   {
     id: 'raglan-sleeve',
@@ -262,14 +269,14 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     name: 'Taped seams',
     category: 'Construction and performance',
     definition: note(FEATURE_NOTES, 'taped waterproof seams'),
-    seeAlso: [],
+    seeAlso: [STITCH_GUIDE],
   },
   {
     id: 'bonded-seams',
     name: 'Bonded seams',
     category: 'Construction and performance',
     definition: note(FEATURE_NOTES, 'reinforced bonded seams'),
-    seeAlso: [],
+    seeAlso: [STITCH_GUIDE],
   },
   {
     id: 'ripstop',
@@ -290,21 +297,21 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     name: 'Moisture-wicking',
     category: 'Construction and performance',
     definition: note(FEATURE_NOTES, 'moisture-wicking'),
-    seeAlso: [],
+    seeAlso: [FABRICS_GUIDE],
   },
   {
     id: 'four-way-stretch',
     name: '4-way stretch',
     category: 'Construction and performance',
     definition: note(FEATURE_NOTES, 'four-way stretch'),
-    seeAlso: [],
+    seeAlso: [FABRICS_GUIDE],
   },
   {
     id: 'compression-fit',
     name: 'Compression fit',
     category: 'Construction and performance',
     definition: note(FIT_NOTES, 'high-support compression'),
-    seeAlso: [],
+    seeAlso: [FABRICS_GUIDE],
   },
 
   {
@@ -320,7 +327,7 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     name: 'Cut and sew',
     category: 'Ordering and production',
     definition: 'Garments made by cutting fabric into pattern pieces and sewing them together.',
-    seeAlso: [ORDER_GUIDE],
+    seeAlso: [ORDER_GUIDE, MACHINERY_GUIDE],
   },
   {
     id: 'tech-pack',
@@ -328,7 +335,57 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     category: 'Ordering and production',
     definition:
       'The document that describes a garment for the factory: its measurements, fabrics, trims, colors and artwork. A sketch is enough to start; a reference garment or a tech pack is better.',
-    seeAlso: [ORDER_GUIDE],
+    seeAlso: [TECH_PACK_GUIDE, ORDER_GUIDE, SOFTWARE_GUIDE],
+  },
+  // The buyer library's new terms (owner approved the drafts word for word, 2026-11-06): B7's two
+  // ways of running a sewing line, B9's three file and software words, and C5's team kit.
+  {
+    id: 'progressive-bundle-system',
+    name: 'Progressive bundle system',
+    category: 'Ordering and production',
+    definition:
+      'A way of organizing a sewing line in which each operator does one small task and bundles of cut pieces move from task to task.',
+    seeAlso: [MACHINERY_GUIDE],
+  },
+  {
+    id: 'modular-production',
+    name: 'Modular production',
+    category: 'Ordering and production',
+    definition:
+      'A way of organizing a sewing line in which a small team of multi-skilled workers sews all or part of a garment.',
+    seeAlso: [MACHINERY_GUIDE],
+  },
+  {
+    id: 'dxf-aama',
+    name: 'DXF-AAMA',
+    category: 'Ordering and production',
+    definition:
+      'A form of the DXF file used to send flat pattern pieces between pattern CAD systems, with grading kept in the file or a rule file beside it.',
+    seeAlso: [SOFTWARE_GUIDE],
+  },
+  {
+    id: 'gltf-glb',
+    name: 'glTF (GLB)',
+    category: 'Ordering and production',
+    definition:
+      'A royalty-free file format for 3D models; a GLB file holds a whole 3D scene in one binary file.',
+    seeAlso: [SOFTWARE_GUIDE],
+  },
+  {
+    id: 'plm',
+    name: 'PLM (product lifecycle management)',
+    category: 'Ordering and production',
+    definition:
+      'Software that shares a product’s data with everyone who works on it, from design to production.',
+    seeAlso: [SOFTWARE_GUIDE],
+  },
+  {
+    id: 'team-kit',
+    name: 'Team kit',
+    category: 'Ordering and production',
+    definition:
+      'The shirt, shorts, socks, shin guards and footwear the Laws of the Game make compulsory.',
+    seeAlso: [TEAM_KITS_GUIDE],
   },
   {
     id: 'moq',
@@ -357,7 +414,7 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     category: 'Ordering and production',
     definition:
       'A garment you can turn and zoom on your screen. It lets you and your team check the construction, the fit and where the artwork sits before a sample is cut.',
-    seeAlso: [REFERENCE_GUIDE, '/products'],
+    seeAlso: [REFERENCE_GUIDE, SOFTWARE_GUIDE, '/products'],
   },
   {
     id: 'colorway',

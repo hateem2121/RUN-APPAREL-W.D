@@ -121,7 +121,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/shipping-and-importing': page(PRICE_TERMS, '3337ef9c9fe5'),
   '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
   '/faq/working-with-us': page(TECH_PACK_AND_TOOLS, '326403c492f4'),
-  '/glossary': page(PRICE_TERMS, 'c22e311ba5df'),
+  '/glossary': page(TECH_PACK_AND_TOOLS, '95668581a1ce'),
   '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
