@@ -40,6 +40,13 @@ const PAGES = [
 ] as const
 
 /**
+ * ⚠️ A TEST THAT VISITS EVERY PAGE GETS TIME FOR EVERY PAGE (6 Nov 2026). CT-08 and X20 walk all of
+ * PAGES in one test; with the buyer library's 15 new guides both outran Playwright's 30 s in CI's
+ * Firefox (PR #331). The budget grows with the list, at about twice CI's measured pace per page.
+ */
+const EVERY_PAGE_TIMEOUT = 10_000 + PAGES.length * 1_500
+
+/**
  * A listed word used in its plain sense, page by page, with the sentence that does it. The rule
  * treats "next generation" and "next-generation" alike on purpose; on /community it is the
  * owner's sentence about people ("Senior stitchers and cutters train the next generation",
@@ -241,6 +248,7 @@ for (const viewport of [
   { width: 1440, height: 900 },
 ]) {
   test(`one primary action per screen at ${viewport.width}px (CT-08)`, async ({ page }) => {
+    test.setTimeout(EVERY_PAGE_TIMEOUT)
     await page.setViewportSize(viewport)
     for (const path of PAGES) {
       await page.goto(path)
@@ -281,6 +289,7 @@ const OLD_NAMES =
 test('X20 — the way to talk to us and the way to the 3D garments each have one name, on every page', async ({
   page,
 }) => {
+  test.setTimeout(EVERY_PAGE_TIMEOUT)
   await page.setViewportSize({ width: 1280, height: 900 })
   let talk = 0
   let browse = 0
