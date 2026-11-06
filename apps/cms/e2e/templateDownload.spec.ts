@@ -125,7 +125,7 @@ test.describe('the guides’ small tools (C6)', () => {
     const tool = page.locator('#gsm-converter')
     await tool.getByLabel('Fabric weight (grams per square meter)').fill('180')
     await expect(tool.locator('output')).toHaveText('180 GSM is 5.31 ounces per square yard.')
-    await tool.getByText('Ounces per square yard (oz/yd²)').click()
+    await tool.getByRole('radio', { name: 'Ounces per square yard (oz/yd²)' }).check()
     await tool.getByLabel('Fabric weight (ounces per square yard)').fill('5,3')
     await expect(tool.locator('output')).toHaveText('5.3 ounces per square yard is 179.7 GSM.')
   })
@@ -153,7 +153,7 @@ test.describe('the guides’ small tools (C6)', () => {
     await expect(tool.locator('output')).toHaveText(
       'Under 12 (Year 7): size 4 (The FA’s FutureFit table).',
     )
-    await tool.getByText('United States').click()
+    await tool.getByRole('radio', { name: 'United States' }).check()
     // A change of country rebuilds the list and clears the answer.
     await expect(tool.locator('output')).toHaveText('')
     await expect(
