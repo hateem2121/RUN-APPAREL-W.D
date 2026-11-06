@@ -65,9 +65,12 @@ test.describe('the glossary', () => {
 
   test('a letter jumps to its first term', async ({ page }) => {
     await page.goto('/glossary')
+    // A letter jumps to its first term in PAGE order, category by category (GlossaryPage.tsx
+    // `firstOf`), not A–Z: "Dope dyeing" (Fibers) comes before DTF (Printing and decoration) since
+    // the seven terms of 2026-11-06 — and before "Digital Product Passport" (Standards and audits).
     await page.locator('.glossary-letters a', { hasText: /^D$/ }).click()
-    await expect(page).toHaveURL(/#dtf$/)
-    await expect(page.locator('#dtf')).toBeInViewport()
+    await expect(page).toHaveURL(/#dope-dyeing$/)
+    await expect(page.locator('#dope-dyeing')).toBeInViewport()
   })
 })
 
