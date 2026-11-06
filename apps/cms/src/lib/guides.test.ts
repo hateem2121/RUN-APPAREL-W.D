@@ -376,6 +376,13 @@ describe('a guide shows a factory photo only beside words that name it (polish X
    * background), held to the same idea as the cut photos above: only beside words that name it.
    */
   const STAGED_BY = [
+    // The cost guide's price section, behind the words "hang tags" (buyer library, 2026-11-06).
+    [
+      '/guides/cost-to-start-an-activewear-brand',
+      'What changes the price of one piece',
+      'whole-tagging',
+      'hang tags',
+    ],
     ['/guides/how-soccer-balls-are-made', 'On our floor', 'whole-ball-stitching', 'hand-stitched'],
     // The buyer library (owner approved 2026-11-06): the stitching floor, the end of the line and the
     // ball hall, each behind words that name it.
@@ -424,7 +431,9 @@ describe('a guide shows a factory photo only beside words that name it (polish X
 describe('the shipping guide (owner, 2026-09-30)', () => {
   const words = everyWord(guideAt('/guides/shipping-and-import-duties'))
 
-  it('names the four ways and five terms the owner ticked, and nothing else', () => {
+  // The buyer library (owner, 2026-11-06): FCA is quoted on request and DAP is offered too, so seven
+  // terms in the Incoterms rules' own order. CPT, CIP, DPU and FAS are still not quoted.
+  it('names the four ways and the terms the owner ticked, and nothing else', () => {
     const titles = guideAt('/guides/shipping-and-import-duties').sections.flatMap((section) =>
       section.blocks.flatMap((block) => (block.kind === 'point' ? [block.title] : [])),
     )
@@ -434,22 +443,35 @@ describe('the shipping guide (owner, 2026-09-30)', () => {
       'Sea freight',
       'Your own forwarder',
       'EXW (Ex Works)',
+      'FCA (Free Carrier)',
       'FOB (Free On Board)',
       'CFR and CIF',
+      'DAP (Delivered at Place)',
       'DDP (Delivered Duty Paid)',
     ])
-    expect(words).not.toMatch(/\b(?:FCA|CPT|CIP|DAP|DPU|FAS)\b/)
+    expect(words).not.toMatch(/\b(?:CPT|CIP|DPU|FAS)\b/)
   })
 
-  // Neither was given: a transit time is a promise, and a duty rate is the buyer's country's.
-  // Owner, 2026-10-26: the guide also says the bulk lead time (`LEAD_TIME`) and the problem window (the
-  // FAQ's answer), both word for word and neither a transit time; any other number of days or weeks fails.
-  it('states no transit time and no duty rate', () => {
+  /*
+   * A transit time is a promise, and the duty on a garment is the buyer's country's. Owner, 2026-10-26:
+   * the guide also says the bulk lead time (`LEAD_TIME`) and the problem window (the FAQ's answer), both
+   * word for word and neither a transit time; any other number of days or weeks fails. Owner,
+   * 2026-11-06 (buyer library): one section gives the duty on soccer balls, each rate read from that
+   * market's official tariff and dated; a percentage anywhere else on the page still fails.
+   */
+  it('states no transit time, and duty rates only in the soccer-ball section', () => {
     expect(words).toContain(LEAD_TIME)
     expect(words).toContain(faqEntryById('order-problem').entry.answer)
     expect(without(words)).not.toMatch(/\d+\s*(?:working )?(?:days|weeks)/i)
     expect(`${without(words)}\nTransit takes 5 days.`).toMatch(/\d+\s*(?:working )?(?:days|weeks)/i)
-    expect(words).not.toMatch(/\d+(?:\.\d+)?\s?%/)
+    const guide = guideAt('/guides/shipping-and-import-duties')
+    const outsideBalls = everyWord({
+      ...guide,
+      sections: guide.sections.filter((section) => section.heading !== 'Shipping soccer balls'),
+    })
+    expect(outsideBalls).not.toMatch(/\d+(?:\.\d+)?\s?%/)
+    // NEGATIVE CONTROL: the same check sees a rate planted in another section.
+    expect(`${outsideBalls}\nThe duty is 12%.`).toMatch(/\d+(?:\.\d+)?\s?%/)
   })
 
   it('keeps the terms page sentence and says FOB, CFR and CIF are sea terms', () => {
@@ -543,6 +565,54 @@ describe('a guide’s sources (2026-10-08)', () => {
   const hosts = (...names: string[]) =>
     new RegExp(`^https://(?:www\\.)?(?:${names.map(escapeRegExp).join('|')})/`)
   const HOSTS_FOR: Readonly<Record<string, RegExp>> = {
+    // The four guides the library deepened (owner approved 2026-11-06), in `GUIDES` order.
+    '/guides/garment-printing-methods': hosts(
+      'blogs.clemson.edu',
+      'doi.org',
+      'inside.fifa.com',
+      'iso.org',
+      'kirim.kmutt.ac.th',
+      'knowledge.bsigroup.com',
+      'library.taga.org',
+      'members.aatcc.org',
+    ),
+    '/guides/sportswear-fabrics-and-weights': hosts(
+      'astm.org',
+      'doi.org',
+      'ecfr.gov',
+      'ftc.gov',
+      'iso.org',
+      'legislation.gov.uk',
+      'nist.gov',
+      'pubs.nmsu.edu',
+    ),
+    '/guides/shipping-and-import-duties': hosts(
+      'abf.gov.au',
+      'academy.iccwbo.org',
+      'cbp.gov',
+      'cbsa-asfc.gc.ca',
+      'content.govdelivery.com',
+      'ec.europa.eu',
+      'gov.uk',
+      'hts.usitc.gov',
+      'iata.org',
+      'iccwbo.org',
+      'taxation-customs.ec.europa.eu',
+      'trade-tariff.service.gov.uk',
+      'trade.ec.europa.eu',
+      'usitc.gov',
+      'wcoomd.org',
+      'whitehouse.gov',
+    ),
+    '/guides/cost-to-start-an-activewear-brand': hosts(
+      'cbp.gov',
+      'content.govdelivery.com',
+      'europa.eu',
+      'gov.uk',
+      'law.cornell.edu',
+      'sba.gov',
+      'trade.ec.europa.eu',
+    ),
     '/guides/pakistan-vs-china-vs-turkey': OFFICIAL,
     '/guides/how-soccer-balls-are-made': BALL_BODIES,
     '/guides/how-we-write-our-guides': GOOGLE_GUIDANCE,
@@ -835,13 +905,22 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     ])
   })
 
-  it('the shipping guide gives the owner’s ports and the sample courier, and no tariff code', () => {
+  // The buyer library (owner approved 2026-11-06) adds HS codes: the invoice gives the six-digit code,
+  // and the buyer’s broker confirms the national one. So the page names HS codes, and still types none.
+  it('the shipping guide gives the owner’s ports and the sample courier, and types no tariff code', () => {
     const words = wordsOf('/guides/shipping-and-import-duties')
     expect(words).toContain(
       'Air shipments leave from Sialkot International Airport and sea freight from Karachi.',
     )
     expect(words).toContain('The buyer pays a sample’s courier.')
-    expect(words).not.toMatch(/tariff code|HS code/i)
+    expect(words).toContain('Our commercial invoice gives the six-digit HS code')
+    // No code of ten or eight digits for a garment; the ball section’s codes are the tariffs’ own.
+    const guide = guideAt('/guides/shipping-and-import-duties')
+    const outsideBalls = everyWord({
+      ...guide,
+      sections: guide.sections.filter((section) => section.heading !== 'Shipping soccer balls'),
+    })
+    expect(outsideBalls).not.toMatch(/\b\d{4}\.\d{2}(?:\.\d{2})?\b|\b\d{8,10}\b/)
   })
 
   it('the packaging guide gives the owner’s one sentence on labels and no other label fact', () => {
@@ -919,10 +998,11 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
 
   // Its rows are garments' own published specs, typed because a guide is static (the guide says so).
   it('the table of reference garments gives each row a composition that adds to 100% and a weight', () => {
+    // Found by its caption: the library's ounces and garment-match tables now come before it (2026-11-06).
     const table = guideAt('/guides/sportswear-fabrics-and-weights')
       .sections.flatMap((section) => section.blocks)
-      .find((block) => block.kind === 'table')
-    if (table?.kind !== 'table') throw new Error('the fabrics guide has no table')
+      .find((block) => block.kind === 'table' && block.caption === 'What each garment is made of')
+    if (table?.kind !== 'table') throw new Error('the fabrics guide has no table of garments')
     // Two columns, so it stays a table on a 320px phone (`GuideTable`): the weight rides in the cell.
     expect(table.columns).toEqual(['Garment', 'Made of'])
     expect(table.rows).toEqual(
@@ -1006,6 +1086,9 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     // The owner's two parallel sentences, `LEAD_TIME` and `SAMPLE_TIME` (2026-11-05: "Usually 7;
     // quote states it", chosen to read like the lead-time line), on a guide that states both.
     'your quote states the exact',
+    // The shipping guide’s price terms (owner, 2026-11-06): each term says who pays the duty, and FCA
+    // and CFR and CIF both end on the buyer paying it. The same parallel as the older phrase above.
+    'you pay the import duty and tax',
   ]
 
   it('no guide says a run of five words twice, apart from the older words', () => {

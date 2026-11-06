@@ -715,6 +715,16 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+
+      {
+        heading: 'Patches',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'We make patches, embroidered or woven, including removable ones.',
+          },
+        ],
+      },
       {
         heading: 'Which method for your garment',
         blocks: [
@@ -743,6 +753,98 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'It depends on the fabric, the design and the quantity. Send us your artwork with your inquiry, and the method is stated in your quote.',
+          },
+        ],
+      },
+
+      {
+        heading: 'DTF or DTG: what the studies found',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'DTG prints straight onto the garment; DTF goes onto a film first, then is pressed on. On cotton washed ten times, a 2025 study in Thailand found DTG had lower print quality and color durability than DTF. On polyester and blends, a 2024 Clemson study without DTF found DTG held its color best after the first wash.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'The Thai study. Researchers at King Mongkut’s University of Technology Thonburi printed DTG, DTF and sublimation on cotton, then washed each print ten times following ISO 6330. DTG showed the lowest washing durability and the largest color difference.',
+              'Longer wash results. The next section gives that study’s five-wash result for sublimation.',
+              'Your fabric decides. Clemson’s researchers say some pairs of fabric and method give more accurate color, both at first and after multiple washes. Choose on a strike-off printed on your own fabric, and ask for a wash test if wash life matters to you.',
+            ],
+          },
+        ],
+      },
+
+      {
+        heading: 'Sublimation or screen printing: which lasts',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'In a 2024 Clemson University study, sublimation on polyester or a polyester blend kept its color best over five laundering cycles; in 2025, after commercial laundering, the same team recommended it on 100% polyester. Screen printing reproduced color most accurately in 2024, and in 2025 it showed no noticeable change when washed only at home.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Commercial laundry. For kit washed in a commercial laundry, the 2025 authors advised against screen printing on any of the fabrics they tested.',
+              'What was tested. The 2024 study compared what it called the three most common printing processes for clothing, on three fabrics. The 2025 study printed on fabric blends common in team uniforms.',
+              'DTF and sublimation. In 2026, Clemson studied 64 brand colors on several fabrics, with methods that included DTF and sublimation. DTF gave more accurate color overall, and sublimation did best on 100% polyester.',
+              'Hard to generalize. The 2025 authors write that it is hard to say any one process, fabric type or color outperforms the rest.',
+              'Small runs. For screen printing on a small order, see Why fewer pieces cost more each, in our minimum order guide.',
+            ],
+            links: [
+              { phrase: 'our minimum order guide', href: '/guides/minimum-order-and-samples' },
+            ],
+          },
+        ],
+      },
+
+      {
+        heading: 'How long a print lasts in the wash',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'The standards we read define wash tests; none says how many washes a print lasts. AATCC TM61 roughly matches five hand or home launderings in one 45-minute test. Under ISO 105-C06, one single test closely matches one laundering, and one multiple test may, in some cases, match up to five. Ask which test, and the result.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'What TM61 is for. Textiles expected to stand up to frequent laundering.',
+              'The washing itself. ISO 6330 sets the home washing and drying procedures used in textile testing, for fabrics, garments and other textile articles.',
+            ],
+          },
+        ],
+      },
+
+      {
+        heading: 'Rubbing, sweat and sunlight',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'AATCC TM8 measures how much color rubs off a fabric onto white test cloth, dry and wet, and assesses it against a gray scale; it applies to printed textiles. ISO 105-X12 also tests with a dry cloth and a wet one. For sweat, AATCC TM15 tests color against acid perspiration, and covers printed fabric too.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Small prints. AATCC does not recommend TM8 for prints where the area to test would be too small. For a small chest logo, ask the lab how it will test it.',
+              'Sunlight. AATCC TM16.3 is a light test for colorants and finishes on textiles of all kinds. It says the two parties to the contract must agree how its result relates to real use.',
+              'Lab reports. Ask for any colorfastness test named on this page, and we arrange a report on your print from a third-party lab, at your cost.',
+            ],
+          },
+        ],
+      },
+
+      {
+        heading: 'How each print feels',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'We found no neutral study comparing how these methods feel, so we do not rank them. AATCC’s EP5 sets standard conditions for judging a fabric’s hand, meaning its feel. The seven methods above say how sublimation and special inks finish. For the other five, feel the strike-off before bulk.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'On our garments. Why the fabric decides, further down, shows what the method changed on four of our reference garments.',
+            ],
           },
         ],
       },
@@ -778,6 +880,26 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'The Terra Active Zip polo is made ready for custom sublimation or embroidery. Sublimation suits an all-over or tonal design. Embroidery suits a crest that should look stitched rather than printed.',
+          },
+        ],
+      },
+
+      {
+        heading: 'Printing soccer ball panels',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A ball’s print goes on while its cover material is still flat. FIFA describes a ball’s cover layers being printed, then cut into panels, then stitched together. We screen print our ball panels on the cover material before the panels are cut. Send your ball artwork with your inquiry, as you would for a garment.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'The cover. FIFA wrote in 2018 that almost every football then made used synthetic leather, because its thickness varies far less than real leather.',
+              'What goes on it. Whatever you ask for. We also offer to print its size, the words "Made in Pakistan", and how the ball was built.',
+              'Colors and price. A ball’s price depends on four things: the build, the cover material, the bladder and the print colors.',
+              'The rest of the ball. How soccer balls are made explains each build and what is inside, wound bladders included.',
+              'In 3D. Our Kaizen ball has its own 3D page, where you can turn it.',
+            ],
           },
         ],
       },
@@ -828,12 +950,99 @@ export const GUIDES: readonly Guide[] = [
         { slug: 'r-au', shows: 'Special inks (silicone)' },
       ],
     },
+    sources: [
+      {
+        name: 'AATCC: TM61, colorfastness to laundering, accelerated',
+        url: 'https://members.aatcc.org/store/tm61/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM8, colorfastness to rubbing (crocking)',
+        url: 'https://members.aatcc.org/store/tm8/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM15, colorfastness to perspiration',
+        url: 'https://members.aatcc.org/store/tm15/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: TM16.3, colorfastness to light',
+        url: 'https://members.aatcc.org/store/tm16-3/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'AATCC: EP5, evaluating fabric hand',
+        url: 'https://members.aatcc.org/store/ep5/462/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: BS EN ISO 105-C06:2010, identical to ISO 105-C06:2010, colour fastness to domestic and commercial laundering',
+        url: 'https://knowledge.bsigroup.com/products/textiles-tests-for-colour-fastness-colour-fastness-to-domestic-and-commercial-laundering',
+        date: '2010-04-30',
+        kind: 'read',
+      },
+      {
+        name: 'ISO: ISO 105-X12:2016, colour fastness to rubbing',
+        url: 'https://www.iso.org/standard/65207.html',
+        date: '2016-06-01',
+        kind: 'read',
+      },
+      {
+        name: 'BSI Knowledge: BS EN ISO 6330:2021, domestic washing and drying procedures for textile testing',
+        url: 'https://knowledge.bsigroup.com/products/textiles-domestic-washing-and-drying-procedures-for-textile-testing-3',
+        date: '2021-12-31',
+        kind: 'read',
+      },
+      {
+        name: 'Walker and Bridges (Clemson University), Color Accuracy and Durability for Printed, Branded Textiles, Color and Imaging Conference 32, pp 89 to 94, Society for Imaging Science and Technology',
+        url: 'https://doi.org/10.2352/CIC.2024.32.1.18',
+        date: '2024-10-28',
+        kind: 'read',
+      },
+      {
+        name: 'Walker and Bridges (Clemson University), The Impact of Commercial Laundering on Brand Color Durability on Printed Textiles, TAGA 2025 Proceedings',
+        url: 'https://library.taga.org/2025-proceedings/T20250106',
+        date: '2025-01-01',
+        kind: 'read',
+      },
+      {
+        name: 'Clemson University, Sports Insight: Clemson professors measure consistency of ACC brand team colors across athletic apparel',
+        url: 'https://blogs.clemson.edu/brookssports/2026/06/19/clemson-professors-measure-consistency-of-acc-brand-team-colors-across-athletic-apparel/',
+        date: '2026-06-19',
+        kind: 'read',
+      },
+      {
+        name: 'Clemson University, Sports Insight: Clemson branded textile research for athletic apparel receives international recognition',
+        url: 'https://blogs.clemson.edu/brookssports/2025/03/03/clemson-branded-textile-research-for-athletic-apparel-receives-international-recognition/',
+        date: '2026-02-02',
+        kind: 'read',
+      },
+      {
+        name: 'Liwsakpaiboon, Maungnoi and Kajondecha, King Mongkut’s University of Technology Thonburi, conference proceedings, pp P12-1 to P12-4',
+        url: 'https://kirim.kmutt.ac.th/converis/portal/detail/Publication/1533897310?lang=en_GB',
+        date: '2025-01-01',
+        kind: 'read',
+      },
+      {
+        name: 'FIFA: The making of a football',
+        url: 'https://inside.fifa.com/innovation/news/the-making-of-a-football',
+        date: '2018-08-06',
+        kind: 'read',
+      },
+    ],
   },
   {
     path: '/guides/sportswear-fabrics-and-weights',
     title: 'Sportswear Fabrics & Weights (GSM) Guide',
     description:
-      'Ten knit fabrics for sportswear with their usual weights in GSM, common blends and uses. Any fabric, structure or weight can be made to your spec.',
+      // The buyer library's description (owner approved 2026-11-06): the guide now converts, measures and matches.
+      'Ten knit fabrics for sportswear in GSM and ounces, how fabric weight is measured, stretch and wicking explained, and which fabric suits which garment.',
     heading: 'Sportswear fabrics and weights,',
     headingAccent: 'side by side.',
     lede: 'GSM means grams per square meter: how heavy a fabric is. Below are ten knit fabrics used in sportswear, with their usual weights, blends and uses. We are not limited to these. We make fabric to your own structure, weight and properties.',
@@ -893,6 +1102,37 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+
+      {
+        heading: 'GSM in ounces per square yard',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'One ounce per square yard is 33.906 grams per square meter, from the conversion factor that the US National Institute of Standards and Technology publishes. To turn GSM into ounces per square yard, divide by 33.906. To turn ounces into GSM, multiply by 33.906. The table gives each fabric above in both units.',
+          },
+          {
+            kind: 'table',
+            caption: 'The ten fabrics in GSM and ounces per square yard',
+            columns: ['Fabric', 'GSM', 'Ounces per square yard'],
+            rows: [
+              ['Single jersey', '120 to 200', '3.5 to 5.9'],
+              ['Interlock', '155 to 220', '4.6 to 6.5'],
+              ['Pique', '180 to 240', '5.3 to 7.1'],
+              ['Mesh', '100 to 160', '2.9 to 4.7'],
+              ['French terry', '200 to 280', '5.9 to 8.3'],
+              ['Fleece', '200 to 350', '5.9 to 10.3'],
+              ['Birdseye mesh', '135 to 180', '4.0 to 5.3'],
+              ['Rib', '180 to 250', '5.3 to 7.4'],
+              ['Waffle', '160 to 220', '4.7 to 6.5'],
+              ['Jacquard', '200 to 280', '5.9 to 8.3'],
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'The ounces are rounded to one decimal place. Some weights are given per running yard or meter of fabric instead. For some fabrics the two are related simply through the width, so ask which one a quoted weight means.',
+          },
+        ],
+      },
       {
         // The bands are the garment pages' own (`WEIGHT_BANDS`), never retyped (owner, 2026-10-26).
         heading: 'Reading a weight',
@@ -900,6 +1140,135 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: `The garment pages put a weight into words, using the middle of its range. ${WEIGHT_BAND_TEXT} Neoprene and leather are sold by thickness in millimeters instead.`,
+          },
+        ],
+      },
+
+      {
+        heading: 'How fabric weight is measured',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Fabric weight is measured to a written test method. ASTM D3776 covers the mass per unit area of most fabrics, with four options, from a whole roll to a small swatch. A result from a small swatch speaks only for that swatch, not for the lot it was cut from. We check fabric weight on our own floor.',
+          },
+          {
+            kind: 'text',
+            text: 'The option matters. A full-width sample includes the selvages, the fabric’s side edges, unless otherwise specified, and results are for conditioned fabric. Conditioning uses the standard atmosphere that ISO 139 defines for testing textiles. Woven fabrics have their own method, ISO 3801.',
+          },
+          { kind: 'text', text: 'The GSM and its tolerance are stated in your quote.' },
+          {
+            kind: 'text',
+            text: 'For a third-party lab report on your fabric, tell us the property and, if you have one, the test method. We arrange the report, and you pay for it.',
+          },
+          {
+            kind: 'text',
+            text: 'Swatches before the sample are covered in our minimum order guide.',
+            links: [
+              { phrase: 'our minimum order guide', href: '/guides/minimum-order-and-samples' },
+            ],
+          },
+        ],
+      },
+
+      {
+        heading: 'Which fabric for which garment',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Start from how the garment moves. Sportswear and other loose-fitting clothes need comfort stretch, so the body can move. In form-fitting garments, stretch that the fabric does not recover can build up over long wear. For swimwear, for example, the most popular fiber blend is polyamide (nylon) with elastane. The table matches garments to the ten fabrics above.',
+          },
+          {
+            kind: 'table',
+            caption: 'Which of the ten fabrics each garment uses',
+            columns: ['Garment', 'Fabric'],
+            rows: [
+              ['T-shirts, tank tops and gym wear', 'Single jersey'],
+              ['Running shirts', 'Single jersey or mesh'],
+              ['Premium tees', 'Interlock'],
+              ['Performance tees', 'Birdseye mesh'],
+              ['Polo shirts', 'Interlock or pique'],
+              ['Golf and tennis wear', 'Pique or birdseye mesh'],
+              ['Team jerseys', 'Interlock'],
+              ['Jerseys and ventilation panels', 'Mesh'],
+              ['Hoodies', 'French terry or fleece'],
+              ['Sweatshirts and sweatpants', 'French terry'],
+              ['Jackets and pullovers', 'Fleece'],
+              ['Necklines, cuffs, waistbands and fitted garments', 'Rib'],
+              ['Base layers and thermal wear', 'Waffle'],
+              ['Team uniforms and premium sportswear', 'Jacquard'],
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'For weight, read it with "Reading a weight" and the section on breathing below. For a garment the table leaves out, see our FAQ.',
+            links: [{ phrase: 'our FAQ', href: '/faq/fabrics-and-printing#choose-fabric' }],
+          },
+        ],
+      },
+
+      {
+        heading: 'Stretch and recovery',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Stretch is how far a fabric extends under a known load. Growth is measured after a known stretch is applied and then removed. Buyers need fabrics that stretch and also return to their original shape, and figures for stretch and growth help choose them.',
+          },
+          { kind: 'text', text: 'Which test suits which fabric:' },
+          {
+            kind: 'list',
+            items: [
+              'ASTM D2594 measures stretch under a known load and growth after release. Results from different labs agree poorly, so it is not recommended for accepting a shipment.',
+              'ASTM D6614 measures the stretch and growth that a garment made from the fabric can be expected to show in use. It is a new method with little history of data, but labs agree well on it, so it may be considered for accepting shipments.',
+              'ASTM D3107 covers fabrics woven from stretch yarns. Some of them have stretch yarns only in the filling, or weft, direction, across the width.',
+              'ISO 20932-1 measures elasticity on straight strips or loops of fabric.',
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'For fabrics meant to give support, the scope of D2594 points to D3107, D4964 or D6614 instead.',
+          },
+        ],
+      },
+
+      {
+        heading: 'What moisture-wicking means',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A moisture-wicking fabric draws liquid sweat along fine capillary channels, moving it away from the skin. How quickly it does so depends on the yarn, the structure of the fabric and its finish. Polyester absorbs little water, which can speed wicking; cotton fabrics wick poorly and take a long time to dry.',
+          },
+          {
+            kind: 'text',
+            text: 'Some fabrics have two faces: a water-repelling face against the skin and a water-attracting face outside, which pulls sweat out through the fabric. Some polyester fibers are made with a shaped cross-section that forms wicking channels along each fiber. Cotton is usually blended with wicking fibers to help the fabric wick, and hydrophilic, or water-attracting, finishes help too.',
+          },
+        ],
+      },
+
+      {
+        heading: 'Does a heavier fabric breathe less?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'It can. When a fabric’s density stays the same, more weight means more thickness. Other things being equal, a thicker fabric lets less water vapor through and insulates more. Weight is only one factor: thread count, structure, porosity and finish affect comfort too.',
+          },
+          {
+            kind: 'text',
+            text: 'Air permeability tests measure how much air passes through a fabric: ASTM D737, which applies to knitted fabrics among others, and ISO 9237.',
+          },
+        ],
+      },
+
+      {
+        heading: 'Knit or woven',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A knit is built from loops, each stitch one loop drawn through another. A woven interlaces two sets of yarns, the warp and the weft. Weft knits interlock horizontal loops; warp knits interlock loops made vertically. All ten fabrics above are knits. The wovens we use, textured woven polyester and taffeta, are described further down this page.',
+          },
+          {
+            kind: 'text',
+            text: 'Our shipping guide explains how knitted and woven garments are coded for customs.',
+            links: [{ phrase: 'Our shipping guide', href: '/guides/shipping-and-import-duties' }],
           },
         ],
       },
@@ -921,7 +1290,8 @@ export const GUIDES: readonly Guide[] = [
               'Spandex, also called elastane: adds stretch, blended in small amounts.',
               'Cotton: soft and breathable.',
               'Merino wool and recycled wool: warm.',
-              'Lyocell and modal: soft fibers made from plant or wood pulp.',
+              // Owner, 2026-11-06 (buyer library, wave 2): cellulose, as the fibers guide's sources say.
+              'Lyocell and modal: fibers made from plant cellulose.',
               'Hemp: a hard-wearing plant fiber.',
             ],
           },
@@ -936,7 +1306,9 @@ export const GUIDES: readonly Guide[] = [
             items: [
               'Organic cotton is grown without synthetic pesticides or fertilizers.',
               'Neoprene, whose chemical name is polychloroprene, is a rubbery foam that keeps you warm when wet.',
-              'Taslon is a textured woven polyester for an outer shell: light, tough and wind-resistant.',
+              // Owner, 2026-11-06: "Taslon" is a trade name; a generic description, as the Metro-Shield
+              // Suit's corrected fabric says it (`specNotes.ts`, "textured woven polyester").
+              'Textured woven polyester: an outer-shell fabric, light, tough and wind-resistant.',
               'Taffeta is a smooth, light woven lining that slides easily over other clothes.',
               'Cowhide is hard-wearing, keeps the wind out and softens with wear.',
             ],
@@ -950,6 +1322,17 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: `${faqAnswer('recycled-organic').replace(/^Yes\. /, '')} You can also send your own fabric, and we cut, make and trim garments from it.`,
+          },
+        ],
+      },
+
+      {
+        heading: 'Under a soccer ball’s cover',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Under the cover of a soccer ball sit backing layers, which give the ball its shape and feel. They vary from ball to ball, and your quote states the backing layers for your ball. Covers, bladders and the four ways to build a ball are explained in our ball guide.',
+            links: [{ phrase: 'our ball guide', href: '/guides/how-soccer-balls-are-made' }],
           },
         ],
       },
@@ -1019,6 +1402,116 @@ export const GUIDES: readonly Guide[] = [
         { slug: 'r-afp', shows: 'Waffle' },
       ],
     },
+    sources: [
+      {
+        name: 'NIST, Guide for the Use of the SI (SP 811), Appendix B.9, conversion factors',
+        url: 'https://www.nist.gov/pml/special-publication-811/nist-guide-si-appendix-b-conversion-factors/nist-guide-si-appendix-b9',
+        date: '2025-08-18',
+        kind: 'updated',
+      },
+      {
+        name: 'ASTM D3776/D3776M-20(2025), fabric mass per unit area',
+        url: 'https://www.astm.org/d3776_d3776m-20r25.html',
+        date: '2025-08-20',
+        kind: 'updated',
+      },
+      {
+        name: 'ISO 3801:1977, woven fabrics, mass per unit length and per unit area',
+        url: 'https://www.iso.org/standard/9335.html',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'ISO 139:2005, standard atmospheres for conditioning and testing textiles',
+        url: 'https://www.iso.org/standard/35179.html',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'ASTM D2594/D2594M-21, stretch properties of knitted fabrics',
+        url: 'https://www.astm.org/Standards/D2594.htm',
+        date: '2021-08-13',
+        kind: 'updated',
+      },
+      {
+        name: 'ASTM D6614/D6614M-20, stretch properties of textile fabrics, CRE method',
+        url: 'https://www.astm.org/Standards/D6614.htm',
+        date: '2020-08-06',
+        kind: 'updated',
+      },
+      {
+        name: 'ASTM D3107-26, stretch properties of fabrics woven from stretch yarns',
+        url: 'https://www.astm.org/Standards/D3107.htm',
+        date: '2026-05-20',
+        kind: 'updated',
+      },
+      {
+        name: 'ISO 20932-1:2018, elasticity of fabrics, strip tests',
+        url: 'https://www.iso.org/standard/69489.html',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'NIST, OSAC Lexicon, Weft (filling)',
+        url: 'https://www.nist.gov/glossary-term/41176',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'Mishra, editorial on woven and knitted structures, Polymers 15(4):808',
+        url: 'https://doi.org/10.3390/polym15040808',
+        date: '2023-02-06',
+        kind: 'published',
+      },
+      {
+        name: 'Islam, Golovin and Dolez, review of clothing comfort, Textiles 3(4)',
+        url: 'https://doi.org/10.3390/textiles3040024',
+        date: '2023-09-30',
+        kind: 'published',
+      },
+      {
+        name: 'ASTM D737-18(2023), air permeability of textile fabrics',
+        url: 'https://www.astm.org/d0737-18r23.html',
+        date: '2023-06-28',
+        kind: 'updated',
+      },
+      {
+        name: 'ISO 9237:1995, air permeability of fabrics',
+        url: 'https://www.iso.org/standard/16869.html',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'Salopek Čubrić, Čubrić and Potočić Matković, swimwear fabrics, Polymers 13(15):2414',
+        url: 'https://doi.org/10.3390/polym13152414',
+        date: '2021-07-22',
+        kind: 'published',
+      },
+      {
+        name: 'US Federal Trade Commission, How to Avoid Bamboozling Your Customers (bamboo is rayon; rayon can be made from plants)',
+        url: 'https://www.ftc.gov/business-guidance/resources/how-avoid-bamboozling-your-customers',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'US Federal Trade Commission, 16 CFR 303.7, generic names of manufactured fibers (rayon; lyocell)',
+        url: 'https://www.ecfr.gov/current/title-16/section-303.7',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'Regulation (EU) No 1007/2011 on textile fiber names, Annex I (lyocell, modal)',
+        url: 'https://www.legislation.gov.uk/eur/2011/1007/annex/I',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'New Mexico State University, guide G-401, Selecting Fabrics for Home Furnishings (the live nylon line)',
+        url: 'https://pubs.nmsu.edu/_g/G401/index.html',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+    ],
   },
   {
     path: '/guides/private-label-packaging',
@@ -1127,7 +1620,8 @@ export const GUIDES: readonly Guide[] = [
     path: '/guides/shipping-and-import-duties',
     title: 'Shipping & Import Duties for Apparel Orders',
     description:
-      'How an order ships from Pakistan: air courier, air freight, sea freight or your own forwarder. The terms we quote, and who pays import duty.',
+      // The buyer library's description (owner approved 2026-11-06).
+      'How an order ships from Pakistan, the price terms we quote, HS codes, where to look up duty, small parcels, cartons and CBM, and duty on soccer balls.',
     heading: 'Shipping and import duties,',
     headingAccent: 'made clear.',
     lede: 'We ship worldwide from Sialkot, Pakistan. You choose how your order travels and which price terms suit you. The shipping method, terms and cost are stated in your quote.',
@@ -1185,6 +1679,12 @@ export const GUIDES: readonly Guide[] = [
             title: 'EXW (Ex Works)',
             text: 'You collect the goods from our buildings. You pay the freight, the insurance, and the import duty and tax.',
           },
+          // FCA and DAP join, in the order the Incoterms rules list them (owner, 2026-11-06: FCA on request; DAP offered).
+          {
+            kind: 'point',
+            title: 'FCA (Free Carrier)',
+            text: 'On request. We clear the goods for export and hand them to your carrier at the agreed place. You pay the freight from there, you handle import formalities in your country, and you pay the import duty and tax.',
+          },
           {
             kind: 'point',
             title: 'FOB (Free On Board)',
@@ -1197,6 +1697,11 @@ export const GUIDES: readonly Guide[] = [
           },
           {
             kind: 'point',
+            title: 'DAP (Delivered at Place)',
+            text: 'We deliver to the place named in your quote. You clear the goods through customs in your country, and the import duty and tax are yours.',
+          },
+          {
+            kind: 'point',
             title: 'DDP (Delivered Duty Paid)',
             text: 'We deliver to your door with the import duty and tax already paid. They are included in the price.',
           },
@@ -1206,12 +1711,45 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+
+      {
+        heading: 'EXW, FCA or FOB: where the goods change hands',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'All three hand over the goods in Pakistan. Under the EXW rule, loading your vehicle at the seller’s door is at your cost and risk, and you handle export. Under FCA, the seller clears export and hands the goods to your carrier. FOB is only for sea or inland waterway transport; risk passes once the goods are on board.',
+          },
+          {
+            kind: 'text',
+            text: 'FCA suits any kind of transport, including shipments that use two or more, such as truck and ship. ICC Academy (International Chamber of Commerce) articles call FCA the right rule for goods in containers or on pallets that travel by more than one mode, and advise using FCA rather than EXW when goods cross a border. For sea freight under FCA, you can still have the carrier issue an on-board bill of lading to the seller once the goods are loaded, an option added in the 2020 rules.',
+          },
+          {
+            kind: 'text',
+            text: 'With us, who loads your vehicle under EXW and who clears the goods for export varies from order to order, and your quote states it.',
+          },
+        ],
+      },
+
+      {
+        heading: 'DDP or DAP: who clears customs in your country',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Under DDP we handle and pay for export, transit and import clearance, and our broker or partner clears the goods in your country. Under DAP you clear the goods and pay for import yourself. Some countries require a local importer to clear goods, and there DAP is the term to use.',
+          },
+          {
+            kind: 'text',
+            text: 'If you are not sure whether your country lets a seller clear goods on your behalf, ask your customs broker before you choose DDP.',
+          },
+          { kind: 'legal', checked: '5 November 2026' },
+        ],
+      },
       {
         heading: 'Choosing a term',
         blocks: [
           {
             kind: 'text',
-            text: 'If you want nothing to arrange on arrival, ask for DDP. If you have your own forwarder, ask for EXW. If you arrange the sea freight yourself, ask for FOB. If you want us to handle the sea leg to your port, ask for CFR or CIF.',
+            text: 'If you want nothing to arrange on arrival, ask for DDP. If you have your own forwarder, ask for EXW. If you arrange the sea freight yourself, ask for FOB. If you want us to handle the sea leg to your port, ask for CFR or CIF. If your forwarder should collect goods already cleared for export, ask for FCA. If you would rather clear the goods at home yourself, ask for DAP.',
           },
         ],
       },
@@ -1220,8 +1758,164 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'Under EXW, FOB, CFR and CIF, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
+            text: 'Under EXW, FCA, FOB, CFR, CIF and DAP, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
           },
+          { kind: 'legal', checked: '5 November 2026' },
+        ],
+      },
+
+      {
+        heading: 'HS codes and national codes',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'An HS code is the six-digit product code of the World Customs Organization’s Harmonized System, which more than 200 countries and economies use as the basis of their customs tariffs. Each country adds digits for its own rates: the US HTS has eight-digit rate lines and ten-digit statistical numbers. Only the first six digits are the same worldwide.',
+          },
+          {
+            kind: 'text',
+            text: 'Our commercial invoice gives the six-digit HS code, and your customs broker confirms the full code for your country.',
+          },
+          { kind: 'text', text: 'In the other tariffs we read on 5 November 2026:' },
+          {
+            kind: 'list',
+            items: [
+              'European Union: eight-digit Combined Nomenclature codes, and ten digits in TARIC.',
+              'United Kingdom: ten digits for imports, eight for exports.',
+              'Canada: an eight-digit tariff item and a two-digit statistical suffix.',
+              'Australia: an eight-digit code and a statistical code.',
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'Knitted garments are in Chapter 61 and other garments in Chapter 62, so a knitted and a woven version of one garment take different codes. Our fabrics guide explains the difference.',
+            links: [
+              { phrase: 'Our fabrics guide', href: '/guides/sportswear-fabrics-and-weights' },
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'UK guidance calls the national code a commodity code and tells anyone importing or exporting goods to find the right one. In the US, Customs and Border Protection interprets and enforces the HTS.',
+          },
+          { kind: 'legal', checked: '5 November 2026' },
+        ],
+      },
+
+      {
+        heading: 'Where to look up the duty',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'In the official tariff of the country you import into. Search by the product’s code and choose Pakistan as the country of origin; the UK and EU tariffs show Pakistan’s preference beside the standard rate. The table names each market’s official tool, and the guide comparing Pakistan, China and Türkiye gives the garment rates we found.',
+            links: [
+              {
+                phrase: 'the guide comparing Pakistan, China and Türkiye',
+                href: '/guides/pakistan-vs-china-vs-turkey',
+              },
+            ],
+          },
+          {
+            kind: 'table',
+            caption: 'Where to look up duty, by market',
+            columns: ['Market', 'Official tool'],
+            rows: [
+              [
+                'United States',
+                'The Harmonized Tariff Schedule, from the US International Trade Commission',
+              ],
+              ['European Union', 'TARIC, and My Trade Assistant on Access2Markets'],
+              ['United Kingdom', 'The UK Trade Tariff'],
+              ['Canada', 'The Customs Tariff, from the Canada Border Services Agency'],
+              ['Australia', 'The Working Tariff, from the Australian Border Force'],
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'TARIC does not show national rates of VAT or excise. The UK tariff lists import VAT apart from duty, and VAT can still be due when the duty is zero.',
+          },
+          { kind: 'legal', checked: '5 November 2026' },
+        ],
+      },
+
+      {
+        heading: 'Do small parcels still enter duty-free?',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Fewer of them do. As of 5 November 2026, the US has suspended duty-free de minimis entry for goods worth $800 or less from every country, by every mode, post included. The EU charges €3 per item on parcels for consumers worth €150 or less. The UK has announced customs duty on goods worth £135 or less.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'United States: the suspension took effect on 29 August 2025, an executive order of 20 February 2026 continued it, and rules from Customs and Border Protection made it indefinite on 24 June 2026. Shipments worth $2,500 or less pay duty, except genuine gifts worth $100 or less, and can generally use the simpler informal entry.',
+              'European Union: from 1 July 2026, the temporary €3 applies to parcels worth up to €150, in practice once per line of the customs declaration, until 1 July 2028. From 1 November 2026, a Union handling fee applies as well.',
+              'United Kingdom: the change was announced at Budget 2025, and on 23 June 2026 the government brought it forward by six months, to October 2028.',
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'When we ship single orders to your customers, the duty and fees on each parcel are quoted per order, under DDP or DAP, as you choose.',
+          },
+          { kind: 'legal', checked: '5 November 2026' },
+        ],
+      },
+
+      {
+        heading: 'Cartons and CBM',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'A carton’s volume in cubic meters (CBM) is its length, width and height in meters, multiplied together. By sea, goods travel as a full container for one consignee, or as less than a container load when a consignment does not fill one. By air, the charge is on the higher of the actual weight and the volume weight.',
+          },
+          {
+            kind: 'text',
+            text: 'An example carton, not one of ours, measures 60 × 40 × 40 cm: 0.6 × 0.4 × 0.4 = 0.096 cubic meters (CBM).',
+          },
+          {
+            kind: 'text',
+            text: 'Your quote states the cartons for your order. Ask your forwarder for the chargeable weight. Carton markings are covered in our packaging guide.',
+            links: [{ phrase: 'our packaging guide', href: '/guides/private-label-packaging' }],
+          },
+        ],
+      },
+
+      {
+        heading: 'Shipping soccer balls',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Stitched balls ship deflated, and so do hybrid balls such as our Kaizen. Thermobonded balls ship inflated. In all five tariffs below, soccer balls fall under the six-digit code 9506.62, inflatable balls. On 5 November 2026 their standard duty was free in the US, Canada and Australia, 2.7% in the EU and 2% in the UK.',
+          },
+          {
+            kind: 'table',
+            caption: 'Soccer ball duty, read on 5 November 2026',
+            columns: ['Market and code', 'Duty'],
+            rows: [
+              ['US, 9506.62.40', 'Free, plus 10% on goods from Pakistan, with listed exceptions'],
+              ['EU, 9506 62 00', '2.7%; 0% for Pakistan under GSP+'],
+              [
+                'UK, 9506620000',
+                '2%; 0% for Pakistan under the Developing Countries Trading Scheme',
+              ],
+              ['Canada, 9506.62.00', 'Free'],
+              ['Australia, 9506.62.00', 'Free'],
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'The US 10% is a Section 301 duty, in force from 24 July 2026, with listed exceptions; check with your broker whether soccer balls are among them. TARIC lists Pakistan’s EU 0% until 31 December 2026, when the current scheme ends. Our country guide explains both.',
+            links: [
+              {
+                phrase: 'Our country guide',
+                href: '/guides/pakistan-vs-china-vs-turkey',
+              },
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'An order of kits and balls is declared under two codes: the kits under Chapter 61 or 62, the balls under Chapter 95. A needle or a valve-care note can go in the box on request. The four builds are explained in our ball guide.',
+            links: [{ phrase: 'our ball guide', href: '/guides/how-soccer-balls-are-made' }],
+          },
+          { kind: 'legal', checked: '5 November 2026' },
         ],
       },
       {
@@ -1251,7 +1945,9 @@ export const GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'The terms follow the Incoterms 2020 edition. This page gives no duty rates. For what official sources say about the EU and the UK, read the guide on Pakistan, China and Türkiye.',
+            // The buyer library (owner approved 2026-11-06): the page now gives duty on soccer balls, so
+            // "no duty rates" went; ICC's own page dates the edition.
+            text: 'The terms follow the Incoterms 2020 edition. ICC’s own pages call it the most recent edition, in force from 1 January 2020.',
           },
         ],
       },
@@ -1264,6 +1960,194 @@ export const GUIDES: readonly Guide[] = [
             text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry. The shipping method, terms and cost are stated in the same quote.',
           },
         ],
+      },
+    ],
+    sources: [
+      {
+        name: 'ICC, Incoterms 2020',
+        url: 'https://iccwbo.org/business-solutions/incoterms-rules/incoterms-2020/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'ICC, Incoterms rules',
+        url: 'https://iccwbo.org/business-solutions/incoterms-rules/',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'ICC Academy, Incoterms 2020: FCA or FOB',
+        url: 'https://academy.iccwbo.org/incoterms/article/incoterms-2020-fca-or-fob/',
+        date: '2024-11-19',
+        kind: 'published',
+      },
+      {
+        name: 'ICC Academy, Incoterms 2020: EXW or FCA',
+        url: 'https://academy.iccwbo.org/incoterms/article/incoterms-2020-exw-or-fca/',
+        date: '2025-01-07',
+        kind: 'published',
+      },
+      {
+        name: 'ICC Academy, Incoterms 2020: DAP or DDP',
+        url: 'https://academy.iccwbo.org/incoterms/article/incoterms-2020-dap-or-ddp/',
+        date: '2025-02-25',
+        kind: 'published',
+      },
+      {
+        name: 'World Customs Organization, What is the Harmonized System (HS)?',
+        url: 'https://www.wcoomd.org/en/topics/nomenclature/overview/what-is-the-harmonized-system.aspx',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'US International Trade Commission, About the HTS',
+        url: 'https://www.usitc.gov/tariff_affairs/about_hts.htm',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'European Commission, Combined Nomenclature',
+        url: 'https://taxation-customs.ec.europa.eu/customs/calculation-customs-duties/customs-tariff/combined-nomenclature_en',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'European Commission, EU customs tariff (TARIC)',
+        url: 'https://taxation-customs.ec.europa.eu/customs/calculation-customs-duties/customs-tariff/eu-customs-tariff-taric_en',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'GOV.UK, Finding commodity codes for imports or exports',
+        url: 'https://www.gov.uk/guidance/finding-commodity-codes-for-imports-or-exports',
+        date: '2022-08-22',
+        kind: 'updated',
+      },
+      {
+        name: 'GOV.UK, Trade Tariff',
+        url: 'https://www.gov.uk/trade-tariff',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'UK Integrated Online Tariff, commodity 9506620000 from Pakistan',
+        url: 'https://www.trade-tariff.service.gov.uk/commodities/9506620000?country=PK&day=5&month=11&year=2026',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'UK Integrated Online Tariff, Chapters 61 and 62',
+        url: 'https://www.trade-tariff.service.gov.uk/chapters/61',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'Canada Border Services Agency, Customs Tariff',
+        url: 'https://www.cbsa-asfc.gc.ca/trade-commerce/tariff-tarif/menu-eng.html',
+        date: '2026-01-05',
+        kind: 'updated',
+      },
+      {
+        name: 'Canada Border Services Agency, Customs Tariff 2026, Chapter 95',
+        url: 'https://www.cbsa-asfc.gc.ca/trade-commerce/tariff-tarif/2026/html/00/ch95-eng.html',
+        date: '2026-01-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force, Current tariff',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff',
+        date: '2025-10-01',
+        kind: 'updated',
+      },
+      {
+        name: 'Australian Border Force, Schedule 3, Chapter 95',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/tariff-classification/current-tariff/schedule-3/section-xx/chapter-95',
+        date: '2026-07-01',
+        kind: 'updated',
+      },
+      {
+        name: 'European Commission, Access2Markets',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/home',
+        date: '2026-10-14',
+        kind: 'updated',
+      },
+      {
+        name: 'European Commission, TARIC: 9506620000 from Pakistan',
+        url: 'https://ec.europa.eu/taxation_customs/dds2/taric/measures.jsp?Lang=en&SimDate=20261105&Taric=9506620000&Area=PK&LangDescr=en',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'European Commission, Access2Markets: EU applies €3 customs duty per item on low-value e-commerce consignments',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/news/eu-applies-eu3-customs-duty-item-low-value-e-commerce-consignments',
+        date: '2026-06-30',
+        kind: 'published',
+      },
+      {
+        name: 'European Commission, EU customs reform',
+        url: 'https://taxation-customs.ec.europa.eu/customs/eu-customs-reform_en',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'HM Revenue & Customs, cheap import reforms brought forward',
+        url: 'https://www.gov.uk/government/news/government-backs-high-street-with-acceleration-of-cheap-import-reforms-and-crackdown-on-dodgy-online-sellers',
+        date: '2026-06-23',
+        kind: 'published',
+      },
+      {
+        name: 'USITC, Harmonized Tariff Schedule, 9506.62',
+        url: 'https://hts.usitc.gov/reststop/search?keyword=9506.62',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'USITC, Harmonized Tariff Schedule, 9903.05.62',
+        url: 'https://hts.usitc.gov/reststop/search?keyword=9903.05.62',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'US Customs and Border Protection, CSMS 69326983: Section 301 duties',
+        url: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/421d887',
+        date: '2026-07-23',
+        kind: 'published',
+      },
+      {
+        name: 'The White House, Continuing the suspension of duty-free de minimis treatment for all countries',
+        url: 'https://www.whitehouse.gov/presidential-actions/2026/02/continuing-the-suspension-of-duty-free-de-minimis-treatment-for-all-countries/',
+        date: '2026-02-20',
+        kind: 'published',
+      },
+      {
+        name: 'US Customs and Border Protection, CBP modernizes low-value shipment processing',
+        url: 'https://www.cbp.gov/newsroom/national-media-release/cbp-modernizes-low-value-shipment-processing',
+        date: '2026-06-24',
+        kind: 'published',
+      },
+      {
+        name: 'US Customs and Border Protection, e-commerce FAQs',
+        url: 'https://www.cbp.gov/trade/basic-import-export/e-commerce/faqs',
+        date: '2026-09-02',
+        kind: 'updated',
+      },
+      {
+        name: 'European Commission, Access2Markets: The EU’s renewed GSP scheme, key updates for 2027',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/news/eus-renewed-gsp-scheme-key-updates-2027',
+        date: '2026-08-11',
+        kind: 'published',
+      },
+      {
+        name: 'IATA, Air cargo tariffs and rules: what you need to know',
+        url: 'https://www.iata.org/en/publications/newsletters/iata-knowledge-hub/air-cargo-tariffs-and-rules-what-you-need-to-know/',
+        date: '2021-07-27',
+        kind: 'published',
+      },
+      {
+        name: 'Australian Border Force, Sea cargo types',
+        url: 'https://www.abf.gov.au/importing-exporting-and-manufacturing/cargo-reporting-and-transhipped-goods/cargo-reports/sea-cargo-types',
+        date: '2026-10-01',
+        kind: 'updated',
       },
     ],
   },
@@ -1318,6 +2202,14 @@ export const GUIDES: readonly Guide[] = [
               'Bulk production starts only after you approve it.',
             ],
           },
+          {
+            kind: 'text',
+            // The buyer library (owner approved 2026-11-06): one line pointing to where the fee is explained.
+            text: 'The minimum-order guide says how the sample fee is set, and which four samples a typical order has.',
+            links: [
+              { phrase: 'The minimum-order guide', href: '/guides/minimum-order-and-samples' },
+            ],
+          },
         ],
       },
       {
@@ -1347,6 +2239,32 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+
+      {
+        heading: 'What changes the price of one piece',
+        stage: 'whole-tagging',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Five things move the price of each piece: the fabric and its weight, including how much of it the pattern uses; the trims and labels; the decoration; the sewing time; and the quantity you order. Change one of them in your inquiry, and the price in your quote changes with it.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Fabric and fabric use. The fabric’s type and weight, and the amount each piece needs. Our fabrics guide gives common fabrics and their usual weights.',
+              'Trims and labels. Zippers, snaps, drawcords, labels and hang tags.',
+              'Decoration. The method, the number of colors, and how many places on the garment it goes. The printing guide compares the methods.',
+              'Sewing time. How long the garment takes to sew.',
+              'Quantity. The minimum-order guide explains why fewer pieces cost more each, and how to ask for prices at several quantities in one quote.',
+            ],
+            links: [
+              { phrase: 'Our fabrics guide', href: '/guides/sportswear-fabrics-and-weights' },
+              { phrase: 'The printing guide', href: '/guides/garment-printing-methods' },
+              { phrase: 'The minimum-order guide', href: '/guides/minimum-order-and-samples' },
+            ],
+          },
+        ],
+      },
       {
         heading: 'Why there are no prices on this site',
         blocks: [
@@ -1362,8 +2280,89 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             // The shipping guide's words.
-            text: 'The shipping method, terms and cost are stated in your quote. Under EXW, FOB, CFR and CIF, you pay the import duty and tax when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
+            text: 'The shipping method, terms and cost are stated in your quote. Under EXW, FCA, FOB, CFR, CIF and DAP, you pay the import duty and tax when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
           },
+        ],
+      },
+
+      {
+        heading: 'What the order costs at your door',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Your landed cost is the whole cost of the order once it reaches you: our price, the freight and insurance, the import duty, any import VAT, and customs fees. Your price term decides which of these our quote includes. A customs broker can tell you what your own border will charge.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'Our price. Everything your quote states. Under some terms it also covers the freight leg and its insurance, or the duty and tax at your end; the shipping guide shows which term does what.',
+              'Import duty. The rate your market’s tariff gives the garment, charged on the goods’ value. Which costs count in that value differs from market to market. Our guide to Pakistan, China and Türkiye lists the duty on garments in six markets, and the extra Section 301 duty the US adds on goods from Pakistan.',
+              'Import VAT. In the UK and the EU, import VAT is charged on the customs value plus the duty, so the duty is taxed too. The UK also adds incidental expenses such as commission, packing, transport and insurance. The EU adds the costs of carrying the goods to their destination, and the importer usually pays. EU rules let a business reclaim the VAT on purchases used for its business; ask your adviser whether that covers your import VAT.',
+              'Customs fees. In the US, the user fee table of U.S. Customs and Border Protection (CBP) lists a Merchandise Processing Fee on formal entries and a Harbor Maintenance Fee on imports. Each is a percentage of the goods’ value, and the processing fee also has a minimum and a maximum. Read the current figures on CBP’s table.',
+              'Single orders. When we ship to your customers one parcel at a time, small-parcel rules apply, such as the EU’s temporary customs duty on low-value parcels sold to consumers. The shipping guide covers those rules and how we quote each parcel.',
+            ],
+            links: [
+              { phrase: 'the shipping guide', href: '/guides/shipping-and-import-duties' },
+              {
+                phrase: 'Our guide to Pakistan, China and Türkiye',
+                href: '/guides/pakistan-vs-china-vs-turkey',
+              },
+              { phrase: 'The shipping guide', href: '/guides/shipping-and-import-duties' },
+            ],
+          },
+          { kind: 'legal', checked: '5 November 2026' },
+        ],
+      },
+
+      {
+        heading: 'What else to budget for',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Some costs of a new brand never appear in a factory quote. You pay the courier for your sample, any lab test reports and your own inspector. A new business also has costs of its own, from licenses and insurance to a website and marketing, and the U.S. Small Business Administration (SBA) lists them.',
+          },
+          { kind: 'label', text: 'Outside our quote, paid by you' },
+          {
+            kind: 'list',
+            items: [
+              'Lab test reports. We can arrange third-party lab tests for you, at your cost.',
+              'Your own inspector. The inspection company’s fee is yours; entering our works costs you nothing.',
+              'Photos for your online store. We do not offer them, so photography is a cost of your own.',
+              'Freight and import charges. Shipping, insurance, duty and import VAT, unless your price term puts them in our price.',
+            ],
+          },
+          { kind: 'label', text: 'In your quote' },
+          {
+            kind: 'list',
+            items: ['Your quote states the bank charges on a transfer and on a letter of credit.'],
+          },
+          { kind: 'label', text: 'Your brand’s own costs' },
+          {
+            kind: 'list',
+            items: [
+              'The SBA’s list also names a lawyer and an accountant, inventory, advertising and market research.',
+              'The SBA suggests keeping one-time costs apart from monthly costs, and planning for at least a year of monthly costs.',
+            ],
+          },
+        ],
+      },
+
+      {
+        heading: 'Who pays when online customers send pieces back',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'If you sell online to consumers in the EU or the UK, plan for returns. An EU consumer can cancel a purchase within 14 days without a reason, and who pays to send it back depends on what you told them. In the UK you must tell customers they can cancel up to 14 days after delivery.',
+          },
+          {
+            kind: 'list',
+            items: [
+              'An EU customer usually pays to send the goods back. If you did not tell them about that cost before they bought, it falls to you.',
+              'So state your returns terms, and who pays the postage, before the customer pays.',
+              'This covers consumer sales in the EU and the UK only. For other markets, ask your adviser.',
+            ],
+          },
+          { kind: 'legal', checked: '5 November 2026' },
         ],
       },
       {
@@ -1396,6 +2395,14 @@ export const GUIDES: readonly Guide[] = [
             kind: 'text',
             text: PAYMENT_TERMS,
           },
+          {
+            kind: 'text',
+            // The buyer library (owner approved 2026-11-06): check the account before paying any factory.
+            text: 'Before you pay any factory, check that its bank account is in the company’s own name; our vetting guide shows how.',
+            links: [
+              { phrase: 'our vetting guide', href: '/guides/how-to-vet-a-clothing-manufacturer' },
+            ],
+          },
         ],
       },
       {
@@ -1404,6 +2411,13 @@ export const GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'You can visit. Email us to arrange it. If you cannot travel, we can show you the factory on a video call.',
+          },
+          {
+            kind: 'text',
+            text: 'The vetting guide lists the papers to ask for before you visit, and where to check each one.',
+            links: [
+              { phrase: 'The vetting guide', href: '/guides/how-to-vet-a-clothing-manufacturer' },
+            ],
           },
         ],
       },
@@ -1416,6 +2430,22 @@ export const GUIDES: readonly Guide[] = [
           },
         ],
       },
+
+      {
+        heading: 'The price of a custom soccer ball',
+        blocks: [
+          {
+            kind: 'text',
+            text: 'Four choices set what a custom ball costs: its build, its cover material, its bladder and the number of print colors. The build can be hand-stitched, machine-stitched, thermobonded or a hybrid of these. The minimum order is the same as for garments. The soccer-ball guide explains each build, cover and bladder.',
+            links: [{ phrase: 'The soccer-ball guide', href: '/guides/how-soccer-balls-are-made' }],
+          },
+          {
+            kind: 'text',
+            text: 'How balls are packed for shipping is in the shipping guide.',
+            links: [{ phrase: 'the shipping guide', href: '/guides/shipping-and-import-duties' }],
+          },
+        ],
+      },
       {
         heading: 'What is quoted per order',
         blocks: [
@@ -1425,6 +2455,80 @@ export const GUIDES: readonly Guide[] = [
             text: 'Prices, minimum quantities and lead times are quoted in writing for each inquiry.',
           },
         ],
+      },
+    ],
+    sources: [
+      {
+        name: 'Cornell Law School, Legal Information Institute: 19 U.S. Code § 1401a, Value (statute text)',
+        url: 'https://www.law.cornell.edu/uscode/text/19/1401a',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'U.S. Customs and Border Protection: User Fee Table',
+        url: 'https://www.cbp.gov/trade/basic-import-export/user-fee-table',
+        date: '2026-10-09',
+        kind: 'read',
+      },
+      {
+        name: 'U.S. Customs and Border Protection, CSMS 69326983: Section 301 Forced Labor Import Duties',
+        url: 'https://content.govdelivery.com/accounts/USDHSCBP/bulletins/421d887',
+        date: '2026-07-23',
+        kind: 'read',
+      },
+      {
+        name: 'GOV.UK (HMRC): Delivery costs to include in the customs value',
+        url: 'https://www.gov.uk/guidance/delivery-costs-to-include-in-the-customs-value',
+        date: '2026-04-15',
+        kind: 'read',
+      },
+      {
+        name: 'GOV.UK (HMRC): Working out the VAT value using the customs value of the imported goods',
+        url: 'https://www.gov.uk/guidance/working-out-the-vat-value-using-the-customs-value-of-the-imported-goods',
+        date: '2026-10-21',
+        kind: 'read',
+      },
+      {
+        name: 'European Commission, Access2Markets: Value Added Tax',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/content/value-added-tax-1',
+        date: '2026-10-14',
+        kind: 'read',
+      },
+      {
+        name: 'European Commission, Access2Markets: Guide to import goods',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/content/guide-import-goods',
+        date: '2026-10-14',
+        kind: 'read',
+      },
+      {
+        name: 'European Commission, Access2Markets: EU applies €3 customs duty per item on low-value e-commerce consignments',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/news/eu-applies-eu3-customs-duty-item-low-value-e-commerce-consignments',
+        date: '2026-06-30',
+        kind: 'read',
+      },
+      {
+        name: 'European Commission, Access2Markets: Tariffs',
+        url: 'https://trade.ec.europa.eu/access-to-markets/en/content/tariffs-1',
+        date: '2026-10-14',
+        kind: 'read',
+      },
+      {
+        name: 'European Union, Your Europe: Guarantees and returns',
+        url: 'https://europa.eu/youreurope/citizens/consumers/shopping/returns/index_en.htm',
+        date: '2026-04-28',
+        kind: 'read',
+      },
+      {
+        name: 'GOV.UK: Online and distance selling for businesses',
+        url: 'https://www.gov.uk/online-and-distance-selling-for-businesses',
+        date: '2026-11-05',
+        kind: 'read',
+      },
+      {
+        name: 'U.S. Small Business Administration: Calculate your startup costs',
+        url: 'https://www.sba.gov/business-guide/plan-your-business/calculate-your-startup-costs',
+        date: '2026-11-05',
+        kind: 'read',
       },
     ],
   },
@@ -1857,10 +2961,12 @@ export const GUIDES: readonly Guide[] = [
             caption: 'Ball size by age',
             columns: ['Ball size', 'England (The FA)', 'United States (US Youth Soccer)'],
             rows: [
-              ['Size 3', 'Under 7 to Under 11', '8 and under'],
+              // US rows re-read on the PDF (owner approved the fix, 2026-11-06): Size 3 serves two
+              // age groups, and the table stops at 19 and under.
+              ['Size 3', 'Under 7 to Under 11', '6 and under and 8 and under'],
               ['Size 4', 'Under 12 and Under 13', '10 and under to 12 and under'],
               // The FA's table stops at Under 16 (fact check, owner, 2026-11-05).
-              ['Size 5', 'Under 14 to Under 16', '13 and under, and older'],
+              ['Size 5', 'Under 14 to Under 16', '13 and under to 19 and under'],
             ],
           },
           {

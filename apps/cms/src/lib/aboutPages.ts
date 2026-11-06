@@ -229,7 +229,12 @@ export const FACTORY_PAGE = {
       },
       {
         title: 'Cutting & Initial Processing',
-        body: 'Patterns are nested by algorithm to use 90–95% of the material, then cut automatically.',
+        /*
+         * The owner's choice of 2026-11-06 (buyer library, final read, option a): "90–95%" was a figure
+         * no measurement of ours stood behind, and he cuts on an automatic cutter and by knife (his
+         * cutting-room answers). The fabrics guide reads this line word for word.
+         */
+        body: 'Marker software nests the patterns to use as much of the fabric as it can, and our cutting room cuts them on an automatic cutter or by knife.',
         badge: 'Dimensional accuracy verified.',
         // No cutting photo yet (owner, 2026-10-09): the stage shows a drawn panel, and Cutting
         // returns to the gallery when the owner sends photos.

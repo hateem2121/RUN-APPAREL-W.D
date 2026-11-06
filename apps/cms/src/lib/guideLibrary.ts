@@ -67,6 +67,12 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'Ask, too, whether you are dealing with the factory or an agent, who owns the buildings, and the date and type of the latest social audit. For the questions on minimums and samples, see "What to ask any factory" in our guide to Pakistan, China and Türkiye.',
+            links: [
+              {
+                phrase: 'our guide to Pakistan, China and Türkiye',
+                href: '/guides/pakistan-vs-china-vs-turkey',
+              },
+            ],
           },
         ],
       },
@@ -102,6 +108,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'The FBI’s Internet Crime Complaint Center, in its 2024 notice, advises a second channel to check any request to change account details.',
               'How to pay us, and our own rule on changed bank details, are in the order guide.',
             ],
+            links: [{ phrase: 'the order guide', href: '/guides/how-a-private-label-order-works' }],
           },
         ],
       },
@@ -111,6 +118,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'Garments from Pakistan enter the EU duty free under its GSP+ scheme when the exporter gives a statement on origin; our country guide has the detail. For a shipment worth more than €6,000, the exporter must be registered in the EU’s REX system, and anyone can check that a REX number is valid.',
+            links: [{ phrase: 'our country guide', href: '/guides/pakistan-vs-china-vs-turkey' }],
           },
           {
             kind: 'list',
@@ -189,14 +197,14 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'In the US, goods made wholly or in part with forced labor may not be imported. Goods made in China’s Xinjiang region, wholly or in part, or that include goods made there, are presumed barred, even when finished in another country. From 14 December 2027, the EU bans products made with forced labor from its market.',
+            text: 'The forced-labor laws of the US, the EU and Canada, and the US duty tied to them, are set out in our compliance guide.',
+            links: [
+              { phrase: 'our compliance guide', href: '/guides/sportswear-compliance-by-market' },
+            ],
           },
           {
             kind: 'list',
             items: [
-              'United States. The Uyghur Forced Labor Prevention Act (UFLPA) applies to goods imported on or after 21 June 2022. Apparel, and cotton and cotton products, are among its high-priority sectors. Importers are expected to know their suppliers and labor sources at every level of the chain, and overcoming the presumption takes clear and convincing evidence. CBP enforces it and lists its Withhold Release Orders and Findings on a public dashboard. So ask where the cotton and fabric in your order come from, and for papers that show it.',
-              'European Union. The Forced Labour Regulation, Regulation (EU) 2024/3015, applies from 14 December 2027. Products found in breach can be banned, withdrawn and disposed of. The European Commission will keep a database of forced-labor risks, and one website for the regulation.',
-              'US duties. In July 2026 the US Trade Representative set Section 301 duties on 60 economies, after investigations into whether each one bans forced-labor imports and enforces the ban. Pakistan is one of them; our country guide gives the rate.',
               'How companies check. The OECD’s due diligence guidance for the garment and footwear sector, from 2018, sets out how companies can check their supply chains. The International Labour Organization’s indicators of forced labor, revised in 2025, help spot it in practice. The forced-labor page of U.S. Customs and Border Protection (CBP) explains its enforcement.',
             ],
           },
@@ -232,6 +240,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           {
             kind: 'list',
             items: ['The order guide describes the checks we make ourselves before shipping.'],
+            links: [{ phrase: 'The order guide', href: '/guides/how-a-private-label-order-works' }],
           },
         ],
       },
@@ -247,6 +256,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             items: [
               'Our soccer-ball guide explains the three FIFA marks and what each one tests, and says who monitors our ball stitching.',
             ],
+            links: [{ phrase: 'Our soccer-ball guide', href: '/guides/how-soccer-balls-are-made' }],
           },
         ],
       },
@@ -595,6 +605,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           {
             kind: 'list',
             items: ['Children’s drawstrings follow separate rules, set out in our trims guide.'],
+            links: [{ phrase: 'our trims guide', href: '/guides/apparel-trims' }],
           },
           { kind: 'legal', checked: '6 November 2026' },
         ],
@@ -698,6 +709,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'Easy-care garments. A garment that even the harshest care cannot harm needs no permanent care label. Instead, the words "wash or dry clean, any normal method" go on a hang tag, on the package or in another place the shopper will see.',
               'Your brand on the tag. Branding, barcodes and markings are agreed as part of your packaging; our packaging guide covers them.',
             ],
+            links: [{ phrase: 'our packaging guide', href: '/guides/private-label-packaging' }],
           },
           { kind: 'legal', checked: '6 November 2026' },
         ],
@@ -711,7 +723,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           },
           {
             kind: 'list',
-            items: ['Size charts and grading will be covered in our pattern-making guide.'],
+            items: ['Size charts and grading are covered in our pattern-making guide.'],
+            links: [
+              { phrase: 'our pattern-making guide', href: '/guides/sportswear-pattern-making' },
+            ],
           },
         ],
       },
@@ -766,6 +781,13 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'The number beside the mark. Each licensed ball shows its mark with a unique authorization number. FIFA protects its quality logos by trademark and copyright. How to check a supplier’s FIFA claim is in our guide to vetting a manufacturer.',
               'What the marks test. The three marks, and the tests behind each, are in our soccer ball guide.',
             ],
+            links: [
+              {
+                phrase: 'our guide to vetting a manufacturer',
+                href: '/guides/how-to-vet-a-clothing-manufacturer',
+              },
+              { phrase: 'our soccer ball guide', href: '/guides/how-soccer-balls-are-made' },
+            ],
           },
         ],
       },
@@ -783,6 +805,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'Lab reports. We can arrange a lab test report on your garment, at your cost.',
               'Care instructions. Our finished garments are wash-tested for shrinkage, colorfastness to washing and appearance after washing, which helps support the care instructions on your label.',
             ],
+            links: [{ phrase: 'The packaging guide', href: '/guides/private-label-packaging' }],
           },
         ],
       },
@@ -1148,6 +1171,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'Seams on rain wear. Europe’s standard for clothing that protects against rain, EN 343, covered seams as well as fabrics; EN ISO 24232:2025 replaced it on 3 November 2025.',
               'More on both. Taped seams are explained in our glossary, and reflective prints in our printing guide.',
             ],
+            links: [{ phrase: 'our printing guide', href: '/guides/garment-printing-methods' }],
           },
         ],
       },
@@ -1166,6 +1190,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'The test guide. ASTM D3938 provides for evaluating the complete product and its components, so test the trims on a sample garment, through the care your label gives.',
               'The label itself. What a label must say, market by market, is the subject of our labels guide.',
             ],
+            links: [{ phrase: 'our labels guide', href: '/guides/clothing-labels' }],
           },
           { kind: 'legal', checked: '6 November 2026' },
         ],
@@ -1196,6 +1221,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
           {
             kind: 'text',
             text: 'A ball’s valve is where the air goes in, and whether the ball keeps that air is tested: loss of pressure is one of the tests behind FIFA’s quality marks. We fit several types of valve, and you choose one for each order. Our soccer ball guide gives the pressure a match ball needs, and the other tests.',
+            links: [{ phrase: 'Our soccer ball guide', href: '/guides/how-soccer-balls-are-made' }],
           },
           {
             kind: 'list',
@@ -4013,7 +4039,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'Phthalates. The US limit of 0.1% on certain phthalates in accessible plasticized parts applies to children’s toys and child care articles.',
               'Labels and drawstrings. Our labels guide sets out the tracking label a children’s product carries, and our trims guide the drawstring rules.',
             ],
-            links: [{ phrase: 'our trims guide', href: '/guides/apparel-trims' }],
+            links: [
+              { phrase: 'our trims guide', href: '/guides/apparel-trims' },
+              { phrase: 'Our labels guide', href: '/guides/clothing-labels' },
+            ],
           },
           { kind: 'legal', checked: '6 November 2026' },
         ],
@@ -5402,7 +5431,11 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'Builds and quality marks. Each way of building a ball, and the tests behind FIFA’s marks, are covered by the ball guide too.',
               'See one in 3D. Our Kaizen ball turns in 3D on its own page.',
             ],
-            links: [{ phrase: 'Kaizen ball', href: '/products/kaizen' }],
+            links: [
+              { phrase: 'Kaizen ball', href: '/products/kaizen' },
+              { phrase: 'our shipping guide', href: '/guides/shipping-and-import-duties' },
+              { phrase: 'the ball guide', href: '/guides/how-soccer-balls-are-made' },
+            ],
           },
         ],
       },

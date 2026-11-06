@@ -287,7 +287,8 @@ const SHIPPING: FaqTopic = {
       id: 'import-duty',
       question: 'Who pays import duty?',
       answer:
-        'Under EXW, FOB, CFR and CIF, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
+        // FCA and DAP join (owner, 2026-11-06: as on the shipping guide, whose sentence this is).
+        'Under EXW, FCA, FOB, CFR, CIF and DAP, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
       source: 'shipping guide, word for word',
     },
     {
