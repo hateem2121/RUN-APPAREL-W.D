@@ -193,6 +193,7 @@ const ADVANCE_EM: Readonly<Record<string, number>> = {
   '.': 0.353,
   ':': 0.347,
   ';': 0.354,
+  // biome-ignore lint/suspicious/noApproximativeNumericConstant: the question mark's measured advance, not one over root two
   '?': 0.707,
   '!': 0.361,
   '(': 0.372,

@@ -35,8 +35,6 @@ const page = (on: string, words: string): PageDate => ({ on, words })
  * that still matched. (A byline's date is its branch commit's time instead, a few hours earlier
  * for #192; this file follows `main`, where the live page changed.)
  */
-/** #231: the Journal hub's links to two buyer guides. */
-const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /**
@@ -51,8 +49,6 @@ const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
  * labelled the family's. `companyRelationship.test.ts` holds the words.
  */
 const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
-/** The buyer pages' "What we make" lines became links (`makesHref`, written 2026-10-29, landed on 2026-11-01). */
-const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
 
 /*
  * 27 Oct: the faster-taps work (#278) changed one line, the `Link` import, in 13 of the files
@@ -61,8 +57,6 @@ const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
  * Imports are now left out of the fingerprint, and each of the 17 is back on the date its words
  * last changed.
  */
-/** The accessory pages say products, and the ball page leads with a logo (2026-11-01). */
-const ACCESSORY_WORDS = '2026-11-01T13:30:57+05:00'
 
 /**
  * The order block's photo (owner, 2026-11-05): on the four main buyer pages the factory photo is the
