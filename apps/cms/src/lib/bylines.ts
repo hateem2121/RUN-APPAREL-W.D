@@ -90,8 +90,6 @@ const SIX_BUILDINGS = '2026-10-15T15:41:44+05:00'
  * (2026-10-08) on the 3D and fabrics guides, so that constant went with it.
  */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
-/** The factory page's quality stage names the garment wash tests (2026-11-05, owner's own tests). */
-const WASH_TESTS = '2026-11-05T00:09:00+05:00'
 /**
  * "Eco-poly" gone (owner, 2026-11-05/06): the Apex Flex Pullover is 88% recycled polyester, and EU law
  * has banned generic environmental words such as "eco" since 27 Sep 2026. On the 3D guide it replaced
@@ -114,12 +112,15 @@ const WAVE_ONE = '2026-11-05T20:07:40+05:00'
  */
 const AI_CHECK = '2026-11-05T20:46:11+05:00'
 /**
- * The soccer-ball guide after its fact checks (owner approved every fix, 2026-11-05): the IMAC line says
- * only what IMAC's own page says, the futsal line no longer compares bounces, England's size 5 ages stop
- * at Under 16, the FIFA section follows FIFA's Testing Manual of March 2026 (Basic's six tests, Pro's
- * tighter limits, the licence line), and RUN's stitching hall is monitored by IMAC (owner's words).
+ * The buyer library (owner approved every word, 2026-11-06, "All approved as written"): fifteen new
+ * guides, four guides deepened (printing, fabrics, shipping, cost), the ball guide's US age groups,
+ * and the factory page's cutting line without its "90–95%". The time the words were committed.
+ * It replaced the dates of the factory page's wash tests (2026-11-05) and of the ball guide's fact
+ * checks (2026-11-05), their last uses, so those constants went with them.
  */
-const BALL_FACT_CHECK = '2026-11-05T22:10:20+05:00'
+const LIBRARY = '2026-11-06T17:05:02+05:00'
+/** The order steps name FCA and DAP among the terms (owner, 2026-11-06); the order guide draws them. */
+const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -132,15 +133,15 @@ const BALL_FACT_CHECK = '2026-11-05T22:10:20+05:00'
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
   '/about': 'cafca5ef2989',
-  '/inside-the-factory': '6933686bef5e',
+  '/inside-the-factory': 'b29f19971607',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-a-private-label-order-works': byline(
     AUTHORS.merchandiser,
     GUIDES_1,
-    WAVE_ONE,
-    '9183271e007c',
+    PRICE_TERMS,
+    'b0ead3f206e3',
   ),
   '/guides/3d-garment-reference': byline(AUTHORS.hateem, GUIDES_1, RECYCLED_POLY, '36ec04abfa9a'),
   '/guides/minimum-order-and-samples': byline(
@@ -149,17 +150,12 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     WAVE_ONE,
     'e3c4c1fc01d8',
   ),
-  '/guides/garment-printing-methods': byline(
-    AUTHORS.production,
-    GUIDES_2,
-    SITE_CHECK,
-    '227e86c56492',
-  ),
+  '/guides/garment-printing-methods': byline(AUTHORS.production, GUIDES_2, LIBRARY, 'ca4c7a3e86a4'),
   '/guides/sportswear-fabrics-and-weights': byline(
     AUTHORS.production,
     GUIDES_2,
-    RECYCLED_POLY,
-    'a167602f99d0',
+    LIBRARY,
+    'faaed88da37b',
   ),
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
@@ -170,14 +166,14 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/shipping-and-import-duties': byline(
     AUTHORS.merchandiser,
     GUIDES_3,
-    SITE_CHECK,
-    '9f6e6164232b',
+    LIBRARY,
+    '52b693013371',
   ),
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    WAVE_ONE,
-    '9db815b568a3',
+    LIBRARY,
+    'ac7e8ef359a1',
   ),
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
@@ -190,14 +186,55 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-soccer-balls-are-made': byline(
     AUTHORS.production,
     WAVE_ONE,
-    BALL_FACT_CHECK,
-    '8f54d6ec6c82',
+    LIBRARY,
+    'ffd85334f47d',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,
     WAVE_ONE,
     AI_CHECK,
     'f823fed5cad0',
+  ),
+  // The buyer library's new guides, each signed as the owner chose (2026-11-06; drafts' section 1).
+  '/guides/how-to-vet-a-clothing-manufacturer': byline(
+    AUTHORS.merchandiser,
+    LIBRARY,
+    LIBRARY,
+    'b162fd30a8e8',
+  ),
+  '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, '77895275599e'),
+  '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, LIBRARY, 'b94de6c5ba53'),
+  '/guides/sportswear-fibers': byline(AUTHORS.production, LIBRARY, LIBRARY, '1a47decee35b'),
+  '/guides/yarn-count-and-denier': byline(AUTHORS.production, LIBRARY, LIBRARY, '961eae748c05'),
+  '/guides/sportswear-pattern-making': byline(AUTHORS.production, LIBRARY, LIBRARY, 'd0999142c64a'),
+  '/guides/stitch-and-seam-types': byline(AUTHORS.production, LIBRARY, LIBRARY, 'ec090dc47cc8'),
+  '/guides/outerwear-and-waterproof-fabrics': byline(
+    AUTHORS.production,
+    LIBRARY,
+    LIBRARY,
+    '9daf6c1686f0',
+  ),
+  '/guides/dyeing-and-color-matching': byline(AUTHORS.production, LIBRARY, LIBRARY, 'ea6796c8deb0'),
+  '/guides/garment-cutting': byline(AUTHORS.production, LIBRARY, LIBRARY, '639a05723561'),
+  '/guides/sportswear-compliance-by-market': byline(
+    AUTHORS.merchandiser,
+    LIBRARY,
+    LIBRARY,
+    'db844b818b57',
+  ),
+  '/guides/apparel-manufacturing-machinery': byline(
+    AUTHORS.production,
+    LIBRARY,
+    LIBRARY,
+    'ae16757f67c8',
+  ),
+  '/guides/apparel-design-software': byline(AUTHORS.contentTeam, LIBRARY, LIBRARY, 'e4f24da215d4'),
+  '/guides/how-to-order-team-kits': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, 'fa70bce55438'),
+  '/guides/apparel-manufacturing-technology': byline(
+    AUTHORS.contentTeam,
+    LIBRARY,
+    LIBRARY,
+    '26652bbfd4fb',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),
@@ -223,7 +260,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    WASH_TESTS,
+    LIBRARY,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }

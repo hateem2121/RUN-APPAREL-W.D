@@ -35,6 +35,14 @@ export const FIBRE_NOTES: Record<string, string> = {
   polychloroprene: 'The chemical name for neoprene: a rubbery foam that keeps you warm when wet.',
   'polyester taslon':
     'A textured woven polyester for the outer shell: light, tough and wind-resistant.',
+  /*
+   * The Metro-Shield Suit's corrected shell (owner, 2026-11-06): "Taslon" is a trade name, so the CMS
+   * fabric becomes "Shell: 100% Textured Woven Polyester". The approved Taslon note, word for word,
+   * under the new key. It ships before the CMS write, so the page never loses its note; the old key
+   * goes once the write is read back (`.superpowers/waves-2026-11-05/RMSS-DRY-RUN.md`, private).
+   */
+  'textured woven polyester':
+    'A textured woven polyester for the outer shell: light, tough and wind-resistant.',
   'polyester taffeta': 'A smooth, light woven lining that slides easily over other clothes.',
 }
 
@@ -113,6 +121,13 @@ export const FEATURE_NOTES: Record<string, string> = {
     'A tough outer shell woven with a grid that stops small tears spreading.',
   'thermal-regulating fleece lining':
     'A soft fleece lining that keeps you warm without overheating.',
+  /*
+   * The Metro-Shield Suit's corrected lining (owner, 2026-11-06): a taffeta lining with 40–60 GSM
+   * insulation, not fleece. His words for the note, built from two he had approved (the taffeta
+   * lining's and the insulation weight's). It ships before the CMS write, so the page never loses
+   * its note; the fleece key goes once the write is read back.
+   */
+  'insulated taffeta lining': 'A smooth taffeta lining with padding inside, for warmth.',
   'reinforced knee panels': 'Extra layers at the knees, where pants wear out first.',
   'taped waterproof seams': 'Tape sealed over the seams, so rain cannot get through stitch holes.',
   'windproof membrane': 'A thin layer inside the fabric that stops the wind getting through.',

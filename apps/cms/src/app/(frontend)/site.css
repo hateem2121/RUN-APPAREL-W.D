@@ -3579,10 +3579,56 @@ a.contact-block__value:active {
   max-width: 28.635em;
 }
 
+/*
+ * A guide's lede keeps the same 50ch as its running text (6 Nov 2026). At `--site-measure` (31.5em)
+ * two of the buyer library's ledes set 76 and 77 characters at 768px in CI's Firefox, past FA-C-52's
+ * 75 (`legibility.spec.ts`, PR #331). Only the guide hero's lede: the other pages' keep theirs. One
+ * class, so it outranks `.site-lede` by coming later and no later rule's selector "descends" from it.
+ */
+.site-lede--guide {
+  max-width: 28.635em;
+}
+
+/*
+ * A guide's source list, a little narrower again (6 Nov 2026). A source is a name — an author list,
+ * "Légifrance, Décret n° 2022-748", a register's title — so its lines carry more narrow letters,
+ * commas and digits than prose: three set 76 and 77 characters at 28.635em (486.8px) in CI's
+ * Firefox. 27em is 459px there, about 72 characters for the narrowest of them. The same weight as
+ * `.prose--guide li` above, which it follows, so it wins on order alone.
+ */
+.guide-sources li {
+  max-width: 27em;
+}
+
 /* A plain list inside running text (the buyer guides). The browser's own markers, indented. */
 .prose .prose__list {
   margin: 16px 0 0;
   padding-inline-start: 24px;
+}
+
+/* A hyphenated word in a guide's heading, kept on one line (`WholeWords` in GuidePage.tsx; TY-12). */
+.whole-word {
+  white-space: nowrap;
+}
+
+/*
+ * A guide heading with a very long word shrinks just enough for that word to fit its own column
+ * (`FitWords` in GuidePage.tsx says why and how it was measured). The heading is the container, so
+ * `100cqi` is its own width at every screen size, in the hero and in a section's half row.
+ */
+.fit-heading {
+  container-type: inline-size;
+}
+
+.fit-heading > .fit-words {
+  font-size: min(1em, calc(100cqi / (var(--fit-letters, 14) * 0.9)));
+}
+
+/* The owner's legal line under a section that states a law (`legalLine`): small and quiet, as a note. */
+.prose .guide-legal {
+  margin-top: 16px;
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 /*
@@ -3631,6 +3677,15 @@ a.contact-block__value:active {
 @media (width < 420px) {
   .guide-table :is(th, td) {
     padding-inline-end: 12px;
+    /*
+     * The buyer library's tables (2026-11-06) have three and four columns of longer words, standard
+     * numbers ("D1907/D1907M-12(2025)") and web addresses: seven ran past a 320px phone (7 to 19px,
+     * or the whole page sideways; `e2e/guides.spec.ts`, measured here). A cell may now hyphenate
+     * (the page is `lang="en"`), and break a word with no break in it only as a last resort, so the
+     * table keeps its rows and columns and no part changes its `display`.
+     */
+    hyphens: auto;
+    overflow-wrap: anywhere;
   }
 
   .guide-table :is(th, td):last-child {
@@ -3649,6 +3704,54 @@ a.contact-block__value:active {
 .guide-table tbody th {
   font-weight: 600;
   color: var(--heading);
+}
+
+/*
+ * ⚠️ A WIDE TABLE, STACKED (the buyer library, 2026-11-06; `isWideTable` in GuidePage.tsx says which):
+ * three or more columns with sentences ran past a 320px phone, and squeezing them broke words letter
+ * by letter. web-guidance's "responsive-table" (retrieved 2026-11-06): a container query on the
+ * table's own width, the header row hidden, each cell labelled by its column through `::before`.
+ * The guides' column is at most 28.635em (about 458px), so these tables stack at every screen width,
+ * and read as one block per row: its heading, then each cell under its column's name in the column
+ * headers' mono voice.
+ */
+.guide-table-wrap {
+  container-type: inline-size;
+  max-width: 28.635em;
+}
+
+@container (width < 600px) {
+  .guide-table--stack,
+  .guide-table--stack :is(caption, tbody, tr, th, td) {
+    display: block;
+  }
+
+  .guide-table--stack thead {
+    display: none;
+  }
+
+  .guide-table--stack tr {
+    padding-block: 12px;
+    border-block-end: 1px solid var(--line);
+  }
+
+  .guide-table--stack :is(th, td) {
+    padding: 0;
+    border: 0;
+  }
+
+  .guide-table--stack td {
+    margin-block-start: 12px;
+  }
+
+  .guide-table--stack td::before {
+    content: attr(data-label);
+    display: block;
+    margin-block-end: 4px;
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-lg);
+    color: var(--muted);
+  }
 }
 
 /*
@@ -4906,6 +5009,15 @@ a.contact-block__value:active {
   margin: 0;
   max-width: 46ch;
   color: var(--text);
+}
+
+/*
+ * A list on the panel keeps the paragraph's measure (6 Nov 2026). The buyer guides put lists on
+ * their photo sections, and an `li` here had only base.css's 60ch (584px at 768px), so lines of 76
+ * to 82 characters ran past FA-C-52's 75 in CI's Firefox (`legibility.spec.ts`, PR #331).
+ */
+.photo-stage__copy li {
+  max-width: 46ch;
 }
 
 @media (min-width: 900px) {

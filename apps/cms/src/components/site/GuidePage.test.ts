@@ -9,7 +9,14 @@ import { FACTORY_PHOTOS, factoryPhotoWidths } from '../../lib/factoryPhotos'
 import { type Guide, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from '../../lib/guides'
 import type { ProductCard } from '../../lib/projectPublic'
 import { HALF_COLUMN_SIZES } from './FactoryFigure'
-import { GuidePage } from './GuidePage'
+import {
+  FIT_FROM_LETTERS,
+  GuidePage,
+  isWideTable,
+  LinkedWords,
+  longestWord,
+  WholeWords,
+} from './GuidePage'
 
 /**
  * Polish X22 (audit of 3 October 2026): the guides were walls of text. What a visitor is given,
@@ -381,5 +388,122 @@ describe('the comparison guide’s sources (2026-10-08)', () => {
 
   it('draws no Sources section on a guide that quotes none', () => {
     expect(render(guideAt('/guides/minimum-order-and-samples'))).not.toContain('>Sources<')
+  })
+})
+
+/*
+ * The buyer library's page parts (2026-11-06): links inside the words, the owner's legal line, wide
+ * tables stacked, and headings that keep their words whole. Each with a planted case that must fail.
+ */
+describe('the buyer library’s page parts (2026-11-06)', () => {
+  const card = (
+    slug: string,
+    defaultColourSlug = 'black',
+    over: Partial<ProductCard> = {},
+  ): ProductCard =>
+    ({
+      slug,
+      productName: `NAME ${slug}`,
+      productCode: slug.toUpperCase(),
+      category: 'Sportswear',
+      garmentType: `Type ${slug}`,
+      shortDescription: '',
+      posterUrl: null,
+      posterAlt: '',
+      defaultColourSlug,
+      colourNames: [],
+      colours: [],
+      updatedAt: null,
+      ...over,
+    }) as ProductCard
+
+  it('links a phrase where it first appears, and leaves the words around it as they are', () => {
+    const html = renderToStaticMarkup(
+      createElement(LinkedWords, {
+        text: 'Weight is in our fabrics guide; our fabrics guide has a table.',
+        links: [{ phrase: 'our fabrics guide', href: '/guides/sportswear-fabrics-and-weights' }],
+      }),
+    )
+    expect(html.match(/<a /g)).toHaveLength(1)
+    expect(html).toContain('href="/guides/sportswear-fabrics-and-weights"')
+    expect(text(html)).toBe('Weight is in our fabrics guide; our fabrics guide has a table.')
+  })
+
+  it('links a garment to its default colour from the catalogue, and draws plain words without it', () => {
+    const link = { phrase: 'Apex Flex Pullover', href: '/products/r-afp' }
+    const words = 'Our Apex Flex Pullover is waffle.'
+    const linked = renderToStaticMarkup(
+      createElement(LinkedWords, { text: words, links: [link], cards: [card('r-afp', 'stone')] }),
+    )
+    expect(linked).toContain('href="/products/r-afp/stone"')
+    const unlinked = renderToStaticMarkup(
+      createElement(LinkedWords, { text: words, links: [link] }),
+    )
+    expect(unlinked).not.toContain('<a ')
+    expect(text(unlinked)).toBe(words)
+  })
+
+  it('draws the owner’s legal line under a law section, and the fibers guide links its labels guide', () => {
+    const html = render(guideAt('/guides/sportswear-compliance-by-market'))
+    expect(html).toContain('class="guide-legal"')
+    expect(text(html)).toContain(
+      'Checked on 6 November 2026. Not legal or tax advice; confirm with your customs broker or adviser.',
+    )
+    expect(render(guideAt('/guides/sportswear-fibers'))).toContain('href="/guides/clothing-labels"')
+  })
+
+  it('stacks exactly the wide tables, all in the library’s new guides', () => {
+    const stacked = GUIDES.flatMap((guide) =>
+      guide.sections
+        .flatMap((section) => section.blocks)
+        .flatMap((block) =>
+          block.kind === 'table' && isWideTable(block) ? [`${guide.path}: ${block.caption}`] : [],
+        ),
+    )
+    expect(stacked).toEqual([
+      '/guides/how-to-vet-a-clothing-manufacturer: What to ask for, and where to check it',
+      '/guides/how-to-vet-a-clothing-manufacturer: The schemes side by side',
+      '/guides/clothing-labels: What the label must carry, in five markets',
+      '/guides/sportswear-fibers: What each fiber brings, and its cost next to polyester',
+      '/guides/sportswear-fibers: The same fiber under US and EU names',
+      '/guides/stitch-and-seam-types: Overlock and flatlock seams in published studies',
+      '/guides/sportswear-compliance-by-market: Where each rule applies (read 6 November 2026)',
+      '/guides/apparel-manufacturing-machinery: Machines on our floor, area by area',
+      '/guides/apparel-design-software: Kinds of software, and the files they use',
+      '/guides/apparel-manufacturing-technology: Eight changes, what each means for your order, and where we stand',
+    ])
+    const html = render(guideAt('/guides/sportswear-compliance-by-market'))
+    expect(html).toContain('class="guide-table guide-table--stack"')
+    expect(html).toContain('data-label="European Union"')
+    // The ball guide's tables stay tables, with no labels.
+    expect(render(guideAt('/guides/how-soccer-balls-are-made'))).not.toContain('guide-table--stack')
+  })
+
+  // NEGATIVE CONTROL, run both ways: each reason to stack is seen, and a short table is left alone.
+  it('stacks for a long cell or a long word with three columns, and never for two', () => {
+    const table = (columns: string[], rows: string[][]) =>
+      ({ kind: 'table', caption: 'x', columns, rows }) as const
+    expect(isWideTable(table(['a', 'b', 'c'], [['x', 'y'.repeat(41), 'z']]))).toBe(true)
+    expect(isWideTable(table(['a', 'b', 'c'], [['x', 'Polypropylene', 'z']]))).toBe(true)
+    expect(isWideTable(table(['a', 'b', 'c'], [['Size 3', 'Under 7', '8 and under']]))).toBe(false)
+    expect(isWideTable(table(['a', 'b'], [['x', 'y'.repeat(80)]]))).toBe(false)
+  })
+
+  it('keeps a hyphenated heading word whole, and fits a heading with a very long word', () => {
+    const whole = renderToStaticMarkup(
+      createElement(WholeWords, { text: 'What moisture-wicking means' }),
+    )
+    expect(whole).toBe('What <span class="whole-word">moisture-wicking</span> means')
+    expect(renderToStaticMarkup(createElement(WholeWords, { text: 'Knit or woven' }))).toBe(
+      'Knit or woven',
+    )
+    expect(longestWord('What moisture-wicking means')).toBe(16)
+    const fitted = render(guideAt('/guides/apparel-manufacturing-technology'))
+    expect(fitted).toContain('fit-heading')
+    expect(fitted).toContain('--fit-letters:14')
+    // A guide with no word that long carries neither.
+    expect(longestWord(`${guideAt('/guides/garment-cutting').heading}`)).toBeLessThan(
+      FIT_FROM_LETTERS,
+    )
   })
 })

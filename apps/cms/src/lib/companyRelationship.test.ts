@@ -71,7 +71,12 @@ const PUBLISHED: Readonly<Record<string, string>> = {
 const REFUSED: readonly { words: RegExp; why: string }[] = [
   { words: /parent\s+compan/i, why: 'DURUS INDUSTRIES is not RUN APPAREL’s holding company' },
   { words: /parentOrganization|subOrganization/, why: 'the same, in Google’s data' },
-  { words: /\bparent\b/i, why: 'DURUS INDUSTRIES is not RUN APPAREL’s parent' },
+  /*
+   * A child's "parent or caregiver" is the one other use (the team kits guide quotes The FA on
+   * players' names, buyer library, 2026-11-06). Only that phrase is let through; "parent" in any
+   * other words still fails, and the control below proves both.
+   */
+  { words: /\bparent\b(?! or caregiver)/i, why: 'DURUS INDUSTRIES is not RUN APPAREL’s parent' },
   { words: /\bdivision\b/i, why: 'RUN APPAREL is its own company, not part of DURUS INDUSTRIES' },
   { words: /spins?\s+off|spun\s+off/i, why: 'nothing was spun off: RUN is a separate company' },
   { words: /\bGOTS\b/i, why: 'GOTS sign rules s.3.3.1: no claim referring to GOTS' },
@@ -118,6 +123,13 @@ describe('how the site describes RUN APPAREL and DURUS INDUSTRIES', () => {
     }
     expect(findings(old)).toHaveLength(7)
     expect(findings({ now: RELATIONSHIP })).toEqual([])
+    // A child's parent or caregiver passes; a parent in other words, even beside it, does not.
+    expect(findings({ kits: 'consent from every player and their parent or caregiver' })).toEqual(
+      [],
+    )
+    expect(
+      findings({ kits: 'DURUS INDUSTRIES, our parent, and a parent or caregiver' }),
+    ).toHaveLength(1)
   })
 
   it('states the relationship as the owner’s facts allow', () => {

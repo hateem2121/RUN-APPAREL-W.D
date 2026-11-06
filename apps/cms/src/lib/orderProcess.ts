@@ -127,7 +127,8 @@ export const ORDER_PHASES: readonly OrderPhase[] = [
         actor: 'We',
         title: 'Packed and shipped',
         photo: 'packing',
-        body: 'Shipped on the terms you choose: EXW, FOB, CFR, CIF or DDP, up to your door with duty paid.',
+        // FCA and DAP joined the terms (owner, 2026-11-06), as the shipping guide gives them.
+        body: 'Shipped on the terms you choose: EXW, FCA, FOB, CFR, CIF, DAP or DDP, up to your door with duty paid.',
         detail:
           'Packed your way: neck and care labels, hang tags, bags and cartons, with no set minimum for custom packaging.',
       },

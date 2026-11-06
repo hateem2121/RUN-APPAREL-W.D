@@ -3,7 +3,7 @@ import { POLICY_ACTION, POLICY_CLOSING, type Policy } from '../../lib/policies'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { Breadcrumb } from './Breadcrumb'
 import { Byline } from './Byline'
-import { Block } from './GuidePage'
+import { Block, blockKey } from './GuidePage'
 import { JsonLd } from './JsonLd'
 import { OnThisPage } from './OnThisPage'
 
@@ -59,20 +59,7 @@ export function PolicyPage({ policy }: { policy: Policy }) {
                   {s.heading}
                 </h2>
                 {s.blocks.map((block) => (
-                  <Block
-                    key={
-                      block.kind === 'list'
-                        ? block.items[0]
-                        : 'title' in block
-                          ? block.title
-                          : block.kind === 'orderSteps'
-                            ? 'order-steps'
-                            : block.kind === 'table'
-                              ? block.caption
-                              : block.text
-                    }
-                    block={block}
-                  />
+                  <Block key={blockKey(block)} block={block} />
                 ))}
               </div>
             ))}

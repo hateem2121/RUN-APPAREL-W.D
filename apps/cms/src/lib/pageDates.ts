@@ -39,8 +39,6 @@ const page = (on: string, words: string): PageDate => ({ on, words })
 const FINDABILITY = '2026-10-08T21:50:32+05:00'
 /** #231: the Journal hub's links to two buyer guides. */
 const BUYER_GUIDE_LINKS = '2026-10-23T17:32:37+05:00'
-/** #246: the closing block written once, on every FAQ topic. */
-const CLOSING_BLOCK = '2026-10-25T11:44:02+05:00'
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /**
@@ -92,8 +90,21 @@ const ORDER_PHOTO = '2026-11-05T09:21:13+05:00'
  */
 const WAVE_ONE = '2026-11-05T20:07:40+05:00'
 
+/**
+ * The buyer library (owner approved every word, 2026-11-06): fifteen new guides join the guides index,
+ * the journal's list of guides and the FAQ topics that point back at them, and the shipping topic's
+ * answer on import duty names FCA and DAP. The time the words were committed. It replaced the date
+ * of the FAQ topics' closing block (#246, 2026-10-25), its last use, so that constant went with it.
+ */
+const LIBRARY = '2026-11-06T17:05:02+05:00'
+/**
+ * FCA (on request) and DAP join the price terms wherever the site lists them (owner, 2026-11-06): the
+ * home page's order step, the FAQ's Incoterms answer and its topic's description, and the glossary.
+ */
+const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
+
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(WAVE_ONE, 'e7dceb9bb5e3'),
+  '/': page(PRICE_TERMS, '00140939a970'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
   '/custom-teamwear-manufacturer': page(WAVE_ONE, '16390fbc1582'),
   '/custom-activewear-manufacturer': page(WAVE_ONE, '9ec97e679558'),
@@ -101,18 +112,18 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
-  '/guides': page(WAVE_ONE, '24d1c90782c8'),
+  '/guides': page(LIBRARY, '427f1f3b71c2'),
   '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
-  '/faq': page(WAVE_ONE, '8d6b61211358'),
-  '/faq/orders-and-samples': page(WAVE_ONE, '2f29b364c1dd'),
-  '/faq/quality-and-certifications': page(WAVE_ONE, 'fd7cbf5f245a'),
-  '/faq/shipping-and-importing': page(SITE_CHECK, 'd589cfcdf9ba'),
-  '/faq/fabrics-and-printing': page(CLOSING_BLOCK, 'd838e1a06292'),
-  '/faq/working-with-us': page(WAVE_ONE, 'c2f1d2e929ce'),
-  '/glossary': page(WAVE_ONE, 'e0eb045bbe15'),
-  '/journal': page(WAVE_ONE, 'd6d12f55d1b3'),
+  '/faq': page(PRICE_TERMS, 'bf487444473d'),
+  '/faq/orders-and-samples': page(LIBRARY, 'a085ccb257a2'),
+  '/faq/quality-and-certifications': page(LIBRARY, '2f8e683d8b4c'),
+  '/faq/shipping-and-importing': page(PRICE_TERMS, '3337ef9c9fe5'),
+  '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
+  '/faq/working-with-us': page(LIBRARY, 'e6878ac44145'),
+  '/glossary': page(PRICE_TERMS, 'c22e311ba5df'),
+  '/journal': page(LIBRARY, '5791b43c9aea'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
   '/privacy': page(UK_REGULATOR, '060578c2bd49'),

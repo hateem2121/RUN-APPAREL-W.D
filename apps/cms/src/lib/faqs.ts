@@ -264,7 +264,7 @@ const SHIPPING: FaqTopic = {
   path: '/faq/shipping-and-importing',
   title: 'FAQ: Shipping and Importing',
   description:
-    'How RUN APPAREL ships from Pakistan, which Incoterms it quotes (EXW, FOB, CFR, CIF, DDP), who pays import duty, and how garments are packed.',
+    'How RUN APPAREL ships from Pakistan, which Incoterms it quotes (EXW, FCA, FOB, CFR, CIF, DAP, DDP), who pays import duty, and how garments are packed.',
   heading: 'Shipping',
   headingAccent: 'and importing.',
   entries: [
@@ -278,16 +278,19 @@ const SHIPPING: FaqTopic = {
     {
       id: 'incoterms',
       question: 'Which price terms (Incoterms) do you quote?',
-      answer: 'EXW, FOB, CFR, CIF and DDP. FOB, CFR and CIF are used for sea freight.',
+      // FCA (on request) and DAP joined (owner, 2026-11-06), in the shipping guide's own words.
+      answer:
+        'EXW, FCA on request, FOB, CFR, CIF, DAP and DDP. FOB, CFR and CIF are used for sea freight.',
       detail:
-        'EXW: you collect the goods from our works. FOB: we load the goods onto the ship at the port in Pakistan. CFR and CIF: we pay the sea freight to your port, and under CIF the insurance too. DDP: we deliver to your door with the import duty and tax already paid. These terms follow the International Chamber of Commerce rules, called Incoterms.',
+        'EXW: you collect the goods from our works. FCA, on request: we clear the goods for export and hand them to your carrier at the agreed place. FOB: we load the goods onto the ship at the port in Pakistan. CFR and CIF: we pay the sea freight to your port, and under CIF the insurance too. DAP: we deliver to the place named in your quote. DDP: we deliver to your door with the import duty and tax already paid. These terms follow the International Chamber of Commerce rules, called Incoterms.',
       source: 'shipping guide',
     },
     {
       id: 'import-duty',
       question: 'Who pays import duty?',
       answer:
-        'Under EXW, FOB, CFR and CIF, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
+        // FCA and DAP join (owner, 2026-11-06: as on the shipping guide, whose sentence this is).
+        'Under EXW, FCA, FOB, CFR, CIF and DAP, you do, when the goods arrive in your country. Under DDP, we do, and it is part of the price. The amount depends on your country and the garment, not on us.',
       source: 'shipping guide, word for word',
     },
     {
@@ -489,17 +492,29 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
     '/guides/3d-garment-reference',
     // Wave 1 (2026-11-05): how the guides are written answers to "Working with us".
     '/guides/how-we-write-our-guides',
+    // The buyer library (2026-11-06): how the work is done, the machines, the software, what is coming.
+    '/guides/apparel-manufacturing-machinery',
+    '/guides/apparel-design-software',
+    '/guides/apparel-manufacturing-technology',
   ],
   '/faq/orders-and-samples': [
     '/guides/minimum-order-and-samples',
     '/guides/how-a-private-label-order-works',
     // The two guides of 2026-10-08, each beside the questions it answers.
     '/guides/cost-to-start-an-activewear-brand',
+    // The buyer library (2026-11-06): what an order is made of before the sewing starts.
+    '/guides/how-to-order-team-kits',
+    '/guides/sportswear-pattern-making',
+    '/guides/garment-cutting',
   ],
   // Wave 1 (2026-11-05): the soccer-ball guide, whose FIFA quality marks and tests are quality.
   '/faq/quality-and-certifications': [
     '/guides/how-a-private-label-order-works',
     '/guides/how-soccer-balls-are-made',
+    // The buyer library (2026-11-06): checking a factory, the rules by market, and the seams.
+    '/guides/how-to-vet-a-clothing-manufacturer',
+    '/guides/sportswear-compliance-by-market',
+    '/guides/stitch-and-seam-types',
   ],
   '/faq/shipping-and-importing': [
     '/guides/shipping-and-import-duties',
@@ -509,6 +524,13 @@ export const FAQ_GUIDES: Readonly<Record<string, readonly string[]>> = {
   '/faq/fabrics-and-printing': [
     '/guides/sportswear-fabrics-and-weights',
     '/guides/garment-printing-methods',
+    // The buyer library (2026-11-06): what a garment is made of, and what goes on it.
+    '/guides/sportswear-fibers',
+    '/guides/yarn-count-and-denier',
+    '/guides/outerwear-and-waterproof-fabrics',
+    '/guides/dyeing-and-color-matching',
+    '/guides/clothing-labels',
+    '/guides/apparel-trims',
   ],
 }
 

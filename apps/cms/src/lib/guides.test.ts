@@ -5,11 +5,21 @@ import { describe, expect, it } from 'vitest'
 import { GUIDE_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
+import { escapeRegExp } from '../../regexEscape.mjs'
 import { FACTORY_PAGE } from './aboutPages'
 import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { FACTORY_PHOTOS, WHOLE_PHOTOS } from './factoryPhotos'
-import { GARMENT_FABRICS, GUIDE_PATHS, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from './guides'
+import { GLOSSARY_TERMS } from './glossary'
+import {
+  GARMENT_FABRICS,
+  GUIDE_PATHS,
+  GUIDES,
+  GUIDES_INDEX,
+  guideAt,
+  legalLine,
+  READ_NEXT,
+} from './guides'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
 import { ORDER_PHASES } from './orderProcess'
@@ -47,7 +57,9 @@ const everyWord = (guide: (typeof GUIDES)[number]): string =>
                     phase.name,
                     ...phase.steps.flatMap((step) => [step.title, step.body]),
                   ])
-                : [block.text],
+                : block.kind === 'legal'
+                  ? [legalLine(block.checked)]
+                  : [block.text],
       ),
     ]),
   ].join('\n')
@@ -143,6 +155,29 @@ describe('what a search result shows', () => {
     })
   }
 
+  /*
+   * ⚠️ A WRAPPED DRAFT FIELD ONCE SHIPPED HALF (6 Nov 2026). The vetting guide's description and lede
+   * wrapped onto a second line in the owner's draft, the converter read only the first, and both
+   * shipped ending "...EU origin papers and" / "...its bank" — the length check passed at 101
+   * characters. A description or lede is whole sentences, so each must end as a sentence ends.
+   */
+  const endsAsASentence = (text: string) => /[.?!][’”)]?$/.test(text.trim())
+  it('every description and lede ends as a sentence ends', () => {
+    const cut = GUIDES.flatMap((guide) =>
+      [guide.description, guide.lede]
+        .filter((text) => !endsAsASentence(text))
+        .map((text) => `${guide.path}: "…${text.slice(-40)}"`),
+    )
+    expect(cut).toEqual([])
+    // NEGATIVE CONTROL: the half-shipped description is caught, the whole one is not.
+    expect(
+      endsAsASentence(
+        'Check a clothing factory before you pay: its company record, bank account, EU origin papers and',
+      ),
+    ).toBe(false)
+    expect(endsAsASentence('Each part is quoted.')).toBe(true)
+  })
+
   it('no two guides share a title or a description', () => {
     expect(new Set(GUIDES.map((guide) => guide.title)).size).toBe(GUIDES.length)
     expect(new Set(GUIDES.map((guide) => guide.description)).size).toBe(GUIDES.length)
@@ -179,6 +214,14 @@ describe('the words state only what the site already states', () => {
     expect(words).toContain('not a color match')
   })
 
+  /*
+   * The vetting guide (buyer library, owner approved 2026-11-06) explains the certificates and social
+   * audits a buyer may be shown, by each scheme's own name (OEKO-TEX, SMETA on Sedex, ISO 9001), so
+   * a buyer can check them. It claims none for RUN, says whose name each is in, and never says
+   * "certified" or names GOTS, which stay refused there as everywhere.
+   */
+  const NAMES_THE_SCHEMES = new Set(['/guides/how-to-vet-a-clothing-manufacturer'])
+
   for (const guide of GUIDES) {
     it(`${guide.path}: no printing method, lead time, certificate, founding year or invented proof`, () => {
       const words = without(everyWord(guide))
@@ -187,11 +230,21 @@ describe('the words state only what the site already states', () => {
         expect(words).not.toMatch(/sublimat|embroider/i)
       }
       expect(words).not.toMatch(/\d+\s*(?:–|-|to)\s*\d+\s*days/i)
-      expect(words).not.toMatch(/certified|OEKO|GOTS|SMETA|SEDEX|ISO\s?9001/i)
-      expect(words).not.toMatch(/1889|since \d{4}|founded|established/i)
+      expect(words).not.toMatch(
+        NAMES_THE_SCHEMES.has(guide.path)
+          ? /certified|GOTS/i
+          : /certified|OEKO|GOTS|SMETA|SEDEX|ISO\s?9001/i,
+      )
+      // 1889 as a year, never inside a standard's number (the pattern-making guide cites ISO 18890).
+      expect(words).not.toMatch(/\b1889\b|since \d{4}|founded|established/i)
       expect(words).not.toMatch(/trusted by|\d+\+?\s*(?:brands|teams|clients|customers)/i)
     })
   }
+
+  it('NEGATIVE CONTROL: the year 1889 is still caught, and a standard’s number is not', () => {
+    expect('The works dates from 1889.').toMatch(/\b1889\b/)
+    expect('ISO 18890 sets the size designation.').not.toMatch(/\b1889\b/)
+  })
 })
 
 describe("the three guides built from the owner's own facts (2026-09-30)", () => {
@@ -346,7 +399,41 @@ describe('a guide shows a factory photo only beside words that name it (polish X
    * background), held to the same idea as the cut photos above: only beside words that name it.
    */
   const STAGED_BY = [
+    // The cost guide's price section, behind the words "hang tags" (buyer library, 2026-11-06).
+    [
+      '/guides/cost-to-start-an-activewear-brand',
+      'What changes the price of one piece',
+      'whole-tagging',
+      'hang tags',
+    ],
     ['/guides/how-soccer-balls-are-made', 'On our floor', 'whole-ball-stitching', 'hand-stitched'],
+    // The buyer library (owner approved 2026-11-06): the stitching floor, the end of the line and the
+    // ball hall, each behind words that name it.
+    [
+      '/guides/how-to-vet-a-clothing-manufacturer',
+      'What we can show you',
+      'whole-stitching',
+      'stitching floor',
+    ],
+    ['/guides/stitch-and-seam-types', 'On our floor', 'whole-stitching', 'Our stitching floor'],
+    [
+      '/guides/apparel-manufacturing-machinery',
+      'What are the main types of industrial sewing machine?',
+      'whole-stitching',
+      'industrial sewing line',
+    ],
+    [
+      '/guides/apparel-manufacturing-machinery',
+      'How are finished garments checked and packed?',
+      'whole-tagging',
+      'tagged',
+    ],
+    [
+      '/guides/apparel-manufacturing-machinery',
+      'Soccer balls: what does a ball line use?',
+      'whole-ball-stitching',
+      'stitched by hand',
+    ],
   ] as const
 
   it('shows exactly the whole photos listed, in the sections listed, each a real whole photo', () => {
@@ -367,7 +454,9 @@ describe('a guide shows a factory photo only beside words that name it (polish X
 describe('the shipping guide (owner, 2026-09-30)', () => {
   const words = everyWord(guideAt('/guides/shipping-and-import-duties'))
 
-  it('names the four ways and five terms the owner ticked, and nothing else', () => {
+  // The buyer library (owner, 2026-11-06): FCA is quoted on request and DAP is offered too, so seven
+  // terms in the Incoterms rules' own order. CPT, CIP, DPU and FAS are still not quoted.
+  it('names the four ways and the terms the owner ticked, and nothing else', () => {
     const titles = guideAt('/guides/shipping-and-import-duties').sections.flatMap((section) =>
       section.blocks.flatMap((block) => (block.kind === 'point' ? [block.title] : [])),
     )
@@ -377,22 +466,35 @@ describe('the shipping guide (owner, 2026-09-30)', () => {
       'Sea freight',
       'Your own forwarder',
       'EXW (Ex Works)',
+      'FCA (Free Carrier)',
       'FOB (Free On Board)',
       'CFR and CIF',
+      'DAP (Delivered at Place)',
       'DDP (Delivered Duty Paid)',
     ])
-    expect(words).not.toMatch(/\b(?:FCA|CPT|CIP|DAP|DPU|FAS)\b/)
+    expect(words).not.toMatch(/\b(?:CPT|CIP|DPU|FAS)\b/)
   })
 
-  // Neither was given: a transit time is a promise, and a duty rate is the buyer's country's.
-  // Owner, 2026-10-26: the guide also says the bulk lead time (`LEAD_TIME`) and the problem window (the
-  // FAQ's answer), both word for word and neither a transit time; any other number of days or weeks fails.
-  it('states no transit time and no duty rate', () => {
+  /*
+   * A transit time is a promise, and the duty on a garment is the buyer's country's. Owner, 2026-10-26:
+   * the guide also says the bulk lead time (`LEAD_TIME`) and the problem window (the FAQ's answer), both
+   * word for word and neither a transit time; any other number of days or weeks fails. Owner,
+   * 2026-11-06 (buyer library): one section gives the duty on soccer balls, each rate read from that
+   * market's official tariff and dated; a percentage anywhere else on the page still fails.
+   */
+  it('states no transit time, and duty rates only in the soccer-ball section', () => {
     expect(words).toContain(LEAD_TIME)
     expect(words).toContain(faqEntryById('order-problem').entry.answer)
     expect(without(words)).not.toMatch(/\d+\s*(?:working )?(?:days|weeks)/i)
     expect(`${without(words)}\nTransit takes 5 days.`).toMatch(/\d+\s*(?:working )?(?:days|weeks)/i)
-    expect(words).not.toMatch(/\d+(?:\.\d+)?\s?%/)
+    const guide = guideAt('/guides/shipping-and-import-duties')
+    const outsideBalls = everyWord({
+      ...guide,
+      sections: guide.sections.filter((section) => section.heading !== 'Shipping soccer balls'),
+    })
+    expect(outsideBalls).not.toMatch(/\d+(?:\.\d+)?\s?%/)
+    // NEGATIVE CONTROL: the same check sees a rate planted in another section.
+    expect(`${outsideBalls}\nThe duty is 12%.`).toMatch(/\d+(?:\.\d+)?\s?%/)
   })
 
   it('keeps the terms page sentence and says FOB, CFR and CIF are sea terms', () => {
@@ -412,13 +514,15 @@ describe('garments and read-next links (2026-10-08)', () => {
   // a catalogue with one ball cannot give three picks, so it links that one.
   const ONE_PICK = new Set(['/guides/how-soccer-balls-are-made'])
 
-  it('links garments from the 3D, printing, fabrics and ball guides only, each after a real section', () => {
+  it('links garments from the 3D, printing, fabrics, ball and outerwear guides only, each after a real section', () => {
     const withGarments = GUIDES.filter((guide) => guide.garments).map((guide) => guide.path)
     expect(withGarments).toEqual([
       '/guides/3d-garment-reference',
       '/guides/garment-printing-methods',
       '/guides/sportswear-fabrics-and-weights',
       '/guides/how-soccer-balls-are-made',
+      // The buyer library (owner approved 2026-11-06): three outerwear garments, each re-read live.
+      '/guides/outerwear-and-waterproof-fabrics',
     ])
     for (const guide of GUIDES) {
       if (!guide.garments) continue
@@ -474,10 +578,259 @@ describe('a guide’s sources (2026-10-08)', () => {
   const BALL_BODIES =
     /^https:\/\/(?:www\.)?(?:theifab\.com|thefa\.com|futurefit\.englandfootball\.com|usyouthsoccer\.org|inside\.fifa\.com|digitalhub\.fifa\.com|doi\.org|imacpak\.org|ilo\.org)\//
   const GOOGLE_GUIDANCE = /^https:\/\/developers\.google\.com\/search\/docs\//
+  /*
+   * The buyer library (owner approved every word, 2026-11-06; his rule: never a manufacturer’s or a
+   * seller’s page). Each guide may quote only the hosts it was researched on: standards bodies,
+   * governments and their law sites, universities, journals by DOI, the schemes it explains, the
+   * game’s rule makers, and, in the software guide only, each program’s own documentation. A new
+   * source on any other host fails here until its host is added on purpose.
+   */
+  const hosts = (...names: string[]) =>
+    new RegExp(`^https://(?:www\\.)?(?:${names.map(escapeRegExp).join('|')})/`)
   const HOSTS_FOR: Readonly<Record<string, RegExp>> = {
+    // The four guides the library deepened (owner approved 2026-11-06), in `GUIDES` order.
+    '/guides/garment-printing-methods': hosts(
+      'blogs.clemson.edu',
+      'doi.org',
+      'inside.fifa.com',
+      'iso.org',
+      'kirim.kmutt.ac.th',
+      'knowledge.bsigroup.com',
+      'library.taga.org',
+      'members.aatcc.org',
+    ),
+    '/guides/sportswear-fabrics-and-weights': hosts(
+      'astm.org',
+      'doi.org',
+      'ecfr.gov',
+      'ftc.gov',
+      'iso.org',
+      'legislation.gov.uk',
+      'nist.gov',
+      'pubs.nmsu.edu',
+    ),
+    '/guides/shipping-and-import-duties': hosts(
+      'abf.gov.au',
+      'academy.iccwbo.org',
+      'cbp.gov',
+      'cbsa-asfc.gc.ca',
+      'content.govdelivery.com',
+      'ec.europa.eu',
+      'gov.uk',
+      'hts.usitc.gov',
+      'iata.org',
+      'iccwbo.org',
+      'taxation-customs.ec.europa.eu',
+      'trade-tariff.service.gov.uk',
+      'trade.ec.europa.eu',
+      'usitc.gov',
+      'wcoomd.org',
+      'whitehouse.gov',
+    ),
+    '/guides/cost-to-start-an-activewear-brand': hosts(
+      'cbp.gov',
+      'content.govdelivery.com',
+      'europa.eu',
+      'gov.uk',
+      'law.cornell.edu',
+      'sba.gov',
+      'trade.ec.europa.eu',
+    ),
     '/guides/pakistan-vs-china-vs-turkey': OFFICIAL,
     '/guides/how-soccer-balls-are-made': BALL_BODIES,
     '/guides/how-we-write-our-guides': GOOGLE_GUIDANCE,
+    '/guides/how-to-vet-a-clothing-manufacturer': hosts(
+      'amfori.org',
+      'cbp.gov',
+      'content.govdelivery.com',
+      'dhs.gov',
+      'dol.gov',
+      'eservices.secp.gov.pk',
+      'fbr.gov.pk',
+      'gov.uk',
+      'ic3.gov',
+      'ilo.org',
+      'inside.fifa.com',
+      'iso.org',
+      'mywrapcompliance.org',
+      'ncsc.gov.uk',
+      'oecd.org',
+      'oeil.europarl.europa.eu',
+      'oeko-tex.com',
+      'sa-intl.org',
+      'sedex.com',
+      'taxation-customs.ec.europa.eu',
+      'textileexchange.org',
+      'trade.ec.europa.eu',
+      'transition-pathways.europa.eu',
+      'ustr.gov',
+      'wrapcompliance.org',
+    ),
+    '/guides/clothing-labels': hosts(
+      'businesscompanion.info',
+      'competition-bureau.canada.ca',
+      'cpsc.gov',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'europa.eu',
+      'evs.ee',
+      'federalregister.gov',
+      'ftc.gov',
+      'ginetex.net',
+      'gov.uk',
+      'govinfo.gov',
+      'inside.fifa.com',
+      'legislation.gov.au',
+      'legislation.gov.uk',
+      'publications.gc.ca',
+      'single-market-economy.ec.europa.eu',
+      'store.astm.org',
+      'theifab.com',
+    ),
+    '/guides/apparel-trims': hosts(
+      'boutique.afnor.org',
+      'cpsc.gov',
+      'ecc.isc.ac',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'evs.ee',
+      'hts.usitc.gov',
+      'inside.fifa.com',
+      'store.astm.org',
+      'store.uni.com',
+    ),
+    '/guides/sportswear-fibers': hosts(
+      'doi.org',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'ftc.gov',
+      'gov.uk',
+      'iso.org',
+      'textileexchange.org',
+    ),
+    '/guides/yarn-count-and-denier': hosts(
+      'archive.nptel.ac.in',
+      'doi.org',
+      'eur-lex.europa.eu',
+      'iso.org',
+      'nist.gov',
+      'store.astm.org',
+    ),
+    '/guides/sportswear-pattern-making': hosts(
+      'doi.org',
+      'eur-lex.europa.eu',
+      'evs.ee',
+      'iso.org',
+      'sis.se',
+      'store.astm.org',
+      'support.clo3d.com',
+    ),
+    '/guides/stitch-and-seam-types': hosts(
+      'digitalcommons.usu.edu',
+      'doi.org',
+      'inside.fifa.com',
+      'iso.org',
+      'store.astm.org',
+    ),
+    '/guides/outerwear-and-waterproof-fabrics': hosts(
+      'astm.org',
+      'committee.iso.org',
+      'dec.ny.gov',
+      'doi.org',
+      'evs.ee',
+      'members.aatcc.org',
+      'nist.gov',
+      'trade-tariff.service.gov.uk',
+    ),
+    '/guides/dyeing-and-color-matching': hosts(
+      'cie.co.at',
+      'committee.iso.org',
+      'doi.org',
+      'ecfr.gov',
+      'epa.gov',
+      'eur-lex.europa.eu',
+      'members.aatcc.org',
+      'store.astm.org',
+    ),
+    '/guides/garment-cutting': hosts(
+      'arxiv.org',
+      'doi.org',
+      'hdl.handle.net',
+      'onetonline.org',
+      'web.archive.org',
+    ),
+    '/guides/sportswear-compliance-by-market': hosts(
+      'business.gov.au',
+      'cbp.gov',
+      'cbsa-asfc.gc.ca',
+      'competition-bureau.canada.ca',
+      'cpsc.gov',
+      'dec.ny.gov',
+      'dhs.gov',
+      'ecfr.gov',
+      'eur-lex.europa.eu',
+      'federalregister.gov',
+      'gov.uk',
+      'laws-lois.justice.gc.ca',
+      'legifrance.gouv.fr',
+      'legislation.gov.au',
+      'legislation.gov.uk',
+      'legislature.maine.gov',
+      'legislature.vermont.gov',
+      'oeil.europarl.europa.eu',
+      'revisor.mn.gov',
+      'transition-pathways.europa.eu',
+      'ustr.gov',
+    ),
+    '/guides/apparel-manufacturing-machinery': hosts(
+      'catalog.ncsu.edu',
+      'doi.org',
+      'engineeringsport.co.uk',
+      'inside.fifa.com',
+      'iso.org',
+      'jtatm.textiles.ncsu.edu',
+      'onetonline.org',
+    ),
+    '/guides/apparel-design-software': hosts(
+      'catalog.fitnyc.edu',
+      'catalog.ncsu.edu',
+      'doi.org',
+      'freesewing.eu',
+      'github.com',
+      'gitlab.com',
+      'help.browzwear.com',
+      'help.style3d.com',
+      'khronos.org',
+      'npmjs.com',
+      'opensource.org',
+      'store.astm.org',
+      'support.clo3d.com',
+      'support.marvelousdesigner.com',
+    ),
+    '/guides/how-to-order-team-kits': hosts(
+      'bucksfa.freshdesk.com',
+      'iso.org',
+      'nfhs.org',
+      'northumberlandfa.com',
+      'ohsaa.org',
+      'theifab.com',
+    ),
+    '/guides/apparel-manufacturing-technology': hosts(
+      'dec.ny.gov',
+      'doi.org',
+      'eur-lex.europa.eu',
+      'europarl.europa.eu',
+      'gs1us.org',
+      'ideas.repec.org',
+      'ilo.org',
+      'inside.fifa.com',
+      'nfc-forum.org',
+      'ref-pd.gs1.org',
+      'single-market-economy.ec.europa.eu',
+      'supplychain.gs1us.org',
+      'susproc.jrc.ec.europa.eu',
+      'transition-pathways.europa.eu',
+    ),
   }
 
   it('lists only the pages each guide may quote, each dated', () => {
@@ -575,13 +928,22 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     ])
   })
 
-  it('the shipping guide gives the owner’s ports and the sample courier, and no tariff code', () => {
+  // The buyer library (owner approved 2026-11-06) adds HS codes: the invoice gives the six-digit code,
+  // and the buyer’s broker confirms the national one. So the page names HS codes, and still types none.
+  it('the shipping guide gives the owner’s ports and the sample courier, and types no tariff code', () => {
     const words = wordsOf('/guides/shipping-and-import-duties')
     expect(words).toContain(
       'Air shipments leave from Sialkot International Airport and sea freight from Karachi.',
     )
     expect(words).toContain('The buyer pays a sample’s courier.')
-    expect(words).not.toMatch(/tariff code|HS code/i)
+    expect(words).toContain('Our commercial invoice gives the six-digit HS code')
+    // No code of ten or eight digits for a garment; the ball section’s codes are the tariffs’ own.
+    const guide = guideAt('/guides/shipping-and-import-duties')
+    const outsideBalls = everyWord({
+      ...guide,
+      sections: guide.sections.filter((section) => section.heading !== 'Shipping soccer balls'),
+    })
+    expect(outsideBalls).not.toMatch(/\b\d{4}\.\d{2}(?:\.\d{2})?\b|\b\d{8,10}\b/)
   })
 
   it('the packaging guide gives the owner’s one sentence on labels and no other label fact', () => {
@@ -659,10 +1021,11 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
 
   // Its rows are garments' own published specs, typed because a guide is static (the guide says so).
   it('the table of reference garments gives each row a composition that adds to 100% and a weight', () => {
+    // Found by its caption: the library's ounces and garment-match tables now come before it (2026-11-06).
     const table = guideAt('/guides/sportswear-fabrics-and-weights')
       .sections.flatMap((section) => section.blocks)
-      .find((block) => block.kind === 'table')
-    if (table?.kind !== 'table') throw new Error('the fabrics guide has no table')
+      .find((block) => block.kind === 'table' && block.caption === 'What each garment is made of')
+    if (table?.kind !== 'table') throw new Error('the fabrics guide has no table of garments')
     // Two columns, so it stays a table on a 320px phone (`GuideTable`): the weight rides in the cell.
     expect(table.columns).toEqual(['Garment', 'Made of'])
     expect(table.rows).toEqual(
@@ -708,7 +1071,9 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
             ? [...block.items]
             : block.kind === 'point'
               ? [block.title, block.text]
-              : block.kind === 'table' || block.kind === 'orderSteps'
+              : // The owner's legal line is one sentence under every law section, by his rule
+                // (the buyer library, 2026-11-05), so it is not a repeat.
+                block.kind === 'table' || block.kind === 'orderSteps' || block.kind === 'legal'
                 ? []
                 : [block.text],
         ),
@@ -744,6 +1109,9 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     // The owner's two parallel sentences, `LEAD_TIME` and `SAMPLE_TIME` (2026-11-05: "Usually 7;
     // quote states it", chosen to read like the lead-time line), on a guide that states both.
     'your quote states the exact',
+    // The shipping guide’s price terms (owner, 2026-11-06): each term says who pays the duty, and FCA
+    // and CFR and CIF both end on the buyer paying it. The same parallel as the older phrase above.
+    'you pay the import duty and tax',
   ]
 
   it('no guide says a run of five words twice, apart from the older words', () => {
@@ -766,5 +1134,85 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
     }
     expect(repeatsIn(twice).length).toBeGreaterThan(0)
     expect(repeatsIn(guide)).toEqual([])
+  })
+})
+
+/*
+ * Links inside a guide's words (the buyer library, owner approved 2026-11-06; `GuideLink`). Each
+ * one's phrase must be in its own block's words, or the page draws it as plain words and the link
+ * is silently lost; and each must point somewhere real: another guide, a glossary term or FAQ entry
+ * that exists, a garment address, or one of the site's public pages.
+ */
+describe('links inside a guide’s words (buyer library, 2026-11-06)', () => {
+  type Linked = { path: string; phrase: string; href: string; words: readonly string[] }
+  const linkedIn = (guides: readonly (typeof GUIDES)[number][]): Linked[] =>
+    guides.flatMap((guide) =>
+      guide.sections.flatMap((section) =>
+        section.blocks.flatMap((block) =>
+          block.kind === 'text' || block.kind === 'list'
+            ? (block.links ?? []).map((link) => ({
+                path: guide.path,
+                ...link,
+                words: block.kind === 'text' ? [block.text] : block.items,
+              }))
+            : [],
+        ),
+      ),
+    )
+
+  /** The FAQ topic page an entry is on, or null for an id no topic holds. */
+  const faqTopicOf = (id: string): string | null => {
+    try {
+      return faqEntryById(id).topic.path
+    } catch {
+      return null
+    }
+  }
+
+  /** Everything wrong with one link, as sentences. */
+  function linkProblems({ path, phrase, href, words }: Linked): string[] {
+    const problems: string[] = []
+    if (!words.some((entry) => entry.includes(phrase))) {
+      problems.push(`${path}: "${phrase}" is not in its block's words`)
+    }
+    const [page = '', anchor] = href.split('#')
+    if (page === path) problems.push(`${path}: "${phrase}" links to its own page`)
+    if (page.startsWith('/guides/')) {
+      if (!GUIDE_PATHS.includes(page)) problems.push(`${path}: "${phrase}" → no guide ${page}`)
+    } else if (page.startsWith('/products/')) {
+      if (!/^\/products\/[a-z0-9-]+$/.test(page)) problems.push(`${path}: "${phrase}" → ${href}`)
+    } else if (page === '/glossary' && anchor) {
+      if (!GLOSSARY_TERMS.some((term) => term.id === anchor)) {
+        problems.push(`${path}: "${phrase}" → no glossary term ${anchor}`)
+      }
+    } else if (page.startsWith('/faq') && anchor) {
+      if (faqTopicOf(anchor) !== page) problems.push(`${path}: "${phrase}" → no FAQ entry ${href}`)
+    } else if (!PUBLIC_PAGE_SOURCES.includes(page)) {
+      problems.push(`${path}: "${phrase}" → ${href} is not a public page`)
+    }
+    return problems
+  }
+
+  it('every link’s phrase is in its block, and every link points somewhere real', () => {
+    const linked = linkedIn(GUIDES)
+    // The library's new guides link to each other and to the site's pages (140 when built).
+    expect(linked.length).toBeGreaterThan(100)
+    expect(linked.flatMap(linkProblems)).toEqual([])
+  })
+
+  // NEGATIVE CONTROL, run both ways: each kind of wrong link is named; the real links name nothing (above).
+  it('sees a phrase not in its words, a missing guide, term, entry or page', () => {
+    const planted = (phrase: string, href: string): Linked => ({
+      path: '/guides/clothing-labels',
+      phrase,
+      href,
+      words: ['Care symbols are in our trims guide.'],
+    })
+    expect(linkProblems(planted('our fabrics guide', '/guides/apparel-trims'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/guides/no-such-guide'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/glossary#no-such-term'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/faq/working-with-us#no-such'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/no-such-page'))).toHaveLength(1)
+    expect(linkProblems(planted('our trims guide', '/guides/apparel-trims'))).toEqual([])
   })
 })

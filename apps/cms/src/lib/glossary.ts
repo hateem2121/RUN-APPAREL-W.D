@@ -376,8 +376,11 @@ export const GLOSSARY_TERMS: readonly GlossaryTerm[] = [
     seeAlso: [SHIPPING_GUIDE, '/faq/shipping-and-importing#incoterms'],
   },
   shipping('exw', 'EXW (Ex Works)', 'EXW'),
+  // FCA (on request) and DAP joined the shipping guide (owner, 2026-11-06), read from its points.
+  shipping('fca', 'FCA (Free Carrier)', 'FCA'),
   shipping('fob', 'FOB (Free On Board)', 'FOB'),
   shipping('cfr-cif', 'CFR and CIF', 'CFR and CIF'),
+  shipping('dap', 'DAP (Delivered at Place)', 'DAP'),
   shipping('ddp', 'DDP (Delivered Duty Paid)', 'DDP'),
 
   standard('sedex-smeta', 'Sedex and SMETA', 'sedex-smeta'),

@@ -658,6 +658,12 @@ describe('raw values in component stylesheets', () => {
    * also be named in docs/DESIGN.md §3, so the prose index cannot drift from the CSS.
    */
   const DISPLAY_RANGES = [
+    // A guide heading with a very long word shrinks to fit it (buyer library, 2026-11-06; GuidePage.tsx).
+    {
+      file: 'site.css',
+      selector: '.fit-heading > .fit-words',
+      value: 'min(1em, calc(100cqi / (var(--fit-letters, 14) * 0.9)))',
+    },
     {
       file: 'site.css',
       selector: '.display.display--hero.hero-family--wide-word',
