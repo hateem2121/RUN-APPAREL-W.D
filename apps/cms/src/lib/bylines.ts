@@ -211,8 +211,18 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, LIBRARY, 'b94de6c5ba53'),
   '/guides/sportswear-fibers': byline(AUTHORS.production, LIBRARY, LIBRARY, '1a47decee35b'),
   '/guides/yarn-count-and-denier': byline(AUTHORS.production, LIBRARY, LIBRARY, '961eae748c05'),
-  '/guides/sportswear-pattern-making': byline(AUTHORS.production, LIBRARY, LIBRARY, 'd0999142c64a'),
-  '/guides/stitch-and-seam-types': byline(AUTHORS.production, LIBRARY, LIBRARY, 'ec090dc47cc8'),
+  '/guides/sportswear-pattern-making': byline(
+    AUTHORS.production,
+    LIBRARY,
+    TECH_PACK_AND_TOOLS,
+    'd07809665122',
+  ),
+  '/guides/stitch-and-seam-types': byline(
+    AUTHORS.production,
+    LIBRARY,
+    TECH_PACK_AND_TOOLS,
+    '3599de0b12a7',
+  ),
   '/guides/outerwear-and-waterproof-fabrics': byline(
     AUTHORS.production,
     LIBRARY,
@@ -233,7 +243,12 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     LIBRARY,
     'ae16757f67c8',
   ),
-  '/guides/apparel-design-software': byline(AUTHORS.contentTeam, LIBRARY, LIBRARY, 'e4f24da215d4'),
+  '/guides/apparel-design-software': byline(
+    AUTHORS.contentTeam,
+    LIBRARY,
+    TECH_PACK_AND_TOOLS,
+    '68ac190a4b52',
+  ),
   '/guides/how-to-order-team-kits': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, 'fa70bce55438'),
   '/guides/apparel-manufacturing-technology': byline(
     AUTHORS.contentTeam,

@@ -16,8 +16,9 @@ import type { Guide } from './guides'
  * (the owner's rule, 2026-11-05: "Standard ranges only").
  *
  * Three guides wait for facts from the owner's team (the inspection and testing guides, and the
- * report of what buyers asked), and the tech pack guide waits for its download form. Bullets that
- * point at them are added back when each one is published.
+ * report of what buyers asked). Bullets that point at them are added back when each one is
+ * published, as the tech pack guide's three were when it joined with its download form (C1, the
+ * last entry here, 2026-11-06).
  */
 const fact = (prefix: string): string =>
   FACTS.find((entry) => entry.label.startsWith(prefix))?.value ?? ''
@@ -2308,9 +2309,12 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'A reference garment. If you have one, send it. It is welcome, and we hold on to it so a reorder matches the first run.',
+              // Back with the tech pack guide (C1, 2026-11-06), in the draft's place.
+              'Writing the measurements. How to set out each point of measure in a tech pack is in our tech pack guide.',
               'Who owns the pattern. Our minimum order guide covers pattern ownership.',
             ],
             links: [
+              { phrase: 'our tech pack guide', href: '/guides/tech-pack-template' },
               { phrase: 'Our minimum order guide', href: '/guides/minimum-order-and-samples' },
             ],
           },
@@ -2741,7 +2745,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'An example. Written out, a side seam could read: stitch 514, superimposed seam, ISO 4916 class 1.',
+              // Back with the tech pack guide (C1, 2026-11-06), in the draft's place.
+              'The rest of your spec. Our tech pack guide sets out what else a spec states.',
             ],
+            links: [{ phrase: 'Our tech pack guide', href: '/guides/tech-pack-template' }],
           },
         ],
       },
@@ -5026,7 +5033,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'What researchers report. PLM comes in modules for many industry processes, and the authors of a 2015 study say it shortens lead times and cuts inventory.',
               'The risk. A 2021 study describes fashion as new to PLM, and warns that a lack of clear implementation guidelines significantly raises the risk of failure.',
               'On our floor. We do not use a PLM system. Our tech packs are made in spreadsheets, as PDF files or with CLO’s tech pack.',
+              // Back with the tech pack guide (C1, 2026-11-06), in the draft's place.
+              'What goes in one. Our tech pack guide lists what a tech pack holds and has a free template.',
             ],
+            links: [{ phrase: 'Our tech pack guide', href: '/guides/tech-pack-template' }],
           },
         ],
       },

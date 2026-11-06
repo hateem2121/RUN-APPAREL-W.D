@@ -53,13 +53,6 @@ const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
  * labelled the family's. `companyRelationship.test.ts` holds the words.
  */
 const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
-/**
- * The privacy page names the UK regulator by its new name, the Information Commission (owner approved,
- * 2026-11-05): the office of Information Commissioner was abolished on 30 Sep 2026 (SI 2026/1015).
- * It replaced the privacy page's date of 2026-10-30 (the cookie paragraph on contact taps), its last
- * use, so that constant went with it.
- */
-const UK_REGULATOR = '2026-11-05T22:05:04+05:00'
 /** The buyer pages' "What we make" lines became links (`makesHref`, written 2026-10-29, landed on 2026-11-01). */
 const MAKES_LINKS = '2026-11-01T12:11:19+05:00'
 
@@ -102,7 +95,11 @@ const LIBRARY = '2026-11-06T17:05:02+05:00'
  * home page's order step, the FAQ's Incoterms answer and its topic's description, and the glossary.
  */
 const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
-/** The tech pack guide joins the index and the "Working with us" topic (C1, owner approved 2026-11-06). */
+/**
+ * The tech pack guide and its template (C1, owner approved 2026-11-06): it joins the guide index and
+ * the "Working with us" topic, and the privacy page gains "Template downloads". It replaced the privacy
+ * page's date of 2026-11-05 (the UK regulator's new name), its last use, so that constant went with it.
+ */
 const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
@@ -128,7 +125,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
   '/case-studies': page(FINDABILITY, '9c1974b3c7f3'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
-  '/privacy': page(UK_REGULATOR, '060578c2bd49'),
+  '/privacy': page(TECH_PACK_AND_TOOLS, '8ff169a4d426'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 

@@ -242,6 +242,8 @@ const PRIMARY_LABELS = [
   /^Send inquiry$/,
   // The careers form's Send (owner, F23, 2026-10-07).
   /^Send application$/,
+  // The tech pack guide's download form (C1, 2026-11-06): its one action, as the forms' Sends are.
+  /^Download the template$/,
 ]
 
 for (const viewport of [

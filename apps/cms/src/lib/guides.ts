@@ -3356,6 +3356,8 @@ export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
   '/guides/apparel-design-software': [
     '/guides/sportswear-pattern-making',
     '/guides/3d-garment-reference',
+    // The draft's third, back with the tech pack guide (C1, 2026-11-06).
+    '/guides/tech-pack-template',
   ],
   '/guides/how-to-order-team-kits': [
     '/guides/minimum-order-and-samples',

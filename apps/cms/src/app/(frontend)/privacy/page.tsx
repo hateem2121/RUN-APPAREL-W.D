@@ -84,6 +84,9 @@ const SECTIONS = [
   { id: 'outreach', title: 'When we write to you first' },
   // The careers form (owner-approved words, 2026-10-07); the form's privacy line links here.
   { id: 'job-applications', title: 'Job applications' },
+  // The tech pack template's download form (owner-approved words, 2026-11-06); the form's notice
+  // beside its button links here, so the id is a contract too.
+  { id: 'template-downloads', title: 'Template downloads' },
   { id: 'why-we-are-allowed', title: 'Why we are allowed to' },
   { id: 'how-long-we-keep-it', title: 'How long we keep it' },
   { id: 'where-it-goes', title: 'Where it goes' },
@@ -300,6 +303,51 @@ export default async function PrivacyPage() {
             <p>
               <strong>How long we keep it.</strong> We keep your application, and any CV, for up to
               12 months, then delete it. If you would like it deleted sooner, email us and we will.
+            </p>
+
+            {/*
+             * The tech pack template's download form (C1; the owner approved these words and chose
+             * each legal setting on 2026-11-06: legitimate interests, 2 years from the last contact,
+             * subscribers kept until they stop, "nothing else" covering email, WhatsApp and phone,
+             * Resend and Hostinger). The form's line beside its button links `#template-downloads`.
+             * The mailbox is the Site Settings email, the address the download route sends the notice
+             * to (`download/route.ts`), so this sentence names where the notice really goes.
+             */}
+            {heading('template-downloads')}
+            <p>
+              <strong>When you download a template.</strong> To download our tech pack template, you
+              give us your name, company email address, company and country, and, if you choose,
+              your WhatsApp number and job title. The first four are required; without them, we
+              cannot give you the template.
+            </p>
+            <p>
+              <strong>What we do with them.</strong> We give you the template, keep your details in
+              our website&rsquo;s system, and email them to our {settings.email} mailbox and to M.
+              Hateem Jamshaid, our Business Development Director, so that we know who downloaded it.
+            </p>
+            <p>
+              <strong>Why we are allowed to.</strong> Our legitimate interest in sending you the
+              template you asked for and knowing which businesses use it.
+            </p>
+            <p>
+              <strong>Updates, only if you ask.</strong> A second box, which starts unticked, lets
+              you ask for occasional updates from us. We send them only if you tick it, and we keep a
+              record that you did. Every update carries a link to stop them, and you can withdraw
+              your consent at any time by writing to{' '}
+              <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. If you leave the box
+              unticked, we do not email, message or call you unless you write to us first.
+            </p>
+            <p>
+              <strong>How long we keep them.</strong> Your details are kept for 2 years from our last
+              contact with you. If you tick the updates box, we keep your email address and the
+              record of your yes until you stop the updates. If you stop the updates, we keep just
+              your email address, so that no update reaches you again.
+            </p>
+            <p>
+              <strong>Where they go.</strong> Our website&rsquo;s system runs on Cloudflare. Resend
+              delivers the download notice to us, and Hostinger hosts our mailboxes. We work in
+              Pakistan, and Cloudflare processes data in places including the United States, so your
+              details leave the European Union and the UK.
             </p>
 
             {heading('why-we-are-allowed')}
