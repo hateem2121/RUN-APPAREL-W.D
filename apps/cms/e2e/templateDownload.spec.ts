@@ -15,10 +15,10 @@ import { expect, type Page, test } from './offlineMedia'
 const GUIDE = '/guides/tech-pack-template'
 
 async function fillForm(page: Page) {
-  await page.getByLabel('Name').fill('Test Buyer')
-  await page.getByLabel('Company email').fill('buyer@e2e.example')
-  await page.getByLabel('Company', { exact: true }).fill('E2E Club')
-  await page.getByLabel('Country').fill('Canada')
+  await page.locator('#template-name').fill('Test Buyer')
+  await page.locator('#template-email').fill('buyer@e2e.example')
+  await page.locator('#template-company').fill('E2E Club')
+  await page.locator('#template-country').fill('Canada')
 }
 
 /** A saved file is a zip (an .xlsx is one) whose first entry is the content-types part. */
@@ -77,8 +77,8 @@ test.describe('the tech pack template download', () => {
     await expect(page.getByText('Enter your company email address.')).toBeVisible()
     await expect(page.getByText('Enter your company’s name.')).toBeVisible()
     await expect(page.getByText('Enter your country.')).toBeVisible()
-    await expect(page.getByLabel('Name')).toBeFocused()
-    await expect(page.getByLabel('Name')).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.locator('#template-name')).toBeFocused()
+    await expect(page.locator('#template-name')).toHaveAttribute('aria-invalid', 'true')
     expect(posted, 'an empty form reached the server').toBe(false)
   })
 
@@ -87,12 +87,12 @@ test.describe('the tech pack template download', () => {
   }) => {
     await page.goto(GUIDE)
     await expect(page.getByLabel('Send me occasional updates')).not.toBeChecked()
-    for (const label of ['Name', 'Company email', 'Country']) {
-      await expect(page.getByLabel(label)).toHaveAttribute('required', '')
+    // By id: a needed box's label ends in its "*", so a label locator is fragile here.
+    for (const id of ['name', 'email', 'company', 'country']) {
+      await expect(page.locator(`#template-${id}`)).toHaveAttribute('required', '')
     }
-    await expect(page.getByLabel('Company', { exact: true })).toHaveAttribute('required', '')
-    await expect(page.getByLabel('Job title')).not.toHaveAttribute('required', '')
-    await expect(page.getByLabel('WhatsApp number')).not.toHaveAttribute('required', '')
+    await expect(page.locator('#template-job')).not.toHaveAttribute('required', '')
+    await expect(page.locator('#template-whatsapp')).not.toHaveAttribute('required', '')
   })
 
   test('a refusal comes back as its own message, focused', async ({ page }) => {

@@ -11,11 +11,13 @@ import type { ProductCard } from '../../lib/projectPublic'
 import { HALF_COLUMN_SIZES } from './FactoryFigure'
 import {
   FIT_FROM_LETTERS,
+  fitLetters,
   GuidePage,
   isWideTable,
   LinkedWords,
   longestWord,
   WholeWords,
+  wordEm,
 } from './GuidePage'
 
 /**
@@ -504,6 +506,29 @@ describe('the buyer library’s page parts (2026-11-06)', () => {
     // A guide with no word that long carries neither.
     expect(longestWord(`${guideAt('/guides/garment-cutting').heading}`)).toBeLessThan(
       FIT_FROM_LETTERS,
+    )
+  })
+
+  it('fits a heading by its widest word’s real width, not its letter count (TY-12, 6 Nov 2026)', () => {
+    // "MEASUREMENTS" is 12 letters and 11.03em measured: two M's at 1.13em. At 12 "letters" of 0.9em
+    // (10.8em) it split; its width with the 4% margin needs 12.75.
+    expect(wordEm('measurements')).toBeCloseTo(11.03, 1)
+    expect(fitLetters('Body measurements and garment measurements')).toBeGreaterThan(12.7)
+    // NEGATIVE CONTROL: the rule that split it counted letters.
+    expect(longestWord('Body measurements and garment measurements') * 0.9).toBeLessThan(
+      wordEm('measurements'),
+    )
+    // A word of narrow letters never shrinks less than the letter count did.
+    expect(fitLetters('specifications')).toBe(14)
+    expect(fitLetters('What moisture-wicking means')).toBe(16)
+    // An accented letter counts as its base letter; an unmeasured character as the widest, W.
+    expect(wordEm('é')).toBeCloseTo(wordEm('e'), 5)
+    expect(wordEm('þ')).toBeCloseTo(wordEm('w'), 5)
+    // "ß" draws in capitals as "SS", as text-transform does, so it counts as two S's.
+    expect(wordEm('ß')).toBeCloseTo(wordEm('ss'), 5)
+    const fitted = render(guideAt('/guides/tech-pack-template'))
+    expect(fitted).toContain(
+      `--fit-letters:${fitLetters('Body measurements and garment measurements')}`,
     )
   })
 })
