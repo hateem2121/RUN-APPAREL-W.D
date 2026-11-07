@@ -4166,6 +4166,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'The law’s own word. It calls the first step "tissage", weaving.',
+              'The ministry’s own FAQ (November 2025) counts knitting, and making a nonwoven fabric, as part of that step.',
               'Who it reaches. Producers, importers and other sellers with turnover above €10 million that place at least 10,000 units of these products on the French market each year. It began with the largest, from 1 January 2023, and reached that level on 1 January 2025.',
               'The environmental cost display. France’s display of a garment’s environmental cost is voluntary and in force from 1 October 2025.',
               'Ultra-fast fashion. A law of 8 July 2026 targets "mode ultra-express", ultra-fast fashion. Its penalties through eco-contributions apply from 1 September 2026 and its advertising ban from 1 January 2027. A decree sets the thresholds that decide which businesses it reaches. The penalty amounts change by year: read them in the law on Légifrance.',
@@ -4303,6 +4304,16 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000045726094',
         date: '2022-04-30',
         kind: 'published',
+      },
+      {
+        // Owner-approved line, 7 Nov 2026. Question 2.9.3, PDF page 14: "Tissage : les opérations de
+        // tissage, tricotage ou l'obtention d'une étoffe « non-tissée »." ecologie.gouv.fr refused the
+        // connection four times from here (6-7 Nov, 76 s each), so it was read from the Internet
+        // Archive's copy of this same URL (snapshot 20260516080842; 19 pages, "mise à jour novembre 2025").
+        name: 'ecologie.gouv.fr, FAQ on Décret n° 2022-748 (article 13-I of the AGEC law), November 2025 version, question 2.9.3',
+        url: 'https://www.ecologie.gouv.fr/sites/default/files/documents/FAQ_article_13-I_AGEC_version-novembre_2025_vF_FR.pdf',
+        date: '2026-11-07',
+        kind: 'read',
       },
       {
         name: 'Légifrance, Décret n° 2025-957 du 6 septembre 2025 (environmental cost of textiles) †',
