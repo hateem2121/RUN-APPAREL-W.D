@@ -50,6 +50,13 @@ const ROUTE_ROOT = 'apps/cms/src/app/(frontend)/'
  */
 export const SOURCE_FILE_PATHS = {
   'apps/cms/src/lib/guides.ts': GUIDE_PAGE_SOURCES,
+  // ⚠️ MISSED FOR A DAY (6-7 Nov 2026): 25 guides' words live in guideLibrary.ts, which guides.ts
+  // spreads into its list, and the three guide tools' words in guideTools.ts. Only guides.ts was a
+  // key, so #334 (vetting guide) and #340 (compliance guide) deployed with "No public page changed"
+  // and Bing heard of neither. indexnowPaths.test.ts now fails when guides.ts spreads in a list
+  // from a file that is not a key here.
+  'apps/cms/src/lib/guideLibrary.ts': GUIDE_PAGE_SOURCES,
+  'apps/cms/src/lib/guideTools.ts': GUIDE_PAGE_SOURCES,
   'apps/cms/src/lib/familyPages.ts': FAMILY_PAGE_SOURCES,
   'apps/cms/src/lib/policies.ts': POLICY_PAGE_SOURCES,
   'apps/cms/src/lib/companyPages.ts': COMPANY_PAGE_SOURCES,
