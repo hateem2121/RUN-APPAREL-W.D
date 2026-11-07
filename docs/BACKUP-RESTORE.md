@@ -66,10 +66,11 @@ A backup nobody has restored is a hypothesis. Add a row each time one is run.
 | 2026-07-29 | D1 Time Travel, after the migration that emptied two tables | Worked; became the documented first resort |
 | 2026-08-05 | D1 restore from a nightly SQL dump | Worked, **and found the written instructions were wrong** — they were corrected as a result |
 | 2026-11-07 | R2 media restore from the ENCRYPTED weekly mirror (2 Nov, `r2-backup-41421287021`, 513.4 MB): owner decrypted with the backup key, all 653 media files restored into a temporary bucket `run-apparel-restore-drill` (then deleted), nothing live written | **Worked.** Backup, live bucket and restored bucket gave the same fingerprint of every key, size and MD5 (653 files, 428,609,896 bytes); a restored model parsed as glTF 2.0 with its colour variants. **Measured RTO for media: ~7 min of machine time** (download 2 m 44 s, restore 3 m 28 s with 8 uploads at once, checks ~1 min) plus the owner finding the key; 16 min 11 s door to door. Found two traps, both now below: the unlock line could print "OK" after age failed, and `r2 bucket info` can report 0 objects for a full bucket |
+| 2026-11-07 | D1 restore of that night's dump (`run-private`, 14.9 MB; the same dump as the encrypted artifact, whose unlock the R2 drill had just proven) into a temporary database, then deleted | **Failed as written, then worked.** The runbook's import failed twice on D1 (`no such table: main.users`, then `FOREIGN KEY constraint failed`): the export orders a child before its parent. `scripts/order-d1-dump.mjs` (new) fixed it: 50 tables, 30,360 rows loaded in **46 s**. 48 of 50 tables matched live exactly (products 69, colourways 210, media 653, users 2); the other two were explained to the row: 60 events the run pruned after the dump (90-day rule), and 1 page visit since. Live D1 was read only, 0 rows written |
 
-**Next drill due: 2027-02-07** (quarterly). The one worth doing next is a D1 restore from the
-ENCRYPTED nightly artifact (`d1-backup-<run>`): the 2026-08-05 drill used an unencrypted dump,
-so the decrypt step has been proven only for R2.
+**Next drill due: 2027-02-07** (quarterly). Worth doing next: the D1 restore from the ENCRYPTED
+nightly artifact (`d1-backup-<run>`) end to end; on 2026-11-07 the D1 drill used the R2 copy of the
+same dump, because the owner's key had been proven on the R2 mirror that day.
 
 🟡 **This drill cannot be handed to a scheduled workflow, and that is by design.**
 Considered and rejected 2026-09-27: the weekly mirror is `r2-mirror.tar.age`, encrypted to
@@ -236,13 +237,23 @@ is gone.
 > `no such table: colourways`. Colours now live in `products_colourways`.
 > If you add a table, add it here — a restore nobody has run is not a backup.
 
+🔴 **A dump straight from `wrangler d1 export` does NOT load into D1 — reorder it first.** The
+2026-11-07 drill: `no such table: main.users`, because the export writes a `users_sessions` row
+before it creates `users`; after reordering only the tables, `FOREIGN KEY constraint failed`,
+because D1 loads a file in batches, so a child ROW ahead of its parent row fails too. D1 cannot
+switch foreign keys off. `scripts/order-d1-dump.mjs` puts tables and rows parents first, changes no
+statement, and refuses to write unless the result loads with every row checked and every table
+holds the same count. The nightly backup runs it on every dump.
+
 ```bash
+# 0. from the repository root: make the dump loadable into D1 (it proves itself, exit 1 if not)
+node scripts/order-d1-dump.mjs backups/d1/run-apparel-viewer-db-<timestamp>.sql backups/d1/ordered.sql
 cd apps/cms
 # 1. create a scratch DB
 npx wrangler@4.153.0 d1 create run-apparel-viewer-db-restore-test
-# 2. load the backup into it
+# 2. load the REORDERED backup into it (46 s for 30,360 rows on 2026-11-07)
 npx wrangler@4.153.0 d1 execute run-apparel-viewer-db-restore-test --remote \
-  --file ../../backups/d1/run-apparel-viewer-db-<timestamp>.sql
+  --file ../../backups/d1/ordered.sql
 # 3. sanity-check row counts
 npx wrangler@4.153.0 d1 execute run-apparel-viewer-db-restore-test --remote \
   --command "SELECT (SELECT count(*) FROM products) AS products, (SELECT count(*) FROM products_colourways) AS colourways, (SELECT count(*) FROM media) AS media, (SELECT count(*) FROM raw_uploads) AS raw_uploads;"
@@ -255,7 +266,7 @@ npx wrangler@4.153.0 d1 delete run-apparel-viewer-db-restore-test
 ```bash
 cd apps/cms
 npx wrangler@4.153.0 d1 execute run-apparel-viewer-db --remote \
-  --file ../../backups/d1/run-apparel-viewer-db-<timestamp>.sql
+  --file ../../backups/d1/ordered.sql   # made by step 0 above, never the raw export
 curl -f https://cms.wear-run.help/api/health     # confirm the CMS is back
 ```
 
