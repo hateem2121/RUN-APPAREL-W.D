@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -14,6 +14,7 @@ import {
   gitChangedFiles,
   indexNowSelection,
   pathsForChangedFiles,
+  SOURCE_FILE_PATHS,
 } from '../../../scripts/indexnow-paths.mjs'
 import { urlsForPaths } from '../../../scripts/ping-indexnow.mjs'
 
@@ -25,12 +26,28 @@ import { urlsForPaths } from '../../../scripts/ping-indexnow.mjs'
  */
 
 const ROUTES = 'apps/cms/src/app/(frontend)'
+const LIB = join(import.meta.dirname, 'lib')
 
 describe('which pages a changed source file tells search engines about', () => {
   it('a changed guide file sends only guide paths', () => {
     const paths = pathsForChangedFiles(['apps/cms/src/lib/guides.ts'])
     expect(paths).toEqual(GUIDE_PAGE_SOURCES)
     expect(paths.every((p: string) => p === '/guides' || p.startsWith('/guides/'))).toBe(true)
+  })
+
+  it('the guide library and the guide tools send the guide paths too (missed 6-7 Nov 2026)', () => {
+    expect(pathsForChangedFiles(['apps/cms/src/lib/guideLibrary.ts'])).toEqual(GUIDE_PAGE_SOURCES)
+    expect(pathsForChangedFiles(['apps/cms/src/lib/guideTools.ts'])).toEqual(GUIDE_PAGE_SOURCES)
+  })
+
+  it('every guide list guides.ts spreads in comes from a file that is a key', () => {
+    // The next file of guides is caught here, not by a deploy that announces nothing.
+    const source = readFileSync(join(LIB, 'guides.ts'), 'utf8')
+    const lists = [...source.matchAll(/^import \{([^}]*)\} from '\.\/(\w+)'/gm)]
+      .filter(([, names]) => /\w*GUIDES\b/.test(names ?? ''))
+      .map(([, , file]) => `apps/cms/src/lib/${file}.ts`)
+    expect(lists).toContain('apps/cms/src/lib/guideLibrary.ts')
+    for (const file of lists) expect(SOURCE_FILE_PATHS, file).toHaveProperty([file])
   })
 
   it('the buyer pages, policies and company pages each follow the file that holds their words', () => {
