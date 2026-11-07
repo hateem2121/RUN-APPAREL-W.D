@@ -28,11 +28,10 @@ on:
 
 # See uptime.yml's own comment on this block: it REPLACES the default grants rather
 # than adding to them, and omitting `contents: read` breaks `actions/checkout` outright.
-# The rules endpoint needs no more than that: the repository is public. `security-events: read`
-# (2026-11-07) lets scripts/check-live-settings.mjs read code scanning's default setup.
+# The rules endpoint needs no more than that: the repository is public, and so do the production
+# environment's settings that scripts/check-live-settings.mjs reads.
 permissions:
   contents: read
-  security-events: read
 
 # No job here uses the Actions cache, so it may neither read nor write one. Scheduled and
 # manual runs would otherwise be allowed to WRITE it (GitHub `cache-mode`, 2026-10-01: least
@@ -72,7 +71,8 @@ jobs:
         run: node scripts/check-required-checks.mjs
 
       # The other settings the notes rely on (2026-11-07; the script says why): the production
-      # environment's branch rule and code scanning's setup. Same exit codes: a failed read warns.
+      # environment's branch rule (code scanning needs a permission no workflow token has; the
+      # script says why). Same exit codes: a failed read warns.
       - name: Compare the live settings with the notes
         env:
           GITHUB_TOKEN: ${{ github.token }}

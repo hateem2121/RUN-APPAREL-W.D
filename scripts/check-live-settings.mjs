@@ -2,7 +2,7 @@
 /**
  * Live settings the notes rely on, compared with what the notes say.
  *
- *   node scripts/check-live-settings.mjs github   # GITHUB_TOKEN (security-events: read)
+ *   node scripts/check-live-settings.mjs github   # GITHUB_TOKEN with contents: read is enough
  *   node scripts/check-live-settings.mjs r2       # CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID
  *
  * WHY (2026-11-07). Two gaps found that day had sat open for weeks while the notes described
@@ -30,11 +30,11 @@ export const EXPECTED = {
     // .github/CLAUDE.md, "Since 2026-11-07 … lets ONLY `main` use its six secrets".
     'production environment: branch policy': 'custom',
     'production environment: allowed branches': ['main'],
-    // .github/CLAUDE.md: default setup at the EXTENDED suite since 2026-10-01 (owner).
-    'code scanning: state': 'configured',
-    'code scanning: query suite': 'extended',
-    'code scanning: covers workflows': true,
-    'code scanning: covers JS/TS': true,
+    // NOT code scanning's setup: GitHub's docs ("Get a code scanning default setup configuration",
+    // read 2026-11-07) need the "Administration" permission, which a workflow token can never hold.
+    // The first daily run (42367186994) got HTTP 403 there — and because the three reads were
+    // bundled, it then compared NOTHING while the step stayed green. Read it by hand instead:
+    // `gh api repos/hateem2121/RUN-APPAREL-W.D/code-scanning/default-setup`.
   },
   r2: {
     // docs/BACKUP-RESTORE.md, "The R2 copies EXPIRE (owner decision, 2026-11-07)".
@@ -58,9 +58,8 @@ export function compareSettings(live, expected) {
 }
 
 /** GitHub's answers → the flat shape EXPECTED.github uses. */
-export function githubSettings({ environment, branchPolicies, codeScanning }) {
+export function githubSettings({ environment, branchPolicies }) {
   const p = environment?.deployment_branch_policy
-  const languages = codeScanning?.languages ?? []
   return {
     'production environment: branch policy': !p
       ? 'none (any branch)'
@@ -72,10 +71,6 @@ export function githubSettings({ environment, branchPolicies, codeScanning }) {
     'production environment: allowed branches': (branchPolicies?.branch_policies ?? [])
       .map((b) => (b.type === 'tag' ? `tag:${b.name}` : b.name))
       .sort(),
-    'code scanning: state': codeScanning?.state,
-    'code scanning: query suite': codeScanning?.query_suite,
-    'code scanning: covers workflows': languages.includes('actions'),
-    'code scanning: covers JS/TS': languages.includes('javascript-typescript'),
   }
 }
 
@@ -115,16 +110,15 @@ async function readGithub() {
     ...(token ? { authorization: `Bearer ${token}` } : {}),
   }
   const api = `https://api.github.com/repos/${REPOSITORY}`
-  const [environment, branchPolicies, codeScanning] = await Promise.all([
+  const [environment, branchPolicies] = await Promise.all([
     getJson(`${api}/environments/production`, headers, 'the production environment'),
     getJson(
       `${api}/environments/production/deployment-branch-policies`,
       headers,
       'its branch policies',
     ),
-    getJson(`${api}/code-scanning/default-setup`, headers, 'code scanning'),
   ])
-  return githubSettings({ environment, branchPolicies, codeScanning })
+  return githubSettings({ environment, branchPolicies })
 }
 
 async function readR2() {
