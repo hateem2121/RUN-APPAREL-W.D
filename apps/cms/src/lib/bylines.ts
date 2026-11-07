@@ -128,8 +128,11 @@ const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
 const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 /** The vetting guide's SECP QR-code line, owner approved as written on 2026-11-07. */
 const SECP_QR_LINE = '2026-11-07T00:05:06+05:00'
-/** The compliance guide's line that France's "tissage" includes knitting, owner approved on 2026-11-07. */
-const FRANCE_KNIT_LINE = '2026-11-07T12:19:36+05:00'
+/*
+ * The compliance guide's line that France's "tissage" includes knitting (owner approved, 2026-11-07),
+ * and its sources without the drafting team's "†" (it meant "read through the web-fetch tool").
+ */
+const FRANCE_KNIT_LINE = '2026-11-07T12:23:35+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -239,7 +242,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     AUTHORS.merchandiser,
     LIBRARY,
     FRANCE_KNIT_LINE,
-    'dfb760c71f28',
+    'bb4939039ea9',
   ),
   '/guides/apparel-manufacturing-machinery': byline(
     AUTHORS.production,

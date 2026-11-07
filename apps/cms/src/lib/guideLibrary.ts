@@ -4294,13 +4294,13 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'published',
       },
       {
-        name: 'Légifrance, Code de l’environnement, articles R541-227, R541-228 and R541-230 (in force from 8 April 2024, Décret n° 2024-316) †',
+        name: 'Légifrance, Code de l’environnement, articles R541-227, R541-228 and R541-230 (in force from 8 April 2024, Décret n° 2024-316)',
         url: 'https://www.legifrance.gouv.fr/codes/id/LEGISCTA000049384739',
         date: '2024-04-08',
         kind: 'updated',
       },
       {
-        name: 'Légifrance, Décret n° 2022-748 du 29 avril 2022, initial text, article 3 (the phase-in dates) †',
+        name: 'Légifrance, Décret n° 2022-748 du 29 avril 2022, initial text, article 3 (the phase-in dates)',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000045726094',
         date: '2022-04-30',
         kind: 'published',
@@ -4316,19 +4316,19 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'read',
       },
       {
-        name: 'Légifrance, Décret n° 2025-957 du 6 septembre 2025 (environmental cost of textiles) †',
+        name: 'Légifrance, Décret n° 2025-957 du 6 septembre 2025 (environmental cost of textiles)',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000052212871',
         date: '2025-09-06',
         kind: 'published',
       },
       {
-        name: 'Légifrance, arrêté du 23 décembre 2022 (approval of the textile producer organization) †',
+        name: 'Légifrance, arrêté du 23 décembre 2022 (approval of the textile producer organization)',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000046821065',
         date: '2022-12-28',
         kind: 'published',
       },
       {
-        name: 'Légifrance, LOI n° 2026-602 du 8 juillet 2026 visant à réduire l’impact environnemental de l’industrie textile †',
+        name: 'Légifrance, LOI n° 2026-602 du 8 juillet 2026 visant à réduire l’impact environnemental de l’industrie textile',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054399113',
         date: '2026-07-09',
         kind: 'published',
@@ -4394,7 +4394,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'updated',
       },
       {
-        name: 'CPSC, Clothing FAQ †',
+        name: 'CPSC, Clothing FAQ',
         url: 'https://www.cpsc.gov/FAQ/Clothing',
         date: '2026-11-06',
         kind: 'read',
@@ -4412,7 +4412,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'updated',
       },
       {
-        name: 'CPSC, Children’s Product Certificate (CPC) †',
+        name: 'CPSC, Children’s Product Certificate (CPC)',
         url: 'https://www.cpsc.gov/Business--Manufacturing/Testing-Certification/Childrens-Product-Certificate-CPC',
         date: '2026-11-06',
         kind: 'read',
@@ -4436,13 +4436,13 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'updated',
       },
       {
-        name: 'CPSC, Phthalates business guidance †',
+        name: 'CPSC, Phthalates business guidance',
         url: 'https://www.cpsc.gov/Business--Manufacturing/Business-Education/Business-Guidance/Phthalates-Information',
         date: '2026-11-06',
         kind: 'read',
       },
       {
-        name: 'CPSC, Phthalates FAQ †',
+        name: 'CPSC, Phthalates FAQ',
         url: 'https://www.cpsc.gov/FAQ/Phthalates',
         date: '2026-11-06',
         kind: 'read',
