@@ -37,11 +37,6 @@ const GITHUB_NOW = {
     deployment_branch_policy: { protected_branches: false, custom_branch_policies: true },
   },
   branchPolicies: { total_count: 1, branch_policies: [{ name: 'main', type: 'branch' }] },
-  codeScanning: {
-    state: 'configured',
-    query_suite: 'extended',
-    languages: ['actions', 'javascript', 'javascript-typescript', 'python', 'typescript'],
-  },
 }
 
 test('today’s live settings match the notes', () => {
@@ -93,4 +88,17 @@ test('a second allowed branch is a difference, not a pass', () => {
     },
   }
   assert.equal(compareSettings(githubSettings(wider), EXPECTED.github).length, 1)
+})
+
+test('the github check asks only for what a workflow token may read (first run got a 403)', async () => {
+  const source = (await import('node:fs')).readFileSync(
+    new URL('./check-live-settings.mjs', import.meta.url),
+    'utf8',
+  )
+  // An address needing the Administration permission makes every run compare nothing.
+  assert.doesNotMatch(source, /getJson\(`\$\{api\}\/code-scanning/)
+  assert.deepEqual(Object.keys(EXPECTED.github), [
+    'production environment: branch policy',
+    'production environment: allowed branches',
+  ])
 })
