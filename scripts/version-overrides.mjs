@@ -110,6 +110,26 @@ export function judgeAnswer(status, body, worker, expected) {
   return body?.worker === worker && body?.version === expected ? 'ok' : 'wrong'
 }
 
+/**
+ * The negative control: WITHOUT the header, the answer must not come from the new version.
+ *
+ * ⚠️ It must accept a live version that predates the version address. The first deploy of it
+ * (run 42359271801, 2026-11-07) failed here while the overrides worked — both new versions
+ * answered their ids WITH the header — because the old CMS answered 404 and the old viewer its
+ * ordinary page (200, not JSON): neither had the address yet, so "expected the old id" could
+ * never pass. An answer with no version id from a live version is still proof the header was
+ * what reached the new one, since the new one answers its id at that address.
+ * @returns {'ok' | 'wrong' | 'inconclusive'}
+ */
+export function judgeControl(status, body, worker, newId, oldId) {
+  if ([403, 429, 503].includes(status)) return 'inconclusive'
+  if (body?.version === newId) return 'wrong'
+  if (status === 200 && body?.worker === worker && body?.version === oldId) return 'ok'
+  // The live version does not know the address: a 404, or the viewer's page shell (not JSON).
+  if ((status === 404 || status === 200) && (body === null || body?.version === undefined)) return 'ok'
+  return 'wrong'
+}
+
 function wrangler(dir, args) {
   const bin = process.env.WRANGLER_BIN ?? 'pnpm'
   const prefix = process.env.WRANGLER_BIN ? [] : ['exec', 'wrangler']
@@ -205,8 +225,11 @@ async function main([command, ...args]) {
         ['without it (negative control)', {}, old[worker]],
       ]) {
         const { status, body } = await ask(url, headers)
-        const verdict = judgeAnswer(status, body, worker, want)
-        const line = `${worker} ${label}: HTTP ${status}, answered ${body?.version ?? '?'}, expected ${want}`
+        const verdict =
+          want === fresh[worker]
+            ? judgeAnswer(status, body, worker, want)
+            : judgeControl(status, body, worker, fresh[worker], want)
+        const line = `${worker} ${label}: HTTP ${status}, answered ${body?.version ?? '(no version id)'}, expected ${want === fresh[worker] ? want : `not ${fresh[worker]}`}`
         if (verdict === 'ok') console.log(`✓ ${line}`)
         else if (verdict === 'inconclusive')
           console.log(`::warning::${line} — inconclusive (Bot Fight Mode), not a wrong version`)
