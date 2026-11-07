@@ -50,7 +50,7 @@ Tick only what applies. Each line is here because it has already gone wrong.
 - [ ] **Adds a Media relationship** — I updated *both* `isMediaReferenced` and
       `REFERENCE_PATHS` in `scripts/find-orphan-media.mjs`. One of them deletes files.
 - [ ] **Changes a workflow** — permissions are still least-privilege and every
-      `uses:` is still SHA-pinned (`workflowHardening.test.ts` will tell me).
+      `uses:` is locked in `actions.lock` (`gh actions-lock --verify`; `workflowHardening.test.ts` will tell me).
 
 ## 🚀 Deploy impact
 

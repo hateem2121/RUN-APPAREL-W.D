@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
       # RUNNER IMAGE FACTS, EARLY, SO A MISSING TOOL FAILS BY NAME. Every job here names
@@ -78,11 +78,11 @@ jobs:
             fi
           done
           exit "$missing"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           # THE PNPM STORE CACHE (GitHub's cache service): worth it here, where every job
@@ -176,13 +176,15 @@ jobs:
       # recorded there; the stricter `pedantic` persona's errors were fixed too.
       - name: zizmor (workflow security)
         env:
-          # 1.31.1 (2026-10-15) ran clean on every workflow here before this bump (25 Oct);
+          # 1.32.0 (2026-11-02): its experimental lockfile support reads .github/workflows/actions.lock,
+          # which every workflow runs from since 2026-11-07. 1.31.1 does not, and failed every
+          # lockfile-pinned tag as "not pinned to a hash" (PR #347's first run).
           # tool-versions.yml says when a newer one has been out a week.
-          ZIZMOR_VERSION: 1.31.1
-          ZIZMOR_SHA256_X64: 58e878eb2dbd2c6183c105e1ac28c14f7dd1eca44a783f1fe2a69647d012c410
-          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/7c/f7/ee2c8eedc7bf07f443a41aa12f828c7846fd17bab184c22403afd0cbb137/zizmor-1.31.1-py3-none-manylinux_2_28_x86_64.whl
-          ZIZMOR_SHA256_ARM64: d9b36840c560a8abe39d9ef3d077239aabf6d572c5c2b629c970592a617dbf6f
-          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/17/a9/a2e0721c169d116074f07cddf98a939886d422acd393537efd99a331475b/zizmor-1.31.1-py3-none-manylinux_2_24_aarch64.whl
+          ZIZMOR_VERSION: 1.32.0
+          ZIZMOR_SHA256_X64: 84a6acb975accc13408786a2bd274b572537ca19c933ebbc13e78f3988562071
+          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/6f/b2/45f4fcb6f428e774750709ecf5320ba6d96393c03b941d9f37a4586f6924/zizmor-1.32.0-py3-none-manylinux_2_28_x86_64.whl
+          ZIZMOR_SHA256_ARM64: 0cdd38fca6eb34ceb567548548d706332e3535ea66894b9168c048e03207b68c
+          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/be/18/8d66db6e98c89f5d647236e282062d8ccc73f7ba759f7ef8dd6204683518/zizmor-1.32.0-py3-none-manylinux_2_24_aarch64.whl
           # For the online audits (impostor-commit, known-vulnerable-actions). The job's
           # own read-only token; nothing here writes.
           GH_TOKEN: ${{ github.token }}
@@ -439,15 +441,15 @@ jobs:
           - { suite: site, dir: apps/cms, id: firefox-2, label: firefox 2/2, args: --project=firefox --shard=2/2 }
           - { suite: site, dir: apps/cms, id: webkit, label: webkit, args: --project=webkit --project=fontswap-webkit }
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@v6.1.0
       # setup-node WITHOUT a cache, for the reason measured beside `artwork` below: the
       # image ships Node 24 (Microsoft's `ARG NODE_VERSION=24`), and the repo runs Node 26
       # since 2026-10-23 (owner decision; 26 is Active LTS from 2026-10-28). `cache: ''`
       # keeps out the pnpm store cache, which cost more to save than it saved.
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           cache: ''
@@ -531,7 +533,7 @@ jobs:
       # merge. Kept one day: only the merged report is for reading.
       - name: Keep this shard's report for the merge
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: blob-${{ matrix.suite }}-${{ matrix.id }}
           path: ${{ matrix.dir }}/blob-report
@@ -545,7 +547,7 @@ jobs:
       # over the references for a person to LOOK AT before committing.
       - name: Keep the failing pages' new pictures (visual tests)
         if: ${{ failure() && matrix.suite == 'site' && startsWith(matrix.id, 'chromium') }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: visual-actual-${{ matrix.id }}
           path: apps/cms/test-results/**/*-actual.png
@@ -569,14 +571,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           # The pnpm store cache; the reason is beside `verify`'s setup-node.
@@ -585,7 +587,7 @@ jobs:
       - name: Collect the viewer shards' reports
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: blob-viewer-*
           path: ${{ runner.temp }}/blob/viewer
@@ -593,7 +595,7 @@ jobs:
       - name: Collect the public-site shards' reports
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: blob-site-*
           path: ${{ runner.temp }}/blob/site
@@ -617,7 +619,7 @@ jobs:
       - name: Keep the merged report (14 days)
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: playwright-report-${{ github.sha }}
           path: ${{ runner.temp }}/report
@@ -651,14 +653,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           # The pnpm store cache; the reason is beside `verify`'s setup-node.
@@ -756,7 +758,7 @@ jobs:
       # the day Advanced Security exists again.
       - name: Dependency review (pull requests on a public repository only)
         if: github.event_name == 'pull_request' && github.event.repository.private == false
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        uses: actions/dependency-review-action@v5.0.0
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
@@ -764,7 +766,7 @@ jobs:
       - name: SBOM + licence policy
         run: node scripts/sbom.mjs sbom.cdx.json
 
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: sbom-${{ github.sha }}
@@ -793,10 +795,10 @@ jobs:
       contents: read
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0 # full history — a secret is usually in an older commit
@@ -922,14 +924,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           # The pnpm store cache; the reason is beside `verify`'s setup-node.
@@ -1083,15 +1085,15 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@v6.1.0
       # setup-node IS BACK (2026-10-23), WITHOUT ITS CACHE. The image ships Node 24
       # (Microsoft's Dockerfile.noble: `ARG NODE_VERSION=24`); the repo moved to Node 26
       # that day (owner decision), so the job must install it. Everything below is why
       # `cache: ''` stays: the cost measured here was the store cache, not the action.
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           cache: ''
@@ -1142,7 +1144,7 @@ jobs:
       # refuse; the step below uploads them only when the eval fails.
       - name: Artwork legibility eval
         run: pnpm eval:artwork -- --keep "$RUNNER_TEMP/artwork-eval"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         if: failure()
         with:
           name: artwork-eval-${{ github.sha }}
@@ -1255,7 +1257,7 @@ jobs:
       # (step-security/agent config.go parseEndpoints), so a final newline would make the last
       # port 0 and block it.
       - name: Network guard (Harden-Runner, BLOCK mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: block
           allowed-endpoints: >-
@@ -1287,11 +1289,11 @@ jobs:
             profile.wear-run.help:443
             api.indexnow.org:443
             api.globalping.io:443
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           # ⚠️ NO CACHE IN THIS JOB — IT HOLDS THE PRODUCTION CLOUDFLARE TOKEN.
@@ -1968,15 +1970,15 @@ jobs:
       site: ${{ steps.paths.outputs.site }}
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           # The diff needs the base commit, which a shallow checkout does not have.
           fetch-depth: 0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           # Nothing is installed here: one script, node built-ins only.
@@ -2002,10 +2004,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       # Read the digest FROM the Dockerfile rather than repeating it here. A second copy
@@ -2064,7 +2066,7 @@ jobs:
       # exit code for FINDINGS; a scanner that CRASHES still fails the step. Hence
       # `continue-on-error`. The gate below is the one that may fail.
       - name: Base image report (informational)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         env:
           TRIVY_IMAGE_SRC: remote
         continue-on-error: true
@@ -2082,7 +2084,7 @@ jobs:
       # "# TODO: rename to pkg-types", and an unknown input is IGNORED SILENTLY by Actions,
       # which would restore the unscoped scan while looking correct.
       - name: Fail on a fixable CRITICAL in the base OS layer
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         env:
           TRIVY_IMAGE_SRC: remote
         with:
@@ -2129,14 +2131,14 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           # ⚠️ NO CACHE: this job deploys with the production Cloudflare token — the same

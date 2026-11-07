@@ -173,8 +173,8 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   Undo: Settings → Environments → production → Deployment branches → No restriction.
 - **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — eighteen
   rules, twelve with their own negative control.** Every workflow declares a top-level
-  `permissions:` block that includes `contents`; every `uses:` is a 40-hex SHA with a
-  `# vX.Y.Z` comment (Dependabot maintains both); every `actions/checkout` sets
+  `permissions:` block that includes `contents`; every `uses:` names a FULL version tag the
+  lockfile records (since 2026-11-07, below), or a 40-hex SHA with a `# vX.Y.Z` comment; every `actions/checkout` sets
   `persist-credentials: false`; no `run:` block interpolates `${{ github.event.* }}`,
   `${{ github.head_ref }}` or `${{ secrets.* }}` — carry it in `env:` and test
   `"$VAR"`; every `pnpm <script>` a workflow invokes exists; every job declares
@@ -196,14 +196,14 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `deploy` job runs in BLOCK mode on v2.22.4 with the 28-host allow-list; the step's comment says how
   to back it out if a deploy fails on a blocked connection. Every other job stays in watch mode; the
   three tools `verify` downloads by version are watched by `tool-versions.yml` weekly,
-  because Dependabot cannot see an `env:` pin — 🟡 and since 2026-10-25 that one workflow (only)
-  runs from GitHub's workflow LOCKFILE, `.github/workflows/actions.lock` (generally available since
-  2026-10-28; made by `gh actions-lock` v0.4.0, which then kept our exact-commit pins and records each
-  one's tag and its owner and repository ids). 🟡 **Re-running it NOW REWRITES EVERY SHA PIN INTO A TAG**
-  (`actions/checkout@v7.0.1`; v0.4.0 and v0.4.1 both, measured 2026-11-07), and Scorecard's
-  Pinned-Dependencies then measured 2 against 9 with SHAs, because Scorecard does not read the
-  lockfile. The owner kept SHA pins that day, so the lockfile stays on this one workflow, and its
-  Harden-Runner stays on the v2.22.2 the lock names. Change an action in it and re-run `gh actions-lock` on it, or GitHub
+  because Dependabot cannot see an `env:` pin — 🟡 and **since 2026-11-07 (owner) EVERY workflow runs
+  from GitHub's workflow LOCKFILE**, `.github/workflows/actions.lock` (generally available since
+  2026-10-28; GitHub calls it the strongest protection, superseding SHA pins; it also locks the
+  actions our actions use, and each source repository's ids). `gh actions-lock` v0.4.1 writes each
+  `uses:` as a full tag (`actions/checkout@v7.0.1`) and the commit into the lock; Dependabot updates
+  both in one PR. 🟡 The price, accepted: Scorecard's Pinned-Dependencies does not read the lockfile
+  and measured 2 against 9 with SHA pins. The repository still requires SHA pinning, which GitHub
+  counts as met for a workflow on the lockfile. Change an action and re-run `gh actions-lock`, or GitHub
   refuses the run outright (a mismatched commit: HTTP 422 at dispatch; a wrong repository id:
   "repository identity has changed" at Set up job — both measured); every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests

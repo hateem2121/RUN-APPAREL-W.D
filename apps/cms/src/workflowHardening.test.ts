@@ -236,6 +236,70 @@ function jobsWithoutNetworkGuard(source: string): string[] {
   return offenders
 }
 
+/** The lockfile's two sections: which refs each workflow uses, and the commit each ref locks. */
+function parseLockfile(text: string): {
+  workflows: Map<string, Set<string>>
+  commits: Map<string, string>
+} {
+  const workflows = new Map<string, Set<string>>()
+  const commits = new Map<string, string>()
+  let section = ''
+  let current = ''
+  for (const line of text.split('\n')) {
+    const top = /^(\w+):/.exec(line)
+    if (top) {
+      section = top[1]!
+      continue
+    }
+    const key = /^ {4}'([^']+)':\s*$/.exec(line)
+    if (key) {
+      current = key[1]!
+      if (section === 'workflows')
+        workflows.set(current.replace(/^\.github\/workflows\//, ''), new Set())
+      continue
+    }
+    const item = /^ {8}- '([^']+)'/.exec(line)
+    if (item && section === 'workflows')
+      workflows.get(current.replace(/^\.github\/workflows\//, ''))?.add(item[1]!)
+    const commit = /^ {8}commit: 'sha1-([0-9a-f]{40})'/.exec(line)
+    if (commit && section === 'dependencies') commits.set(current, commit[1]!)
+  }
+  return { workflows, commits }
+}
+
+/** Every `uses:` in one workflow that is neither lockfile-covered nor a commented SHA. */
+function pinOffenders(
+  file: string,
+  source: string,
+  lock: ReturnType<typeof parseLockfile>,
+): string[] {
+  const offenders: string[] = []
+  const name = file.replace(/^.*\//, '')
+  source.split('\n').forEach((line, i) => {
+    const m = line.match(/^\s*(?:-\s*)?uses:\s*(\S+)(.*)$/)
+    if (!m) return
+    const ref = m[1]!
+    if (ref.startsWith('./') || ref.startsWith('docker://')) return
+    const where = `${file}:${i + 1}`
+    if (/@[0-9a-f]{40}$/.test(ref)) {
+      if (!/#\s*v\d+\.\d+\.\d+/.test(m[2] ?? ''))
+        offenders.push(`${where} SHA-pinned but no "# vX.Y.Z" comment -> ${ref}`)
+      return
+    }
+    const [action, tag] = ref.split('@')
+    if (!tag || !/^v\d+\.\d+\.\d+$/.test(tag)) {
+      offenders.push(`${where} needs a full version tag (vX.Y.Z) or a SHA -> ${ref}`)
+      return
+    }
+    const repoRef = `${action!.split('/').slice(0, 2).join('/')}@${tag}`
+    if (!lock.workflows.has(name))
+      offenders.push(`${where} workflow not onboarded to actions.lock -> ${ref}`)
+    else if (!lock.commits.has(repoRef))
+      offenders.push(`${where} ${repoRef} not in actions.lock — run gh actions-lock`)
+  })
+  return offenders
+}
+
 describe('workflow hardening', () => {
   it('has workflows to check (the guard must not pass by finding nothing)', async () => {
     const files = await workflowFiles()
@@ -247,36 +311,60 @@ describe('workflow hardening', () => {
    * anything hostile to it. That promise held for `tj-actions/changed-files` right up
    * until March 2025, when a compromised token retagged every version to a payload
    * that dumped runner memory — including secrets — into build logs, across tens of
-   * thousands of repositories at once. A commit SHA cannot be retagged.
+   * thousands of repositories at once.
    *
-   * The `# vX.Y.Z` comment is not decoration: it is the only thing that makes the pin
-   * legible in review, and Dependabot reads and rewrites it when it bumps the SHA.
+   * SINCE 2026-11-07 (owner decision) EVERY WORKFLOW RUNS FROM THE LOCKFILE,
+   * `.github/workflows/actions.lock` (GitHub: "the strongest protection available, and
+   * supersedes SHA pinning", Secure use reference, read that day). A workflow names a FULL
+   * version tag (`@v7.0.1`, never `@v7`), and the lockfile records the exact commit and the
+   * source repository's ids; GitHub runs that commit and refuses the run if they disagree.
+   * `gh actions-lock` now writes tags, so a SHA pin with a `# vX.Y.Z` comment is still
+   * accepted for an action it could not lock. Scorecard's Pinned-Dependencies does not read
+   * the lockfile and measured 2 (9 with SHAs); the owner accepted that.
    */
-  it('pins every action to a full commit SHA with a version comment', async () => {
+  it('runs every action from the lockfile (a full version tag it records), or a commented SHA', async () => {
+    const lock = parseLockfile(read('actions.lock'))
     const offenders: string[] = []
-
     for (const file of await workflowFiles()) {
-      read(file)
-        .split('\n')
-        .forEach((line, i) => {
-          const m = line.match(/^\s*(?:-\s*)?uses:\s*(\S+)(.*)$/)
-          if (!m) return
-          const ref = m[1]!
-          const rest = m[2] ?? ''
-
-          // Local composite actions (./.github/…) and docker:// refs are not tags.
-          if (ref.startsWith('./') || ref.startsWith('docker://')) return
-
-          const pinned = /@[0-9a-f]{40}$/.test(ref)
-          const commented = /#\s*v\d+\.\d+\.\d+/.test(rest)
-
-          if (!pinned) offenders.push(`${file}:${i + 1} not SHA-pinned -> ${ref}`)
-          else if (!commented)
-            offenders.push(`${file}:${i + 1} SHA-pinned but no "# vX.Y.Z" comment -> ${ref}`)
-        })
+      offenders.push(...pinOffenders(file, read(file), lock))
     }
-
     expect(offenders, offenders.join('\n')).toEqual([])
+  })
+
+  it('negative control: a moving tag, an unlocked tag and an unlocked workflow are each caught', () => {
+    const lock = parseLockfile(`version: 'v0.0.3'
+workflows:
+    '.github/workflows/a.yml':
+        - 'actions/checkout@v7.0.1'
+dependencies:
+    'actions/checkout@v7.0.1':
+        ref: 'v7.0.1'
+        commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
+`)
+    expect(pinOffenders('a.yml', '      - uses: actions/checkout@v7.0.1\n', lock)).toEqual([])
+    expect(pinOffenders('a.yml', '      - uses: actions/checkout@v7\n', lock)[0]).toMatch(
+      /full version tag/,
+    )
+    expect(pinOffenders('a.yml', '      - uses: actions/setup-node@v7.1.0\n', lock)[0]).toMatch(
+      /not in actions.lock/,
+    )
+    expect(pinOffenders('b.yml', '      - uses: actions/checkout@v7.0.1\n', lock)[0]).toMatch(
+      /not onboarded/,
+    )
+    expect(
+      pinOffenders(
+        'b.yml',
+        '      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1\n',
+        lock,
+      ),
+    ).toEqual([])
+    expect(
+      pinOffenders(
+        'b.yml',
+        '      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n',
+        lock,
+      )[0],
+    ).toMatch(/no "# vX.Y.Z" comment/)
   })
 
   /**
