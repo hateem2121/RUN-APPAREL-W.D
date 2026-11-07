@@ -8,6 +8,8 @@ import {
   deleteExpiredTemplateDownloads,
   dueDate,
   idsDueForDeletion,
+  isStopped,
+  logLine,
   RETENTION_SQL,
   runTemplateRetention,
 } from '../templateDownloadRetention.mjs'
@@ -25,7 +27,13 @@ const APP = fileURLToPath(new URL('..', import.meta.url))
 const NOW = new Date('2026-11-07T12:00:00.000Z')
 const day = (iso: string) => iso
 
-type Row = { id: number; createdAt?: string; deleteAfter?: string | null; updates: unknown }
+type Row = {
+  id: number
+  createdAt?: string
+  deleteAfter?: string | null
+  updates: unknown
+  updatesStoppedAt?: string | null
+}
 
 describe('which records are due', () => {
   it('keeps a record one day short of its date, deletes it exactly on the date', () => {
@@ -106,6 +114,38 @@ describe('which records are due', () => {
     )
   })
 
+  it('adds exactly 2 calendar years, the one rule the collection hook shares', () => {
+    expect(addCalendarYears(new Date('2026-11-07T00:00:00.000Z'), 2).toISOString()).toBe(
+      '2028-11-07T00:00:00.000Z',
+    )
+    expect(addCalendarYears(new Date('2028-02-29T00:00:00.000Z'), 2).toISOString()).toBe(
+      '2030-03-01T00:00:00.000Z',
+    )
+  })
+
+  it('never deletes a record with a stop date, even unticked and long overdue', () => {
+    const rows: Row[] = [
+      {
+        id: 1,
+        deleteAfter: '2020-01-01T00:00:00.000Z',
+        updates: false,
+        updatesStoppedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 2,
+        deleteAfter: '2020-01-01T00:00:00.000Z',
+        updates: true,
+        updatesStoppedAt: '2026-01-01T00:00:00.000Z',
+      },
+      { id: 3, deleteAfter: '2020-01-01T00:00:00.000Z', updates: false, updatesStoppedAt: null },
+      { id: 4, deleteAfter: '2020-01-01T00:00:00.000Z', updates: false, updatesStoppedAt: '' },
+      { id: 5, deleteAfter: '2020-01-01T00:00:00.000Z', updates: false },
+    ]
+    // 3, 4 and 5 have no stop date and behave exactly as before.
+    expect(idsDueForDeletion(rows, NOW)).toEqual([3, 4, 5])
+    expect(rows.map(isStopped)).toEqual([true, true, false, false, false])
+  })
+
   it('does nothing for an empty list', () => {
     expect(idsDueForDeletion([], NOW)).toEqual([])
   })
@@ -118,12 +158,15 @@ function d1Over(database: DatabaseSync) {
     all: async () => ({
       results: database.prepare(sql).all(...(params as never[])) as Record<string, unknown>[],
     }),
-    run: () => database.prepare(sql).run(...(params as never[])),
+    run: async () => {
+      const outcome = database.prepare(sql).run(...(params as never[]))
+      return { meta: { changes: Number(outcome.changes) } }
+    },
   })
   return {
     prepare: (sql: string) => statement(sql),
     batch: async (statements: ReturnType<typeof statement>[]) =>
-      statements.map((s) => ({ meta: { changes: Number(s.run().changes) } })),
+      Promise.all(statements.map((s) => s.run())),
   }
 }
 
@@ -152,7 +195,7 @@ describe('the real SQL against the real migrated schema (foreign keys on)', () =
     insert(database, 2, { updates: 1, deleteAfter: day('2024-01-01T00:00:00.000Z') }) // subscriber, 3 years old
     insert(database, 3, { updates: 0, deleteAfter: day('2027-01-01T00:00:00.000Z') }) // not yet
     const result = await deleteExpiredTemplateDownloads(d1Over(database), NOW)
-    expect(result).toEqual({ due: 1, deleted: 1 })
+    expect(result).toEqual({ due: 1, deleted: 1, minimised: 0 })
     expect(ids(database)).toEqual([2, 3])
     database.close()
   })
@@ -171,16 +214,144 @@ describe('the real SQL against the real migrated schema (foreign keys on)', () =
     // guard in RETENTION_SQL.deleteOne exists for.
     expect(() => database.prepare('DELETE FROM template_downloads WHERE id = 1').run()).toThrow()
     const result = await deleteExpiredTemplateDownloads(d1Over(database), NOW)
-    expect(result).toEqual({ due: 2, deleted: 1 })
+    expect(result).toEqual({ due: 2, deleted: 1, minimised: 0 })
     expect(ids(database)).toEqual([1])
     database.close()
   })
 
-  it('touches only template_downloads', () => {
+  it('touches only template_downloads, with one UPDATE and nothing that drops or alters', () => {
     for (const sql of Object.values(RETENTION_SQL)) {
-      expect(sql).not.toMatch(/\b(DROP|ALTER|UPDATE|INSERT)\b/i)
+      expect(sql).not.toMatch(/\b(DROP|ALTER|INSERT)\b/i)
     }
     expect(RETENTION_SQL.deleteOne).toMatch(/^DELETE FROM template_downloads WHERE /)
+    expect(RETENTION_SQL.minimiseStopped).toMatch(/^UPDATE template_downloads SET /)
+    expect(RETENTION_SQL.minimiseStopped).not.toMatch(/\bemail\b\s*=/)
+    expect(RETENTION_SQL.selectCandidates).not.toMatch(/\bUPDATE\b/i)
+    expect(RETENTION_SQL.deleteOne).not.toMatch(/\bUPDATE\b/i)
+  })
+})
+
+type Full = {
+  name: string
+  email: string
+  company: string
+  country: string
+  job_title: string | null
+  whatsapp: string | null
+  updates: number
+  updates_stopped_at: string | null
+  delete_after: string | null
+}
+
+function insertFull(database: DatabaseSync, id: number, f: Partial<Full> = {}) {
+  const row: Full = {
+    name: 'Ayesha Khan',
+    email: `person${id}@example.invalid`,
+    company: 'Khan Sports',
+    country: 'Pakistan',
+    job_title: 'Buyer',
+    whatsapp: 'placeholder-whatsapp',
+    updates: 1,
+    updates_stopped_at: null,
+    delete_after: '2024-01-01T00:00:00.000Z', // long overdue
+    ...f,
+  }
+  database
+    .prepare(
+      `INSERT INTO template_downloads (id, name, email, company, country, job_title, whatsapp, updates, updates_stopped_at, delete_after)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      row.name,
+      row.email,
+      row.company,
+      row.country,
+      row.job_title,
+      row.whatsapp,
+      row.updates,
+      row.updates_stopped_at,
+      row.delete_after,
+    )
+}
+
+const rowOf = (database: DatabaseSync, id: number) =>
+  database.prepare('SELECT * FROM template_downloads WHERE id = ?').get(id) as unknown as
+    | (Full & { id: number })
+    | undefined
+
+describe('someone who stopped the updates keeps only their email', () => {
+  const STOPPED = '2026-11-01T00:00:00.000Z'
+
+  it('blanks every personal field but the email, and never deletes the record', async () => {
+    const database = await migratedDatabase()
+    // Stopped subscriber, and stopped unticked record: both long past deleteAfter.
+    insertFull(database, 1, { updates: 1, updates_stopped_at: STOPPED })
+    insertFull(database, 2, { updates: 0, updates_stopped_at: STOPPED })
+    const result = await deleteExpiredTemplateDownloads(d1Over(database), NOW)
+    expect(result).toEqual({ due: 0, deleted: 0, minimised: 2 })
+    expect(ids(database)).toEqual([1, 2])
+    for (const id of [1, 2]) {
+      const row = rowOf(database, id)
+      expect(row?.email, 'the email is the do-not-send list').toBe(`person${id}@example.invalid`)
+      expect(row).toMatchObject({
+        name: '',
+        company: '',
+        country: '',
+        job_title: null,
+        whatsapp: null,
+        updates_stopped_at: STOPPED,
+      })
+    }
+    // A second run finds nothing left to change.
+    expect(await deleteExpiredTemplateDownloads(d1Over(database), NOW)).toEqual({
+      due: 0,
+      deleted: 0,
+      minimised: 0,
+    })
+    database.close()
+  })
+
+  it('leaves records with no stop date exactly as today: subscribers kept whole, others deleted when due', async () => {
+    const database = await migratedDatabase()
+    insertFull(database, 1, { updates: 1 }) // subscriber, overdue: kept, details untouched
+    insertFull(database, 2, { updates: 0 }) // overdue: deleted
+    insertFull(database, 3, { updates: 0, delete_after: '2027-01-01T00:00:00.000Z' }) // not yet
+    insertFull(database, 4, { updates: 1, updates_stopped_at: STOPPED }) // stopped
+    insertFull(database, 5, { updates: 0, updates_stopped_at: '' }) // empty string is "not stopped"
+    const result = await deleteExpiredTemplateDownloads(d1Over(database), NOW)
+    expect(result).toEqual({ due: 2, deleted: 2, minimised: 1 })
+    expect(ids(database)).toEqual([1, 3, 4])
+    expect(rowOf(database, 1)?.name).toBe('Ayesha Khan')
+    expect(rowOf(database, 3)?.company).toBe('Khan Sports')
+    expect(rowOf(database, 4)?.name).toBe('')
+    database.close()
+  })
+
+  it('waits a day for a stopped record somebody has open in the admin', async () => {
+    const database = await migratedDatabase()
+    insertFull(database, 1, { updates_stopped_at: STOPPED })
+    insertFull(database, 2, { updates_stopped_at: STOPPED })
+    database.prepare('INSERT INTO payload_locked_documents (id) VALUES (1)').run()
+    database
+      .prepare(
+        `INSERT INTO payload_locked_documents_rels (parent_id, path, template_downloads_id) VALUES (1, 'document', 1)`,
+      )
+      .run()
+    const result = await deleteExpiredTemplateDownloads(d1Over(database), NOW)
+    expect(result.minimised).toBe(1)
+    expect(rowOf(database, 1)?.name).toBe('Ayesha Khan')
+    expect(rowOf(database, 2)?.name).toBe('')
+    database.close()
+  })
+
+  it('writes a count-only log line', () => {
+    expect(logLine({ due: 3, deleted: 2, minimised: 4 })).toBe(
+      '[template-retention] deleted 2, minimised 4 (1 skipped, open in the admin)',
+    )
+    expect(logLine({ due: 0, deleted: 0, minimised: 0 })).toBe(
+      '[template-retention] deleted 0, minimised 0',
+    )
   })
 })
 
@@ -191,7 +362,7 @@ describe('a failure is reported, never thrown', () => {
     insert(database, 1, { updates: 0, deleteAfter: '2026-01-01T00:00:00.000Z' })
     const report = vi.fn()
     await runTemplateRetention({ D1: d1Over(database) }, report, NOW)
-    expect(log).toHaveBeenCalledWith('[template-retention] deleted 1')
+    expect(log).toHaveBeenCalledWith('[template-retention] deleted 1, minimised 0')
     expect(report).not.toHaveBeenCalled()
     // Nothing personal in the line.
     expect(String(log.mock.calls[0]?.[0])).not.toMatch(/@|example/)

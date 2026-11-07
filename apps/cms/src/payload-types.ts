@@ -741,6 +741,10 @@ export interface TemplateDownload {
    */
   deleteAfter?: string | null;
   /**
+   * When someone asks to stop the updates, set today's date here. The daily clean-up then keeps only their email address, so that no update reaches them again, and never deletes it.
+   */
+  updatesStoppedAt?: string | null;
+  /**
    * Whether the notification email was accepted for delivery.
    */
   notified?: boolean | null;
@@ -1355,6 +1359,7 @@ export interface TemplateDownloadsSelect<T extends boolean = true> {
   updates?: T;
   updatesAt?: T;
   deleteAfter?: T;
+  updatesStoppedAt?: T;
   notified?: T;
   notifyError?: T;
   updatedAt?: T;

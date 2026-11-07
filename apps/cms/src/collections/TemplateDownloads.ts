@@ -1,5 +1,6 @@
 import type { CollectionConfig, Field } from 'payload'
 import { isAdmin, isSignedInPerson } from '../access/roles'
+import { addCalendarYears, KEEP_YEARS } from '../../templateDownloadRetention.mjs'
 
 /**
  * ⚠️ A RECORD, NOT A FORM: NO SAVE MAY CHANGE IT (security review of afba25d2, 6 Nov 2026).
@@ -10,8 +11,12 @@ import { isAdmin, isSignedInPerson } from '../access/roles'
  */
 const recorded = <F extends Field>(field: F): F => ({ ...field, access: { update: () => false } })
 
-/** Kept 2 years from the last contact (owner, 6 Nov 2026, the privacy page's "Template downloads"). */
-export const KEEP_DAYS = 730
+/**
+ * The two fields a person on the team may change. Everything else is a record (`recorded`).
+ * `updatesStoppedAt` is NOT behind the lock on purpose: `updates` and `updatesAt` stay the untouched
+ * record of the yes, and the stop is a second, separate fact beside it.
+ */
+const EDITABLE = new Set(['deleteAfter', 'updatesStoppedAt'])
 
 type DeleteAfterArgs = {
   data: Record<string, unknown>
@@ -28,7 +33,9 @@ type DeleteAfterArgs = {
 export const setDeleteAfter = ({ data, operation, now }: DeleteAfterArgs) => {
   if (operation === 'create') {
     const at = now ?? new Date()
-    data.deleteAfter = new Date(at.getTime() + KEEP_DAYS * 24 * 60 * 60 * 1000).toISOString()
+    // Exact calendar years (owner, 7 Nov 2026): the same date 2 years on, and 29 Feb gives 1 Mar. The
+    // SAME function the daily clean-up uses for its fallback, so the two cannot drift apart.
+    data.deleteAfter = addCalendarYears(at, KEEP_YEARS).toISOString()
   }
   return data
 }
@@ -68,7 +75,8 @@ export const TemplateDownloads: CollectionConfig = {
   hooks: {
     beforeChange: [setDeleteAfter],
   },
-  // Every field is a record (`recorded`, above) except the date to delete by, which a person moves.
+  // Every field is a record (`recorded`, above) except the date to delete by and the date updates
+  // stopped, which a person sets.
   fields: (
     [
       {
@@ -123,6 +131,16 @@ export const TemplateDownloads: CollectionConfig = {
         },
       },
       {
+        name: 'updatesStoppedAt',
+        type: 'date',
+        label: 'Updates stopped on',
+        admin: {
+          date: { pickerAppearance: 'dayOnly' },
+          description:
+            "When someone asks to stop the updates, set today's date here. The daily clean-up then keeps only their email address, so that no update reaches them again, and never deletes it.",
+        },
+      },
+      {
         name: 'notified',
         type: 'checkbox',
         defaultValue: false,
@@ -141,5 +159,5 @@ export const TemplateDownloads: CollectionConfig = {
         },
       },
     ] as Field[]
-  ).map((field) => ('name' in field && field.name === 'deleteAfter' ? field : recorded(field))),
+  ).map((field) => ('name' in field && EDITABLE.has(field.name) ? field : recorded(field))),
 }
