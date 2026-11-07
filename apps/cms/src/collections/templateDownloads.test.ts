@@ -1,7 +1,8 @@
 import type { Access, PayloadRequest } from 'payload'
 import { describe, expect, it } from 'vitest'
 import { migratedDatabase } from '../migrationReplay/migrated'
-import { KEEP_DAYS, setDeleteAfter, TemplateDownloads } from './TemplateDownloads'
+import { KEEP_YEARS } from '../../templateDownloadRetention.mjs'
+import { setDeleteAfter, TemplateDownloads } from './TemplateDownloads'
 
 type Principal = { role?: string; _strategy?: string } | null
 const ask = (rule: unknown, user: Principal) =>
@@ -22,11 +23,16 @@ describe('who downloaded the tech-pack template', () => {
     expect(ask(access.create, null)).toBe(false)
   })
 
-  it('keeps the details 2 years from receipt, and a later save does not move the date', () => {
-    const at = new Date('2026-11-06T10:00:00.000Z')
-    expect(KEEP_DAYS).toBe(730)
+  it('keeps the details for exactly 2 calendar years, and a later save does not move the date', () => {
+    expect(KEEP_YEARS).toBe(2)
+    const at = new Date('2026-11-07T10:00:00.000Z')
     expect(setDeleteAfter({ data: {}, operation: 'create', now: at }).deleteAfter).toBe(
-      '2028-11-05T10:00:00.000Z',
+      '2028-11-07T10:00:00.000Z',
+    )
+    // 29 February has no same date two years on: 1 March, never shorter than 2 years.
+    const leap = new Date('2028-02-29T10:00:00.000Z')
+    expect(setDeleteAfter({ data: {}, operation: 'create', now: leap }).deleteAfter).toBe(
+      '2030-03-01T10:00:00.000Z',
     )
     // An update keeps whatever the person set: the 2 years count from the LAST contact.
     const moved = { deleteAfter: '2029-01-01T00:00:00.000Z' }
@@ -45,12 +51,30 @@ describe('who downloaded the tech-pack template', () => {
     const named = TemplateDownloads.fields.flatMap((f) => ('name' in f ? [f.name] : []))
     expect(named.length).toBeGreaterThan(10)
     for (const name of named) {
-      if (name === 'deleteAfter') continue
+      if (name === 'deleteAfter' || name === 'updatesStoppedAt') continue
       // A signed-in admin's REST PATCH is refused field by field (security review, 6 Nov 2026).
       expect(updateRule(name)?.({ req: { user: adminPerson } }), name).toBe(false)
     }
-    // NEGATIVE CONTROL: the one field a person moves has no such rule.
+    // NEGATIVE CONTROL: the two fields a person sets have no such rule, and the consent record
+    // beside the stop date keeps its lock.
     expect(updateRule('deleteAfter')).toBeUndefined()
+    expect(updateRule('updatesStoppedAt')).toBeUndefined()
+    expect(updateRule('updates')?.({ req: { user: adminPerson } })).toBe(false)
+    expect(updateRule('updatesAt')?.({ req: { user: adminPerson } })).toBe(false)
+  })
+
+  it('a signed-in person may stop the updates; the stop is a labelled, plain-words date field', () => {
+    const field = TemplateDownloads.fields.find(
+      (f) => 'name' in f && f.name === 'updatesStoppedAt',
+    ) as { type?: string; label?: string; admin?: { readOnly?: boolean; description?: string } }
+    expect(field.type).toBe('date')
+    expect(field.label).toBe('Updates stopped on')
+    expect(field.admin?.readOnly).toBeUndefined()
+    expect(field.admin?.description).toMatch(/today's date/)
+    // The collection lets a signed-in person (not the robot) save a change.
+    const access = TemplateDownloads.access ?? {}
+    expect(ask(access.update, adminPerson)).toBe(true)
+    expect(ask(access.update, adminRobot)).toBe(false)
   })
 
   it('records the yes to updates as read-only facts', () => {
@@ -76,6 +100,9 @@ describe('who downloaded the tech-pack template', () => {
     // A default here would stamp an unticked download with a consent time (the migration's header).
     expect(defaultOf('updates_at')).toBeNull()
     expect(defaultOf('delete_after')).toBeNull()
+    // A default on the stop date would mark every download as stopped, and the clean-up would strip
+    // each person's details.
+    expect(defaultOf('updates_stopped_at')).toBeNull()
     // NEGATIVE CONTROL: the same reading sees a default where there is one.
     expect(String(defaultOf('created_at'))).toContain('strftime')
     database.close()
