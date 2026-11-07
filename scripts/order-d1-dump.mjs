@@ -21,23 +21,55 @@
  * ON (as D1 runs) and `PRAGMA foreign_key_check` must be empty, and every table must hold the same
  * number of rows as the original replayed with foreign keys OFF. Exit 1 if either fails.
  */
+import { createHash } from 'node:crypto'
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { pathToFileURL } from 'node:url'
 
 /**
- * Statements of the dump, kept whole: a statement starts on a line beginning with one of the
- * export's own keywords, and runs until the next such line (an INSERT's text may hold newlines).
+ * Statements of the dump, kept whole. A statement ends ONLY at a `;` outside every quoted text
+ * ('…' with '' escapes, "…", `…`, […]) and outside comments.
+ *
+ * ⚠️ NEVER split on lines. The first version started a new statement at any line beginning
+ * "INSERT INTO" — inside a stored text too — and the dump holds text visitors typed (inquiry
+ * messages). A message carrying such a line would have been cut out of its row and, reordered,
+ * RUN as a statement during a restore (security review of PR #348, 2026-11-07). The tests plant
+ * exactly that.
  * @param {string} sql
+ * @returns {string[]}
  */
-function statements(sql) {
+export function statements(sql) {
   const out = []
-  for (const line of sql.split('\n')) {
-    if (/^(PRAGMA|CREATE|INSERT INTO|DELETE FROM|UPDATE|DROP) /.test(line) || out.length === 0)
-      out.push([line])
-    else out[out.length - 1].push(line)
+  let start = 0
+  let quote = null
+  for (let i = 0; i < sql.length; i++) {
+    const c = sql[i]
+    if (quote) {
+      if (c === quote) {
+        if (quote === "'" && sql[i + 1] === "'") i++
+        else quote = null
+      }
+      continue
+    }
+    if (c === "'" || c === '"' || c === '`') quote = c
+    else if (c === '[') quote = ']'
+    else if (c === '-' && sql[i + 1] === '-') {
+      const end = sql.indexOf('\n', i)
+      i = end === -1 ? sql.length : end
+    } else if (c === '/' && sql[i + 1] === '*') {
+      const end = sql.indexOf('*/', i + 2)
+      i = end === -1 ? sql.length : end + 1
+    } else if (c === ';') {
+      const stmt = sql.slice(start, i + 1).trim()
+      if (stmt) out.push(stmt)
+      start = i + 1
+    }
   }
-  return out.map((l) => l.join('\n'))
+  if (quote)
+    throw new Error('the dump ends inside a quoted text; refusing to guess where statements end')
+  const tail = sql.slice(start).trim()
+  if (tail) out.push(tail)
+  return out
 }
 
 const nameOf = (stmt) =>
@@ -115,14 +147,22 @@ export function tableCounts(sql, { foreignKeys }) {
     db.exec(sql)
     const violations = db.prepare('PRAGMA foreign_key_check').all()
     const counts = {}
+    const digests = {}
     for (const { name } of db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
       .all()) {
       counts[name] = db
         .prepare(`SELECT count(*) AS n FROM "${String(name).replaceAll('"', '""')}"`)
         .get().n
+      // The CONTENT, not just the count: every row as JSON, sorted, hashed (security review, PR #348).
+      const rows = db
+        .prepare(`SELECT * FROM "${String(name).replaceAll('"', '""')}"`)
+        .all()
+        .map((r) => JSON.stringify(r, (_k, v) => (typeof v === 'bigint' ? String(v) : v)))
+        .sort()
+      digests[name] = createHash('sha256').update(rows.join('\n')).digest('hex')
     }
-    return { counts, violations: violations.length }
+    return { counts, digests, violations: violations.length }
   } finally {
     db.close()
   }
@@ -146,7 +186,9 @@ function main([input, output]) {
     return 1
   }
   const tables = Object.keys(before.counts)
-  const differ = tables.filter((t) => before.counts[t] !== after.counts[t])
+  const differ = tables.filter(
+    (t) => before.counts[t] !== after.counts[t] || before.digests[t] !== after.digests[t],
+  )
   if (
     after.violations > 0 ||
     differ.length > 0 ||
@@ -160,7 +202,7 @@ function main([input, output]) {
   writeFileSync(output, ordered)
   const rows = Object.values(after.counts).reduce((a, b) => a + b, 0)
   console.log(
-    `moved ${moved} CREATE TABLE statements first; ${tables.length} tables, ${rows} rows, all equal; loads with foreign keys ON`,
+    `moved ${moved} CREATE TABLE statements first; ${tables.length} tables, ${rows} rows, every row identical; loads with foreign keys ON`,
   )
   return 0
 }
