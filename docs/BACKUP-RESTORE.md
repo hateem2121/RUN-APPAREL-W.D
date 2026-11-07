@@ -96,7 +96,19 @@ What this repository DOES back up: `run-apparel-viewer-db` (nightly D1 dump,
 restore-verified, kept in R2 under `run-private/run-apparel-viewer-db/` **and** as an
 age-encrypted GitHub artifact; the pre-deploy snapshot goes to R2 only, under
 `run-private/run-apparel-viewer-db/pre-deploy/`), the `run-apparel-viewer-media` bucket, and the
-two apex PDFs from `run-assets`. **It does NOT back up the master files** — the raw CLO
+two apex PDFs from `run-assets`.
+
+🟡 **The R2 copies EXPIRE (owner decision, 2026-11-07): nightly dumps after 30 days, pre-deploy
+snapshots after 14.** Two R2 lifecycle rules on `run-private` do it: `viewer-db-nightly-30d`
+(prefix `run-apparel-viewer-db/`) and `viewer-db-predeploy-14d` (prefix
+`run-apparel-viewer-db/pre-deploy/`). Until then nothing expired: the bucket's only rule,
+`backup`, covers the other site's `backups/` prefix, so 319 dumps (3.08 GB, back to 2026-09-03)
+had piled up, 83% of them pre-deploy snapshots, at ~0.4–0.7 GB a week as each dump reached
+14.8 MB. The long recovery window is NOT shortened by this: the 90-day nightly copy is the
+encrypted GitHub artifact (DECISION-BACKUP-RETENTION.md), and D1 Time Travel covers any minute of
+the last 30 days. What is gone after 14 days is the R2-only pre-deploy snapshot, which that same
+window covers. Read the rules: `npx wrangler r2 bucket lifecycle list run-private`; remove one with
+`npx wrangler r2 bucket lifecycle remove run-private --id <name>`. **It does NOT back up the master files** — the raw CLO
 exports and the FIXED GLBs live on the owner's Mac only, with no off-site copy (owner
 decision, 2026-09-24; an R2 bucket held a copy of them from 2026-09-02 until that date,
 size-checked nightly rather than mirrored into an artifact — see "The master files" below).
