@@ -3,23 +3,160 @@
 # Docs: https://gh.io/actions-lockfile
 version: 'v0.0.3'
 workflows:
+    '.github/workflows/android-chrome.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'pnpm/action-setup@v6.1.0'
+        - 'reactivecircus/android-emulator-runner@v2.38.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/ci.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/dependency-review-action@v5.0.0'
+        - 'actions/download-artifact@v8.0.2'
+        - 'actions/setup-node@v7.1.0'
+        - 'actions/upload-artifact@v7.0.2'
+        - 'aquasecurity/trivy-action@v0.36.0'
+        - 'pnpm/action-setup@v6.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/diagnostics-digest.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'pnpm/action-setup@v6.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/heartbeat.yml':
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/lighthouse-live.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'actions/upload-artifact@v7.0.2'
+        - 'pnpm/action-setup@v6.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/link-crawl.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/nightly-backup.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'actions/upload-artifact@v7.0.2'
+        - 'pnpm/action-setup@v6.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/perf-watch.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'pnpm/action-setup@v6.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/r2-budget.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/refresh-skills.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/required-checks.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/security-scans.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/upload-artifact@v7.0.2'
+        - 'aquasecurity/trivy-action@v0.36.0'
+        - 'github/codeql-action@v4.39.1'
+        - 'ossf/scorecard-action@v2.5.0'
+        - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/tool-versions.yml':
-        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
-        - 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1'
-        - 'step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2'
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/uptime.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/voiceover.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'pnpm/action-setup@v6.1.0'
+        - 'step-security/harden-runner@v2.22.4'
 dependencies:
-    'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1':
+    'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae':
+        ref: 'v5.0.5'
+        commit: 'sha1-27d5ce7f107fe9357f9df03efb73ab90386fccae'
+        owner_id: 44036562
+        repo_id: 215566462
+    'actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb':
+        ref: 'v5.0.1'
+        commit: 'sha1-9255dc7a253b0ccc959486e2bca901246202afeb'
+        owner_id: 44036562
+        repo_id: 215566462
+    'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8':
+        ref: 'v6.0.1'
+        commit: 'sha1-8e8c483db84b4bee98b60c0593521ed34d9990e8'
+        owner_id: 44036562
+        repo_id: 197814629
+    'actions/checkout@v7.0.1':
         ref: 'v7.0.1'
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
-    'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1':
+    'actions/dependency-review-action@v5.0.0':
+        ref: 'v5.0.0'
+        commit: 'sha1-a1d282b36b6f3519aa1f3fc636f609c47dddb294'
+        owner_id: 44036562
+        repo_id: 476372928
+    'actions/download-artifact@v8.0.2':
+        ref: 'v8.0.2'
+        commit: 'sha1-9000827ccba6bdab643e8b6fd33ac0654aef8333'
+        owner_id: 44036562
+        repo_id: 192626254
+    'actions/setup-node@v7.1.0':
         ref: 'v7.1.0'
         commit: 'sha1-949feb2413d6458794dcd2491c4babbbce0c15c1'
         owner_id: 44036562
         repo_id: 189476904
-    'step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2':
-        ref: 'v2.22.2'
-        commit: 'sha1-dc2769abcc0fcfbadfc1df54081c1608579ef6b2'
+    'actions/upload-artifact@v7.0.2':
+        ref: 'v7.0.2'
+        commit: 'sha1-cf430e030ddbb5b0abf93d22962f4752f3646cd9'
+        owner_id: 44036562
+        repo_id: 192625955
+    'aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514':
+        ref: 'v0.2.6'
+        commit: 'sha1-3fb12ec12f41e471780db15c232d5dd185dcb514'
+        owner_id: 12783832
+        repo_id: 869952525
+        uses:
+            - 'actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb'
+            - 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8'
+    'aquasecurity/trivy-action@v0.36.0':
+        ref: 'v0.36.0'
+        commit: 'sha1-ed142fd0673e97e23eac54620cfb913e5ce36c25'
+        owner_id: 12783832
+        repo_id: 268833180
+        uses:
+            - 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae'
+            - 'aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514'
+    'github/codeql-action@v4.39.1':
+        ref: 'v4.39.1'
+        commit: 'sha1-9b3254085494b55a0f7c4c2b3d2d52cc712ce370'
+        owner_id: 9919
+        repo_id: 259445878
+    'ossf/scorecard-action@v2.5.0':
+        ref: 'v2.5.0'
+        commit: 'sha1-fa7117db83c52d787ae5a89f350999701505d78e'
+        owner_id: 67707773
+        repo_id: 421101922
+    'pnpm/action-setup@v6.1.0':
+        ref: 'v6.1.0'
+        commit: 'sha1-ea17c68df8912ef543352723c149a84f56e3d413'
+        owner_id: 21320719
+        repo_id: 262289747
+    'reactivecircus/android-emulator-runner@v2.38.0':
+        ref: 'v2.38.0'
+        commit: 'sha1-a421e43855164a8197daf9d8d40fe71c6996bb0d'
+        owner_id: 51352484
+        repo_id: 219782401
+    'step-security/harden-runner@v2.22.4':
+        ref: 'v2.22.4'
+        commit: 'sha1-1d88384fd173af6ecb012dfd0264a306b711241a'
         owner_id: 88700172
         repo_id: 422287306

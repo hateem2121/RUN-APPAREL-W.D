@@ -29,19 +29,14 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
-      # v2.22.2 HERE ONLY, ON PURPOSE (2026-11-07): this workflow runs from actions.lock, whose entry
-      # names this exact commit, and GitHub refuses the run if they differ. Re-locking now rewrites
-      # every SHA pin into a tag (gh-actions-lock v0.4.0 and v0.4.1, measured), which the owner
-      # declined that day because Scorecard's Pinned-Dependencies fell from 9 to 2. See
-      # .github/CLAUDE.md before bumping it.
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@v2.22.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
           cache: ''
