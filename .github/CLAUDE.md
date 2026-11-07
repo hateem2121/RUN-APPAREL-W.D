@@ -191,13 +191,19 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   same day:** on a `westus2` runner the agent opens its firewall for ONE address per allowed
   host and drops the rest, so checkout failed in 26 s with `github.com:443` allowed (git
   dialled 20.29.134.23, the agent had recorded 140.82.116.4) and the job then hung until
-  cancelled (step-security/harden-runner#708, open). Switch block back on only once
-  #708 is closed as fixed; the 27-host allow-list and how it was built sit as a comment beside the step; the
+  cancelled (step-security/harden-runner#708). 🟡 **#708 was closed on 2026-11-06** ("create a new
+  issue if you still face this problem after using v2.22.4"), so since 2026-11-07 (owner) the
+  `deploy` job runs in BLOCK mode on v2.22.4 with the 28-host allow-list; the step's comment says how
+  to back it out if a deploy fails on a blocked connection. Every other job stays in watch mode; the
   three tools `verify` downloads by version are watched by `tool-versions.yml` weekly,
   because Dependabot cannot see an `env:` pin — 🟡 and since 2026-10-25 that one workflow (only)
-  runs from GitHub's workflow LOCKFILE, `.github/workflows/actions.lock` (public preview; made by
-  `gh actions-lock` v0.4.0, which keeps our exact-commit pins and records each one's tag and its
-  owner and repository ids). Change an action in it and re-run `gh actions-lock` on it, or GitHub
+  runs from GitHub's workflow LOCKFILE, `.github/workflows/actions.lock` (generally available since
+  2026-10-28; made by `gh actions-lock` v0.4.0, which then kept our exact-commit pins and records each
+  one's tag and its owner and repository ids). 🟡 **Re-running it NOW REWRITES EVERY SHA PIN INTO A TAG**
+  (`actions/checkout@v7.0.1`; v0.4.0 and v0.4.1 both, measured 2026-11-07), and Scorecard's
+  Pinned-Dependencies then measured 2 against 9 with SHAs, because Scorecard does not read the
+  lockfile. The owner kept SHA pins that day, so the lockfile stays on this one workflow, and its
+  Harden-Runner stays on the v2.22.2 the lock names. Change an action in it and re-run `gh actions-lock` on it, or GitHub
   refuses the run outright (a mismatched commit: HTTP 422 at dispatch; a wrong repository id:
   "repository identity has changed" at Set up job — both measured); every job is
   in `deploy.needs` unless it is on the written non-gating allow-list; no key nests
@@ -354,7 +360,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   contains the defect on purpose raises a real alert. Default setup has no
   path-exclusion config, so RENAME the fixture (`action.yml.fixture`) rather than
   dismissing an alert that will simply come back.
-  🟡 **Default setup scans `actions` AND `javascript-typescript` at the EXTENDED suite
+  🟡 **Default setup scans `actions` AND `javascript-typescript` (and, since 2026-10-21, `python`) at the EXTENDED suite
   since 2026-10-01 (owner)** — until then it scanned only the workflows; the first
   JS/TS run found 56 alerts on `main`. Measured on PR #111 with a planted command
   injection: the CodeQL check fails only on "New alerts in code changed by this pull

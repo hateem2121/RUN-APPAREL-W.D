@@ -252,6 +252,20 @@ Until 2026-08-08 this runbook had no rollback section at all — the deploy gate
 were the entire story, and they only stop a build that fails. A build that passes
 every gate and is still wrong had no written way back.
 
+🟡 **Since 2026-11-07 the CMS and viewer go live only AFTER their checks pass.** `ci.yml` uploads
+each new version, deploys it at 0% beside the live one, proves the checks reach it
+(`scripts/version-overrides.mjs verify`: the version address answers the new id WITH the override
+header and the old id without it), runs health, payload, link-preview and security checks against
+it, and only then moves it to 100%. So read a red deploy by WHICH step failed:
+- **Before "Move both new versions to 100%"** — nobody received the new version. The step "Undo the
+  staging" takes it back out of the deployment; there is nothing to roll back. Fix and push.
+  ⚠️ The D1 migrations DID run (they come first), and the old version is serving against them.
+- **"Move both new versions to 100%" or later** — it is live, and everything below applies.
+- **"Stage both new versions" refuses with "already split"** — a version is still at 0% from an
+  earlier run. `wrangler versions deploy <live-id>@100% --name <worker> --yes` (the id from
+  `wrangler deployments status`) clears it.
+The apex Worker and the shrink still deploy the old way, straight to 100%.
+
 **Decide which of the two you are doing first**, because they are not
 interchangeable:
 
@@ -568,6 +582,14 @@ against reference pictures in `apps/cms/e2e/visual.spec.ts-snapshots/`. It runs 
 CI's Linux image (it skips on a Mac, whose fonts render differently). When a page changes
 ON PURPOSE, the pictures must be remade in that same image. Added 2026-10-01; the first
 run caught a live bug (the footer wordmark shrinking under reduced motion).
+
+**The quick way (since 2026-11-07): take the pictures from the failed run.** When the test
+fails in CI, Playwright has already taken each changed page in that exact image, and the
+Chromium shards keep them for 14 days as `visual-actual-*` artifacts. From the repository root:
+`node scripts/refresh-visual-snapshots.mjs <run-id>` copies them over the references and lists
+each file it replaced. **Open every one before committing** (rule below), then push; the next
+run must pass. Use the steps below only when the run kept no pictures (older than 14 days) or
+you need a picture of a page no test has failed on yet.
 
 1. **Seed a fresh database the way CI does.** In the CMS app's folder, move your local
    settings files (`.env` and `.dev.vars`) and the local database (the `state` folder inside

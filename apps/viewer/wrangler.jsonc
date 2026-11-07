@@ -69,6 +69,9 @@
   // (Re-enable workers_dev temporarily if you need a pre-cutover smoke-test URL.)
   "workers_dev": false,
   "preview_urls": false,
+  // Which version answered, read by worker/workerVersion.ts so a deploy can prove its pre-live
+  // checks reached the new version (2026-11-07; Cloudflare "Version overrides" docs recommend it).
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Worker + static assets. It was assets-ONLY until 2026-08-08; the script does
   // exactly one thing — rewrite the Open Graph tags per garment so a link shared
   // with a lead unfurls as that garment in that colourway. See worker/index.ts.

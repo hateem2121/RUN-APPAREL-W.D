@@ -14,6 +14,7 @@ on:
       - '.github/workflows/ci.yml'
       - '.github/workflows/required-checks.yml'
       - 'scripts/check-required-checks.mjs'
+      - 'scripts/check-live-settings.mjs'
   workflow_dispatch: {}
 
 # WHY IT BLOCKS NOTHING. The ruleset may list a job only AFTER a workflow on main posts
@@ -27,14 +28,22 @@ on:
 
 # See uptime.yml's own comment on this block: it REPLACES the default grants rather
 # than adding to them, and omitting `contents: read` breaks `actions/checkout` outright.
-# The rules endpoint needs no more than that: the repository is public.
+# The rules endpoint needs no more than that: the repository is public. `security-events: read`
+# (2026-11-07) lets scripts/check-live-settings.mjs read code scanning's default setup.
 permissions:
   contents: read
+  security-events: read
 
 # No job here uses the Actions cache, so it may neither read nor write one. Scheduled and
 # manual runs would otherwise be allowed to WRITE it (GitHub `cache-mode`, 2026-10-01: least
 # privilege against cache poisoning).
 cache-mode: none
+
+# One run at a time (zizmor `concurrency-limits`, 2026-11-07): a late scheduled run and a manual
+# one must not overlap. Queued, never cancelled: every run here is a check worth finishing.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   compare:
@@ -44,7 +53,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,3 +70,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/check-required-checks.mjs
+
+      # The other settings the notes rely on (2026-11-07; the script says why): the production
+      # environment's branch rule and code scanning's setup. Same exit codes: a failed read warns.
+      - name: Compare the live settings with the notes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-live-settings.mjs github

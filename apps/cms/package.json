@@ -14,6 +14,7 @@
     "generate:types": "payload generate:types",
     "generate:importmap": "payload generate:importmap",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --message \"${DEPLOY_MESSAGE:-manual}\" --var \"$(node siteBuild.mjs)\"",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload --tag \"${DEPLOY_TAG:-manual}\" --message \"${DEPLOY_MESSAGE:-manual}\" --var \"$(node siteBuild.mjs)\"",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "migrate:create": "PAYLOAD_LOCAL_D1=1 payload migrate:create",
     "migrate": "PAYLOAD_LOCAL_D1=1 payload run src/seed/migrate.ts",
