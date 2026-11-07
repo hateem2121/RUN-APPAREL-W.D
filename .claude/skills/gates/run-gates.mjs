@@ -159,7 +159,7 @@ const GATES = [
   },
   {
     name: 'e2e',
-    why: 'separate CI job — ALSO gates the deploy. Slowest in CI (5 machines), ~45s locally',
+    why: 'separate CI job — ALSO gates the deploy. Slowest in CI (8 machines since 2026-11-07), ~45s locally',
     argv: [...PNPM, '--filter', '@run-apparel/viewer', 'test:e2e'],
   },
 ]

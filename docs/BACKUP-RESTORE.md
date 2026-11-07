@@ -65,9 +65,11 @@ A backup nobody has restored is a hypothesis. Add a row each time one is run.
 |---|---|---|
 | 2026-07-29 | D1 Time Travel, after the migration that emptied two tables | Worked; became the documented first resort |
 | 2026-08-05 | D1 restore from a nightly SQL dump | Worked, **and found the written instructions were wrong** — they were corrected as a result |
+| 2026-11-07 | R2 media restore from the ENCRYPTED weekly mirror (2 Nov, `r2-backup-41421287021`, 513.4 MB): owner decrypted with the backup key, all 653 media files restored into a temporary bucket `run-apparel-restore-drill` (then deleted), nothing live written | **Worked.** Backup, live bucket and restored bucket gave the same fingerprint of every key, size and MD5 (653 files, 428,609,896 bytes); a restored model parsed as glTF 2.0 with its colour variants. **Measured RTO for media: ~7 min of machine time** (download 2 m 44 s, restore 3 m 28 s with 8 uploads at once, checks ~1 min) plus the owner finding the key; 16 min 11 s door to door. Found two traps, both now below: the unlock line could print "OK" after age failed, and `r2 bucket info` can report 0 objects for a full bucket |
 
-**Next drill due: 2026-11-05** (quarterly). The one worth doing next is the R2
-media restore, because it is the only row above whose RTO is a guess.
+**Next drill due: 2027-02-07** (quarterly). The one worth doing next is a D1 restore from the
+ENCRYPTED nightly artifact (`d1-backup-<run>`): the 2026-08-05 drill used an unencrypted dump,
+so the decrypt step has been proven only for R2.
 
 🟡 **This drill cannot be handed to a scheduled workflow, and that is by design.**
 Considered and rejected 2026-09-27: the weekly mirror is `r2-mirror.tar.age`, encrypted to
@@ -172,6 +174,19 @@ age -d -i run-apparel-backup-key.txt -o run-apparel-viewer-db-<stamp>.sql run-ap
 # R2 mirror (from an r2-backup-<run> artifact) — recreates backups/r2/<stamp>/{media,apex}/
 mkdir -p backups && age -d -i run-apparel-backup-key.txt r2-mirror.tar.age | tar -xf - -C backups
 ```
+
+🟡 **Without a key file on disk (how the 2026-11-07 drill did it):** run this in the Terminal
+APP — not with `!` in a Claude chat, which has no keyboard and skips the question. It asks for
+the key, hides it, refuses anything not starting `AGE-SECRET-KEY-`, and forgets it after:
+
+```bash
+set -o pipefail && printf 'Paste the backup key, then press Enter: ' && read -rs AGEKEY && echo && case "$AGEKEY" in AGE-SECRET-KEY-*) age -d -i <(printf '%s\n' "$AGEKEY") r2-mirror.tar.age | tar -xf - && echo "DECRYPTED OK" ;; *) echo "not a backup key — nothing unlocked" ;; esac; unset AGEKEY
+```
+
+🟡 **`set -o pipefail` is load-bearing.** Without it the line is judged by `tar` alone, and `tar`
+"unpacks" an empty stream successfully: on 2026-11-07 a version without it printed "DECRYPTED OK"
+after age had refused the key (`unknown identity type`), and nothing was on disk. Check that the
+folders exist, not that the line said OK.
 
 ## Restoring D1 — try Time Travel FIRST
 
@@ -298,6 +313,12 @@ find "$BASE/inquiry-files" -type f | while read -r f; do
   npx wrangler@4.153.0 r2 object put "run-apparel-inquiry-files/$key" --file "$f" --remote
 done
 ```
+
+🟡 **Count objects by LISTING them, never with `wrangler r2 bucket info`.** Its `object_count`
+and `bucket_size` come from usage statistics: on 2026-11-07 it answered 653 objects for the media
+bucket in the morning and **0 objects, 0 B** for the same full bucket minutes after an unrelated
+bucket was emptied, while a listing returned all 653 and the files downloaded. A count of 0 there
+is not evidence of loss; list the bucket (Cloudflare API `…/r2/buckets/<name>/objects`).
 
 **Then verify, and verify the way a browser asks — a plain GET, never `HEAD`.**
 `HEAD` lands on a different edge cache entry and has twice returned a different
