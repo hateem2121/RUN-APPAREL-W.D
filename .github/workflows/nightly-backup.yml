@@ -131,6 +131,17 @@ jobs:
             node scripts/verify-backup.mjs "$dump"
           done
 
+      # AND THAT IT WOULD LOAD INTO D1 (restore drill, 2026-11-07). The step above replays with
+      # foreign keys OFF, which proves the content but is something D1 cannot do, and the
+      # runbook's restore failed on D1 because the export writes a child table's row before its
+      # parent table exists. scripts/order-d1-dump.mjs reorders parents-first and proves the
+      # result loads with every row checked as it lands; it fails here if it ever cannot.
+      - name: Verify the dump would load into D1 (parents first)
+        run: |
+          for dump in backups/d1/*.sql; do
+            node scripts/order-d1-dump.mjs "$dump" "$RUNNER_TEMP/ordered.sql"
+          done
+
       # A SECOND HOME FOR THE DUMP — L2-05, 2026-08-31.
       #
       # Until now the viewer database's only copy outside D1 was a GitHub artifact,
