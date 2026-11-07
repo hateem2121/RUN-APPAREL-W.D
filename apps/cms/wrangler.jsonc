@@ -78,6 +78,19 @@
   // Workers Logs (free tier): worker errors + console output become queryable
   // in the Cloudflare dashboard and via `wrangler tail`.
   "observability": { "enabled": true },
+  // ONE SCHEDULED JOB, IN UTC (Pakistan is UTC+05:00 all year): "35 0 * * *" is 05:35 in Pakistan,
+  // daily. worker.mjs `scheduled` deletes template download records whose "Delete after" date has
+  // come and whose person did NOT tick the updates box (templateDownloadRetention.mjs; owner
+  // approved 7 Nov 2026, so the privacy page's "kept for 2 years from our last contact" holds
+  // without a person remembering). It starts 30 minutes after the documents Worker's clean-up
+  // ("5 0 * * *" in infra/apex-404/wrangler.jsonc) so the two do not write to D1 together.
+  // Cron Triggers evaluate in UTC (developers.cloudflare.com/workers/configuration/cron-triggers/,
+  // read 2026-11-07). There is no weekday here; if one is ever added, Cloudflare counts 1 = SUNDAY,
+  // so write the name (MON), as infra/apex-404 does.
+  // ⚠️ `wrangler deploy` PUTs exactly this list and replaces every trigger the Worker had, and an
+  // empty list removes them all. This Worker had no trigger before. src/templateDownloadRetention.test.ts
+  // pins this line and the `scheduled` export.
+  "triggers": { "crons": ["35 0 * * *"] },
   // SOURCE MAPS STAY OFF, AS THEY HAVE ALWAYS BEEN (2026-10-23). wrangler 4.150.0 started
   // generating and uploading them on every deploy when this key is unset (release notes,
   // PR #16231; Cloudflare changelog "Wrangler and cf now upload source maps by default",

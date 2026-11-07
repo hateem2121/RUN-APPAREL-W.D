@@ -67,6 +67,8 @@ import {
   keepApiAnswer,
   serveViewerApi,
 } from './viewerApiCache.mjs'
+import { reportToSentry } from './src/lib/sentry.ts'
+import { runTemplateRetention } from './templateDownloadRetention.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 
 export * from './.open-next/worker.js'
@@ -226,6 +228,25 @@ async function fromTapStore(request, env, ctx) {
 }
 
 export default {
+  /**
+   * The daily clean-up of template download records (wrangler.jsonc `triggers`; the rules and the
+   * reasons are in templateDownloadRetention.mjs). It never throws: a failure is reported to
+   * Sentry through the same hand-rolled envelope as every other CMS error (src/lib/sentry.ts) and
+   * logged by name only, and the Worker's other requests are unaffected.
+   */
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(
+      runTemplateRetention(env, (error) =>
+        reportToSentry({
+          dsn: env.SENTRY_DSN,
+          error,
+          context: { routerKind: 'scheduled', routePath: 'template-retention', routeType: 'cron' },
+          environment: 'production',
+        }),
+      ),
+    )
+  },
+
   async fetch(request, env, ctx) {
     // Garment pages and the viewer's files go to the viewer Worker unchanged, BEFORE
     // OpenNext (viewerForward.mjs says which, and why). Its response carries its own CSP
