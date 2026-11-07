@@ -126,7 +126,8 @@ export function judgeControl(status, body, worker, newId, oldId) {
   if (body?.version === newId) return 'wrong'
   if (status === 200 && body?.worker === worker && body?.version === oldId) return 'ok'
   // The live version does not know the address: a 404, or the viewer's page shell (not JSON).
-  if ((status === 404 || status === 200) && (body === null || body?.version === undefined)) return 'ok'
+  if ((status === 404 || status === 200) && (body === null || body?.version === undefined))
+    return 'ok'
   return 'wrong'
 }
 
