@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import {
   judgeAnswer,
+  judgeControl,
   liveVersion,
   overridesHeader,
   parsePairs,
@@ -147,4 +148,47 @@ test('with CF_VERSION_PAIRS unset the preload changes nothing (a normal deploy s
     { encoding: 'utf8', env: { ...process.env, CF_VERSION_PAIRS: '' } },
   )
   assert.equal(child.stdout.trim(), 'true')
+})
+
+test('the negative control passes on the answers the FIRST deploy really got (run 42359271801)', () => {
+  // Neither live version had the address yet: the CMS answered 404, the viewer its page shell.
+  assert.equal(judgeControl(404, null, 'run-apparel-viewer-cms', NEW, OLD), 'ok')
+  assert.equal(judgeControl(200, null, 'run-apparel-viewer-site', NEW, OLD), 'ok')
+  // From the second deploy on, the live version reports its own id.
+  assert.equal(
+    judgeControl(
+      200,
+      { worker: 'run-apparel-viewer-cms', version: OLD },
+      'run-apparel-viewer-cms',
+      NEW,
+      OLD,
+    ),
+    'ok',
+  )
+})
+
+test('negative control: the NEW version answering without the header is caught', () => {
+  // That is what an override applied to everyone (a version left at 100%) would look like.
+  assert.equal(
+    judgeControl(
+      200,
+      { worker: 'run-apparel-viewer-cms', version: NEW },
+      'run-apparel-viewer-cms',
+      NEW,
+      OLD,
+    ),
+    'wrong',
+  )
+  assert.equal(
+    judgeControl(
+      200,
+      { worker: 'run-apparel-viewer-cms', version: '11111111-1111-4111-8111-111111111111' },
+      'run-apparel-viewer-cms',
+      NEW,
+      OLD,
+    ),
+    'wrong',
+  )
+  assert.equal(judgeControl(500, null, 'run-apparel-viewer-cms', NEW, OLD), 'wrong')
+  assert.equal(judgeControl(403, null, 'run-apparel-viewer-cms', NEW, OLD), 'inconclusive')
 })
