@@ -778,6 +778,7 @@ describe('a guide’s sources (2026-10-08)', () => {
       'dec.ny.gov',
       'dhs.gov',
       'ecfr.gov',
+      'ecologie.gouv.fr',
       'eur-lex.europa.eu',
       'federalregister.gov',
       'gov.uk',

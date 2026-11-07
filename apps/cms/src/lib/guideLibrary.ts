@@ -4166,6 +4166,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'The law’s own word. It calls the first step "tissage", weaving.',
+              'The ministry’s own FAQ (November 2025) counts knitting, and making a nonwoven fabric, as part of that step.',
               'Who it reaches. Producers, importers and other sellers with turnover above €10 million that place at least 10,000 units of these products on the French market each year. It began with the largest, from 1 January 2023, and reached that level on 1 January 2025.',
               'The environmental cost display. France’s display of a garment’s environmental cost is voluntary and in force from 1 October 2025.',
               'Ultra-fast fashion. A law of 8 July 2026 targets "mode ultra-express", ultra-fast fashion. Its penalties through eco-contributions apply from 1 September 2026 and its advertising ban from 1 January 2027. A decree sets the thresholds that decide which businesses it reaches. The penalty amounts change by year: read them in the law on Légifrance.',
@@ -4293,31 +4294,41 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'published',
       },
       {
-        name: 'Légifrance, Code de l’environnement, articles R541-227, R541-228 and R541-230 (in force from 8 April 2024, Décret n° 2024-316) †',
+        name: 'Légifrance, Code de l’environnement, articles R541-227, R541-228 and R541-230 (in force from 8 April 2024, Décret n° 2024-316)',
         url: 'https://www.legifrance.gouv.fr/codes/id/LEGISCTA000049384739',
         date: '2024-04-08',
         kind: 'updated',
       },
       {
-        name: 'Légifrance, Décret n° 2022-748 du 29 avril 2022, initial text, article 3 (the phase-in dates) †',
+        name: 'Légifrance, Décret n° 2022-748 du 29 avril 2022, initial text, article 3 (the phase-in dates)',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000045726094',
         date: '2022-04-30',
         kind: 'published',
       },
       {
-        name: 'Légifrance, Décret n° 2025-957 du 6 septembre 2025 (environmental cost of textiles) †',
+        // Owner-approved line, 7 Nov 2026. Question 2.9.3, PDF page 14: "Tissage : les opérations de
+        // tissage, tricotage ou l'obtention d'une étoffe « non-tissée »." ecologie.gouv.fr refused the
+        // connection four times from here (6-7 Nov, 76 s each), so it was read from the Internet
+        // Archive's copy of this same URL (snapshot 20260516080842; 19 pages, "mise à jour novembre 2025").
+        name: 'ecologie.gouv.fr, FAQ on Décret n° 2022-748 (article 13-I of the AGEC law), November 2025 version, question 2.9.3',
+        url: 'https://www.ecologie.gouv.fr/sites/default/files/documents/FAQ_article_13-I_AGEC_version-novembre_2025_vF_FR.pdf',
+        date: '2026-11-07',
+        kind: 'read',
+      },
+      {
+        name: 'Légifrance, Décret n° 2025-957 du 6 septembre 2025 (environmental cost of textiles)',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000052212871',
         date: '2025-09-06',
         kind: 'published',
       },
       {
-        name: 'Légifrance, arrêté du 23 décembre 2022 (approval of the textile producer organization) †',
+        name: 'Légifrance, arrêté du 23 décembre 2022 (approval of the textile producer organization)',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000046821065',
         date: '2022-12-28',
         kind: 'published',
       },
       {
-        name: 'Légifrance, LOI n° 2026-602 du 8 juillet 2026 visant à réduire l’impact environnemental de l’industrie textile †',
+        name: 'Légifrance, LOI n° 2026-602 du 8 juillet 2026 visant à réduire l’impact environnemental de l’industrie textile',
         url: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054399113',
         date: '2026-07-09',
         kind: 'published',
@@ -4383,7 +4394,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'updated',
       },
       {
-        name: 'CPSC, Clothing FAQ †',
+        name: 'CPSC, Clothing FAQ',
         url: 'https://www.cpsc.gov/FAQ/Clothing',
         date: '2026-11-06',
         kind: 'read',
@@ -4401,7 +4412,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'updated',
       },
       {
-        name: 'CPSC, Children’s Product Certificate (CPC) †',
+        name: 'CPSC, Children’s Product Certificate (CPC)',
         url: 'https://www.cpsc.gov/Business--Manufacturing/Testing-Certification/Childrens-Product-Certificate-CPC',
         date: '2026-11-06',
         kind: 'read',
@@ -4425,13 +4436,13 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         kind: 'updated',
       },
       {
-        name: 'CPSC, Phthalates business guidance †',
+        name: 'CPSC, Phthalates business guidance',
         url: 'https://www.cpsc.gov/Business--Manufacturing/Business-Education/Business-Guidance/Phthalates-Information',
         date: '2026-11-06',
         kind: 'read',
       },
       {
-        name: 'CPSC, Phthalates FAQ †',
+        name: 'CPSC, Phthalates FAQ',
         url: 'https://www.cpsc.gov/FAQ/Phthalates',
         date: '2026-11-06',
         kind: 'read',
