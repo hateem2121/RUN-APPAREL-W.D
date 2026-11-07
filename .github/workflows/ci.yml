@@ -176,13 +176,15 @@ jobs:
       # recorded there; the stricter `pedantic` persona's errors were fixed too.
       - name: zizmor (workflow security)
         env:
-          # 1.31.1 (2026-10-15) ran clean on every workflow here before this bump (25 Oct);
+          # 1.32.0 (2026-11-02): its experimental lockfile support reads .github/workflows/actions.lock,
+          # which every workflow runs from since 2026-11-07. 1.31.1 does not, and failed every
+          # lockfile-pinned tag as "not pinned to a hash" (PR #347's first run).
           # tool-versions.yml says when a newer one has been out a week.
-          ZIZMOR_VERSION: 1.31.1
-          ZIZMOR_SHA256_X64: 58e878eb2dbd2c6183c105e1ac28c14f7dd1eca44a783f1fe2a69647d012c410
-          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/7c/f7/ee2c8eedc7bf07f443a41aa12f828c7846fd17bab184c22403afd0cbb137/zizmor-1.31.1-py3-none-manylinux_2_28_x86_64.whl
-          ZIZMOR_SHA256_ARM64: d9b36840c560a8abe39d9ef3d077239aabf6d572c5c2b629c970592a617dbf6f
-          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/17/a9/a2e0721c169d116074f07cddf98a939886d422acd393537efd99a331475b/zizmor-1.31.1-py3-none-manylinux_2_24_aarch64.whl
+          ZIZMOR_VERSION: 1.32.0
+          ZIZMOR_SHA256_X64: 84a6acb975accc13408786a2bd274b572537ca19c933ebbc13e78f3988562071
+          ZIZMOR_URL_X64: https://files.pythonhosted.org/packages/6f/b2/45f4fcb6f428e774750709ecf5320ba6d96393c03b941d9f37a4586f6924/zizmor-1.32.0-py3-none-manylinux_2_28_x86_64.whl
+          ZIZMOR_SHA256_ARM64: 0cdd38fca6eb34ceb567548548d706332e3535ea66894b9168c048e03207b68c
+          ZIZMOR_URL_ARM64: https://files.pythonhosted.org/packages/be/18/8d66db6e98c89f5d647236e282062d8ccc73f7ba759f7ef8dd6204683518/zizmor-1.32.0-py3-none-manylinux_2_24_aarch64.whl
           # For the online audits (impostor-commit, known-vulnerable-actions). The job's
           # own read-only token; nothing here writes.
           GH_TOKEN: ${{ github.token }}
