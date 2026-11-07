@@ -160,6 +160,17 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   goes through a PR.
   🟡 ORDER MATTERS: setting `production` to protected-branches-only *before* `main`
   is protected blocks every deploy. Create the ruleset first.
+  🟡 **Since 2026-11-07 (owner's yes) the `production` environment lets ONLY `main` use its
+  six secrets** — a custom deployment-branch policy naming `main`. It had NO branch rule from
+  the re-creation on 2026-09-10 until then: the org-era restriction above was never rebuilt, so
+  a job on any branch (the weekly robot's, or one dispatched by hand) could read the Cloudflare
+  keys by declaring the environment. Proved both ways: `r2-budget.yml` dispatched on `main` read
+  R2 (run 42344834070), and on a throwaway branch was refused before any step ran (run
+  42344944030, *"Branch … is not allowed to deploy to production due to environment
+  protection rules"*). Every job that declares `production` runs on `main` (push or
+  schedule), so a new one on another branch fails the same way — that is the rule working.
+  Read it: `gh api repos/hateem2121/RUN-APPAREL-W.D/environments/production/deployment-branch-policies`.
+  Undo: Settings → Environments → production → Deployment branches → No restriction.
 - **Editing a workflow? `apps/cms/src/workflowHardening.test.ts` gates it — eighteen
   rules, twelve with their own negative control.** Every workflow declares a top-level
   `permissions:` block that includes `contents`; every `uses:` is a 40-hex SHA with a
