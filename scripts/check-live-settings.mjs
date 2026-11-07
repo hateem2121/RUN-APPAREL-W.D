@@ -95,9 +95,16 @@ export function r2Settings(lifecycle) {
   return out
 }
 
-async function getJson(url, headers) {
+/**
+ * A failed read, described WITHOUT the URL: the R2 address carries the Cloudflare account id from
+ * the environment, and a public repository's Actions logs are public (.github/CLAUDE.md; CodeQL
+ * "clear-text logging of sensitive information", PR #341). Only a fixed label and the status go out.
+ */
+class ReadError extends Error {}
+
+async function getJson(url, headers, label) {
   const res = await fetch(url, { headers })
-  if (!res.ok) throw new Error(`${res.status} from ${url.replace(/accounts\/[^/]+/, 'accounts/…')}`)
+  if (!res.ok) throw new ReadError(`HTTP ${res.status} from ${label}`)
   return res.json()
 }
 
@@ -109,9 +116,13 @@ async function readGithub() {
   }
   const api = `https://api.github.com/repos/${REPOSITORY}`
   const [environment, branchPolicies, codeScanning] = await Promise.all([
-    getJson(`${api}/environments/production`, headers),
-    getJson(`${api}/environments/production/deployment-branch-policies`, headers),
-    getJson(`${api}/code-scanning/default-setup`, headers),
+    getJson(`${api}/environments/production`, headers, 'the production environment'),
+    getJson(
+      `${api}/environments/production/deployment-branch-policies`,
+      headers,
+      'its branch policies',
+    ),
+    getJson(`${api}/code-scanning/default-setup`, headers, 'code scanning'),
   ])
   return githubSettings({ environment, branchPolicies, codeScanning })
 }
@@ -119,12 +130,13 @@ async function readGithub() {
 async function readR2() {
   const { CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account } = process.env
   if (!token || !account)
-    throw new Error('CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not set')
+    throw new ReadError('CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not set')
   const body = await getJson(
     `https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/run-private/lifecycle`,
     {
       authorization: `Bearer ${token}`,
     },
+    "run-private's lifecycle rules",
   )
   return r2Settings(body.result)
 }
@@ -140,7 +152,8 @@ async function main(argv) {
     live = which === 'github' ? await readGithub() : await readR2()
   } catch (err) {
     console.log(
-      `::warning::could not read the live ${which} settings, so nothing was compared: ${err.message}`,
+      // Only our own ReadError text is printed; anything else (a network error) by its name alone.
+      `::warning::could not read the live ${which} settings, so nothing was compared: ${err instanceof ReadError ? err.message : `${err?.name ?? 'Error'} (network)`}`,
     )
     return 0
   }
