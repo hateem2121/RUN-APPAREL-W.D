@@ -169,7 +169,18 @@ function buildDescription(payload: ViewerApiSuccess): string {
   // the case for a garment with no garment type yet.
   const code = p.garmentType.trim() ? p.productCode.trim() : ''
   const lead = [code, specs].filter(Boolean).join(' · ')
-  return truncate([lead ? `${lead}.` : '', shown, tail].filter(Boolean).join(' '))
+  const after = [shown, tail].filter(Boolean).join(' ')
+  const whole = [lead ? `${lead}.` : '', after].filter(Boolean).join(' ')
+  if (whole.length <= MAX_DESCRIPTION) return whole
+  // ⚠️ CUT THE SPECS, NEVER THE COLOUR (2026-11-07). Cutting the whole line at 160 characters
+  // dropped "Shown in <colour>." from any garment whose specs fill the line: the Kaizen ball's
+  // 0.6 mm PU cover / 3 mm EPDM laminate / … spec did, so its five colour pages carried
+  // byte-identical descriptions (uptime.yml's live-copy check, red since 2026-10-29) — the
+  // exact defect the colour was added to fix (see above). The colour and the tail are short and
+  // fixed; the specs give way. A room too small for any spec falls back to the old whole-line cut.
+  const room = MAX_DESCRIPTION - after.length - 1
+  if (!lead || room < 24) return truncate(whole)
+  return `${truncate(`${lead}.`, room)} ${after}`
 }
 
 /**

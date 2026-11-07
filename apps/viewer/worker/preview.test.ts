@@ -287,15 +287,47 @@ describe('buildPreview — description', () => {
     )
   })
 
-  it('truncates on a word boundary rather than mid-word', () => {
+  it('truncates the specs on a word boundary rather than mid-word', () => {
     const long = build(
       payload({ product: { fabricComposition: 'Recycled polyester '.repeat(30) } }),
     ).description
     expect(long.length).toBeLessThanOrEqual(MAX_DESCRIPTION)
-    expect(long.endsWith('…')).toBe(true)
+    // The specs are what gives way (2026-11-07): the colour sentence and the tail stay whole.
+    expect(long.endsWith(' Shown in Wine. See all 3 colorways in 3D.')).toBe(true)
+    const specs = long.slice(0, long.indexOf(' Shown in Wine.'))
+    expect(specs.endsWith('…')).toBe(true)
     // The cut lands after a whole word, so the visible text never reads
     // "…polyeste…". Everything before the ellipsis is complete words.
-    expect(long.slice(0, -1).trimEnd()).toMatch(/\w$/)
+    expect(specs.slice(0, -1).trimEnd()).toMatch(/\w$/)
+  })
+
+  /**
+   * ⚠️ THE KAIZEN BALL, 2026-11-07. Its spec ("Size 5, 69 cm circumference … 0.6 mm Vimini-textured
+   * PU cover / 3 mm EPDM foam laminate / 4 mm EPDM foam panel patch / Thread-wound …") filled the
+   * 160 characters on its own, and the old whole-line cut dropped "Shown in <colour>." — so its five
+   * colour pages were byte-identical again, red in uptime.yml's live-copy check from 2026-10-29.
+   * The colour test above could never see it: its specs are short. This fixture is the real shape.
+   */
+  it('keeps each colour named when the specs alone fill the line', () => {
+    const orange = colourway({ slug: 'orange', displayName: 'Orange' })
+    const pink = colourway({ slug: 'pink', displayName: 'Pink' })
+    const all = [orange, pink]
+    const product = {
+      garmentType: 'Hybrid soccer ball',
+      productCode: 'R-KZN',
+      garmentFit: 'Size 5, 69 cm circumference (68.5–69.5 cm)',
+      fabricComposition:
+        '0.6 mm Vimini-textured PU cover / 3 mm EPDM foam laminate / 4 mm EPDM foam panel patch / Thread-wound butyl bladder',
+      gsm: '',
+    }
+    const a = build(payload({ product, colourways: all, selectedColourway: orange })).description
+    const b = build(payload({ product, colourways: all, selectedColourway: pink })).description
+    expect(a.length).toBeLessThanOrEqual(MAX_DESCRIPTION)
+    expect(b.length).toBeLessThanOrEqual(MAX_DESCRIPTION)
+    expect(a).toContain('Shown in Orange.')
+    expect(b).toContain('Shown in Pink.')
+    expect(a, 'two colours of a long-spec garment describe themselves identically').not.toBe(b)
+    expect(a.startsWith('R-KZN · Size 5')).toBe(true)
   })
 
   /**
