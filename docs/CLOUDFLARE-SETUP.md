@@ -111,6 +111,19 @@ changes (`apps/cms/src/app/(frontend)/guides/tech-pack-template/download/route.t
 page names the owner as a recipient, so the secret must be set on the Worker for that sentence to
 be true.
 
+**The tech pack template's records delete themselves (owner approved 2026-11-07).** Nobody deletes
+these by hand. A daily Cron Trigger on the CMS Worker (`"35 0 * * *"` in `apps/cms/wrangler.jsonc`,
+00:35 UTC, 05:35 in Pakistan) runs `scheduled` in `apps/cms/worker.mjs`, which calls
+`apps/cms/templateDownloadRetention.mjs`. It deletes a record when its **Delete after** date has
+come AND its person did not tick the updates box. A record that ticked it is never deleted by the
+job: it stays until the updates are stopped, which is a separate step. The date is the last-contact
+date the team moves on when they write to the person again, so moving it keeps the record. The log
+says `[template-retention] deleted N` (a count, never a name); a failure goes to Sentry like any
+CMS error. The job touches only the `template_downloads` table and skips a record someone has open
+in the admin until the next day. Cloudflare evaluates cron times in UTC
+(developers.cloudflare.com/workers/configuration/cron-triggers/, read 2026-11-07). Check it ran:
+Workers Logs for `run-apparel-viewer-cms`, search `template-retention`.
+
 **Edge rate-limit on the admin login — ✅ done (2026-07-22).** The free plan
 includes exactly **one** rate-limiting rule with fixed values (read them in the
 dashboard, not here; longer windows need a paid tier), and the
