@@ -31,7 +31,7 @@
       // ⚠️ NOT `scripts/*.mjs` (until 2026-10-25 it was): that made every script an entry, so a
       // script nothing runs could never show up, and an entry's unused exports are never reported.
       // Knip finds the scripts a workflow or package.json runs, and the ones a test or script
-      // imports, by itself (measured 2026-10-25: all but the 13 below). These 13 are run BY HAND
+      // imports, by itself (measured 2026-10-25: all but the 13 below; 14 since 2026-11-07). These are run BY HAND
       // or in a shape the workflow plugin does not read; each names where it is run. A NEW script
       // that nothing runs fails knip until it is listed here with its runner, or deleted.
       "entry": [
@@ -53,7 +53,9 @@
         // Hand-run site tools: the /products film, the docs screenshots, the SEO crawl.
         "scripts/build-products-film.mjs",
         "scripts/capture-doc-screenshots.mjs",
-        "scripts/seo-crawl.mjs"
+        "scripts/seo-crawl.mjs",
+        // Hand-run after a page changed on purpose (docs/RUNBOOK.md, the screenshot safety net).
+        "scripts/refresh-visual-snapshots.mjs"
       ],
       // Type declarations for the .mjs scripts, read by TypeScript, not imported.
       "ignore": ["scripts/*.d.mts"],

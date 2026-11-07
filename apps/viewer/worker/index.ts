@@ -18,6 +18,7 @@ import { isMissingGarment, isWellKnownPath, shouldReturnNotFound } from './notFo
 import { buildPreview, type Preview } from './preview'
 import { workerResponseHeaders } from './securityHeaders'
 import { securityTxtResponse } from './securityTxt'
+import { workerVersionResponse } from './workerVersion'
 
 /**
  * The viewer's Worker. Its job is to give a shared link a preview card that
@@ -63,6 +64,8 @@ interface Env {
   ASSETS: Fetcher
   /** Service binding to run-apparel-viewer-cms — same account, no public hop. */
   CMS: Fetcher
+  /** Which version answered (wrangler.jsonc `version_metadata`; workerVersion.ts says why). */
+  CF_VERSION_METADATA?: { id?: string }
 }
 
 /**
@@ -319,6 +322,10 @@ function applyPreview(response: Response, preview: Preview, payloadScript: strin
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
+
+    // The deploy's proof of which version answered (workerVersion.ts, 2026-11-07).
+    const version = workerVersionResponse(url.pathname, env.CF_VERSION_METADATA)
+    if (version) return version
 
     // RFC 9116's fixed address (2026-09-18). First, because `/.well-known/security.txt` has
     // two segments and would otherwise be read as a product/colour pair below.

@@ -48,7 +48,7 @@ jobs:
     environment: production
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -198,6 +198,16 @@ jobs:
       # public key this step fails and nothing is uploaded, because the upload below
       # takes only `.age` files. apps/cms/src/publicRepoGuards.test.ts fails if any
       # workflow uploads something under backups/ that is not a `.age` file.
+      # THE EXPIRY RULES THE BACKUPS ABOVE DEPEND ON (2026-11-07). Until that day nothing in
+      # run-private expired: its one rule covered the other site's `backups/` prefix, so 319 of our
+      # dumps (3.08 GB) piled up. scripts/check-live-settings.mjs fails if either of our two rules
+      # goes missing, is disabled or changes age; a refused READ only warns.
+      - name: Check run-private's expiry rules
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/check-live-settings.mjs r2
+
       - name: Encrypt the D1 dump for the off-account copy
         if: always()
         run: |

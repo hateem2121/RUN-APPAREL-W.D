@@ -21,6 +21,12 @@ permissions:
 # privilege against cache poisoning).
 cache-mode: none
 
+# One run at a time (zizmor `concurrency-limits`, 2026-11-07): a late scheduled run and a manual
+# one must not overlap. Queued, never cancelled: every run here is a check worth finishing.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   probe:
     if: vars.DEPLOY_ENABLED == 'true'
@@ -28,7 +34,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Network guard (Harden-Runner, watch mode)
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

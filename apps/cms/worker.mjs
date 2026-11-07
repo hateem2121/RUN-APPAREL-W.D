@@ -70,6 +70,7 @@ import {
 import { reportToSentry } from './src/lib/sentry.ts'
 import { runTemplateRetention } from './templateDownloadRetention.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
+import { workerVersionResponse } from './workerVersion.mjs'
 
 export * from './.open-next/worker.js'
 
@@ -253,6 +254,10 @@ export default {
     // from `_headers`, so the nonce guard below must never see it. Without the binding
     // (a local preview) the request falls through to Next and 404s, which is honest.
     if (env.VIEWER && forwardsToViewer(new URL(request.url))) return env.VIEWER.fetch(request)
+    // Which version answered: the deploy's proof its pre-live checks reached the new version
+    // (workerVersion.mjs, 2026-11-07). Before OpenNext and the page store, so nothing keeps it.
+    const version = workerVersionResponse(new URL(request.url), env.CF_VERSION_METADATA)
+    if (version) return version
     // The /products film, in the pieces iPhone Safari asks for: the static assets would send the
     // whole file to every range request (filmRange.mjs has the measurements). Only `/film/*` reaches
     // this line before the assets do (`run_worker_first` in wrangler.jsonc).
