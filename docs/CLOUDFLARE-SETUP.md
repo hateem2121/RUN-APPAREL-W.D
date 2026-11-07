@@ -116,11 +116,14 @@ these by hand. A daily Cron Trigger on the CMS Worker (`"35 0 * * *"` in `apps/c
 00:35 UTC, 05:35 in Pakistan) runs `scheduled` in `apps/cms/worker.mjs`, which calls
 `apps/cms/templateDownloadRetention.mjs`. It deletes a record when its **Delete after** date has
 come AND its person did not tick the updates box. A record that ticked it is never deleted by the
-job: it stays until the updates are stopped, which is a separate step. The date is the last-contact
-date the team moves on when they write to the person again, so moving it keeps the record. The log
-says `[template-retention] deleted N` (a count, never a name); a failure goes to Sentry like any
-CMS error. The job touches only the `template_downloads` table and skips a record someone has open
-in the admin until the next day. Cloudflare evaluates cron times in UTC
+job. The date is the last-contact date (exactly 2 calendar years after receipt: 29 February gives
+1 March) that the team moves on when they write to the person again, so moving it keeps the record.
+When someone asks to stop the updates, the team sets **Updates stopped on** (today's date) on their
+record. The next run blanks the name, company, country, job title and WhatsApp number and keeps only
+the email, and never deletes that record, because it is the list of people no update may reach
+again. The log says `[template-retention] deleted N, minimised M` (counts, never a name); a failure
+goes to Sentry like any CMS error. The job touches only the `template_downloads` table and skips a
+record someone has open in the admin until the next day. Cloudflare evaluates cron times in UTC
 (developers.cloudflare.com/workers/configuration/cron-triggers/, read 2026-11-07). Check it ran:
 Workers Logs for `run-apparel-viewer-cms`, search `template-retention`.
 
