@@ -67,6 +67,19 @@ export const SOURCE_FILE_PATHS = {
   // The about and factory pages' words (the about-factory build, 2026-10-09); the paths are
   // the list that holds them in `publicViewerHeaders.mjs`, spread from `COMPANY_PATHS`.
   'apps/cms/src/lib/aboutPages.ts': COMPANY_PAGE_SOURCES,
+  // Found by an audit of the files each page reads (2026-11-08): five more words files that were
+  // never keys, so an edit to them told no search engine. Each maps to the pages that SHOW its
+  // words, traced through the component that draws them, not to every page that imports it.
+  // The search descriptions (pageDescriptions.ts): the home, products and contact pages' own.
+  'apps/cms/src/lib/pageDescriptions.ts': ['/', '/products', '/contact'],
+  // №03 on the home page (ProofShowcase.tsx).
+  'apps/cms/src/lib/proofShowcase.ts': ['/'],
+  // The order steps: the home page's №04 (OrderTimeline) and the order guide's orderSteps block.
+  'apps/cms/src/lib/orderProcess.ts': ['/', '/guides/how-a-private-label-order-works'],
+  // The sport buttons, shown only on the Teamwear page (GarmentGrid.tsx).
+  'apps/cms/src/lib/sports.ts': ['/custom-teamwear-manufacturer'],
+  // №01 on the home page (AboutSection.tsx); its building count is also quoted in the country guide.
+  'apps/cms/src/lib/aboutCopy.ts': ['/', '/guides/pakistan-vs-china-vs-turkey'],
 }
 
 /**

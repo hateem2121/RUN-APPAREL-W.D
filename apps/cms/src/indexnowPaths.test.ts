@@ -50,6 +50,16 @@ describe('which pages a changed source file tells search engines about', () => {
     for (const file of lists) expect(SOURCE_FILE_PATHS, file).toHaveProperty([file])
   })
 
+  it('five words files found by the 2026-11-08 audit send the pages that show them', () => {
+    const sent = (file: string) => pathsForChangedFiles([`apps/cms/src/lib/${file}`])
+    // Sorted: the map answers in PUBLIC_PAGE_SOURCES order, and every path must survive its filter.
+    expect(sent('pageDescriptions.ts').sort()).toEqual(['/', '/contact', '/products'])
+    expect(sent('proofShowcase.ts')).toEqual(['/'])
+    expect(sent('orderProcess.ts').sort()).toEqual(['/', '/guides/how-a-private-label-order-works'])
+    expect(sent('sports.ts')).toEqual(['/custom-teamwear-manufacturer'])
+    expect(sent('aboutCopy.ts').sort()).toEqual(['/', '/guides/pakistan-vs-china-vs-turkey'])
+  })
+
   it('the buyer pages, policies and company pages each follow the file that holds their words', () => {
     expect(pathsForChangedFiles(['apps/cms/src/lib/familyPages.ts'])).toEqual(FAMILY_PAGE_SOURCES)
     expect(pathsForChangedFiles(['apps/cms/src/lib/policies.ts'])).toEqual(POLICY_PAGE_SOURCES)
