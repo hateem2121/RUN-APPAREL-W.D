@@ -139,6 +139,12 @@ const FRANCE_KNIT_LINE = '2026-11-07T12:23:35+05:00'
  * `site/held-guides`; it moves again when a team fact is filled in, as the test says.
  */
 const HELD_GUIDES = '2026-11-06T22:45:00+05:00'
+/**
+ * C2, C3 and C7 go live with the team's facts in (owner, 2026-11-08, question tool rounds 1-3: the
+ * QC checklist's defect examples, the six check methods, and the C7 counts to 8 November 2026,
+ * email and form only). First live AND last changed then; the time the facts were committed.
+ */
+const HELD_GUIDES_LIVE = '2026-11-08T19:05:18+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -271,20 +277,25 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     TECH_PACK_AND_TOOLS,
     '90d1d0002502',
   ),
-  // C2, C3 and C7, HELD (owner, 2026-11-06): signed by the merchandiser, the production in-charge and
-  // the Content Team.
-  '/guides/aql-inspection': byline(AUTHORS.merchandiser, HELD_GUIDES, HELD_GUIDES, '8b40a7c30ccb'),
+  // C2, C3 and C7 (held 6-8 Nov 2026 for the team's facts): signed by the merchandiser, the
+  // production in-charge and the Content Team.
+  '/guides/aql-inspection': byline(
+    AUTHORS.merchandiser,
+    HELD_GUIDES_LIVE,
+    HELD_GUIDES_LIVE,
+    'df55a18eba36',
+  ),
   '/guides/fabric-and-garment-testing': byline(
     AUTHORS.production,
-    HELD_GUIDES,
-    HELD_GUIDES,
-    '7bc62171ee0d',
+    HELD_GUIDES_LIVE,
+    HELD_GUIDES_LIVE,
+    '95672f7a7b35',
   ),
   '/guides/what-sportswear-buyers-ask': byline(
     AUTHORS.contentTeam,
-    HELD_GUIDES,
-    HELD_GUIDES,
-    '9d3cb01db4e8',
+    HELD_GUIDES_LIVE,
+    HELD_GUIDES_LIVE,
+    'bd1aea93e31c',
   ),
   '/policies/workplace-conduct': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'c46e5065c8c4'),
   '/policies/health-and-safety': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, 'f28729f2a376'),

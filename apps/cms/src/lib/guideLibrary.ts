@@ -27,6 +27,7 @@ import type { Guide } from './guides'
  * `site/held-guides` and HELD (owner, 2026-11-06: "Build them, publish later"). Each gap is an
  * explicit `[TEAM: …]` or `[COUNT]` marker, and `heldGuideGaps.test.ts` fails for every one until
  * the fact arrives. Their links from the stitches and machinery guides are back in those guides.
+ * Every fact arrived on 2026-11-08 (owner, question tool), and the three went live together.
  */
 const fact = (prefix: string): string =>
   FACTS.find((entry) => entry.label.startsWith(prefix))?.value ?? ''
@@ -6324,7 +6325,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
     ],
   },
-  // Wave 9, C2: signed by the merchandiser (owner, 2026-11-06). HELD: waits for the team’s defect examples.
+  // Wave 9, C2: signed by the merchandiser (owner, 2026-11-06). Facts in: the owner's QC checklist examples (2026-11-08).
   {
     path: '/guides/aql-inspection',
     title: 'AQL Inspection and Sampling, Explained',
@@ -6433,7 +6434,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'Where those words come from. They are shortened from the definitions in the US Federal Acquisition Regulation, 48 CFR 46.101, written for government buying, where a fault likely to prevent a vital agency mission is also critical.',
               'A tighter AQL where it matters most. As NIST quotes him, Harold Dodge stated in 1942 that inspection should vary with how important each characteristic is. NIST adds that, under MIL-STD-105D, producer and buyer are expected to agree on the AQL for each product characteristic.',
               'Pieces or faults. Say whether your plan counts faulty pieces or every fault, since one piece can carry several; Z1.4 allows either.',
-              'Examples from our QC checklist. Critical: [TEAM: critical defect examples] Major: [TEAM: major defect examples] Minor: [TEAM: minor defect examples]',
+              // The owner's QC checklist, approved as written on 2026-11-08 (question tool, round 3).
+              'Examples from our QC checklist. Critical: a broken needle or metal left in the garment; a sharp edge or point; a missing or wrong label; mould, a strong smell or insects. Major: an open or broken seam; a size outside tolerance; a print fault; a shade difference or a visible stain. Minor: untrimmed threads; slightly uneven stitching; a small mark on the inside; a light crease from packing.',
             ],
           },
           {
@@ -6614,7 +6616,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
     ],
   },
-  // Wave 9, C3: signed by the production in-charge (owner, 2026-11-06). HELD: waits for the team’s method for each in-house check.
+  // Wave 9, C3: signed by the production in-charge (owner, 2026-11-06). Facts in: the owner's method for each check (2026-11-08).
   {
     path: '/guides/fabric-and-garment-testing',
     title: 'Fabric and Garment Testing, Explained',
@@ -6882,19 +6884,33 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'We test at three stages: the fabric before cutting, the sample you approve, and bulk garments before shipping. The table lists our in-house checks on fabric and on finished garments, and the method each one follows. On request, a short in-house sheet of our wash tests and our fabric checks on arrival comes with your order.',
+            text: 'We test at three stages: the fabric before cutting, the sample you approve, and bulk garments before shipping. The table lists our checks on fabric and on finished garments, and the method each one follows. On request, we send the records with your order: our own sheet, the supplier’s lab report or the third-party lab’s report.',
           },
           {
+            // The owner's methods, one per check, approved as written on 2026-11-08 (question tool,
+            // rounds 2 and 3). Four of the six are not done in-house, so the title no longer says so.
             kind: 'table',
-            caption: 'Our in-house checks',
+            caption: 'How we check fabric and garments',
             columns: ['Check', 'Method'],
             rows: [
-              ['Fabric on arrival: colorfastness', '[TEAM: method]'],
-              ['Fabric on arrival: shrinkage', '[TEAM: method]'],
-              ['Fabric on arrival: tensile strength', '[TEAM: method]'],
-              ['Finished garments, wash test: shrinkage', '[TEAM: method]'],
-              ['Finished garments, wash test: colorfastness to washing', '[TEAM: method]'],
-              ['Finished garments, wash test: appearance after washing', '[TEAM: method]'],
+              [
+                'Fabric on arrival: colorfastness',
+                'In-house rub or wash test, rated on the grey scale',
+              ],
+              ['Fabric on arrival: shrinkage', 'The fabric supplier’s lab report for each lot'],
+              [
+                'Fabric on arrival: tensile strength',
+                'The fabric supplier’s lab report for each lot',
+              ],
+              ['Finished garments, wash test: shrinkage', 'A third-party lab, on request'],
+              [
+                'Finished garments, wash test: colorfastness to washing',
+                'A third-party lab, on request',
+              ],
+              [
+                'Finished garments, wash test: appearance after washing',
+                'In-house: washed and dried as the care label says, then checked by eye',
+              ],
             ],
           },
           {
@@ -7200,7 +7216,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
     ],
   },
-  // Wave 14, C7: signed by the Content Team (owner, 2026-11-06). HELD: waits for the count date, every count and the WhatsApp topics.
+  // Wave 14, C7: signed by the Content Team (owner, 2026-11-06). Facts in: counts to 8 Nov 2026, email and form only, owner approved (2026-11-08).
   {
     path: '/guides/what-sportswear-buyers-ask',
     title: 'What Sportswear Buyers Asked Us in 2026',
@@ -7246,7 +7262,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
         blocks: [
           {
             kind: 'text',
-            text: 'We read each buyer inquiry that reached us between those dates through the form on this site, our inquiry email address and WhatsApp. One inquiry is one conversation with one buyer, however many messages it holds. We noted only which topics it asked about, using the rules below.',
+            text: 'We read each buyer inquiry that reached us between those dates through the form on this site or by email to our inquiry addresses. Inquiries sent by WhatsApp are not counted. One inquiry is one conversation with one buyer, however many messages it holds. We noted only which topics it asked about, using the rules below.',
           },
           {
             kind: 'table',

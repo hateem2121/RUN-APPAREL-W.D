@@ -12,7 +12,8 @@ import { GUIDES, guideAt } from './guides'
 /**
  * THE HELD GUIDES' GAPS (owner, 2026-11-06: "Build them, publish later"). C2, C3 and C7 are built
  * and every approved word is in, but the owner's team still owes facts, and nobody may write them
- * from general knowledge. THIS FILE FAILS ON PURPOSE, ONE ASSERTION PER MISSING FACT, until each
+ * from general knowledge. ALL FACTS ARRIVED ON 2026-11-08 (owner, question tool) AND EVERY ASSERTION PASSES; it stays as the guard that
+ * no gap marker ever comes back. It failed on purpose, one assertion per missing fact, until each
  * arrives; every other test in the suite passes. A branch that fails only here is a branch that is
  * waiting only on the team. When a fact arrives: write it where its marker is, and this test turns
  * green for that fact alone. Merge nothing while one is red.
@@ -57,12 +58,15 @@ describe('C3 · /guides/fabric-and-garment-testing · waits for the team’s met
   const checks = (): readonly (readonly string[])[] => {
     const table = guideAt('/guides/fabric-and-garment-testing')
       .sections.flatMap((section) => section.blocks)
-      .find((block) => block.kind === 'table' && block.caption === 'Our in-house checks')
-    if (table?.kind !== 'table') throw new Error('C3 lost its table "Our in-house checks"')
+      .find(
+        (block) => block.kind === 'table' && block.caption === 'How we check fabric and garments',
+      )
+    if (table?.kind !== 'table')
+      throw new Error('C3 lost its table "How we check fabric and garments"')
     return table.rows
   }
 
-  it('C3 table still has the six in-house checks it waits on', () => {
+  it('C3 table still has its six checks', () => {
     expect(checks().map((row) => row[0])).toEqual([
       'Fabric on arrival: colorfastness',
       'Fabric on arrival: shrinkage',
@@ -95,8 +99,15 @@ describe('C7 · /guides/what-sportswear-buyers-ask · waits for the count', () =
     )
   })
 
-  it('C7 is missing: the WhatsApp topics (team)', () => {
-    expect(WHATSAPP_TOPICS_COUNTED, 'C7 counts do not yet include WhatsApp').toBe(true)
+  // Owner, 2026-11-08: "Email + form only". So the page must SAY WhatsApp is not counted while the
+  // flag is false, and must not name WhatsApp as a source once it is true.
+  it('C7 says plainly whether WhatsApp is counted', () => {
+    const words = wordsOf('/guides/what-sportswear-buyers-ask').join('\n')
+    if (WHATSAPP_TOPICS_COUNTED) expect(words).not.toContain('WhatsApp are not counted')
+    else
+      expect(words, 'C7 must say WhatsApp is not counted').toContain(
+        'Inquiries sent by WhatsApp are not counted.',
+      )
   })
 
   it.each(BUYER_QUESTIONS.map((row) => row.topic))(

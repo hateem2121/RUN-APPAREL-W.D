@@ -6,14 +6,12 @@ import type { GuideLink } from './guides'
  * (`guideTools.ts`) feeds the ball table and its lookup: the bar chart, the results table, the
  * rules table and the CSV file. Edit a count here and all four change together.
  *
- * ⚠️ THE PAGE IS HELD. EVERY COUNT IS `null` UNTIL THE OWNER APPROVES THE NUMBERS (his rule,
- * 6 Nov 2026: "the owner approves every number before it goes live"). Nothing in this file is a
- * real count and none may be guessed. Three facts are still owed, and `heldGuideGaps.test.ts`
- * fails for each until it arrives:
- *   1. the count date (the end of the window that starts on 1 January 2026),
- *   2. every topic's count, from the website form, the inquiry mailbox and the older partner@
- *      mailbox (the main session counts these),
- *   3. the WhatsApp topics (the team exports topics only).
+ * ⚠️ EVERY COUNT IS THE OWNER'S APPROVED NUMBER (his rule, 6 Nov 2026: "the owner approves every
+ * number before it goes live"; approved 8 Nov 2026, question tool, round 3). Counted by the main
+ * session from the website form and the inquiry mailboxes, 1 January to 8 November 2026: 20
+ * inquiries. WhatsApp is NOT counted (owner, 8 Nov 2026: "Email + form only"), and the page says
+ * so. Change a count only with a recount and the owner's yes; `heldGuideGaps.test.ts` keeps every
+ * gap marker off the page.
  *
  * ⚠️ NEVER PUT ANYTHING BUT A TOPIC COUNT HERE. The page publishes one thing from each inquiry,
  * the topics it asked about; names, companies, countries and words stay in the records.
@@ -28,16 +26,16 @@ export const SMALL_COUNT = 3
 export const COUNT_GAP = '[COUNT]'
 
 /** The end of the counting window, as the page words it ("1 January 2026 and 10 October 2026"). Owed. */
-export const COUNT_DATE: string | null = null
+export const COUNT_DATE: string | null = '8 November 2026'
 /**
  * The same day as COUNT_DATE, as an ISO date ("2026-10-10"), for the Dataset's `temporalCoverage`
  * (Google: an ISO 8601 interval). Owed with COUNT_DATE; `structuredData.test.ts` holds the two together.
  */
-export const COUNT_DATE_ISO: string | null = null
+export const COUNT_DATE_ISO: string | null = '2026-11-08'
 /** The counting window's first day (owner, 6 Nov 2026: "1 January 2026 to the count day"). */
 export const WINDOW_START_ISO = '2026-01-01'
 
-/** True once the team has exported the WhatsApp topics and they are in the counts. Owed. */
+/** WhatsApp is not counted (owner, 8 Nov 2026: "Email + form only"); the page says so in words. */
 export const WHATSAPP_TOPICS_COUNTED = false
 
 /** The download's file name (the main session's call, 6 Nov 2026); the file is `buyer-questions.csv`. */
@@ -77,99 +75,99 @@ const GUIDE = {
 export const BUYER_QUESTIONS: readonly BuyerQuestion[] = [
   {
     topic: 'Minimum order',
-    count: null,
+    count: 20,
     rule: 'the smallest order, or how it splits across styles, colors and sizes',
     guide: GUIDE.minimumOrder,
   },
   {
     topic: 'Price per piece',
-    count: null,
+    count: 19,
     rule: 'a unit price, or how price changes with quantity',
     guide: GUIDE.cost,
   },
   {
     topic: 'Samples',
-    count: null,
+    count: 20,
     rule: 'a sample’s cost, time, or credit against the order',
     guide: GUIDE.minimumOrder,
   },
   {
     topic: 'Lead time',
-    count: null,
+    count: 18,
     rule: 'how long sampling or production takes',
     guide: GUIDE.order,
   },
   {
     topic: 'Shipping and import duty',
-    count: null,
+    count: 18,
     rule: 'freight, delivery terms, duty or who imports the goods',
     guide: GUIDE.shipping,
   },
   {
     topic: 'Fabrics and fibers',
-    count: null,
+    count: 19,
     rule: 'a fabric, its composition, weight, swatches or fabric tests',
     guide: GUIDE.fabrics,
   },
   {
     topic: 'Printing and decoration',
-    count: null,
+    count: 15,
     rule: 'a print method, patches or other decoration',
     guide: GUIDE.printing,
   },
   {
     topic: 'Labels, trims and packaging',
-    count: null,
+    count: 16,
     rule: 'labels, hang tags, zippers, cords, packaging or the buyer’s own trims',
     guide: GUIDE.labels,
   },
   {
     topic: 'Sizing, patterns and tech packs',
-    count: null,
+    count: 13,
     rule: 'size charts, grading, patterns or help with a tech pack',
     guide: GUIDE.patterns,
   },
   {
     topic: 'Checking the factory',
-    count: null,
+    count: 9,
     rule: 'the company’s registration, audits, ownership, address or payment safety',
     guide: GUIDE.vetting,
   },
   {
     topic: 'Quality, inspection and testing',
-    count: null,
+    count: 7,
     rule: 'inspection, defect limits, lab tests or remakes',
     guide: GUIDE.inspection,
   },
   {
     topic: 'Stock blanks and dropshipping',
-    count: null,
+    count: 4,
     rule: 'ready stock, blank garments or sending single orders',
     guide: GUIDE.order,
   },
   {
     topic: 'Rules by market',
-    count: null,
+    count: 2,
     rule: 'labeling laws, chemical rules or children’s products',
     guide: GUIDE.compliance,
   },
   {
     topic: 'Soccer balls',
-    count: null,
+    count: 0,
     rule: 'any question about balls',
     guide: GUIDE.balls,
   },
   {
     topic: 'Team kits',
-    count: null,
+    count: 0,
     rule: 'kit for a club, academy or school, or names and numbers',
     guide: GUIDE.kits,
   },
 ]
 
-/** The last row's label, and its count: every inquiry counted, whatever its topics. Owed. */
+/** The last row's label, and its count: every inquiry counted, whatever its topics. */
 export const ALL_INQUIRIES_TOPIC = 'All inquiries counted'
-export const TOTAL_INQUIRIES: number | null = null
+export const TOTAL_INQUIRIES: number | null = 20
 
 /** A count as the table and the file show it: the gap marker, "fewer than 3", or the number. */
 export function countCell(count: number | null): string {

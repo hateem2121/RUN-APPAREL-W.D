@@ -11,6 +11,7 @@ import {
   chartBars,
   countCell,
   shareCell,
+  TOTAL_INQUIRIES,
 } from './buyerQuestions'
 import { guideAt } from './guides'
 
@@ -46,17 +47,12 @@ describe('what C7 shows for a count', () => {
   })
 })
 
-describe('the real list is still empty (the page is held)', () => {
-  it('has 15 topics, each answered by a real guide, and no invented number', () => {
-    expect(BUYER_QUESTIONS).toHaveLength(15)
-    for (const row of BUYER_QUESTIONS) {
-      expect(row.count, row.topic).toBeNull()
-      expect(() => guideAt(row.guide.path), row.topic).not.toThrow()
-    }
-  })
+/** The same 15 topics with every count owed: how the page looked while it was held. */
+const OWED = BUYER_QUESTIONS.map((row) => ({ ...row, count: null }))
 
+describe('while counts are owed (the page as it was held)', () => {
   it('draws the table with the gap marker in every count and the draft’s last row', () => {
-    const rows = buyerQuestionRows()
+    const rows = buyerQuestionRows(OWED, null)
     expect(rows).toHaveLength(16)
     expect(rows.slice(0, 15).every((row) => row[1] === COUNT_GAP && row[2] === COUNT_GAP)).toBe(
       true,
@@ -65,7 +61,36 @@ describe('the real list is still empty (the page is held)', () => {
   })
 
   it('has no bar for a count nobody has sent', () => {
-    expect(chartBars().every((bar) => bar.ratio === null && bar.label === COUNT_GAP)).toBe(true)
+    expect(chartBars(OWED).every((bar) => bar.ratio === null && bar.label === COUNT_GAP)).toBe(true)
+  })
+})
+
+describe('the real list: the owner’s approved counts (8 Nov 2026)', () => {
+  it('has 15 topics, each answered by a real guide, every count a whole number up to the total', () => {
+    expect(BUYER_QUESTIONS).toHaveLength(15)
+    expect(TOTAL_INQUIRIES).toBe(20)
+    for (const row of BUYER_QUESTIONS) {
+      expect(Number.isInteger(row.count), row.topic).toBe(true)
+      expect(row.count ?? -1, row.topic).toBeGreaterThanOrEqual(0)
+      expect(row.count ?? Infinity, row.topic).toBeLessThanOrEqual(20)
+      expect(() => guideAt(row.guide.path), row.topic).not.toThrow()
+    }
+  })
+
+  it('shows the approved numbers, hides the three small ones, and has no gap marker', () => {
+    const rows = buyerQuestionRows()
+    expect(rows.flat().join('\n')).not.toContain(COUNT_GAP)
+    expect(rows[0]?.slice(0, 3)).toEqual(['Minimum order', '20', '100 percent'])
+    expect(rows.find((row) => row[0] === 'Checking the factory')?.slice(1, 3)).toEqual([
+      '9',
+      '45 percent',
+    ])
+    for (const topic of ['Rules by market', 'Soccer balls', 'Team kits'])
+      expect(rows.find((row) => row[0] === topic)?.slice(1, 3), topic).toEqual([
+        'fewer than 3',
+        'fewer than 3',
+      ])
+    expect(rows[15]?.slice(0, 3)).toEqual(['All inquiries counted', '20', '100 percent'])
   })
 })
 
@@ -91,14 +116,14 @@ describe('one list, four views', () => {
   })
 
   it('the file leaves a count owed EMPTY, never the table’s marker', () => {
-    const csv = buyerQuestionsCsv()
+    const csv = buyerQuestionsCsv(OWED, null)
     expect(csv).not.toContain('[COUNT]')
     expect(csv.split('\r\n')[1]).toBe('Minimum order,,')
   })
 
   it('quotes a topic with a comma, so its row keeps three cells', () => {
     const csv = buyerQuestionsCsv()
-    expect(csv).toContain('"Labels, trims and packaging",,')
+    expect(csv).toContain('"Labels, trims and packaging",16,80 percent')
     // NEGATIVE CONTROL: a naive join would split that topic into two cells.
     const naive = BUYER_QUESTIONS.map((row) => `${row.topic},,`).join('\n')
     expect(naive.split('\n').some((line) => line.split(',').length > 3)).toBe(true)
