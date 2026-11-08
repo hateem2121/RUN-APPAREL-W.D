@@ -88,7 +88,7 @@ await card.setContent(`<!doctype html>
   <h1>RUN<br>APPAREL</h1>
   <p>See every garment in 3D.</p>
   <p>Scan the tag. Turn it. Check the print.</p>
-  <div class="small">wear-run.help · The Extra Mile</div>
+  <div class="small">wear-run.com · The Extra Mile</div>
 </div>
 <img src="data:image/png;base64,${phone}" alt="">`)
 await card.screenshot({ path: join(OUT, 'social-preview.png') })
