@@ -17,8 +17,6 @@ import type { GuideLink } from './guides'
  * the topics it asked about; names, companies, countries and words stay in the records.
  */
 
-export const BUYER_QUESTIONS_YEAR = 2026
-
 /** Below this a count is hidden and marked "fewer than 3" (UK Analysis Function guidance, B2). */
 export const SMALL_COUNT = 3
 
