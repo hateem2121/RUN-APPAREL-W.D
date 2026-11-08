@@ -110,6 +110,11 @@ const CI_ALIASES: Record<string, { gate?: string; notRun?: string; hooks?: true 
   [`${PNPM} seed:cms`]: { notRun: 'cms-e2e' },
   [`${PNPM} --filter @run-apparel/cms exec playwright test "\${args[@]}"`]: { notRun: 'cms-e2e' },
   'node "$t"': { hooks: true },
+  // CI downloads the pinned binary and retries when GitHub does not answer; the runner uses the
+  // installed gh extension once. Same judge, same verdicts (2026-11-08).
+  'node scripts/check-actions-lock.mjs /tmp/lock-report.json || verdict=$?': {
+    gate: 'actions-lock',
+  },
 }
 
 /**
