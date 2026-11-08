@@ -136,7 +136,7 @@ run either way:
 | `heartbeat.yml` | every 6 h | checks the other scheduled workflows have actually *run* — its `WATCHED` list names all eleven; opens a `monitoring` issue |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
 | `perf-watch.yml` | Mondays | live response times vs the thresholds in `docs/QA-CHECKLIST.md`; a 403 is inconclusive, never a failure |
-| `lighthouse-live.yml` | Tuesdays, and after each deploy | Lighthouse 13.5.0 on the four pages `scripts/lighthouse-robot.mjs` measures (home, products, contact, one garment) — a corner of a site that now has 22 top-level pages and 27 guides — phone and computer, five runs each, judged on the median; a 403 is inconclusive, never a failure |
+| `lighthouse-live.yml` | Tuesdays, and after each deploy | Lighthouse 13.6.0 on the four pages `scripts/lighthouse-robot.mjs` measures (home, products, contact, one garment) — a corner of a site that now has 22 top-level pages and 27 guides — phone and computer, five runs each, judged on the median; a 403 is inconclusive, never a failure |
 | `link-crawl.yml` | Mondays | walks the public website's links and reports a broken one — a link can break from several ordinary, unrelated changes |
 | `r2-budget.yml` | Mondays | watches R2 storage use against its budget and shows the trend |
 | `required-checks.yml` | daily, and after each `ci.yml` change on `main` | compares the ruleset's required checks with `deploy.needs` (never gates a pull request) |
