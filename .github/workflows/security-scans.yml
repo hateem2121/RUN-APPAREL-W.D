@@ -60,10 +60,40 @@ jobs:
           path: scorecard.sarif
           retention-days: 14
           if-no-files-found: error
+
+  # ⚠️ WHY A SECOND JOB (owner, 2026-11-08). Scorecard's Pinned-Dependencies cannot read
+  # actions.lock (owner decision 2026-11-07, #347), so it raised 105 "not pinned by hash" alerts
+  # for actions the lockfile does lock to a commit. Its README forbids `run:` steps in the
+  # publishing job and has no option to skip one check, so this job takes the saved result, drops
+  # only PinnedDependenciesID and sends the rest. Every other check still reaches the Security tab,
+  # and scorecard.dev publishes the full result, unchanged, from the job above.
+  scorecard-upload:
+    needs: scorecard
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@v2.22.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: scorecard-${{ github.sha }}
+      - name: Drop the Pinned-Dependencies results the lockfile answers
+        run: |
+          jq '(.runs[].results) |= map(select(.ruleId != "PinnedDependenciesID"))' \
+            scorecard.sarif > scorecard-filtered.sarif
+          echo "results before: $(jq '[.runs[].results[]] | length' scorecard.sarif), after: $(jq '[.runs[].results[]] | length' scorecard-filtered.sarif)"
       - name: Send to the Security tab
         uses: github/codeql-action/upload-sarif@v4.39.1
         with:
-          sarif_file: scorecard.sarif
+          sarif_file: scorecard-filtered.sarif
           category: scorecard
 
   dockerfile:
