@@ -62,6 +62,9 @@ export const legalLine = (checked: string): string => `Checked on ${checked}. ${
 /** The guides' small calculators (C6), each named by its anchor on the page. */
 export type GuideTool = 'gsm-converter' | 'cbm-calculator' | 'ball-size-lookup'
 
+/** The guides' charts (C7), each drawn from the one list its table and download read. */
+export type GuideChart = 'buyer-questions'
+
 export type GuideBlock =
   | { kind: 'text'; text: string; links?: readonly GuideLink[] }
   /** A small mono label over the blocks that follow (a stage of the order). */
@@ -90,6 +93,11 @@ export type GuideBlock =
    */
   | { kind: 'tool'; tool: GuideTool }
   /**
+   * A bar chart drawn from the same list as the table after it and the CSV file (C7, `buyerQuestions.ts`):
+   * the table is the chart's full text alternative, shown to everyone (W3C WAI, "Complex images").
+   */
+  | { kind: 'chart'; chart: GuideChart }
+  /**
    * A small table (polish X22): each row is one of the guide's own `point`s, its first cell the
    * point's title and the others that point's own words, so the table says nothing the guide does
    * not (`guides.test.ts` checks every cell). Drawn with a caption, a header per column and a row
@@ -104,6 +112,12 @@ export type GuideBlock =
       caption: string
       columns: readonly string[]
       rows: readonly (readonly string[])[]
+      /**
+       * Links inside cells (C3, C7; the draft: "each guide name in the table is a link"): in each
+       * cell, the first appearance of a `phrase` is drawn as a link, as `GuideLink` does in a
+       * paragraph. A row's first cell is its header and takes none.
+       */
+      links?: readonly GuideLink[]
     }
 
 export type GuideSection = {
@@ -3400,6 +3414,25 @@ export const READ_NEXT: Readonly<Record<string, readonly string[]>> = {
     '/guides/garment-printing-methods',
     '/guides/minimum-order-and-samples',
     '/guides/how-a-private-label-order-works',
+  ],
+  // C2 and C3: the drafts' "Read next" lines, in their order (owner approved, 2026-11-06).
+  '/guides/aql-inspection': [
+    '/guides/how-a-private-label-order-works',
+    '/guides/fabric-and-garment-testing',
+    '/guides/how-to-vet-a-clothing-manufacturer',
+  ],
+  '/guides/fabric-and-garment-testing': [
+    '/guides/garment-printing-methods',
+    '/guides/aql-inspection',
+    '/guides/sportswear-fabrics-and-weights',
+  ],
+  // C7's draft has NO "Read next" line. These three are the main session's to confirm: the guides
+  // answering the three topics this page's table ranks first in the plan (minimum order, lead
+  // time, checking the factory). QUESTION for the owner, not an approved choice.
+  '/guides/what-sportswear-buyers-ask': [
+    '/guides/minimum-order-and-samples',
+    '/guides/how-a-private-label-order-works',
+    '/guides/how-to-vet-a-clothing-manufacturer',
   ],
 }
 

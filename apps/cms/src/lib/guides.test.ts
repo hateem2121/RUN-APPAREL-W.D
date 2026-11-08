@@ -11,6 +11,7 @@ import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { FACTORY_PHOTOS, WHOLE_PHOTOS } from './factoryPhotos'
 import { GLOSSARY_TERMS } from './glossary'
+import { BUYER_QUESTIONS, countCell, CSV_PATH } from './buyerQuestions'
 import { toolWords } from './guideTools'
 import {
   GARMENT_FABRICS,
@@ -66,7 +67,10 @@ const everyWord = (guide: (typeof GUIDES)[number]): string =>
                     ? templateFormWords()
                     : block.kind === 'tool'
                       ? toolWords(block.tool)
-                      : [block.text],
+                      : block.kind === 'chart'
+                        ? // The chart's bars carry the table's topics and counts, nothing more (C7).
+                          BUYER_QUESTIONS.flatMap((row) => [row.topic, countCell(row.count)])
+                        : [block.text],
       ),
     ]),
   ].join('\n')
@@ -851,6 +855,32 @@ describe('a guide’s sources (2026-10-08)', () => {
       'members.aatcc.org',
       'westvalley.edu',
     ),
+    // C2: standards bodies and the US federal rules that define the words (no inspection company).
+    '/guides/aql-inspection': hosts(
+      'asq.org',
+      'ecfr.gov',
+      'ilac.org',
+      'iso.org',
+      'itl.nist.gov',
+      'store.astm.org',
+      'wto.org',
+    ),
+    // C3: the standards bodies' own pages, one study by DOI, FIFA, and ILAC's arrangement.
+    '/guides/fabric-and-garment-testing': hosts(
+      'doi.org',
+      'ilac.org',
+      'inside.fifa.com',
+      'iso.org',
+      'members.aatcc.org',
+      'store.astm.org',
+    ),
+    // C7: the UK statistics guidance, W3C's chart advice, Google's dataset page and the CC license.
+    '/guides/what-sportswear-buyers-ask': hosts(
+      'analysisfunction.civilservice.gov.uk',
+      'creativecommons.org',
+      'developers.google.com',
+      'w3.org',
+    ),
   }
 
   it('lists only the pages each guide may quote, each dated', () => {
@@ -1100,7 +1130,10 @@ describe('the guides’ additions of 2026-10-26 (owner, site check)', () => {
                   ? templateFormWords()
                   : block.kind === 'tool'
                     ? toolWords(block.tool)
-                    : [block.text],
+                    : // The chart says only what its table says (C7), which is outside this count.
+                      block.kind === 'chart'
+                      ? []
+                      : [block.text],
         ),
       ]),
     ]
@@ -1180,7 +1213,14 @@ describe('links inside a guide’s words (buyer library, 2026-11-06)', () => {
                 ...link,
                 words: block.kind === 'text' ? [block.text] : block.items,
               }))
-            : [],
+            : // A table's links are drawn in its cells after the row header (GuideTable).
+              block.kind === 'table'
+              ? (block.links ?? []).map((link) => ({
+                  path: guide.path,
+                  ...link,
+                  words: block.rows.flatMap((row) => row.slice(1)),
+                }))
+              : [],
         ),
       ),
     )
@@ -1202,7 +1242,9 @@ describe('links inside a guide’s words (buyer library, 2026-11-06)', () => {
     }
     const [page = '', anchor] = href.split('#')
     if (page === path) problems.push(`${path}: "${phrase}" links to its own page`)
-    if (page.startsWith('/guides/')) {
+    if (page === CSV_PATH) {
+      // The buyer-questions file (C7): a download, not a page.
+    } else if (page.startsWith('/guides/')) {
       if (!GUIDE_PATHS.includes(page)) problems.push(`${path}: "${phrase}" → no guide ${page}`)
     } else if (page.startsWith('/products/')) {
       if (!/^\/products\/[a-z0-9-]+$/.test(page)) problems.push(`${path}: "${phrase}" → ${href}`)
