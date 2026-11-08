@@ -55,7 +55,7 @@
     "@axe-core/playwright": "4.14.0",
     "@cloudflare/workers-types": "5.20261101.1",
     "@playwright/test": "1.64.1",
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitest/coverage-v8": "5.0.5",
@@ -65,6 +65,6 @@
     "typescript": "7.0.2",
     "vite": "8.3.5",
     "vitest": "5.0.5",
-    "wrangler": "4.153.0"
+    "wrangler": "4.156.0"
   }
 }
