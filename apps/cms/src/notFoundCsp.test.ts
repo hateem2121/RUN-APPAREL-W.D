@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { classifyBuildArtifacts, readBuiltBuildId } from './buildArtifactState'
+import { siteSourceBuildId } from '../siteBuild.mjs'
 import {
   OTHER_PAGE_CSP_SOURCE,
   OTHER_PATH_ISOLATION,
@@ -41,6 +43,28 @@ const CMS_ROOT = join(import.meta.dirname, '..')
 const MANIFEST = join(CMS_ROOT, '.next', 'routes-manifest.json')
 const REQUIRE_BUILD = process.env.REQUIRE_BUILD_ARTIFACTS === '1'
 const HAS_BUILD = existsSync(MANIFEST)
+/*
+ * Same freshness guard as src/hostRulesManifest.test.ts (the incident and the oracle are
+ * documented in src/buildArtifactState.ts): a `.next` from an older commit failed this
+ * file's ordering test falsely on 9 Nov 2026 — no built rule for /guides/aql-inspection —
+ * while CI was green on the same commit. Locally, only a build that provably matches the
+ * current source may run the assertions; under REQUIRE_BUILD_ARTIFACTS=1 stale is a hard
+ * failure in the first test.
+ */
+const ARTIFACTS = classifyBuildArtifacts(HAS_BUILD, readBuiltBuildId(CMS_ROOT), siteSourceBuildId())
+const STALE = ARTIFACTS.kind === 'stale' ? ARTIFACTS : null
+const RUN_ASSERTIONS = REQUIRE_BUILD || ARTIFACTS.kind === 'fresh'
+
+if (!REQUIRE_BUILD && ARTIFACTS.kind !== 'fresh') {
+  const reason =
+    ARTIFACTS.kind === 'missing'
+      ? '.next has no routes-manifest.json'
+      : `.next was built from ${STALE?.built || 'an unfingerprinted build'}, but the current source is ${STALE?.current ?? 'uncommitted (siteSourceBuildId() returned null)'}`
+  console.warn(
+    `[build-artifact tests] SKIPPED — ${reason}. ` +
+      'Run the CMS build on a committed tree (pnpm --filter @run-apparel/cms build) to refresh.',
+  )
+}
 
 type HeaderRule = { source: string; regex: string; headers: { key: string; value: string }[] }
 
@@ -77,9 +101,14 @@ describe('the catch-all CSP', () => {
       REQUIRE_BUILD && !HAS_BUILD,
       'REQUIRE_BUILD_ARTIFACTS=1 but .next has no routes-manifest.json',
     ).toBe(false)
+    expect(
+      REQUIRE_BUILD && STALE !== null,
+      `REQUIRE_BUILD_ARTIFACTS=1 but .next is stale: built from ${STALE?.built || 'an unfingerprinted build'}, ` +
+        `current source is ${STALE?.current ?? 'uncommitted'}. Build on a committed tree before requiring artifacts.`,
+    ).toBe(false)
   })
 
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('reached the build at all', () => {
+  it.skipIf(!RUN_ASSERTIONS)('reached the build at all', () => {
     const rule = builtRules().find((r) => r.source === OTHER_PAGE_CSP_SOURCE)
     expect(
       rule,
@@ -96,7 +125,7 @@ describe('the catch-all CSP', () => {
     ])
   })
 
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('matches exactly the paths it should', () => {
+  it.skipIf(!RUN_ASSERTIONS)('matches exactly the paths it should', () => {
     const rule = builtRules().find((r) => r.source === OTHER_PAGE_CSP_SOURCE)
     if (!rule) throw new Error('no catch-all rule to test')
     const compiled = new RegExp(rule.regex)
@@ -115,7 +144,7 @@ describe('the catch-all CSP', () => {
    * matching rules in order and the LAST one wins, so the five explicit pages must come
    * AFTER the catch-all or they would lose their COOP and CORP headers to it.
    */
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('is overridden by the five explicit pages', () => {
+  it.skipIf(!RUN_ASSERTIONS)('is overridden by the five explicit pages', () => {
     const rules = builtRules()
     const catchAll = rules.findIndex((r) => r.source === OTHER_PAGE_CSP_SOURCE)
     expect(catchAll).toBeGreaterThanOrEqual(0)
@@ -137,7 +166,7 @@ describe('the catch-all CSP', () => {
    * the catch-all really does match a page that has its own rule, which is the only
    * reason the ordering matters at all.
    */
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('the ordering check is not vacuous', () => {
+  it.skipIf(!RUN_ASSERTIONS)('the ordering check is not vacuous', () => {
     const rule = builtRules().find((r) => r.source === OTHER_PAGE_CSP_SOURCE)
     if (!rule) throw new Error('no catch-all rule to test')
     const compiled = new RegExp(rule.regex)

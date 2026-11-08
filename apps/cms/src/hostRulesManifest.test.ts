@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { classifyBuildArtifacts, readBuiltBuildId } from './buildArtifactState'
+import { siteSourceBuildId } from '../siteBuild.mjs'
 import { escapeRegExp } from '../regexEscape.mjs'
 import { SITE_HOST, siteRedirects, siteRewrites } from '../siteHostRules.mjs'
 
@@ -14,12 +16,31 @@ import { SITE_HOST, siteRedirects, siteRewrites } from '../siteHostRules.mjs'
  *
  * Same shape as apps/viewer/scripts/preload.test.ts: skipped locally when there is no
  * build, so `pnpm test` stays fast; REQUIRED in CI's post-build guard step, where a
- * missing build is a hard failure rather than a silent skip.
+ * missing build is a hard failure rather than a silent skip. Since 9 Nov 2026 the local
+ * skip also covers a build that is PRESENT but stale — one from an older commit failed
+ * these assertions falsely (79 built redirects against 82 source rules) while CI was
+ * green on the same commit. src/buildArtifactState.ts has the incident and the oracle:
+ * `.next/BUILD_ID` must equal the current `siteSourceBuildId()`.
  */
 const CMS_ROOT = join(import.meta.dirname, '..')
 const MANIFEST = join(CMS_ROOT, '.next', 'routes-manifest.json')
 const REQUIRE_BUILD = process.env.REQUIRE_BUILD_ARTIFACTS === '1'
 const HAS_BUILD = existsSync(MANIFEST)
+const ARTIFACTS = classifyBuildArtifacts(HAS_BUILD, readBuiltBuildId(CMS_ROOT), siteSourceBuildId())
+const STALE = ARTIFACTS.kind === 'stale' ? ARTIFACTS : null
+/** Locally, only a build that provably matches the current source may run the assertions. */
+const RUN_ASSERTIONS = REQUIRE_BUILD || ARTIFACTS.kind === 'fresh'
+
+if (!REQUIRE_BUILD && ARTIFACTS.kind !== 'fresh') {
+  const reason =
+    ARTIFACTS.kind === 'missing'
+      ? '.next has no routes-manifest.json'
+      : `.next was built from ${STALE?.built || 'an unfingerprinted build'}, but the current source is ${STALE?.current ?? 'uncommitted (siteSourceBuildId() returned null)'}`
+  console.warn(
+    `[build-artifact tests] SKIPPED — ${reason}. ` +
+      'Run the CMS build on a committed tree (pnpm --filter @run-apparel/cms build) to refresh.',
+  )
+}
 
 type HostRule = { source: string; destination: string; has?: { type: string; value: string }[] }
 const describeRule = (r: HostRule) =>
@@ -31,9 +52,14 @@ describe('the build carries every host rule', () => {
       REQUIRE_BUILD && !HAS_BUILD,
       'REQUIRE_BUILD_ARTIFACTS=1 but .next has no routes-manifest.json',
     ).toBe(false)
+    expect(
+      REQUIRE_BUILD && STALE !== null,
+      `REQUIRE_BUILD_ARTIFACTS=1 but .next is stale: built from ${STALE?.built || 'an unfingerprinted build'}, ` +
+        `current source is ${STALE?.current ?? 'uncommitted'}. Build on a committed tree before requiring artifacts.`,
+    ).toBe(false)
   })
 
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('every redirect landed, with its host condition', () => {
+  it.skipIf(!RUN_ASSERTIONS)('every redirect landed, with its host condition', () => {
     const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
       redirects: (HostRule & { statusCode?: number })[]
     }
@@ -61,23 +87,20 @@ describe('the build carries every host rule', () => {
         new RegExp(rule.regex).test(path),
     )
 
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(
-    'forwards /factory, and leaves the factory photo files alone',
-    () => {
-      expect(existsSync(join(CMS_ROOT, 'public', PHOTO)), `${PHOTO} is not a real file`).toBe(true)
-      const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
-        redirects: (HostRule & { regex: string; statusCode?: number })[]
-      }
-      const forward = redirectsCatching(manifest.redirects, '/factory')
-      expect(forward.map(describeRule)).toEqual([
-        '^wear-run\\.com$ /factory -> https://wear-run.com/inside-the-factory',
-      ])
-      expect(redirectsCatching(manifest.redirects, PHOTO).map(describeRule)).toEqual([])
-    },
-  )
+  it.skipIf(!RUN_ASSERTIONS)('forwards /factory, and leaves the factory photo files alone', () => {
+    expect(existsSync(join(CMS_ROOT, 'public', PHOTO)), `${PHOTO} is not a real file`).toBe(true)
+    const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
+      redirects: (HostRule & { regex: string; statusCode?: number })[]
+    }
+    const forward = redirectsCatching(manifest.redirects, '/factory')
+    expect(forward.map(describeRule)).toEqual([
+      '^wear-run\\.com$ /factory -> https://wear-run.com/inside-the-factory',
+    ])
+    expect(redirectsCatching(manifest.redirects, PHOTO).map(describeRule)).toEqual([])
+  })
 
   // NEGATIVE CONTROL: the same rule written as a prefix (`/factory/:path*`) catches the photo.
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)('sees the fault: a prefix rule takes the photo', () => {
+  it.skipIf(!RUN_ASSERTIONS)('sees the fault: a prefix rule takes the photo', () => {
     const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
       redirects: (HostRule & { regex: string })[]
     }
@@ -88,17 +111,14 @@ describe('the build carries every host rule', () => {
     expect(redirectsCatching([prefix], PHOTO)).toHaveLength(1)
   })
 
-  it.skipIf(!HAS_BUILD && !REQUIRE_BUILD)(
-    'every beforeFiles rewrite landed, with its host condition',
-    () => {
-      const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
-        rewrites: { beforeFiles: HostRule[] } | HostRule[]
-      }
-      const beforeFiles = Array.isArray(manifest.rewrites) ? [] : manifest.rewrites.beforeFiles
-      const built = beforeFiles.filter((r) => r.has?.some((h) => h.type === 'host'))
-      expect(built.map(describeRule).sort()).toEqual(
-        siteRewrites().beforeFiles.map(describeRule).sort(),
-      )
-    },
-  )
+  it.skipIf(!RUN_ASSERTIONS)('every beforeFiles rewrite landed, with its host condition', () => {
+    const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as {
+      rewrites: { beforeFiles: HostRule[] } | HostRule[]
+    }
+    const beforeFiles = Array.isArray(manifest.rewrites) ? [] : manifest.rewrites.beforeFiles
+    const built = beforeFiles.filter((r) => r.has?.some((h) => h.type === 'host'))
+    expect(built.map(describeRule).sort()).toEqual(
+      siteRewrites().beforeFiles.map(describeRule).sort(),
+    )
+  })
 })
