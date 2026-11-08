@@ -12,11 +12,13 @@
  * weekly cron, because GitHub's schedules land hours late and sometimes not at all
  * (.github/CLAUDE.md measured a 13.6-hour gap), and a link already reported is never repeated.
  *
- * Usage: node scripts/check-actions-changelog.mjs <already-reported.txt> <issue-body.md>
- * Exit 0 with no body file = nothing new; exit 0 with a body = open an issue; exit 1 = the feed
- * could not be read, which must never look like "nothing new".
+ * Usage: node scripts/check-actions-changelog.mjs <already-reported.txt> > issue-body.md
+ * The issue body goes to STDOUT and nothing else does (progress goes to stderr), so the workflow
+ * redirects it and opens an issue only when the file is non-empty. Exit 1 = the feed could not be
+ * read, which must never look like "nothing new". (Writing the body to a file here raised CodeQL
+ * js/http-to-file-access on #361; the shell redirect keeps the file write out of the script.)
  */
-import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 
 export const FEED_URL = 'https://github.blog/changelog/label/actions/feed/'
 export const WINDOW_DAYS = 14
@@ -100,7 +102,7 @@ export function issueBody(entries) {
   ].join('\n')
 }
 
-async function main(reportedFile, bodyFile) {
+async function main(reportedFile) {
   let xml = ''
   for (let attempt = 1; attempt <= 3 && !xml; attempt++) {
     try {
@@ -116,20 +118,22 @@ async function main(reportedFile, bodyFile) {
   }
   const items = parseFeed(xml)
   if (items.length === 0) {
-    console.log('::error::GitHub’s Actions changelog feed could not be read; nothing was checked.')
+    console.error(
+      '::error::GitHub’s Actions changelog feed could not be read; nothing was checked.',
+    )
     return 1
   }
   const reported =
     reportedFile && existsSync(reportedFile) ? readFileSync(reportedFile, 'utf8') : ''
   const fresh = pickNew(items, reported, Date.now())
-  console.log(
+  console.error(
     `${items.length} entries in the feed, ${fresh.length} new in the last ${WINDOW_DAYS} days`,
   )
-  for (const e of fresh) console.log(`- ${e.title}`)
-  if (fresh.length > 0) writeFileSync(bodyFile, issueBody(fresh))
+  for (const e of fresh) console.error(`- ${e.title}`)
+  if (fresh.length > 0) process.stdout.write(`${issueBody(fresh)}\n`)
   return 0
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(new URL(import.meta.url))) {
-  process.exitCode = await main(process.argv[2], process.argv[3])
+  process.exitCode = await main(process.argv[2])
 }

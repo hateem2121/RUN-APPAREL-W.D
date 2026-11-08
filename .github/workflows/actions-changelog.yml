@@ -60,8 +60,8 @@ jobs:
           gh issue list \
             --search 'author:app/github-actions in:title "GitHub Actions changes to review"' --state all \
             --limit 200 --json body --jq '.[].body' > "$RUNNER_TEMP/reported.txt"
-          node scripts/check-actions-changelog.mjs "$RUNNER_TEMP/reported.txt" "$RUNNER_TEMP/issue.md"
+          node scripts/check-actions-changelog.mjs "$RUNNER_TEMP/reported.txt" > "$RUNNER_TEMP/issue.md"
           # The feed's text reaches the issue only as a file, never through the shell.
-          if [ -f "$RUNNER_TEMP/issue.md" ]; then
+          if [ -s "$RUNNER_TEMP/issue.md" ]; then
             gh issue create --title "GitHub Actions changes to review" --body-file "$RUNNER_TEMP/issue.md"
           fi
