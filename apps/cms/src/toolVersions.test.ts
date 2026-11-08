@@ -60,6 +60,7 @@ describe('the verdict follows the same 7-day wait as Dependabot', () => {
     ZIZMOR_VERSION: '1.30.1',
     GITLEAKS_VERSION: '8.30.1',
     TRIVY_VERSION: '0.70.0',
+    GH_ACTIONS_LOCK_VERSION: '0.4.1',
   }
 
   it('NEGATIVE CONTROL: a newer release out a week is behind; out less is waiting', () => {
@@ -70,10 +71,11 @@ describe('the verdict follows the same 7-day wait as Dependabot', () => {
         'zizmorcore/zizmor': released('v1.31.1', COOLDOWN_DAYS),
         'gitleaks/gitleaks': released('v8.31.0', COOLDOWN_DAYS - 1),
         'aquasecurity/trivy': released('v0.70.0', 200),
+        'github/gh-actions-lock': released('v0.4.1', 6),
       },
       NOW,
     )
-    expect(rows.map((r) => r.state)).toEqual(['current', 'behind', 'waiting', 'current'])
+    expect(rows.map((r) => r.state)).toEqual(['current', 'behind', 'waiting', 'current', 'current'])
     const { failing, text } = summarize(rows)
     expect(failing).toBe(1)
     expect(text).toContain('zizmor: 1.31.1 has been out 7 days, pinned 1.30.1. Bump ZIZMOR_VERSION')
@@ -93,6 +95,7 @@ describe('the verdict follows the same 7-day wait as Dependabot', () => {
         'zizmorcore/zizmor': released('nightly', 1),
         'gitleaks/gitleaks': { tag: 'v8.31.0', publishedAt: 'not a date' },
         'aquasecurity/trivy': null,
+        'github/gh-actions-lock': released('v0.5.0', 0.5),
       },
       NOW,
     )
@@ -101,6 +104,7 @@ describe('the verdict follows the same 7-day wait as Dependabot', () => {
       'unreadable',
       'unreadable',
       'unreadable',
+      'waiting',
     ])
     expect(summarize(rows).failing).toBe(4)
   })

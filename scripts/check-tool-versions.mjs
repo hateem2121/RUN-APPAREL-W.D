@@ -23,6 +23,8 @@ export const TOOLS = Object.freeze([
   // Since 4 Nov 2026: trivy-action's installer died with get.trivy.dev, so ci.yml and
   // security-scans.yml download Trivy themselves, pinned the same way.
   { pin: 'TRIVY_VERSION', repo: 'aquasecurity/trivy' },
+  // Since 8 Nov 2026: `verify` checks actions.lock against GitHub with this binary.
+  { pin: 'GH_ACTIONS_LOCK_VERSION', repo: 'github/gh-actions-lock' },
 ])
 
 /** Days a newer release must have been out before it counts as one to adopt. */

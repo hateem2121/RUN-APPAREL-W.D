@@ -76,7 +76,7 @@ jobs:
     # REPLACES the workflow's, so `contents: read` is restated.
     permissions:
       contents: read
-      issues: write
+      issues: write # files or comments on the outage issue
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
