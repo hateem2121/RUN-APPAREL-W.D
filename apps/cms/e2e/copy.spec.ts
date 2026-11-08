@@ -76,6 +76,8 @@ const PUBLISHED_NAMES: Readonly<Record<string, readonly string[]>> = {
   '/guides/sportswear-compliance-by-market': ['on empowering consumers for the green transition'],
   '/guides/apparel-manufacturing-technology': ['Joint Research Centre'],
   '/guides/tech-pack-template': ['colour fastness'],
+  // C3's source list: the ISO 105 titles, as ISO publishes them (held guide, 6 Nov 2026).
+  '/guides/fabric-and-garment-testing': ['colour fastness', 'Colour fastness'],
 }
 
 /** The text with every published name on `path` taken out, by plain string, never a RegExp. */

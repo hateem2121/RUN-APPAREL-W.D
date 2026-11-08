@@ -79,8 +79,8 @@ describe('every website page shares a picture of its own type (X14, Q11)', () =>
     // and the country comparison. +2 on 2026-10-09: the about and factory pages. +2 on 2026-11-05:
     // the soccer-ball guide and the page on how the guides are written, wave 1 of the library.
     // +15 on 2026-11-06: the buyer library's new guides, waves 2 to 12. +1 the same day: the tech
-    // pack guide with its template, C1.)
-    expect(OWN_PICTURE).toHaveLength(59)
+    // pack guide with its template, C1. +3 on 2026-11-06: the held guides, C2, C3 and C7.)
+    expect(OWN_PICTURE).toHaveLength(62)
     expect(new Set(files).size, 'two page types share a picture').toBe(OWN_PICTURE.length)
   })
 

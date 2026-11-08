@@ -473,6 +473,8 @@ describe('the buyer library’s page parts (2026-11-06)', () => {
       '/guides/apparel-manufacturing-machinery: Machines on our floor, area by area',
       '/guides/apparel-design-software: Kinds of software, and the files they use',
       '/guides/apparel-manufacturing-technology: Eight changes, what each means for your order, and where we stand',
+      // C7 (held): four columns, and a guide's name in the last one is a word of 14 letters.
+      '/guides/what-sportswear-buyers-ask: Inquiries that asked about each topic',
     ])
     const html = render(guideAt('/guides/sportswear-compliance-by-market'))
     expect(html).toContain('class="guide-table guide-table--stack"')

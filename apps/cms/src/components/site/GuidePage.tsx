@@ -17,6 +17,7 @@ import {
   legalLine,
   READ_NEXT,
 } from '../../lib/guides'
+import { CSV_FILE_NAME, CSV_PATH } from '../../lib/buyerQuestions'
 import { formatPostDate } from '../../lib/journal'
 import type { ProductCard } from '../../lib/projectPublic'
 import type { TemplateNotice } from '../../lib/templateDownload'
@@ -25,6 +26,7 @@ import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
+import { BuyerQuestionsChart } from './BuyerQuestionsChart'
 import { GuideToolBlock } from './GuideTools'
 import { OrderSteps } from './OrderSteps'
 import { PhotoStage } from './PhotoStage'
@@ -39,6 +41,7 @@ export function blockKey(block: GuideBlock): string {
   if (block.kind === 'legal') return `legal-${block.checked}`
   if (block.kind === 'download') return `download-${block.template}`
   if (block.kind === 'tool') return `tool-${block.tool}`
+  if (block.kind === 'chart') return `chart-${block.chart}`
   return 'title' in block ? block.title : block.text
 }
 
@@ -60,6 +63,14 @@ function GuideAnchor({ link, cards }: { link: GuideLink; cards: readonly Product
         className="prose__link"
         href={buildViewerPath(card.slug, card.defaultColourSlug, GARMENT_PATH_PREFIX)}
       >
+        {link.phrase}
+      </a>
+    )
+  }
+  // A file to save (the buyer-questions CSV, C7) is a plain anchor with a file name, not a page.
+  if (link.href === CSV_PATH) {
+    return (
+      <a className="prose__link" href={link.href} download={CSV_FILE_NAME}>
         {link.phrase}
       </a>
     )
@@ -278,7 +289,8 @@ export function Block({
   if (block.kind === 'orderSteps') return <OrderSteps />
   if (block.kind === 'download') return <TemplateDownload notice={notice} />
   if (block.kind === 'tool') return <GuideToolBlock tool={block.tool} />
-  if (block.kind === 'table') return <GuideTable block={block} />
+  if (block.kind === 'chart') return <BuyerQuestionsChart />
+  if (block.kind === 'table') return <GuideTable block={block} cards={cards} />
   if (block.kind === 'text') {
     return (
       <p>
@@ -320,7 +332,13 @@ export function Block({
  * scrolls sideways. A wider table would need the stacked layout instead (web-guidance
  * "responsive-table", index of 4 September 2026).
  */
-function GuideTable({ block }: { block: Extract<GuideBlock, { kind: 'table' }> }) {
+function GuideTable({
+  block,
+  cards = [],
+}: {
+  block: Extract<GuideBlock, { kind: 'table' }>
+  cards?: readonly ProductCard[]
+}) {
   const stack = isWideTable(block)
   const table = (
     <table className={stack ? 'guide-table guide-table--stack' : 'guide-table'}>
@@ -340,8 +358,12 @@ function GuideTable({ block }: { block: Extract<GuideBlock, { kind: 'table' }> }
             <th scope="row">{head}</th>
             {cells.map((cell, index) => (
               // In the stacked layout each cell names its column (the header row is hidden there).
-              <td key={cell} data-label={stack ? block.columns[index + 1] : undefined}>
-                {cell}
+              // Keyed by its column, which is unique in a row: two cells can hold the same words.
+              <td
+                key={block.columns[index + 1]}
+                data-label={stack ? block.columns[index + 1] : undefined}
+              >
+                <LinkedWords text={cell} links={block.links} cards={cards} />
               </td>
             ))}
           </tr>

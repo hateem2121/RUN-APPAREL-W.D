@@ -96,6 +96,8 @@ const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
 const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 /** Seven glossary terms the owner approved as proposed (2026-11-06 night, "Approve all seven"). */
 const GLOSSARY_SEVEN = '2026-11-06T22:35:29+05:00'
+/** The three held guides (C2, C3, C7) joined the guides hub and the FAQ topics that list them; same time as `bylines.ts`. */
+const HELD_GUIDES = '2026-11-06T22:45:00+05:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(PRICE_TERMS, '00140939a970'),
@@ -106,18 +108,18 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
-  '/guides': page(TECH_PACK_AND_TOOLS, '8ea40a495c75'),
+  '/guides': page(HELD_GUIDES, '088269a364a0'),
   '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
   '/faq': page(PRICE_TERMS, 'bf487444473d'),
   '/faq/orders-and-samples': page(LIBRARY, 'a085ccb257a2'),
-  '/faq/quality-and-certifications': page(LIBRARY, '2f8e683d8b4c'),
+  '/faq/quality-and-certifications': page(HELD_GUIDES, 'f5d236f40ae8'),
   '/faq/shipping-and-importing': page(PRICE_TERMS, '3337ef9c9fe5'),
   '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
-  '/faq/working-with-us': page(TECH_PACK_AND_TOOLS, '326403c492f4'),
+  '/faq/working-with-us': page(HELD_GUIDES, 'be588862d64c'),
   '/glossary': page(GLOSSARY_SEVEN, 'd4a7273a6965'),
-  '/journal': page(TECH_PACK_AND_TOOLS, '5b438efb3862'),
+  '/journal': page(HELD_GUIDES, '4ffcb497f713'),
   '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
   '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
   '/privacy': page(TECH_PACK_AND_TOOLS, '716bb9c30b7a'),

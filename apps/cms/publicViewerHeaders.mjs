@@ -126,6 +126,10 @@ export const GUIDE_PAGE_SOURCES = [
   '/guides/apparel-manufacturing-technology',
   // C1 (owner approved, 6 Nov 2026): the tech pack guide and its free template.
   '/guides/tech-pack-template',
+  // C2, C3 and C7 (owner approved, 6 Nov 2026), HELD until the team's facts arrive.
+  '/guides/aql-inspection',
+  '/guides/fabric-and-garment-testing',
+  '/guides/what-sportswear-buyers-ask',
 ]
 
 /**

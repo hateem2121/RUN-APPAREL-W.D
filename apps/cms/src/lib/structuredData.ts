@@ -505,3 +505,37 @@ export function factoryPageJsonLd(
     isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
   }
 }
+
+/**
+ * The buyer-questions guide's counts as a Dataset (C7 draft, editorial call 4, owner approved as written
+ * 2026-11-06). Google's Dataset page (read 2026-11-07): `description` 50 to 5,000 characters, `license`
+ * a versioned URL, `temporalCoverage` an ISO 8601 interval, the file as a `DataDownload` with
+ * `encodingFormat` and `contentUrl`. Name and description ARE the guide's, so the markup cannot drift
+ * from the page. `temporalCoverage` is left out until the count day is known: a window with no end would
+ * claim counts nobody has made yet (COUNT_DATE_ISO is owed with COUNT_DATE).
+ */
+export function buyerQuestionsDatasetJsonLd(
+  guide: { path: string; title: string; description: string },
+  window: { start: string; end: string | null },
+  csvPath: string,
+) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Dataset',
+    '@id': `${SITE_ORIGIN}${guide.path}#dataset`,
+    name: guide.title,
+    description: guide.description,
+    url: `${SITE_ORIGIN}${guide.path}`,
+    creator: { '@id': `${SITE_ORIGIN}/#organization` },
+    license: 'https://creativecommons.org/licenses/by/4.0/',
+    isAccessibleForFree: true,
+    ...(window.end ? { temporalCoverage: `${window.start}/${window.end}` } : {}),
+    distribution: [
+      {
+        '@type': 'DataDownload',
+        encodingFormat: 'text/csv',
+        contentUrl: `${SITE_ORIGIN}${csvPath}`,
+      },
+    ],
+  }
+}

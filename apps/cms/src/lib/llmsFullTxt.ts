@@ -61,6 +61,9 @@ function renderBlock(block: GuideBlock): string {
     // The form is a thing to do on the page; the guide's own words already point to it.
     case 'download':
       return ''
+    // The chart draws the table after it (C7); the table is its text alternative.
+    case 'chart':
+      return ''
     // A tool's approved words: what it does and how it rounds, without the controls.
     case 'tool': {
       const words = TOOL_WORDS[block.tool]
