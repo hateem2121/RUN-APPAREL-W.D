@@ -67,7 +67,7 @@ import { userAgents } from 'lighthouse/core/config/constants.js'
 import { INCONCLUSIVE_STATUSES } from './inconclusive-statuses.mjs'
 import { DEFAULT_PRODUCT } from './live-products.mjs'
 
-export const LIGHTHOUSE_VERSION = '13.5.0'
+export const LIGHTHOUSE_VERSION = '13.6.0'
 export const RUNS = 5
 /** Fewer valid runs than this and a page is reported as not judged, rather than judged. */
 export const MIN_VALID_RUNS = 3

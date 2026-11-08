@@ -19,7 +19,7 @@ const report = (
   performance: number,
   timings: { fcp: number; dcl: number; load: number } = { fcp: 400, dcl: 260, load: 900 },
 ) => ({
-  lighthouseVersion: '13.5.0',
+  lighthouseVersion: '13.6.0',
   configSettings: { formFactor: 'mobile' },
   mainDocumentUrl: URL,
   environment: { benchmarkIndex: 1450 },
