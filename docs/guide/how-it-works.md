@@ -50,7 +50,9 @@ Each QR tag holds a web link, like this:
 https://wear-run.com/products/rxps/wine
 ```
 
-Older tags say `viewer.wear-run.help/rxps/wine`. They still work: that link sends the phone to the new one.
+Older tags say `viewer.wear-run.help/rxps/wine`.
+The oldest tags, printed before August 2026, say `.../n001/wine` — the product's first name.
+They all still work: those links send the phone to the new page.
 
 The last two words are the product and the colour.
 **Once a tag is printed, those words must never change.**

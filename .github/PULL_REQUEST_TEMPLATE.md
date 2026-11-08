@@ -25,7 +25,8 @@
       ← every doc reachable, every picture described, every diagram draws
 - [ ] `pnpm --filter @run-apparel/viewer test:e2e` ← its OWN required check since
       2026-08-20, and the slowest gate in CI (split across machines there since
-      2026-09-29, eight since 2026-11-07; ~45 s locally)
+      2026-09-29, eight since 2026-11-07; ~6 min locally — 1,936 viewer tests on four
+      engines, measured 2026-10-24)
 - [ ] `pnpm seed:assets && pnpm build` ← the one that catches dependency breaks
 - [ ] `node scripts/check-bundle-budget.mjs`
 - [ ] `pnpm eval:artwork`

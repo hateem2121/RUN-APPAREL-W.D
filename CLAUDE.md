@@ -72,7 +72,7 @@ node scripts/check-bundle-budget.mjs         # reads apps/viewer/dist: build fir
 pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build && node scripts/check-cms-worker-size.mjs
 pnpm eval:artwork                            # its own CI job; gates the deploy
 node apps/cms/scripts/check-doc-visuals.mjs  # needs Chromium (CI e2e-shard)
-pnpm --filter @run-apparel/viewer test:e2e   # its own CI job; gates the deploy (~45 s here)
+pnpm --filter @run-apparel/viewer test:e2e   # its own CI job; gates the deploy (~6 min here: 1,936 tests on four engines, 2026-10-24)
 ```
 
 `node .claude/skills/gates/run-gates.mjs` runs these in order and stops at the first failure, plus

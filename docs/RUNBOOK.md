@@ -1534,8 +1534,9 @@ workflow last **succeeded**:
 | `nightly-backup.yml` | nightly | nightly | 36 hours |
 | `diagnostics-digest.yml` | Mondays | first run due 2026-08-10 | 192 hours (8 days) |
 
-The table shows three of the ten workflows it watches; `WATCHED` in `heartbeat.yml` lists all ten
-with their budgets (counted 2026-10-24).
+The table shows three of the eleven workflows it watches; `WATCHED` in `heartbeat.yml` lists all
+eleven with their budgets (counted 2026-11-08; it was ten until `tool-versions.yml` joined the
+list on 2026-10-25).
 
 Each budget was chosen to be several times the workflow's own interval, so that
 GitHub's best-effort cron skew would never trip it. *(For `uptime.yml` it once was not:

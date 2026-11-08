@@ -73,14 +73,14 @@ Every document is listed in [docs/README.md](docs/README.md).
 | `infra/apex-404` | Private links to our catalogue and profile | Partners we send them to |
 
 ```mermaid
-pie title Files in each part (counted 2026-09-26)
-  "CMS and website" : 359
-  "3D viewer" : 252
-  "Shrinking steps" : 102
-  "Shrink robot" : 34
-  "Shared rules" : 28
+pie title Files in each part (counted 2026-11-08)
+  "CMS and website" : 948
+  "3D viewer" : 514
+  "Shrinking steps" : 99
+  "Shrink robot" : 36
+  "Shared rules" : 74
   "Private links" : 9
-  "Colours and fonts" : 4
+  "Colours and fonts" : 18
 ```
 
 ## 🔧 Held on purpose

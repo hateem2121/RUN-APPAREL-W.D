@@ -3,7 +3,7 @@
 **In plain words:** this page is for people who change the code.
 It lists the tools you need, the checks to run, and how a change goes live.
 
-## What this is (the README's introduction, moved word for word)
+## What this is (the README's introduction, plus one update below it)
 
 One reusable, QR-deep-linkable 3D apparel viewer for B2B buyers, plus the private
 CMS that feeds it. A buyer scans a QR code on a garment tag (or in the PDF
@@ -20,12 +20,16 @@ and they can rotate, zoom, switch colourways, jump back to the catalogue, or
 contact RUN by email/WhatsApp. **No shop, no cart, no prices — this is a
 development reference for partners, not a retail page.**
 
+**One update since that was written:** `apps/cms` now also builds the whole public
+website at `wear-run.com` — the buyer pages, the guides, about, the factory, careers and
+more. Still no shop, no cart and no prices.
+
 ## What's in this repository
 
 | Folder | What it is |
 |---|---|
 | `apps/viewer` | The public viewer site (Cloudflare Worker + Static Assets; draws the garment pages at `wear-run.com/products/…`) |
-| `apps/cms` | Payload CMS — private admin + public read-only API (Cloudflare Workers, `cms.wear-run.help`) |
+| `apps/cms` | Payload CMS — private admin + public read-only API (Cloudflare Workers, `cms.wear-run.help`) — and the public website it builds: every page at `wear-run.com` |
 | `apps/shrink` | The auto-shrink service — queue consumer Worker + Container that runs the asset pipeline on raw CLO uploads |
 | `packages/shared` | Shared types, size ceilings and the shrink job contract, used by all of the above |
 | `tools/asset-pipeline` | The GLB processing tool (merge colourways, decimate, validate, placeholders) |
@@ -104,8 +108,8 @@ deploys. Operational playbooks live in [docs/RUNBOOK.md](RUNBOOK.md).
 **Five jobs gate the deploy**: `verify` (lint, typecheck, tests **+ coverage**,
 build, bundle weight), `e2e` (Playwright, four engines — split out of `verify`
 on 2026-08-20 and a separate required check ever since; since 2026-09-29 the
-suites run on five parallel `e2e-shard` machines and `e2e` merges their reports
-and passes only if every shard did), `audit` (dependency
+suites run on parallel `e2e-shard` machines — eight of them since 2026-11-07 —
+and `e2e` merges their reports and passes only if every shard did), `audit` (dependency
 advisories **+ SBOM and licence policy**), `secrets` (gitleaks over the full
 history) and — since 2026-08-06 — `artwork`, which renders the printed wordmark
 before and after the real decimation chain and fails if too much of it moved.
@@ -121,16 +125,24 @@ to run monthly from CI; that workflow was deleted on 2026-08-07 because the R2 c
 it pulled expires after 14 days and the surviving copy is local, where no runner can
 reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
 
-**Scheduled workflows**, all gated on `DEPLOY_ENABLED`:
+**Scheduled workflows** — the first eight pause when `DEPLOY_ENABLED` is not `true`
+(off means no backups and no monitoring); the last four watch the repository itself and
+run either way:
 
 | Workflow | Cadence | What it does |
 |---|---|---|
-| `uptime.yml` | daily *(requested — GitHub delivers 19–90 min late, measured n=11)* | health + viewer + **every** live product's model payload + both apex PDFs; opens an `outage` issue |
+| `uptime.yml` | every 6 h since 2026-09-29 (daily from 2026-08-18) *(requested — GitHub delivers 19–90 min late, measured n=11)* | health + viewer + **every** live product's model payload + both apex PDFs; opens an `outage` issue |
 | `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
+| `heartbeat.yml` | every 6 h | checks the other scheduled workflows have actually *run* — its `WATCHED` list names all eleven; opens a `monitoring` issue |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
-| `heartbeat.yml` | every 6 h | checks every other workflow in this table has actually *run* (its `WATCHED` list); opens a `monitoring` issue |
-| `perf-watch.yml` | weekly (Mon) | live response times vs the thresholds in `docs/QA-CHECKLIST.md`; a 403 is inconclusive, never a failure |
-| `lighthouse-live.yml` | weekly (Tue), and after every green push to `main` | Lighthouse 13.5.0 on the four public pages, phone and computer, five runs each, judged on the median (`scripts/lighthouse-robot.mjs`); a 403 is inconclusive, never a failure |
+| `perf-watch.yml` | Mondays | live response times vs the thresholds in `docs/QA-CHECKLIST.md`; a 403 is inconclusive, never a failure |
+| `lighthouse-live.yml` | Tuesdays, and after each deploy | Lighthouse 13.5.0 on the four pages `scripts/lighthouse-robot.mjs` measures (home, products, contact, one garment) — a corner of a site that now has 22 top-level pages and 27 guides — phone and computer, five runs each, judged on the median; a 403 is inconclusive, never a failure |
+| `link-crawl.yml` | Mondays | walks the public website's links and reports a broken one — a link can break from several ordinary, unrelated changes |
+| `r2-budget.yml` | Mondays | watches R2 storage use against its budget and shows the trend |
+| `required-checks.yml` | daily, and after each `ci.yml` change on `main` | compares the ruleset's required checks with `deploy.needs` (never gates a pull request) |
+| `security-scans.yml` | Wednesdays, and after each merge to `main` | publishes OpenSSF Scorecard and the other report-only security scans |
+| `refresh-skills.yml` | Mondays | opens the weekly pull request refreshing the vendored agent skills |
+| `tool-versions.yml` | Mondays | says when a newer actionlint, zizmor, gitleaks or Trivy has been out a week |
 
 `heartbeat.yml` exists because a monitor that fails **before** it measures anything
 opens no alert at all — which is how the uptime check sat dead for ~23 hours on
@@ -146,7 +158,7 @@ from a clean checkout to a running viewer. The summary:
 
 ```bash
 pnpm install
-pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build   # 846 unit tests, 2026-08-13
+pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build   # 8,662 unit tests, 2026-11-08
 
 # `test:coverage` rather than `test`: same suites, once, with v8 coverage on. Each
 # package fails its own run against a threshold MEASURED on 2026-08-13, and
