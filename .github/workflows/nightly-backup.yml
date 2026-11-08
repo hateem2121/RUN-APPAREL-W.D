@@ -80,10 +80,22 @@ jobs:
       # publishes for that asset, so a swapped download stops here instead of encrypting
       # the database with an attacker's binary. Early in the job on purpose: the lock
       # steps below run `if: always()`, and must find `age` even when a step failed.
+      #
+      # ⚠️ A GITHUB DOWNLOAD OUTAGE USED TO SKIP THE WHOLE BACKUP (2026-11-08). From about
+      # 08:45 to 09:45 UTC every github.com release download answered 504, flickering back
+      # for a minute at a time (reproduced from a Mac and on another project's release;
+      # githubstatus.com showed nothing). The old 5 retries 3 s apart gave up in ~15 s, and
+      # because this step failed, the export, the restore check and the R2 copy, none of
+      # which needs `age`, were all skipped: two runs backed up nothing. Now curl keeps
+      # trying for 15 minutes (`--retry-max-time`; the job allows 60), and if it still
+      # fails the in-account backup carries on. Only the off-account copy needs `age`;
+      # the last step turns the run red, so a missing lock is never silent.
       - name: Install age (backup encryption)
+        id: age
+        continue-on-error: true
         run: |
           set -euo pipefail
-          curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+          curl -fsSL --retry 60 --retry-delay 15 --retry-max-time 900 --retry-all-errors \
             -o "$RUNNER_TEMP/age.tar.gz" \
             https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz
           echo "cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10  $RUNNER_TEMP/age.tar.gz" | sha256sum -c -
@@ -229,6 +241,10 @@ jobs:
             echo "::error::$recipients is missing or holds no age public key, so nothing is uploaded. docs/BACKUP-RESTORE.md says how to add the owner's PUBLIC key."
             exit 1
           fi
+          if ! command -v age >/dev/null; then
+            echo "::error::age was not installed (its download failed), so the D1 dump has no off-account copy tonight. The copy in R2 run-private is unaffected."
+            exit 1
+          fi
           for dump in backups/d1/*.sql; do
             age -R "$recipients" -o "$dump.age" "$dump"
             echo "locked $dump -> $dump.age ($(wc -c < "$dump.age") bytes)"
@@ -316,6 +332,10 @@ jobs:
             echo "::error::$recipients is missing or holds no age public key, so the mirror is not uploaded."
             exit 1
           fi
+          if ! command -v age >/dev/null; then
+            echo "::error::age was not installed (its download failed), so the R2 mirror is not uploaded tonight."
+            exit 1
+          fi
           tar -C backups -cf - r2 | age -R "$recipients" -o backups/r2-mirror.tar.age
           echo "locked backups/r2 -> backups/r2-mirror.tar.age ($(wc -c < backups/r2-mirror.tar.age) bytes)"
       - uses: actions/upload-artifact@v7.0.2
@@ -358,3 +378,11 @@ jobs:
           else
             echo "Not the 1st — skipping events prune."
           fi
+
+      # The age download above may fail without stopping the backup (continue-on-error), so
+      # its `conclusion` reads success. Its `outcome` does not: this keeps the run red.
+      - name: Fail the run if age could not be installed
+        if: ${{ always() && steps.age.outcome == 'failure' }}
+        run: |
+          echo "::error::age could not be downloaded, so tonight's backups have no encrypted off-account copy. The D1 dump still went to R2 if the steps above passed. Re-run this workflow once github.com downloads work."
+          exit 1

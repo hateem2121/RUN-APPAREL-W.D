@@ -234,6 +234,10 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   2026-08-29: the release CDN answered **504**, `curl | tar` died on the truncated
   stream, and the PR showed `secrets: fail` on a branch with no secret in it. A failed
   FETCH and a failed SCAN must never look the same — same class as the 403 note above.
+  🟡 **It took out a whole nightly backup on 2026-11-08:** every github.com release download
+  answered 504 for ~an hour, so `age` never installed and the D1 export behind it was skipped.
+  The nightly backup now retries for 15 minutes and lets the in-account backup run without
+  `age`; a final step still turns the run red.
   Both copies now `--retry 5 --retry-delay 3 --retry-all-errors` and download to a FILE
   before extracting: a retry resuming mid-stream would splice two responses into `tar`.
   🟡 **Read the count, not the colour.** A healthy run says `435 commits scanned.
