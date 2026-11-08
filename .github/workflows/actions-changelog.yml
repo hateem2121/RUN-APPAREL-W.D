@@ -1,0 +1,67 @@
+name: Actions changelog
+
+# Opens one issue when GitHub's Actions changelog has entries this repository has not been told
+# about (owner, 2026-11-08, after a CI audit found three that applied, one weeks after it
+# shipped). scripts/check-actions-changelog.mjs has the rule: the last 14 days, minus any link an
+# earlier issue of this workflow already carries. It decides nothing: a person reads the entries
+# and closes the issue with what each one means here. tool-versions.yml watches the tools CI
+# downloads; this watches GitHub itself.
+#
+# Not gated by DEPLOY_ENABLED: it reads a public feed and touches nothing of the site's.
+
+on:
+  schedule:
+    - cron: '41 6 * * 2' # Tuesdays, 06:41 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# No job here uses the Actions cache (GitHub `cache-mode`, as in every other workflow).
+cache-mode: none
+
+concurrency:
+  group: actions-changelog
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # The one job here files an issue, so it alone gets `issues: write`. A job-level block
+    # REPLACES the workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      issues: write # opens the weekly issue and reads earlier ones to skip reported entries
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@v2.22.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
+      - name: New changelog entries, and an issue if there are any
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Every earlier issue of this workflow, open or closed: links already reported. Only issues
+          # github-actions opened: on a public repo anyone can open one with this title, and its
+          # links would otherwise silence real entries (security review, 2026-11-08).
+          # (`--app github-actions` matched 0 of this repo's 32 robot issues on 2026-11-08; the
+          # search qualifier `author:app/github-actions` matched them.)
+          gh issue list \
+            --search 'author:app/github-actions in:title "GitHub Actions changes to review"' --state all \
+            --limit 200 --json body --jq '.[].body' > "$RUNNER_TEMP/reported.txt"
+          node scripts/check-actions-changelog.mjs "$RUNNER_TEMP/reported.txt" > "$RUNNER_TEMP/issue.md"
+          # The feed's text reaches the issue only as a file, never through the shell.
+          if [ -s "$RUNNER_TEMP/issue.md" ]; then
+            gh issue create --title "GitHub Actions changes to review" --body-file "$RUNNER_TEMP/issue.md"
+          fi
