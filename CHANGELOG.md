@@ -18,6 +18,8 @@ timeline
 
 ## [Unreleased]
 
+## [2026.11.08] — every public page checked against the code
+
 ### Added
 
 - The buyer guide library grew to 34 guides: soccer balls and how we write our guides, fifteen new guides with four deepened, the order and minimum-order guides, the tech-pack guide with its free template, the vetting guide's SECP check, and the glossary terms the guides name ([#329](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/329), [#331](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/331), [#332](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/332), [#333](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/333), [#334](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/334)).
@@ -94,6 +96,7 @@ timeline
 - The footer's last-word split is a scan from the end, so a long question cannot stall a page ([#353](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/353)).
 - Two test repairs: the blurred-photo test no longer races the seam, and a test comment no longer says the fixture posters are opaque ([#314](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/314), [#316](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/316)).
 - Every public page — the README, the wiki, the security policy, the contributor and developer guides, the runbook, the changelog and the picture guide — was checked claim by claim against the code and corrected: a dead index link now opens the archived copy, the file-count chart is counted again, one measured number for the 3D test suite everywhere, today's schedules and test count in the developer guide, the older QR tags, fresh screenshots, and the docs-index gate now catches a link to a deleted file (the failure class this pass found).
+- The picture shown when the repository is shared now names the site's real address ([#360](https://github.com/hateem2121/RUN-APPAREL-W.D/pull/360)).
 
 - A garment's 3D download now retries temporary connection failures within one three-attempt limit, then offers the picture and a way to try again. A failed picture can also be retried.
 - New and replacement 3D files are refused when their embedded images cannot be checked or exceed the image limits. The shrink robot stops if it cannot process a texture, instead of silently keeping that texture in the finished file. Real-phone artwork and memory checks are still required.
