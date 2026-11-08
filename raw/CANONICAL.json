@@ -474,6 +474,20 @@
       "$liveModelComment": "The published GLB at media.wear-run.help descends from this file. That is what makes the fingerprint worth having: it is the only way to prove which export a live garment came from, and the ingest bucket expires raw uploads after 14 days so nothing else records it.",
       "calibrated": false,
       "$calibratedComment": "eval:artwork:real has never been run against this garment, so there is no ceiling to compare a future run to. ⚠️ Do NOT read this entry as evidence the garment is good — it says \"this is the same file\", never \"this file passed anything\". Calibrating it is a per-file human judgement: run --calibrate, LOOK at the contact sheets, then add a calibration block as n001 and r-afp carry."
+    },
+    "r-vpj": {
+      "description": "Raw CLO export: VELOCITY PERFORMANCE JERSEY (CLO Standalone OnlineAuth 2025.2.236, exported 2026-09-19, 5 colourways), with ONE picture replaced on 2026-11-08: image 19, the \"17\" graphic, was 17787x18856 and is now the owner's \"17 number - 4096px for CLO.png\" (3864x4096), the same artwork (0.000% of pixels differ after resizing the original). Byte-spliced: 667 of 668 bufferViews byte-identical to the export, JSON identical apart from offsets, Khronos validator 0 errors on both. This is the master the LIVE model (Media 709) was built from. NOT CALIBRATED.",
+      "localFile": "raw/VELOCITY PERFORMANCE JERSEY (17 at 4096px).glb",
+      "bytes": 174860180,
+      "sha256": "0b50c5a01714f8af218ed94b597cfd3956557a657da3c670b5de36d182e5b746",
+      "productSlug": "r-vpj",
+      "sourceFolder": "VELOCITY PERFORMANCE JERSEY - live source (17 at 4096px)",
+      "$sourceFolderComment": "The garment folder holding this export as its only zip. Pass it: process-local.mjs r-vpj --folder \"<this>\" --flags \"<extraFlags>\". The original folder (\"VELOCITY PERFORMANCE JERSEY -\") still holds the unmodified 2026-09-19 export, which this fingerprint refuses on purpose: built from it, the robot refuses the model (1.4 GB of textures; even with the 17 swapped, 325.6 MiB against the 256 MiB review budget, 2026-11-08).",
+      "extraFlags": "--artwork-max-texture 2048",
+      "$extraFlagsComment": "Needed on top of the robot flags: with artwork at 4096 the model is 325.6 MiB and refused; at 2048 it is 213.4 MiB. Renders against the old live model changed under 1% of pixels in every view, outline edges only. Owner approved 2026-11-08.",
+      "liveModel": true,
+      "calibrated": false,
+      "$calibratedComment": "eval:artwork:real has never been run against this garment."
     }
   }
 }
