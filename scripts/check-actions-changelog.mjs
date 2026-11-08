@@ -73,9 +73,13 @@ export function parseFeed(xml) {
  */
 export function pickNew(items, reported, now) {
   const since = now - WINDOW_DAYS * 86_400_000
+  // Whole links only: a substring test would let `…/2026-11-02-x-and-more` hide `…/2026-11-02-x`.
+  // The workflow passes only issues github-actions itself opened (security review, 2026-11-08: on
+  // a public repo anyone can open an issue with this title and paste links to silence entries).
+  const seen = new Set(String(reported).match(/https:\/\/github\.blog\/changelog\/[^\s)\]<>"']+/g))
   return items
     .filter((i) => i.published >= since && i.published <= now + 86_400_000)
-    .filter((i) => !reported.includes(i.link))
+    .filter((i) => !seen.has(i.link))
     .sort((a, b) => a.published - b.published)
 }
 

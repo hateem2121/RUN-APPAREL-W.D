@@ -52,8 +52,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # Every earlier issue of this workflow, open or closed: links already reported.
-          gh issue list --search 'in:title "GitHub Actions changes to review"' --state all \
+          # Every earlier issue of this workflow, open or closed: links already reported. Only issues
+          # github-actions opened: on a public repo anyone can open one with this title, and its
+          # links would otherwise silence real entries (security review, 2026-11-08).
+          # (`--app github-actions` matched 0 of this repo's 32 robot issues on 2026-11-08; the
+          # search qualifier `author:app/github-actions` matched them.)
+          gh issue list \
+            --search 'author:app/github-actions in:title "GitHub Actions changes to review"' --state all \
             --limit 200 --json body --jq '.[].body' > "$RUNNER_TEMP/reported.txt"
           node scripts/check-actions-changelog.mjs "$RUNNER_TEMP/reported.txt" "$RUNNER_TEMP/issue.md"
           # The feed's text reaches the issue only as a file, never through the shell.

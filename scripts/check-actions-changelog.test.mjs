@@ -44,6 +44,11 @@ test('NEGATIVE CONTROL: a link an earlier issue already carries is not reported 
   assert.equal(pickNew(parseFeed(FEED), FEED, NOW).length, 0)
 })
 
+test('a longer link that merely starts with an entry’s link does not hide it', () => {
+  const lookalike = 'see https://github.blog/changelog/2026-11-02-prt-and-more for details'
+  assert.equal(pickNew(parseFeed(FEED), lookalike, NOW).length, 2)
+})
+
 test('an unreadable feed yields no entries, so the run fails instead of saying "nothing new"', () => {
   for (const bad of ['', '<html>Bad gateway</html>', '<item><title>x</title></item>']) {
     assert.equal(parseFeed(bad).length, 0)
