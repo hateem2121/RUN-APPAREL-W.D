@@ -29,11 +29,11 @@
     "ping:indexnow": "node scripts/ping-indexnow.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.3",
+    "@biomejs/biome": "2.6.4",
     "@lhci/cli": "0.15.1",
     "audit-ci": "7.1.0",
     "aws4fetch": "1.0.20",
-    "knip": "6.43.0",
-    "lighthouse": "13.5.0"
+    "knip": "6.44.1",
+    "lighthouse": "13.6.0"
   }
 }
