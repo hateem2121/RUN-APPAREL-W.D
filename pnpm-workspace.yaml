@@ -28,6 +28,25 @@ minimumReleaseAgeExclude:
   - esbuild
   - '@esbuild/*'
 
+# trustPolicy: no-downgrade (pnpm 10.21+; added 2026-11-09 after the post-audit review).
+# Refuse to resolve a version published with WEAKER trust evidence than earlier versions
+# of the same package — the registry-account-compromise defense: a hijacked account can
+# publish from a fresh session with no provenance where every prior release had it, and
+# this refuses that version however long it waits out the cooldown above. pnpm documents
+# it at pnpm.io/supply-chain-security (read 2026-11-09); this graph's pnpm is 12.15.0.
+# If it ever blocks a legitimate re-resolve, the block prints the package and reason, and
+# a one-off trustPolicyExclude entry (dated, like everything here) is the escape hatch.
+trustPolicy: no-downgrade
+# trustPolicyIgnoreAfter: 20160 (14 days), measured 2026-11-09. Without it, no-downgrade
+# rejects this lockfile's own legacy entries — the four it flagged were published
+# 2023-07-10 (semver 5.7.2 and 6.3.1), 2025-10-18 (pino 9.14.0) and 2026-10-07
+# (chromium-bidi 157.0.8090-0), every one long before the policy existed, each audited
+# clean for months (ERR_PNPM_TRUST_DOWNGRADE, measured 2026-11-09). Fourteen days keeps
+# the downgrade check active for every fresh publication — the only place a takeover can
+# appear — while exempting the established lockfile. Raise it only with the same kind of
+# measurement.
+trustPolicyIgnoreAfter: 20160
+
 # Moved here from package.json's `pnpm` field on 2026-09-26 for pnpm 12: from
 # pnpm 11 on, that field is NOT READ AT ALL — left in place, all 27 security
 # overrides below would silently stop applying while every install still
