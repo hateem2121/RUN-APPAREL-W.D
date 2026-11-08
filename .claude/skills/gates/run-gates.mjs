@@ -63,6 +63,20 @@ const GATES = [
     argv: ['zizmor', '--config', '.github/zizmor.yml', '.'],
     requires: 'zizmor',
   },
+  {
+    // Added 2026-11-08 with CI's step of the same check. Needs the gh extension
+    // (`gh extension install github/gh-actions-lock`); without it the report is empty and the
+    // judge says "NOT checked" (exit 2) — loud, never a pass. Judged on JSON, not the exit code:
+    // a timeout once exited 0 having verified nothing (scripts/check-actions-lock.mjs).
+    name: 'actions-lock',
+    why: 'actions.lock checked against GitHub (CI: gh actions-lock 0.4.1 --verify)',
+    argv: [
+      'sh',
+      '-c',
+      'f="$TMPDIR/actions-lock-report.json"; gh actions-lock --verify --json > "$f" || true; node scripts/check-actions-lock.mjs "$f"',
+    ],
+    requires: 'gh',
+  },
   { name: 'typecheck', why: '5 workspaces', argv: [...PNPM, 'typecheck'] },
   {
     name: 'container-install',

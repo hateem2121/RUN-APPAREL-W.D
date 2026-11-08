@@ -31,14 +31,21 @@ on:
 permissions:
   contents: read
 
+# One scan per branch at a time (zizmor concurrency-limits, 2026-11-08). Not cancel-in-progress:
+# a scan already publishing finishes, and a burst of merges to main queues only the newest one.
+# Scorecard's publish rules (above) say nothing about concurrency.
+concurrency:
+  group: security-scans-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   scorecard:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
-      security-events: write
-      id-token: write
+      security-events: write # Scorecard README: required when publishing results
+      id-token: write # proves the run to scorecard.dev when publishing
     steps:
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@v2.22.4
@@ -73,7 +80,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      security-events: write
+      security-events: write # upload-sarif sends the filtered result
     steps:
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@v2.22.4
@@ -101,7 +108,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      security-events: write
+      security-events: write # upload-sarif sends the Trivy result
     steps:
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@v2.22.4
