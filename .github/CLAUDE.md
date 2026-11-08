@@ -203,7 +203,9 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `uses:` as a full tag (`actions/checkout@v7.0.1`) and the commit into the lock; Dependabot updates
   both in one PR. 🟡 Since 2026-11-08 `verify` also runs `gh actions-lock --verify` against GitHub and
   judges its JSON with `scripts/check-actions-lock.mjs`: a timeout once exited 0 having checked
-  nothing, so GitHub not answering fails as "NOT checked", never as a pass. 🟡 The price, accepted: Scorecard's Pinned-Dependencies does not read the lockfile
+  nothing, so GitHub not answering fails as "NOT checked", never as a pass. 🟢 Since 2026-11-08 `actions-changelog.yml` opens one issue a week
+  when GitHub's Actions changelog has entries no earlier issue carries
+  (`scripts/check-actions-changelog.mjs`); close it with what each entry means here. 🟡 The price, accepted: Scorecard's Pinned-Dependencies does not read the lockfile
   and measured 2 against 9 with SHA pins. The repository still requires SHA pinning, which GitHub
   counts as met for a workflow on the lockfile. Change an action and re-run `gh actions-lock`, or GitHub
   refuses the run outright (a mismatched commit: HTTP 422 at dispatch; a wrong repository id:

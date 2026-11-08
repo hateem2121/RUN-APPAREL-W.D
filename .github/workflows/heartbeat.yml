@@ -167,6 +167,8 @@ jobs:
           # tool-versions.yml (added 2026-10-25) is watched for COMPLETION too: it ends red
           # on purpose when a pinned tool is a week behind, naming the tool; heartbeat owns
           # only whether its Monday schedule still runs at all.
+          # actions-changelog.yml (added 2026-11-08) is watched for SUCCESS: it fails only when
+          # GitHub's changelog feed cannot be read, so a week of red is a dead watcher.
           WATCHED="
           uptime.yml:24:completed:every 6 hours, at :23
           nightly-backup.yml:36:success:nightly
@@ -179,6 +181,7 @@ jobs:
           security-scans.yml:192:completed:weekly on Wednesdays, and after each merge to main
           refresh-skills.yml:192:completed:weekly on Mondays
           tool-versions.yml:192:completed:weekly on Mondays
+          actions-changelog.yml:192:success:weekly on Tuesdays
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped
