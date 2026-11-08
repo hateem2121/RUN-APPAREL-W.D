@@ -4,8 +4,10 @@ Short list. Everything else about the public site is automated and gated; these 
 items are outside what any test can reach, either because they need a real phone in a
 real hand or because they are claims about your business that only you can confirm.
 
-Nothing here blocks anything today — the site is not live. Items 1 and 2 should be done
-before it goes live; 3 and 4 whenever suits.
+Nothing here blocks anything today. The site is live at wear-run.com (launched 2026-09-25,
+and visible to search engines — `SITE_INDEXING` is set to `visible` in
+`apps/cms/wrangler.jsonc`). Items 1 and 2 were written before the launch: do them on your
+phone now if they have not been done; 3 and 4 whenever suits.
 
 ---
 
@@ -16,7 +18,8 @@ that catches layout faults. It cannot tell you how the site *feels* — whether 
 comfortable, whether scrolling stutters, whether text is readable at arm's length in
 daylight. No simulator answers those.
 
-**How.** Run the site locally and open it on your phone, or wait until it is live.
+**How.** Open wear-run.com on your phone — it is live. (Run the site locally instead if
+you want to check something that is not on the live site yet.)
 
 1. Open the home page. Read it once, top to bottom, without stopping.
 2. Tap **PRODUCTS** in the top bar. Then **CONTACT**. Then the RUN APPAREL name to get home.
@@ -78,12 +81,13 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec wrangler secret list
 `CF_ANALYTICS_TOKEN` now appears in that list beside `PAYLOAD_SECRET`, `RESEND_API_KEY`
 and `SENTRY_DSN`.
 
-⚠️ **It reports nothing yet, and that is correct.** Fetched live the same day,
-`cms.wear-run.help` serves a private holding page — the marketing site is not deployed
-anywhere. The counter starts when the site launches.
+⚠️ **Written 2026-09-07, before the launch — updated 2026-11-09.** The old wording said the
+marketing site was not deployed anywhere and the counter starts when the site launches.
+The site is live now, so the counter should already be reporting: open that dashboard and
+check. If it shows nothing after a day of real visitors, that is a fault to raise, not
+patience.
 
-**You are done when** the site reports visitors in that dashboard within a day of going
-live. Nothing to do until then.
+**You are done when** the dashboard reports visitors for the days since the launch.
 
 **What you get.** Visitor numbers, which pages they read, and where they arrived from. It
 sets no cookies, so it needs no cookie banner and collects nothing personal — that is why
@@ -220,7 +224,7 @@ message still shows as coming from `noreply@wear-run.help`. Your `DMARC` policy 
 whether Resend's own dashboard has ticked the domain as Verified, and whether the API key
 on the Worker is still valid. Both live behind a login I do not have.
 
-**The cheapest way to settle it is to use it.** Once the site is live, send yourself one
+**The cheapest way to settle it is to use it.** The site is live — send yourself one
 message through the contact form. If it arrives, everything above is confirmed. If it does
 not, open **Inquiries** in the CMS: the message will be there with `notified` unticked and
 the exact reason written beside it.
@@ -340,5 +344,5 @@ Stated plainly so nothing here reads as finished when it is not.
 |---|---|
 | **Real screen readers** | Automated checks cover structure, labels and contrast, and 72 browser tests cover keyboard use. Nobody has listened to these pages with VoiceOver or NVDA. |
 | **Many visitors at once** | Not load-tested. Phase C's caching is what makes this matter less; until then every visit rebuilds the page. |
-| **The live production site** | These pages are not deployed. Every measurement comes from a local production build and the real Workers runtime — close, but not the live host with real network distance. |
+| **Live-host numbers age** | The site is live (2026-09-25), but the measurements in this repo came from local production builds or from specific days (the 26 Oct site check). They describe those moments, not today — the robots that run continuously (uptime, Lighthouse live, perf-watch, the daily probes) are what watch the live host now. |
 | **Real product photos at full scale** | Your local database has one real poster; production has more. Photo weight for a full catalogue is projected from the files on disk, not observed. |

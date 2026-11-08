@@ -362,3 +362,25 @@ website build for the message.
 
 The pipeline's own npm lockfile, which only Docker reads, lists model-viewer as a development
 dependency and is not patched.
+
+---
+
+## `deepmerge` under Payload: unfixable low, watched (2026-11-09)
+
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) (low):
+`mergeObject()` allows prototype poisoning of returned objects, for `>=4.2.0 <=4.3.1`.
+There is no patched version — and `4.3.1` IS the latest release on npm (read 2026-11-09),
+so no version bump can take this advisory away. `payload` (3.92.1) requires exactly
+`deepmerge 4.3.1` and reaches it on 16 paths (its own config merging, and through
+`@payloadcms/storage-r2` → `@payloadcms/plugin-cloud-storage` → `@payloadcms/ui`).
+
+Why it is accepted rather than overridden: there is no fixed version to override TO (the
+house rule is override, not allowlist — but an override needs a target), the finding never
+fails a gate (audit-ci fails on high/critical only, and `pnpm audit` records it low), and
+the affected function merges objects the CALLER supplies — Payload merges its own config
+objects, not visitor-controlled input — so the poisoning class it describes has no
+visitor-reachable path in this codebase.
+
+**DELETE this section when:** payload's dependency range admits a deepmerge release
+outside the advisory range (check `npm view payload dependencies.deepmerge` on every
+Payload upgrade), or the advisory gains a patched version.
