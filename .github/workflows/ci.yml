@@ -397,7 +397,7 @@ jobs:
   # heartbeat.yml, so it needs something that parses jq syntax. The static gates and the
   # browser gates need different machines anyway.
   #
-  # SPLIT ACROSS MACHINES SINCE 2026-09-29 (SEVEN SINCE 2026-10-05), BEHIND ONE `e2e` JOB.
+  # SPLIT ACROSS MACHINES SINCE 2026-09-29 (EIGHT SINCE 2026-11-07), BEHIND ONE `e2e` JOB.
   #
   # Until then one job ran the viewer suite and THEN the public-site suite on one
   # machine: run 36285360710 took 13.0 min (1,013 passed, 2 workers) plus 7.1 min

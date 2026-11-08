@@ -26,6 +26,10 @@ decision 2026-09-18, so a researcher sees one address wherever they look. It is 
 since 2026-10-11 (team@ before).
 `inquiry@wear-run.com` is the company's public enquiry address, not for security reports.
 
+GitHub's **private vulnerability reporting** works too: on this repository's Security tab,
+press **Report a vulnerability**. That form reaches us privately — pick whichever way you
+prefer.
+
 Please do **not** open a GitHub issue for a security problem. Issues in this
 repository are used by the automated monitors (`uptime.yml`, `heartbeat.yml`,
 `diagnostics-digest.yml`) and are visible to everyone with repository access.
@@ -101,9 +105,13 @@ Reported here so you do not spend time re-discovering it:
 - **A 24-hour dependency cooldown.** `minimumReleaseAge: 1440` in
   `pnpm-workspace.yaml` refuses to resolve any release younger than a day, so a
   compromised package cannot be adopted the moment it is published.
-- **Every GitHub Action is pinned to a full commit SHA**, and every workflow
-  declares least-privilege `permissions:`. `apps/cms/src/workflowHardening.test.ts`
-  fails the build if either regresses.
+- **Every GitHub Action is locked by GitHub's workflow lockfile.** Each `uses:` names a
+full version tag, and `.github/workflows/actions.lock` (generally available 2026-10-28)
+pins the exact commit behind it — and behind the actions those actions use, which a bare
+SHA pin never covered. Every workflow also declares least-privilege `permissions:`, and
+`apps/cms/src/workflowHardening.test.ts` fails the build if a workflow leaves the lock.
+(One honest price, accepted 2026-11-07: OpenSSF Scorecard's Pinned-Dependencies check
+does not read the lockfile, so it scores the tags as weaker than SHA pins.)
 - **Content-Security-Policy** is generated from the built output by
   `apps/viewer/scripts/csp.mjs`, hashed per inline script, and applied to both
   asset-served and Worker-built responses (`worker/securityHeaders.ts`).

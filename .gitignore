@@ -86,6 +86,11 @@ blob-report/
 # codebase-memory-mcp index artifact (machine-local, rebuildable — see docs/AI-TOOLING.md)
 .codebase-memory/
 
+# Mimosa security-scanner plugin state: a per-session hook cache, machine-local and
+# rebuilt on demand. It rode one `git add -A` into a branch on 2026-11-08 — 5,007 files
+# of it — because nothing ignored it; this line is the fix.
+.mimosa/
+
 # Machine-local agent settings. Holds CBM_ALLOWED_ROOT, which is an ABSOLUTE path
 # and therefore cannot be shared — settings.json does not expand ${CLAUDE_PROJECT_DIR}
 # (or any other variable) inside its `env` block, verified against the Claude Code

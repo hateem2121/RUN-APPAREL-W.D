@@ -178,7 +178,7 @@ updates:
   # GitHub Actions — ONE update PR at a time, since 2026-09-10 (owner decision).
   #
   # This was 0 with the note "security advisories for actions still open", and that
-  # half was never true here: every action is pinned to a full commit SHA, and
+  # half was never true here: every action was then pinned to a full commit SHA, and
   # GitHub's secure-use guide says Dependabot "will not create alerts for actions
   # pinned to SHA values". So the pinned actions received neither alerts nor updates.
   #

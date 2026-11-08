@@ -109,8 +109,9 @@ in `.github/workflows/deploy-shrink.yml` until that date.
 
 ⚠️ **`e2e` IS ITS OWN REQUIRED CHECK**, split out of `verify` on 2026-08-20, and it
 was missing from this list. It is the slowest gate in CI (21.5 min on one machine on
-2026-09-27; split across seven machines since 2026-10-05, the viewer suite in thirds and
-the site suite one engine a machine), and locally it takes about six minutes for 1,936
+2026-09-27; split across machines since 2026-09-29 — eight since 2026-11-07 — the viewer
+suite in thirds and the site suite split by engine, chromium and firefox in halves), and
+locally it takes about six minutes for 1,936
 viewer tests on four engines (measured 2026-10-24; it was ~45 s for 352 tests when this
 was first written) — so run it here before pushing. Two CI round trips were spent
 learning that.
@@ -161,8 +162,9 @@ beats "slightly off".
 
 ## Before merging to `main`
 
-Merging to `main` runs the pre-deploy D1 migration and deploys the CMS and the
-viewer to production. **Take a D1 backup and capture
+Merging to `main` runs the pre-deploy D1 migration and deploys the apex Worker, the CMS
+and the viewer to production — plus the shrink when `apps/shrink` changed; a docs-or-tests-only
+merge deploys nothing. **Take a D1 backup and capture
 `GET /api/public/viewer/rxps/wine` first** — that before/after diff is what caught
 the last data-loss incident when the migration logs said success.
 [`.claude/skills/deploy-preflight/`](.claude/skills/deploy-preflight/) walks the

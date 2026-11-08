@@ -23,11 +23,20 @@
  * that holds anything a person is expected to keep true.
  *
  * Run: `node scripts/check-docs-index.mjs`. Exits 1 and names every unreachable document.
+ *
+ * ⚠️ THE OTHER DIRECTION, added 2026-11-08. The 2026-11-08 truth audit found the index
+ * still linking `PIPELINE-INVESTIGATION-2026-09-01.md` five weeks after that file was
+ * deleted (2026-10-23): this check only asked "is every tracked doc in the index?", and
+ * a row for a deleted file can never fail that — the file was already gone from
+ * `git ls-files`, so nothing asked about it ever again. The index is therefore now
+ * checked in reverse too: every relative link in `docs/README.md` must resolve to a
+ * file that exists. URL-shaped targets are skipped, the same exemption
+ * `scripts/doc-citations.mjs` gives them.
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync, realpathSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -117,6 +126,31 @@ export function unreachable(paths, index) {
     .filter((path) => !index.includes(path.split('/').pop()))
 }
 
+/**
+ * The other direction (2026-11-08): every relative link inside the index must point at
+ * a file that exists. A row for a deleted file is invisible to `unreachable()` above —
+ * the file is gone from `git ls-files`, so the one-direction check never asks about it.
+ *
+ * URL-shaped targets (any scheme, e.g. the archive links to commit bd384f3c), targets
+ * starting with `/` and pure `#anchors` are skipped — the same exemptions
+ * `scripts/doc-citations.mjs` gives them, because none of those is a repo path.
+ */
+export function danglingLinks(index, baseDir) {
+  const dangling = []
+  const seen = new Set()
+  for (const match of index.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+    const target = match[1]
+    if (seen.has(target)) continue
+    seen.add(target)
+    if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('/') || target.startsWith('#')) {
+      continue
+    }
+    const resolved = resolve(baseDir, target)
+    if (!existsSync(resolved)) dangling.push({ target, resolved })
+  }
+  return dangling
+}
+
 function main() {
   const index = readFileSync(join(REPO, 'docs', 'README.md'), 'utf8')
   const paths = trackedMarkdown()
@@ -147,7 +181,22 @@ function main() {
     process.exit(1)
   }
 
-  console.log('✓ every maintained document is reachable from docs/README.md.')
+  const dangling = danglingLinks(index, join(REPO, 'docs'))
+  if (dangling.length > 0) {
+    console.error(`\n✖ ${dangling.length} link(s) in docs/README.md point at nothing:\n`)
+    for (const { target, resolved } of dangling) {
+      console.error(`   ${target}  →  ${relative(REPO, resolved) || resolved}`)
+    }
+    console.error(
+      '\nFix the link, or point it at the archived commit the way the deleted records\n' +
+        'do (the bd384f3c rows in docs/README.md are the pattern).\n',
+    )
+    process.exit(1)
+  }
+
+  console.log(
+    '✓ every maintained document is reachable from docs/README.md, and every link in it resolves.',
+  )
 }
 
 if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) main()
