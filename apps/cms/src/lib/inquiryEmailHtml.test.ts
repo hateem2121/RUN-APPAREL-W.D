@@ -5,6 +5,7 @@ import {
   esc,
   inquiryReference,
   RECEIPT_GIF,
+  RECEIPT_LOGO,
   teamEmailHtml,
   teamSubject,
   whatsappLink,
@@ -158,6 +159,14 @@ describe('the buyer receipt', () => {
     const receipt = buyerReceipt({ id: 82, subject: advert })
     expect(receipt.html).not.toContain(advert)
     expect(receipt.text).not.toContain(advert)
+  })
+
+  it('opens with the RUN APPAREL wordmark, linked to the site (owner, 2026-11-10)', () => {
+    const { html } = buyerReceipt({ id: 1, subject: '' })
+    expect(html).toContain(`src="${RECEIPT_LOGO}"`)
+    expect(html).toContain('alt="RUN APPAREL"')
+    // First: before the moving header.
+    expect(html.indexOf(RECEIPT_LOGO)).toBeLessThan(html.indexOf(RECEIPT_GIF))
   })
 
   it('moves in its header, with words for anyone who cannot see it', () => {

@@ -227,6 +227,13 @@ export type BuyerReceipt = { subject: string; html: string; text: string }
 
 /** The receipt's moving header, served by the site (apps/cms/public/email/). */
 export const RECEIPT_GIF = `${SITE}/email/inquiry-received.gif`
+/**
+ * The ink wordmark (owner, 2026-11-10), as a PNG because Gmail and Outlook do not draw SVG in mail.
+ * Rendered at 3x (243 x 84) from the brand's own `run-apparel-wordmark-ink.svg` by Chromium, on
+ * the panel's `surface` colour rather than transparent, so a dark-mode client never shows ink on a
+ * dark ground. Shown 28px tall: above the brand's 24px minimum, with its clear space around it.
+ */
+export const RECEIPT_LOGO = `${SITE}/email/run-apparel-wordmark.png`
 export const RECEIPT_GIF_ALT =
   'Inquiry received. Next, our team reads it. Then we reply within 24 hours.'
 
@@ -253,7 +260,9 @@ export function buyerReceipt({
   const html = frame(
     `We have your inquiry (${ref}). We reply within 24 hours.`,
     [
-      `<tr><td style="padding:0;"><img src="${RECEIPT_GIF}" width="600" alt="${attr(RECEIPT_GIF_ALT)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:18px 18px 0 0;"></td></tr>`,
+      // The wordmark first (owner, 2026-11-10: "Run logo must also be present").
+      `<tr><td style="padding:22px 28px 18px;"><a href="${SITE}" style="text-decoration:none;"><img src="${RECEIPT_LOGO}" width="81" height="28" alt="RUN APPAREL" style="display:block;width:81px;height:28px;border:0;color:${C.ink};font-family:${SANS};font-weight:900;font-size:16px;"></a></td></tr>`,
+      `<tr><td style="padding:0;"><img src="${RECEIPT_GIF}" width="600" alt="${attr(RECEIPT_GIF_ALT)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>`,
       row(label(`[ Your reference ]  ${ref}`), '24px 28px 12px'),
       row(
         `<h1 style="margin:0;font-family:${SANS};font-weight:900;font-size:30px;line-height:1.02;text-transform:uppercase;color:${C.ink};">What happens <span style="font-family:${SERIF};font-style:italic;font-weight:400;text-transform:none;color:${C.voltDeep};">next.</span></h1>`,
