@@ -41,7 +41,7 @@ import {
   keptHeaders,
   keptRenderRequest,
   keptRenders,
-  keptStoreKey,
+  keptStoreKeys,
   pageCacheTiming,
   servedHeaders,
   storeAnswerLog,
@@ -51,6 +51,7 @@ import {
   wholeFile,
   wholePage,
 } from './pageCache.mjs'
+import { answerFromCopy, COPY_KEY_HEADER, copyKey, keepCopy } from './pageCopy.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
 import {
   keepableTapAnswer,
@@ -92,6 +93,10 @@ export class SitePages extends WorkerEntrypoint {
     if (keepableApiRequest(request)) {
       return keepApiAnswer(request, (clean) => openNext.fetch(clean, this.env, this.ctx))
     }
+    // A whole page this region does not hold yet: one R2 read instead of a drawing (pageCopy.mjs).
+    // Null for a tap, a kept file, no copy, R2 slow or down, or PAGE_COPY = "off": draw as before.
+    const copied = await answerFromCopy(request, this.env)
+    if (copied) return copied
     const render = { spoiled: false }
     const response = await keptRenders().run(render, () =>
       openNext.fetch(request, this.env, this.ctx),
@@ -115,6 +120,8 @@ export class SitePages extends WorkerEntrypoint {
     }
     const text = await response.text()
     const whole = !render.spoiled && (file ? wholeFile(pathname, text) : wholePage(text))
+    // Only a whole page drawn from the database is copied for every region; keepCopy refuses files.
+    if (whole && !file) keepCopy(request, this.env, this.ctx, response.headers, text)
     const headers = whole ? keptHeaders(response.headers) : unkeptHeaders(response.headers)
     return new Response(text, { ...init, headers })
   }
@@ -159,7 +166,7 @@ async function fromSharedStore(request, env, ctx) {
   const store = ctx?.exports?.SitePages
   if (!deploy || !env.SITE_CACHE || !store) return null
   try {
-    const cacheKey = await keptStoreKey(
+    const { cacheKey, contentVersion, named } = await keptStoreKeys(
       request.url,
       deploy,
       env.SITE_CACHE,
@@ -167,12 +174,16 @@ async function fromSharedStore(request, env, ctx) {
     )
     // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
     const cf = { cacheKey }
+    // The shared page copy's name (pageCopy.mjs, 10 Nov 2026): SitePages asks R2 for it before
+    // drawing, so a region that does not hold the page yet is answered in one read.
+    const clean = keptRenderRequest(request, cf)
+    clean.headers.set(COPY_KEY_HEADER, copyKey(clean.url, named, contentVersion))
     // ⚠️ `redirect: 'manual'`, or a 308 from the store is FOLLOWED: this call has Fetch semantics
     // and follows a redirect out over the internet by default (Cloudflare, Workers RPC "Reserved
     // methods"). Live on 2026-10-25 (#247), /factory answered 200 with the factory page instead of
     // its 308. Manual hands the redirect back to withRedirectHeaders below, as before the store.
     const askedAt = Date.now()
-    const kept = await store.fetch(keptRenderRequest(request, cf), { cf, redirect: 'manual' })
+    const kept = await store.fetch(clean, { cf, redirect: 'manual' })
     console.log(storeAnswerLog('page', storeState(kept.headers), Date.now() - askedAt))
     if (request.method === 'HEAD') await kept.body?.cancel()
     return {

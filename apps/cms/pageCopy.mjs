@@ -23,8 +23,77 @@
  * COPY_READ_TIMEOUT_MS all read as "no copy", and the page is drawn as before the copy existed.
  */
 
+import { KEPT_FILES, KEPT_TAGS, keptHeaders } from './pageCache.mjs'
+
 /** Longer than this, drawing the page is no worse than waiting for R2. */
 export const COPY_READ_TIMEOUT_MS = 400
+
+/**
+ * The copy's name travels from the default entrypoint (which read the content version for the
+ * store key anyway) to SitePages on the clean request, so SitePages reads no extra KV key. Workers
+ * Cache keys on `cf.cacheKey`, so this header never splits the store.
+ */
+export const COPY_KEY_HEADER = 'x-run-copy-key'
+
+/**
+ * ⚠️ A PAGE ANSWERED FROM A COPY IS KEPT FOR TWO MINUTES, NOT A DAY. A save writes KV
+ * `content-version` and then marks kept copies stale (src/lib/contentVersion.ts), but a region can
+ * read the OLD version for about 90 s (KV spreads in about 60 s, plus VERSION_CACHE_SECONDS). A
+ * refresh in that window would find the copy filed under the old version; kept for a day, the old
+ * words would outlive the save. After two minutes the region asks again and reads the new version.
+ */
+export const COPY_SERVED_CACHE_CONTROL = 'public, max-age=120'
+
+/** Only whole website pages: never a tap (`rsc: 1`), never the sitemap, llms.txt or robots.txt. */
+function copyable(request, env) {
+  if (!copyOn(env) || !request.headers.get(COPY_KEY_HEADER)) return false
+  if (request.headers.get('rsc') === '1') return false
+  return !KEPT_FILES.includes(new URL(request.url).pathname)
+}
+
+/** One Workers Logs line per copy decision: state and milliseconds only (the repo is public). */
+export function copyLog(state, ms) {
+  return { pageCopy: state, ms: Math.round(ms) }
+}
+
+/**
+ * SitePages' answer from the shared copy, or null to draw the page as before.
+ *
+ * @param {Request} request the clean request SitePages was handed
+ * @param {{ PAGE_COPIES?: any, PAGE_COPY?: string }} env
+ * @returns {Promise<Response | null>}
+ */
+export async function answerFromCopy(request, env) {
+  if (!copyable(request, env)) return null
+  const askedAt = Date.now()
+  const copy = await readCopy(env.PAGE_COPIES, request.headers.get(COPY_KEY_HEADER))
+  console.log(copyLog(copy ? 'hit' : 'miss', Date.now() - askedAt))
+  if (!copy) return null
+  const headers = keptHeaders(copy.headers, Date.now(), KEPT_TAGS.pages)
+  headers.set('cache-control', COPY_SERVED_CACHE_CONTROL)
+  return new Response(copy.text, { status: 200, headers })
+}
+
+/**
+ * After SitePages drew a WHOLE page it keeps (the caller checks keepablePage, wholePage and that
+ * the render was not spoiled), write the copy in waitUntil. True when a write was started.
+ *
+ * @param {Request} request
+ * @param {{ PAGE_COPIES?: any, PAGE_COPY?: string }} env
+ * @param {{ waitUntil: (p: Promise<unknown>) => void }} ctx
+ * @param {HeadersInit} headers the drawn page's own headers
+ * @param {string} text
+ */
+export function keepCopy(request, env, ctx, headers, text) {
+  if (!copyable(request, env)) return false
+  const key = request.headers.get(COPY_KEY_HEADER)
+  ctx.waitUntil(
+    writeCopy(env.PAGE_COPIES, key, headers, text).then((written) => {
+      console.log(copyLog(written ? 'written' : 'write-failed', 0))
+    }),
+  )
+  return true
+}
 
 /** The shape written to R2; a different `v` reads as no copy. */
 const COPY_FORMAT = 1

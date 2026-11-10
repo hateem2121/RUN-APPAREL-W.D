@@ -1,5 +1,17 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { COPY_READ_TIMEOUT_MS, copyKey, copyOn, readCopy, writeCopy } from '../pageCopy.mjs'
+import {
+  answerFromCopy,
+  COPY_KEY_HEADER,
+  COPY_READ_TIMEOUT_MS,
+  COPY_SERVED_CACHE_CONTROL,
+  copyKey,
+  copyOn,
+  keepCopy,
+  readCopy,
+  writeCopy,
+} from '../pageCopy.mjs'
 
 const BUILD = 'site-0123456789abcdef0123.0123456789ab'
 
@@ -99,5 +111,125 @@ describe('writeCopy and readCopy', () => {
 
   it('reads within 400 ms, the plan’s ceiling', () => {
     expect(COPY_READ_TIMEOUT_MS).toBe(400)
+  })
+})
+
+/*
+ * Task 2 (shared page copy plan, 10 Nov 2026): SitePages asks the copy before drawing a whole page,
+ * and keeps one after a whole drawing. worker.mjs cannot be loaded here (cloudflare:workers and the
+ * built site), so the decisions live in pageCopy.mjs and worker.mjs only calls them.
+ */
+describe('answerFromCopy and keepCopy, as SitePages uses them', () => {
+  const KEY = `pages/wear-run.com/${BUILD}/7/guides`
+  const asked = (path: string, extra: Record<string, string> = {}) =>
+    new Request(`https://wear-run.com${path}`, { headers: { [COPY_KEY_HEADER]: KEY, ...extra } })
+  const withCopy = () => {
+    const bucket = fakeBucket()
+    bucket.store.set(
+      KEY,
+      JSON.stringify({ v: 1, headers: [['content-type', 'text/html']], text: '<html>g</html>' }),
+    )
+    return bucket
+  }
+
+  /*
+   * A save writes KV `content-version` and then marks kept copies stale, but a region can read the
+   * old version for up to ~90 s (KV spreads in about 60 s, plus VERSION_CACHE_SECONDS). A copy
+   * served in that window must not be kept for a day, so it is kept for two minutes.
+   */
+  it('answers from the copy, kept for two minutes only, tagged so a save still reaches it', async () => {
+    const answer = await answerFromCopy(asked('/guides'), { PAGE_COPIES: withCopy() })
+    expect(answer?.status).toBe(200)
+    expect(await answer?.text()).toBe('<html>g</html>')
+    expect(answer?.headers.get('cache-control')).toBe(COPY_SERVED_CACHE_CONTROL)
+    expect(COPY_SERVED_CACHE_CONTROL).toBe('public, max-age=120')
+    expect(answer?.headers.get('cache-tag')).toBe('site-pages')
+    expect(answer?.headers.get('x-run-kept')).toBe('yes')
+  })
+
+  it('finds no answer, so SitePages draws: no copy, no name, a tap, a kept file, switched off, R2 down', async () => {
+    expect(await answerFromCopy(asked('/guides'), { PAGE_COPIES: fakeBucket() })).toBeNull()
+    const unnamed = new Request('https://wear-run.com/guides')
+    expect(await answerFromCopy(unnamed, { PAGE_COPIES: withCopy() })).toBeNull()
+    expect(
+      await answerFromCopy(asked('/guides', { rsc: '1' }), { PAGE_COPIES: withCopy() }),
+    ).toBeNull()
+    expect(await answerFromCopy(asked('/robots.txt'), { PAGE_COPIES: withCopy() })).toBeNull()
+    expect(
+      await answerFromCopy(asked('/guides'), { PAGE_COPIES: withCopy(), PAGE_COPY: 'off' }),
+    ).toBeNull()
+    expect(
+      await answerFromCopy(asked('/guides'), { PAGE_COPIES: fakeBucket({ throwOnGet: true }) }),
+    ).toBeNull()
+  })
+
+  it('keeps a copy of a whole page in waitUntil, under the name the request carries', async () => {
+    const bucket = fakeBucket()
+    const waits: Promise<unknown>[] = []
+    const ctx = { waitUntil: (p: Promise<unknown>) => waits.push(p) }
+    const env = { PAGE_COPIES: bucket }
+    expect(keepCopy(asked('/guides'), env, ctx, new Headers(), '<html>x</html>')).toBe(true)
+    await Promise.all(waits)
+    expect(JSON.parse(bucket.store.get(KEY) ?? '{}').text).toBe('<html>x</html>')
+  })
+
+  it('never keeps a tap, a kept file, an unnamed request, or anything while switched off', () => {
+    const ctx = { waitUntil: () => {} }
+    const env = { PAGE_COPIES: fakeBucket() }
+    const off = { ...env, PAGE_COPY: 'off' }
+    const unnamed = new Request('https://wear-run.com/guides')
+    expect(keepCopy(asked('/guides', { rsc: '1' }), env, ctx, new Headers(), 'x')).toBe(false)
+    expect(keepCopy(asked('/llms.txt'), env, ctx, new Headers(), 'x')).toBe(false)
+    expect(keepCopy(unnamed, env, ctx, new Headers(), 'x')).toBe(false)
+    expect(keepCopy(asked('/guides'), off, ctx, new Headers(), 'x')).toBe(false)
+  })
+})
+
+/*
+ * worker.mjs imports cloudflare:workers and the built site, so it is read as text, the way
+ * pageCache.test.ts and filmRange.test.ts check it.
+ */
+describe('worker.mjs and wrangler.jsonc wire the copy in', () => {
+  const cms = join(import.meta.dirname, '..')
+  const worker = readFileSync(join(cms, 'worker.mjs'), 'utf8')
+  const sitePages = worker.slice(
+    worker.indexOf('export class SitePages'),
+    worker.indexOf('async invalidateKept'),
+  )
+
+  it('SitePages asks the copy before it draws, and returns it when there is one', () => {
+    const asks = sitePages.indexOf('await answerFromCopy(request, this.env)')
+    const draws = sitePages.indexOf('openNext.fetch(request, this.env, this.ctx)')
+    expect(asks).toBeGreaterThan(-1)
+    expect(asks).toBeLessThan(draws)
+    expect(sitePages).toMatch(/if \(copied\) return copied/)
+  })
+
+  it('SitePages keeps a copy only of a whole page that is not a kept file', () => {
+    expect(sitePages).toMatch(/if \(whole && !file\) keepCopy\(request, this\.env, this\.ctx,/)
+  })
+
+  it('the default entrypoint names the copy from what the store key read', () => {
+    expect(worker).toMatch(/await keptStoreKeys\(/)
+    expect(worker).toMatch(
+      /clean\.headers\.set\(COPY_KEY_HEADER, copyKey\(clean\.url, named, contentVersion\)\)/,
+    )
+    expect(worker).toMatch(/store\.fetch\(clean, \{ cf, redirect: 'manual' \}\)/)
+  })
+
+  const wrangler = JSON.parse(
+    readFileSync(join(cms, 'wrangler.jsonc'), 'utf8')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n')
+      .replace(/\/\*[\s\S]*?\*\//g, ''),
+  ) as { r2_buckets: { binding: string; bucket_name: string }[]; vars: Record<string, string> }
+
+  it('binds the private copies bucket and leaves the switch on', () => {
+    expect(wrangler.r2_buckets).toContainEqual({
+      binding: 'PAGE_COPIES',
+      bucket_name: 'run-apparel-page-copies',
+    })
+    expect(wrangler.vars.PAGE_COPY).toBe('on')
   })
 })

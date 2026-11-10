@@ -19,6 +19,7 @@ import {
   keptBuild,
   keptRenders,
   keptStoreKey,
+  keptStoreKeys,
   PAGE_CACHE_SECONDS,
   PER_DEPLOY,
   pageCacheKey,
@@ -371,6 +372,20 @@ describe('the key a request is kept under, and its off switch', () => {
     expect(await keptStoreKey(url, build, switched)).toBe(sharedCacheKey(url, build, 'live'))
   })
 
+  // Shared page copy (10 Nov 2026): the copy is named from what the key already read, no extra KV.
+  it('keptStoreKeys hands back the content version and the name it keyed by, with the same key', async () => {
+    const values = kv({ 'content-version': 'c9' })
+    const keys = await keptStoreKeys(url, 'd1', values)
+    expect(keys).toEqual({
+      cacheKey: await keptStoreKey(url, 'd1', values),
+      contentVersion: 'c9',
+      named: 'd1',
+    })
+    expect((await keptStoreKeys(url, 'd1', kv({}))).contentVersion).toBeNull()
+    const perDeploy = kv({ [STORE_BUILD_KEY]: PER_DEPLOY })
+    expect((await keptStoreKeys(url, 'd1', perDeploy, 'deploy-1')).named).toBe('deploy-1')
+  })
+
   it('a switch that cannot be read leaves the new behaviour on', async () => {
     const broken = {
       get: async (key: string) => {
@@ -692,7 +707,10 @@ describe('what the cache relies on', () => {
       await keptStoreKey('https://wear-run.com/about', 'deploy-B', kv),
     )
     // worker.mjs builds every page and tap key from the deploy id, never from anything else.
-    const pageAndTapKeys = [...worker.matchAll(/kept(?:Tap)?StoreKey\(([^)]*)\)/g)].map((m) => m[1])
+    // keptStoreKeys (10 Nov 2026, shared page copy) is the same key plus what it read.
+    const pageAndTapKeys = [...worker.matchAll(/kept(?:Tap)?StoreKeys?\(([^)]*)\)/g)].map(
+      (m) => m[1],
+    )
     expect(pageAndTapKeys.length).toBeGreaterThanOrEqual(2)
     for (const args of pageAndTapKeys) expect(args).toMatch(/,\s*deploy,/)
   })
@@ -742,7 +760,7 @@ describe('what the cache relies on', () => {
   it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
     expect(worker).not.toMatch(/CONTENT_VERSION_KEY/)
     expect(worker).toMatch(
-      /await keptStoreKey\(\s*request\.url,\s*deploy,\s*env\.SITE_CACHE,\s*env\.CF_VERSION_METADATA\?\.id,?\s*\)/,
+      /await keptStoreKeys?\(\s*request\.url,\s*deploy,\s*env\.SITE_CACHE,\s*env\.CF_VERSION_METADATA\?\.id,?\s*\)/,
     )
     // The build, not the deploy, names a kept page (keptBuild, 4 Nov 2026), for pages and taps.
     expect(worker.match(/const deploy = keptBuild\(env\)/g)).toHaveLength(2)
@@ -752,7 +770,10 @@ describe('what the cache relies on', () => {
   })
 
   it('worker.mjs asks the store never to follow a redirect', () => {
-    const calls = [...worker.matchAll(/store\.fetch\(([^)]*\([^)]*\)[^)]*)\)/g)].map((m) => m[1])
+    // Every call, with or without a nested call inside: the page call became `store.fetch(clean,
+    // …)` on 10 Nov 2026 (shared page copy), which the old pattern skipped without failing.
+    const calls = [...worker.matchAll(/store\.fetch\(((?:[^()]|\([^()]*\))*)\)/g)].map((m) => m[1])
+    expect(calls.length).toBe((worker.match(/store\.fetch\(/g) ?? []).length)
     expect(calls.length).toBeGreaterThan(0)
     for (const call of calls) expect(call).toMatch(/redirect:\s*'manual'/)
   })

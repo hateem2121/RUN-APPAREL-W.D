@@ -178,6 +178,16 @@
       // are kept until their inquiry is deleted and are mirrored by scripts/backup-r2.mjs.
       "binding": "R2_INQUIRY",
       "bucket_name": "run-apparel-inquiry-files"
+    },
+    {
+      // PRIVATE bucket for the shared page copy (pageCopy.mjs, owner's yes 10 Nov 2026): one copy
+      // of each whole website page per build and content version, read by SitePages when a
+      // region's Workers Cache does not hold the page yet. NO custom domain, NO public access.
+      // Lifecycle: delete objects after 8 days (STALE_SECONDS + 1 day). Re-check with
+      // `wrangler r2 bucket lifecycle list run-apparel-page-copies` rather than trusting this line.
+      // Not in scripts/backup-r2.mjs on purpose: every object is redrawn from D1 on demand.
+      "binding": "PAGE_COPIES",
+      "bucket_name": "run-apparel-page-copies"
     }
   ],
   // The garment pages live inside the website at /products/<product>/<colour> since the
@@ -225,6 +235,10 @@
     // 2026-09-25 on the owner's word ("Now"). To hide the site again: change this back to
     // "hidden", PR, merge. See src/lib/searchVisibility.ts.
     "SITE_INDEXING": "visible",
+    // The shared page copy's off switch (pageCopy.mjs, 10 Nov 2026). "off" makes SitePages draw
+    // every page it does not hold, as before the copy. A var, not a KV key: KV was at its free
+    // limit of 100,000 reads a day that week, and this must add no read.
+    "PAGE_COPY": "on",
     // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
     "CMS_PUBLIC_URL": "https://cms.wear-run.help",
     // Public base URL for R2 media. Media is served direct from R2 at

@@ -237,6 +237,21 @@ export function keptBuild(env) {
  * @param {string} [deployId]
  */
 export async function keptStoreKey(url, build, kv, deployId) {
+  return (await keptStoreKeys(url, build, kv, deployId)).cacheKey
+}
+
+/**
+ * keptStoreKey, plus what it read on the way: the content version and the name it keyed by. The
+ * shared page copy (pageCopy.mjs, 10 Nov 2026) names its object from these, so it costs no extra
+ * KV read: KV was at its free limit of 100,000 reads a day that week.
+ *
+ * @param {string} url
+ * @param {string} build
+ * @param {{ get: (key: string, options: { cacheTtl: number }) => Promise<string | null> }} kv
+ * @param {string} [deployId]
+ * @returns {Promise<{ cacheKey: string, contentVersion: string | null, named: string }>}
+ */
+export async function keptStoreKeys(url, build, kv, deployId) {
   const [mode, content, keying] = await Promise.all([
     kv.get(STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null),
     kv.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }),
@@ -246,7 +261,8 @@ export async function keptStoreKey(url, build, kv, deployId) {
   ])
   const versioned = mode === VERSIONED_MODE
   const named = keying === PER_DEPLOY && deployId ? deployId : build
-  return sharedCacheKey(url, named, versioned ? (content ?? 'none') : 'live')
+  const cacheKey = sharedCacheKey(url, named, versioned ? (content ?? 'none') : 'live')
+  return { cacheKey, contentVersion: content ?? null, named }
 }
 
 /**
