@@ -406,8 +406,12 @@ export default async function ContactPage({
                     <label className="inquiry-form__label" htmlFor="inquiry-phone-code">
                       <span className="visually-hidden">Country </span>Code
                     </label>
+                    {/* Required since 2026-11-10 (owner): the team calls and WhatsApps buyers. */}
                     <label className="inquiry-form__label" htmlFor="inquiry-phone">
-                      Phone
+                      Phone{' '}
+                      <span className="inquiry-form__req" aria-hidden="true">
+                        *
+                      </span>
                     </label>
                   </div>
                   <div className="inquiry-form__phone">
@@ -425,10 +429,13 @@ export default async function ContactPage({
                       id="inquiry-phone"
                       type="tel"
                       name="phone"
+                      required
                       autoComplete="tel-national"
                       maxLength={MAX_LENGTHS.phone}
+                      data-check
                     />
                   </div>
+                  <p className="inquiry-form__error" id="inquiry-phone-error" hidden />
                 </div>
               </div>
 

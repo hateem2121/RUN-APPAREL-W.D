@@ -13,6 +13,7 @@ import {
 import { checkFiles } from '../../../../lib/inquiryFiles'
 import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
+import { spamReasons } from '../../../../lib/inquirySpam'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,6 +107,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return refused(request, '?error=too-many')
 
   const receivedAt = new Date()
+
+  /*
+   * ⚠️ SPAM IS KEPT, NOT EMAILED, AND THANKED LIKE ANYONE ELSE (owner, 2026-11-10). 69 of the 75
+   * inquiries in production were spam and every one reached the team's inbox. A caught one is
+   * stored with status "spam" and the reasons, its files are not stored, no email goes out and it
+   * is not counted — and it sees the same thank-you, for the honeypot's reason above.
+   */
+  const spam = spamReasons(result.value)
+  if (spam.length > 0) {
+    try {
+      const payload = await getPayload({ config })
+      await payload.create({
+        collection: 'inquiries',
+        data: {
+          ...result.value,
+          status: 'spam',
+          notified: false,
+          notifyError: `Not emailed: held as spam (${spam.join(', ')}).`,
+        },
+        overrideAccess: true,
+      })
+    } catch (err) {
+      console.error('[inquiry] could not store a spam catch:', err)
+    }
+    return sent(request)
+  }
+
   let created: { id: string | number } | null = null
   try {
     const payload = await getPayload({ config })

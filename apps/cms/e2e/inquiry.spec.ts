@@ -34,8 +34,9 @@ import { expect, type Page, test } from './offlineMedia'
  * a red * that one sentence at the top explains, and "optional" is written nowhere (Q17). Job
  * title and Subject are back on the page; the route never stopped accepting them.
  */
-const REQUIRED = ['name', 'email', 'message'] as const
-const OPTIONAL = ['jobTitle', 'company', 'country', 'phoneCode', 'phone', 'files'] as const
+// The phone joined the required fields on 2026-11-10 (owner); its code box stays optional.
+const REQUIRED = ['name', 'email', 'message', 'phone'] as const
+const OPTIONAL = ['jobTitle', 'company', 'country', 'phoneCode', 'files'] as const
 /** The owner's subjects (Q43), in order; the last opens a box for the buyer's own words. */
 const SUBJECTS = [
   'Request a quote',
@@ -50,6 +51,7 @@ async function fillRequired(page: Page) {
   await page.fill('.inquiry-form [name="name"]', 'Dana Okafor')
   await page.fill('.inquiry-form [name="email"]', 'dana@northfield.example')
   await page.fill('.inquiry-form [name="message"]', '400 training tops.')
+  await page.fill('.inquiry-form [name="phone"]', '+44 7700 900123')
 }
 
 function ownAddress(projectName: string) {
@@ -73,7 +75,7 @@ test.describe('the inquiry form', () => {
       expect(await field.evaluate((el) => (el as HTMLInputElement).required)).toBe(true)
     }
 
-    // The three that must be filled carry a red * in their label, hidden from a screen reader,
+    // The four that must be filled carry a red * in their label, hidden from a screen reader,
     // which hears "required" instead; one sentence at the top says what the * means (Q17).
     await expect(form.locator('.inquiry-form__key')).toContainText('Fields marked * are needed.')
     for (const name of REQUIRED) {
@@ -264,6 +266,7 @@ test.describe('the inquiry form', () => {
       '.inquiry-form [name="message"]',
       'We need 400 training tops in two colourways for a March delivery.',
     )
+    await page.fill('.inquiry-form [name="phone"]', '+44 7700 900123')
     await page.fill('.inquiry-form [name="company"]', 'Northfield Athletic')
     await page.getByRole('button', { name: /^send inquiry$/i }).click()
 
@@ -629,6 +632,7 @@ test.describe('the inquiry form', () => {
       multipart: {
         name: 'Renamed Binary',
         email: 'renamed@example.com',
+        phone: '+44 7700 900123',
         message: 'See the attached pack.',
         files: {
           name: 'pack.pdf',

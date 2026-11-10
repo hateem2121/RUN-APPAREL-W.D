@@ -27,7 +27,13 @@ import { POST } from './route'
 /** A PDF that ENDS like one (the byte check reads `%%EOF` and `xref`). */
 const PDF = '%PDF-1.7\n1 0 obj<<>>endobj\nxref\n0 1\ntrailer<<>>\nstartxref\n9\n%%EOF\n'
 
-const GOOD = { name: 'Amy Buyer', email: 'amy@example.com', message: 'Hoodies for a club.' }
+const GOOD = {
+  name: 'Amy Buyer',
+  email: 'amy@example.com',
+  phoneCode: '44',
+  phone: '7700 900123',
+  message: 'Hoodies for a club.',
+}
 
 function post(
   fields: Record<string, string> = GOOD,
@@ -165,7 +171,7 @@ describe('a bad or missing field', () => {
     const res = await post({ name: '', email: 'nope', message: '' })
     expect(res.status).toBe(303)
     expect(where(res)).toBe(
-      'https://wear-run.com/contact?error=invalid&fields=name,email,message#inquiry-problem',
+      'https://wear-run.com/contact?error=invalid&fields=name,email,message,phone#inquiry-problem',
     )
     expect(payload.create).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
@@ -194,6 +200,52 @@ describe('a bad or missing field', () => {
     expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
     expect(payload.create).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+/*
+ * The robot that sent 61 of production's 69 spam inquiries (2026-11-10), in shape: a lower-case
+ * "google", one sentence in both the job and the subject box, and a calling code no country has.
+ */
+const ROBOT = {
+  name: 'RobertFot',
+  company: 'google',
+  jobTitle: 'Hallo i write about prices',
+  subject: 'Hallo i write about prices',
+  email: 'robot@example.com',
+  phoneCode: '8316',
+  phone: '89528415162',
+  message: 'Hai, saya ingin tahu harga Anda.',
+}
+
+describe('a spam inquiry (owner, 2026-11-10)', () => {
+  it('is thanked like anyone, kept as spam with its reasons, and NOT emailed or counted', async () => {
+    const res = await post(ROBOT)
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(rowsOf('inquiries')).toHaveLength(1)
+    expect(rowsOf('inquiries')[0]?.[0]).toMatchObject({
+      data: {
+        status: 'spam',
+        notified: false,
+        notifyError:
+          'Not emailed: held as spam (robot-company, job-is-subject, unknown-dial-code).',
+      },
+      overrideAccess: true,
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(rowsOf('events')).toHaveLength(0)
+  })
+
+  it('stores none of its files', async () => {
+    await post(ROBOT, { files: [new File([PDF], 'prices.pdf', { type: 'application/pdf' })] })
+    expect(rowsOf('inquiry-files')).toHaveLength(0)
+  })
+
+  // The control: the same post with ONE field made human is a normal, emailed inquiry.
+  it('a buyer who differs from it in every signal is emailed as usual', async () => {
+    await post({ ...ROBOT, company: 'Google', jobTitle: 'Merch lead', phoneCode: '44' })
+    expect(rowsOf('inquiries')[0]?.[0].data.status).toBe('new')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 

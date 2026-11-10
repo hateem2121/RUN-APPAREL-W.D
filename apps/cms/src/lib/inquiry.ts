@@ -59,8 +59,8 @@ export type InquiryInput = {
   subject: string
 }
 
-/** Only the four original fields can be wrong; everything added since is optional. */
-type RequiredField = 'name' | 'email' | 'message'
+/** The four fields a buyer must fill. The phone joined them on 2026-11-10 (owner). */
+type RequiredField = 'name' | 'email' | 'message' | 'phone'
 
 export type InquiryResult =
   | { ok: true; value: InquiryInput }
@@ -100,6 +100,16 @@ export const cleanText = (value: unknown, max: number): string =>
  * receives mail is answered by replying to it, not by a pattern.
  */
 export const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
+
+/**
+ * Seven digits is the shortest number anyone can call back; 15 is E.164's longest. Shared by the
+ * contact and careers forms (it lived in `application.ts` until 2026-11-10).
+ */
+export const looksLikePhone = (phone: string): boolean => {
+  if (/[a-z]/i.test(phone)) return false
+  const digits = phone.replace(/\D/g, '').length
+  return digits >= 7 && digits <= 15
+}
 
 /**
  * The phone as one readable string. The form sends the code and the number as two fields
@@ -143,6 +153,10 @@ export function validateInquiry(raw: Record<string, unknown>): InquiryResult {
   else if (!LOOKS_LIKE_EMAIL.test(value.email))
     errors.email = 'That does not look like an email address.'
   if (!value.message) errors.message = 'Please tell us what you are making.'
+  // Required since 2026-11-10 (owner): the team calls and WhatsApps buyers. The same test the
+  // careers form has used since its first day, so "a phone number" means one thing on both forms.
+  if (!value.phone) errors.phone = 'Please give us a phone number to reach you.'
+  else if (!looksLikePhone(value.phone)) errors.phone = 'That does not look like a phone number.'
   // `company` is optional: a designer or a club officer may not have one, and refusing
   // them an inquiry over it would be absurd.
 

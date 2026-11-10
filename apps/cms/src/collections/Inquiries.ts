@@ -132,6 +132,12 @@ export const Inquiries: CollectionConfig = {
         { label: 'New', value: 'new' },
         { label: 'Replied', value: 'replied' },
         { label: 'Archived', value: 'archived' },
+        /*
+         * Set by the contact route alone, never typed (owner, 2026-11-10): an inquiry the spam
+         * rules caught (`lib/inquirySpam.ts`) is kept here with no email sent, so a buyer caught by
+         * mistake can still be found and answered. Plain text in D1, so no migration.
+         */
+        { label: 'Spam (not emailed)', value: 'spam' },
       ],
       admin: { description: 'The one field on this screen you are meant to change.' },
     },
