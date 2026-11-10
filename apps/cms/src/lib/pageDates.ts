@@ -98,9 +98,11 @@ const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 const GLOSSARY_SEVEN = '2026-11-06T22:35:29+05:00'
 /** The three held guides (C2, C3, C7) joined the guides hub and the FAQ topics that list them; same time as `bylines.ts`. */
 const HELD_GUIDES = '2026-11-06T22:45:00+05:00'
+/** The solar share corrected to 83% (owner, 2026-11-11): the home page's About band and the policies index draw it. */
+const SOLAR_83 = '2026-11-10T19:10:00+00:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(PRICE_TERMS, '00140939a970'),
+  '/': page(SOLAR_83, 'aeaf4aec97c3'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
   '/custom-teamwear-manufacturer': page(WAVE_ONE, '16390fbc1582'),
   '/custom-activewear-manufacturer': page(WAVE_ONE, '9ec97e679558'),
@@ -109,7 +111,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
   '/guides': page(HELD_GUIDES, '088269a364a0'),
-  '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
+  '/policies': page(SOLAR_83, 'cc95deadb339'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
   '/faq': page(PRICE_TERMS, 'bf487444473d'),

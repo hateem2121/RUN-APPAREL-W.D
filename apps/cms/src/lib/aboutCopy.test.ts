@@ -52,7 +52,7 @@ describe('the "Who we are" section', () => {
   it('counts up the quantities only: never the year, never a word', () => {
     expect(ABOUT.points.filter((point) => 'countUp' in point).map((point) => point.value)).toEqual([
       '193,000',
-      '80%',
+      '83%',
     ])
   })
 

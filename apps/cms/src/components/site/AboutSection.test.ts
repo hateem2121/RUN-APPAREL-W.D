@@ -60,7 +60,7 @@ describe('№01 reads "Family in manufacturing since 1889", not "1889, making cl
       ['Family in manufacturing since', '1889'],
       ['Six', 'Buildings, first stitch to sealed bag'],
       ['193,000', 'Sq m under roof'],
-      ['About 80%', 'Of our electricity, from the solar roof'],
+      ['About 83%', 'Of our electricity, from the solar roof'],
     ])
     expect(problemsWith(html)).toEqual([])
   })
@@ -72,7 +72,7 @@ describe('№01 reads "Family in manufacturing since 1889", not "1889, making cl
       'Sq m under roof',
       'Of our electricity, from the solar roof',
     ])
-    expect(ABOUT.points.map((point) => point.value)).toEqual(['1889', 'Six', '193,000', '80%'])
+    expect(ABOUT.points.map((point) => point.value)).toEqual(['1889', 'Six', '193,000', '83%'])
     expect(ABOUT.points.map((point) => 'labelFirst' in point)).toEqual([true, false, false, false])
   })
 
@@ -123,11 +123,11 @@ describe('№01 stands on the roof photo', () => {
     expect(html).toMatch(/<section class="site-section about-ground"/)
   })
 
-  it('counts up 193,000 and 80% and nothing else', () => {
+  it('counts up 193,000 and 83% and nothing else', () => {
     const counted = [...html.matchAll(/<span class="count-up"[^>]*>([^<]*)<\/span>/g)].map(
       (match) => match[1],
     )
-    expect(counted).toEqual(['193,000', '80%'])
+    expect(counted).toEqual(['193,000', '83%'])
   })
 
   // NEGATIVE CONTROL: the front photo back beside the roof is caught.

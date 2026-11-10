@@ -93,8 +93,8 @@ describe('a figure is said once per page', () => {
   })
 
   it('Factory: the "How we run it" lines leave the solar share to the stat', () => {
-    expect(FACTORY_PAGE.howWeRunIt.stat).toBe('About 80%')
-    for (const line of FACTORY_PAGE.howWeRunIt.lines) expect(line).not.toContain('80%')
+    expect(FACTORY_PAGE.howWeRunIt.stat).toBe('About 83%')
+    for (const line of FACTORY_PAGE.howWeRunIt.lines) expect(line).not.toContain('83%')
     expect(FACTORY_PAGE.howWeRunIt.lines.length).toBe(ENVIRONMENTAL_LINES.length - 1)
   })
 })

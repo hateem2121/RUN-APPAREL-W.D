@@ -220,7 +220,7 @@ for (const width of [390, 1280]) {
       firstIsAbove: true,
     })
     expect(await read(3), 'the solar share changed its order').toEqual({
-      words: ['About 80%', 'Of our electricity, from the solar roof'],
+      words: ['About 83%', 'Of our electricity, from the solar roof'],
       markup: ['value', 'label'],
       firstIsAbove: true,
     })

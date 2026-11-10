@@ -69,7 +69,7 @@ export const ABOUT = {
     { value: FLOOR?.value ?? '', label: FLOOR?.label ?? '', countUp: true },
     {
       prefix: 'About',
-      value: '80%',
+      value: '83%',
       label: 'Of our electricity, from the solar roof',
       countUp: true,
     },
