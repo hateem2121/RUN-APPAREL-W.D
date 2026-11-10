@@ -20,7 +20,7 @@ export const LIMIT = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
 
 /**
  * The line at the top of the form that says what the red * means (polish D7, the owner's answer
- * Q17, 2026-10-03): only Name, Email and Message must be filled, and the word "optional" appears
+ * Q17, 2026-10-03): only Name, Email and Message must be filled (and Phone since 2026-11-10, owner), and the word "optional" appears
  * nowhere. This reverses the site's earlier rule of marking the optional boxes (W1, "Optional
  * details", 2026-10-01): the owner chose it, seeing three boxes to mark against six.
  */
@@ -101,6 +101,8 @@ const MISSING: Record<string, string> = {
   name: 'Enter your name.',
   email: 'Enter your email address.',
   message: 'Tell us what you are making. One sentence is enough.',
+  // Required since 2026-11-10 (owner).
+  phone: 'Enter a phone number we can call or WhatsApp.',
 }
 
 /**

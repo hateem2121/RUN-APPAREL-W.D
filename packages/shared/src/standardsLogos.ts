@@ -3,11 +3,11 @@
  * Decision record: docs/DECISIONS-BETA-WEBSITE.md D25 (owner, 2026-09-29).
  *
  * ⚠️ THIS IS AN ALLOW-LIST OF WHAT THE COMPANY MAY SHOW, NOT A LIBRARY OF EVERY MARK ON
- * DISK, AND SINCE 2026-11-05 IT IS EMPTY (see `STANDARDS_LOGOS`). RUN APPAREL holds no
- * certification in its own name (`lib/companyFacts.ts` CERTIFICATION): DURUS INDUSTRIES, a
- * separate family company whose site RUN produces at, is SEDEX-registered and SMETA-audited, and
- * the fabric and trim suppliers hold ISO 9001, OEKO-TEX, GRS and amfori BSCI. A record here draws
- * a mark wherever an entry names its body.
+ * DISK. RUN APPAREL holds no certification in its own name (`lib/companyFacts.ts`
+ * CERTIFICATION): DURUS INDUSTRIES, a separate family company whose site RUN produces at, is
+ * SEDEX-registered and SMETA-audited, and the fabric and trim suppliers hold ISO 9001, OEKO-TEX,
+ * GRS and amfori BSCI. Each record below is a body the owner has named for one of those, so a
+ * mark appears only when an entry names it.
  *
  * ⚠️ amfori BSCI IS TEXT ONLY (owner, 2026-09-29). The only file on hand was the OLD
  * pre-amfori "Member of BSCI" ring, beside text that says "amfori BSCI"; it returns when the
@@ -47,7 +47,7 @@ export interface StandardLogo {
   alt: string
 }
 
-export interface StandardLogoEntry extends StandardLogo {
+interface StandardLogoEntry extends StandardLogo {
   /** The owner's original file this was converted from (never committed: the repo is public). */
   source: string
   /** The words in an entry that name this body. */
@@ -60,53 +60,84 @@ export interface StandardLogoEntry extends StandardLogo {
  * treat letters and digits as part of a word and let punctuation end it, so
  * "SEDEX-registered", "(GOTS)" and "ISO 9001-certified" match while "GRSX" does not.
  */
-export const standardWords = (pattern: string) =>
-  new RegExp(`(?<![A-Za-z0-9])(?:${pattern})(?![A-Za-z0-9])`, 'i')
+const word = (pattern: string) => new RegExp(`(?<![A-Za-z0-9])(?:${pattern})(?![A-Za-z0-9])`, 'i')
 
 /**
- * ⚠️ EMPTY SINCE 2026-11-05, ON PURPOSE: NOT ONE OF THESE MARKS IS RUN APPAREL'S TO SHOW (owner:
- * "You do everything" — check each scheme's own logo rules and remove any mark they forbid).
- * Each scheme gives the right to its mark to the organisation that holds the certificate or
- * membership, and RUN holds none in its own name; a supplier's or sister company's certificate
- * does not pass that right on. Read that night, at the source:
- *
- * - ISO 9001: iso.org/certification.html — ISO "does not permit anyone to use the ISO logo in
- *   connection with certification". The file was the ISO logo itself, ringed "Quality Management
- *   System … Certified".
- * - OEKO-TEX: oeko-tex.com Labelling Guide → Logo usage — the product-brand logo is for "OEKO-TEX®
- *   customers with valid certificate" and retailers carrying a labelled product, and "A clear
- *   distinction between certified and uncertified products and companies must be made". The file
- *   was the STANDARD 100 label.
- * - GRS: Textile Exchange TE-301 Standards Claims Policy V1.3 (2023-06-01), "Logo Use
- *   Authorization": "Unauthorized display, copy, and/or use of any Standard logo without prior
- *   authorization, is strictly prohibited"; a logo comes through a certification body's licence.
- * - Sedex: sedex.com/ambassador-toolkit — the logo and artwork are for "companies that are Sedex
- *   members", "to promote your Sedex membership". DURUS INDUSTRIES is the member, not RUN.
- * - SMETA (the least certain: no SMETA-specific rule was found): it is Sedex's own audit brand,
- *   under the same members-only terms, and Sedex says SMETA is not a certification.
- *
- * The TEXT stays (the footer's "Sister company: …" and "Suppliers: …" lines and `CERTIFICATION`
- * name each holder); only the pictures, which read as the company's own, are gone. The SME Climate
- * Hub badge stays: that commitment IS the company's own (`CLIMATE_COMMITMENT` below).
- * `standardsLogos.test.ts` fails if any of the five comes back. A mark returns only for a
- * certificate the company holds in its own name, with that scheme's licence.
+ * ⚠️ BACK BY THE OWNER'S DECISION, AGAINST THE SCHEMES' OWN RULES (2026-11-10). The five marks were
+ * removed on 2026-11-05 (#324) after each scheme's logo rules were read at the source: ISO
+ * (iso.org/certification.html) does not permit its logo in connection with certification; the
+ * OEKO-TEX labelling guide gives its logo to certificate holders and retailers of labelled
+ * products; Textile Exchange TE-301 V1.3 prohibits any standard logo without authorisation; Sedex
+ * (ambassador toolkit) gives its artwork to members, and DURUS INDUSTRIES is the member, not RUN;
+ * SMETA is Sedex's audit brand under the same terms (no SMETA-specific rule was found). RUN APPAREL
+ * holds none of these in its own name. Asked on 2026-11-10 with that stated in the option itself
+ * ("Put all logos back … against the schemes' published rules"), the owner chose to put all five
+ * back. The text beside each mark still names its real holder.
  */
-export const STANDARDS_LOGOS: readonly StandardLogoEntry[] = []
+export const STANDARDS_LOGOS: readonly StandardLogoEntry[] = [
+  {
+    slug: 'sedex',
+    src: '/standards/sedex.svg',
+    width: 104,
+    height: 28,
+    alt: 'Sedex',
+    source: 'Sedex Logo Vector.ai',
+    words: word('SEDEX'),
+  },
+  {
+    // SMETA is an audit method, not a certificate — which is why the footer's heading
+    // stays "Standards" and the qualifier text stays beside every mark.
+    slug: 'smeta',
+    src: '/standards/smeta.svg',
+    width: 96,
+    height: 30,
+    alt: 'SMETA',
+    source: 'SMETA Logo Vector.ai',
+    words: word('SMETA'),
+  },
+  {
+    slug: 'oeko-tex',
+    src: '/standards/oeko-tex.svg',
+    width: 44,
+    height: 62,
+    alt: 'OEKO-TEX',
+    source: 'OEKO TEX Standart 100.ai',
+    words: word('OEKO[-\\s]?TEX'),
+  },
+  {
+    slug: 'grs',
+    src: '/standards/grs.svg',
+    width: 104,
+    height: 47,
+    alt: 'GRS',
+    source: 'Global Recycled Standard.ai',
+    words: word('GRS'),
+  },
+  {
+    // ISO 9001 ONLY, held by the SUPPLIERS (owner, 2026-09-29; first recorded as the parent's
+    // and corrected that evening — the owner chose to keep the badge). The owner's file is a
+    // combined badge, ISO 9001 beside ISO 22000; the 9001 half was separated at its own
+    // group (no path straddles the gap) and the 22000 half is NOT in this repo. "ISO 22000"
+    // names no record, and a test pins that.
+    slug: 'iso-9001',
+    src: '/standards/iso-9001.svg',
+    width: 72,
+    height: 72,
+    alt: 'ISO 9001',
+    source: 'ISO 9001 - ISO 22000 Certified.ai',
+    words: word('ISO[-\\s]?9001'),
+  },
+]
 
 /**
  * The logos an entry's text names — each body once, in the order the entry mentions them.
- * An entry that names none returns [] and the footer draws no picture for it. `table` is the
- * live allow-list unless a test passes its own.
+ * An entry that names none returns [] and the footer draws no picture for it.
  */
-export function logosFor(
-  entry: string,
-  table: readonly StandardLogoEntry[] = STANDARDS_LOGOS,
-): StandardLogo[] {
-  return table
-    .flatMap((logo) => {
-      const at = entry.search(logo.words)
-      return at < 0 ? [] : [{ at, logo }]
-    })
+export function logosFor(entry: string): StandardLogo[] {
+  return STANDARDS_LOGOS.flatMap((logo) => {
+    const at = entry.search(logo.words)
+    return at < 0 ? [] : [{ at, logo }]
+  })
     .sort((a, b) => a.at - b.at)
     .map(({ logo: { slug, src, width, height, alt } }) => ({ slug, src, width, height, alt }))
 }
@@ -144,12 +175,9 @@ export function markBox(
  * grew the footer from one screen (900 px) to 1,173 px at 768 px wide with the production
  * entries, so the entries keep their text lines and the marks share a single row.
  */
-export function marksFor(
-  entries: readonly string[],
-  table: readonly StandardLogoEntry[] = STANDARDS_LOGOS,
-): StandardLogo[] {
+export function marksFor(entries: readonly string[]): StandardLogo[] {
   const bySlug = new Map<string, StandardLogo>()
-  for (const logo of entries.flatMap((entry) => logosFor(entry, table))) {
+  for (const logo of entries.flatMap((entry) => logosFor(entry))) {
     if (!bySlug.has(logo.slug)) bySlug.set(logo.slug, logo)
   }
   return [...bySlug.values()]
