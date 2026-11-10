@@ -12,6 +12,7 @@ import {
   readCopy,
   writeCopy,
 } from '../pageCopy.mjs'
+import { VERSION_CACHE_SECONDS } from '../pageCache.mjs'
 
 const BUILD = 'site-0123456789abcdef0123.0123456789ab'
 
@@ -134,15 +135,17 @@ describe('answerFromCopy and keepCopy, as SitePages uses them', () => {
 
   /*
    * A save writes KV `content-version` and then marks kept copies stale, but a region can read the
-   * old version for up to ~90 s (KV spreads in about 60 s, plus VERSION_CACHE_SECONDS). A copy
-   * served in that window must not be kept for a day, so it is kept for two minutes.
+   * old version for up to ~120 s (KV spreads in about 60 s, plus KV's 30 s cache, plus the 30 s
+   * memo). A copy served in that window must not be kept for a day; three minutes covers it.
    */
-  it('answers from the copy, kept for two minutes only, tagged so a save still reaches it', async () => {
+  it('answers from the copy, kept for three minutes only, tagged so a save still reaches it', async () => {
     const answer = await answerFromCopy(asked('/guides'), { PAGE_COPIES: withCopy() })
     expect(answer?.status).toBe(200)
     expect(await answer?.text()).toBe('<html>g</html>')
     expect(answer?.headers.get('cache-control')).toBe(COPY_SERVED_CACHE_CONTROL)
-    expect(COPY_SERVED_CACHE_CONTROL).toBe('public, max-age=120')
+    expect(COPY_SERVED_CACHE_CONTROL).toBe('public, max-age=180')
+    // Longer than the worst case for a save to reach every region (60 + 30 + 30 s).
+    expect(180).toBeGreaterThan(60 + VERSION_CACHE_SECONDS + VERSION_CACHE_SECONDS)
     expect(answer?.headers.get('cache-tag')).toBe('site-pages')
     expect(answer?.headers.get('x-run-kept')).toBe('yes')
   })

@@ -36,13 +36,14 @@ export const COPY_READ_TIMEOUT_MS = 400
 export const COPY_KEY_HEADER = 'x-run-copy-key'
 
 /**
- * ⚠️ A PAGE ANSWERED FROM A COPY IS KEPT FOR TWO MINUTES, NOT A DAY. A save writes KV
+ * ⚠️ A PAGE ANSWERED FROM A COPY IS KEPT FOR THREE MINUTES, NOT A DAY. A save writes KV
  * `content-version` and then marks kept copies stale (src/lib/contentVersion.ts), but a region can
- * read the OLD version for about 90 s (KV spreads in about 60 s, plus VERSION_CACHE_SECONDS). A
- * refresh in that window would find the copy filed under the old version; kept for a day, the old
- * words would outlive the save. After two minutes the region asks again and reads the new version.
+ * read the OLD version for about 120 s (KV spreads in about 60 s, plus KV's own VERSION_CACHE_SECONDS,
+ * plus pageCache.mjs memoKvGet's 30 s). A refresh in that window would find the copy filed under the
+ * old version; kept for a day, the old words would outlive the save. Three minutes covers the window
+ * with a margin; then the region asks again and reads the new version.
  */
-export const COPY_SERVED_CACHE_CONTROL = 'public, max-age=120'
+export const COPY_SERVED_CACHE_CONTROL = 'public, max-age=180'
 
 /** Only whole website pages: never a tap (`rsc: 1`), never the sitemap, llms.txt or robots.txt. */
 function copyable(request, env) {

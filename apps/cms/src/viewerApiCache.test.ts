@@ -3,14 +3,20 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isValidSlug } from '@run-apparel/shared'
 import type { PayloadRequest } from 'payload'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   drawingToKeep,
+  forgetKvMemo,
   KEPT_CACHE_CONTROL,
   keptRenders,
   STORE_MODE_KEY,
   sharedCacheKey,
 } from '../pageCache.mjs'
+
+// KV reads go through a per-isolate memo since 10 Nov 2026; each test starts with it empty.
+beforeEach(() => {
+  forgetKvMemo()
+})
 import { PUBLIC_VIEWER_VARY } from '../publicViewerHeaders.mjs'
 import {
   API_HOST,
@@ -320,6 +326,7 @@ describe('a miss draws and keeps, a hit answers without drawing', () => {
     await ask()
     expect(draw).toHaveBeenCalledTimes(1)
     save('v2')
+    forgetKvMemo() // the save, read 30 s later (pageCache.mjs memoKvGet's life)
     expect((await ask())?.headers.get('server-timing')).toContain('miss')
     expect(draw).toHaveBeenCalledTimes(2)
   })
