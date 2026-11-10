@@ -17,6 +17,9 @@ import { spamReasons } from '../../../../lib/inquirySpam'
 
 export const dynamic = 'force-dynamic'
 
+/** One buyer receipt per address in this window (see where it is used). */
+const RECEIPT_WINDOW_MS = 24 * 60 * 60 * 1000
+
 /**
  * `POST /contact/submit` — the contact form's only entry point.
  *
@@ -193,14 +196,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    * it reaches the team's inbox. Like the notice it never throws, and a failure is logged, not shown:
    * the inquiry is stored and the team has it either way.
    */
-  const receipt = buyerReceipt({ id, subject: result.value.subject })
-  const confirmed = await sendNotification({
-    fromName: 'RUN APPAREL',
-    to: result.value.email,
-    replyTo: await recipient(),
-    ...receipt,
-  })
-  if (!confirmed.notified) console.error('[inquiry] receipt not sent:', confirmed.notifyError)
+  /*
+   * ⚠️ ONE RECEIPT PER ADDRESS PER DAY, COUNTED IN THE DATABASE (security review, 2026-11-10). The
+   * receipt goes to an address nobody has proven is theirs, so a robot posting the form again and
+   * again with a stranger's address would have us mail that stranger again and again. The rate
+   * limit is per visitor and lives in one isolate's memory; this count is per ADDRESS, across every
+   * Worker, and includes rows held as spam. When it cannot be read, no receipt: the team still has
+   * the inquiry.
+   */
+  const earlier = await getPayload({ config })
+    .then((p) =>
+      p.count({
+        collection: 'inquiries',
+        where: {
+          and: [
+            { email: { equals: result.value.email } },
+            {
+              createdAt: {
+                greater_than: new Date(receivedAt.getTime() - RECEIPT_WINDOW_MS).toISOString(),
+              },
+            },
+            { id: { not_equals: id } },
+          ],
+        },
+        overrideAccess: true,
+      }),
+    )
+    .then((found) => found.totalDocs)
+    .catch(() => null)
+  if (earlier === 0) {
+    const receipt = buyerReceipt({ id, subject: result.value.subject })
+    const confirmed = await sendNotification({
+      fromName: 'RUN APPAREL',
+      to: result.value.email,
+      replyTo: await recipient(),
+      ...receipt,
+    })
+    if (!confirmed.notified) console.error('[inquiry] receipt not sent:', confirmed.notifyError)
+  }
 
   // The visitor's experience does not depend on the email. Their message is safe either way.
   return sent(request)
