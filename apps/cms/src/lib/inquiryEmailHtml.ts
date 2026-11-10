@@ -116,6 +116,14 @@ ${inner}
 </html>`
 }
 
+/**
+ * The wordmark, first in both emails (owner, 2026-11-10: the receipt; 2026-11-11: the team's
+ * notice too). One helper so the two can never drift apart. `RECEIPT_LOGO` below says how the file
+ * was made; it is read when an email is built, after the module has loaded.
+ */
+const logoRow = (): string =>
+  `<tr><td style="padding:22px 28px 18px;"><a href="${SITE}" style="text-decoration:none;"><img src="${RECEIPT_LOGO}" width="81" height="28" alt="RUN APPAREL" style="display:block;width:81px;height:28px;border:0;color:${C.ink};font-family:${SANS};font-weight:900;font-size:16px;"></a></td></tr>`
+
 const row = (content: string, padding = '0 28px 20px'): string =>
   `<tr><td style="padding:${padding};font-family:${SANS};color:${C.ink};">${content}</td></tr>`
 
@@ -166,9 +174,10 @@ export function teamEmailHtml({ value, id, receivedAt, extras = {} }: TeamEmailI
   return frame(
     `${who}${value.country ? `, ${value.country}` : ''}: ${value.message.slice(0, 90)}`,
     [
+      logoRow(),
       row(
         `${label(`[ New inquiry ]  ${ref}`)}<br>${label(`${pakistanTime(receivedAt)} PKT`)}`,
-        '24px 28px 12px',
+        '0 28px 12px',
       ),
       row(
         `<h1 style="margin:0;font-family:${SANS};font-weight:900;font-size:28px;line-height:1.05;letter-spacing:0.01em;text-transform:uppercase;color:${C.ink};">${esc(who)}${
@@ -260,8 +269,7 @@ export function buyerReceipt({
   const html = frame(
     `We have your inquiry (${ref}). We reply within 24 hours.`,
     [
-      // The wordmark first (owner, 2026-11-10: "Run logo must also be present").
-      `<tr><td style="padding:22px 28px 18px;"><a href="${SITE}" style="text-decoration:none;"><img src="${RECEIPT_LOGO}" width="81" height="28" alt="RUN APPAREL" style="display:block;width:81px;height:28px;border:0;color:${C.ink};font-family:${SANS};font-weight:900;font-size:16px;"></a></td></tr>`,
+      logoRow(),
       `<tr><td style="padding:0;"><img src="${RECEIPT_GIF}" width="600" alt="${attr(RECEIPT_GIF_ALT)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>`,
       row(label(`[ Your reference ]  ${ref}`), '24px 28px 12px'),
       row(

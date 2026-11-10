@@ -79,6 +79,11 @@ describe('the team notice', () => {
     extras: { adminUrl: 'https://cms.wear-run.help/admin/collections/inquiries/82' },
   })
 
+  it('opens with the RUN APPAREL wordmark, as the receipt does (owner, 2026-11-11)', () => {
+    expect(html).toContain(`src="${RECEIPT_LOGO}"`)
+    expect(html.indexOf(RECEIPT_LOGO)).toBeLessThan(html.indexOf('RA-00082'))
+  })
+
   it('leads with the reference, the time in Sialkot, the company and the country', () => {
     expect(html).toContain('RA-00082')
     expect(html).toContain('10 Nov 2026, 11:04 PKT') // 06:04 UTC is 11:04 in Pakistan
