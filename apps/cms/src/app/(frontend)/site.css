@@ -2370,7 +2370,7 @@ address.contact-block__value {
  * each on a hairline, as the order process sets its steps.
  */
 .inquiry-steps {
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .inquiry-steps__list {
@@ -2383,13 +2383,13 @@ address.contact-block__value {
 .inquiry-steps__item {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
+  align-items: baseline;
   gap: 12px;
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
 }
 
 .inquiry-steps__number {
-  padding-top: 2px;
   font-family: var(--font-mono);
   font-size: var(--text-mono-lg);
   color: var(--dimension);
