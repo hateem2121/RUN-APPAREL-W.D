@@ -29,6 +29,7 @@ import {
   KEPT_RENDER_HEADERS,
   KEPT_TAGS,
   keptHeaders,
+  memoKvGet,
   NEVER_KEPT_PATHS,
   PER_DEPLOY,
   SIGNED_IN_OR_DRAFT,
@@ -36,7 +37,6 @@ import {
   STORE_BUILD_KEY,
   STORE_MODE_KEY,
   servedHeaders,
-  VERSION_CACHE_SECONDS,
   VERSIONED_MODE,
 } from './pageCache.mjs'
 
@@ -136,11 +136,10 @@ export async function tapDrawRequest(request, cf) {
 /** The shared store's key for a drawing: like pageCache.mjs keptStoreKey, with the code. */
 export async function keptTapStoreKey(drawUrl, build, kv, deployId) {
   const [mode, content, keying] = await Promise.all([
-    kv.get(STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null),
-    kv.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }),
-    deployId
-      ? kv.get(STORE_BUILD_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null)
-      : null,
+    // Through the per-isolate memo (pageCache.mjs memoKvGet, 10 Nov 2026: KV at its free limit).
+    memoKvGet(kv, STORE_MODE_KEY).catch(() => null),
+    memoKvGet(kv, CONTENT_VERSION_KEY),
+    deployId ? memoKvGet(kv, STORE_BUILD_KEY).catch(() => null) : null,
   ])
   const { hostname, pathname, searchParams } = new URL(drawUrl)
   // The same build as the pages (pageCache.mjs keptBuild): a tap answer names the build ID, so a
@@ -182,7 +181,7 @@ export function servedTapHeaders(headers) {
 
 /** Is the tap store switched on? Only the KV value 'off' turns it off; a failed read leaves it on. */
 export async function tapStoreOn(kv) {
-  const value = await kv.get(RSC_STORE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null)
+  const value = await memoKvGet(kv, RSC_STORE_KEY).catch(() => null)
   return value !== 'off'
 }
 
