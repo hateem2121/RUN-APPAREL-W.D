@@ -13,12 +13,10 @@ import { checkFiles } from '../../../../lib/inquiryFiles'
 import { buyerReceipt, teamEmailHtml, teamSubject } from '../../../../lib/inquiryEmailHtml'
 import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
+import { RECEIPT_WINDOW_MS, RECEIPTS_PER_DAY, receiptAllowed } from '../../../../lib/inquiryReceipt'
 import { spamReasons } from '../../../../lib/inquirySpam'
 
 export const dynamic = 'force-dynamic'
-
-/** One buyer receipt per address in this window (see where it is used). */
-const RECEIPT_WINDOW_MS = 24 * 60 * 60 * 1000
 
 /**
  * `POST /contact/submit` — the contact form's only entry point.
@@ -197,20 +195,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    * the inquiry is stored and the team has it either way.
    */
   /*
-   * ⚠️ ONE RECEIPT PER ADDRESS PER DAY, COUNTED IN THE DATABASE (security review, 2026-11-10). The
-   * receipt goes to an address nobody has proven is theirs, so a robot posting the form again and
-   * again with a stranger's address would have us mail that stranger again and again. The rate
-   * limit is per visitor and lives in one isolate's memory; this count is per ADDRESS, across every
-   * Worker, and includes rows held as spam. When it cannot be read, no receipt: the team still has
-   * the inquiry.
+   * ⚠️ ONE RECEIPT PER MAILBOX PER DAY, AND A CEILING FOR THE SITE (security reviews, 2026-11-10).
+   * The receipt goes to an address nobody has proven is theirs; `lib/inquiryReceipt.ts` has the
+   * two bounds and why. The day's other inquiries are read from the database (every Worker sees the
+   * same rows; the rate limit lives in one isolate's memory), spam rows included. When they cannot
+   * be read, no receipt: the team still has the inquiry.
    */
   const earlier = await getPayload({ config })
     .then((p) =>
-      p.count({
+      p.find({
         collection: 'inquiries',
         where: {
           and: [
-            { email: { equals: result.value.email } },
             {
               createdAt: {
                 greater_than: new Date(receivedAt.getTime() - RECEIPT_WINDOW_MS).toISOString(),
@@ -219,12 +215,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             { id: { not_equals: id } },
           ],
         },
+        select: { email: true },
+        depth: 0,
+        limit: RECEIPTS_PER_DAY,
+        pagination: false,
         overrideAccess: true,
       }),
     )
-    .then((found) => found.totalDocs)
+    .then((found) => found.docs.map((doc) => String(doc.email ?? '')))
     .catch(() => null)
-  if (earlier === 0) {
+  if (receiptAllowed(result.value.email, earlier)) {
     const receipt = buyerReceipt({ id, subject: result.value.subject })
     const confirmed = await sendNotification({
       fromName: 'RUN APPAREL',

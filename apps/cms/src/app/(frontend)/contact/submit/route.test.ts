@@ -16,7 +16,7 @@ const payload = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn(),
   findGlobal: vi.fn(),
-  count: vi.fn(),
+  find: vi.fn(),
 }))
 vi.mock('@payload-config', () => ({ default: {} }))
 vi.mock('payload', () => ({ getPayload: vi.fn(async () => payload) }))
@@ -64,7 +64,7 @@ beforeEach(() => {
   payload.create.mockReset().mockResolvedValue({ id: 7 })
   payload.update.mockReset().mockResolvedValue({})
   payload.findGlobal.mockReset().mockResolvedValue({ email: ' sales@example.com ' })
-  payload.count.mockReset().mockResolvedValue({ totalDocs: 0 })
+  payload.find.mockReset().mockResolvedValue({ docs: [] })
   fetchMock.mockReset().mockResolvedValue(new Response('{}', { status: 200 }))
   vi.stubGlobal('fetch', fetchMock)
   vi.stubEnv('RESEND_API_KEY', 'test-key')
@@ -385,31 +385,26 @@ describe('when something fails after the form is accepted', () => {
  * The security review of 2026-11-10: the receipt goes to an unproven address, so a robot could
  * have us mail a stranger over and over. One receipt per address per day, counted in the database.
  */
-describe('the buyer receipt is bounded per address', () => {
-  it('is sent for the first inquiry from an address in a day', async () => {
+describe('the buyer receipt is bounded per mailbox', () => {
+  it('is sent for the first inquiry from a mailbox in a day, read from the database', async () => {
     await post(GOOD)
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(payload.count.mock.calls[0]?.[0]).toMatchObject({
+    expect(payload.find.mock.calls[0]?.[0]).toMatchObject({
       collection: 'inquiries',
-      where: {
-        and: [
-          { email: { equals: 'amy@example.com' } },
-          expect.anything(),
-          { id: { not_equals: 7 } },
-        ],
-      },
+      where: { and: [expect.anything(), { id: { not_equals: 7 } }] },
+      select: { email: true },
     })
   })
 
-  it('is NOT sent again when that address already sent one in the last day', async () => {
-    payload.count.mockResolvedValue({ totalDocs: 1 })
+  it('is NOT sent again to the same mailbox, however its address is spelt', async () => {
+    payload.find.mockResolvedValue({ docs: [{ email: 'Amy+quotes@Example.com' }] })
     await post(GOOD)
     expect(fetchMock).toHaveBeenCalledTimes(1) // the team's notice only
     expect(emailBody().to).toEqual(['sales@example.com'])
   })
 
-  it('is not sent when the count cannot be read, and the buyer is still thanked', async () => {
-    payload.count.mockRejectedValue(new Error('D1 down'))
+  it('is not sent when the day\u2019s inquiries cannot be read, and the buyer is still thanked', async () => {
+    payload.find.mockRejectedValue(new Error('D1 down'))
     const res = await post(GOOD)
     expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
     expect(fetchMock).toHaveBeenCalledTimes(1)
