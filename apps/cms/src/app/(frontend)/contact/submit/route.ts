@@ -2,15 +2,15 @@ import config from '@payload-config'
 import type { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import { formResult } from '../../../../lib/formResult'
-import { clientAddress, completeSubmission } from '../../../../lib/formSubmission'
+import { clientAddress, completeSubmission, sendNotification } from '../../../../lib/formSubmission'
 import {
   formatInquiryEmail,
   inquiryRecipient,
-  inquirySubject,
   isHoneypotTripped,
   validateInquiry,
 } from '../../../../lib/inquiry'
 import { checkFiles } from '../../../../lib/inquiryFiles'
+import { buyerReceipt, teamEmailHtml, teamSubject } from '../../../../lib/inquiryEmailHtml'
 import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
 import { spamReasons } from '../../../../lib/inquirySpam'
@@ -155,32 +155,52 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return refused(request, '?error=storage')
   }
 
+  const id = created.id
+  // The address the site shows, read AFTER the inquiry is stored so a settings outage can never
+  // cost the inquiry; when it cannot be read, `inquiryRecipient` answers with the default.
+  const recipient = async () => {
+    const settings = await getPayload({ config })
+      .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
+      .catch(() => null)
+    return inquiryRecipient(settings as Record<string, unknown> | null)
+  }
+
   // The files, the email, what happened to it and the count: `lib/formSubmission.ts`, shared with
   // the careers form. Never throws past here, and never changes what the visitor is told.
   await completeSubmission({
     storage: { collection: 'inquiries', filesCollection: 'inquiry-files', ownerField: 'inquiry' },
-    id: created.id,
+    id,
     files: files.files,
     logTag: 'inquiry',
     fileNoun: 'a file',
-    // The address the site shows, read AFTER the inquiry is stored so a settings outage can never
-    // cost the inquiry; when it cannot be read, `inquiryRecipient` answers with the default.
-    recipient: async () => {
-      const settings = await getPayload({ config })
-        .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
-        .catch(() => null)
-      return inquiryRecipient(settings as Record<string, unknown> | null)
-    },
+    recipient,
     compose: (extras) => ({
       fromName: 'RUN APPAREL inquiries',
       // Hitting Reply in any mail client answers the customer, not the robot.
       replyTo: result.value.email,
-      subject: inquirySubject(result.value),
+      // The reference leads, so a thread and its admin row match at a glance (owner, 2026-11-10).
+      subject: teamSubject(result.value, id),
       text: formatInquiryEmail(result.value, receivedAt, extras),
+      html: teamEmailHtml({ value: result.value, id, receivedAt, extras }),
     }),
-    adminUrl: inquiryAdminUrl(created.id),
+    adminUrl: inquiryAdminUrl(id),
     count: { event: 'inquiry_submitted', placement: 'site-contact-form' },
   })
+
+  /*
+   * ⚠️ THE BUYER'S RECEIPT GOES ONLY HERE: after every check, and never to spam (owner,
+   * 2026-11-10). It repeats nothing they typed (`lib/inquiryEmailHtml.ts` says why), and a reply to
+   * it reaches the team's inbox. Like the notice it never throws, and a failure is logged, not shown:
+   * the inquiry is stored and the team has it either way.
+   */
+  const receipt = buyerReceipt({ id, subject: result.value.subject })
+  const confirmed = await sendNotification({
+    fromName: 'RUN APPAREL',
+    to: result.value.email,
+    replyTo: await recipient(),
+    ...receipt,
+  })
+  if (!confirmed.notified) console.error('[inquiry] receipt not sent:', confirmed.notifyError)
 
   // The visitor's experience does not depend on the email. Their message is safe either way.
   return sent(request)

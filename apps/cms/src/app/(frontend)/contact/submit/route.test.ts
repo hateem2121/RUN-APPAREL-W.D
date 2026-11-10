@@ -93,7 +93,8 @@ describe('a good inquiry', () => {
       overrideAccess: true,
     })
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // Two emails since 2026-11-10 (owner): the team's notice, then the buyer's receipt.
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.resend.com/emails')
     expect(fetchMock.mock.calls[0]?.[1].headers).toEqual({
       authorization: 'Bearer test-key',
@@ -103,11 +104,24 @@ describe('a good inquiry', () => {
       from: 'RUN APPAREL inquiries <inquiries@wear-run.help>',
       to: ['sales@example.com'],
       reply_to: 'amy@example.com',
-      subject: 'Inquiry — Club Co — Teamwear',
+      subject: 'RA-00007 · Club Co — Teamwear',
     })
     expect(emailBody().text).toContain(
       'Open:    https://cms.wear-run.help/admin/collections/inquiries/7',
     )
+    expect(emailBody().html).toContain('RA-00007')
+
+    // The receipt goes to the buyer, and a reply to it reaches the team's inbox.
+    const receipt = JSON.parse(fetchMock.mock.calls[1]?.[1].body as string)
+    expect(receipt).toMatchObject({
+      from: 'RUN APPAREL <inquiries@wear-run.help>',
+      to: ['amy@example.com'],
+      reply_to: 'sales@example.com',
+      subject: 'We have your inquiry — RUN APPAREL (RA-00007)',
+    })
+    // It repeats nothing the buyer typed: not their name, not their message.
+    expect(receipt.html).not.toContain('Amy')
+    expect(receipt.html).not.toContain('Hoodies for a club.')
 
     expect(payload.update).toHaveBeenCalledWith({
       collection: 'inquiries',
@@ -245,7 +259,7 @@ describe('a spam inquiry (owner, 2026-11-10)', () => {
   it('a buyer who differs from it in every signal is emailed as usual', async () => {
     await post({ ...ROBOT, company: 'Google', jobTitle: 'Merch lead', phoneCode: '44' })
     expect(rowsOf('inquiries')[0]?.[0].data.status).toBe('new')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2) // the notice and the receipt
   })
 })
 

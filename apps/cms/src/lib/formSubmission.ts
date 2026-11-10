@@ -52,6 +52,8 @@ type MailMessage = {
   replyTo?: string
   subject: string
   text: string
+  /** The designed version (owner, 2026-11-10). The text is always sent with it, for any client that prefers it. */
+  html?: string
 }
 
 /** Never throws. A notification is a nice-to-have; the stored row is the thing. */
@@ -71,6 +73,7 @@ export async function sendNotification(
         ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
         subject: mail.subject,
         text: mail.text,
+        ...(mail.html ? { html: mail.html } : {}),
       }),
       signal: AbortSignal.timeout(8000),
     })

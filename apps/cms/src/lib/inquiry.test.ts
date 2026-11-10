@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   cleanText,
-  inquirySubject,
   formatInquiryEmail,
   joinPhone,
   HONEYPOT_FIELD,
@@ -273,17 +272,7 @@ describe('the notification email', () => {
     expect(body).toContain('wear-run.com')
     expect(body).not.toContain('wear-run.help')
   })
-
-  it("adds the buyer's own subject to the mail subject, still bounded", () => {
-    expect(inquirySubject(full)).toBe('Inquiry — Northfield Athletic — Spring training tops')
-    expect(inquirySubject({ ...full, subject: 'y'.repeat(400) }).length).toBe(160)
-  })
-
-  it('subjects are scannable in a list and bounded', () => {
-    expect(inquirySubject(good)).toBe('Inquiry — Northfield Athletic')
-    expect(inquirySubject({ ...good, company: '' })).toBe('Inquiry — Dana Okafor')
-    expect(inquirySubject({ ...good, company: 'z'.repeat(400) }).length).toBeLessThanOrEqual(160)
-  })
+  // The mail subject moved to `teamSubject` (inquiryEmailHtml.ts) on 2026-11-10; its tests with it.
 })
 
 /*

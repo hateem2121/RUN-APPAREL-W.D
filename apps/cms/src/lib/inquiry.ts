@@ -221,12 +221,6 @@ export function formatInquiryEmail(
   ].join('\n')
 }
 
-/** A subject a mail client can scan in a list without opening. */
-export function inquirySubject(value: InquiryInput): string {
-  const who = value.company || value.name
-  return `Inquiry — ${who}${value.subject ? ` — ${value.subject}` : ''}`.slice(0, 160)
-}
-
 /**
  * Where the notification goes: the address the site shows, read through `mergeSiteSettings`
  * (`projectPublic.ts`) as the footer and the contact page read it, so the two cannot differ. That
