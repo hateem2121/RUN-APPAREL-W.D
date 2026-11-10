@@ -237,16 +237,74 @@ export function keptBuild(env) {
  * @param {string} [deployId]
  */
 export async function keptStoreKey(url, build, kv, deployId) {
+  return (await keptStoreKeys(url, build, kv, deployId)).cacheKey
+}
+
+/**
+ * ⚠️ ONE KV READ PER KEY PER ISOLATE PER VERSION_CACHE_SECONDS (10 Nov 2026). The namespace read
+ * up to 100,905 keys a day against the free plan's 100,000 (3–10 Nov), because every page asked
+ * for three keys and every tap for four; `cacheTtl` makes a read fast, not free (KV pricing: "per-key
+ * basis"), and past the limit a read FAILS until midnight UTC. Workers reuse an isolate across
+ * requests (Cloudflare, Workers best practices), so the answer is kept here for as long as KV's
+ * own cache would keep it anyway. A save therefore reaches a page up to 30 s later than before.
+ *
+ * Keyed by the KEY'S NAME, not the namespace object: Cloudflare's docs do not promise `env` is the
+ * same object from one request to the next. Every key read through here lives in SITE_CACHE.
+ * Calls made while a read is in flight share it. A failed read keeps the last good value; with
+ * none, it throws, as the caller's own `.catch` already expects.
+ *
+ * @param {{ get: (key: string, options: { cacheTtl: number }) => Promise<string | null> }} kv
+ * @param {string} key
+ * @param {number} [now]
+ * @returns {Promise<string | null>}
+ */
+export async function memoKvGet(kv, key, now = Date.now()) {
+  globalThis.__runKvMemo ??= new Map()
+  const memo = globalThis.__runKvMemo
+  const held = memo.get(key)
+  if (held && now - held.at < VERSION_CACHE_SECONDS * 1000) return held.read
+  const read = kv.get(key, { cacheTtl: VERSION_CACHE_SECONDS })
+  memo.set(key, { at: now, read, last: held?.last, hasLast: held?.hasLast ?? false })
+  try {
+    const value = await read
+    memo.set(key, { at: now, read: Promise.resolve(value), last: value, hasLast: true })
+    return value
+  } catch (error) {
+    if (held?.hasLast) {
+      memo.set(key, { at: now, read: Promise.resolve(held.last), last: held.last, hasLast: true })
+      return held.last
+    }
+    memo.delete(key)
+    throw error
+  }
+}
+
+/** Empty the KV memo: for tests, which each need a fresh isolate. */
+export function forgetKvMemo() {
+  globalThis.__runKvMemo?.clear()
+}
+
+/**
+ * keptStoreKey, plus what it read on the way: the content version and the name it keyed by. The
+ * shared page copy (pageCopy.mjs, 10 Nov 2026) names its object from these, so it costs no extra
+ * KV read: KV was at its free limit of 100,000 reads a day that week.
+ *
+ * @param {string} url
+ * @param {string} build
+ * @param {{ get: (key: string, options: { cacheTtl: number }) => Promise<string | null> }} kv
+ * @param {string} [deployId]
+ * @returns {Promise<{ cacheKey: string, contentVersion: string | null, named: string }>}
+ */
+export async function keptStoreKeys(url, build, kv, deployId) {
   const [mode, content, keying] = await Promise.all([
-    kv.get(STORE_MODE_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null),
-    kv.get(CONTENT_VERSION_KEY, { cacheTtl: VERSION_CACHE_SECONDS }),
-    deployId
-      ? kv.get(STORE_BUILD_KEY, { cacheTtl: VERSION_CACHE_SECONDS }).catch(() => null)
-      : null,
+    memoKvGet(kv, STORE_MODE_KEY).catch(() => null),
+    memoKvGet(kv, CONTENT_VERSION_KEY),
+    deployId ? memoKvGet(kv, STORE_BUILD_KEY).catch(() => null) : null,
   ])
   const versioned = mode === VERSIONED_MODE
   const named = keying === PER_DEPLOY && deployId ? deployId : build
-  return sharedCacheKey(url, named, versioned ? (content ?? 'none') : 'live')
+  const cacheKey = sharedCacheKey(url, named, versioned ? (content ?? 'none') : 'live')
+  return { cacheKey, contentVersion: content ?? null, named }
 }
 
 /**
