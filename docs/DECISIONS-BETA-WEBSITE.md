@@ -637,7 +637,13 @@ real model's variant).
 
 ### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
 
-> **Superseded 2026-11-05: no body's logo is drawn any more.** On the owner's go-ahead ("You do
+> **Restored 2026-11-10 by the owner: all five marks are drawn again** (Sedex, SMETA, ISO 9001,
+> OEKO-TEX, GRS; GOTS stays off). Asked with the rules below stated in the option itself ("Put all
+> logos back … against the schemes' published rules"), the owner chose to put them back. The
+> removal (#324) was undone file for file; the text beside each mark still names its real holder,
+> and `packages/shared/src/standardsLogos.ts` records the rules and this choice beside the list.
+
+> **Superseded 2026-11-05 (itself reversed 2026-11-10, above): no body's logo is drawn any more.** On the owner's go-ahead ("You do
 > everything": check each scheme's own logo rules and remove any mark they forbid), each scheme's
 > rule was read at its source that night. Every one gives the right to its mark to the
 > organisation that holds the certificate or membership, and RUN APPAREL holds none in its own

@@ -31,6 +31,7 @@ function validInquiry(tag: string) {
     name: `Test Contact ${tag}`,
     company: 'Automated Test Co',
     email: `qa-${tag}@example.com`,
+    phone: '+44 7700 900123',
     message: `Automated inquiry-security check ${tag}.`,
   }
 }

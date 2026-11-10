@@ -38,12 +38,6 @@ const page = (on: string, words: string): PageDate => ({ on, words })
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /**
- * The hero picture offered to wide screens in AVIF as well (site speed, 2026-11-04): markup only,
- * the words the same, moved by the rule at the top of this file. Home was dated by the dye
- * (2026-10-26T23:49:22+05:00) and Contact by the one phone number (2026-10-26T20:13:15+05:00).
- */
-const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
-/**
  * The legal framing of 2026-11-04 (owner's go-ahead after the legal review): DURUS INDUSTRIES
  * named as a separate family company, never a parent; RUN never a division; no GOTS claim; 1889
  * labelled the family's. `companyRelationship.test.ts` holds the words.
@@ -121,7 +115,9 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/glossary': page(GLOSSARY_SEVEN, 'd4a7273a6965'),
   '/journal': page(HELD_GUIDES, '4ffcb497f713'),
   '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
-  '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
+  // The phone became required (owner, 2026-11-10). Before: the wide AVIF hero (2026-11-04T19:52:09
+  // +05:00), and before that the one phone number (2026-10-26T20:13:15+05:00).
+  '/contact': page('2026-11-10T22:50:33+05:00', '07943939d1b2'),
   '/privacy': page(TECH_PACK_AND_TOOLS, '716bb9c30b7a'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }

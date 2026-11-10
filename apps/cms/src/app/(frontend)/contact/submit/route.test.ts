@@ -16,6 +16,7 @@ const payload = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn(),
   findGlobal: vi.fn(),
+  find: vi.fn(),
 }))
 vi.mock('@payload-config', () => ({ default: {} }))
 vi.mock('payload', () => ({ getPayload: vi.fn(async () => payload) }))
@@ -27,7 +28,13 @@ import { POST } from './route'
 /** A PDF that ENDS like one (the byte check reads `%%EOF` and `xref`). */
 const PDF = '%PDF-1.7\n1 0 obj<<>>endobj\nxref\n0 1\ntrailer<<>>\nstartxref\n9\n%%EOF\n'
 
-const GOOD = { name: 'Amy Buyer', email: 'amy@example.com', message: 'Hoodies for a club.' }
+const GOOD = {
+  name: 'Amy Buyer',
+  email: 'amy@example.com',
+  phoneCode: '44',
+  phone: '7700 900123',
+  message: 'Hoodies for a club.',
+}
 
 function post(
   fields: Record<string, string> = GOOD,
@@ -57,6 +64,7 @@ beforeEach(() => {
   payload.create.mockReset().mockResolvedValue({ id: 7 })
   payload.update.mockReset().mockResolvedValue({})
   payload.findGlobal.mockReset().mockResolvedValue({ email: ' sales@example.com ' })
+  payload.find.mockReset().mockResolvedValue({ docs: [] })
   fetchMock.mockReset().mockResolvedValue(new Response('{}', { status: 200 }))
   vi.stubGlobal('fetch', fetchMock)
   vi.stubEnv('RESEND_API_KEY', 'test-key')
@@ -87,7 +95,8 @@ describe('a good inquiry', () => {
       overrideAccess: true,
     })
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // Two emails since 2026-11-10 (owner): the team's notice, then the buyer's receipt.
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.resend.com/emails')
     expect(fetchMock.mock.calls[0]?.[1].headers).toEqual({
       authorization: 'Bearer test-key',
@@ -97,11 +106,24 @@ describe('a good inquiry', () => {
       from: 'RUN APPAREL inquiries <inquiries@wear-run.help>',
       to: ['sales@example.com'],
       reply_to: 'amy@example.com',
-      subject: 'Inquiry — Club Co — Teamwear',
+      subject: 'RA-00007 · Club Co — Teamwear',
     })
     expect(emailBody().text).toContain(
       'Open:    https://cms.wear-run.help/admin/collections/inquiries/7',
     )
+    expect(emailBody().html).toContain('RA-00007')
+
+    // The receipt goes to the buyer, and a reply to it reaches the team's inbox.
+    const receipt = JSON.parse(fetchMock.mock.calls[1]?.[1].body as string)
+    expect(receipt).toMatchObject({
+      from: 'RUN APPAREL <inquiries@wear-run.help>',
+      to: ['amy@example.com'],
+      reply_to: 'sales@example.com',
+      subject: 'We have your inquiry — RUN APPAREL (RA-00007)',
+    })
+    // It repeats nothing the buyer typed: not their name, not their message.
+    expect(receipt.html).not.toContain('Amy')
+    expect(receipt.html).not.toContain('Hoodies for a club.')
 
     expect(payload.update).toHaveBeenCalledWith({
       collection: 'inquiries',
@@ -165,7 +187,7 @@ describe('a bad or missing field', () => {
     const res = await post({ name: '', email: 'nope', message: '' })
     expect(res.status).toBe(303)
     expect(where(res)).toBe(
-      'https://wear-run.com/contact?error=invalid&fields=name,email,message#inquiry-problem',
+      'https://wear-run.com/contact?error=invalid&fields=name,email,message,phone#inquiry-problem',
     )
     expect(payload.create).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
@@ -194,6 +216,52 @@ describe('a bad or missing field', () => {
     expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
     expect(payload.create).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+/*
+ * The robot that sent 61 of production's 69 spam inquiries (2026-11-10), in shape: a lower-case
+ * "google", one sentence in both the job and the subject box, and a calling code no country has.
+ */
+const ROBOT = {
+  name: 'RobertFot',
+  company: 'google',
+  jobTitle: 'Hallo i write about prices',
+  subject: 'Hallo i write about prices',
+  email: 'robot@example.com',
+  phoneCode: '8316',
+  phone: '89528415162',
+  message: 'Hai, saya ingin tahu harga Anda.',
+}
+
+describe('a spam inquiry (owner, 2026-11-10)', () => {
+  it('is thanked like anyone, kept as spam with its reasons, and NOT emailed or counted', async () => {
+    const res = await post(ROBOT)
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(rowsOf('inquiries')).toHaveLength(1)
+    expect(rowsOf('inquiries')[0]?.[0]).toMatchObject({
+      data: {
+        status: 'spam',
+        notified: false,
+        notifyError:
+          'Not emailed: held as spam (robot-company, job-is-subject, unknown-dial-code).',
+      },
+      overrideAccess: true,
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(rowsOf('events')).toHaveLength(0)
+  })
+
+  it('stores none of its files', async () => {
+    await post(ROBOT, { files: [new File([PDF], 'prices.pdf', { type: 'application/pdf' })] })
+    expect(rowsOf('inquiry-files')).toHaveLength(0)
+  })
+
+  // The control: the same post with ONE field made human is a normal, emailed inquiry.
+  it('a buyer who differs from it in every signal is emailed as usual', async () => {
+    await post({ ...ROBOT, company: 'Google', jobTitle: 'Merch lead', phoneCode: '44' })
+    expect(rowsOf('inquiries')[0]?.[0].data.status).toBe('new')
+    expect(fetchMock).toHaveBeenCalledTimes(2) // the notice and the receipt
   })
 })
 
@@ -310,5 +378,35 @@ describe('when something fails after the form is accepted', () => {
     })
     const res = await post()
     expect(where(res)).toContain('sent=1')
+  })
+})
+
+/*
+ * The security review of 2026-11-10: the receipt goes to an unproven address, so a robot could
+ * have us mail a stranger over and over. One receipt per address per day, counted in the database.
+ */
+describe('the buyer receipt is bounded per mailbox', () => {
+  it('is sent for the first inquiry from a mailbox in a day, read from the database', async () => {
+    await post(GOOD)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(payload.find.mock.calls[0]?.[0]).toMatchObject({
+      collection: 'inquiries',
+      where: { and: [expect.anything(), { id: { not_equals: 7 } }] },
+      select: { email: true },
+    })
+  })
+
+  it('is NOT sent again to the same mailbox, however its address is spelt', async () => {
+    payload.find.mockResolvedValue({ docs: [{ email: 'Amy+quotes@Example.com' }] })
+    await post(GOOD)
+    expect(fetchMock).toHaveBeenCalledTimes(1) // the team's notice only
+    expect(emailBody().to).toEqual(['sales@example.com'])
+  })
+
+  it('is not sent when the day\u2019s inquiries cannot be read, and the buyer is still thanked', async () => {
+    payload.find.mockRejectedValue(new Error('D1 down'))
+    const res = await post(GOOD)
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
