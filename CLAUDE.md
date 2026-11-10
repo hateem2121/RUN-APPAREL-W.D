@@ -123,7 +123,7 @@ is missed:
 
 | Hook in `.claude/hooks/` | What it does |
 |---|---|
-| `guard-bare-pnpm.mjs`, `guard-pipeline-input.mjs`, `guard-main-branch.mjs`, `guard-coverage-floor.mjs` | Rewrite a bare `pnpm` to the `npx` form; refuse the pipeline on its own output, a commit or push on `main`, and an edit that lowers a coverage floor |
+| `guard-bare-pnpm.mjs`, `guard-pipeline-input.mjs`, `guard-main-branch.mjs`, `guard-coverage-floor.mjs`, `guard-live-form.mjs` | Rewrite a bare `pnpm` to the `npx` form; refuse the pipeline on its own output, a commit or push on `main`, an edit that lowers a coverage floor, and a post to the LIVE contact or careers form (every post emails the team; never fill it in a browser either — test on localhost:4174) |
 | `format-edited-file.mjs`, `check-doc-citations.mjs` | After each edit: Biome formats the file; a Markdown edit re-checks citations |
 | `explain-failure.mjs` | Names the real cause when an error blames the wrong thing |
 | `note-compaction.mjs`, `recall-nested-instructions.mjs` | After `/compact`, name the instruction files no longer loaded |
