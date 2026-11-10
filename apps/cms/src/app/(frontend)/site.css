@@ -2369,7 +2369,13 @@ address.contact-block__value {
  * list in the page's own type: a mono number in the accent, the step's name in bold, then its line,
  * each on a hairline, as the order process sets its steps.
  */
+/*
+ * ⚠️ HELD TO THE SITE'S MEASURE. At 768px the form stacks under the intro and the list ran the
+ * column's full 584px: 79 characters on a line, past the 75 legibility.spec.ts allows (FA-C-52, CI
+ * on #372). `--site-measure` is the lede's own width.
+ */
 .inquiry-steps {
+  max-width: var(--site-measure);
   margin-top: 24px;
 }
 
