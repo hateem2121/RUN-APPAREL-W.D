@@ -72,6 +72,7 @@ export const SOURCE_FILE_PATHS = {
   // words, traced through the component that draws them, not to every page that imports it.
   // The search descriptions (pageDescriptions.ts): the home, products and contact pages' own.
   'apps/cms/src/lib/pageDescriptions.ts': ['/', '/products', '/contact'],
+  'apps/cms/src/lib/contactSteps.ts': ['/contact'],
   // №03 on the home page (ProofShowcase.tsx).
   'apps/cms/src/lib/proofShowcase.ts': ['/'],
   // The order steps: the home page's №04 (OrderTimeline) and the order guide's orderSteps block.

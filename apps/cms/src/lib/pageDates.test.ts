@@ -15,6 +15,7 @@ import { GUIDES, GUIDES_INDEX } from './guides'
 import * as inquiryForm from './inquiryForm'
 import { JOURNAL_CLUSTERS, JOURNAL_HUB, JOURNAL_RELATED_PAGES } from './journal'
 import { ORDER_PHASES } from './orderProcess'
+import { CONTACT_STEPS } from './contactSteps'
 import { PAGE_DATES } from './pageDates'
 import * as pageDescriptions from './pageDescriptions'
 import { POLICIES, POLICIES_INDEX } from './policies'
@@ -142,7 +143,12 @@ const WORDS: Readonly<Record<string, string>> = {
     page: pageCode('case-studies'),
     parts: components('CaseStudyPage'),
   }),
-  '/contact': sha({ page: pageCode('contact'), form: inquiryForm, copy: pageDescriptions }),
+  '/contact': sha({
+    page: pageCode('contact'),
+    form: inquiryForm,
+    copy: pageDescriptions,
+    steps: CONTACT_STEPS,
+  }),
   '/privacy': sha({ page: pageCode('privacy') }),
   '/terms': sha({ page: pageCode('terms') }),
 }
