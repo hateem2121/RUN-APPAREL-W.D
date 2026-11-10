@@ -117,9 +117,10 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/glossary': page(GLOSSARY_SEVEN, 'd4a7273a6965'),
   '/journal': page(HELD_GUIDES, '4ffcb497f713'),
   '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
-  // The phone became required (owner, 2026-11-10). Before: the wide AVIF hero (2026-11-04T19:52:09
-  // +05:00), and before that the one phone number (2026-10-26T20:13:15+05:00).
-  '/contact': page('2026-11-10T22:50:33+05:00', '07943939d1b2'),
+  // "What happens next" beside the form (owner, 2026-11-11). Before: the phone became required
+  // (2026-11-10T22:50:33+05:00), the wide AVIF hero (2026-11-04T19:52:09+05:00), and the one phone
+  // number (2026-10-26T20:13:15+05:00).
+  '/contact': page('2026-11-11T00:51:52+05:00', '29e4985e1341'),
   '/privacy': page(TECH_PACK_AND_TOOLS, '716bb9c30b7a'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }

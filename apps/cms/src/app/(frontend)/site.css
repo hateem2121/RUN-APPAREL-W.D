@@ -2362,6 +2362,50 @@ address.contact-block__value {
   font-style: normal;
 }
 
+/* ------------------------------------------------ what happens next (contact) */
+
+/*
+ * The three steps beside the form (owner, 2026-11-11; `lib/contactSteps.ts`). The receipt email's
+ * list in the page's own type: a mono number in the accent, the step's name in bold, then its line,
+ * each on a hairline, as the order process sets its steps.
+ */
+.inquiry-steps {
+  margin-top: 32px;
+}
+
+.inquiry-steps__list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.inquiry-steps__item {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.inquiry-steps__number {
+  padding-top: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-lg);
+  color: var(--dimension);
+}
+
+.inquiry-steps__text {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.inquiry-steps__title {
+  display: block;
+  color: var(--text);
+}
+
 /* ------------------------------------------------ contact globe */
 
 /*
@@ -2416,13 +2460,38 @@ address.contact-block__value {
  * swipe scroll the page past it while a sideways drag turns the globe.
  */
 .contact-globe__stage {
+  position: relative;
   width: 100%;
   max-width: 520px;
   aspect-ratio: 1;
   margin-inline: auto;
+  /*
+   * ⚠️ A STILL GLOBE BEHIND THE LIVE ONE (2026-11-11). cobe's sphere is 80% of the canvas, and this
+   * disc is exactly that (`closest-side`, 80%), so the drawn globe covers it completely. It shows
+   * when the canvas cannot: a shader a strict GPU refuses leaves a blank square (taste-skill's
+   * gl-fallback check, measured on /contact), and for the moment before the land arrives. Its
+   * light is the token ground, so it follows the theme like everything else.
+   */
+  background:
+    radial-gradient(circle closest-side at 42% 38%, var(--raised) 0, transparent 45%),
+    radial-gradient(circle closest-side at 50% 50%, var(--wash) 79%, transparent 80%);
+}
+
+/*
+ * The orbit: one thin dashed ring around the globe, the brand's dimension line (DESIGN.md
+ * motifs), so the picture reads as drawn on purpose rather than floating in an empty column.
+ */
+.contact-globe__stage::before {
+  content: "";
+  position: absolute;
+  inset: 3%;
+  border: 1px dashed var(--line);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .contact-globe__canvas {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
@@ -4069,6 +4138,18 @@ a.contact-block__value:active {
 .inquiry-form__input:focus,
 .inquiry-form__phone:focus-within {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--dimension) 24%, transparent);
+}
+
+/*
+ * ⚠️ THE PHONE BOX'S FOCUS RING (2026-11-11). Its two inputs sit inside one frame and have no
+ * outline of their own, so a keyboard user saw only the soft glow above: 1.09:1 against the page,
+ * where WCAG 2.2 asks 3:1 (taste-skill's focus-visible check, tab stops 13 and 14 on /contact).
+ * The frame now takes the same ring every other field takes.
+ */
+.inquiry-form__phone:has(:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: var(--dimension);
 }
 
 @media (hover: hover) {

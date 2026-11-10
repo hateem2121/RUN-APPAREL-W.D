@@ -51,7 +51,19 @@ import { webglAvailable } from '../../lib/webglAvailable'
 
 const SPIN_PER_FRAME = 0.0035
 const DRAG_PER_PIXEL = 0.006
-const TILT = 0.25
+/*
+ * ⚠️ THE FINISHED GLOBE (owner, 2026-11-11: "it feels unfinished"). At a tilt of 0.25 and arcs
+ * 0.28 high, Sialkot (32° N) sat near the upper rim and the lines to the far side of the world
+ * (Los Angeles, São Paulo, Sydney, Auckland) bulged out past the sphere's edge into the paper.
+ * Rendered side by side that night with cobe 2.0.1 (the latest, March 2026): a tilt of 0.4 brings
+ * Sialkot to the centre, arcs 0.1 high and 0.45 wide hug the sphere, and turning the face 0.3 rad
+ * east of Sialkot opens with Europe, Africa and the Gulf in view. The still frame under reduced
+ * motion is this same view.
+ */
+const TILT = 0.4
+const ARC_HEIGHT = 0.1
+const ARC_WIDTH = 0.45
+const FACE_OFFSET = 0.3
 
 type Theme = {
   dark: boolean
@@ -141,7 +153,7 @@ function startGlobe(
   const arcs = ROUTES.map((route) => ({ from: works, to: route.location }))
 
   let theme = readTheme(probe)
-  let phi = focusPhi(works[1])
+  let phi = focusPhi(works[1]) + FACE_OFFSET
   let size = Math.max(1, Math.round(holder.clientWidth))
   let shown = still ? arcs.length : 0
   let started: number | null = null
@@ -169,8 +181,8 @@ function startGlobe(
       markers: [{ location: works, size: 0.07 }],
       markerElevation: 0.01,
       arcs: arcs.slice(0, shown),
-      arcWidth: 0.6,
-      arcHeight: 0.28,
+      arcWidth: ARC_WIDTH,
+      arcHeight: ARC_HEIGHT,
     }),
   )
   let gone = false
