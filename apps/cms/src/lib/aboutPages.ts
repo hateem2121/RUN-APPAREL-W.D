@@ -200,7 +200,7 @@ export const ENVIRONMENTAL_LINES: readonly string[] = (() => {
 export const FACTORY_PAGE = {
   path: '/inside-the-factory',
   title: 'Inside the factory: manufacturing in Sialkot',
-  description: `Cutting, printing, stitching, QC and packing in a ${FLOOR} sq m Sialkot facility, with about 80% of its electricity from solar. Five stages, five checkpoints.`,
+  description: `Cutting, printing, stitching, QC and packing in a ${FLOOR} sq m Sialkot facility, with about 83% of its electricity from solar. Five stages, five checkpoints.`,
   /** The mono label over the hero, built from the shared address constant (never typed), in
       normal letters as every page's hero label is (VA-44; it was uppercased here until the site
       check of 2026-10-26, impeccable I-13). */
@@ -285,7 +285,7 @@ export const FACTORY_PAGE = {
   howWeRunIt: {
     label: '[ FOR A BETTER TOMORROW ]',
     heading: 'How we run it',
-    stat: 'About 80%',
+    stat: 'About 83%',
     statWords: "of the factory's electricity comes from the solar panels on our roof",
     // The policy's own solar line is left out here: the stat and its words above say it
     // (owner, 2026-10-26). The policy page keeps all four.
