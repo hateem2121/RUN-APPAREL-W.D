@@ -9,6 +9,7 @@ import {
   copyKey,
   copyOn,
   keepCopy,
+  raceCopy,
   readCopy,
   writeCopy,
 } from '../pageCopy.mjs'
@@ -188,6 +189,76 @@ describe('answerFromCopy and keepCopy, as SitePages uses them', () => {
   })
 })
 
+/** A promise that settles after `ms`, with `value` (or the error, when `fail`). */
+function later<T>(ms: number, value: T, fail = false): Promise<T> {
+  return new Promise((resolve, reject) =>
+    setTimeout(() => (fail ? reject(new Error('draw failed')) : resolve(value)), ms),
+  )
+}
+
+/** A drawn page whose body records whether it was cancelled. */
+function drawnPage() {
+  const seen = { cancelled: false }
+  const body = new ReadableStream({
+    cancel() {
+      seen.cancelled = true
+    },
+  })
+  return { seen, response: new Response(body, { status: 200 }) }
+}
+
+/*
+ * Measured 11 Nov 2026, the first ~25 minutes after #370 went live: an R2 copy read took
+ * p50 344 ms when found (n=15) and ran into the 400 ms limit on 92 of 93 misses. Asked BEFORE
+ * drawing, every miss waited that long first. raceCopy runs both at once.
+ */
+describe('raceCopy', () => {
+  const copyPage = () => new Response('<html>copy</html>', { status: 200 })
+
+  it('answers from the copy when it comes before the drawing, and drains the drawing', async () => {
+    const waits: Promise<unknown>[] = []
+    const ctx = { waitUntil: (p: Promise<unknown>) => waits.push(p) }
+    const drawn = drawnPage()
+    const answer = await raceCopy(later(5, copyPage()), later(40, drawn.response), ctx)
+    expect(await answer?.text()).toBe('<html>copy</html>')
+    await Promise.all(waits)
+    expect(drawn.seen.cancelled).toBe(true)
+  })
+
+  it('a miss does not wait for anything: null as soon as the copy says no', async () => {
+    const ctx = { waitUntil: () => {} }
+    const started = Date.now()
+    const answer = await raceCopy(later(5, null), later(300, drawnPage().response), ctx)
+    expect(answer).toBeNull()
+    expect(Date.now() - started).toBeLessThan(150)
+  })
+
+  it('a drawing that finishes first wins without waiting for a slow copy read', async () => {
+    const waits: Promise<unknown>[] = []
+    const ctx = { waitUntil: (p: Promise<unknown>) => waits.push(p) }
+    const started = Date.now()
+    const answer = await raceCopy(later(300, copyPage()), later(5, drawnPage().response), ctx)
+    expect(answer).toBeNull()
+    expect(Date.now() - started).toBeLessThan(150)
+    // The copy read still running is handed to waitUntil, never left floating.
+    expect(waits.length).toBe(1)
+  })
+
+  it('a drawing that fails still lets a copy answer', async () => {
+    const ctx = { waitUntil: () => {} }
+    const failed = later<Response>(1, drawnPage().response, true)
+    failed.catch(() => {})
+    const answer = await raceCopy(later(20, copyPage()), failed, ctx)
+    expect(await answer?.text()).toBe('<html>copy</html>')
+  })
+
+  it('a copy read that throws reads as no copy', async () => {
+    const ctx = { waitUntil: () => {} }
+    const broken = Promise.reject(new Error('R2 down'))
+    expect(await raceCopy(broken, later(5, drawnPage().response), ctx)).toBeNull()
+  })
+})
+
 /*
  * worker.mjs imports cloudflare:workers and the built site, so it is read as text, the way
  * pageCache.test.ts and filmRange.test.ts check it.
@@ -200,12 +271,16 @@ describe('worker.mjs and wrangler.jsonc wire the copy in', () => {
     worker.indexOf('async invalidateKept'),
   )
 
-  it('SitePages asks the copy before it draws, and returns it when there is one', () => {
-    const asks = sitePages.indexOf('await answerFromCopy(request, this.env)')
-    const draws = sitePages.indexOf('openNext.fetch(request, this.env, this.ctx)')
-    expect(asks).toBeGreaterThan(-1)
-    expect(asks).toBeLessThan(draws)
-    expect(sitePages).toMatch(/if \(copied\) return copied/)
+  it('SitePages starts the drawing BEFORE it asks the copy, and races the two', () => {
+    // 11 Nov 2026: asking first made every miss wait up to COPY_READ_TIMEOUT_MS before drawing.
+    const draws = sitePages.indexOf('const drawing = keptRenders().run(render, () =>')
+    const races = sitePages.indexOf(
+      'await raceCopy(answerFromCopy(request, this.env), drawing, this.ctx)',
+    )
+    expect(draws).toBeGreaterThan(-1)
+    expect(races).toBeGreaterThan(draws)
+    expect(sitePages).not.toMatch(/await answerFromCopy\(/)
+    expect(sitePages).toMatch(/if \(copied\) return copied\s+const response = await drawing/)
   })
 
   it('SitePages keeps a copy only of a whole page that is not a kept file', () => {
