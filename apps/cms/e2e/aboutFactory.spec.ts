@@ -990,3 +990,80 @@ test.describe('no automated accessibility violations', () => {
     expect(named(results)).toEqual([])
   })
 })
+
+/*
+ * 2026-11-11 (owner: "use the originals"). The /about hero keeps its two files and their shapes
+ * (the 4:5 crop up to 700px wide, the 16:9 one above), and is now told how wide it is PAINTED in
+ * the motion layout, where it fills a 100svh stage by `cover`; the factory hero's card takes its own
+ * 4:5 crop from 900px. What would have to break: a screen handed a file of another shape than
+ * before (a zoomed or a differently cut picture), or a motion layout still handed a file narrower
+ * than its paint (the stretch the site check measured, 1.9-2.9x).
+ */
+test.describe('2026-11-11 — each hero is handed a file as wide as it is painted, in its old shape', () => {
+  const pick = (page: import('@playwright/test').Page, selector: string) =>
+    page.locator(selector).evaluate(async (element) => {
+      const img = element as HTMLImageElement
+      await img.decode().catch(() => undefined)
+      // The layout box, not getBoundingClientRect: the hero's opening `scale` (1.12 at the top,
+      // about-factory.css) is an effect of the scroll, not the size the page lays the photo out at.
+      const box = { width: img.offsetWidth, height: img.offsetHeight }
+      const src = new URL(img.currentSrc).pathname
+      // The file's own width is in its name; `naturalWidth` is divided by the density picked.
+      const file = Number(src.match(/-(\d+)\.\w+$/)?.[1])
+      const shape = /-tall-|-card-/.test(src) ? 4 / 5 : 16 / 9
+      return {
+        src,
+        file,
+        ratio: box.width / box.height,
+        painted: Math.max(box.width, box.height * shape),
+        sticky: getComputedStyle(img.closest('.about-hero__stage') ?? img).position === 'sticky',
+        // The motion layout's own guard (about-factory.css): Firefox, in November 2026, has none.
+        timelines:
+          CSS.supports('animation-timeline: view()') && CSS.supports('animation-range: entry'),
+      }
+    })
+
+  for (const [width, height, motion] of [
+    [390, 844, 'no-preference'],
+    [768, 1024, 'no-preference'],
+    [820, 1180, 'no-preference'],
+    [1440, 900, 'no-preference'],
+    [390, 844, 'reduce'],
+    [768, 1024, 'reduce'],
+    [1440, 900, 'reduce'],
+  ] as const) {
+    test(`/about at ${width}x${height}, motion ${motion}`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: motion })
+      await page.setViewportSize({ width, height })
+      await page.goto('/about')
+      const hero = await pick(page, '.about-hero .site-hero__img')
+      const label = `${hero.src} (${hero.file}px) painted ${Math.round(hero.painted)}px`
+      // The same shape of file as before this change, everywhere.
+      expect(hero.src, label).toMatch(
+        width <= 700
+          ? /^\/factory\/about-hero-tall-\d+\.(avif|webp)$/
+          : /^\/factory\/about-hero-wide-\d+\.(avif|webp)$/,
+      )
+      // Where the stage sticks (the motion layout), the file covers its paint at this 1x screen.
+      if (hero.sticky) {
+        expect(hero.file, `${label}: stretched`).toBeGreaterThanOrEqual(hero.painted * 0.99)
+      }
+      // The control that the layout under test is the one meant: motion is the sticky stage, in a
+      // browser with scroll timelines.
+      expect(hero.sticky, label).toBe(motion === 'no-preference' && hero.timelines)
+    })
+  }
+
+  for (const width of [1024, 1440, 1920]) {
+    test(`/inside-the-factory at ${width}px: the card is drawn from its own 4:5 crop`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/inside-the-factory')
+      const hero = await pick(page, '.factory-hero .split-hero__img')
+      expect(hero.src).toMatch(/^\/factory\/factory-hero-card-\d+\.(avif|webp)$/)
+      expect(hero.ratio).toBeCloseTo(0.8, 2)
+      expect(hero.file).toBeGreaterThanOrEqual(hero.painted * 0.99)
+    })
+  }
+})

@@ -13,7 +13,11 @@ import {
 import {
   ABOUT_HERO_SOURCES,
   CONTACT_HERO_SOURCES,
+  FACTORY_HERO_SOURCES,
   HERO_SOURCES,
+  STEP_CROPS,
+  STEP_VIEW,
+  stepCrop,
 } from '../../../scripts/build-factory-photos.mjs'
 import { AboutSection } from './components/site/AboutSection'
 import { PhotoStage } from './components/site/PhotoStage'
@@ -26,6 +30,11 @@ import {
   aboutHeroSrc,
   CONTACT_HERO_PHOTO,
   contactHeroSrc,
+  FACTORY_HERO_CARD,
+  factoryHeroCardSrc,
+  STEP_CROP_ASPECT,
+  STEP_CROP_WIDTHS,
+  stepPhotoSrc,
   FACTORY_PHOTO_ASPECT,
   FACTORY_PHOTO_WIDTHS,
   FACTORY_PHOTOS,
@@ -130,8 +139,21 @@ describe('the factory photos (OI-3)', () => {
       ...HERO_PHOTO.widths.heroTall.flatMap((width) => [
         heroPhotoSrc('heroTall', width, 'avif').slice('/factory/'.length),
         contactHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
-        aboutHeroSrc('heroTall', width, 'avif').slice('/factory/'.length),
       ]),
+      ...ABOUT_HERO_PHOTO.widths.heroTall.map((w) => aboutHeroSrc('heroTall', w, 'avif').slice(9)),
+      // The factory hero's 4:5 card from 900px, in both formats (2026-11-11).
+      ...FACTORY_HERO_CARD.widths.flatMap((w) => [
+        factoryHeroCardSrc(w).slice(9),
+        factoryHeroCardSrc(w, 'avif').slice(9),
+      ]),
+      // The order steps' own crops (2026-11-11).
+      ...FACTORY_PHOTOS.flatMap((photo) =>
+        (['phone', 'card'] as const).flatMap((kind) =>
+          (STEP_CROP_WIDTHS[photo.slug]?.[kind] ?? []).map((w) =>
+            stepPhotoSrc(photo, kind, w).slice(9),
+          ),
+        ),
+      ),
       // The wide crops' AVIF twins (4 Nov 2026).
       ...HERO_PHOTO.widths.heroWide.map((w) => heroPhotoSrc('heroWide', w, 'avif').slice(9)),
       ...CONTACT_HERO_PHOTO.widths.heroWide.map((w) =>
@@ -185,7 +207,13 @@ describe('the factory photos (OI-3)', () => {
           .map((width) => `${source.slug}-${width}: the original's crop is ${box.width}px wide`)
       })
     expect(
-      tooWide([...SOURCES, ...HERO_SOURCES, ...CONTACT_HERO_SOURCES, ...ABOUT_HERO_SOURCES]),
+      tooWide([
+        ...SOURCES,
+        ...HERO_SOURCES,
+        ...CONTACT_HERO_SOURCES,
+        ...ABOUT_HERO_SOURCES,
+        ...FACTORY_HERO_SOURCES,
+      ]),
     ).toEqual([])
     // NEGATIVE CONTROL: the tagging floor's 1,280px original cannot give the wide shape's 1,600.
     const tagging = SOURCES.find((source) => source.slug === 'tagging')
@@ -838,5 +866,117 @@ describe('the whole pictures are never cut (2026-11-05)', () => {
     )
     expect(buyer).toMatch(/class="photo-stage__copy"/)
     expect(buyer).not.toContain('aria-hidden="true">How')
+  })
+})
+
+/*
+ * 2026-11-11 (owner: "use the originals", "Yes, tall copies"). The order steps' own crops and the
+ * factory hero's 4:5 card. What would have to break for these to fail: a crop that shows a
+ * DIFFERENT part of the photo than the card showed before (the promise was "same slice, sharper"),
+ * a file missing or of another shape, or the page and the script listing different widths.
+ */
+describe('the step crops and the factory hero card (2026-11-11)', () => {
+  type Box = { left: number; top: number; width: number; height: number }
+  /** The part of `file` (in the original's pixels) a box of `ratio` shows, `cover`, at `across`. */
+  const windowOf = (file: Box, ratio: number, across: number) => {
+    const width = file.height * ratio
+    return { left: file.left + (file.width - width) * across, width }
+  }
+  const sourceOf = (slug: string) => {
+    const source = SOURCES.find((entry) => entry.slug === slug)
+    if (!source) throw new Error(`no source ${slug}`)
+    return source
+  }
+  const stepPhotos = FACTORY_PHOTOS.filter((photo) => photo.slug in STEP_CROP_WIDTHS)
+
+  it('the page and the script give the same eight photos the same widths and the same focus', () => {
+    expect(stepPhotos.map((photo) => photo.slug).sort()).toEqual(Object.keys(STEP_VIEW).sort())
+    for (const photo of stepPhotos) {
+      expect(STEP_VIEW[photo.slug as keyof typeof STEP_VIEW], photo.slug).toBe(
+        (photo.focus?.[0] ?? 50) / 100,
+      )
+      for (const kind of ['phone', 'card'] as const) {
+        const crop = stepCrop(sourceOf(photo.slug), kind)
+        expect(STEP_CROP_WIDTHS[photo.slug]?.[kind] ?? null, `${photo.slug} ${kind}`).toEqual(
+          crop?.widths ?? null,
+        )
+      }
+    }
+    expect(STEP_CROPS.phone.aspect).toBe(STEP_CROP_ASPECT.phone)
+    expect(STEP_CROPS.card.aspect).toBe(STEP_CROP_ASPECT.card)
+  })
+
+  it('every step crop file exists at its width, at its crop’s shape, and none is an upscale', () => {
+    const wrong: string[] = []
+    for (const photo of stepPhotos) {
+      for (const kind of ['phone', 'card'] as const) {
+        const crop = stepCrop(sourceOf(photo.slug), kind)
+        for (const width of STEP_CROP_WIDTHS[photo.slug]?.[kind] ?? []) {
+          const file = stepPhotoSrc(photo, kind, width).slice('/factory/'.length)
+          if (!crop || width > crop.box.width) wrong.push(`${file}: wider than its crop`)
+          const size = webpSize(readFileSync(join(DIR, file)))
+          const height = crop ? Math.round((width * crop.box.height) / crop.box.width) : -1
+          if (size.width !== width || size.height !== height) {
+            wrong.push(`${file} is ${size.width}x${size.height}, expected ${width}x${height}`)
+          }
+        }
+      }
+    }
+    expect(wrong, 'rebuild with scripts/build-factory-photos.mjs').toEqual([])
+  })
+
+  it('a step crop shows the card exactly the window the old file showed, at every narrower card', () => {
+    const misses: string[] = []
+    for (const photo of stepPhotos) {
+      const source = sourceOf(photo.slug)
+      const file = cropBox(...source.original, SHAPES[source.shape].aspect, source.focus)
+      const across = STEP_VIEW[photo.slug as keyof typeof STEP_VIEW]
+      for (const kind of ['phone', 'card'] as const) {
+        const crop = stepCrop(source, kind)
+        if (!crop) continue
+        // Its full height is the old file's, so a card no wider than the crop cuts only the sides.
+        expect(crop.box.height, `${photo.slug} ${kind}`).toBe(file.height)
+        expect(crop.box.top, `${photo.slug} ${kind}`).toBe(file.top)
+        for (let ratio = 0.3; ratio <= STEP_CROPS[kind].aspect; ratio += 0.05) {
+          const before = windowOf(file, ratio, across)
+          const after = windowOf(crop.box, ratio, across)
+          if (Math.abs(before.left - after.left) > 1) {
+            misses.push(
+              `${photo.slug} ${kind} at ${ratio.toFixed(2)}: ${before.left} → ${after.left}`,
+            )
+          }
+        }
+      }
+    }
+    expect(misses).toEqual([])
+    // NEGATIVE CONTROL: a crop centred anywhere else shows another window, and this sees it.
+    const showroom = sourceOf('showroom')
+    const file = cropBox(...showroom.original, SHAPES.wide.aspect, showroom.focus)
+    const crop = stepCrop(showroom, 'phone')
+    const shifted = crop ? { ...crop.box, left: crop.box.left - 60 } : file
+    expect(
+      Math.abs(windowOf(file, 0.46, 0.9).left - windowOf(shifted, 0.46, 0.9).left),
+    ).toBeGreaterThan(1)
+  })
+
+  it('the factory hero card is the window the 16:9 file showed in it, and exists at each width', () => {
+    const wide = HERO_SOURCES.find((source) => source.slug === 'hero-wide')
+    const card = FACTORY_HERO_SOURCES[0]
+    if (!wide || !card) throw new Error('missing source')
+    const file = cropBox(...wide.original, SHAPES.heroWide.aspect, wide.focus)
+    const box = cropBox(...card.original, SHAPES.heroTall.aspect, card.focus)
+    // The card was 4:5 and drawn the 16:9 file at `object-position: 50%` across.
+    const before = windowOf(file, 4 / 5, 0.5)
+    expect(Math.abs(before.left - box.left)).toBeLessThanOrEqual(1)
+    expect(Math.abs(before.width - box.width)).toBeLessThanOrEqual(1)
+    expect(box.height).toBe(file.height)
+    expect(card.widths).toEqual([...FACTORY_HERO_CARD.widths])
+    for (const width of FACTORY_HERO_CARD.widths) {
+      const size = webpSize(readFileSync(join(DIR, factoryHeroCardSrc(width).slice(9))))
+      expect(size, `factory-hero-card-${width}`).toEqual({
+        width,
+        height: Math.round(width / FACTORY_HERO_CARD.aspect),
+      })
+    }
   })
 })

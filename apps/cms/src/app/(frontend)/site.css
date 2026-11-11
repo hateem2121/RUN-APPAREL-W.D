@@ -6177,6 +6177,12 @@ a.contact-block__value:active {
   }
 }
 
+/* The <picture> that offers the step's own crops (2026-11-11) adds no box: the card is a grid, and
+   a box here would take a cell. The <img> stays absolute against `.order-step`, as before. */
+.order-step__picture {
+  display: contents;
+}
+
 /* Behind everything: the picture's own `focus` (lib/factoryPhotos.ts) is its `object-position`. */
 .order-step__photo {
   position: absolute;

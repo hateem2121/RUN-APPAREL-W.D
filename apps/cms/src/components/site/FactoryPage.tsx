@@ -14,6 +14,8 @@ import {
   factoryPhotoImage,
   factoryPhotoSrc,
   factoryPhotoWidths,
+  FACTORY_HERO_CARD,
+  factoryHeroCardSrc,
   HERO_PHOTO,
   heroPhotoSrc,
 } from '../../lib/factoryPhotos'
@@ -37,7 +39,13 @@ import {
 
 /** The two phone crops, named for `factoryPhotos.test.ts`'s AVIF-first check. */
 const [tall640, tall1080] = HERO_PHOTO.widths.heroTall
-const [wide1280, wide1920, wide2560] = HERO_PHOTO.widths.heroWide
+/**
+ * The 4:5 card's own crop from 900px (2026-11-11): the part of the floor the 16:9 file showed in
+ * that card, cut at the card's shape, so a 2x laptop gets a file it need not stretch (it stretched
+ * the 1,280 file 2.2-2.4x). Same pixels shown; `FACTORY_HERO_CARD` in lib/factoryPhotos.ts.
+ */
+const [card640, card1080, card1600] = FACTORY_HERO_CARD.widths
+const CARD_SIZES = '(max-width: 899px) calc(100vw - 40px), min(40vw, 560px)'
 
 /** The photos the gallery shows, as the page's structured data names them (largest file). */
 function galleryJsonLdPhotos(): FactoryPagePhoto[] {
@@ -112,14 +120,21 @@ export function FactoryPage() {
                 width={tall640}
                 height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
               />
+              <source
+                type="image/avif"
+                srcSet={`${factoryHeroCardSrc(card640, 'avif')} ${card640}w, ${factoryHeroCardSrc(card1080, 'avif')} ${card1080}w, ${factoryHeroCardSrc(card1600, 'avif')} ${card1600}w`}
+                sizes={CARD_SIZES}
+                width={card640}
+                height={Math.round(card640 / FACTORY_HERO_CARD.aspect)}
+              />
               {/* A plain <img>: pre-built crops picked by srcSet, as the home hero's note says. */}
               <img
                 className="split-hero__img"
-                src={heroPhotoSrc('heroWide', wide1280)}
-                srcSet={`${heroPhotoSrc('heroWide', wide1280)} ${wide1280}w, ${heroPhotoSrc('heroWide', wide1920)} ${wide1920}w, ${heroPhotoSrc('heroWide', wide2560)} ${wide2560}w`}
-                sizes="(max-width: 899px) calc(100vw - 40px), min(40vw, 560px)"
-                width={wide1280}
-                height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
+                src={factoryHeroCardSrc(card640)}
+                srcSet={`${factoryHeroCardSrc(card640)} ${card640}w, ${factoryHeroCardSrc(card1080)} ${card1080}w, ${factoryHeroCardSrc(card1600)} ${card1600}w`}
+                sizes={CARD_SIZES}
+                width={card640}
+                height={Math.round(card640 / FACTORY_HERO_CARD.aspect)}
                 alt={HERO_PHOTO.alt}
                 loading="eager"
                 fetchPriority="high"

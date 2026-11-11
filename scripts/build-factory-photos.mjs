@@ -119,9 +119,84 @@ export const ABOUT_HERO_SOURCES = [
     file: 'factory exterior image.png',
     original: [3555, 2000],
     shape: 'heroTall',
+    // 1,600 since 2026-11-11 (owner: "use the originals"): the crop is 1,600x2,000, and a phone at
+    // 3x, or a tablet held upright, asked more of it than 1,080 (site check: 1.9-2.9x stretched).
+    widths: [640, 1080, 1600],
     focus: [0.5, 0.5],
   },
 ]
+
+/**
+ * The "Inside the factory" hero from 900px (2026-11-11, owner: "use the originals"). There the photo
+ * is a 4:5 card, and it used to be filled by the 16:9 file, so a 2x laptop stretched it 2.2-2.4x
+ * (site check). This is the SAME part of the stitching floor that card showed: the 16:9 crop's
+ * full height, centred where the card centred it (`object-position: 50%`), which works out to the
+ * 4:5 crop centred at 0.55 across, the 16:9 crop's own centre. Nothing a visitor sees moves.
+ */
+export const FACTORY_HERO_SOURCES = [
+  {
+    slug: 'factory-hero-card',
+    file: 'Apparel Stitching Department.png',
+    original: [4875, 2403],
+    shape: 'heroTall',
+    widths: [640, 1080, 1600],
+    focus: [0.55, 0.5],
+  },
+]
+
+/**
+ * THE ORDER STEPS' OWN CROPS (2026-11-11, owner: "Yes, tall copies"). A step's card is about the
+ * screen's height and the photo fills it (`object-fit: cover`), so on a phone a wide file showed a
+ * narrow slice of itself, stretched 2-3.5x (site check of 11 Nov). These are that same slice, cut
+ * from the original at the card's shape:
+ *
+ * - `phone`, 3:5, for a screen at most 3:5 (a phone held upright, where a card is ~0.46:1);
+ * - `card`, 9:10, for the rest of the cards (a tablet held upright, and half a laptop's width,
+ *   0.67-0.9:1), wide photos only: a 4:5 photo's own files already fit those.
+ *
+ * ⚠️ THE SLICE IS TODAY'S, NOT A NEW CHOICE. Each crop keeps the step file's full height and sits
+ * where `object-position` put the card's window in that file: `left = file.left + (file.width -
+ * crop.width) × across`, with `across` the page's own focus (`STEP_VIEW` = `FACTORY_PHOTOS` focus
+ * ÷ 100, which `factoryPhotos.test.ts` holds equal). Because that is linear, the page keeps the same
+ * `object-position` and a narrower card shows exactly the window it showed before.
+ */
+export const STEP_CROPS = {
+  phone: { aspect: 3 / 5, widths: [480, 800, 1200] },
+  card: { aspect: 9 / 10, widths: [800, 1200, 1600] },
+}
+
+/** Across, as a fraction: the page's `focus[0]` for each step photo (lib/factoryPhotos.ts). */
+export const STEP_VIEW = {
+  showroom: 0.9,
+  lab: 0.55,
+  'screen-printing': 0.5,
+  inspection: 0.5,
+  exterior: 0.5,
+  'final-check': 0.5,
+  packing: 0.5,
+  tagging: 0.55,
+}
+
+/**
+ * The crop box and widths of a step photo's `kind` crop, or null where it has none (a 4:5 photo's
+ * `card`). The widths are the kind's list up to the crop's width, then the crop's own width when
+ * it is wider still: every file is as sharp as the original allows, and none is an upscale.
+ */
+export function stepCrop(source, kind) {
+  if (kind === 'card' && source.shape !== 'wide') return null
+  const file = cropBox(
+    source.original[0],
+    source.original[1],
+    SHAPES[source.shape].aspect,
+    source.focus,
+  )
+  const width = Math.round(file.height * STEP_CROPS[kind].aspect)
+  const left = Math.round(file.left + (file.width - width) * STEP_VIEW[source.slug])
+  const box = { left, top: file.top, width, height: file.height }
+  const listed = STEP_CROPS[kind].widths.filter((w) => w <= width)
+  const widths = listed.at(-1) === width ? listed : [...listed, width]
+  return { box, widths }
+}
 
 /**
  * THE WHOLE PICTURES (owner, 2026-11-05: "I do not want the images to be cut", and the photo as
@@ -352,6 +427,7 @@ async function main() {
     ...HERO_SOURCES,
     ...CONTACT_HERO_SOURCES,
     ...ABOUT_HERO_SOURCES,
+    ...FACTORY_HERO_SOURCES,
   ]) {
     const shape = SHAPES[source.shape]
     const { width, height } = await sharp(join(from, source.file)).metadata()
@@ -389,6 +465,24 @@ async function main() {
           .avif({ quality: avifQuality, effort: 6 })
           .toFile(avif)
         console.log(`${source.slug}-${w}.avif  ${a.width}x${a.height}  ${a.size} bytes`)
+      }
+    }
+  }
+  // The order steps' own crops (`STEP_CROPS` says why), from the same checked originals.
+  for (const source of SOURCES.filter((entry) => entry.slug in STEP_VIEW)) {
+    for (const kind of Object.keys(STEP_CROPS)) {
+      const crop = stepCrop(source, kind)
+      if (!crop) continue
+      for (const w of crop.widths) {
+        const h = Math.round((w * crop.box.height) / crop.box.width)
+        const info = await sharp(join(from, source.file))
+          .extract(crop.box)
+          .resize(w, h)
+          .webp({ quality: 72, effort: 6, smartSubsample: true })
+          .toFile(join(out, `${source.slug}-${kind}-${w}.webp`))
+        console.log(
+          `${source.slug}-${kind}-${w}.webp  ${info.width}x${info.height}  ${info.size} bytes`,
+        )
       }
     }
   }

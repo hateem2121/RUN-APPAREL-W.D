@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoImage, stepPhotoSrcSet } from '../../lib/factoryPhotos'
 import { ORDER_PHASES } from '../../lib/orderProcess'
 import { OrderStagesList } from './OrderStagesList'
 
@@ -48,6 +48,29 @@ const PHOTOS = new Map(FACTORY_PHOTOS.map((photo) => [photo.slug, photo]))
  */
 export const ORDER_STEP_SIZES = '(max-width: 899px) 100vw, 50vw'
 
+/**
+ * WHEN A STEP TAKES ITS OWN CROP (2026-11-11, owner: "Yes, tall copies"). In the stack (motion
+ * allowed) a step's photo fills a box the screen's width (below 900px) or half of it, and at least
+ * the screen's height less 8px a card: `min-block-size: calc(100svh - var(--step) * 8px)`, at most
+ * 56px less. The photo is `object-fit: cover`, so a crop that is NOT narrower than its box keeps its
+ * full height and loses only a strip at each side, exactly as the old file did. So each condition
+ * below promises a box no wider than its crop, with room for the 56px:
+ *
+ * - `phone` (3:5 = 0.6): a screen at most 11:20 (0.55) below 900px, so the box is at most
+ *   0.55 × h / (h − 56), under 0.6 for any screen 670px tall or more;
+ * - `card` (9:10): at most 4:5 below 900px, or 8:5 from 900px where the box is half the width:
+ *   at most 0.87 for a 700px-tall screen, under 0.9.
+ *
+ * Under reduced motion the cards are a plain list, two steps to a screen, and a box can be wider
+ * than either crop (a tablet's is 1.5:1), so there, and on any wider screen, the step keeps the file
+ * it had. `e2e/orderTimeline.spec.ts` measures the drawn boxes against these promises.
+ */
+export const STEP_CROP_MEDIA = {
+  phone:
+    '(prefers-reduced-motion: no-preference) and (max-width: 899px) and (max-aspect-ratio: 11/20)',
+  card: '(prefers-reduced-motion: no-preference) and (max-width: 899px) and (max-aspect-ratio: 4/5), (prefers-reduced-motion: no-preference) and (min-width: 900px) and (max-aspect-ratio: 8/5)',
+} as const
+
 /** How many steps there are in all: the last one has no next step to sink under. */
 const STEP_COUNT = ORDER_PHASES.reduce((sum, { steps }) => sum + steps.length, 0)
 
@@ -76,6 +99,8 @@ export function OrderSteps() {
                 const photo = PHOTOS.get(step.photo)
                 const image = photo ? factoryPhotoImage(photo) : null
                 const [across, down] = photo?.focus ?? [50, 50]
+                const phoneSet = photo ? stepPhotoSrcSet(photo, 'phone') : null
+                const cardSet = photo ? stepPhotoSrcSet(photo, 'card') : null
                 return (
                   // ⚠️ THREE BOXES FOR ONE CARD, so iPhone Safari's bar can forget a card (2026-10-20).
                   // The list item keeps the role; the slot is what sticks in a phone's stack and paints
@@ -125,20 +150,39 @@ export function OrderSteps() {
                           <p className="order-step__detail">{step.detail}</p>
                         </div>
                         {photo && image ? (
-                          // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); the widths are pre-built files, picked by srcSet.
-                          <img
-                            className="order-step__photo"
-                            src={image.src}
-                            srcSet={image.srcSet}
-                            sizes={ORDER_STEP_SIZES}
-                            width={image.width}
-                            height={image.height}
-                            alt={photo.alt}
-                            // Which part of the file stays when the half cuts it: a value per picture.
-                            style={{ objectPosition: `${across}% ${down}%` }}
-                            loading="lazy"
-                            decoding="async"
-                          />
+                          // `display: contents` (site.css): the <img> stays the box that is drawn.
+                          <picture className="order-step__picture">
+                            {phoneSet ? (
+                              <source
+                                media={STEP_CROP_MEDIA.phone}
+                                srcSet={phoneSet}
+                                sizes="100vw"
+                              />
+                            ) : null}
+                            {cardSet ? (
+                              <source
+                                media={STEP_CROP_MEDIA.card}
+                                srcSet={cardSet}
+                                sizes={ORDER_STEP_SIZES}
+                              />
+                            ) : null}
+                            {/* A plain <img> (no `sharp` on Workers, so next/image cannot resize; ProductPoster.tsx measures why): the widths are pre-built files, picked by srcSet. */}
+                            <img
+                              className="order-step__photo"
+                              src={image.src}
+                              srcSet={image.srcSet}
+                              sizes={ORDER_STEP_SIZES}
+                              width={image.width}
+                              height={image.height}
+                              alt={photo.alt}
+                              // Which part of the file stays when the half cuts it: a value per picture.
+                              // The step crops keep it too: each was cut so the same value shows the
+                              // same window (`STEP_CROPS` in scripts/build-factory-photos.mjs).
+                              style={{ objectPosition: `${across}% ${down}%` }}
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          </picture>
                         ) : null}
                       </div>
                     </div>

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import { FACTORY_PHOTOS, factoryPhotoWidths } from '../src/lib/factoryPhotos'
+import { FACTORY_PHOTOS, factoryPhotoWidths, STEP_CROP_WIDTHS } from '../src/lib/factoryPhotos'
 import { ORDER_PHASES } from '../src/lib/orderProcess'
 import { expect, type Page, test } from './offlineMedia'
 import { hintedWidth } from './sizesHint'
@@ -1048,4 +1048,60 @@ test.describe('Safari’s bottom strip — a step is shown to it only while it c
       .poll(fade, { message: 'past the stack: the fade is still shown' })
       .toBe('"" sticky hidden')
   })
+})
+
+/*
+ * The steps' own crops (2026-11-11, owner: "Yes, tall copies"). `OrderSteps.tsx` (`STEP_CROP_MEDIA`)
+ * promises a crop only where the card is no wider than it, so `cover` cuts only its sides and the
+ * window is the one the old file showed (`factoryPhotos.test.ts` proves the geometry). This holds
+ * what only a browser can say: which file each screen really loads, and the box it fills.
+ * What would have to break: a media query that hands a phone crop to a box wider than 3:5 (the top
+ * and foot of the photo cut off), reduced motion taking a crop its plain list cannot fit, or a
+ * screen still handed the stretched old file where a crop was promised.
+ */
+test.describe('2026-11-11 — each step photo is cut to its card, never wider than the card', () => {
+  for (const [width, height, motion, expected] of [
+    [390, 844, 'no-preference', 'phone'],
+    [768, 1024, 'no-preference', 'card'],
+    [1440, 900, 'no-preference', 'card'],
+    [1920, 1080, 'no-preference', 'old'],
+    [390, 844, 'reduce', 'old'],
+    [768, 1024, 'reduce', 'old'],
+  ] as const) {
+    test(`${width}x${height}, motion ${motion}: the ${expected} files`, async ({ page }) => {
+      await open(page, width, height, { motion })
+      const ASPECT = { phone: 3 / 5, card: 9 / 10 }
+      const loaded = await page.locator('.order-step__photo').evaluateAll(async (all) => {
+        const out: { src: string; ratio: number }[] = []
+        for (const element of all) {
+          const img = element as HTMLImageElement
+          // Lazy pictures load as they come near; asking now loads the file the browser chose.
+          img.loading = 'eager'
+          await img.decode().catch(() => undefined)
+          const box = img.getBoundingClientRect()
+          out.push({ src: new URL(img.currentSrc).pathname, ratio: box.width / box.height })
+        }
+        return out
+      })
+      expect(loaded).toHaveLength(8)
+      for (const [index, image] of loaded.entries()) {
+        const photo = photoOf(STEPS[index]?.photo ?? '')
+        const label = `step ${index + 1} (${photo?.slug}): ${image.src}`
+        const kind =
+          expected === 'old' || (expected === 'card' && !STEP_CROP_WIDTHS[photo?.slug ?? '']?.card)
+            ? 'old'
+            : expected
+        if (kind === 'old') {
+          expect(image.src, label).toMatch(new RegExp(`^/factory/${photo?.slug}-\\d+\\.webp$`))
+        } else {
+          expect(image.src, label).toMatch(
+            new RegExp(`^/factory/${photo?.slug}-${kind}-\\d+\\.webp$`),
+          )
+          expect(image.ratio, `${label}: the card is wider than its crop`).toBeLessThanOrEqual(
+            ASPECT[kind] + 0.005,
+          )
+        }
+      }
+    })
+  }
 })
