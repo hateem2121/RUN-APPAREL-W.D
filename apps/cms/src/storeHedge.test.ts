@@ -253,27 +253,40 @@ describe('hedgeable', () => {
   })
 })
 
+/*
+ * Live 11 Nov 2026: the switch used to be KV `store-hedge`, read once per 30 s per Worker copy AFTER
+ * the page keys and before the store was asked. In a quiet data centre every visit paid that extra
+ * KV trip: UptimeRobot's home-page checks took a median 105 ms on 10 Nov and 188–203 ms on 11 Nov,
+ * and a probe every 10 s saw a 170–205 ms answer exactly every third request, on two pages at once.
+ * The switch is now a wrangler var, as PAGE_COPY is: deciding to hedge must read nothing.
+ */
 describe('hedgeOn', () => {
-  beforeEach(() => {
-    ;(globalThis as { __runKvMemo?: Map<string, unknown> }).__runKvMemo = new Map()
-  })
-  const kv = (value: string | null | Error) => ({
-    get: async () => {
-      if (value instanceof Error) throw value
-      return value
-    },
+  it('is off only when the STORE_HEDGE setting says "off"', () => {
+    expect(hedgeOn({ STORE_HEDGE: 'off' })).toBe(false)
   })
 
-  it('is off only when KV store-hedge says "off"', async () => {
-    expect(await hedgeOn(kv('off'))).toBe(false)
+  it('stays on for no setting, any other value, or no env at all', () => {
+    expect(hedgeOn({})).toBe(true)
+    expect(hedgeOn({ STORE_HEDGE: 'on' })).toBe(true)
+    expect(hedgeOn(undefined)).toBe(true)
   })
 
-  it('stays on for no value, any other value, or a KV read that fails', async () => {
-    expect(await hedgeOn(kv(null))).toBe(true)
-    ;(globalThis as { __runKvMemo?: Map<string, unknown> }).__runKvMemo = new Map()
-    expect(await hedgeOn(kv('on'))).toBe(true)
-    ;(globalThis as { __runKvMemo?: Map<string, unknown> }).__runKvMemo = new Map()
-    expect(await hedgeOn(kv(new Error('KV over its limit')))).toBe(true)
+  it('reads nothing from KV: the decision costs no trip', () => {
+    const get = vi.fn(async () => 'off')
+    const env = { STORE_HEDGE: 'on', SITE_CACHE: { get } }
+    expect(hedgeOn(env)).toBe(true)
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('ships with the hedge on, as a setting in wrangler.jsonc', () => {
+    const wrangler = JSON.parse(
+      readFileSync(join(import.meta.dirname, '..', 'wrangler.jsonc'), 'utf8')
+        .split('\n')
+        .filter((line) => !line.trim().startsWith('//'))
+        .join('\n')
+        .replace(/\/\*[\s\S]*?\*\//g, ''),
+    ) as { vars: Record<string, string> }
+    expect(wrangler.vars.STORE_HEDGE).toBe('on')
   })
 })
 
@@ -294,7 +307,9 @@ describe('worker.mjs hedges a page and a tap miss', () => {
 
   it('asks the store through hedgedAnswer, only for a hedgeable request with the switch on', () => {
     for (const part of [pages, taps]) {
-      expect(part).toMatch(/if \(hedgeable\(request\) && \(await hedgeOn\(env\.SITE_CACHE\)\)\) \{/)
+      expect(part).toMatch(/if \(hedgeable\(request\) && hedgeOn\(env\)\) \{/)
+      // No KV wait between the timer starting and the store being asked (11 Nov 2026).
+      expect(part).not.toMatch(/await hedgeOn/)
       expect(part).toMatch(/await hedgedAnswer\(\{\s+askStore,/)
       expect(part).toMatch(/drawDirect: \(\) => openNext\.fetch\(request, env, ctx\),/)
       expect(part).toMatch(/headStartMs: HEDGE_HEAD_START_MS,/)

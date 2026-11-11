@@ -188,7 +188,7 @@ async function fromSharedStore(request, env, ctx) {
     // A visitor's page the store does not hold is not left waiting on a cold SitePages
     // (storeHedge.mjs, 11 Nov 2026): after the head start the copy is read and the page drawn here.
     let kept
-    if (hedgeable(request) && (await hedgeOn(env.SITE_CACHE))) {
+    if (hedgeable(request) && hedgeOn(env)) {
       const answer = await hedgedAnswer({
         askStore,
         askCopy: () => answerFromCopy(clean, env),
@@ -253,7 +253,7 @@ async function fromTapStore(request, env, ctx) {
       store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
     // A visitor's tap the store does not hold: drawn here after the head start (storeHedge.mjs).
     let kept
-    if (hedgeable(request) && (await hedgeOn(env.SITE_CACHE))) {
+    if (hedgeable(request) && hedgeOn(env)) {
       const answer = await hedgedAnswer({
         askStore,
         drawDirect: () => openNext.fetch(request, env, ctx),

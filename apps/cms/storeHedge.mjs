@@ -18,13 +18,8 @@
  * fail the caller draws the page as before the store.
  */
 
-import { memoKvGet } from './pageCache.mjs'
-
 /** The larger of the page and tap hit p95 (39 ms and 13 ms, 24 h to 11 Nov 2026), rounded up. */
 export const HEDGE_HEAD_START_MS = 40
-
-/** KV SITE_CACHE `store-hedge` = `off` turns the hedge off within 30 s, with no deploy. */
-export const HEDGE_SWITCH_KEY = 'store-hedge'
 
 /** Our warm-up robot and Globalping's probes: nobody waits on them (plan ruling 1, 28 Oct). */
 const NEVER_HEDGED_AGENTS = /run-apparel-store-warmup|globalping/i
@@ -46,14 +41,20 @@ export function hedgeable(request) {
 }
 
 /**
- * On unless KV says `off`. Read through memoKvGet (once per 30 s per Worker copy): the account's
- * KV reads were at their free limit on 10 Nov. A failed read leaves the hedge ON.
+ * On unless the wrangler var STORE_HEDGE says `off` (apps/cms/wrangler.jsonc). Turning it off takes a
+ * PR and a deploy, as PAGE_COPY does.
  *
- * @param {{ get: (key: string, options: { cacheTtl: number }) => Promise<string | null> }} kv
+ * ⚠️ NEVER READ THIS FROM KV AGAIN (11 Nov 2026). It was KV `store-hedge`, read once per 30 s per
+ * Worker copy, and the read sat between the page keys and the store: in a quiet data centre every
+ * visit paid one more KV trip. UptimeRobot's home-page checks went from a median 105 ms (10 Nov) to
+ * 188–203 ms (11 Nov); a probe every 10 s saw 170–205 ms on exactly every third request, on two
+ * pages at once. A var costs nothing to read.
+ *
+ * @param {{ STORE_HEDGE?: string } | undefined} env
+ * @returns {boolean}
  */
-export async function hedgeOn(kv) {
-  const value = await memoKvGet(kv, HEDGE_SWITCH_KEY).catch(() => null)
-  return value !== 'off'
+export function hedgeOn(env) {
+  return env?.STORE_HEDGE !== 'off'
 }
 
 /** Read a losing answer's body to the end, so Workers Cache stores what it drew. */

@@ -239,6 +239,10 @@
     // every page it does not hold, as before the copy. A var, not a KV key: KV was at its free
     // limit of 100,000 reads a day that week, and this must add no read.
     "PAGE_COPY": "on",
+    // The store-miss hedge's off switch (storeHedge.mjs hedgeOn, 11 Nov 2026). "off" asks the store
+    // and waits, as before the hedge. A var, not KV: as KV `store-hedge` it cost every visit in a
+    // quiet data centre one more KV trip (UptimeRobot's home page: median 105 → 188–203 ms).
+    "STORE_HEDGE": "on",
     // Public URL of this CMS worker (used to absolutise media URLs when R2 public access is not configured).
     "CMS_PUBLIC_URL": "https://cms.wear-run.help",
     // Public base URL for R2 media. Media is served direct from R2 at
