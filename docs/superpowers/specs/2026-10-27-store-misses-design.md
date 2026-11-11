@@ -107,7 +107,9 @@ copy would ask for files the new deploy no longer has, the failure behind the 3D
 - `Server-Timing` names the winner (`page-cache;desc="miss-direct"`), so the measure-taps script,
   the warm-ups and the Workers logs can tell a hedged miss from a hit.
 - The KV off switches keep working, and a third one, `store-hedge` = `off`, turns the hedge off
-  without a deploy.
+  without a deploy. *(Changed 11 Nov 2026: the hedge's switch is now the wrangler var
+  `STORE_HEDGE` in `apps/cms/wrangler.jsonc`, because the KV read cost every visit in a quiet data
+  centre one more KV trip — see `hedgeOn` in `apps/cms/storeHedge.mjs`.)*
 
 ## Step 0: experiments before building (read-only or throwaway)
 
