@@ -33,6 +33,7 @@
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { LIVE_PRODUCTS } from './live-products.mjs'
+import { withOneRetry } from './smoke-retry.mjs'
 
 const SMOKE = join(import.meta.dirname, 'smoke-viewer-preview.mjs')
 // The garment folder on the website since the domain move of 2026-09-28.
@@ -52,8 +53,8 @@ const viewerBase = process.argv[2] ?? 'https://wear-run.com/products'
  */
 const PARALLEL = 4
 
-/** Run one product's smoke; print its output as one block, never interleaved. */
-function smoke({ slug, colourway }) {
+/** Run one product's smoke once, collecting its output. */
+function smokeOnce({ slug, colourway }) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [SMOKE, viewerBase, slug, colourway])
     let output = ''
@@ -63,11 +64,19 @@ function smoke({ slug, colourway }) {
     child.stderr.on('data', (chunk) => {
       output += chunk
     })
-    child.on('close', (code) => {
-      console.log(`\n=== ${slug}/${colourway} ===\n${output.trimEnd()}`)
-      resolve(code === 0 ? null : `${slug}/${colourway}`)
-    })
+    child.on('close', (code) => resolve({ code, output }))
   })
+}
+
+/**
+ * Run one product's smoke; print its output as one block, never interleaved. A run that died on a
+ * dropped connection gets one more try (smoke-retry.mjs: 11 Nov 2026, one ECONNRESET skipped every
+ * post-deploy step behind this one); a failed check never does.
+ */
+async function smoke(product) {
+  const { code, output } = await withOneRetry(() => smokeOnce(product))
+  console.log(`\n=== ${product.slug}/${product.colourway} ===\n${output.trimEnd()}`)
+  return code === 0 ? null : `${product.slug}/${product.colourway}`
 }
 
 const [first, ...rest] = LIVE_PRODUCTS
