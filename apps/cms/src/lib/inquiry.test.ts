@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   cleanText,
-  inquirySubject,
   formatInquiryEmail,
   joinPhone,
   HONEYPOT_FIELD,
@@ -17,10 +16,11 @@ const good = {
   company: 'Northfield Athletic',
   email: 'dana@northfield.example',
   message: 'We need 400 training tops in two colourways for a March delivery.',
-  // The optional details (2026-09-29), empty as most inquiries leave them.
+  // The phone is required since 2026-11-10 (owner). The other details (2026-09-29) are optional,
+  // empty as most inquiries leave them.
+  phone: '+44 7700 900123',
   jobTitle: '',
   country: '',
-  phone: '',
   subject: '',
 }
 
@@ -72,7 +72,6 @@ describe('validateInquiry', () => {
         ...good,
         jobTitle: ' ',
         country: '',
-        phone: '',
         subject: '',
       })
       expect(result.ok).toBe(true)
@@ -103,15 +102,12 @@ describe('validateInquiry', () => {
       // Letters in the code field are dropped, not trusted.
       ['+9x2', '300', '+92 300'],
     ])('phone: code %j + number %j → %j', (phoneCode, phone, expected) => {
-      const result = validateInquiry({ ...good, phoneCode, phone })
-      if (!result.ok) throw new Error('refused')
-      expect(result.value.phone).toBe(expected)
+      // How the two boxes are joined, apart from whether the result is long enough to call.
+      expect(joinPhone(phoneCode, phone)).toBe(expected)
     })
 
     it('keeps the phone within its column even with a long code', () => {
-      const result = validateInquiry({ ...good, phoneCode: '99999999', phone: '1'.repeat(80) })
-      if (!result.ok) throw new Error('refused')
-      expect(result.value.phone.length).toBeLessThanOrEqual(MAX_LENGTHS.phone)
+      expect(joinPhone('99999999', '1'.repeat(80)).length).toBeLessThanOrEqual(MAX_LENGTHS.phone)
     })
   })
 
@@ -129,6 +125,8 @@ describe('validateInquiry', () => {
     ['name', 'Please tell us your name.'],
     ['email', 'Please give us an email address to reply to.'],
     ['message', 'Please tell us what you are making.'],
+    // Required since 2026-11-10 (owner).
+    ['phone', 'Please give us a phone number to reach you.'],
   ])('requires %s', (field, message) => {
     const result = validateInquiry({ ...good, [field]: '   ' })
     expect(result.ok).toBe(false)
@@ -139,7 +137,8 @@ describe('validateInquiry', () => {
     const result = validateInquiry({})
     expect(result.ok).toBe(false)
     // A form that reveals its problems one refresh at a time is how people give up.
-    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['email', 'message', 'name'])
+    if (!result.ok)
+      expect(Object.keys(result.errors).sort()).toEqual(['email', 'message', 'name', 'phone'])
   })
 
   /**
@@ -273,17 +272,7 @@ describe('the notification email', () => {
     expect(body).toContain('wear-run.com')
     expect(body).not.toContain('wear-run.help')
   })
-
-  it("adds the buyer's own subject to the mail subject, still bounded", () => {
-    expect(inquirySubject(full)).toBe('Inquiry — Northfield Athletic — Spring training tops')
-    expect(inquirySubject({ ...full, subject: 'y'.repeat(400) }).length).toBe(160)
-  })
-
-  it('subjects are scannable in a list and bounded', () => {
-    expect(inquirySubject(good)).toBe('Inquiry — Northfield Athletic')
-    expect(inquirySubject({ ...good, company: '' })).toBe('Inquiry — Dana Okafor')
-    expect(inquirySubject({ ...good, company: 'z'.repeat(400) }).length).toBeLessThanOrEqual(160)
-  })
+  // The mail subject moved to `teamSubject` (inquiryEmailHtml.ts) on 2026-11-10; its tests with it.
 })
 
 /*
@@ -383,5 +372,32 @@ describe('joinPhone drops the national trunk 0 after a country code', () => {
 
   it('leaves a number without a leading 0 alone', () => {
     expect(joinPhone('92', '300 1234567')).toBe('+92 300 1234567')
+  })
+})
+
+describe('the phone (required since 2026-11-10, owner)', () => {
+  it.each([
+    ['300', 'too short to call back'],
+    ['call me', 'words, not a number'],
+    ['1'.repeat(16), "longer than E.164's 15 digits"],
+  ])('refuses %j: %s', (phone) => {
+    const result = validateInquiry({ ...good, phone })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.errors.phone).toBe('That does not look like a phone number.')
+  })
+
+  it('refuses a code with no number, which is no phone at all', () => {
+    const result = validateInquiry({ ...good, phoneCode: '+44', phone: '' })
+    expect(result.ok).toBe(false)
+  })
+
+  it('accepts every shape a buyer types', () => {
+    for (const [phoneCode, phone] of [
+      ['+92', '300 1234567'],
+      ['', '07700 900123'],
+      ['+1 ', '(555) 010-0000'],
+      ['+44', '+44 7700 900123'],
+    ])
+      expect(validateInquiry({ ...good, phoneCode, phone }).ok, `${phoneCode} ${phone}`).toBe(true)
   })
 })

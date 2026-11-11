@@ -188,6 +188,7 @@ const HOOK_TESTS = [
   'guard-pipeline-input',
   'guard-main-branch',
   'guard-coverage-floor',
+  'guard-live-form',
   'log-instructions-loaded',
   'explain-failure',
   'recall-nested-instructions',

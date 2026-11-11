@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { HTML_LIMITED_BOTS } from '../htmlLimitedBots.mjs'
 import {
+  forgetKvMemo,
+  memoKvGet,
   BROWSER_CACHE_CONTROL,
   CONTENT_VERSION_KEY,
   drawingToKeep,
@@ -19,6 +21,7 @@ import {
   keptBuild,
   keptRenders,
   keptStoreKey,
+  keptStoreKeys,
   PAGE_CACHE_SECONDS,
   PER_DEPLOY,
   pageCacheKey,
@@ -322,6 +325,75 @@ describe('the shared store’s key (Workers Cache, 2026-10-24)', () => {
   })
 })
 
+// The KV memo (below) lives for the isolate; every test here starts with it empty.
+beforeEach(() => {
+  forgetKvMemo()
+})
+
+/*
+ * 10 Nov 2026: `run-apparel-site-page-cache` read up to 100,905 keys a day (free limit 100,000),
+ * because every page asked KV for three keys and every tap for four; `cacheTtl` makes a read fast,
+ * not free (KV pricing: "per-key basis"). Each isolate now asks once per VERSION_CACHE_SECONDS.
+ */
+describe('memoKvGet: one KV read per key per isolate per 30 seconds', () => {
+  const counting = (values: Record<string, string | null>, fail = false) => {
+    const calls: string[] = []
+    return {
+      calls,
+      get: async (key: string, _options?: unknown) => {
+        calls.push(key)
+        if (fail) throw new Error('KV down')
+        return values[key] ?? null
+      },
+    }
+  }
+
+  it('asks KV once for two reads of a key within 30 seconds', async () => {
+    const kv = counting({ 'content-version': 'c1' })
+    expect(await memoKvGet(kv, 'content-version', 1_000)).toBe('c1')
+    expect(await memoKvGet(kv, 'content-version', 1_000 + 29_999)).toBe('c1')
+    expect(kv.calls).toEqual(['content-version'])
+  })
+
+  it('asks again once 30 seconds have passed, and sees a save', async () => {
+    const values = { 'content-version': 'c1' }
+    const kv = counting(values)
+    await memoKvGet(kv, 'content-version', 1_000)
+    values['content-version'] = 'c2'
+    expect(await memoKvGet(kv, 'content-version', 1_000 + VERSION_CACHE_SECONDS * 1000)).toBe('c2')
+    expect(kv.calls).toHaveLength(2)
+  })
+
+  it('shares one read between calls made at the same moment', async () => {
+    const kv = counting({ 'page-store-mode': null })
+    await Promise.all([memoKvGet(kv, 'page-store-mode', 5), memoKvGet(kv, 'page-store-mode', 5)])
+    expect(kv.calls).toHaveLength(1)
+  })
+
+  it('keeps the last good value when KV fails, and fails as before when it has none', async () => {
+    await memoKvGet(counting({ 'content-version': 'c1' }), 'content-version', 1_000)
+    const down = counting({}, true)
+    expect(await memoKvGet(down, 'content-version', 1_000 + 60_000)).toBe('c1')
+    forgetKvMemo()
+    await expect(memoKvGet(down, 'content-version', 1_000)).rejects.toThrow('KV down')
+  })
+
+  // NEGATIVE CONTROL: with the memo emptied between reads, every read reaches KV, as before.
+  it('reaches KV every time once forgotten, which is how it worked before 10 Nov', async () => {
+    const kv = counting({ 'content-version': 'c1' })
+    await memoKvGet(kv, 'content-version', 1_000)
+    forgetKvMemo()
+    await memoKvGet(kv, 'content-version', 1_001)
+    expect(kv.calls).toHaveLength(2)
+  })
+
+  it('a page key costs at most three KV reads per isolate per 30 seconds', async () => {
+    const kv = counting({ 'content-version': 'c1' })
+    for (let i = 0; i < 50; i++) await keptStoreKeys(`https://${SITE_HOST}/p${i}`, 'd1', kv, 'dep')
+    expect(kv.calls.length).toBe(3)
+  })
+})
+
 /*
  * 2026-10-25 (owner's plan): a save marks the kept copies stale instead of changing the key, so a
  * region's next visitor is answered at once while the new copy is drawn; KV's 'page-store-mode' =
@@ -348,9 +420,11 @@ describe('the key a request is kept under, and its off switch', () => {
   it('switched to "versioned", keys by the content version again, as before 2026-10-25', async () => {
     const off = { [STORE_MODE_KEY]: 'versioned' }
     const before = await keptStoreKey(url, 'd1', kv({ ...off, 'content-version': 'c1' }))
+    forgetKvMemo() // the save, read 30 s later (memoKvGet's life)
     const after = await keptStoreKey(url, 'd1', kv({ ...off, 'content-version': 'c2' }))
     expect(before).toBe(sharedCacheKey(url, 'd1', 'c1'))
     expect(after).not.toBe(before)
+    forgetKvMemo()
     expect(await keptStoreKey(url, 'd1', kv(off))).toBe(sharedCacheKey(url, 'd1', 'none'))
   })
 
@@ -364,11 +438,28 @@ describe('the key a request is kept under, and its off switch', () => {
       sharedCacheKey(url, build, 'live'),
     )
     const switched = kv({ [STORE_BUILD_KEY]: PER_DEPLOY })
+    forgetKvMemo() // the switch, read 30 s later (memoKvGet's life)
     expect(await keptStoreKey(url, build, switched, 'deploy-1')).toBe(
       sharedCacheKey(url, 'deploy-1', 'live'),
     )
     // Without a deploy id (the garment data passes its data shape), the switch is never read.
     expect(await keptStoreKey(url, build, switched)).toBe(sharedCacheKey(url, build, 'live'))
+  })
+
+  // Shared page copy (10 Nov 2026): the copy is named from what the key already read, no extra KV.
+  it('keptStoreKeys hands back the content version and the name it keyed by, with the same key', async () => {
+    const values = kv({ 'content-version': 'c9' })
+    const keys = await keptStoreKeys(url, 'd1', values)
+    expect(keys).toEqual({
+      cacheKey: await keptStoreKey(url, 'd1', values),
+      contentVersion: 'c9',
+      named: 'd1',
+    })
+    forgetKvMemo()
+    expect((await keptStoreKeys(url, 'd1', kv({}))).contentVersion).toBeNull()
+    forgetKvMemo()
+    const perDeploy = kv({ [STORE_BUILD_KEY]: PER_DEPLOY })
+    expect((await keptStoreKeys(url, 'd1', perDeploy, 'deploy-1')).named).toBe('deploy-1')
   })
 
   it('a switch that cannot be read leaves the new behaviour on', async () => {
@@ -692,7 +783,10 @@ describe('what the cache relies on', () => {
       await keptStoreKey('https://wear-run.com/about', 'deploy-B', kv),
     )
     // worker.mjs builds every page and tap key from the deploy id, never from anything else.
-    const pageAndTapKeys = [...worker.matchAll(/kept(?:Tap)?StoreKey\(([^)]*)\)/g)].map((m) => m[1])
+    // keptStoreKeys (10 Nov 2026, shared page copy) is the same key plus what it read.
+    const pageAndTapKeys = [...worker.matchAll(/kept(?:Tap)?StoreKeys?\(([^)]*)\)/g)].map(
+      (m) => m[1],
+    )
     expect(pageAndTapKeys.length).toBeGreaterThanOrEqual(2)
     for (const args of pageAndTapKeys) expect(args).toMatch(/,\s*deploy,/)
   })
@@ -736,13 +830,17 @@ describe('what the cache relies on', () => {
     const guard =
       /if \(kept\.status >= 300 && kept\.status < 400\) \{\s*await kept\.body\?\.cancel\(\)\s*return null\s*\}/
     expect(method).toMatch(guard)
-    expect(method.search(guard)).toBeLessThan(method.indexOf('return {'))
+    // Before the store's answer is handed on. (A hedged tap drawn directly, storeHedge.mjs, is the
+    // visitor's own request, exactly what drawing it after this guard gives.)
+    const served = method.indexOf('state: storeState(kept.headers)')
+    expect(served).toBeGreaterThan(-1)
+    expect(method.search(guard)).toBeLessThan(served)
   })
 
   it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
     expect(worker).not.toMatch(/CONTENT_VERSION_KEY/)
     expect(worker).toMatch(
-      /await keptStoreKey\(\s*request\.url,\s*deploy,\s*env\.SITE_CACHE,\s*env\.CF_VERSION_METADATA\?\.id,?\s*\)/,
+      /await keptStoreKeys?\(\s*request\.url,\s*deploy,\s*env\.SITE_CACHE,\s*env\.CF_VERSION_METADATA\?\.id,?\s*\)/,
     )
     // The build, not the deploy, names a kept page (keptBuild, 4 Nov 2026), for pages and taps.
     expect(worker.match(/const deploy = keptBuild\(env\)/g)).toHaveLength(2)
@@ -752,7 +850,10 @@ describe('what the cache relies on', () => {
   })
 
   it('worker.mjs asks the store never to follow a redirect', () => {
-    const calls = [...worker.matchAll(/store\.fetch\(([^)]*\([^)]*\)[^)]*)\)/g)].map((m) => m[1])
+    // Every call, with or without a nested call inside: the page call became `store.fetch(clean,
+    // …)` on 10 Nov 2026 (shared page copy), which the old pattern skipped without failing.
+    const calls = [...worker.matchAll(/store\.fetch\(((?:[^()]|\([^()]*\))*)\)/g)].map((m) => m[1])
+    expect(calls.length).toBe((worker.match(/store\.fetch\(/g) ?? []).length)
     expect(calls.length).toBeGreaterThan(0)
     for (const call of calls) expect(call).toMatch(/redirect:\s*'manual'/)
   })
@@ -771,7 +872,9 @@ describe('what the cache relies on', () => {
       expect(start, `worker.mjs has no ${name}`).toBeGreaterThan(-1)
       const method = worker.slice(start, worker.indexOf('\n}\n', start))
       const clock = method.indexOf('const askedAt = Date.now()')
-      const asked = method.indexOf('await store.fetch(')
+      // The store is asked through askStore (storeHedge.mjs, 11 Nov 2026), hedged or not.
+      const asked = method.indexOf('const askStore = ')
+      expect(method).toMatch(/const askStore = (?:async )?\(\) =>\s+store\.fetch\(/)
       const logged = method.indexOf(`console.log(storeAnswerLog('${kind}', `)
       expect(clock, `${kind}: no clock is started before the store is asked`).toBeGreaterThan(-1)
       expect(clock).toBeLessThan(asked)

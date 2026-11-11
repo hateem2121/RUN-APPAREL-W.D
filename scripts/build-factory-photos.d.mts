@@ -47,6 +47,43 @@ export declare const ABOUT_HERO_SOURCES: {
   focus: [number, number]
 }[]
 
+/** The "Inside the factory" hero's 4:5 card from 900px (2026-11-11): the window the 16:9 file showed. */
+export declare const FACTORY_HERO_SOURCES: {
+  slug: string
+  file: string
+  original: [number, number]
+  shape: 'heroTall'
+  widths: number[]
+  focus: [number, number]
+}[]
+
+/** The order steps' own crops (2026-11-11): `phone` 3:5, `card` 9:10 (wide photos only). */
+export declare const STEP_CROPS: Record<'phone' | 'card', { aspect: number; widths: number[] }>
+
+/** Across, as a fraction: the page's `focus[0]` for each of the eight step photos. */
+export declare const STEP_VIEW: Record<
+  | 'showroom'
+  | 'lab'
+  | 'screen-printing'
+  | 'inspection'
+  | 'exterior'
+  | 'final-check'
+  | 'packing'
+  | 'tagging',
+  number
+>
+
+/** A step photo's crop box and widths for `kind`, or null where it has none. */
+export declare function stepCrop(
+  source: {
+    slug: string
+    original: [number, number]
+    shape: 'wide' | 'single'
+    focus: [number, number]
+  },
+  kind: 'phone' | 'card',
+): { box: { left: number; top: number; width: number; height: number }; widths: number[] } | null
+
 /**
  * The whole pictures (owner, 2026-11-05: never cut): two portraits and the four buyer pages' photos,
  * resized to the original's own shape. `original` is the pixel size and every width stays within it.

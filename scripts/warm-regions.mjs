@@ -193,8 +193,10 @@ export function regionWarmPlan(targets, countries, probesPerCountry) {
 /** One answer's store state from its `page-cache` or `api-cache` timing: hit, miss or other. */
 function storeState(result) {
   const timing = [result?.headers?.['server-timing'] ?? ''].flat().join(', ')
-  const state = /(?:page|api)-cache;desc="(hit|miss|skip)"/.exec(timing)?.[1]
-  return state === 'hit' || state === 'miss' ? state : 'other'
+  const state = /(?:page|api)-cache;desc="(hit|miss-direct|miss-copy|miss|skip)"/.exec(timing)?.[1]
+  // A hedged miss (storeHedge.mjs) is still a miss: the store did not hold the page.
+  if (state?.startsWith('miss')) return 'miss'
+  return state === 'hit' ? state : 'other'
 }
 
 /** Store states per probe country, from each answer's `page-cache` or `api-cache` timing. */

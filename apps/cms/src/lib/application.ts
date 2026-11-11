@@ -1,4 +1,4 @@
-import { clean, cleanText, joinPhone, LOOKS_LIKE_EMAIL } from './inquiry'
+import { clean, cleanText, joinPhone, LOOKS_LIKE_EMAIL, looksLikePhone } from './inquiry'
 
 /**
  * The careers form's validation and shaping — pure, like `inquiry.ts`, whose helpers it shares
@@ -58,13 +58,6 @@ type RequiredField = 'name' | 'phone' | 'role' | 'email'
 export type ApplicationResult =
   | { ok: true; value: ApplicationInput }
   | { ok: false; errors: Partial<Record<RequiredField, string>> }
-
-/** Seven digits is the shortest number anyone can call back; 15 is E.164's longest. */
-const looksLikePhone = (phone: string): boolean => {
-  if (/[a-z]/i.test(phone)) return false
-  const digits = phone.replace(/\D/g, '').length
-  return digits >= 7 && digits <= 15
-}
 
 const wholeYears = (raw: unknown): number | null => {
   const text = clean(raw, 3)

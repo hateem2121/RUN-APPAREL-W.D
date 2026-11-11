@@ -70,6 +70,8 @@ const list = (...items: readonly string[]): GuideBlock => ({ kind: 'list', items
 const APPROVED = '2026-10-07'
 /** "Our building" became "our works" in three policies: the works are six buildings (owner, 2026-10-15). */
 const SIX_BUILDINGS_APPROVED = '2026-10-15'
+/** The owner gave the solar share as 83% just after midnight on 11 Nov in Sialkot, still 10 Nov in UTC (it said about 80%). */
+const SOLAR_83_APPROVED = '2026-11-10'
 
 export const POLICIES: readonly Policy[] = [
   {
@@ -314,16 +316,16 @@ export const POLICIES: readonly Policy[] = [
     title: 'Environmental',
     metaTitle: 'Environmental Policy: Solar Power and Scraps',
     description:
-      'Solar power for about 80% of the factory’s electricity, scraps recycled or reused, and few chemicals and little waste water at our works.',
+      'Solar power for about 83% of the factory’s electricity, scraps recycled or reused, and few chemicals and little waste water at our works.',
     heading: 'What we use,',
     headingAccent: 'and what we save.',
     lede: 'This policy covers how we use energy and materials at the works.',
-    lastReviewed: SIX_BUILDINGS_APPROVED,
+    lastReviewed: SOLAR_83_APPROVED,
     group: 'production',
     sections: [
       section('commit', [
         list(
-          'Solar panels on the roof give about 80% of the factory’s electricity.',
+          'Solar panels on the roof give about 83% of the factory’s electricity.',
           'Fabric scraps are sold to recyclers, or reused for small items and padding.',
           'Very few chemicals are used at our works, because dyeing and finishing are done by our fabric suppliers.',
           'There is little waste water, because there is no dyeing on site.',

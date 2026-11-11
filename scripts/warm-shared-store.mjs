@@ -87,7 +87,9 @@ export async function warmTapTargets(paths, origin = SITE_ORIGIN) {
 export function storeVerdict(status, serverTiming) {
   if (status === 0 || status === 403 || status === 429 || status === 503) return 'inconclusive'
   if (status < 200 || status >= 300) return 'error'
-  const state = /(?:page|api)-cache;desc="(hit|miss|skip)"/.exec(serverTiming ?? '')?.[1]
+  const state = /(?:page|api)-cache;desc="(hit|miss-direct|miss-copy|miss|skip)"/.exec(
+    serverTiming ?? '',
+  )?.[1]
   return state ?? 'ok'
 }
 

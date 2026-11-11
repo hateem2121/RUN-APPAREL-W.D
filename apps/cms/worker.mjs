@@ -41,7 +41,7 @@ import {
   keptHeaders,
   keptRenderRequest,
   keptRenders,
-  keptStoreKey,
+  keptStoreKeys,
   pageCacheTiming,
   servedHeaders,
   storeAnswerLog,
@@ -51,6 +51,8 @@ import {
   wholeFile,
   wholePage,
 } from './pageCache.mjs'
+import { answerFromCopy, COPY_KEY_HEADER, copyKey, keepCopy, raceCopy } from './pageCopy.mjs'
+import { HEDGE_HEAD_START_MS, hedgeable, hedgedAnswer, hedgeOn } from './storeHedge.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
 import {
   keepableTapAnswer,
@@ -92,10 +94,14 @@ export class SitePages extends WorkerEntrypoint {
     if (keepableApiRequest(request)) {
       return keepApiAnswer(request, (clean) => openNext.fetch(clean, this.env, this.ctx))
     }
+    // A whole page this region does not hold yet: the drawing starts AT ONCE and races one R2
+    // read (pageCopy.mjs raceCopy, 11 Nov 2026: asking first made every miss wait up to 400 ms).
+    // Null for a tap, a kept file, no copy, R2 slow or down, or PAGE_COPY = "off": use the drawing.
     const render = { spoiled: false }
-    const response = await keptRenders().run(render, () =>
-      openNext.fetch(request, this.env, this.ctx),
-    )
+    const drawing = keptRenders().run(render, () => openNext.fetch(request, this.env, this.ctx))
+    const copied = await raceCopy(answerFromCopy(request, this.env), drawing, this.ctx)
+    if (copied) return copied
+    const response = await drawing
     // Tap data (tapStore.mjs): only fromSharedStore sends an `rsc` request here, already checked.
     if (request.headers.get('rsc') === '1') {
       const init = { status: response.status, statusText: response.statusText }
@@ -115,6 +121,8 @@ export class SitePages extends WorkerEntrypoint {
     }
     const text = await response.text()
     const whole = !render.spoiled && (file ? wholeFile(pathname, text) : wholePage(text))
+    // Only a whole page drawn from the database is copied for every region; keepCopy refuses files.
+    if (whole && !file) keepCopy(request, this.env, this.ctx, response.headers, text)
     const headers = whole ? keptHeaders(response.headers) : unkeptHeaders(response.headers)
     return new Response(text, { ...init, headers })
   }
@@ -159,7 +167,7 @@ async function fromSharedStore(request, env, ctx) {
   const store = ctx?.exports?.SitePages
   if (!deploy || !env.SITE_CACHE || !store) return null
   try {
-    const cacheKey = await keptStoreKey(
+    const { cacheKey, contentVersion, named } = await keptStoreKeys(
       request.url,
       deploy,
       env.SITE_CACHE,
@@ -167,12 +175,48 @@ async function fromSharedStore(request, env, ctx) {
     )
     // Drawn from a clean request: nothing this visitor sent may shape everyone's copy.
     const cf = { cacheKey }
+    // The shared page copy's name (pageCopy.mjs, 10 Nov 2026): SitePages asks R2 for it before
+    // drawing, so a region that does not hold the page yet is answered in one read.
+    const clean = keptRenderRequest(request, cf)
+    clean.headers.set(COPY_KEY_HEADER, copyKey(clean.url, named, contentVersion))
     // ⚠️ `redirect: 'manual'`, or a 308 from the store is FOLLOWED: this call has Fetch semantics
     // and follows a redirect out over the internet by default (Cloudflare, Workers RPC "Reserved
     // methods"). Live on 2026-10-25 (#247), /factory answered 200 with the factory page instead of
     // its 308. Manual hands the redirect back to withRedirectHeaders below, as before the store.
     const askedAt = Date.now()
-    const kept = await store.fetch(keptRenderRequest(request, cf), { cf, redirect: 'manual' })
+    const askStore = () => store.fetch(clean, { cf, redirect: 'manual' })
+    // A visitor's page the store does not hold is not left waiting on a cold SitePages
+    // (storeHedge.mjs, 11 Nov 2026): after the head start the copy is read and the page drawn here.
+    let kept
+    if (hedgeable(request) && (await hedgeOn(env.SITE_CACHE))) {
+      const answer = await hedgedAnswer({
+        askStore,
+        askCopy: () => answerFromCopy(clean, env),
+        drawDirect: () => openNext.fetch(request, env, ctx),
+        headStartMs: HEDGE_HEAD_START_MS,
+        waitUntil: (p) => ctx.waitUntil(p),
+      })
+      if (!answer) return null
+      if (answer.winner === 'direct') {
+        console.log(storeAnswerLog('page', 'miss-direct', Date.now() - askedAt))
+        return { state: 'miss-direct', response: answer.response }
+      }
+      if (answer.winner === 'copy') {
+        console.log(storeAnswerLog('page', 'miss-copy', Date.now() - askedAt))
+        const copied = answer.response
+        return {
+          state: 'miss-copy',
+          response: new Response(copied.body, {
+            status: copied.status,
+            statusText: copied.statusText,
+            headers: servedHeaders(copied.headers),
+          }),
+        }
+      }
+      kept = answer.response
+    } else {
+      kept = await askStore()
+    }
     console.log(storeAnswerLog('page', storeState(kept.headers), Date.now() - askedAt))
     if (request.method === 'HEAD') await kept.body?.cancel()
     return {
@@ -205,7 +249,26 @@ async function fromTapStore(request, env, ctx) {
     const cf = { cacheKey: await keptTapStoreKey(draw.url, deploy, env.SITE_CACHE, deployId) }
     // Never follow a redirect from the store: Next answers a wrong code with a 307 (#247's lesson).
     const askedAt = Date.now()
-    const kept = await store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
+    const askStore = async () =>
+      store.fetch(await tapDrawRequest(request, cf), { cf, redirect: 'manual' })
+    // A visitor's tap the store does not hold: drawn here after the head start (storeHedge.mjs).
+    let kept
+    if (hedgeable(request) && (await hedgeOn(env.SITE_CACHE))) {
+      const answer = await hedgedAnswer({
+        askStore,
+        drawDirect: () => openNext.fetch(request, env, ctx),
+        headStartMs: HEDGE_HEAD_START_MS,
+        waitUntil: (p) => ctx.waitUntil(p),
+      })
+      if (!answer) return null
+      if (answer.winner === 'direct') {
+        console.log(storeAnswerLog('tap', 'miss-direct', Date.now() - askedAt))
+        return { state: 'miss-direct', response: answer.response }
+      }
+      kept = answer.response
+    } else {
+      kept = await askStore()
+    }
     console.log(storeAnswerLog('tap', storeState(kept.headers), Date.now() - askedAt))
     // SitePages never keeps a redirect, so one here came from this drawing alone. Handed on, a code
     // Next read differently in the drawing would bounce every tap to this page between two codes

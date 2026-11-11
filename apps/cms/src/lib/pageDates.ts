@@ -38,12 +38,6 @@ const page = (on: string, words: string): PageDate => ({ on, words })
 /** The site check's words (2026-10-26): titles, em dashes, the factory and contact fixes. */
 const SITE_CHECK = '2026-10-26T16:22:42+05:00'
 /**
- * The hero picture offered to wide screens in AVIF as well (site speed, 2026-11-04): markup only,
- * the words the same, moved by the rule at the top of this file. Home was dated by the dye
- * (2026-10-26T23:49:22+05:00) and Contact by the one phone number (2026-10-26T20:13:15+05:00).
- */
-const WIDE_AVIF = '2026-11-04T19:52:09+05:00'
-/**
  * The legal framing of 2026-11-04 (owner's go-ahead after the legal review): DURUS INDUSTRIES
  * named as a separate family company, never a parent; RUN never a division; no GOTS claim; 1889
  * labelled the family's. `companyRelationship.test.ts` holds the words.
@@ -98,9 +92,11 @@ const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
 const GLOSSARY_SEVEN = '2026-11-06T22:35:29+05:00'
 /** The three held guides (C2, C3, C7) joined the guides hub and the FAQ topics that list them; same time as `bylines.ts`. */
 const HELD_GUIDES = '2026-11-06T22:45:00+05:00'
+/** The solar share corrected to 83% (owner, 2026-11-11): the home page's About band and the policies index draw it. */
+const SOLAR_83 = '2026-11-10T19:10:00+00:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(PRICE_TERMS, '00140939a970'),
+  '/': page(SOLAR_83, 'aeaf4aec97c3'),
   '/products': page(SITE_CHECK, '6c05164a0d6a'),
   '/custom-teamwear-manufacturer': page(WAVE_ONE, '16390fbc1582'),
   '/custom-activewear-manufacturer': page(WAVE_ONE, '9ec97e679558'),
@@ -109,7 +105,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
   '/guides': page(HELD_GUIDES, '088269a364a0'),
-  '/policies': page(LEGAL_FRAMING, '935cd64fac95'),
+  '/policies': page(SOLAR_83, 'cc95deadb339'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
   '/faq': page(PRICE_TERMS, 'bf487444473d'),
@@ -121,7 +117,10 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/glossary': page(GLOSSARY_SEVEN, 'd4a7273a6965'),
   '/journal': page(HELD_GUIDES, '4ffcb497f713'),
   '/case-studies': page(TECH_PACK_AND_TOOLS, '6dcc595d35ee'),
-  '/contact': page(WIDE_AVIF, 'dfbaaa5f5bcc'),
+  // "What happens next" beside the form (owner, 2026-11-11). Before: the phone became required
+  // (2026-11-10T22:50:33+05:00), the wide AVIF hero (2026-11-04T19:52:09+05:00), and the one phone
+  // number (2026-10-26T20:13:15+05:00).
+  '/contact': page('2026-11-11T00:51:52+05:00', '29e4985e1341'),
   '/privacy': page(TECH_PACK_AND_TOOLS, '716bb9c30b7a'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }

@@ -1,6 +1,11 @@
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param.js'
-import { describe, expect, it } from 'vitest'
-import { KEPT_RENDER_HEADERS } from '../pageCache.mjs'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { forgetKvMemo, KEPT_RENDER_HEADERS } from '../pageCache.mjs'
+
+// KV reads go through a per-isolate memo since 10 Nov 2026; each test starts with it empty.
+beforeEach(() => {
+  forgetKvMemo()
+})
 import {
   BROWSER_VARY,
   intentTreeFor,
@@ -255,7 +260,9 @@ describe('kept and served headers', () => {
 describe('tapStoreOn: the off switch', () => {
   it('is off only for the value "off"', async () => {
     expect(await tapStoreOn(kv({ 'rsc-store': 'off' }))).toBe(false)
+    forgetKvMemo() // each value read 30 s apart (pageCache.mjs memoKvGet's life)
     expect(await tapStoreOn(kv({}))).toBe(true)
+    forgetKvMemo()
     expect(await tapStoreOn(kv({ 'rsc-store': 'on' }))).toBe(true)
   })
 })

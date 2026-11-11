@@ -25,6 +25,9 @@ describe('storeStateOf', () => {
   it("reads the store's verdict from Server-Timing", () => {
     expect(storeStateOf('page-cache;desc="hit"')).toBe('hit')
     expect(storeStateOf('cfExtPri, api-cache;desc="miss"')).toBe('miss')
+    // A hedged miss (storeHedge.mjs) keeps its own name, never read as a plain miss or a hit.
+    expect(storeStateOf('page-cache;desc="miss-direct"')).toBe('miss-direct')
+    expect(storeStateOf('page-cache;desc="miss-copy"')).toBe('miss-copy')
   })
 
   it("says 'none' when the answer carries no store verdict", () => {

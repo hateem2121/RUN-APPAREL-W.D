@@ -637,7 +637,13 @@ real model's variant).
 
 ### D25 · The footer shows the certification bodies' real logos — amends the 2026-09-16 ruling
 
-> **Superseded 2026-11-05: no body's logo is drawn any more.** On the owner's go-ahead ("You do
+> **Restored 2026-11-10 by the owner: all five marks are drawn again** (Sedex, SMETA, ISO 9001,
+> OEKO-TEX, GRS; GOTS stays off). Asked with the rules below stated in the option itself ("Put all
+> logos back … against the schemes' published rules"), the owner chose to put them back. The
+> removal (#324) was undone file for file; the text beside each mark still names its real holder,
+> and `packages/shared/src/standardsLogos.ts` records the rules and this choice beside the list.
+
+> **Superseded 2026-11-05 (itself reversed 2026-11-10, above): no body's logo is drawn any more.** On the owner's go-ahead ("You do
 > everything": check each scheme's own logo rules and remove any mark they forbid), each scheme's
 > rule was read at its source that night. Every one gives the right to its mark to the
 > organisation that holds the certificate or membership, and RUN APPAREL holds none in its own
@@ -1183,6 +1189,19 @@ words 2026-10-15/16, built section approved as shown.**
 
 **Amended by D46 (2026-10-17):** the cards stop under the condensed bar, reach the screen's foot,
 rest a third of a screen each, and stack on every phone.
+
+**Amended 2026-11-11 (owner: "Yes, tall copies", after being reminded of the softness accepted
+below):** in the stack each step's photo now comes from its own crop of the original, cut to the
+card's shape: 3:5 on a phone held upright, 9:10 on an upright tablet and in half a laptop's width.
+Each crop is the window the card already showed, so the picture does not move; it is only sharper
+(a site check of that day measured the old files stretched 2–3.5x on phones and tablets). The
+crops are the window to within 0.9987 normalised correlation, measured on the built files. Under
+reduced motion, on a screen wider than 8:5 and on a landscape phone, a step keeps its old file,
+because there the box can be wider than a crop. The lab and tagging floor stay a little soft on the
+sharpest phones: their originals are 1,205 and 896 px tall. **Guard:** `apps/cms/src/factoryPhotos.test.ts`
+(the same window, as geometry, with a shifted crop as its planted fault) and
+`apps/cms/e2e/orderTimeline.spec.ts` (which file each screen loads, and that no card is wider
+than its crop).
 
 Until then eight half-width cards passed on the right while the heading stayed on the left (polish
 D4). Each step gains a second, smaller line, and every one is a line the site already states

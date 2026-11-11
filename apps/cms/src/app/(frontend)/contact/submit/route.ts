@@ -2,17 +2,19 @@ import config from '@payload-config'
 import type { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import { formResult } from '../../../../lib/formResult'
-import { clientAddress, completeSubmission } from '../../../../lib/formSubmission'
+import { clientAddress, completeSubmission, sendNotification } from '../../../../lib/formSubmission'
 import {
   formatInquiryEmail,
   inquiryRecipient,
-  inquirySubject,
   isHoneypotTripped,
   validateInquiry,
 } from '../../../../lib/inquiry'
 import { checkFiles } from '../../../../lib/inquiryFiles'
+import { buyerReceipt, teamEmailHtml, teamSubject } from '../../../../lib/inquiryEmailHtml'
 import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
+import { RECEIPT_WINDOW_MS, RECEIPTS_PER_DAY, receiptAllowed } from '../../../../lib/inquiryReceipt'
+import { spamReasons } from '../../../../lib/inquirySpam'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,6 +108,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return refused(request, '?error=too-many')
 
   const receivedAt = new Date()
+
+  /*
+   * ⚠️ SPAM IS KEPT, NOT EMAILED, AND THANKED LIKE ANYONE ELSE (owner, 2026-11-10). 69 of the 75
+   * inquiries in production were spam and every one reached the team's inbox. A caught one is
+   * stored with status "spam" and the reasons, its files are not stored, no email goes out and it
+   * is not counted — and it sees the same thank-you, for the honeypot's reason above.
+   */
+  const spam = spamReasons(result.value)
+  if (spam.length > 0) {
+    try {
+      const payload = await getPayload({ config })
+      await payload.create({
+        collection: 'inquiries',
+        data: {
+          ...result.value,
+          status: 'spam',
+          notified: false,
+          notifyError: `Not emailed: held as spam (${spam.join(', ')}).`,
+        },
+        overrideAccess: true,
+      })
+    } catch (err) {
+      console.error('[inquiry] could not store a spam catch:', err)
+    }
+    return sent(request)
+  }
+
   let created: { id: string | number } | null = null
   try {
     const payload = await getPayload({ config })
@@ -127,32 +156,84 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return refused(request, '?error=storage')
   }
 
+  const id = created.id
+  // The address the site shows, read AFTER the inquiry is stored so a settings outage can never
+  // cost the inquiry; when it cannot be read, `inquiryRecipient` answers with the default.
+  const recipient = async () => {
+    const settings = await getPayload({ config })
+      .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
+      .catch(() => null)
+    return inquiryRecipient(settings as Record<string, unknown> | null)
+  }
+
   // The files, the email, what happened to it and the count: `lib/formSubmission.ts`, shared with
   // the careers form. Never throws past here, and never changes what the visitor is told.
   await completeSubmission({
     storage: { collection: 'inquiries', filesCollection: 'inquiry-files', ownerField: 'inquiry' },
-    id: created.id,
+    id,
     files: files.files,
     logTag: 'inquiry',
     fileNoun: 'a file',
-    // The address the site shows, read AFTER the inquiry is stored so a settings outage can never
-    // cost the inquiry; when it cannot be read, `inquiryRecipient` answers with the default.
-    recipient: async () => {
-      const settings = await getPayload({ config })
-        .then((p) => p.findGlobal({ slug: 'site-settings', depth: 0 }))
-        .catch(() => null)
-      return inquiryRecipient(settings as Record<string, unknown> | null)
-    },
+    recipient,
     compose: (extras) => ({
       fromName: 'RUN APPAREL inquiries',
       // Hitting Reply in any mail client answers the customer, not the robot.
       replyTo: result.value.email,
-      subject: inquirySubject(result.value),
+      // The reference leads, so a thread and its admin row match at a glance (owner, 2026-11-10).
+      subject: teamSubject(result.value, id),
       text: formatInquiryEmail(result.value, receivedAt, extras),
+      html: teamEmailHtml({ value: result.value, id, receivedAt, extras }),
     }),
-    adminUrl: inquiryAdminUrl(created.id),
+    adminUrl: inquiryAdminUrl(id),
     count: { event: 'inquiry_submitted', placement: 'site-contact-form' },
   })
+
+  /*
+   * ⚠️ THE BUYER'S RECEIPT GOES ONLY HERE: after every check, and never to spam (owner,
+   * 2026-11-10). It repeats nothing they typed (`lib/inquiryEmailHtml.ts` says why), and a reply to
+   * it reaches the team's inbox. Like the notice it never throws, and a failure is logged, not shown:
+   * the inquiry is stored and the team has it either way.
+   */
+  /*
+   * ⚠️ ONE RECEIPT PER MAILBOX PER DAY, AND A CEILING FOR THE SITE (security reviews, 2026-11-10).
+   * The receipt goes to an address nobody has proven is theirs; `lib/inquiryReceipt.ts` has the
+   * two bounds and why. The day's other inquiries are read from the database (every Worker sees the
+   * same rows; the rate limit lives in one isolate's memory), spam rows included. When they cannot
+   * be read, no receipt: the team still has the inquiry.
+   */
+  const earlier = await getPayload({ config })
+    .then((p) =>
+      p.find({
+        collection: 'inquiries',
+        where: {
+          and: [
+            {
+              createdAt: {
+                greater_than: new Date(receivedAt.getTime() - RECEIPT_WINDOW_MS).toISOString(),
+              },
+            },
+            { id: { not_equals: id } },
+          ],
+        },
+        select: { email: true },
+        depth: 0,
+        limit: RECEIPTS_PER_DAY,
+        pagination: false,
+        overrideAccess: true,
+      }),
+    )
+    .then((found) => found.docs.map((doc) => String(doc.email ?? '')))
+    .catch(() => null)
+  if (receiptAllowed(result.value.email, earlier)) {
+    const receipt = buyerReceipt({ id, subject: result.value.subject })
+    const confirmed = await sendNotification({
+      fromName: 'RUN APPAREL',
+      to: result.value.email,
+      replyTo: await recipient(),
+      ...receipt,
+    })
+    if (!confirmed.notified) console.error('[inquiry] receipt not sent:', confirmed.notifyError)
+  }
 
   // The visitor's experience does not depend on the email. Their message is safe either way.
   return sent(request)

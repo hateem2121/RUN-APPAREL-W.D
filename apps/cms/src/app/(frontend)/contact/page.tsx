@@ -20,6 +20,7 @@ import { FilePicker } from '../../../components/site/FilePicker'
 import { InquiryFormEnhancer } from '../../../components/site/InquiryFormEnhancer'
 import { InquiryProblem, InquiryReceived } from '../../../components/site/InquiryOutcome'
 import { JsonLd } from '../../../components/site/JsonLd'
+import { CONTACT_STEPS, CONTACT_STEPS_HEADING } from '../../../lib/contactSteps'
 
 export const dynamic = 'force-dynamic'
 
@@ -214,6 +215,30 @@ export default async function ContactPage({
               Styles and quantities, your target fabric or a reference garment, any artwork, and the
               date you need it by. None of it is required to start the conversation.
             </p>
+            {/*
+             * WHAT HAPPENS NEXT (owner, 2026-11-11): who reads it, how the answer comes, and the
+             * first real step, in the site's own facts (`lib/contactSteps.ts` says why). The page's
+             * one main movement (the Notion guide's "guide the scroll", owner's choice): each step
+             * rises in once as it enters the view, on the site's existing reveal, which is off for
+             * a visitor who asks for less motion and leaves every word in place without scripting.
+             */}
+            <section className="inquiry-steps" aria-labelledby="inquiry-steps-heading">
+              <h3 className="label inquiry-steps__heading" id="inquiry-steps-heading">
+                {CONTACT_STEPS_HEADING}
+              </h3>
+              <ol className="inquiry-steps__list">
+                {CONTACT_STEPS.map((step) => (
+                  <li className="inquiry-steps__item" key={step.number} data-site-reveal>
+                    <span className="inquiry-steps__number" aria-hidden="true">
+                      {step.number}
+                    </span>
+                    <span className="inquiry-steps__text">
+                      <b className="inquiry-steps__title">{step.title}</b> {step.body}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
           </div>
 
           <div className="inquiry-layout__main">
@@ -406,15 +431,19 @@ export default async function ContactPage({
                     <label className="inquiry-form__label" htmlFor="inquiry-phone-code">
                       <span className="visually-hidden">Country </span>Code
                     </label>
+                    {/* Required since 2026-11-10 (owner): the team calls and WhatsApps buyers. */}
                     <label className="inquiry-form__label" htmlFor="inquiry-phone">
-                      Phone
+                      Phone{' '}
+                      <span className="inquiry-form__req" aria-hidden="true">
+                        *
+                      </span>
                     </label>
                   </div>
                   <div className="inquiry-form__phone">
                     <input
                       className="inquiry-form__code"
                       id="inquiry-phone-code"
-                      type="text"
+                      type="tel"
                       name="phoneCode"
                       inputMode="tel"
                       autoComplete="tel-country-code"
@@ -425,10 +454,13 @@ export default async function ContactPage({
                       id="inquiry-phone"
                       type="tel"
                       name="phone"
+                      required
                       autoComplete="tel-national"
                       maxLength={MAX_LENGTHS.phone}
+                      data-check
                     />
                   </div>
+                  <p className="inquiry-form__error" id="inquiry-phone-error" hidden />
                 </div>
               </div>
 

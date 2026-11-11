@@ -121,6 +121,8 @@ const AI_CHECK = '2026-11-05T20:46:11+05:00'
 const LIBRARY = '2026-11-06T17:05:02+05:00'
 /** The order steps name FCA and DAP among the terms (owner, 2026-11-06); the order guide draws them. */
 const PRICE_TERMS = '2026-11-06T17:20:46+05:00'
+/** The solar share corrected from about 80% to 83% (owner, 2026-11-11), on the factory page and the environmental policy. */
+const SOLAR_83 = '2026-11-10T19:10:00+00:00'
 /**
  * The tech pack guide and its free template (C1), and the three small tools in the fabrics, shipping
  * and ball guides (C6): owner approved every word on 2026-11-06. The time the words were committed.
@@ -157,7 +159,7 @@ const HELD_GUIDES_LIVE = '2026-11-08T19:05:18+05:00'
  */
 const ABOUT_FACTORY_FINGERPRINTS = {
   '/about': 'cafca5ef2989',
-  '/inside-the-factory': 'b29f19971607',
+  '/inside-the-factory': '3a4b67334341',
 } as const
 
 export const BYLINES: Readonly<Record<string, Byline>> = {
@@ -308,7 +310,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/policies/equal-opportunity': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'f7b578a1207f'),
   '/policies/labor-rights': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e7040ea909d2'),
   '/policies/quality': byline(AUTHORS.hr, POLICIES_LIVE, POLICIES_LIVE, 'e442ac2701ef'),
-  '/policies/environmental': byline(AUTHORS.hr, POLICIES_LIVE, SIX_BUILDINGS, '2192f91d468f'),
+  '/policies/environmental': byline(AUTHORS.hr, POLICIES_LIVE, SOLAR_83, '57795f17ef14'),
   '/careers': byline(AUTHORS.hr, POLICIES_LIVE, SITE_CHECK, '998d9a7f5371'),
   // The about and factory pages: first shipped in 092a086; their words last changed in the site
   // check. The fingerprint is `bylines.test.ts`'s of the words at that moment.
@@ -321,7 +323,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/inside-the-factory': byline(
     AUTHORS.contentTeam,
     ABOUT_FACTORY_WORDS,
-    LIBRARY,
+    SOLAR_83,
     ABOUT_FACTORY_FINGERPRINTS['/inside-the-factory'],
   ),
 }

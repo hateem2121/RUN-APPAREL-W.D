@@ -374,8 +374,64 @@ export function contactHeroSrc(
  */
 export const ABOUT_HERO_PHOTO = {
   alt: 'A red-brick factory building with wide steps in front, under a cloudy sky.',
-  widths: { heroWide: [1280, 1920, 2560], heroTall: [640, 1080] },
+  // 1,600 tall since 2026-11-11: the 4:5 crop is 1,600 wide, and a 3x phone or an upright tablet
+  // stretched the 1,080 file 1.9-2.9x (site check).
+  widths: { heroWide: [1280, 1920, 2560], heroTall: [640, 1080, 1600] },
 } as const satisfies { alt: string; widths: Record<HeroShape, readonly number[]> }
+
+/**
+ * The "Inside the factory" hero's 4:5 card from 900px (2026-11-11): the same part of the stitching
+ * floor the 16:9 file showed in that card, cut at the card's shape, so a 2x laptop is no longer
+ * handed a file it stretches 2.2-2.4x. `scripts/build-factory-photos.mjs` (`FACTORY_HERO_SOURCES`).
+ */
+export const FACTORY_HERO_CARD = {
+  widths: [640, 1080, 1600],
+  aspect: 4 / 5,
+} as const
+
+/** `/factory/factory-hero-card-<width>.webp`, or `.avif`. */
+export function factoryHeroCardSrc(width: number, format: 'webp' | 'avif' = 'webp'): string {
+  return `/factory/factory-hero-card-${width}.${format}`
+}
+
+/**
+ * The order step card's own crops (2026-11-11, owner: "Yes, tall copies"), for the eight step
+ * photos: `phone` (3:5) for a screen at most 3:5, `card` (9:10, wide photos only) for the other
+ * cards. Each is the slice the card already showed, at the original's full detail;
+ * `scripts/build-factory-photos.mjs` (`STEP_CROPS`) says how it is cut and writes
+ * `/factory/<slug>-<kind>-<width>.webp` at exactly these widths, which the unit test holds equal.
+ *
+ * ⚠️ A LIST OF ITS OWN, NOT A FIELD ON `FACTORY_PHOTOS`: /press offers that list as it is, and its
+ * "last changed" date is a fingerprint of it (`pageDates.test.ts`). These files are the home page's,
+ * so /press neither shows them nor changes because of them.
+ */
+export const STEP_CROP_WIDTHS: Readonly<
+  Record<string, { phone: readonly number[]; card?: readonly number[] }>
+> = {
+  showroom: { phone: [480, 750], card: [800, 1125] },
+  lab: { phone: [480, 723], card: [800, 1085] },
+  'screen-printing': { phone: [480, 800, 1152] },
+  inspection: { phone: [480, 800, 1152] },
+  exterior: { phone: [480, 800, 1200], card: [800, 1200, 1600, 1800] },
+  'final-check': { phone: [480, 800, 1200, 1344] },
+  packing: { phone: [480, 800, 934] },
+  tagging: { phone: [480], card: [720] },
+}
+
+/** The order step crops' shapes, as width/height (`STEP_CROP_WIDTHS`). */
+export const STEP_CROP_ASPECT = { phone: 3 / 5, card: 9 / 10 } as const
+
+/** `/factory/<slug>-<kind>-<width>.webp`: an order step's own crop. */
+export function stepPhotoSrc(photo: FactoryPhoto, kind: 'phone' | 'card', width: number): string {
+  return `/factory/${photo.slug}-${kind}-${width}.webp`
+}
+
+/** A step crop's `srcSet`, or null where the photo has none of that kind. */
+export function stepPhotoSrcSet(photo: FactoryPhoto, kind: 'phone' | 'card'): string | null {
+  const widths = STEP_CROP_WIDTHS[photo.slug]?.[kind]
+  if (!widths?.length) return null
+  return widths.map((width) => `${stepPhotoSrc(photo, kind, width)} ${width}w`).join(', ')
+}
 
 const ABOUT_HERO_FILE: Record<HeroShape, string> = {
   heroWide: 'about-hero-wide',
