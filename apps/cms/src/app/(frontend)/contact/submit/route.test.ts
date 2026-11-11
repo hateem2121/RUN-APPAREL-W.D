@@ -410,3 +410,67 @@ describe('the buyer receipt is bounded per mailbox', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+/*
+ * Turnstile (owner, 11 Nov 2026; `lib/turnstile.ts`). `fetchMock` answers Cloudflare's siteverify
+ * by URL and Resend otherwise, so each case is the request production would make.
+ */
+describe('Turnstile on the contact form', () => {
+  const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+  const cloudflareSays = (success: boolean, status = 200) =>
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url) === SITEVERIFY
+        ? new Response(JSON.stringify({ success }), { status })
+        : new Response('{}', { status: 200 }),
+    )
+  const toResend = () => fetchMock.mock.calls.filter(([url]) => String(url) !== SITEVERIFY)
+  const toCloudflare = () => fetchMock.mock.calls.filter(([url]) => String(url) === SITEVERIFY)
+
+  it('a token Cloudflare accepts: stored and emailed as usual', async () => {
+    vi.stubEnv('TURNSTILE_SECRET', 'secret')
+    cloudflareSays(true)
+    const res = await post({ ...GOOD, 'cf-turnstile-response': 'good-token' })
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(rowsOf('inquiries')[0]?.[0]).toMatchObject({ data: { status: 'new' } })
+    expect(toCloudflare()).toHaveLength(1)
+    expect(toResend().length).toBeGreaterThan(0)
+  })
+
+  it('a token Cloudflare rejects: thanked, kept as spam with the reason, and NOT emailed', async () => {
+    vi.stubEnv('TURNSTILE_SECRET', 'secret')
+    cloudflareSays(false)
+    const res = await post({ ...GOOD, 'cf-turnstile-response': 'forged' })
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(rowsOf('inquiries')[0]?.[0]).toMatchObject({
+      data: { status: 'spam', notifyError: 'Not emailed: held as spam (turnstile-failed).' },
+    })
+    expect(toResend()).toHaveLength(0)
+  })
+
+  it('no token at all (a robot posting directly, or scripting off): kept as spam, never refused', async () => {
+    vi.stubEnv('TURNSTILE_SECRET', 'secret')
+    cloudflareSays(true)
+    const res = await post(GOOD)
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(rowsOf('inquiries')[0]?.[0]).toMatchObject({
+      data: { status: 'spam', notifyError: 'Not emailed: held as spam (turnstile-missing).' },
+    })
+    expect(toCloudflare()).toHaveLength(0)
+  })
+
+  it('Cloudflare down: the inquiry goes on as before Turnstile', async () => {
+    vi.stubEnv('TURNSTILE_SECRET', 'secret')
+    cloudflareSays(false, 503)
+    const res = await post({ ...GOOD, 'cf-turnstile-response': 'tok' })
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(rowsOf('inquiries')[0]?.[0]).toMatchObject({ data: { status: 'new' } })
+    expect(toResend().length).toBeGreaterThan(0)
+  })
+
+  it('no secret set yet: nothing is checked and a token-less inquiry is emailed as before', async () => {
+    const res = await post(GOOD)
+    expect(rowsOf('inquiries')[0]?.[0]).toMatchObject({ data: { status: 'new' } })
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(toCloudflare()).toHaveLength(0)
+  })
+})

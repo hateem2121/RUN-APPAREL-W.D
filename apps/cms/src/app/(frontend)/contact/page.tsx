@@ -20,6 +20,7 @@ import { FilePicker } from '../../../components/site/FilePicker'
 import { InquiryFormEnhancer } from '../../../components/site/InquiryFormEnhancer'
 import { InquiryProblem, InquiryReceived } from '../../../components/site/InquiryOutcome'
 import { JsonLd } from '../../../components/site/JsonLd'
+import { TurnstileOnInteract } from '../../../components/site/TurnstileOnInteract'
 import { CONTACT_STEPS, CONTACT_STEPS_HEADING } from '../../../lib/contactSteps'
 
 export const dynamic = 'force-dynamic'
@@ -276,6 +277,8 @@ export default async function ContactPage({
               hidden={notice?.kind === 'ok'}
             >
               <InquiryFormEnhancer />
+              {/* Turnstile, loaded only once the visitor starts filling this in (11 Nov 2026). */}
+              <TurnstileOnInteract />
 
               {/*
                * The garment a garment page asked about (polish S10), with the way back to it; the

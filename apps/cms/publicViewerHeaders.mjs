@@ -234,9 +234,15 @@ export const PUBLIC_PAGE_SOURCES = [
  * Accept, by its two EXACT hosts, not the `*.posthog.com` its CSP guide suggests (consent.ts
  * has why); its replay recorder's `blob:` worker is already admitted by `worker-src`.
  */
+/*
+ * ⚠️ TURNSTILE JOINED ON 2026-11-11 (owner): `challenges.cloudflare.com` in script-src for its
+ * api.js and in frame-src for the invisible challenge it runs in a frame. Nothing loads it on a
+ * plain visit; `TurnstileOnInteract.tsx` adds it once a visitor starts filling in the contact form.
+ */
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com https://challenges.cloudflare.com",
+  'frame-src https://challenges.cloudflare.com',
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://media.wear-run.com https://media.wear-run.help https://*.google-analytics.com https://*.googletagmanager.com",
   "font-src 'self'",
