@@ -76,6 +76,40 @@ export async function answerFromCopy(request, env) {
 }
 
 /**
+ * The copy's answer if it comes before the drawing finishes; null to use the drawing.
+ *
+ * ⚠️ SITEPAGES STARTS DRAWING FIRST, THEN ASKS (11 Nov 2026). Asked before drawing, the copy read
+ * cost every miss its whole wait: in the first ~25 minutes live, a found copy took p50 344 ms
+ * (n=15) and 92 of 93 misses ran into the 400 ms limit, all of it added to a 1–3.7 s drawing.
+ * Racing the two, a miss costs nothing and a hit still answers in about 0.35 s.
+ *
+ * THE PRICE: when the copy wins, the drawing has already started. It is drained in waitUntil and
+ * its body cancelled (Cloudflare, Workers Best Practices, "Always await or waitUntil your
+ * Promises", read 11 Nov 2026), so a hit costs the CPU of a drawing, as every request did before
+ * the copy existed. When the drawing wins, the copy read still running goes to waitUntil too.
+ *
+ * @param {Promise<Response | null>} copy answerFromCopy(...), already started
+ * @param {Promise<Response>} drawing the drawing, already started
+ * @param {{ waitUntil: (p: Promise<unknown>) => void }} ctx
+ * @returns {Promise<Response | null>}
+ */
+export async function raceCopy(copy, drawing, ctx) {
+  const asked = copy.catch(() => null)
+  // A drawing that fails leaves the copy to answer if it can; the caller's await then rethrows.
+  const drawn = drawing.then(
+    () => 'drawn',
+    () => asked,
+  )
+  const first = await Promise.race([asked, drawn])
+  if (first instanceof Response) {
+    ctx.waitUntil(drawing.then((response) => response.body?.cancel()).catch(() => {}))
+    return first
+  }
+  if (first === 'drawn') ctx.waitUntil(asked)
+  return null
+}
+
+/**
  * After SitePages drew a WHOLE page it keeps (the caller checks keepablePage, wholePage and that
  * the render was not spoiled), write the copy in waitUntil. True when a write was started.
  *

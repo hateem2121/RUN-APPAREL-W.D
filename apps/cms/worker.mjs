@@ -51,7 +51,7 @@ import {
   wholeFile,
   wholePage,
 } from './pageCache.mjs'
-import { answerFromCopy, COPY_KEY_HEADER, copyKey, keepCopy } from './pageCopy.mjs'
+import { answerFromCopy, COPY_KEY_HEADER, copyKey, keepCopy, raceCopy } from './pageCopy.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
 import {
   keepableTapAnswer,
@@ -93,14 +93,14 @@ export class SitePages extends WorkerEntrypoint {
     if (keepableApiRequest(request)) {
       return keepApiAnswer(request, (clean) => openNext.fetch(clean, this.env, this.ctx))
     }
-    // A whole page this region does not hold yet: one R2 read instead of a drawing (pageCopy.mjs).
-    // Null for a tap, a kept file, no copy, R2 slow or down, or PAGE_COPY = "off": draw as before.
-    const copied = await answerFromCopy(request, this.env)
-    if (copied) return copied
+    // A whole page this region does not hold yet: the drawing starts AT ONCE and races one R2
+    // read (pageCopy.mjs raceCopy, 11 Nov 2026: asking first made every miss wait up to 400 ms).
+    // Null for a tap, a kept file, no copy, R2 slow or down, or PAGE_COPY = "off": use the drawing.
     const render = { spoiled: false }
-    const response = await keptRenders().run(render, () =>
-      openNext.fetch(request, this.env, this.ctx),
-    )
+    const drawing = keptRenders().run(render, () => openNext.fetch(request, this.env, this.ctx))
+    const copied = await raceCopy(answerFromCopy(request, this.env), drawing, this.ctx)
+    if (copied) return copied
+    const response = await drawing
     // Tap data (tapStore.mjs): only fromSharedStore sends an `rsc` request here, already checked.
     if (request.headers.get('rsc') === '1') {
       const init = { status: response.status, statusText: response.statusText }
