@@ -13,7 +13,7 @@ import {
   readCopy,
   writeCopy,
 } from '../pageCopy.mjs'
-import { VERSION_CACHE_SECONDS } from '../pageCache.mjs'
+import { KEPT_CACHE_CONTROL, STALE_SECONDS, VERSION_CACHE_SECONDS } from '../pageCache.mjs'
 
 const BUILD = 'site-0123456789abcdef0123.0123456789ab'
 
@@ -144,11 +144,38 @@ describe('answerFromCopy and keepCopy, as SitePages uses them', () => {
     expect(answer?.status).toBe(200)
     expect(await answer?.text()).toBe('<html>g</html>')
     expect(answer?.headers.get('cache-control')).toBe(COPY_SERVED_CACHE_CONTROL)
-    expect(COPY_SERVED_CACHE_CONTROL).toBe('public, max-age=180')
+    expect(COPY_SERVED_CACHE_CONTROL).toBe(
+      `public, max-age=180, stale-while-revalidate=${STALE_SECONDS}`,
+    )
     // Longer than the worst case for a save to reach every region (60 + 30 + 30 s).
     expect(180).toBeGreaterThan(60 + VERSION_CACHE_SECONDS + VERSION_CACHE_SECONDS)
     expect(answer?.headers.get('cache-tag')).toBe('site-pages')
     expect(answer?.headers.get('x-run-kept')).toBe('yes')
+  })
+
+  /*
+   * Live 11 Nov 2026 (home page, 08:50–11:58 UTC): with `max-age=180` alone, a data centre that went
+   * more than 180 s without a request lost its copy and fetched it again from further away: hits
+   * after such a gap took a median of 99 ms (65 of 74 over 50 ms), against 6 ms (0 of 77) the day
+   * before, when pages were kept a day. Workers Cache serves an expired copy at once and refreshes it
+   * behind the scenes only when the rule says `stale-while-revalidate`, and ignores that directive if
+   * `s-maxage`, `must-revalidate` or `proxy-revalidate` is also present (Cloudflare, Workers Cache
+   * "Debugging", read 11 Nov 2026).
+   */
+  it('lets a region keep answering at once after three minutes, while the copy is refreshed', () => {
+    const directives = new Map(
+      COPY_SERVED_CACHE_CONTROL.split(',').map((part) => {
+        const [name = '', value] = part.trim().split('=')
+        return [name.toLowerCase(), value] as const
+      }),
+    )
+    expect(directives.get('max-age')).toBe('180')
+    expect(directives.get('stale-while-revalidate')).toBe(String(STALE_SECONDS))
+    for (const blocker of ['s-maxage', 'must-revalidate', 'proxy-revalidate', 'no-cache']) {
+      expect(directives.has(blocker)).toBe(false)
+    }
+    // Copies and pages drawn in full now age the same way: only the freshness window differs.
+    expect(KEPT_CACHE_CONTROL).toContain(`stale-while-revalidate=${STALE_SECONDS}`)
   })
 
   it('finds no answer, so SitePages draws: no copy, no name, a tap, a kept file, switched off, R2 down', async () => {

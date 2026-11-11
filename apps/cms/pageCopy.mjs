@@ -23,7 +23,7 @@
  * COPY_READ_TIMEOUT_MS all read as "no copy", and the page is drawn as before the copy existed.
  */
 
-import { KEPT_FILES, KEPT_TAGS, keptHeaders } from './pageCache.mjs'
+import { KEPT_FILES, KEPT_TAGS, keptHeaders, STALE_SECONDS } from './pageCache.mjs'
 
 /** Longer than this, drawing the page is no worse than waiting for R2. */
 export const COPY_READ_TIMEOUT_MS = 400
@@ -42,8 +42,17 @@ export const COPY_KEY_HEADER = 'x-run-copy-key'
  * plus pageCache.mjs memoKvGet's 30 s). A refresh in that window would find the copy filed under the
  * old version; kept for a day, the old words would outlive the save. Three minutes covers the window
  * with a margin; then the region asks again and reads the new version.
+ *
+ * ⚠️ …AND IT MAY BE SERVED STALE WHILE IT IS REFRESHED (11 Nov 2026). With `max-age=180` alone, a
+ * data centre that went three minutes without a request lost the page and fetched it again from
+ * further away: live, home-page hits after such a gap took a median of 99 ms (65 of 74 over 50 ms),
+ * against 6 ms the day before, and the page never got back to being kept a day. The same
+ * `stale-while-revalidate` as a page drawn in full (pageCache.mjs KEPT_CACHE_CONTROL) answers at
+ * once and refreshes behind the scenes; the three minutes still decide WHEN the region asks again,
+ * so a save is still picked up. Never add `s-maxage`, `must-revalidate` or `proxy-revalidate`: any
+ * of them switches stale-while-revalidate off (Cloudflare, Workers Cache "Debugging").
  */
-export const COPY_SERVED_CACHE_CONTROL = 'public, max-age=180'
+export const COPY_SERVED_CACHE_CONTROL = `public, max-age=180, stale-while-revalidate=${STALE_SECONDS}`
 
 /** Only whole website pages: never a tap (`rsc: 1`), never the sitemap, llms.txt or robots.txt. */
 function copyable(request, env) {
