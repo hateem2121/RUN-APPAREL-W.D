@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import { droppedConnection, withOneRetry } from './smoke-retry.mjs'
 
@@ -83,3 +85,22 @@ test('a pass is never tried again', async () => {
   await withOneRetry(run)
   assert.equal(calls.length, 1)
 })
+
+/*
+ * Both post-deploy runners take the one retry (owner, 11 Nov 2026). The payload runner used to
+ * stream each garment straight to the log (`stdio: 'inherit'`), so it could not read the output
+ * it would need to tell a dropped connection from a failed check. The two are read as text: each
+ * is a top-level script that would run against production on import.
+ */
+for (const runner of ['smoke-live-previews.mjs', 'smoke-live-products.mjs']) {
+  test(`${runner} runs every garment through withOneRetry`, () => {
+    const source = readFileSync(join(import.meta.dirname, runner), 'utf8')
+    assert.match(source, /import \{ withOneRetry \} from '\.\/smoke-retry\.mjs'/)
+    assert.match(source, /await withOneRetry\(\(\) => smokeOnce\(/)
+    assert.doesNotMatch(
+      source,
+      /stdio: 'inherit'/,
+      'a streamed run cannot be read for a dropped connection',
+    )
+  })
+}
