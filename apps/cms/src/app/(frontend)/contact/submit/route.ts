@@ -15,6 +15,7 @@ import { inquiryAdminUrl } from '../../../../lib/inquiryForm'
 import { checkInquiryRate } from '../../../../lib/inquiryRate'
 import { RECEIPT_WINDOW_MS, RECEIPTS_PER_DAY, receiptAllowed } from '../../../../lib/inquiryReceipt'
 import { spamReasons } from '../../../../lib/inquirySpam'
+import { checkTurnstile, TURNSTILE_FIELD, turnstileSpamReasons } from '../../../../lib/turnstile'
 
 export const dynamic = 'force-dynamic'
 
@@ -115,7 +116,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    * stored with status "spam" and the reasons, its files are not stored, no email goes out and it
    * is not counted — and it sees the same thank-you, for the honeypot's reason above.
    */
-  const spam = spamReasons(result.value)
+  /*
+   * ⚠️ TURNSTILE JOINS THE SPAM CHECKS, NEVER THE REFUSALS (owner, 11 Nov 2026; `lib/turnstile.ts`).
+   * A failed or missing token is held as spam like the rest, so a buyer with scripting off is still
+   * stored; an unset secret or a Cloudflare outage judges nothing and the inquiry goes on as before.
+   */
+  const human = await checkTurnstile({
+    token: raw[TURNSTILE_FIELD],
+    secret: process.env.TURNSTILE_SECRET,
+    remoteip: clientAddress(request),
+  })
+  const spam: string[] = [...spamReasons(result.value), ...turnstileSpamReasons(human)]
   if (spam.length > 0) {
     try {
       const payload = await getPayload({ config })

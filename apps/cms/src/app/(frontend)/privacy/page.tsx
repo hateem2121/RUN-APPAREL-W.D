@@ -148,6 +148,17 @@ export default async function PrivacyPage() {
               protect it from abuse. We use Cloudflare Web Analytics, which counts visits without
               cookies and without identifying you.
             </p>
+            {/* Turnstile, owner 2026-11-11 (lib/turnstile.ts). Cloudflare requires this link for its
+                invisible mode. e2e/privacyClaims.spec.ts pins these words. */}
+            <p>
+              <strong>When you start filling in the contact form.</strong> Cloudflare Turnstile
+              checks, in the background, that a person and not a program is sending it. It loads
+              only then, never on a plain visit. Cloudflare explains what it processes in its{' '}
+              <a href="https://www.cloudflare.com/turnstile-privacy-policy/">
+                Turnstile privacy addendum
+              </a>
+              .
+            </p>
             <p id="cookies">
               <strong>If you accept the cookie question.</strong> Three more services start, and
               only then. Google Analytics, from Google, sets cookies named <code>_ga</code> so that

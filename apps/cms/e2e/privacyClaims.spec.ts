@@ -143,6 +143,19 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
         'data outside Pakistan',
     )
   })
+
+  test('names Turnstile on the contact form, says it never loads on a plain visit, and links its terms', async ({
+    request,
+  }) => {
+    // Owner, 2026-11-11 (lib/turnstile.ts). Cloudflare requires the addendum link for invisible mode;
+    // e2e/consent.spec.ts holds the "never on a plain visit" half in a real browser.
+    const body = await (await request.get('/privacy')).text()
+    expect(body).toContain(
+      'Cloudflare Turnstile checks, in the background, that a person and not a program is ' +
+        'sending it. It loads only then, never on a plain visit.',
+    )
+    expect(body).toContain('href="https://www.cloudflare.com/turnstile-privacy-policy/"')
+  })
 })
 
 /**

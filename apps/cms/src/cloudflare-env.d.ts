@@ -30,6 +30,11 @@ declare global {
     PAYLOAD_SECRET?: string
     RESEND_API_KEY?: string
     /**
+     * The contact form's Turnstile secret (widget "wear-run.com contact form", 11 Nov 2026). The owner
+     * sets it with `wrangler secret put`; while it is unset the form checks nothing (`lib/turnstile.ts`).
+     */
+    TURNSTILE_SECRET?: string
+    /**
      * The owner's own copy of each tech-pack template download notice (owner, 6 Nov 2026: the notice
      * goes to inquiry@ "and the owner"). A Worker secret, so his address is not in this public repo.
      */
