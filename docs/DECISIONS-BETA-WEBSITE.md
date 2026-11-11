@@ -1190,6 +1190,19 @@ words 2026-10-15/16, built section approved as shown.**
 **Amended by D46 (2026-10-17):** the cards stop under the condensed bar, reach the screen's foot,
 rest a third of a screen each, and stack on every phone.
 
+**Amended 2026-11-11 (owner: "Yes, tall copies", after being reminded of the softness accepted
+below):** in the stack each step's photo now comes from its own crop of the original, cut to the
+card's shape: 3:5 on a phone held upright, 9:10 on an upright tablet and in half a laptop's width.
+Each crop is the window the card already showed, so the picture does not move; it is only sharper
+(a site check of that day measured the old files stretched 2–3.5x on phones and tablets). The
+crops are the window to within 0.9987 normalised correlation, measured on the built files. Under
+reduced motion, on a screen wider than 8:5 and on a landscape phone, a step keeps its old file,
+because there the box can be wider than a crop. The lab and tagging floor stay a little soft on the
+sharpest phones: their originals are 1,205 and 896 px tall. **Guard:** `apps/cms/src/factoryPhotos.test.ts`
+(the same window, as geometry, with a shifted crop as its planted fault) and
+`apps/cms/e2e/orderTimeline.spec.ts` (which file each screen loads, and that no card is wider
+than its crop).
+
 Until then eight half-width cards passed on the right while the heading stayed on the left (polish
 D4). Each step gains a second, smaller line, and every one is a line the site already states
 elsewhere (an FAQ answer, the factory page, the packaging guide), approved word for word; two keep

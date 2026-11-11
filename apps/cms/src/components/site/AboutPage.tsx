@@ -32,8 +32,26 @@ import { aboutPageJsonLd, breadcrumbTrailJsonLd } from '../../lib/structuredData
  * fails a heading that splits a word at any width.
  */
 
-/** The two phone crops, named for `factoryPhotos.test.ts`'s AVIF-first check. */
-const [tall640, tall1080] = ABOUT_HERO_PHOTO.widths.heroTall
+/** The phone crops, named for `factoryPhotos.test.ts`'s AVIF-first check. */
+const [tall640, tall1080, tall1600] = ABOUT_HERO_PHOTO.widths.heroTall
+
+/**
+ * HOW WIDE THE PHOTO IS PAINTED, not how wide its box is (2026-11-11, owner: "use the originals").
+ * In the motion layout the photo fills a 100svh stage `object-fit: cover`, so a file is painted at
+ * the screen's height times its own shape whenever that is wider than the screen: 80vh for the 4:5
+ * crop, 178vh for the 16:9 one. Told only "100vw", a phone at 2x took the 1,080 file for a 1,350 px
+ * paint, and an upright tablet the 1,280 file for 2,100 px (stretched 1.9-2.9x, site check).
+ *
+ * ⚠️ THE FILE STAYS THE SAME SHAPE; ONLY ITS SIZE MOVES. A 4:5 file on an upright tablet would have
+ * been sharper still, but the still hero (reduced motion, a short screen, a browser without scroll
+ * timelines, Firefox in November 2026) is a wide box there (2.2:1 at 768x1024, measured), where the
+ * 4:5 file zooms in. A media query cannot tell those apart, so the condition here is the motion
+ * layout's own; where it holds but the browser draws the still hero, the browser takes a larger file
+ * than it needs, and the picture is the same.
+ */
+const MOTION_LAYOUT = '(prefers-reduced-motion: no-preference) and (min-height: 700px)'
+const TALL_SIZES = `${MOTION_LAYOUT} max(100vw, 80vh), 100vw`
+const WIDE_SIZES = `${MOTION_LAYOUT} max(100vw, 178vh), 100vw`
 const [wide1280, wide1920, wide2560] = ABOUT_HERO_PHOTO.widths.heroWide
 
 export function AboutPage() {
@@ -76,22 +94,22 @@ export function AboutPage() {
             <source
               type="image/avif"
               media="(max-width: 700px)"
-              srcSet={`${aboutHeroSrc('heroTall', tall640, 'avif')} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080, 'avif')} ${tall1080}w`}
-              sizes="100vw"
+              srcSet={`${aboutHeroSrc('heroTall', tall640, 'avif')} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080, 'avif')} ${tall1080}w, ${aboutHeroSrc('heroTall', tall1600, 'avif')} ${tall1600}w`}
+              sizes={TALL_SIZES}
               width={tall640}
               height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
             />
             <source
               media="(max-width: 700px)"
-              srcSet={`${aboutHeroSrc('heroTall', tall640)} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080)} ${tall1080}w`}
-              sizes="100vw"
+              srcSet={`${aboutHeroSrc('heroTall', tall640)} ${tall640}w, ${aboutHeroSrc('heroTall', tall1080)} ${tall1080}w, ${aboutHeroSrc('heroTall', tall1600)} ${tall1600}w`}
+              sizes={TALL_SIZES}
               width={tall640}
               height={Math.round(tall640 / HERO_PHOTO.aspect.heroTall)}
             />
             <source
               type="image/avif"
               srcSet={`${aboutHeroSrc('heroWide', wide1280, 'avif')} ${wide1280}w, ${aboutHeroSrc('heroWide', wide1920, 'avif')} ${wide1920}w, ${aboutHeroSrc('heroWide', wide2560, 'avif')} ${wide2560}w`}
-              sizes="100vw"
+              sizes={WIDE_SIZES}
               width={wide1280}
               height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
             />
@@ -100,7 +118,7 @@ export function AboutPage() {
               className="site-hero__img"
               src={aboutHeroSrc('heroWide', wide1280)}
               srcSet={`${aboutHeroSrc('heroWide', wide1280)} ${wide1280}w, ${aboutHeroSrc('heroWide', wide1920)} ${wide1920}w, ${aboutHeroSrc('heroWide', wide2560)} ${wide2560}w`}
-              sizes="100vw"
+              sizes={WIDE_SIZES}
               width={wide1280}
               height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
               alt={ABOUT_HERO_PHOTO.alt}
