@@ -36,21 +36,37 @@
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { LIVE_PRODUCTS } from './live-products.mjs'
+import { withOneRetry } from './smoke-retry.mjs'
 
 const SMOKE = join(import.meta.dirname, 'smoke-viewer-payload.mjs')
 const apiBase = process.argv[2] ?? process.env.VITE_API_BASE_URL ?? 'https://cms.wear-run.help'
 
-const failed = []
-
-for (const { slug, colourway, modelComingSoon } of LIVE_PRODUCTS) {
-  console.log(`\n=== ${slug}/${colourway} ===`)
+/**
+ * Run one product's smoke once, collecting its output. One garment at a time, as before: the
+ * smoke fetches each model the way a browser does, and nothing here asked for more at once.
+ */
+async function smokeOnce({ slug, colourway, modelComingSoon }) {
   const result = spawnSync(process.execPath, [SMOKE, apiBase, slug, colourway], {
-    stdio: 'inherit',
+    encoding: 'utf8',
     // "3D coming soon" rows (2026-10-08) are checked for their pictures instead of a model.
     // Set or CLEARED per row, so an inherited value can never excuse a garment with a model.
     env: { ...process.env, SMOKE_COMING_SOON: modelComingSoon ? '1' : '' },
   })
-  if (result.status !== 0) failed.push(`${slug}/${colourway}`)
+  return { code: result.status, output: `${result.stdout ?? ''}${result.stderr ?? ''}` }
+}
+
+const failed = []
+
+/*
+ * A run that died on a dropped connection gets ONE more try; a failed check never does
+ * (smoke-retry.mjs, owner 11 Nov 2026, after one ECONNRESET in the link-preview runner skipped
+ * every post-deploy step behind it). The output is collected rather than streamed, which is what
+ * lets the retry read it.
+ */
+for (const product of LIVE_PRODUCTS) {
+  const { code, output } = await withOneRetry(() => smokeOnce(product))
+  console.log(`\n=== ${product.slug}/${product.colourway} ===\n${output.trimEnd()}`)
+  if (code !== 0) failed.push(`${product.slug}/${product.colourway}`)
 }
 
 if (failed.length > 0) {
