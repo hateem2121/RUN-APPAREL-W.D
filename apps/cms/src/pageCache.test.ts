@@ -830,7 +830,11 @@ describe('what the cache relies on', () => {
     const guard =
       /if \(kept\.status >= 300 && kept\.status < 400\) \{\s*await kept\.body\?\.cancel\(\)\s*return null\s*\}/
     expect(method).toMatch(guard)
-    expect(method.search(guard)).toBeLessThan(method.indexOf('return {'))
+    // Before the store's answer is handed on. (A hedged tap drawn directly, storeHedge.mjs, is the
+    // visitor's own request, exactly what drawing it after this guard gives.)
+    const served = method.indexOf('state: storeState(kept.headers)')
+    expect(served).toBeGreaterThan(-1)
+    expect(method.search(guard)).toBeLessThan(served)
   })
 
   it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
@@ -868,7 +872,9 @@ describe('what the cache relies on', () => {
       expect(start, `worker.mjs has no ${name}`).toBeGreaterThan(-1)
       const method = worker.slice(start, worker.indexOf('\n}\n', start))
       const clock = method.indexOf('const askedAt = Date.now()')
-      const asked = method.indexOf('await store.fetch(')
+      // The store is asked through askStore (storeHedge.mjs, 11 Nov 2026), hedged or not.
+      const asked = method.indexOf('const askStore = ')
+      expect(method).toMatch(/const askStore = (?:async )?\(\) =>\s+store\.fetch\(/)
       const logged = method.indexOf(`console.log(storeAnswerLog('${kind}', `)
       expect(clock, `${kind}: no clock is started before the store is asked`).toBeGreaterThan(-1)
       expect(clock).toBeLessThan(asked)

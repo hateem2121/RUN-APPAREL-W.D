@@ -47,7 +47,9 @@ export function percentile(values, p) {
 
 /** The store's verdict carried in a Server-Timing header, or 'none'. */
 export function storeStateOf(serverTiming) {
-  const match = /(?:page|api)-cache;desc="(hit|miss|skip)"/.exec(serverTiming ?? '')
+  const match = /(?:page|api)-cache;desc="(hit|miss-direct|miss-copy|miss|skip)"/.exec(
+    serverTiming ?? '',
+  )
   return match ? match[1] : 'none'
 }
 

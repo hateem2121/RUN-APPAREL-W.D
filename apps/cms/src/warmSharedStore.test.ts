@@ -111,6 +111,8 @@ describe('what each answer says', () => {
   it.each<[string, number, string, string]>([
     ['a store hit', 200, 'page-cache;desc="hit"', 'hit'],
     ['a fresh drawing', 200, 'page-cache;desc="miss"', 'miss'],
+    ['a hedged miss drawn near the visitor', 200, 'page-cache;desc="miss-direct"', 'miss-direct'],
+    ['a hedged miss answered from the copy', 200, 'page-cache;desc="miss-copy"', 'miss-copy'],
     ['a refused copy', 200, 'api-cache;desc="skip"', 'skip'],
     ['a file with no timing', 200, '', 'ok'],
     ['Bot Fight Mode', 403, '', 'inconclusive'],

@@ -385,6 +385,22 @@ describe('regionJudgement', () => {
     })
   })
 
+  it('counts a hedged miss (storeHedge.mjs) as a miss, never as a hit or as nothing', () => {
+    const readBack = [
+      {
+        results: [
+          timed('PK', 'hit', 400),
+          timed('PK', 'hit', 600),
+          timed('PK', 'miss-direct', 900),
+          timed('PK', 'miss-copy', 300),
+        ],
+      },
+    ]
+    expect(regionJudgement(readBack, readBack)).toEqual({
+      PK: { verdict: 'pass', hits: 2, asked: 4, firstByteP75: 600 },
+    })
+  })
+
   it('fails when the second pass finds nothing kept: the store or the warm-up is broken there', () => {
     const readBack = [{ results: [timed('PK', 'miss', 2000), timed('PK', 'miss', 2100)] }]
     expect(regionJudgement(readBack, readBack).PK).toEqual({

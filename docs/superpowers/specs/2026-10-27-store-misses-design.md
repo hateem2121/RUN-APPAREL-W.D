@@ -132,6 +132,18 @@ copy would ask for files the new deploy no longer has, the failure behind the 3D
 - **0.1, shipped with this step:** every store answer logs `{ storeAnswer, state, ms }`
   (`storeAnswerLog` in `apps/cms/pageCache.mjs`), for pages and taps. After a day of real
   traffic, the head start is the p95 of `ms` where `state` is `hit`.
+- **Task 0 gate, read 11 Nov 2026 over the 24 h to ~07:55 UTC (Workers Observability):** hit p95
+  pages 39 ms (n=4,358), taps 13 ms (n=7,006), so the head start is **40 ms**: pass. Misses: 3,181
+  (pages 1,177, taps 2,004; page-miss p95 4,001 ms), of which 2,022 came from our robots and
+  Globalping, leaving 1,159 by visitors. At SitePages' mean 256 ms of CPU each, a second drawing
+  adds ~297,000 ms a day against 2,226,790 ms in all: **13.3%, over the 10% gate.** The owner
+  chose to build it anyway on 11 Nov (about $0.20 a month: the account had used 19.9 M CPU-ms in
+  the first 10.3 days of November, already past the 30 M included at that pace).
+- **Why the miss is slow (11 Nov):** SitePages starting cold in the data centre that draws it.
+  The wait before it started was p50 1,177 ms (50 of 55 over 700 ms) when it had not run there for
+  10 minutes, and p50 21–252 ms when it had run within the minute; the answer's way back took
+  4–23 ms. So the hedge also reads the shared page copy (`apps/cms/pageCopy.mjs`) from the warm
+  default entrypoint, beside the direct drawing (`apps/cms/storeHedge.mjs`).
 
 ## How we will know it worked (the judge)
 
