@@ -1537,6 +1537,35 @@ front, the timing, the wet edge's strength, a change during a change, reduced mo
 pages; `packages/shared/src/deltaE.test.ts` (Sharma's 34 published pairs) and
 `scripts/colour-accuracy.test.mjs` for the report. Each had a fault planted and failed on it.
 
+## 2026-11-12 — every loading screen plays its whole show
+
+The owner asked for every loader to be checked and fixed in one PR (plan
+`docs/superpowers/plans/2026-11-12-loading-screens-fix.md`). Measured live first: the first-arrival curtain
+showed 0.10–0.74 s on a fast line and never reached this year on Slow 4G; on a slowed phone it lifted
+0.73 s before the hero painted, and the garment page's opening screen wiped onto an empty stage.
+
+- **The curtain counts from its own first paint, rolls 1889 to this year over `--showpiece` and waits
+  for the first-screen pictures**, at most 3 s from first paint; this year holds 150 ms before the lift.
+  **The percent stays and rolls with the year** (owner, 12 Nov). A key or a tap finishes it at once.
+  It no longer shows in a tab opened in the background.
+- **The page-to-page weave waits 0.4 s**, like the line (owner, 12 Nov): a quick tap is not woven.
+- **A looping loader mark rests after five seconds** (owner, 12 Nov; WCAG 2.2 SC 2.2.2): the 3D
+  download's mark and the weave's waiting mark. The numbers and words stay.
+- **The garment page's opening screen waits for the garment's picture** (at most 1.5 s more) and wipes
+  with two opposing slides instead of a clip, so it keeps moving while the 3D engine works.
+- **How long each loading screen showed goes to PostHog after Accept only** (owner, 12 Nov):
+  `loader_timing`. The privacy page's owner-approved wording was not changed; it describes PostHog
+  recording how visitors use the pages.
+- **Card pictures stay at quality 90** (owner, 12 Nov, after a side-by-side of zoomed chest crops):
+  85, 80 and 75 would save about 21–28%, 33–40% and 40–50% of the bytes, but the fine diagonal weave
+  of the RXPS wine fabric fades at 85 and is nearly gone at 80. Measured on a local AVIF stand-in
+  calibrated against Cloudflare's own quality-90 file, because Cloudflare answers 403 for any other
+  quality.
+- **A tap on the curtain never reaches the page under it** (fresh review, 12 Nov): the curtain is
+  `inert`, so the tap lands on what is under it, and the click that follows is now caught. A fault
+  inside the curtain's own script ends it quietly instead of leaving it holding the page.
+- Measured and left: the first draw of a 2.4-million-triangle garment (`docs/HARDENING-LOG.md`).
+
 ## Closed since
 
 **`FA-B-73` — RESOLVED by D15, and its premise was wrong.** The audit reported a gap

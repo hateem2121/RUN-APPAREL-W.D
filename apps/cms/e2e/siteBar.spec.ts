@@ -1,3 +1,4 @@
+import { afterCurtain } from './curtain'
 import { expect, type Page, test } from './offlineMedia'
 import {
   SITE_BAR_WORDMARK,
@@ -171,6 +172,7 @@ test.describe('the open phone menu holds the page still and dims it (polish F3, 
     await page.addInitScript(asAHuman)
     await page.setViewportSize({ width: 600, height: 800 })
     await page.goto('/products')
+    await afterCurtain(page)
     await expect
       .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
         message: 'Lenis never started, so a wheel here would test native scrolling only',

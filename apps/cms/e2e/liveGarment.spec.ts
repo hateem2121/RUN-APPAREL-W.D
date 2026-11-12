@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { calibratedThrottleRate, cpuBenchmarkInPage, isReferenceClass } from '@run-apparel/shared'
+import { afterCurtain } from './curtain'
 import { expect, type Page, test } from './offlineMedia'
 import { slowDye } from './slowDye'
 
@@ -21,6 +22,7 @@ async function openWithGarment(page: Page) {
     Object.defineProperty(navigator, 'webdriver', { get: () => false })
   })
   await page.goto('/')
+  await afterCurtain(page)
   if ((await page.locator('.live-garment').count()) === 0) {
     if (process.env.CI) throw new Error('no live garment on the home page, and CI seeds one')
     test.skip(true, 'no published garment with a model in this local database')

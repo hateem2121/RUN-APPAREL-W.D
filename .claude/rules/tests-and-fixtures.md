@@ -75,6 +75,13 @@ as broken code and is a browser that never launched. Install once —
 late") failed on PRs #111 and #114 (2026-10-01) and passed on a re-run of the failed job.
 Re-run it before debugging it.
 
+🟡 **EVERY LOADER HIDES UNDER AUTOMATION, so a test of one must act like a person** (12 Nov 2026): the
+website curtain and the garment opening screen both skip themselves when `navigator.webdriver` is true,
+and an Awwwards motion recording's first frame at 0.6 s showed the finished page. Lift the flag with
+`addInitScript` and set `reducedMotion: 'no-preference'`, as `apps/cms/e2e/firstArrival.spec.ts` does.
+🟡 **The Awwwards motion recorder clicks the page by itself**: never point it at `/contact` or any page with a
+form (every live send emails the team).
+
 🟡 **Known local flake: `apps/viewer/e2e/consent.spec.ts:221`** (viewer-firefox, "the footer
 link reopens the question without leaving the garment") missed its 5 s wait for the cookie
 panel once in a full uninterrupted run on 2026-10-24 (1,935 passed), then passed 10/10 with

@@ -1,3 +1,4 @@
+import { PRELOADER_CEILING_MS } from '../src/lib/preloader'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -54,8 +55,114 @@ for (const [width, height] of SCREENS) {
   })
 }
 
+/*
+ * A fast page lifts on "ready", not at the 3 s ceiling (12 Nov 2026). Next puts a `nomodule`
+ * polyfill script on every page; a modern browser never fetches it, the driver waited for it, and
+ * every visitor on every page sat through the whole 3 s. The fake DOM in preloaderSimulation.test.ts
+ * had no such script, so only a real page shows it.
+ */
+test('a fast page lifts when it is ready, not at the ceiling', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine: the rule is in the inline script')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false })
+  })
+  await page.goto('/')
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.hasAttribute('data-preload')), {
+      timeout: 8_000,
+    })
+    .toBe(false)
+  const run = await page.evaluate(
+    () =>
+      (window as { __runCurtain?: { appearedAt: number; liftedAt: number; reason: string } })
+        .__runCurtain,
+  )
+  expect(run?.reason, 'the curtain lifted at its ceiling on a page that had loaded').toBe('ready')
+  expect((run?.liftedAt ?? 0) - (run?.appearedAt ?? 0)).toBeLessThan(PRELOADER_CEILING_MS)
+})
+
 test('under automation there is no curtain', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'one engine')
   await page.goto('/')
   await expect(page.locator('.preloader')).toBeHidden()
+})
+
+/*
+ * A visitor who acts ends the curtain (12 Nov 2026, A5 and A8). Live, Tab twice under the curtain
+ * focused "RUN APPAREL" and "Products" behind it (WCAG 2.2 SC 2.4.11), and a tap reached whatever
+ * lay under it. Now a key or a tap finishes the roll and lifts it at once, and the tap is kept.
+ */
+test.describe('a visitor who acts ends the curtain', () => {
+  test.beforeEach(async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one engine: the rule is in the inline script')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    })
+    await page.goto('/', { waitUntil: 'commit' })
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-preload')))
+      .toBe('on')
+  })
+
+  test('Tab lifts it within 400 ms, so focus never sits under it', async ({ page }) => {
+    await page.keyboard.press('Tab')
+    const pressedAt = Date.now()
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-preload')), {
+        timeout: 400,
+        intervals: [50],
+      })
+      .not.toBe('on')
+    expect(Date.now() - pressedAt).toBeLessThanOrEqual(400)
+    await page.keyboard.press('Tab')
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.hasAttribute('data-preload')))
+      .toBe(false)
+    const covered = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null
+      if (!el || el === document.body) return 'nothing focused'
+      const r = el.getBoundingClientRect()
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return top && (top === el || el.contains(top) || top.contains(el)) ? 'visible' : 'covered'
+    })
+    expect(covered).toBe('visible')
+  })
+
+  test('a tap ends it and does not follow a link hidden under it', async ({ page }) => {
+    // A real link under the tap point, or the test passes on a page with nothing there (review I1,
+    // 12 Nov 2026: the first version of this test tapped empty ground and proved nothing).
+    await page.evaluate(() => {
+      const a = document.createElement('a')
+      a.href = '/products'
+      a.id = 'planted-link'
+      a.style.cssText = 'position:fixed;inset:0;z-index:1;display:block'
+      document.body.append(a)
+    })
+    const under = await page.evaluate(() => {
+      const preloader = document.querySelector('.preloader') as HTMLElement
+      preloader.style.visibility = 'hidden'
+      const id = document.elementFromPoint(200, 300)?.id
+      preloader.style.visibility = ''
+      return id
+    })
+    expect(under, 'the planted link is not under the tap point').toBe('planted-link')
+    const before = page.url()
+    await page.mouse.click(200, 300)
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-preload')), {
+        timeout: 400,
+        intervals: [50],
+      })
+      .not.toBe('on')
+    await page.waitForTimeout(1000)
+    expect(page.url()).toBe(before)
+    // Once the curtain is gone the same link works again: nothing keeps eating taps.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.hasAttribute('data-preload')))
+      .toBe(false)
+    await page.mouse.click(200, 300)
+    await page.waitForURL('**/products')
+  })
 })

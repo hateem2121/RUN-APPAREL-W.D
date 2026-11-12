@@ -1,6 +1,7 @@
 import { LOOM_MARK_BANDS, LOOM_MARK_PATHS, LOOM_MARK_VIEWBOX } from '@run-apparel/shared'
 import { FAMILY_SINCE } from '../../lib/press'
 import { PRELOADER_BOOT_SCRIPT } from '../../lib/preloader'
+import { CurtainTiming } from './CurtainTiming'
 
 /**
  * The first-arrival curtain, every website page (lib/preloader.ts has who sees it and why nothing is
@@ -22,6 +23,7 @@ export function AboutPreloader() {
         // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant built in lib/preloader.ts; nothing a visitor or the CMS sends reaches it.
         dangerouslySetInnerHTML={{ __html: PRELOADER_BOOT_SCRIPT }}
       />
+      <CurtainTiming />
       <div className="preloader" aria-hidden="true" inert>
         <i className="preloader__paper preloader__paper--a" />
         <i className="preloader__paper preloader__paper--b" />

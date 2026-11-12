@@ -4147,7 +4147,9 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
     expect(p.exit - p.mount, 'the preloader left before its 400ms floor').toBeGreaterThanOrEqual(
       384,
     )
-    expect(p.transition, 'the wipe is not clip-path over --slow').toBe('clip-path 0.8s')
+    // A translate since 12 Nov 2026 (B1): clip-path is drawn by the main thread and froze under the
+    // 3D engine's work; two opposing slides draw the same rising edge on the compositor.
+    expect(p.transition, 'the wipe is not translate over --slow').toBe('translate 0.8s')
     expect(
       p.gone - p.exit,
       'the preloader unmounted before its 800ms wipe finished',

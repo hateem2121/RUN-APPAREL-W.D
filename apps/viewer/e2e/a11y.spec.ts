@@ -773,6 +773,9 @@ test('on a phone, every part of the page sits inside a landmark (axe region)', a
   await page.goto('/n001/wine')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.locator('.action-bar'), 'the phone action bar is not on screen').toBeVisible()
+  // The page, not the opening screen: since 12 Nov 2026 that screen waits up to 1.5 s for the
+  // garment picture, and CI's mobile Safari once ran axe while its hidden "loading" line was up.
+  await expect(page.locator('.preloader')).toHaveCount(0)
   const results = await new AxeBuilder({ page }).withRules(['region']).analyze()
   expect(results.violations.flatMap((v) => v.nodes.map((n) => n.target.join(' ')))).toEqual([])
 })

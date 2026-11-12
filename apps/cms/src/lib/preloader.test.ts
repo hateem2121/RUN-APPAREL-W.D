@@ -2,12 +2,19 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  CURTAIN_TIMING,
   counterYear,
+  curtainReport,
+  curtainPercent,
+  liftReason,
   PRELOADER_BOOT_SCRIPT,
   PRELOADER_CEILING_MS,
-  PRELOADER_FLOOR_MS,
-  preloaderLiftAt,
+  PRELOADER_FALLBACK_MS,
+  PRELOADER_FINISH_MS,
+  PRELOADER_SHOWPIECE_MS,
+  stepShown,
 } from './preloader'
+import { escapeRegExp } from '../../regexEscape.mjs'
 
 /**
  * The /about preloader's decision (as the owner ruled on 2026-10-09: "No saving:
@@ -105,45 +112,122 @@ describe('the /about preloader decides before the first paint', () => {
   })
 })
 
-describe('when the curtain lifts', () => {
-  it('waits the count-up length when the photo is ready early, never less than the floor', () => {
-    expect(preloaderLiftAt({ decodedAt: 300, showpiece: 1400 })).toBe(1400)
-    expect(preloaderLiftAt({ decodedAt: 0, showpiece: 400 })).toBe(PRELOADER_FLOOR_MS)
-  })
-
-  it('waits for a slow photo, but never past 2.2 s', () => {
-    expect(preloaderLiftAt({ decodedAt: 1800, showpiece: 1400 })).toBe(1800)
-    expect(preloaderLiftAt({ decodedAt: 9000, showpiece: 1400 })).toBe(3000)
-    expect(preloaderLiftAt({ decodedAt: null, showpiece: 1400 })).toBe(3000)
-  })
-})
-
-describe('the counter keeps pace with the lift', () => {
-  it('starts at 1889, reaches this year exactly at the lift, and never runs backwards', () => {
-    expect(counterYear({ elapsed: 0, liftAt: 1400, to: 2026 })).toBe(1889)
-    expect(counterYear({ elapsed: 1400, liftAt: 1400, to: 2026 })).toBe(2026)
-    expect(counterYear({ elapsed: 5000, liftAt: 1400, to: 2026 })).toBe(2026)
-    let previous = 1889
-    for (let t = 0; t <= 1400; t += 50) {
-      const year = counterYear({ elapsed: t, liftAt: 1400, to: 2026 })
-      expect(year).toBeGreaterThanOrEqual(previous)
-      previous = year
+describe('the roll never jumps and never runs backwards', () => {
+  it('needs the whole showpiece to go from 1889 to this year, in 16 ms frames', () => {
+    let shown = 0
+    let frames = 0
+    while (shown < 1 && frames < 1000) {
+      const next = stepShown(shown, 1, 16, false, CURTAIN_TIMING)
+      expect(next).toBeGreaterThanOrEqual(shown)
+      shown = next
+      frames += 1
     }
+    expect(frames * 16).toBeGreaterThanOrEqual(PRELOADER_SHOWPIECE_MS)
   })
 
-  it('moves fast first and settles into the year, as the count-up does (ease-out)', () => {
-    expect(counterYear({ elapsed: 700, liftAt: 1400, to: 2026 })).toBeGreaterThan(1889 + 137 / 2)
+  it('finishes what is left within the finish time once capped', () => {
+    let shown = 0.3
+    let spent = 0
+    while (shown < 1 && spent < 1000) {
+      shown = stepShown(shown, 1, 16, true, CURTAIN_TIMING)
+      spent += 16
+    }
+    expect(spent).toBeLessThanOrEqual(PRELOADER_FINISH_MS + 16)
+  })
+
+  it('never moves back when real progress is lower than what is shown', () => {
+    expect(stepShown(0.6, 0.4, 16, false, CURTAIN_TIMING)).toBe(0.6)
+  })
+
+  it('shows the year and the percent from the same value, landing together', () => {
+    expect(counterYear(0, 1889, 2026)).toBe(1889)
+    expect(counterYear(1, 1889, 2026)).toBe(2026)
+    expect(counterYear(0.5, 1889, 2026)).toBe(1958)
+    expect(curtainPercent(0)).toBe(0)
+    expect(curtainPercent(1)).toBe(100)
+    expect(curtainPercent(0.954)).toBe(95)
   })
 })
 
-describe("the CSS fallback lifts at the script's ceiling", () => {
-  it('site.css delays the fallback curtain by exactly PRELOADER_CEILING_MS', () => {
+describe('when the curtain lifts, counted from when it appears', () => {
+  const at = (sinceAppearMs: number, ready: boolean, shown: number, interacted = false) =>
+    liftReason({ sinceAppearMs, ready, shown, interacted }, CURTAIN_TIMING)
+
+  it('never before the whole roll has played, even when the page is ready at once', () => {
+    expect(at(800, true, 1)).toBe(null)
+    expect(at(PRELOADER_SHOWPIECE_MS, true, 1)).toBe('ready')
+  })
+
+  it('never while the year is still rolling', () => {
+    expect(at(2000, true, 0.9)).toBe(null)
+    expect(at(PRELOADER_CEILING_MS, false, 0.97)).toBe(null)
+  })
+
+  it('at the ceiling once the last year is on screen, ready or not', () => {
+    expect(at(PRELOADER_CEILING_MS, false, 1)).toBe('cap')
+  })
+
+  it('at once when the visitor acts and the roll has finished', () => {
+    expect(at(300, false, 1, true)).toBe('interaction')
+  })
+})
+
+describe('the shipped script runs the tested functions', () => {
+  it('each function works with nothing from its module, as it will inline', () => {
+    for (const fn of [stepShown, liftReason, counterYear, curtainPercent]) {
+      const alone = new Function(`return (${String(fn)})`)() as (...a: unknown[]) => unknown
+      expect(() => alone(0.5, 1, 16, false, CURTAIN_TIMING)).not.toThrow()
+    }
+    expect(PRELOADER_BOOT_SCRIPT).toContain(String(stepShown))
+    expect(PRELOADER_BOOT_SCRIPT).toContain(String(liftReason))
+  })
+})
+
+describe("the CSS fallback lifts after the script's ceiling and finish", () => {
+  it('site.css delays the fallback curtain by exactly PRELOADER_FALLBACK_MS', () => {
     const css = readFileSync(
       join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'),
       'utf8',
     )
     const rule = /html\[data-preload="on"\] \.preloader__lockup \{([^}]*)\}/.exec(css)?.[1] ?? ''
     expect(rule, 'the fallback rule was not found, so nothing was measured').not.toBe('')
-    expect(/animation-delay:\s*(\d+)ms/.exec(rule)?.[1]).toBe(String(PRELOADER_CEILING_MS))
+    expect(/animation-delay:\s*(\d+)ms/.exec(rule)?.[1]).toBe(String(PRELOADER_FALLBACK_MS))
+    expect(PRELOADER_FALLBACK_MS).toBe(PRELOADER_CEILING_MS + PRELOADER_FINISH_MS + 600)
+  })
+})
+
+describe('the curtain leaves gently and never holds the page itself', () => {
+  const css = readFileSync(join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'), 'utf8')
+  const block = (selector: string) =>
+    new RegExp(`${escapeRegExp(selector)} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
+
+  it('fades the year and the mark out over --ui instead of hiding them in one frame (A9)', () => {
+    const rule = block('html[data-preload="lifting"] .preloader__lockup')
+    expect(rule, 'the lifting rule was not found').not.toBe('')
+    expect(rule).toMatch(/opacity:\s*0/)
+    expect(rule).toMatch(/transition:[^;]*opacity var\(--ui\)/)
+  })
+
+  // Review I1 and I2 (12 Nov 2026): the curtain is `inert`, so a `pointer-events: auto` on it took no
+  // tap at all, and had it worked, a curtain stuck on "on" would have eaten every tap for good. The
+  // tap is kept from the page by the driver's click catcher instead (firstArrival.spec.ts proves it
+  // with a real link under the tap), and the curtain itself never takes one.
+  it('never takes a tap itself, so a stuck curtain cannot block the page', () => {
+    expect(block('html[data-preload] .preloader')).toMatch(/pointer-events:\s*none/)
+    expect(css).not.toMatch(/\.preloader \{[^}]*pointer-events:\s*auto/)
+  })
+})
+
+describe('what the curtain reports after it lifts (F3)', () => {
+  it('the whole time it covered the page and why it left', () => {
+    expect(curtainReport({ appearedAt: 1706, liftedAt: 3256.4, reason: 'cap' })).toEqual({
+      shownMs: 1550.4,
+      reason: 'cap',
+    })
+  })
+
+  it('nothing when the curtain never showed or has not lifted', () => {
+    expect(curtainReport(undefined)).toBe(null)
+    expect(curtainReport({ appearedAt: null, liftedAt: 900, reason: 'cap' })).toBe(null)
   })
 })

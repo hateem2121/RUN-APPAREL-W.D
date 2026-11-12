@@ -59,6 +59,12 @@ export const arrived = (to: URL, now: URL) =>
  */
 export const NAV_PROGRESS_DELAY_MS = 400
 
+/**
+ * The waiting mark rests after this long (12 Nov 2026, C1): the same five seconds as the garment
+ * page's 3D mark (apps/viewer lib/motion.ts), for WCAG 2.2 SC 2.2.2. The words stay.
+ */
+export const MOTION_REST_AFTER_MS = 5000
+
 /** Given up after this, so a navigation that was cancelled never leaves the line running. */
 export const NAV_PROGRESS_GIVE_UP_MS = 15_000
 

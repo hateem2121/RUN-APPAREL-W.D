@@ -3129,11 +3129,25 @@ summary.spec-item__row:focus-visible {
   display: grid;
   place-items: center;
   background: var(--bg);
-  clip-path: inset(0 0 0 0);
-  transition: clip-path var(--slow) var(--ease-out-expo);
+  /* The wipe is two opposing slides, both on the compositor (12 Nov 2026, B1). It was a `clip-path`,
+     which the main thread draws: the 3D engine's work froze it 0.16–0.27 s in Chrome. The screen
+     rises while its sheet sinks by the same amount, so the words stand still and only the lower
+     edge moves up, exactly as the clip did. */
+  overflow: clip;
+  transition: translate var(--slow) var(--ease-out-expo);
+}
+.preloader__sheet {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transition: translate var(--slow) var(--ease-out-expo);
 }
 .preloader--exit {
-  clip-path: inset(0 0 100% 0);
+  translate: 0 -100%;
+}
+.preloader--exit .preloader__sheet {
+  translate: 0 100%;
 }
 
 /* ⚠️ A PRODUCT CARD'S PICTURE GROWS INTO THIS LOADING SCREEN (polish MO3, 2026-10-05, the owner's

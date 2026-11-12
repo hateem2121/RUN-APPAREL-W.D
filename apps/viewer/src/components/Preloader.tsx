@@ -1,3 +1,4 @@
+import { loaderTiming, type TrackerWindow } from '@run-apparel/shared'
 import { useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion } from '../lib/capabilities'
 import { PRELOADER_MIN_DWELL_MS, PRELOADER_WIPE_MS } from '../lib/motion'
@@ -37,6 +38,12 @@ export function Preloader({ done, onExited }: PreloaderProps) {
   useEffect(() => {
     if (!done) return
     if (reduce) {
+      loaderTiming(
+        window as unknown as TrackerWindow,
+        'garment_opening',
+        performance.now() - startRef.current,
+        'ready',
+      )
       // No wipe to wait for. Hand back immediately so the page is never held
       // behind an animation that is not going to play.
       onExited()
@@ -61,6 +68,13 @@ export function Preloader({ done, onExited }: PreloaderProps) {
    */
   useEffect(() => {
     if (!exiting) return
+    // How long it covered the page, for PostHog after Accept only (12 Nov 2026, F3).
+    loaderTiming(
+      window as unknown as TrackerWindow,
+      'garment_opening',
+      performance.now() - startRef.current,
+      'ready',
+    )
     const toDone = window.setTimeout(onExited, PRELOADER_WIPE_MS)
     return () => clearTimeout(toDone)
   }, [exiting, onExited])
@@ -81,31 +95,34 @@ export function Preloader({ done, onExited }: PreloaderProps) {
      * them. The live region belongs to <Stage>, where the text genuinely mutates.
      */
     <div className={`preloader${exiting ? ' preloader--exit' : ''}`}>
-      <div className="preloader__grid blueprint" aria-hidden="true" />
-      <div className="preloader__inner">
-        <span className="visually-hidden">Loading the product reference.</span>
-        <span className="label" aria-hidden="true">
-          [ 3D PRODUCT REFERENCE ]
-        </span>
-        {/*
+      {/* The sheet sinks while the screen rises: one edge wiping up, on the compositor (B1). */}
+      <div className="preloader__sheet">
+        <div className="preloader__grid blueprint" aria-hidden="true" />
+        <div className="preloader__inner">
+          <span className="visually-hidden">Loading the product reference.</span>
+          <span className="label" aria-hidden="true">
+            [ 3D PRODUCT REFERENCE ]
+          </span>
+          {/*
           S4, the woven mark, since 31 Oct 2026 (D51). Indeterminate, not a percentage: it says "working" without claiming
           an amount nobody has measured. Omitted entirely under reduced motion —
           a sweep that cannot sweep is a bar frozen at one width, which reads as
           a stalled download. The sentence below carries the meaning either way.
         */}
-        {!reduce && (
-          <span className="preloader__rule preloader__rule--indeterminate" aria-hidden="true">
-            <LoomMark id="opening-loom" />
-          </span>
-        )}
-        {/* "PREPARING…" — this covers the CMS data fetch, and naming nothing is
+          {!reduce && (
+            <span className="preloader__rule preloader__rule--indeterminate" aria-hidden="true">
+              <LoomMark id="opening-loom" />
+            </span>
+          )}
+          {/* "PREPARING…" — this covers the CMS data fetch, and naming nothing is
             the honest option. It said "PREPARING REFERENCE…" while <Stage> said
             "LOADING REFERENCE" for a different, longer event, so one noun stood
             for two operations seconds apart. Stage now says "3D MODEL"; this
             names the only thing it can truthfully name, which is nothing. */}
-        <span className="mono preloader__status" aria-hidden="true">
-          PREPARING…
-        </span>
+          <span className="mono preloader__status" aria-hidden="true">
+            PREPARING…
+          </span>
+        </div>
       </div>
     </div>
   )

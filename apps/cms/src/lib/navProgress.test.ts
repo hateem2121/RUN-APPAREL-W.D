@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   arrived,
   type ClickLike,
   clientNavigationTarget,
+  MOTION_REST_AFTER_MS,
   NAV_PROGRESS_DELAY_MS,
   satinOrder,
   weavePicks,
@@ -97,5 +100,20 @@ describe('the woven tap', () => {
       expect(new Set(satinOrder(n)).size).toBe(n)
       expect(Math.max(...satinOrder(n))).toBe(n - 1)
     }
+  })
+})
+
+describe('the waiting mark in the weave rests after five seconds (12 Nov 2026, C1)', () => {
+  it('rests after the same five seconds as the garment page mark (WCAG 2.2 SC 2.2.2)', () => {
+    expect(MOTION_REST_AFTER_MS).toBe(5000)
+  })
+
+  it('site.css stops the mark once the weave carries data-rest', () => {
+    const css = readFileSync(
+      join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'),
+      'utf8',
+    )
+    const rule = /\.nav-weave\[data-rest\] \.loom-mark__pick \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(rule, 'the resting rule was not found').toMatch(/animation:\s*none/)
   })
 })

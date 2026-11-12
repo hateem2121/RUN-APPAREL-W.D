@@ -1,4 +1,5 @@
 import { FAMILY_PAGE_SOURCES, GUIDE_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { afterCurtain } from './curtain'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -117,6 +118,7 @@ test.describe('the cookie choice', () => {
     await liftAutomationGate(context)
     const outside = await watch(page)
     await page.goto('/')
+    await afterCurtain(page)
     await banner(page).getByRole('button', { name: 'Decline' }).click()
     await expect(banner(page)).toHaveCount(0)
     expect((await stored(page)).local).toEqual({ 'run-consent': 'declined' })
@@ -138,6 +140,7 @@ test.describe('the cookie choice', () => {
     await liftAutomationGate(context)
     const outside = await watch(page)
     await page.goto('/')
+    await afterCurtain(page)
     await banner(page).getByRole('button', { name: 'Accept' }).click()
     await expect(banner(page)).toHaveCount(0)
     await expect.poll(() => outside).toContain(GA_SCRIPT)
@@ -191,6 +194,7 @@ test.describe('the cookie choice', () => {
     await liftAutomationGate(context)
     const outside = await watch(page)
     await page.goto('/')
+    await afterCurtain(page)
     await banner(page).getByRole('button', { name: 'Accept' }).click()
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
     await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
@@ -245,6 +249,7 @@ test.describe('the cookie choice', () => {
     await liftAutomationGate(context)
     const outside = await watch(page)
     await page.goto('/privacy')
+    await afterCurtain(page)
     await banner(page).getByRole('button', { name: 'Accept' }).click()
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
     await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
@@ -420,6 +425,7 @@ test.describe('the cookie choice', () => {
     await liftAutomationGate(context)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/privacy')
+    await afterCurtain(page)
     await expect(banner(page)).toBeVisible()
 
     await page.keyboard.press(tabKey(browserName))
@@ -438,6 +444,7 @@ test.describe('the cookie choice', () => {
     // From a fresh load at the top, as a visitor arrives: there <main> starts under the bar,
     // which is where a lift capped only at its top still moved the page (60px, 2026-10-01).
     await page.goto('/privacy')
+    await afterCurtain(page)
     await expect(banner(page)).toBeVisible()
     const before = await page.evaluate(() => Math.round(window.scrollY))
     // A raw mouse click on a paragraph already on screen: `locator.click()` scrolls its
@@ -483,6 +490,7 @@ test.describe('the cookie choice', () => {
   }) => {
     await liftAutomationGate(context)
     await page.goto('/terms')
+    await afterCurtain(page)
     await banner(page).getByRole('button', { name: 'Decline' }).click()
     await expect(banner(page)).toHaveCount(0)
     const link = page.locator('.footer-legal').getByRole('link', { name: 'Cookies' })
@@ -515,6 +523,7 @@ test.describe('the cookie choice', () => {
     await liftAutomationGate(context)
     await watch(page)
     await page.goto('/')
+    await afterCurtain(page)
     await banner(page).getByRole('button', { name: 'Decline' }).click()
     await expect(banner(page)).toHaveCount(0)
     await page.evaluate(() => {
@@ -660,6 +669,7 @@ test.describe('the room kept for the cookie question (VA-25, polish M2)', () => 
     await liftAutomationGate(context)
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
+    await afterCurtain(page)
     await expect(banner(page)).toBeVisible()
     const open = await readFoot(page)
     expect(open.aboveMark, 'the room is not the 11rem the card needs').toBe('176px')

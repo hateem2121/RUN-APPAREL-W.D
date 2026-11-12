@@ -6,6 +6,7 @@ import {
   arrived,
   clientNavigationTarget,
   NAV_PROGRESS_DELAY_MS,
+  MOTION_REST_AFTER_MS,
   NAV_PROGRESS_GIVE_UP_MS,
   satinOrder,
   weavePicks,
@@ -62,6 +63,7 @@ export function NavProgress() {
       )
       setWords(to.pathname === '/' ? 'Loading Home…' : `Loading ${titleOf(to.pathname)}…`)
       el.removeAttribute('data-weave')
+      el.removeAttribute('data-rest')
       void el.offsetWidth
       el.dataset.weave = 'cover'
       laidAt = performance.now() + total
@@ -69,6 +71,10 @@ export function NavProgress() {
         window.setTimeout(() => {
           el.dataset.weave = 'hold'
         }, 1000),
+        // The mark rests after five seconds of holding (C1, WCAG 2.2 SC 2.2.2); the words stay.
+        window.setTimeout(() => {
+          el.dataset.rest = 'true'
+        }, 1000 + MOTION_REST_AFTER_MS),
       )
     }
     const liftWeave = () => {
@@ -111,8 +117,9 @@ export function NavProgress() {
       )
       if (!to) return
       clear()
-      layWeave(to)
       timers.current.push(
+        // The weave waits like the line (12 Nov 2026, D1): a page that arrives sooner is never woven.
+        window.setTimeout(() => layWeave(to), NAV_PROGRESS_DELAY_MS),
         window.setTimeout(() => setState('loading'), NAV_PROGRESS_DELAY_MS),
         window.setTimeout(finish, NAV_PROGRESS_GIVE_UP_MS),
       )

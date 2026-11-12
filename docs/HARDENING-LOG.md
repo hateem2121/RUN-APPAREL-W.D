@@ -1265,3 +1265,22 @@ screens). Four custom properties nothing in the viewer reads are used by the web
 Two tests that read the shell's stylesheet link (`related.spec.ts`, `vibecoded.spec.ts`) now read its `<style>`
 too, and RO-08 checks the shell links no `/assets/` stylesheet, because its 2,400 ms ceiling would no longer
 see the link come back.
+
+## The pause when a garment's 3D first appears: measured, left alone (2026-11-12)
+
+The loading-screens fix (plan `docs/superpowers/plans/2026-11-12-loading-screens-fix.md`, Task 10) asked
+whether the page's longest freeze, the moment the downloaded garment is first drawn, was ours to fix.
+A first Chrome trace said 1.35 s; that trace drew 3D in software. Re-measured on the live
+`/products/rxps/wine` with the Mac's real graphics (ANGLE Metal), a phone screen and the processor slowed
+4x, two runs, Long Animation Frame attribution:
+
+| run | model ready by | longest frame | model-viewer's promise work | one frame callback |
+|---|---|---|---|---|
+| 1 | 2,473 ms | 409 ms | 106 ms | 288 ms |
+| 2 | 2,262 ms | 408 ms | 108 ms | 280 ms |
+
+The frame callback is attributed to Sentry's bundle (`prod-*.js`) only because Sentry's browser integration
+wraps every `requestAnimationFrame` callback; the work inside is model-viewer drawing the 2.4-million-triangle
+garment for the first time (geometry upload and shader compile). No time was attributed to the app's own
+bundle (`index-*.js`). So there is nothing of ours to move: the real lever is the topstitch geometry (98.9%
+of the triangles, `.claude/rules/viewer-model-viewer.md`), which is pipeline work outside this fix.

@@ -114,3 +114,25 @@ describe('Preloader progress reporting', () => {
     expect(container.textContent ?? '').not.toMatch(/\d+\s*%/)
   })
 })
+
+describe('Preloader timing for PostHog (12 Nov 2026, F3)', () => {
+  it('reports how long it covered the page when it starts to leave, after Accept only', () => {
+    vi.useFakeTimers()
+    const seen: Array<[string, Record<string, unknown>]> = []
+    const w = window as unknown as { posthog?: unknown; runTrackersStarted?: boolean }
+    w.posthog = {
+      capture: (name: string, props: Record<string, unknown>) => seen.push([name, props]),
+    }
+    w.runTrackersStarted = true
+    render({ done: false, onExited: () => {} })
+    act(() => vi.advanceTimersByTime(1200))
+    render({ done: true, onExited: () => {} })
+    act(() => vi.advanceTimersByTime(10))
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.[0]).toBe('loader_timing')
+    expect(seen[0]?.[1]).toMatchObject({ loader: 'garment_opening', reason: 'ready' })
+    delete w.posthog
+    delete w.runTrackersStarted
+    vi.useRealTimers()
+  })
+})

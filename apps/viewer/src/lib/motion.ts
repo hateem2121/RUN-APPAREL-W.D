@@ -29,6 +29,20 @@ export const PRELOADER_WIPE_MS = 800
 export const PRELOADER_MIN_DWELL_MS = 400
 
 /**
+ * The longest the opening screen waits, once the garment's data is in, for the stage's picture
+ * (12 Nov 2026, B2; lib/firstPicture.ts). A perception cap, not a token: the largest catalogue
+ * picture (187 KB) lands in about 1.5 s on Slow 4G (pictureFirst.ts has the arithmetic).
+ */
+export const PRELOADER_PICTURE_WAIT_MS = 1500
+
+/**
+ * How long a looping loader mark may move before it rests (12 Nov 2026, C1; owner's choice). WCAG 2.2
+ * SC 2.2.2: motion that starts by itself and lasts over five seconds beside other content needs a way
+ * to stop; resting after five is that way. The numbers beside it keep moving.
+ */
+export const MOTION_REST_AFTER_MS = 5000
+
+/**
  * Hover intent before a colourway preview is applied to the model.
  *
  * Not a token either. Rebinding a variant swaps every material on the model,

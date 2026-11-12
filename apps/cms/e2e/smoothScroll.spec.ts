@@ -1,3 +1,4 @@
+import { afterCurtain } from './curtain'
 import { expect, type Page, test } from './offlineMedia'
 
 /**
@@ -17,6 +18,7 @@ async function openAsHuman(page: Page, path: string) {
   await page.addInitScript(asAHuman)
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto(path)
+  await afterCurtain(page)
   await expect
     .poll(() => page.evaluate(() => document.documentElement.classList.contains('lenis')), {
       message:
