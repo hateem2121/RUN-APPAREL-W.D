@@ -59,3 +59,58 @@ test('under automation there is no curtain', async ({ page, browserName }) => {
   await page.goto('/')
   await expect(page.locator('.preloader')).toBeHidden()
 })
+
+/*
+ * A visitor who acts ends the curtain (12 Nov 2026, A5 and A8). Live, Tab twice under the curtain
+ * focused "RUN APPAREL" and "Products" behind it (WCAG 2.2 SC 2.4.11), and a tap reached whatever
+ * lay under it. Now a key or a tap finishes the roll and lifts it at once, and the tap is kept.
+ */
+test.describe('a visitor who acts ends the curtain', () => {
+  test.beforeEach(async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'one engine: the rule is in the inline script')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    })
+    await page.goto('/', { waitUntil: 'commit' })
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-preload')))
+      .toBe('on')
+  })
+
+  test('Tab lifts it within 400 ms, so focus never sits under it', async ({ page }) => {
+    await page.keyboard.press('Tab')
+    const pressedAt = Date.now()
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-preload')), {
+        timeout: 400,
+        intervals: [50],
+      })
+      .not.toBe('on')
+    expect(Date.now() - pressedAt).toBeLessThanOrEqual(400)
+    await page.keyboard.press('Tab')
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.hasAttribute('data-preload')))
+      .toBe(false)
+    const covered = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null
+      if (!el || el === document.body) return 'nothing focused'
+      const r = el.getBoundingClientRect()
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return top && (top === el || el.contains(top) || top.contains(el)) ? 'visible' : 'covered'
+    })
+    expect(covered).toBe('visible')
+  })
+
+  test('a tap ends it and does not follow a link hidden under it', async ({ page }) => {
+    const before = page.url()
+    await page.mouse.click(200, 300)
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-preload')), {
+        timeout: 400,
+        intervals: [50],
+      })
+      .not.toBe('on')
+    expect(page.url()).toBe(before)
+  })
+})

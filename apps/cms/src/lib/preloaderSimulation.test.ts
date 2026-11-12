@@ -21,14 +21,16 @@ type Page = {
   fontsAt?: number
   parsedAt?: number
   hiddenUntil?: number
-  actAt?: number
+  act?: { at: number; type: string }
   endAt?: number
 }
 type Frame = { t: number; state: string; year: string; pct: string }
 
 const THIS_YEAR = new Date().getFullYear()
 
-async function simulate(page: Page): Promise<{ frames: Frame[]; layoutReads: number }> {
+async function simulate(
+  page: Page,
+): Promise<{ frames: Frame[]; layoutReads: number; prevented: boolean }> {
   let now = page.bootAt
   let layoutReads = 0
   const attributes = new Map<string, string>()
@@ -116,12 +118,18 @@ async function simulate(page: Page): Promise<{ frames: Frame[]; layoutReads: num
   }
   new Function(...Object.keys(scope), PRELOADER_BOOT_SCRIPT)(...Object.values(scope))
 
+  const actEvent = {
+    prevented: false,
+    preventDefault() {
+      actEvent.prevented = true
+    },
+  }
   const frames: Frame[] = []
   const end = page.endAt ?? 9000
   while (now < end) {
     now += 16
-    if (page.actAt !== undefined && now >= page.actAt && now < page.actAt + 16) {
-      for (const fn of listeners.get('keydown') ?? []) fn({ preventDefault() {} })
+    if (page.act && now >= page.act.at && now < page.act.at + 16) {
+      for (const fn of listeners.get(page.act.type) ?? []) fn(actEvent)
     }
     for (const timer of timers.filter((x) => x.at <= now)) {
       timers.splice(timers.indexOf(timer), 1)
@@ -142,7 +150,7 @@ async function simulate(page: Page): Promise<{ frames: Frame[]; layoutReads: num
       pct: pct.textContent,
     })
   }
-  return { frames, layoutReads }
+  return { frames, layoutReads, prevented: actEvent.prevented }
 }
 
 function summary(frames: Frame[]) {
@@ -245,5 +253,33 @@ describe('the shipped curtain, replayed on a fake clock', () => {
       parsedAt: 300,
     })
     expect(layoutReads).toBe(0)
+  })
+})
+
+describe('a visitor who acts ends the curtain (A5, A8)', () => {
+  for (const type of ['keydown', 'pointerdown']) {
+    it(`a ${type} during the show finishes the roll and lifts within a quarter second`, async () => {
+      const { frames } = await simulate({
+        bootAt: 150,
+        pictures: [{ finishAt: 9000 }],
+        parsedAt: 300,
+        act: { at: 700, type },
+      })
+      const lift = frames.find((f) => f.state === 'lifting')
+      expect(lift?.t).toBeLessThanOrEqual(700 + PRELOADER_FINISH_MS + 48)
+      expect(lift?.year, 'this year is on screen as it fades (site.css lifting fade)').toBe(
+        String(THIS_YEAR),
+      )
+    })
+  }
+
+  it('a tap on the curtain does not pass through to the page under it', async () => {
+    const { prevented } = await simulate({
+      bootAt: 150,
+      pictures: [{ finishAt: 9000 }],
+      parsedAt: 300,
+      act: { at: 700, type: 'pointerdown' },
+    })
+    expect(prevented).toBe(true)
   })
 })

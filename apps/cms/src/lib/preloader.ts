@@ -131,7 +131,11 @@ const DRIVER = [
   'function paint(){var y=q(".preloader__year"),p=q(".preloader__pct"),r=document.querySelectorAll(".preloader .loom-mark__pick"),i;',
   'if(y)y.textContent=String(counterYear(shown,S,Y));if(p)p.textContent=curtainPercent(shown)+"%";',
   'for(i=0;i<r.length;i++)r[i].style.transform="scaleX("+Math.min(1,Math.max(0,5*shown-i))+")"}',
-  'function end(t,why,quiet){done=true;window.__runCurtain={appearedAt:A,liftedAt:t,reason:why};',
+  // A key, a tap, a wheel or a touch ends the show (12 Nov 2026, A5): Tab had focused links hidden under it.
+  // The tap itself is kept from the page: the curtain takes it (site.css) and its default is stopped.
+  'var EV=["keydown","wheel","touchstart"],act=function(){acted=true},tap=function(e){acted=true;e.preventDefault()},i0;',
+  'for(i0=0;i0<EV.length;i0++)document.addEventListener(EV[i0],act,{passive:true});document.addEventListener("pointerdown",tap);',
+  'function end(t,why,quiet){done=true;for(i0=0;i0<EV.length;i0++)document.removeEventListener(EV[i0],act);document.removeEventListener("pointerdown",tap);window.__runCurtain={appearedAt:A,liftedAt:t,reason:why};',
   'if(quiet){H.removeAttribute("data-preload");return}',
   'H.setAttribute("data-preload","lifting");setTimeout(function(){H.removeAttribute("data-preload")},600)}',
   'function frame(t){if(done)return;if(A===null){A=t;L=t}var since=t-A,capped=acted||since>=T.ceiling;',
@@ -139,7 +143,7 @@ const DRIVER = [
   'if(since>=T.fallback){end(t,"cap",true);return}',
   'if(t-scanned>=250)scan(t);if(capped)target=1;shown=stepShown(shown,target,t-L,capped,T);L=t;paint();if(shown>=1&&F===null)F=t;',
   // This year stays on screen for a beat before the lift: 2026 was otherwise drawn in the lifting frame only.
-  'var why=F!==null&&t-F>=T.hold?liftReason({sinceAppearMs:since,ready:ready,shown:shown,interacted:acted},T):null;',
+  'var why=acted||(F!==null&&t-F>=T.hold)?liftReason({sinceAppearMs:since,ready:ready,shown:shown,interacted:acted},T):null;',
   'if(why){end(t,why,false);return}requestAnimationFrame(frame)}',
   'requestAnimationFrame(frame)',
 ]
